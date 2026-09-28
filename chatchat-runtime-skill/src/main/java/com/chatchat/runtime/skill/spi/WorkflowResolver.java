@@ -8,8 +8,16 @@ import java.util.List;
 import java.util.Map;
 
 public interface WorkflowResolver {
-    ResolvedWorkflow resolve(ResolvedSkill skill, AuthorizedSkillScope scope,
-                             SkillRoleContext roleContext, Map<String, Object> intent);
+    WorkflowResolution resolve(ResolvedSkill skill, AuthorizedSkillScope scope,
+                               SkillRoleContext roleContext, Map<String, Object> intent);
+
+    record WorkflowResolution(ResolvedWorkflow workflow, String status, Map<String, Object> diagnostics) {
+        public WorkflowResolution {
+            status = status == null || status.isBlank() ? "UNRESOLVED" : status.trim();
+            diagnostics = diagnostics == null ? Map.of() : Map.copyOf(diagnostics);
+        }
+        public boolean resolved() { return workflow != null; }
+    }
 
     record ResolvedWorkflow(String workflowId, WorkflowType type, List<String> requiredCapabilities,
                             Map<String, Object> configuration) {

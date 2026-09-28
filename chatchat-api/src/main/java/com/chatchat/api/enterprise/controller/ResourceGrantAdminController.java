@@ -33,7 +33,8 @@ import static com.chatchat.common.constants.TenantConstants.PLATFORM_TENANT_NO;
 public class ResourceGrantAdminController {
     private static final Set<String> RESOURCE_TYPES = Set.of(ResourceAuthorizationPort.KNOWLEDGE,
         ResourceAuthorizationPort.KNOWLEDGE_BASE, ResourceAuthorizationPort.MCP_TOOL,
-        ResourceAuthorizationPort.SKILL, ResourceAuthorizationPort.AGENT_SKILL);
+        ResourceAuthorizationPort.SKILL, ResourceAuthorizationPort.AGENT_SKILL,
+        ResourceAuthorizationPort.WORKFLOW);
     private static final Set<String> PRINCIPAL_TYPES = Set.of("TENANT", "ROLE", "USER");
     private static final Set<String> EFFECTS = Set.of("ALLOW", "DENY");
     private final ResourceGrantRepository repository;

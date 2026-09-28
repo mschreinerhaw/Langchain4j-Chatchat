@@ -54,7 +54,8 @@ public class DatabaseRuntimeSkillPolicy implements SkillPolicy {
             List.copyOf(explicitlyAllowed(ResourceAuthorizationPort.KNOWLEDGE_BASE, context, knowledgeBases)),
             List.copyOf(explicitlyAllowed(ResourceAuthorizationPort.MCP_TOOL, context, mcpTools)),
             List.copyOf(explicitlyAllowed(ResourceAuthorizationPort.AGENT_SKILL, context, agents)),
-            List.of(), List.of());
+            List.copyOf(explicitlyAllowed(ResourceAuthorizationPort.WORKFLOW, context, workflows)),
+            List.of());
     }
 
     private Set<String> ids(List<SkillResourceScope> bindings, String type) {

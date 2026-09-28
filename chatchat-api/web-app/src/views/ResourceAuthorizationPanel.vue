@@ -3,8 +3,8 @@
     <header class="resource-auth-head">
       <div>
         <p>资源授权</p>
-        <h2>角色、Agent 与文档范围</h2>
-        <small>先选同一角色和 Agent，再分别查看角色绑定、执行授权与该 Agent 的文档范围；文档读取仍取角色文档授权和 Agent 范围的交集。</small>
+        <h2>角色、Agent 与资源范围</h2>
+        <small>先选同一角色和 Agent，再分别查看角色绑定、执行授权与该 Agent 的资源范围；运行时只使用角色授权和 Skill 范围的交集。</small>
       </div>
     </header>
 
@@ -29,11 +29,11 @@
       <b>→</b>
       <span>执行资源授权 <strong>{{ !roleId || !skillId || !agentGrantLoaded ? "待查看" : selectedAgentGranted ? "已显式授权" : "未显式授权" }}</strong></span>
       <b>→</b>
-      <span>Agent 文档范围 <strong>{{ !skillId || !scopeLoaded ? "待查看" : scopes.length ? `${enabledScopes.length} 项启用` : "未单独配置" }}</strong></span>
+      <span>Agent 资源范围 <strong>{{ !skillId || !scopeLoaded ? "待查看" : scopes.length ? `${enabledScopes.length} 项启用` : "未单独配置" }}</strong></span>
     </div>
     <p v-if="skillId && roleId" class="resource-auth-explanation">
       当前查看：<strong>{{ selectedRoleName }}</strong> × <strong>{{ selectedSkillName }}</strong>。
-      角色绑定用于角色管理及 Agent API；左侧执行资源授权用于分析准入；右侧范围只限制 Agent 可读取的文档，不会增加角色的文档权限。
+      角色绑定用于角色管理及 Agent API；左侧授权决定角色可用资源；右侧范围限制当前 Agent 可请求的资源，不会扩大角色权限。
     </p>
 
     <div class="resource-auth-columns">
@@ -46,7 +46,7 @@
           <input v-model.trim="query" type="search" placeholder="筛选当前页名称或 ID" />
           <button type="button" @click="reload">刷新</button>
         </div>
-        <p class="resource-auth-hint">勾选后立即保存。Agent Skill 授权与角色管理中的 Agent 绑定是不同配置；点击“查看范围”可在右侧查看同一个 Agent。</p>
+        <p class="resource-auth-hint">勾选后立即保存。所有授权均写入数据库角色关系；点击“查看范围”可在右侧查看同一个 Agent。</p>
         <div v-if="loading" class="resource-auth-empty">正在加载…</div>
         <div v-else-if="!roleId" class="resource-auth-empty">请先选择角色</div>
         <div v-else-if="!grantItems.length" class="resource-auth-empty">没有匹配的资源</div>
@@ -68,16 +68,15 @@
       </div>
 
       <div class="resource-auth-card">
-        <h3>② {{ selectedSkillName }}的文档范围</h3>
+        <h3>② {{ selectedSkillName }}的资源范围</h3>
         <div class="resource-auth-kinds">
-          <button type="button" :class="{ active: scopeKind === 'KNOWLEDGE_BASE' }" @click="scopeKind = 'KNOWLEDGE_BASE'">文档分类</button>
-          <button type="button" :class="{ active: scopeKind === 'DOCUMENT' }" @click="scopeKind = 'DOCUMENT'">单篇文档</button>
+          <button v-for="kind in scopeKinds" :key="kind.value" type="button" :class="{ active: scopeKind === kind.value }" @click="scopeKind = kind.value">{{ kind.label }}</button>
         </div>
         <div class="resource-auth-tools">
           <input v-model.trim="scopeQuery" type="search" placeholder="筛选当前页名称或 ID" />
           <button type="button" @click="reload">刷新</button>
         </div>
-        <p class="resource-auth-hint">只配置顶部选中的 Agent。文档范围不授予角色执行权限，也不扩大角色本身可读的文档。</p>
+        <p class="resource-auth-hint">只配置顶部选中的 Agent。范围关系不会授予角色权限；运行时还会再次校验角色对每项资源的数据库授权。</p>
         <div v-if="loading" class="resource-auth-empty">正在加载…</div>
         <div v-else-if="!skillId" class="resource-auth-empty">请先选择 Agent Skill</div>
         <div v-else-if="!scopeItems.length" class="resource-auth-empty">没有匹配的资源</div>
@@ -92,7 +91,7 @@
           <span>{{ documentPage }} / {{ documentPages }}</span>
           <button type="button" :disabled="documentPage >= documentPages || loading" @click="documentPage++">下一页</button>
         </div>
-        <p v-if="skillId" class="resource-auth-count">{{ scopes.length ? `已配置 ${scopes.length} 项范围，其中 ${enabledScopes.length} 项启用` : "未配置 Agent 附加范围，仅按角色资源授权" }}。实际可读文档始终由角色文档授权决定。</p>
+        <p v-if="skillId" class="resource-auth-count">{{ scopes.length ? `已配置 ${scopes.length} 项范围，其中 ${enabledScopes.length} 项启用` : "未配置 Agent 资源范围" }}。实际可用资源始终由角色授权与此范围共同决定。</p>
       </div>
     </div>
   </section>
@@ -101,7 +100,7 @@
 <script>
 import {
   createResourceGrant, createSkillResourceScope, deleteResourceGrant,
-  deleteSkillResourceScope, fetchDomainSkills, fetchResearchLibrary,
+  deleteSkillResourceScope, fetchDomainSkills, fetchMcpRegisteredTools, fetchResearchLibrary,
   fetchResourceGrants, fetchRoleAuthorization, fetchSkillResourceScopes
 } from "../services/api";
 import "../styles/pages/resource-authorization.css";
@@ -109,8 +108,18 @@ import "../styles/pages/resource-authorization.css";
 const grantKinds = [
   { value: "AGENT_SKILL", label: "Agent Skill" },
   { value: "SKILL", label: "领域 Skill" },
+  { value: "MCP_TOOL", label: "MCP 工具" },
+  { value: "WORKFLOW", label: "工作流" },
   { value: "KNOWLEDGE_BASE", label: "文档分类" },
   { value: "KNOWLEDGE", label: "单篇文档" }
+];
+
+const scopeKinds = [
+  { value: "KNOWLEDGE_BASE", label: "文档分类" },
+  { value: "DOCUMENT", label: "单篇文档" },
+  { value: "MCP_TOOL", label: "MCP 工具" },
+  { value: "AGENT", label: "Agent" },
+  { value: "WORKFLOW", label: "工作流" }
 ];
 
 export default {
@@ -123,12 +132,12 @@ export default {
   },
   data() {
     return {
-      grantKinds, roleId: this.initialRoleId || this.roles[0]?.id || "",
+      grantKinds, scopeKinds, roleId: this.initialRoleId || this.roles[0]?.id || "",
       skillId: "", grantKind: "AGENT_SKILL", scopeKind: "KNOWLEDGE_BASE",
       query: "", scopeQuery: "", documentPage: 1, documentPages: 1,
-      categories: [], documents: [], domainSkills: [], grants: [], agentGrants: [], scopes: [],
+      categories: [], documents: [], domainSkills: [], mcpTools: [], grants: [], agentGrants: [], scopes: [],
       roleAgentIds: [], roleBindingLoaded: false, agentGrantLoaded: false, scopeLoaded: false,
-      loading: false, busyKey: "", notice: "", failed: false, requestVersion: 0
+      loading: false, busyKey: "", notice: "", failed: false, requestVersion: 0, noticeTimer: null
     };
   },
   computed: {
@@ -146,15 +155,34 @@ export default {
       return { id: String(name || "").trim().toLowerCase(), name: name || "未分类" };
     }).filter((item) => item.id); },
     documentItems() { return this.documents.filter((doc) => doc.docId).map((doc) => ({ id: String(doc.docId), name: doc.title || doc.fileName || doc.docId })); },
+    mcpToolItems() { return this.mcpTools.map((tool) => {
+      const id = tool.localToolName || tool.toolName || tool.name || tool.id;
+      return { id: String(id || ""), name: tool.displayName || tool.description || id };
+    }).filter((item) => item.id); },
+    workflowItems() {
+      const values = new Map();
+      this.agents.forEach((agent) => {
+        const id = agent.workflowId || agent.workflowConfig?.workflowId || agent.workflowConfig?.workflow_id;
+        if (id) values.set(String(id), { id: String(id), name: agent.workflowConfig?.name || String(id) });
+      });
+      this.scopes.filter((scope) => scope.resourceType === "WORKFLOW").forEach((scope) =>
+        values.set(String(scope.resourceId), { id: String(scope.resourceId), name: String(scope.resourceId) }));
+      return [...values.values()];
+    },
     grantItems() {
       const items = this.grantKind === "AGENT_SKILL" ? this.agentItems
         : this.grantKind === "SKILL" ? this.skillItems
+          : this.grantKind === "MCP_TOOL" ? this.mcpToolItems
+            : this.grantKind === "WORKFLOW" ? this.workflowItems
           : this.grantKind === "KNOWLEDGE_BASE" ? this.categoryItems : this.documentItems;
       const q = this.query.toLowerCase();
       return q ? items.filter((item) => `${item.name} ${item.id}`.toLowerCase().includes(q)) : items;
     },
     scopeItems() {
-      const items = this.scopeKind === "DOCUMENT" ? this.documentItems : this.categoryItems;
+      const items = this.scopeKind === "DOCUMENT" ? this.documentItems
+        : this.scopeKind === "KNOWLEDGE_BASE" ? this.categoryItems
+          : this.scopeKind === "MCP_TOOL" ? this.mcpToolItems
+            : this.scopeKind === "AGENT" ? this.agentItems : this.workflowItems;
       const q = this.scopeQuery.toLowerCase();
       return q ? items.filter((item) => `${item.name} ${item.id}`.toLowerCase().includes(q)) : items;
     }
@@ -168,8 +196,16 @@ export default {
     documentPage() { this.loadCatalog(); }
   },
   mounted() { this.reload(); },
+  beforeUnmount() { if (this.noticeTimer) clearTimeout(this.noticeTimer); },
   methods: {
-    showError(error) { this.notice = error?.message || "操作失败"; this.failed = true; },
+    showNotice(message, failed = false) {
+      if (this.noticeTimer) clearTimeout(this.noticeTimer);
+      this.notice = message; this.failed = failed;
+      this.noticeTimer = setTimeout(() => {
+        this.notice = ""; this.failed = false; this.noticeTimer = null;
+      }, failed ? 5000 : 3000);
+    },
+    showError(error) { this.showNotice(error?.message || "操作失败", true); },
     hasGrant(id) { return this.grants.some((grant) => grant.resourceId === id && grant.principalType === "ROLE" && grant.principalId === this.roleId && grant.effect === "ALLOW" && grant.enabled); },
     hasScope(id) { return this.scopes.some((scope) => scope.resourceType === this.scopeKind && scope.resourceId === id && scope.enabled); },
     async reload() { await Promise.all([this.loadCatalog(), this.loadGrants(), this.loadAgentGrants(), this.loadRoleBindings(), this.loadScopes()]); },
@@ -202,15 +238,17 @@ export default {
       const version = ++this.requestVersion;
       this.loading = true;
       try {
-        const [library, skills] = await Promise.all([
+        const [library, skills, tools] = await Promise.all([
           fetchResearchLibrary({ tenantId: this.tenantId, page: this.documentPage, pageSize: 20 }),
-          this.loadAllDomainSkills()
+          this.loadAllDomainSkills(),
+          fetchMcpRegisteredTools()
         ]);
         if (version !== this.requestVersion) return;
         this.categories = Array.isArray(library?.categories) ? library.categories : [];
         this.documents = Array.isArray(library?.documents) ? library.documents : [];
         this.documentPages = Math.max(1, Number(library?.totalPages) || 1);
         this.domainSkills = skills;
+        this.mcpTools = Array.isArray(tools) ? tools : [];
       } catch (error) { if (version === this.requestVersion) this.showError(error); }
       finally { if (version === this.requestVersion) this.loading = false; }
     },
@@ -262,7 +300,7 @@ export default {
           await Promise.all(matches.map((grant) => deleteResourceGrant(grant.id)));
         }
         await this.loadGrants();
-        this.notice = "角色授权已保存"; this.failed = false;
+        this.showNotice("角色授权已保存");
       } catch (error) { this.showError(error); await this.loadGrants(); }
       finally { this.busyKey = ""; }
     },
@@ -279,7 +317,7 @@ export default {
           await Promise.all(matches.map((scope) => deleteSkillResourceScope(scope.id)));
         }
         await this.loadScopes();
-        this.notice = "Skill 文档范围已保存"; this.failed = false;
+        this.showNotice("Skill 资源范围已保存");
       } catch (error) { this.showError(error); await this.loadScopes(); }
       finally { this.busyKey = ""; }
     }

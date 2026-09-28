@@ -1543,7 +1543,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         boolean permissionModelMigrationRequired = permissionRepository
             .findByPermissionCode("system:api:all").isEmpty();
         boolean resourceGrantMigrationRequired = permissionRepository
-            .findByPermissionCode("system:resource-grants:model:v1").isEmpty();
+            .findByPermissionCode("system:resource-grants:model:v2").isEmpty();
         boolean systemMenuOrderMigrationRequired = permissionRepository
             .findByPermissionCode("system:menu-order:v2").isEmpty();
         List<SysPermission> permissions = ensureDefaultPermissions();
@@ -1839,6 +1839,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         List<PermissionSeed> seeds = List.of(
             new PermissionSeed(null, "system:api:all", "系统全部接口权限", "api", "/api/v1/**", "*", "shield", 1),
             new PermissionSeed(null, "system:resource-grants:model:v1", "资源授权模型 V1", "internal", null, null, null, 1),
+            new PermissionSeed(null, "system:resource-grants:model:v2", "资源授权模型 V2", "internal", null, null, null, 2),
             new PermissionSeed(null, "system:menu-order:v2", "系统菜单排序 V2", "internal", null, null, null, 1),
             new PermissionSeed(null, "account:self:read", "当前账户", "api", "/api/v1/enterprise/auth/me", "GET", "user", 2),
             new PermissionSeed(null, "account:menus:read", "当前账户菜单", "api", "/api/v1/enterprise/menus", "GET", "menu", 3),
@@ -2105,7 +2106,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
             ResourceAuthorizationPort.KNOWLEDGE_BASE,
             ResourceAuthorizationPort.MCP_TOOL,
             ResourceAuthorizationPort.SKILL,
-            ResourceAuthorizationPort.AGENT_SKILL
+            ResourceAuthorizationPort.AGENT_SKILL,
+            ResourceAuthorizationPort.WORKFLOW
         )) {
             boolean exists = resourceGrantRepository
                 .findByTenantIdAndResourceTypeOrderByUpdatedAtDesc(tenantId, resourceType).stream()

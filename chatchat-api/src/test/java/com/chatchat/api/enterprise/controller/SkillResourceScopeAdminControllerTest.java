@@ -13,6 +13,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -55,5 +56,24 @@ class SkillResourceScopeAdminControllerTest {
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("Cross-tenant");
         verifyNoInteractions(repository);
+    }
+
+    @Test
+    void acceptsDatabaseGovernedWorkflowScope() {
+        SkillResourceScopeRepository repository = mock(SkillResourceScopeRepository.class);
+        EnterpriseAdminService admin = mock(EnterpriseAdminService.class);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)).thenReturn("user-a");
+        when(admin.getUserView("user-a")).thenReturn(new EnterpriseAdminService.UserView(
+            "user-a", "tenant-a", 100001L, null, "user-a", "User A", null, null,
+            "enabled", null, List.of(), List.of(), null, null));
+        SkillResourceScope scope = new SkillResourceScope();
+        scope.setTenantId("tenant-a"); scope.setSkillId("install-skill");
+        scope.setResourceType("workflow"); scope.setResourceId("evidence-recovery");
+
+        new SkillResourceScopeAdminController(repository, admin).create(request, scope);
+
+        verify(repository).save(scope);
+        org.assertj.core.api.Assertions.assertThat(scope.getResourceType()).isEqualTo("WORKFLOW");
     }
 }

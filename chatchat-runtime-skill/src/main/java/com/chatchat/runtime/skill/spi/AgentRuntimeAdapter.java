@@ -8,6 +8,8 @@ import java.util.Map;
 
 /** Stable boundary for LangChain4j, Google ADK, OpenAI-compatible and external agent engines. */
 public interface AgentRuntimeAdapter {
+    String adapterId();
+    default int priority() { return 0; }
     boolean supports(String engine);
     ExecutionResult execute(ExecutionRequest request);
 

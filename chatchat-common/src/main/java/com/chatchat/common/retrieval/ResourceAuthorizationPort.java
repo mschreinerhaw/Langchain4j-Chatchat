@@ -9,6 +9,7 @@ public interface ResourceAuthorizationPort {
     String MCP_TOOL = "MCP_TOOL";
     String SKILL = "SKILL";
     String AGENT_SKILL = "AGENT_SKILL";
+    String WORKFLOW = "WORKFLOW";
 
     Set<String> allowedIds(String resourceType, String tenantId, String userId,
                            Set<String> roleIds, Set<String> candidateIds);

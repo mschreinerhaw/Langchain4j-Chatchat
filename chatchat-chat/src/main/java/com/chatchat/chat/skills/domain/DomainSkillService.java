@@ -10,8 +10,9 @@ import com.chatchat.chat.skills.domain.adapter.ExternalSkillSource;
 import com.chatchat.chat.skills.domain.adapter.RuntimeSkillIr;
 import com.chatchat.runtime.skill.api.ResolvedSkill;
 import com.chatchat.runtime.skill.api.SkillDescriptor;
-import com.chatchat.runtime.skill.api.SkillRequirements;
 import com.chatchat.runtime.skill.api.SkillResolutionRequest;
+import com.chatchat.runtime.skill.api.SkillResourceContent;
+import com.chatchat.runtime.skill.api.SkillRoleContext;
 import com.chatchat.runtime.skill.api.SkillSearchRequest;
 import com.chatchat.runtime.skill.spi.SkillSource;
 import lombok.RequiredArgsConstructor;
@@ -44,12 +45,10 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
     private final DomainSkillRemoteImporter remoteImporter;
     private final ExternalSkillAdapterGateway externalSkillGateway;
     private final DomainSkillArtifactStore artifactStore;
+    private final DomainSkillPackageReader packageReader;
 
     @Autowired(required = false)
     private ResourceAuthorizationPort resourceAuthorization;
-
-    @Autowired(required = false)
-    private DomainSkillPlanningRouter planningRouter;
 
     public Workspace workspace(String tenantId, String keyword, String category, String status, int page, int pageSize) {
         int p = Math.max(0, page), size = Math.max(1, Math.min(100, pageSize));
@@ -169,8 +168,22 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
             .contains(skill.getId())) return Optional.empty();
         SkillDescriptor descriptor = descriptor(skill, 1D);
         if (!request.version().isBlank() && !request.version().equals(descriptor.version())) return Optional.empty();
-        return Optional.of(new ResolvedSkill(descriptor, skill.getMarkdownContent(), List.of(),
-            SkillRequirements.empty(), Map.of("storage", "POSTGRESQL", "index", "OPENSEARCH")));
+        DomainSkillPackageReader.PackageView skillPackage = packageReader.read(tenantId, skill.getId());
+        return Optional.of(new ResolvedSkill(descriptor, skill.getMarkdownContent(), skillPackage.resources(),
+            skillPackage.requirements(), Map.of("storage", "POSTGRESQL", "index", "OPENSEARCH")));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<SkillResourceContent> readResource(String skillId, String resourceId,
+                                                       SkillRoleContext context) {
+        if (resourceAuthorization == null || context == null) return Optional.empty();
+        DomainSkillEntity skill = repository.findVisibleById(context.tenantId(), skillId).orElse(null);
+        if (skill == null || !PUBLISHED.equalsIgnoreCase(skill.getStatus()) || skill.isPublicationDirty())
+            return Optional.empty();
+        if (!skillGrantAllowed(context.tenantId(), context.userId(),
+            new LinkedHashSet<>(context.roleIds()), Set.of(skillId)).contains(skillId)) return Optional.empty();
+        return packageReader.readResource(context.tenantId(), skillId, resourceId);
     }
 
     private SkillDescriptor descriptor(DomainSkillEntity skill, double score) {
@@ -230,7 +243,6 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
                                                         List<String> roles, String query,
                                                         List<EvidencePreview> previews,
                                                         int maxActivatedSkills) {
-        if (planningRouter == null) return EvidenceSkillActivation.empty("ROUTER_UNAVAILABLE");
         List<String> publishedIds = publishedOptions(tenantId).stream()
             .filter(skill -> !skill.isPublicationDirty())
             .map(DomainSkillEntity::getId)
@@ -257,11 +269,27 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
             tenantId, userId, roles, null, candidateIds);
         if (candidates.isEmpty()) return EvidenceSkillActivation.empty("NO_AUTHORIZED_CANDIDATES");
 
-        DomainSkillPlanningRouter.RoutingResult routed = planningRouter.route(evidenceQuery, null, candidates);
         int limit = Math.max(1, Math.min(5, maxActivatedSkills));
-        List<DomainSkillContent> activated = routed.activated().stream().limit(limit).toList();
-        return new EvidenceSkillActivation(routed.selected(), activated,
-            routed.planningKnowledge(), routed.compiledContext(), routed.status(), routed.error());
+        List<DomainSkillContent> activated = candidates.stream().limit(limit).toList();
+        return new EvidenceSkillActivation(candidates, activated,
+            Map.of("activatedSkillIds", activated.stream().map(DomainSkillContent::id).toList(),
+                "routing", "DATABASE_AUTHORIZED_METADATA"),
+            compiledSkillContext(activated), "DETERMINISTIC_ROUTED", null);
+    }
+
+    private String compiledSkillContext(List<DomainSkillContent> skills) {
+        StringBuilder value = new StringBuilder("<authorized_domain_skills>\n");
+        for (DomainSkillContent skill : skills) {
+            value.append("<skill id=\"").append(xml(skill.id())).append("\" name=\"")
+                .append(xml(skill.name())).append("\">\n")
+                .append(trim(skill.markdownContent(), 12_000)).append("\n</skill>\n");
+        }
+        return trim(value.append("</authorized_domain_skills>").toString(), 36_000);
+    }
+
+    private String xml(String value) {
+        return value == null ? "" : value.replace("&", "&amp;").replace("\"", "&quot;")
+            .replace("<", "&lt;").replace(">", "&gt;");
     }
 
     private String evidenceRoutingQuery(String query, List<EvidencePreview> previews) {

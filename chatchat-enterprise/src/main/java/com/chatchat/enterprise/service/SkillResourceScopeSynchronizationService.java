@@ -46,6 +46,27 @@ public class SkillResourceScopeSynchronizationService {
     @Transactional
     public int synchronize(String tenantId, String skillId,
                            List<String> documentIds, List<String> knowledgeBaseTags) {
+        String tenant = required(tenantId, "tenantId");
+        String skill = required(skillId, "skillId").toLowerCase(Locale.ROOT);
+        List<SkillResourceScope> existing = repository
+            .findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc(tenant, skill);
+        List<SkillResourceScope> knowledgeBindings = existing.stream()
+            .filter(row -> "DOCUMENT".equalsIgnoreCase(row.getResourceType())
+                || "KNOWLEDGE_BASE".equalsIgnoreCase(row.getResourceType()))
+            .toList();
+        if (!knowledgeBindings.isEmpty()) {
+            repository.deleteAll(knowledgeBindings);
+            repository.flush();
+        }
+        return insert(tenant, skill, bindings(documentIds, knowledgeBaseTags));
+    }
+
+    /** Replaces every governed resource binding for one Skill in a single transaction. */
+    @Transactional
+    public int synchronize(String tenantId, String skillId,
+                           List<String> documentIds, List<String> knowledgeBaseTags,
+                           List<String> mcpToolIds, List<String> agentIds,
+                           List<String> workflowIds) {
         List<SkillResourceScope> existing = repository
             .findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc(tenantId, skillId);
         if (!existing.isEmpty()) {
@@ -53,15 +74,28 @@ public class SkillResourceScopeSynchronizationService {
             repository.flush();
         }
         return insert(required(tenantId, "tenantId"),
-            required(skillId, "skillId").toLowerCase(Locale.ROOT), bindings(documentIds, knowledgeBaseTags));
+            required(skillId, "skillId").toLowerCase(Locale.ROOT),
+            bindings(documentIds, knowledgeBaseTags, mcpToolIds, agentIds, workflowIds));
     }
 
     private Map<String, Binding> bindings(List<String> documentIds, List<String> knowledgeBaseTags) {
+        return bindings(documentIds, knowledgeBaseTags, List.of(), List.of(), List.of());
+    }
+
+    private Map<String, Binding> bindings(List<String> documentIds, List<String> knowledgeBaseTags,
+                                          List<String> mcpToolIds, List<String> agentIds,
+                                          List<String> workflowIds) {
         Map<String, Binding> bindings = new LinkedHashMap<>();
         clean(documentIds, false).forEach(id ->
             bindings.put(key("DOCUMENT", id), new Binding("DOCUMENT", id)));
         clean(knowledgeBaseTags, true).forEach(id ->
             bindings.put(key("KNOWLEDGE_BASE", id), new Binding("KNOWLEDGE_BASE", id)));
+        clean(mcpToolIds, false).forEach(id ->
+            bindings.put(key("MCP_TOOL", id), new Binding("MCP_TOOL", id)));
+        clean(agentIds, false).forEach(id ->
+            bindings.put(key("AGENT", id), new Binding("AGENT", id)));
+        clean(workflowIds, false).forEach(id ->
+            bindings.put(key("WORKFLOW", id), new Binding("WORKFLOW", id)));
         return bindings;
     }
 

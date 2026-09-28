@@ -187,7 +187,7 @@ class DomainSkillServiceTest {
 
         DomainSkillEntity imported = new DomainSkillService(repository, categories,
             mock(McpLicenseEntitlementPort.class), mock(DomainSkillIndexService.class), remote,
-            externalSkillGateway(), mock(DomainSkillArtifactStore.class))
+            externalSkillGateway(), mock(DomainSkillArtifactStore.class), mock(DomainSkillPackageReader.class))
             .importUrl("tenant-a", "admin", "https://skills.example/research/SKILL.md", "", "Research");
 
         assertThat(imported.getName()).isEqualTo("Internet Research");
@@ -213,7 +213,8 @@ class DomainSkillServiceTest {
             .getBytes(StandardCharsets.UTF_8);
         DomainSkillService service = new DomainSkillService(repository,
             mock(DomainSkillCategoryRepository.class), mock(McpLicenseEntitlementPort.class),
-            mock(DomainSkillIndexService.class), mock(DomainSkillRemoteImporter.class), gateway, artifactStore);
+            mock(DomainSkillIndexService.class), mock(DomainSkillRemoteImporter.class), gateway, artifactStore,
+            mock(DomainSkillPackageReader.class));
 
         DomainSkillEntity imported = service.importFile("tenant-a", "admin", content,
             "SKILL.md", "", "Research");
@@ -297,7 +298,6 @@ class DomainSkillServiceTest {
     void activatesPublishedAuthorizedSkillsFromDocumentEvidence() {
         DomainSkillRepository repository = mock(DomainSkillRepository.class);
         DomainSkillIndexService index = mock(DomainSkillIndexService.class);
-        DomainSkillPlanningRouter router = mock(DomainSkillPlanningRouter.class);
         DomainSkillEntity skill = skill("install-analysis", "Installation analysis",
             "Analyze prerequisites, commands, configuration and verification.");
         skill.setStatus("PUBLISHED");
@@ -307,15 +307,7 @@ class DomainSkillServiceTest {
         when(repository.findVisibleById("tenant-a", "install-analysis")).thenReturn(Optional.of(skill));
         when(index.searchIds(anyString(), eq(List.of("install-analysis")), eq(1)))
             .thenReturn(List.of("install-analysis"));
-        when(router.route(anyString(), isNull(), anyList())).thenAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
-            List<DomainSkillRuntimePort.DomainSkillContent> candidates = invocation.getArgument(2);
-            return new DomainSkillPlanningRouter.RoutingResult(candidates, candidates,
-                java.util.Map.of("analysisDimensions", List.of("verification")),
-                "safe context", "test-model", "MODEL_ROUTED", null);
-        });
         DomainSkillService service = service(repository, mock(McpLicenseEntitlementPort.class), index);
-        org.springframework.test.util.ReflectionTestUtils.setField(service, "planningRouter", router);
 
         DomainSkillRuntimePort.EvidenceSkillActivation activation = service.activateForEvidence(
             "tenant-a", "user-a", List.of("developer"), "Install LiveData",
@@ -323,11 +315,9 @@ class DomainSkillServiceTest {
                 "LiveData guide", "Installation", "Run setup and verify the service")), 3);
 
         assertThat(activation.activatedSkillIds()).containsExactly("install-analysis");
-        assertThat(activation.compiledContext()).isEqualTo("safe context");
-        org.mockito.ArgumentCaptor<String> routingInput = org.mockito.ArgumentCaptor.forClass(String.class);
-        verify(router).route(routingInput.capture(), isNull(), anyList());
-        assertThat(routingInput.getValue()).contains("Install LiveData", "LiveData guide",
-            "Run setup and verify the service", "Untrusted document evidence previews");
+        assertThat(activation.status()).isEqualTo("DETERMINISTIC_ROUTED");
+        assertThat(activation.compiledContext()).contains("install-analysis",
+            "Analyze prerequisites, commands, configuration and verification.");
     }
 
     @Test
@@ -339,7 +329,8 @@ class DomainSkillServiceTest {
 
         DomainSkillService service = new DomainSkillService(repository, categories,
             mock(McpLicenseEntitlementPort.class), mock(DomainSkillIndexService.class),
-            mock(DomainSkillRemoteImporter.class), externalSkillGateway(), mock(DomainSkillArtifactStore.class));
+            mock(DomainSkillRemoteImporter.class), externalSkillGateway(), mock(DomainSkillArtifactStore.class),
+            mock(DomainSkillPackageReader.class));
         DomainSkillService.CategoryOption created = service.createCategory("tenant-a", " Finance ");
 
         assertThat(created.name()).isEqualTo("Finance");
@@ -365,7 +356,7 @@ class DomainSkillServiceTest {
 
         DomainSkillService service = new DomainSkillService(repository, categories,
             mock(McpLicenseEntitlementPort.class), index, mock(DomainSkillRemoteImporter.class),
-            externalSkillGateway(), mock(DomainSkillArtifactStore.class));
+            externalSkillGateway(), mock(DomainSkillArtifactStore.class), mock(DomainSkillPackageReader.class));
         DomainSkillService.CategoryOption renamed = service.renameCategory("tenant-a", "category-1", "New Name");
 
         assertThat(renamed.name()).isEqualTo("New Name");
@@ -384,7 +375,8 @@ class DomainSkillServiceTest {
         when(repository.countByTenantIdAndCategoryIgnoreCase("tenant-a", "Finance")).thenReturn(2L);
         DomainSkillService service = new DomainSkillService(repository, categories,
             mock(McpLicenseEntitlementPort.class), mock(DomainSkillIndexService.class),
-            mock(DomainSkillRemoteImporter.class), externalSkillGateway(), mock(DomainSkillArtifactStore.class));
+            mock(DomainSkillRemoteImporter.class), externalSkillGateway(), mock(DomainSkillArtifactStore.class),
+            mock(DomainSkillPackageReader.class));
 
         assertThatThrownBy(() -> service.deleteCategory("tenant-a", "category-1"))
             .hasMessageContaining("2 skill");
@@ -433,7 +425,13 @@ class DomainSkillServiceTest {
 
     private DomainSkillService service(DomainSkillRepository r, McpLicenseEntitlementPort e, DomainSkillIndexService i) {
         return new DomainSkillService(r, mock(DomainSkillCategoryRepository.class), e, i,
-            mock(DomainSkillRemoteImporter.class), externalSkillGateway(), mock(DomainSkillArtifactStore.class));
+            mock(DomainSkillRemoteImporter.class), externalSkillGateway(), mock(DomainSkillArtifactStore.class),
+            emptyPackageReader());
+    }
+    private DomainSkillPackageReader emptyPackageReader() {
+        DomainSkillPackageReader reader = mock(DomainSkillPackageReader.class);
+        when(reader.read(anyString(), anyString())).thenReturn(DomainSkillPackageReader.PackageView.empty());
+        return reader;
     }
     private ExternalSkillAdapterGateway externalSkillGateway() {
         return new ExternalSkillAdapterGateway(List.of(new SkillMdExternalSkillAdapter(new SkillFormatDetector())), skill ->

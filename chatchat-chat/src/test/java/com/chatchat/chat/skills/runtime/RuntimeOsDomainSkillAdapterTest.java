@@ -1,6 +1,5 @@
 package com.chatchat.chat.skills.runtime;
 
-import com.chatchat.chat.skills.domain.DomainSkillPlanningRouter;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
 import com.chatchat.runtime.skill.api.AuthorizedSkillScope;
 import com.chatchat.runtime.skill.api.ResolvedSkill;
@@ -27,7 +26,6 @@ class RuntimeOsDomainSkillAdapterTest {
     void resolvesFullInstructionsOnlyForMetadataCandidatesSelectedByTheRuntimeRouter() {
         SkillRouter router = mock(SkillRouter.class);
         SkillResolver resolver = mock(SkillResolver.class);
-        DomainSkillPlanningRouter planning = mock(DomainSkillPlanningRouter.class);
         SkillDescriptor descriptor = new SkillDescriptor("install", "v1", "Install", "Install software",
             "ops", "DATABASE", "", "", "", 0.9D, Map.of());
         when(router.route(any())).thenReturn(new SkillRouteResult(List.of(descriptor), "ROUTED", Map.of()));
@@ -35,7 +33,7 @@ class RuntimeOsDomainSkillAdapterTest {
             new ResolvedSkill(descriptor, "verified instructions", List.of(), SkillRequirements.empty(), Map.of()),
             new AuthorizedSkillScope(true, List.of("doc-1"), List.of(), List.of(), List.of(), List.of(), List.of()),
             "database", "RESOLVED", Map.of()));
-        RuntimeOsDomainSkillAdapter adapter = new RuntimeOsDomainSkillAdapter(router, resolver, planning);
+        RuntimeOsDomainSkillAdapter adapter = new RuntimeOsDomainSkillAdapter(router, resolver);
 
         var result = adapter.retrievePublished("tenant", "user", List.of("role"),
             "install", List.of("install"));
@@ -52,10 +50,9 @@ class RuntimeOsDomainSkillAdapterTest {
     }
 
     @Test
-    void evidenceActivationUsesRuntimeCandidatesBeforeThePlanningCompiler() {
+    void evidenceActivationDeterministicallyUsesAuthorizedRuntimeCandidates() {
         SkillRouter router = mock(SkillRouter.class);
         SkillResolver resolver = mock(SkillResolver.class);
-        DomainSkillPlanningRouter planning = mock(DomainSkillPlanningRouter.class);
         SkillDescriptor descriptor = new SkillDescriptor("install", "v1", "Install", "Install software",
             "ops", "DATABASE", "", "", "", 0.9D, Map.of());
         when(router.route(any())).thenReturn(new SkillRouteResult(List.of(descriptor), "ROUTED", Map.of()));
@@ -63,21 +60,16 @@ class RuntimeOsDomainSkillAdapterTest {
             new ResolvedSkill(descriptor, "verified instructions", List.of(), SkillRequirements.empty(), Map.of()),
             new AuthorizedSkillScope(true, List.of(), List.of(), List.of(), List.of(), List.of(), List.of()),
             "database", "RESOLVED", Map.of()));
-        when(planning.route(any(), any(), any())).thenAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
-            List<DomainSkillRuntimePort.DomainSkillContent> skills = invocation.getArgument(2);
-            return new DomainSkillPlanningRouter.RoutingResult(skills, skills, Map.of(),
-                "compiled", "model", "MODEL_ROUTED", null);
-        });
-        RuntimeOsDomainSkillAdapter adapter = new RuntimeOsDomainSkillAdapter(router, resolver, planning);
+        RuntimeOsDomainSkillAdapter adapter = new RuntimeOsDomainSkillAdapter(router, resolver);
 
         var result = adapter.activateForEvidence("tenant", "user", List.of("role"), "install",
             List.of(new DomainSkillRuntimePort.EvidencePreview(
                 "e1", "doc-1", "guide", "setup", "run setup")), 2);
 
         assertThat(result.activatedSkillIds()).containsExactly("install");
+        assertThat(result.status()).isEqualTo("DETERMINISTIC_ROUTED");
+        assertThat(result.compiledContext()).contains("verified instructions");
         verify(router).route(any());
         verify(resolver).resolve(any());
-        verify(planning).route(any(), any(), any());
     }
 }

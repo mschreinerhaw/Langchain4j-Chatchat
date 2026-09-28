@@ -6,6 +6,7 @@ import ResourceAuthorizationPanel from './ResourceAuthorizationPanel.vue';
 const api = vi.hoisted(() => ({
   fetchResearchLibrary: vi.fn(async () => ({ categories: ['Finance'], documents: [], totalPages: 1 })),
   fetchDomainSkills: vi.fn(async () => ({ skills: [], totalPages: 1 })),
+  fetchMcpRegisteredTools: vi.fn(async () => []),
   fetchResourceGrants: vi.fn(async (_tenant, type) => type === 'AGENT_SKILL'
     ? [{ resourceId: 'agent-a', principalType: 'ROLE', principalId: 'role-1', effect: 'ALLOW', enabled: true }]
     : []),
@@ -40,7 +41,7 @@ it('uses one selected Agent for role grant and document scope without changing g
   expect(root.querySelector('.resource-auth-item.selected strong').textContent).toBe('金融文档分析助手');
   expect(root.textContent).toContain('角色绑定 已绑定');
   expect(root.textContent).toContain('执行资源授权 已显式授权');
-  expect(root.textContent).toContain('Agent 文档范围 1 项启用');
+  expect(root.textContent).toContain('Agent 资源范围 1 项启用');
   expect(api.fetchSkillResourceScopes).toHaveBeenCalledWith('tenant-1', 'agent-a');
   expect(api.createResourceGrant).not.toHaveBeenCalled();
 

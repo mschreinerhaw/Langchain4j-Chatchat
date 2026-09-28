@@ -104,6 +104,49 @@ class SkillResourceScopeSynchronizationServiceTest {
     }
 
     @Test
+    void knowledgeSynchronizationPreservesMcpAgentAndWorkflowBindings() {
+        SkillResourceScopeRepository repository = mock(SkillResourceScopeRepository.class);
+        SkillResourceScope document = binding("DOCUMENT", "old-doc");
+        SkillResourceScope mcp = binding("MCP_TOOL", "document_search");
+        SkillResourceScope agent = binding("AGENT", "review-agent");
+        SkillResourceScope workflow = binding("WORKFLOW", "evidence-recovery");
+        when(repository.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc("tenant-1", "live-data"))
+            .thenReturn(List.of(document, mcp, agent, workflow));
+        SkillResourceScopeSynchronizationService service =
+            new SkillResourceScopeSynchronizationService(repository);
+
+        service.synchronize("tenant-1", "live-data", List.of("new-doc"), List.of());
+
+        verify(repository).deleteAll(List.of(document));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<SkillResourceScope>> rows = ArgumentCaptor.forClass(List.class);
+        verify(repository).saveAll(rows.capture());
+        assertThat(rows.getValue()).extracting(SkillResourceScope::getResourceId)
+            .containsExactly("new-doc");
+    }
+
+    @Test
+    void fullSynchronizationPersistsEveryGovernedResourceType() {
+        SkillResourceScopeRepository repository = mock(SkillResourceScopeRepository.class);
+        when(repository.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc("tenant-1", "live-data"))
+            .thenReturn(List.of());
+        SkillResourceScopeSynchronizationService service =
+            new SkillResourceScopeSynchronizationService(repository);
+
+        int count = service.synchronize("tenant-1", "live-data", List.of("doc-1"), List.of("Docs"),
+            List.of("document_search"), List.of("review-agent"), List.of("evidence-recovery"));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<SkillResourceScope>> rows = ArgumentCaptor.forClass(List.class);
+        verify(repository).saveAll(rows.capture());
+        assertThat(count).isEqualTo(5);
+        assertThat(rows.getValue())
+            .extracting(row -> row.getResourceType() + ":" + row.getResourceId())
+            .containsExactly("DOCUMENT:doc-1", "KNOWLEDGE_BASE:docs", "MCP_TOOL:document_search",
+                "AGENT:review-agent", "WORKFLOW:evidence-recovery");
+    }
+
+    @Test
     void migrationRemovesRoleWildcardStoredInAgentScope() {
         SkillResourceScopeRepository repository = mock(SkillResourceScopeRepository.class);
         SkillResourceScope invalid = new SkillResourceScope();
@@ -120,5 +163,13 @@ class SkillResourceScopeSynchronizationServiceTest {
         verify(repository).deleteAll(List.of(invalid));
         verify(repository).flush();
         verify(repository, never()).saveAll(org.mockito.ArgumentMatchers.any());
+    }
+
+    private SkillResourceScope binding(String type, String id) {
+        SkillResourceScope scope = new SkillResourceScope();
+        scope.setResourceType(type);
+        scope.setResourceId(id);
+        scope.setEnabled(true);
+        return scope;
     }
 }

@@ -1,6 +1,5 @@
 package com.chatchat.chat.skills.runtime;
 
-import com.chatchat.chat.skills.domain.DomainSkillPlanningRouter;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
 import com.chatchat.runtime.skill.api.SkillDescriptor;
 import com.chatchat.runtime.skill.api.SkillResolution;
@@ -24,7 +23,6 @@ import java.util.Map;
 public class RuntimeOsDomainSkillAdapter implements DomainSkillRuntimePort {
     private final SkillRouter router;
     private final SkillResolver resolver;
-    private final DomainSkillPlanningRouter planningRouter;
 
     @Override
     public List<DomainSkillContent> resolvePublished(String tenantId, List<String> skillIds) {
@@ -55,10 +53,12 @@ public class RuntimeOsDomainSkillAdapter implements DomainSkillRuntimePort {
         if (routed.candidates().isEmpty()) return EvidenceSkillActivation.empty(routed.status());
         List<DomainSkillContent> resolved = resolve(routed.candidates(), context, routed.candidates().size());
         if (resolved.isEmpty()) return EvidenceSkillActivation.empty("NO_AUTHORIZED_RESOLVED_SKILLS");
-        DomainSkillPlanningRouter.RoutingResult planned = planningRouter.route(routingQuery, null, resolved);
-        List<DomainSkillContent> activated = planned.activated().stream().limit(activationLimit).toList();
-        return new EvidenceSkillActivation(planned.selected(), activated, planned.planningKnowledge(),
-            planned.compiledContext(), planned.status(), planned.error());
+        List<DomainSkillContent> activated = resolved.stream().limit(activationLimit).toList();
+        Map<String, Object> planningKnowledge = Map.of(
+            "activatedSkillIds", activated.stream().map(DomainSkillContent::id).toList(),
+            "routing", "DATABASE_AUTHORIZED_METADATA");
+        return new EvidenceSkillActivation(resolved, activated, planningKnowledge,
+            compiledContext(activated), "DETERMINISTIC_ROUTED", null);
     }
 
     private List<DomainSkillContent> resolve(List<SkillDescriptor> descriptors,
@@ -95,5 +95,21 @@ public class RuntimeOsDomainSkillAdapter implements DomainSkillRuntimePort {
     private String bounded(String value, int max) {
         String text = value == null ? "" : value.trim();
         return text.length() <= max ? text : text.substring(0, max);
+    }
+
+    private String compiledContext(List<DomainSkillContent> skills) {
+        StringBuilder value = new StringBuilder("<authorized_domain_skills>\n");
+        for (DomainSkillContent skill : skills) {
+            value.append("<skill id=\"").append(xml(skill.id())).append("\" name=\"")
+                .append(xml(skill.name())).append("\">\n")
+                .append(bounded(skill.markdownContent(), 12_000)).append("\n</skill>\n");
+        }
+        value.append("</authorized_domain_skills>");
+        return bounded(value.toString(), 36_000);
+    }
+
+    private String xml(String value) {
+        return value == null ? "" : value.replace("&", "&amp;").replace("\"", "&quot;")
+            .replace("<", "&lt;").replace(">", "&gt;");
     }
 }

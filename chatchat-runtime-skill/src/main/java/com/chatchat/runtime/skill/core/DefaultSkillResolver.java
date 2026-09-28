@@ -4,6 +4,8 @@ import com.chatchat.runtime.skill.api.AuthorizedSkillScope;
 import com.chatchat.runtime.skill.api.ResolvedSkill;
 import com.chatchat.runtime.skill.api.SkillResolution;
 import com.chatchat.runtime.skill.api.SkillResolutionRequest;
+import com.chatchat.runtime.skill.api.SkillResourceContent;
+import com.chatchat.runtime.skill.api.SkillResourceRequest;
 import com.chatchat.runtime.skill.spi.SkillPolicy;
 import com.chatchat.runtime.skill.spi.SkillResolver;
 import com.chatchat.runtime.skill.spi.SkillSource;
@@ -35,5 +37,15 @@ public final class DefaultSkillResolver implements SkillResolver {
                 Map.of("authorizationApplied", true, "requirementsAreAuthority", false));
         }
         return new SkillResolution(null, AuthorizedSkillScope.denied("SKILL_NOT_FOUND"), "", "NOT_FOUND", Map.of());
+    }
+
+    @Override
+    public Optional<SkillResourceContent> readResource(SkillResourceRequest request) {
+        for (SkillSource source : sources) {
+            Optional<SkillResourceContent> content = source.readResource(
+                request.skillId(), request.resourceId(), request.roleContext());
+            if (content.isPresent()) return content;
+        }
+        return Optional.empty();
     }
 }

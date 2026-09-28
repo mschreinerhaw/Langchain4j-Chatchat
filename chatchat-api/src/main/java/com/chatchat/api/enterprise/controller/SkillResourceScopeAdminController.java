@@ -31,7 +31,8 @@ import static com.chatchat.common.constants.TenantConstants.PLATFORM_TENANT_NO;
 @RequiredArgsConstructor
 @RequestMapping(AppConstants.API_V1 + "/enterprise/skill-resource-scopes")
 public class SkillResourceScopeAdminController {
-    private static final Set<String> TYPES = Set.of("DOCUMENT", "KNOWLEDGE_BASE");
+    private static final Set<String> TYPES = Set.of(
+        "DOCUMENT", "KNOWLEDGE_BASE", "MCP_TOOL", "AGENT", "WORKFLOW");
     private final SkillResourceScopeRepository repository;
     private final EnterpriseAdminService adminService;
 

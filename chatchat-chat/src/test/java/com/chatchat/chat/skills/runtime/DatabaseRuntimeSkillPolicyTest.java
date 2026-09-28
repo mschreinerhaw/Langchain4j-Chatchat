@@ -27,19 +27,23 @@ class DatabaseRuntimeSkillPolicyTest {
             "DATABASE", "", "", "", 1D, Map.of());
         ResolvedSkill skill = new ResolvedSkill(descriptor, "instructions", List.of(),
             new SkillRequirements(List.of("doc-1", "doc-from-markdown"), List.of(),
-                List.of("tool-from-markdown"), List.of(), List.of()), Map.of());
+                List.of("tool-from-markdown"), List.of(), List.of("workflow-1")), Map.of());
         when(authorization.explicitlyAllowedIds(ResourceAuthorizationPort.SKILL, "tenant", "user",
             Set.of("role-1"), Set.of("skill-1"))).thenReturn(Set.of("skill-1"));
         when(scopes.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc("tenant", "skill-1"))
-            .thenReturn(List.of(binding("DOCUMENT", "doc-1"), binding("DOCUMENT", "doc-ungranted")));
+            .thenReturn(List.of(binding("DOCUMENT", "doc-1"), binding("DOCUMENT", "doc-ungranted"),
+                binding("WORKFLOW", "workflow-1"), binding("WORKFLOW", "workflow-ungranted")));
         when(authorization.explicitlyAllowedIds(ResourceAuthorizationPort.KNOWLEDGE, "tenant", "user",
             Set.of("role-1"), Set.of("doc-1"))).thenReturn(Set.of("doc-1"));
+        when(authorization.explicitlyAllowedIds(ResourceAuthorizationPort.WORKFLOW, "tenant", "user",
+            Set.of("role-1"), Set.of("workflow-1"))).thenReturn(Set.of("workflow-1"));
 
         var result = new DatabaseRuntimeSkillPolicy(authorization, scopes).authorize(role, skill);
 
         assertThat(result.skillAllowed()).isTrue();
         assertThat(result.documentIds()).containsExactly("doc-1");
         assertThat(result.mcpToolIds()).isEmpty();
+        assertThat(result.workflowIds()).containsExactly("workflow-1");
         assertThat(result.documentIds()).doesNotContain("doc-from-markdown", "doc-ungranted");
     }
 

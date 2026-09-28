@@ -13,6 +13,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -59,5 +60,29 @@ class ResourceGrantAdminControllerTest {
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("Cross-tenant");
         verifyNoInteractions(repository);
+    }
+
+    @Test
+    void acceptsRoleBoundWorkflowGrant() {
+        ResourceGrantRepository repository = mock(ResourceGrantRepository.class);
+        EnterpriseAdminService admin = mock(EnterpriseAdminService.class);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)).thenReturn("user-a");
+        when(admin.getUserView("user-a")).thenReturn(new EnterpriseAdminService.UserView(
+            "user-a", "tenant-a", 100001L, null, "user-a", "User A", null, null,
+            "enabled", null, List.of(), List.of(), null, null));
+        ResourceGrant grant = new ResourceGrant();
+        grant.setTenantId("tenant-a");
+        grant.setResourceType("workflow");
+        grant.setResourceId("evidence-recovery");
+        grant.setPrincipalType("role");
+        grant.setPrincipalId("business-admin");
+        grant.setEffect("allow");
+
+        new ResourceGrantAdminController(repository, admin).create(request, grant);
+
+        verify(repository).save(grant);
+        org.assertj.core.api.Assertions.assertThat(grant.getResourceType()).isEqualTo("WORKFLOW");
+        org.assertj.core.api.Assertions.assertThat(grant.getPrincipalType()).isEqualTo("ROLE");
     }
 }

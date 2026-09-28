@@ -32,7 +32,8 @@ public class InternalResourceAuthorizationController {
         }
         if (!Set.of(ResourceAuthorizationPort.KNOWLEDGE, ResourceAuthorizationPort.KNOWLEDGE_BASE,
             ResourceAuthorizationPort.MCP_TOOL, ResourceAuthorizationPort.SKILL,
-            ResourceAuthorizationPort.AGENT_SKILL).contains(request.resourceType())) {
+            ResourceAuthorizationPort.AGENT_SKILL, ResourceAuthorizationPort.WORKFLOW)
+            .contains(request.resourceType())) {
             return ApiResponse.badRequest("Unsupported resourceType");
         }
         if (request.candidateIds().size() > MAX_CANDIDATES || request.candidateIds().stream()

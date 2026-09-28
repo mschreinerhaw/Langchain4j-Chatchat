@@ -10,7 +10,7 @@ import com.chatchat.knowledgebase.search.evidence.model.EvidenceEdgeType;
 import com.chatchat.knowledgebase.search.evidence.model.EvidenceGraph;
 import com.chatchat.knowledgebase.search.evidence.model.EvidenceNode;
 import com.chatchat.knowledgebase.search.evidence.model.EvidenceNodeType;
-import com.chatchat.knowledgebase.search.retrieval.RetrievalEvidenceQuality;
+import com.chatchat.knowledgebase.search.retrieval.model.RetrievalEvidenceQuality;
 
 import java.util.ArrayList;
 import java.util.Comparator;

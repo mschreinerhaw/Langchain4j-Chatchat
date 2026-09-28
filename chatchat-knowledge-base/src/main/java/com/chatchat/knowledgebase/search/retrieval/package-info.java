@@ -1,2 +1,2 @@
-/** Retrieval validation, budgets, control flow, events, and evidence-quality scoring. */
+/** Retrieval-control boundary containing execution models and application policies. */
 package com.chatchat.knowledgebase.search.retrieval;

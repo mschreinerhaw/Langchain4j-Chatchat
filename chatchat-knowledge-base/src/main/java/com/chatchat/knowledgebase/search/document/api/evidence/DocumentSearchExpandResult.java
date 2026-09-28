@@ -7,7 +7,7 @@ import com.chatchat.knowledgebase.search.graph.api.KnowledgeReasoningResult;
 import com.chatchat.knowledgebase.search.graph.model.knowledge.KnowledgeRuntimeGraph;
 import com.chatchat.knowledgebase.search.graph.api.KnowledgeTraversalResult;
 import com.chatchat.knowledgebase.search.graph.model.section.SectionGraph;
-import com.chatchat.knowledgebase.search.retrieval.DocumentRetrievalSemantics;
+import com.chatchat.knowledgebase.search.retrieval.model.DocumentRetrievalSemantics;
 
 import java.util.List;
 

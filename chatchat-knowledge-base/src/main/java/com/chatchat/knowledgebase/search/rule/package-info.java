@@ -1,2 +1,2 @@
-/** Persisted retrieval rules, semantic lexicon entries, and version management. */
+/** Retrieval-rule boundary containing rule operations and persistence adapters. */
 package com.chatchat.knowledgebase.search.rule;

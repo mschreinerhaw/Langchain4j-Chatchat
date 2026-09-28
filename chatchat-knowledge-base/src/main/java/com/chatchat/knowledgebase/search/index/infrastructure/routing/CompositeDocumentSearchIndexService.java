@@ -1,6 +1,10 @@
 package com.chatchat.knowledgebase.search.index.infrastructure.routing;
 
 import com.chatchat.knowledgebase.search.config.SearchProperties;
+import com.chatchat.knowledgebase.search.index.api.DocumentSearchIndex;
+import com.chatchat.knowledgebase.search.index.infrastructure.lucene.LuceneDocumentIndexService;
+import com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchDocumentIndexService;
+import com.chatchat.knowledgebase.search.index.model.LuceneSearchHit;
 import com.chatchat.knowledgebase.search.model.SearchDocument;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 

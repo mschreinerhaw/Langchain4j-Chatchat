@@ -1,6 +1,6 @@
 package com.chatchat.knowledgebase.search.document.api.search;
 
-import com.chatchat.knowledgebase.search.retrieval.RetrievalValidationResult;
+import com.chatchat.knowledgebase.search.retrieval.model.RetrievalValidationResult;
 import com.chatchat.knowledgebase.search.security.DocumentVisibilityContext;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 

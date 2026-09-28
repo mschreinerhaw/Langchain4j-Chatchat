@@ -2,7 +2,7 @@ package com.chatchat.knowledgebase.runtime.extraction;
 
 import com.chatchat.common.knowledge.extraction.KnowledgeExtractionRequest;
 import com.chatchat.common.knowledge.model.KnowledgeType;
-import com.chatchat.knowledgebase.search.query.TextChunker;
+import com.chatchat.knowledgebase.search.query.application.TextChunker;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;

@@ -6,7 +6,7 @@ import com.chatchat.common.knowledge.index.KnowledgeIRQuery;
 import com.chatchat.common.knowledge.model.KnowledgeScope;
 import com.chatchat.common.knowledge.model.KnowledgeSourceReference;
 import com.chatchat.common.knowledge.model.KnowledgeType;
-import com.chatchat.knowledgebase.search.query.SearchTokenizer;
+import com.chatchat.knowledgebase.search.query.application.SearchTokenizer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

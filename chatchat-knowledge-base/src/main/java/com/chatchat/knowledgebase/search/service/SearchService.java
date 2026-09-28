@@ -23,11 +23,11 @@ import com.chatchat.knowledgebase.search.model.SearchMatchedChunk;
 import com.chatchat.knowledgebase.search.model.SearchPage;
 import com.chatchat.knowledgebase.search.model.SearchResult;
 import com.chatchat.knowledgebase.search.model.SearchScoreBreakdown;
-import com.chatchat.knowledgebase.search.query.ChunkType;
-import com.chatchat.knowledgebase.search.query.KeywordExtractor;
-import com.chatchat.knowledgebase.search.query.QueryExpander;
-import com.chatchat.knowledgebase.search.query.SearchTokenizer;
-import com.chatchat.knowledgebase.search.query.TitleAwareTerms;
+import com.chatchat.knowledgebase.search.query.model.ChunkType;
+import com.chatchat.knowledgebase.search.query.application.KeywordExtractor;
+import com.chatchat.knowledgebase.search.query.application.QueryExpander;
+import com.chatchat.knowledgebase.search.query.application.SearchTokenizer;
+import com.chatchat.knowledgebase.search.query.application.TitleAwareTerms;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 import com.chatchat.knowledgebase.runtime.extraction.KnowledgeDocumentIngestionService;
 

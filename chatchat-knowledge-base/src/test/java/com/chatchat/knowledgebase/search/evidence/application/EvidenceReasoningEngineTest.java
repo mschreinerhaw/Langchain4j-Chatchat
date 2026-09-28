@@ -7,7 +7,7 @@ import com.chatchat.knowledgebase.search.evidence.api.EvidenceReasoningResult;
 import com.chatchat.knowledgebase.search.evidence.api.EvidenceReasoningStep;
 import com.chatchat.knowledgebase.search.evidence.model.EvidenceEdge;
 import com.chatchat.knowledgebase.search.evidence.model.EvidenceEdgeType;
-import com.chatchat.knowledgebase.search.retrieval.RetrievalEvidenceQuality;
+import com.chatchat.knowledgebase.search.retrieval.model.RetrievalEvidenceQuality;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 
 import org.junit.jupiter.api.Test;

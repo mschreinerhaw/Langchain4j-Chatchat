@@ -14,8 +14,8 @@ import com.chatchat.knowledgebase.search.document.application.DocumentSearchEvid
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchRequest;
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchResult;
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchHit;
-import com.chatchat.knowledgebase.search.query.QueryExpander;
-import com.chatchat.knowledgebase.search.query.SearchTokenizer;
+import com.chatchat.knowledgebase.search.query.application.QueryExpander;
+import com.chatchat.knowledgebase.search.query.application.SearchTokenizer;
 import com.chatchat.tools.mcp.McpServerToolRegistrar;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;

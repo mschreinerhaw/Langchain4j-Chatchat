@@ -8,7 +8,7 @@ import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchHit;
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchMatchType;
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchResult;
 import com.chatchat.knowledgebase.search.evidence.api.EvidenceGovernancePolicy;
-import com.chatchat.knowledgebase.search.retrieval.DocumentRetrievalSemantics;
+import com.chatchat.knowledgebase.search.retrieval.model.DocumentRetrievalSemantics;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

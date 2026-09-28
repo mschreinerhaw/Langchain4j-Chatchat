@@ -1,14 +1,16 @@
 package com.chatchat.knowledgebase.search.index.infrastructure.opensearch;
 
 import com.chatchat.knowledgebase.search.config.SearchProperties;
+import com.chatchat.knowledgebase.search.index.api.DocumentSearchIndex;
+import com.chatchat.knowledgebase.search.index.model.LuceneSearchHit;
 import com.chatchat.knowledgebase.search.model.SearchDocument;
-import com.chatchat.knowledgebase.search.query.ChunkType;
-import com.chatchat.knowledgebase.search.query.ChunkTypeClassifier;
-import com.chatchat.knowledgebase.search.query.KeywordExtractor;
-import com.chatchat.knowledgebase.search.query.QueryExpander;
-import com.chatchat.knowledgebase.search.query.SearchTokenizer;
-import com.chatchat.knowledgebase.search.query.TextChunker;
-import com.chatchat.knowledgebase.search.query.TitleAwareTerms;
+import com.chatchat.knowledgebase.search.query.model.ChunkType;
+import com.chatchat.knowledgebase.search.query.application.ChunkTypeClassifier;
+import com.chatchat.knowledgebase.search.query.application.KeywordExtractor;
+import com.chatchat.knowledgebase.search.query.application.QueryExpander;
+import com.chatchat.knowledgebase.search.query.application.SearchTokenizer;
+import com.chatchat.knowledgebase.search.query.application.TextChunker;
+import com.chatchat.knowledgebase.search.query.application.TitleAwareTerms;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 
 import com.fasterxml.jackson.core.JsonProcessingException;

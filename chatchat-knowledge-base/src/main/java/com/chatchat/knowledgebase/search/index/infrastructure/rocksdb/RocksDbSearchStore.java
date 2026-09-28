@@ -1,6 +1,7 @@
 package com.chatchat.knowledgebase.search.index.infrastructure.rocksdb;
 
 import com.chatchat.knowledgebase.search.config.SearchProperties;
+import com.chatchat.knowledgebase.search.index.model.SearchIndexData;
 import com.chatchat.knowledgebase.search.model.SearchDocument;
 
 import com.fasterxml.jackson.databind.ObjectMapper;

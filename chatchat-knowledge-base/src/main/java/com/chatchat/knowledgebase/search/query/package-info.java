@@ -1,2 +1,2 @@
-/** Query tokenization, expansion, intent classification, chunking, and reranking. */
+/** Query-processing boundary containing models, application analysis, and engine adapters. */
 package com.chatchat.knowledgebase.search.query;

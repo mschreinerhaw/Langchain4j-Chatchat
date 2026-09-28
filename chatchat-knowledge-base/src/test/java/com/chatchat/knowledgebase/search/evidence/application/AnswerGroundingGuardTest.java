@@ -3,7 +3,7 @@ package com.chatchat.knowledgebase.search.evidence.application;
 import com.chatchat.knowledgebase.search.document.api.evidence.DocumentEvidenceChunk;
 import com.chatchat.knowledgebase.search.evidence.api.Citation;
 import com.chatchat.knowledgebase.search.evidence.api.EvidenceAnswer;
-import com.chatchat.knowledgebase.search.query.SearchTokenizer;
+import com.chatchat.knowledgebase.search.query.application.SearchTokenizer;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 
 import org.junit.jupiter.api.Test;

@@ -2,12 +2,12 @@ package com.chatchat.api.controller.search;
 
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
-import com.chatchat.knowledgebase.search.rule.ChunkTypeRuleEntity;
-import com.chatchat.knowledgebase.search.rule.QueryExpandRuleEntity;
-import com.chatchat.knowledgebase.search.rule.QueryIntentRuleEntity;
-import com.chatchat.knowledgebase.search.rule.RetrievalRuleService;
-import com.chatchat.knowledgebase.search.rule.RuleVersionEntity;
-import com.chatchat.knowledgebase.search.rule.SemanticLexiconEntryEntity;
+import com.chatchat.knowledgebase.search.rule.infrastructure.persistence.entity.ChunkTypeRuleEntity;
+import com.chatchat.knowledgebase.search.rule.infrastructure.persistence.entity.QueryExpandRuleEntity;
+import com.chatchat.knowledgebase.search.rule.infrastructure.persistence.entity.QueryIntentRuleEntity;
+import com.chatchat.knowledgebase.search.rule.application.RetrievalRuleService;
+import com.chatchat.knowledgebase.search.rule.infrastructure.persistence.entity.RuleVersionEntity;
+import com.chatchat.knowledgebase.search.rule.infrastructure.persistence.entity.SemanticLexiconEntryEntity;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

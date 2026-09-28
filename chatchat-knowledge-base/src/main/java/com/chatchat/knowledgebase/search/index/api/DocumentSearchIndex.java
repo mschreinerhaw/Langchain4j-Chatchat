@@ -1,6 +1,7 @@
 package com.chatchat.knowledgebase.search.index.api;
 
 import com.chatchat.knowledgebase.search.model.SearchDocument;
+import com.chatchat.knowledgebase.search.index.model.LuceneSearchHit;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 
 import java.util.List;

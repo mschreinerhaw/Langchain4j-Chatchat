@@ -3,7 +3,7 @@ package com.chatchat.mcpserver.document;
 import com.chatchat.knowledgebase.search.document.api.evidence.DocumentEvidenceChunk;
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchResult;
 import com.chatchat.knowledgebase.search.evidence.application.EvidenceContextFormatter;
-import com.chatchat.knowledgebase.search.query.SearchTokenizer;
+import com.chatchat.knowledgebase.search.query.application.SearchTokenizer;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

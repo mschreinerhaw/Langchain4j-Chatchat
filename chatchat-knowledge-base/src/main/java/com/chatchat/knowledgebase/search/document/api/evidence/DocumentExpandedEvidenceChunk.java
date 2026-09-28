@@ -1,7 +1,7 @@
 package com.chatchat.knowledgebase.search.document.api.evidence;
 
 import com.chatchat.knowledgebase.search.evidence.api.Citation;
-import com.chatchat.knowledgebase.search.query.ChunkType;
+import com.chatchat.knowledgebase.search.query.model.ChunkType;
 
 import java.util.List;
 

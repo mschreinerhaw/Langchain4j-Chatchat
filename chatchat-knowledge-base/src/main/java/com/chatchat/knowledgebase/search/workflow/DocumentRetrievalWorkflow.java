@@ -2,7 +2,7 @@ package com.chatchat.knowledgebase.search.workflow;
 
 import com.chatchat.knowledgebase.search.document.api.search.DocumentRecallResult;
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchPlan;
-import com.chatchat.knowledgebase.search.query.QueryExpander;
+import com.chatchat.knowledgebase.search.query.application.QueryExpander;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 

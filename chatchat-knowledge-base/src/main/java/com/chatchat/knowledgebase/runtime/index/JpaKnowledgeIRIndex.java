@@ -8,7 +8,7 @@ import com.chatchat.common.knowledge.model.KnowledgeRule;
 import com.chatchat.common.knowledge.model.KnowledgeSourceReference;
 import com.chatchat.common.knowledge.model.KnowledgeType;
 import com.chatchat.common.retrieval.ResourceAuthorizationPort;
-import com.chatchat.knowledgebase.search.query.SearchTokenizer;
+import com.chatchat.knowledgebase.search.query.application.SearchTokenizer;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

@@ -11,8 +11,8 @@ import com.chatchat.knowledgebase.search.evidence.api.EvidenceDecisionResult;
 import com.chatchat.knowledgebase.search.evidence.api.EvidenceDecisionTraceStep;
 import com.chatchat.knowledgebase.search.evidence.api.EvidenceGovernancePolicy;
 import com.chatchat.knowledgebase.search.evidence.api.EvidenceReasoningResult;
-import com.chatchat.knowledgebase.search.retrieval.DocumentRetrievalSemantics;
-import com.chatchat.knowledgebase.search.retrieval.RetrievalEvidenceQuality;
+import com.chatchat.knowledgebase.search.retrieval.model.DocumentRetrievalSemantics;
+import com.chatchat.knowledgebase.search.retrieval.model.RetrievalEvidenceQuality;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 
 import org.junit.jupiter.api.Test;

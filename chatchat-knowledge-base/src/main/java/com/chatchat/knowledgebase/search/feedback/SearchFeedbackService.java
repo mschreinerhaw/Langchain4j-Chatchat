@@ -1,7 +1,7 @@
 package com.chatchat.knowledgebase.search.feedback;
 
 import com.chatchat.knowledgebase.search.config.SearchProperties;
-import com.chatchat.knowledgebase.search.query.SearchTokenizer;
+import com.chatchat.knowledgebase.search.query.application.SearchTokenizer;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

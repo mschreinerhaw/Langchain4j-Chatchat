@@ -3,6 +3,8 @@ package com.chatchat.knowledgebase.search.index.application;
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchFilters;
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchPlan;
+import com.chatchat.knowledgebase.search.index.api.DocumentSearchIndex;
+import com.chatchat.knowledgebase.search.index.model.LuceneSearchHit;
 import com.chatchat.knowledgebase.search.model.SearchPage;
 import com.chatchat.knowledgebase.search.model.SearchResult;
 import com.chatchat.knowledgebase.search.model.SearchMatchedChunk;

@@ -4,7 +4,7 @@ import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchPlan;
 import com.chatchat.knowledgebase.runtime.index.KnowledgeIREntity;
 import com.chatchat.knowledgebase.runtime.index.KnowledgeIRRepository;
 import com.chatchat.common.retrieval.ResourceAuthorizationPort;
-import com.chatchat.knowledgebase.search.query.SearchTokenizer;
+import com.chatchat.knowledgebase.search.query.application.SearchTokenizer;
 import com.chatchat.knowledgebase.search.security.DocumentVisibilityContext;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 import org.junit.jupiter.api.Test;

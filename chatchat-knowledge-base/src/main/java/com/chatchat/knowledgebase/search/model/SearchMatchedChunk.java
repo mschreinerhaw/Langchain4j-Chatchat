@@ -1,6 +1,6 @@
 package com.chatchat.knowledgebase.search.model;
 
-import com.chatchat.knowledgebase.search.query.ChunkType;
+import com.chatchat.knowledgebase.search.query.model.ChunkType;
 
 public record SearchMatchedChunk(
     String fileId,

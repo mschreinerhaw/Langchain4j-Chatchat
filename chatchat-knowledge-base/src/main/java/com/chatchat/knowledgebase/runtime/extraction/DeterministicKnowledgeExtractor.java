@@ -6,7 +6,7 @@ import com.chatchat.common.knowledge.model.KnowledgeIR;
 import com.chatchat.common.knowledge.model.KnowledgeRule;
 import com.chatchat.common.knowledge.model.KnowledgeSourceReference;
 import com.chatchat.common.knowledge.model.KnowledgeType;
-import com.chatchat.knowledgebase.search.query.TextChunker;
+import com.chatchat.knowledgebase.search.query.application.TextChunker;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

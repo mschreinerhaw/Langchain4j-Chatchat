@@ -6,7 +6,7 @@ import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchResul
 import com.chatchat.knowledgebase.search.evidence.api.AnswerCitation;
 import com.chatchat.knowledgebase.search.evidence.api.CitationBoundAnswer;
 import com.chatchat.knowledgebase.search.evidence.api.EvidenceAnswer;
-import com.chatchat.knowledgebase.search.query.ChunkType;
+import com.chatchat.knowledgebase.search.query.model.ChunkType;
 
 import org.springframework.stereotype.Component;
 

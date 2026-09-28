@@ -1,6 +1,6 @@
 package com.chatchat.knowledgebase.search.evidence.application;
 
-import com.chatchat.knowledgebase.search.query.SearchTokenizer;
+import com.chatchat.knowledgebase.search.query.application.SearchTokenizer;
 
 /**
  * @deprecated Use {@link AnswerGroundingGuard}. Kept only for source compatibility.

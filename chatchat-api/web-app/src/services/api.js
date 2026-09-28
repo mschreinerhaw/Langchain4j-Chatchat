@@ -1023,6 +1023,23 @@ export function createUserFavoriteCategory(payload) {
   });
 }
 
+export function renameUserFavoriteCategory(categoryName, payload) {
+  return apiRequest(`/data/workbench/favorite-categories/${encodeURIComponent(categoryName)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteUserFavoriteCategory(categoryName, filters = {}) {
+  const params = new URLSearchParams({
+    tenantId: filters.tenantId || "",
+    userId: filters.userId || ""
+  });
+  return apiRequest(`/data/workbench/favorite-categories/${encodeURIComponent(categoryName)}?${params.toString()}`, {
+    method: "DELETE"
+  });
+}
+
 export function updateUserFavoriteCategory(favoriteId, payload) {
   return apiRequest(`/data/workbench/favorites/${encodeURIComponent(favoriteId)}/category`, {
     method: "PUT",

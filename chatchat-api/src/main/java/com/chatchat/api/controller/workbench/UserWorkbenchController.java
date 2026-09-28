@@ -178,6 +178,43 @@ public class UserWorkbenchController {
         }
     }
 
+    @PutMapping("/favorite-categories/{categoryName}")
+    @Operation(summary = "Rename one personal favorite category")
+    public ApiResponse<UserWorkbenchService.FavoriteCategory> renameFavoriteCategory(
+        @PathVariable("categoryName") String categoryName,
+        @RequestBody UserWorkbenchService.FavoriteCategoryRequest request,
+        HttpServletRequest servletRequest
+    ) {
+        try {
+            return ApiResponse.success(workbenchService.renameFavoriteCategory(
+                categoryName,
+                scopeFavoriteCategory(request, servletRequest)
+            ));
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/favorite-categories/{categoryName}")
+    @Operation(summary = "Delete one personal favorite category")
+    public ApiResponse<Void> deleteFavoriteCategory(
+        @PathVariable("categoryName") String categoryName,
+        @RequestParam(value = "tenantId", required = false) String tenantId,
+        @RequestParam(value = "userId", required = false) String userId,
+        HttpServletRequest servletRequest
+    ) {
+        try {
+            workbenchService.deleteFavoriteCategory(
+                categoryName,
+                resolveTenantId(servletRequest, tenantId),
+                resolveUserId(servletRequest, userId)
+            );
+            return ApiResponse.success(null, "Favorite category deleted");
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        }
+    }
+
     @PutMapping("/favorites/{favoriteId}/category")
     @Operation(summary = "Move one favorite into a category")
     public ApiResponse<UserWorkbenchService.ShortcutItem> updateFavoriteCategory(

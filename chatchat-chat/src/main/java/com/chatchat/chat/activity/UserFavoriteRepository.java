@@ -26,6 +26,12 @@ public interface UserFavoriteRepository extends JpaRepository<UserFavoriteEntity
         Pageable pageable
     );
 
+    List<UserFavoriteEntity> findByTenantIdAndUserIdAndCategory(
+        String tenantId,
+        String userId,
+        String category
+    );
+
     List<UserFavoriteEntity> findByTenantIdAndUserIdAndTargetTypeOrderByCreatedAtDesc(
         String tenantId,
         String userId,

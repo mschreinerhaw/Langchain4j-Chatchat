@@ -126,6 +126,51 @@ public class UserWorkbenchService {
     }
 
     @Transactional
+    public FavoriteCategory renameFavoriteCategory(String currentName, FavoriteCategoryRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Favorite category payload cannot be empty");
+        }
+        String tenantId = requireText(request.tenantId(), "Tenant ID cannot be empty");
+        String userId = requireText(request.userId(), "User ID cannot be empty");
+        String sourceName = truncate(requireText(currentName, "Favorite category name cannot be empty"), 80);
+        String nextName = truncate(requireText(request.name(), "Favorite category name cannot be empty"), 80);
+        requireMutableFavoriteCategory(sourceName);
+        if (!sourceName.equals(nextName)) {
+            if (DEFAULT_FAVORITE_CATEGORY.equals(nextName)
+                || favoriteCategoryRepository.findByTenantIdAndUserIdAndCategoryName(tenantId, userId, nextName).isPresent()) {
+                throw new IllegalArgumentException("Favorite category already exists");
+            }
+        }
+        UserFavoriteCategoryEntity category = favoriteCategoryRepository
+            .findByTenantIdAndUserIdAndCategoryName(tenantId, userId, sourceName)
+            .orElseThrow(() -> new IllegalArgumentException("Favorite category does not exist for the current user"));
+        if (sourceName.equals(nextName)) {
+            return toFavoriteCategory(category);
+        }
+        category.setCategoryName(nextName);
+        favoriteRepository.findByTenantIdAndUserIdAndCategory(tenantId, userId, sourceName).forEach(favorite ->
+            favorite.setCategory(nextName)
+        );
+        return toFavoriteCategory(favoriteCategoryRepository.save(category));
+    }
+
+    @Transactional
+    public void deleteFavoriteCategory(String name, String tenantId, String userId) {
+        String normalizedTenant = requireText(tenantId, "Tenant ID cannot be empty");
+        String normalizedUser = requireText(userId, "User ID cannot be empty");
+        String normalizedName = truncate(requireText(name, "Favorite category name cannot be empty"), 80);
+        requireMutableFavoriteCategory(normalizedName);
+        UserFavoriteCategoryEntity category = favoriteCategoryRepository
+            .findByTenantIdAndUserIdAndCategoryName(normalizedTenant, normalizedUser, normalizedName)
+            .orElseThrow(() -> new IllegalArgumentException("Favorite category does not exist for the current user"));
+        ensureFavoriteCategory(normalizedTenant, normalizedUser, DEFAULT_FAVORITE_CATEGORY);
+        favoriteRepository.findByTenantIdAndUserIdAndCategory(normalizedTenant, normalizedUser, normalizedName).forEach(favorite ->
+            favorite.setCategory(DEFAULT_FAVORITE_CATEGORY)
+        );
+        favoriteCategoryRepository.delete(category);
+    }
+
+    @Transactional
     public ShortcutItem updateFavoriteCategory(String favoriteId, FavoriteCategoryUpdateRequest request) {
         if (request == null) {
             throw new IllegalArgumentException("Favorite category update payload cannot be empty");
@@ -151,6 +196,12 @@ public class UserWorkbenchService {
                 entity.setCategoryName(name);
                 return favoriteCategoryRepository.save(entity);
             });
+    }
+
+    private void requireMutableFavoriteCategory(String name) {
+        if (DEFAULT_FAVORITE_CATEGORY.equals(name)) {
+            throw new IllegalArgumentException("The default favorite category cannot be modified");
+        }
     }
 
     private List<FavoriteCategory> listFavoriteCategories(String tenantId, String userId) {

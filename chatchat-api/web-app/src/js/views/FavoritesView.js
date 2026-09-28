@@ -1,8 +1,11 @@
 import "../../styles/pages/favorites.css";
+import { MoreHorizontal, Pencil, Plus, Trash2 } from "@lucide/vue";
 import {
   createUserFavoriteCategory,
+  deleteUserFavoriteCategory,
   fetchWorkbenchShortcuts,
   removeUserFavorite,
+  renameUserFavoriteCategory,
   updateUserFavoriteCategory
 } from "../../services/api";
 import {
@@ -42,6 +45,12 @@ function categoryTextWidth(value) {
 
 export default {
   name: "FavoritesView",
+  components: {
+    MoreHorizontal,
+    Pencil,
+    Plus,
+    Trash2
+  },
   props: {
     userId: {
       type: String,
@@ -66,7 +75,12 @@ export default {
       categoryDialogOpen: false,
       categoryDialogError: "",
       newCategoryName: "",
+      editingCategoryName: "",
       categorySaving: false,
+      openCategoryActionName: "",
+      categoryDeleteItem: null,
+      categoryDeleteDialogOpen: false,
+      categoryDeleteSubmitting: false,
       categoryUpdatingIds: {}
     };
   },
@@ -140,8 +154,10 @@ export default {
         this.loading = false;
       }
     },
-    openCategoryDialog() {
-      this.newCategoryName = "";
+    openCategoryDialog(category = null) {
+      this.closeCategoryActions();
+      this.editingCategoryName = this.isMutableCategory(category?.value) ? category.value : "";
+      this.newCategoryName = this.editingCategoryName;
       this.categoryDialogError = "";
       this.categoryDialogOpen = true;
       this.$nextTick(() => this.$refs.categoryNameInput?.focus());
@@ -150,30 +166,97 @@ export default {
       if (this.categorySaving) return;
       this.categoryDialogOpen = false;
       this.categoryDialogError = "";
+      this.editingCategoryName = "";
+      this.newCategoryName = "";
     },
-    async createCategory() {
+    async saveCategory() {
       const name = this.newCategoryName.trim();
       if (!name || this.categorySaving) return;
-      if (this.availableCategoryNames.some((category) => category.toLowerCase() === name.toLowerCase())) {
+      if (this.availableCategoryNames.some((category) =>
+        category.toLowerCase() === name.toLowerCase() && category !== this.editingCategoryName
+      )) {
         this.categoryDialogError = "该分类已经存在";
         return;
       }
       this.categorySaving = true;
       this.categoryDialogError = "";
       try {
-        const category = await createUserFavoriteCategory({
+        const payload = {
           tenantId: this.effectiveTenantId,
           userId: this.userId,
           name
-        });
-        this.favoriteCategories = [...this.favoriteCategories, category || { name }];
+        };
+        if (this.editingCategoryName) {
+          const originalName = this.editingCategoryName;
+          const category = await renameUserFavoriteCategory(originalName, payload);
+          this.favoriteCategories = this.favoriteCategories.map((item) => {
+            const itemName = item?.name || item?.categoryName || item;
+            return itemName === originalName ? (category || { name }) : item;
+          });
+          this.favorites = this.favorites.map((favorite) =>
+            this.favoriteCategory(favorite) === originalName ? { ...favorite, category: name } : favorite
+          );
+          this.message = `分类“${name}”已更新`;
+        } else {
+          const category = await createUserFavoriteCategory(payload);
+          this.favoriteCategories = [...this.favoriteCategories, category || { name }];
+          this.message = `分类“${name}”已创建`;
+        }
         this.activeCategory = name;
         this.categoryDialogOpen = false;
-        this.message = `分类“${name}”已创建`;
+        this.editingCategoryName = "";
+        this.newCategoryName = "";
       } catch (error) {
-        this.categoryDialogError = error.message || "创建分类失败";
+        this.categoryDialogError = error.message || (this.editingCategoryName ? "修改分类失败" : "创建分类失败");
       } finally {
         this.categorySaving = false;
+      }
+    },
+    isMutableCategory(category) {
+      return Boolean(category) && category !== "all" && category !== DEFAULT_CATEGORY;
+    },
+    toggleCategoryActions(category) {
+      this.openCategoryActionName = this.openCategoryActionName === category ? "" : category;
+    },
+    closeCategoryActions() {
+      this.openCategoryActionName = "";
+    },
+    openCategoryDeleteDialog(category) {
+      if (!this.isMutableCategory(category?.value)) return;
+      this.closeCategoryActions();
+      this.categoryDeleteItem = category;
+      this.categoryDeleteDialogOpen = true;
+      this.error = "";
+    },
+    closeCategoryDeleteDialog() {
+      if (this.categoryDeleteSubmitting) return;
+      this.categoryDeleteDialogOpen = false;
+      this.categoryDeleteItem = null;
+    },
+    async deleteCategory() {
+      const name = this.categoryDeleteItem?.value;
+      if (!this.isMutableCategory(name) || this.categoryDeleteSubmitting) return;
+      this.categoryDeleteSubmitting = true;
+      this.error = "";
+      try {
+        await deleteUserFavoriteCategory(name, {
+          tenantId: this.effectiveTenantId,
+          userId: this.userId
+        });
+        this.favoriteCategories = this.favoriteCategories.filter((item) =>
+          (item?.name || item?.categoryName || item) !== name
+        );
+        this.favorites = this.favorites.map((favorite) =>
+          this.favoriteCategory(favorite) === name ? { ...favorite, category: DEFAULT_CATEGORY } : favorite
+        );
+        if (this.activeCategory === name) this.activeCategory = "all";
+        this.categoryDeleteDialogOpen = false;
+        this.categoryDeleteItem = null;
+        this.message = `分类“${name}”已删除，原收藏已移至“默认”`;
+      } catch (error) {
+        this.error = error.message || "删除分类失败";
+      } finally {
+        this.categoryDeleteSubmitting = false;
       }
     },
     async changeFavoriteCategory(favorite, category) {
@@ -224,6 +307,7 @@ export default {
       return this.isUnsupportedDocumentFavorite(favorite) ? UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE : "";
     },
     selectCategory(category) {
+      this.closeCategoryActions();
       this.activeCategory = category;
     },
     normalizeCategory() {

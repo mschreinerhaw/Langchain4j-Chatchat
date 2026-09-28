@@ -36,10 +36,31 @@
 
     <div class="favorite-layout">
       <aside class="favorite-categories">
+        <div class="favorite-category-heading">
+          <span>分类</span>
+          <button
+            type="button"
+            class="favorite-category-add"
+            aria-label="新建收藏分类"
+            title="新建分类"
+            @click="openCategoryDialog()"
+          >
+            <Plus :size="16" />
+          </button>
+        </div>
+        <div
+          v-if="openCategoryActionName"
+          class="favorite-category-action-backdrop"
+          @click="closeCategoryActions"
+        ></div>
         <div
           v-for="category in categoryOptions"
           :key="category.value"
           class="favorite-category-row"
+          :class="{
+            active: activeCategory === category.value,
+            'menu-open': openCategoryActionName === category.value
+          }"
         >
           <button
             type="button"
@@ -50,16 +71,32 @@
             <span>{{ category.label }}</span>
             <strong>{{ category.count }}</strong>
           </button>
-          <button
-            v-if="category.value === 'all'"
-            type="button"
-            class="favorite-category-add"
-            aria-label="新建收藏分类"
-            title="新建分类"
-            @click="openCategoryDialog"
-          >
-            ＋
-          </button>
+          <div v-if="isMutableCategory(category.value)" class="favorite-category-row-actions">
+            <button
+              type="button"
+              class="favorite-category-action-trigger"
+              title="分类操作"
+              aria-label="分类操作"
+              :aria-expanded="openCategoryActionName === category.value"
+              @click.stop="toggleCategoryActions(category.value)"
+            >
+              <MoreHorizontal :size="16" />
+            </button>
+            <div
+              v-if="openCategoryActionName === category.value"
+              class="favorite-category-action-menu"
+              @click.stop
+            >
+              <button type="button" @click="openCategoryDialog(category)">
+                <Pencil :size="14" />
+                <span>修改分类</span>
+              </button>
+              <button type="button" class="danger-action" @click="openCategoryDeleteDialog(category)">
+                <Trash2 :size="14" />
+                <span>删除分类</span>
+              </button>
+            </div>
+          </div>
         </div>
       </aside>
 
@@ -103,11 +140,11 @@
     </div>
 
     <div v-if="categoryDialogOpen" class="favorite-dialog-backdrop" @click.self="closeCategoryDialog">
-      <form class="favorite-category-dialog" @submit.prevent="createCategory">
+      <form class="favorite-category-dialog" @submit.prevent="saveCategory">
         <header>
           <div>
             <p>收藏分类</p>
-            <h2>新建分类</h2>
+            <h2>{{ editingCategoryName ? "修改分类" : "新建分类" }}</h2>
           </div>
           <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="categorySaving" @click="closeCategoryDialog">×</button>
         </header>
@@ -119,10 +156,35 @@
         <footer>
           <button type="button" class="secondary-button" :disabled="categorySaving" @click="closeCategoryDialog">取消</button>
           <button type="submit" class="primary-button" :disabled="categorySaving || !newCategoryName">
-            {{ categorySaving ? "创建中" : "创建分类" }}
+            {{ categorySaving ? "保存中" : (editingCategoryName ? "保存修改" : "创建分类") }}
           </button>
         </footer>
       </form>
+    </div>
+
+    <div v-if="categoryDeleteDialogOpen" class="favorite-dialog-backdrop" @click.self="closeCategoryDeleteDialog">
+      <section class="favorite-category-dialog favorite-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="favorite-delete-title">
+        <header>
+          <div>
+            <p>收藏分类</p>
+            <h2 id="favorite-delete-title">删除分类？</h2>
+          </div>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="categoryDeleteSubmitting" @click="closeCategoryDeleteDialog">×</button>
+        </header>
+        <div class="favorite-delete-body">
+          <span class="favorite-delete-icon"><Trash2 :size="20" /></span>
+          <div>
+            <strong>确定删除“{{ categoryDeleteItem?.label }}”吗？</strong>
+            <p>分类中的 {{ categoryDeleteItem?.count || 0 }} 项收藏不会被删除，将自动移至“默认”分类。</p>
+          </div>
+        </div>
+        <footer>
+          <button type="button" class="secondary-button" :disabled="categoryDeleteSubmitting" @click="closeCategoryDeleteDialog">取消</button>
+          <button type="button" class="danger-confirm-button" :disabled="categoryDeleteSubmitting" @click="deleteCategory">
+            {{ categoryDeleteSubmitting ? "删除中" : "删除分类" }}
+          </button>
+        </footer>
+      </section>
     </div>
   </section>
 </template>

@@ -1,5 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import * as api from "../../services/api.js";
 import FavoritesView from "./FavoritesView.js";
+
+vi.mock("../../services/api.js", () => ({
+  createUserFavoriteCategory: vi.fn(),
+  deleteUserFavoriteCategory: vi.fn(),
+  fetchWorkbenchShortcuts: vi.fn(),
+  removeUserFavorite: vi.fn(),
+  renameUserFavoriteCategory: vi.fn(),
+  updateUserFavoriteCategory: vi.fn()
+}));
 
 describe("FavoritesView", () => {
   it("uses the real tenant id instead of the user id", () => {
@@ -46,5 +56,46 @@ describe("FavoritesView", () => {
     expect(shortWidth).toBe(96);
     expect(mixedWidth).toBeGreaterThan(shortWidth);
     expect(longWidth).toBe(520);
+  });
+
+  it("renames a category and keeps its favorites and filter in sync", async () => {
+    api.renameUserFavoriteCategory.mockResolvedValue({ id: "category-1", name: "客户资料" });
+    const context = {
+      newCategoryName: " 客户资料 ", editingCategoryName: "项目资料", categorySaving: false,
+      categoryDialogOpen: true, categoryDialogError: "", message: "", activeCategory: "项目资料",
+      effectiveTenantId: "tenant-1", userId: "alice", availableCategoryNames: ["默认", "项目资料"],
+      favoriteCategories: [{ id: "category-1", name: "项目资料" }],
+      favorites: [{ id: "favorite-1", category: "项目资料" }],
+      favoriteCategory: FavoritesView.methods.favoriteCategory
+    };
+
+    await FavoritesView.methods.saveCategory.call(context);
+
+    expect(api.renameUserFavoriteCategory).toHaveBeenCalledWith("项目资料", {
+      tenantId: "tenant-1", userId: "alice", name: "客户资料"
+    });
+    expect(context.activeCategory).toBe("客户资料");
+    expect(context.favorites[0].category).toBe("客户资料");
+  });
+
+  it("deletes a category and moves local favorites to default", async () => {
+    api.deleteUserFavoriteCategory.mockResolvedValue(true);
+    const context = {
+      categoryDeleteItem: { value: "项目资料", label: "项目资料", count: 1 },
+      categoryDeleteSubmitting: false, categoryDeleteDialogOpen: true,
+      effectiveTenantId: "tenant-1", userId: "alice", error: "", message: "",
+      activeCategory: "项目资料", favoriteCategories: [{ name: "项目资料" }],
+      favorites: [{ id: "favorite-1", category: "项目资料" }],
+      favoriteCategory: FavoritesView.methods.favoriteCategory,
+      isMutableCategory: FavoritesView.methods.isMutableCategory
+    };
+
+    await FavoritesView.methods.deleteCategory.call(context);
+
+    expect(api.deleteUserFavoriteCategory).toHaveBeenCalledWith("项目资料", {
+      tenantId: "tenant-1", userId: "alice"
+    });
+    expect(context.activeCategory).toBe("all");
+    expect(context.favorites[0].category).toBe("默认");
   });
 });

@@ -12,6 +12,9 @@ public interface AgentRuntimeAdapter {
     default int priority() { return 0; }
     boolean supports(String engine);
     ExecutionResult execute(ExecutionRequest request);
+    default HealthResult health(HealthRequest request) {
+        return new HealthResult("UNKNOWN", Map.of("adapterId", adapterId()));
+    }
 
     record ExecutionRequest(String engine, String query, SkillRoleContext roleContext,
                             ResolvedSkill skill, AuthorizedSkillScope scope,
@@ -22,5 +25,16 @@ public interface AgentRuntimeAdapter {
 
     record ExecutionResult(String status, String output, Map<String, Object> metadata) {
         public ExecutionResult { metadata = metadata == null ? Map.of() : Map.copyOf(metadata); }
+    }
+
+    record HealthRequest(String engine, Map<String, Object> attributes) {
+        public HealthRequest { attributes = attributes == null ? Map.of() : Map.copyOf(attributes); }
+    }
+
+    record HealthResult(String status, Map<String, Object> details) {
+        public HealthResult {
+            status = status == null || status.isBlank() ? "UNKNOWN" : status.trim();
+            details = details == null ? Map.of() : Map.copyOf(details);
+        }
     }
 }

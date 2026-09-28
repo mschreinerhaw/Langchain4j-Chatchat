@@ -25,6 +25,11 @@ public final class ExternalEngineAgentRuntimeAdapter implements AgentRuntimeAdap
             .findFirst().map(item -> item.execute(request)).orElseGet(() ->
                 new ExecutionResult("ENGINE_NOT_REGISTERED", "", Map.of("engine", request.engine())));
     }
+    @Override public HealthResult health(HealthRequest request) {
+        return engines.stream().filter(item -> normalize(item.engineId()).equals(normalize(request.engine())))
+            .findFirst().map(item -> item.health(request)).orElseGet(() ->
+                new HealthResult("ENGINE_NOT_REGISTERED", Map.of("engine", request.engine())));
+    }
     private String normalize(String value) {
         return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
     }

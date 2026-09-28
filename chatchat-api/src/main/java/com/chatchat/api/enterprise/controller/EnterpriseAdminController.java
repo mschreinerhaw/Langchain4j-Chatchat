@@ -12,6 +12,7 @@ import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.runtime.agent.AgentDescriptor;
 import com.chatchat.common.runtime.agent.AgentRegistryPort;
 import com.chatchat.common.runtime.agent.AgentCredentialResolver;
+import com.chatchat.runtime.skill.spi.AgentRuntimeDispatcher;
 import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.knowledgebase.search.document.LibraryDocumentItem;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
@@ -53,6 +54,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -76,6 +78,7 @@ public class EnterpriseAdminController {
     private final AgentRegistryPort agentRegistry;
     private final AgentCardDiscoveryPort agentCards;
     private final AgentHealthTracker agentHealth;
+    private final AgentRuntimeDispatcher agentRuntimeDispatcher;
     private final ObjectProvider<AgentCredentialResolver> agentCredentials;
     private final DocumentLibraryReadPort documentLibrary;
     private final DomainSkillService domainSkillService;
@@ -157,6 +160,21 @@ public class EnterpriseAdminController {
         requirePlatformAgentRegistryAdmin(request);
         if (agentRegistry.find(agentId).isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         return ApiResponse.success(agentHealth.snapshot(agentId));
+    }
+
+    @GetMapping("/runtime-adapters/{engine}/health")
+    @Operation(summary = "Validate an exact runtime adapter against its database configuration")
+    public ApiResponse<com.chatchat.runtime.skill.spi.AgentRuntimeAdapter.HealthResult> runtimeAdapterHealth(
+        HttpServletRequest request,
+        @PathVariable String engine,
+        @RequestParam(required = false) String agentId,
+        @RequestParam(required = false) String modelName
+    ) {
+        requirePlatformAgentRegistryAdmin(request);
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        if (agentId != null && !agentId.isBlank()) attributes.put("agentId", agentId.trim());
+        if (modelName != null && !modelName.isBlank()) attributes.put("modelName", modelName.trim());
+        return ApiResponse.success(agentRuntimeDispatcher.health(engine, attributes));
     }
 
     private AgentCardDiscoveryPort.CardSummary discoverCard(AgentDescriptor descriptor) {

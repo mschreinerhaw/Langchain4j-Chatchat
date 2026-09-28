@@ -28,4 +28,14 @@ public final class DefaultAgentRuntimeDispatcher implements AgentRuntimeDispatch
         AgentRuntimeAdapter selected = supported.get(0);
         return selected.execute(request);
     }
+
+    @Override
+    public AgentRuntimeAdapter.HealthResult health(String engine, Map<String, Object> attributes) {
+        if (engine == null || engine.isBlank())
+            return new AgentRuntimeAdapter.HealthResult("ENGINE_REQUIRED", Map.of());
+        return adapters.stream().filter(adapter -> adapter.supports(engine)).findFirst()
+            .map(adapter -> adapter.health(new AgentRuntimeAdapter.HealthRequest(engine, attributes)))
+            .orElseGet(() -> new AgentRuntimeAdapter.HealthResult(
+                "ENGINE_NOT_REGISTERED", Map.of("engine", engine)));
+    }
 }

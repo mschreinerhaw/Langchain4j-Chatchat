@@ -343,6 +343,31 @@ Routing filters tenant/data/evidence policy first. A health tracker backed by Po
 seconds after three consecutive failures and deprioritizes providers whose observed latency exceeds
 `slaLatencyMs`. `GET /api/v1/enterprise/agent-registry/{agentId}/health` exposes this signal.
 
+## Skill Runtime adapters
+
+The Skill Runtime selects an adapter by the workflow's exact engine identifier. It never substitutes another
+engine when the requested adapter or its database configuration is unavailable:
+
+- `LANGCHAIN4J` executes the local Agent Runtime with the resolved Skill and database-authorized resource scope.
+- `OPENAI_COMPATIBLE` requires an explicit `modelName` that resolves to an enabled, published OpenAI-compatible
+  connection in the database model catalog.
+- `GOOGLE_ADK` requires an authorized A2A registry entry whose metadata contains
+  `"runtimeEngine": "GOOGLE_ADK"`.
+- `EXTERNAL_AGENT` requires an authorized A2A or HTTP+JSON registry entry whose metadata contains
+  `"runtimeEngine": "EXTERNAL_AGENT"`.
+
+Remote workflows must also resolve to `EXTERNAL_AGENT`, and `agentId` must be present in the Skill's persisted
+Agent resource scope. A capability must either be supplied explicitly and advertised by the registered Agent,
+or the Agent must advertise exactly one capability. Invalid constraints, missing registry entries, disabled
+Agents, protocol mismatches and engine mismatches fail closed before network invocation.
+
+Platform administrators can validate the actual adapter and its database-backed target with:
+
+```http
+GET /api/v1/enterprise/runtime-adapters/GOOGLE_ADK/health?agentId=group.investment.analysis
+GET /api/v1/enterprise/runtime-adapters/OPENAI_COMPATIBLE/health?modelName=finance-model
+```
+
 ## Result contract
 
 Successful providers should return `agent_execution_outcome.v1`. Every material claim cites evidence IDs from the input

@@ -29,4 +29,27 @@ class DefaultAgentRuntimeDispatcherTest {
             null, null, null, Map.of());
         assertThat(new DefaultAgentRuntimeDispatcher(List.of(adapter)).execute(request).output()).isEqualTo("ok");
     }
+
+    @Test
+    void dispatchesHealthOnlyToTheExactEngineAdapter() {
+        AgentRuntimeAdapter adapter = new AgentRuntimeAdapter() {
+            @Override public String adapterId() { return "openai"; }
+            @Override public boolean supports(String engine) { return "OPENAI_COMPATIBLE".equals(engine); }
+            @Override public ExecutionResult execute(ExecutionRequest request) {
+                return new ExecutionResult("COMPLETED", "", Map.of());
+            }
+            @Override public HealthResult health(HealthRequest request) {
+                return new HealthResult("READY", Map.of("modelName", request.attributes().get("modelName")));
+            }
+        };
+
+        var dispatcher = new DefaultAgentRuntimeDispatcher(List.of(adapter));
+
+        assertThat(dispatcher.health("OPENAI_COMPATIBLE", Map.of("modelName", "published-model")))
+            .satisfies(result -> {
+                assertThat(result.status()).isEqualTo("READY");
+                assertThat(result.details()).containsEntry("modelName", "published-model");
+            });
+        assertThat(dispatcher.health("GOOGLE_ADK", Map.of()).status()).isEqualTo("ENGINE_NOT_REGISTERED");
+    }
 }

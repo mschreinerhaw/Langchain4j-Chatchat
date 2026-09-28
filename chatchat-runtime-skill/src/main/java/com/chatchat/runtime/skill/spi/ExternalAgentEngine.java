@@ -4,4 +4,7 @@ package com.chatchat.runtime.skill.spi;
 public interface ExternalAgentEngine {
     String engineId();
     AgentRuntimeAdapter.ExecutionResult execute(AgentRuntimeAdapter.ExecutionRequest request);
+    default AgentRuntimeAdapter.HealthResult health(AgentRuntimeAdapter.HealthRequest request) {
+        return new AgentRuntimeAdapter.HealthResult("UNKNOWN", java.util.Map.of("engine", engineId()));
+    }
 }

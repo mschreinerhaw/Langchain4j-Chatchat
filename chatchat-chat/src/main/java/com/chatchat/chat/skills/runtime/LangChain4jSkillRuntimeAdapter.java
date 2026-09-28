@@ -11,7 +11,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
-/** Executes local LangChain4j and OpenAI-compatible models under the resolved database scope. */
+/** Executes the local LangChain4j runtime under the resolved database scope. */
 @Component
 public class LangChain4jSkillRuntimeAdapter implements AgentRuntimeAdapter {
     private final AgentRuntime runtime;
@@ -22,13 +22,28 @@ public class LangChain4jSkillRuntimeAdapter implements AgentRuntimeAdapter {
     @Override public int priority() { return 100; }
     @Override public boolean supports(String engine) {
         String value = engine == null ? "" : engine.trim().toUpperCase(Locale.ROOT);
-        return "LANGCHAIN4J".equals(value) || "OPENAI_COMPATIBLE".equals(value);
+        return "LANGCHAIN4J".equals(value);
+    }
+
+    @Override public HealthResult health(HealthRequest request) {
+        return new HealthResult("READY", Map.of("adapterId", adapterId(), "engine", "LANGCHAIN4J"));
     }
 
     @Override
     public ExecutionResult execute(ExecutionRequest request) {
         if (request == null || request.skill() == null || request.scope() == null
             || !request.scope().skillAllowed()) return new ExecutionResult("SKILL_NOT_AUTHORIZED", "", Map.of());
+        if (request.roleContext() == null)
+            return new ExecutionResult("ROLE_CONTEXT_REQUIRED", "", Map.of());
+        Integer maxSteps = positiveInteger(request.attributes().get("maxSteps"));
+        Integer maxToolCalls = positiveInteger(request.attributes().get("maxToolCalls"));
+        Long timeoutMs = positiveLong(request.attributes().get("timeoutMs"));
+        if (invalidNumber(request.attributes(), "maxSteps", maxSteps)
+            || invalidNumber(request.attributes(), "maxToolCalls", maxToolCalls)
+            || invalidNumber(request.attributes(), "timeoutMs", timeoutMs)) {
+            return new ExecutionResult("INVALID_RUNTIME_CONSTRAINT", "", Map.of(
+                "message", "maxSteps, maxToolCalls and timeoutMs must be positive integers"));
+        }
         Map<String, Object> attributes = new LinkedHashMap<>(request.attributes());
         attributes.put("skillRuntimeEngine", request.engine());
         if (request.workflow() != null) {
@@ -49,9 +64,9 @@ public class LangChain4jSkillRuntimeAdapter implements AgentRuntimeAdapter {
             .requiredToolNames(request.scope().mcpToolIds())
             .boundDocumentIds(request.scope().documentIds())
             .boundDocumentTags(request.scope().knowledgeBaseIds())
-            .maxSteps(integer(attributes.get("maxSteps")))
-            .maxToolCalls(integer(attributes.get("maxToolCalls")))
-            .timeoutMs(longValue(attributes.get("timeoutMs")))
+            .maxSteps(maxSteps)
+            .maxToolCalls(maxToolCalls)
+            .timeoutMs(timeoutMs == null ? 0L : timeoutMs)
             .attributes(attributes)
             .build());
         Map<String, Object> metadata = new LinkedHashMap<>(result.metadata());
@@ -66,14 +81,24 @@ public class LangChain4jSkillRuntimeAdapter implements AgentRuntimeAdapter {
         String result = value == null ? "" : value.toString().trim();
         return result.isBlank() ? fallback : result;
     }
-    private Integer integer(Object value) {
-        if (value instanceof Number number) return number.intValue();
-        try { return value == null ? null : Integer.valueOf(value.toString()); }
+    private Integer positiveInteger(Object value) {
+        if (value == null || value.toString().isBlank()) return null;
+        try {
+            int parsed = value instanceof Number number ? number.intValue() : Integer.parseInt(value.toString());
+            return parsed > 0 ? parsed : null;
+        }
         catch (NumberFormatException ignored) { return null; }
     }
-    private long longValue(Object value) {
-        if (value instanceof Number number) return Math.max(0L, number.longValue());
-        try { return value == null ? 0L : Math.max(0L, Long.parseLong(value.toString())); }
-        catch (NumberFormatException ignored) { return 0L; }
+    private Long positiveLong(Object value) {
+        if (value == null || value.toString().isBlank()) return null;
+        try {
+            long parsed = value instanceof Number number ? number.longValue() : Long.parseLong(value.toString());
+            return parsed > 0L ? parsed : null;
+        }
+        catch (NumberFormatException ignored) { return null; }
+    }
+    private boolean invalidNumber(Map<String, Object> attributes, String key, Number parsed) {
+        Object raw = attributes.get(key);
+        return raw != null && !raw.toString().isBlank() && parsed == null;
     }
 }

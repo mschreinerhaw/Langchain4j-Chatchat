@@ -25,6 +25,18 @@ import static org.mockito.Mockito.when;
 class AnalysisEvidenceCoordinatorTest {
 
     @Test
+    void neverProjectsFinalAnswerBackIntoBusinessEvidence() {
+        InterpretationPlanRuntime.StepExecution finalAnswer = new InterpretationPlanRuntime.StepExecution(
+            2, "final_answer", "final_answer", true,
+            Map.of("payload", Map.of("answer", "presentation only")), null, null, null, 1);
+
+        AnalysisEvidenceCoordinator.Projection projection = coordinator().project(result(finalAnswer));
+
+        assertThat(projection.datasets()).isEmpty();
+        assertThat(projection.excludedDatasets()).isEmpty();
+    }
+
+    @Test
     void pinsRoleContextBeforeDatasetRelationshipAndWorkerPlanning() {
         AnalysisEvidenceCoordinator coordinator = coordinator();
         Map<String, Object> attributes = new java.util.LinkedHashMap<>(Map.of(

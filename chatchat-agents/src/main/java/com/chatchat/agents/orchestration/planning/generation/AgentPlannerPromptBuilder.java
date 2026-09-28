@@ -462,6 +462,11 @@ public final class AgentPlannerPromptBuilder {
             .append("Activated skills: ").append(activated).append("\n")
             .append("Document sources: ").append(sources).append("\n")
             .append("Compiled knowledge:\n").append(compiledContext);
+        if (Boolean.TRUE.equals(context.get("truncated"))) {
+            section.append("\nRuntime evidence-control signal:\n")
+                .append("- continuationRequired=true: the supplied document evidence is incomplete.\n")
+                .append("- Do not produce a direct final_answer from these partial fragments. Plan an authorized document evidence retrieval/expansion step before final_answer.\n");
+        }
         prompt.append(boundedText(section.toString(), ACTIVATED_KNOWLEDGE_PROMPT_CHARS,
             "activated knowledge skill context")).append("\n\n");
     }

@@ -88,6 +88,10 @@ public final class AnalysisEvidenceCoordinator {
         List<Map<String, Object>> excluded = new ArrayList<>();
         for (InterpretationPlanRuntime.StepExecution step : result.steps()) {
             if (step == null) continue;
+            // final_answer is a presentation artifact assembled from evidence. Feeding it back
+            // into business-data analysis creates a circular source (final_answer#payload) and
+            // can turn synthesis caveats into apparent observations.
+            if ("final_answer".equalsIgnoreCase(step.actionType())) continue;
             String stepReference = firstNonBlank(step.toolName(),
                 "plan-step-" + (step.stepId() == null ? "unknown" : step.stepId()));
             if (!step.success()) {

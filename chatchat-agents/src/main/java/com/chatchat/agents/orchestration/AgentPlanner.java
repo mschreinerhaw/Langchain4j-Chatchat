@@ -194,7 +194,10 @@ public class AgentPlanner implements AgentPlanningPort {
             AgentPlanBudgetPolicy.fromRuntimeAttributes(runtimeAttributes),
             authoritativeWorkflowDagForPlanning(runtimeAttributes),
             runtimeAttributes == null ? null : runtimeAttributes.get("mcpWorkflow"),
-            stringList(runtimeAttributes == null ? null : runtimeAttributes.get("plannerOptionalTools"))
+            stringList(runtimeAttributes == null ? null : runtimeAttributes.get("plannerOptionalTools")),
+            Boolean.TRUE.equals(asMap(runtimeAttributes == null ? null
+                : runtimeAttributes.get(com.chatchat.common.knowledge.runtime.KnowledgeContext.RUNTIME_ATTRIBUTE))
+                .get("truncated"))
         );
         List<String> optionalTools = validationContext.optionalTools();
         // Native function calling selects a single call and therefore cannot express the
@@ -739,6 +742,15 @@ public class AgentPlanner implements AgentPlanningPort {
                 context.authoritativeWorkflowDag(), stepsById, toolStepIds, issues);
         }
         validateOptionalToolDecisions(plan, context, stepsById, toolStepIds, finalStep, issues);
+        if (context.knowledgeContextTruncated()) {
+            Integer documentStepId = firstToolStepId(toolStepIds, context.documentSearchTool());
+            if (documentStepId == null) {
+                issues.add("Truncated knowledge requires an authorized document evidence expansion step before final_answer.");
+            } else if (finalStep == null
+                || !dependsOnStep(finalStep.id(), documentStepId, stepsById, new LinkedHashSet<>())) {
+                issues.add("final_answer must depend on document evidence expansion when prefetched knowledge is truncated.");
+            }
+        }
         if (context.requireDocumentWebVerification()) {
             Integer documentStepId = firstToolStepId(toolStepIds, context.documentSearchTool());
             Integer webStepId = firstToolStepId(toolStepIds, context.verificationWebSearchTool());
@@ -816,7 +828,8 @@ public class AgentPlanner implements AgentPlanningPort {
         return new InterpretationPlan.ExecutionPolicy(
             maxSteps,
             optimized.allowParallel() == null ? source.allowParallel() : optimized.allowParallel(),
-            List.copyOf(allowedTools),
+            source.allowTool() == null && optimized.allowTool() == null && allowedTools.isEmpty()
+                ? null : List.copyOf(allowedTools),
             source.denyTool(),
             source.timeoutMs(),
             source.maxRewriteTimes(),

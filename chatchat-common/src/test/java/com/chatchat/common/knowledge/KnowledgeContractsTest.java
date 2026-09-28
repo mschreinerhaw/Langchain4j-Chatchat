@@ -48,4 +48,17 @@ class KnowledgeContractsTest {
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("exceeds");
     }
+
+    @Test
+    void exposesTruncationAsContinuationControlInsteadOfAnInformationalHint() {
+        KnowledgeContext context = new KnowledgeContext(
+            "ignored", null, List.of(), "partial", List.of(), 1, 10, true, "used");
+
+        assertThat(context.toRuntimeProjection())
+            .containsEntry("completionState", "EXPANSION_REQUIRED")
+            .containsEntry("continuationRequired", true);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> contract = (Map<String, Object>) context.toRuntimeProjection().get("usageContract");
+        assertThat(contract).containsEntry("directFinalAllowed", false);
+    }
 }

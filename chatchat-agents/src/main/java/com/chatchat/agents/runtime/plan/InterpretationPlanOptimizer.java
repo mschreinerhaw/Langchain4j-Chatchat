@@ -349,7 +349,9 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
             return policy;
         }
         return new InterpretationPlan.ExecutionPolicy(
-            maxSteps, policy.allowParallel(), List.copyOf(allowed), policy.denyTool(), policy.timeoutMs(),
+            maxSteps, policy.allowParallel(),
+            policy.allowTool() == null && allowed.isEmpty() ? null : List.copyOf(allowed),
+            policy.denyTool(), policy.timeoutMs(),
             policy.maxRewriteTimes(), policy.fallbackMode(), policy.toolPriority(), policy.costBudget(),
             policy.latencyBudgetMs(), policy.accuracyVsSpeed());
     }

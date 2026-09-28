@@ -54,6 +54,8 @@ public record KnowledgeContext(
         projection.put("estimatedTokens", estimatedTokens);
         projection.put("maxTokens", maxTokens);
         projection.put("truncated", truncated);
+        projection.put("completionState", truncated ? "EXPANSION_REQUIRED" : "COMPLETE");
+        projection.put("continuationRequired", truncated);
         projection.put("skillTypes", plan == null ? List.of() : plan.skills().stream()
             .map(skill -> skill.skillType().name()).distinct().toList());
         projection.put("activatedSkills", plan == null ? List.of() : plan.skills().stream().map(skill -> {
@@ -80,6 +82,7 @@ public record KnowledgeContext(
         projection.put("usageContract", Map.of(
             "role", "AUTHORIZED_DOCUMENT_KNOWLEDGE_EVIDENCE",
             "answersSupportedByKnowledge", true,
+            "directFinalAllowed", !truncated,
             "sourceCitationRequired", true,
             "toolEvidenceRequiredForDynamicFacts", true,
             "examplesAreCurrentFacts", false));

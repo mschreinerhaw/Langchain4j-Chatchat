@@ -19,6 +19,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
@@ -32,6 +34,8 @@ import java.util.List;
 @Service
 @Slf4j
 public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
+
+    private static final int MAX_EVIDENCE_EXPANSION_ATTEMPTS = 2;
 
     private final KnowledgeSkillSynthesizerPort skillSynthesizer;
     private final List<KnowledgeSkillExecutorPort> skillExecutors;
@@ -65,6 +69,34 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
 
     @Override
     public KnowledgeContext retrieveKnowledge(KnowledgeRequest request) {
+        KnowledgeRequest currentRequest = request;
+        KnowledgeContext context = retrieveOnce(currentRequest);
+        int expansionAttempt = 0;
+        while (context.truncated()
+            && currentRequest.maxTokens() < KnowledgeRequest.HARD_MAX_TOKENS
+            && expansionAttempt < MAX_EVIDENCE_EXPANSION_ATTEMPTS) {
+            expansionAttempt++;
+            int expandedBudget = nextExpansionBudget(currentRequest.maxTokens());
+            KnowledgeRequest expandedRequest = expandedRequest(
+                currentRequest, request.maxTokens(), expandedBudget, expansionAttempt);
+            log.info("knowledgeEvidenceExpansionTriggered attempt={} trigger=CONTEXT_TRUNCATED "
+                    + "previousMaxTokens={} expandedMaxTokens={}",
+                expansionAttempt, currentRequest.maxTokens(), expandedBudget);
+            KnowledgeContext expanded = retrieveOnce(expandedRequest);
+            if (!expanded.used()) {
+                log.warn("knowledgeEvidenceExpansionStopped attempt={} reason=NO_EXPANDED_EVIDENCE "
+                        + "retainedMaxTokens={}", expansionAttempt, context.maxTokens());
+                break;
+            }
+            context = expanded;
+            currentRequest = expandedRequest;
+        }
+        log.info("knowledgeEvidenceExpansionCompleted attempts={} initialMaxTokens={} finalMaxTokens={} truncated={}",
+            expansionAttempt, request.maxTokens(), context.maxTokens(), context.truncated());
+        return context;
+    }
+
+    private KnowledgeContext retrieveOnce(KnowledgeRequest request) {
         KnowledgeSkillPlan plan = skillSynthesizer.synthesize(request);
         List<KnowledgeIR> units = new ArrayList<>();
         long effectiveSkillTimeoutMs = requestSkillTimeoutMs(request);
@@ -113,6 +145,23 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
             }
         }
         return contextCompiler.compile(request, plan, units);
+    }
+
+    private int nextExpansionBudget(int currentBudget) {
+        long doubled = (long) currentBudget * 2L;
+        long stepped = (long) currentBudget + 1_000L;
+        return (int) Math.min(KnowledgeRequest.HARD_MAX_TOKENS, Math.max(doubled, stepped));
+    }
+
+    private KnowledgeRequest expandedRequest(KnowledgeRequest source, int initialBudget,
+                                               int expandedBudget, int expansionAttempt) {
+        Map<String, Object> attributes = new LinkedHashMap<>(source.attributes());
+        attributes.put("knowledgeEvidenceExpansion", true);
+        attributes.put("knowledgeEvidenceExpansionTrigger", "CONTEXT_TRUNCATED");
+        attributes.put("knowledgeEvidenceExpansionAttempt", expansionAttempt);
+        attributes.put("knowledgeInitialTokenBudget", initialBudget);
+        return new KnowledgeRequest(source.schemaVersion(), source.query(), source.taskType(), expandedBudget,
+            source.scope(), source.allowedSkillTypes(), attributes);
     }
 
     private Future<List<KnowledgeIR>> submitSkill(KnowledgeRequest request, KnowledgeSkillInstance skill) {

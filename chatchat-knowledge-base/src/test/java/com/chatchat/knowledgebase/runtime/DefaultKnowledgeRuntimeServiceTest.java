@@ -2,7 +2,10 @@ package com.chatchat.knowledgebase.runtime;
 
 import com.chatchat.common.knowledge.model.KnowledgeIR;
 import com.chatchat.common.knowledge.runtime.KnowledgeRequest;
+import com.chatchat.common.knowledge.runtime.KnowledgeContext;
+import com.chatchat.common.knowledge.runtime.KnowledgeSkillExecutionContext;
 import com.chatchat.common.knowledge.model.KnowledgeScope;
+import com.chatchat.common.knowledge.spi.KnowledgeContextCompilerPort;
 import com.chatchat.common.knowledge.spi.KnowledgeSkillExecutorPort;
 import com.chatchat.common.knowledge.skill.KnowledgeSkillInstance;
 import com.chatchat.common.knowledge.skill.KnowledgeSkillPlan;
@@ -23,8 +26,58 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 
 class DefaultKnowledgeRuntimeServiceTest {
+
+    @Test
+    void treatsTruncationAsAControlSignalAndExpandsEvidenceBeforeReturning() {
+        KnowledgeSkillSynthesizerPort planner = mock(KnowledgeSkillSynthesizerPort.class);
+        KnowledgeSkillExecutorPort executor = mock(KnowledgeSkillExecutorPort.class);
+        KnowledgeContextCompilerPort compiler = mock(KnowledgeContextCompilerPort.class);
+        when(planner.synthesize(any())).thenAnswer(invocation -> {
+            KnowledgeRequest request = invocation.getArgument(0);
+            KnowledgeSkillInstance skill = new KnowledgeSkillInstance(
+                "procedure", KnowledgeSkillType.PROCEDURE_LOOKUP, "ops", "lookup procedure",
+                List.of(), 1, request.maxTokens(), Map.of());
+            return new KnowledgeSkillPlan("v", "PROCEDURE", List.of(skill), request.maxTokens());
+        });
+        when(executor.supports(KnowledgeSkillType.PROCEDURE_LOOKUP)).thenReturn(true);
+        when(executor.execute(any())).thenAnswer(invocation -> {
+            KnowledgeSkillExecutionContext execution = invocation.getArgument(0);
+            KnowledgeIR unit = new KnowledgeIR(
+                "procedure-unit", "ops", KnowledgeType.PROCEDURE, "Installation", "procedure evidence",
+                List.of(), List.of(), List.of(), List.of(), "procedure evidence", null, 0.9D);
+            return new KnowledgeSkillResult(execution.skill().instanceId(), execution.skill().skillType(),
+                List.of(unit), "used", Map.of());
+        });
+        when(compiler.compile(any(), any(), any())).thenAnswer(invocation -> {
+            KnowledgeRequest request = invocation.getArgument(0);
+            KnowledgeSkillPlan plan = invocation.getArgument(1);
+            boolean truncated = request.maxTokens() < KnowledgeRequest.HARD_MAX_TOKENS;
+            return new KnowledgeContext(KnowledgeContext.SCHEMA_VERSION, plan, List.of(),
+                "procedure evidence", List.of(), 10, request.maxTokens(), truncated, "used");
+        });
+        DefaultKnowledgeRuntimeService runtime = new DefaultKnowledgeRuntimeService(
+            planner, List.of(executor), compiler);
+
+        KnowledgeContext result = runtime.retrieveKnowledge(new KnowledgeRequest(
+            "v", "installation procedure", "PROCEDURE", 1500,
+            new KnowledgeScope("agent", "tenant", "user", List.of("doc"), List.of(), List.of()),
+            null, Map.of()));
+
+        ArgumentCaptor<KnowledgeRequest> requests = ArgumentCaptor.forClass(KnowledgeRequest.class);
+        verify(planner, org.mockito.Mockito.times(3)).synthesize(requests.capture());
+        assertThat(requests.getAllValues()).extracting(KnowledgeRequest::maxTokens)
+            .containsExactly(1500, 3000, KnowledgeRequest.HARD_MAX_TOKENS);
+        assertThat(requests.getAllValues().get(1).attributes())
+            .containsEntry("knowledgeEvidenceExpansion", true)
+            .containsEntry("knowledgeEvidenceExpansionTrigger", "CONTEXT_TRUNCATED")
+            .containsEntry("knowledgeEvidenceExpansionAttempt", 1)
+            .containsEntry("knowledgeInitialTokenBudget", 1500);
+        assertThat(result.truncated()).isFalse();
+        assertThat(result.maxTokens()).isEqualTo(KnowledgeRequest.HARD_MAX_TOKENS);
+    }
 
     @Test
     void rechecksSkillDocumentScopeBeforeCompilingEvidence() {

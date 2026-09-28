@@ -1,6 +1,7 @@
 package com.chatchat.knowledgebase.search.workflow;
 
 import com.chatchat.common.retrieval.AuthorizedRetrieval;
+import com.chatchat.common.retrieval.SkillExecutionScopePort;
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.chatchat.knowledgebase.search.document.DocumentSearchPlan;
 import com.chatchat.knowledgebase.search.document.KnowledgeIrDocumentRecall;
@@ -36,6 +37,21 @@ public class AuthorizedDocumentScopeStage implements DocumentRetrievalStage {
                 plan, Math.max(1, routingLimit));
             documentIds = recall.documentIds();
             focusedQuery = recall.focusedQuery();
+            // IR is a routing accelerator, not an authorization authority. Historical documents
+            // can be present in OpenSearch/Lucene before their Knowledge IR projection exists.
+            // In that case keep the already-authorized DB scope and let the content index search it.
+            if (documentIds.isEmpty() && plan.effectiveScopedFileIds() != null
+                && !plan.effectiveScopedFileIds().isEmpty()) {
+                documentIds = plan.effectiveScopedFileIds().stream()
+                    .filter(id -> id != null && !id.isBlank())
+                    .map(String::trim)
+                    .filter(id -> !SkillExecutionScopePort.DENIED_DOCUMENT_ID.equals(id))
+                    .distinct()
+                    .limit(Math.max(1, routingLimit))
+                    .toList();
+                log.info("document_recall_scope source=authorized_scope_fallback allowedDocumentCount={} "
+                    + "reason=knowledge_ir_empty", documentIds.size());
+            }
         } catch (RuntimeException ex) {
             log.warn("knowledge_ir_document_recall_failed query='{}' error={}", plan.query(), ex.getMessage());
             context.stop();
@@ -62,6 +78,6 @@ public class AuthorizedDocumentScopeStage implements DocumentRetrievalStage {
                 plan.permissionContext().tenantId(), plan.permissionContext().userId()));
         }
         log.info("document_recall_scope source={} allowedDocumentCount={}",
-            documentIds.isEmpty() ? "legacy_metadata_acl" : "knowledge_ir", documentIds.size());
+            documentIds.isEmpty() ? "legacy_metadata_acl" : "authorized_documents", documentIds.size());
     }
 }

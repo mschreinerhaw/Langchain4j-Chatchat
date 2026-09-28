@@ -18,16 +18,18 @@ public class SkillResourceScopeSynchronizationService {
     private final SkillResourceScopeRepository repository;
 
     /**
-     * Migrates legacy Agent bindings only when the relationship model has not been configured yet.
-     * Existing relationship rows remain authoritative and are never overwritten by this method.
+     * Adds legacy Agent bindings that are missing from the relationship model.
+     * Existing relationship rows remain authoritative and are never overwritten or re-enabled.
      */
     @Transactional
     public int migrateIfMissing(String tenantId, String skillId,
                                 List<String> documentIds, List<String> knowledgeBaseTags) {
-        if (!repository.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc(tenantId, skillId).isEmpty()) {
-            return 0;
-        }
-        return insert(tenantId, skillId, documentIds, knowledgeBaseTags);
+        String tenant = required(tenantId, "tenantId");
+        String skill = required(skillId, "skillId").toLowerCase(Locale.ROOT);
+        Map<String, Binding> desired = bindings(documentIds, knowledgeBaseTags);
+        repository.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc(tenant, skill)
+            .forEach(row -> desired.remove(key(row.getResourceType(), row.getResourceId())));
+        return insert(tenant, skill, desired);
     }
 
     /** Replaces one Agent's relationship rows after its knowledge bindings are edited. */
@@ -40,18 +42,20 @@ public class SkillResourceScopeSynchronizationService {
             repository.deleteAll(existing);
             repository.flush();
         }
-        return insert(tenantId, skillId, documentIds, knowledgeBaseTags);
+        return insert(required(tenantId, "tenantId"),
+            required(skillId, "skillId").toLowerCase(Locale.ROOT), bindings(documentIds, knowledgeBaseTags));
     }
 
-    private int insert(String tenantId, String skillId,
-                       List<String> documentIds, List<String> knowledgeBaseTags) {
-        String tenant = required(tenantId, "tenantId");
-        String skill = required(skillId, "skillId").toLowerCase(Locale.ROOT);
+    private Map<String, Binding> bindings(List<String> documentIds, List<String> knowledgeBaseTags) {
         Map<String, Binding> bindings = new LinkedHashMap<>();
         clean(documentIds, false).forEach(id ->
-            bindings.put("DOCUMENT\u0000" + id, new Binding("DOCUMENT", id)));
+            bindings.put(key("DOCUMENT", id), new Binding("DOCUMENT", id)));
         clean(knowledgeBaseTags, true).forEach(id ->
-            bindings.put("KNOWLEDGE_BASE\u0000" + id, new Binding("KNOWLEDGE_BASE", id)));
+            bindings.put(key("KNOWLEDGE_BASE", id), new Binding("KNOWLEDGE_BASE", id)));
+        return bindings;
+    }
+
+    private int insert(String tenant, String skill, Map<String, Binding> bindings) {
         if (bindings.isEmpty()) {
             return 0;
         }
@@ -66,6 +70,13 @@ public class SkillResourceScopeSynchronizationService {
         }).toList();
         repository.saveAll(rows);
         return rows.size();
+    }
+
+    private String key(String type, String id) {
+        String normalizedType = type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
+        String normalizedId = id == null ? "" : id.trim();
+        if ("KNOWLEDGE_BASE".equals(normalizedType)) normalizedId = normalizedId.toLowerCase(Locale.ROOT);
+        return normalizedType + "\u0000" + normalizedId;
     }
 
     private List<String> clean(List<String> values, boolean lowerCase) {

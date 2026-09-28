@@ -39,6 +39,8 @@ class SkillResourceScopeSynchronizationServiceTest {
     void existingDatabaseRelationshipRemainsAuthoritativeDuringMigration() {
         SkillResourceScopeRepository repository = mock(SkillResourceScopeRepository.class);
         SkillResourceScope existing = new SkillResourceScope();
+        existing.setResourceType("DOCUMENT");
+        existing.setResourceId("legacy-doc");
         when(repository.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc("tenant-1", "live-data"))
             .thenReturn(List.of(existing));
         SkillResourceScopeSynchronizationService service =
@@ -48,5 +50,28 @@ class SkillResourceScopeSynchronizationServiceTest {
 
         assertThat(count).isZero();
         verify(repository, never()).saveAll(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void migrationAddsOnlyBindingsMissingFromAPartialRelationshipModel() {
+        SkillResourceScopeRepository repository = mock(SkillResourceScopeRepository.class);
+        SkillResourceScope existing = new SkillResourceScope();
+        existing.setResourceType("DOCUMENT");
+        existing.setResourceId("doc-1");
+        when(repository.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc("tenant-1", "live-data"))
+            .thenReturn(List.of(existing));
+        SkillResourceScopeSynchronizationService service =
+            new SkillResourceScopeSynchronizationService(repository);
+
+        int count = service.migrateIfMissing("tenant-1", "live-data",
+            List.of("doc-1", "doc-2"), List.of("LiveData"));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<SkillResourceScope>> rows = ArgumentCaptor.forClass(List.class);
+        verify(repository).saveAll(rows.capture());
+        assertThat(count).isEqualTo(2);
+        assertThat(rows.getValue())
+            .extracting(row -> row.getResourceType() + ":" + row.getResourceId())
+            .containsExactly("DOCUMENT:doc-2", "KNOWLEDGE_BASE:livedata");
     }
 }

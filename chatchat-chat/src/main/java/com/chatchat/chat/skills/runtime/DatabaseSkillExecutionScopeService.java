@@ -14,6 +14,7 @@ import com.chatchat.knowledgebase.runtime.index.KnowledgeIRRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ import java.util.Set;
 /** Intersects the Agent Skill's document requirements with canonical user and role grants. */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DatabaseSkillExecutionScopeService implements SkillExecutionScopePort {
     private static final int TAG_PAGE_SIZE = 500;
     private final SkillResourceScopeRepository scopes;
@@ -66,6 +68,8 @@ public class DatabaseSkillExecutionScopeService implements SkillExecutionScopePo
             && authorization.explicitlyAllowedIds(ResourceAuthorizationPort.AGENT_SKILL,
                 tenantId, userId, roleIds, Set.of(skillId)).contains(skillId);
         if (!skillGranted) {
+            log.warn("skill_execution_scope_denied tenantId={} userId={} skillId={} reason=agent_skill_not_granted",
+                tenantId, userId, skillId);
             return EffectiveScope.denied(roleNames);
         }
 
@@ -81,6 +85,8 @@ public class DatabaseSkillExecutionScopeService implements SkillExecutionScopePo
                 baseIds.add(binding.getResourceId().toLowerCase(Locale.ROOT));
         }
         if (directIds.isEmpty() && baseIds.isEmpty()) {
+            log.warn("skill_execution_scope_denied tenantId={} userId={} skillId={} "
+                + "reason=no_database_resource_binding", tenantId, userId, skillId);
             return new EffectiveScope(List.of(DENIED_DOCUMENT_ID), List.of(), roleNames, true, true);
         }
 
@@ -118,6 +124,17 @@ public class DatabaseSkillExecutionScopeService implements SkillExecutionScopePo
             if (!explicitDocuments.contains(docId)
                 && documentBases.getOrDefault(docId, Set.of()).stream().noneMatch(explicitBases::contains)) continue;
             selected.add(docId);
+        }
+        if (selected.isEmpty()) {
+            log.warn("skill_execution_scope_denied tenantId={} userId={} skillId={} "
+                    + "reason=resource_grant_intersection_empty candidates={} allowedDocuments={} "
+                    + "explicitDocuments={} explicitKnowledgeBases={}",
+                tenantId, userId, skillId, candidates.size(), allowedDocuments.size(),
+                explicitDocuments.size(), explicitBases.size());
+        } else {
+            log.info("skill_execution_scope_resolved tenantId={} userId={} skillId={} documents={} "
+                    + "directBindings={} knowledgeBaseBindings={}",
+                tenantId, userId, skillId, selected.size(), directIds.size(), baseIds.size());
         }
         return new EffectiveScope(selected.isEmpty() ? List.of(DENIED_DOCUMENT_ID) : List.copyOf(selected),
             List.of(), roleNames, true, true);

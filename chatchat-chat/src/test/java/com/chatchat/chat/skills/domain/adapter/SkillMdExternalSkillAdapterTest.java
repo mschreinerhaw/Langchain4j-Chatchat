@@ -33,7 +33,7 @@ class SkillMdExternalSkillAdapterTest {
             .startsWith("# Workflow")
             .doesNotContain("triggers", "allowed-tools", "arbitrary_external_tool");
         assertThat(result.sourceFormat()).isEqualTo("ANTHROPIC_SKILL_MD");
-        assertThat(result.metadata()).containsEntry("frontMatter", true);
+        assertThat(result.metadata().get("frontMatter")).isInstanceOf(java.util.Map.class);
     }
 
     @Test

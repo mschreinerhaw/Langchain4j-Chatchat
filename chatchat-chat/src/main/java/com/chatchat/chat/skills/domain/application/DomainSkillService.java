@@ -47,6 +47,7 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
     static final int DEFAULT_PUBLICATION_LIMIT = 5;
     static final int MAX_MARKDOWN_CHARS = 512 * 1024;
     private static final String PUBLISHED = "PUBLISHED";
+    private static final com.fasterxml.jackson.databind.ObjectMapper PROTOCOL_MAPPER = new com.fasterxml.jackson.databind.ObjectMapper();
     private final DomainSkillRepository repository;
     private final DomainSkillCategoryRepository categoryRepository;
     private final McpLicenseEntitlementPort entitlementPort;
@@ -143,6 +144,12 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
         if (allowed.isEmpty()) return List.of();
 
         LinkedHashSet<String> ordered = new LinkedHashSet<>();
+        if (request.attributes().get("requiredCapabilities") instanceof List<?> capabilities) {
+            published.values().stream().filter(skill -> allowed.contains(skill.getId()))
+                .filter(skill -> runtimeMetadata(skill).get("capabilities") instanceof List<?> supplied
+                    && capabilities.stream().anyMatch(supplied::contains))
+                .sorted(Comparator.comparing(DomainSkillEntity::getId)).map(DomainSkillEntity::getId).forEach(ordered::add);
+        }
         if (!request.query().isBlank()) {
             ordered.addAll(indexService.searchIds(request.query(), new ArrayList<>(allowed), request.limit()));
             Page<DomainSkillEntity> metadata = repository.search(tenantId, "", PUBLISHED, request.query(),
@@ -177,7 +184,7 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
             .contains(skill.getId())) return Optional.empty();
         SkillDescriptor descriptor = descriptor(skill, 1D);
         if (!request.version().isBlank() && !request.version().equals(descriptor.version())) return Optional.empty();
-        DomainSkillPackageReader.PackageView skillPackage = packageReader.read(tenantId, skill.getId());
+        DomainSkillPackageReader.PackageView skillPackage = packageReader.readPublished(skill.getTenantId(), skill.getId(), skill.getPublishedCompilationId());
         return Optional.of(new ResolvedSkill(descriptor, skill.getMarkdownContent(), skillPackage.resources(),
             skillPackage.requirements(), Map.of("storage", "POSTGRESQL", "index", "OPENSEARCH")));
     }
@@ -196,12 +203,45 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
     }
 
     private SkillDescriptor descriptor(DomainSkillEntity skill, double score) {
-        String version = text(skill.getFederatedDigest());
+        String version = text(skill.getPublishedCompilationId());
+        if (version.isBlank()) version = text(skill.getFederatedDigest());
         if (version.isBlank() && skill.getUpdatedAt() != null) version = skill.getUpdatedAt().toString();
         return new SkillDescriptor(skill.getId(), version, skill.getName(), skill.getDescription(),
             skill.getCategory(), skill.getSourceType(), skill.getFederatedSourceId(),
             skill.getFederatedSkillUri(), skill.getFederatedDigest(), score,
-            Map.of("builtin", skill.isBuiltin(), "published", true));
+            runtimeMetadata(skill));
+    }
+
+    private Map<String, Object> runtimeMetadata(DomainSkillEntity skill) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        if (skill.getRuntimeMetadataJson() != null) {
+            try { metadata.putAll(PROTOCOL_MAPPER.readValue(skill.getRuntimeMetadataJson(),
+                new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {})); }
+            catch (java.io.IOException invalid) { throw new IllegalStateException("Invalid published Skill metadata", invalid); }
+        }
+        metadata.put("builtin", skill.isBuiltin()); metadata.put("published", true);
+        return Map.copyOf(metadata);
+    }
+
+    @Transactional
+    public DomainSkillEntity compileProtocol(String tenantId, String id, Map<String, Object> protocol) {
+        DomainSkillEntity skill = owned(id, tenantId);
+        try {
+            String json = PROTOCOL_MAPPER.writeValueAsString(Map.of("name", skill.getName(),
+                "description", text(skill.getDescription()), "instructions", skill.getMarkdownContent(), "runtime", protocol));
+            var result = externalSkillGateway.adaptAndCompile(new ExternalSkillSource("skill.json", "JSON",
+                "editor:" + id, json, json.getBytes(StandardCharsets.UTF_8)));
+            artifactStore.store(tenantId, id, "JSON", "skill.json", result);
+            skill.setMarkdownContent(result.skillIr().markdownInstructions());
+            skill.setPublicationDirty(true);
+            return repository.save(skill);
+        } catch (java.io.IOException invalid) { throw new IllegalArgumentException("Invalid Skill protocol", invalid); }
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<DomainSkillPackageReader.CompilationView> compilation(String tenantId, String id) {
+        owned(id, tenantId);
+        return packageReader.latestCompilation(tenantId, id);
     }
 
     @Override
@@ -371,6 +411,20 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
     @Transactional
     public synchronized DomainSkillEntity publish(String tenantId, String id) {
         DomainSkillEntity skill = owned(id, tenantId);
+        packageReader.latestCompilation(tenantId, id).ifPresent(compilation -> {
+            RuntimeSkillIr ir = compilation.protocol();
+            if (!skill.getMarkdownContent().trim().equals(ir.markdownInstructions().trim()))
+                throw new IllegalArgumentException("Skill instructions changed; recompile its protocol before publishing");
+            skill.setPublishedCompilationId(compilation.id());
+            try {
+                skill.setRuntimeMetadataJson(PROTOCOL_MAPPER.writeValueAsString(Map.of("capabilities", ir.capabilities(),
+                    "domain", ir.capability().domain(), "protocolVersion", ir.schemaVersion(),
+                    "requiresCapabilities", RuntimeSkillIr.SCHEMA_VERSION.equals(ir.schemaVersion())
+                        ? ir.execution().requiredCapabilities() : List.of(),
+                    "compilationId", compilation.id(), "dataContracts", ir.execution().requirements().data().stream()
+                        .map(item -> item.contractId()).distinct().toList())));
+            } catch (java.io.IOException invalid) { throw new IllegalArgumentException("Invalid compiled metadata", invalid); }
+        });
         PublicationQuota quota = quota(tenantId);
         if (!quota.licenseValid()) throw new IllegalArgumentException("SKILL_LICENSE_INVALID: " + quota.message());
         if (!PUBLISHED.equalsIgnoreCase(skill.getStatus()) && quota.limited() && quota.published() >= quota.maximum())
@@ -495,8 +549,8 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
     private DomainSkillEntity importBytes(String tenantId, String ownerId, byte[] bytes, String originalFileName,
                                           String name, String category, String description, boolean remote) {
         String fileName = safeFileName(originalFileName), lower = fileName.toLowerCase(Locale.ROOT);
-        if (!lower.endsWith(".md") && !lower.endsWith(".markdown") && !lower.endsWith(".zip"))
-            throw new IllegalArgumentException("Only .zip, .md and .markdown files are supported");
+        if (!lower.matches(".*\\.(md|markdown|zip|json|yaml|yml)$"))
+            throw new IllegalArgumentException("Supported Skill files: .zip, .md, .markdown, .json, .yaml, .yml");
         String markdown;
         try {
             markdown = lower.endsWith(".zip") ? markdownFromZip(bytes) : new String(bytes, StandardCharsets.UTF_8);
@@ -505,6 +559,8 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
         }
         String sourceType = remote ? (lower.endsWith(".zip") ? "URL_ZIP" : "URL_MARKDOWN")
             : (lower.endsWith(".zip") ? "ZIP" : "MARKDOWN");
+        if (lower.endsWith(".json")) sourceType = remote ? "URL_JSON" : "JSON";
+        if (lower.endsWith(".yaml") || lower.endsWith(".yml")) sourceType = remote ? "URL_YAML" : "YAML";
         String sourceReference = remote && description.startsWith("Imported from ")
             ? description.substring("Imported from ".length()) : fileName;
         ExternalSkillCompilation compilation = externalSkillGateway.adaptAndCompile(new ExternalSkillSource(

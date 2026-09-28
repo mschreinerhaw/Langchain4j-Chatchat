@@ -38,6 +38,10 @@ public class DomainSkillEntity {
     private String category;
     @Column(name = "markdown_content", nullable = false, length = org.hibernate.Length.LONG32)
     private String markdownContent;
+    @Column(name = "published_compilation_id", length = 64)
+    private String publishedCompilationId;
+    @Column(name = "runtime_metadata_json", length = org.hibernate.Length.LONG32)
+    private String runtimeMetadataJson;
     @Column(name = "search_text", length = 4000, nullable = false)
     private String searchText;
     @Column(name = "source_type", length = 24, nullable = false)

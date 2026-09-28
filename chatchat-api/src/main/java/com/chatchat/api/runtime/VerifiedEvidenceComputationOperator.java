@@ -30,7 +30,9 @@ public class VerifiedEvidenceComputationOperator implements AnalysisCapabilityOp
     private static final Set<String> OPERATIONS = Set.of("COUNT", "SUM", "AVG", "MIN", "MAX");
 
     private final ObjectMapper mapper;
-    public VerifiedEvidenceComputationOperator(ObjectMapper mapper) { this.mapper = mapper; }
+    public VerifiedEvidenceComputationOperator(ObjectMapper mapper) {
+        this.mapper = mapper.copy().enable(com.fasterxml.jackson.databind.DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
+    }
 
     @Override public AnalysisCapability capability() { return AnalysisCapability.COMPUTATION; }
     @Override public boolean available(AnalysisContext context) {

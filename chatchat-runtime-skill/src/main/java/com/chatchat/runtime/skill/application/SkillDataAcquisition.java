@@ -20,6 +20,11 @@ public final class SkillDataAcquisition {
     public SkillDataAcquisition(Supplier<List<SkillDataWorkflow>> workflows) { this.workflows = workflows; }
 
     public List<SkillDataResult> acquire(SkillResolution skill, SkillRoleContext identity, Map<String, Object> inputs) {
+        return acquire(skill, identity, inputs, new com.chatchat.runtime.skill.api.execution.SkillDataSession());
+    }
+
+    public List<SkillDataResult> acquire(SkillResolution skill, SkillRoleContext identity, Map<String, Object> inputs,
+                                        com.chatchat.runtime.skill.api.execution.SkillDataSession session) {
         List<SkillDataResult> results = new ArrayList<>();
         for (var requirement : skill.skill().requirements().data()) {
             if (!skill.resolved()) {
@@ -43,7 +48,7 @@ public final class SkillDataAcquisition {
                         "Exactly one published data workflow must match"));
                     continue;
                 }
-                var result = candidates.get(0).acquire(requirement, skill, identity, Map.copyOf(parameters));
+                var result = candidates.get(0).acquire(requirement, skill, identity, Map.copyOf(parameters), session);
                 if (result == null || !requirement.equals(result.requirement()))
                     throw new IllegalStateException("Data workflow returned a mismatched requirement");
                 results.add(result);

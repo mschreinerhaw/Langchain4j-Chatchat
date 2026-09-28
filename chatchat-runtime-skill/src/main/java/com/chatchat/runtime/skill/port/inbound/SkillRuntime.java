@@ -5,4 +5,6 @@ import com.chatchat.runtime.skill.api.execution.SkillExecutionResult;
 
 public interface SkillRuntime {
     SkillExecutionResult execute(SkillExecutionRequest request);
+    default SkillExecutionResult execute(SkillExecutionRequest request,
+            com.chatchat.runtime.skill.api.execution.SkillDataSession session) { return execute(request); }
 }

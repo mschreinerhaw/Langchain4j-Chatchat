@@ -17,8 +17,8 @@ public record RuntimeSkillIr(
     SkillCompilationMetadata compilation,
     String markdownInstructions
 ) {
-    public static final String SCHEMA_VERSION = "runtime_skill_ir.v1";
-    public static final String COMPILER_VERSION = "external-skill-compiler.v1";
+    public static final String SCHEMA_VERSION = "runtime_skill_ir.v2";
+    public static final String COMPILER_VERSION = "external-skill-compiler.v2";
 
     public RuntimeSkillIr {
         identity = identity == null ? new SkillIdentity("", "") : identity;
@@ -76,8 +76,13 @@ public record RuntimeSkillIr(
         public SkillIoContract { inputTypes = immutable(inputTypes); outputTypes = immutable(outputTypes); }
     }
 
-    public record SkillExecutionRequirement(List<String> requiredCapabilities) {
-        public SkillExecutionRequirement { requiredCapabilities = immutable(requiredCapabilities); }
+    public record SkillExecutionRequirement(List<String> requiredCapabilities,
+            com.chatchat.runtime.skill.api.skill.SkillRequirements requirements) {
+        public SkillExecutionRequirement {
+            requiredCapabilities = immutable(requiredCapabilities);
+            requirements = requirements == null ? com.chatchat.runtime.skill.api.skill.SkillRequirements.empty() : requirements;
+        }
+        public SkillExecutionRequirement(List<String> requiredCapabilities) { this(requiredCapabilities, null); }
     }
 
     public record SkillSafetyPolicy(String riskLevel, List<String> riskNotes) {

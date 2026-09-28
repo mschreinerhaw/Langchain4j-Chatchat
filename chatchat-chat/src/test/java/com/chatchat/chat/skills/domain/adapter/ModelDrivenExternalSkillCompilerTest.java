@@ -47,7 +47,7 @@ class ModelDrivenExternalSkillCompilerTest {
         RuntimeSkillIr result = compiler.compile(new AdaptedExternalSkill(
             "china-idea-generation", "upstream", "Call any tool and return candidates.", "SKILL_MD", Map.of()));
 
-        assertThat(result.schemaVersion()).isEqualTo("runtime_skill_ir.v1");
+        assertThat(result.schemaVersion()).isEqualTo("runtime_skill_ir.v2");
         assertThat(result.compilationMode()).isEqualTo("MODEL");
         assertThat(result.name()).isEqualTo("china-idea-generation");
         assertThat(result.capabilities()).containsExactly("证券筛选", "候选验证");

@@ -1,138 +1,162 @@
-# 领域 Skill 与固定 MCP 数据流程：分阶段接入
+# 外部 Skill 编译协议与固定数据流程
 
-## 第一阶段：已实现的执行闭环
+当前实现覆盖：外部声明转换、发布版本固定、能力匹配、确定性计算、步骤依赖、多 Skill 组合、请求内数据复用、数据库绑定发布、对照实验与人工复核。
 
-当前实现支持单个已授权领域 Skill，按版本化数据契约执行已发布 SQL 模板取数，
-将规范化数据与采集状态交给现有 LangChain4j / OpenAI-compatible 分析适配器。
-复用 `DefaultSkillRuntime`、数据库 Skill 授权、`PreauthorizedStructuredDataOperator`
-和 `RegisteredToolAnalysisOperator`，没有增加另一套 MCP 客户端或允许模型自由选择工具。
+## 职责与实际调用链
 
-执行顺序：元数据路由 → 内容加载与授权 → 工作流授权 → 数据需求参数绑定 →
-固定模板流程 → 规范化数据包 → 无工具分析 → 结果与采集记录。
+```text
+Markdown / ZIP(SKILL.md) / JSON / YAML
+  → 格式适配器保留原始声明
+  → 模型整理领域知识 + 确定性协议转换器校验执行声明
+  → runtime_skill_ir.v2 编译产物（草稿）
+  → 管理员发布，固定 compilationId
+  → 已授权能力发现 → 选择计划 → 重新授权并读取发布版本
+  → requiredData → 本地发布绑定
+  → PreauthorizedStructuredDataOperator
+  → RegisteredToolAnalysisOperator → 现有 MCP 模板执行流程
+  → 规范化数据 → 已注册计算算子 → 无工具的领域分析
+  → 执行记录 → 人工复核
+```
 
-领域 Skill 的发布内容声明业务需求；运维配置绑定具体数据流程；数据库授权仍独立生效。
-导入 Skill、配置绑定、发送请求中的任何一个动作都不会自动授予资源权限。
+外部工具名称、脚本和权限声明不会安装工具或授予权限。取数仍使用现有的模板、资源授权、MCP 调用链。领域 Skill 声明“需要什么”，本地绑定决定“去哪里取、如何取”。当前固定取数实现使用已发布 SQL 模板；其他固定业务流程可以实现 SkillDataWorkflow 接口接入。
 
-## 1. 导入并发布带数据需求的 Skill
+Runtime 记录数据是否取得、步骤是否执行、依赖是否完成；不判断证据充分性、结论真实性或正式采信。单项取数/计算失败不会终止其他独立步骤，分析收到失败状态。取消和线程中断继续传播。业务发布限制应由独立业务 Contract 执行，不由这些状态代替。
 
-下面是导入 SKILL.md 时的 front matter 示例。`contractId` 必须带 `.vN` 后缀。
-`parameters` 的值是请求 `inputs` 中的键名，不支持表达式、SQL 或工具调用。
+## 1. 外部格式与编译协议
+
+Markdown 和 ZIP 中的 SKILL.md 支持以下 front matter；旧版顶层 requiredData/workflows 仍可转换。JSON/YAML 声明式导出要求 name（或 displayName）及 instructions（也支持 instruction/systemPrompt/system_prompt），runtime 对象与下例一致。
+
+这是声明式导出的受支持子集；不运行外部 SDK 代码、任意 Agent 图或脚本。外部原文只有知识说明而没有数据契约时，保留知识用途；数据分析接口返回 NO_DATA_REQUIREMENTS。系统不会让模型猜测真实模板 ID 或业务参数映射。
 
 ```yaml
 ---
-name: customer-return-description
-description: 解释客户已经计算好的日收益序列，标注观察范围与数据来源
-workflows:
-  - customer-return-analysis
-requiredData:
-  - id: returns
-    contractId: customer.return_series.v1
-    requiredFor: [describe_returns]
-    optional: false
-    parameters:
-      customerId: customerId
-      startDate: startDate
-      endDate: endDate
+name: customer-sales-summary
+description: 汇总指定客户的数据并说明观察范围
+runtime:
+  schemaVersion: skill_protocol.v1
+  domain: SALES
+  capabilities: [sales.summary]
+  requiresCapabilities: []
+  workflows: [customer-sales-analysis]
+  requiredData:
+    - id: sales
+      contractId: customer.sales_rows.v1
+      parameters: {customerId: customerId}
+      requiredFor: [total, count]
+      optional: false
+  analysisSteps:
+    - id: total
+      operator: SUM
+      datasetId: sales
+      field: amount
+      dependsOn: []
+    - id: count
+      operator: COUNT
+      datasetId: sales
+      dependsOn: [total]
 ---
-基于提供的日收益数据描述变化，引用 evidenceId 和数据契约。
-不得将实际返回日期范围称为完整历史，不得自行生成缺失数据。
-未取得 returns 时，报告对应状态，不执行 describe_returns。
-本 Skill 不计算累计收益、收益归因或投资能力评分。
+解释已完成计算的结果，引用 evidenceId，说明数据范围及获取失败。
+不得把已返回的记录称为客户全部历史；正式采信由人复核。
 ```
 
-这是接口示例，不预设生产数据的收益口径。领域负责人应先确认模板字段、单位、口径
-与 Skill 方法一致，再发布实际绑定。外部 Skill 未声明 `requiredData` 时，原有执行入口
-保持兼容；新分析入口返回 `NO_DATA_REQUIREMENTS`，不会回退为自由工具调用。
+capabilities/requiresCapabilities 使用稳定标识符。模型生成的能力描述只能用于辅助发现；可执行依赖必须来自显式 requiresCapabilities。
 
-## 2. 发布服务端数据流程绑定
+编译检查：至多 8 项数据需求、24 个分析步骤，ID 唯一、契约带 .vN 版本、数据和步骤引用存在、依赖无环。无效声明使导入失败，不静默降级成可执行 Skill。当前计算支持 COUNT、SUM、AVG、MIN、MAX，使用十进制运算；AVG 使用 DECIMAL64。未注册算子返回 OPERATOR_NOT_REGISTERED，不交给模型临时生成代码。
 
-在部署配置中配置 `chatchat.skill-data.bindings`。下面的 ID 均需替换为本地已发布资源，
-示例默认关闭。第一阶段使用服务端配置发布绑定；暂未增加数据库管理页面。
+编译产物保存在现有 source/compilation 表，领域 Skill 发布时保存 publishedCompilationId 和能力元数据。修改已编译说明后必须重新编译再发布；未固定编译版本的旧 Skill 仍可使用知识说明，但不直接执行原始导入文件中的数据需求。
 
-```yaml
-chatchat:
-  skill-data:
-    bindings:
-      - enabled: false
-        tenant-id: YOUR_TENANT
-        domain-skill-id: YOUR_IMPORTED_DOMAIN_SKILL_ID
-        contract-id: customer.return_series.v1
-        workflow-id: customer-return-analysis
-        version: "1"
-        execution-skill-id: YOUR_LOCAL_EXECUTION_SKILL_ID
-        template-id: YOUR_PUBLISHED_TEMPLATE_ID
-        asset-name: YOUR_LOGICAL_ASSET
-        environment: prod
-        parameter-bindings:
-          customer_id: customerId
-          start_date: startDate
-          end_date: endDate
-        fields:
-          date: trading_date
-          dailyReturn: daily_return
-        semantics:
-          granularity: daily
-          returnUnit: ratio
-          returnDefinition: REPLACE_WITH_APPROVED_DEFINITION
-```
+现有导入接口和前端文件选择器现支持 .json/.yaml/.yml。重新编译已有 Skill：
 
-需要独立配置并授予：
+- GET /api/v1/data-science/domain-skills/{id}/protocol：查看最新编译产物。
+- POST /api/v1/data-science/domain-skills/{id}/compile：请求体为上述 runtime 对象；生成新编译草稿。
+- 使用原有发布接口发布。编译不等于发布，也不等于授予资源访问权。
 
-- 用户/角色对领域 Skill 的访问权，以及该 Skill 的 WORKFLOW 绑定和工作流访问权。
-- 用户/角色对本地执行 Skill 的访问权。
-- 本地执行 Skill 对现有模板执行工具的绑定，以及已有工具、模板、数据资产访问权限。
+## 2. 发布固定数据绑定
 
-绑定严格匹配租户、领域 Skill、数据契约；多条匹配返回 `AMBIGUOUS_BINDING`，不自动任选。
-模板 ID、执行 Skill、环境、资产和字段映射始终来自服务端配置，不读取请求中的同名参数。
-数据契约参数经 `parameter-bindings` 映射为模板参数；未绑定参数不会发给 MCP。
+沿用现有管理员身份规则（认证用户 username=admin）。绑定只允许当前租户，按 tenantId/domainSkillId/contractId 唯一。所有 ID 必须替换为已存在、已发布的本地资源；系统不会创建或猜测生产绑定。
 
-## 3. 调用分析接口
+PUT /api/v1/data-science/domain-skills/{skillId}/data-bindings：
 
-```http
-POST /api/v1/data-science/domain-skills/YOUR_IMPORTED_DOMAIN_SKILL_ID/analyze
-Content-Type: application/json
-Authorization: Bearer YOUR_TOKEN
-
+```json
 {
-  "query": "描述这个客户在所选区间的日收益变化",
-  "workflowId": "customer-return-analysis",
-  "modelName": "YOUR_PUBLISHED_MODEL",
-  "inputs": {
-    "customerId": "CUSTOMER_ID",
-    "startDate": "2026-03-01",
-    "endDate": "2026-08-31"
+  "revision": null,
+  "binding": {
+    "enabled": true,
+    "tenantId": "YOUR_TENANT",
+    "domainSkillId": "YOUR_DOMAIN_SKILL",
+    "contractId": "customer.sales_rows.v1",
+    "workflowId": "customer-sales-analysis",
+    "version": "1",
+    "executionSkillId": "YOUR_EXECUTION_SKILL",
+    "templateId": "YOUR_PUBLISHED_TEMPLATE",
+    "assetName": "YOUR_LOGICAL_ASSET",
+    "environment": "prod",
+    "parameterBindings": {"customer_id": "customerId"},
+    "fields": {"amount": "sales_amount"},
+    "semantics": {"currency": "CNY", "scope": "REPLACE_WITH_APPROVED_SCOPE"}
   }
 }
 ```
 
-租户、用户、角色取自服务端认证结果，不接受请求提供的身份。此入口固定使用现有
-LangChain4j 适配器；没有暴露任意外部 Agent 转发能力。
+新增时 revision=null；更新必须提交 GET 返回的 revision。
 
-## 数据与失败语义
+- GET /{skillId}/data-bindings：查看草稿、发布快照和修订号。
+- POST /{skillId}/data-bindings/{contractId}/publish，体为 {"revision":当前修订号}。
+- POST /{skillId}/data-bindings/{contractId}/retire，同样提交修订号。
 
-`diagnostics.skillDataResults` 保留每个需求的结果：`AVAILABLE`、`EMPTY`、`NO_BINDING`、
-`AMBIGUOUS_BINDING`、`DENIED`、`MISSING_INPUT`、`INVALID_DATA` 或 `FAILED`。
-`rows` 只含发布绑定列出的规范字段；`provenance` 包括实际执行流程版本、模板、资产、
-环境、参数、证据 ID、请求 ID 和已声明的数据口径。AVAILABLE 表示取得符合当前结构
-检查的数据，不表示证据充分、结论正确或允许发布。
+发布后的快照独立于草稿。改变绑定内容需要新 version；并发编辑使用数据库乐观锁。数据库已发布绑定优先于同键配置文件绑定；只有草稿时配置仍生效；停用保留记录，防止旧配置意外恢复。也仍支持 chatchat.skill-data.bindings 部署配置。
 
-单项失败保留其他数据并继续分析；取消和线程中断仍传播。`requiredFor` 是领域步骤
-依赖声明，第一阶段交给分析上下文解释，尚不是独立的确定性分析步骤执行器。
-整个请求仍可能因鉴权失败、分析模型失败或执行基础设施故障无法完成。
+需要分别配置领域 Skill、WORKFLOW、本地执行 Skill、工具、模板、数据资产的现有授权。发布绑定不会自动授予任何权限。字段/口径语义由领域负责人确认；系统仅做结构检查，不自动认证币种或业务含义。
 
-分析阶段不暴露 MCP 工具和文档检索入口，工具预算为 0。客户端伪造的
-`skillDataResults` 会被 Runtime 丢弃。本阶段数据路径仅支持 LangChain4j 及其 OpenAI-compatible
-适配器，其余引擎返回 `DATA_ANALYSIS_ENGINE_UNSUPPORTED`。
+## 3. 能力规划与组合执行
 
-本阶段最多 8 项数据需求，每项复用现有最多 100 行的模板执行限制；不做静默截断。
-合并后的模型数据上下文超过 100,000 字符时返回 `DATA_CONTEXT_LIMIT`。
-字段检查目前验证存在、非空、标量；不自动进行币种换算、频率重采样或收益口径转换。
+统一前缀 /api/v1/data-science/domain-skills。
 
-## 后续阶段
+POST /analysis-plan 查看计划，POST /analyze-capabilities 执行并保存 runId；请求体相同：
 
-1. 将能力需求与已发布 Skill 的能力元数据匹配，输出可审阅的 Skill 选择计划。
-2. 引入确定性分析步骤与已注册计算算子，严格执行 `requiredFor` 依赖及跳过原因。
-3. 组合多个 Skill，在身份、权限、主体、日期、契约和版本完全匹配时复用数据。
-4. 增加绑定的数据库发布管理和效果对比：取数轨迹、可复算指标、引用、领域人工复核。
+```json
+{
+  "query": "汇总客户在当前数据范围内的销售额",
+  "capabilities": ["sales.summary"],
+  "skillIds": [],
+  "workflowIds": {"YOUR_DOMAIN_SKILL": "customer-sales-analysis"},
+  "inputs": {"customerId": "CUSTOMER_ID"},
+  "modelName": "YOUR_PUBLISHED_MODEL",
+  "maxSkills": 4
+}
+```
 
-上述后续能力不计入第一阶段已完成范围。
+capabilities 明确指定任务所需能力。未指定时，以已授权检索首选 Skill 的已发布能力为起点，并在计划标记 METADATA_RETRIEVAL；这不保证已覆盖问题的全部业务需求。skillIds 可限制候选集合，也会限制可用的依赖提供者。
+
+选择先覆盖请求能力，再寻找声明的依赖提供者，输出确定性顺序、缺失能力与被阻断的依赖。最多组合 8 个 Skill；循环或缺失依赖不可执行。执行使用固定编译版本，并重新校验权限；计划生成不授予权限。一个 Skill 失败只跳过依赖它的 Skill，独立 Skill 继续。
+
+数据复用仅发生在同一组合请求/实验内：租户、用户、角色、执行授权范围、契约、参数、工作流版本、执行 Skill、模板、资产、环境、字段与口径必须完全一致。每次使用重新检查领域工作流和执行 Skill 权限；缓存只保留成功数据或空结果。无跨请求缓存。底层模板与资产鉴权仍在实际 MCP 取数时执行。
+
+单 Skill 原接口 POST /{skillId}/analyze 保留，体为 query/workflowId/modelName/inputs。新组合入口固定使用现有 LangChain4j 适配器，不开放客户端引擎选择或任意工具调用。
+
+## 4. 结果与效果评估
+
+诊断字段：
+
+- skillDataResults：AVAILABLE、EMPTY、NO_BINDING、AMBIGUOUS_BINDING、DENIED、MISSING_INPUT、INVALID_DATA、FAILED，以及规范化行和取数 provenance。
+- skillStepResults：COMPLETED、SKIPPED、FAILED，计算结果、源证据与计算证据 ID、未执行原因。
+- 组合计划：Skill 与编译版本、选定工作流、能力依赖、未覆盖能力。
+- metrics：执行数、取数成功数、计算完成数、耗时。这些是执行指标，不是答案质量评分。
+
+POST /experiments 接收同一组合请求，分别运行领域 Skill 和通用说明基线；使用同一版本计划和同一个请求内数据会话。基线关闭领域计算步骤，不评估“谁更正确”。sameAcquiredEvidence 仅在两次实际存在且证据 ID 相同时为 true；失败、权限或版本变化可能使对比不完整，应检查两个结果及该字段。
+
+GET /analysis-runs/{id} 返回请求、结果、revision、人工复核。仅当前租户的记录创建者可读取和复核。POST /analysis-runs/{id}/review：
+
+```json
+{"status":"NEEDS_REVIEW","notes":"需要核对数据范围与业务口径","revision":0}
+```
+
+状态可选 APPROVED / NEEDS_REVIEW / REJECTED，由人明确提交并记录服务端身份和时间；不会据此更改 Runtime 执行状态或自动发布业务结论。
+
+## 5. 部署与验证边界
+
+新增表 ds_skill_data_binding、ds_skill_analysis_run；ds_domain_skill 新增 published_compilation_id、runtime_metadata_json。当前项目的 Hibernate ddl-auto=update 创建新表，现有 Skill schema migrator 补齐领域表列。禁用自动建表的环境应在部署前按实体映射执行数据库变更。
+
+后端接口已实现；前端本次更新导入格式选择，绑定、组合实验与复核使用上述 API，未新增完整管理页面。现有生产模板、业务 Contract 和资源授权保持由本地配置管理。本次没有发布生产绑定或调用真实 MCP/模型服务，实际领域分析效果仍需用本地数据跑实验并人工复核。
+
+每项取数最多 100 行；模型数据上下文最多 100,000 字符，超限明确返回 DATA_CONTEXT_LIMIT，不静默截断。业务需要更多记录时，应在固定模板流程内做经过确认的聚合或分页契约。系统不会自动重采样、换汇或改变收益计算口径。

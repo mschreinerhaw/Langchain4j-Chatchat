@@ -37,7 +37,7 @@ class TemplateSkillDataWorkflowTest {
         assertThat(captured.getValue().attributes()).containsEntry(PreauthorizedStructuredDataOperator.TEMPLATE_ID, "template")
             .containsEntry(PreauthorizedStructuredDataOperator.PARAMETERS, Map.of("customer_id", "c1"));
         assertThat(result.status()).isEqualTo(SkillDataResult.Status.AVAILABLE);
-        assertThat(result.rows()).containsExactly(Map.of("return", 0.05));
+        assertThat(result.rows()).containsExactly(Map.of("return", new java.math.BigDecimal("0.05")));
         assertThat(result.provenance()).containsEntry("evidenceId", "e1").containsEntry("workflowVersion", "1");
     }
 
@@ -69,6 +69,27 @@ class TemplateSkillDataWorkflowTest {
         assertThat(workflow(List.of(binding(), binding())).acquire(requirement, resolution(true), identity, Map.of()).status())
             .isEqualTo(SkillDataResult.Status.AMBIGUOUS_BINDING);
         verifyNoInteractions(scopes, operator);
+    }
+
+    @Test void requestLocalReuseReauthorizesAndNeverCrossesUsers() {
+        when(scopes.resolve(anyString(), anyString(), anyString(), anyList(), anyList()))
+            .thenReturn(new SkillExecutionScopePort.EffectiveScope(List.of(), List.of(), List.of(), true, true));
+        when(operator.execute(any(), any(), isNull())).thenReturn(new WorkflowExecutionResult(List.of(
+            new StructuredDataEvidence("e1", "asset", "template", 1, "today",
+                "{\"data\":{\"rows\":[{\"daily_return\":0.05}]}}", Map.of())), Map.of(), List.of()));
+        var workflow = workflow(List.of(binding()));
+        var session = new com.chatchat.runtime.skill.api.execution.SkillDataSession();
+        workflow.acquire(requirement, resolution(true), identity, Map.of("customerId", "c1"), session);
+        workflow.acquire(requirement, resolution(true), identity, Map.of("customerId", "c1"), session);
+        verify(operator, times(1)).execute(any(), any(), isNull());
+        workflow.acquire(requirement, resolution(true),
+            new SkillRoleContext("tenant", "other", List.of(), List.of(), Map.of()), Map.of("customerId", "c1"), session);
+        verify(operator, times(2)).execute(any(), any(), isNull());
+        when(scopes.resolve(anyString(), anyString(), anyString(), anyList(), anyList()))
+            .thenReturn(SkillExecutionScopePort.EffectiveScope.denied(List.of()));
+        assertThat(workflow.acquire(requirement, resolution(true), identity, Map.of("customerId", "c1"), session).status())
+            .isEqualTo(SkillDataResult.Status.DENIED);
+        verify(operator, times(2)).execute(any(), any(), isNull());
     }
 
     private TemplateSkillDataWorkflow workflow(List<SkillDataWorkflowProperties.Binding> bindings) {

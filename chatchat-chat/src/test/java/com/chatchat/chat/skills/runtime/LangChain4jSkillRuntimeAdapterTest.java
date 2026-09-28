@@ -34,7 +34,7 @@ class LangChain4jSkillRuntimeAdapterTest {
             com.chatchat.runtime.skill.api.execution.SkillDataResult.Status.AVAILABLE,
             List.of(Map.of("return", 0.05)), Map.of("evidenceId", "e1"), List.of());
         var request = new RuntimeAgentExecutionRequest("LANGCHAIN4J", "analyze", role, skill, scope, null,
-            Map.of(com.chatchat.runtime.skill.application.SkillDataAcquisition.RESULTS, List.of(dataset)));
+            Map.of(com.chatchat.runtime.skill.application.SkillDataAcquisition.RESULTS, List.of(dataset), "maxToolCalls", 0));
         new LangChain4jSkillRuntimeAdapter(runtime).execute(request);
         var capture = org.mockito.ArgumentCaptor.forClass(com.chatchat.agents.runtime.AgentRunRequest.class);
         org.mockito.Mockito.verify(runtime).run(capture.capture());

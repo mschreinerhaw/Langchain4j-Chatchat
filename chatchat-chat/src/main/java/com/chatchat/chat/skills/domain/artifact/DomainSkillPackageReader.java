@@ -25,13 +25,56 @@ import java.util.zip.ZipInputStream;
 
 /** Reads immutable SKILL.md bundle resources and non-authoritative resource declarations. */
 @Component
-@RequiredArgsConstructor
 public class DomainSkillPackageReader {
     private static final int MAX_ENTRIES = 500;
     private static final int MAX_RESOURCE_BYTES = 2 * 1024 * 1024;
     private static final int MAX_TOTAL_BYTES = 16 * 1024 * 1024;
     private final DomainSkillSourceArtifactRepository artifacts;
     private final ObjectMapper objectMapper;
+    private final DomainSkillCompilationRepository compilations;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public DomainSkillPackageReader(DomainSkillSourceArtifactRepository artifacts, ObjectMapper objectMapper,
+                                    DomainSkillCompilationRepository compilations) {
+        this.artifacts = artifacts; this.objectMapper = objectMapper; this.compilations = compilations;
+    }
+    public DomainSkillPackageReader(DomainSkillSourceArtifactRepository artifacts, ObjectMapper objectMapper) {
+        this(artifacts, objectMapper, null);
+    }
+
+    public record CompilationView(String id, com.chatchat.chat.skills.domain.adapter.RuntimeSkillIr protocol) { }
+
+    @Transactional(readOnly = true)
+    public Optional<CompilationView> latestCompilation(String tenantId, String skillId) {
+        if (compilations == null) return Optional.empty();
+        return compilations.findFirstBySkillIdAndTenantIdOrderByCreatedAtDesc(skillId, tenantId).map(this::compiled);
+    }
+
+    private CompilationView compiled(DomainSkillCompilationEntity entity) {
+        try {
+            var ir = objectMapper.readValue(entity.getSkillIrJson(), com.chatchat.chat.skills.domain.adapter.RuntimeSkillIr.class);
+            if (!java.util.Set.of("runtime_skill_ir.v1", "runtime_skill_ir.v2").contains(ir.schemaVersion()))
+                throw new IllegalArgumentException("Unsupported Skill IR schema");
+            return new CompilationView(entity.getId(), ir);
+        } catch (java.io.IOException error) { throw new IllegalArgumentException("Invalid compiled Skill protocol", error); }
+    }
+
+    @Transactional(readOnly = true)
+    public PackageView readPublished(String tenantId, String skillId, String compilationId) {
+        if (compilationId == null || compilationId.isBlank()) {
+            var legacy = read(tenantId, skillId);
+            var r = legacy.requirements();
+            return new PackageView(new SkillRequirements(r.documentIds(), r.knowledgeBaseIds(), r.mcpToolIds(),
+                r.agentIds(), r.workflowIds()), legacy.resources());
+        }
+        var entry = compilations.findById(compilationId)
+            .filter(item -> tenantId.equals(item.getTenantId()) && skillId.equals(item.getSkillId()))
+            .orElseThrow(() -> new IllegalArgumentException("Published compilation is unavailable"));
+        var source = artifacts.findById(entry.getSourceId())
+            .filter(item -> tenantId.equals(item.getTenantId()) && skillId.equals(item.getSkillId()))
+            .orElseThrow(() -> new IllegalArgumentException("Published source is unavailable"));
+        return new PackageView(compiled(entry).protocol().execution().requirements(), resources(source.getOriginalArtifact(), source.getSourceType()));
+    }
 
     @Transactional(readOnly = true)
     public PackageView read(String tenantId, String skillId) {

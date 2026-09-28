@@ -11,4 +11,9 @@ public interface SkillDataWorkflow {
     boolean supports(SkillDataRequirement requirement, SkillResolution skill, SkillRoleContext identity);
     SkillDataResult acquire(SkillDataRequirement requirement, SkillResolution skill,
                             SkillRoleContext identity, Map<String, Object> parameters);
+    default SkillDataResult acquire(SkillDataRequirement requirement, SkillResolution skill,
+            SkillRoleContext identity, Map<String, Object> parameters,
+            com.chatchat.runtime.skill.api.execution.SkillDataSession session) {
+        return acquire(requirement, skill, identity, parameters);
+    }
 }

@@ -224,9 +224,11 @@ public class DomainSkillRemoteImporter {
         String path = uri.getPath() == null ? "" : uri.getPath();
         String name = path.substring(path.lastIndexOf('/') + 1).trim();
         String lower = name.toLowerCase(Locale.ROOT);
-        if (lower.endsWith(".md") || lower.endsWith(".markdown") || lower.endsWith(".zip")) return name;
+        if (lower.matches(".*\\.(md|markdown|zip|json|yaml|yml)$")) return name;
         String type = contentType.toLowerCase(Locale.ROOT);
         if (type.contains("zip")) return name.isBlank() ? "skill.zip" : name + ".zip";
+        if (type.contains("json")) return name.isBlank() ? "skill.json" : name + ".json";
+        if (type.contains("yaml")) return name.isBlank() ? "skill.yaml" : name + ".yaml";
         if (type.contains("markdown") || type.startsWith("text/")) return name.isBlank() ? "SKILL.md" : name + ".md";
         throw new IllegalArgumentException("Skill URL must point to a Markdown or ZIP file");
     }

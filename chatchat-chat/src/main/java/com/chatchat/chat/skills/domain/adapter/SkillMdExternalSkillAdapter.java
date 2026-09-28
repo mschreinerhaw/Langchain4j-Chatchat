@@ -43,7 +43,7 @@ public final class SkillMdExternalSkillAdapter implements ExternalSkillAdapter {
     private ParsedMarkdown parse(String source) {
         String markdown = stripBom(source == null ? "" : source);
         FrontMatterSection section = frontMatter(markdown);
-        if (section == null) return new ParsedMarkdown("", "", markdown.trim(), false);
+        if (section == null) return new ParsedMarkdown("", "", markdown.trim(), Map.of());
 
         LoaderOptions options = new LoaderOptions();
         options.setAllowDuplicateKeys(false);
@@ -60,8 +60,13 @@ public final class SkillMdExternalSkillAdapter implements ExternalSkillAdapter {
             throw new IllegalArgumentException("SKILL.md front matter must be a YAML object");
         }
         Map<?, ?> metadata = loaded instanceof Map<?, ?> map ? map : Map.of();
+        Map<String, Object> declarations = new LinkedHashMap<>();
+        metadata.forEach((key, value) -> {
+            if (!(key instanceof String name)) throw new IllegalArgumentException("Front matter keys must be strings");
+            declarations.put(name, value);
+        });
         return new ParsedMarkdown(supportedScalar(metadata, "name"), supportedScalar(metadata, "description"),
-            section.body().trim(), true);
+            section.body().trim(), java.util.Collections.unmodifiableMap(declarations));
     }
 
     private FrontMatterSection frontMatter(String markdown) {
@@ -132,7 +137,7 @@ public final class SkillMdExternalSkillAdapter implements ExternalSkillAdapter {
         return value == null ? "" : value.trim();
     }
 
-    private record ParsedMarkdown(String name, String description, String body, boolean frontMatter) {
+    private record ParsedMarkdown(String name, String description, String body, Map<String, Object> frontMatter) {
     }
 
     private record FrontMatterSection(String yaml, String body) {

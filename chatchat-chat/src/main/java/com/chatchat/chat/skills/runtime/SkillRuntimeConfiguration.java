@@ -23,6 +23,11 @@ import java.util.List;
 @Configuration
 public class SkillRuntimeConfiguration {
     @Bean
+    com.chatchat.runtime.skill.application.SkillCompositionRuntime skillCompositionRuntime(SkillRouter router,
+            SkillResolver resolver, WorkflowResolver workflows, SkillRuntime runtime) {
+        return new com.chatchat.runtime.skill.application.SkillCompositionRuntime(router, resolver, workflows, runtime);
+    }
+    @Bean
     SkillRouter runtimeSkillRouter(List<SkillSource> sources, SkillPolicy policy) {
         return new DefaultSkillRouter(sources, policy);
     }
@@ -48,8 +53,10 @@ public class SkillRuntimeConfiguration {
     @Bean
     SkillRuntime runtimeSkillRuntime(SkillRouter router, SkillResolver resolver,
                                      WorkflowResolver workflows, AgentRuntimeDispatcher agents,
-                                     org.springframework.beans.factory.ObjectProvider<com.chatchat.runtime.skill.port.outbound.SkillDataWorkflow> dataWorkflows) {
+                                     org.springframework.beans.factory.ObjectProvider<com.chatchat.runtime.skill.port.outbound.SkillDataWorkflow> dataWorkflows,
+                                     org.springframework.beans.factory.ObjectProvider<com.chatchat.runtime.skill.port.outbound.SkillAnalysisOperator> operators) {
         return new DefaultSkillRuntime(router, resolver, workflows, agents,
-            new com.chatchat.runtime.skill.application.SkillDataAcquisition(() -> dataWorkflows.orderedStream().toList()));
+            new com.chatchat.runtime.skill.application.SkillDataAcquisition(() -> dataWorkflows.orderedStream().toList()),
+            new com.chatchat.runtime.skill.application.SkillAnalysisExecutor(() -> operators.orderedStream().toList()));
     }
 }

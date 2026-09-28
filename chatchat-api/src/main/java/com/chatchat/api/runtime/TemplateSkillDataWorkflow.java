@@ -5,6 +5,7 @@ import com.chatchat.common.retrieval.SkillExecutionScopePort;
 import com.chatchat.common.runtime.analysis.model.AnalysisContext;
 import com.chatchat.common.runtime.analysis.model.AnalysisScope;
 import com.chatchat.runtime.skill.api.execution.SkillDataResult;
+import com.chatchat.runtime.skill.api.execution.SkillDataSession;
 import com.chatchat.runtime.skill.api.identity.SkillRoleContext;
 import com.chatchat.runtime.skill.api.resolution.SkillResolution;
 import com.chatchat.runtime.skill.api.skill.SkillDataRequirement;
@@ -26,18 +27,23 @@ public class TemplateSkillDataWorkflow implements SkillDataWorkflow {
     private final SkillExecutionScopePort scopes;
     private final PreauthorizedStructuredDataOperator data;
     private final ObjectMapper mapper;
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.beans.factory.ObjectProvider<SkillDataBindingService> databaseBindings;
 
     public TemplateSkillDataWorkflow(SkillDataWorkflowProperties properties, SkillExecutionScopePort scopes,
                                      PreauthorizedStructuredDataOperator data, ObjectMapper mapper) {
         this.properties = properties;
         this.scopes = scopes;
         this.data = data;
-        this.mapper = mapper;
+        this.mapper = mapper.copy().enable(com.fasterxml.jackson.databind.DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
     }
 
     private List<SkillDataWorkflowProperties.Binding> bindings(SkillDataRequirement requirement,
                                                               SkillResolution skill, SkillRoleContext identity) {
-        return properties.bindings().stream().filter(binding -> binding.enabled()
+        var catalog = databaseBindings == null ? null : databaseBindings.getIfAvailable();
+        var available = catalog == null ? properties.bindings()
+            : catalog.effective(identity.tenantId(), skill.skill().descriptor().id(), properties.bindings());
+        return available.stream().filter(binding -> binding.enabled()
             && binding.tenantId().equals(identity.tenantId())
             && binding.domainSkillId().equals(skill.skill().descriptor().id())
             && binding.contractId().equals(requirement.contractId())).toList();
@@ -49,6 +55,11 @@ public class TemplateSkillDataWorkflow implements SkillDataWorkflow {
 
     @Override public SkillDataResult acquire(SkillDataRequirement requirement, SkillResolution skill,
                                             SkillRoleContext identity, Map<String, Object> parameters) {
+        return acquire(requirement, skill, identity, parameters, new SkillDataSession());
+    }
+
+    @Override public SkillDataResult acquire(SkillDataRequirement requirement, SkillResolution skill,
+            SkillRoleContext identity, Map<String, Object> parameters, SkillDataSession session) {
         var matches = bindings(requirement, skill, identity);
         if (matches.size() != 1) return unavailable(requirement, matches.isEmpty()
             ? SkillDataResult.Status.NO_BINDING : SkillDataResult.Status.AMBIGUOUS_BINDING, "Data binding is not unique");
@@ -67,16 +78,29 @@ public class TemplateSkillDataWorkflow implements SkillDataWorkflow {
                 return unavailable(requirement, SkillDataResult.Status.MISSING_INPUT, "Template requires a scalar business parameter");
             templateParameters.put(entry.getKey(), value);
         }
+        // Reauthorize before every cache lookup, including reuse by another domain Skill.
+        var key = List.<Object>of(identity.tenantId(), identity.userId(), identity.roleIds(), executionScope,
+            requirement.contractId(), binding.workflowId(), binding.version(), binding.executionSkillId(),
+            binding.templateId(), binding.assetName(), binding.environment(), Map.copyOf(parameters), Map.copyOf(templateParameters),
+            binding.fields(), binding.semantics());
+        var acquired = session.acquire(key, () -> fetch(requirement, identity, parameters, binding,
+            executionScope.roles(), templateParameters));
+        return new SkillDataResult(requirement, acquired.status(), acquired.rows(), acquired.provenance(), acquired.observations());
+    }
+
+    private SkillDataResult fetch(SkillDataRequirement requirement, SkillRoleContext identity,
+            Map<String, Object> parameters, SkillDataWorkflowProperties.Binding binding,
+            List<String> roles, Map<String, Object> templateParameters) {
         String requestId = UUID.randomUUID().toString();
         var kernel = new KernelDataScope(identity.tenantId(), identity.userId(), requestId, null, requestId, null, Map.of());
         var context = new AnalysisContext("Acquire " + requirement.contractId(), kernel, binding.executionSkillId(),
-            List.of(), List.of(), executionScope.roles(), null, Map.of(
+            List.of(), List.of(), roles, null, Map.of(
                 PreauthorizedStructuredDataOperator.TEMPLATE_ID, binding.templateId(),
                 PreauthorizedStructuredDataOperator.ASSET_NAME, binding.assetName(),
                 PreauthorizedStructuredDataOperator.ENVIRONMENT, binding.environment(),
                 PreauthorizedStructuredDataOperator.PARAMETERS, templateParameters));
         var result = data.execute(context, new AnalysisScope(identity.tenantId(), identity.userId(),
-            executionScope.roles(), List.of(), Map.of()), null);
+            roles, List.of(), Map.of()), null);
         if (result.evidence().size() != 1)
             return unavailable(requirement, SkillDataResult.Status.FAILED, "Fixed acquisition workflow returned no structured dataset");
         var evidence = result.evidence().get(0);
@@ -96,6 +120,7 @@ public class TemplateSkillDataWorkflow implements SkillDataWorkflow {
                 rows.add(row);
             }
             Map<String, Object> provenance = new LinkedHashMap<>();
+            provenance.put("tenantId", identity.tenantId());
             provenance.put("workflowId", binding.workflowId());
             provenance.put("workflowVersion", binding.version());
             provenance.put("templateId", binding.templateId());

@@ -64,6 +64,8 @@ public class McpSkillFederationSchemaMigrator implements ApplicationRunner {
         addColumn(connection, "ds_domain_skill", "federated_source_name", "VARCHAR(200)");
         addColumn(connection, "ds_domain_skill", "federated_skill_uri", "VARCHAR(2000)");
         addColumn(connection, "ds_domain_skill", "federated_manifest_json", largeText);
+        addColumn(connection, "ds_domain_skill", "published_compilation_id", "VARCHAR(64)");
+        addColumn(connection, "ds_domain_skill", "runtime_metadata_json", largeText);
         addIndex(connection, "ds_domain_skill", "idx_domain_skill_federated_source",
             "tenant_id, federated_source_id");
         addIndex(connection, "ds_mcp_skill_source", "idx_mcp_skill_source_tenant",

@@ -31,6 +31,17 @@ public class DomainSkillController {
     private final DomainSkillService service;
     private final DomainSkillImportTaskService importTaskService;
 
+    @GetMapping("/{id}/protocol")
+    public ApiResponse<?> protocol(@PathVariable("id") String id, HttpServletRequest request) {
+        return call(() -> { Scope scope = scope(request); requireAdmin(scope); return service.compilation(scope.tenantId(), id); });
+    }
+
+    @PostMapping("/{id}/compile")
+    public ApiResponse<?> compile(@PathVariable("id") String id, @RequestBody Map<String, Object> protocol,
+                                  HttpServletRequest request) {
+        return call(() -> { Scope scope = scope(request); requireAdmin(scope); return service.compileProtocol(scope.tenantId(), id, protocol); });
+    }
+
     @GetMapping
     public ApiResponse<?> workspace(@RequestParam(value = "keyword", defaultValue = "") String keyword,
                                     @RequestParam(value = "category", defaultValue = "") String category,

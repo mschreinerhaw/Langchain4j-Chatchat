@@ -21,7 +21,7 @@ public final class ExternalSkillAdapterGateway {
         ExternalSkillAdapter adapter = adapters.stream().filter(candidate -> candidate.supports(source)).findFirst()
             .orElseThrow(() -> new IllegalArgumentException("No adapter supports this external skill format"));
         AdaptedExternalSkill document = adapter.adapt(source);
-        RuntimeSkillIr skillIr = compiler.compile(document);
+        RuntimeSkillIr skillIr = new ExternalSkillProtocolConverter(objectMapper).convert(document, compiler.compile(document));
         try {
             byte[] original = source.originalArtifact();
             byte[] artifact = original.length == 0

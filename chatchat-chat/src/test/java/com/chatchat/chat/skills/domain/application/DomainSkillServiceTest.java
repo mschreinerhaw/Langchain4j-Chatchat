@@ -38,6 +38,27 @@ import static org.mockito.Mockito.*;
 
 class DomainSkillServiceTest {
     @Test
+    void publicationPinsCompiledProtocolAndChangedInstructionsRequireRecompilation() {
+        var repository = mock(DomainSkillRepository.class);
+        var entitlement = mock(McpLicenseEntitlementPort.class);
+        var index = mock(DomainSkillIndexService.class);
+        var skill = skill("compiled", "Sales", "# Sales");
+        when(repository.findByIdAndTenantId("compiled", "tenant-a")).thenReturn(Optional.of(skill));
+        when(entitlement.skillPublicationLimit()).thenReturn(new McpLicenseEntitlementPort.SkillPublicationLimit(true, "VALID", "", 5, true, "MCP"));
+        when(index.index(skill)).thenReturn(new DomainSkillIndexService.IndexResult(true, "BM25", ""));
+        var service = service(repository, entitlement, index);
+        var reader = (DomainSkillPackageReader) org.springframework.test.util.ReflectionTestUtils.getField(service, "packageReader");
+        var ir = new RuntimeSkillIr(RuntimeSkillIr.SCHEMA_VERSION, "sales", "", "# Sales", List.of("sales.summary"), List.of(), "TEST");
+        when(reader.latestCompilation("tenant-a", "compiled")).thenReturn(Optional.of(new DomainSkillPackageReader.CompilationView("compile-v2", ir)));
+        service.publish("tenant-a", "compiled");
+        assertThat(skill.getPublishedCompilationId()).isEqualTo("compile-v2");
+        assertThat(skill.getRuntimeMetadataJson()).contains("sales.summary", "runtime_skill_ir.v2");
+        skill.setMarkdownContent("# Changed");
+        assertThatThrownBy(() -> service.publish("tenant-a", "compiled"))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("recompile");
+    }
+
+    @Test
     void exposesAuthorizedMetadataBeforeLoadingThePublishedSkillBody() {
         DomainSkillRepository repository = mock(DomainSkillRepository.class);
         DomainSkillIndexService index = mock(DomainSkillIndexService.class);
@@ -438,7 +459,7 @@ class DomainSkillServiceTest {
     }
     private DomainSkillPackageReader emptyPackageReader() {
         DomainSkillPackageReader reader = mock(DomainSkillPackageReader.class);
-        when(reader.read(anyString(), anyString())).thenReturn(DomainSkillPackageReader.PackageView.empty());
+        when(reader.readPublished(anyString(), anyString(), nullable(String.class))).thenReturn(DomainSkillPackageReader.PackageView.empty());
         return reader;
     }
     private ExternalSkillAdapterGateway externalSkillGateway() {

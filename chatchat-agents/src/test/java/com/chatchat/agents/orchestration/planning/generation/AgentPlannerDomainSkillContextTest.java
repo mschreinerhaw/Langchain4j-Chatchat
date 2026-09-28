@@ -2,6 +2,7 @@ package com.chatchat.agents.orchestration.planning.generation;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
+import com.chatchat.common.knowledge.runtime.KnowledgeContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -58,6 +59,32 @@ class AgentPlannerDomainSkillContextTest {
             .contains("Model-routed domain knowledge", "selected skills are an authorization boundary")
             .contains("activated skill count: 1", "先验证行情日期", "指数收盘值", "不得编造行情")
             .doesNotContain("Selected domain skills for plan generation");
+    }
+
+    @Test
+    void activatedKnowledgeSkillsAreMandatoryPlannerInputEvenWithoutMcpTools() {
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        attributes.put(KnowledgeContext.RUNTIME_ATTRIBUTE, Map.of(
+            "used", true,
+            "activatedSkills", List.of(Map.of(
+                "instanceId", "procedure-install", "skillType", "PROCEDURE_LOOKUP",
+                "goal", "Locate installation instructions")),
+            "sources", List.of(Map.of(
+                "documentId", "doc-livedata", "documentName", "LiveData 安装指南",
+                "citation", "LiveData 安装指南 / 安装部署")),
+            "compiledContext", "[PROCEDURE] LiveData 安装部署：先准备运行环境，再执行安装脚本。"
+        ));
+        attributes.put("authoritativeWorkflowDag", List.of(Map.of("id", "answer", "tool", "")));
+
+        String prompt = builder().build(
+            "查找 LiveData 安装说明", "x".repeat(20_000), List.of(), List.of(),
+            List.of(), List.of(), List.of(), false, false, null, null, attributes);
+
+        assertThat(prompt)
+            .contains("Activated Knowledge Skills for plan generation")
+            .contains("PROCEDURE_LOOKUP", "LiveData 安装指南", "先准备运行环境")
+            .contains("MUST apply it", "Do not report a missing search tool")
+            .contains("Require tools only for dynamic/current facts");
     }
 
     private AgentPlannerPromptBuilder builder() {

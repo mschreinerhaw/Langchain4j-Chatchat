@@ -12,6 +12,7 @@ import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import com.chatchat.common.mcp.capability.McpTemplateSelectionScope;
+import com.chatchat.common.knowledge.runtime.KnowledgeContext;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolWorkflowContract;
@@ -46,6 +47,7 @@ public final class AgentPlannerPromptBuilder {
     private static final int COMPACT_PROTOCOL_PROMPT_CHARS = 4_000;
     private static final int COMPACT_TOOL_DESCRIPTION_CHARS = 800;
     private static final int DOMAIN_SKILL_PLANNING_PROMPT_CHARS = 12_000;
+    private static final int ACTIVATED_KNOWLEDGE_PROMPT_CHARS = 12_000;
     private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
     private final Clock clock;
@@ -85,6 +87,7 @@ public final class AgentPlannerPromptBuilder {
                 mandatoryTools, requireToolBeforeFinal, runtimeAttributes, roleContext, authoritativeDag);
         }
         if (!roleContext.isEmpty()) prompt.append(roleContext).append('\n');
+        appendActivatedKnowledgeContext(prompt, runtimeAttributes);
         appendDomainSkillPlanningContext(prompt, runtimeAttributes);
         prompt.append("You are an agent planner.\n");
         prompt.append("Goal: produce a safe, executable InterpretationPlan for the MCP runtime.\n");
@@ -323,6 +326,7 @@ public final class AgentPlannerPromptBuilder {
         if (roleContext != null && !roleContext.isEmpty()) {
             prompt.append(boundedText(roleContext, 2_000, "role context")).append('\n');
         }
+        appendActivatedKnowledgeContext(prompt, runtimeAttributes);
         appendDomainSkillPlanningContext(prompt, runtimeAttributes);
         ZoneId runtimeZone = runtimeZoneId(runtimeAttributes);
         LocalDate runtimeDate = LocalDate.now(clock.withZone(runtimeZone));
@@ -438,6 +442,28 @@ public final class AgentPlannerPromptBuilder {
         }
         prompt.append(boundedText(section.toString(), DOMAIN_SKILL_PLANNING_PROMPT_CHARS,
             "domain skill planning context")).append("\n\n");
+    }
+
+    private void appendActivatedKnowledgeContext(StringBuilder prompt,
+                                                 Map<String, Object> runtimeAttributes) {
+        Map<String, Object> context = asMap(runtimeAttributes == null
+            ? null : runtimeAttributes.get(KnowledgeContext.RUNTIME_ATTRIBUTE));
+        if (!Boolean.TRUE.equals(context.get("used"))) return;
+        List<Map<String, Object>> activated = objectMapList(context.get("activatedSkills"));
+        String compiledContext = stringValue(context.get("compiledContext"));
+        if (activated.isEmpty() || compiledContext.isBlank()) return;
+        List<Map<String, Object>> sources = objectMapList(context.get("sources"));
+        StringBuilder section = new StringBuilder()
+            .append("Activated Knowledge Skills for plan generation:\n")
+            .append("- These skills have already executed inside Knowledge Runtime; their compiled knowledge is available now and is not an MCP tool awaiting execution.\n")
+            .append("- When this knowledge answers the request, the plan MUST apply it and the final answer MUST cite its supplied document sources.\n")
+            .append("- Do not report a missing search tool or unavailable knowledge merely because Available tools is empty.\n")
+            .append("- Require tools only for dynamic/current facts that the supplied document knowledge does not establish. Never invent missing facts.\n")
+            .append("Activated skills: ").append(activated).append("\n")
+            .append("Document sources: ").append(sources).append("\n")
+            .append("Compiled knowledge:\n").append(compiledContext);
+        prompt.append(boundedText(section.toString(), ACTIVATED_KNOWLEDGE_PROMPT_CHARS,
+            "activated knowledge skill context")).append("\n\n");
     }
 
     private String describeToolsCompact(List<String> availableTools, Map<String, Object> runtimeAttributes) {

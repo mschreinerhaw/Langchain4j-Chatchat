@@ -466,12 +466,13 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             .append(PromptBoundaryEscaper.escapeMarkupText(knowledge.compiledContext().trim()))
             .append("\n</domain_knowledge>\n\n")
             .append("Knowledge and tool evidence contract:\n")
-            .append("1. Treat domain_knowledge only as definitions, policies, business rules, and interpretation guidance.\n")
-            .append("2. Treat observations returned by MCP/API/SQL tools in this run as <tool_evidence> for current facts.\n")
-            .append("3. Current factual conclusions and calculations must be grounded primarily in tool_evidence.\n")
-            .append("4. Never treat example numbers, historical cases, or sample customers in domain_knowledge as current facts.\n")
-            .append("5. If a knowledge rule cannot be mapped to the retrieved data, state the limitation explicitly.\n")
-            .append("6. If knowledge entries conflict, report the conflict; do not silently choose one.\n");
+            .append("1. Activated Knowledge Skills have already executed; use relevant retrieved definitions, policies, procedures, methods and FAQs to answer the request.\n")
+            .append("2. Cite the supplied document sources for conclusions supported by domain_knowledge. Do not claim knowledge is unavailable merely because no MCP tool is bound.\n")
+            .append("3. Treat observations returned by MCP/API/SQL tools in this run as <tool_evidence> for dynamic or current facts.\n")
+            .append("4. Dynamic factual conclusions and calculations not established by the documents require tool_evidence.\n")
+            .append("5. Never treat example numbers, historical cases, or sample customers in domain_knowledge as current facts.\n")
+            .append("6. If a knowledge rule cannot be mapped to the retrieved data, state the limitation explicitly.\n")
+            .append("7. If knowledge entries conflict, report the conflict; do not silently choose one.\n");
         return builder.toString();
     }
 

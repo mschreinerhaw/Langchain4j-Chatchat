@@ -5880,8 +5880,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             "skillTypes", skillTypes
         );
         runResultAdapter.recordRuntimeObservation(runtimeAttributes, AGENT_RUN_ID_ATTRIBUTE,
-            "Knowledge Skill routing completed: selected " + selectedDomainSkills.size()
-                + ", activated " + activatedSkills.size() + " skill(s) " + activatedSkillSummary,
+            "Knowledge Skill routing completed: activated " + activatedSkills.size()
+                + " Knowledge Skill(s), selected " + selectedDomainSkills.size()
+                + " domain skill(s) " + activatedSkillSummary,
             "knowledge_skills", extractedEvent);
         boolean applied = Boolean.TRUE.equals(knowledge.get("used")) || !activatedDomainSkills.isEmpty();
         Map<String, Object> appliedEvent = metadataOf(
@@ -5918,6 +5919,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             "id", skill.get("id"), "name", skill.get("name"), "category", skill.get("category"))).toList());
         runResultAdapter.recordRuntimeObservation(runtimeAttributes, AGENT_RUN_ID_ATTRIBUTE,
             "领域知识已应用到分析流程，共绑定 " + sources.size() + " 个文档来源、"
+                + activatedSkills.size() + " 个 Knowledge Skill、"
                 + selectedDomainSkills.size() + " 个领域技能。",
             "knowledge_skills", appliedEvent);
     }

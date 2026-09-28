@@ -78,9 +78,10 @@ public record KnowledgeContext(
             return Map.copyOf(item);
         }).toList());
         projection.put("usageContract", Map.of(
-            "role", "DOMAIN_DEFINITIONS_RULES_METHODS_AND_CONSTRAINTS",
-            "currentFacts", false,
-            "toolEvidenceRequiredForCurrentFacts", true,
+            "role", "AUTHORIZED_DOCUMENT_KNOWLEDGE_EVIDENCE",
+            "answersSupportedByKnowledge", true,
+            "sourceCitationRequired", true,
+            "toolEvidenceRequiredForDynamicFacts", true,
             "examplesAreCurrentFacts", false));
         return Map.copyOf(projection);
     }

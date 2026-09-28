@@ -7,7 +7,6 @@ import com.chatchat.knowledgebase.search.query.SearchTokenizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,9 +30,7 @@ public class KnowledgeIrDocumentRecall {
 
     private final KnowledgeIRRepository repository;
     private final SearchTokenizer tokenizer;
-
-    @Autowired(required = false)
-    private ResourceAuthorizationPort resourceAuthorization;
+    private final ResourceAuthorizationPort resourceAuthorization;
 
     @Transactional(readOnly = true)
     public Recall recall(DocumentSearchPlan plan, int limit) {
@@ -64,17 +61,15 @@ public class KnowledgeIrDocumentRecall {
             matches.stream().map(KnowledgeIREntity::getDocumentId)
                 .filter(id -> id != null && !id.isBlank()).forEach(matchedIds::add);
         }
-        Set<String> grantAllowed = resourceAuthorization == null ? null
-            : resourceAuthorization.allowedIds(ResourceAuthorizationPort.KNOWLEDGE,
-                plan.permissionContext().tenantId(), plan.permissionContext().userId(),
-                new HashSet<>(plan.permissionContext().roles()), matchedIds);
+        Set<String> grantAllowed = resourceAuthorization.allowedIds(ResourceAuthorizationPort.KNOWLEDGE,
+            plan.permissionContext().tenantId(), plan.permissionContext().userId(),
+            new HashSet<>(plan.permissionContext().roles()), matchedIds);
         for (String term : terms) {
             Set<String> documentsForTerm = new HashSet<>();
             for (KnowledgeIREntity unit : matchesByTerm.getOrDefault(term, List.of())) {
                 String documentId = unit.getDocumentId();
                 if (documentId == null || documentId.isBlank() || (!allowed.isEmpty() && !allowed.contains(documentId))
-                    || (grantAllowed != null && !grantAllowed.contains(documentId))
-                    || (resourceAuthorization == null && !metadataVisible(unit, plan))) {
+                    || !grantAllowed.contains(documentId)) {
                     continue;
                 }
                 units.putIfAbsent(documentId + ":" + unit.getKnowledgeId(), unit);
@@ -139,20 +134,6 @@ public class KnowledgeIrDocumentRecall {
 
     private boolean contains(String value, String term) {
         return value != null && value.toLowerCase(Locale.ROOT).contains(term);
-    }
-
-    /** Fail closed for legacy deployments where the canonical database authorizer is unavailable. */
-    private boolean metadataVisible(KnowledgeIREntity unit, DocumentSearchPlan plan) {
-        String visibility = unit.getVisibility() == null ? "tenant"
-            : unit.getVisibility().trim().toLowerCase(Locale.ROOT);
-        if ("public".equals(visibility) || "tenant".equals(visibility)) return true;
-        if ("private".equals(visibility)) {
-            return unit.getOwnerUserId() != null
-                && unit.getOwnerUserId().equals(plan.permissionContext().userId());
-        }
-        // Role visibility must be resolved by ResourceAuthorizationPort. Do not parse a second,
-        // potentially stale role policy from denormalized IR metadata.
-        return false;
     }
 
     public record Recall(List<String> documentIds, String focusedQuery) {

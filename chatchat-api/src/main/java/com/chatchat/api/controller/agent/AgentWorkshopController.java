@@ -36,6 +36,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -167,6 +168,7 @@ public class AgentWorkshopController {
      * @return the created agent
      */
     @PostMapping
+    @Transactional
     @Operation(summary = "Create one workshop Agent")
     public ApiResponse<AgentCard> createAgent(@RequestBody AgentUpsertRequest request,
                                                HttpServletRequest servletRequest) {
@@ -184,6 +186,7 @@ public class AgentWorkshopController {
      * @return the updated agent
      */
     @PutMapping("/{agentId}")
+    @Transactional
     @Operation(summary = "Update one workshop Agent")
     public ApiResponse<AgentCard> updateAgent(@PathVariable("agentId") String agentId,
                                               @RequestBody AgentUpsertRequest request,
@@ -196,7 +199,8 @@ public class AgentWorkshopController {
 
     private void synchronizeKnowledgeBindings(SkillDefinition skill, HttpServletRequest request) {
         skillResourceScopes.synchronize(tenantId(request), skill.id(),
-            skill.boundDocumentIds(), skill.boundDocumentTags());
+            skill.boundDocumentIds() == null ? List.of() : skill.boundDocumentIds(),
+            skill.boundDocumentTags() == null ? List.of() : skill.boundDocumentTags());
     }
 
     /**

@@ -8,7 +8,6 @@ import com.chatchat.knowledgebase.search.security.DocumentVisibilityContext;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Locale;
@@ -34,8 +33,8 @@ class KnowledgeIrDocumentRecallTest {
         when(authorization.allowedIds(eq(ResourceAuthorizationPort.KNOWLEDGE), eq("tenant-1"),
             eq("user-1"), any(), eq(Set.of("livedata-doc"))))
             .thenReturn(Set.of("livedata-doc"));
-        KnowledgeIrDocumentRecall recall = new KnowledgeIrDocumentRecall(repository, new SearchTokenizer());
-        ReflectionTestUtils.setField(recall, "resourceAuthorization", authorization);
+        KnowledgeIrDocumentRecall recall = new KnowledgeIrDocumentRecall(
+            repository, new SearchTokenizer(), authorization);
 
         assertThat(recall.recall(plan(List.of()), 8).documentIds()).contains("livedata-doc");
         verify(authorization, times(1)).allowedIds(eq(ResourceAuthorizationPort.KNOWLEDGE),
@@ -54,7 +53,7 @@ class KnowledgeIrDocumentRecallTest {
                 return units.stream().filter(unit -> (unit.getTitle() + " " + unit.getSourceSection()
                     + " " + unit.getSearchText()).toLowerCase(Locale.ROOT).contains(term)).toList();
             });
-        KnowledgeIrDocumentRecall recall = new KnowledgeIrDocumentRecall(repository, new SearchTokenizer());
+        KnowledgeIrDocumentRecall recall = recall(repository);
 
         assertThat(recall.recall(plan(List.of()), 8).focusedQuery()).isEqualTo("livedata");
         assertThat(recall.recall(plan(List.of()), 8).documentIds()).containsExactly("livedata-doc");
@@ -71,7 +70,7 @@ class KnowledgeIrDocumentRecallTest {
                 String pattern = invocation.getArgument(1, String.class).toLowerCase(Locale.ROOT);
                 return pattern.contains("livedata") ? List.of() : List.of(generic);
             });
-        KnowledgeIrDocumentRecall recall = new KnowledgeIrDocumentRecall(repository, new SearchTokenizer());
+        KnowledgeIrDocumentRecall recall = recall(repository);
 
         KnowledgeIrDocumentRecall.Recall result = recall.recall(plan(List.of()), 8);
 
@@ -85,7 +84,7 @@ class KnowledgeIrDocumentRecallTest {
         KnowledgeIREntity named = unit("livedata-doc", "Operations", "LiveData setup", "prerequisites");
         when(repository.findMatchingHeadings(eq("tenant-1"), eq("%livedata%"), any(Pageable.class)))
             .thenReturn(List.of(named));
-        KnowledgeIrDocumentRecall recall = new KnowledgeIrDocumentRecall(repository, new SearchTokenizer());
+        KnowledgeIrDocumentRecall recall = recall(repository);
 
         assertThat(recall.recall(plan(List.of()), 8).documentIds()).containsExactly("livedata-doc");
     }
@@ -98,7 +97,7 @@ class KnowledgeIrDocumentRecallTest {
         privateUnit.setOwnerUserId("another-user");
         when(repository.findMatchingUnits(eq("tenant-1"), anyString(), any(Pageable.class)))
             .thenReturn(List.of(privateUnit));
-        KnowledgeIrDocumentRecall recall = new KnowledgeIrDocumentRecall(repository, new SearchTokenizer());
+        KnowledgeIrDocumentRecall recall = deniedRecall(repository);
 
         assertThat(recall.recall(plan(List.of()), 8).documentIds()).isEmpty();
     }
@@ -111,7 +110,7 @@ class KnowledgeIrDocumentRecallTest {
         privateUnit.setOwnerUserId("another-user");
         when(repository.findMatchingUnits(eq("tenant-1"), anyString(), any(Pageable.class)))
             .thenReturn(List.of(privateUnit));
-        KnowledgeIrDocumentRecall recall = new KnowledgeIrDocumentRecall(repository, new SearchTokenizer());
+        KnowledgeIrDocumentRecall recall = deniedRecall(repository);
 
         assertThat(recall.recall(plan(List.of()), 8).documentIds()).isEmpty();
     }
@@ -122,6 +121,18 @@ class KnowledgeIrDocumentRecallTest {
             String.join(",", scope), "how_to", List.of(), false,
             SearchPermissionContext.of("tenant-1", "user-1", List.of()),
             DocumentVisibilityContext.unrestricted(), null);
+    }
+
+    private KnowledgeIrDocumentRecall recall(KnowledgeIRRepository repository) {
+        ResourceAuthorizationPort authorization = mock(ResourceAuthorizationPort.class);
+        when(authorization.allowedIds(eq(ResourceAuthorizationPort.KNOWLEDGE), anyString(), anyString(),
+            any(), any())).thenAnswer(invocation -> invocation.getArgument(4));
+        return new KnowledgeIrDocumentRecall(repository, new SearchTokenizer(), authorization);
+    }
+
+    private KnowledgeIrDocumentRecall deniedRecall(KnowledgeIRRepository repository) {
+        return new KnowledgeIrDocumentRecall(repository, new SearchTokenizer(),
+            mock(ResourceAuthorizationPort.class));
     }
 
     private KnowledgeIREntity unit(String documentId, String title, String section, String searchText) {

@@ -8,11 +8,13 @@ import com.chatchat.common.runtime.agent.AgentGatewayPort;
 import com.chatchat.common.runtime.agent.AgentRegistryPort;
 import com.chatchat.common.runtime.capability.CapabilityId;
 import com.chatchat.runtime.skill.api.AuthorizedSkillScope;
+import com.chatchat.runtime.skill.api.AgentRuntimeHealthRequest;
 import com.chatchat.runtime.skill.api.ResolvedSkill;
+import com.chatchat.runtime.skill.api.ResolvedWorkflow;
+import com.chatchat.runtime.skill.api.RuntimeAgentExecutionRequest;
 import com.chatchat.runtime.skill.api.SkillDescriptor;
 import com.chatchat.runtime.skill.api.SkillRoleContext;
-import com.chatchat.runtime.skill.spi.AgentRuntimeAdapter;
-import com.chatchat.runtime.skill.spi.WorkflowResolver;
+import com.chatchat.runtime.skill.api.WorkflowType;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
@@ -62,10 +64,10 @@ class RegisteredExternalAgentExecutorTest {
         AgentGatewayPort gateway = mock(AgentGatewayPort.class);
         GoogleAdkExternalAgentEngine engine = new GoogleAdkExternalAgentEngine(
             executor(registry, gateway, mock(AgentCardDiscoveryPort.class)));
-        AgentRuntimeAdapter.ExecutionRequest request = request("GOOGLE_ADK", "google-agent");
+        RuntimeAgentExecutionRequest request = request("GOOGLE_ADK", "google-agent");
         AuthorizedSkillScope deniedTarget = new AuthorizedSkillScope(true, List.of(), List.of(), List.of(),
             List.of("different-agent"), List.of("external-workflow"), List.of());
-        request = new AgentRuntimeAdapter.ExecutionRequest(request.engine(), request.query(), request.roleContext(),
+        request = new RuntimeAgentExecutionRequest(request.engine(), request.query(), request.roleContext(),
             request.skill(), deniedTarget, request.workflow(), request.attributes());
 
         var result = engine.execute(request);
@@ -86,7 +88,7 @@ class RegisteredExternalAgentExecutorTest {
         GoogleAdkExternalAgentEngine engine = new GoogleAdkExternalAgentEngine(
             executor(registry, gateway, cards));
 
-        var health = engine.health(new AgentRuntimeAdapter.HealthRequest(
+        var health = engine.health(new AgentRuntimeHealthRequest(
             "GOOGLE_ADK", Map.of("agentId", "google-agent")));
 
         assertThat(health.status()).isEqualTo("READY");
@@ -126,8 +128,8 @@ class RegisteredExternalAgentExecutorTest {
         when(registry.find("google-agent")).thenReturn(Optional.of(descriptor));
         GoogleAdkExternalAgentEngine engine = new GoogleAdkExternalAgentEngine(
             executor(registry, gateway, mock(AgentCardDiscoveryPort.class)));
-        AgentRuntimeAdapter.ExecutionRequest base = request("GOOGLE_ADK", "google-agent");
-        AgentRuntimeAdapter.ExecutionRequest invalid = new AgentRuntimeAdapter.ExecutionRequest(
+        RuntimeAgentExecutionRequest base = request("GOOGLE_ADK", "google-agent");
+        RuntimeAgentExecutionRequest invalid = new RuntimeAgentExecutionRequest(
             base.engine(), base.query(), base.roleContext(), base.skill(), base.scope(), base.workflow(),
             Map.of("agentId", "google-agent", "capabilityId", "finance.analysis.v1", "timeoutMs", "invalid"));
 
@@ -143,16 +145,16 @@ class RegisteredExternalAgentExecutorTest {
         return new RegisteredExternalAgentExecutor(registry, gateway, cards, credentials);
     }
 
-    private AgentRuntimeAdapter.ExecutionRequest request(String engine, String agentId) {
+    private RuntimeAgentExecutionRequest request(String engine, String agentId) {
         SkillDescriptor descriptor = new SkillDescriptor("skill", "1", "Skill", "", "", "DATABASE",
             "source", "", "", 1D, Map.of());
         ResolvedSkill skill = new ResolvedSkill(descriptor, "instructions", List.of(), null, Map.of());
         AuthorizedSkillScope scope = new AuthorizedSkillScope(true, List.of(), List.of(), List.of(),
             List.of(agentId), List.of("external-workflow"), List.of());
-        WorkflowResolver.ResolvedWorkflow workflow = new WorkflowResolver.ResolvedWorkflow(
-            "external-workflow", WorkflowResolver.WorkflowType.EXTERNAL_AGENT, List.of(), Map.of());
+        ResolvedWorkflow workflow = new ResolvedWorkflow(
+            "external-workflow", WorkflowType.EXTERNAL_AGENT, List.of(), Map.of());
         SkillRoleContext role = new SkillRoleContext("tenant", "user", List.of("role"), List.of(), Map.of());
-        return new AgentRuntimeAdapter.ExecutionRequest(engine, "analyze", role, skill, scope, workflow,
+        return new RuntimeAgentExecutionRequest(engine, "analyze", role, skill, scope, workflow,
             Map.of("agentId", agentId, "runId", "run-1", "capabilityId", "finance.analysis.v1"));
     }
 

@@ -1,5 +1,7 @@
-package com.chatchat.knowledgebase.search.document;
+package com.chatchat.knowledgebase.search.document.application;
 
+import com.chatchat.knowledgebase.search.document.api.search.DocumentRecallResult;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchPlan;
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.chatchat.knowledgebase.search.index.GlobalChunkIndexService;
 import com.chatchat.knowledgebase.search.index.GlobalDocumentIndexService;

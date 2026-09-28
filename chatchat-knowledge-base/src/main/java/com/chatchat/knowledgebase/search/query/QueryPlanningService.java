@@ -1,8 +1,8 @@
 package com.chatchat.knowledgebase.search.query;
 
-import com.chatchat.knowledgebase.search.document.DocumentSearchFilters;
-import com.chatchat.knowledgebase.search.document.DocumentSearchPlan;
-import com.chatchat.knowledgebase.search.document.DocumentSearchRequest;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchFilters;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchPlan;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchRequest;
 import com.chatchat.knowledgebase.search.retrieval.RetrievalQueryValidator;
 import com.chatchat.knowledgebase.search.retrieval.RetrievalValidationResult;
 import com.chatchat.knowledgebase.search.security.DocumentVisibilityContext;

@@ -6,9 +6,9 @@ import com.chatchat.common.knowledge.skill.KnowledgeSkillInstance;
 import com.chatchat.common.knowledge.skill.KnowledgeSkillPlan;
 import com.chatchat.common.knowledge.spi.KnowledgeSkillSynthesizerPort;
 import com.chatchat.common.knowledge.skill.KnowledgeSkillType;
-import com.chatchat.knowledgebase.search.document.DocumentSearchEvidenceService;
-import com.chatchat.knowledgebase.search.document.DocumentSearchRequest;
-import com.chatchat.knowledgebase.search.document.DocumentSearchResult;
+import com.chatchat.knowledgebase.search.document.application.DocumentSearchEvidenceService;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchRequest;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchResult;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

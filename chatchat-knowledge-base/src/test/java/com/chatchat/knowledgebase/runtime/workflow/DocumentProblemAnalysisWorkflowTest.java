@@ -7,10 +7,10 @@ import com.chatchat.common.runtime.analysis.model.AnalysisIntent;
 import com.chatchat.common.runtime.analysis.execution.AnalysisExecutionOutcome;
 import com.chatchat.common.runtime.analysis.evidence.DocumentAnalysisEvidence;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
-import com.chatchat.knowledgebase.search.document.DocumentEvidenceChunk;
-import com.chatchat.knowledgebase.search.document.DocumentSearchEvidenceService;
-import com.chatchat.knowledgebase.search.document.DocumentSearchRequest;
-import com.chatchat.knowledgebase.search.document.DocumentSearchResult;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentEvidenceChunk;
+import com.chatchat.knowledgebase.search.document.application.DocumentSearchEvidenceService;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchRequest;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchResult;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

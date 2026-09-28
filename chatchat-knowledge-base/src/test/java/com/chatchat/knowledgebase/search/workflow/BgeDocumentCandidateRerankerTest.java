@@ -1,8 +1,8 @@
 package com.chatchat.knowledgebase.search.workflow;
 
 import com.chatchat.knowledgebase.search.config.SearchProperties;
-import com.chatchat.knowledgebase.search.document.DocumentSearchCandidate;
-import com.chatchat.knowledgebase.search.document.DocumentSearchPlan;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchCandidate;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchPlan;
 import com.chatchat.knowledgebase.search.security.DocumentVisibilityContext;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 import com.fasterxml.jackson.databind.ObjectMapper;

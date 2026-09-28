@@ -3,7 +3,7 @@ package com.chatchat.api.controller.search;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
-import com.chatchat.knowledgebase.search.document.DocumentFileResource;
+import com.chatchat.knowledgebase.search.document.api.library.DocumentFileResource;
 import com.chatchat.knowledgebase.search.model.SearchDocument;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 import com.chatchat.mcp.grpc.v1.DocumentTransferStart;

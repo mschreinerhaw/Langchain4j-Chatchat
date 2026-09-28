@@ -1,5 +1,10 @@
-package com.chatchat.knowledgebase.search.document;
+package com.chatchat.knowledgebase.search.document.api.search;
 
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentEvidenceChunk;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentEvidenceCitation;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentExpansionPolicy;
+import com.chatchat.knowledgebase.search.document.api.library.DocumentOutlineItem;
+import com.chatchat.knowledgebase.search.document.api.library.DocumentOutlineSource;
 import com.chatchat.knowledgebase.search.evidence.EvidenceDecisionResult;
 import com.chatchat.knowledgebase.search.evidence.EvidenceGovernancePolicy;
 import com.chatchat.knowledgebase.search.evidence.EvidenceReasoningResult;

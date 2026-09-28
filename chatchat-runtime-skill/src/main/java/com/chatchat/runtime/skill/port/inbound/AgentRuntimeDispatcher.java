@@ -1,0 +1,12 @@
+package com.chatchat.runtime.skill.port.inbound;
+
+import com.chatchat.runtime.skill.api.AgentRuntimeHealthResult;
+import com.chatchat.runtime.skill.api.RuntimeAgentExecutionRequest;
+import com.chatchat.runtime.skill.api.RuntimeAgentExecutionResult;
+
+public interface AgentRuntimeDispatcher {
+    RuntimeAgentExecutionResult execute(RuntimeAgentExecutionRequest request);
+    default AgentRuntimeHealthResult health(String engine, java.util.Map<String, Object> attributes) {
+        return new AgentRuntimeHealthResult("UNKNOWN", java.util.Map.of("engine", engine == null ? "" : engine));
+    }
+}

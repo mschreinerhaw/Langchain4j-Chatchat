@@ -3,7 +3,7 @@ package com.chatchat.knowledgebase.runtime.workflow;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.runtime.workflow.AbstractStagedExecutionWorkflow;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
-import com.chatchat.knowledgebase.search.document.DocumentEvidenceChunk;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentEvidenceChunk;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;

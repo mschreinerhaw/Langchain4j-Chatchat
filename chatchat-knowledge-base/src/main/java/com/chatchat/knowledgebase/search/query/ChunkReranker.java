@@ -1,7 +1,7 @@
 package com.chatchat.knowledgebase.search.query;
 
 import com.chatchat.knowledgebase.search.config.SearchProperties;
-import com.chatchat.knowledgebase.search.document.DocumentTextExtractor;
+import com.chatchat.knowledgebase.search.document.infrastructure.extract.DocumentTextExtractor;
 
 import org.apache.lucene.document.Document;
 import org.springframework.beans.factory.annotation.Autowired;

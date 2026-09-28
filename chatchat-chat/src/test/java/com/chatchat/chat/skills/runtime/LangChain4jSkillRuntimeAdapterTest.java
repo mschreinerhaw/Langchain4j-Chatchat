@@ -3,9 +3,9 @@ package com.chatchat.chat.skills.runtime;
 import com.chatchat.agents.runtime.AgentRuntime;
 import com.chatchat.runtime.skill.api.AuthorizedSkillScope;
 import com.chatchat.runtime.skill.api.ResolvedSkill;
+import com.chatchat.runtime.skill.api.RuntimeAgentExecutionRequest;
 import com.chatchat.runtime.skill.api.SkillDescriptor;
 import com.chatchat.runtime.skill.api.SkillRoleContext;
-import com.chatchat.runtime.skill.spi.AgentRuntimeAdapter;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -26,7 +26,7 @@ class LangChain4jSkillRuntimeAdapterTest {
         AuthorizedSkillScope scope = new AuthorizedSkillScope(true, List.of(), List.of(), List.of(),
             List.of(), List.of(), List.of());
         SkillRoleContext role = new SkillRoleContext("tenant", "user", List.of("role"), List.of(), Map.of());
-        AgentRuntimeAdapter.ExecutionRequest request = new AgentRuntimeAdapter.ExecutionRequest(
+        RuntimeAgentExecutionRequest request = new RuntimeAgentExecutionRequest(
             "LANGCHAIN4J", "query", role, skill, scope, null, Map.of("maxSteps", "invalid"));
 
         var result = adapter.execute(request);

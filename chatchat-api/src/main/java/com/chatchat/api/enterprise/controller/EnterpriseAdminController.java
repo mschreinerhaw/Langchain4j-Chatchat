@@ -12,9 +12,10 @@ import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.runtime.agent.AgentDescriptor;
 import com.chatchat.common.runtime.agent.AgentRegistryPort;
 import com.chatchat.common.runtime.agent.AgentCredentialResolver;
-import com.chatchat.runtime.skill.spi.AgentRuntimeDispatcher;
+import com.chatchat.runtime.skill.api.AgentRuntimeHealthResult;
+import com.chatchat.runtime.skill.port.inbound.AgentRuntimeDispatcher;
 import com.chatchat.common.retrieval.ResourceAuthorizationPort;
-import com.chatchat.knowledgebase.search.document.LibraryDocumentItem;
+import com.chatchat.knowledgebase.search.document.api.library.LibraryDocumentItem;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 import com.chatchat.agents.runtime.federation.AgentHealthTracker;
 import com.chatchat.common.runtime.agent.AgentCardDiscoveryPort;
@@ -164,7 +165,7 @@ public class EnterpriseAdminController {
 
     @GetMapping("/runtime-adapters/{engine}/health")
     @Operation(summary = "Validate an exact runtime adapter against its database configuration")
-    public ApiResponse<com.chatchat.runtime.skill.spi.AgentRuntimeAdapter.HealthResult> runtimeAdapterHealth(
+    public ApiResponse<AgentRuntimeHealthResult> runtimeAdapterHealth(
         HttpServletRequest request,
         @PathVariable String engine,
         @RequestParam(required = false) String agentId,

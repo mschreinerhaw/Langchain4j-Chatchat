@@ -1,7 +1,7 @@
 package com.chatchat.knowledgebase.search.workflow;
 
-import com.chatchat.knowledgebase.search.document.DocumentSearchCandidate;
-import com.chatchat.knowledgebase.search.document.DocumentSearchPlan;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchCandidate;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchPlan;
 
 import java.util.List;
 

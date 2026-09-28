@@ -7,7 +7,7 @@ import com.chatchat.api.search.DocumentRemoteImporter;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.chatchat.knowledgebase.search.feedback.SearchFeedbackService;
-import com.chatchat.knowledgebase.search.document.LibraryPage;
+import com.chatchat.knowledgebase.search.document.api.library.LibraryPage;
 import com.chatchat.knowledgebase.search.model.SearchMatchedChunk;
 import com.chatchat.knowledgebase.search.model.SearchPage;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;

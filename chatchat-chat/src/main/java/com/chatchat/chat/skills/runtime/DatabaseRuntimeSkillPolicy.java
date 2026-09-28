@@ -8,7 +8,7 @@ import com.chatchat.runtime.skill.api.ResolvedSkill;
 import com.chatchat.runtime.skill.api.SkillDescriptor;
 import com.chatchat.runtime.skill.api.SkillRequirements;
 import com.chatchat.runtime.skill.api.SkillRoleContext;
-import com.chatchat.runtime.skill.spi.SkillPolicy;
+import com.chatchat.runtime.skill.port.outbound.SkillPolicy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;

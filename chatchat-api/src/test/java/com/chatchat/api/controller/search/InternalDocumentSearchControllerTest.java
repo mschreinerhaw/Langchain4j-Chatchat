@@ -1,9 +1,9 @@
 package com.chatchat.api.controller.search;
 
 import com.chatchat.enterprise.service.EnterpriseAdminService;
-import com.chatchat.knowledgebase.search.document.DocumentSearchEvidenceService;
-import com.chatchat.knowledgebase.search.document.DocumentSearchRequest;
-import com.chatchat.knowledgebase.search.document.DocumentSearchResult;
+import com.chatchat.knowledgebase.search.document.application.DocumentSearchEvidenceService;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchRequest;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchResult;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

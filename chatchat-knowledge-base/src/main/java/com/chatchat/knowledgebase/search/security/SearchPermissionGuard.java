@@ -1,10 +1,10 @@
 package com.chatchat.knowledgebase.search.security;
 
-import com.chatchat.knowledgebase.search.document.DocumentEvidenceChunk;
-import com.chatchat.knowledgebase.search.document.DocumentOutlineItem;
-import com.chatchat.knowledgebase.search.document.DocumentSearchExpandRequest;
-import com.chatchat.knowledgebase.search.document.DocumentSearchHit;
-import com.chatchat.knowledgebase.search.document.DocumentSearchRequest;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentEvidenceChunk;
+import com.chatchat.knowledgebase.search.document.api.library.DocumentOutlineItem;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentSearchExpandRequest;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchHit;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchRequest;
 
 import org.springframework.stereotype.Service;
 

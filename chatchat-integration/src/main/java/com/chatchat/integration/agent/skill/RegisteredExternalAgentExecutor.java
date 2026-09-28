@@ -10,8 +10,11 @@ import com.chatchat.common.runtime.agent.AgentGatewayPort;
 import com.chatchat.common.runtime.agent.AgentRegistryPort;
 import com.chatchat.common.runtime.analysis.evidence.EvidenceBundle;
 import com.chatchat.common.runtime.capability.CapabilityId;
-import com.chatchat.runtime.skill.spi.AgentRuntimeAdapter;
-import com.chatchat.runtime.skill.spi.WorkflowResolver;
+import com.chatchat.runtime.skill.api.AgentRuntimeHealthRequest;
+import com.chatchat.runtime.skill.api.AgentRuntimeHealthResult;
+import com.chatchat.runtime.skill.api.RuntimeAgentExecutionRequest;
+import com.chatchat.runtime.skill.api.RuntimeAgentExecutionResult;
+import com.chatchat.runtime.skill.api.WorkflowType;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
@@ -40,7 +43,7 @@ public class RegisteredExternalAgentExecutor {
         this.credentials = credentials.getIfAvailable();
     }
 
-    public AgentRuntimeAdapter.ExecutionResult execute(AgentRuntimeAdapter.ExecutionRequest request,
+    public RuntimeAgentExecutionResult execute(RuntimeAgentExecutionRequest request,
                                                         String expectedEngine,
                                                         Set<AgentDescriptor.Protocol> protocols) {
         Selection selected = select(request, expectedEngine, protocols);
@@ -76,10 +79,10 @@ public class RegisteredExternalAgentExecutor {
         if (!outcome.errorCode().isBlank()) metadata.put("errorCode", outcome.errorCode());
         if (!outcome.errorMessage().isBlank()) metadata.put("error", outcome.errorMessage());
         metadata.put("usage", outcome.usage());
-        return new AgentRuntimeAdapter.ExecutionResult(outcome.status().name(), output(outcome), metadata);
+        return new RuntimeAgentExecutionResult(outcome.status().name(), output(outcome), metadata);
     }
 
-    public AgentRuntimeAdapter.HealthResult health(AgentRuntimeAdapter.HealthRequest request,
+    public AgentRuntimeHealthResult health(AgentRuntimeHealthRequest request,
                                                     String expectedEngine,
                                                     Set<AgentDescriptor.Protocol> protocols) {
         String agentId = text(request == null ? null : request.attributes().get("agentId"));
@@ -88,13 +91,13 @@ public class RegisteredExternalAgentExecutor {
         Selection selected = validate(agent, agentId, expectedEngine, protocols);
         if (!selected.ready()) return healthFailure(selected.status(), selected.details());
         if (agent.protocol() != AgentDescriptor.Protocol.A2A_HTTP_JSON)
-            return new AgentRuntimeAdapter.HealthResult("REGISTERED", Map.of(
+            return new AgentRuntimeHealthResult("REGISTERED", Map.of(
                 "agentId", agent.agentId(), "protocol", agent.protocol().name(),
                 "endpoint", agent.endpoint().toString()));
         try {
             String token = token(agent);
             var card = cards.discoverSummary(agent, token);
-            return new AgentRuntimeAdapter.HealthResult("READY", Map.of(
+            return new AgentRuntimeHealthResult("READY", Map.of(
                 "agentId", agent.agentId(), "protocol", agent.protocol().name(),
                 "endpoint", card.endpoint(), "cardName", card.name(), "cardVersion", card.version(),
                 "signatureVerified", card.signatureVerified()));
@@ -104,12 +107,12 @@ public class RegisteredExternalAgentExecutor {
         }
     }
 
-    private Selection select(AgentRuntimeAdapter.ExecutionRequest request, String expectedEngine,
+    private Selection select(RuntimeAgentExecutionRequest request, String expectedEngine,
                              Set<AgentDescriptor.Protocol> protocols) {
         if (request == null || request.scope() == null || !request.scope().skillAllowed())
             return invalid("SKILL_NOT_AUTHORIZED", Map.of());
         if (request.roleContext() == null) return invalid("ROLE_CONTEXT_REQUIRED", Map.of());
-        if (request.workflow() == null || request.workflow().type() != WorkflowResolver.WorkflowType.EXTERNAL_AGENT)
+        if (request.workflow() == null || request.workflow().type() != WorkflowType.EXTERNAL_AGENT)
             return invalid("EXTERNAL_AGENT_WORKFLOW_REQUIRED", Map.of());
         String agentId = text(request.attributes().get("agentId"));
         if (agentId.isBlank() && request.scope().agentIds().size() == 1)
@@ -138,7 +141,7 @@ public class RegisteredExternalAgentExecutor {
         return new Selection(true, "READY", agent, Map.of("agentId", agentId));
     }
 
-    private CapabilityId capability(AgentRuntimeAdapter.ExecutionRequest request, AgentDescriptor agent) {
+    private CapabilityId capability(RuntimeAgentExecutionRequest request, AgentDescriptor agent) {
         String explicit = text(request.attributes().get("capabilityId"));
         if (!explicit.isBlank()) {
             CapabilityId value;
@@ -165,11 +168,11 @@ public class RegisteredExternalAgentExecutor {
             .orElse("");
     }
 
-    private AgentRuntimeAdapter.ExecutionResult failure(String status, Map<String, Object> details) {
-        return new AgentRuntimeAdapter.ExecutionResult(status, "", details);
+    private RuntimeAgentExecutionResult failure(String status, Map<String, Object> details) {
+        return new RuntimeAgentExecutionResult(status, "", details);
     }
-    private AgentRuntimeAdapter.HealthResult healthFailure(String status, Map<String, Object> details) {
-        return new AgentRuntimeAdapter.HealthResult(status, details);
+    private AgentRuntimeHealthResult healthFailure(String status, Map<String, Object> details) {
+        return new AgentRuntimeHealthResult(status, details);
     }
     private Selection invalid(String status, Map<String, Object> details) {
         return new Selection(false, status, null, details);

@@ -7,8 +7,8 @@ import com.chatchat.runtime.skill.api.SkillDescriptor;
 import com.chatchat.runtime.skill.api.SkillRequirements;
 import com.chatchat.runtime.skill.api.SkillResolution;
 import com.chatchat.runtime.skill.api.SkillRouteResult;
-import com.chatchat.runtime.skill.spi.SkillResolver;
-import com.chatchat.runtime.skill.spi.SkillRouter;
+import com.chatchat.runtime.skill.port.inbound.SkillResolver;
+import com.chatchat.runtime.skill.port.inbound.SkillRouter;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

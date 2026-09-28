@@ -1,4 +1,4 @@
-package com.chatchat.knowledgebase.search.document;
+package com.chatchat.knowledgebase.search.document.application;
 
 import com.chatchat.knowledgebase.search.evidence.EvidenceContextFormatter;
 

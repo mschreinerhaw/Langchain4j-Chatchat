@@ -1,7 +1,7 @@
 package com.chatchat.mcpserver.document;
 
-import com.chatchat.knowledgebase.search.document.DocumentSearchEvidenceService;
-import com.chatchat.knowledgebase.search.document.DocumentSearchExpandRequest;
+import com.chatchat.knowledgebase.search.document.application.DocumentSearchEvidenceService;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentSearchExpandRequest;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

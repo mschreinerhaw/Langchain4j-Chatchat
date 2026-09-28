@@ -1,7 +1,7 @@
 package com.chatchat.knowledgebase.search.retrieval;
 
 import com.chatchat.knowledgebase.search.config.SearchProperties;
-import com.chatchat.knowledgebase.search.document.DocumentEvidenceChunk;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentEvidenceChunk;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

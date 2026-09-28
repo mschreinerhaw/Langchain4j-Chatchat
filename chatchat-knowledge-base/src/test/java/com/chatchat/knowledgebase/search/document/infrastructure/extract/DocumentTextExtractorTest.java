@@ -1,4 +1,4 @@
-package com.chatchat.knowledgebase.search.document;
+package com.chatchat.knowledgebase.search.document.infrastructure.extract;
 
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 

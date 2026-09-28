@@ -1,11 +1,11 @@
 package com.chatchat.mcpserver.document;
 
 import com.chatchat.common.response.ApiResponse;
-import com.chatchat.knowledgebase.search.document.DocumentSearchEvidenceService;
-import com.chatchat.knowledgebase.search.document.DocumentSearchExpandRequest;
-import com.chatchat.knowledgebase.search.document.DocumentSearchExpandResult;
-import com.chatchat.knowledgebase.search.document.DocumentSearchRequest;
-import com.chatchat.knowledgebase.search.document.DocumentSearchResult;
+import com.chatchat.knowledgebase.search.document.application.DocumentSearchEvidenceService;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentSearchExpandRequest;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentSearchExpandResult;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchRequest;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;

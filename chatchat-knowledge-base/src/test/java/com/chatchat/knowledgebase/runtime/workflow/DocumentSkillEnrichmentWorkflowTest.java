@@ -2,7 +2,7 @@ package com.chatchat.knowledgebase.runtime.workflow;
 
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
-import com.chatchat.knowledgebase.search.document.DocumentEvidenceChunk;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentEvidenceChunk;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

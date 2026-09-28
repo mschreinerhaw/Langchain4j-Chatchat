@@ -1,4 +1,4 @@
-package com.chatchat.knowledgebase.search.document;
+package com.chatchat.knowledgebase.search.document.api.evidence;
 
 public record DocumentExpansionPolicy(
     boolean needsExpansion,

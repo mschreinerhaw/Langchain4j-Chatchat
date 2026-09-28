@@ -1,7 +1,7 @@
 package com.chatchat.knowledgebase.search.retrieval;
 
 import com.chatchat.knowledgebase.search.config.SearchProperties;
-import com.chatchat.knowledgebase.search.document.DocumentSearchFilters;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchFilters;
 import com.chatchat.knowledgebase.search.query.ChunkType;
 import com.chatchat.knowledgebase.search.query.SearchTokenizer;
 

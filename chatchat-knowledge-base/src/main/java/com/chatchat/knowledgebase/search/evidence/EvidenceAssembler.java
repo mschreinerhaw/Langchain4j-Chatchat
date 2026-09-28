@@ -1,12 +1,12 @@
 package com.chatchat.knowledgebase.search.evidence;
 
-import com.chatchat.knowledgebase.search.document.DocumentEvidenceChunk;
-import com.chatchat.knowledgebase.search.document.DocumentExpansionPolicy;
-import com.chatchat.knowledgebase.search.document.DocumentOutlineItem;
-import com.chatchat.knowledgebase.search.document.DocumentOutlineSource;
-import com.chatchat.knowledgebase.search.document.DocumentSearchHit;
-import com.chatchat.knowledgebase.search.document.DocumentSearchMatchType;
-import com.chatchat.knowledgebase.search.document.DocumentSearchResult;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentEvidenceChunk;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentExpansionPolicy;
+import com.chatchat.knowledgebase.search.document.api.library.DocumentOutlineItem;
+import com.chatchat.knowledgebase.search.document.api.library.DocumentOutlineSource;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchHit;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchMatchType;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchResult;
 import com.chatchat.knowledgebase.search.retrieval.DocumentRetrievalSemantics;
 
 import lombok.RequiredArgsConstructor;

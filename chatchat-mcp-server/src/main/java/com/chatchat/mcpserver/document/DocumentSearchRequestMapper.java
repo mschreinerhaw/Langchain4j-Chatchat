@@ -1,7 +1,7 @@
 package com.chatchat.mcpserver.document;
 
-import com.chatchat.knowledgebase.search.document.DocumentSearchFilters;
-import com.chatchat.knowledgebase.search.document.DocumentSearchRequest;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchFilters;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchRequest;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;

@@ -1,8 +1,8 @@
 package com.chatchat.knowledgebase.search.evidence;
 
-import com.chatchat.knowledgebase.search.document.DocumentEvidenceChunk;
-import com.chatchat.knowledgebase.search.document.DocumentEvidenceGrade;
-import com.chatchat.knowledgebase.search.document.DocumentSearchResult;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentEvidenceChunk;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentEvidenceGrade;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchResult;
 import com.chatchat.knowledgebase.search.retrieval.RetrievalEvidenceQuality;
 
 import java.util.ArrayList;

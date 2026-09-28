@@ -3,7 +3,11 @@ package com.chatchat.chat.skills.runtime;
 import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.AgentRuntime;
-import com.chatchat.runtime.skill.spi.AgentRuntimeAdapter;
+import com.chatchat.runtime.skill.api.AgentRuntimeHealthRequest;
+import com.chatchat.runtime.skill.api.AgentRuntimeHealthResult;
+import com.chatchat.runtime.skill.api.RuntimeAgentExecutionRequest;
+import com.chatchat.runtime.skill.api.RuntimeAgentExecutionResult;
+import com.chatchat.runtime.skill.port.outbound.AgentRuntimeAdapter;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -25,23 +29,23 @@ public class LangChain4jSkillRuntimeAdapter implements AgentRuntimeAdapter {
         return "LANGCHAIN4J".equals(value);
     }
 
-    @Override public HealthResult health(HealthRequest request) {
-        return new HealthResult("READY", Map.of("adapterId", adapterId(), "engine", "LANGCHAIN4J"));
+    @Override public AgentRuntimeHealthResult health(AgentRuntimeHealthRequest request) {
+        return new AgentRuntimeHealthResult("READY", Map.of("adapterId", adapterId(), "engine", "LANGCHAIN4J"));
     }
 
     @Override
-    public ExecutionResult execute(ExecutionRequest request) {
+    public RuntimeAgentExecutionResult execute(RuntimeAgentExecutionRequest request) {
         if (request == null || request.skill() == null || request.scope() == null
-            || !request.scope().skillAllowed()) return new ExecutionResult("SKILL_NOT_AUTHORIZED", "", Map.of());
+            || !request.scope().skillAllowed()) return new RuntimeAgentExecutionResult("SKILL_NOT_AUTHORIZED", "", Map.of());
         if (request.roleContext() == null)
-            return new ExecutionResult("ROLE_CONTEXT_REQUIRED", "", Map.of());
+            return new RuntimeAgentExecutionResult("ROLE_CONTEXT_REQUIRED", "", Map.of());
         Integer maxSteps = positiveInteger(request.attributes().get("maxSteps"));
         Integer maxToolCalls = positiveInteger(request.attributes().get("maxToolCalls"));
         Long timeoutMs = positiveLong(request.attributes().get("timeoutMs"));
         if (invalidNumber(request.attributes(), "maxSteps", maxSteps)
             || invalidNumber(request.attributes(), "maxToolCalls", maxToolCalls)
             || invalidNumber(request.attributes(), "timeoutMs", timeoutMs)) {
-            return new ExecutionResult("INVALID_RUNTIME_CONSTRAINT", "", Map.of(
+            return new RuntimeAgentExecutionResult("INVALID_RUNTIME_CONSTRAINT", "", Map.of(
                 "message", "maxSteps, maxToolCalls and timeoutMs must be positive integers"));
         }
         Map<String, Object> attributes = new LinkedHashMap<>(request.attributes());
@@ -74,7 +78,7 @@ public class LangChain4jSkillRuntimeAdapter implements AgentRuntimeAdapter {
         metadata.put("stopReason", result.stopReason() == null ? "" : result.stopReason());
         if (result.errorMessage() != null && !result.errorMessage().isBlank())
             metadata.put("error", result.errorMessage());
-        return new ExecutionResult(result.status().name(), result.answer(), metadata);
+        return new RuntimeAgentExecutionResult(result.status().name(), result.answer(), metadata);
     }
 
     private String text(Object value, String fallback) {

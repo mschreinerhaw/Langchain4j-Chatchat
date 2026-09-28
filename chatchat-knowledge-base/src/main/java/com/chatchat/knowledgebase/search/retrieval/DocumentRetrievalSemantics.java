@@ -1,6 +1,6 @@
 package com.chatchat.knowledgebase.search.retrieval;
 
-import com.chatchat.knowledgebase.search.document.DocumentDataSafetyLevel;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentDataSafetyLevel;
 
 public record DocumentRetrievalSemantics(
     DocumentDataSafetyLevel dataSafetyLevel,

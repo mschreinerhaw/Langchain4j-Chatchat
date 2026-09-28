@@ -1,6 +1,6 @@
 package com.chatchat.knowledgebase.search.evidence;
 
-import com.chatchat.knowledgebase.search.document.DocumentEvidenceGrade;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentEvidenceGrade;
 
 public record EvidenceGovernancePolicy(
     boolean citationRequired,

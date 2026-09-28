@@ -2,7 +2,8 @@ package com.chatchat.chat.skills.runtime;
 
 import com.chatchat.common.config.ModelCatalogOverride;
 import com.chatchat.common.config.ModelsConfig;
-import com.chatchat.runtime.skill.spi.AgentRuntimeAdapter;
+import com.chatchat.runtime.skill.api.RuntimeAgentExecutionRequest;
+import com.chatchat.runtime.skill.api.RuntimeAgentExecutionResult;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 
@@ -34,7 +35,7 @@ class OpenAiCompatibleSkillRuntimeAdapterTest {
     void validatesOpenAiProtocolThenDelegatesToTheLocalAgentRuntime() {
         LangChain4jSkillRuntimeAdapter delegate = mock(LangChain4jSkillRuntimeAdapter.class);
         when(delegate.execute(org.mockito.ArgumentMatchers.any())).thenReturn(
-            new AgentRuntimeAdapter.ExecutionResult("COMPLETED", "answer", Map.of()));
+            new RuntimeAgentExecutionResult("COMPLETED", "answer", Map.of()));
         @SuppressWarnings("unchecked") ObjectProvider<ModelCatalogOverride> provider = mock(ObjectProvider.class);
         ModelCatalogOverride catalog = mock(ModelCatalogOverride.class);
         when(provider.getIfAvailable()).thenReturn(catalog);
@@ -55,8 +56,8 @@ class OpenAiCompatibleSkillRuntimeAdapterTest {
             .containsEntry("modelName", "finance-model");
     }
 
-    private AgentRuntimeAdapter.ExecutionRequest request(Map<String, Object> attributes) {
-        return new AgentRuntimeAdapter.ExecutionRequest("OPENAI_COMPATIBLE", "query", null,
+    private RuntimeAgentExecutionRequest request(Map<String, Object> attributes) {
+        return new RuntimeAgentExecutionRequest("OPENAI_COMPATIBLE", "query", null,
             null, null, null, attributes);
     }
 }

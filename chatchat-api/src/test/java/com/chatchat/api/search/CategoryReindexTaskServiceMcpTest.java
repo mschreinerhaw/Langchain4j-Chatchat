@@ -1,8 +1,8 @@
 package com.chatchat.api.search;
 
 import com.chatchat.api.controller.search.LegacyDocumentMcpTransferService;
-import com.chatchat.knowledgebase.search.document.LibraryDocumentItem;
-import com.chatchat.knowledgebase.search.document.LibraryPage;
+import com.chatchat.knowledgebase.search.document.api.library.LibraryDocumentItem;
+import com.chatchat.knowledgebase.search.document.api.library.LibraryPage;
 import com.chatchat.knowledgebase.search.model.SearchDocument;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 import com.chatchat.knowledgebase.search.service.SearchService;

@@ -1,8 +1,8 @@
 package com.chatchat.knowledgebase.search.workflow;
 
 import com.chatchat.common.retrieval.AuthorizedRetrieval;
-import com.chatchat.knowledgebase.search.document.DocumentSearchCandidate;
-import com.chatchat.knowledgebase.search.document.DocumentSearchPlan;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchCandidate;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchPlan;
 import com.chatchat.knowledgebase.search.model.SearchPage;
 import com.chatchat.knowledgebase.search.model.SearchDocument;
 

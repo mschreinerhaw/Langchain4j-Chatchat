@@ -1,6 +1,6 @@
 package com.chatchat.api.controller.agent;
 
-import com.chatchat.knowledgebase.search.document.LibraryDocumentItem;
+import com.chatchat.knowledgebase.search.document.api.library.LibraryDocumentItem;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 
 import java.util.List;

@@ -1,7 +1,7 @@
 package com.chatchat.knowledgebase.search.evidence;
 
-import com.chatchat.knowledgebase.search.document.DocumentEvidenceChunk;
-import com.chatchat.knowledgebase.search.document.DocumentSearchResult;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentEvidenceChunk;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchResult;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 
 import org.junit.jupiter.api.Test;

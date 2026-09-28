@@ -2,7 +2,11 @@ package com.chatchat.chat.skills.runtime;
 
 import com.chatchat.agents.model.ModelEndpoint;
 import com.chatchat.common.config.ModelCatalogOverride;
-import com.chatchat.runtime.skill.spi.AgentRuntimeAdapter;
+import com.chatchat.runtime.skill.api.AgentRuntimeHealthRequest;
+import com.chatchat.runtime.skill.api.AgentRuntimeHealthResult;
+import com.chatchat.runtime.skill.api.RuntimeAgentExecutionRequest;
+import com.chatchat.runtime.skill.api.RuntimeAgentExecutionResult;
+import com.chatchat.runtime.skill.port.outbound.AgentRuntimeAdapter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
@@ -29,20 +33,20 @@ public class OpenAiCompatibleSkillRuntimeAdapter implements AgentRuntimeAdapter 
     }
 
     @Override
-    public ExecutionResult execute(ExecutionRequest request) {
+    public RuntimeAgentExecutionResult execute(RuntimeAgentExecutionRequest request) {
         Validation validation = validate(request == null ? Map.of() : request.attributes());
-        if (!validation.ready()) return new ExecutionResult(validation.status(), "", validation.details());
-        ExecutionResult result = delegate.execute(request);
+        if (!validation.ready()) return new RuntimeAgentExecutionResult(validation.status(), "", validation.details());
+        RuntimeAgentExecutionResult result = delegate.execute(request);
         Map<String, Object> metadata = new LinkedHashMap<>(result.metadata());
         metadata.put("adapterId", adapterId());
         metadata.put("modelName", validation.modelName());
-        return new ExecutionResult(result.status(), result.output(), metadata);
+        return new RuntimeAgentExecutionResult(result.status(), result.output(), metadata);
     }
 
     @Override
-    public HealthResult health(HealthRequest request) {
+    public AgentRuntimeHealthResult health(AgentRuntimeHealthRequest request) {
         Validation validation = validate(request == null ? Map.of() : request.attributes());
-        return new HealthResult(validation.status(), validation.details());
+        return new AgentRuntimeHealthResult(validation.status(), validation.details());
     }
 
     private Validation validate(Map<String, Object> attributes) {

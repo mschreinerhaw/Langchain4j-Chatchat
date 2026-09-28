@@ -14,7 +14,7 @@ import com.chatchat.common.runtime.analysis.model.AnalysisIntent;
 import com.chatchat.common.runtime.analysis.execution.AnalysisExecutionOutcome;
 import com.chatchat.common.runtime.analysis.spi.AnalysisRuntimePort;
 import com.chatchat.common.runtime.analysis.evidence.DocumentAnalysisEvidence;
-import com.chatchat.knowledgebase.search.document.DocumentSearchEvidenceService;
+import com.chatchat.knowledgebase.search.document.application.DocumentSearchEvidenceService;
 import com.chatchat.knowledgebase.runtime.workflow.DocumentProblemAnalysisWorkflow;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;

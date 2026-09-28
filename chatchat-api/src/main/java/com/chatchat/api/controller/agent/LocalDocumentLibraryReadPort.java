@@ -1,7 +1,7 @@
 package com.chatchat.api.controller.agent;
 
-import com.chatchat.knowledgebase.search.document.DocumentLifecycleStatus;
-import com.chatchat.knowledgebase.search.document.LibraryDocumentItem;
+import com.chatchat.knowledgebase.search.document.api.library.DocumentLifecycleStatus;
+import com.chatchat.knowledgebase.search.document.api.library.LibraryDocumentItem;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 import com.chatchat.knowledgebase.search.service.SearchService;
 import lombok.RequiredArgsConstructor;

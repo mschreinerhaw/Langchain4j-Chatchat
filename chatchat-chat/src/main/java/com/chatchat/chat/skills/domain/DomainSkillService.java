@@ -14,7 +14,7 @@ import com.chatchat.runtime.skill.api.SkillResolutionRequest;
 import com.chatchat.runtime.skill.api.SkillResourceContent;
 import com.chatchat.runtime.skill.api.SkillRoleContext;
 import com.chatchat.runtime.skill.api.SkillSearchRequest;
-import com.chatchat.runtime.skill.spi.SkillSource;
+import com.chatchat.runtime.skill.port.outbound.SkillSource;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;

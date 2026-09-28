@@ -1,6 +1,6 @@
 package com.chatchat.knowledgebase.search.evidence;
 
-import com.chatchat.knowledgebase.search.document.DocumentEvidenceCitation;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentEvidenceCitation;
 
 import java.util.List;
 

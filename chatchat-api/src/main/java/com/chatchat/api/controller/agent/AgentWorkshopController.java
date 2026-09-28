@@ -2,7 +2,7 @@ package com.chatchat.api.controller.agent;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
-import com.chatchat.knowledgebase.search.document.LibraryDocumentItem;
+import com.chatchat.knowledgebase.search.document.api.library.LibraryDocumentItem;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 import com.chatchat.chat.skills.catalog.SkillCatalogService;
 import com.chatchat.chat.skills.model.SkillDefinition;

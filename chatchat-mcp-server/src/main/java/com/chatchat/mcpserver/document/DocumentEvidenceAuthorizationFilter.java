@@ -1,10 +1,10 @@
 package com.chatchat.mcpserver.document;
 
-import com.chatchat.knowledgebase.search.document.DocumentEvidenceChunk;
-import com.chatchat.knowledgebase.search.document.DocumentOutlineItem;
-import com.chatchat.knowledgebase.search.document.DocumentSearchHit;
-import com.chatchat.knowledgebase.search.document.DocumentSearchRequest;
-import com.chatchat.knowledgebase.search.document.DocumentSearchResult;
+import com.chatchat.knowledgebase.search.document.api.evidence.DocumentEvidenceChunk;
+import com.chatchat.knowledgebase.search.document.api.library.DocumentOutlineItem;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchHit;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchRequest;
+import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchResult;
 import com.chatchat.knowledgebase.search.evidence.EvidenceContextFormatter;
 import com.chatchat.knowledgebase.search.evidence.EvidenceReasoningEngine;
 import com.chatchat.knowledgebase.search.evidence.EvidenceDecisionEngine;

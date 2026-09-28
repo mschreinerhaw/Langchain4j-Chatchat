@@ -1,20 +1,20 @@
 package com.chatchat.chat.skills.runtime;
 
-import com.chatchat.runtime.skill.core.DefaultSkillResolver;
-import com.chatchat.runtime.skill.core.DefaultSkillRouter;
-import com.chatchat.runtime.skill.core.DefaultWorkflowResolver;
-import com.chatchat.runtime.skill.core.DefaultAgentRuntimeDispatcher;
-import com.chatchat.runtime.skill.core.ExternalEngineAgentRuntimeAdapter;
-import com.chatchat.runtime.skill.core.DefaultSkillRuntime;
-import com.chatchat.runtime.skill.spi.AgentRuntimeAdapter;
-import com.chatchat.runtime.skill.spi.AgentRuntimeDispatcher;
-import com.chatchat.runtime.skill.spi.ExternalAgentEngine;
-import com.chatchat.runtime.skill.spi.SkillPolicy;
-import com.chatchat.runtime.skill.spi.SkillResolver;
-import com.chatchat.runtime.skill.spi.SkillRouter;
-import com.chatchat.runtime.skill.spi.SkillSource;
-import com.chatchat.runtime.skill.spi.SkillRuntime;
-import com.chatchat.runtime.skill.spi.WorkflowResolver;
+import com.chatchat.runtime.skill.application.DefaultSkillResolver;
+import com.chatchat.runtime.skill.application.DefaultSkillRouter;
+import com.chatchat.runtime.skill.application.DefaultWorkflowResolver;
+import com.chatchat.runtime.skill.application.DefaultAgentRuntimeDispatcher;
+import com.chatchat.runtime.skill.application.ExternalEngineAgentRuntimeAdapter;
+import com.chatchat.runtime.skill.application.DefaultSkillRuntime;
+import com.chatchat.runtime.skill.port.outbound.AgentRuntimeAdapter;
+import com.chatchat.runtime.skill.port.inbound.AgentRuntimeDispatcher;
+import com.chatchat.runtime.skill.port.outbound.ExternalAgentEngine;
+import com.chatchat.runtime.skill.port.outbound.SkillPolicy;
+import com.chatchat.runtime.skill.port.inbound.SkillResolver;
+import com.chatchat.runtime.skill.port.inbound.SkillRouter;
+import com.chatchat.runtime.skill.port.outbound.SkillSource;
+import com.chatchat.runtime.skill.port.inbound.SkillRuntime;
+import com.chatchat.runtime.skill.port.inbound.WorkflowResolver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

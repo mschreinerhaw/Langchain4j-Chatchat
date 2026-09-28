@@ -1,4 +1,4 @@
-package com.chatchat.knowledgebase.search.document;
+package com.chatchat.knowledgebase.search.document.api.search;
 
 import com.chatchat.knowledgebase.search.retrieval.RetrievalValidationResult;
 import com.chatchat.knowledgebase.search.security.DocumentVisibilityContext;

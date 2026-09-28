@@ -9,9 +9,9 @@ import com.chatchat.knowledgebase.search.document.api.library.LibraryDocumentIte
 import com.chatchat.knowledgebase.search.document.api.library.LibraryPage;
 import com.chatchat.knowledgebase.search.document.api.library.TitleExistsResult;
 import com.chatchat.knowledgebase.search.feedback.SearchFeedbackService;
-import com.chatchat.knowledgebase.search.index.LuceneDocumentIndexService;
-import com.chatchat.knowledgebase.search.index.RocksDbSearchStore;
-import com.chatchat.knowledgebase.search.index.SearchIndexData;
+import com.chatchat.knowledgebase.search.index.infrastructure.lucene.LuceneDocumentIndexService;
+import com.chatchat.knowledgebase.search.index.infrastructure.rocksdb.RocksDbSearchStore;
+import com.chatchat.knowledgebase.search.index.model.SearchIndexData;
 import com.chatchat.knowledgebase.search.model.SearchDocument;
 import com.chatchat.knowledgebase.search.model.SearchDocumentVersionItem;
 import com.chatchat.knowledgebase.search.model.SearchMatchedChunk;

@@ -20,7 +20,7 @@ import com.chatchat.knowledgebase.search.document.api.evidence.DocumentExpandedE
 import com.chatchat.knowledgebase.search.document.application.DocumentSearchEvidenceService;
 import com.chatchat.knowledgebase.search.document.api.evidence.DocumentSearchExpandRequest;
 import com.chatchat.knowledgebase.search.document.api.evidence.DocumentSearchExpandResult;
-import com.chatchat.knowledgebase.search.evidence.Citation;
+import com.chatchat.knowledgebase.search.evidence.api.Citation;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

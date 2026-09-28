@@ -1,2 +1,2 @@
-/** Search index contracts and Lucene, OpenSearch, and RocksDB implementations. */
+/** Search-index boundary containing ports, models, orchestration, and storage adapters. */
 package com.chatchat.knowledgebase.search.index;

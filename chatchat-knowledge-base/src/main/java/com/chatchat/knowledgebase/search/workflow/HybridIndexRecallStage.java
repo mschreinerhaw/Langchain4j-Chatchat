@@ -1,8 +1,8 @@
 package com.chatchat.knowledgebase.search.workflow;
 
 import com.chatchat.knowledgebase.search.config.SearchProperties;
-import com.chatchat.knowledgebase.search.index.GlobalChunkIndexService;
-import com.chatchat.knowledgebase.search.index.GlobalDocumentIndexService;
+import com.chatchat.knowledgebase.search.index.application.GlobalChunkIndexService;
+import com.chatchat.knowledgebase.search.index.application.GlobalDocumentIndexService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

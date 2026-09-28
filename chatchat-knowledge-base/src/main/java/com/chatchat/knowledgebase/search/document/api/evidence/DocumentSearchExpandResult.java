@@ -1,12 +1,12 @@
 package com.chatchat.knowledgebase.search.document.api.evidence;
 
-import com.chatchat.knowledgebase.search.evidence.EvidenceDecisionResult;
-import com.chatchat.knowledgebase.search.evidence.EvidenceGovernancePolicy;
-import com.chatchat.knowledgebase.search.evidence.EvidenceReasoningResult;
-import com.chatchat.knowledgebase.search.graph.KnowledgeReasoningResult;
-import com.chatchat.knowledgebase.search.graph.KnowledgeRuntimeGraph;
-import com.chatchat.knowledgebase.search.graph.KnowledgeTraversalResult;
-import com.chatchat.knowledgebase.search.graph.SectionGraph;
+import com.chatchat.knowledgebase.search.evidence.api.EvidenceDecisionResult;
+import com.chatchat.knowledgebase.search.evidence.api.EvidenceGovernancePolicy;
+import com.chatchat.knowledgebase.search.evidence.api.EvidenceReasoningResult;
+import com.chatchat.knowledgebase.search.graph.api.KnowledgeReasoningResult;
+import com.chatchat.knowledgebase.search.graph.model.knowledge.KnowledgeRuntimeGraph;
+import com.chatchat.knowledgebase.search.graph.api.KnowledgeTraversalResult;
+import com.chatchat.knowledgebase.search.graph.model.section.SectionGraph;
 import com.chatchat.knowledgebase.search.retrieval.DocumentRetrievalSemantics;
 
 import java.util.List;

@@ -2,7 +2,7 @@ package com.chatchat.api.migration;
 
 import com.chatchat.enterprise.entity.identity.SysUser;
 import com.chatchat.enterprise.repository.identity.SysUserRepository;
-import com.chatchat.knowledgebase.search.index.RocksDbSearchStore;
+import com.chatchat.knowledgebase.search.index.infrastructure.rocksdb.RocksDbSearchStore;
 import com.chatchat.knowledgebase.search.model.SearchDocument;
 import com.chatchat.knowledgebase.search.service.SearchService;
 import org.junit.jupiter.api.Test;

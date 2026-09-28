@@ -1,7 +1,7 @@
 package com.chatchat.chat.skills.domain;
 
 import com.chatchat.knowledgebase.search.config.SearchProperties;
-import com.chatchat.knowledgebase.search.index.OpenSearchEmbeddingClient;
+import com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchEmbeddingClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;

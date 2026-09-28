@@ -1,4 +1,4 @@
-package com.chatchat.knowledgebase.search.index;
+package com.chatchat.knowledgebase.search.index.application;
 
 import com.chatchat.knowledgebase.search.model.SearchDocument;
 import com.chatchat.knowledgebase.search.model.SearchResult;

@@ -1,2 +1,2 @@
-/** Evidence assembly, grounding, governance, decision, and reasoning. */
+/** Evidence-search boundary containing contracts, graph models, and application services. */
 package com.chatchat.knowledgebase.search.evidence;

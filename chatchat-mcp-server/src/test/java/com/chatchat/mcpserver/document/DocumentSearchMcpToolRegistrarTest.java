@@ -54,7 +54,7 @@ class DocumentSearchMcpToolRegistrarTest {
         new DocumentSearchMcpToolRegistrar(evidenceService, new DocumentSearchRequestMapper(),
             new MockEnvironment(), mock(ApiDocumentEvidenceClient.class),
             new FederatedDocumentEvidenceSelector(new com.chatchat.knowledgebase.search.query.SearchTokenizer(),
-                new com.chatchat.knowledgebase.search.evidence.EvidenceContextFormatter()),
+                new com.chatchat.knowledgebase.search.evidence.application.EvidenceContextFormatter()),
             filter, authorization, expander, new com.chatchat.knowledgebase.search.query.SearchTokenizer())
             .registerTools(registry);
 
@@ -95,7 +95,7 @@ class DocumentSearchMcpToolRegistrarTest {
         new DocumentSearchMcpToolRegistrar(evidenceService, new DocumentSearchRequestMapper(),
             new MockEnvironment(), mock(ApiDocumentEvidenceClient.class),
             new FederatedDocumentEvidenceSelector(new com.chatchat.knowledgebase.search.query.SearchTokenizer(),
-                new com.chatchat.knowledgebase.search.evidence.EvidenceContextFormatter()),
+                new com.chatchat.knowledgebase.search.evidence.application.EvidenceContextFormatter()),
             filter, authorization, mock(com.chatchat.knowledgebase.search.query.QueryExpander.class),
             new com.chatchat.knowledgebase.search.query.SearchTokenizer()).registerTools(registry);
 
@@ -129,7 +129,7 @@ class DocumentSearchMcpToolRegistrarTest {
         new DocumentSearchMcpToolRegistrar(evidenceService, new DocumentSearchRequestMapper(),
             new MockEnvironment(), mock(ApiDocumentEvidenceClient.class),
             new FederatedDocumentEvidenceSelector(new com.chatchat.knowledgebase.search.query.SearchTokenizer(),
-                new com.chatchat.knowledgebase.search.evidence.EvidenceContextFormatter()),
+                new com.chatchat.knowledgebase.search.evidence.application.EvidenceContextFormatter()),
             evidenceFilter, authorization, mock(com.chatchat.knowledgebase.search.query.QueryExpander.class),
             new com.chatchat.knowledgebase.search.query.SearchTokenizer()).registerTools(registry);
 
@@ -157,7 +157,7 @@ class DocumentSearchMcpToolRegistrarTest {
             new MockEnvironment().withProperty("chatchat.mcp.server.document-search.default-limit", "6"),
             mock(ApiDocumentEvidenceClient.class),
             new FederatedDocumentEvidenceSelector(new com.chatchat.knowledgebase.search.query.SearchTokenizer(),
-                new com.chatchat.knowledgebase.search.evidence.EvidenceContextFormatter()),
+                new com.chatchat.knowledgebase.search.evidence.application.EvidenceContextFormatter()),
             evidenceFilter,
             authorization,
             mock(com.chatchat.knowledgebase.search.query.QueryExpander.class),

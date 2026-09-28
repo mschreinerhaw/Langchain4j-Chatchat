@@ -1,4 +1,4 @@
-package com.chatchat.knowledgebase.search.index;
+package com.chatchat.knowledgebase.search.index.model;
 
 import java.util.List;
 

@@ -5,9 +5,9 @@ import com.chatchat.knowledgebase.search.document.api.evidence.DocumentEvidenceC
 import com.chatchat.knowledgebase.search.document.api.evidence.DocumentExpansionPolicy;
 import com.chatchat.knowledgebase.search.document.api.library.DocumentOutlineItem;
 import com.chatchat.knowledgebase.search.document.api.library.DocumentOutlineSource;
-import com.chatchat.knowledgebase.search.evidence.EvidenceDecisionResult;
-import com.chatchat.knowledgebase.search.evidence.EvidenceGovernancePolicy;
-import com.chatchat.knowledgebase.search.evidence.EvidenceReasoningResult;
+import com.chatchat.knowledgebase.search.evidence.api.EvidenceDecisionResult;
+import com.chatchat.knowledgebase.search.evidence.api.EvidenceGovernancePolicy;
+import com.chatchat.knowledgebase.search.evidence.api.EvidenceReasoningResult;
 import com.chatchat.knowledgebase.search.retrieval.DocumentRetrievalSemantics;
 import com.chatchat.knowledgebase.search.retrieval.RetrievalEvent;
 import com.chatchat.knowledgebase.search.retrieval.RetrievalEvidenceQuality;

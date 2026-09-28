@@ -1,7 +1,7 @@
 package com.chatchat.knowledgebase.search.workflow;
 
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchCandidate;
-import com.chatchat.knowledgebase.search.index.PerDocumentIndexService;
+import com.chatchat.knowledgebase.search.index.application.PerDocumentIndexService;
 import com.chatchat.knowledgebase.search.model.SearchDocument;
 import com.chatchat.knowledgebase.search.model.SearchMatchedChunk;
 import com.chatchat.knowledgebase.search.model.SearchResult;

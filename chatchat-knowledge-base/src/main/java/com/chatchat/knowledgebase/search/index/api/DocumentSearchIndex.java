@@ -1,4 +1,4 @@
-package com.chatchat.knowledgebase.search.index;
+package com.chatchat.knowledgebase.search.index.api;
 
 import com.chatchat.knowledgebase.search.model.SearchDocument;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;

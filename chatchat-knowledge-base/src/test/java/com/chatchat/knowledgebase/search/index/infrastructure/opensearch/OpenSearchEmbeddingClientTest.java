@@ -1,4 +1,4 @@
-package com.chatchat.knowledgebase.search.index;
+package com.chatchat.knowledgebase.search.index.infrastructure.opensearch;
 
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.fasterxml.jackson.databind.JsonNode;

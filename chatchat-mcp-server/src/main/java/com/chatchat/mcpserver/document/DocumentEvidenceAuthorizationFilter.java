@@ -5,9 +5,9 @@ import com.chatchat.knowledgebase.search.document.api.library.DocumentOutlineIte
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchHit;
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchRequest;
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchResult;
-import com.chatchat.knowledgebase.search.evidence.EvidenceContextFormatter;
-import com.chatchat.knowledgebase.search.evidence.EvidenceReasoningEngine;
-import com.chatchat.knowledgebase.search.evidence.EvidenceDecisionEngine;
+import com.chatchat.knowledgebase.search.evidence.application.EvidenceContextFormatter;
+import com.chatchat.knowledgebase.search.evidence.application.EvidenceReasoningEngine;
+import com.chatchat.knowledgebase.search.evidence.application.EvidenceDecisionEngine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;

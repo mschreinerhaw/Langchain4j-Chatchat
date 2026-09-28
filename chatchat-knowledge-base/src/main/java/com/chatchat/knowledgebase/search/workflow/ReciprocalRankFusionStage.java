@@ -3,7 +3,7 @@ package com.chatchat.knowledgebase.search.workflow;
 import com.chatchat.common.retrieval.AuthorizedRetrieval;
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchCandidate;
-import com.chatchat.knowledgebase.search.index.IndexVersionManager;
+import com.chatchat.knowledgebase.search.index.application.IndexVersionManager;
 import com.chatchat.knowledgebase.search.model.SearchPage;
 import com.chatchat.knowledgebase.search.model.SearchResult;
 import lombok.RequiredArgsConstructor;

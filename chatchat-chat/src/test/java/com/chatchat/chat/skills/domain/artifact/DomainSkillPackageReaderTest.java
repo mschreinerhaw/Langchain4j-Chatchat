@@ -27,7 +27,9 @@ class DomainSkillPackageReaderTest {
         source.setParsedDocumentJson("""
             {"metadata":{"frontMatter":{"allowed_documents":["doc-1"],
             "allowed_mcp":["search"],"allowed_agents":["reviewer"],
-            "workflows":["document-install"]}}}
+            "workflows":["document-install"], "requiredData":[{"id":"returns",
+            "contractId":"customer.returns.v1","requiredFor":["describe_returns"],
+            "optional":false,"parameters":{"customerId":"customerId"}}]}}}
             """);
         when(repository.findFirstBySkillIdAndTenantIdOrderByCreatedAtDesc("skill-1", "tenant-a"))
             .thenReturn(Optional.of(source));
@@ -39,6 +41,10 @@ class DomainSkillPackageReaderTest {
         assertThat(view.requirements().mcpToolIds()).containsExactly("search");
         assertThat(view.requirements().agentIds()).containsExactly("reviewer");
         assertThat(view.requirements().workflowIds()).containsExactly("document-install");
+        assertThat(view.requirements().data()).singleElement().satisfies(requirement -> {
+            assertThat(requirement.contractId()).isEqualTo("customer.returns.v1");
+            assertThat(requirement.parameters()).containsEntry("customerId", "customerId");
+        });
         assertThat(view.resources()).extracting(item -> item.resourceId())
             .containsExactly("references/install.md", "scripts/check.py");
         assertThat(new String(reader.readResource("tenant-a", "skill-1", "references/install.md")

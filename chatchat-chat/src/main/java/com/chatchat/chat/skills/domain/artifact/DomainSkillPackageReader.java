@@ -70,10 +70,19 @@ public class DomainSkillPackageReader {
                 values(frontMatter, requirements, "allowedKnowledgeBases", "allowed_knowledge_bases", "knowledgeBases", "knowledgeBaseIds"),
                 values(frontMatter, requirements, "allowedMcp", "allowed_mcp", "mcpTools", "mcp_tool_ids"),
                 values(frontMatter, requirements, "allowedAgents", "allowed_agents", "agents", "agentIds"),
-                values(frontMatter, requirements, "workflows", "workflowIds", "workflow_ids"));
+                values(frontMatter, requirements, "workflows", "workflowIds", "workflow_ids"),
+                dataRequirements(frontMatter));
         } catch (Exception error) {
             throw new IllegalArgumentException("Unable to read Skill resource declarations", error);
         }
+    }
+
+    private List<com.chatchat.runtime.skill.api.skill.SkillDataRequirement> dataRequirements(Map<String, Object> frontMatter) {
+        Object declared = frontMatter.get("requiredData");
+        if (declared == null) return List.of();
+        if (!(declared instanceof List<?>)) throw new IllegalArgumentException("requiredData must be a list");
+        return objectMapper.convertValue(declared,
+            new TypeReference<List<com.chatchat.runtime.skill.api.skill.SkillDataRequirement>>() { });
     }
 
     private List<SkillResourceDescriptor> resources(byte[] artifact, String sourceType) {

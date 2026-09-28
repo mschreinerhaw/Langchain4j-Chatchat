@@ -47,7 +47,9 @@ public class SkillRuntimeConfiguration {
 
     @Bean
     SkillRuntime runtimeSkillRuntime(SkillRouter router, SkillResolver resolver,
-                                     WorkflowResolver workflows, AgentRuntimeDispatcher agents) {
-        return new DefaultSkillRuntime(router, resolver, workflows, agents);
+                                     WorkflowResolver workflows, AgentRuntimeDispatcher agents,
+                                     org.springframework.beans.factory.ObjectProvider<com.chatchat.runtime.skill.port.outbound.SkillDataWorkflow> dataWorkflows) {
+        return new DefaultSkillRuntime(router, resolver, workflows, agents,
+            new com.chatchat.runtime.skill.application.SkillDataAcquisition(() -> dataWorkflows.orderedStream().toList()));
     }
 }

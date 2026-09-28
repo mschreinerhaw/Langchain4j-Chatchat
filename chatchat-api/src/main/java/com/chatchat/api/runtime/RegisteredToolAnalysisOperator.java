@@ -127,6 +127,8 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
                 .toolInput(input).attributes(Map.of("analysisSkillId", skill.id(),
                     "toolRegistryRevisions", Map.of(name, registry.getToolRevision(name)))).build());
         } catch (RuntimeException failure) {
+            if (failure instanceof java.util.concurrent.CancellationException
+                || Thread.currentThread().isInterrupted()) throw failure;
             return denied("Governed tool execution failed");
         }
         if (execution == null || execution.output() == null || !execution.output().isSuccess())

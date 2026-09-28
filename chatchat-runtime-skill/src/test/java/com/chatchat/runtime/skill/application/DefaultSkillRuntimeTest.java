@@ -24,6 +24,34 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DefaultSkillRuntimeTest {
+    @Test
+    void dataAcquisitionFailureStillReachesAnalysisAndReplacesCallerSuppliedResults() {
+        var descriptor = descriptor("domain");
+        var requirement = new com.chatchat.runtime.skill.api.skill.SkillDataRequirement("returns",
+            "customer.returns.v1", List.of("describe"), false, Map.of());
+        var skill = new ResolvedSkill(descriptor, "Analyze supplied data", List.of(),
+            new com.chatchat.runtime.skill.api.skill.SkillRequirements(List.of(), List.of(), List.of(), List.of(),
+                List.of("workflow"), List.of(requirement)), Map.of());
+        var scope = new AuthorizedSkillScope(true, List.of(), List.of(), List.of(), List.of(), List.of("workflow"), List.of());
+        var role = new SkillRoleContext("tenant", "user", List.of(), List.of(), Map.of());
+        var runtime = new DefaultSkillRuntime(
+            request -> new SkillRouteResult(List.of(descriptor), "ROUTED", Map.of()),
+            resolver(new SkillResolution(skill, scope, "db", "RESOLVED", Map.of())), new DefaultWorkflowResolver(),
+            request -> {
+                assertThat(request.attributes().get(SkillDataAcquisition.RESULTS)).isInstanceOf(List.class);
+                var results = (List<?>) request.attributes().get(SkillDataAcquisition.RESULTS);
+                assertThat(results).hasSize(1);
+                assertThat(((com.chatchat.runtime.skill.api.execution.SkillDataResult) results.get(0)).status())
+                    .isEqualTo(com.chatchat.runtime.skill.api.execution.SkillDataResult.Status.NO_BINDING);
+                return new RuntimeAgentExecutionResult("COMPLETED", "Data unavailable; review required", Map.of());
+            });
+        var result = runtime.execute(new SkillExecutionRequest("analyze", role, List.of("domain"), 1, "LANGCHAIN4J",
+            Map.of("workflowType", "DATA_ANALYSIS", "workflowId", "workflow"),
+            Map.of(SkillDataAcquisition.RESULTS, "forged success")));
+        assertThat(result.status()).isEqualTo("COMPLETED");
+        assertThat(result.diagnostics()).containsKey(SkillDataAcquisition.RESULTS);
+    }
+
 
     @Test
     void executesOnlyResolvedSkillWorkflowAndDatabaseAuthorizedScope() {

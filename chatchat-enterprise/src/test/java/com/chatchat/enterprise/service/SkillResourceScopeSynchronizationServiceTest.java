@@ -74,4 +74,40 @@ class SkillResourceScopeSynchronizationServiceTest {
             .extracting(row -> row.getResourceType() + ":" + row.getResourceId())
             .containsExactly("DOCUMENT:doc-2", "KNOWLEDGE_BASE:livedata");
     }
+
+    @Test
+    void migrationPersistsExplicitAllAuthorizedDocumentsScopeWhenLegacyAgentHasNoBindings() {
+        SkillResourceScopeRepository repository = mock(SkillResourceScopeRepository.class);
+        when(repository.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc("tenant-1", "general-agent"))
+            .thenReturn(List.of());
+        SkillResourceScopeSynchronizationService service =
+            new SkillResourceScopeSynchronizationService(repository);
+
+        int count = service.migrateIfMissing("tenant-1", "general-agent", List.of(), List.of());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<SkillResourceScope>> rows = ArgumentCaptor.forClass(List.class);
+        verify(repository).saveAll(rows.capture());
+        assertThat(count).isEqualTo(1);
+        assertThat(rows.getValue())
+            .extracting(row -> row.getResourceType() + ":" + row.getResourceId())
+            .containsExactly("DOCUMENT:*");
+    }
+
+    @Test
+    void synchronizationPersistsExplicitAllAuthorizedDocumentsScopeForUnrestrictedAgent() {
+        SkillResourceScopeRepository repository = mock(SkillResourceScopeRepository.class);
+        when(repository.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc("tenant-1", "general-agent"))
+            .thenReturn(List.of());
+        SkillResourceScopeSynchronizationService service =
+            new SkillResourceScopeSynchronizationService(repository);
+
+        int count = service.synchronize("tenant-1", "general-agent", List.of(), List.of());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<SkillResourceScope>> rows = ArgumentCaptor.forClass(List.class);
+        verify(repository).saveAll(rows.capture());
+        assertThat(count).isEqualTo(1);
+        assertThat(rows.getValue().get(0).getResourceId()).isEqualTo("*");
+    }
 }

@@ -11,6 +11,7 @@ import java.util.List;
 public interface KnowledgeIRRepository extends JpaRepository<KnowledgeIREntity, Long> {
     List<KnowledgeIREntity> findByDocumentIdInAndActiveTrue(List<String> documentIds);
     List<KnowledgeIREntity> findTop1000ByTenantIdAndActiveTrue(String tenantId);
+    List<KnowledgeIREntity> findByTenantIdAndActiveTrueOrderByIdAsc(String tenantId, Pageable pageable);
     @Query("select u from KnowledgeIREntity u where u.tenantId = :tenantId and u.active = true "
         + "and lower(u.tagsJson) like :pattern order by u.id")
     List<KnowledgeIREntity> findByTenantAndTagPattern(@Param("tenantId") String tenantId,

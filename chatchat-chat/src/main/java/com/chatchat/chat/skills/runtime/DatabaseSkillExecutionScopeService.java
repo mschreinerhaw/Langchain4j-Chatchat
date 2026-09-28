@@ -78,19 +78,33 @@ public class DatabaseSkillExecutionScopeService implements SkillExecutionScopePo
         boolean managed = true;
         Set<String> directIds = new LinkedHashSet<>();
         Set<String> baseIds = new LinkedHashSet<>();
+        boolean allAuthorizedDocuments = false;
         for (SkillResourceScope binding : configured) {
             if (!binding.isEnabled()) continue;
-            if ("DOCUMENT".equals(binding.getResourceType())) directIds.add(binding.getResourceId());
+            if ("DOCUMENT".equals(binding.getResourceType())
+                && ALL_AUTHORIZED_DOCUMENTS.equals(binding.getResourceId())) {
+                allAuthorizedDocuments = true;
+            } else if ("DOCUMENT".equals(binding.getResourceType())) {
+                directIds.add(binding.getResourceId());
+            }
             if ("KNOWLEDGE_BASE".equals(binding.getResourceType()))
                 baseIds.add(binding.getResourceId().toLowerCase(Locale.ROOT));
         }
-        if (directIds.isEmpty() && baseIds.isEmpty()) {
+        if (directIds.isEmpty() && baseIds.isEmpty() && !allAuthorizedDocuments) {
             log.warn("skill_execution_scope_denied tenantId={} userId={} skillId={} "
                 + "reason=no_database_resource_binding", tenantId, userId, skillId);
             return new EffectiveScope(List.of(DENIED_DOCUMENT_ID), List.of(), roleNames, true, true);
         }
 
         Map<String, Set<String>> documentBases = new HashMap<>();
+        if (allAuthorizedDocuments) {
+            for (int page = 0; ; page++) {
+                List<KnowledgeIREntity> units = knowledgeUnits.findByTenantIdAndActiveTrueOrderByIdAsc(
+                    tenantId, PageRequest.of(page, TAG_PAGE_SIZE));
+                units.forEach(unit -> addBases(documentBases, unit));
+                if (units.size() < TAG_PAGE_SIZE) break;
+            }
+        }
         if (!directIds.isEmpty()) {
             for (KnowledgeIREntity unit : knowledgeUnits.findByDocumentIdInAndActiveTrue(new ArrayList<>(directIds))) {
                 if (tenantId.equals(unit.getTenantId())) addBases(documentBases, unit);
@@ -133,8 +147,9 @@ public class DatabaseSkillExecutionScopeService implements SkillExecutionScopePo
                 explicitDocuments.size(), explicitBases.size());
         } else {
             log.info("skill_execution_scope_resolved tenantId={} userId={} skillId={} documents={} "
-                    + "directBindings={} knowledgeBaseBindings={}",
-                tenantId, userId, skillId, selected.size(), directIds.size(), baseIds.size());
+                    + "directBindings={} knowledgeBaseBindings={} allAuthorizedDocuments={}",
+                tenantId, userId, skillId, selected.size(), directIds.size(), baseIds.size(),
+                allAuthorizedDocuments);
         }
         return new EffectiveScope(selected.isEmpty() ? List.of(DENIED_DOCUMENT_ID) : List.copyOf(selected),
             List.of(), roleNames, true, true);

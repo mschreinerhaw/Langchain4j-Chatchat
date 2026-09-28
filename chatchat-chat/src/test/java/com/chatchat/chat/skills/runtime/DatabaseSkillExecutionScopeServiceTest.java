@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -150,6 +151,33 @@ class DatabaseSkillExecutionScopeServiceTest {
             com.chatchat.common.retrieval.SkillExecutionScopePort.DENIED_DOCUMENT_ID);
         assertThat(resolved.tags()).isEmpty();
         assertThat(resolved.managed()).isTrue();
+    }
+
+    @Test
+    void explicitWildcardScopeUsesOnlyDocumentsGrantedByDatabaseRbac() {
+        when(scopes.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc("tenant-a", "agent-skill"))
+            .thenReturn(List.of(binding("DOCUMENT", "*")));
+        KnowledgeIREntity first = unit("doc-1", "research");
+        KnowledgeIREntity second = unit("doc-2", "finance");
+        when(units.findByTenantIdAndActiveTrueOrderByIdAsc(eq("tenant-a"), any()))
+            .thenReturn(List.of(first, second));
+        when(grants.allowedIds(ResourceAuthorizationPort.KNOWLEDGE, "tenant-a", "user-a",
+            Set.of("role-a"), Set.of("doc-1", "doc-2"))).thenReturn(Set.of("doc-1"));
+        when(grants.explicitlyAllowedIds(ResourceAuthorizationPort.KNOWLEDGE, "tenant-a", "user-a",
+            Set.of("role-a"), Set.of("doc-1", "doc-2"))).thenReturn(Set.of("doc-1"));
+
+        var resolved = service.resolve("tenant-a", "user-a", "agent-skill", List.of(), List.of());
+
+        assertThat(resolved.documentIds()).containsExactly("doc-1");
+        assertThat(resolved.managed()).isTrue();
+    }
+
+    private KnowledgeIREntity unit(String documentId, String tag) {
+        KnowledgeIREntity unit = new KnowledgeIREntity();
+        unit.setTenantId("tenant-a");
+        unit.setDocumentId(documentId);
+        unit.setTagsJson("[\"" + tag + "\"]");
+        return unit;
     }
 
     private SkillResourceScope binding(String type, String id) {

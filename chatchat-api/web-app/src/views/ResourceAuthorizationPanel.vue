@@ -154,7 +154,9 @@ export default {
       return q ? items.filter((item) => `${item.name} ${item.id}`.toLowerCase().includes(q)) : items;
     },
     scopeItems() {
-      const items = this.scopeKind === "DOCUMENT" ? this.documentItems : this.categoryItems;
+      const items = this.scopeKind === "DOCUMENT"
+        ? [{ id: "*", name: "调用者已授权的全部文档" }, ...this.documentItems]
+        : this.categoryItems;
       const q = this.scopeQuery.toLowerCase();
       return q ? items.filter((item) => `${item.name} ${item.id}`.toLowerCase().includes(q)) : items;
     }
@@ -272,6 +274,10 @@ export default {
       this.notice = "";
       try {
         if (checked) {
+          const conflicts = id === "*"
+            ? this.scopes.filter((scope) => scope.enabled)
+            : this.scopes.filter((scope) => scope.resourceType === "DOCUMENT" && scope.resourceId === "*");
+          await Promise.all(conflicts.map((scope) => deleteSkillResourceScope(scope.id)));
           await createSkillResourceScope({ tenantId: this.tenantId, skillId: this.skillId,
             resourceType: this.scopeKind, resourceId: id, enabled: true });
         } else {

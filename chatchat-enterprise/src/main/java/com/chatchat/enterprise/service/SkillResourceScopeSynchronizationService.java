@@ -11,8 +11,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import static com.chatchat.common.retrieval.SkillExecutionScopePort.ALL_AUTHORIZED_DOCUMENTS;
-
 /** Keeps the database relationship model aligned with an Agent's knowledge bindings. */
 @Service
 @RequiredArgsConstructor
@@ -31,9 +29,14 @@ public class SkillResourceScopeSynchronizationService {
         Map<String, Binding> desired = bindings(documentIds, knowledgeBaseTags);
         List<SkillResourceScope> existing = repository
             .findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc(tenant, skill);
-        if (desired.isEmpty() && existing.isEmpty()) {
-            desired.put(key("DOCUMENT", ALL_AUTHORIZED_DOCUMENTS),
-                new Binding("DOCUMENT", ALL_AUTHORIZED_DOCUMENTS));
+        List<SkillResourceScope> invalidRoleWildcards = existing.stream()
+            .filter(row -> "DOCUMENT".equalsIgnoreCase(row.getResourceType()))
+            .filter(row -> "*".equals(row.getResourceId()))
+            .toList();
+        if (!invalidRoleWildcards.isEmpty()) {
+            repository.deleteAll(invalidRoleWildcards);
+            repository.flush();
+            existing = existing.stream().filter(row -> !invalidRoleWildcards.contains(row)).toList();
         }
         existing.forEach(row -> desired.remove(key(row.getResourceType(), row.getResourceId())));
         return insert(tenant, skill, desired);
@@ -49,13 +52,8 @@ public class SkillResourceScopeSynchronizationService {
             repository.deleteAll(existing);
             repository.flush();
         }
-        Map<String, Binding> desired = bindings(documentIds, knowledgeBaseTags);
-        if (desired.isEmpty()) {
-            desired.put(key("DOCUMENT", ALL_AUTHORIZED_DOCUMENTS),
-                new Binding("DOCUMENT", ALL_AUTHORIZED_DOCUMENTS));
-        }
         return insert(required(tenantId, "tenantId"),
-            required(skillId, "skillId").toLowerCase(Locale.ROOT), desired);
+            required(skillId, "skillId").toLowerCase(Locale.ROOT), bindings(documentIds, knowledgeBaseTags));
     }
 
     private Map<String, Binding> bindings(List<String> documentIds, List<String> knowledgeBaseTags) {

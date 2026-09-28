@@ -92,7 +92,7 @@
           <span>{{ documentPage }} / {{ documentPages }}</span>
           <button type="button" :disabled="documentPage >= documentPages || loading" @click="documentPage++">下一页</button>
         </div>
-        <p v-if="skillId" class="resource-auth-count">{{ scopes.length ? `已配置 ${scopes.length} 项范围，其中 ${enabledScopes.length} 项启用` : "未单独配置范围；可能沿用 Agent 原有文档绑定" }}。实际可读文档仍需符合角色文档授权。</p>
+        <p v-if="skillId" class="resource-auth-count">{{ scopes.length ? `已配置 ${scopes.length} 项范围，其中 ${enabledScopes.length} 项启用` : "未配置 Agent 附加范围，仅按角色资源授权" }}。实际可读文档始终由角色文档授权决定。</p>
       </div>
     </div>
   </section>
@@ -154,9 +154,7 @@ export default {
       return q ? items.filter((item) => `${item.name} ${item.id}`.toLowerCase().includes(q)) : items;
     },
     scopeItems() {
-      const items = this.scopeKind === "DOCUMENT"
-        ? [{ id: "*", name: "调用者已授权的全部文档" }, ...this.documentItems]
-        : this.categoryItems;
+      const items = this.scopeKind === "DOCUMENT" ? this.documentItems : this.categoryItems;
       const q = this.scopeQuery.toLowerCase();
       return q ? items.filter((item) => `${item.name} ${item.id}`.toLowerCase().includes(q)) : items;
     }
@@ -274,10 +272,6 @@ export default {
       this.notice = "";
       try {
         if (checked) {
-          const conflicts = id === "*"
-            ? this.scopes.filter((scope) => scope.enabled)
-            : this.scopes.filter((scope) => scope.resourceType === "DOCUMENT" && scope.resourceId === "*");
-          await Promise.all(conflicts.map((scope) => deleteSkillResourceScope(scope.id)));
           await createSkillResourceScope({ tenantId: this.tenantId, skillId: this.skillId,
             resourceType: this.scopeKind, resourceId: id, enabled: true });
         } else {

@@ -5,7 +5,6 @@ import java.util.List;
 /** Resolves the resource set an authenticated user may use through one Agent Skill. */
 public interface SkillExecutionScopePort {
     String DENIED_DOCUMENT_ID = "__chatchat_denied_document_scope__";
-    String ALL_AUTHORIZED_DOCUMENTS = "*";
 
     EffectiveScope resolve(String tenantId, String userId, String skillId,
                            List<String> legacyDocumentIds, List<String> legacyTags);

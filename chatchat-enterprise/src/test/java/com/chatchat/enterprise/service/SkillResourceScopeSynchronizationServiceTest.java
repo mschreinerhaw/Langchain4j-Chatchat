@@ -76,7 +76,7 @@ class SkillResourceScopeSynchronizationServiceTest {
     }
 
     @Test
-    void migrationPersistsExplicitAllAuthorizedDocumentsScopeWhenLegacyAgentHasNoBindings() {
+    void migrationDoesNotInventAgentScopeWhenLegacyAgentHasNoBindings() {
         SkillResourceScopeRepository repository = mock(SkillResourceScopeRepository.class);
         when(repository.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc("tenant-1", "general-agent"))
             .thenReturn(List.of());
@@ -85,17 +85,12 @@ class SkillResourceScopeSynchronizationServiceTest {
 
         int count = service.migrateIfMissing("tenant-1", "general-agent", List.of(), List.of());
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<List<SkillResourceScope>> rows = ArgumentCaptor.forClass(List.class);
-        verify(repository).saveAll(rows.capture());
-        assertThat(count).isEqualTo(1);
-        assertThat(rows.getValue())
-            .extracting(row -> row.getResourceType() + ":" + row.getResourceId())
-            .containsExactly("DOCUMENT:*");
+        assertThat(count).isZero();
+        verify(repository, never()).saveAll(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
-    void synchronizationPersistsExplicitAllAuthorizedDocumentsScopeForUnrestrictedAgent() {
+    void synchronizationLeavesAgentScopeEmptyWhenOnlyRoleAuthorizationShouldApply() {
         SkillResourceScopeRepository repository = mock(SkillResourceScopeRepository.class);
         when(repository.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc("tenant-1", "general-agent"))
             .thenReturn(List.of());
@@ -104,10 +99,26 @@ class SkillResourceScopeSynchronizationServiceTest {
 
         int count = service.synchronize("tenant-1", "general-agent", List.of(), List.of());
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<List<SkillResourceScope>> rows = ArgumentCaptor.forClass(List.class);
-        verify(repository).saveAll(rows.capture());
-        assertThat(count).isEqualTo(1);
-        assertThat(rows.getValue().get(0).getResourceId()).isEqualTo("*");
+        assertThat(count).isZero();
+        verify(repository, never()).saveAll(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void migrationRemovesRoleWildcardStoredInAgentScope() {
+        SkillResourceScopeRepository repository = mock(SkillResourceScopeRepository.class);
+        SkillResourceScope invalid = new SkillResourceScope();
+        invalid.setResourceType("DOCUMENT");
+        invalid.setResourceId("*");
+        when(repository.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc("tenant-1", "general-agent"))
+            .thenReturn(List.of(invalid));
+        SkillResourceScopeSynchronizationService service =
+            new SkillResourceScopeSynchronizationService(repository);
+
+        int count = service.migrateIfMissing("tenant-1", "general-agent", List.of(), List.of());
+
+        assertThat(count).isZero();
+        verify(repository).deleteAll(List.of(invalid));
+        verify(repository).flush();
+        verify(repository, never()).saveAll(org.mockito.ArgumentMatchers.any());
     }
 }

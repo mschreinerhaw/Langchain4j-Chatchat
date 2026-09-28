@@ -109,20 +109,23 @@ class DatabaseSkillExecutionScopeServiceTest {
     }
 
     @Test
-    void legacyAgentBindingCannotReplacePersistedSkillResourceScope() {
+    void absentAgentScopeUsesOnlyDocumentsGrantedToTheRole() {
         when(scopes.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc("tenant-a", "agent-skill"))
             .thenReturn(List.of());
-        when(units.findByDocumentIdInAndActiveTrue(anyList())).thenReturn(List.of());
-        when(grants.hasConfiguredRules(ResourceAuthorizationPort.KNOWLEDGE, "tenant-a")).thenReturn(true);
+        KnowledgeIREntity allowed = unit("doc-allowed", "research");
+        KnowledgeIREntity denied = unit("doc-denied", "finance");
+        when(units.findByTenantIdAndActiveTrueOrderByIdAsc(eq("tenant-a"), any()))
+            .thenReturn(List.of(allowed, denied));
         when(grants.allowedIds(eq(ResourceAuthorizationPort.KNOWLEDGE), eq("tenant-a"), eq("user-a"),
-            eq(Set.of("role-a")), eq(Set.of("legacy-doc")))).thenReturn(Set.of("legacy-doc"));
+            eq(Set.of("role-a")), eq(Set.of("doc-allowed", "doc-denied"))))
+            .thenReturn(Set.of("doc-allowed"));
         when(grants.explicitlyAllowedIds(eq(ResourceAuthorizationPort.KNOWLEDGE), eq("tenant-a"), eq("user-a"),
-            eq(Set.of("role-a")), eq(Set.of("legacy-doc")))).thenReturn(Set.of("legacy-doc"));
+            eq(Set.of("role-a")), eq(Set.of("doc-allowed", "doc-denied"))))
+            .thenReturn(Set.of("doc-allowed"));
 
         var resolved = service.resolve("tenant-a", "user-a", "agent-skill", List.of("legacy-doc"), List.of());
 
-        assertThat(resolved.documentIds()).containsExactly(
-            com.chatchat.common.retrieval.SkillExecutionScopePort.DENIED_DOCUMENT_ID);
+        assertThat(resolved.documentIds()).containsExactly("doc-allowed");
         assertThat(resolved.managed()).isTrue();
     }
 
@@ -140,7 +143,7 @@ class DatabaseSkillExecutionScopeServiceTest {
     }
 
     @Test
-    void legacyTagBindingIsDeniedUntilDatabaseScopeIsConfigured() {
+    void legacyTagBindingCannotBypassRoleAuthorization() {
         when(scopes.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc("tenant-a", "agent-skill"))
             .thenReturn(List.of());
 
@@ -150,25 +153,6 @@ class DatabaseSkillExecutionScopeServiceTest {
         assertThat(resolved.documentIds()).containsExactly(
             com.chatchat.common.retrieval.SkillExecutionScopePort.DENIED_DOCUMENT_ID);
         assertThat(resolved.tags()).isEmpty();
-        assertThat(resolved.managed()).isTrue();
-    }
-
-    @Test
-    void explicitWildcardScopeUsesOnlyDocumentsGrantedByDatabaseRbac() {
-        when(scopes.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc("tenant-a", "agent-skill"))
-            .thenReturn(List.of(binding("DOCUMENT", "*")));
-        KnowledgeIREntity first = unit("doc-1", "research");
-        KnowledgeIREntity second = unit("doc-2", "finance");
-        when(units.findByTenantIdAndActiveTrueOrderByIdAsc(eq("tenant-a"), any()))
-            .thenReturn(List.of(first, second));
-        when(grants.allowedIds(ResourceAuthorizationPort.KNOWLEDGE, "tenant-a", "user-a",
-            Set.of("role-a"), Set.of("doc-1", "doc-2"))).thenReturn(Set.of("doc-1"));
-        when(grants.explicitlyAllowedIds(ResourceAuthorizationPort.KNOWLEDGE, "tenant-a", "user-a",
-            Set.of("role-a"), Set.of("doc-1", "doc-2"))).thenReturn(Set.of("doc-1"));
-
-        var resolved = service.resolve("tenant-a", "user-a", "agent-skill", List.of(), List.of());
-
-        assertThat(resolved.documentIds()).containsExactly("doc-1");
         assertThat(resolved.managed()).isTrue();
     }
 

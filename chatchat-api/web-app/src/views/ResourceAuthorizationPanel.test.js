@@ -53,29 +53,3 @@ it('uses one selected Agent for role grant and document scope without changing g
   expect(root.querySelector('.resource-auth-item.selected strong').textContent).toBe('指标助手');
   expect(api.fetchSkillResourceScopes).toHaveBeenCalledWith('tenant-1', 'agent-b');
 });
-
-it('shows the explicit all-authorized-documents relationship as a selectable scope', async () => {
-  api.fetchSkillResourceScopes.mockResolvedValueOnce([
-    { id: 'scope-all', resourceType: 'DOCUMENT', resourceId: '*', enabled: true }
-  ]);
-  const root = document.createElement('div');
-  document.body.append(root);
-  app = createApp(ResourceAuthorizationPanel, {
-    tenantId: 'tenant-1', roles: [{ id: 'role-1', roleName: '业务管理员', roleCode: 'BUSINESS_ADMIN' }],
-    agents: [{ id: 'agent-a', name: '金融文档分析助手' }], initialRoleId: 'role-1'
-  });
-  app.mount(root);
-  await settle();
-  const agentSelect = root.querySelectorAll('.resource-auth-context select')[1];
-  agentSelect.value = 'agent-a';
-  agentSelect.dispatchEvent(new Event('change', { bubbles: true }));
-  await settle();
-  [...root.querySelectorAll('.resource-auth-card:nth-child(2) .resource-auth-kinds button')]
-    .find((button) => button.textContent === '单篇文档').click();
-  await nextTick();
-
-  const wildcard = [...root.querySelectorAll('.resource-auth-card:nth-child(2) .resource-auth-item')]
-    .find((item) => item.textContent.includes('调用者已授权的全部文档'));
-  expect(wildcard).toBeTruthy();
-  expect(wildcard.querySelector('input').checked).toBe(true);
-});

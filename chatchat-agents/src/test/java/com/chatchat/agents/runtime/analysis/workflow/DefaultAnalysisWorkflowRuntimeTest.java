@@ -91,16 +91,16 @@ class DefaultAnalysisWorkflowRuntimeTest {
         assertThat(result.evidenceBundle().evidence()).hasSize(2);
         assertThat(result.metadata())
             .containsEntry("runtimePrimaryPath", "DOCUMENT_RETRIEVAL")
-            .containsEntry("runtimeRoute", "EVIDENCE_RECOVERY")
-            .containsEntry("evidenceTerminalState", "COMPLETE");
+            .containsEntry("runtimeRoute", "CONTINUE_ANALYSIS")
+            .containsEntry("evidenceRecoveryStatus", "NO_NEW_EVIDENCE");
         List<Map<String, Object>> trace = (List<Map<String, Object>>) result.metadata().get("evidenceRecoveryTrace");
-        assertThat(trace).singleElement().satisfies(entry -> assertThat(entry)
+        assertThat(trace).hasSize(2).first().satisfies(entry -> assertThat(entry)
             .containsEntry("gap", "SOURCE_TRUNCATED")
             .containsEntry("status", "RETRY_REQUIRED"));
     }
 
     @Test
-    void routesEmptyEvidenceToInsufficientWhenNoRecoveryWorkflowExists() {
+    void continuesWithEmptyEvidenceWhenNoRecoveryWorkflowExists() {
         AnalysisWorkflow document = new AnalysisWorkflow() {
             @Override public AnalysisWorkflowType type() { return AnalysisWorkflowType.DOCUMENT; }
             @Override public String workflowId() { return "test.empty-document"; }
@@ -120,13 +120,13 @@ class DefaultAnalysisWorkflowRuntimeTest {
             List.of("doc-1"), List.of(), List.of(), intent, Map.of()));
 
         assertThat(result.metadata())
-            .containsEntry("runtimeRoute", "EVIDENCE_INSUFFICIENT")
-            .containsEntry("evidenceTerminalState", "EXHAUSTED");
+            .containsEntry("runtimeRoute", "CONTINUE_ANALYSIS")
+            .containsEntry("evidenceRecoveryStatus", "NO_WORKFLOW");
         assertThat(result.verification().accepted()).isFalse();
     }
 
     @Test
-    void archiveFailureRejectsAcceptedEvidence() {
+    void archiveFailurePreservesAnalysisAndReportsTransportFailure() {
         AnalysisCapabilityOperator operator = new AnalysisCapabilityOperator() {
             @Override public AnalysisCapability capability() { return AnalysisCapability.COMPUTATION; }
             @Override public boolean available(AnalysisContext context) { return true; }
@@ -153,8 +153,8 @@ class DefaultAnalysisWorkflowRuntimeTest {
 
         var result = runtime.analyze(context);
 
-        assertThat(result.verification().accepted()).isFalse();
-        assertThat(result.evidenceBundle().evidence()).isEmpty();
+        assertThat(result.verification().accepted()).isTrue();
+        assertThat(result.evidenceBundle().evidence()).hasSize(1);
         assertThat(result.metadata()).containsEntry("evidenceArchiveStatus", "FAILED");
     }
 

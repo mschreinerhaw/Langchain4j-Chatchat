@@ -1,6 +1,6 @@
 package com.chatchat.common.runtime.analysis.recovery;
 
-/** Runtime-owned structural reasons why an evidence bundle cannot proceed to final synthesis. */
+/** Legacy recovery request vocabulary. Semantic reasons belong to analysis, not Runtime inspection. */
 public enum EvidenceGapReason {
     SOURCE_TRUNCATED,
     SECTION_INCOMPLETE,

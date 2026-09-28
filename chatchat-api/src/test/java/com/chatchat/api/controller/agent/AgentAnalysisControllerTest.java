@@ -31,6 +31,57 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AgentAnalysisControllerTest {
+    @Test void recoveryFailureReturnsSuccessfulApiEnvelopeWithEvidenceAndUnchangedJudgment() {
+        var evidence = new com.chatchat.common.runtime.analysis.evidence.DocumentAnalysisEvidence(
+            "e1", "doc", "chunk", "document", "section", "doc#section", "retrieved text", 0.9,
+            Map.of("truncated", true));
+        var judgment = new com.chatchat.common.runtime.analysis.execution.VerificationResult(
+            false, List.of(), List.of("human review pending"));
+        var primary = new AnalysisExecutionOutcome(null,
+            com.chatchat.common.runtime.analysis.model.AnalysisWorkflowType.FEDERATED_AGENT, null,
+            judgment, new com.chatchat.common.runtime.analysis.evidence.EvidenceBundle(
+                null, List.of(evidence), List.of(), Map.of()), "existing analysis", Map.of());
+        var workflow = new com.chatchat.common.runtime.analysis.spi.AnalysisWorkflow() {
+            public com.chatchat.common.runtime.analysis.model.AnalysisWorkflowType type() {
+                return primary.workflowType();
+            }
+            public String workflowId() { return "test.domain"; }
+            public boolean supports(AnalysisContext context,
+                    com.chatchat.common.runtime.analysis.model.AnalysisIntent intent) { return true; }
+            public AnalysisExecutionOutcome execute(AnalysisContext context) { return primary; }
+        };
+        var recovery = new com.chatchat.common.runtime.analysis.spi.EvidenceRecoveryWorkflow() {
+            public int priority() { return 0; }
+            public boolean supports(AnalysisContext context,
+                    com.chatchat.common.runtime.analysis.recovery.EvidenceGap gap) { return true; }
+            public com.chatchat.common.runtime.analysis.recovery.EvidenceRecoveryResult recover(
+                    AnalysisContext context, com.chatchat.common.runtime.analysis.evidence.EvidenceBundle current,
+                    com.chatchat.common.runtime.analysis.recovery.EvidenceGap gap, int round) {
+                throw new IllegalStateException("source request timed out");
+            }
+        };
+        var beans = new org.springframework.beans.factory.support.StaticListableBeanFactory();
+        beans.addBean("recovery", recovery);
+        var runtime = new com.chatchat.agents.runtime.analysis.workflow.DefaultAnalysisWorkflowRuntime(
+            List.of(workflow), beans.getBeanProvider(com.chatchat.common.runtime.workflow.WorkflowRuntime.class),
+            beans.getBeanProvider(com.chatchat.common.runtime.analysis.spi.AnalysisEvidenceArchivePort.class),
+            beans.getBeanProvider(com.chatchat.common.runtime.analysis.spi.EvidenceRecoveryWorkflow.class));
+        SkillExecutionScopePort scopes = (tenant, user, skill, docs, tags) ->
+            new SkillExecutionScopePort.EffectiveScope(List.of("doc"), List.of(), List.of(), true, true);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID)).thenReturn("tenant-1");
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)).thenReturn("user-1");
+        var response = new AgentAnalysisController(runtime, scopes).analyze(
+            new AgentAnalysisController.AnalyzeRequest("Analyze", "skill", "finance.risk.v1",
+                List.of("doc"), List.of(), 2, 60000L), request);
+        assertThat(response.getCode()).isEqualTo(200);
+        assertThat(response.getData().evidenceBundle().evidence()).containsExactly(evidence);
+        assertThat(response.getData().verification()).isSameAs(judgment);
+        assertThat(response.getData().synthesis()).isEqualTo("existing analysis");
+        assertThat(response.getData().metadata()).containsEntry("evidenceRecoveryStatus", "FAILED")
+            .containsEntry("runtimeRoute", "CONTINUE_ANALYSIS");
+    }
+
     @Test void multiSkillKeepsIndependentScopesAndRejectsForgedToolSkill() {
         AtomicReference<AnalysisContext> observed = new AtomicReference<>();
         AnalysisRuntimePort runtime = context -> {

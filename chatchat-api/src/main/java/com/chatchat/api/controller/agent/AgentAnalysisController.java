@@ -268,7 +268,7 @@ public class AgentAnalysisController {
     }
 
     @PostMapping
-    @Operation(summary = "Execute a policy-scoped domain Agent analysis with Runtime-owned evidence and judging")
+    @Operation(summary = "Execute a policy-scoped domain Agent analysis with acquisition status and analysis-owned judgments")
     public ApiResponse<AnalysisExecutionOutcome> analyze(@RequestBody AnalyzeRequest body,
                                                          HttpServletRequest request) {
         String tenantId = attribute(request, ApiAuthenticationFilter.CURRENT_TENANT_ID);

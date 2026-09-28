@@ -51,7 +51,7 @@ class DocumentKnowledgeSkillExecutorTest {
     }
 
     @Test
-    void propagatesRuntimePartialTerminalStateWithoutDiscardingRecoveredEvidence() {
+    void propagatesRecoveryFailureIndependentlyOfUsableEvidence() {
         DocumentSearchEvidenceService search = mock(DocumentSearchEvidenceService.class);
         AnalysisRuntimePort runtime = mock(AnalysisRuntimePort.class);
         DocumentKnowledgeSkillExecutor executor = new DocumentKnowledgeSkillExecutor(search);
@@ -63,7 +63,8 @@ class DocumentKnowledgeSkillExecutorTest {
             null, AnalysisWorkflowType.DOCUMENT, null,
             new VerificationResult(true, List.of(evidence), List.of("next step is still missing")),
             new EvidenceBundle(null, List.of(evidence), List.of(), Map.of()), "",
-            Map.of("evidenceTerminalState", "PARTIAL")));
+            Map.of("evidenceRecoveryStatus", "FAILED", "evidenceState",
+                Map.of("transportState", "PARTIALLY_AVAILABLE", "evidenceCount", 1))));
         KnowledgeSkillInstance skill = new KnowledgeSkillInstance(
             "install", KnowledgeSkillType.PROCEDURE_LOOKUP, "ops", "installation",
             List.of(), 1, 900, Map.of());
@@ -74,9 +75,11 @@ class DocumentKnowledgeSkillExecutorTest {
 
         var result = executor.execute(new KnowledgeSkillExecutionContext(request, skill));
 
-        assertThat(result.status()).isEqualTo("evidence_recovery_partial");
+        assertThat(result.status()).isEqualTo("used");
         assertThat(result.knowledgeUnits()).singleElement().satisfies(unit ->
             assertThat(unit.compactPromptRepresentation()).contains("verified step"));
-        assertThat(result.metadata()).containsEntry("evidenceTerminalState", "PARTIAL");
+        assertThat(result.metadata()).containsEntry("evidenceRecoveryStatus", "FAILED")
+            .containsEntry("evidenceState", Map.of("transportState", "PARTIALLY_AVAILABLE", "evidenceCount", 1))
+            .doesNotContainKey("evidenceTerminalState");
     }
 }

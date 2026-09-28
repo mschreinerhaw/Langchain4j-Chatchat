@@ -36,6 +36,7 @@
         <module>chatchat-platform-spring</module>
         <module>chatchat-mcp-grpc</module>
         <module>chatchat-license</module>
+        <module>chatchat-runtime-skill</module>
         <module>chatchat-agents</module>
         <module>chatchat-runtime-temporal</module>
         <module>chatchat-tools</module>
@@ -99,6 +100,11 @@
             <dependency>
                 <groupId>com.chatchat</groupId>
                 <artifactId>chatchat-license</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.chatchat</groupId>
+                <artifactId>chatchat-runtime-skill</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

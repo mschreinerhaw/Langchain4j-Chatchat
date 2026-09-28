@@ -8,6 +8,12 @@ import com.chatchat.chat.skills.domain.adapter.ExternalSkillAdapterGateway;
 import com.chatchat.chat.skills.domain.adapter.ExternalSkillCompilation;
 import com.chatchat.chat.skills.domain.adapter.ExternalSkillSource;
 import com.chatchat.chat.skills.domain.adapter.RuntimeSkillIr;
+import com.chatchat.runtime.skill.api.ResolvedSkill;
+import com.chatchat.runtime.skill.api.SkillDescriptor;
+import com.chatchat.runtime.skill.api.SkillRequirements;
+import com.chatchat.runtime.skill.api.SkillResolutionRequest;
+import com.chatchat.runtime.skill.api.SkillSearchRequest;
+import com.chatchat.runtime.skill.spi.SkillSource;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -26,7 +32,7 @@ import java.util.zip.ZipInputStream;
 
 @Service
 @RequiredArgsConstructor
-public class DomainSkillService implements DomainSkillRuntimePort {
+public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
     static final int DEFAULT_PUBLICATION_LIMIT = 5;
     static final long MAX_UPLOAD_BYTES = 5L * 1024 * 1024;
     static final int MAX_MARKDOWN_CHARS = 512 * 1024;
@@ -103,6 +109,77 @@ public class DomainSkillService implements DomainSkillRuntimePort {
 
     public List<DomainSkillEntity> publishedOptions(String tenantId) {
         return repository.findVisibleByStatus(tenantId, PUBLISHED);
+    }
+
+    @Override
+    public String sourceId() { return "postgres-opensearch-domain-skills"; }
+
+    @Override
+    public int priority() { return 100; }
+
+    /** Metadata-only hybrid recall. Full Markdown is not projected before Skill resolution. */
+    @Override
+    @Transactional(readOnly = true)
+    public List<SkillDescriptor> search(SkillSearchRequest request) {
+        if (resourceAuthorization == null) return List.of();
+        String tenantId = request.roleContext().tenantId();
+        Set<String> roleIds = new LinkedHashSet<>(request.roleContext().roleIds());
+        Map<String, DomainSkillEntity> published = repository.findVisibleByStatus(tenantId, PUBLISHED).stream()
+            .filter(skill -> !skill.isPublicationDirty())
+            .filter(skill -> skill.isBuiltin() || tenantId.equals(skill.getTenantId()))
+            .collect(java.util.stream.Collectors.toMap(DomainSkillEntity::getId, skill -> skill,
+                (left, right) -> left, LinkedHashMap::new));
+        Set<String> allowed = skillGrantAllowed(tenantId, request.roleContext().userId(), roleIds,
+            published.keySet());
+        if (!request.requestedSkillIds().isEmpty()) allowed.retainAll(request.requestedSkillIds());
+        if (allowed.isEmpty()) return List.of();
+
+        LinkedHashSet<String> ordered = new LinkedHashSet<>();
+        if (!request.query().isBlank()) {
+            ordered.addAll(indexService.searchIds(request.query(), new ArrayList<>(allowed), request.limit()));
+            Page<DomainSkillEntity> metadata = repository.search(tenantId, "", PUBLISHED, request.query(),
+                PageRequest.of(0, request.limit()));
+            if (metadata != null) metadata.getContent().stream().map(DomainSkillEntity::getId)
+                .filter(allowed::contains).forEach(ordered::add);
+        }
+        if (request.query().isBlank() || !request.requestedSkillIds().isEmpty()) {
+            request.requestedSkillIds().stream().filter(allowed::contains).forEach(ordered::add);
+            published.keySet().stream().filter(allowed::contains).forEach(ordered::add);
+        }
+        List<String> ids = ordered.stream().filter(allowed::contains).limit(request.limit()).toList();
+        int total = Math.max(1, ids.size());
+        List<SkillDescriptor> result = new ArrayList<>();
+        for (int index = 0; index < ids.size(); index++) {
+            DomainSkillEntity skill = published.get(ids.get(index));
+            if (skill != null) result.add(descriptor(skill, 1D - (0.5D * index / total)));
+        }
+        return List.copyOf(result);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ResolvedSkill> resolve(SkillResolutionRequest request) {
+        if (resourceAuthorization == null) return Optional.empty();
+        String tenantId = request.roleContext().tenantId();
+        DomainSkillEntity skill = repository.findVisibleById(tenantId, request.skillId()).orElse(null);
+        if (skill == null || !PUBLISHED.equalsIgnoreCase(skill.getStatus()) || skill.isPublicationDirty()
+            || (!skill.isBuiltin() && !tenantId.equals(skill.getTenantId()))) return Optional.empty();
+        Set<String> roles = new LinkedHashSet<>(request.roleContext().roleIds());
+        if (!skillGrantAllowed(tenantId, request.roleContext().userId(), roles, Set.of(skill.getId()))
+            .contains(skill.getId())) return Optional.empty();
+        SkillDescriptor descriptor = descriptor(skill, 1D);
+        if (!request.version().isBlank() && !request.version().equals(descriptor.version())) return Optional.empty();
+        return Optional.of(new ResolvedSkill(descriptor, skill.getMarkdownContent(), List.of(),
+            SkillRequirements.empty(), Map.of("storage", "POSTGRESQL", "index", "OPENSEARCH")));
+    }
+
+    private SkillDescriptor descriptor(DomainSkillEntity skill, double score) {
+        String version = text(skill.getFederatedDigest());
+        if (version.isBlank() && skill.getUpdatedAt() != null) version = skill.getUpdatedAt().toString();
+        return new SkillDescriptor(skill.getId(), version, skill.getName(), skill.getDescription(),
+            skill.getCategory(), skill.getSourceType(), skill.getFederatedSourceId(),
+            skill.getFederatedSkillUri(), skill.getFederatedDigest(), score,
+            Map.of("builtin", skill.isBuiltin(), "published", true));
     }
 
     @Override

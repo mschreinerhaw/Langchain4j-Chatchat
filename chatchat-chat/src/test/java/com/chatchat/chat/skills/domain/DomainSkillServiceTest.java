@@ -8,6 +8,9 @@ import com.chatchat.chat.skills.domain.adapter.SkillFormatDetector;
 import com.chatchat.common.mcp.license.McpLicenseEntitlementPort;
 import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
+import com.chatchat.runtime.skill.api.SkillResolutionRequest;
+import com.chatchat.runtime.skill.api.SkillRoleContext;
+import com.chatchat.runtime.skill.api.SkillSearchRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +18,8 @@ import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -24,6 +29,39 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class DomainSkillServiceTest {
+    @Test
+    void exposesAuthorizedMetadataBeforeLoadingThePublishedSkillBody() {
+        DomainSkillRepository repository = mock(DomainSkillRepository.class);
+        DomainSkillIndexService index = mock(DomainSkillIndexService.class);
+        ResourceAuthorizationPort grants = mock(ResourceAuthorizationPort.class);
+        DomainSkillEntity skill = skill("install", "Installation", "FULL_SKILL_INSTRUCTIONS");
+        skill.setDescription("Install the platform");
+        skill.setStatus("PUBLISHED");
+        when(repository.findVisibleByStatus("tenant-a", "PUBLISHED")).thenReturn(List.of(skill));
+        when(index.searchIds("install platform", List.of("install"), 5)).thenReturn(List.of("install"));
+        when(repository.search(eq("tenant-a"), eq(""), eq("PUBLISHED"), eq("install platform"), any()))
+            .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(skill)));
+        when(repository.findVisibleById("tenant-a", "install")).thenReturn(Optional.of(skill));
+        when(grants.explicitlyAllowedIds(ResourceAuthorizationPort.SKILL, "tenant-a", "user-a",
+            Set.of("role-a"), Set.of("install"))).thenReturn(Set.of("install"));
+        DomainSkillService service = service(repository, mock(McpLicenseEntitlementPort.class), index);
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "resourceAuthorization", grants);
+        SkillRoleContext role = new SkillRoleContext("tenant-a", "user-a", List.of("role-a"),
+            List.of(), Map.of());
+
+        var discovered = service.search(new SkillSearchRequest(
+            "install platform", role, List.of(), 5, Map.of()));
+
+        assertThat(discovered).singleElement().satisfies(item -> {
+            assertThat(item.id()).isEqualTo("install");
+            assertThat(item.description()).isEqualTo("Install the platform");
+            assertThat(item.metadata()).doesNotContainValue("FULL_SKILL_INSTRUCTIONS");
+        });
+        var resolved = service.resolve(new SkillResolutionRequest("install", "", role));
+        assertThat(resolved).get().extracting(value -> value.instructions())
+            .isEqualTo("FULL_SKILL_INSTRUCTIONS");
+    }
+
     @Test
     void fallsBackToFivePublishedSkillsWhenMcpIsUnavailable() {
         DomainSkillRepository repository = mock(DomainSkillRepository.class);

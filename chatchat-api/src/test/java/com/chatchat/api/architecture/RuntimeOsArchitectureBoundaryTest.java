@@ -70,6 +70,22 @@ class RuntimeOsArchitectureBoundaryTest {
     }
 
     @Test
+    void skillRuntimeContractsAreFrameworkAndVendorNeutral() {
+        assertThat(source("chatchat-runtime-skill/pom.xml"))
+            .contains("<artifactId>chatchat-common</artifactId>")
+            .doesNotContain("<artifactId>spring-boot-starter</artifactId>",
+                "<artifactId>langchain4j</artifactId>", "<artifactId>google-adk</artifactId>",
+                "<artifactId>openai-java</artifactId>");
+        assertThat(allJava("chatchat-runtime-skill/src/main/java"))
+            .doesNotContain("import org.springframework.", "import dev.langchain4j.",
+                "import com.google.adk.", "import com.openai.", "import jakarta.persistence.");
+        assertThat(source(
+            "chatchat-runtime-skill/src/main/java/com/chatchat/runtime/skill/spi/AgentRuntimeAdapter.java"))
+            .contains("interface AgentRuntimeAdapter", "boolean supports(String engine)",
+                "ExecutionResult execute(ExecutionRequest request)");
+    }
+
+    @Test
     void unifiedEvidenceStoreContractLivesBelowAgentAndPersistenceAdapters() {
         assertThat(source(
             "chatchat-common/src/main/java/com/chatchat/common/runtime/evidence/EvidenceStorePort.java"))

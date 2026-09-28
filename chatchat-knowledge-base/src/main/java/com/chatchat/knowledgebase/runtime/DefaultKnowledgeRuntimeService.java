@@ -12,6 +12,7 @@ import com.chatchat.common.knowledge.skill.KnowledgeSkillPlan;
 import com.chatchat.common.knowledge.skill.KnowledgeSkillResult;
 import com.chatchat.common.knowledge.spi.KnowledgeSkillSynthesizerPort;
 import com.chatchat.common.retrieval.SkillExecutionScopePort;
+import com.chatchat.knowledgebase.runtime.workflow.KnowledgeEvidenceExpansionWorkflow;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -35,11 +36,10 @@ import java.util.List;
 @Slf4j
 public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
 
-    private static final int MAX_EVIDENCE_EXPANSION_ATTEMPTS = 1;
-
     private final KnowledgeSkillSynthesizerPort skillSynthesizer;
     private final List<KnowledgeSkillExecutorPort> skillExecutors;
     private final KnowledgeContextCompilerPort contextCompiler;
+    private final KnowledgeEvidenceExpansionWorkflow evidenceExpansionWorkflow;
     private final ExecutorService knowledgeExecutor;
     @Autowired(required = false)
     private SkillExecutionScopePort skillExecutionScope;
@@ -47,17 +47,27 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
     public DefaultKnowledgeRuntimeService(KnowledgeSkillSynthesizerPort skillSynthesizer,
                                           List<KnowledgeSkillExecutorPort> skillExecutors,
                                           KnowledgeContextCompilerPort contextCompiler) {
-        this(skillSynthesizer, skillExecutors, contextCompiler, ForkJoinPool.commonPool());
+        this(skillSynthesizer, skillExecutors, contextCompiler, null, ForkJoinPool.commonPool());
+    }
+
+    DefaultKnowledgeRuntimeService(KnowledgeSkillSynthesizerPort skillSynthesizer,
+                                   List<KnowledgeSkillExecutorPort> skillExecutors,
+                                   KnowledgeContextCompilerPort contextCompiler,
+                                   KnowledgeEvidenceExpansionWorkflow evidenceExpansionWorkflow) {
+        this(skillSynthesizer, skillExecutors, contextCompiler,
+            evidenceExpansionWorkflow, ForkJoinPool.commonPool());
     }
 
     @Autowired
     public DefaultKnowledgeRuntimeService(KnowledgeSkillSynthesizerPort skillSynthesizer,
                                           List<KnowledgeSkillExecutorPort> skillExecutors,
                                           KnowledgeContextCompilerPort contextCompiler,
+                                          KnowledgeEvidenceExpansionWorkflow evidenceExpansionWorkflow,
                                           @Qualifier("knowledgeRuntimeExecutor") ExecutorService knowledgeExecutor) {
         this.skillSynthesizer = skillSynthesizer;
         this.skillExecutors = skillExecutors;
         this.contextCompiler = contextCompiler;
+        this.evidenceExpansionWorkflow = evidenceExpansionWorkflow;
         this.knowledgeExecutor = knowledgeExecutor;
     }
 
@@ -69,34 +79,40 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
 
     @Override
     public KnowledgeContext retrieveKnowledge(KnowledgeRequest request) {
-        KnowledgeRequest currentRequest = request;
-        KnowledgeContext context = retrieveOnce(currentRequest);
-        int expansionAttempt = 0;
-        while (context.truncated()
-            && currentRequest.maxTokens() < KnowledgeRequest.HARD_MAX_TOKENS
-            && expansionAttempt < MAX_EVIDENCE_EXPANSION_ATTEMPTS) {
-            expansionAttempt++;
-            int expandedBudget = nextExpansionBudget(currentRequest.maxTokens());
-            KnowledgeRequest expandedRequest = expandedRequest(
-                currentRequest, request.maxTokens(), expandedBudget, expansionAttempt);
-            log.info("knowledgeEvidenceExpansionTriggered attempt={} trigger=CONTEXT_TRUNCATED "
-                    + "previousMaxTokens={} expandedMaxTokens={}",
-                expansionAttempt, currentRequest.maxTokens(), expandedBudget);
-            KnowledgeContext expanded = retrieveOnce(expandedRequest);
-            if (!expanded.used()) {
-                log.warn("knowledgeEvidenceExpansionStopped attempt={} reason=NO_EXPANDED_EVIDENCE "
-                        + "retainedMaxTokens={}", expansionAttempt, context.maxTokens());
-                break;
-            }
-            context = expanded;
-            currentRequest = expandedRequest;
+        RetrievalSnapshot initial = retrieveOnce(request);
+        if (!initial.context().truncated()) {
+            return initial.context();
         }
-        log.info("knowledgeEvidenceExpansionCompleted attempts={} initialMaxTokens={} finalMaxTokens={} truncated={}",
-            expansionAttempt, request.maxTokens(), context.maxTokens(), context.truncated());
-        return context;
+        if (evidenceExpansionWorkflow == null) {
+            log.error("knowledgeEvidenceExpansionUnavailable reason=WORKFLOW_NOT_CONFIGURED");
+            return incompleteContext(initial.plan(), "evidence_expansion_unavailable");
+        }
+        log.info("knowledgeEvidenceExpansionTriggered trigger=CONTEXT_TRUNCATED initialMaxTokens={} sources={}",
+            request.maxTokens(), initial.context().sources().size());
+        KnowledgeEvidenceExpansionWorkflow.ExpansionResult expansion;
+        try {
+            expansion = evidenceExpansionWorkflow.expand(request, initial.units());
+        } catch (RuntimeException ex) {
+            log.error("knowledgeEvidenceExpansionFailed reason=WORKFLOW_ERROR error={}", ex.getMessage(), ex);
+            return incompleteContext(initial.plan(), "evidence_expansion_failed");
+        }
+        if (!expansion.applicable() || !expansion.complete()) {
+            log.error("knowledgeEvidenceExpansionFailed reason={}", expansion.status());
+            return incompleteContext(initial.plan(), "evidence_expansion_incomplete");
+        }
+        KnowledgeRequest expandedRequest = expandedRequest(request);
+        KnowledgeContext completed = contextCompiler.compile(expandedRequest, initial.plan(), expansion.units());
+        if (completed.truncated()) {
+            log.error("knowledgeEvidenceExpansionFailed reason=FINAL_BUNDLE_EXCEEDS_BUDGET units={} maxTokens={}",
+                expansion.units().size(), expandedRequest.maxTokens());
+            return incompleteContext(initial.plan(), "evidence_bundle_exceeds_budget");
+        }
+        log.info("knowledgeEvidenceExpansionCompleted initialMaxTokens={} finalMaxTokens={} sources={} truncated=false",
+            request.maxTokens(), completed.maxTokens(), completed.sources().size());
+        return completed;
     }
 
-    private KnowledgeContext retrieveOnce(KnowledgeRequest request) {
+    private RetrievalSnapshot retrieveOnce(KnowledgeRequest request) {
         KnowledgeSkillPlan plan = skillSynthesizer.synthesize(request);
         List<KnowledgeIR> units = new ArrayList<>();
         long effectiveSkillTimeoutMs = requestSkillTimeoutMs(request);
@@ -144,25 +160,23 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
                     || !allowed.contains(unit.source().documentId()));
             }
         }
-        return contextCompiler.compile(request, plan, units);
+        return new RetrievalSnapshot(plan, List.copyOf(units), contextCompiler.compile(request, plan, units));
     }
 
-    private int nextExpansionBudget(int currentBudget) {
-        // A truncation signal means the initial budget was insufficient. Re-running through
-        // intermediate budgets repeats document search while still risking another partial
-        // bundle, so continuation executes once with the bounded platform evidence budget.
-        return KnowledgeRequest.HARD_MAX_TOKENS;
-    }
-
-    private KnowledgeRequest expandedRequest(KnowledgeRequest source, int initialBudget,
-                                               int expandedBudget, int expansionAttempt) {
+    private KnowledgeRequest expandedRequest(KnowledgeRequest source) {
         Map<String, Object> attributes = new LinkedHashMap<>(source.attributes());
         attributes.put("knowledgeEvidenceExpansion", true);
         attributes.put("knowledgeEvidenceExpansionTrigger", "CONTEXT_TRUNCATED");
-        attributes.put("knowledgeEvidenceExpansionAttempt", expansionAttempt);
-        attributes.put("knowledgeInitialTokenBudget", initialBudget);
-        return new KnowledgeRequest(source.schemaVersion(), source.query(), source.taskType(), expandedBudget,
+        attributes.put("knowledgeEvidenceExpansionWorkflow", "DOCUMENT_SECTION_EXPANSION");
+        attributes.put("knowledgeInitialTokenBudget", source.maxTokens());
+        return new KnowledgeRequest(source.schemaVersion(), source.query(), source.taskType(),
+            KnowledgeRequest.HARD_MAX_TOKENS,
             source.scope(), source.allowedSkillTypes(), attributes);
+    }
+
+    private KnowledgeContext incompleteContext(KnowledgeSkillPlan plan, String status) {
+        return new KnowledgeContext(KnowledgeContext.SCHEMA_VERSION, plan, List.of(), "", List.of(),
+            0, KnowledgeRequest.HARD_MAX_TOKENS, false, status);
     }
 
     private Future<List<KnowledgeIR>> submitSkill(KnowledgeRequest request, KnowledgeSkillInstance skill) {
@@ -209,5 +223,10 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
 
     private List<KnowledgeSkillExecutorPort> findExecutors(KnowledgeSkillInstance skill) {
         return skillExecutors.stream().filter(executor -> executor.supports(skill.skillType())).toList();
+    }
+
+    private record RetrievalSnapshot(KnowledgeSkillPlan plan,
+                                     List<KnowledgeIR> units,
+                                     KnowledgeContext context) {
     }
 }

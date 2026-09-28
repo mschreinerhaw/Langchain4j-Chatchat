@@ -15,6 +15,7 @@ import com.chatchat.common.knowledge.skill.KnowledgeSkillType;
 import com.chatchat.common.knowledge.model.KnowledgeType;
 import com.chatchat.common.knowledge.model.KnowledgeSourceReference;
 import com.chatchat.common.retrieval.SkillExecutionScopePort;
+import com.chatchat.knowledgebase.runtime.workflow.KnowledgeEvidenceExpansionWorkflow;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -35,6 +36,7 @@ class DefaultKnowledgeRuntimeServiceTest {
         KnowledgeSkillSynthesizerPort planner = mock(KnowledgeSkillSynthesizerPort.class);
         KnowledgeSkillExecutorPort executor = mock(KnowledgeSkillExecutorPort.class);
         KnowledgeContextCompilerPort compiler = mock(KnowledgeContextCompilerPort.class);
+        KnowledgeEvidenceExpansionWorkflow expansionWorkflow = mock(KnowledgeEvidenceExpansionWorkflow.class);
         when(planner.synthesize(any())).thenAnswer(invocation -> {
             KnowledgeRequest request = invocation.getArgument(0);
             KnowledgeSkillInstance skill = new KnowledgeSkillInstance(
@@ -58,8 +60,14 @@ class DefaultKnowledgeRuntimeServiceTest {
             return new KnowledgeContext(KnowledgeContext.SCHEMA_VERSION, plan, List.of(),
                 "procedure evidence", List.of(), 10, request.maxTokens(), truncated, "used");
         });
+        when(expansionWorkflow.expand(any(), any())).thenReturn(
+            new KnowledgeEvidenceExpansionWorkflow.ExpansionResult(
+                true, true, List.of(new KnowledgeIR(
+                    "expanded-procedure", "ops", KnowledgeType.PROCEDURE, "Installation",
+                    "complete procedure evidence", List.of(), List.of(), List.of(), List.of(),
+                    "complete procedure evidence", null, 0.9D)), "COMPLETE"));
         DefaultKnowledgeRuntimeService runtime = new DefaultKnowledgeRuntimeService(
-            planner, List.of(executor), compiler);
+            planner, List.of(executor), compiler, expansionWorkflow);
 
         KnowledgeContext result = runtime.retrieveKnowledge(new KnowledgeRequest(
             "v", "installation procedure", "PROCEDURE", 1500,
@@ -67,14 +75,17 @@ class DefaultKnowledgeRuntimeServiceTest {
             null, Map.of()));
 
         ArgumentCaptor<KnowledgeRequest> requests = ArgumentCaptor.forClass(KnowledgeRequest.class);
-        verify(planner, org.mockito.Mockito.times(2)).synthesize(requests.capture());
+        verify(compiler, org.mockito.Mockito.times(2)).compile(requests.capture(), any(), any());
         assertThat(requests.getAllValues()).extracting(KnowledgeRequest::maxTokens)
             .containsExactly(1500, KnowledgeRequest.HARD_MAX_TOKENS);
         assertThat(requests.getAllValues().get(1).attributes())
             .containsEntry("knowledgeEvidenceExpansion", true)
             .containsEntry("knowledgeEvidenceExpansionTrigger", "CONTEXT_TRUNCATED")
-            .containsEntry("knowledgeEvidenceExpansionAttempt", 1)
+            .containsEntry("knowledgeEvidenceExpansionWorkflow", "DOCUMENT_SECTION_EXPANSION")
             .containsEntry("knowledgeInitialTokenBudget", 1500);
+        verify(planner).synthesize(any());
+        verify(executor).execute(any());
+        verify(expansionWorkflow).expand(any(), any());
         assertThat(result.truncated()).isFalse();
         assertThat(result.maxTokens()).isEqualTo(KnowledgeRequest.HARD_MAX_TOKENS);
     }

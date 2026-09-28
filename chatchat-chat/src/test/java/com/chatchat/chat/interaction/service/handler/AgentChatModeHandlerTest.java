@@ -36,9 +36,45 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class AgentChatModeHandlerTest {
+
+    @Test
+    void stopsBeforePlannerWhenDeterministicKnowledgeExpansionFails() {
+        AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
+        McpToolCatalogQueryPort bridge = mock(McpToolCatalogQueryPort.class);
+        KnowledgeRuntimePort knowledgeRuntime = mock(KnowledgeRuntimePort.class);
+        AgentChatModeHandler handler = new AgentChatModeHandler(
+            orchestrator, skillCatalogService,
+            new AgentToolPolicyResolver(toolRegistry, skillCatalogService, bridge), knowledgeRuntime);
+        when(skillCatalogService.resolve("ops")).thenReturn(skill(List.of(), List.of("doc-install")));
+        when(bridge.registeredTools()).thenReturn(List.of());
+        when(knowledgeRuntime.retrieveKnowledge(any())).thenReturn(new KnowledgeContext(
+            KnowledgeContext.SCHEMA_VERSION, null, List.of(), "", List.of(),
+            0, KnowledgeRequest.HARD_MAX_TOKENS, false, "evidence_expansion_failed"));
+
+        var response = handler.handle(
+            InteractionRequest.builder().mode("agent_chat").skillId("ops")
+                .query("获取安装步骤").tenantId("tenant-a").userId("user-a").build(),
+            InteractionContext.builder().requestId("req-expansion-failed")
+                .conversationId("conv-expansion-failed").mode(InteractionMode.AGENT_CHAT)
+                .history(List.of()).build());
+
+        verifyNoInteractions(orchestrator);
+        assertThat(response.getAnswer()).contains("Runtime 已停止本次执行", "未调用模型生成答案");
+        assertThat(response.getMetadata())
+            .containsEntry("runtimeStopped", true)
+            .containsEntry("runtimeStopReason", "KNOWLEDGE_EVIDENCE_EXPANSION_FAILED")
+            .containsEntry("knowledgeRetrieval", "evidence_expansion_failed");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> projection = (Map<String, Object>) response.getMetadata()
+            .get(KnowledgeContext.RUNTIME_ATTRIBUTE);
+        assertThat(projection).containsEntry("completionState", "FAILED");
+    }
 
     @Test
     @SuppressWarnings("unchecked")

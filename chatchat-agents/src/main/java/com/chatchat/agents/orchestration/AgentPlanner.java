@@ -194,10 +194,7 @@ public class AgentPlanner implements AgentPlanningPort {
             AgentPlanBudgetPolicy.fromRuntimeAttributes(runtimeAttributes),
             authoritativeWorkflowDagForPlanning(runtimeAttributes),
             runtimeAttributes == null ? null : runtimeAttributes.get("mcpWorkflow"),
-            stringList(runtimeAttributes == null ? null : runtimeAttributes.get("plannerOptionalTools")),
-            Boolean.TRUE.equals(asMap(runtimeAttributes == null ? null
-                : runtimeAttributes.get(com.chatchat.common.knowledge.runtime.KnowledgeContext.RUNTIME_ATTRIBUTE))
-                .get("truncated"))
+            stringList(runtimeAttributes == null ? null : runtimeAttributes.get("plannerOptionalTools"))
         );
         List<String> optionalTools = validationContext.optionalTools();
         // Native function calling selects a single call and therefore cannot express the
@@ -742,15 +739,6 @@ public class AgentPlanner implements AgentPlanningPort {
                 context.authoritativeWorkflowDag(), stepsById, toolStepIds, issues);
         }
         validateOptionalToolDecisions(plan, context, stepsById, toolStepIds, finalStep, issues);
-        if (context.knowledgeContextTruncated()) {
-            Integer documentStepId = firstAuthorizedDocumentRetrievalStepId(toolStepIds, context);
-            if (documentStepId == null) {
-                issues.add("Truncated knowledge requires an authorized document evidence expansion step before final_answer.");
-            } else if (finalStep == null
-                || !dependsOnStep(finalStep.id(), documentStepId, stepsById, new LinkedHashSet<>())) {
-                issues.add("final_answer must depend on document evidence expansion when prefetched knowledge is truncated.");
-            }
-        }
         if (context.requireDocumentWebVerification()) {
             Integer documentStepId = firstToolStepId(toolStepIds, context.documentSearchTool());
             Integer webStepId = firstToolStepId(toolStepIds, context.verificationWebSearchTool());
@@ -1134,24 +1122,6 @@ public class AgentPlanner implements AgentPlanningPort {
             if (sameToolName(entry.getKey(), toolName) && entry.getValue() != null && !entry.getValue().isEmpty()) {
                 return entry.getValue().get(0);
             }
-        }
-        return null;
-    }
-
-    private Integer firstAuthorizedDocumentRetrievalStepId(
-        Map<String, List<Integer>> toolStepIds, PlannerValidationContext context
-    ) {
-        if (context == null || toolStepIds == null || toolStepIds.isEmpty()) return null;
-        Integer configured = firstToolStepId(toolStepIds, context.documentSearchTool());
-        if (configured != null && containsTool(context.availableTools(), context.documentSearchTool())) {
-            return configured;
-        }
-        for (Map.Entry<String, List<Integer>> entry : toolStepIds.entrySet()) {
-            String plannedTool = entry.getKey();
-            if (!DOCUMENT_SEARCH_TOOL.equals(normalizeKnownToolAlias(plannedTool))
-                || !containsTool(context.availableTools(), plannedTool)
-                || entry.getValue() == null || entry.getValue().isEmpty()) continue;
-            return entry.getValue().get(0);
         }
         return null;
     }

@@ -154,6 +154,11 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         Map<String, Object> executionContext = mcpExecutionContext(request, skill);
         Map<String, Object> agentRoleContext = agentRoleContext(skill);
         KnowledgeContext domainKnowledge = retrieveDomainKnowledge(request, skill, effectiveScope);
+        if (knowledgeExpansionFailed(domainKnowledge)) {
+            log.error("agentRunStopped reason=KNOWLEDGE_EVIDENCE_EXPANSION_FAILED skillId={} status={}",
+                resolvedSkillId, domainKnowledge.status());
+            return knowledgeExpansionFailureResponse(resolvedSkillId, domainKnowledge);
+        }
         AgentLearningService.RuntimeExperienceContext runtimeExperience = learningService == null
             ? AgentLearningService.RuntimeExperienceContext.empty()
             : learningService.resolveRuntimeExperience(
@@ -258,6 +263,28 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             .answer(result.answer())
             .sources(domainKnowledgeSources(domainKnowledge.sources()))
             .toolTraces(result.toolTraces())
+            .metadata(metadata)
+            .build();
+    }
+
+    private boolean knowledgeExpansionFailed(KnowledgeContext knowledge) {
+        return knowledge != null && knowledge.status() != null
+            && knowledge.status().startsWith("evidence_");
+    }
+
+    private InteractionResponse knowledgeExpansionFailureResponse(String skillId, KnowledgeContext knowledge) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("handler", "AgentChatModeHandler");
+        metadata.put("skillId", skillId);
+        metadata.put("knowledgeRetrieval", knowledge.status());
+        metadata.put("domainKnowledgeUsed", false);
+        metadata.put("runtimeStopped", true);
+        metadata.put("runtimeStopReason", "KNOWLEDGE_EVIDENCE_EXPANSION_FAILED");
+        metadata.put(KnowledgeContext.RUNTIME_ATTRIBUTE, knowledge.toRuntimeProjection());
+        return InteractionResponse.builder()
+            .answer("知识证据扩展未完成，Runtime 已停止本次执行，未调用模型生成答案。请检查文档索引与证据扩展日志。")
+            .sources(List.of())
+            .toolTraces(List.of())
             .metadata(metadata)
             .build();
     }

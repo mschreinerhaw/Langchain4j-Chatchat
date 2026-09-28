@@ -743,7 +743,7 @@ public class AgentPlanner implements AgentPlanningPort {
         }
         validateOptionalToolDecisions(plan, context, stepsById, toolStepIds, finalStep, issues);
         if (context.knowledgeContextTruncated()) {
-            Integer documentStepId = firstToolStepId(toolStepIds, context.documentSearchTool());
+            Integer documentStepId = firstAuthorizedDocumentRetrievalStepId(toolStepIds, context);
             if (documentStepId == null) {
                 issues.add("Truncated knowledge requires an authorized document evidence expansion step before final_answer.");
             } else if (finalStep == null
@@ -1134,6 +1134,24 @@ public class AgentPlanner implements AgentPlanningPort {
             if (sameToolName(entry.getKey(), toolName) && entry.getValue() != null && !entry.getValue().isEmpty()) {
                 return entry.getValue().get(0);
             }
+        }
+        return null;
+    }
+
+    private Integer firstAuthorizedDocumentRetrievalStepId(
+        Map<String, List<Integer>> toolStepIds, PlannerValidationContext context
+    ) {
+        if (context == null || toolStepIds == null || toolStepIds.isEmpty()) return null;
+        Integer configured = firstToolStepId(toolStepIds, context.documentSearchTool());
+        if (configured != null && containsTool(context.availableTools(), context.documentSearchTool())) {
+            return configured;
+        }
+        for (Map.Entry<String, List<Integer>> entry : toolStepIds.entrySet()) {
+            String plannedTool = entry.getKey();
+            if (!DOCUMENT_SEARCH_TOOL.equals(normalizeKnownToolAlias(plannedTool))
+                || !containsTool(context.availableTools(), plannedTool)
+                || entry.getValue() == null || entry.getValue().isEmpty()) continue;
+            return entry.getValue().get(0);
         }
         return null;
     }

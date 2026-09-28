@@ -19,7 +19,12 @@ public record KnowledgeRequest(
 ) {
     public static final String SCHEMA_VERSION = "knowledge_request.v1";
     public static final int DEFAULT_MAX_TOKENS = 1200;
-    public static final int HARD_MAX_TOKENS = 4000;
+    /**
+     * Maximum compiled evidence bundle after Runtime-controlled continuation.
+     * The normal request budget remains small; this limit is reached only when the compiler
+     * explicitly reports that authorized evidence was truncated.
+     */
+    public static final int HARD_MAX_TOKENS = 12_000;
 
     public KnowledgeRequest {
         schemaVersion = SCHEMA_VERSION;

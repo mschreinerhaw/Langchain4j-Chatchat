@@ -36,6 +36,8 @@ class KnowledgeContractsTest {
             new KnowledgeScope("agent", "tenant", "user", List.of("doc-1"), List.of(), List.of()),
             Set.of(KnowledgeSkillType.RULE_LOOKUP), Map.of());
 
+        // The public contract follows the platform limit; continuation may raise that limit
+        // without changing request clamping semantics.
         assertThat(request.maxTokens()).isEqualTo(KnowledgeRequest.HARD_MAX_TOKENS);
         assertThat(request.scope().documentIds()).containsExactly("doc-1");
         assertThat(request.schemaVersion()).isEqualTo(KnowledgeRequest.SCHEMA_VERSION);

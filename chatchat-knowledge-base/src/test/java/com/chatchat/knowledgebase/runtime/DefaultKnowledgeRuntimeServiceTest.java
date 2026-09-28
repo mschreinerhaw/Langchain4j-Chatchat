@@ -67,9 +67,9 @@ class DefaultKnowledgeRuntimeServiceTest {
             null, Map.of()));
 
         ArgumentCaptor<KnowledgeRequest> requests = ArgumentCaptor.forClass(KnowledgeRequest.class);
-        verify(planner, org.mockito.Mockito.times(3)).synthesize(requests.capture());
+        verify(planner, org.mockito.Mockito.times(2)).synthesize(requests.capture());
         assertThat(requests.getAllValues()).extracting(KnowledgeRequest::maxTokens)
-            .containsExactly(1500, 3000, KnowledgeRequest.HARD_MAX_TOKENS);
+            .containsExactly(1500, KnowledgeRequest.HARD_MAX_TOKENS);
         assertThat(requests.getAllValues().get(1).attributes())
             .containsEntry("knowledgeEvidenceExpansion", true)
             .containsEntry("knowledgeEvidenceExpansionTrigger", "CONTEXT_TRUNCATED")

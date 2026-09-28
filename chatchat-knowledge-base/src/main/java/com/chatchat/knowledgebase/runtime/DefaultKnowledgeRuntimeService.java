@@ -35,7 +35,7 @@ import java.util.List;
 @Slf4j
 public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
 
-    private static final int MAX_EVIDENCE_EXPANSION_ATTEMPTS = 2;
+    private static final int MAX_EVIDENCE_EXPANSION_ATTEMPTS = 1;
 
     private final KnowledgeSkillSynthesizerPort skillSynthesizer;
     private final List<KnowledgeSkillExecutorPort> skillExecutors;
@@ -148,9 +148,10 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
     }
 
     private int nextExpansionBudget(int currentBudget) {
-        long doubled = (long) currentBudget * 2L;
-        long stepped = (long) currentBudget + 1_000L;
-        return (int) Math.min(KnowledgeRequest.HARD_MAX_TOKENS, Math.max(doubled, stepped));
+        // A truncation signal means the initial budget was insufficient. Re-running through
+        // intermediate budgets repeats document search while still risking another partial
+        // bundle, so continuation executes once with the bounded platform evidence budget.
+        return KnowledgeRequest.HARD_MAX_TOKENS;
     }
 
     private KnowledgeRequest expandedRequest(KnowledgeRequest source, int initialBudget,

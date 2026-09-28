@@ -72,6 +72,20 @@ describe("AgentWorkshopView remote compute registration", () => {
     expect(template).not.toContain('remoteManagement');
   });
 
+  it("keeps the local Agent form concise and uses the shared text-button style for compute switching", () => {
+    const template = readFileSync(new URL("../../views/AgentWorkshopView.vue", import.meta.url), "utf8");
+    const localDialog = template.split('<div v-if="dialogOpen"')[1]
+      .split('<div v-if="documentPickerOpen"')[0];
+
+    expect(localDialog).toContain('class="agent-picker-text-button"');
+    expect(localDialog).toContain("切换到接入专有分析 Agent");
+    expect(localDialog).not.toContain("选择算力来源");
+    expect(localDialog).not.toContain("当前创建自研 Agent");
+    expect(localDialog).not.toContain("Runtime 将加载角色");
+    expect(localDialog).not.toContain("此处控制普通对话");
+    expect(localDialog).not.toContain("候选项由后端从 defaultChatModel");
+  });
+
   it("renders the MCP picker outside the local Agent dialog so the remote form can open it", () => {
     const template = readFileSync(new URL("../../views/AgentWorkshopView.vue", import.meta.url), "utf8");
     const ast = parseVueTemplate(template.slice(template.indexOf("<template>") + 10,

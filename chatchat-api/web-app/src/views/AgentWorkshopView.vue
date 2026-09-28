@@ -587,9 +587,9 @@
 
         <div class="dialog-body">
           <section v-if="dialogMode === 'create'" class="wide-field">
-            <strong>选择算力来源</strong>
-            <p>当前创建自研 Agent，可组合 Workflow、Skills 与知识证据；集团或第三方 Agent 通过 A2A 接入，由 Runtime 管理数据边界与补证。</p>
-            <button v-if="isPlatformAdmin" type="button" class="secondary-button" @click="dialogOpen = false; openRemoteDialog()">切换到接入专有分析 Agent</button>
+            <button v-if="isPlatformAdmin" type="button" class="agent-picker-text-button" @click="dialogOpen = false; openRemoteDialog()">
+              切换到接入专有分析 Agent <span aria-hidden="true">›</span>
+            </button>
           </section>
           <label>
             <span>Agent ID</span>
@@ -611,11 +611,6 @@
               <option value="role_chat">角色问答（不调用 MCP 工具）</option>
               <option value="agent_chat">工具智能体（MCP / API / SQL）</option>
             </select>
-            <small v-if="form.defaultMode === 'role_chat'">
-              Runtime 将加载角色、会话、响应规则和可选知识上下文，直接调用模型，不进入工具规划与执行链路。
-            </small>
-            <small v-else>Runtime 将根据当前 Agent 绑定的工具执行规划、调用和证据汇总。</small>
-            <small>此处控制普通对话。参与多 Agent 联邦分析时，自研 Agent 支持领域推理与受控自主执行；联邦调用不会直接执行这里绑定的工具，补证操作统一由 Runtime 授权。</small>
           </label>
           <label class="checkbox-row default-agent-row">
             <input v-model="form.defaultAgent" type="checkbox">
@@ -629,7 +624,6 @@
                 {{ model.label || model.value }}
               </option>
             </select>
-            <small>候选项由后端从 defaultChatModel、availableChatModels 和 chatModels 配置合并返回。</small>
           </label>
           <label v-if="form.defaultMode === 'agent_chat'" class="runtime-environment-field">
             <span>运行环境</span>

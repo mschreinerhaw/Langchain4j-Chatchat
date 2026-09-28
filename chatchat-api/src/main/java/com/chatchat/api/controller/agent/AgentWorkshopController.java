@@ -19,6 +19,7 @@ import com.chatchat.api.license.AgentPublicationLicenseService;
 import com.chatchat.chat.skills.domain.DomainSkillEntity;
 import com.chatchat.chat.skills.domain.DomainSkillService;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
+import com.chatchat.enterprise.service.SkillResourceScopeSynchronizationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -63,6 +64,7 @@ public class AgentWorkshopController {
     private final AgentReleaseService agentReleaseService;
     private final DomainSkillService domainSkillService;
     private final ResourceAuthorizationPort resourceAuthorization;
+    private final SkillResourceScopeSynchronizationService skillResourceScopes;
 
     @GetMapping("/{agentId}/releases")
     @Operation(summary = "List immutable Agent releases and quality-gate reports")
@@ -170,6 +172,7 @@ public class AgentWorkshopController {
                                                HttpServletRequest servletRequest) {
         validateResourceBindings(request, servletRequest);
         SkillDefinition saved = skillCatalogService.upsert(toSkillDefinition(request, null));
+        synchronizeKnowledgeBindings(saved, servletRequest);
         return ApiResponse.success(toAgentCard(saved, availableTools(), mcpToolsByServiceId()), "Agent created");
     }
 
@@ -187,7 +190,13 @@ public class AgentWorkshopController {
                                               HttpServletRequest servletRequest) {
         validateResourceBindings(request, servletRequest);
         SkillDefinition saved = skillCatalogService.upsert(toSkillDefinition(request, agentId));
+        synchronizeKnowledgeBindings(saved, servletRequest);
         return ApiResponse.success(toAgentCard(saved, availableTools(), mcpToolsByServiceId()), "Agent updated");
+    }
+
+    private void synchronizeKnowledgeBindings(SkillDefinition skill, HttpServletRequest request) {
+        skillResourceScopes.synchronize(tenantId(request), skill.id(),
+            skill.boundDocumentIds(), skill.boundDocumentTags());
     }
 
     /**
@@ -728,7 +737,7 @@ public class AgentWorkshopController {
     }
 
     private String tenantId(HttpServletRequest request) {
-        Object value = request.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID);
+        Object value = request == null ? null : request.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID);
         return value == null || String.valueOf(value).isBlank() ? "default" : String.valueOf(value).trim();
     }
 

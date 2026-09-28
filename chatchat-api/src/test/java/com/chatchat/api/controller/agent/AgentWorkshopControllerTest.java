@@ -10,6 +10,7 @@ import com.chatchat.common.config.ModelResourceRegistry;
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
+import com.chatchat.enterprise.service.SkillResourceScopeSynchronizationService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -21,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentWorkshopControllerTest {
@@ -32,6 +34,8 @@ class AgentWorkshopControllerTest {
         McpToolCatalogQueryPort mcpCatalog = mock(McpToolCatalogQueryPort.class);
         ModelResourceRegistry modelResources = mock(ModelResourceRegistry.class);
         DocumentLibraryReadPort documentLibrary = mock(DocumentLibraryReadPort.class);
+        SkillResourceScopeSynchronizationService scopeSynchronization =
+            mock(SkillResourceScopeSynchronizationService.class);
 
         when(modelResources.canonicalName("test-model")).thenReturn("test-model");
         when(documentLibrary.exists("existing-doc")).thenReturn(true);
@@ -53,7 +57,8 @@ class AgentWorkshopControllerTest {
             mock(AgentPublicationLicenseService.class),
             mock(AgentReleaseService.class),
             mock(DomainSkillService.class),
-            mock(ResourceAuthorizationPort.class)
+            mock(ResourceAuthorizationPort.class),
+            scopeSynchronization
         );
         AgentWorkshopController.AgentUpsertRequest request = new AgentWorkshopController.AgentUpsertRequest();
         request.setId("migrated-agent");
@@ -66,5 +71,7 @@ class AgentWorkshopControllerTest {
         ArgumentCaptor<SkillDefinition> savedAgent = ArgumentCaptor.forClass(SkillDefinition.class);
         org.mockito.Mockito.verify(skillCatalogService).upsert(savedAgent.capture());
         assertThat(savedAgent.getValue().boundDocumentIds()).containsExactly("existing-doc");
+        verify(scopeSynchronization).synchronize(
+            "default", "migrated-agent", List.of("existing-doc"), List.of());
     }
 }

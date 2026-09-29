@@ -17,11 +17,33 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AgentToolPolicyResolverTest {
+    @Test void selectedButUnavailableCapabilitiesDoNotBecomeAnUnboundConversation() {
+        var registry = mock(ToolRegistry.class);
+        var skills = mock(SkillCatalogService.class);
+        var catalog = mock(McpToolCatalogQueryPort.class);
+        var agent = mock(SkillDefinition.class);
+        when(agent.boundMcpToolNames()).thenReturn(List.of("not-published"));
+        var snapshot = new AgentToolPolicyResolver(registry, skills, catalog)
+            .planningSnapshot(InteractionRequest.builder().build(), agent);
+        assertThat(snapshot.owner()).isEqualTo(WorkflowEntryPlan.Owner.PROBLEM_ANALYSIS);
+        assertThat(snapshot.toolPurposes()).isEmpty();
+        org.mockito.Mockito.verify(catalog, org.mockito.Mockito.times(1)).registeredTools();
+    }
+
+    @Test void entrySnapshotCannotDriftWhenSourceMapsAreMutated() {
+        Map<String, Object> source = new java.util.LinkedHashMap<>(Map.of("data_type", "ASSET_QUERY"));
+        var snapshot = new WorkflowEntryPlan(WorkflowEntryPlan.Owner.PROBLEM_ANALYSIS, "test", List.of(source));
+        source.put("data_type", "DATA_FETCH");
+        assertThat(snapshot.toolPurposes()).containsExactly(Map.of("data_type", "ASSET_QUERY"));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> snapshot.toolPurposes().get(0).put("data_type", "DATA_FETCH"))
+            .isInstanceOf(UnsupportedOperationException.class);
+    }
     @Test void templateDiscoveryOwnsPlanningWithoutAnyDataFetchPublication() {
         var registry = mock(ToolRegistry.class);
         var skills = mock(SkillCatalogService.class);
         var catalog = mock(McpToolCatalogQueryPort.class);
         var agent = mock(SkillDefinition.class);
+        when(agent.boundMcpToolNames()).thenReturn(List.of("opaque"));
         when(catalog.registeredTools()).thenReturn(List.of());
         when(registry.getAllToolNames()).thenReturn(java.util.Set.of("opaque"));
         when(skills.resolveTools(org.mockito.ArgumentMatchers.eq(agent), org.mockito.ArgumentMatchers.anyCollection(),
@@ -30,12 +52,12 @@ class AgentToolPolicyResolverTest {
             .metadata(Map.of("workflowContract", com.chatchat.common.tool.ToolWorkflowContract.declaration(
                 com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY, "test-template", "query"))).build());
         var resolver = new AgentToolPolicyResolver(registry, skills, catalog);
-        assertThat(resolver.usesInterpretationPlanning(InteractionRequest.builder().build(), agent)).isTrue();
-        assertThat(resolver.usesInterpretationPlanning(InteractionRequest.builder().availableTools(List.of("unselected")).build(), agent)).isFalse();
+        assertThat(resolver.planningSnapshot(InteractionRequest.builder().build(), agent).owner()).isEqualTo(WorkflowEntryPlan.Owner.GOVERNED_RUNTIME);
+        assertThat(resolver.planningSnapshot(InteractionRequest.builder().availableTools(List.of("unselected")).build(), agent).owner()).isEqualTo(WorkflowEntryPlan.Owner.PROBLEM_ANALYSIS);
         when(registry.getToolMetadata("opaque")).thenReturn(ToolMetadata.builder().id("opaque").dataType("ASSET_QUERY").build());
-        assertThat(resolver.usesInterpretationPlanning(InteractionRequest.builder().build(), agent)).isFalse();
+        assertThat(resolver.planningSnapshot(InteractionRequest.builder().build(), agent).owner()).isEqualTo(WorkflowEntryPlan.Owner.PROBLEM_ANALYSIS);
         when(agent.workflowConfig()).thenReturn(Map.of("mcpWorkflow", List.of(Map.of("tool", "opaque"))));
-        assertThat(resolver.usesInterpretationPlanning(InteractionRequest.builder().build(), agent)).isTrue();
+        assertThat(resolver.planningSnapshot(InteractionRequest.builder().build(), agent).owner()).isEqualTo(WorkflowEntryPlan.Owner.GOVERNED_RUNTIME);
     }
     @Test void selectionIsBasedOnConfigurationNotRegistryAvailability() {
         var request = InteractionRequest.builder().build();
@@ -71,11 +93,11 @@ class AgentToolPolicyResolverTest {
         when(registry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder().id("document_search").build());
         when(registry.getToolMetadata("disabled")).thenReturn(ToolMetadata.builder().id("disabled").publicationStatus("disabled").build());
         var resolver = new AgentToolPolicyResolver(registry, skills, catalog, retriever);
-        var purposes = resolver.planningToolPurposes(InteractionRequest.builder().availableTools(names).build(), agent);
+        var purposes = resolver.planningSnapshot(InteractionRequest.builder().availableTools(names).build(), agent).toolPurposes();
         assertThat(purposes).containsExactly(
             Map.of("tool", "opaque", "data_type", "TEMPLATE_QUERY", "description", ""),
             Map.of("tool", "document_search", "data_type", "UNKNOWN", "description", ""));
-        assertThat(resolver.planningToolPurposes(InteractionRequest.builder().availableTools(List.of("opaque")).build(), agent))
+        assertThat(resolver.planningSnapshot(InteractionRequest.builder().availableTools(List.of("opaque")).build(), agent).toolPurposes())
             .hasSize(1);
         org.mockito.Mockito.verifyNoInteractions(retriever);
     }

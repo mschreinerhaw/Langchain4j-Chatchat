@@ -8,6 +8,9 @@ import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.model.InteractionSource;
 import com.chatchat.chat.interaction.service.ConversationMemoryService;
 import com.chatchat.chat.interaction.service.InteractionModeHandler;
+import com.chatchat.chat.interaction.service.InteractionExecution;
+import com.chatchat.chat.interaction.service.WorkflowEntryPlan;
+import com.chatchat.common.runtime.capability.WorkflowOutcome;
 import com.chatchat.chat.skills.catalog.SkillCatalogService;
 import com.chatchat.chat.skills.domain.planning.DomainSkillPlanningRouter;
 import com.chatchat.chat.skills.runtime.AgentRuntimePolicy;
@@ -32,7 +35,7 @@ import java.util.stream.Collectors;
 /**
  * Executes a maintained Agent as a role-based model conversation.
  *
- * <p>This path performs problem analysis but deliberately bypasses Agent tool planning, MCP selection, tool execution and
+ * <p>This path answers as the configured role and bypasses Agent tool planning, MCP selection, tool execution and
  * evidence completion. Bound knowledge documents may still be retrieved directly as
  * prompt context; document retrieval is a Runtime context capability, not an MCP call.</p>
  */
@@ -52,8 +55,6 @@ public class RoleChatModeHandler implements InteractionModeHandler {
     private DomainSkillPlanningRouter domainSkillPlanningRouter;
     @Autowired(required = false)
     private SkillExecutionScopePort skillExecutionScope;
-    @Autowired
-    private com.chatchat.chat.interaction.service.ProblemAnalysisPlanner problemAnalysisPlanner;
 
     public RoleChatModeHandler(ChatModel defaultChatModel,
                                ConfigurableChatModelFactory chatModelFactory,
@@ -72,17 +73,18 @@ public class RoleChatModeHandler implements InteractionModeHandler {
 
     @Override
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
+        var execution = new InteractionExecution(request);
+        var response = execution.call("ROLE_CONVERSATION", () -> converse(request, context));
+        return execution.complete(response, WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.ROLE_CONVERSATION, "CONFIGURED_ROLE_CONVERSATION"));
+    }
+
+    private InteractionResponse converse(InteractionRequest request, InteractionContext context) {
         SkillDefinition skill = skillCatalogService.resolve(request.getSkillId());
         if (!InteractionMode.fromAgentConfiguration(skill.defaultMode()).isRoleConversation()) {
             throw new IllegalArgumentException(
                 "Agent " + skill.id() + " is configured for tool-agent execution, not role_chat");
         }
         SkillExecutionScopePort.EffectiveScope effectiveScope = resolveSkillScope(request, skill);
-        var understanding = context.problemAnalysisPlan() != null ? context.problemAnalysisPlan()
-            : problemAnalysisPlanner == null ? com.chatchat.common.runtime.capability.ProblemAnalysisPlan.unavailable()
-            : problemAnalysisPlanner.analyze(request, context, skill);
-        if (!com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.executable(understanding))
-            return com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.blockedResponse(understanding);
         // Role-chat applies domain skills as context; it never starts a competing analysis runtime.
         com.chatchat.common.knowledge.runtime.KnowledgeContext knowledge = retrieveKnowledge(request, skill, effectiveScope);
         List<String> configuredDomainSkillIds = configuredDomainSkillIds(skill);
@@ -90,18 +92,22 @@ public class RoleChatModeHandler implements InteractionModeHandler {
             request, skill, effectiveScope.roles(), configuredDomainSkillIds);
         DomainSkillPlanningRouter.RoutingResult domainSkillRouting = domainSkillPlanningRouter == null
             ? null : domainSkillPlanningRouter.route(request.getQuery(), resolvedModelName(request, skill), domainSkills);
-        String prompt = buildPrompt(request, context, skill, knowledge, domainSkills, domainSkillRouting)
-            + "\nProblem analysis plan (context only; role-chat cannot execute MCP operations):\n" + understanding;
+        String prompt = buildPrompt(request, context, skill, knowledge, domainSkills, domainSkillRouting);
         ChatModel model = resolveModel(request, skill);
 
         long startedAt = System.currentTimeMillis();
         log.info("roleChatModelRequest requestId={} conversationId={} skillId={} modelName={} promptChars={} knowledgeUsed={}",
             context.requestId(), context.conversationId(), skill.id(), resolvedModelName(request, skill),
             prompt.length(), knowledge.used());
+        InteractionExecution.checkCancellation(request);
         String answer = model.chat(prompt);
+        InteractionExecution.checkCancellation(request);
 
         Map<String, Object> metadata = new LinkedHashMap<>();
-        metadata.put(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.METADATA_KEY, understanding);
+        boolean usable = answer != null && !answer.isBlank();
+        metadata.put(WorkflowOutcome.METADATA_KEY, new WorkflowOutcome(
+            usable ? WorkflowOutcome.Type.READY_TO_ANSWER : WorkflowOutcome.Type.FAILED,
+            usable ? "ROLE_CONVERSATION_COMPLETED" : "EMPTY_ROLE_RESPONSE", List.of(), List.of(), usable));
         metadata.put("handler", "RoleChatModeHandler");
         metadata.put("executionMode", "ROLE_CHAT");
         metadata.put("skillId", skill.id());

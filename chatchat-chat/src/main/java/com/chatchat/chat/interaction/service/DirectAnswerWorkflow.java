@@ -41,13 +41,15 @@ public class DirectAnswerWorkflow {
                 If the requested facts need unavailable external evidence, explain the limitation without inventing facts.
                 Conversation data:
                 """ + input;
-            if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
+            InteractionExecution.checkCancellation(request);
             String answer = (modelName == null || modelName.isBlank() ? defaultModel : models.create(modelName)).chat(prompt);
+            InteractionExecution.checkCancellation(request);
             if (answer == null || answer.isBlank()) throw new IllegalStateException("Empty direct answer");
             return response(answer, WorkflowOutcome.Type.READY_TO_ANSWER, "DIRECT_ANSWER_COMPLETED", true);
         } catch (java.util.concurrent.CancellationException cancelled) {
             throw cancelled;
         } catch (Exception failure) {
+            InteractionExecution.propagateCancellation(request, failure);
             log.warn("Direct answer failed requestId={} failureType={}", context.requestId(), failure.getClass().getSimpleName(), failure);
             return response("暂时无法生成回答，请稍后重试。", WorkflowOutcome.Type.FAILED, "DIRECT_ANSWER_FAILED", false);
         }

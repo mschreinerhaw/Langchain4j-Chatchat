@@ -11,6 +11,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 class DirectAnswerWorkflowTest {
+    @Test void modelResultCannotOverrideCancellation() {
+        var model = mock(ChatModel.class);
+        var cancelled = new java.util.concurrent.atomic.AtomicBoolean();
+        when(model.chat(anyString())).thenAnswer(invocation -> { cancelled.set(true); return "late result"; });
+        var request = InteractionRequest.builder().query("hello").toolInput(java.util.Map.of(
+            "__agentCancellation", (java.util.function.BooleanSupplier) cancelled::get)).build();
+        var workflow = new DirectAnswerWorkflow(model, mock(ConfigurableChatModelFactory.class), new ObjectMapper());
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> workflow.execute(request,
+            InteractionContext.builder().build(), mock(SkillDefinition.class)))
+            .isInstanceOf(java.util.concurrent.CancellationException.class);
+    }
     @Test void answersWithoutToolRuntimeAndReportsExplicitOutcome() {
         var model = mock(ChatModel.class);
         when(model.chat(anyString())).thenReturn("你好！");

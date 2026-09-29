@@ -20,8 +20,6 @@ public class ProblemAnalysisPlanner {
     private final ConfigurableChatModelFactory models;
     private final ObjectMapper mapper;
     private final ObjectProvider<AgentRunEventPublisher> publishers;
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private AgentToolPolicyResolver toolPolicyResolver;
 
     public ProblemAnalysisPlanner(ChatModel defaultModel, ConfigurableChatModelFactory models, ObjectMapper mapper,
                                   ObjectProvider<AgentRunEventPublisher> publishers) {
@@ -29,21 +27,25 @@ public class ProblemAnalysisPlanner {
     }
 
     public ProblemAnalysisPlan analyze(InteractionRequest request, InteractionContext context, SkillDefinition agent) {
+        return analyze(request, context, agent, List.of());
+    }
+
+    public ProblemAnalysisPlan analyze(InteractionRequest request, InteractionContext context, SkillDefinition agent,
+                                       List<Map<String, Object>> selectedToolPurposes) {
         ProblemAnalysisPlan plan;
-        checkCancellation(request);
+        InteractionExecution.checkCancellation(request);
         publishState(request, "RUNNING", null);
         try {
             // The task already owns its worker and cancellation. A second executor plus a local
             // wait timeout detached live model work and incorrectly completed its parent task.
-            plan = infer(request, context, agent);
-            checkCancellation(request);
+            plan = infer(request, context, agent, selectedToolPurposes);
+            InteractionExecution.checkCancellation(request);
         } catch (CancellationException cancelled) {
             publishState(request, "CANCELLED", null);
             throw cancelled;
         } catch (Exception unavailable) {
-            if (interrupted(unavailable)) Thread.currentThread().interrupt();
             try {
-                checkCancellation(request);
+                InteractionExecution.propagateCancellation(request, unavailable);
             } catch (CancellationException cancelled) {
                 publishState(request, "CANCELLED", null);
                 throw cancelled;
@@ -69,20 +71,7 @@ public class ProblemAnalysisPlanner {
         }
     }
 
-    private static void checkCancellation(InteractionRequest request) {
-        Object cancellation = request.getToolInput() == null ? null : request.getToolInput().get("__agentCancellation");
-        if (Thread.currentThread().isInterrupted()
-            || cancellation instanceof java.util.function.BooleanSupplier signal && signal.getAsBoolean())
-            throw new CancellationException("Problem analysis cancelled");
-    }
-
-    private static boolean interrupted(Throwable failure) {
-        for (Throwable cause = failure; cause != null; cause = cause.getCause())
-            if (cause instanceof InterruptedException || cause instanceof CancellationException) return true;
-        return false;
-    }
-
-    private ProblemAnalysisPlan infer(InteractionRequest request, InteractionContext context, SkillDefinition agent) throws Exception {
+    private ProblemAnalysisPlan infer(InteractionRequest request, InteractionContext context, SkillDefinition agent, List<Map<String, Object>> selectedToolPurposes) throws Exception {
         String question = request.getQuery();
         if (question == null || question.isBlank() || question.length() > 24000)
             throw new IllegalArgumentException("Invalid planning question");
@@ -90,7 +79,7 @@ public class ProblemAnalysisPlanner {
             .skip(Math.max(0, context.history().size() - 8)).filter(Objects::nonNull)
             .map(item -> Map.of("role", bounded(item.role(), 40), "content", bounded(item.content(), 1500))).toList();
         String input = mapper.writeValueAsString(Map.of("question", question, "history", history,
-            "selectedToolPurposes", toolPolicyResolver == null ? List.of() : toolPolicyResolver.planningToolPurposes(request, agent),
+            "selectedToolPurposes", selectedToolPurposes,
             "conversationSummary", bounded(context.conversationSummary(), 3000),
             "agentDescription", bounded(agent.description(), 1500),
             "requestedWorkflowHint", bounded(request.getToolInput() == null ? "" :

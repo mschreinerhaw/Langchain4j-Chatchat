@@ -26,13 +26,16 @@ public final class CapabilityWorkflowRuntime {
         } else {
             if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
             response = Objects.requireNonNull(provider.execute().get(), "Capability provider returned no result");
+            if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
         }
         Map<String, Object> metadata = new LinkedHashMap<>(response.getMetadata() == null ? Map.of() : response.getMetadata());
         if (!metadata.containsKey(WorkflowOutcome.METADATA_KEY))
-            metadata.put(WorkflowOutcome.METADATA_KEY, evaluateExistingRuntime(plan, response, metadata));
+            metadata.put(WorkflowOutcome.METADATA_KEY, evaluateExistingRuntime(plan.family(), response, metadata));
         metadata.put("workflowFamily", plan.family().name());
         metadata.put("capabilityPlan", plan);
-        metadata.put("runtimeLifecycle", CapabilityWorkflowPlan.LIFECYCLE);
+        metadata.put("runtimeLifecycleDefinition", CapabilityWorkflowPlan.LIFECYCLE);
+        metadata.put("runtimeLifecycle", provider == null ? List.of("RESOLVE_CAPABILITY", "EVALUATE", "COMPLETE")
+            : List.of("RESOLVE_CAPABILITY", "EXECUTE", "EVALUATE", "COMPLETE"));
         metadata.put("runtimeWorkflowProtocolVersion", "capability_workflow.v1");
         metadata.put("capabilityProvider", provider == null ? "NONE" : provider.id());
         if (provider != null) {
@@ -60,7 +63,18 @@ public final class CapabilityWorkflowRuntime {
         response.setMetadata(metadata);
     }
 
-    private WorkflowOutcome evaluateExistingRuntime(CapabilityWorkflowPlan plan, InteractionResponse response, Map<String, Object> metadata) {
+    /** Native runtimes own their plan; normalize their evaluation without fabricating a family. */
+    public static void normalizeOutcome(InteractionResponse response) {
+        Objects.requireNonNull(response, "Workflow returned no response");
+        Map<String, Object> metadata = new LinkedHashMap<>(response.getMetadata() == null ? Map.of() : response.getMetadata());
+        if (!metadata.containsKey(WorkflowOutcome.METADATA_KEY))
+            metadata.put(WorkflowOutcome.METADATA_KEY, evaluateExistingRuntime(null, response, metadata));
+        response.setMetadata(metadata);
+        projectOutcome(response);
+    }
+
+    private static WorkflowOutcome evaluateExistingRuntime(com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily family,
+            InteractionResponse response, Map<String, Object> metadata) {
         Map<?, ?> agent = metadata.get("agent") instanceof Map<?, ?> map ? map : Map.of();
         String status = String.valueOf(agent.get("publicStatus")).toUpperCase(Locale.ROOT);
         String reason = String.valueOf(agent.get("stopReason"));
@@ -77,10 +91,10 @@ public final class CapabilityWorkflowRuntime {
             return new WorkflowOutcome(WorkflowOutcome.Type.FAILED, reason, List.of(), List.of(), false);
         if (Boolean.TRUE.equals(agent.get("fatalExecutionBlocked")) || Boolean.TRUE.equals(agent.get("mandatoryWorkflowBlocked")))
             return new WorkflowOutcome(WorkflowOutcome.Type.INSUFFICIENT_EVIDENCE, "REQUIRED_CAPABILITY_BLOCKED", List.of("required_execution"), List.of(), false);
-        if ("SUCCESS".equals(status) && plan.family() == com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.ACTION
+        if ("SUCCESS".equals(status) && family == com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.ACTION
             && (response.getToolTraces() == null || response.getToolTraces().stream().noneMatch(trace -> trace != null && trace.isSuccess())))
             return new WorkflowOutcome(WorkflowOutcome.Type.INSUFFICIENT_EVIDENCE, "ACTION_RESULT_NOT_VERIFIED", List.of("action_verify"), List.of(), false);
-        if ("SUCCESS".equals(status) && plan.family() == com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.DOCUMENT
+        if ("SUCCESS".equals(status) && family == com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.DOCUMENT
             && (response.getSources() == null || response.getSources().isEmpty()))
             return new WorkflowOutcome(WorkflowOutcome.Type.INSUFFICIENT_EVIDENCE, "DOCUMENT_EVIDENCE_MISSING", List.of("evidence_verify"), List.of(), false);
         if ("SUCCESS".equals(status) && content)

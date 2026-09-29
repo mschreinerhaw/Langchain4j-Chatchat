@@ -31,11 +31,8 @@ class ProblemAnalysisPlannerTest {
         var model = mock(ChatModel.class);
         when(model.chat(anyString())).thenReturn("```json\r\n" + READY.replace("ASSET_USAGE_GUIDANCE", "DIRECT_ANSWER") + "\r\n```");
         var planner = new ProblemAnalysisPlanner(model, mock(ConfigurableChatModelFactory.class), new ObjectMapper(), mock(ObjectProvider.class));
-        var policy = mock(AgentToolPolicyResolver.class);
-        org.springframework.test.util.ReflectionTestUtils.setField(planner, "toolPolicyResolver", policy);
-        when(policy.planningToolPurposes(any(), any())).thenReturn(List.of(Map.of("tool", "opaque-id", "data_type", "TEMPLATE_QUERY")));
         var plan = planner.analyze(InteractionRequest.builder().query("你好").build(),
-            InteractionContext.builder().build(), mock(SkillDefinition.class));
+            InteractionContext.builder().build(), mock(SkillDefinition.class), List.of(Map.of("tool", "opaque-id", "data_type", "TEMPLATE_QUERY")));
         assertThat(plan.status()).isEqualTo(ProblemAnalysisPlan.Status.READY);
         assertThat(new CapabilityWorkflowRouter().route(plan)).isEqualTo(RuntimeWorkflowFamily.DIRECT_ANSWER);
         verify(model).chat(argThat((String prompt) -> prompt.contains("selectedToolPurposes")

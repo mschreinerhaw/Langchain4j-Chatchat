@@ -154,47 +154,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
                 skill.id(), skill.defaultMode());
             return roleChatModeHandler.handle(request, context);
         }
-        if (context.problemAnalysisPlan() == null && !AgentToolPolicyResolver.hasSelectedCapabilities(request, skill)) {
-            var directPlan = com.chatchat.common.runtime.capability.CapabilityWorkflowPlan.forFamily(
-                com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.DIRECT_ANSWER);
-            var providers = new ArrayList<com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.Provider>();
-            if (directAnswerWorkflow != null) providers.add(new com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.Provider(
-                "direct-answer", com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.ProviderKind.NATIVE_RUNTIME,
-                directPlan.requiredCapabilities(), () -> directAnswerWorkflow.execute(request, context, skill)));
-            return new com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime().execute(directPlan, providers);
-        }
-        if (context.problemAnalysisPlan() == null && toolPolicyResolver.usesInterpretationPlanning(request, skill)) {
-            return executeGovernedAgent(request, context, skill, null);
-        }
-        var understanding = context.problemAnalysisPlan() != null ? context.problemAnalysisPlan()
-            : problemAnalysisPlanner == null ? com.chatchat.common.runtime.capability.ProblemAnalysisPlan.unavailable()
-            : problemAnalysisPlanner.analyze(request, context, skill);
-        if (!com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.executable(understanding))
-            return com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.blockedResponse(understanding);
-        var family = new com.chatchat.common.runtime.capability.CapabilityWorkflowRouter().route(understanding);
-        var plannedContext = context.toBuilder().problemAnalysisPlan(understanding).build();
-        var plan = com.chatchat.common.runtime.capability.CapabilityWorkflowPlan.forFamily(family);
-        var providers = new java.util.ArrayList<com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.Provider>();
-        if (family == com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.DIRECT_ANSWER) {
-            if (directAnswerWorkflow != null) providers.add(new com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.Provider(
-                "direct-answer", com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.ProviderKind.NATIVE_RUNTIME,
-                plan.requiredCapabilities(), () -> directAnswerWorkflow.execute(request, plannedContext, skill)));
-        } else if (family == com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.ASSET_GUIDANCE) {
-            if (assetGuidance != null) providers.add(new com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.Provider(
-                "asset-metadata-workflow", com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.ProviderKind.MCP_WORKFLOW,
-                plan.requiredCapabilities(), () -> assetGuidance.execute(request, plannedContext, skill)));
-        } else {
-            // Skills enrich the original planner below. They must not replace its fixed MCP
-            // workflow, InterpretationPlan validation, or InterpretationAnalysisGraph execution.
-            providers.add(new com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.Provider(
-                "governed-" + family.name().toLowerCase(java.util.Locale.ROOT),
-                family == com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.DOCUMENT
-                    ? com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.ProviderKind.DOCUMENT_RETRIEVAL
-                    : com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.ProviderKind.NATIVE_RUNTIME,
-                plan.requiredCapabilities(), () -> executeGovernedAgent(request, plannedContext, skill, understanding)));
-        }
-        return com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.attach(
-            new com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime().execute(plan, providers), understanding);
+        return new com.chatchat.chat.interaction.service.InteractionWorkflowCoordinator(
+            toolPolicyResolver, problemAnalysisPlanner, directAnswerWorkflow, assetGuidance)
+            .execute(request, context, skill,
+                (plannedContext, understanding) -> executeGovernedAgent(request, plannedContext, skill, understanding));
     }
 
     private InteractionResponse executeGovernedAgent(InteractionRequest request, InteractionContext context, SkillDefinition skill,

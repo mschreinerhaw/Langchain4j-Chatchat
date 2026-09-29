@@ -30,6 +30,32 @@ import static org.mockito.Mockito.when;
 class RoleChatModeHandlerTest {
 
     @Test
+    void roleConversationWithoutProblemPlanAnswersAndRejectsLateCancelledResult() {
+        var model = mock(ChatModel.class);
+        var catalog = mock(SkillCatalogService.class);
+        var role = mock(SkillDefinition.class);
+        when(role.defaultMode()).thenReturn("role_chat");
+        when(catalog.resolve("role")).thenReturn(role);
+        when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("role answer");
+        var handler = new RoleChatModeHandler(model, mock(ConfigurableChatModelFactory.class), catalog,
+            mock(KnowledgeRuntimePort.class));
+        var cancelled = new java.util.concurrent.atomic.AtomicBoolean();
+        var request = InteractionRequest.builder().skillId("role").query("hello")
+            .toolInput(Map.of("__agentCancellation", (java.util.function.BooleanSupplier) cancelled::get)).build();
+        var context = InteractionContext.builder().build();
+        var response = handler.handle(request, context);
+        assertThat(response.getAnswer()).isEqualTo("role answer");
+        assertThat(response.getMetadata()).doesNotContainKey("problemAnalysisPlan");
+        assertThat(((Map<?, ?>) response.getMetadata().get("agent")).get("publicStatus")).isEqualTo("SUCCESS");
+        when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenAnswer(invocation -> {
+            cancelled.set(true);
+            return "late answer";
+        });
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> handler.handle(request, context))
+            .isInstanceOf(java.util.concurrent.CancellationException.class);
+    }
+
+    @Test
     void routesAndAppliesAuthorizedBoundSkillsWithAuditableProjection() {
         ChatModel model = mock(ChatModel.class);
         ConfigurableChatModelFactory modelFactory = mock(ConfigurableChatModelFactory.class);

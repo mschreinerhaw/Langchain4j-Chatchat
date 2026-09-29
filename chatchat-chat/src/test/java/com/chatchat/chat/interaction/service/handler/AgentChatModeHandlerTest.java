@@ -7,6 +7,7 @@ import com.chatchat.chat.interaction.model.InteractionContext;
 import com.chatchat.chat.interaction.model.InteractionMode;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.service.AgentToolPolicyResolver;
+import com.chatchat.chat.interaction.service.WorkflowEntryPlan;
 import com.chatchat.chat.interaction.service.ConversationMemoryService;
 import com.chatchat.chat.skills.catalog.SkillCatalogService;
 import com.chatchat.chat.skills.domain.planning.DomainSkillPlanningRouter;
@@ -50,7 +51,7 @@ class AgentChatModeHandlerTest {
         when(catalog.resolve("ops")).thenReturn(agent);
         var request = InteractionRequest.builder().skillId("ops").query("分析指定客户的交易偏好")
             .toolInput(Map.of("workflowFamily", "ASSET_GUIDANCE")).build();
-        when(policies.usesInterpretationPlanning(request, agent)).thenReturn(true);
+        when(policies.planningSnapshot(request, agent)).thenReturn(WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.GOVERNED_RUNTIME, "DECLARED_EXECUTION_CONTRACT"));
         when(policies.resolve(request, agent)).thenReturn(new AgentToolPolicyResolver.ToolPolicy(
             List.of("opaque_template_query"), List.of(), List.of("opaque_template_query"), true, false,
             List.of(), List.of("opaque_template_query"), Map.of(), List.of()));
@@ -120,7 +121,9 @@ class AgentChatModeHandlerTest {
             return com.chatchat.chat.interaction.model.InteractionResponse.builder().answer("子流程返回")
                 .metadata(Map.of("agent", Map.of("publicStatus", "SUCCESS"))).build();
         });
-        var handler = new AgentChatModeHandler(mock(AgentOrchestrator.class), catalog, mock(AgentToolPolicyResolver.class));
+        var policies = mock(AgentToolPolicyResolver.class);
+        when(policies.planningSnapshot(any(), any())).thenReturn(WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.PROBLEM_ANALYSIS, "SEMANTIC_WORKFLOW_SELECTION"));
+        var handler = new AgentChatModeHandler(mock(AgentOrchestrator.class), catalog, policies);
         org.springframework.test.util.ReflectionTestUtils.setField(handler, "problemAnalysisPlanner", planner);
         org.springframework.test.util.ReflectionTestUtils.setField(handler, "assetGuidance", guidance);
         var executor = java.util.concurrent.Executors.newSingleThreadExecutor();
@@ -179,7 +182,8 @@ class AgentChatModeHandlerTest {
             .toolInput(Map.of("workflowFamily", "ACTION")).build();
         var context = InteractionContext.builder().mode(InteractionMode.AGENT_CHAT).build();
         var understanding = plan(com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.ASSET_GUIDANCE);
-        when(planner.analyze(request, context, agent)).thenReturn(understanding);
+        when(policies.planningSnapshot(request, agent)).thenReturn(WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.PROBLEM_ANALYSIS, "SEMANTIC_WORKFLOW_SELECTION"));
+        when(planner.analyze(request, context, agent, List.of())).thenReturn(understanding);
         when(guidance.execute(eq(request), any(), eq(agent))).thenReturn(
             com.chatchat.chat.interaction.model.InteractionResponse.builder().answer("指导").build());
         var handler = new AgentChatModeHandler(orchestrator, catalog, policies);
@@ -187,11 +191,11 @@ class AgentChatModeHandlerTest {
         org.springframework.test.util.ReflectionTestUtils.setField(handler, "assetGuidance", guidance);
         var response = handler.handle(request, context);
         var ordered = org.mockito.Mockito.inOrder(planner, guidance);
-        ordered.verify(planner).analyze(request, context, agent);
+        ordered.verify(planner).analyze(request, context, agent, List.of());
         ordered.verify(guidance).execute(eq(request), org.mockito.ArgumentMatchers.argThat(value -> value.problemAnalysisPlan() == understanding), eq(agent));
         assertThat(response.getMetadata()).containsEntry("problemAnalysisPlan", understanding).containsEntry("workflowFamily", "ASSET_GUIDANCE");
         org.mockito.Mockito.verifyNoInteractions(orchestrator);
-        verify(policies).usesInterpretationPlanning(request, agent);
+        verify(policies).planningSnapshot(request, agent);
     }
 
     @Test
@@ -200,6 +204,7 @@ class AgentChatModeHandlerTest {
         var orchestrator = mock(AgentOrchestrator.class);
         var policies = mock(AgentToolPolicyResolver.class);
         when(catalog.resolve("ops")).thenReturn(skill(List.of("selected_template_query")));
+        when(policies.planningSnapshot(any(), any())).thenReturn(WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.PROBLEM_ANALYSIS, "SEMANTIC_WORKFLOW_SELECTION"));
         var response = new AgentChatModeHandler(orchestrator, catalog, policies).handle(
             InteractionRequest.builder().skillId("ops").query("执行分析").build(), InteractionContext.builder().build());
         assertThat(response.getMetadata()).containsKey("problemAnalysisPlan").doesNotContainKey("workflowFamily");

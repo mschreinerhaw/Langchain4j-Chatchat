@@ -145,29 +145,30 @@ public class AgentToolPolicyResolver {
 
     public record DiscoveryToolPolicy(List<String> availableTools, int boundToolCount, int eligibleToolCount) {}
 
-    /** Metadata-only view before semantic planning: no candidate ranking or tool execution. */
-    public List<Map<String, Object>> planningToolPurposes(InteractionRequest request, SkillDefinition skill) {
-        return selectedPlanningMetadata(request, skill).stream().limit(64).map(meta -> {
+    /** Immutable entry view; execution still resolves and authorizes tools independently. */
+    public WorkflowEntryPlan planningSnapshot(InteractionRequest request, SkillDefinition skill) {
+        if (!hasSelectedCapabilities(request, skill))
+            return WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.DIRECT_ANSWER, "NO_SELECTED_CAPABILITIES");
+        List<ToolMetadata> selected = selectedPlanningMetadata(request, skill);
+        boolean governed = !workflowSteps(skill).isEmpty()
+            || skill != null && skill.defaultDataAsset() != null && Boolean.TRUE.equals(skill.defaultDataAsset().enabled())
+            || selected.stream().anyMatch(meta -> {
+                var role = ToolWorkflowContract.declaredRole(meta).orElse(ToolWorkflowRole.DIRECT);
+                String purpose = com.chatchat.common.tool.ToolDataType.declared(meta);
+                return role == ToolWorkflowRole.TEMPLATE_DISCOVERY || role == ToolWorkflowRole.TEMPLATE_EXECUTION
+                    || Set.of("TEMPLATE_QUERY", "DATA_FETCH", "ACTION_EXECUTION").contains(purpose == null ? "" : purpose);
+            });
+        List<Map<String, Object>> purposes = selected.stream().limit(64).map(meta -> {
             String purpose = com.chatchat.common.tool.ToolDataType.declared(meta);
             Map<String, Object> item = new LinkedHashMap<>();
-            item.put("tool", meta.getId());
+            item.put("tool", meta.getId() == null ? "" : meta.getId());
             item.put("data_type", purpose == null ? "UNKNOWN" : purpose.substring(0, Math.min(200, purpose.length())));
             String description = meta.getDescription();
             item.put("description", description == null ? "" : description.substring(0, Math.min(500, description.length())));
             return item;
         }).toList();
-    }
-
-    /** Existing executable contracts own planning; a tool-free front planner cannot veto them. */
-    public boolean usesInterpretationPlanning(InteractionRequest request, SkillDefinition skill) {
-        if (!workflowSteps(skill).isEmpty()
-            || skill != null && skill.defaultDataAsset() != null && Boolean.TRUE.equals(skill.defaultDataAsset().enabled())) return true;
-        return selectedPlanningMetadata(request, skill).stream().anyMatch(meta -> {
-            var role = ToolWorkflowContract.declaredRole(meta).orElse(ToolWorkflowRole.DIRECT);
-            String purpose = com.chatchat.common.tool.ToolDataType.declared(meta);
-            return role == ToolWorkflowRole.TEMPLATE_DISCOVERY || role == ToolWorkflowRole.TEMPLATE_EXECUTION
-                || Set.of("TEMPLATE_QUERY", "DATA_FETCH", "ACTION_EXECUTION").contains(purpose == null ? "" : purpose);
-        });
+        return new WorkflowEntryPlan(governed ? WorkflowEntryPlan.Owner.GOVERNED_RUNTIME : WorkflowEntryPlan.Owner.PROBLEM_ANALYSIS,
+            governed ? "DECLARED_EXECUTION_CONTRACT" : "SEMANTIC_WORKFLOW_SELECTION", purposes);
     }
 
     private List<ToolMetadata> selectedPlanningMetadata(InteractionRequest request, SkillDefinition skill) {

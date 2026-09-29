@@ -10,6 +10,16 @@ Entry routing preserves the existing owner of planning:
   A generic front planner must not veto this path because a standalone data-fetch tool is absent.
 - Other selected capabilities: generate a workflow-independent problem analysis plan before selecting a workflow.
 
+`WorkflowEntryPlan` captures that responsibility and the selected tool-purpose snapshot once.
+`InteractionWorkflowCoordinator` owns the entry dispatch. The problem planner receives this
+snapshot explicitly and no longer reads the registry itself. Execution still resolves and
+authorizes current capabilities; an entry snapshot is not permission to execute.
+
+`InteractionExecution` is a request-owned synchronous scope shared with role conversation.
+It checks cancellation before and after child calls, rejects completion inside a live child
+or after an exception, and projects the final outcome for every branch, including the native
+runtime. Native execution does not receive an invented front plan or workflow family.
+
 The generic path is:
 
 `Question + conversation context → PROBLEM_ANALYSIS_PLAN → SELECT_WORKFLOW → PLAN → RESOLVE_CAPABILITY → EXECUTE → EVALUATE → COMPLETE`
@@ -89,13 +99,17 @@ Action success additionally requires a successful tool record, and Document succ
 requires sources. Existing runtime verification remains authoritative for the
 underlying operation. Time/model budgets and confirmation are preserved.
 
-Metadata also exposes `problemAnalysisPlan`, `workflowFamily`, `capabilityPlan`, `capabilityProvider`,
-`capabilityProviderKind`, and `runtimeWorkflowProtocolVersion=capability_workflow.v1`.
-`runtimeLifecycle` describes the protocol stages; it is not a fabricated execution
-event history. Existing pipeline events remain the actual execution record.
-Async runs emit `PROBLEM_ANALYSIS_PLAN` before selecting/executing a workflow.
-Role-chat also plans before selecting an analysis enhancement, but retains its
-no-MCP execution boundary. Plain LLM chat and explicitly selected direct-tool calls
+Metadata exposes `workflowEntryPlan` and the actual completed entry phases in `runtimeLifecycle`
+and `runtimeExecution.phases`. `runtimeLifecycleDefinition` contains the protocol definition;
+it is not an execution history. A phase's `COMPLETED` state means its call returned, while
+`workflowOutcome` describes whether the returned result is usable, failed or requires input.
+Existing provider events remain the detailed execution record inside each composite workflow.
+The semantic workflow path additionally exposes `problemAnalysisPlan`, `workflowFamily`,
+`capabilityPlan`, `capabilityProvider`, `capabilityProviderKind`, and
+`runtimeWorkflowProtocolVersion=capability_workflow.v1`.
+Only runs using the front planner emit `PROBLEM_ANALYSIS_PLAN` observations.
+Role-chat retains its knowledge/domain-skill context and direct model conversation without a
+generic workflow-planning gate. Plain LLM chat and explicitly selected direct-tool calls
 are not automatically converted into these Agent workflows.
 
 No database migration is required. Rebuild and deploy the backend to activate the

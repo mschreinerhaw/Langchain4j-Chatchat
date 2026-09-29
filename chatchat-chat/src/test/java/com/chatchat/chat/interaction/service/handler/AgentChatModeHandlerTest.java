@@ -40,6 +40,58 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentChatModeHandlerTest {
+    @Test void configuredTemplateWorkflowGoesToNativePlannerWithoutFrontPlannerVeto() {
+        var catalog = mock(SkillCatalogService.class);
+        var orchestrator = mock(AgentOrchestrator.class);
+        var policies = mock(AgentToolPolicyResolver.class);
+        var planner = mock(com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.class);
+        var guidance = mock(com.chatchat.chat.asset.AssetGuidanceInteractionBridge.class);
+        var agent = skill(List.of("opaque_template_query"));
+        when(catalog.resolve("ops")).thenReturn(agent);
+        var request = InteractionRequest.builder().skillId("ops").query("分析指定客户的交易偏好")
+            .toolInput(Map.of("workflowFamily", "ASSET_GUIDANCE")).build();
+        when(policies.usesInterpretationPlanning(request, agent)).thenReturn(true);
+        when(policies.resolve(request, agent)).thenReturn(new AgentToolPolicyResolver.ToolPolicy(
+            List.of("opaque_template_query"), List.of(), List.of("opaque_template_query"), true, false,
+            List.of(), List.of("opaque_template_query"), Map.of(), List.of()));
+        when(orchestrator.executeAgent(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+            anyInt(), any(), anyBoolean(), any())).thenReturn(agentResult("专业分析返回"));
+        var handler = new AgentChatModeHandler(orchestrator, catalog, policies);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "problemAnalysisPlanner", planner);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "assetGuidance", guidance);
+        var response = handler.handle(request, InteractionContext.builder().requestId("native-planning").build());
+        assertThat(response.getAnswer()).isEqualTo("专业分析返回");
+        verify(orchestrator).executeAgent(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+            anyInt(), any(), anyBoolean(), org.mockito.ArgumentMatchers.argThat(attributes ->
+                !attributes.containsKey("problemAnalysisPlan") && !attributes.containsKey("capabilityPlan")));
+        org.mockito.Mockito.verifyNoInteractions(planner, guidance);
+    }
+    @Test void unboundAgentAnswersDirectlyWithoutPlanningOrAssetDiscovery() {
+        var catalog = mock(SkillCatalogService.class);
+        var orchestrator = mock(AgentOrchestrator.class);
+        var policies = mock(AgentToolPolicyResolver.class);
+        var planner = mock(com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.class);
+        var guidance = mock(com.chatchat.chat.asset.AssetGuidanceInteractionBridge.class);
+        var direct = mock(com.chatchat.chat.interaction.service.DirectAnswerWorkflow.class);
+        var agent = skillWithoutWebSearch();
+        when(catalog.resolve("ops")).thenReturn(agent);
+        var request = InteractionRequest.builder().skillId("ops").query("资产运营管理怎么做？").build();
+        var context = InteractionContext.builder().build();
+        when(direct.execute(request, context, agent)).thenReturn(
+            com.chatchat.chat.interaction.model.InteractionResponse.builder().answer("可以从资产盘点和质量管理开始。")
+                .metadata(Map.of("workflowOutcome", new com.chatchat.common.runtime.capability.WorkflowOutcome(
+                    com.chatchat.common.runtime.capability.WorkflowOutcome.Type.READY_TO_ANSWER,
+                    "DIRECT_ANSWER_COMPLETED", List.of(), List.of(), true))).build());
+        var handler = new AgentChatModeHandler(orchestrator, catalog, policies);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "problemAnalysisPlanner", planner);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "assetGuidance", guidance);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "directAnswerWorkflow", direct);
+        var response = handler.handle(request, context);
+        assertThat(response.getAnswer()).contains("资产盘点");
+        assertThat(response.getMetadata()).containsEntry("workflowFamily", "DIRECT_ANSWER");
+        verify(direct).execute(request, context, agent);
+        org.mockito.Mockito.verifyNoInteractions(planner, guidance, orchestrator, policies);
+    }
     @Test @org.junit.jupiter.api.Timeout(15)
     @SuppressWarnings("unchecked")
     void entryWaitsForBothProblemAnalysisAndSelectedChildWorkflow() throws Exception {
@@ -59,7 +111,7 @@ class AgentChatModeHandlerTest {
             mock(com.chatchat.agents.model.ConfigurableChatModelFactory.class), mapper,
             mock(org.springframework.beans.factory.ObjectProvider.class));
         var catalog = mock(SkillCatalogService.class);
-        var agent = skillWithoutWebSearch();
+        var agent = skill(List.of("selected_template_query"));
         when(catalog.resolve("ops")).thenReturn(agent);
         var guidance = mock(com.chatchat.chat.asset.AssetGuidanceInteractionBridge.class);
         when(guidance.execute(any(), any(), eq(agent))).thenAnswer(invocation -> {
@@ -121,7 +173,7 @@ class AgentChatModeHandlerTest {
         var policies = mock(AgentToolPolicyResolver.class);
         var guidance = mock(com.chatchat.chat.asset.AssetGuidanceInteractionBridge.class);
         var planner = mock(com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.class);
-        var agent = skillWithoutWebSearch();
+        var agent = skill(List.of("selected_template_query"));
         when(catalog.resolve("ops")).thenReturn(agent);
         var request = InteractionRequest.builder().skillId("ops").query("净值比对分析适合什么场景？")
             .toolInput(Map.of("workflowFamily", "ACTION")).build();
@@ -138,7 +190,8 @@ class AgentChatModeHandlerTest {
         ordered.verify(planner).analyze(request, context, agent);
         ordered.verify(guidance).execute(eq(request), org.mockito.ArgumentMatchers.argThat(value -> value.problemAnalysisPlan() == understanding), eq(agent));
         assertThat(response.getMetadata()).containsEntry("problemAnalysisPlan", understanding).containsEntry("workflowFamily", "ASSET_GUIDANCE");
-        org.mockito.Mockito.verifyNoInteractions(orchestrator, policies);
+        org.mockito.Mockito.verifyNoInteractions(orchestrator);
+        verify(policies).usesInterpretationPlanning(request, agent);
     }
 
     @Test
@@ -146,12 +199,12 @@ class AgentChatModeHandlerTest {
         var catalog = mock(SkillCatalogService.class);
         var orchestrator = mock(AgentOrchestrator.class);
         var policies = mock(AgentToolPolicyResolver.class);
-        when(catalog.resolve("ops")).thenReturn(skillWithoutWebSearch());
+        when(catalog.resolve("ops")).thenReturn(skill(List.of("selected_template_query")));
         var response = new AgentChatModeHandler(orchestrator, catalog, policies).handle(
             InteractionRequest.builder().skillId("ops").query("执行分析").build(), InteractionContext.builder().build());
         assertThat(response.getMetadata()).containsKey("problemAnalysisPlan").doesNotContainKey("workflowFamily");
         assertThat(((Map<?, ?>) response.getMetadata().get("agent")).get("publicStatus")).isEqualTo("FAILED");
-        org.mockito.Mockito.verifyNoInteractions(orchestrator, policies);
+        org.mockito.Mockito.verifyNoInteractions(orchestrator);
     }
 
     @Test

@@ -119,6 +119,11 @@ public class ProblemAnalysisPlanner {
             Use these declarations with the user's objective to choose intent. A template query may support asset guidance
             or discovery before data analysis; its presence alone must not force either workflow.
             Missing, UNKNOWN or unfamiliar data_type is not a default workflow. Do not infer purpose from tool names.
+            This phase only understands the user's objective; capability resolution belongs to the selected workflow.
+            Never request clarification because DATA_FETCH is absent or because template ids or tool configuration are unknown.
+            A template discovery workflow resolves templates and their execution dependencies internally.
+            For a clear analysis objective, return DATA_ANALYSIS and describe needed evidence even if no direct fetch tool is listed.
+            Optional analysis dimensions and output formatting are not prerequisites: use reasonable defaults.
             Do not downgrade requests requiring fresh data, documents or asset metadata to DIRECT_ANSWER.
             Data requirements describe needed evidence, not invented tool names or parameter bindings.
             If the goal or referent is unresolved, use NEEDS_CLARIFICATION and ask a concrete question. Do not invent a default task.

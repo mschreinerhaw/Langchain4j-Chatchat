@@ -2,7 +2,15 @@
 
 ## Unified entry protocol
 
-Agent requests first generate a workflow-independent problem analysis plan, then select a workflow and its capabilities:
+Entry routing preserves the existing owner of planning:
+
+- No selected capabilities: direct model conversation, without a front planning call.
+- Configured MCP steps, bound data assets, or selected template discovery/execution and data-fetch contracts:
+  the governed native runtime owns discovery, binding, `InterpretationPlan`, validation and DAG execution.
+  A generic front planner must not veto this path because a standalone data-fetch tool is absent.
+- Other selected capabilities: generate a workflow-independent problem analysis plan before selecting a workflow.
+
+The generic path is:
 
 `Question + conversation context → PROBLEM_ANALYSIS_PLAN → SELECT_WORKFLOW → PLAN → RESOLVE_CAPABILITY → EXECUTE → EVALUATE → COMPLETE`
 
@@ -25,7 +33,8 @@ into a final response merely because a local wait interval elapsed.
 `CapabilityWorkflowRouter` accepts only a validated `ProblemAnalysisPlan`, never
 raw query text. `toolInput.workflowFamily` is now a preference in the analysis
 input, not an override. Engine configuration does not determine workflow family.
-Missing/invalid plans fail closed; ambiguous questions request clarification.
+On the generic path, missing/invalid plans fail closed; ambiguous user goals request clarification.
+Missing tool configuration, template identifiers and optional output preferences are not user-intent ambiguity.
 There is no keyword fallback or default Data Analysis execution.
 
 Distinct objectives are preserved in the plan. The current atomic-provider

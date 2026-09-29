@@ -147,6 +147,30 @@ public class AgentToolPolicyResolver {
 
     /** Metadata-only view before semantic planning: no candidate ranking or tool execution. */
     public List<Map<String, Object>> planningToolPurposes(InteractionRequest request, SkillDefinition skill) {
+        return selectedPlanningMetadata(request, skill).stream().limit(64).map(meta -> {
+            String purpose = com.chatchat.common.tool.ToolDataType.declared(meta);
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("tool", meta.getId());
+            item.put("data_type", purpose == null ? "UNKNOWN" : purpose.substring(0, Math.min(200, purpose.length())));
+            String description = meta.getDescription();
+            item.put("description", description == null ? "" : description.substring(0, Math.min(500, description.length())));
+            return item;
+        }).toList();
+    }
+
+    /** Existing executable contracts own planning; a tool-free front planner cannot veto them. */
+    public boolean usesInterpretationPlanning(InteractionRequest request, SkillDefinition skill) {
+        if (!workflowSteps(skill).isEmpty()
+            || skill != null && skill.defaultDataAsset() != null && Boolean.TRUE.equals(skill.defaultDataAsset().enabled())) return true;
+        return selectedPlanningMetadata(request, skill).stream().anyMatch(meta -> {
+            var role = ToolWorkflowContract.declaredRole(meta).orElse(ToolWorkflowRole.DIRECT);
+            String purpose = com.chatchat.common.tool.ToolDataType.declared(meta);
+            return role == ToolWorkflowRole.TEMPLATE_DISCOVERY || role == ToolWorkflowRole.TEMPLATE_EXECUTION
+                || Set.of("TEMPLATE_QUERY", "DATA_FETCH", "ACTION_EXECUTION").contains(purpose == null ? "" : purpose);
+        });
+    }
+
+    private List<ToolMetadata> selectedPlanningMetadata(InteractionRequest request, SkillDefinition skill) {
         Map<String, List<String>> byService = new LinkedHashMap<>();
         mcpToolCatalog.registeredTools().forEach(tool -> byService.computeIfAbsent(tool.serviceId(), ignored -> new ArrayList<>())
             .add(tool.localToolName()));
@@ -155,16 +179,7 @@ public class AgentToolPolicyResolver {
         return bound.stream().filter(name -> requested.isEmpty() || requested.contains(name))
             .map(toolRegistry::getToolMetadata).filter(java.util.Objects::nonNull)
             .filter(meta -> meta.isAgentCompatible() && meta.isUserVisible()
-                && "active".equalsIgnoreCase(meta.getPublicationStatus()))
-            .limit(64).map(meta -> {
-                String purpose = com.chatchat.common.tool.ToolDataType.declared(meta);
-                Map<String, Object> item = new LinkedHashMap<>();
-                item.put("tool", meta.getId());
-                item.put("data_type", purpose == null ? "UNKNOWN" : purpose.substring(0, Math.min(200, purpose.length())));
-                String description = meta.getDescription();
-                item.put("description", description == null ? "" : description.substring(0, Math.min(500, description.length())));
-                return item;
-            }).toList();
+                && "active".equalsIgnoreCase(meta.getPublicationStatus())).toList();
     }
 
     private List<String> discoverDefaultTools(String skillId) {
@@ -784,14 +799,31 @@ public class AgentToolPolicyResolver {
      * @param skill the skill value
      * @return whether the condition is satisfied
      */
-    private boolean hasMcpBinding(SkillDefinition skill) {
+    public static boolean hasSelectedCapabilities(InteractionRequest request, SkillDefinition skill) {
+        if (request != null && hasNames(request.getAvailableTools())) return true;
+        if (request != null && request.getToolInput() != null
+            && java.util.stream.Stream.of("webSearch", "documentWorkflow")
+                .anyMatch(key -> Boolean.parseBoolean(String.valueOf(request.getToolInput().get(key))))) return true;
+        return hasMcpBinding(skill) || skill != null && (hasNames(skill.preferredToolPrefixes())
+            || hasNames(skill.boundDocumentIds()) || hasNames(skill.boundDocumentTags())
+            || skill.workflowConfig() != null && java.util.stream.Stream.of("mcpWorkflow", "steps")
+                .anyMatch(key -> skill.workflowConfig().get(key) instanceof List<?> steps && !steps.isEmpty()
+                    || skill.workflowConfig().get(key) instanceof Map<?, ?> workflow && !workflow.isEmpty())
+            || skill.defaultDataAsset() != null && Boolean.TRUE.equals(skill.defaultDataAsset().enabled()));
+    }
+
+    private static boolean hasNames(List<String> names) {
+        return names != null && names.stream().anyMatch(name -> name != null && !name.isBlank());
+    }
+
+    private static boolean hasMcpBinding(SkillDefinition skill) {
         if (skill == null) {
             return false;
         }
-        if (skill.boundMcpServiceIds() != null && !skill.boundMcpServiceIds().isEmpty()) {
+        if (hasNames(skill.boundMcpServiceIds())) {
             return true;
         }
-        if (skill.boundMcpToolNames() != null && !skill.boundMcpToolNames().isEmpty()) {
+        if (hasNames(skill.boundMcpToolNames())) {
             return true;
         }
         return skill.toolConfigs() != null && skill.toolConfigs().stream()

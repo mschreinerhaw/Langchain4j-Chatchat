@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Map;
 
-/** Tool-free conversation after semantic routing has established that no external evidence is required. */
+/** Tool-free conversation when no capabilities were selected or semantic routing selected a direct answer. */
 @Component
 @lombok.extern.slf4j.Slf4j
 public class DirectAnswerWorkflow {
@@ -35,7 +35,10 @@ public class DirectAnswerWorkflow {
 
                 Answer the user's conversational or general-knowledge question directly using the conversation context.
                 No tools or external evidence have been acquired in this workflow. Do not claim to have queried assets,
-                executed templates, retrieved documents or verified current data. If external evidence is needed, say so.
+                executed templates, retrieved documents or verified current data.
+                Provide a useful answer from general knowledge and supplied context even when no MCP tools are selected.
+                Do not require tool selection or Agent configuration as a prerequisite for answering.
+                If the requested facts need unavailable external evidence, explain the limitation without inventing facts.
                 Conversation data:
                 """ + input;
             if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();

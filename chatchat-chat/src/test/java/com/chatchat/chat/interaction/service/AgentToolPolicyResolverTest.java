@@ -17,6 +17,42 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AgentToolPolicyResolverTest {
+    @Test void templateDiscoveryOwnsPlanningWithoutAnyDataFetchPublication() {
+        var registry = mock(ToolRegistry.class);
+        var skills = mock(SkillCatalogService.class);
+        var catalog = mock(McpToolCatalogQueryPort.class);
+        var agent = mock(SkillDefinition.class);
+        when(catalog.registeredTools()).thenReturn(List.of());
+        when(registry.getAllToolNames()).thenReturn(java.util.Set.of("opaque"));
+        when(skills.resolveTools(org.mockito.ArgumentMatchers.eq(agent), org.mockito.ArgumentMatchers.anyCollection(),
+            org.mockito.ArgumentMatchers.anyMap())).thenReturn(List.of("opaque"));
+        when(registry.getToolMetadata("opaque")).thenReturn(ToolMetadata.builder().id("opaque")
+            .metadata(Map.of("workflowContract", com.chatchat.common.tool.ToolWorkflowContract.declaration(
+                com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY, "test-template", "query"))).build());
+        var resolver = new AgentToolPolicyResolver(registry, skills, catalog);
+        assertThat(resolver.usesInterpretationPlanning(InteractionRequest.builder().build(), agent)).isTrue();
+        assertThat(resolver.usesInterpretationPlanning(InteractionRequest.builder().availableTools(List.of("unselected")).build(), agent)).isFalse();
+        when(registry.getToolMetadata("opaque")).thenReturn(ToolMetadata.builder().id("opaque").dataType("ASSET_QUERY").build());
+        assertThat(resolver.usesInterpretationPlanning(InteractionRequest.builder().build(), agent)).isFalse();
+        when(agent.workflowConfig()).thenReturn(Map.of("mcpWorkflow", List.of(Map.of("tool", "opaque"))));
+        assertThat(resolver.usesInterpretationPlanning(InteractionRequest.builder().build(), agent)).isTrue();
+    }
+    @Test void selectionIsBasedOnConfigurationNotRegistryAvailability() {
+        var request = InteractionRequest.builder().build();
+        var agent = mock(SkillDefinition.class);
+        assertThat(AgentToolPolicyResolver.hasSelectedCapabilities(request, agent)).isFalse();
+        when(agent.boundMcpToolNames()).thenReturn(List.of("selected_tool"));
+        assertThat(AgentToolPolicyResolver.hasSelectedCapabilities(request, agent)).isTrue();
+        when(agent.boundMcpToolNames()).thenReturn(List.of());
+        when(agent.toolConfigs()).thenReturn(List.of(new com.chatchat.chat.skills.model.SkillToolConfig(
+            "disabled_tool", "", "", "", List.of(), "", 1, false)));
+        assertThat(AgentToolPolicyResolver.hasSelectedCapabilities(request, agent)).isFalse();
+        request.setAvailableTools(List.of("requested_tool"));
+        assertThat(AgentToolPolicyResolver.hasSelectedCapabilities(request, agent)).isTrue();
+        request.setAvailableTools(List.of());
+        when(agent.boundDocumentIds()).thenReturn(List.of("document-1"));
+        assertThat(AgentToolPolicyResolver.hasSelectedCapabilities(request, agent)).isTrue();
+    }
     @Test
     void planningPurposesUseOnlySelectedActiveBindingsAndNeverGuessFromNames() {
         var registry = mock(ToolRegistry.class);

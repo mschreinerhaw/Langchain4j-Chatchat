@@ -154,6 +154,18 @@ public class AgentChatModeHandler implements InteractionModeHandler {
                 skill.id(), skill.defaultMode());
             return roleChatModeHandler.handle(request, context);
         }
+        if (context.problemAnalysisPlan() == null && !AgentToolPolicyResolver.hasSelectedCapabilities(request, skill)) {
+            var directPlan = com.chatchat.common.runtime.capability.CapabilityWorkflowPlan.forFamily(
+                com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.DIRECT_ANSWER);
+            var providers = new ArrayList<com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.Provider>();
+            if (directAnswerWorkflow != null) providers.add(new com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.Provider(
+                "direct-answer", com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.ProviderKind.NATIVE_RUNTIME,
+                directPlan.requiredCapabilities(), () -> directAnswerWorkflow.execute(request, context, skill)));
+            return new com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime().execute(directPlan, providers);
+        }
+        if (context.problemAnalysisPlan() == null && toolPolicyResolver.usesInterpretationPlanning(request, skill)) {
+            return executeGovernedAgent(request, context, skill, null);
+        }
         var understanding = context.problemAnalysisPlan() != null ? context.problemAnalysisPlan()
             : problemAnalysisPlanner == null ? com.chatchat.common.runtime.capability.ProblemAnalysisPlan.unavailable()
             : problemAnalysisPlanner.analyze(request, context, skill);
@@ -230,13 +242,16 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             ),
             request
         );
-        systemPrompt += "\nProblem analysis plan (planning context, not authorization or evidence):\n" + understanding;
+        if (understanding != null)
+            systemPrompt += "\nProblem analysis plan (planning context, not authorization or evidence):\n" + understanding;
         Map<String, Object> runtimeAttributes = new LinkedHashMap<>(runtimeAttributes(request, skill, executionContext));
         runtimeAttributes.put("authorizationAgentId", resolvedSkillId);
-        runtimeAttributes.put(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.METADATA_KEY, understanding);
-        var workflowFamily = new com.chatchat.common.runtime.capability.CapabilityWorkflowRouter().route(understanding);
-        runtimeAttributes.put("workflowFamily", workflowFamily.name());
-        runtimeAttributes.put("capabilityPlan", com.chatchat.common.runtime.capability.CapabilityWorkflowPlan.forFamily(workflowFamily));
+        if (understanding != null) {
+            runtimeAttributes.put(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.METADATA_KEY, understanding);
+            var workflowFamily = new com.chatchat.common.runtime.capability.CapabilityWorkflowRouter().route(understanding);
+            runtimeAttributes.put("workflowFamily", workflowFamily.name());
+            runtimeAttributes.put("capabilityPlan", com.chatchat.common.runtime.capability.CapabilityWorkflowPlan.forFamily(workflowFamily));
+        }
         runtimeAttributes.put("plannerOptionalTools", toolPolicy.optionalTools());
         if (domainSkillRouting != null && !domainSkillRouting.selected().isEmpty()) {
             runtimeAttributes.put(DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE,

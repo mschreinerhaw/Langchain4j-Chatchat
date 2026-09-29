@@ -139,6 +139,8 @@ public class ConfiguredRemoteMcpServiceProvider implements McpServiceProvider {
         }
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("serviceName", tool.serviceName());
+        String dataType = com.chatchat.common.tool.ToolDataType.declared(source);
+        if (dataType != null) metadata.put("data_type", dataType);
         metadata.put("backendServiceType", tool.backendServiceType());
         metadata.put("categories", tool.categories());
         metadata.put("tags", tool.tags());
@@ -177,7 +179,7 @@ public class ConfiguredRemoteMcpServiceProvider implements McpServiceProvider {
     private Map<String, Object> safeContractMeta(Object value) {
         Map<String, Object> source = map(value);
         Map<String, Object> safe = new LinkedHashMap<>();
-        List.of("capabilityCode", "providerModule", "contractVersion", "runtimeAction", "readOnly",
+        List.of("data_type", "capabilityCode", "providerModule", "contractVersion", "runtimeAction", "readOnly",
             "technicalType", "backendServiceType", "templateRegistryRequired", "templateSelectionPolicy",
             "templates", "resultSchema", "outputSchema", "toolResultInstruction", "tags",
             "resultKind", "resultSchemaRef", "provenance", "resultEntityKind", "paginationSupported")

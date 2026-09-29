@@ -45,6 +45,8 @@ public class AgentRuntimeGovernanceFactory {
             mergeInto(governance, "output_policy", metadata.getOutputPolicy());
         }
         Map<String, Object> meta = toMeta(source, sourceId, governance);
+        String dataType = com.chatchat.common.tool.ToolDataType.declared(metadata);
+        if (dataType != null) meta.put("data_type", dataType);
         if (metadata != null && metadata.getTimeoutMillis() != null) {
             putAlias(meta, "timeoutMillis", metadata.getTimeoutMillis());
             putAlias(meta, "timeout_ms", metadata.getTimeoutMillis());
@@ -79,7 +81,9 @@ public class AgentRuntimeGovernanceFactory {
             true
         );
         mergeGovernanceJson(governance, config == null ? null : config.getGovernanceJson());
-        return toMeta("external_api", config == null ? null : config.getId(), governance);
+        Map<String, Object> meta = toMeta("external_api", config == null ? null : config.getId(), governance);
+        meta.put("data_type", "read".equals(operationType) ? "DATA_FETCH" : "ACTION_EXECUTION");
+        return meta;
     }
 
     /**
@@ -102,7 +106,9 @@ public class AgentRuntimeGovernanceFactory {
             childMap(governance, "confirmation").put("default", "ask_before_execute");
         }
         mergeGovernanceJson(governance, config == null ? null : config.getGovernanceJson());
-        return toMeta("database_query_config", config == null ? null : config.getId(), governance);
+        Map<String, Object> meta = toMeta("database_query_config", config == null ? null : config.getId(), governance);
+        meta.put("data_type", "DATA_FETCH");
+        return meta;
     }
 
     /**

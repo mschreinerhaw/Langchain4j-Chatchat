@@ -145,6 +145,28 @@ public class AgentToolPolicyResolver {
 
     public record DiscoveryToolPolicy(List<String> availableTools, int boundToolCount, int eligibleToolCount) {}
 
+    /** Metadata-only view before semantic planning: no candidate ranking or tool execution. */
+    public List<Map<String, Object>> planningToolPurposes(InteractionRequest request, SkillDefinition skill) {
+        Map<String, List<String>> byService = new LinkedHashMap<>();
+        mcpToolCatalog.registeredTools().forEach(tool -> byService.computeIfAbsent(tool.serviceId(), ignored -> new ArrayList<>())
+            .add(tool.localToolName()));
+        List<String> bound = normalizeToolNames(skillCatalogService.resolveTools(skill, agentVisibleToolNames(), byService));
+        List<String> requested = normalizeToolNames(request.getAvailableTools());
+        return bound.stream().filter(name -> requested.isEmpty() || requested.contains(name))
+            .map(toolRegistry::getToolMetadata).filter(java.util.Objects::nonNull)
+            .filter(meta -> meta.isAgentCompatible() && meta.isUserVisible()
+                && "active".equalsIgnoreCase(meta.getPublicationStatus()))
+            .limit(64).map(meta -> {
+                String purpose = com.chatchat.common.tool.ToolDataType.declared(meta);
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("tool", meta.getId());
+                item.put("data_type", purpose == null ? "UNKNOWN" : purpose.substring(0, Math.min(200, purpose.length())));
+                String description = meta.getDescription();
+                item.put("description", description == null ? "" : description.substring(0, Math.min(500, description.length())));
+                return item;
+            }).toList();
+    }
+
     private List<String> discoverDefaultTools(String skillId) {
         Map<String, List<String>> mcpToolsByServiceId = new LinkedHashMap<>();
         mcpToolCatalog.registeredTools().forEach(tool ->

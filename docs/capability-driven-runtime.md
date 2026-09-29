@@ -6,12 +6,21 @@ Agent requests first generate a workflow-independent problem analysis plan, then
 
 `Question + conversation context → PROBLEM_ANALYSIS_PLAN → SELECT_WORKFLOW → PLAN → RESOLVE_CAPABILITY → EXECUTE → EVALUATE → COMPLETE`
 
-The front planner makes one bounded model call (30-second timeout, maximum four
-concurrent calls, no waiting queue or retries). It uses the Agent's model binding,
+The front planner executes as an owned child phase on the calling task's worker.
+It publishes `RUNNING` before inference and does not return until the model call
+has settled. There is no separate 30-second wait timeout or four-worker rejection
+pool. Concurrency belongs to the task scheduler; transport timeouts and retries
+belong to the configured model client. Explicit task cancellation propagates as
+cancellation, not a failed or successful plan. It uses the Agent's model binding,
 the question, recent conversation and summary. It emits a structured public plan:
 objective, subject, domain, concise explanation, tasks, evidence/data requirements,
 expected results and any clarification question. It does not select tools or
 execute data acquisition. This is not a private reasoning transcript.
+
+The entry waits for planning before routing, and then for the selected provider's
+execution before evaluation and response publication. An observation completing
+one phase does not complete the parent task. A live child must never be converted
+into a final response merely because a local wait interval elapsed.
 
 `CapabilityWorkflowRouter` accepts only a validated `ProblemAnalysisPlan`, never
 raw query text. `toolInput.workflowFamily` is now a preference in the analysis

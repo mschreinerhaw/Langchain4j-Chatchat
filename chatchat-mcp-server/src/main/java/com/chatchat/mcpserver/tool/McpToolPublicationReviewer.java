@@ -97,7 +97,9 @@ public final class McpToolPublicationReviewer {
     static McpServerFeatures.SyncToolSpecification governedSpecification(ToolPublication publication) {
         McpSchema.Tool source = publication.specification().tool();
         McpToolPublicationDescriptor descriptor = publication.descriptor();
-        Map<String, Object> meta = new LinkedHashMap<>(source.meta() == null ? Map.of() : source.meta());
+        Map<String, Object> meta = McpToolPurposeMetadata.enrich(source.meta());
+        String dataType = com.chatchat.common.tool.ToolDataType.declared(descriptor.metadata());
+        if (dataType != null) meta.put(com.chatchat.common.tool.ToolDataType.METADATA_KEY, dataType);
         String chineseAlias = McpToolChineseAliasResolver.resolve(source.name(), source.title(), meta);
         if (chineseAlias != null) meta.put("chineseAlias", chineseAlias);
         meta.put("toolVersion", descriptor.metadata().getVersion());

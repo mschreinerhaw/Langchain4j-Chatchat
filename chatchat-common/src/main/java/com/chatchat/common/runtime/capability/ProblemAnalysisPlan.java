@@ -7,7 +7,7 @@ public record ProblemAnalysisPlan(Status status, String objective, String subjec
                                   String explanation, List<Task> tasks, String clarificationQuestion) {
     public static final String METADATA_KEY = "problemAnalysisPlan";
     public enum Status { READY, NEEDS_CLARIFICATION, PLANNING_FAILED }
-    public enum Intent { DOCUMENT_UNDERSTANDING, DATA_ANALYSIS, ASSET_USAGE_GUIDANCE, ACTION_EXECUTION }
+    public enum Intent { DIRECT_ANSWER, DOCUMENT_UNDERSTANDING, DATA_ANALYSIS, ASSET_USAGE_GUIDANCE, ACTION_EXECUTION }
     public record Task(String objective, Intent intent, List<String> dataRequirements, String expectedResult) {
         public Task {
             if (objective == null || objective.isBlank() || intent == null || expectedResult == null || expectedResult.isBlank())

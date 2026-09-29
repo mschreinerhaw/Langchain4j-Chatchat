@@ -771,6 +771,7 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
         governance.put("audit", mutableMap("enabled", true, "log_params", true, "log_result_summary", true));
         Map<String, Object> meta = new LinkedHashMap<>(
             governanceFactory.toMeta("sql_gateway", "sql_query_execute", governance, null));
+        meta.put("data_type", "DATA_FETCH");
         meta.put("runtime_action", "confirm_required");
         meta.put("runtimeAction", "confirm_required");
         meta.put(McpToolApplicability.META_KEY, McpToolApplicability.of(

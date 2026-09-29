@@ -28,7 +28,7 @@ public record ToolPublication(
             throw new IllegalArgumentException("Tool specification is required");
         }
         McpSchema.Tool tool = specification.tool();
-        Map<String, Object> meta = tool.meta() == null ? Map.of() : tool.meta();
+        Map<String, Object> meta = McpToolPurposeMetadata.enrich(tool.meta());
         String schemaVersion = text(first(meta, "schemaVersion", "contractVersion", "contract_version"), "1.0.0");
         McpToolPublicationStatus status = McpToolPublicationStatus.parse(
             first(meta, "publicationStatus", "publication_status"));
@@ -39,6 +39,7 @@ public record ToolPublication(
         boolean approved = bool(first(meta, "breakingChangeApproved", "breaking_change_approved"));
         ToolMetadata metadata = ToolMetadata.builder()
             .id(tool.name())
+            .dataType(com.chatchat.common.tool.ToolDataType.declared(meta))
             .title(tool.title())
             .description(tool.description())
             .version(text(first(meta, "toolVersion", "tool_version", "version"), "1.0.0"))

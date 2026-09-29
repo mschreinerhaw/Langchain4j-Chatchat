@@ -17,6 +17,7 @@ public record CapabilityWorkflowPlan(RuntimeWorkflowFamily family, List<Requirem
     }
     public static CapabilityWorkflowPlan forFamily(RuntimeWorkflowFamily family) {
         return switch (family) {
+            case DIRECT_ANSWER -> new CapabilityWorkflowPlan(family, List.of(required("direct_answer")));
             case DOCUMENT -> new CapabilityWorkflowPlan(family, List.of(
                 required("document_scope"), required("document_retrieval", "document_scope"),
                 required("evidence_verify", "document_retrieval"), optional("domain_guidance")));

@@ -11,6 +11,7 @@ final class ProblemPlanFixtures {
     }
     static ProblemAnalysisPlan plan(RuntimeWorkflowFamily family) {
         var intent = switch (family) {
+            case DIRECT_ANSWER -> ProblemAnalysisPlan.Intent.DIRECT_ANSWER;
             case DOCUMENT -> ProblemAnalysisPlan.Intent.DOCUMENT_UNDERSTANDING;
             case DATA_ANALYSIS -> ProblemAnalysisPlan.Intent.DATA_ANALYSIS;
             case ASSET_GUIDANCE -> ProblemAnalysisPlan.Intent.ASSET_USAGE_GUIDANCE;

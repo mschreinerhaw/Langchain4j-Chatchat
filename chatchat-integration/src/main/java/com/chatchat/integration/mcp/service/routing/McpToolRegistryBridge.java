@@ -452,6 +452,8 @@ public class McpToolRegistryBridge {
         }
         if (effectiveMeta != null && !effectiveMeta.isEmpty()) {
             extraMetadata.put("mcpToolMeta", effectiveMeta);
+            String dataType = com.chatchat.common.tool.ToolDataType.declared(effectiveMeta);
+            if (dataType != null) extraMetadata.put(com.chatchat.common.tool.ToolDataType.METADATA_KEY, dataType);
             copyToolResultInstruction(extraMetadata, effectiveMeta);
             for (String key : List.of(McpServiceResult.RESULT_KIND_KEY, McpServiceResult.RESULT_SCHEMA_REF_KEY,
                 McpServiceResult.PROVENANCE_KEY, McpServiceResult.PAGINATION_KEY)) {
@@ -509,6 +511,7 @@ public class McpToolRegistryBridge {
 
         ToolMetadata metadata = ToolMetadata.builder()
             .id(localName)
+            .dataType(com.chatchat.common.tool.ToolDataType.declared(effectiveMeta))
             .title(definition.name())
             .description(definition.description())
             .version("1.0.0")

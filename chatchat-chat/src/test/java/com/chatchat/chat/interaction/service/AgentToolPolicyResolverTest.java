@@ -17,6 +17,32 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AgentToolPolicyResolverTest {
+    @Test
+    void planningPurposesUseOnlySelectedActiveBindingsAndNeverGuessFromNames() {
+        var registry = mock(ToolRegistry.class);
+        var skills = mock(SkillCatalogService.class);
+        var catalog = mock(McpToolCatalogQueryPort.class);
+        var retriever = mock(McpToolCandidateRetriever.class);
+        var agent = mock(SkillDefinition.class);
+        when(agent.id()).thenReturn("agent");
+        var names = List.of("opaque", "document_search", "disabled", "unbound");
+        when(registry.getAllToolNames()).thenReturn(java.util.Set.copyOf(names));
+        when(catalog.registeredTools()).thenReturn(List.of());
+        when(skills.resolveTools(org.mockito.ArgumentMatchers.eq(agent), org.mockito.ArgumentMatchers.anyCollection(),
+            org.mockito.ArgumentMatchers.anyMap())).thenReturn(List.of("opaque", "document_search", "disabled"));
+        when(registry.getToolMetadata("opaque")).thenReturn(ToolMetadata.builder().id("opaque")
+            .metadata(Map.of("mcpToolMeta", Map.of("data_type", "TEMPLATE_QUERY"))).build());
+        when(registry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder().id("document_search").build());
+        when(registry.getToolMetadata("disabled")).thenReturn(ToolMetadata.builder().id("disabled").publicationStatus("disabled").build());
+        var resolver = new AgentToolPolicyResolver(registry, skills, catalog, retriever);
+        var purposes = resolver.planningToolPurposes(InteractionRequest.builder().availableTools(names).build(), agent);
+        assertThat(purposes).containsExactly(
+            Map.of("tool", "opaque", "data_type", "TEMPLATE_QUERY", "description", ""),
+            Map.of("tool", "document_search", "data_type", "UNKNOWN", "description", ""));
+        assertThat(resolver.planningToolPurposes(InteractionRequest.builder().availableTools(List.of("opaque")).build(), agent))
+            .hasSize(1);
+        org.mockito.Mockito.verifyNoInteractions(retriever);
+    }
 
     @Test
     void discoveryRespectsGeneralTopKAndDoesNotRestoreUnselectedTools() {

@@ -59,6 +59,23 @@ import static org.mockito.Mockito.times;
 import org.mockito.ArgumentCaptor;
 
 class McpToolRegistryBridgeLifecycleTest {
+    @Test void preservesPublisherPurposeThroughRegistryRefresh() {
+        var registry = mock(ToolRegistry.class);
+        var configService = mock(McpServiceConfigService.class);
+        var gateway = mock(McpGatewayClient.class);
+        var service = service("purpose-service", "Purpose service");
+        var definition = new McpToolDefinition("opaque_tool", "Opaque", Map.of(), null, null, null, null,
+            true, Map.of(), Map.of(), Map.of(), Map.of(), null, Map.of("data_type", "TEMPLATE_QUERY"));
+        when(configService.listEnabled()).thenReturn(List.of(service));
+        when(gateway.discoverTools(service, 0)).thenReturn(List.of(definition));
+        var bridge = new McpToolRegistryBridge(registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
+        bridge.refreshRegistry();
+        var captured = ArgumentCaptor.forClass(ToolMetadata.class);
+        verify(registry).registerTool(anyString(), captured.capture(), any());
+        assertThat(captured.getValue().getDataType()).isEqualTo("TEMPLATE_QUERY");
+        assertThat(captured.getValue().getMetadata()).containsEntry("data_type", "TEMPLATE_QUERY");
+        assertThat(new ObjectMapper().valueToTree(captured.getValue()).path("data_type").asText()).isEqualTo("TEMPLATE_QUERY");
+    }
 
     @Test
     void usesPublishedChineseAliasWithoutHardcodedFallback() {

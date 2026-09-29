@@ -40,6 +40,80 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentChatModeHandlerTest {
+    @Test @org.junit.jupiter.api.Timeout(15)
+    @SuppressWarnings("unchecked")
+    void entryWaitsForBothProblemAnalysisAndSelectedChildWorkflow() throws Exception {
+        var modelEntered = new java.util.concurrent.CountDownLatch(1);
+        var modelRelease = new java.util.concurrent.CountDownLatch(1);
+        var childEntered = new java.util.concurrent.CountDownLatch(1);
+        var childRelease = new java.util.concurrent.CountDownLatch(1);
+        var model = mock(dev.langchain4j.model.chat.ChatModel.class);
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var understanding = plan(com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.ASSET_GUIDANCE);
+        when(model.chat(anyString())).thenAnswer(invocation -> {
+            modelEntered.countDown();
+            modelRelease.await();
+            return mapper.writeValueAsString(understanding);
+        });
+        var planner = new com.chatchat.chat.interaction.service.ProblemAnalysisPlanner(model,
+            mock(com.chatchat.agents.model.ConfigurableChatModelFactory.class), mapper,
+            mock(org.springframework.beans.factory.ObjectProvider.class));
+        var catalog = mock(SkillCatalogService.class);
+        var agent = skillWithoutWebSearch();
+        when(catalog.resolve("ops")).thenReturn(agent);
+        var guidance = mock(com.chatchat.chat.asset.AssetGuidanceInteractionBridge.class);
+        when(guidance.execute(any(), any(), eq(agent))).thenAnswer(invocation -> {
+            childEntered.countDown();
+            childRelease.await();
+            return com.chatchat.chat.interaction.model.InteractionResponse.builder().answer("子流程返回")
+                .metadata(Map.of("agent", Map.of("publicStatus", "SUCCESS"))).build();
+        });
+        var handler = new AgentChatModeHandler(mock(AgentOrchestrator.class), catalog, mock(AgentToolPolicyResolver.class));
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "problemAnalysisPlanner", planner);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "assetGuidance", guidance);
+        var executor = java.util.concurrent.Executors.newSingleThreadExecutor();
+        try {
+            var parent = executor.submit(() -> handler.handle(InteractionRequest.builder().skillId("ops").query("解释用途").build(),
+                InteractionContext.builder().build()));
+            assertThat(modelEntered.await(3, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> parent.get(150, java.util.concurrent.TimeUnit.MILLISECONDS))
+                .isInstanceOf(java.util.concurrent.TimeoutException.class);
+            org.mockito.Mockito.verifyNoInteractions(guidance);
+            modelRelease.countDown();
+            assertThat(childEntered.await(3, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> parent.get(150, java.util.concurrent.TimeUnit.MILLISECONDS))
+                .isInstanceOf(java.util.concurrent.TimeoutException.class);
+            childRelease.countDown();
+            var response = parent.get(3, java.util.concurrent.TimeUnit.SECONDS);
+            assertThat(response.getAnswer()).isEqualTo("子流程返回");
+            assertThat(response.getMetadata()).containsEntry("workflowFamily", "ASSET_GUIDANCE");
+        } finally {
+            modelRelease.countDown();
+            childRelease.countDown();
+            executor.shutdownNow();
+        }
+    }
+    @Test void directAnswerBypassesGovernedDagEvenWhenAgentHasBoundTools() {
+        var catalog = mock(SkillCatalogService.class);
+        var orchestrator = mock(AgentOrchestrator.class);
+        var policies = mock(AgentToolPolicyResolver.class);
+        var direct = mock(com.chatchat.chat.interaction.service.DirectAnswerWorkflow.class);
+        var agent = skillWithoutWebSearch();
+        when(catalog.resolve("ops")).thenReturn(agent);
+        var request = InteractionRequest.builder().skillId("ops").query("你好").build();
+        when(direct.execute(eq(request), any(), eq(agent))).thenReturn(
+            com.chatchat.chat.interaction.model.InteractionResponse.builder().answer("你好")
+                .metadata(Map.of("workflowOutcome", new com.chatchat.common.runtime.capability.WorkflowOutcome(
+                    com.chatchat.common.runtime.capability.WorkflowOutcome.Type.READY_TO_ANSWER,
+                    "DIRECT_ANSWER_COMPLETED", List.of(), List.of(), true))).build());
+        var handler = new AgentChatModeHandler(orchestrator, catalog, policies);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "directAnswerWorkflow", direct);
+        var response = handler.handle(request, InteractionContext.builder()
+            .problemAnalysisPlan(plan(com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.DIRECT_ANSWER)).build());
+        assertThat(response.getMetadata()).containsEntry("workflowFamily", "DIRECT_ANSWER");
+        assertThat(response.getAnswer()).isEqualTo("你好");
+        org.mockito.Mockito.verifyNoInteractions(orchestrator, policies);
+    }
     @Test
     void analyzesProblemBeforeSelectingWorkflowAndIgnoresConflictingClientHint() {
         var catalog = mock(SkillCatalogService.class);

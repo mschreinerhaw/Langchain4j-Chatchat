@@ -57,6 +57,7 @@ public class DocumentSearchMcpToolRegistrar implements McpServerToolRegistrar {
         int defaultTopK = environment.getProperty("chatchat.mcp.server.document-search.default-limit", Integer.class, 8);
         int maxTopK = environment.getProperty("chatchat.mcp.server.document-search.max-limit", Integer.class, 20);
         ToolMetadata metadata = ToolMetadata.builder()
+            .dataType("DOCUMENT_SEARCH")
             .id(TOOL_NAME)
             .title("Document Evidence Search")
             .description(GUIDANCE)

@@ -7,13 +7,12 @@ import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.common.runtime.capability.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
-import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import java.util.*;
 import java.util.concurrent.*;
 
-/** One bounded, tool-free semantic planning call before any workflow/capability selection. */
+/** Owned, tool-free child phase: the caller cannot finish before model inference settles. */
 @Component
 @lombok.extern.slf4j.Slf4j
 public class ProblemAnalysisPlanner {
@@ -21,8 +20,8 @@ public class ProblemAnalysisPlanner {
     private final ConfigurableChatModelFactory models;
     private final ObjectMapper mapper;
     private final ObjectProvider<AgentRunEventPublisher> publishers;
-    private final ThreadPoolExecutor workers = new ThreadPoolExecutor(0, 4, 30, TimeUnit.SECONDS,
-        new SynchronousQueue<>(), task -> { var thread = new Thread(task, "problem-analysis"); thread.setDaemon(true); return thread; });
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private AgentToolPolicyResolver toolPolicyResolver;
 
     public ProblemAnalysisPlanner(ChatModel defaultModel, ConfigurableChatModelFactory models, ObjectMapper mapper,
                                   ObjectProvider<AgentRunEventPublisher> publishers) {
@@ -30,29 +29,57 @@ public class ProblemAnalysisPlanner {
     }
 
     public ProblemAnalysisPlan analyze(InteractionRequest request, InteractionContext context, SkillDefinition agent) {
-        Future<ProblemAnalysisPlan> work = null;
         ProblemAnalysisPlan plan;
+        checkCancellation(request);
+        publishState(request, "RUNNING", null);
         try {
-            if (Thread.currentThread().isInterrupted()) throw new InterruptedException();
-            work = workers.submit(() -> infer(request, context, agent));
-            plan = work.get(30, TimeUnit.SECONDS);
-        } catch (InterruptedException interrupted) {
-            Thread.currentThread().interrupt(); throw new CancellationException("Problem analysis cancelled");
+            // The task already owns its worker and cancellation. A second executor plus a local
+            // wait timeout detached live model work and incorrectly completed its parent task.
+            plan = infer(request, context, agent);
+            checkCancellation(request);
+        } catch (CancellationException cancelled) {
+            publishState(request, "CANCELLED", null);
+            throw cancelled;
         } catch (Exception unavailable) {
-            log.warn("Problem analysis failed requestId={} failureType={}", context.requestId(), unavailable.getClass().getSimpleName());
+            if (interrupted(unavailable)) Thread.currentThread().interrupt();
+            try {
+                checkCancellation(request);
+            } catch (CancellationException cancelled) {
+                publishState(request, "CANCELLED", null);
+                throw cancelled;
+            }
+            log.warn("Problem analysis failed requestId={} causeType={}",
+                context.requestId(), unavailable.getClass().getSimpleName(), unavailable);
             plan = ProblemAnalysisPlan.unavailable();
-        } finally {
-            if (work != null && !work.isDone()) work.cancel(true);
         }
+        publishState(request, plan.status() == ProblemAnalysisPlan.Status.PLANNING_FAILED ? "FAILED" : "COMPLETED", plan);
+        return plan;
+    }
+
+    private void publishState(InteractionRequest request, String state, ProblemAnalysisPlan plan) {
         Object runId = request.getToolInput() == null ? null : request.getToolInput().get("__agentRunId");
         if (runId instanceof String id && !id.isBlank()) {
-            var completedPlan = plan;
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("stage", "PROBLEM_ANALYSIS_PLAN");
+            payload.put("status", plan == null ? state : plan.status().name());
+            payload.put("metadata", Map.of("eventState", state));
+            if (plan != null) payload.put(ProblemAnalysisPlan.METADATA_KEY, plan);
             publishers.orderedStream().forEach(publisher -> publisher.publish(AgentRunEvent.of(id,
-                AgentRunEventType.OBSERVATION_RECORDED, "问题分析计划：" + completedPlan.status(),
-                Map.of("stage", "PROBLEM_ANALYSIS_PLAN", "status", completedPlan.status().name(),
-                    ProblemAnalysisPlan.METADATA_KEY, completedPlan))));
+                AgentRunEventType.OBSERVATION_RECORDED, "问题分析计划：" + payload.get("status"), payload)));
         }
-        return plan;
+    }
+
+    private static void checkCancellation(InteractionRequest request) {
+        Object cancellation = request.getToolInput() == null ? null : request.getToolInput().get("__agentCancellation");
+        if (Thread.currentThread().isInterrupted()
+            || cancellation instanceof java.util.function.BooleanSupplier signal && signal.getAsBoolean())
+            throw new CancellationException("Problem analysis cancelled");
+    }
+
+    private static boolean interrupted(Throwable failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause())
+            if (cause instanceof InterruptedException || cause instanceof CancellationException) return true;
+        return false;
     }
 
     private ProblemAnalysisPlan infer(InteractionRequest request, InteractionContext context, SkillDefinition agent) throws Exception {
@@ -63,6 +90,7 @@ public class ProblemAnalysisPlanner {
             .skip(Math.max(0, context.history().size() - 8)).filter(Objects::nonNull)
             .map(item -> Map.of("role", bounded(item.role(), 40), "content", bounded(item.content(), 1500))).toList();
         String input = mapper.writeValueAsString(Map.of("question", question, "history", history,
+            "selectedToolPurposes", toolPolicyResolver == null ? List.of() : toolPolicyResolver.planningToolPurposes(request, agent),
             "conversationSummary", bounded(context.conversationSummary(), 3000),
             "agentDescription", bounded(agent.description(), 1500),
             "requestedWorkflowHint", bounded(request.getToolInput() == null ? "" :
@@ -77,12 +105,21 @@ public class ProblemAnalysisPlanner {
             Return JSON only with this exact schema:
             {"status":"READY|NEEDS_CLARIFICATION","objective":"...","subject":"...","domain":"...",
              "explanation":"brief public explanation of the proposed plan",
-             "tasks":[{"objective":"...","intent":"DOCUMENT_UNDERSTANDING|DATA_ANALYSIS|ASSET_USAGE_GUIDANCE|ACTION_EXECUTION",
+             "tasks":[{"objective":"...","intent":"DIRECT_ANSWER|DOCUMENT_UNDERSTANDING|DATA_ANALYSIS|ASSET_USAGE_GUIDANCE|ACTION_EXECUTION",
                        "dataRequirements":["..."],"expectedResult":"..."}],"clarificationQuestion":"..."}
             Use Chinese for descriptions. At most 8 tasks, 16 data requirements per task, 1000 characters per text field.
             DOCUMENT_UNDERSTANDING: grounded interpretation of documents; DATA_ANALYSIS: analyze actual supplied/acquired data;
             ASSET_USAGE_GUIDANCE: explain API/table/template purpose, usage and declared contracts using metadata only;
             ACTION_EXECUTION: user explicitly requests an operation, subject to later authorization and confirmation.
+            DIRECT_ANSWER is also a valid intent: ordinary conversation or general knowledge requiring no external evidence.
+            selectedToolPurposes contains publisher-declared data_type for tools selected by this Agent.
+            ASSET_QUERY and TEMPLATE_QUERY provide asset/template metadata, not actual execution results.
+            DATA_FETCH acquires data for DATA_ANALYSIS; DOCUMENT_SEARCH retrieves evidence for DOCUMENT_UNDERSTANDING.
+            DIRECT_QA supports direct answers; ACTION_EXECUTION describes operations, never authorization to execute them.
+            Use these declarations with the user's objective to choose intent. A template query may support asset guidance
+            or discovery before data analysis; its presence alone must not force either workflow.
+            Missing, UNKNOWN or unfamiliar data_type is not a default workflow. Do not infer purpose from tool names.
+            Do not downgrade requests requiring fresh data, documents or asset metadata to DIRECT_ANSWER.
             Data requirements describe needed evidence, not invented tool names or parameter bindings.
             If the goal or referent is unresolved, use NEEDS_CLARIFICATION and ask a concrete question. Do not invent a default task.
             Preserve distinct objectives if the request needs multiple kinds of tasks. Do not collapse them to force one workflow.
@@ -93,7 +130,12 @@ public class ProblemAnalysisPlanner {
         String modelName = agent.modelName() == null || agent.modelName().isBlank() ? request.getModelName() : agent.modelName();
         String answer = (modelName == null || modelName.isBlank() ? defaultModel : models.create(modelName)).chat(prompt);
         if (answer == null || answer.length() > 24000) throw new IllegalArgumentException("Invalid plan output");
-        var node = mapper.readTree(answer);
+        // Accept an outer JSON code fence, but never extract an arbitrary object from prose.
+        String json = answer.strip().replace("\r\n", "\n");
+        if (json.startsWith("```json\n") && json.endsWith("```")) json = json.substring(8, json.length() - 3).strip();
+        else if (json.startsWith("```\n") && json.endsWith("```")) json = json.substring(4, json.length() - 3).strip();
+        var node = mapper.reader().with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .readTree(json);
         if (node == null || !node.isObject() || !node.path("tasks").isArray() || node.path("tasks").size() > 8)
             throw new IllegalArgumentException("Invalid analysis plan schema");
         for (String field : List.of("status", "objective", "subject", "domain", "explanation", "clarificationQuestion"))
@@ -137,5 +179,4 @@ public class ProblemAnalysisPlanner {
         return response;
     }
     private static String bounded(String value, int maximum) { return value == null ? "" : value.substring(0, Math.min(value.length(), maximum)); }
-    @PreDestroy public void close() { workers.shutdownNow(); }
 }

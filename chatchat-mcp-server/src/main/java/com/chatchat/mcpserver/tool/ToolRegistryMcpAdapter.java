@@ -115,6 +115,7 @@ public class ToolRegistryMcpAdapter {
         String chineseAlias = McpToolChineseAliasResolver.resolve(name,
             metadata == null ? null : metadata.getTitle(), publishedMeta);
         if (chineseAlias != null) publishedMeta.put("chineseAlias", chineseAlias);
+        publishedMeta = McpToolPurposeMetadata.enrich(publishedMeta);
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(name)
             .title(metadata == null ? name : metadata.getTitle())

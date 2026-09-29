@@ -36,6 +36,11 @@ public class ToolMetadata {
      */
     private String description;
 
+    /** Tool purpose declared by its publisher; never inferred from its name. */
+    @com.fasterxml.jackson.annotation.JsonProperty("data_type")
+    @com.fasterxml.jackson.annotation.JsonAlias("dataType")
+    private String dataType;
+
     /**
      * Version of the tool
      */

@@ -9,6 +9,7 @@ public final class CapabilityWorkflowRouter {
         if (plan == null || plan.status() != ProblemAnalysisPlan.Status.READY)
             throw new IllegalArgumentException("A ready problem analysis plan is required before workflow selection");
         return plan.tasks().stream().map(task -> switch (task.intent()) {
+            case DIRECT_ANSWER -> RuntimeWorkflowFamily.DIRECT_ANSWER;
             case DOCUMENT_UNDERSTANDING -> RuntimeWorkflowFamily.DOCUMENT;
             case DATA_ANALYSIS -> RuntimeWorkflowFamily.DATA_ANALYSIS;
             case ASSET_USAGE_GUIDANCE -> RuntimeWorkflowFamily.ASSET_GUIDANCE;

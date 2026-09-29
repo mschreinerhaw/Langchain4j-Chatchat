@@ -113,6 +113,8 @@ public final class LocalMcpRuntimeServiceProvider implements McpServiceProvider 
         Map<String, Object> extra = new LinkedHashMap<>(source == null || source.getMetadata() == null
             ? Map.of() : source.getMetadata());
         if (published != null && published.meta() != null) extra.putAll(published.meta());
+        String dataType = com.chatchat.common.tool.ToolDataType.declared(source);
+        if (dataType != null) extra.putIfAbsent("data_type", dataType);
         String alias = McpToolChineseAliasResolver.resolve(registryName,
             published == null ? null : published.title(), extra);
         if (alias == null) alias = McpToolChineseAliasResolver.resolve(registryName,

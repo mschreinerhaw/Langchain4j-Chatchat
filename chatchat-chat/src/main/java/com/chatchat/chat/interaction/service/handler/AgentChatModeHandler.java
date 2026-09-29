@@ -67,6 +67,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     private com.chatchat.chat.asset.AssetGuidanceInteractionBridge assetGuidance;
     @Autowired
     private com.chatchat.chat.interaction.service.ProblemAnalysisPlanner problemAnalysisPlanner;
+    @Autowired
+    private com.chatchat.chat.interaction.service.DirectAnswerWorkflow directAnswerWorkflow;
 
     private static final int DEFAULT_DOMAIN_KNOWLEDGE_TOKEN_BUDGET = 1500;
 
@@ -161,7 +163,11 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         var plannedContext = context.toBuilder().problemAnalysisPlan(understanding).build();
         var plan = com.chatchat.common.runtime.capability.CapabilityWorkflowPlan.forFamily(family);
         var providers = new java.util.ArrayList<com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.Provider>();
-        if (family == com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.ASSET_GUIDANCE) {
+        if (family == com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.DIRECT_ANSWER) {
+            if (directAnswerWorkflow != null) providers.add(new com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.Provider(
+                "direct-answer", com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.ProviderKind.NATIVE_RUNTIME,
+                plan.requiredCapabilities(), () -> directAnswerWorkflow.execute(request, plannedContext, skill)));
+        } else if (family == com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.ASSET_GUIDANCE) {
             if (assetGuidance != null) providers.add(new com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.Provider(
                 "asset-metadata-workflow", com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.ProviderKind.MCP_WORKFLOW,
                 plan.requiredCapabilities(), () -> assetGuidance.execute(request, plannedContext, skill)));

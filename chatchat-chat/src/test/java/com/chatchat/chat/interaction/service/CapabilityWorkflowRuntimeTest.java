@@ -9,6 +9,39 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.Assertions.*;
 
 class CapabilityWorkflowRuntimeTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value = RuntimeWorkflowFamily.class,
+        names = {"DOCUMENT", "DATA_ANALYSIS", "ASSET_GUIDANCE", "ACTION"})
+    @org.junit.jupiter.api.Timeout(10)
+    void parentCannotEvaluateOrReturnBeforeChildCompletes(RuntimeWorkflowFamily family) throws Exception {
+        var entered = new java.util.concurrent.CountDownLatch(1);
+        var release = new java.util.concurrent.CountDownLatch(1);
+        var plan = CapabilityWorkflowPlan.forFamily(family);
+        var executor = java.util.concurrent.Executors.newSingleThreadExecutor();
+        var provider = new CapabilityWorkflowRuntime.Provider("child", CapabilityWorkflowRuntime.ProviderKind.NATIVE_RUNTIME,
+            plan.requiredCapabilities(), () -> {
+                entered.countDown();
+                try { release.await(); }
+                catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new java.util.concurrent.CancellationException();
+                }
+                return InteractionResponse.builder().answer("child result")
+                    .metadata(Map.of(WorkflowOutcome.METADATA_KEY, new WorkflowOutcome(WorkflowOutcome.Type.READY_TO_ANSWER,
+                        "CHILD_VERIFIED", List.of(), List.of(), true))).build();
+            });
+        try {
+            var parent = executor.submit(() -> new CapabilityWorkflowRuntime().execute(plan, List.of(provider)));
+            assertThat(entered.await(3, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            assertThatThrownBy(() -> parent.get(150, java.util.concurrent.TimeUnit.MILLISECONDS))
+                .isInstanceOf(java.util.concurrent.TimeoutException.class);
+            release.countDown();
+            assertThat(parent.get(3, java.util.concurrent.TimeUnit.SECONDS).getAnswer()).isEqualTo("child result");
+        } finally {
+            release.countDown();
+            executor.shutdownNow();
+        }
+    }
     @Test void nativeProviderCanMeetRequiredCapabilitiesWithoutSkillsAndRunsOnce() {
         var plan = CapabilityWorkflowPlan.forFamily(RuntimeWorkflowFamily.DATA_ANALYSIS);
         var count = new AtomicInteger();

@@ -150,4 +150,43 @@ class KnowledgeEvidenceExpansionWorkflowTest {
             assertThat(unit.source().section()).isEqualTo("Linux installation");
         });
     }
+
+    @Test
+    void isolatesAnOrphanDocumentAndContinuesExpandingOtherSources() {
+        DocumentSearchEvidenceService documents = mock(DocumentSearchEvidenceService.class);
+        DocumentExpandedEvidenceChunk recovered = new DocumentExpandedEvidenceChunk(
+            "ref-2", "chunk-2", "doc-live", "live.md", "Results", 2,
+            "expanded_evidence", 91D, "expanded live evidence", List.of(),
+            new Citation("live.md", "Results"), true, null);
+        when(documents.expand(org.mockito.ArgumentMatchers.argThat(request ->
+            request != null && "doc-orphan".equals(request.docId()))))
+            .thenThrow(new IllegalArgumentException("document not found: doc-orphan"));
+        when(documents.expand(org.mockito.ArgumentMatchers.argThat(request ->
+            request != null && "doc-live".equals(request.docId()))))
+            .thenReturn(new DocumentSearchExpandResult("v1", "analyze", "doc-live", List.of(recovered),
+                "", List.of(), null, null, null));
+        KnowledgeEvidenceExpansionWorkflow workflow = new KnowledgeEvidenceExpansionWorkflow(documents);
+        KnowledgeIR orphan = initialUnit("orphan", "doc-orphan", "orphan.md");
+        KnowledgeIR live = initialUnit("live", "doc-live", "live.md");
+        KnowledgeRequest request = new KnowledgeRequest(
+            "v", "analyze", "ANALYSIS", 1_500,
+            new KnowledgeScope("agent", "tenant", "user", List.of("doc-orphan", "doc-live"),
+                List.of(), List.of()), null, Map.of());
+
+        KnowledgeEvidenceExpansionWorkflow.ExpansionResult result = workflow.expand(request, List.of(orphan, live));
+
+        assertThat(result.complete()).isFalse();
+        assertThat(result.status()).isEqualTo("PARTIAL");
+        assertThat(result.successfulSources()).isEqualTo(1);
+        assertThat(result.failures()).containsExactly("doc-orphan:DOCUMENT_NOT_FOUND");
+        assertThat(result.units()).extracting(KnowledgeIR::knowledgeId).containsExactly("chunk-2");
+    }
+
+    private KnowledgeIR initialUnit(String id, String documentId, String documentName) {
+        return new KnowledgeIR(
+            id, "ops", KnowledgeType.PROCEDURE, "Results", "partial",
+            List.of(), List.of(), List.of("ANALYSIS"), List.of(), "partial",
+            new KnowledgeSourceReference("ref-" + id, documentId, "chunk-" + id,
+                documentName, "Results", null, documentName + "#Results"), 0.9D);
+    }
 }

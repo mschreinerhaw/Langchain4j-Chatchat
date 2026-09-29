@@ -120,8 +120,56 @@ class DefaultKnowledgeRuntimeServiceTest {
         verify(planner).synthesize(any());
         verify(executor).execute(any());
         verify(expansionWorkflow).expand(any(), any());
+        verify(compiler).compile(
+            org.mockito.ArgumentMatchers.argThat(candidate ->
+                candidate.maxTokens() == KnowledgeRequest.HARD_MAX_TOKENS),
+            any(),
+            org.mockito.ArgumentMatchers.argThat(units -> units.size() == 2
+                && units.stream().map(KnowledgeIR::knowledgeId).toList()
+                    .containsAll(List.of("procedure-unit", "expanded-procedure"))));
         assertThat(result.truncated()).isFalse();
         assertThat(result.maxTokens()).isEqualTo(KnowledgeRequest.HARD_MAX_TOKENS);
+    }
+
+    @Test
+    void retainsInitialEvidenceWhenExpansionIsUnavailable() {
+        KnowledgeSkillSynthesizerPort planner = mock(KnowledgeSkillSynthesizerPort.class);
+        KnowledgeSkillExecutorPort executor = mock(KnowledgeSkillExecutorPort.class);
+        KnowledgeContextCompilerPort compiler = mock(KnowledgeContextCompilerPort.class);
+        KnowledgeEvidenceExpansionWorkflow expansionWorkflow = mock(KnowledgeEvidenceExpansionWorkflow.class);
+        KnowledgeSkillInstance skill = new KnowledgeSkillInstance(
+            "procedure", KnowledgeSkillType.PROCEDURE_LOOKUP, "ops", "lookup procedure",
+            List.of(), 1, 1_500, Map.of());
+        KnowledgeSkillPlan plan = new KnowledgeSkillPlan("v", "PROCEDURE", List.of(skill), 1_500);
+        KnowledgeIR unit = new KnowledgeIR(
+            "initial-unit", "ops", KnowledgeType.PROCEDURE, "Installation", "initial evidence",
+            List.of(), List.of(), List.of(), List.of(), "initial evidence",
+            new KnowledgeSourceReference("src", "orphan-doc", "chunk", "install.md", "Install", null, null),
+            0.9D);
+        when(planner.synthesize(any())).thenReturn(plan);
+        when(executor.supports(KnowledgeSkillType.PROCEDURE_LOOKUP)).thenReturn(true);
+        when(executor.execute(any())).thenReturn(new KnowledgeSkillResult(
+            skill.instanceId(), skill.skillType(), List.of(unit), "used", Map.of()));
+        when(compiler.compile(any(), any(), any())).thenReturn(new KnowledgeContext(
+            KnowledgeContext.SCHEMA_VERSION, plan, List.of(unit), "initial evidence",
+            List.of(unit.source()), 15, 1_500, true, "used"));
+        when(expansionWorkflow.expand(any(), any())).thenReturn(
+            new KnowledgeEvidenceExpansionWorkflow.ExpansionResult(
+                true, false, List.of(), "UNAVAILABLE", 0,
+                List.of("orphan-doc:DOCUMENT_NOT_FOUND")));
+        DefaultKnowledgeRuntimeService runtime = new DefaultKnowledgeRuntimeService(
+            planner, List.of(executor), compiler, expansionWorkflow);
+
+        KnowledgeContext result = runtime.retrieveKnowledge(new KnowledgeRequest(
+            "v", "installation procedure", "PROCEDURE", 1_500,
+            new KnowledgeScope("agent", "tenant", "user", List.of("orphan-doc"), List.of(), List.of()),
+            null, Map.of()));
+
+        assertThat(result.used()).isTrue();
+        assertThat(result.compiledContext()).isEqualTo("initial evidence");
+        assertThat(result.sources()).containsExactly(unit.source());
+        assertThat(result.status()).isEqualTo("evidence_expansion_partial");
+        assertThat(result.toRuntimeProjection()).containsEntry("completionState", "PARTIAL");
     }
 
     @Test

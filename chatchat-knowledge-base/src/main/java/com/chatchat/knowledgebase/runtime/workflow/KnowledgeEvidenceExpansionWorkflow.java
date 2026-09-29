@@ -126,6 +126,8 @@ public class KnowledgeEvidenceExpansionWorkflow implements EvidenceRecoveryWorkf
             Math.min(MAX_CHARS_PER_DOCUMENT, totalCharacterBudget / byDocument.size()));
         List<KnowledgeIR> expanded = new ArrayList<>();
         safeUnits.stream().filter(unit -> documentId(unit) == null).forEach(expanded::add);
+        int successfulDocuments = 0;
+        List<String> failures = new ArrayList<>();
 
         for (Map.Entry<String, List<KnowledgeIR>> entry : byDocument.entrySet()) {
             String documentId = entry.getKey();
@@ -141,22 +143,40 @@ public class KnowledgeEvidenceExpansionWorkflow implements EvidenceRecoveryWorkf
                 .map(String::trim)
                 .distinct()
                 .toList();
-            DocumentSearchExpandResult result = documents.expand(expansionRequest(
-                request, documentId, sections, charactersPerDocument));
+            DocumentSearchExpandResult result;
+            try {
+                result = documents.expand(expansionRequest(
+                    request, documentId, sections, charactersPerDocument));
+            } catch (RuntimeException ex) {
+                if (!isSourceUnavailable(ex)) throw ex;
+                String reason = expansionFailureReason(ex);
+                failures.add(documentId + ":" + reason);
+                log.warn("knowledgeEvidenceExpansionSourceUnavailable documentId={} reason={} error={}",
+                    documentId, reason, ex.getMessage());
+                continue;
+            }
             if (result.evidenceChunks().isEmpty()) {
-                log.warn("knowledgeEvidenceExpansionFailed documentId={} reason=NO_EXPANDED_CHUNKS", documentId);
-                return ExpansionResult.failed("NO_EXPANDED_CHUNKS:" + documentId);
+                failures.add(documentId + ":NO_EXPANDED_CHUNKS");
+                log.warn("knowledgeEvidenceExpansionSourceUnavailable documentId={} reason=NO_EXPANDED_CHUNKS",
+                    documentId);
+                continue;
             }
             result.evidenceChunks().stream()
                 .sorted(Comparator.comparing(chunk -> chunk.chunkIndex() == null
                     ? Integer.MAX_VALUE : chunk.chunkIndex()))
                 .map(chunk -> toKnowledgeIr(request, template, chunk))
                 .forEach(expanded::add);
+            successfulDocuments++;
         }
-        log.info("knowledgeEvidenceExpansionWorkflowCompleted documents={} initialUnits={} expandedUnits={} "
-                + "charactersPerDocument={}",
-            byDocument.size(), safeUnits.size(), expanded.size(), charactersPerDocument);
-        return new ExpansionResult(true, true, List.copyOf(expanded), "COMPLETE");
+        boolean complete = failures.isEmpty();
+        String status = complete ? "COMPLETE" : successfulDocuments > 0 ? "PARTIAL" : "UNAVAILABLE";
+        log.info("knowledgeEvidenceExpansionWorkflowCompleted status={} attemptedDocuments={} "
+                + "successfulDocuments={} failedDocuments={} initialUnits={} expandedUnits={} "
+                + "charactersPerDocument={} failures={}",
+            status, byDocument.size(), successfulDocuments, failures.size(), safeUnits.size(), expanded.size(),
+            charactersPerDocument, failures);
+        return new ExpansionResult(true, complete, List.copyOf(expanded), status,
+            successfulDocuments, List.copyOf(failures));
     }
 
     private List<DocumentAnalysisEvidence> recoverAtLevel(AnalysisContext context,
@@ -353,21 +373,44 @@ public class KnowledgeEvidenceExpansionWorkflow implements EvidenceRecoveryWorkf
         return unit.source().documentId().trim();
     }
 
+    private String expansionFailureReason(RuntimeException exception) {
+        String message = exception.getMessage();
+        if (exception instanceof IllegalArgumentException && message != null
+            && message.startsWith("document not found:")) return "DOCUMENT_NOT_FOUND";
+        if (exception instanceof IllegalArgumentException && message != null
+            && message.startsWith("document is not visible")) return "DOCUMENT_NOT_VISIBLE";
+        return "SOURCE_EXPANSION_ERROR";
+    }
+
+    private boolean isSourceUnavailable(RuntimeException exception) {
+        if (!(exception instanceof IllegalArgumentException) || exception.getMessage() == null) return false;
+        return exception.getMessage().startsWith("document not found:")
+            || exception.getMessage().startsWith("document is not visible");
+    }
+
     public record ExpansionResult(boolean applicable,
                                   boolean complete,
                                   List<KnowledgeIR> units,
-                                  String status) {
+                                  String status,
+                                  int successfulSources,
+                                  List<String> failures) {
         public ExpansionResult {
             units = units == null ? List.of() : List.copyOf(units);
             status = status == null ? "UNKNOWN" : status;
+            successfulSources = Math.max(0, successfulSources);
+            failures = failures == null ? List.of() : List.copyOf(failures);
+        }
+
+        public ExpansionResult(boolean applicable, boolean complete, List<KnowledgeIR> units, String status) {
+            this(applicable, complete, units, status, complete ? 1 : 0, List.of());
         }
 
         static ExpansionResult notApplicable(String status) {
-            return new ExpansionResult(false, false, List.of(), status);
+            return new ExpansionResult(false, false, List.of(), status, 0, List.of());
         }
 
         static ExpansionResult failed(String status) {
-            return new ExpansionResult(true, false, List.of(), status);
+            return new ExpansionResult(true, false, List.of(), status, 0, List.of(status));
         }
     }
 }

@@ -36,7 +36,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class AgentChatModeHandlerTest {
@@ -89,7 +88,7 @@ class AgentChatModeHandlerTest {
     }
 
     @Test
-    void stopsBeforePlannerWhenDeterministicKnowledgeExpansionFails() {
+    void continuesToPlannerWithInitialEvidenceWhenExpansionIsPartial() {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
@@ -101,8 +100,13 @@ class AgentChatModeHandlerTest {
         when(skillCatalogService.resolve("ops")).thenReturn(skill(List.of(), List.of("doc-install")));
         when(bridge.registeredTools()).thenReturn(List.of());
         when(knowledgeRuntime.retrieveKnowledge(any())).thenReturn(new KnowledgeContext(
-            KnowledgeContext.SCHEMA_VERSION, null, List.of(), "", List.of(),
-            0, KnowledgeRequest.HARD_MAX_TOKENS, false, "evidence_expansion_failed"));
+            KnowledgeContext.SCHEMA_VERSION, null, List.of(), "initial evidence",
+            List.of(new KnowledgeSourceReference("source-1", "doc-install", "chunk-1",
+                "install.md", "Install", "v1", "install.md#Install")),
+            20, 1_500, true, "evidence_expansion_partial"));
+        when(orchestrator.executeAgent(
+            any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+            anyInt(), any(), anyBoolean(), any())).thenReturn(agentResult("answer from initial evidence"));
 
         var response = handler.handle(
             InteractionRequest.builder().mode("agent_chat").skillId("ops")
@@ -111,16 +115,18 @@ class AgentChatModeHandlerTest {
                 .conversationId("conv-expansion-failed").mode(InteractionMode.AGENT_CHAT)
                 .history(List.of()).build());
 
-        verifyNoInteractions(orchestrator);
-        assertThat(response.getAnswer()).contains("Runtime 已停止本次执行", "未调用模型生成答案");
+        verify(orchestrator).executeAgent(
+            any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+            anyInt(), any(), anyBoolean(), any());
+        assertThat(response.getAnswer()).isEqualTo("answer from initial evidence");
         assertThat(response.getMetadata())
-            .containsEntry("runtimeStopped", true)
-            .containsEntry("runtimeStopReason", "KNOWLEDGE_EVIDENCE_EXPANSION_FAILED")
-            .containsEntry("knowledgeRetrieval", "evidence_expansion_failed");
+            .doesNotContainEntry("runtimeStopped", true)
+            .containsEntry("domainKnowledgeUsed", true)
+            .containsEntry("knowledgeRetrieval", "evidence_expansion_partial");
         @SuppressWarnings("unchecked")
         Map<String, Object> projection = (Map<String, Object>) response.getMetadata()
             .get(KnowledgeContext.RUNTIME_ATTRIBUTE);
-        assertThat(projection).containsEntry("completionState", "FAILED");
+        assertThat(projection).containsEntry("completionState", "PARTIAL");
     }
 
     @Test

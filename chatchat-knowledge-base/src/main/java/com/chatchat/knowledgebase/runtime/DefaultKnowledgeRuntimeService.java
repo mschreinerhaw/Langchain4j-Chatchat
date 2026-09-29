@@ -84,8 +84,9 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
             return initial.context();
         }
         if (evidenceExpansionWorkflow == null) {
-            log.error("knowledgeEvidenceExpansionUnavailable reason=WORKFLOW_NOT_CONFIGURED");
-            return incompleteContext(initial.plan(), "evidence_expansion_unavailable");
+            log.warn("knowledgeEvidenceExpansionCompleted status=UNAVAILABLE reason=WORKFLOW_NOT_CONFIGURED "
+                + "initialEvidenceRetained={}", initial.context().used());
+            return expansionFallback(initial.context());
         }
         log.info("knowledgeEvidenceExpansionTriggered trigger=CONTEXT_TRUNCATED initialMaxTokens={} sources={}",
             request.maxTokens(), initial.context().sources().size());
@@ -93,23 +94,38 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
         try {
             expansion = evidenceExpansionWorkflow.expand(request, initial.units());
         } catch (RuntimeException ex) {
-            log.error("knowledgeEvidenceExpansionFailed reason=WORKFLOW_ERROR error={}", ex.getMessage(), ex);
-            return incompleteContext(initial.plan(), "evidence_expansion_failed");
+            log.error("knowledgeEvidenceExpansionSystemError errorType={} error={}",
+                ex.getClass().getSimpleName(), ex.getMessage());
+            throw ex;
         }
-        if (!expansion.applicable() || !expansion.complete()) {
-            log.error("knowledgeEvidenceExpansionFailed reason={}", expansion.status());
-            return incompleteContext(initial.plan(), "evidence_expansion_incomplete");
+        if (!expansion.applicable()) {
+            log.warn("knowledgeEvidenceExpansionCompleted status=UNAVAILABLE reason={} initialEvidenceRetained={}",
+                expansion.status(), initial.context().used());
+            return expansionFallback(initial.context());
         }
         KnowledgeRequest expandedRequest = expandedRequest(request);
-        KnowledgeContext completed = contextCompiler.compile(expandedRequest, initial.plan(), expansion.units());
-        if (completed.truncated()) {
-            log.error("knowledgeEvidenceExpansionFailed reason=FINAL_BUNDLE_EXCEEDS_BUDGET units={} maxTokens={}",
-                expansion.units().size(), expandedRequest.maxTokens());
-            return incompleteContext(initial.plan(), "evidence_bundle_exceeds_budget");
+        // Expansion is an additive recovery path. All outcomes converge here so the
+        // initially retrieved evidence can never be discarded by a later expansion.
+        List<KnowledgeIR> finalUnits = mergeEvidence(initial.units(), expansion.units());
+        if (finalUnits.isEmpty()) {
+            log.warn("knowledgeEvidenceExpansionCompleted status={} successfulSources={} failedSources={} "
+                    + "initialEvidenceRetained={}", expansion.status(), expansion.successfulSources(),
+                expansion.failures().size(), initial.context().used());
+            return expansionFallback(initial.context());
         }
-        log.info("knowledgeEvidenceExpansionCompleted initialMaxTokens={} finalMaxTokens={} sources={} truncated=false",
-            request.maxTokens(), completed.maxTokens(), completed.sources().size());
-        return completed;
+        KnowledgeContext completed = contextCompiler.compile(expandedRequest, initial.plan(), finalUnits);
+        if (completed.truncated()) {
+            log.warn("knowledgeEvidenceExpansionCompleted status=PARTIAL reason=FINAL_BUNDLE_EXCEEDS_BUDGET "
+                + "units={} maxTokens={} initialEvidenceRetained={}", finalUnits.size(),
+                expandedRequest.maxTokens(), initial.context().used());
+            return expansionFallback(initial.context());
+        }
+        String status = expansion.complete() ? completed.status() : "evidence_expansion_partial";
+        log.info("knowledgeEvidenceExpansionCompleted status={} initialMaxTokens={} finalMaxTokens={} sources={} "
+                + "successfulSources={} failedSources={} truncated=false",
+            status, request.maxTokens(), completed.maxTokens(), completed.sources().size(),
+            expansion.successfulSources(), expansion.failures().size());
+        return expansion.complete() ? completed : withStatus(completed, status);
     }
 
     private RetrievalSnapshot retrieveOnce(KnowledgeRequest request) {
@@ -180,9 +196,23 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
             source.scope(), source.allowedSkillTypes(), attributes);
     }
 
-    private KnowledgeContext incompleteContext(KnowledgeSkillPlan plan, String status) {
-        return new KnowledgeContext(KnowledgeContext.SCHEMA_VERSION, plan, List.of(), "", List.of(),
-            0, KnowledgeRequest.HARD_MAX_TOKENS, false, status);
+    private KnowledgeContext expansionFallback(KnowledgeContext initial) {
+        return withStatus(initial, initial.used()
+            ? "evidence_expansion_partial" : "evidence_expansion_unavailable");
+    }
+
+    private List<KnowledgeIR> mergeEvidence(List<KnowledgeIR> initial, List<KnowledgeIR> expanded) {
+        Map<String, KnowledgeIR> merged = new LinkedHashMap<>();
+        List<KnowledgeIR> all = new ArrayList<>();
+        if (initial != null) all.addAll(initial);
+        if (expanded != null) all.addAll(expanded);
+        for (KnowledgeIR unit : all) {
+            if (unit == null) continue;
+            String key = unit.knowledgeId() == null || unit.knowledgeId().isBlank()
+                ? "unit-" + merged.size() : unit.knowledgeId();
+            merged.putIfAbsent(key, unit);
+        }
+        return List.copyOf(merged.values());
     }
 
     private Future<SkillExecutionOutcome> submitSkill(KnowledgeRequest request, KnowledgeSkillInstance skill) {

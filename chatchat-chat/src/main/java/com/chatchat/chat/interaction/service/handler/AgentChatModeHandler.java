@@ -154,10 +154,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         Map<String, Object> executionContext = mcpExecutionContext(request, skill);
         Map<String, Object> agentRoleContext = agentRoleContext(skill);
         KnowledgeContext domainKnowledge = retrieveDomainKnowledge(request, skill, effectiveScope);
-        if (knowledgeExpansionFailed(domainKnowledge)) {
-            log.error("agentRunStopped reason=KNOWLEDGE_EVIDENCE_EXPANSION_FAILED skillId={} status={}",
+        if (knowledgeSystemFailure(domainKnowledge)) {
+            log.error("agentRunStopped reason=KNOWLEDGE_SYSTEM_ERROR skillId={} status={}",
                 resolvedSkillId, domainKnowledge.status());
-            return knowledgeExpansionFailureResponse(resolvedSkillId, domainKnowledge);
+            return knowledgeSystemFailureResponse(resolvedSkillId, domainKnowledge);
         }
         AgentLearningService.RuntimeExperienceContext runtimeExperience = learningService == null
             ? AgentLearningService.RuntimeExperienceContext.empty()
@@ -267,23 +267,21 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             .build();
     }
 
-    private boolean knowledgeExpansionFailed(KnowledgeContext knowledge) {
-        return knowledge != null && knowledge.status() != null
-            && knowledge.status().startsWith("evidence_")
-            && !"evidence_recovery_partial".equals(knowledge.status());
+    private boolean knowledgeSystemFailure(KnowledgeContext knowledge) {
+        return knowledge != null && "system_error".equals(knowledge.status());
     }
 
-    private InteractionResponse knowledgeExpansionFailureResponse(String skillId, KnowledgeContext knowledge) {
+    private InteractionResponse knowledgeSystemFailureResponse(String skillId, KnowledgeContext knowledge) {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("handler", "AgentChatModeHandler");
         metadata.put("skillId", skillId);
         metadata.put("knowledgeRetrieval", knowledge.status());
         metadata.put("domainKnowledgeUsed", false);
         metadata.put("runtimeStopped", true);
-        metadata.put("runtimeStopReason", "KNOWLEDGE_EVIDENCE_EXPANSION_FAILED");
+        metadata.put("runtimeStopReason", "KNOWLEDGE_SYSTEM_ERROR");
         metadata.put(KnowledgeContext.RUNTIME_ATTRIBUTE, knowledge.toRuntimeProjection());
         return InteractionResponse.builder()
-            .answer("知识证据扩展未完成，Runtime 已停止本次执行，未调用模型生成答案。请检查文档索引与证据扩展日志。")
+            .answer("知识运行时发生系统错误，本次执行已停止。请检查 Runtime 日志。")
             .sources(List.of())
             .toolTraces(List.of())
             .metadata(metadata)
@@ -501,7 +499,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             .append("5. Never treat example numbers, historical cases, or sample customers in domain_knowledge as current facts.\n")
             .append("6. If a knowledge rule cannot be mapped to the retrieved data, state the limitation explicitly.\n")
             .append("7. If knowledge entries conflict, report the conflict; do not silently choose one.\n");
-        if ("evidence_recovery_partial".equals(knowledge.status())) {
+        if ("evidence_recovery_partial".equals(knowledge.status())
+            || "evidence_expansion_partial".equals(knowledge.status())) {
             builder.append("8. Evidence Recovery ended in PARTIAL state. Return only supported findings, "
                 + "name the remaining evidence gap, and do not reconstruct missing steps.\n");
         }
@@ -544,7 +543,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         } catch (RuntimeException ex) {
             log.warn("agentDomainKnowledgeRetrievalFailed skillId={} error={}",
                 skill == null ? null : skill.id(), ex.getMessage());
-            return KnowledgeContext.empty("failed", knowledgeTokenBudget);
+            return KnowledgeContext.empty("system_error", knowledgeTokenBudget);
         }
     }
 

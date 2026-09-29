@@ -22,9 +22,7 @@ public class PerDocumentIndexService {
     public Optional<SearchDocument> openDocumentIndex(String docId, SearchPermissionContext permissionContext) {
         if (docId == null || docId.isBlank()) return Optional.empty();
         if (resourceAuthorization != null && permissionContext != null
-            && !resourceAuthorization.allowedIds(ResourceAuthorizationPort.KNOWLEDGE,
-                permissionContext.tenantId(), permissionContext.userId(),
-                Set.copyOf(permissionContext.roles()), Set.of(docId)).contains(docId)) return Optional.empty();
+            && !permissionContext.allowedDocuments(resourceAuthorization, Set.of(docId)).contains(docId)) return Optional.empty();
         return chunkStore.loadDocument(docId, permissionContext);
     }
 }

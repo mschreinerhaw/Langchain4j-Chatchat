@@ -5,8 +5,23 @@ import java.util.List;
 public record SearchPermissionContext(
     String tenantId,
     String userId,
-    List<String> roles
+    List<String> roles,
+    String agentId
 ) {
+    public SearchPermissionContext(String tenantId, String userId, List<String> roles) {
+        this(tenantId, userId, roles, null);
+    }
+
+    public SearchPermissionContext withAgentId(String id) {
+        return new SearchPermissionContext(tenantId, userId, roles, id);
+    }
+
+    public java.util.Set<String> allowedDocuments(com.chatchat.common.retrieval.ResourceAuthorizationPort authorization,
+                                                  java.util.Set<String> ids) {
+        return agentId == null || agentId.isBlank()
+            ? authorization.allowedIds("KNOWLEDGE", tenantId, userId, java.util.Set.copyOf(roles), ids)
+            : authorization.allowedIdsForAgent("KNOWLEDGE", tenantId, userId, java.util.Set.copyOf(roles), ids, agentId);
+    }
 
     public static final String DEFAULT_TENANT = "default";
     public static final String ANONYMOUS_USER = "anonymous";

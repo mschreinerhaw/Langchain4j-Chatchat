@@ -3766,9 +3766,8 @@ public class SearchService {
             return false;
         }
         if (resourceAuthorization != null) {
-            return document.getDocId() != null && resourceAuthorization.allowedIds(
-                ResourceAuthorizationPort.KNOWLEDGE, context.tenantId(), context.userId(),
-                new LinkedHashSet<>(context.roles()), Set.of(document.getDocId())).contains(document.getDocId());
+            return document.getDocId() != null && context.allowedDocuments(
+                resourceAuthorization, Set.of(document.getDocId())).contains(document.getDocId());
         }
         String visibility = normalizeVisibility(document.getVisibility());
         if ("public".equals(visibility) || "tenant".equals(visibility)) {

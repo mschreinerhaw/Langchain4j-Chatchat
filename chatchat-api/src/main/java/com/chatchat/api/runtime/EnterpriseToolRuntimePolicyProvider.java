@@ -83,8 +83,11 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
         if (!managedMcpTool) {
             return null;
         }
-        if (resourceAuthorization != null && !resourceAuthorization.allowedIds(
-            ResourceAuthorizationPort.MCP_TOOL, tenantId, userId, roleIds, Set.of(toolName))
+        Object agentId = request.getAttributes() == null ? null : request.getAttributes().get("authorizationAgentId");
+        if (resourceAuthorization != null && !(agentId == null
+            ? resourceAuthorization.allowedIds(ResourceAuthorizationPort.MCP_TOOL, tenantId, userId, roleIds, Set.of(toolName))
+            : resourceAuthorization.allowedIdsForAgent(ResourceAuthorizationPort.MCP_TOOL, tenantId, userId,
+                roleIds, Set.of(toolName), String.valueOf(agentId)))
             .contains(toolName)) {
             return denied("MCP tool denied by resource grant policy");
         }

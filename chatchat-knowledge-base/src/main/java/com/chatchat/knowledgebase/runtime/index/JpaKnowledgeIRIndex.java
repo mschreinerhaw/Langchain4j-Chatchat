@@ -150,9 +150,9 @@ public class JpaKnowledgeIRIndex implements KnowledgeIRIndexPort {
     private boolean visible(KnowledgeIREntity entity, KnowledgeIRQuery query) {
         if (!normalizeTenant(entity.getTenantId()).equals(normalizeTenant(query.scope().tenantId()))) return false;
         if (resourceAuthorization != null) {
-            return entity.getDocumentId() != null && resourceAuthorization.allowedIds(
+            return entity.getDocumentId() != null && resourceAuthorization.allowedIdsForAgent(
                 ResourceAuthorizationPort.KNOWLEDGE, query.scope().tenantId(), query.scope().userId(),
-                new LinkedHashSet<>(query.scope().roles()), Set.of(entity.getDocumentId()))
+                new LinkedHashSet<>(query.scope().roles()), Set.of(entity.getDocumentId()), query.scope().agentId())
                 .contains(entity.getDocumentId());
         }
         String visibility = entity.getVisibility() == null ? "tenant" : entity.getVisibility().toLowerCase(Locale.ROOT);

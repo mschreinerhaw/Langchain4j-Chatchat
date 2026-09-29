@@ -78,7 +78,10 @@ public class DatabaseRuntimeSkillPolicy implements SkillPolicy {
 
     private Set<String> explicitlyAllowed(String type, SkillRoleContext context, Set<String> candidates) {
         if (candidates == null || candidates.isEmpty()) return Set.of();
-        return authorization.explicitlyAllowedIds(type, context.tenantId(), context.userId(),
+        Object agentId = context.attributes().get("agentId");
+        if (agentId == null) return authorization.explicitlyAllowedIds(type, context.tenantId(), context.userId(),
             new LinkedHashSet<>(context.roleIds()), candidates);
+        return authorization.explicitlyAllowedIdsForAgent(type, context.tenantId(), context.userId(),
+            new LinkedHashSet<>(context.roleIds()), candidates, String.valueOf(agentId));
     }
 }

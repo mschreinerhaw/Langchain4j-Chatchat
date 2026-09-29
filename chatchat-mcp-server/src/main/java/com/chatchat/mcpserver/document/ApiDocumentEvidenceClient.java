@@ -80,6 +80,11 @@ public class ApiDocumentEvidenceClient {
 
     public Set<String> allowedResourceIds(String resourceType, String tenantId, String userId,
                                           Set<String> candidateIds) {
+        return allowedResourceIds(resourceType, tenantId, userId, candidateIds, null);
+    }
+
+    public Set<String> allowedResourceIds(String resourceType, String tenantId, String userId,
+                                          Set<String> candidateIds, String agentId) {
         if (candidateIds == null || candidateIds.isEmpty()) return Set.of();
         if (resourceType == null || resourceType.isBlank() || candidateIds.size() > 500
             || tenantId == null || tenantId.isBlank()
@@ -101,7 +106,7 @@ public class ApiDocumentEvidenceClient {
                 .header(InternalRequestSigner.SIGNATURE_HEADER,
                     InternalRequestSigner.sign(credentials.resolvedSecret(), "POST", AUTHORIZATION_PATH, timestamp, nonce))
                 .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(
-                    new ResourceAuthorizationRequest(tenantId, userId, resourceType, candidateIds))))
+                    new ResourceAuthorizationRequest(tenantId, userId, resourceType, candidateIds, agentId))))
                 .build();
             HttpResponse<byte[]> response = client.send(httpRequest, HttpResponse.BodyHandlers.ofByteArray());
             if (response.statusCode() != 200) throw new IllegalStateException("API authorization returned HTTP " + response.statusCode());

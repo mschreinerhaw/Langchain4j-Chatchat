@@ -192,6 +192,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             request
         );
         Map<String, Object> runtimeAttributes = new LinkedHashMap<>(runtimeAttributes(request, skill, executionContext));
+        runtimeAttributes.put("authorizationAgentId", resolvedSkillId);
         runtimeAttributes.put("plannerOptionalTools", toolPolicy.optionalTools());
         if (domainSkillRouting != null && !domainSkillRouting.selected().isEmpty()) {
             runtimeAttributes.put(DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE,
@@ -298,8 +299,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         List<String> ids = new ArrayList<>();
         values.forEach(value -> { if (value != null && !String.valueOf(value).isBlank()) ids.add(String.valueOf(value)); });
         if (ids.isEmpty()) return List.of();
-        List<DomainSkillRuntimePort.DomainSkillContent> skills = domainSkillRuntime.retrievePublished(
-            tenantId, userId, roles, query, ids);
+        List<DomainSkillRuntimePort.DomainSkillContent> skills = domainSkillRuntime.retrievePublishedForAgent(
+            tenantId, userId, roles, query, ids, skill.id());
         List<DomainSkillRuntimePort.DomainSkillContent> resolved = skills == null
             ? List.of() : skills.stream().filter(item -> item != null).toList();
         log.info("agentDomainSkillsResolved skillId={} tenantId={} configuredCount={} resolvedPublishedCount={} configuredIds={}",

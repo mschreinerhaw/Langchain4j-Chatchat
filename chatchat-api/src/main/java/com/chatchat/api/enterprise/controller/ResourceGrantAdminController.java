@@ -47,13 +47,27 @@ public class ResourceGrantAdminController {
         require(tenantId, "tenantId");
         requireTenantAccess(request, tenantId);
         String kind = normalized(resourceType, RESOURCE_TYPES, "resourceType");
-        return ApiResponse.success(repository.findByTenantIdAndResourceTypeOrderByUpdatedAtDesc(tenantId, kind));
+        String agentId = request.getParameter("agentId");
+        return ApiResponse.success(repository.findByTenantIdAndResourceTypeOrderByUpdatedAtDesc(tenantId, kind)
+            .stream().filter(grant -> agentId == null || agentId.isBlank()
+                ? grant.getAgentId() == null || grant.getAgentId().isBlank()
+                : agentId.equals(grant.getAgentId())).toList());
     }
 
     @PostMapping
+    @org.springframework.transaction.annotation.Transactional
     public ApiResponse<ResourceGrant> create(HttpServletRequest request, @RequestBody ResourceGrant input) {
         validate(input);
         requireTenantAccess(request, input.getTenantId());
+        requireAgentBinding(input);
+        if (input.getAgentId() != null) {
+            var existing = repository.findByTenantIdAndResourceTypeOrderByUpdatedAtDesc(input.getTenantId(), input.getResourceType())
+                .stream().filter(grant -> input.getAgentId().equals(grant.getAgentId())
+                    && input.getPrincipalType().equals(grant.getPrincipalType())
+                    && input.getPrincipalId().equals(grant.getPrincipalId())
+                    && input.getResourceId().equals(grant.getResourceId())).toList();
+            repository.deleteAll(existing);
+        }
         input.setId(null);
         return ApiResponse.success(repository.save(input));
     }
@@ -66,7 +80,9 @@ public class ResourceGrantAdminController {
         requireTenantAccess(request, stored.getTenantId());
         validate(input);
         requireTenantAccess(request, input.getTenantId());
+        requireAgentBinding(input);
         stored.setTenantId(input.getTenantId());
+        stored.setAgentId(input.getAgentId());
         stored.setResourceType(input.getResourceType());
         stored.setResourceId(input.getResourceId());
         stored.setPrincipalType(input.getPrincipalType());
@@ -98,10 +114,24 @@ public class ResourceGrantAdminController {
         }
         grant.setPrincipalType(normalized(grant.getPrincipalType(), PRINCIPAL_TYPES, "principalType"));
         grant.setEffect(normalized(grant.getEffect(), EFFECTS, "effect"));
+        if (grant.getAgentId() != null) {
+            grant.setAgentId(grant.getAgentId().trim());
+            if (grant.getAgentId().isEmpty()) grant.setAgentId(null);
+            else if (!"ROLE".equals(grant.getPrincipalType()) || grant.getAgentId().length() > 128)
+                throw new IllegalArgumentException("Agent resource grants require a role and a valid agentId");
+        }
     }
 
     private void require(String value, String field) {
         if (value == null || value.isBlank()) throw new IllegalArgumentException(field + " is required");
+    }
+
+    private void requireAgentBinding(ResourceGrant grant) {
+        if (grant.getAgentId() == null) return;
+        var authorization = adminService.getRoleAuthorization(grant.getPrincipalId());
+        if (!grant.getTenantId().equals(authorization.role().getTenantId())
+            || !authorization.agentIds().contains(grant.getAgentId()))
+            throw new IllegalArgumentException("Agent is not bound to this role in the selected tenant");
     }
 
     private void requireTenantAccess(HttpServletRequest request, String tenantId) {

@@ -22,13 +22,20 @@ public class ApiResourceAuthorizationAdapter implements ResourceAuthorizationPor
     @Override
     public Set<String> allowedIds(String resourceType, String tenantId, String userId,
                                   Set<String> ignoredCallerRoles, Set<String> candidateIds) {
+        return allowedIdsForAgent(resourceType, tenantId, userId, ignoredCallerRoles, candidateIds, null);
+    }
+
+    @Override
+    public Set<String> allowedIdsForAgent(String resourceType, String tenantId, String userId,
+                                          Set<String> ignoredCallerRoles, Set<String> candidateIds, String agentId) {
         try {
             if (candidateIds == null || candidateIds.isEmpty()) return Set.of();
             ArrayList<String> ids = new ArrayList<>(candidateIds);
             Set<String> allowed = new HashSet<>();
             for (int offset = 0; offset < ids.size(); offset += 500) {
-                allowed.addAll(apiClient.allowedResourceIds(resourceType, tenantId, userId,
-                    Set.copyOf(ids.subList(offset, Math.min(offset + 500, ids.size())))));
+                Set<String> batch = Set.copyOf(ids.subList(offset, Math.min(offset + 500, ids.size())));
+                allowed.addAll(agentId == null ? apiClient.allowedResourceIds(resourceType, tenantId, userId, batch)
+                    : apiClient.allowedResourceIds(resourceType, tenantId, userId, batch, agentId));
             }
             return Set.copyOf(allowed);
         } catch (RuntimeException exception) {

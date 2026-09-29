@@ -42,6 +42,12 @@ class DatabaseSkillExecutionScopeServiceTest {
 
     @BeforeEach
     void caller() {
+        when(grants.allowedIdsForAgent(anyString(), anyString(), anyString(), any(), any(), anyString()))
+            .thenAnswer(call -> grants.allowedIds(call.getArgument(0), call.getArgument(1), call.getArgument(2),
+                call.getArgument(3), call.getArgument(4)));
+        when(grants.explicitlyAllowedIdsForAgent(anyString(), anyString(), anyString(), any(), any(), anyString()))
+            .thenAnswer(call -> grants.explicitlyAllowedIds(call.getArgument(0), call.getArgument(1), call.getArgument(2),
+                call.getArgument(3), call.getArgument(4)));
         SysUser user = new SysUser();
         user.setId("user-a"); user.setTenantId("tenant-a"); user.setStatus("enabled");
         SysRole role = new SysRole();

@@ -1708,8 +1708,9 @@ export function fetchMenuConfigurations() {
   return apiRequest("/enterprise/menu-configurations");
 }
 
-export function fetchResourceGrants(tenantId, resourceType) {
+export function fetchResourceGrants(tenantId, resourceType, agentId = "") {
   const query = new URLSearchParams({ tenantId, resourceType });
+  if (agentId) query.set("agentId", agentId);
   return apiRequest(`/enterprise/resource-grants?${query}`);
 }
 

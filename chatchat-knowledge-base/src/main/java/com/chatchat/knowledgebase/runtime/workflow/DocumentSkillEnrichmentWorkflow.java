@@ -84,8 +84,11 @@ public final class DocumentSkillEnrichmentWorkflow extends AbstractStagedExecuti
         DomainSkillRuntimePort skills = fixedSkills != null ? fixedSkills
             : skillProvider == null ? null : skillProvider.getIfAvailable();
         if (skills == null) return DomainSkillRuntimePort.EvidenceSkillActivation.empty("DISABLED");
-        return skills.activateForEvidence(scope.tenantId(), scope.userId(), input.roles(),
-            input.query(), analysis.previews(), plan.maxActivatedSkills());
+        Object agentId = scope.attributes().get("agentId");
+        return agentId == null ? skills.activateForEvidence(scope.tenantId(), scope.userId(), input.roles(),
+            input.query(), analysis.previews(), plan.maxActivatedSkills())
+            : skills.activateForEvidenceForAgent(scope.tenantId(), scope.userId(), input.roles(),
+                input.query(), analysis.previews(), plan.maxActivatedSkills(), String.valueOf(agentId));
     }
 
     @Override

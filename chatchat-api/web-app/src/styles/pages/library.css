@@ -147,6 +147,8 @@
 
 .library-view .library-categories {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   align-content: start;
   gap: 8px;
 }
@@ -211,6 +213,7 @@
 
 .library-view .category-row {
   position: relative;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -267,6 +270,7 @@
 
 .library-view .category-row-actions {
   position: relative;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   padding-right: 6px;

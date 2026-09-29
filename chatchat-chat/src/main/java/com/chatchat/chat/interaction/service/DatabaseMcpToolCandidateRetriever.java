@@ -81,10 +81,10 @@ public class DatabaseMcpToolCandidateRetriever implements McpToolCandidateRetrie
             .toList();
         Set<String> grantAllowedIds = resourceAuthorization == null ? nativeAllowed.stream()
             .map(McpToolAsset::getLocalToolName).collect(java.util.stream.Collectors.toSet())
-            : resourceAuthorization.allowedIds(ResourceAuthorizationPort.MCP_TOOL,
+            : resourceAuthorization.allowedIdsForAgent(ResourceAuthorizationPort.MCP_TOOL,
                 user.getTenantId(), user.getId(), roleIds,
                 nativeAllowed.stream().map(McpToolAsset::getLocalToolName)
-                    .collect(java.util.stream.Collectors.toSet()));
+                    .collect(java.util.stream.Collectors.toSet()), request.getSkillId());
         List<McpToolAsset> allowed = nativeAllowed.stream()
             .filter(tool -> grantAllowedIds.contains(tool.getLocalToolName())).toList();
         Set<String> allowedNames = new LinkedHashSet<>();
@@ -95,8 +95,8 @@ public class DatabaseMcpToolCandidateRetriever implements McpToolCandidateRetrie
             .filter(tool -> tool.isEnabled() && "online".equalsIgnoreCase(tool.getStatus()))
             .filter(tool -> permitted(tool, finalGrants))
             .filter(tool -> resourceAuthorization == null
-                || resourceAuthorization.allowedIds(ResourceAuthorizationPort.MCP_TOOL,
-                    user.getTenantId(), user.getId(), roleIds, Set.of(tool.getLocalToolName()))
+                || resourceAuthorization.allowedIdsForAgent(ResourceAuthorizationPort.MCP_TOOL,
+                    user.getTenantId(), user.getId(), roleIds, Set.of(tool.getLocalToolName()), request.getSkillId())
                     .contains(tool.getLocalToolName())).isPresent();
         Set<String> verifiedAllowedNames = allowedNames.stream().filter(stillAllowed)
             .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));

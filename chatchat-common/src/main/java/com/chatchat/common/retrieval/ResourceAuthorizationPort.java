@@ -16,6 +16,16 @@ public interface ResourceAuthorizationPort {
 
     default boolean hasConfiguredRules(String resourceType, String tenantId) { return false; }
 
+    default Set<String> allowedIdsForAgent(String resourceType, String tenantId, String userId,
+                                           Set<String> roleIds, Set<String> candidateIds, String agentId) {
+        return allowedIds(resourceType, tenantId, userId, roleIds, candidateIds);
+    }
+
+    default Set<String> explicitlyAllowedIdsForAgent(String resourceType, String tenantId, String userId,
+                                                     Set<String> roleIds, Set<String> candidateIds, String agentId) {
+        return explicitlyAllowedIds(resourceType, tenantId, userId, roleIds, candidateIds);
+    }
+
     default Set<String> explicitlyAllowedIds(String resourceType, String tenantId, String userId,
                                              Set<String> roleIds, Set<String> candidateIds) {
         return Set.of();

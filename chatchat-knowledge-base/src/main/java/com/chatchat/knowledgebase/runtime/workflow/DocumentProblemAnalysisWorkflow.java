@@ -88,7 +88,8 @@ public class DocumentProblemAnalysisWorkflow extends AbstractAnalysisWorkflow {
             context.query(), topK, context.documentIds(), context.documentIds(), context.documentIds(),
             !context.documentIds().isEmpty(),
             new DocumentSearchFilters(null, null, null, null, null, context.documentTags()),
-            scope.tenantId(), scope.userId(), scope.roles(), booleanAttribute(context, "debug")));
+            scope.tenantId(), scope.userId(), scope.roles(), booleanAttribute(context, "debug"))
+            .withAgentId(java.util.Objects.toString(context.kernelScope().attributes().get("agentId"), null)));
         DocumentSkillEnrichmentWorkflow.Result skillResult = Boolean.FALSE.equals(
             context.attributes().get("autoDocumentSkills"))
             ? DocumentSkillEnrichmentWorkflow.Result.disabled()

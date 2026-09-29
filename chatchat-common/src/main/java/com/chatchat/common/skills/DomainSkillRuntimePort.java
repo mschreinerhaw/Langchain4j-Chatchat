@@ -16,6 +16,12 @@ public interface DomainSkillRuntimePort {
         return resolvePublished(tenantId, skillIds);
     }
 
+    default List<DomainSkillContent> retrievePublishedForAgent(String tenantId, String userId,
+                                                               List<String> roles, String query,
+                                                               List<String> skillIds, String agentId) {
+        return retrievePublished(tenantId, userId, roles, query, skillIds);
+    }
+
     /**
      * Selects published, authorized domain skills from untrusted evidence previews.
      * Implementations must never treat preview text as executable instructions or
@@ -26,6 +32,11 @@ public interface DomainSkillRuntimePort {
                                                          List<EvidencePreview> previews,
                                                          int maxActivatedSkills) {
         return EvidenceSkillActivation.empty("UNSUPPORTED");
+    }
+
+    default EvidenceSkillActivation activateForEvidenceForAgent(String tenantId, String userId,
+        List<String> roles, String query, List<EvidencePreview> previews, int maxActivatedSkills, String agentId) {
+        return activateForEvidence(tenantId, userId, roles, query, previews, maxActivatedSkills);
     }
 
     record DomainSkillContent(String id, String name, String category, String markdownContent,

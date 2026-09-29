@@ -8,6 +8,7 @@ import com.chatchat.enterprise.repository.identity.SysRoleRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRoleRepository;
 import com.chatchat.enterprise.repository.security.ResourceGrantRepository;
+import com.chatchat.enterprise.repository.security.RoleAgentBindingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,19 +30,34 @@ public class ResourceAuthorizationService implements ResourceAuthorizationPort {
     private final SysUserRepository users;
     private final SysUserRoleRepository userRoles;
     private final SysRoleRepository roles;
+    private final RoleAgentBindingRepository roleAgents;
 
     @Override
     @Transactional(readOnly = true)
     public Set<String> allowedIds(String resourceType, String tenantId, String userId,
                                   Set<String> ignoredCallerRoles, Set<String> candidateIds) {
-        return evaluate(resourceType, tenantId, userId, candidateIds);
+        return evaluate(resourceType, tenantId, userId, candidateIds, null);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Set<String> explicitlyAllowedIds(String resourceType, String tenantId, String userId,
                                              Set<String> ignoredCallerRoles, Set<String> candidateIds) {
-        return evaluate(resourceType, tenantId, userId, candidateIds);
+        return evaluate(resourceType, tenantId, userId, candidateIds, null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<String> allowedIdsForAgent(String type, String tenantId, String userId,
+                                          Set<String> ignoredCallerRoles, Set<String> candidates, String agentId) {
+        return evaluate(type, tenantId, userId, candidates, agentId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<String> explicitlyAllowedIdsForAgent(String type, String tenantId, String userId,
+                                                    Set<String> ignoredCallerRoles, Set<String> candidates, String agentId) {
+        return evaluate(type, tenantId, userId, candidates, agentId);
     }
 
     @Override
@@ -52,7 +68,7 @@ public class ResourceAuthorizationService implements ResourceAuthorizationPort {
     }
 
     private Set<String> evaluate(String resourceType, String tenantId, String userId,
-                                 Set<String> candidateIds) {
+                                 Set<String> candidateIds, String agentId) {
         if (candidateIds == null || candidateIds.isEmpty()) return Set.of();
         if (tenantId == null || tenantId.isBlank() || resourceType == null || resourceType.isBlank()) return Set.of();
         SysUser user = userId == null ? null : users.findById(userId).orElse(null);
@@ -79,8 +95,20 @@ public class ResourceAuthorizationService implements ResourceAuthorizationPort {
                 tenantId, resourceType, lookupIds.subList(offset, Math.min(offset + 500, lookupIds.size()))));
         }
         Instant now = Instant.now();
+        Set<String> agentRoleIds = new HashSet<>();
+        if (agentId != null && !agentId.isBlank() && !activeRoleIds.isEmpty()) {
+            roleAgents.findByRoleIdIn(new ArrayList<>(activeRoleIds)).stream()
+                .filter(binding -> tenantId.equals(binding.getTenantId()) && binding.isEnabled()
+                    && agentId.equals(binding.getAgentId())
+                    && (binding.getEffectiveTime() == null || !binding.getEffectiveTime().isAfter(now))
+                    && (binding.getExpireTime() == null || binding.getExpireTime().isAfter(now)))
+                .forEach(binding -> agentRoleIds.add(binding.getRoleId()));
+        }
         Map<String, List<ResourceGrant>> rulesById = new HashMap<>();
         for (ResourceGrant rule : rules) {
+            if (rule.getAgentId() != null && !rule.getAgentId().isBlank()
+                && (!rule.getAgentId().equals(agentId) || !"ROLE".equals(rule.getPrincipalType())
+                    || !agentRoleIds.contains(rule.getPrincipalId()))) continue;
             rulesById.computeIfAbsent(rule.getResourceId(), ignored -> new ArrayList<>()).add(rule);
         }
         List<ResourceGrant> wildcardRules = rulesById.getOrDefault("*", List.of());

@@ -111,6 +111,8 @@
 
 .favorites-view .favorite-categories {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   align-content: start;
   gap: 8px;
 }
@@ -197,6 +199,7 @@
 
 .favorites-view .favorite-category-row-actions {
   position: relative;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   padding-right: 6px;

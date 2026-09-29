@@ -33,7 +33,15 @@ public class RuntimeOsDomainSkillAdapter implements DomainSkillRuntimePort {
     public List<DomainSkillContent> retrievePublished(String tenantId, String userId,
                                                        List<String> roles, String query,
                                                        List<String> skillIds) {
-        SkillRoleContext context = context(tenantId, userId, roles);
+        return retrievePublishedForAgent(tenantId, userId, roles, query, skillIds, "");
+    }
+
+    @Override
+    public List<DomainSkillContent> retrievePublishedForAgent(String tenantId, String userId,
+                                                              List<String> roles, String query,
+                                                              List<String> skillIds, String agentId) {
+        SkillRoleContext context = new SkillRoleContext(tenantId, userId, roles, List.of(),
+            agentId == null || agentId.isBlank() ? Map.of() : Map.of("agentId", agentId));
         int limit = Math.max(1, Math.min(20, skillIds == null || skillIds.isEmpty() ? 12 : skillIds.size()));
         var routed = router.route(new SkillSearchRequest(query, context, skillIds, limit, Map.of()));
         return resolve(routed.candidates(), context, limit);
@@ -44,7 +52,14 @@ public class RuntimeOsDomainSkillAdapter implements DomainSkillRuntimePort {
                                                         List<String> roles, String query,
                                                         List<EvidencePreview> previews,
                                                         int maxActivatedSkills) {
-        SkillRoleContext context = context(tenantId, userId, roles);
+        return activateForEvidenceForAgent(tenantId, userId, roles, query, previews, maxActivatedSkills, null);
+    }
+
+    @Override
+    public EvidenceSkillActivation activateForEvidenceForAgent(String tenantId, String userId,
+        List<String> roles, String query, List<EvidencePreview> previews, int maxActivatedSkills, String agentId) {
+        SkillRoleContext context = new SkillRoleContext(tenantId, userId, roles, List.of(),
+            agentId == null || agentId.isBlank() ? Map.of() : Map.of("agentId", agentId));
         int activationLimit = Math.max(1, Math.min(5, maxActivatedSkills));
         String routingQuery = evidenceRoutingQuery(query, previews);
         var routed = router.route(new SkillSearchRequest(

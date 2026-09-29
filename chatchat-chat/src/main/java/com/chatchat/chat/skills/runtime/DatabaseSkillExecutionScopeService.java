@@ -116,14 +116,14 @@ public class DatabaseSkillExecutionScopeService implements SkillExecutionScopePo
         }
         Set<String> candidates = new LinkedHashSet<>(directIds);
         candidates.addAll(documentBases.keySet());
-        Set<String> allowedDocuments = authorization.allowedIds(ResourceAuthorizationPort.KNOWLEDGE,
-            tenantId, userId, roleIds, candidates);
-        Set<String> explicitDocuments = authorization.explicitlyAllowedIds(ResourceAuthorizationPort.KNOWLEDGE,
-            tenantId, userId, roleIds, candidates);
+        Set<String> allowedDocuments = authorization.allowedIdsForAgent(ResourceAuthorizationPort.KNOWLEDGE,
+            tenantId, userId, roleIds, candidates, skillId);
+        Set<String> explicitDocuments = authorization.explicitlyAllowedIdsForAgent(ResourceAuthorizationPort.KNOWLEDGE,
+            tenantId, userId, roleIds, candidates, skillId);
         Set<String> categories = new LinkedHashSet<>();
         documentBases.values().forEach(categories::addAll);
-        Set<String> explicitBases = authorization.explicitlyAllowedIds(ResourceAuthorizationPort.KNOWLEDGE_BASE,
-            tenantId, userId, roleIds, categories);
+        Set<String> explicitBases = authorization.explicitlyAllowedIdsForAgent(ResourceAuthorizationPort.KNOWLEDGE_BASE,
+            tenantId, userId, roleIds, categories, skillId);
         Set<String> selected = new LinkedHashSet<>();
         for (String docId : candidates) {
             if (!allowedDocuments.contains(docId)) continue;

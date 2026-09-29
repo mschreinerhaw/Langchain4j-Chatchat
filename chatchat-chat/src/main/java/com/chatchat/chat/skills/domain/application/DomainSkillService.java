@@ -138,8 +138,7 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
             .filter(skill -> skill.isBuiltin() || tenantId.equals(skill.getTenantId()))
             .collect(java.util.stream.Collectors.toMap(DomainSkillEntity::getId, skill -> skill,
                 (left, right) -> left, LinkedHashMap::new));
-        Set<String> allowed = skillGrantAllowed(tenantId, request.roleContext().userId(), roleIds,
-            published.keySet());
+        Set<String> allowed = new LinkedHashSet<>(skillGrantAllowed(request.roleContext(), published.keySet()));
         if (!request.requestedSkillIds().isEmpty()) allowed.retainAll(request.requestedSkillIds());
         if (allowed.isEmpty()) return List.of();
 
@@ -180,7 +179,7 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
         if (skill == null || !PUBLISHED.equalsIgnoreCase(skill.getStatus()) || skill.isPublicationDirty()
             || (!skill.isBuiltin() && !tenantId.equals(skill.getTenantId()))) return Optional.empty();
         Set<String> roles = new LinkedHashSet<>(request.roleContext().roleIds());
-        if (!skillGrantAllowed(tenantId, request.roleContext().userId(), roles, Set.of(skill.getId()))
+        if (!skillGrantAllowed(request.roleContext(), Set.of(skill.getId()))
             .contains(skill.getId())) return Optional.empty();
         SkillDescriptor descriptor = descriptor(skill, 1D);
         if (!request.version().isBlank() && !request.version().equals(descriptor.version())) return Optional.empty();
@@ -197,8 +196,7 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
         DomainSkillEntity skill = repository.findVisibleById(context.tenantId(), skillId).orElse(null);
         if (skill == null || !PUBLISHED.equalsIgnoreCase(skill.getStatus()) || skill.isPublicationDirty())
             return Optional.empty();
-        if (!skillGrantAllowed(context.tenantId(), context.userId(),
-            new LinkedHashSet<>(context.roleIds()), Set.of(skillId)).contains(skillId)) return Optional.empty();
+        if (!skillGrantAllowed(context, Set.of(skillId)).contains(skillId)) return Optional.empty();
         return packageReader.readResource(context.tenantId(), skillId, resourceId);
     }
 
@@ -400,6 +398,15 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
                                           Set<String> candidateIds) {
         return resourceAuthorization.explicitlyAllowedIds(ResourceAuthorizationPort.SKILL,
             tenantId, userId, roleIds, candidateIds);
+    }
+
+    private Set<String> skillGrantAllowed(SkillRoleContext context, Set<String> candidates) {
+        Object agentId = context.attributes().get("agentId");
+        if (agentId == null) return skillGrantAllowed(context.tenantId(), context.userId(),
+            new LinkedHashSet<>(context.roleIds()), candidates);
+        return resourceAuthorization.explicitlyAllowedIdsForAgent(ResourceAuthorizationPort.SKILL,
+            context.tenantId(), context.userId(), new LinkedHashSet<>(context.roleIds()), candidates,
+            String.valueOf(agentId));
     }
 
     @Transactional

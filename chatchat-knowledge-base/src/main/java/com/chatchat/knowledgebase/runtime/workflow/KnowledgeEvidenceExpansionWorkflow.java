@@ -205,7 +205,7 @@ public class KnowledgeEvidenceExpansionWorkflow implements EvidenceRecoveryWorkf
             context.documentIds(), context.documentIds(), !context.documentIds().isEmpty(),
             sections, chunkBudget(level), sectionBudget(level, sections.size()), chunkBudget(level),
             characterBudget(level), context.kernelScope().tenantId(), context.kernelScope().userId(),
-            context.roles(), false));
+            context.roles(), false).withAgentId(java.util.Objects.toString(context.kernelScope().attributes().get("agentId"), null)));
         return result.evidenceChunks().stream().map(this::toAnalysisEvidence).toList();
     }
 
@@ -220,7 +220,8 @@ public class KnowledgeEvidenceExpansionWorkflow implements EvidenceRecoveryWorkf
             query, 8, documentIds, documentIds, documentIds,
             !documentIds.isEmpty(),
             new DocumentSearchFilters(null, null, null, null, null, context.documentTags()),
-            context.kernelScope().tenantId(), context.kernelScope().userId(), context.roles(), false));
+            context.kernelScope().tenantId(), context.kernelScope().userId(), context.roles(), false)
+            .withAgentId(java.util.Objects.toString(context.kernelScope().attributes().get("agentId"), null)));
         return result.results().stream().map(this::toAnalysisEvidence).toList();
     }
 
@@ -344,7 +345,7 @@ public class KnowledgeEvidenceExpansionWorkflow implements EvidenceRecoveryWorkf
             sections, MAX_CHUNKS_PER_DOCUMENT,
             Math.max(1, new LinkedHashSet<>(sections).size()),
             MAX_CHUNKS_PER_DOCUMENT, maxTotalChars,
-            scope.tenantId(), scope.userId(), scope.roles(), false);
+            scope.tenantId(), scope.userId(), scope.roles(), false).withAgentId(scope.agentId());
     }
 
     private KnowledgeIR toKnowledgeIr(KnowledgeRequest request,

@@ -54,8 +54,8 @@ class RoleChatModeHandlerTest {
                 List.of(), List.of(), List.of("role-fixed-income"), true, true));
         DomainSkillRuntimePort.DomainSkillContent boundSkill = new DomainSkillRuntimePort.DomainSkillContent(
             "skill-fixed-income", "固收净值分析", "固收", "Compare duration and credit spread.");
-        when(skillRuntime.retrievePublished("tenant-a", "user-a", List.of("role-fixed-income"),
-            "分析净值变化", List.of("skill-fixed-income"))).thenReturn(List.of(boundSkill));
+        when(skillRuntime.retrievePublishedForAgent("tenant-a", "user-a", List.of("role-fixed-income"),
+            "分析净值变化", List.of("skill-fixed-income"), "fixed-income-advisor")).thenReturn(List.of(boundSkill));
         DomainSkillPlanningRouter.RoutingResult routing = new DomainSkillPlanningRouter.RoutingResult(
             List.of(boundSkill), List.of(boundSkill), Map.of("principles", List.of("Separate rate and credit effects")),
             "<domain_skill_planning_knowledge>Separate rate and credit effects</domain_skill_planning_knowledge>",
@@ -75,8 +75,8 @@ class RoleChatModeHandlerTest {
             InteractionContext.builder().requestId("request-skill").conversationId("conversation-skill")
                 .mode(InteractionMode.ROLE_CHAT).history(List.of()).build());
 
-        verify(skillRuntime).retrievePublished("tenant-a", "user-a", List.of("role-fixed-income"),
-            "分析净值变化", List.of("skill-fixed-income"));
+        verify(skillRuntime).retrievePublishedForAgent("tenant-a", "user-a", List.of("role-fixed-income"),
+            "分析净值变化", List.of("skill-fixed-income"), "fixed-income-advisor");
         ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
         verify(model).chat(prompt.capture());
         assertThat(prompt.getValue())

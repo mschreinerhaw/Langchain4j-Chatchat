@@ -52,7 +52,9 @@ public class DocumentEvidenceAuthorizationFilter {
             }
             return result;
         }
-        Set<String> allowed = apiClient.allowedDocumentIds(request.tenantId(), request.userId(), ids);
+        Set<String> allowed = request.agentId() == null
+            ? apiClient.allowedDocumentIds(request.tenantId(), request.userId(), ids)
+            : apiClient.allowedResourceIds("KNOWLEDGE", request.tenantId(), request.userId(), ids, request.agentId());
         if (allowed.containsAll(ids)) return result;
         List<DocumentEvidenceChunk> chunks = result.results().stream()
             .filter(chunk -> allowed.contains(chunk.fileId())).toList();

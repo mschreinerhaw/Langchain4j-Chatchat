@@ -50,6 +50,10 @@ public class InternalResourceAuthorizationController {
             || !Objects.equals(user.tenantId(), request.tenantId())) {
             return ApiResponse.error(403, "Resource authorization principal is not authorized");
         }
+        if (request.agentId() != null && !request.agentId().isBlank()) {
+            return ApiResponse.success(new ResourceAuthorizationResult(authorization.allowedIdsForAgent(
+                request.resourceType(), user.tenantId(), user.id(), Set.of(), request.candidateIds(), request.agentId())));
+        }
         return ApiResponse.success(new ResourceAuthorizationResult(authorization.allowedIds(
             request.resourceType(), user.tenantId(), user.id(),
             user.roleIds() == null ? Set.of() : Set.copyOf(user.roleIds()),

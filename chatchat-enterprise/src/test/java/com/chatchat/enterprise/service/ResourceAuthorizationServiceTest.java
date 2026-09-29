@@ -9,6 +9,8 @@ import com.chatchat.enterprise.repository.identity.SysRoleRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRoleRepository;
 import com.chatchat.enterprise.repository.security.ResourceGrantRepository;
+import com.chatchat.enterprise.repository.security.RoleAgentBindingRepository;
+import com.chatchat.enterprise.entity.security.RoleAgentBinding;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -43,7 +45,7 @@ class ResourceAuthorizationServiceTest {
                 grant("skill-a", "ROLE", "analyst", "ALLOW"),
                 grant("skill-b", "ROLE", "analyst", "ALLOW"),
                 grant("skill-b", "USER", "user-1", "DENY")));
-        ResourceAuthorizationService service = new ResourceAuthorizationService(grants, users, memberships, roles);
+        ResourceAuthorizationService service = new ResourceAuthorizationService(grants, users, memberships, roles, mock(RoleAgentBindingRepository.class));
 
         assertThat(service.allowedIds(ResourceAuthorizationPort.SKILL, "tenant-1", "user-1",
             Set.of("forged-admin"), Set.of("skill-a", "skill-b", "legacy")))
@@ -62,7 +64,7 @@ class ResourceAuthorizationServiceTest {
         when(grants.findByTenantIdAndResourceTypeAndResourceIdIn(eq("tenant-1"),
             eq(ResourceAuthorizationPort.KNOWLEDGE), anyCollection())).thenReturn(List.of(expired));
         ResourceAuthorizationService service = new ResourceAuthorizationService(grants,
-            mock(SysUserRepository.class), mock(SysUserRoleRepository.class), mock(SysRoleRepository.class));
+            mock(SysUserRepository.class), mock(SysUserRoleRepository.class), mock(SysRoleRepository.class), mock(RoleAgentBindingRepository.class));
 
         assertThat(service.allowedIds(ResourceAuthorizationPort.KNOWLEDGE, "tenant-1", null,
             Set.of(), Set.of("doc-a"))).isEmpty();
@@ -74,5 +76,47 @@ class ResourceAuthorizationServiceTest {
         grant.setResourceId(id); grant.setPrincipalType(principalType);
         grant.setPrincipalId(principalId); grant.setEffect(effect);
         return grant;
+    }
+
+    @Test
+    void agentGrantsRequireMatchingAgentAndDatabaseRoleBinding() {
+        ResourceGrantRepository grants = mock(ResourceGrantRepository.class);
+        SysUserRepository users = mock(SysUserRepository.class);
+        SysUserRoleRepository memberships = mock(SysUserRoleRepository.class);
+        SysRoleRepository roles = mock(SysRoleRepository.class);
+        RoleAgentBindingRepository bindings = mock(RoleAgentBindingRepository.class);
+        SysUser user = new SysUser();
+        user.setId("user-1"); user.setTenantId("tenant-1"); user.setStatus("enabled");
+        when(users.findById("user-1")).thenReturn(Optional.of(user));
+        SysUserRole membership = new SysUserRole();
+        membership.setTenantId("tenant-1"); membership.setRoleId("analyst");
+        when(memberships.findByUserId("user-1")).thenReturn(List.of(membership));
+        SysRole role = new SysRole(); role.setId("analyst"); role.setStatus("enabled");
+        when(roles.findByTenantIdAndIdIn(eq("tenant-1"), anyCollection())).thenReturn(List.of(role));
+        RoleAgentBinding binding = new RoleAgentBinding();
+        binding.setTenantId("tenant-1"); binding.setRoleId("analyst"); binding.setAgentId("agent-a");
+        when(bindings.findByRoleIdIn(org.mockito.ArgumentMatchers.anyList())).thenReturn(List.of(binding));
+        ResourceGrant own = grant("skill-a", "ROLE", "analyst", "ALLOW"); own.setAgentId("agent-a");
+        ResourceGrant other = grant("skill-b", "ROLE", "other-role", "ALLOW"); other.setAgentId("agent-a");
+        when(grants.findByTenantIdAndResourceTypeAndResourceIdIn(eq("tenant-1"), eq("SKILL"), anyCollection()))
+            .thenReturn(List.of(own, other));
+        ResourceAuthorizationService service = new ResourceAuthorizationService(grants, users, memberships, roles, bindings);
+        Set<String> candidates = Set.of("skill-a", "skill-b");
+        assertThat(service.allowedIdsForAgent("SKILL", "tenant-1", "user-1", Set.of("other-role"), candidates, "agent-a"))
+            .containsExactly("skill-a");
+        assertThat(service.allowedIdsForAgent("SKILL", "tenant-1", "user-1", Set.of(), candidates, "agent-b")).isEmpty();
+        assertThat(service.allowedIds("SKILL", "tenant-1", "user-1", Set.of(), candidates)).isEmpty();
+        ResourceGrant shared = grant("skill-a", "ROLE", "analyst", "ALLOW");
+        own.setEffect("DENY");
+        when(grants.findByTenantIdAndResourceTypeAndResourceIdIn(eq("tenant-1"), eq("SKILL"), anyCollection()))
+            .thenReturn(List.of(own, shared));
+        assertThat(service.allowedIdsForAgent("SKILL", "tenant-1", "user-1", Set.of(), candidates, "agent-a")).isEmpty();
+        assertThat(service.allowedIdsForAgent("SKILL", "tenant-1", "user-1", Set.of(), candidates, "agent-b"))
+            .containsExactly("skill-a");
+        when(grants.findByTenantIdAndResourceTypeAndResourceIdIn(eq("tenant-1"), eq("SKILL"), anyCollection()))
+            .thenReturn(List.of(own));
+        own.setEffect("ALLOW");
+        binding.setEnabled(false);
+        assertThat(service.allowedIdsForAgent("SKILL", "tenant-1", "user-1", Set.of(), candidates, "agent-a")).isEmpty();
     }
 }

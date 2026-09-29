@@ -34,7 +34,7 @@ public class DocumentSearchRequestMapper {
             text(input.get("userId")),
             strings(input.get("roles")),
             bool(input.get("debug"))
-        );
+        ).withAgentId(text(input.get("authorizationAgentId")));
     }
 
     private Object first(Map<String, Object> values, String... names) {

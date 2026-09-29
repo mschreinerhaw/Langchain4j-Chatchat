@@ -211,8 +211,8 @@ public class RoleChatModeHandler implements InteractionModeHandler {
     private List<DomainSkillRuntimePort.DomainSkillContent> resolveDomainSkills(
         InteractionRequest request, SkillDefinition skill, List<String> roles, List<String> ids) {
         if (domainSkillRuntime == null || ids.isEmpty()) return List.of();
-        List<DomainSkillRuntimePort.DomainSkillContent> resolved = domainSkillRuntime.retrievePublished(
-            request.getTenantId(), request.getUserId(), roles, request.getQuery(), ids);
+        List<DomainSkillRuntimePort.DomainSkillContent> resolved = domainSkillRuntime.retrievePublishedForAgent(
+            request.getTenantId(), request.getUserId(), roles, request.getQuery(), ids, skill.id());
         List<DomainSkillRuntimePort.DomainSkillContent> skills = resolved == null
             ? List.of() : resolved.stream().filter(item -> item != null).toList();
         log.info("roleChatDomainSkillsResolved skillId={} tenantId={} configuredCount={} "

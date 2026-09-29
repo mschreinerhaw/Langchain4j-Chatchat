@@ -1,120 +1,66 @@
 <template>
   <section class="resource-auth">
     <header class="resource-auth-head">
-      <div>
-        <p>资源授权</p>
-        <h2>角色、Agent 与资源范围</h2>
-        <small>先选同一角色和 Agent，再分别查看角色绑定、执行授权与该 Agent 的资源范围；运行时只使用角色授权和 Skill 范围的交集。</small>
-      </div>
+      <div><p>资源授权</p><h2>角色与 Agent 资源授权</h2><small>选择角色及其绑定的 Agent，分别配置领域技能、文档和 MCP 工具授权。</small></div>
     </header>
-
     <div v-if="notice" class="resource-auth-notice" :class="{ error: failed }">{{ notice }}</div>
-
-    <div class="resource-auth-context" aria-label="共同查看对象">
-      <label class="resource-auth-field">查看角色
-        <select v-model="roleId">
+    <div class="resource-auth-context">
+      <label class="resource-auth-field">当前角色
+        <select v-model="roleId" :disabled="!!busyKey">
           <option value="">选择角色</option>
           <option v-for="role in roles" :key="role.id" :value="role.id">{{ role.roleName }}（{{ role.roleCode }}）</option>
         </select>
       </label>
-      <label class="resource-auth-field">查看 Agent
-        <select v-model="skillId">
-          <option value="">选择 Agent</option>
-          <option v-for="agent in agents" :key="agent.id" :value="agent.id">{{ agent.name || agent.id }}</option>
-        </select>
-      </label>
     </div>
-    <div class="resource-auth-policy-map" aria-label="最终权限计算规则">
-      <article>
-        <span>角色权限上限</span>
-        <strong>{{ selectedRoleName }}</strong>
-        <small>决定用户最多可以使用哪些能力和资源</small>
-        <em>Agent 入口：{{ selectedAgentAccessLabel }}</em>
-      </article>
-      <div class="resource-auth-policy-operator" aria-hidden="true">
-        <b>∩</b>
-        <span>运行时取交集</span>
-      </div>
-      <article>
-        <span>Agent 运行白名单</span>
-        <strong>{{ selectedSkillName }}</strong>
-        <small>只能在角色权限内进一步收窄调用范围</small>
-        <em>{{ !skillId || !scopeLoaded ? "范围状态：待查看" : scopes.length ? `已配置 ${enabledScopes.length} 项白名单` : "未配置单独白名单" }}</em>
-      </article>
-    </div>
-    <p class="resource-auth-policy-result">
-      <strong>最终可用资源</strong>
-      = 角色允许的资源 ∩ Agent 允许的范围；右侧配置永远不会扩大左侧权限。
-    </p>
-
     <div class="resource-auth-columns">
       <div class="resource-auth-card">
-        <h3>① 角色权限上限</h3>
-        <p class="resource-auth-card-description">为“{{ selectedRoleName }}”配置可使用的能力、工具和数据。</p>
-        <div class="resource-auth-kind-groups">
-          <section v-for="group in grantKindGroups" :key="group.label">
-            <span>{{ group.label }}</span>
-            <div class="resource-auth-kinds">
-              <button v-for="kind in group.items" :key="kind.value" type="button" :class="{ active: grantKind === kind.value }" @click="grantKind = kind.value">{{ kind.label }}</button>
-            </div>
-          </section>
+        <h3>角色绑定的 Agent</h3>
+        <p class="resource-auth-card-description">“{{ selectedRoleName }}”已绑定 {{ boundAgentItems.length }} 个 Agent。</p>
+        <div class="resource-auth-tools">
+          <input v-model.trim="agentQuery" type="search" placeholder="搜索 Agent 名称或 ID" />
+          <button type="button" :disabled="!!busyKey" @click="loadRoleBindings">刷新</button>
+        </div>
+        <p class="resource-auth-hint">绑定关系在角色管理中维护。</p>
+        <div v-if="!roleId" class="resource-auth-empty">请先选择角色</div>
+        <div v-else-if="bindingLoading" class="resource-auth-empty">正在加载…</div>
+        <div v-else-if="!filteredBoundAgents.length" class="resource-auth-empty">{{ boundAgentItems.length ? '没有匹配的 Agent' : '该角色尚未绑定 Agent' }}</div>
+        <div v-else class="resource-auth-list">
+          <button v-for="item in filteredBoundAgents" :key="item.id" type="button"
+            class="resource-auth-item resource-auth-agent" :class="{ selected: skillId === item.id }"
+            :aria-pressed="skillId === item.id" :disabled="!!busyKey" @click="skillId = item.id">
+            <span><strong>{{ item.name }}</strong><small>{{ item.id }}</small></span>
+          </button>
+        </div>
+      </div>
+      <div class="resource-auth-card">
+        <h3>资源授权</h3>
+        <p class="resource-auth-card-description">{{ selectedRoleName }} / {{ selectedAgentName }}</p>
+        <div class="resource-auth-kinds">
+          <button v-for="kind in grantKinds" :key="kind.value" type="button" :disabled="!!busyKey"
+            :class="{ active: grantKind === kind.value }" @click="grantKind = kind.value">{{ kind.label }}</button>
         </div>
         <div class="resource-auth-tools">
           <input v-model.trim="query" type="search" placeholder="筛选当前页名称或 ID" />
-          <button type="button" @click="reload">刷新</button>
+          <button type="button" :disabled="!!busyKey" @click="reloadResources">刷新</button>
         </div>
-        <p class="resource-auth-hint">勾选后立即保存为角色权限。选择 Agent 能力时，可点击“配置白名单”继续设置该 Agent 的运行范围。</p>
-        <div v-if="loading" class="resource-auth-empty">正在加载…</div>
-        <div v-else-if="!roleId" class="resource-auth-empty">请先选择角色</div>
+        <p class="resource-auth-hint">勾选后仅授权当前角色使用所选 Agent 时访问该资源；取消勾选将禁止此关系访问该资源。资源自身的访问限制仍然生效。</p>
+        <div v-if="!roleId" class="resource-auth-empty">请先选择角色</div>
+        <div v-else-if="!skillId" class="resource-auth-empty">请先从左侧选择已绑定的 Agent</div>
+        <div v-else-if="loading || grantsLoading" class="resource-auth-empty">正在加载…</div>
         <div v-else-if="!grantItems.length" class="resource-auth-empty">没有匹配的资源</div>
         <div v-else class="resource-auth-list">
-          <div v-for="item in grantItems" :key="item.id" class="resource-auth-item" :class="{ selected: grantKind === 'AGENT_SKILL' && skillId === item.id }">
-            <label class="resource-auth-item-main">
-              <input type="checkbox" :checked="hasGrant(item.id)" :disabled="!!busyKey" @change="toggleGrant(item.id, $event.target.checked)" />
-              <span><strong>{{ item.name }}</strong><small>{{ item.id }}</small></span>
-            </label>
-            <button v-if="grantKind === 'AGENT_SKILL'" type="button" class="resource-auth-inspect" :aria-label="`配置 ${item.name} 的运行白名单`" @click="skillId = item.id">{{ skillId === item.id ? "正在配置" : "配置白名单" }}</button>
-          </div>
-        </div>
-        <div v-if="grantKind === 'KNOWLEDGE'" class="resource-auth-page">
-          <button type="button" :disabled="documentPage <= 1 || loading" @click="documentPage--">上一页</button>
-          <span>{{ documentPage }} / {{ documentPages }}</span>
-          <button type="button" :disabled="documentPage >= documentPages || loading" @click="documentPage++">下一页</button>
-        </div>
-        <p v-if="selectedGrantCount" class="resource-auth-count">当前角色已授权 {{ selectedGrantCount }} 项{{ grantKindLabel }}</p>
-      </div>
-
-      <div class="resource-auth-card">
-        <h3>② Agent 运行白名单</h3>
-        <p class="resource-auth-card-description">限制“{{ selectedSkillName }}”运行时可以调用的资源，不会授予角色新权限。</p>
-        <div class="resource-auth-kind-groups">
-          <section v-for="group in scopeKindGroups" :key="group.label">
-            <span>{{ group.label }}</span>
-            <div class="resource-auth-kinds">
-              <button v-for="kind in group.items" :key="kind.value" type="button" :class="{ active: scopeKind === kind.value }" @click="scopeKind = kind.value">{{ kind.label }}</button>
-            </div>
-          </section>
-        </div>
-        <div class="resource-auth-tools">
-          <input v-model.trim="scopeQuery" type="search" placeholder="筛选当前页名称或 ID" />
-          <button type="button" @click="reload">刷新</button>
-        </div>
-        <p class="resource-auth-hint">这里只做运行范围收窄。即使勾选，角色未获得同一资源权限时仍然不可使用。</p>
-        <div v-if="loading" class="resource-auth-empty">正在加载…</div>
-        <div v-else-if="!skillId" class="resource-auth-empty">请先选择 Agent Skill</div>
-        <div v-else-if="!scopeItems.length" class="resource-auth-empty">没有匹配的资源</div>
-        <div v-else class="resource-auth-list">
-          <label v-for="item in scopeItems" :key="item.id" class="resource-auth-item">
-            <input type="checkbox" :checked="hasScope(item.id)" :disabled="!!busyKey" @change="toggleScope(item.id, $event.target.checked)" />
+          <label v-for="item in grantItems" :key="item.id" class="resource-auth-item resource-auth-resource">
+            <input type="checkbox" :checked="hasGrant(item.id)" :disabled="!!busyKey || !grantsLoaded"
+              @change="toggleGrant(item.id, $event.target.checked)" />
             <span><strong>{{ item.name }}</strong><small>{{ item.id }}</small></span>
           </label>
         </div>
-        <div v-if="scopeKind === 'DOCUMENT'" class="resource-auth-page">
-          <button type="button" :disabled="documentPage <= 1 || loading" @click="documentPage--">上一页</button>
+        <div v-if="grantKind === 'KNOWLEDGE'" class="resource-auth-page">
+          <button type="button" :disabled="documentPage <= 1 || loading || !!busyKey" @click="documentPage--">上一页</button>
           <span>{{ documentPage }} / {{ documentPages }}</span>
-          <button type="button" :disabled="documentPage >= documentPages || loading" @click="documentPage++">下一页</button>
+          <button type="button" :disabled="documentPage >= documentPages || loading || !!busyKey" @click="documentPage++">下一页</button>
         </div>
-        <p v-if="skillId" class="resource-auth-count">{{ scopes.length ? `已配置 ${scopes.length} 项范围，其中 ${enabledScopes.length} 项启用` : "未配置 Agent 资源范围" }}。实际可用资源始终由角色授权与此范围共同决定。</p>
+        <p v-if="skillId && grantsLoaded" class="resource-auth-count">当前角色下该 Agent 已授权 {{ selectedGrantCount }} 项{{ grantKindLabel }}</p>
       </div>
     </div>
   </section>
@@ -122,41 +68,16 @@
 
 <script>
 import {
-  createResourceGrant, createSkillResourceScope, deleteResourceGrant,
-  deleteSkillResourceScope, fetchDomainSkills, fetchMcpRegisteredTools, fetchResearchLibrary,
-  fetchResourceGrants, fetchRoleAuthorization, fetchSkillResourceScopes
+  createResourceGrant, fetchDomainSkills, fetchMcpRegisteredTools,
+  fetchResearchLibrary, fetchResourceGrants, fetchRoleAuthorization
 } from "../services/api";
 import "../styles/pages/resource-authorization.css";
 
-const grantKindGroups = [
-  { label: "能力入口", items: [
-    { value: "AGENT_SKILL", label: "Agent 能力" },
-    { value: "SKILL", label: "领域技能" }
-  ] },
-  { label: "工具调用", items: [
-    { value: "MCP_TOOL", label: "MCP 工具" },
-    { value: "WORKFLOW", label: "工作流" }
-  ] },
-  { label: "数据访问", items: [
-    { value: "KNOWLEDGE_BASE", label: "文档分类" },
-    { value: "KNOWLEDGE", label: "单篇文档" }
-  ] }
+const grantKinds = [
+  { value: "SKILL", label: "领域技能" },
+  { value: "KNOWLEDGE", label: "文档" },
+  { value: "MCP_TOOL", label: "MCP 工具" }
 ];
-
-const scopeKindGroups = [
-  { label: "数据范围", items: [
-    { value: "KNOWLEDGE_BASE", label: "文档分类" },
-    { value: "DOCUMENT", label: "单篇文档" }
-  ] },
-  { label: "调用范围", items: [
-    { value: "MCP_TOOL", label: "MCP 工具" },
-    { value: "AGENT", label: "下游 Agent" },
-    { value: "WORKFLOW", label: "工作流" }
-  ] }
-];
-
-const grantKinds = grantKindGroups.flatMap((group) => group.items);
-const scopeKinds = scopeKindGroups.flatMap((group) => group.items);
 
 export default {
   name: "ResourceAuthorizationPanel",
@@ -168,202 +89,146 @@ export default {
   },
   data() {
     return {
-      grantKinds, scopeKinds, grantKindGroups, scopeKindGroups,
-      roleId: this.initialRoleId || this.roles[0]?.id || "",
-      skillId: "", grantKind: "AGENT_SKILL", scopeKind: "KNOWLEDGE_BASE",
-      query: "", scopeQuery: "", documentPage: 1, documentPages: 1,
-      categories: [], documents: [], domainSkills: [], mcpTools: [], grants: [], agentGrants: [], scopes: [],
-      roleAgentIds: [], roleBindingLoaded: false, agentGrantLoaded: false, scopeLoaded: false,
-      loading: false, busyKey: "", notice: "", failed: false, requestVersion: 0, noticeTimer: null
+      grantKinds, roleId: this.initialRoleId || this.roles[0]?.id || "",
+      skillId: "", grantKind: "SKILL", agentQuery: "", query: "",
+      documentPage: 1, documentPages: 1,
+      categories: [], documents: [], domainSkills: [], mcpTools: [], grants: [], roleAgentIds: [],
+      loading: false, bindingLoading: false, grantsLoading: false, grantsLoaded: false,
+      busyKey: "", notice: "", failed: false, noticeTimer: null,
+      catalogVersion: 0, bindingVersion: 0, grantVersion: 0
     };
   },
   computed: {
     selectedRoleName() { return this.roles.find((role) => role.id === this.roleId)?.roleName || "未选择"; },
-    selectedSkillName() { return this.agents.find((agent) => agent.id === this.skillId)?.name || "未选择"; },
-    selectedRoleBinding() { return this.roleAgentIds.some((id) => id.toLowerCase() === this.skillId.toLowerCase()); },
-    selectedAgentGranted() { return this.agentGrants.some((grant) => grant.resourceId === this.skillId && grant.principalType === "ROLE" && grant.principalId === this.roleId && grant.effect === "ALLOW" && grant.enabled); },
-    selectedAgentAccessLabel() {
-      if (!this.roleId || !this.skillId || !this.roleBindingLoaded || !this.agentGrantLoaded) return "待查看";
-      const sources = [this.selectedRoleBinding ? "角色绑定" : "", this.selectedAgentGranted ? "显式授权" : ""].filter(Boolean);
-      return sources.length ? `已允许（${sources.join(" + ")}）` : "未允许";
-    },
-    enabledScopes() { return this.scopes.filter((scope) => scope.enabled); },
-    selectedGrantCount() { return this.grants.filter((grant) => grant.principalType === "ROLE" && grant.principalId === this.roleId && grant.effect === "ALLOW" && grant.enabled).length; },
-    grantKindLabel() { return grantKinds.find((kind) => kind.value === this.grantKind)?.label || "资源"; },
-    agentItems() { return this.agents.map((agent) => ({ id: String(agent.id), name: agent.name || agent.id })); },
-    skillItems() { return this.domainSkills.map((skill) => ({ id: String(skill.id), name: skill.name || skill.id })); },
-    categoryItems() { return this.categories.map((category) => {
-      const name = typeof category === "string" ? category : category.name;
-      return { id: String(name || "").trim().toLowerCase(), name: name || "未分类" };
-    }).filter((item) => item.id); },
-    documentItems() { return this.documents.filter((doc) => doc.docId).map((doc) => ({ id: String(doc.docId), name: doc.title || doc.fileName || doc.docId })); },
-    mcpToolItems() { return this.mcpTools.map((tool) => {
-      const id = tool.localToolName || tool.toolName || tool.name || tool.id;
-      return {
-        id: String(id || ""),
-        name: tool.chineseAlias || tool.displayName || tool.remoteToolName || id
-      };
-    }).filter((item) => item.id); },
-    workflowItems() {
-      const values = new Map();
-      this.agents.forEach((agent) => {
-        const id = agent.workflowId || agent.workflowConfig?.workflowId || agent.workflowConfig?.workflow_id;
-        if (id) values.set(String(id), { id: String(id), name: agent.workflowConfig?.name || String(id) });
+    selectedAgentName() { return this.boundAgentItems.find((agent) => agent.id === this.skillId)?.name || "未选择 Agent"; },
+    boundAgentItems() {
+      const agents = new Map(this.agents.map((agent) => [String(agent.id).toLowerCase(), agent]));
+      return [...new Set(this.roleAgentIds.map((id) => String(id).toLowerCase()))].map((id) => {
+        const agent = agents.get(id);
+        return { id: agent ? String(agent.id) : id, name: agent?.name || id };
       });
-      this.scopes.filter((scope) => scope.resourceType === "WORKFLOW").forEach((scope) =>
-        values.set(String(scope.resourceId), { id: String(scope.resourceId), name: String(scope.resourceId) }));
-      return [...values.values()];
     },
+    filteredBoundAgents() {
+      const query = this.agentQuery.toLowerCase();
+      return this.boundAgentItems.filter((agent) => `${agent.name} ${agent.id}`.toLowerCase().includes(query));
+    },
+    roleGrants() {
+      return this.grants.filter((grant) => grant.principalType === "ROLE" && grant.principalId === this.roleId
+        && grant.agentId === this.skillId && grant.effect === "ALLOW" && grant.enabled
+        && (!grant.expiresAt || new Date(grant.expiresAt).getTime() > Date.now()));
+    },
+    selectedGrantCount() { return new Set(this.roleGrants.map((grant) => grant.resourceId)).size; },
+    grantKindLabel() { return grantKinds.find((kind) => kind.value === this.grantKind)?.label || "资源"; },
     grantItems() {
-      const items = this.grantKind === "AGENT_SKILL" ? this.agentItems
-        : this.grantKind === "SKILL" ? this.skillItems
-          : this.grantKind === "MCP_TOOL" ? this.mcpToolItems
-            : this.grantKind === "WORKFLOW" ? this.workflowItems
-          : this.grantKind === "KNOWLEDGE_BASE" ? this.categoryItems : this.documentItems;
-      const q = this.query.toLowerCase();
-      return q ? items.filter((item) => `${item.name} ${item.id}`.toLowerCase().includes(q)) : items;
-    },
-    scopeItems() {
-      const items = this.scopeKind === "DOCUMENT" ? this.documentItems
-        : this.scopeKind === "KNOWLEDGE_BASE" ? this.categoryItems
-          : this.scopeKind === "MCP_TOOL" ? this.mcpToolItems
-            : this.scopeKind === "AGENT" ? this.agentItems : this.workflowItems;
-      const q = this.scopeQuery.toLowerCase();
-      return q ? items.filter((item) => `${item.name} ${item.id}`.toLowerCase().includes(q)) : items;
+      let items;
+      if (this.grantKind === "SKILL") items = this.domainSkills.map((skill) => ({ id: String(skill.id), name: skill.name || skill.id }));
+      else if (this.grantKind === "KNOWLEDGE_BASE") items = this.categories.map((category) => {
+        const name = typeof category === "string" ? category : category.name;
+        return { id: String(name || "").trim().toLowerCase(), name: name || "未分类" };
+      });
+      else if (this.grantKind === "KNOWLEDGE") items = this.documents.filter((doc) => doc.docId)
+        .map((doc) => ({ id: String(doc.docId), name: doc.title || doc.fileName || doc.docId }));
+      else items = this.mcpTools.map((tool) => {
+        const id = tool.localToolName || tool.toolName || tool.name || tool.id;
+        return { id: String(id || ""), name: tool.chineseAlias || tool.displayName || tool.remoteToolName || id };
+      });
+      const query = this.query.toLowerCase();
+      return items.filter((item) => item.id && `${item.name} ${item.id}`.toLowerCase().includes(query));
     }
   },
   watch: {
-    tenantId() { this.roleId = this.roles[0]?.id || ""; this.skillId = ""; this.reload(); },
+    tenantId() {
+      this.roleId = this.roles[0]?.id || ""; this.skillId = ""; this.roleAgentIds = [];
+      this.reload();
+    },
     initialRoleId(value) { if (value) this.roleId = value; },
-    roleId() { this.loadGrants(); this.loadAgentGrants(); this.loadRoleBindings(); },
-    grantKind() { this.loadGrants(); },
-    skillId() { this.loadScopes(); },
+    roleId() {
+      this.skillId = ""; this.roleAgentIds = [];
+      this.loadGrants(); this.loadRoleBindings();
+    },
+    boundAgentItems(items) { if (!items.some((item) => item.id === this.skillId)) this.skillId = items[0]?.id || ""; },
+    grantKind() { this.query = ""; this.loadGrants(); },
+    skillId() { this.loadGrants(); },
     documentPage() { this.loadCatalog(); }
   },
   mounted() { this.reload(); },
-  beforeUnmount() { if (this.noticeTimer) clearTimeout(this.noticeTimer); },
+  beforeUnmount() {
+    if (this.noticeTimer) clearTimeout(this.noticeTimer);
+    this.catalogVersion++; this.bindingVersion++; this.grantVersion++;
+  },
   methods: {
     showNotice(message, failed = false) {
       if (this.noticeTimer) clearTimeout(this.noticeTimer);
       this.notice = message; this.failed = failed;
-      this.noticeTimer = setTimeout(() => {
-        this.notice = ""; this.failed = false; this.noticeTimer = null;
-      }, failed ? 5000 : 3000);
+      this.noticeTimer = setTimeout(() => { this.notice = ""; this.noticeTimer = null; }, failed ? 5000 : 3000);
     },
     showError(error) { this.showNotice(error?.message || "操作失败", true); },
-    hasGrant(id) { return this.grants.some((grant) => grant.resourceId === id && grant.principalType === "ROLE" && grant.principalId === this.roleId && grant.effect === "ALLOW" && grant.enabled); },
-    hasScope(id) { return this.scopes.some((scope) => scope.resourceType === this.scopeKind && scope.resourceId === id && scope.enabled); },
-    async reload() { await Promise.all([this.loadCatalog(), this.loadGrants(), this.loadAgentGrants(), this.loadRoleBindings(), this.loadScopes()]); },
+    hasGrant(id) { return this.roleGrants.some((grant) => grant.resourceId === id); },
+    async reload() { await Promise.all([this.loadRoleBindings(), this.reloadResources()]); },
+    async reloadResources() { await Promise.all([this.loadCatalog(), this.loadGrants()]); },
     async loadRoleBindings() {
-      if (!this.roleId) { this.roleAgentIds = []; this.roleBindingLoaded = false; return; }
-      const roleId = this.roleId;
-      this.roleBindingLoaded = false;
+      const version = ++this.bindingVersion;
+      this.roleAgentIds = [];
+      if (!this.roleId) { this.bindingLoading = false; return; }
+      this.bindingLoading = true;
       try {
-        const authorization = await fetchRoleAuthorization(roleId);
-        if (roleId === this.roleId) {
-          this.roleAgentIds = Array.isArray(authorization?.agentIds) ? authorization.agentIds : [];
-          this.roleBindingLoaded = true;
-        }
-      } catch (error) { if (roleId === this.roleId) this.showError(error); }
-    },
-    async loadAgentGrants() {
-      if (!this.tenantId || !this.roleId) { this.agentGrants = []; this.agentGrantLoaded = false; return; }
-      const roleId = this.roleId;
-      this.agentGrantLoaded = false;
-      try {
-        const rows = await fetchResourceGrants(this.tenantId, "AGENT_SKILL");
-        if (roleId === this.roleId) {
-          this.agentGrants = Array.isArray(rows) ? rows : [];
-          this.agentGrantLoaded = true;
-        }
-      } catch (error) { if (roleId === this.roleId) this.showError(error); }
+        const authorization = await fetchRoleAuthorization(this.roleId);
+        if (version === this.bindingVersion) this.roleAgentIds = Array.isArray(authorization?.agentIds) ? authorization.agentIds : [];
+      } catch (error) { if (version === this.bindingVersion) this.showError(error); }
+      finally { if (version === this.bindingVersion) this.bindingLoading = false; }
     },
     async loadCatalog() {
-      if (!this.tenantId) return;
-      const version = ++this.requestVersion;
+      const version = ++this.catalogVersion;
+      this.categories = []; this.documents = []; this.domainSkills = []; this.mcpTools = [];
+      if (!this.tenantId) { this.loading = false; return; }
       this.loading = true;
       try {
         const [library, skills, tools] = await Promise.all([
           fetchResearchLibrary({ tenantId: this.tenantId, page: this.documentPage, pageSize: 20 }),
-          this.loadAllDomainSkills(),
-          fetchMcpRegisteredTools()
+          this.loadAllDomainSkills(), fetchMcpRegisteredTools()
         ]);
-        if (version !== this.requestVersion) return;
+        if (version !== this.catalogVersion) return;
         this.categories = Array.isArray(library?.categories) ? library.categories : [];
         this.documents = Array.isArray(library?.documents) ? library.documents : [];
         this.documentPages = Math.max(1, Number(library?.totalPages) || 1);
         this.domainSkills = skills;
         this.mcpTools = Array.isArray(tools) ? tools : [];
-      } catch (error) { if (version === this.requestVersion) this.showError(error); }
-      finally { if (version === this.requestVersion) this.loading = false; }
+      } catch (error) { if (version === this.catalogVersion) this.showError(error); }
+      finally { if (version === this.catalogVersion) this.loading = false; }
     },
     async loadAllDomainSkills() {
       const first = await fetchDomainSkills({ page: 0, pageSize: 100 });
-      const pages = Math.max(1, Number(first?.totalPages) || 1);
       const result = Array.isArray(first?.skills) ? [...first.skills] : [];
-      for (let page = 1; page < pages; page++) {
+      for (let page = 1; page < (Number(first?.totalPages) || 1); page++) {
         const next = await fetchDomainSkills({ page, pageSize: 100 });
         if (Array.isArray(next?.skills)) result.push(...next.skills);
       }
       return result;
     },
     async loadGrants() {
-      if (!this.tenantId) return;
-      const kind = this.grantKind;
+      const version = ++this.grantVersion;
+      this.grants = []; this.grantsLoaded = false;
+      if (!this.tenantId || !this.roleId || !this.skillId) { this.grantsLoading = false; return; }
+      this.grantsLoading = true;
       try {
-        const rows = await fetchResourceGrants(this.tenantId, kind);
-        if (kind === this.grantKind) this.grants = Array.isArray(rows) ? rows : [];
-        if (kind === "AGENT_SKILL") {
-          this.agentGrants = Array.isArray(rows) ? rows : [];
-          this.agentGrantLoaded = true;
+        const rows = await fetchResourceGrants(this.tenantId, this.grantKind, this.skillId);
+        if (version === this.grantVersion) {
+          this.grants = Array.isArray(rows) ? rows : [];
+          this.grantsLoaded = true;
         }
-      } catch (error) { this.showError(error); }
-    },
-    async loadScopes() {
-      if (!this.tenantId || !this.skillId) { this.scopes = []; this.scopeLoaded = false; return; }
-      const skillId = this.skillId;
-      this.scopes = [];
-      this.scopeLoaded = false;
-      try {
-        const rows = await fetchSkillResourceScopes(this.tenantId, skillId);
-        if (skillId === this.skillId) {
-          this.scopes = Array.isArray(rows) ? rows : [];
-          this.scopeLoaded = true;
-        }
-      } catch (error) { this.showError(error); }
+      } catch (error) { if (version === this.grantVersion) this.showError(error); }
+      finally { if (version === this.grantVersion) this.grantsLoading = false; }
     },
     async toggleGrant(id, checked) {
-      if (!this.roleId || this.busyKey) return;
-      this.busyKey = `grant:${id}`;
-      this.notice = "";
+      if (!this.roleId || !this.tenantId || !this.skillId || this.busyKey || !this.grantsLoaded) return;
+      const roleId = this.roleId, kind = this.grantKind, agentId = this.skillId;
+      this.busyKey = id; this.notice = "";
       try {
-        if (checked) {
-          await createResourceGrant({ tenantId: this.tenantId, resourceType: this.grantKind, resourceId: id,
-            principalType: "ROLE", principalId: this.roleId, effect: "ALLOW", enabled: true });
-        } else {
-          const matches = this.grants.filter((grant) => grant.resourceId === id && grant.principalType === "ROLE" && grant.principalId === this.roleId && grant.effect === "ALLOW");
-          await Promise.all(matches.map((grant) => deleteResourceGrant(grant.id)));
-        }
+        await createResourceGrant({ tenantId: this.tenantId, resourceType: kind, resourceId: id,
+          principalType: "ROLE", principalId: roleId, agentId, effect: checked ? "ALLOW" : "DENY", enabled: true });
         await this.loadGrants();
-        this.showNotice("角色授权已保存");
+        this.showNotice("当前角色下的 Agent 资源授权已保存");
       } catch (error) { this.showError(error); await this.loadGrants(); }
-      finally { this.busyKey = ""; }
-    },
-    async toggleScope(id, checked) {
-      if (!this.skillId || this.busyKey) return;
-      this.busyKey = `scope:${id}`;
-      this.notice = "";
-      try {
-        if (checked) {
-          await createSkillResourceScope({ tenantId: this.tenantId, skillId: this.skillId,
-            resourceType: this.scopeKind, resourceId: id, enabled: true });
-        } else {
-          const matches = this.scopes.filter((scope) => scope.resourceType === this.scopeKind && scope.resourceId === id);
-          await Promise.all(matches.map((scope) => deleteSkillResourceScope(scope.id)));
-        }
-        await this.loadScopes();
-        this.showNotice("Skill 资源范围已保存");
-      } catch (error) { this.showError(error); await this.loadScopes(); }
       finally { this.busyKey = ""; }
     }
   }

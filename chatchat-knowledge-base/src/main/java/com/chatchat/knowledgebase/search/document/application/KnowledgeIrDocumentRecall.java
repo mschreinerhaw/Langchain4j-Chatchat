@@ -62,9 +62,7 @@ public class KnowledgeIrDocumentRecall {
             matches.stream().map(KnowledgeIREntity::getDocumentId)
                 .filter(id -> id != null && !id.isBlank()).forEach(matchedIds::add);
         }
-        Set<String> grantAllowed = resourceAuthorization.allowedIds(ResourceAuthorizationPort.KNOWLEDGE,
-            plan.permissionContext().tenantId(), plan.permissionContext().userId(),
-            new HashSet<>(plan.permissionContext().roles()), matchedIds);
+        Set<String> grantAllowed = plan.permissionContext().allowedDocuments(resourceAuthorization, matchedIds);
         for (String term : terms) {
             Set<String> documentsForTerm = new HashSet<>();
             for (KnowledgeIREntity unit : matchesByTerm.getOrDefault(term, List.of())) {

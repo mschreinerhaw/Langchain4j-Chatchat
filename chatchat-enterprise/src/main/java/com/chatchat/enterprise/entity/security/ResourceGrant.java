@@ -14,9 +14,13 @@ import java.time.Instant;
 @Setter
 @Entity
 @Table(name = "resource_grant", indexes = {
-    @Index(name = "idx_resource_grant_scope", columnList = "tenant_id,resource_type,resource_id")
+    @Index(name = "idx_resource_grant_scope", columnList = "tenant_id,resource_type,resource_id"),
+    @Index(name = "idx_resource_grant_agent", columnList = "tenant_id,agent_id,principal_id")
 })
 public class ResourceGrant extends EnterpriseAuditable {
+    /** Null for legacy shared grants; otherwise applies only while this Agent is running. */
+    @Column(name = "agent_id", length = 128)
+    private String agentId;
     @Column(name = "tenant_id", length = 64, nullable = false)
     private String tenantId;
     @Column(name = "resource_type", length = 32, nullable = false)

@@ -845,6 +845,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         Map<String, Object> requestRuntimeAttributes = new LinkedHashMap<>(
             runtimeGuard.attributesWithDeadline(deadlineSeed)
         );
+        requestRuntimeAttributes.remove("authorizationAgentId");
+        if (skillId != null && !skillId.isBlank()) requestRuntimeAttributes.put("authorizationAgentId", skillId);
         if (query != null && !query.isBlank()) {
             requestRuntimeAttributes.putIfAbsent("originalUserQuery", query);
         }

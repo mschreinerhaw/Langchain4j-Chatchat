@@ -16,13 +16,13 @@ public class SearchPermissionGuard {
     public SearchPermissionContext permissionContext(DocumentSearchRequest request) {
         return request == null
             ? SearchPermissionContext.system()
-            : SearchPermissionContext.of(request.tenantId(), request.userId(), request.roles());
+            : SearchPermissionContext.of(request.tenantId(), request.userId(), request.roles()).withAgentId(request.agentId());
     }
 
     public SearchPermissionContext permissionContext(DocumentSearchExpandRequest request) {
         return request == null
             ? SearchPermissionContext.system()
-            : SearchPermissionContext.of(request.tenantId(), request.userId(), request.roles());
+            : SearchPermissionContext.of(request.tenantId(), request.userId(), request.roles()).withAgentId(request.agentId());
     }
 
     public DocumentVisibilityContext visibilityContext(DocumentSearchRequest request, SearchPermissionContext permissionContext) {

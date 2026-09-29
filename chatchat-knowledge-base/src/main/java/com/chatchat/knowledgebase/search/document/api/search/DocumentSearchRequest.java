@@ -19,8 +19,20 @@ public record DocumentSearchRequest(
     String tenantId,
     String userId,
     List<String> roles,
-    Boolean debug
+    Boolean debug,
+    String agentId
 ) {
+    public DocumentSearchRequest(String query, Integer topK, List<String> fileIds, List<String> selectedFileIds,
+                                 List<String> selectedDocumentIds, Boolean documentVisibilityEnforced,
+                                 DocumentSearchFilters filters, String tenantId, String userId, List<String> roles, Boolean debug) {
+        this(query, topK, fileIds, selectedFileIds, selectedDocumentIds, documentVisibilityEnforced,
+            filters, tenantId, userId, roles, debug, null);
+    }
+
+    public DocumentSearchRequest withAgentId(String id) {
+        return new DocumentSearchRequest(query, topK, fileIds, selectedFileIds, selectedDocumentIds,
+            documentVisibilityEnforced, filters, tenantId, userId, roles, debug, id);
+    }
     public DocumentSearchRequest(String query,
                                  Integer topK,
                                  List<String> fileIds,

@@ -21,8 +21,21 @@ public record DocumentSearchExpandRequest(
     String tenantId,
     String userId,
     List<String> roles,
-    Boolean debug
+    Boolean debug,
+    String agentId
 ) {
+    public DocumentSearchExpandRequest(String query, String docId, List<String> selectedFileIds,
+                                       List<String> selectedDocumentIds, Boolean documentVisibilityEnforced,
+                                       List<String> sections, Integer topK, Integer maxSections, Integer maxChunks,
+                                       Integer maxTotalChars, String tenantId, String userId, List<String> roles, Boolean debug) {
+        this(query, docId, selectedFileIds, selectedDocumentIds, documentVisibilityEnforced, sections,
+            topK, maxSections, maxChunks, maxTotalChars, tenantId, userId, roles, debug, null);
+    }
+
+    public DocumentSearchExpandRequest withAgentId(String id) {
+        return new DocumentSearchExpandRequest(query, docId, selectedFileIds, selectedDocumentIds,
+            documentVisibilityEnforced, sections, topK, maxSections, maxChunks, maxTotalChars, tenantId, userId, roles, debug, id);
+    }
     public DocumentSearchExpandRequest(String query,
                                        String docId,
                                        List<String> sections,

@@ -154,7 +154,7 @@ public class DocumentSearchMcpToolRegistrar implements McpServerToolRegistrar {
                         DocumentSearchRequest scoped = new DocumentSearchRequest(request.query(), request.topK(),
                             List.of(hit.docId()), request.selectedFileIds(), request.selectedDocumentIds(),
                             request.documentVisibilityEnforced(), request.filters(), request.tenantId(),
-                            request.userId(), request.roles(), request.debug());
+                            request.userId(), request.roles(), request.debug()).withAgentId(request.agentId());
                         DocumentSearchResult scopedLocal = evidenceService.search(scoped);
                         DocumentSearchResult scopedApi = null;
                         try {
@@ -182,7 +182,7 @@ public class DocumentSearchMcpToolRegistrar implements McpServerToolRegistrar {
                             request.query() + " " + term, request.topK(), request.fileIds(),
                             request.selectedFileIds(), request.selectedDocumentIds(),
                             request.documentVisibilityEnforced(), request.filters(), request.tenantId(),
-                            request.userId(), request.roles(), request.debug());
+                            request.userId(), request.roles(), request.debug()).withAgentId(request.agentId());
                         DocumentSearchResult retryLocal = evidenceService.search(retry);
                         DocumentSearchResult retryApi = null;
                         try {

@@ -76,6 +76,9 @@ class ApiUserRoleScheduleMcpAuthorizationIntegrationTest {
     private McpToolPermissionRepository toolPermissionRepository;
 
     @Autowired
+    private com.chatchat.enterprise.repository.security.ResourceGrantRepository resourceGrantRepository;
+
+    @Autowired
     private EnterpriseToolRuntimePolicyProvider toolPolicyProvider;
 
     @MockBean
@@ -117,6 +120,19 @@ class ApiUserRoleScheduleMcpAuthorizationIntegrationTest {
 
         McpToolAsset tool = toolAssetRepository.save(tool("joint_sql_query_" + suffix));
         toolPermissionRepository.save(toolPermission(tenantA.getId(), schedulerRole.getId(), tool));
+        // Ordinary callers must satisfy both domain ACL and shared resource policy.
+        var beforeGrant = toolPolicyProvider.resolve(ToolRuntimeRequest.builder()
+            .tenantId(tenantA.getId()).userId(scheduler.id()).toolName(tool.getLocalToolName()).build(), null);
+        assertThat(beforeGrant.allowed()).isFalse();
+        assertThat(beforeGrant.reason()).contains("resource grant policy");
+        var grant = new com.chatchat.enterprise.entity.security.ResourceGrant();
+        grant.setTenantId(tenantA.getId());
+        grant.setResourceType("MCP_TOOL");
+        grant.setResourceId(tool.getLocalToolName());
+        grant.setPrincipalType("ROLE");
+        grant.setPrincipalId(schedulerRole.getId());
+        grant.setEffect("ALLOW");
+        resourceGrantRepository.save(grant);
 
         String schedulerToken = login("scheduler-" + suffix, "joint-password");
         String viewerToken = login("viewer-" + suffix, "joint-password");

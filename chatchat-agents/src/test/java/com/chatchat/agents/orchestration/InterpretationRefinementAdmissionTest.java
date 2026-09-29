@@ -15,6 +15,31 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 class InterpretationRefinementAdmissionTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"0,0,false", "1,0,true", "1,1,false", "2,1,true", "2,2,false"})
+    void declaredDependencyRecoveryUsesPlanBudgetIndependentlyOfEvidenceSuggestions(
+            int budget, int used, boolean expected) throws Exception {
+        AgentOrchestrationEngine host = mock(AgentOrchestrationEngine.class);
+        set(host, "analysisRefinementCoordinator", new AnalysisRefinementCoordinator(mock(AgentToolNameResolver.class), 3));
+        var metadata = new LinkedHashMap<String, Object>();
+        var session = new InterpretationAnalysisSession(host, null, mock(ChatModel.class), "question", "", "tenant",
+            "request", "conversation", "user", List.of("opaque_tool"), Map.of(), new ArrayList<>(),
+            new ArrayList<>(), metadata, List.of(), List.of(), 5, 10, () -> false);
+        var failure = new InterpretationPlanRuntime.ExecutionResult("DAG_REWRITE_REQUESTED", false, false,
+            "candidate rejected", null, List.of(), Map.of("dependencyRecoveryRequired", true,
+                "dependencyFailurePolicy", "replan", "failedStepId", 1), 1L);
+        set(session, "currentResult", failure);
+        set(session, "evidenceHistory", List.of());
+        set(session, "planAttemptResults", List.of(failure));
+        set(session, "configuredMaxRewriteTimes", budget);
+        set(session, "rewriteCount", used);
+        // An earlier evidence expansion must not override this execution budget.
+        set(session, "maxRewriteTimes", 3);
+        assertThat(session.refinementGate()).isEqualTo(expected
+            ? com.chatchat.agents.orchestration.analysis.graph.InterpretationAnalysisGraph.Phase.REFINEMENT_PLAN
+            : FINALIZE);
+    }
+
     @Test
     void failedExecutionReachesFinalizationWithoutCallingRewriteModel() throws Exception {
         AgentOrchestrationEngine host = mock(AgentOrchestrationEngine.class);

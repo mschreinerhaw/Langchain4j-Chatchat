@@ -47,8 +47,10 @@ public final class AgentRunLifecycleCoordinator {
             AgentOrchestrator.AgentExecutionResult result = operation.execute(request);
             AgentRunResult runtimeResult = resultAdapter.toAgentRunResult(run.runId(), result);
             if (runtimeResult.status() == AgentRunStatus.RUNNING) {
-                AgentRun current = runStore.find(run.runId()).orElse(run);
-                return runtimeResult.withStatusAndEvents(current.status(), current.events());
+                // A synchronous owner must settle its work before returning. Durable
+                // continuation uses AgentPlanSuspendedException below, never an
+                // unowned RUNNING result which leaves the persisted run orphaned.
+                throw new IllegalStateException("NON_TERMINAL_OPERATION_RETURN: execution returned RUNNING without a continuation");
             }
             AgentRun completed = runStore.complete(run.runId(), runtimeResult);
             return runtimeResult.withStatusAndEvents(completed.status(), completed.events());

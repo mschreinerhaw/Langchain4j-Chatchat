@@ -1,0 +1,667 @@
+﻿{
+    "baselineCommit":  "d5fb77a6",
+    "evidence":  "Isolated worktree Maven execution; compared against current test case identities",
+    "count":  132,
+    "cases":  [
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "interpretationPlanCarriesSuccessfulPrePlanToolsIntoWorkflowDependencies",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "successfulTemplateExecutionIsAdmittedWithoutRedundantModelReview",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "workflowRuntimeOverridesPlannerWhenItSkipsConfiguredToolOrder",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "workflowConditionCanShortCircuitMandatoryStepAndContinueDependentFlow",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "workflowParallelRequiredToolsMustAllCompleteBeforeFinalAnswer",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "iterativelySummarizesCompleteLinuxStdoutInsteadOfDroppingTheMiddle",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "authoritativeFallbackStopsAtEmptyAssetInsteadOfRunningTemplateDiscovery",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "completeFirstPassCandidatePartitionDoesNotRequireVerboseRejectedEvaluations",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "documentWebVerificationAllowsDocumentSearchBeforeMandatoryWebTool",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "secondPassAuditMayRejectEveryCurrentPageCandidateAndStillRequestNextPage",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "resumesPendingToolExecutionAfterConfirmation",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "mandatoryFallbackModelReviewProjectsOracleAssetAndRejectsMysqlCandidate",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "runtimeRunStorePersistsRunLifecycleEvents",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "searchAndExtractUsesUnifiedEvidenceTrustAndCitationPipeline",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "interpretationPlanFailureTriggersRewriteAndRunsRewrittenPlan",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "requiredToolCannotBeSkippedByPlannerSufficientSignal",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "templateReviewPreservesEveryCandidateIdentityWithoutSendingExecutorPayloads",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "pendingDocumentSearchCompletionAllowsNextWorkflowWebSearch",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "graphPublicationDoesNotAdoptUnrelatedAlternative",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "workflowConfigRequiredStepsDriveMandatoryToolsAndUseFullMcpToolNames",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "recordCoverageUsesFullRuntimeCachedBatchChildInsteadOfExternalizedPreview",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "appendsGovernedModelAnalysisWhenCandidateContainsOnlyHeadingsAndDataSource",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "evidenceChainCanExtendPositiveRewriteEstimateWithinRuntimeCeiling",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "narrativeFallbackUsesDriverSynthesisInsteadOfRepeatingChunkSummaries",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "executeRuntimeRequestProjectsTimeoutAsCompletedBudgetExhaustion",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "executeRuntimeRequestReturnsCancelledRunWhenCancellationIsRequested",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "rejectedRewriteDoesNotBecomeDuplicateBaselineForCorrectedRewrite",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "executeRuntimeRequestHonorsMaxToolCallsBudget",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "mandatoryFallbackBlocksAssetDiscoveryWhenModelSelectsIdOutsideReturnedSet",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "interpretationPlanPreservesSuccessfulDocumentSearchWhenModelNeedsMoreEvidence",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "interpretationPlanRunsThroughDagRuntimePipeline",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "enterpriseMetadataReviewerUsesFormattedEvidenceForEveryFieldInsteadOfRawPreview",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "spillsOversizedLoopEvidenceAndRestoresCheckpointsWithoutRepeatingModelWork",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "mandatoryFallbackBlocksTemplateDiscoveryWhenReviewerIsUnavailable",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "mandatoryFallbackSemanticReviewRemainsStableUnderMixedCandidateLoad",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "plannerAttributionCoveragePrefersEvidenceBackedCandidateOverShortFinalPlan",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "executeRuntimeRequestReturnsTypedRunResult",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "executeRuntimeRequestPreservesToolEvidenceWhenFinalSynthesisExceedsDeadline",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "mandatoryFallbackPreservesAllAssetsSelectedByModelReviewer",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "appendsEveryGovernedTemplateAnalysisWhenDraftOnlyCoversOneDataset",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "retainsTrustedGlobalDriverSynthesisInsteadOfConcatenatingWorkerSummaries",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "governedWorkerAnalysisReplacesDraftWithoutInspectingDomainTermsOrSchema",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "legacyActionsAndPlainAnswersCannotExecuteOrPublishThroughCompatibilityRoutes",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "executeRuntimeRequestHonorsMaxStepsBudget",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "executeRuntimeRequestDoesNotAcceptReportProducedAfterDeadline",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "completeFirstPassTemplateReviewIsReusedWithoutAQualityReducingSecondSelection",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "mandatoryWorkflowLocallyReviewsCompleteEnterpriseMetadataResult",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "assignsStableDistinctEvidenceIdsToRepeatedDatasetReferences",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "invalidPlannerDagHandsAuthoritativeWorkflowToJavaWithoutOuterReplanLoop",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "mandatoryWorkflowFailureBlocksFinalSummarySynthesis",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "fiveCallBatchUsesOneFinalSynthesisAndNoPerResultModelReview",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "extractsBatchCommandStreamByProtocolDiscriminatorWhenSchemaAliasEvolves",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "plannerAttributionSelectsBestPlanAfterThreeInvalidRepairs",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "analyzesNonEmptyExternalizedPreviewWhenFullEvidenceCannotBeResolved",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "includesWebCitationMapInPromptAfterWebSearch",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "executeRuntimeRequestReturnsFailedRunWhenPlannerThrows",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "keepsFinalAnswerWhenReviewerAcceptsIt",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "interpretationPlanHonorsZeroRewriteBudgetAndFallsBack",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "interpretationPlanCanUseRequestScopedAvailableToolWhenRegistryDoesNotAdvertiseIt",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "genericToolResultTailReachesReviewerAndFinalSynthesisWithoutRuntimeTruncation",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "finalOnlyPlanUsesGraphPublicationInsteadOfLegacyAnswerSelection",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+                      "test":  "publishesBusinessFriendlyAnalysisProgressWithoutInternalWorkerTerms",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.orchestration.workflow.AgentWorkflowStateTrackerTest",
+                      "test":  "carriesTheUniqueSuccessfulAssetTargetAcrossWorkflowAttempts",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanOptimizerTest",
+                      "test":  "materializesPublisherDeclaredApiTemplateDiscoveryIntoAuthoritativeDag",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeArchitectureTest",
+                      "test":  "interpretationPlanRuntimeCannotRegrowDuringDecomposition",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "executesDependentCommandUsingRoutingProjectionFromExternalizedAssetEvidence",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "mapsDiscoveredTemplateToolStepUsingDeclaredExecutionExecutorTool",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "genericTemplateDiscoveryAcceptsCandidateCollectionFromPublishedProtocol",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "reviewsUniqueAssetAndExecutesDependentLinuxCommand",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "doesNotPromoteGenericExecuteActionToTemplateId",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "rejectsDependentExecutionWhenPlannedAssetDiffersFromUniqueDiscovery",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "blocksTemplateDiscoveryWhenModelReviewerIsUnavailable",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "rejectsTechnicallySuccessfulEmptyTemplateDiscoveryBeforeDependentExecution",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "dependentExecutionBindsRuntimeSelectedTemplateInsteadOfMcpFirstCandidate",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "bindsReviewedPythonCandidateFromDiscoveryExecutorAndIgnoresGenericExecuteAction",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "blocksSqlExecutionWhenTemplateDiscoveryReturnsNoTemplateMetadata",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "compilesServerCapabilityBridgeTargetInsteadOfDroppingItToEmptyInput",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "keepsCanonicalPlannerEnvironmentWhenUserExplicitlySpecifiedIt",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "rejectedTemplateExecutionPublishesOneRepairContractWithMissingParameters",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "carriesServerCapabilitySelectedAssetIntoLinuxExecutionContext",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "factChecksAssetDiscoveryWhenAssetsListExistsDespiteOuterZeroCount",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "hydratesSqlExecutionContextFromBusinessTemplateMetadata",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "rejectsTableScopedGlobalTemplateWhenDialectCannotBeInferred",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "runtimeOwnedTemplateBindingOverridesModelProtocolAndInvocationWithoutBusinessHardcoding",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "correctsTemplateDiscoveryAssetFromEvidenceBackedReviewSelection",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "upgradesScalarBindingAndExecutesEveryDiscoveredTemplateWithoutModelBatchInstructions",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "hydratesMissingLinuxTemplateFromUniqueTemplateDiscoveryResult",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "bindingFallbackReadsCompleteRuntimeOutputWhenDisplaySummaryIsTruncated",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "factChecksTemplateDiscoveryWhenMcpResultIsJsonString",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "factChecksAssetDiscoveryWhenMcpResultIsTextEnvelope",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "prefersExpandedReviewedTemplateSetOverOneToOneDiagnosticGuessing",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "executesCoveredDiagnosticChecksAndPreservesUnmatchedCheckAsEvidenceGap",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "requiresReviewerForUniqueDeterministicAssetFacts",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "executesSelectedTemplateFromOversizedDiscoveryControlPlaneProjection",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "executesSingleDiscoveredTemplateWhenSeveralDiagnosticChecksShareTheStep",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "injectsRetrievalIntentForSshDiscoveryWhenPlannerOmittedFilter",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "defersTheSameModelParameterProtocolForAllTemplateExecutorsUntilFinalRuntimeReview",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "clauseLimitTemplateFailureRequestsModelKeywordRewriteBeforeExecution",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "ordinaryDiagnosticBatchExecutesMatchedChecksWhenOneRequiredCheckIsUncovered",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "removesProtocolFieldsFromDiscoveryFiltersBeforeToolCall",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "compilesChineseDiagnosticDimensionsAndRecoversUserParameterForEveryTemplate",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "injectsRetrievalIntentForDatabaseDiscoveryWhenPlannerOmittedFilter",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "bindsPythonCandidateWhenPlannerUsesLegacyTemplatesPath",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "resolvesLegacyTemplateBindingPathIntoSqlTemplateInput",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "compilesFixedModelInvocationEnvelopeByResolvingMcpTemplateContract",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "rejectsTableScopedGlobalTemplateWhenTemplateDiscoveryDidNotReturnTableMetadataTemplate",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "defersModelTemplateIdAuditUntilRuntimeHasAuthoritativeTemplateMetadata",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "dropsPlannerEnvironmentExtractedFromAssetProperNameAndRestoresUserQuery",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "failsBeforeMcpExecutionWhenTemplateRequiredParameterIsMissing",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "compilesLooseTemplateDiscoveryIntentWithoutLosingDiscoveredTemplateIds",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "repairsUnsupportedLogicalFiltersFromPublishedMcpContract",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "authoritativeWorkflowStillRequiresSemanticAssetReview",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "hydratesTableMetadataSchemaFromSqlMetadataSearchResults",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "configuredAgentEnvironmentOverridesPlannerDiscoveryEnvironment",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "givesEveryReviewedTemplateATerminalBatchEntryWhenOneCannotCompile",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "hydratesSqlExecutionContextFromCompletedAssetDiscoveryWhenPlannerOmittedBinding",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "fixedBindingSelectionCannotBeOverriddenByLaterGenericDiscovery",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "reviewedSingleCandidateBypassesStaleTemplateTransportPaths(boolean)[1]",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "reviewedSingleCandidateBypassesStaleTemplateTransportPaths(boolean)[2]",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "mapsDiscoveredTemplateToolStepToDeclaredExecutor",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "incompleteTemplateCoverageRequestsRewriteBeforeDependentExecution",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "canonicalAssetContinuityReplacesPlannerPlaceholders",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "modelReviewProjectsSelectedTemplatesBeforeDependencyBinding",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "projectsWholeTemplateDiscoveryObjectToScalarTemplateIdBeforeExecution",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "normalizesTemplateExecutionParameterAliasesFromTemplateSchema",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "hydratesSqlExecutionContextFromDatabaseQuerySearchIndexResults",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "compilesMcpDiscoveryArgumentsAgainstPublishedInputSchemaInsteadOfQueryPlaceholder",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "compilesControllerParameterProtocolAgainstRuntimeDiscoveredTemplate",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "rejectsOracleInstanceTemplateWhenTemplateDiscoveryDidNotReturnTableMetadataTemplate",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "recoversRequiredAssetEnvironmentFromAgentContextWhenSummaryProjectionOmitsIt",
+                      "kind":  "failure"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "repairsUsingExplicitTemplateSemanticMetadataBeforeNameInference",
+                      "kind":  "error"
+                  },
+                  {
+                      "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                      "test":  "injectsRoutingTraceForDiscoveryToolWhenPlannerOmittedIt",
+                      "kind":  "failure"
+                  }
+              ]
+}

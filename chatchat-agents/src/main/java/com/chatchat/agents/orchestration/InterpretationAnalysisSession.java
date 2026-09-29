@@ -438,6 +438,13 @@ final class InterpretationAnalysisSession {
                     + ". Existing evidence and unresolved execution failures will be retained.");
             return FINALIZE;
         }
+        if (host.analysisRefinementCoordinator.dependencyRecoveryRequired(currentResult)) {
+            // Execution recovery is independent of whether evidence synthesis wants
+            // another retrieval round. Respect the plan's explicit rewrite budget.
+            maxRewriteTimes = Math.max(0, Math.min(
+                    configuredMaxRewriteTimes, host.MAX_INTERPRETATION_PLAN_ATTEMPTS - 1));
+            metadata.put("interpretationPlanMaxRewriteTimes", maxRewriteTimes);
+        }
         int templateDiscoveryRewriteLimit =
                 host.analysisRefinementCoordinator.templateDiscoveryRewriteLimit(firstResult);
         if (templateDiscoveryRewriteLimit > maxRewriteTimes) {

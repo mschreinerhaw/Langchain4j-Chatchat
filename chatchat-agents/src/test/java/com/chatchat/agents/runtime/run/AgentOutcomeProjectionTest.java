@@ -11,6 +11,25 @@ class AgentOutcomeProjectionTest {
 
     private final AgentOutcomeProjection projection = new AgentOutcomeProjection();
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {true, false})
+    void fatalBlockClosesRunEvenWhenRequiredNodesNeverStarted(boolean mandatoryBlocked) {
+        var outcome = projection.project(Map.of(
+            "fatalExecutionBlocked", true, "mandatoryWorkflowBlocked", mandatoryBlocked,
+            "mandatoryWorkflowPending", true, "mandatoryWorkflowTerminal", false),
+            "Required nodes could not run after dependency rejection.");
+        assertThat(outcome.runStatus()).isEqualTo("FAILED");
+        assertThat(outcome.publicStatus()).isEqualTo("FAILED");
+        assertThat(outcome.answerStatus()).isEqualTo("FAILED");
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"cancelled,CANCELLED", "time_budget_exhausted,TIME_BUDGET_EXHAUSTED"})
+    void explicitInterruptionWinsOverDependencyFailure(String reason, String status) {
+        assertThat(projection.project(Map.of("fatalExecutionBlocked", true,
+            "stopReason", reason), "").publicStatus()).isEqualTo(status);
+    }
+
     @Test
     void mandatoryEvidenceFailureIsACompletedRunWithPartialAnswer() {
         AgentOutcomeProjection.Outcome outcome = projection.project(Map.of(

@@ -27,6 +27,12 @@ public final class AnalysisRefinementCoordinator {
 
     public String rewriteReason(InterpretationPlanRuntime.ExecutionResult result,
                                 List<Map<String, Object>> evidenceHistory) {
+        if (dependencyRecoveryRequired(result)) {
+            return "DEPENDENCY_RECOVERY_REQUIRED: failedStepId=" + result.metadata().get("failedStepId")
+                + "; failure=" + result.errorMessage()
+                + "; Repair the failed step within its approved scope. Do not reuse rejected candidates,"
+                + " remove required dependencies, or repeat an unchanged failed call.";
+        }
         if (templateDiscoveryContinuationRequired(result)) {
             return "TEMPLATE_DISCOVERY_CONTINUATION_REQUIRED: retryInputChanges="
                 + result.metadata().getOrDefault("templateDiscoveryRetryInputChanges", Map.of())
@@ -53,6 +59,12 @@ public final class AnalysisRefinementCoordinator {
         List<Map<String, Object>> evidenceHistory, List<String> availableTools, int rewrites) {
         if (result != null && result.approvalRequired()) {
             return new RefinementAdmission(false, false, "authorization_required");
+        }
+        if (rewrites >= maximumAttempts - 1) {
+            return new RefinementAdmission(false, false, "runtime_attempt_limit");
+        }
+        if (dependencyRecoveryRequired(result)) {
+            return new RefinementAdmission(true, false, "dependency_replan_required");
         }
         boolean structural = result != null && "INVALID_PLAN".equals(result.status());
         if (structural) {
@@ -83,6 +95,13 @@ public final class AnalysisRefinementCoordinator {
     }
 
     public record RefinementAdmission(boolean allowed, boolean structuralRepair, String reason) {}
+
+    public boolean dependencyRecoveryRequired(InterpretationPlanRuntime.ExecutionResult result) {
+        return result != null && "DAG_REWRITE_REQUESTED".equals(result.status())
+            && result.metadata() != null
+            && Boolean.TRUE.equals(result.metadata().get("dependencyRecoveryRequired"))
+            && "replan".equals(result.metadata().get("dependencyFailurePolicy"));
+    }
 
     public boolean templateDiscoveryContinuationRequired(
         InterpretationPlanRuntime.ExecutionResult result

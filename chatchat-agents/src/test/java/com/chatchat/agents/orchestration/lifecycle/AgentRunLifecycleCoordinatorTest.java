@@ -18,6 +18,23 @@ import static org.mockito.Mockito.when;
 class AgentRunLifecycleCoordinatorTest {
 
     @Test
+    void returningRunningWithoutContinuationCannotLeaveAnOrphanRun() {
+        var store = new com.chatchat.agents.runtime.store.InMemoryAgentRunStore();
+        var adapter = mock(AgentRunResultAdapter.class);
+        var request = AgentRunRequest.builder().runId("orphan-run").build();
+        when(adapter.toAgentRunResult(org.mockito.ArgumentMatchers.eq("orphan-run"),
+            org.mockito.ArgumentMatchers.any())).thenReturn(com.chatchat.agents.runtime.AgentRunResult.builder()
+                .runId("orphan-run").status(com.chatchat.agents.runtime.run.AgentRunStatus.RUNNING).build());
+        var result = new AgentRunLifecycleCoordinator(store, adapter).execute(request, ignored -> null);
+        org.assertj.core.api.Assertions.assertThat(result.status())
+            .isEqualTo(com.chatchat.agents.runtime.run.AgentRunStatus.FAILED);
+        var persisted = store.find("orphan-run").orElseThrow();
+        org.assertj.core.api.Assertions.assertThat(persisted.finishedAt()).isNotNull();
+        org.assertj.core.api.Assertions.assertThat(persisted.events())
+            .extracting(event -> event.type().name()).contains("RUN_FAILED").doesNotContain("RUN_COMPLETED");
+    }
+
+    @Test
     void planSuspensionDoesNotFailTheRun() {
         AgentRunStore store = mock(AgentRunStore.class);
         AgentRunResultAdapter adapter = mock(AgentRunResultAdapter.class);

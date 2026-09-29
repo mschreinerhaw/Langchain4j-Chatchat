@@ -11,10 +11,9 @@ public final class AgentOutcomeProjection {
     public Outcome project(Map<String, Object> metadata, String answer) {
         Map<String, Object> values = metadata == null ? Map.of() : metadata;
         boolean confirmationRequired = booleanValue(values.get("confirmationRequired"));
-        boolean mandatoryBlocked = booleanValue(firstPresent(
-            values.get("mandatoryWorkflowBlocked"),
-            values.get("fatalExecutionBlocked")
-        ));
+        boolean fatalExecutionBlocked = booleanValue(values.get("fatalExecutionBlocked"));
+        boolean mandatoryBlocked = booleanValue(values.get("mandatoryWorkflowBlocked"))
+            || fatalExecutionBlocked;
         String stopReason = text(values.get("stopReason")).toUpperCase();
         boolean hasAnswer = answer != null && !answer.isBlank();
 
@@ -42,6 +41,12 @@ public final class AgentOutcomeProjection {
                 "FAILED", CONTRACT_VERSION);
         }
         if (mandatoryBlocked) {
+            // An unscheduled dependent node is not active work. Once the owner
+            // has exhausted recovery and declared a fatal block, close the run.
+            if (fatalExecutionBlocked) {
+                return new Outcome("FAILED", "FAILED", "FAILED_REQUIRED_EVIDENCE",
+                    "FAILED", CONTRACT_VERSION);
+            }
             boolean mandatoryPending = booleanValue(values.get("mandatoryWorkflowPending"))
                 && !booleanValue(values.get("mandatoryWorkflowTerminal"));
             if (mandatoryPending) {
@@ -69,15 +74,6 @@ public final class AgentOutcomeProjection {
         enriched.put("contractVersion", outcome.contractVersion());
         enriched.put("outcomeProjection", outcome.asMap());
         return enriched;
-    }
-
-    private Object firstPresent(Object... values) {
-        for (Object value : values) {
-            if (value != null) {
-                return value;
-            }
-        }
-        return null;
     }
 
     private boolean booleanValue(Object value) {

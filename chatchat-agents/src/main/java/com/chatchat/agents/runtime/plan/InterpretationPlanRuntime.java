@@ -726,6 +726,15 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             recordStateUpdate(executableRequest, completed, remaining, waveResults, failed);
             if (failed != null) {
                 String failurePolicy = dependencyFailurePolicy(executablePlan, failed.stepId());
+                if ("replan".equals(failurePolicy)) {
+                    return withDiagnosticRun(ExecutionResult.failed(
+                        "DAG_REWRITE_REQUESTED", failed.errorMessage(), executions,
+                        Map.of("failedStepId", failed.stepId(), "failedTool", failed.toolName(),
+                            "dependencyFailurePolicy", "replan",
+                            "dependencyRecoveryRequired", true,
+                            "remainingStepIds", new ArrayList<>(remaining)),
+                        finalAnswer, elapsed(startedAt)), executableRequest, remaining);
+                }
                 boolean recoverableReviewedBatch = hasRecoverableReviewedTemplateBatchDownstream(
                     executablePlan, failed.stepId(), completed);
                 if ("continue_with_partial_evidence".equals(failurePolicy) || recoverableReviewedBatch) {
@@ -1123,6 +1132,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             .map(value -> value.trim().toLowerCase(Locale.ROOT))
             .filter(value -> !value.isBlank())
             .toList();
+        if (policies.contains("stop")) return "stop";
+        if (policies.contains("replan")) return "replan";
         return !policies.isEmpty()
             && policies.stream().allMatch("continue_with_partial_evidence"::equals)
             ? "continue_with_partial_evidence"

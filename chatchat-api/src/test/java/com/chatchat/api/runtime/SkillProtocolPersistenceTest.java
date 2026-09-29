@@ -3,6 +3,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.*;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
@@ -14,6 +15,7 @@ import static org.assertj.core.api.Assertions.*;
     "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
     "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect"})
 @ContextConfiguration(classes=SkillProtocolPersistenceTest.Config.class)
+@ActiveProfiles("skill-protocol-persistence-test")
 class SkillProtocolPersistenceTest {
     @Autowired SkillDataBindingService bindings;
     @Autowired SkillAnalysisRunService runs;
@@ -38,6 +40,7 @@ class SkillProtocolPersistenceTest {
         assertThat(((Number)reviewed.get("revision")).longValue()).isGreaterThan(0);
     }
     @Configuration
+    @Profile("skill-protocol-persistence-test")
     @EntityScan(basePackageClasses=SkillDataBindingEntity.class)
     @EnableJpaRepositories(basePackageClasses=SkillDataBindingRepository.class)
     @Import({SkillDataBindingService.class,SkillAnalysisRunService.class})

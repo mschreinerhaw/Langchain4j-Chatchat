@@ -41,54 +41,79 @@
       <div v-else-if="!roleSkills.length" class="skill-role-empty">
         {{ query ? `该角色没有与“${query}”匹配的技能` : "该角色暂未获得技能授权" }}
       </div>
-      <template v-else>
-        <article v-for="item in roleSkills" :key="`${item.role.id}:${item.skill.key}`" class="skill-role-card">
-          <div class="skill-role-card-main">
+      <div v-else class="skill-role-tree" aria-label="角色到技能的授权关系树">
+        <article class="skill-role-node skill-role-root-node role-node">
+          <span class="skill-role-node-kind">角色</span>
+          <strong>{{ selectedRole.roleName || selectedRole.roleCode }}</strong>
+          <p>{{ selectedRole.description || "暂无角色描述" }}</p>
+          <small>{{ selectedRole.roleCode }} · {{ selectedRole.id }}</small>
+        </article>
+        <div class="skill-role-connector" aria-hidden="true">
+          <span>关联 {{ roleSkills.length }} 个技能</span>
+        </div>
+        <div class="skill-role-branches">
+          <article v-for="item in roleSkills" :key="`${item.role.id}:${item.skill.key}`" class="skill-role-node skill-node">
+            <span class="skill-role-node-kind">{{ item.skill.typeLabel }}</span>
             <strong>{{ item.skill.name }}</strong>
             <p>{{ item.skill.description || "暂无技能描述" }}</p>
             <small>{{ item.skill.id }}</small>
-          </div>
-          <div class="skill-role-badges">
-            <span>{{ item.skill.typeLabel }}</span>
-            <em v-for="source in item.sources" :key="source">{{ source }}</em>
-          </div>
-        </article>
-      </template>
-    </div>
-
-    <div v-else class="skill-role-skill-layout">
-      <aside class="skill-role-skill-list" aria-label="匹配技能">
-        <button
-          v-for="skill in filteredSkills"
-          :key="skill.key"
-          type="button"
-          :class="{ active: skill.key === selectedSkillKey }"
-          @click="selectedSkillKey = skill.key"
-        >
-          <strong>{{ skill.name }}</strong>
-          <small>{{ skill.typeLabel }} · {{ skill.id }}</small>
-        </button>
-        <div v-if="!loading && !filteredSkills.length" class="skill-role-empty">
-          没有找到与“{{ query }}”相关的技能
-        </div>
-      </aside>
-      <div class="skill-role-role-list">
-        <div v-if="loading" class="skill-role-empty">正在加载技能授权关系…</div>
-        <div v-else-if="!selectedSkill" class="skill-role-empty">请从左侧选择技能</div>
-        <div v-else-if="!skillRoles.length" class="skill-role-empty">该技能暂未授权给任何角色</div>
-        <template v-else>
-          <article v-for="item in skillRoles" :key="`${item.skill.key}:${item.role.id}`" class="skill-role-card">
-            <div class="skill-role-card-main">
-              <strong>{{ item.role.roleName || item.role.roleCode }}</strong>
-              <p>{{ item.role.description || "暂无角色描述" }}</p>
-              <small>{{ item.role.roleCode }} · {{ item.role.id }}</small>
-            </div>
             <div class="skill-role-badges">
               <em v-for="source in item.sources" :key="source">{{ source }}</em>
             </div>
           </article>
-        </template>
+        </div>
       </div>
+    </div>
+
+    <div v-else class="skill-role-skill-layout">
+      <aside class="skill-role-skill-picker" aria-label="匹配技能">
+        <header>
+          <strong>选择技能节点</strong>
+          <span>{{ filteredSkills.length }} 项</span>
+        </header>
+        <div class="skill-role-skill-list">
+          <button
+            v-for="skill in filteredSkills"
+            :key="skill.key"
+            type="button"
+            :class="{ active: skill.key === selectedSkillKey }"
+            @click="selectedSkillKey = skill.key"
+          >
+            <strong>{{ skill.name }}</strong>
+            <small>{{ skill.typeLabel }} · {{ skill.id }}</small>
+          </button>
+          <div v-if="!loading && !filteredSkills.length" class="skill-role-empty">
+            没有找到与“{{ query }}”相关的技能
+          </div>
+        </div>
+      </aside>
+      <section class="skill-role-relation-panel">
+        <div v-if="loading" class="skill-role-empty">正在加载技能授权关系…</div>
+        <div v-else-if="!selectedSkill" class="skill-role-empty">请从左侧选择技能</div>
+        <div v-else-if="!skillRoles.length" class="skill-role-empty">该技能暂未授权给任何角色</div>
+        <div v-else class="skill-role-tree skill-to-role-tree" aria-label="技能到角色的授权关系树">
+          <article class="skill-role-node skill-role-root-node skill-node">
+            <span class="skill-role-node-kind">{{ selectedSkill.typeLabel }}</span>
+            <strong>{{ selectedSkill.name }}</strong>
+            <p>{{ selectedSkill.description || "暂无技能描述" }}</p>
+            <small>{{ selectedSkill.id }}</small>
+          </article>
+          <div class="skill-role-connector" aria-hidden="true">
+            <span>授权给 {{ skillRoles.length }} 个角色</span>
+          </div>
+          <div class="skill-role-branches">
+            <article v-for="item in skillRoles" :key="`${item.skill.key}:${item.role.id}`" class="skill-role-node role-node">
+              <span class="skill-role-node-kind">角色</span>
+              <strong>{{ item.role.roleName || item.role.roleCode }}</strong>
+              <p>{{ item.role.description || "暂无角色描述" }}</p>
+              <small>{{ item.role.roleCode }} · {{ item.role.id }}</small>
+              <div class="skill-role-badges">
+                <em v-for="source in item.sources" :key="source">{{ source }}</em>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
     </div>
   </section>
 </template>

@@ -13,17 +13,30 @@
 .resource-auth-head h2 { margin: 0 0 7px; color: #172033; font-size: 20px; }
 .resource-auth-head small, .resource-auth-hint { color: #64748b; line-height: 1.6; }
 .resource-auth-context { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
-.resource-auth-flow { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin-bottom: 16px; color: #61738f; font-size: 12px; }
-.resource-auth-flow span { display: inline-flex; gap: 6px; align-items: center; padding: 8px 11px; border: 1px solid #dce7f5; border-radius: 8px; background: #f4f8ff; }
-.resource-auth-flow strong { color: #174ea6; }
-.resource-auth-explanation { margin: -4px 0 18px; padding: 10px 12px; border-left: 3px solid #4c7fe8; border-radius: 0 8px 8px 0; background: #f5f8ff; color: #50627d; font-size: 12px; line-height: 1.65; }
-.resource-auth-explanation strong { color: #174ea6; }
+.resource-auth-policy-map { display: grid; grid-template-columns: minmax(0, 1fr) 150px minmax(0, 1fr); align-items: stretch; gap: 12px; margin-bottom: 10px; }
+.resource-auth-policy-map article { min-width: 0; display: grid; gap: 5px; padding: 14px 16px; border: 1px solid #dbe6f5; border-radius: 11px; background: #f8fbff; }
+.resource-auth-policy-map article > span { color: #2563eb; font-size: 11px; font-weight: 800; letter-spacing: .05em; }
+.resource-auth-policy-map article > strong { overflow: hidden; color: #172033; text-overflow: ellipsis; white-space: nowrap; }
+.resource-auth-policy-map article > small { color: #64748b; line-height: 1.5; }
+.resource-auth-policy-map article > em { margin-top: 3px; color: #3d6eaf; font-size: 11px; font-style: normal; font-weight: 700; }
+.resource-auth-policy-operator { position: relative; display: grid; align-content: center; justify-items: center; gap: 4px; color: #2d6be7; }
+.resource-auth-policy-operator::before, .resource-auth-policy-operator::after { content: ""; position: absolute; top: 50%; width: 34%; height: 2px; background: #a9c5ef; }
+.resource-auth-policy-operator::before { left: 0; }
+.resource-auth-policy-operator::after { right: 0; }
+.resource-auth-policy-operator b { z-index: 1; width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid #a9c5ef; border-radius: 50%; background: #fff; font-size: 22px; }
+.resource-auth-policy-operator span { z-index: 1; padding: 0 5px; background: #fff; color: #5d77a0; font-size: 10px; font-weight: 700; }
+.resource-auth-policy-result { margin: 0 0 18px; padding: 9px 12px; border-left: 3px solid #4c7fe8; border-radius: 0 8px 8px 0; background: #f5f8ff; color: #50627d; font-size: 12px; line-height: 1.6; }
+.resource-auth-policy-result strong { color: #174ea6; }
 .resource-auth-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .resource-auth-card { min-width: 0; padding: 20px; border: 1px solid #e1e8f3; border-radius: 12px; background: #fbfcff; }
-.resource-auth-card h3 { margin: 0 0 16px; color: #172033; font-size: 16px; }
+.resource-auth-card h3 { margin: 0 0 5px; color: #172033; font-size: 16px; }
+.resource-auth-card-description { min-height: 38px; margin: 0 0 14px; color: #64748b; font-size: 12px; line-height: 1.55; }
 .resource-auth-field { display: grid; gap: 7px; color: #475569; font-size: 13px; font-weight: 700; }
 .resource-auth-field select, .resource-auth-tools input { width: 100%; min-width: 0; height: 38px; padding: 0 11px; border: 1px solid #cdd9e8; border-radius: 8px; background: #fff; color: #172033; }
-.resource-auth-kinds { display: flex; flex-wrap: wrap; gap: 7px; margin: 17px 0 12px; }
+.resource-auth-kind-groups { display: grid; gap: 9px; margin-bottom: 12px; }
+.resource-auth-kind-groups > section { display: grid; grid-template-columns: 62px minmax(0, 1fr); align-items: center; gap: 8px; }
+.resource-auth-kind-groups > section > span { color: #7b879a; font-size: 11px; font-weight: 700; }
+.resource-auth-kinds { display: flex; flex-wrap: wrap; gap: 7px; }
 .resource-auth-kinds button, .resource-auth-tools button, .resource-auth-page button { padding: 7px 11px; border: 1px solid #d6e1f0; border-radius: 8px; background: #fff; color: #475569; cursor: pointer; }
 .resource-auth-kinds button.active { border-color: #2d6be7; background: #eaf1ff; color: #1755c5; font-weight: 700; }
 .resource-auth-tools { display: flex; gap: 8px; }
@@ -46,4 +59,10 @@
 .resource-auth-count { margin: 14px 0 0; color: #5574a7; font-size: 12px; }
 .resource-auth-notice { padding: 10px 13px; margin-bottom: 15px; border-radius: 8px; background: #e8f6ef; color: #166534; font-size: 13px; }
 .resource-auth-notice.error { background: #fef2f2; color: #b91c1c; }
-@media (max-width: 900px) { .resource-auth-columns, .resource-auth-context { grid-template-columns: 1fr; } }
+@media (max-width: 900px) {
+  .resource-auth-columns, .resource-auth-context, .resource-auth-policy-map { grid-template-columns: 1fr; }
+  .resource-auth-policy-operator { min-height: 56px; }
+  .resource-auth-policy-operator::before, .resource-auth-policy-operator::after { left: 50%; width: 2px; height: 18px; }
+  .resource-auth-policy-operator::before { top: 0; }
+  .resource-auth-policy-operator::after { top: auto; right: auto; bottom: 0; }
+}

@@ -32,16 +32,15 @@ it('uses one selected Agent for role grant and document scope without changing g
   app.mount(root);
   await settle();
 
-  const inspect = root.querySelector('[aria-label="查看 金融文档分析助手 的文档范围"]');
+  const inspect = root.querySelector('[aria-label="配置 金融文档分析助手 的运行白名单"]');
   expect(inspect).toBeTruthy();
   inspect.click();
   await settle();
 
   expect(root.querySelectorAll('.resource-auth-context select')[1].value).toBe('agent-a');
   expect(root.querySelector('.resource-auth-item.selected strong').textContent).toBe('金融文档分析助手');
-  expect(root.textContent).toContain('角色绑定 已绑定');
-  expect(root.textContent).toContain('执行资源授权 已显式授权');
-  expect(root.textContent).toContain('Agent 资源范围 1 项启用');
+  expect(root.textContent).toContain('Agent 入口：已允许（角色绑定 + 显式授权）');
+  expect(root.textContent).toContain('已配置 1 项白名单');
   expect(api.fetchSkillResourceScopes).toHaveBeenCalledWith('tenant-1', 'agent-a');
   expect(api.createResourceGrant).not.toHaveBeenCalled();
 
@@ -49,8 +48,34 @@ it('uses one selected Agent for role grant and document scope without changing g
   agentSelect.value = 'agent-b';
   agentSelect.dispatchEvent(new Event('change', { bubbles: true }));
   await settle();
-  expect(root.textContent).toContain('角色绑定 未绑定');
-  expect(root.textContent).toContain('执行资源授权 未显式授权');
+  expect(root.textContent).toContain('Agent 入口：未允许');
   expect(root.querySelector('.resource-auth-item.selected strong').textContent).toBe('指标助手');
   expect(api.fetchSkillResourceScopes).toHaveBeenCalledWith('tenant-1', 'agent-b');
+});
+
+it('shows the MCP Chinese alias instead of using the English description as its name', async () => {
+  api.fetchMcpRegisteredTools.mockResolvedValueOnce([{
+    localToolName: 'mcp_chatchat_mcp_server_api_service_query',
+    remoteToolName: 'api_service_query',
+    chineseAlias: 'API 服务查询',
+    displayName: 'API Service Query',
+    description: 'Query redacted API service assets and their routing metadata.'
+  }]);
+  const root = document.createElement('div');
+  document.body.append(root);
+  app = createApp(ResourceAuthorizationPanel, {
+    tenantId: 'tenant-1', roles: [{ id: 'role-1', roleName: '业务管理员', roleCode: 'BUSINESS_ADMIN' }],
+    agents: [{ id: 'agent-a', name: '金融文档分析助手' }], initialRoleId: 'role-1'
+  });
+  app.mount(root);
+  await settle();
+
+  [...root.querySelectorAll('.resource-auth-card:first-of-type .resource-auth-kinds button')]
+    .find((button) => button.textContent.includes('MCP 工具')).click();
+  await settle();
+
+  expect(root.querySelector('.resource-auth-card:first-of-type .resource-auth-item strong').textContent).toBe('API 服务查询');
+  expect(root.querySelector('.resource-auth-card:first-of-type .resource-auth-item small').textContent)
+    .toBe('mcp_chatchat_mcp_server_api_service_query');
+  expect(root.textContent).not.toContain('Query redacted API service assets');
 });

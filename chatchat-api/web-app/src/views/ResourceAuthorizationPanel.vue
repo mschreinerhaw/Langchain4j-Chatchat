@@ -24,29 +24,46 @@
         </select>
       </label>
     </div>
-    <div class="resource-auth-flow" aria-label="选中角色与 Agent 的授权关系">
-      <span>角色绑定 <strong>{{ !roleId || !skillId || !roleBindingLoaded ? "待查看" : selectedRoleBinding ? "已绑定" : "未绑定" }}</strong></span>
-      <b>→</b>
-      <span>执行资源授权 <strong>{{ !roleId || !skillId || !agentGrantLoaded ? "待查看" : selectedAgentGranted ? "已显式授权" : "未显式授权" }}</strong></span>
-      <b>→</b>
-      <span>Agent 资源范围 <strong>{{ !skillId || !scopeLoaded ? "待查看" : scopes.length ? `${enabledScopes.length} 项启用` : "未单独配置" }}</strong></span>
+    <div class="resource-auth-policy-map" aria-label="最终权限计算规则">
+      <article>
+        <span>角色权限上限</span>
+        <strong>{{ selectedRoleName }}</strong>
+        <small>决定用户最多可以使用哪些能力和资源</small>
+        <em>Agent 入口：{{ selectedAgentAccessLabel }}</em>
+      </article>
+      <div class="resource-auth-policy-operator" aria-hidden="true">
+        <b>∩</b>
+        <span>运行时取交集</span>
+      </div>
+      <article>
+        <span>Agent 运行白名单</span>
+        <strong>{{ selectedSkillName }}</strong>
+        <small>只能在角色权限内进一步收窄调用范围</small>
+        <em>{{ !skillId || !scopeLoaded ? "范围状态：待查看" : scopes.length ? `已配置 ${enabledScopes.length} 项白名单` : "未配置单独白名单" }}</em>
+      </article>
     </div>
-    <p v-if="skillId && roleId" class="resource-auth-explanation">
-      当前查看：<strong>{{ selectedRoleName }}</strong> × <strong>{{ selectedSkillName }}</strong>。
-      角色绑定用于角色管理及 Agent API；左侧授权决定角色可用资源；右侧范围限制当前 Agent 可请求的资源，不会扩大角色权限。
+    <p class="resource-auth-policy-result">
+      <strong>最终可用资源</strong>
+      = 角色允许的资源 ∩ Agent 允许的范围；右侧配置永远不会扩大左侧权限。
     </p>
 
     <div class="resource-auth-columns">
       <div class="resource-auth-card">
-        <h3>① {{ selectedRoleName }}的执行资源授权</h3>
-        <div class="resource-auth-kinds">
-          <button v-for="kind in grantKinds" :key="kind.value" type="button" :class="{ active: grantKind === kind.value }" @click="grantKind = kind.value">{{ kind.label }}</button>
+        <h3>① 角色权限上限</h3>
+        <p class="resource-auth-card-description">为“{{ selectedRoleName }}”配置可使用的能力、工具和数据。</p>
+        <div class="resource-auth-kind-groups">
+          <section v-for="group in grantKindGroups" :key="group.label">
+            <span>{{ group.label }}</span>
+            <div class="resource-auth-kinds">
+              <button v-for="kind in group.items" :key="kind.value" type="button" :class="{ active: grantKind === kind.value }" @click="grantKind = kind.value">{{ kind.label }}</button>
+            </div>
+          </section>
         </div>
         <div class="resource-auth-tools">
           <input v-model.trim="query" type="search" placeholder="筛选当前页名称或 ID" />
           <button type="button" @click="reload">刷新</button>
         </div>
-        <p class="resource-auth-hint">勾选后立即保存。所有授权均写入数据库角色关系；点击“查看范围”可在右侧查看同一个 Agent。</p>
+        <p class="resource-auth-hint">勾选后立即保存为角色权限。选择 Agent 能力时，可点击“配置白名单”继续设置该 Agent 的运行范围。</p>
         <div v-if="loading" class="resource-auth-empty">正在加载…</div>
         <div v-else-if="!roleId" class="resource-auth-empty">请先选择角色</div>
         <div v-else-if="!grantItems.length" class="resource-auth-empty">没有匹配的资源</div>
@@ -56,7 +73,7 @@
               <input type="checkbox" :checked="hasGrant(item.id)" :disabled="!!busyKey" @change="toggleGrant(item.id, $event.target.checked)" />
               <span><strong>{{ item.name }}</strong><small>{{ item.id }}</small></span>
             </label>
-            <button v-if="grantKind === 'AGENT_SKILL'" type="button" class="resource-auth-inspect" :aria-label="`查看 ${item.name} 的文档范围`" @click="skillId = item.id">{{ skillId === item.id ? "正在查看" : "查看范围" }}</button>
+            <button v-if="grantKind === 'AGENT_SKILL'" type="button" class="resource-auth-inspect" :aria-label="`配置 ${item.name} 的运行白名单`" @click="skillId = item.id">{{ skillId === item.id ? "正在配置" : "配置白名单" }}</button>
           </div>
         </div>
         <div v-if="grantKind === 'KNOWLEDGE'" class="resource-auth-page">
@@ -68,15 +85,21 @@
       </div>
 
       <div class="resource-auth-card">
-        <h3>② {{ selectedSkillName }}的资源范围</h3>
-        <div class="resource-auth-kinds">
-          <button v-for="kind in scopeKinds" :key="kind.value" type="button" :class="{ active: scopeKind === kind.value }" @click="scopeKind = kind.value">{{ kind.label }}</button>
+        <h3>② Agent 运行白名单</h3>
+        <p class="resource-auth-card-description">限制“{{ selectedSkillName }}”运行时可以调用的资源，不会授予角色新权限。</p>
+        <div class="resource-auth-kind-groups">
+          <section v-for="group in scopeKindGroups" :key="group.label">
+            <span>{{ group.label }}</span>
+            <div class="resource-auth-kinds">
+              <button v-for="kind in group.items" :key="kind.value" type="button" :class="{ active: scopeKind === kind.value }" @click="scopeKind = kind.value">{{ kind.label }}</button>
+            </div>
+          </section>
         </div>
         <div class="resource-auth-tools">
           <input v-model.trim="scopeQuery" type="search" placeholder="筛选当前页名称或 ID" />
           <button type="button" @click="reload">刷新</button>
         </div>
-        <p class="resource-auth-hint">只配置顶部选中的 Agent。范围关系不会授予角色权限；运行时还会再次校验角色对每项资源的数据库授权。</p>
+        <p class="resource-auth-hint">这里只做运行范围收窄。即使勾选，角色未获得同一资源权限时仍然不可使用。</p>
         <div v-if="loading" class="resource-auth-empty">正在加载…</div>
         <div v-else-if="!skillId" class="resource-auth-empty">请先选择 Agent Skill</div>
         <div v-else-if="!scopeItems.length" class="resource-auth-empty">没有匹配的资源</div>
@@ -105,22 +128,35 @@ import {
 } from "../services/api";
 import "../styles/pages/resource-authorization.css";
 
-const grantKinds = [
-  { value: "AGENT_SKILL", label: "Agent Skill" },
-  { value: "SKILL", label: "领域 Skill" },
-  { value: "MCP_TOOL", label: "MCP 工具" },
-  { value: "WORKFLOW", label: "工作流" },
-  { value: "KNOWLEDGE_BASE", label: "文档分类" },
-  { value: "KNOWLEDGE", label: "单篇文档" }
+const grantKindGroups = [
+  { label: "能力入口", items: [
+    { value: "AGENT_SKILL", label: "Agent 能力" },
+    { value: "SKILL", label: "领域技能" }
+  ] },
+  { label: "工具调用", items: [
+    { value: "MCP_TOOL", label: "MCP 工具" },
+    { value: "WORKFLOW", label: "工作流" }
+  ] },
+  { label: "数据访问", items: [
+    { value: "KNOWLEDGE_BASE", label: "文档分类" },
+    { value: "KNOWLEDGE", label: "单篇文档" }
+  ] }
 ];
 
-const scopeKinds = [
-  { value: "KNOWLEDGE_BASE", label: "文档分类" },
-  { value: "DOCUMENT", label: "单篇文档" },
-  { value: "MCP_TOOL", label: "MCP 工具" },
-  { value: "AGENT", label: "Agent" },
-  { value: "WORKFLOW", label: "工作流" }
+const scopeKindGroups = [
+  { label: "数据范围", items: [
+    { value: "KNOWLEDGE_BASE", label: "文档分类" },
+    { value: "DOCUMENT", label: "单篇文档" }
+  ] },
+  { label: "调用范围", items: [
+    { value: "MCP_TOOL", label: "MCP 工具" },
+    { value: "AGENT", label: "下游 Agent" },
+    { value: "WORKFLOW", label: "工作流" }
+  ] }
 ];
+
+const grantKinds = grantKindGroups.flatMap((group) => group.items);
+const scopeKinds = scopeKindGroups.flatMap((group) => group.items);
 
 export default {
   name: "ResourceAuthorizationPanel",
@@ -132,7 +168,8 @@ export default {
   },
   data() {
     return {
-      grantKinds, scopeKinds, roleId: this.initialRoleId || this.roles[0]?.id || "",
+      grantKinds, scopeKinds, grantKindGroups, scopeKindGroups,
+      roleId: this.initialRoleId || this.roles[0]?.id || "",
       skillId: "", grantKind: "AGENT_SKILL", scopeKind: "KNOWLEDGE_BASE",
       query: "", scopeQuery: "", documentPage: 1, documentPages: 1,
       categories: [], documents: [], domainSkills: [], mcpTools: [], grants: [], agentGrants: [], scopes: [],
@@ -145,6 +182,11 @@ export default {
     selectedSkillName() { return this.agents.find((agent) => agent.id === this.skillId)?.name || "未选择"; },
     selectedRoleBinding() { return this.roleAgentIds.some((id) => id.toLowerCase() === this.skillId.toLowerCase()); },
     selectedAgentGranted() { return this.agentGrants.some((grant) => grant.resourceId === this.skillId && grant.principalType === "ROLE" && grant.principalId === this.roleId && grant.effect === "ALLOW" && grant.enabled); },
+    selectedAgentAccessLabel() {
+      if (!this.roleId || !this.skillId || !this.roleBindingLoaded || !this.agentGrantLoaded) return "待查看";
+      const sources = [this.selectedRoleBinding ? "角色绑定" : "", this.selectedAgentGranted ? "显式授权" : ""].filter(Boolean);
+      return sources.length ? `已允许（${sources.join(" + ")}）` : "未允许";
+    },
     enabledScopes() { return this.scopes.filter((scope) => scope.enabled); },
     selectedGrantCount() { return this.grants.filter((grant) => grant.principalType === "ROLE" && grant.principalId === this.roleId && grant.effect === "ALLOW" && grant.enabled).length; },
     grantKindLabel() { return grantKinds.find((kind) => kind.value === this.grantKind)?.label || "资源"; },
@@ -157,7 +199,10 @@ export default {
     documentItems() { return this.documents.filter((doc) => doc.docId).map((doc) => ({ id: String(doc.docId), name: doc.title || doc.fileName || doc.docId })); },
     mcpToolItems() { return this.mcpTools.map((tool) => {
       const id = tool.localToolName || tool.toolName || tool.name || tool.id;
-      return { id: String(id || ""), name: tool.displayName || tool.description || id };
+      return {
+        id: String(id || ""),
+        name: tool.chineseAlias || tool.displayName || tool.remoteToolName || id
+      };
     }).filter((item) => item.id); },
     workflowItems() {
       const values = new Map();

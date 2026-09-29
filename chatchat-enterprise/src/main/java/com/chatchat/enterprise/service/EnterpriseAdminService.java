@@ -1545,7 +1545,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         boolean resourceGrantMigrationRequired = permissionRepository
             .findByPermissionCode("system:resource-grants:model:v2").isEmpty();
         boolean systemMenuOrderMigrationRequired = permissionRepository
-            .findByPermissionCode("system:menu-order:v2").isEmpty();
+            .findByPermissionCode("system:menu-order:v3").isEmpty();
         List<SysPermission> permissions = ensureDefaultPermissions();
         ensureDefaultMenus();
         if (systemMenuOrderMigrationRequired) {
@@ -1841,6 +1841,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new PermissionSeed(null, "system:resource-grants:model:v1", "资源授权模型 V1", "internal", null, null, null, 1),
             new PermissionSeed(null, "system:resource-grants:model:v2", "资源授权模型 V2", "internal", null, null, null, 2),
             new PermissionSeed(null, "system:menu-order:v2", "系统菜单排序 V2", "internal", null, null, null, 1),
+            new PermissionSeed(null, "system:menu-order:v3", "系统菜单排序 V3", "internal", null, null, null, 1),
             new PermissionSeed(null, "account:self:read", "当前账户", "api", "/api/v1/enterprise/auth/me", "GET", "user", 2),
             new PermissionSeed(null, "account:menus:read", "当前账户菜单", "api", "/api/v1/enterprise/menus", "GET", "menu", 3),
             new PermissionSeed(null, "system:health:read", "系统健康检查", "api", "/api/v1/health/**", "GET", "activity", 4),
@@ -1963,7 +1964,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new MenuSeed("system", "systemRoles", "角色管理", "menu", "/index.html#systemRoles", "system", 42),
             new MenuSeed("system", "systemOrganizations", "组织管理", "menu", "/index.html#systemOrganizations", "system", 43),
             new MenuSeed("system", "systemResources", "资源授权", "menu", "/index.html#systemResources", "system", 44),
-            new MenuSeed("system", "systemLogins", "登录审计", "menu", "/index.html#systemLogins", "system", 45)
+            new MenuSeed("system", "systemSkillRoles", "技能角色查询", "menu", "/index.html#systemSkillRoles", "system", 45),
+            new MenuSeed("system", "systemLogins", "登录审计", "menu", "/index.html#systemLogins", "system", 46)
         );
         Map<String, String> idsByCode = menuRepository.findAll().stream()
             .collect(Collectors.toMap(SysMenu::getMenuCode, SysMenu::getId, (left, right) -> left));
@@ -2000,7 +2002,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
             "systemRoles", 42,
             "systemOrganizations", 43,
             "systemResources", 44,
-            "systemLogins", 45
+            "systemSkillRoles", 45,
+            "systemLogins", 46
         );
         orderByCode.forEach((code, sortOrder) -> menuRepository.findByMenuCode(code).ifPresent(menu -> {
             menu.setSortOrder(sortOrder);
@@ -2027,6 +2030,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
             case "systemOrganizations" -> "organization";
             case "systemRoles" -> "shield";
             case "systemResources" -> "key";
+            case "systemSkillRoles" -> "shield";
             default -> null;
         };
     }

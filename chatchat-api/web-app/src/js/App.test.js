@@ -179,7 +179,8 @@ describe("document Ask AI conversation isolation", () => {
       organizations: "组织管理",
       roles: "角色管理",
       logins: "登录审计",
-      resources: "资源授权"
+      resources: "资源授权",
+      skillRoles: "技能角色查询"
     };
     for (const [section, title] of Object.entries(labels)) {
       const context = { section };

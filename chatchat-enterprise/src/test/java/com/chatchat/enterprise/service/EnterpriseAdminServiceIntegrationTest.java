@@ -69,9 +69,10 @@ class EnterpriseAdminServiceIntegrationTest {
             .filter(code -> code.startsWith("system") && !"system".equals(code))
             .toList())
             .containsSubsequence(
-                "systemUsers", "systemRoles", "systemOrganizations", "systemResources", "systemLogins");
+                "systemUsers", "systemRoles", "systemOrganizations", "systemResources",
+                "systemSkillRoles", "systemLogins");
         assertThat(resourceGrantRepository.findAll())
-            .hasSize(5)
+            .hasSize(6)
             .allSatisfy(grant -> {
                 assertThat(grant.getResourceId()).isEqualTo("*");
                 assertThat(grant.getPrincipalType()).isEqualTo("ROLE");

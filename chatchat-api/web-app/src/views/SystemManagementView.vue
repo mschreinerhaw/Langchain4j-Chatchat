@@ -197,6 +197,14 @@
         :initial-role-id="selectedRoleId"
       />
 
+      <SkillRoleAuthorizationPanel
+        v-else-if="activeManagementTab === 'skillRoles'"
+        :tenant-id="selectedTenantId"
+        :roles="roles"
+        :agents="agentOptions"
+        :initial-role-id="selectedRoleId"
+      />
+
       <aside v-else class="rbac-panel login-audit-panel system-tab-panel">
         <div class="panel-head">
           <div>

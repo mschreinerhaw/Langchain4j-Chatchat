@@ -1,0 +1,148 @@
+.skill-role-auth {
+  width: 100%;
+  padding: 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #fff;
+  color: #172033;
+}
+
+.skill-role-auth-head,
+.skill-role-toolbar,
+.skill-role-card,
+.skill-role-tabs {
+  display: flex;
+  align-items: center;
+}
+
+.skill-role-auth-head {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.skill-role-auth-head p {
+  margin: 0 0 5px;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+
+.skill-role-auth-head h2 {
+  margin: 0 0 7px;
+  font-size: 21px;
+}
+
+.skill-role-auth-head small {
+  color: #64748b;
+}
+
+.skill-role-refresh,
+.skill-role-tabs button {
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+}
+
+.skill-role-refresh { padding: 9px 14px; }
+.skill-role-tabs { gap: 8px; margin: 22px 0 16px; }
+.skill-role-tabs button { padding: 9px 18px; }
+.skill-role-tabs button.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.skill-role-toolbar { gap: 14px; align-items: flex-end; }
+.skill-role-toolbar label { display: grid; gap: 7px; min-width: 250px; }
+.skill-role-toolbar label span { color: #475569; font-size: 13px; font-weight: 600; }
+.skill-role-toolbar select,
+.skill-role-toolbar input {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #fff;
+  outline: none;
+}
+.skill-role-toolbar input:focus,
+.skill-role-toolbar select:focus { border-color: #2563eb; box-shadow: 0 0 0 3px #dbeafe; }
+.skill-role-search { flex: 1; }
+
+.skill-role-summary {
+  margin: 16px 0;
+  padding: 10px 13px;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 13px;
+}
+
+.skill-role-error { margin-top: 14px; color: #b91c1c; }
+.skill-role-results,
+.skill-role-role-list { display: grid; gap: 10px; }
+
+.skill-role-card {
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+.skill-role-card-main { min-width: 0; }
+.skill-role-card-main strong { display: block; margin-bottom: 5px; }
+.skill-role-card-main p { margin: 0 0 5px; color: #64748b; font-size: 13px; }
+.skill-role-card-main small { color: #94a3b8; }
+.skill-role-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.skill-role-badges span,
+.skill-role-badges em {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-style: normal;
+  white-space: nowrap;
+}
+.skill-role-badges em { background: #ecfdf5; color: #047857; }
+
+.skill-role-skill-layout {
+  display: grid;
+  grid-template-columns: minmax(250px, 34%) 1fr;
+  gap: 14px;
+}
+.skill-role-skill-list {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  max-height: 560px;
+  overflow: auto;
+  padding-right: 5px;
+}
+.skill-role-skill-list button {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #334155;
+  text-align: left;
+  cursor: pointer;
+}
+.skill-role-skill-list button.active { border-color: #2563eb; background: #eff6ff; }
+.skill-role-skill-list small { color: #64748b; }
+.skill-role-empty { padding: 34px 18px; color: #94a3b8; text-align: center; }
+
+@media (max-width: 900px) {
+  .skill-role-toolbar { align-items: stretch; flex-direction: column; }
+  .skill-role-toolbar label { min-width: 0; }
+  .skill-role-skill-layout { grid-template-columns: 1fr; }
+  .skill-role-skill-list { max-height: 280px; }
+  .skill-role-card { align-items: flex-start; flex-direction: column; }
+  .skill-role-badges { justify-content: flex-start; }
+}

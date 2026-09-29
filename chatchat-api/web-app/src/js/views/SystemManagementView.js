@@ -14,6 +14,7 @@ import {
 } from "@lucide/vue";
 import "../../styles/pages/system-management.css";
 import ResourceAuthorizationPanel from "../../views/ResourceAuthorizationPanel.vue";
+import SkillRoleAuthorizationPanel from "../../views/SkillRoleAuthorizationPanel.vue";
 import {
   AUTH_REQUIRED_EVENT,
   changeAdminPassword,
@@ -88,7 +89,7 @@ export default {
     section: {
       type: String,
       default: "users",
-      validator: (value) => ["users", "organizations", "roles", "logins", "resources"].includes(value)
+      validator: (value) => ["users", "organizations", "roles", "logins", "resources", "skillRoles"].includes(value)
     }
   },
   components: {
@@ -99,6 +100,7 @@ export default {
     Plus,
     RefreshCw,
     ResourceAuthorizationPanel,
+    SkillRoleAuthorizationPanel,
     RotateCcw,
     Save,
     ShieldCheck,
@@ -178,7 +180,8 @@ export default {
         organizations: "组织管理",
         roles: "角色管理",
         logins: "登录审计",
-        resources: "资源授权"
+        resources: "资源授权",
+        skillRoles: "技能角色查询"
       }[this.section];
     },
     sectionDescription() {
@@ -187,7 +190,8 @@ export default {
         organizations: "查看机构层级与成员归属，维护组织档案",
         roles: "维护角色档案、成员关系与授权范围",
         logins: "查询用户登录和 Agent API 认证记录",
-        resources: "按角色配置可访问的资源与 Agent 能力"
+        resources: "按角色配置可访问的资源与 Agent 能力",
+        skillRoles: "双向查询角色拥有的技能，以及技能已授权的角色"
       }[this.section];
     },
     metrics() {

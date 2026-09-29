@@ -68,6 +68,7 @@ const SystemOrganizationsView = asyncView(() => import("../views/SystemOrganizat
 const SystemRolesView = asyncView(() => import("../views/SystemRolesView.vue"));
 const SystemLoginAuditView = asyncView(() => import("../views/SystemLoginAuditView.vue"));
 const SystemResourceAuthorizationView = asyncView(() => import("../views/SystemResourceAuthorizationView.vue"));
+const SystemSkillRoleAuthorizationView = asyncView(() => import("../views/SystemSkillRoleAuthorizationView.vue"));
 const ModelManagementView = asyncView(() => import("../views/ModelManagementView.vue"));
 const TasksView = asyncView(() => import("../views/TasksView.vue"));
 const AccessDeniedView = asyncView(() => import("../views/AccessDeniedView.vue"));
@@ -104,6 +105,7 @@ const views = {
   systemRoles: SystemRolesView,
   systemLogins: SystemLoginAuditView,
   systemResources: SystemResourceAuthorizationView,
+  systemSkillRoles: SystemSkillRoleAuthorizationView,
   models: ModelManagementView
 };
 

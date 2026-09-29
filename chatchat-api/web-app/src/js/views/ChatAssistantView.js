@@ -147,9 +147,11 @@ export function normalizeMessages(messages, status = "") {
       const staleActiveMessage = [
         "running", "streaming", "processing", "executing", "finalizing"
       ].includes(rawMessageStatus);
-      const streaming = !waitingConfirmation && !conversationTerminal
+      const responseFailed = message.role === "assistant"
+        && String((message.uiResponse || message.metadata?.uiResponse)?.status || "").toUpperCase() === "FAILED";
+      const streaming = !responseFailed && !waitingConfirmation && !conversationTerminal
         && (!!message.streaming || message.status === "streaming" || message.status === "running");
-      const messageStatus = waitingConfirmation
+      const messageStatus = responseFailed ? "failed" : waitingConfirmation
         ? "waiting"
         : conversationTerminal && (staleActiveMessage || message.streaming)
           ? status
@@ -1979,6 +1981,9 @@ export default {
       if (!query || this.loading) {
         return;
       }
+      if (!await this.refreshSelectedAgentForSend()) {
+        return;
+      }
       const attachedImageAnalyses = [...this.contextImageAnalyses];
       const imageAnalysisIds = attachedImageAnalyses
         .map((item) => item?.id)
@@ -2021,9 +2026,9 @@ export default {
         conversationId: this.conversationId || undefined,
         tenantId: this.effectiveTenantId(),
         userId: this.userId,
-        mode: this.selectedAgentId ? this.agentInteractionMode() : (payload?.webSearch ? "agent_chat" : "llm_chat"),
-        skillId: this.selectedAgentId || undefined,
-        modelName: this.selectedAgent?.modelName || this.defaultModelName || undefined,
+        mode: runContext.selectedAgentId ? runContext.mode : (payload?.webSearch ? "agent_chat" : "llm_chat"),
+        skillId: runContext.selectedAgentId || undefined,
+        modelName: runContext.modelName || undefined,
         query,
         maxResults: 10,
         historyWindow: 8,
@@ -2325,7 +2330,7 @@ export default {
         assistantMessage.content = message;
         await refreshSteps();
         assistantMessage.streaming = false;
-        assistantMessage.status = displayAnswer ? "partial" : "failed";
+        assistantMessage.status = "failed";
         assistantMessage.timestamp = response.timestamp || event?.createTime || Date.now();
         assistantMessage.latencyMs = response.latencyMs || event?.latencyMs;
         assistantMessage.sources = runContext.lastResponse.sources;
@@ -2337,10 +2342,6 @@ export default {
         if (this.isActiveRun(runContext)) {
           this.messages = runContext.messages;
           this.scrollMessages();
-        }
-        if (displayAnswer) {
-          this.emitActiveConversationSnapshot(query, "partial", runContext);
-          return { partial: true };
         }
         throw new Error(message);
       }
@@ -2666,8 +2667,34 @@ export default {
     isActiveRun(context) {
       return !!context && this.activeRunId === context.runId && this.historyId === context.historyId;
     },
+    async refreshSelectedAgentForSend() {
+      const agentId = this.selectedAgentId;
+      if (!agentId) return true;
+      const historyId = this.historyId;
+      this.loading = true;
+      try {
+        // Use the same exact-Agent resolver as execution, not a persisted conversation mode
+        // or a potentially stale workshop list. Never retry by escalating role_chat to tools.
+        const agent = await apiRequest(`/agents/workshop/${encodeURIComponent(agentId)}`);
+        if (this.selectedAgentId !== agentId || this.historyId !== historyId) return false;
+        if (agent?.id !== agentId || agent.marketStatus !== "published") {
+          throw new Error("当前 Agent 不可用或尚未发布，请重新选择。");
+        }
+        if (!["role_chat", "llm_chat", "agent_chat", "tool_agent"].includes(
+          String(agent.defaultMode || "agent_chat").trim().toLowerCase())) {
+          throw new Error("Agent 运行模式无效，请检查 Agent 配置。");
+        }
+        this.agents = [...this.agents.filter(item => item.id !== agentId), agent];
+        return true;
+      } catch (error) {
+        this.errorMessage = error.message || "无法读取 Agent 当前配置，请稍后重试。";
+        return false;
+      } finally {
+        this.loading = false;
+      }
+    },
     agentInteractionMode(agent = this.selectedAgent) {
-      return ["role_chat", "llm_chat"].includes(String(agent?.defaultMode || "").toLowerCase())
+      return ["role_chat", "llm_chat"].includes(String(agent?.defaultMode || "").trim().toLowerCase())
         ? "role_chat"
         : "agent_chat";
     },
@@ -3644,8 +3671,8 @@ export default {
       } else if (eventType === "ERROR" || eventStatus === "FAILED") {
         this.applyResponseMetadata(response, runContext);
         finalContent = normalizedResponse.answer || response.answer || response.message || "Agent task failed";
-        assistantMessage.status = normalizedResponse.answer ? "partial" : "failed";
-        finalStatus = normalizedResponse.answer ? "partial" : "failed";
+        assistantMessage.status = "failed";
+        finalStatus = "failed";
       } else if (eventType === "RESULT" || eventStatus === "PARTIAL" || eventStatus === "EMPTY") {
         const resultStatus = eventStatus === "EMPTY" ? "empty" : "partial";
         this.applyResponseMetadata(response, runContext);

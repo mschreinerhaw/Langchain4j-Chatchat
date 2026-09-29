@@ -1,4 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { apiRequest, submitAgentTask } from "../../services/api";
+
+vi.mock("../../services/api", async (importOriginal) => ({
+  ...await importOriginal(), apiRequest: vi.fn(), submitAgentTask: vi.fn()
+}));
+afterEach(() => vi.resetAllMocks());
 
 import ChatAssistantView, {
   collapseDuplicateAssistantResults,
@@ -9,6 +15,85 @@ import ChatAssistantView, {
 } from "./ChatAssistantView";
 
 describe("restored assistant result deduplication", () => {
+  it.each(["agent_chat", "role_chat"])("refreshes the actual Agent mode before sending: %s", async (mode) => {
+    const agent = { id: "asset", defaultMode: mode, marketStatus: "published" };
+    apiRequest.mockResolvedValue(agent);
+    const context = { selectedAgentId: "asset", historyId: "old-history", loading: false,
+      agents: [{ id: "asset", defaultMode: mode === "role_chat" ? "agent_chat" : "role_chat" }] };
+    expect(await ChatAssistantView.methods.refreshSelectedAgentForSend.call(context)).toBe(true);
+    expect(apiRequest).toHaveBeenCalledWith("/agents/workshop/asset");
+    expect(context.agents).toEqual([agent]);
+    expect(ChatAssistantView.methods.agentInteractionMode.call({}, context.agents[0])).toBe(mode);
+    expect(context.loading).toBe(false);
+  });
+
+  it("does not send using stale configuration when refresh fails", async () => {
+    apiRequest.mockRejectedValue(new Error("配置不可用"));
+    const context = { selectedAgentId: "asset", historyId: "history", agents: [], loading: false };
+    expect(await ChatAssistantView.methods.refreshSelectedAgentForSend.call(context)).toBe(false);
+    expect(context.errorMessage).toBe("配置不可用");
+    expect(context.loading).toBe(false);
+  });
+
+  it("discards configuration if the user changes Agent while loading", async () => {
+    let finish;
+    apiRequest.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    const context = { selectedAgentId: "asset", historyId: "history", agents: [], loading: false };
+    const pending = ChatAssistantView.methods.refreshSelectedAgentForSend.call(context);
+    context.selectedAgentId = "another";
+    finish({ id: "asset", defaultMode: "agent_chat", marketStatus: "published" });
+    expect(await pending).toBe(false);
+    expect(context.agents).toEqual([]);
+  });
+
+  it("rejects unpublished Agents instead of executing the cached configuration", async () => {
+    apiRequest.mockResolvedValue({ id: "asset", defaultMode: "agent_chat", marketStatus: "draft" });
+    const context = { selectedAgentId: "asset", historyId: "history", agents: [] };
+    expect(await ChatAssistantView.methods.refreshSelectedAgentForSend.call(context)).toBe(false);
+  });
+
+  it("restores a failed response as failed even when error text was persisted as partial", () => {
+    const [message] = normalizeMessages([{ id: "failed", role: "assistant", status: "partial",
+      content: "Agent is configured for tool-agent execution, not role_chat",
+      uiResponse: { status: "FAILED", answer: "执行失败" } }], "partial");
+    expect(message.status).toBe("failed");
+    expect(message.streaming).toBe(false);
+    expect(message.content).toContain("not role_chat");
+  });
+
+  it("keeps a restored FAILED task failed even when its payload contains an answer", async () => {
+    const message = { role: "assistant" };
+    const run = { messages: [message], lastResponse: {} };
+    const context = { applyResponseMetadata: vi.fn(), isActiveRun: () => true,
+      emitActiveConversationSnapshot: vi.fn(), scrollMessages: vi.fn() };
+    const status = await ChatAssistantView.methods.applyRestoredAgentTaskEvent.call(context,
+      { type: "COMPLETE", status: "FAILED", payload: JSON.stringify({
+        status: "FAILED", answer: "运行模式不一致" }) }, run, message, "question");
+    expect(status).toBe("failed");
+    expect(message.status).toBe("failed");
+    expect(message.content).toBe("运行模式不一致");
+    expect(context.emitActiveConversationSnapshot).toHaveBeenCalledWith("question", "failed", run);
+  });
+
+  it("propagates live task failures without treating error explanations as partial results", async () => {
+    submitAgentTask.mockResolvedValue({ taskId: "failed-task" });
+    const message = { id: "answer", role: "assistant" };
+    const run = { messages: [], lastResponse: {} };
+    const context = {
+      reuseWaitingAssistantMessage: () => null, createAssistantMessage: () => message,
+      isActiveRun: () => true, scrollMessages: vi.fn(), effectiveTenantId: () => "tenant",
+      emitActiveConversationSnapshot: vi.fn(), saveHistory: vi.fn(), refreshAgentTaskSteps: vi.fn(),
+      applyResponseMetadata: vi.fn(), waitForAgentTaskEventStream: vi.fn().mockResolvedValue({
+        type: "ERROR", status: "FAILED", payload: JSON.stringify({ status: "FAILED", answer: "模式冲突" })
+      })
+    };
+    await expect(ChatAssistantView.methods.requestAssistantAnswer.call(context,
+      "question", { skillId: "asset", mode: "role_chat" }, run)).rejects.toThrow("模式冲突");
+    expect(message.status).toBe("failed");
+    expect(message.content).toBe("模式冲突");
+    expect(message.streaming).toBe(false);
+    expect(context.emitActiveConversationSnapshot).not.toHaveBeenCalledWith("question", "partial", run);
+  });
   it("restores model chart recommendations and persisted user presentation choices", () => {
     const spec = normalizeVisualizationSpec({
       type: "chart",

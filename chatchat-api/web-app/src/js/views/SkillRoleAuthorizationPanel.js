@@ -1,218 +1,120 @@
-import {
-  fetchDomainSkills,
-  fetchResourceGrants,
-  fetchRoleAuthorization
-} from "../../services/api";
-
-const AGENT_SKILL = "AGENT_SKILL";
-const DOMAIN_SKILL = "SKILL";
-
-function text(value) {
-  if (Array.isArray(value)) return value.map(text).join(" ");
-  if (value && typeof value === "object") return Object.values(value).map(text).join(" ");
-  return String(value ?? "");
-}
-
-export function normalizeSkill(skill, resourceType) {
-  const id = String(skill?.id || skill?.skillId || "").trim();
-  const name = String(skill?.name || skill?.label || skill?.displayName || id).trim();
-  const searchText = [
-    id, name, skill?.description, skill?.category, skill?.status, skill?.marketStatus,
-    skill?.tags, skill?.skillTags, skill?.usageScenarios
-  ].map(text).join(" ").toLocaleLowerCase();
-  return {
-    ...skill,
-    id,
-    name,
-    resourceType,
-    key: `${resourceType}:${id}`,
-    typeLabel: resourceType === AGENT_SKILL ? "Agent Skill" : "领域 Skill",
-    searchText
-  };
-}
-
-export function matchesSkillQuery(skill, query) {
-  const normalized = String(query || "").trim().toLocaleLowerCase();
-  return !normalized || String(skill?.searchText || "").includes(normalized);
-}
-
-function activeGrant(grant, now) {
-  if (!grant?.enabled || grant?.principalType !== "ROLE") return false;
-  if (!grant.expiresAt) return true;
-  const expiresAt = new Date(grant.expiresAt).getTime();
-  return Number.isFinite(expiresAt) && expiresAt > now;
-}
-
-function grantMatches(grant, skill) {
-  return grant.resourceType === skill.resourceType
-    && (grant.resourceId === "*" || grant.resourceId === skill.id);
-}
-
-export function buildSkillRoleIndex({ roles = [], skills = [], grants = [], roleBindings = {} }, now = Date.now()) {
-  const active = grants.filter((grant) => activeGrant(grant, now));
-  const byRole = {};
-  const bySkill = {};
-  roles.forEach((role) => { byRole[role.id] = []; });
-  skills.forEach((skill) => { bySkill[skill.key] = []; });
-
-  roles.forEach((role) => {
-    const bindings = new Set(roleBindings[role.id] || []);
-    skills.forEach((skill) => {
-      const relevant = active.filter((grant) => grant.principalId === role.id && grantMatches(grant, skill));
-      const denied = relevant.some((grant) => grant.effect === "DENY");
-      if (denied) return;
-      const explicitlyGranted = relevant.some((grant) => grant.effect === "ALLOW");
-      const roleBound = skill.resourceType === AGENT_SKILL && bindings.has(skill.id);
-      if (!explicitlyGranted && !roleBound) return;
-      const sources = [
-        ...(roleBound ? ["角色绑定"] : []),
-        ...(explicitlyGranted ? ["资源授权"] : [])
-      ];
-      const association = { role, skill, sources };
-      byRole[role.id].push(association);
-      bySkill[skill.key].push(association);
-    });
-  });
-  Object.values(byRole).forEach((items) => items.sort((a, b) => a.skill.name.localeCompare(b.skill.name, "zh-CN")));
-  Object.values(bySkill).forEach((items) => items.sort((a, b) =>
-    String(a.role.roleName || a.role.roleCode || "").localeCompare(
-      String(b.role.roleName || b.role.roleCode || ""), "zh-CN")));
-  return { byRole, bySkill };
-}
-
+import { fetchSkillRoleQuery } from "../../services/api";
+const emptyPage = () => ({ items: [], total: 0, page: 1, totalPages: 1 });
 export default {
   name: "SkillRoleAuthorizationPanel",
-  props: {
-    tenantId: { type: String, default: "" },
-    roles: { type: Array, default: () => [] },
-    agents: { type: Array, default: () => [] },
-    initialRoleId: { type: String, default: "" }
-  },
+  props: { tenantId: { type: String, default: "" } },
   data() {
     return {
-      mode: "role",
-      selectedRoleId: this.initialRoleId || this.roles[0]?.id || "",
-      selectedSkillKey: "",
-      query: "",
-      domainSkills: [],
-      grants: [],
-      roleBindings: {},
-      loading: false,
-      error: "",
-      requestVersion: 0
+      mode: "role", query: "", relationQuery: "", resourceType: "", selected: null,
+      catalog: emptyPage(), relations: emptyPage(), catalogPage: 1, relationPage: 1, pageSize: 20,
+      catalogLoading: false, relationLoading: false, catalogError: "", relationError: "",
+      catalogVersion: 0, relationVersion: 0, searchTimer: null, relationTimer: null,
+      catalogAbort: null, relationAbort: null
     };
   },
   computed: {
-    skills() {
-      const values = new Map();
-      this.agents.map((skill) => normalizeSkill(skill, AGENT_SKILL))
-        .concat(this.domainSkills.map((skill) => normalizeSkill(skill, DOMAIN_SKILL)))
-        .filter((skill) => skill.id)
-        .forEach((skill) => values.set(skill.key, skill));
-      return [...values.values()].sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
-    },
-    filteredSkills() {
-      return this.skills.filter((skill) => matchesSkillQuery(skill, this.query));
-    },
-    index() {
-      return buildSkillRoleIndex({
-        roles: this.roles,
-        skills: this.skills,
-        grants: this.grants,
-        roleBindings: this.roleBindings
-      });
-    },
-    selectedRole() {
-      return this.roles.find((role) => role.id === this.selectedRoleId) || null;
-    },
-    selectedSkill() {
-      return this.skills.find((skill) => skill.key === this.selectedSkillKey) || null;
-    },
-    roleSkills() {
-      return (this.index.byRole[this.selectedRoleId] || [])
-        .filter((association) => matchesSkillQuery(association.skill, this.query));
-    },
-    skillRoles() {
-      return this.index.bySkill[this.selectedSkillKey] || [];
-    },
-    summaryText() {
-      if (this.mode === "role") {
-        return this.selectedRole
-          ? `${this.selectedRole.roleName || this.selectedRole.roleCode}拥有 ${this.roleSkills.length} 个匹配技能`
-          : "请选择角色";
-      }
-      return this.selectedSkill
-        ? `${this.selectedSkill.name}已授权给 ${this.skillRoles.length} 个角色`
-        : `找到 ${this.filteredSkills.length} 个匹配技能`;
-    }
+    selectedName() { return this.selected?.name || ""; },
+    busy() { return this.catalogLoading || this.relationLoading; }
   },
   watch: {
-    tenantId() { this.reload(); },
-    roles: {
-      deep: true,
-      handler() {
-        if (!this.roles.some((role) => role.id === this.selectedRoleId)) {
-          this.selectedRoleId = this.roles[0]?.id || "";
-        }
-      }
+    tenantId() { this.reset(); },
+    query() {
+      this.invalidateCatalog();
+      clearTimeout(this.searchTimer);
+      this.searchTimer = setTimeout(() => { this.catalogPage = 1; this.loadCatalog(); }, 300);
     },
-    initialRoleId(value) { if (value) this.selectedRoleId = value; },
-    filteredSkills(skills) {
-      if (this.mode === "skill" && !skills.some((skill) => skill.key === this.selectedSkillKey)) {
-        this.selectedSkillKey = skills[0]?.key || "";
-      }
+    relationQuery() {
+      this.invalidateRelations();
+      this.relationLoading = !!this.selected;
+      clearTimeout(this.relationTimer);
+      this.relationTimer = setTimeout(() => { this.relationPage = 1; this.loadRelations(); }, 300);
+    },
+    resourceType() {
+      if (this.mode === "role") { this.relationPage = 1; this.loadRelations(); }
+      else this.reset();
     }
   },
-  mounted() { this.reload(); },
+  mounted() { this.loadCatalog(); },
+  beforeUnmount() {
+    clearTimeout(this.searchTimer); clearTimeout(this.relationTimer);
+    this.catalogAbort?.abort(); this.relationAbort?.abort();
+    this.catalogVersion++; this.relationVersion++;
+  },
   methods: {
+    typeLabel(type) { return type === "AGENT_SKILL" ? "Agent" : "领域技能"; },
+    key(item) { return (item.resource_type || "ROLE") + ":" + item.id; },
+    invalidateRelations() {
+      this.relationVersion++; this.relationAbort?.abort();
+      this.relations = emptyPage(); this.relationError = ""; this.relationLoading = false;
+    },
+    invalidateCatalog() {
+      this.catalogVersion++; this.catalogAbort?.abort(); this.catalog = emptyPage();
+      this.selected = null; this.catalogError = ""; this.catalogLoading = true;
+      this.invalidateRelations();
+    },
+    reset() {
+      clearTimeout(this.searchTimer); clearTimeout(this.relationTimer);
+      this.catalogPage = 1; this.relationPage = 1; this.selected = null;
+      this.invalidateRelations(); this.loadCatalog();
+    },
     selectMode(mode) {
-      this.mode = mode;
-      if (mode === "skill" && !this.selectedSkillKey) {
-        this.selectedSkillKey = this.filteredSkills[0]?.key || "";
-      }
+      if (mode === this.mode) return;
+      this.mode = mode; this.query = ""; this.relationQuery = ""; this.reset();
     },
-    async loadAllDomainSkills() {
-      const first = await fetchDomainSkills({ page: 0, pageSize: 100 });
-      const result = Array.isArray(first?.skills) ? [...first.skills] : [];
-      const pages = Math.max(1, Number(first?.totalPages) || 1);
-      for (let page = 1; page < pages; page += 1) {
-        const next = await fetchDomainSkills({ page, pageSize: 100 });
-        if (Array.isArray(next?.skills)) result.push(...next.skills);
-      }
-      return result;
+    select(item) {
+      this.selected = item; this.relationPage = 1;
+      clearTimeout(this.relationTimer); this.loadRelations();
     },
-    async loadRoleBindings() {
-      const results = await Promise.allSettled(this.roles.map(async (role) => {
-        const authorization = await fetchRoleAuthorization(role.id);
-        return [role.id, Array.isArray(authorization?.agentIds) ? authorization.agentIds : []];
-      }));
-      return Object.fromEntries(results
-        .filter((result) => result.status === "fulfilled")
-        .map((result) => result.value));
+    changePage(target, page) {
+      const max = target === "catalog" ? this.catalog.totalPages : this.relations.totalPages;
+      page = Math.max(1, Math.min(max, Math.floor(Number(page) || 1)));
+      if (target === "catalog") { this.catalogPage = page; this.loadCatalog(); }
+      else { this.relationPage = page; this.loadRelations(); }
     },
-    async reload() {
+    resize() { this.catalogPage = 1; this.relationPage = 1; this.reload(); },
+    reload() {
+      clearTimeout(this.searchTimer); clearTimeout(this.relationTimer);
+      this.loadCatalog();
+    },
+    async loadCatalog() {
+      const version = ++this.catalogVersion;
+      this.catalogAbort?.abort(); this.catalogAbort = new AbortController();
+      const previousKey = this.selected ? this.key(this.selected) : "";
+      this.selected = null; this.catalog = emptyPage(); this.invalidateRelations();
+      this.catalogError = ""; this.catalogLoading = !!this.tenantId;
       if (!this.tenantId) return;
-      const version = ++this.requestVersion;
-      this.loading = true;
-      this.error = "";
       try {
-        const [domainSkills, agentGrants, domainGrants, roleBindings] = await Promise.all([
-          this.loadAllDomainSkills(),
-          fetchResourceGrants(this.tenantId, AGENT_SKILL),
-          fetchResourceGrants(this.tenantId, DOMAIN_SKILL),
-          this.loadRoleBindings()
-        ]);
-        if (version !== this.requestVersion) return;
-        this.domainSkills = domainSkills;
-        this.grants = [...(Array.isArray(agentGrants) ? agentGrants : []),
-          ...(Array.isArray(domainGrants) ? domainGrants : [])];
-        this.roleBindings = roleBindings;
-        if (!this.selectedSkillKey) this.selectedSkillKey = this.filteredSkills[0]?.key || "";
+        const data = await fetchSkillRoleQuery({
+          tenantId: this.tenantId, view: this.mode === "role" ? "roles" : "skills",
+          query: this.query, resourceType: this.mode === "skill" ? this.resourceType : "",
+          page: this.catalogPage, pageSize: this.pageSize
+        }, this.catalogAbort.signal);
+        if (version !== this.catalogVersion) return;
+        this.catalog = data; this.catalogPage = data.page;
+        const selected = data.items.find(item => this.key(item) === previousKey) || data.items[0];
+        if (selected) this.select(selected);
       } catch (error) {
-        if (version === this.requestVersion) this.error = error?.message || "技能角色关系加载失败";
-      } finally {
-        if (version === this.requestVersion) this.loading = false;
-      }
+        if (version === this.catalogVersion && error?.name !== "AbortError") this.catalogError = error?.message || "对象列表加载失败";
+      } finally { if (version === this.catalogVersion) this.catalogLoading = false; }
+    },
+    async loadRelations() {
+      const version = ++this.relationVersion;
+      this.relationAbort?.abort(); this.relationAbort = new AbortController();
+      this.relations = emptyPage(); this.relationError = "";
+      this.relationLoading = !!this.selected;
+      if (!this.selected) return;
+      try {
+        const data = await fetchSkillRoleQuery({
+          tenantId: this.tenantId, view: "relations", query: this.relationQuery,
+          roleId: this.mode === "role" ? this.selected.id : "",
+          skillId: this.mode === "skill" ? this.selected.id : "",
+          resourceType: this.mode === "skill" ? this.selected.resource_type : this.resourceType,
+          page: this.relationPage, pageSize: this.pageSize
+        }, this.relationAbort.signal);
+        if (version === this.relationVersion) { this.relations = data; this.relationPage = data.page; }
+      } catch (error) {
+        if (version === this.relationVersion && error?.name !== "AbortError") this.relationError = error?.message || "授权明细加载失败";
+      } finally { if (version === this.relationVersion) this.relationLoading = false; }
     }
   }
 };

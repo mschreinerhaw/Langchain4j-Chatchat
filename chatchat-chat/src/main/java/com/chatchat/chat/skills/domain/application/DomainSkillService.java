@@ -460,9 +460,7 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
         DomainSkillEntity skill = owned(id, tenantId);
         packageReader.latestCompilation(tenantId, id).ifPresent(compilation -> {
             RuntimeSkillIr ir = compilation.protocol();
-            if (!skill.getMarkdownContent().trim().equals(ir.markdownInstructions().trim()))
-                throw new IllegalArgumentException(
-                    "SKILL_PROTOCOL_STALE: 技能说明已修改，请重新编译协议后再发布");
+            // Publication activates an existing artifact; compilation belongs to import/protocol editing.
             skill.setPublishedCompilationId(compilation.id());
             try {
                 skill.setRuntimeMetadataJson(PROTOCOL_MAPPER.writeValueAsString(Map.of("capabilities", ir.capabilities(),

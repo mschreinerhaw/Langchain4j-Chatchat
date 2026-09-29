@@ -4,7 +4,7 @@ import {
   createDomainSkill, createDomainSkillCategory, deleteDomainSkill, deleteDomainSkillCategory, fetchDomainSkills,
   fetchDomainSkillImportTask, getStoredAuthSession, fetchMcpSkillSources, createMcpSkillSource,
   updateMcpSkillSource, syncMcpSkillSource, deleteMcpSkillSource,
-  importDomainSkill, importDomainSkillFromUrl, publishDomainSkill, recompileDomainSkill, recallDomainSkill, reindexDomainSkill,
+  importDomainSkill, importDomainSkillFromUrl, publishDomainSkill, recallDomainSkill, reindexDomainSkill,
   reindexDomainSkillCategory, renameDomainSkillCategory, updateDomainSkill
 } from "../../services/api.js";
 import { formatDateTime } from "../utils/uiFormatters.js";
@@ -432,23 +432,8 @@ export default {
     async publishSkill(skill) {
       this.busy = true; this.error = ""; this.message = "";
       try {
-        let value;
-        let recompiled = false;
-        try {
-          value = await publishDomainSkill(skill.id);
-        } catch (error) {
-          if (!String(error?.message || "").includes("SKILL_PROTOCOL_STALE")) throw error;
-          try {
-            await recompileDomainSkill(skill.id);
-          } catch {
-            throw new Error("SKILL_PROTOCOL_RECOMPILE_FAILED");
-          }
-          value = await publishDomainSkill(skill.id);
-          recompiled = true;
-        }
-        this.message = recompiled
-          ? `“${value.name}”已按最新说明重新编译并发布`
-          : `“${value.name}”已发布到领域技能索引`;
+        const value = await publishDomainSkill(skill.id);
+        this.message = `“${value.name}”已发布到领域技能索引`;
         this.scheduleNoticeDismiss?.("message", this.message, 3200);
         await this.load(false, { silent: true });
       } catch (error) {
@@ -459,9 +444,6 @@ export default {
             skillName: skill?.name || ""
           };
           this.publicationLimitOpen = true;
-        } else if (["SKILL_PROTOCOL_STALE", "SKILL_PROTOCOL_RECOMPILE_FAILED"]
-          .some((code) => String(error?.message || "").includes(code))) {
-          this.error = "技能说明已修改，但协议自动重新编译失败。请检查技能内容后重试。";
         } else {
           this.error = error?.message || "领域技能发布失败";
         }

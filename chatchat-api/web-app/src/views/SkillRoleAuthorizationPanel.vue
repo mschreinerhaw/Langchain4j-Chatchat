@@ -1,122 +1,66 @@
 <template>
   <section class="skill-role-auth">
     <header class="skill-role-auth-head">
-      <div>
-        <p>授权关系查询</p>
-        <h2>技能与角色</h2>
-        <small>支持按角色查看全部技能，也支持按技能反查获授权角色。</small>
-      </div>
-      <button type="button" class="skill-role-refresh" :disabled="loading" @click="reload">
-        {{ loading ? "加载中…" : "刷新关系" }}
-      </button>
+      <div><p>授权关系查询</p><h2>技能权限</h2><small>按角色或技能双向查询有效授权，明细区分公共授权与指定 Agent 授权。</small></div>
+      <button type="button" :disabled="busy" @click="reload">刷新</button>
     </header>
-
-    <div class="skill-role-tabs" role="tablist" aria-label="技能角色查询方式">
-      <button type="button" :class="{ active: mode === 'role' }" @click="selectMode('role')">按角色查看</button>
-      <button type="button" :class="{ active: mode === 'skill' }" @click="selectMode('skill')">按技能查看</button>
-    </div>
-
-    <div class="skill-role-toolbar">
-      <label v-if="mode === 'role'">
-        <span>选择角色</span>
-        <select v-model="selectedRoleId">
-          <option value="">请选择角色</option>
-          <option v-for="role in roles" :key="role.id" :value="role.id">
-            {{ role.roleName || role.roleCode }}（{{ role.roleCode }}）
-          </option>
-        </select>
-      </label>
-      <label class="skill-role-search">
-        <span>模糊搜索技能</span>
-        <input v-model.trim="query" type="search" placeholder="输入技能名称、描述、标签，例如：固收" />
-      </label>
-    </div>
-
-    <div v-if="error" class="skill-role-error">{{ error }}</div>
-    <div class="skill-role-summary">{{ summaryText }}</div>
-
-    <div v-if="mode === 'role'" class="skill-role-results">
-      <div v-if="loading" class="skill-role-empty">正在加载技能授权关系…</div>
-      <div v-else-if="!selectedRoleId" class="skill-role-empty">请选择需要查看的角色</div>
-      <div v-else-if="!roleSkills.length" class="skill-role-empty">
-        {{ query ? `该角色没有与“${query}”匹配的技能` : "该角色暂未获得技能授权" }}
+    <div class="skill-role-controls">
+      <div class="skill-role-tabs" role="tablist" aria-label="查询方式">
+        <button type="button" role="tab" :aria-selected="mode === 'role'" :class="{ active: mode === 'role' }" @click="selectMode('role')">按角色查看</button>
+        <button type="button" role="tab" :aria-selected="mode === 'skill'" :class="{ active: mode === 'skill' }" @click="selectMode('skill')">按技能查看</button>
       </div>
-      <div v-else class="skill-role-tree" aria-label="角色到技能的授权关系树">
-        <article class="skill-role-node skill-role-root-node role-node">
-          <span class="skill-role-node-kind">角色</span>
-          <strong>{{ selectedRole.roleName || selectedRole.roleCode }}</strong>
-          <p>{{ selectedRole.description || "暂无角色描述" }}</p>
-          <small>{{ selectedRole.roleCode }} · {{ selectedRole.id }}</small>
-        </article>
-        <div class="skill-role-connector" aria-hidden="true">
-          <span>关联 {{ roleSkills.length }} 个技能</span>
-        </div>
-        <div class="skill-role-branches">
-          <article v-for="item in roleSkills" :key="`${item.role.id}:${item.skill.key}`" class="skill-role-node skill-node">
-            <span class="skill-role-node-kind">{{ item.skill.typeLabel }}</span>
-            <strong>{{ item.skill.name }}</strong>
-            <p>{{ item.skill.description || "暂无技能描述" }}</p>
-            <small>{{ item.skill.id }}</small>
-            <div class="skill-role-badges">
-              <em v-for="source in item.sources" :key="source">{{ source }}</em>
-            </div>
-          </article>
-        </div>
-      </div>
+      <label>能力类型 <select v-model="resourceType"><option value="">全部类型</option><option value="AGENT_SKILL">Agent</option><option value="SKILL">领域技能</option></select></label>
+      <label>每页 <select v-model.number="pageSize" @change="resize"><option :value="20">20 条</option><option :value="50">50 条</option><option :value="100">100 条</option></select></label>
     </div>
-
-    <div v-else class="skill-role-skill-layout">
-      <aside class="skill-role-skill-picker" aria-label="匹配技能">
-        <header>
-          <strong>选择技能节点</strong>
-          <span>{{ filteredSkills.length }} 项</span>
-        </header>
-        <div class="skill-role-skill-list">
-          <button
-            v-for="skill in filteredSkills"
-            :key="skill.key"
-            type="button"
-            :class="{ active: skill.key === selectedSkillKey }"
-            @click="selectedSkillKey = skill.key"
-          >
-            <strong>{{ skill.name }}</strong>
-            <small>{{ skill.typeLabel }} · {{ skill.id }}</small>
+    <div class="skill-role-workspace">
+      <aside class="skill-role-picker" :aria-busy="catalogLoading">
+        <header><strong>{{ mode === 'role' ? '角色列表' : '技能列表' }}</strong><small>共 {{ catalog.total }} 项</small></header>
+        <input v-model.trim="query" maxlength="200" type="search" :aria-label="mode === 'role' ? '搜索角色' : '搜索技能'" :placeholder="mode === 'role' ? '搜索角色名称、编码' : '搜索名称、描述、标签，如：固收'" />
+        <div class="skill-role-picker-body">
+          <div v-if="catalogError" class="skill-role-empty error" role="alert">{{ catalogError }} <button @click="loadCatalog">重试</button></div>
+          <div v-else-if="catalogLoading" class="skill-role-empty">正在加载…</div>
+          <div v-else-if="!catalog.items.length" class="skill-role-empty">没有匹配的{{ mode === 'role' ? '角色' : '技能' }}</div>
+          <button v-for="item in catalog.items" :key="key(item)" type="button" class="skill-role-picker-item" :class="{ active: selected && key(item) === key(selected) }" :aria-pressed="!!selected && key(item) === key(selected)" @click="select(item)">
+            <strong :title="item.name">{{ item.name }}</strong>
+            <small :title="item.code || item.id">{{ mode === 'role' ? item.code : typeLabel(item.resource_type) }}</small>
           </button>
-          <div v-if="!loading && !filteredSkills.length" class="skill-role-empty">
-            没有找到与“{{ query }}”相关的技能
-          </div>
         </div>
+        <footer class="skill-role-pagination">
+          <button :disabled="catalogLoading || catalogPage <= 1" @click="changePage('catalog', catalogPage - 1)">上一页</button>
+          <label><input type="number" min="1" :max="catalog.totalPages" :value="catalogPage" :disabled="catalogLoading" aria-label="跳转对象列表页码" @change="changePage('catalog', $event.target.value)" /> / {{ catalog.totalPages }}</label>
+          <button :disabled="catalogLoading || catalogPage >= catalog.totalPages" @click="changePage('catalog', catalogPage + 1)">下一页</button>
+        </footer>
       </aside>
-      <section class="skill-role-relation-panel">
-        <div v-if="loading" class="skill-role-empty">正在加载技能授权关系…</div>
-        <div v-else-if="!selectedSkill" class="skill-role-empty">请从左侧选择技能</div>
-        <div v-else-if="!skillRoles.length" class="skill-role-empty">该技能暂未授权给任何角色</div>
-        <div v-else class="skill-role-tree skill-to-role-tree" aria-label="技能到角色的授权关系树">
-          <article class="skill-role-node skill-role-root-node skill-node">
-            <span class="skill-role-node-kind">{{ selectedSkill.typeLabel }}</span>
-            <strong>{{ selectedSkill.name }}</strong>
-            <p>{{ selectedSkill.description || "暂无技能描述" }}</p>
-            <small>{{ selectedSkill.id }}</small>
-          </article>
-          <div class="skill-role-connector" aria-hidden="true">
-            <span>授权给 {{ skillRoles.length }} 个角色</span>
-          </div>
-          <div class="skill-role-branches">
-            <article v-for="item in skillRoles" :key="`${item.skill.key}:${item.role.id}`" class="skill-role-node role-node">
-              <span class="skill-role-node-kind">角色</span>
-              <strong>{{ item.role.roleName || item.role.roleCode }}</strong>
-              <p>{{ item.role.description || "暂无角色描述" }}</p>
-              <small>{{ item.role.roleCode }} · {{ item.role.id }}</small>
-              <div class="skill-role-badges">
-                <em v-for="source in item.sources" :key="source">{{ source }}</em>
-              </div>
-            </article>
-          </div>
+      <section class="skill-role-detail" :aria-busy="relationLoading">
+        <header>
+          <div><h3 :title="selectedName">{{ selectedName || '授权明细' }}</h3><small>共 {{ relations.total }} 条有效授权关系</small></div>
+          <input v-model.trim="relationQuery" maxlength="200" type="search" :aria-label="mode === 'role' ? '搜索授权技能' : '搜索获授权角色'" :placeholder="mode === 'role' ? '搜索授权技能名称、描述' : '搜索获授权角色名称、编码'" />
+        </header>
+        <p class="skill-role-note">同一技能在不同 Agent 下的授权分别展示。此处展示角色授权记录，不等同于某个用户运行时的最终权限。</p>
+        <div class="skill-role-table-wrap">
+          <div v-if="relationError" class="skill-role-empty error" role="alert">{{ relationError }} <button @click="loadRelations">重试</button></div>
+          <div v-else-if="relationLoading" class="skill-role-empty">正在加载授权明细…</div>
+          <div v-else-if="!selected" class="skill-role-empty">请从左侧选择{{ mode === 'role' ? '角色' : '技能' }}</div>
+          <div v-else-if="!relations.items.length" class="skill-role-empty">没有匹配的有效授权关系</div>
+          <table v-else class="skill-role-table">
+            <thead><tr><th>{{ mode === 'role' ? '技能 / Agent' : '角色' }}</th><th>类型</th><th>授权范围</th><th>来源</th></tr></thead>
+            <tbody><tr v-for="row in relations.items" :key="[row.role_id, row.resource_type, row.skill_id, row.agent_id, row.source].join(':')">
+              <td><strong :title="mode === 'role' ? row.skill_name : row.role_name">{{ mode === 'role' ? row.skill_name : row.role_name }}</strong><small :title="mode === 'role' ? row.skill_id : row.role_code">{{ mode === 'role' ? row.skill_id : row.role_code }}</small></td>
+              <td>{{ typeLabel(row.resource_type) }}</td>
+              <td><span :title="row.agent_id ? row.agent_name || row.agent_id : '该角色的公共授权'">{{ row.agent_id ? row.agent_name || row.agent_id : '角色公共范围' }}</span></td>
+              <td><span class="skill-role-source">{{ row.source }}</span></td>
+            </tr></tbody>
+          </table>
         </div>
+        <footer class="skill-role-pagination">
+          <span>共 {{ relations.total }} 条</span>
+          <button :disabled="relationLoading || relationPage <= 1" @click="changePage('relations', relationPage - 1)">上一页</button>
+          <label><input type="number" min="1" :max="relations.totalPages" :value="relationPage" :disabled="relationLoading" aria-label="跳转授权明细页码" @change="changePage('relations', $event.target.value)" /> / {{ relations.totalPages }}</label>
+          <button :disabled="relationLoading || relationPage >= relations.totalPages" @click="changePage('relations', relationPage + 1)">下一页</button>
+        </footer>
       </section>
     </div>
   </section>
 </template>
-
 <script src="../js/views/SkillRoleAuthorizationPanel.js"></script>
 <style src="../styles/pages/skill-role-authorization.css"></style>

@@ -38,7 +38,7 @@ import static org.mockito.Mockito.*;
 
 class DomainSkillServiceTest {
     @Test
-    void publicationPinsCompiledProtocolAndChangedInstructionsRequireRecompilation() {
+    void publicationReusesCompiledProtocolWithoutRecompilingChangedInstructions() {
         var repository = mock(DomainSkillRepository.class);
         var entitlement = mock(McpLicenseEntitlementPort.class);
         var index = mock(DomainSkillIndexService.class);
@@ -47,6 +47,8 @@ class DomainSkillServiceTest {
         when(entitlement.skillPublicationLimit()).thenReturn(new McpLicenseEntitlementPort.SkillPublicationLimit(true, "VALID", "", 5, true, "MCP"));
         when(index.index(skill)).thenReturn(new DomainSkillIndexService.IndexResult(true, "BM25", ""));
         var service = service(repository, entitlement, index);
+        var compiler = mock(ExternalSkillAdapterGateway.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "externalSkillGateway", compiler);
         var reader = (DomainSkillPackageReader) org.springframework.test.util.ReflectionTestUtils.getField(service, "packageReader");
         var ir = new RuntimeSkillIr(RuntimeSkillIr.SCHEMA_VERSION, "sales", "", "# Sales", List.of("sales.summary"), List.of(), "TEST");
         when(reader.latestCompilation("tenant-a", "compiled")).thenReturn(Optional.of(new DomainSkillPackageReader.CompilationView("compile-v2", ir)));
@@ -54,8 +56,15 @@ class DomainSkillServiceTest {
         assertThat(skill.getPublishedCompilationId()).isEqualTo("compile-v2");
         assertThat(skill.getRuntimeMetadataJson()).contains("sales.summary", "runtime_skill_ir.v2");
         skill.setMarkdownContent("# Changed");
-        assertThatThrownBy(() -> service.publish("tenant-a", "compiled"))
-            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("SKILL_PROTOCOL_STALE");
+        skill.setStatus("DRAFT");
+        skill.setPublicationDirty(true);
+        service.publish("tenant-a", "compiled");
+        assertThat(skill.getStatus()).isEqualTo("PUBLISHED");
+        assertThat(skill.isPublicationDirty()).isFalse();
+        assertThat(skill.getMarkdownContent()).isEqualTo("# Changed");
+        assertThat(skill.getPublishedCompilationId()).isEqualTo("compile-v2");
+        verifyNoInteractions(compiler,
+            org.springframework.test.util.ReflectionTestUtils.getField(service, "artifactStore"));
     }
 
     @Test

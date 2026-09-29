@@ -1714,6 +1714,10 @@ export function fetchResourceGrants(tenantId, resourceType, agentId = "") {
   return apiRequest(`/enterprise/resource-grants?${query}`);
 }
 
+export function fetchSkillRoleQuery(params, signal) {
+  return apiRequest(`/enterprise/resource-grants/skill-role-query?${new URLSearchParams(params)}`, { signal });
+}
+
 export function createResourceGrant(payload) {
   return apiRequest("/enterprise/resource-grants", { method: "POST", body: JSON.stringify(payload) });
 }

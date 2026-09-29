@@ -41,22 +41,23 @@ describe("DomainSkillsView", () => {
   });
 
   it("publishes into the dedicated domain skill index", async () => {
+    api.publishDomainSkill.mockReset();
+    api.recompileDomainSkill.mockReset();
     api.publishDomainSkill.mockResolvedValue({ id: "skill-1", name: "风险识别" });
     const context = { busy: false, error: "", message: "", load: vi.fn(), perform: DomainSkillsView.methods.perform, scheduleNoticeDismiss: vi.fn() };
     await DomainSkillsView.methods.publishSkill.call(context, { id: "skill-1" });
     expect(api.publishDomainSkill).toHaveBeenCalledWith("skill-1");
+    expect(api.publishDomainSkill).toHaveBeenCalledTimes(1);
+    expect(api.recompileDomainSkill).not.toHaveBeenCalled();
     expect(context.message).toContain("领域技能索引");
     expect(context.load).toHaveBeenCalledWith(false, { silent: true });
     expect(context.scheduleNoticeDismiss).toHaveBeenCalledWith("message", context.message, 3200);
   });
 
-  it("automatically recompiles a stale protocol before publishing", async () => {
+  it("never recompiles or retries publication when the server rejects it", async () => {
     api.publishDomainSkill.mockReset();
     api.recompileDomainSkill.mockReset();
-    api.publishDomainSkill
-      .mockRejectedValueOnce(new Error("SKILL_PROTOCOL_STALE: 技能说明已修改"))
-      .mockResolvedValueOnce({ id: "skill-1", name: "风险识别" });
-    api.recompileDomainSkill.mockResolvedValue({ id: "skill-1" });
+    api.publishDomainSkill.mockRejectedValueOnce(new Error("SKILL_PROTOCOL_STALE: 技能说明已修改"));
     const context = {
       busy: false, error: "", message: "", load: vi.fn(),
       scheduleNoticeDismiss: vi.fn(), quota: {}
@@ -64,10 +65,12 @@ describe("DomainSkillsView", () => {
 
     await DomainSkillsView.methods.publishSkill.call(context, { id: "skill-1", name: "风险识别" });
 
-    expect(api.recompileDomainSkill).toHaveBeenCalledWith("skill-1");
-    expect(api.publishDomainSkill).toHaveBeenCalledTimes(2);
-    expect(context.message).toContain("重新编译并发布");
-    expect(context.error).toBe("");
+    expect(api.recompileDomainSkill).not.toHaveBeenCalled();
+    expect(api.publishDomainSkill).toHaveBeenCalledTimes(1);
+    expect(context.message).toBe("");
+    expect(context.error).toContain("SKILL_PROTOCOL_STALE");
+    expect(context.load).not.toHaveBeenCalled();
+    expect(context.busy).toBe(false);
   });
 
   it("shows the custom publication limit prompt when the quota is full", async () => {

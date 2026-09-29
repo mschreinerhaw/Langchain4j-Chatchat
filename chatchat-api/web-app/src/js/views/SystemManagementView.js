@@ -443,9 +443,10 @@ export default {
     }
   },
   watch: {
-    section(value) {
+    section(value, previous) {
       this.activeManagementTab = value;
       this.setNotice("");
+      if (value === 'skillRoles' || previous === 'skillRoles') this.loadInitialData();
     },
     draftScopeType() {
       this.normalizeDraftUsersInScope();
@@ -462,9 +463,9 @@ export default {
         const [summary, tenants, permissions, agentOptions, menuConfigurations] = await Promise.all([
           fetchEnterpriseSummary(),
           fetchTenants(),
-          fetchPermissions(),
-          fetchAgentOptions(),
-          fetchMenuConfigurations().catch(() => [])
+          this.activeManagementTab === 'skillRoles' ? [] : fetchPermissions(),
+          this.activeManagementTab === 'skillRoles' ? [] : fetchAgentOptions(),
+          this.activeManagementTab === 'skillRoles' ? [] : fetchMenuConfigurations().catch(() => [])
         ]);
         this.summary = summary || {};
         this.tenants = Array.isArray(tenants) ? tenants : [];
@@ -481,6 +482,10 @@ export default {
     },
     async loadTenantData(keepRoleId = "") {
       if (!this.selectedTenantId) {
+        return;
+      }
+      if (this.activeManagementTab === 'skillRoles') {
+        this.roles = []; this.agentOptions = []; this.selectedRoleId = '';
         return;
       }
       const [orgs, roles, users, loginAudits, summary] = await Promise.all([

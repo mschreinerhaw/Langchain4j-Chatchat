@@ -16,9 +16,9 @@
     <description>REST API, WebSocket support, and conversation engine</description>
 
     <properties>
-        <!-- Package fresh frontend assets by default, but reuse installed dependencies. -->
+        <!-- Keep installed dependencies aligned with package-lock.json before building assets. -->
         <frontend.skip>false</frontend.skip>
-        <frontend.install.skip>true</frontend.install.skip>
+        <frontend.install.skip>false</frontend.install.skip>
     </properties>
 
     <dependencies>

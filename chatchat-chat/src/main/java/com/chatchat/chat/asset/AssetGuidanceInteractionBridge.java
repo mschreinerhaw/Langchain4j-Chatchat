@@ -29,8 +29,12 @@ public class AssetGuidanceInteractionBridge {
             context.conversationId(), run, null, Map.of());
         var intent = new AnalysisIntent("ASSET_GUIDANCE", List.of(), Set.of(AnalysisCapability.ASSET_GUIDANCE), "UNSPECIFIED", true);
         var result = runtime.analyze(new AnalysisContext(request.getQuery(), kernel, agent.id(), List.of(), List.of(), List.of(), intent, attrs));
+        // Preserve Runtime's evidence decision: an explanatory answer is not successful analysis.
+        String publicStatus = String.valueOf(result.metadata().getOrDefault("runtimePublicStatus", "NO_PRESENTABLE_RESULT"));
+        if (!Set.of("PARTIAL_SUCCESS", "NO_PRESENTABLE_RESULT").contains(publicStatus)) publicStatus = "NO_PRESENTABLE_RESULT";
         return InteractionResponse.builder().conversationId(context.conversationId()).requestId(context.requestId())
-            .mode("agent_chat").answer(result.synthesis()).metadata(Map.of("workflowFamily", "ASSET_GUIDANCE", "assetGuidance", result))
+            .mode("agent_chat").answer(result.synthesis()).metadata(Map.of("workflowFamily", "ASSET_GUIDANCE", "assetGuidance", result,
+                "handler", "AssetGuidanceInteractionBridge", "agent", Map.of("publicStatus", publicStatus)))
             .timestamp(System.currentTimeMillis()).build();
     }
 }

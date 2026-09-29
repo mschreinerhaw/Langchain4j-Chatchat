@@ -123,6 +123,13 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
         AnalysisWorkflowRouter.RoutedWorkflow routed = router.route(context);
         AnalysisExecutionOutcome primary = routed.workflow().execute(
             routed.context(), routed.context().kernelScope());
+        if (routed.workflow() instanceof com.chatchat.common.runtime.analysis.asset.AssetGuidancePlanningWorkflow guidance) {
+            var templates = guidance.resolveTemplate(routed.context(), primary);
+            var request = guidance.requestData(routed.context(), primary, templates);
+            if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
+            var data = guidance.acquireData(routed.context(), request, templates);
+            primary = guidance.synthesize(routed.context(), request, data);
+        }
         return recoverAndContinue(routed.context(), routed.workflow(), primary);
     }
 
@@ -130,7 +137,7 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
                                                          AnalysisExecutionOutcome primary) {
         // Missing template metadata is not a request to acquire or analyze business data.
         if (primary.workflowType() == com.chatchat.common.runtime.analysis.model.AnalysisWorkflowType.ASSET_GUIDANCE)
-            return primary;
+            return completeAssetGuidance(context, workflow, primary);
         EvidenceBundle current = primary.evidenceBundle();
         EvidenceStateInspector.State state = evidenceInspector.inspect(current, primary.metadata());
         Map<String, Object> metadata = new LinkedHashMap<>(primary.metadata());
@@ -303,6 +310,23 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
         if (workflowId != null) metadata.put("runtimeWorkflowId", workflowId);
         return new AnalysisExecutionOutcome(outcome.schemaVersion(), outcome.workflowType(), outcome.plan(),
             outcome.verification(), outcome.evidenceBundle(), outcome.synthesis(), metadata);
+    }
+
+    /** Only Runtime decides whether metadata work continues or yields a user-facing outcome. */
+    private AnalysisExecutionOutcome completeAssetGuidance(AnalysisContext context, AnalysisWorkflow workflow,
+                                                          AnalysisExecutionOutcome primary) {
+        AnalysisExecutionOutcome current = primary;
+        boolean usable = current.verification() != null && current.verification().accepted()
+            && !current.evidenceBundle().evidence().isEmpty();
+        String state = String.valueOf(current.metadata().getOrDefault("guidanceState", "GUIDANCE_CONTEXT_REQUIRED"));
+        String decision = !usable ? "INSUFFICIENT_EVIDENCE"
+            : "GUIDANCE_READY".equals(state) ? "GUIDANCE_READY" : "NEEDS_SELECTION";
+        Map<String, Object> metadata = new LinkedHashMap<>(current.metadata());
+        metadata.put("runtimeGuidanceDecision", decision);
+        metadata.put("runtimePublicStatus", usable ? "PARTIAL_SUCCESS" : "NO_PRESENTABLE_RESULT");
+        metadata.put("guidanceExecutionPolicy", "PLAN_ONCE_ACQUIRE_ONCE_NO_REENTRY");
+        return new AnalysisExecutionOutcome(current.schemaVersion(), current.workflowType(), current.plan(),
+            current.verification(), current.evidenceBundle(), current.synthesis(), metadata);
     }
 
     private String text(String value) {

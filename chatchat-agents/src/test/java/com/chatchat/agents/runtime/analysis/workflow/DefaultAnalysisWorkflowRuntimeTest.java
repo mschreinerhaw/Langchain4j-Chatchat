@@ -59,8 +59,66 @@ class DefaultAnalysisWorkflowRuntimeTest {
         var context = new AnalysisContext("这个 API 怎么用", KernelDataScope.system("asset-test"), "agent", List.of(),
             List.of(), List.of(), new AnalysisIntent("ASSET_GUIDANCE", List.of(),
                 Set.of(AnalysisCapability.ASSET_GUIDANCE), "UNSPECIFIED", true), Map.of());
-        assertThat(runtime.analyze(context).metadata()).containsEntry("workflowFamily", "ASSET_GUIDANCE");
+        assertThat(runtime.analyze(context).metadata()).containsEntry("workflowFamily", "ASSET_GUIDANCE")
+            .containsEntry("runtimePublicStatus", "NO_PRESENTABLE_RESULT")
+            .containsEntry("runtimeGuidanceDecision", "INSUFFICIENT_EVIDENCE");
         org.mockito.Mockito.verifyNoInteractions(recovery);
+    }
+
+    @Test
+    void runtimeNeverReentersGuidanceOnMissingEvidence() {
+        var calls = new java.util.ArrayList<Integer>();
+        AnalysisWorkflow guidance = new AnalysisWorkflow() {
+            @Override public AnalysisWorkflowType type() { return AnalysisWorkflowType.ASSET_GUIDANCE; }
+            @Override public String workflowId() { return "test.guidance-paging"; }
+            @Override public boolean supports(AnalysisContext context, AnalysisIntent intent) { return true; }
+            @Override public AnalysisExecutionOutcome execute(AnalysisContext context) {
+                int offset = ((Number) context.attributes().getOrDefault("assetGuidanceToolOffset", 0)).intValue();
+                calls.add(offset);
+                return new AnalysisExecutionOutcome(null, type(), null,
+                    new VerificationResult(false, List.of(), List.of()), EvidenceBundle.empty("No metadata"),
+                    "Explanation is not success", Map.of("guidanceState", "GUIDANCE_CONTEXT_REQUIRED", "guidanceNextToolOffset", offset + 4));
+            }
+        };
+        EvidenceRecoveryWorkflow recovery = org.mockito.Mockito.mock(EvidenceRecoveryWorkflow.class);
+        var runtime = new DefaultAnalysisWorkflowRuntime(List.of(guidance), null, null, List.of(recovery));
+        var context = new AnalysisContext("这个 API 怎么用", KernelDataScope.system("asset-pages"), "agent", List.of(),
+            List.of(), List.of(), new AnalysisIntent("ASSET_GUIDANCE", List.of(), Set.of(AnalysisCapability.ASSET_GUIDANCE),
+                "UNSPECIFIED", true), Map.of("evidenceRecoveryMaxRounds", 1));
+        var result = runtime.analyze(context);
+        assertThat(calls).containsExactly(0);
+        assertThat(result.metadata()).containsEntry("runtimePublicStatus", "NO_PRESENTABLE_RESULT")
+            .containsEntry("guidanceExecutionPolicy", "PLAN_ONCE_ACQUIRE_ONCE_NO_REENTRY");
+        org.mockito.Mockito.verifyNoInteractions(recovery);
+    }
+
+    @Test
+    void runtimeAcceptsReadyGuidanceWithoutReentry() {
+        var calls = new java.util.ArrayList<Integer>();
+        AnalysisEvidence evidence = org.mockito.Mockito.mock(AnalysisEvidence.class);
+        AnalysisWorkflow guidance = new AnalysisWorkflow() {
+            @Override public AnalysisWorkflowType type() { return AnalysisWorkflowType.ASSET_GUIDANCE; }
+            @Override public String workflowId() { return "test.guidance-ready"; }
+            @Override public boolean supports(AnalysisContext context, AnalysisIntent intent) { return true; }
+            @Override public AnalysisExecutionOutcome execute(AnalysisContext context) {
+                int offset = ((Number) context.attributes().getOrDefault("assetGuidanceToolOffset", 0)).intValue();
+                calls.add(offset);
+                List<AnalysisEvidence> found = List.of(evidence);
+                return new AnalysisExecutionOutcome(null, type(), null,
+                    new VerificationResult(!found.isEmpty(), found, List.of()),
+                    new EvidenceBundle(null, found, List.of(), Map.of()), "guidance",
+                    Map.of("guidanceState", "GUIDANCE_READY",
+                        "guidanceNextToolOffset", offset + 4));
+            }
+        };
+        var runtime = new DefaultAnalysisWorkflowRuntime(List.of(guidance));
+        var context = new AnalysisContext("API 怎么用", KernelDataScope.system("ready"), "agent", List.of(),
+            List.of(), List.of(), new AnalysisIntent("ASSET_GUIDANCE", List.of(), Set.of(AnalysisCapability.ASSET_GUIDANCE),
+                "UNSPECIFIED", true), Map.of());
+        var result = runtime.analyze(context);
+        assertThat(calls).containsExactly(0);
+        assertThat(result.metadata()).containsEntry("runtimeGuidanceDecision", "GUIDANCE_READY")
+            .containsEntry("runtimePublicStatus", "PARTIAL_SUCCESS");
     }
 
     @Test

@@ -5,6 +5,8 @@ import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.skills.catalog.SkillCatalogService;
 import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -129,6 +131,20 @@ public class AgentToolPolicyResolver {
      * @param skillId the skill id value
      * @return the operation result
      */
+    public DiscoveryToolPolicy resolveTemplateDiscovery(InteractionRequest request, SkillDefinition skill) {
+        List<String> bound = normalizeToolNames(resolve(request, skill).availableTools());
+        List<String> candidates = bound.stream().filter(name -> {
+            ToolMetadata meta = toolRegistry.getToolMetadata(name);
+            return meta != null && meta.isUserVisible() && meta.isAgentCompatible()
+                && "active".equalsIgnoreCase(meta.getPublicationStatus())
+                && "read".equalsIgnoreCase(meta.getOperationType())
+                && ToolWorkflowContract.resolveRole(name, meta) == ToolWorkflowRole.TEMPLATE_DISCOVERY;
+        }).toList();
+        return new DiscoveryToolPolicy(candidates, bound.size(), candidates.size());
+    }
+
+    public record DiscoveryToolPolicy(List<String> availableTools, int boundToolCount, int eligibleToolCount) {}
+
     private List<String> discoverDefaultTools(String skillId) {
         Map<String, List<String>> mcpToolsByServiceId = new LinkedHashMap<>();
         mcpToolCatalog.registeredTools().forEach(tool ->

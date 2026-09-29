@@ -19,6 +19,36 @@ import static org.mockito.Mockito.when;
 class AgentToolPolicyResolverTest {
 
     @Test
+    void discoveryRespectsGeneralTopKAndDoesNotRestoreUnselectedTools() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        SkillCatalogService skills = mock(SkillCatalogService.class);
+        McpToolCatalogQueryPort catalog = mock(McpToolCatalogQueryPort.class);
+        McpToolCandidateRetriever retriever = mock(McpToolCandidateRetriever.class);
+        SkillDefinition agent = mock(SkillDefinition.class);
+        when(agent.id()).thenReturn("asset");
+        var names = List.of("discover", "denied", "execute", "unbound");
+        when(catalog.registeredTools()).thenReturn(names.stream().map(name -> registered(name, name)).toList());
+        when(registry.getAllToolNames()).thenReturn(java.util.Set.copyOf(names));
+        for (String name : names) {
+            var role = name.equals("execute") ? com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_EXECUTION
+                : com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY;
+            when(registry.getToolMetadata(name)).thenReturn(ToolMetadata.builder().agentCompatible(true)
+                .metadata(Map.of("workflowContract", com.chatchat.common.tool.ToolWorkflowContract.declaration(role, "templates", "query"))).build());
+        }
+        when(skills.resolveTools(org.mockito.ArgumentMatchers.eq("asset"), org.mockito.ArgumentMatchers.anyCollection(),
+            org.mockito.ArgumentMatchers.anyMap())).thenReturn(List.of("discover", "denied", "execute"));
+        var request = InteractionRequest.builder().skillId("asset").tenantId("t").userId("u").query("净值比对的用途").build();
+        when(retriever.retrieve(request, List.of("discover", "denied", "execute"), 3))
+            .thenReturn(new McpToolCandidateRetriever.Selection(java.util.Set.of("discover", "denied"),
+                java.util.Set.of("discover", "execute"), List.of("execute")));
+        var result = new AgentToolPolicyResolver(registry, skills, catalog, retriever).resolveTemplateDiscovery(request, agent);
+        assertThat(result.availableTools()).isEmpty();
+        assertThat(result.boundToolCount()).isEqualTo(1);
+        assertThat(result.eligibleToolCount()).isEqualTo(0);
+        org.mockito.Mockito.verify(retriever).retrieve(request, List.of("discover", "denied", "execute"), 3);
+    }
+
+    @Test
     void presentsOnlyAuthorizedRankedMcpToolsWhenDatabaseScopeIsAvailable() {
         ToolRegistry registry = mock(ToolRegistry.class);
         SkillCatalogService skills = mock(SkillCatalogService.class);

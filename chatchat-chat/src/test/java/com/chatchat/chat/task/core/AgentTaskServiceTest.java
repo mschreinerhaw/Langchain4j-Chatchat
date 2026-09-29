@@ -181,6 +181,24 @@ class AgentTaskServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void assetGuidanceExplanationPreservesRuntimeNoEvidenceDecision() throws Exception {
+        AgentTaskService service = taskService(
+            mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+        InteractionResponse response = InteractionResponse.builder().answer("本次未获得可验证的模板信息")
+            .metadata(Map.of("workflowFamily", "ASSET_GUIDANCE", "agent", Map.of("publicStatus", "NO_PRESENTABLE_RESULT")))
+            .build();
+        Method compile = AgentTaskService.class.getDeclaredMethod("compileExecutionResult", InteractionResponse.class);
+        compile.setAccessible(true);
+        Object contract = compile.invoke(service, response);
+        Method payloadMethod = contract.getClass().getDeclaredMethod("payload", InteractionResponse.class);
+        payloadMethod.setAccessible(true);
+        Map<String, Object> payload = (Map<String, Object>) payloadMethod.invoke(contract, response);
+        assertThat(payload).containsEntry("status", "NO_PRESENTABLE_RESULT");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void exposesBoundedDomainKnowledgeProvenanceInPersistedResultPayload() throws Exception {
         AgentTaskService service = taskService(
             mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),

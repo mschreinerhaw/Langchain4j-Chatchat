@@ -19,7 +19,17 @@ Agent 问答识别“这个 API/表是做什么用”“哪些场景、使用效
 
 流程：资产目标识别 → 已授权 MCP 模板检索 → 使用证据检查 → 能力解释 → 已发布领域 Skill 增强 → 固定模板返回。
 
-检索复用 `AgentToolPolicyResolver`、`ToolRuntimeService` 和已有动态子工具到父工具的委派。只允许发布契约声明为 `TEMPLATE_DISCOVERY` 的读取工具，不能用 `TEMPLATE_EXECUTION` 或只读 SQL 代替。用户不能传入工具名称、SQL、模板执行参数来扩展此流程的权限。每次重新解析用户/角色/Agent 权限，保留 Runtime 事件及证据存档。
+### Runtime 驱动的单向状态机
+
+`execute()` 只生成 Asset Understanding Plan，不调用 MCP，也不生成最终答案。Runtime 顺序驱动 `TEMPLATE_RESOLVE → DATA_ACQUISITION_REQUIRED → DATA_BUNDLE_READY → DOMAIN_SKILL_ENRICHMENT → GUIDANCE_SYNTHESIS → GUIDANCE_READY`。没有模板时按 AssetType、Domain（未知则明确为 UNSPECIFIED）和 Intent 生成默认 `GuidanceDataRequestPlan`；有模板则从声明契约补充需求。模板已经返回的元数据直接复用，不重复调用。
+
+默认需求交给受控 MCP 元数据获取适配器，仅允许 `ASSET_DISCOVERY`；模板解析仅允许 `TEMPLATE_DISCOVERY`。两阶段都遵守现有通用工具 Top-K、MCP 目录权限、角色资源权限及 Tool Runtime 执行治理。不会恢复 Top-K 未选中的工具，也不会遍历下一批工具。不调用业务数据 `TemplateSkillDataWorkflow`，因为其执行模板获取业务行数据，与元数据限定不符；复用的是 MCP 策略、授权、委派和 `ToolRuntimeService` 执行链路。
+
+每个阶段最多一次，无重入、无分页补检索循环。缺少资产信息时执行一次默认元数据搜索，仍缺失则 ASK；存在歧义则要求用户选择，不混合资产。Runtime 将有证据但事实不完整或待选择映射为 `PARTIAL_SUCCESS`，最终无证据映射为 `NO_PRESENTABLE_RESULT`。响应包含 `dataRequestPlan`、`runtimeGuidanceDecision` 和 `guidanceExecutionPolicy=PLAN_ONCE_ACQUIRE_ONCE_NO_REENTRY`；说明文本不能被当成分析成功。
+
+无证据诊断保留候选为空、缺少发现契约、授权拒绝和已检索但无匹配等区别；候选为空可能来自 Top-K 或权限过滤，不一概认定为角色未授权。
+
+检索复用 `AgentToolPolicyResolver`、`ToolRuntimeService` 和已有动态子工具到父工具的委派。只允许发布契约声明为 `TEMPLATE_DISCOVERY` / `ASSET_DISCOVERY` 的读取工具，不能用 `TEMPLATE_EXECUTION` 或只读 SQL 代替。用户不能传入工具名称、SQL、模板执行参数来扩展此流程的权限。每个阶段重新解析用户/角色/Agent 权限，保留 Runtime 事件及证据存档。
 
 ## 资产上下文与输出
 

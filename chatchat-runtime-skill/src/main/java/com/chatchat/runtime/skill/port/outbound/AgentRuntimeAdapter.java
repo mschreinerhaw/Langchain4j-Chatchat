@@ -12,6 +12,7 @@ public interface AgentRuntimeAdapter {
     String adapterId();
     default int priority() { return 0; }
     boolean supports(String engine);
+    default boolean supportsAcquiredData() { return false; }
     RuntimeAgentExecutionResult execute(RuntimeAgentExecutionRequest request);
     default AgentRuntimeHealthResult health(AgentRuntimeHealthRequest request) {
         return new AgentRuntimeHealthResult("UNKNOWN", Map.of("adapterId", adapterId()));

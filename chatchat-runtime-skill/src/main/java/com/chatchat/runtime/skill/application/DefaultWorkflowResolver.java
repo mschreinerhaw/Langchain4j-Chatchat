@@ -22,6 +22,14 @@ public final class DefaultWorkflowResolver implements WorkflowResolver {
             return unresolved("SKILL_NOT_AUTHORIZED", 0);
         List<String> authorized = scope.workflowIds().stream().sorted().toList();
         String requested = text(first(intent, "workflowId", "workflow_id"));
+        var requirements = skill.requirements();
+        if (intent != null && Boolean.TRUE.equals(intent.get("allowInstructionOnly")) && workflowType(intent) == WorkflowType.DATA_ANALYSIS
+            && (requested.isBlank() || "builtin:skill-instructions".equals(requested))
+            && requirements.data().isEmpty() && requirements.documentIds().isEmpty() && requirements.knowledgeBaseIds().isEmpty()
+            && requirements.mcpToolIds().isEmpty() && requirements.agentIds().isEmpty() && requirements.workflowIds().isEmpty()) {
+            return new WorkflowResolution(new ResolvedWorkflow("builtin:skill-instructions", WorkflowType.DATA_ANALYSIS,
+                List.of(), Map.of("instructionOnly", true)), "RESOLVED", Map.of("selection", "INSTRUCTION_ONLY"));
+        }
         if (!requested.isBlank() && !authorized.contains(requested))
             return unresolved("WORKFLOW_NOT_AUTHORIZED", authorized.size());
         String workflowId;

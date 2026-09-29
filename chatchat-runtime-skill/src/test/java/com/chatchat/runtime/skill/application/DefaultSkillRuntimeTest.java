@@ -37,13 +37,16 @@ class DefaultSkillRuntimeTest {
         var runtime = new DefaultSkillRuntime(
             request -> new SkillRouteResult(List.of(descriptor), "ROUTED", Map.of()),
             resolver(new SkillResolution(skill, scope, "db", "RESOLVED", Map.of())), new DefaultWorkflowResolver(),
-            request -> {
+            new com.chatchat.runtime.skill.port.inbound.AgentRuntimeDispatcher() {
+              @Override public boolean supportsAcquiredData(String engine) { return true; }
+              @Override public RuntimeAgentExecutionResult execute(com.chatchat.runtime.skill.api.agent.RuntimeAgentExecutionRequest request) {
                 assertThat(request.attributes().get(SkillDataAcquisition.RESULTS)).isInstanceOf(List.class);
                 var results = (List<?>) request.attributes().get(SkillDataAcquisition.RESULTS);
                 assertThat(results).hasSize(1);
                 assertThat(((com.chatchat.runtime.skill.api.execution.SkillDataResult) results.get(0)).status())
                     .isEqualTo(com.chatchat.runtime.skill.api.execution.SkillDataResult.Status.NO_BINDING);
                 return new RuntimeAgentExecutionResult("COMPLETED", "Data unavailable; review required", Map.of());
+              }
             });
         var result = runtime.execute(new SkillExecutionRequest("analyze", role, List.of("domain"), 1, "LANGCHAIN4J",
             Map.of("workflowType", "DATA_ANALYSIS", "workflowId", "workflow"),

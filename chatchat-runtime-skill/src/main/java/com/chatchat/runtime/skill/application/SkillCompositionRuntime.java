@@ -18,11 +18,15 @@ public final class SkillCompositionRuntime {
     }
 
     public SkillCompositionPlan plan(SkillCompositionRequest request) {
+        return plan(request, Set.of());
+    }
+
+    SkillCompositionPlan plan(SkillCompositionRequest request, Set<String> completedCapabilities) {
         Set<String> required = new LinkedHashSet<>(request.capabilities());
         Map<String, SkillDescriptor> candidates = new LinkedHashMap<>();
         Map<String, SkillCompositionPlan.Selection> selected = new LinkedHashMap<>();
         List<String> rejected = new ArrayList<>();
-        Set<String> covered = new LinkedHashSet<>();
+        Set<String> covered = new LinkedHashSet<>(completedCapabilities);
         Set<String> attempted = new HashSet<>();
         for (int round = 0; round < request.maxSkills() + 1; round++) {
             var route = router.route(new SkillSearchRequest(request.query(), request.identity(), request.skillIds(), 100,
@@ -44,6 +48,7 @@ public final class SkillCompositionRuntime {
                 if (!resolution.resolved()) { rejected.add(descriptor.id() + ":RESOLUTION_DENIED"); continue; }
                 var intent = new LinkedHashMap<String, Object>();
                 intent.put("workflowType", "DATA_ANALYSIS");
+                intent.put("allowInstructionOnly", Boolean.TRUE.equals(request.attributes().get("allowInstructionOnly")));
                 if (request.workflowIds().containsKey(descriptor.id())) intent.put("workflowId", request.workflowIds().get(descriptor.id()));
                 var workflow = workflows.resolve(resolution.skill(), resolution.authorizedScope(), request.identity(), intent);
                 if (!workflow.resolved()) { rejected.add(descriptor.id() + ":" + workflow.status()); continue; }
@@ -59,7 +64,7 @@ public final class SkillCompositionRuntime {
         var missing = new LinkedHashSet<>(required); missing.removeAll(covered);
         List<SkillCompositionPlan.Selection> ordered = new ArrayList<>();
         var pending = new ArrayList<>(selected.values());
-        Set<String> preceding = new HashSet<>();
+        Set<String> preceding = new HashSet<>(completedCapabilities);
         while (!pending.isEmpty()) {
             var ready = pending.stream().filter(item -> preceding.containsAll(item.requiresCapabilities())).findFirst();
             if (ready.isEmpty()) break;

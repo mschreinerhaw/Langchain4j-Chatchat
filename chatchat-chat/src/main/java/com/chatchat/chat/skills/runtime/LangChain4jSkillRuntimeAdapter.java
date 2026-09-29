@@ -24,6 +24,7 @@ public class LangChain4jSkillRuntimeAdapter implements AgentRuntimeAdapter {
 
     @Override public String adapterId() { return "langchain4j-agent-runtime"; }
     @Override public int priority() { return 100; }
+    @Override public boolean supportsAcquiredData() { return true; }
     @Override public boolean supports(String engine) {
         String value = engine == null ? "" : engine.trim().toUpperCase(Locale.ROOT);
         return "LANGCHAIN4J".equals(value);
@@ -49,7 +50,8 @@ public class LangChain4jSkillRuntimeAdapter implements AgentRuntimeAdapter {
                 "message", "maxSteps and timeoutMs must be positive; maxToolCalls must be nonnegative"));
         }
         Map<String, Object> attributes = new LinkedHashMap<>(request.attributes());
-        boolean dataAnalysis = !request.skill().requirements().data().isEmpty();
+        boolean dataAnalysis = !request.skill().requirements().data().isEmpty()
+            || Boolean.TRUE.equals(attributes.get("governedSkillAnalysis"));
         String query = request.query();
         if (dataAnalysis) {
             Object datasets = attributes.get(com.chatchat.runtime.skill.application.SkillDataAcquisition.RESULTS);

@@ -22,6 +22,12 @@ public final class DefaultAgentRuntimeDispatcher implements AgentRuntimeDispatch
     }
 
     @Override
+    public boolean supportsAcquiredData(String engine) {
+        return adapters.stream().filter(adapter -> adapter.supports(engine)).findFirst()
+            .map(AgentRuntimeAdapter::supportsAcquiredData).orElse(false);
+    }
+
+    @Override
     public RuntimeAgentExecutionResult execute(RuntimeAgentExecutionRequest request) {
         if (request == null || request.engine() == null || request.engine().isBlank())
             return new RuntimeAgentExecutionResult("ENGINE_REQUIRED", "", Map.of());

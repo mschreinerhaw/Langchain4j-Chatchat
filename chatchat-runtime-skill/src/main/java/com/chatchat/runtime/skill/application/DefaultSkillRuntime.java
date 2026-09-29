@@ -73,11 +73,16 @@ public final class DefaultSkillRuntime implements SkillRuntime {
         // Callers cannot supply a supposedly acquired bundle.
         attributes.remove(SkillDataAcquisition.RESULTS);
         attributes.remove(SkillAnalysisExecutor.RESULTS);
+        if (Boolean.TRUE.equals(workflow.workflow().configuration().get("instructionOnly"))) {
+            attributes.put("governedSkillAnalysis", true);
+            attributes.put(SkillDataAcquisition.RESULTS, java.util.List.of());
+            attributes.put(SkillAnalysisExecutor.RESULTS, java.util.List.of());
+        }
         var requirements = resolved.skill().requirements().data();
         if (requirements.isEmpty() && Boolean.TRUE.equals(request.intent().get("dataContractsRequired")))
             return new SkillExecutionResult("NO_DATA_REQUIREMENTS", route, resolved, workflow, null, Map.of());
         if (!requirements.isEmpty()) {
-            if (!java.util.Set.of("LANGCHAIN4J", "OPENAI_COMPATIBLE").contains(request.engine().toUpperCase(java.util.Locale.ROOT)))
+            if (!agents.supportsAcquiredData(request.engine()))
                 return new SkillExecutionResult("DATA_ANALYSIS_ENGINE_UNSUPPORTED", route, resolved, workflow, null, Map.of());
             Map<String, Object> inputs = new java.util.LinkedHashMap<>();
             if (attributes.get(SkillDataAcquisition.INPUTS) instanceof Map<?, ?> supplied)

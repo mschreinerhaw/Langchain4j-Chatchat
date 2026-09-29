@@ -16,6 +16,11 @@
     <description>Conversation storage, interaction orchestration, skills, and async task execution</description>
 
     <dependencies>
+        <dependency>
+            <groupId>com.google.adk</groupId>
+            <artifactId>google-adk-langchain4j</artifactId>
+            <version>1.7.0</version>
+        </dependency>
         <!-- Internal -->
         <dependency>
             <groupId>com.chatchat</groupId>

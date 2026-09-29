@@ -17,6 +17,7 @@ import java.util.Map;
 /** Executes an explicitly selected, published OpenAI-compatible database model connection. */
 @Component
 public class OpenAiCompatibleSkillRuntimeAdapter implements AgentRuntimeAdapter {
+    @Override public boolean supportsAcquiredData() { return true; }
     private final LangChain4jSkillRuntimeAdapter delegate;
     private final ModelCatalogOverride models;
 

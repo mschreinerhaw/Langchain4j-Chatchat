@@ -63,6 +63,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     private DomainSkillPlanningRouter domainSkillPlanningRouter;
     @Autowired(required = false)
     private SkillExecutionScopePort skillExecutionScope;
+    @Autowired(required = false)
+    private com.chatchat.chat.skills.runtime.SkillIntelligenceInteractionBridge skillIntelligence;
 
     private static final int DEFAULT_DOMAIN_KNOWLEDGE_TOKEN_BUDGET = 1500;
 
@@ -142,6 +144,11 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     @Override
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
         SkillDefinition skill = skillCatalogService.resolve(request.getSkillId());
+        if (skillIntelligence != null && skill.workflowConfig() != null
+            && skill.workflowConfig().get("skillIntelligenceEngine") instanceof String engine && !engine.isBlank()) {
+            var scope = resolveSkillScope(request, skill, resolvedSkillId(request, skill));
+            return skillIntelligence.execute(request, context, skill, scope.roles());
+        }
         if (InteractionMode.fromAgentConfiguration(skill.defaultMode()).isRoleConversation()
             && roleChatModeHandler != null) {
             log.info("agentChatCompatibilityRoute skillId={} configuredMode={} resolvedMode=role_chat",

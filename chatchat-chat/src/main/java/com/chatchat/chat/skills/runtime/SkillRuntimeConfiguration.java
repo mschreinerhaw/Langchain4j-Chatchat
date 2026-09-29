@@ -23,6 +23,12 @@ import java.util.List;
 @Configuration
 public class SkillRuntimeConfiguration {
     @Bean
+    com.chatchat.runtime.skill.application.SkillIntelligenceLayer skillIntelligenceLayer(SkillRouter router,
+            com.chatchat.runtime.skill.port.outbound.SkillIntentPlanner planner,
+            com.chatchat.runtime.skill.application.SkillCompositionRuntime composition, SkillRuntime runtime) {
+        return new com.chatchat.runtime.skill.application.SkillIntelligenceLayer(router, planner, composition, runtime);
+    }
+    @Bean
     com.chatchat.runtime.skill.application.SkillCompositionRuntime skillCompositionRuntime(SkillRouter router,
             SkillResolver resolver, WorkflowResolver workflows, SkillRuntime runtime) {
         return new com.chatchat.runtime.skill.application.SkillCompositionRuntime(router, resolver, workflows, runtime);

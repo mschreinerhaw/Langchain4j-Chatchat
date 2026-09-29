@@ -14,6 +14,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class DefaultWorkflowResolverTest {
     @Test
+    void instructionOnlyAnalysisNeedsNoDataWorkflowAndGrantsNoTools() {
+        var result = new DefaultWorkflowResolver().resolve(skill(), scope(List.of()), role(),
+            Map.of("allowInstructionOnly", true, "workflowType", "DATA_ANALYSIS"));
+        assertThat(result.resolved()).isTrue();
+        assertThat(result.workflow().configuration()).containsEntry("instructionOnly", true);
+        assertThat(result.workflow().requiredCapabilities()).isEmpty();
+        var declared = new ResolvedSkill(skill().descriptor(), "body", List.of(),
+            new SkillRequirements(List.of(), List.of(), List.of("search"), List.of(), List.of()), Map.of());
+        var denied = new DefaultWorkflowResolver().resolve(declared, scope(List.of()), role(),
+            Map.of("allowInstructionOnly", true, "workflowType", "DATA_ANALYSIS"));
+        assertThat(denied.resolved()).isFalse();
+    }
+    @Test
     void resolvesOnlyAnExplicitDatabaseAuthorizedWorkflowAndPublishedType() {
         var resolver = new DefaultWorkflowResolver();
         var result = resolver.resolve(skill(), scope(List.of("document-install")), role(),

@@ -22,6 +22,10 @@ public final class StandardAnalysisQueryAnalyzer implements AnalysisQueryAnalyze
     public AnalysisIntent analyze(AnalysisContext context) {
         Set<AnalysisCapability> required = declaredCapabilities(context);
         String query = context.query().toLowerCase(Locale.ROOT);
+        if (required.isEmpty() && AssetGuidanceIntent.matches(query)) {
+            return new AnalysisIntent("ASSET_GUIDANCE", entities(context.query()),
+                Set.of(AnalysisCapability.ASSET_GUIDANCE), "UNSPECIFIED", true);
+        }
         if (required.isEmpty()) {
             if (context.attributes().containsKey(AnalysisContext.AGENT_CAPABILITY_ATTRIBUTE))
                 required.add(AnalysisCapability.DOMAIN_INTELLIGENCE);

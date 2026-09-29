@@ -128,6 +128,9 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
 
     private AnalysisExecutionOutcome recoverAndContinue(AnalysisContext context, AnalysisWorkflow workflow,
                                                          AnalysisExecutionOutcome primary) {
+        // Missing template metadata is not a request to acquire or analyze business data.
+        if (primary.workflowType() == com.chatchat.common.runtime.analysis.model.AnalysisWorkflowType.ASSET_GUIDANCE)
+            return primary;
         EvidenceBundle current = primary.evidenceBundle();
         EvidenceStateInspector.State state = evidenceInspector.inspect(current, primary.metadata());
         Map<String, Object> metadata = new LinkedHashMap<>(primary.metadata());
@@ -296,6 +299,7 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
                                                          String workflowId) {
         Map<String, Object> metadata = new LinkedHashMap<>(outcome.metadata());
         metadata.put("executionMode", mode.name());
+        metadata.putIfAbsent("workflowFamily", outcome.workflowType().family().name());
         if (workflowId != null) metadata.put("runtimeWorkflowId", workflowId);
         return new AnalysisExecutionOutcome(outcome.schemaVersion(), outcome.workflowType(), outcome.plan(),
             outcome.verification(), outcome.evidenceBundle(), outcome.synthesis(), metadata);

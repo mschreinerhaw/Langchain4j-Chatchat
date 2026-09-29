@@ -43,6 +43,27 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class DefaultAnalysisWorkflowRuntimeTest {
     @Test
+    void missingAssetMetadataNeverTriggersDataOrDocumentRecovery() {
+        AnalysisWorkflow guidance = new AnalysisWorkflow() {
+            @Override public AnalysisWorkflowType type() { return AnalysisWorkflowType.ASSET_GUIDANCE; }
+            @Override public String workflowId() { return "test.asset-guidance"; }
+            @Override public boolean supports(AnalysisContext context, AnalysisIntent intent) { return true; }
+            @Override public AnalysisExecutionOutcome execute(AnalysisContext context) {
+                return new AnalysisExecutionOutcome(null, type(), null,
+                    new VerificationResult(false, List.of(), List.of("No template")),
+                    EvidenceBundle.empty("No template"), "No template", Map.of());
+            }
+        };
+        EvidenceRecoveryWorkflow recovery = org.mockito.Mockito.mock(EvidenceRecoveryWorkflow.class);
+        var runtime = new DefaultAnalysisWorkflowRuntime(List.of(guidance), null, null, List.of(recovery));
+        var context = new AnalysisContext("这个 API 怎么用", KernelDataScope.system("asset-test"), "agent", List.of(),
+            List.of(), List.of(), new AnalysisIntent("ASSET_GUIDANCE", List.of(),
+                Set.of(AnalysisCapability.ASSET_GUIDANCE), "UNSPECIFIED", true), Map.of());
+        assertThat(runtime.analyze(context).metadata()).containsEntry("workflowFamily", "ASSET_GUIDANCE");
+        org.mockito.Mockito.verifyNoInteractions(recovery);
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void routesStructuralEvidenceGapThroughDeterministicRecoveryBeforeSynthesis() {
         DocumentAnalysisEvidence partial = new DocumentAnalysisEvidence(

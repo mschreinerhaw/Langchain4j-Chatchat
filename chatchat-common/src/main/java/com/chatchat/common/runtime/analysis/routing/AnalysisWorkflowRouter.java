@@ -45,6 +45,7 @@ public final class AnalysisWorkflowRouter {
     private static Map<AnalysisCapability, AnalysisWorkflowType> capabilityTypes() {
         Map<AnalysisCapability, AnalysisWorkflowType> values = new EnumMap<>(AnalysisCapability.class);
         values.put(AnalysisCapability.DOCUMENT_SEARCH, AnalysisWorkflowType.DOCUMENT);
+        values.put(AnalysisCapability.ASSET_GUIDANCE, AnalysisWorkflowType.ASSET_GUIDANCE);
         values.put(AnalysisCapability.STRUCTURED_DATA, AnalysisWorkflowType.STRUCTURED_DATA);
         values.put(AnalysisCapability.TOOL_CALL, AnalysisWorkflowType.TOOL);
         values.put(AnalysisCapability.COMPUTATION, AnalysisWorkflowType.COMPUTATION);

@@ -39,6 +39,27 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentChatModeHandlerTest {
+    @Test
+    void assetGuidancePrecedesSkillDataAnalysisAndAgentExecution() {
+        var catalog = mock(SkillCatalogService.class);
+        var orchestrator = mock(AgentOrchestrator.class);
+        var policies = mock(AgentToolPolicyResolver.class);
+        var guidance = mock(com.chatchat.chat.asset.AssetGuidanceInteractionBridge.class);
+        var intelligence = mock(com.chatchat.chat.skills.runtime.SkillIntelligenceInteractionBridge.class);
+        var agent = skillWithoutWebSearch();
+        when(catalog.resolve("ops")).thenReturn(agent);
+        var request = InteractionRequest.builder().skillId("ops").query("这个 API 怎么用").build();
+        var context = InteractionContext.builder().requestId("guidance-request").mode(InteractionMode.AGENT_CHAT).build();
+        var expected = com.chatchat.chat.interaction.model.InteractionResponse.builder().answer("模板指导").build();
+        when(guidance.matches(request, agent)).thenReturn(true);
+        when(guidance.execute(request, context, agent)).thenReturn(expected);
+        var handler = new AgentChatModeHandler(orchestrator, catalog, policies);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "assetGuidance", guidance);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "skillIntelligence", intelligence);
+        assertThat(handler.handle(request, context)).isSameAs(expected);
+        org.mockito.Mockito.verifyNoInteractions(orchestrator, intelligence, policies);
+    }
+
 
     @Test
     void partialRecoveryContinuesToSynthesisWithAnExplicitPartialAnswerContract() {

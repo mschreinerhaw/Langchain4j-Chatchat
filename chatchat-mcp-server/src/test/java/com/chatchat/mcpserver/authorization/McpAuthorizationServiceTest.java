@@ -493,10 +493,10 @@ class McpAuthorizationServiceTest {
     }
 
     @Test
-    void persistedSuperAdminRoleCodeDoesNotBypassDatabaseToolPermissions() throws Exception {
+    void persistedSuperAdminExecutesWithoutIndividualToolPermissions() throws Exception {
         Object snapshot = snapshotFrom(objectMapper.readTree("""
             {
-              "users":[{"id":"admin-1","tenantId":"tenant-1","username":"admin","roleIds":["role-super"]}],
+              "users":[{"id":"admin-1","tenantId":"tenant-1","username":"admin","status":"enabled","roleIds":["role-super"]}],
               "roles":[{"id":"role-super","tenantId":"tenant-1","roleCode":"SUPER_ADMIN","roleName":"Super Admin","status":"enabled"}],
               "tenants":[],
               "tools":[],
@@ -508,9 +508,24 @@ class McpAuthorizationServiceTest {
         McpAuthorizationService.AuthorizationDecision decision = service.authorize(
             "web_search", Map.of("userId", "admin-1", "tenantId", "tenant-1"));
 
-        assertThat(decision.allowed()).isFalse();
-        assertThat(decision.reason()).contains("no MCP asset authorization");
-        assertThat(service.roleAllows("role-super", "tenant-1", "web_search", null)).isFalse();
+        assertThat(decision.allowed()).isTrue();
+        assertThat(service.roleAllows("role-super", "tenant-1", "web_search", null)).isTrue();
+        assertThat(service.authorize("web_search", Map.of("userId", "admin-1", "tenantId", "tenant-2")).allowed()).isFalse();
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"disabled", "foreign-tenant", "unassigned", "disabled-user"})
+    void invalidSuperAdminRoleDoesNotElevateCaller(String scenario) throws Exception {
+        var data = objectMapper.createObjectNode();
+        var user = data.putArray("users").addObject().put("id", "user-1").put("tenantId", "tenant-1");
+        user.put("status", scenario.equals("disabled-user") ? "disabled" : "enabled");
+        user.putArray("roleIds").add(scenario.equals("unassigned") ? "role-other" : "role-super");
+        data.putArray("roles").addObject().put("id", "role-super").put("roleCode", "SUPER_ADMIN")
+            .put("tenantId", scenario.equals("foreign-tenant") ? "tenant-2" : "tenant-1")
+            .put("status", scenario.equals("disabled") ? "disabled" : "enabled");
+        var service = service(snapshotFrom(data));
+        assertThat(service.authorize("web_search", Map.of("userId", "user-1", "tenantId", "tenant-1",
+            "roleIds", List.of("role-super", "SUPER_ADMIN"))).allowed()).isFalse();
     }
 
     @Test

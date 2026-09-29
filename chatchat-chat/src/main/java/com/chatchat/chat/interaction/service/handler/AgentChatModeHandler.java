@@ -165,6 +165,20 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         String resolvedSkillId = resolvedSkillId(request, skill);
         SkillExecutionScopePort.EffectiveScope effectiveScope = resolveSkillScope(request, skill, resolvedSkillId);
         AgentToolPolicyResolver.ToolPolicy toolPolicy = toolPolicyResolver.resolve(request, skill);
+        if (!toolPolicy.requiredCapabilityGaps().isEmpty()) {
+            var outcome = new com.chatchat.common.runtime.capability.WorkflowOutcome(
+                com.chatchat.common.runtime.capability.WorkflowOutcome.Type.NO_EXECUTABLE_PLAN,
+                "REQUIRED_CAPABILITY_UNAVAILABLE", List.copyOf(toolPolicy.requiredCapabilityGaps().keySet()), List.of(), false);
+            log.warn("agentCapabilityAdmissionRejected skillId={} requiredCapabilityGaps={}",
+                resolvedSkillId, toolPolicy.requiredCapabilityGaps());
+            return InteractionResponse.builder()
+                .answer("当前工作流的必需工具未注册、未绑定或未获得执行授权，无法执行本次工作流。请检查工具配置与授权。")
+                .toolTraces(List.of()).metadata(Map.of(
+                    "handler", "AgentChatModeHandler", "skillId", resolvedSkillId,
+                    "availableTools", toolPolicy.availableTools(),
+                    "requiredCapabilityGaps", toolPolicy.requiredCapabilityGaps(),
+                    com.chatchat.common.runtime.capability.WorkflowOutcome.METADATA_KEY, outcome)).build();
+        }
         Map<String, Object> executionContext = mcpExecutionContext(request, skill);
         Map<String, Object> agentRoleContext = agentRoleContext(skill);
         KnowledgeContext domainKnowledge = retrieveDomainKnowledge(request, skill, effectiveScope);

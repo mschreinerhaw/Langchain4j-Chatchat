@@ -27,6 +27,46 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class DatabaseMcpToolCandidateRetrieverTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"valid", "disabled-role", "foreign-role", "unassigned"})
+    void onlyPersistedActiveAdministratorRecallsToolsWithoutGrants(String scenario) {
+        var tools = mock(McpToolAssetRepository.class);
+        var permissions = mock(McpToolPermissionRepository.class);
+        var users = mock(SysUserRepository.class);
+        var userRoles = mock(SysUserRoleRepository.class);
+        var roles = mock(SysRoleRepository.class);
+        var index = mock(McpToolSemanticIndex.class);
+        var grants = mock(ResourceAuthorizationPort.class);
+        var online = tool("online", true);
+        when(tools.findByLocalToolNameInOrderByLocalToolNameAsc(anyCollection()))
+            .thenReturn(List.of(online, tool("disabled", false)));
+        when(tools.findByLocalToolName("online")).thenReturn(Optional.of(online));
+        var user = new SysUser();
+        user.setId("user-1"); user.setTenantId("tenant-1"); user.setStatus("enabled");
+        when(users.findById("user-1")).thenReturn(Optional.of(user));
+        var role = new com.chatchat.enterprise.entity.identity.SysRole();
+        role.setId("role-super"); role.setRoleCode("SUPER_ADMIN");
+        role.setTenantId(scenario.equals("foreign-role") ? "tenant-2" : "tenant-1");
+        role.setStatus(scenario.equals("disabled-role") ? "disabled" : "enabled");
+        var binding = new com.chatchat.enterprise.entity.identity.SysUserRole();
+        binding.setTenantId("tenant-1"); binding.setUserId("user-1"); binding.setRoleId("role-super");
+        when(userRoles.findByUserId("user-1")).thenReturn(scenario.equals("unassigned") ? List.of() : List.of(binding));
+        when(roles.findByTenantIdAndIdIn(eq("tenant-1"), anyCollection())).thenReturn(List.of(role));
+        when(index.rank(any(), any(), eq(3))).thenReturn(List.of("online", "disabled"));
+        var retriever = new DatabaseMcpToolCandidateRetriever(tools, permissions, users, userRoles,
+            roles, index, mock(ToolWorkflowContractCatalog.class));
+        ReflectionTestUtils.setField(retriever, "resourceAuthorization", grants);
+        var result = retriever.retrieve(InteractionRequest.builder().tenantId("tenant-1")
+            .userId("user-1").query("lookup").build(), List.of("online", "disabled"), 3);
+        if (scenario.equals("valid")) {
+            assertThat(result.allowedNames()).containsExactly("online");
+            assertThat(result.rankedNames()).containsExactly("online");
+            verifyNoInteractions(grants);
+        } else {
+            assertThat(result.allowedNames()).isEmpty();
+        }
+    }
+
     @Test
     void searchesOnlyDatabaseAuthorizedOnlineToolsAndRejectsUnexpectedIndexIds() {
         McpToolAssetRepository tools = mock(McpToolAssetRepository.class);

@@ -6,6 +6,7 @@ import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.retrieval.ResourceAuthorizationPort;
+import com.chatchat.common.security.McpAdministratorPolicy;
 import com.chatchat.enterprise.entity.mcp.McpToolPermission;
 import com.chatchat.enterprise.entity.mcp.McpToolAsset;
 import com.chatchat.enterprise.entity.identity.SysRole;
@@ -74,9 +75,24 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
         if (caller != null && !tenantId.equals(normalize(caller.getTenantId()))) {
             return denied("Authenticated user does not belong to request tenant");
         }
+        if (caller != null && !"enabled".equalsIgnoreCase(caller.getStatus())) {
+            return denied("Authenticated user is disabled");
+        }
+        RequestScope requestedScope = requestedScope(request, tenantId);
+        if (requestedScope != null && requestedScope.tenantId() != null
+            && !tenantId.equals(requestedScope.tenantId())) {
+            return denied("MCP scope tenant does not match caller tenant");
+        }
         String userId = caller == null ? requestedUserId : normalize(caller.getId());
         Set<String> roleIds = resolvedRoleIds(tenantId, caller);
         attachCanonicalCallerContext(request, caller, roleIds);
+        if (caller != null && "enabled".equalsIgnoreCase(caller.getStatus())
+            && roleRepository.findByTenantIdOrderByRoleNameAsc(tenantId).stream()
+                .filter(role -> roleIds.contains(normalize(role.getId())))
+                .anyMatch(role -> McpAdministratorPolicy.isAdministratorRole(tenantId,
+                    role.getTenantId(), role.getRoleCode(), role.getStatus()))) {
+            return ToolRuntimePolicy.builder().allowed(true).build();
+        }
         // Dynamic template-query children are governed by their publication binding
         // in MCP. API only resolves their canonical caller roles from the database;
         // they are intentionally not required to be duplicated in mcp_tool_asset.
@@ -116,7 +132,6 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
             return denied("No MCP asset authorization is assigned to caller");
         }
 
-        RequestScope requestedScope = requestedScope(request, tenantId);
         List<McpToolPermission> effective = matched.stream()
             .filter(permission -> permissionMatches(permission, toolName, metadata, requestedScope))
             .toList();

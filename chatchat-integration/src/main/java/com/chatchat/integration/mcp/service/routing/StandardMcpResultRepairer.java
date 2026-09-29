@@ -33,6 +33,16 @@ public class StandardMcpResultRepairer implements McpResultRepairer {
         Object normalized = normalize(request.rawResult(), diagnostics);
         if (normalized == null) return result(request, McpServiceResultStatus.FAILED, null, diagnostics,
             "Raw MCP result is null");
+        // These are protocol failure evidence, not a successfully executed tool's payload.
+        // Decoding an error envelope cannot repair an invocation that did not produce data.
+        if (normalized instanceof Map<?, ?> envelope
+            && ("mcp_transport_failure.v1".equals(envelope.get("schemaVersion"))
+                || "mcp_failure_evidence.v1".equals(envelope.get("schemaVersion")))) {
+            diagnostics.put("rawPreserved", true);
+            diagnostics.put("failureEvidence", true);
+            return result(request, McpServiceResultStatus.FAILED, null, diagnostics,
+                "MCP invocation failure requires execution recovery, not result normalization");
+        }
         List<String> missing = missingRequired(normalized, request.expectedOutputSchema());
         diagnostics.put("missingRequired", missing);
         diagnostics.put("rawPreserved", true);

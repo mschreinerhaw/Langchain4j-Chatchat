@@ -29,8 +29,7 @@ public final class CapabilityWorkflowRuntime {
             if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
         }
         Map<String, Object> metadata = new LinkedHashMap<>(response.getMetadata() == null ? Map.of() : response.getMetadata());
-        if (!metadata.containsKey(WorkflowOutcome.METADATA_KEY))
-            metadata.put(WorkflowOutcome.METADATA_KEY, evaluateExistingRuntime(plan.family(), response, metadata));
+        metadata.put(WorkflowOutcome.METADATA_KEY, resolveOutcome(plan.family(), response, metadata));
         metadata.put("workflowFamily", plan.family().name());
         metadata.put("capabilityPlan", plan);
         metadata.put("runtimeLifecycleDefinition", CapabilityWorkflowPlan.LIFECYCLE);
@@ -67,10 +66,27 @@ public final class CapabilityWorkflowRuntime {
     public static void normalizeOutcome(InteractionResponse response) {
         Objects.requireNonNull(response, "Workflow returned no response");
         Map<String, Object> metadata = new LinkedHashMap<>(response.getMetadata() == null ? Map.of() : response.getMetadata());
-        if (!metadata.containsKey(WorkflowOutcome.METADATA_KEY))
-            metadata.put(WorkflowOutcome.METADATA_KEY, evaluateExistingRuntime(null, response, metadata));
+        metadata.put(WorkflowOutcome.METADATA_KEY, resolveOutcome(null, response, metadata));
         response.setMetadata(metadata);
         projectOutcome(response);
+    }
+
+    private static WorkflowOutcome resolveOutcome(com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily family,
+            InteractionResponse response, Map<String, Object> metadata) {
+        WorkflowOutcome outcome = metadata.get(WorkflowOutcome.METADATA_KEY) instanceof WorkflowOutcome supplied
+            ? supplied : evaluateExistingRuntime(family, response, metadata);
+        Map<?, ?> agent = metadata.get("agent") instanceof Map<?, ?> values ? values : Map.of();
+        boolean auditFailed = "FAIL".equalsIgnoreCase(String.valueOf(agent.get("claimCoverageStatus")))
+            || Boolean.FALSE.equals(agent.get("answerClaimAuditPassed"));
+        // Execution completion and evidence acceptance are separate obligations.
+        // Preserve usable results, but a failed final audit cannot be projected as full success.
+        if (outcome.type() == WorkflowOutcome.Type.READY_TO_ANSWER && auditFailed) {
+            Set<String> missing = new LinkedHashSet<>(outcome.missingRequiredCapabilities());
+            missing.add("evidence_verify");
+            return new WorkflowOutcome(WorkflowOutcome.Type.PARTIAL_RESULT, "ANSWER_EVIDENCE_AUDIT_FAILED",
+                List.copyOf(missing), outcome.missingOptionalCapabilities(), outcome.usableResult());
+        }
+        return outcome;
     }
 
     private static WorkflowOutcome evaluateExistingRuntime(com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily family,

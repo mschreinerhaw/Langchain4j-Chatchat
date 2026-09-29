@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.authorization;
 
 import com.chatchat.common.security.InternalCredentialProperties;
+import com.chatchat.common.security.McpAdministratorPolicy;
 import com.chatchat.mcpserver.external.ExternalMcpRegistryService;
 import com.chatchat.mcpserver.external.ExternalMcpService;
 import com.chatchat.mcpserver.external.ExternalMcpToolPublisher;
@@ -167,15 +168,25 @@ public class McpAuthorizationService {
         if (principal.tenantMismatch()) {
             return AuthorizationDecision.denyDecision("MCP caller tenant does not match synchronized user tenant");
         }
-
+        User synchronizedUser = snapshot.usersById().get(normalize(principal.userId()));
+        if (synchronizedUser != null && synchronizedUser.status() != null
+            && !"enabled".equalsIgnoreCase(synchronizedUser.status())) {
+            return AuthorizationDecision.denyDecision("MCP caller is disabled");
+        }
+        String authorizationToolName = delegatedAuthorizationTool(toolName, arguments);
+        McpScopeExpression requestedScope = requestedScope(authorizationToolName, arguments, principal);
+        if (requestedScope.tenantId() != null && !requestedScope.tenantId().equals(principal.tenantId())) {
+            return AuthorizationDecision.denyDecision("MCP scope tenant does not match caller tenant");
+        }
+        if (snapshot.isAdministrator(principal)) {
+            return AuthorizationDecision.allowDecision();
+        }
         List<ToolPermission> matched = snapshot.matchedPermissions(principal);
         if (matched.isEmpty()) {
             return AuthorizationDecision.denyDecision("no MCP asset authorization is assigned to caller");
         }
 
-        String authorizationToolName = delegatedAuthorizationTool(toolName, arguments);
         String normalizedToolName = normalize(authorizationToolName);
-        McpScopeExpression requestedScope = requestedScope(authorizationToolName, arguments, principal);
         List<ToolPermission> effective = matched.stream()
             .filter(permission -> permission.matchesRequest(normalizedToolName, requestedScope))
             .toList();
@@ -369,6 +380,10 @@ public class McpAuthorizationService {
         Role role = snapshot.rolesById().get(normalize(roleId));
         if (role == null || !snapshot.activeRole(role) || !snapshot.sameTenant(role.tenantId(), tenantId)) {
             return false;
+        }
+        if (McpAdministratorPolicy.isAdministratorRole(tenantId, role.tenantId(),
+            role.roleCode(), role.status())) {
+            return true;
         }
         String normalizedRoleId = normalize(role.id());
         String normalizedRoleCode = normalize(role.roleCode());
@@ -1033,7 +1048,7 @@ public class McpAuthorizationService {
     public record CallerAuthorizationContext(String tenantId, String userId, String username,
                                               List<String> roleIds) { }
 
-    private record User(String id, String tenantId, Long tenantNo, String username, List<String> roleIds) {
+    private record User(String id, String tenantId, Long tenantNo, String username, List<String> roleIds, String status) {
     }
 
     private record Role(String id, String tenantId, String roleCode, String roleName, String roleType, String status) {
@@ -1141,7 +1156,8 @@ public class McpAuthorizationService {
                         node.path("tenantId").asText(null),
                         node.hasNonNull("tenantNo") ? node.path("tenantNo").asLong() : null,
                         node.path("username").asText(null),
-                        roleIds
+                        roleIds,
+                        node.path("status").asText(null)
                     );
                     if (user.id() != null) {
                         usersById.put(normalize(user.id()), user);
@@ -1282,29 +1298,20 @@ public class McpAuthorizationService {
             return matched;
         }
 
-        boolean hasRoleCode(Principal principal, String roleCode) {
-            if (principal == null || principal.roleIds() == null || principal.roleIds().isEmpty()) {
+        boolean isAdministrator(Principal principal) {
+            if (principal == null || principal.tenantMismatch()) {
                 return false;
             }
-            String normalizedCode = normalize(roleCode);
-            String normalizedRoleId = normalize(roleCodeToId.get(normalizedCode));
-            for (String role : principal.roleIds()) {
-                String normalizedRole = normalize(role);
-                if (normalizedRole == null) {
-                    continue;
-                }
-                if (normalizedRole.equals(normalizedCode) || normalizedRole.equals(normalizedRoleId)) {
-                    return true;
-                }
-                Role matched = rolesById.get(normalizedRole);
-                if (matched != null
-                    && activeRole(matched)
-                    && sameTenant(matched.tenantId(), principal.tenantId())
-                    && normalizedCode.equals(normalize(matched.roleCode()))) {
-                    return true;
-                }
-            }
-            return false;
+            // Only synchronized user assignments confer administrator privileges.
+            // Validated transport role claims alone must never elevate a caller.
+            User user = usersById.get(normalize(principal.userId()));
+            return user != null && user.roleIds() != null
+                && "enabled".equalsIgnoreCase(user.status())
+                && Objects.equals(user.tenantId(), principal.tenantId())
+                && user.roleIds().stream().map(id -> rolesById.get(normalize(id)))
+                    .filter(Objects::nonNull)
+                    .anyMatch(role -> McpAdministratorPolicy.isAdministratorRole(
+                        principal.tenantId(), role.tenantId(), role.roleCode(), role.status()));
         }
 
         private boolean sameTenant(String permissionTenantId, String callerTenantId) {

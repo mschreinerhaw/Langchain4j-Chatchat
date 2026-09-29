@@ -10,6 +10,33 @@ import static org.assertj.core.api.Assertions.*;
 
 class CapabilityWorkflowRuntimeTest {
     @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void successfulExecutionWithFailedClaimAuditRemainsPartial(boolean suppliedOutcome) {
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("agent", Map.of("publicStatus", "SUCCESS", "claimCoverageStatus", "FAIL",
+            "claimCoverage", 0.243, "answerClaimAuditPassed", false));
+        if (suppliedOutcome) metadata.put(WorkflowOutcome.METADATA_KEY,
+            new WorkflowOutcome(WorkflowOutcome.Type.READY_TO_ANSWER, "EXECUTION_COMPLETE",
+                List.of(), List.of(), true));
+        var response = InteractionResponse.builder().answer("Report requiring evidence review").metadata(metadata).build();
+        CapabilityWorkflowRuntime.normalizeOutcome(response);
+        var outcome = (WorkflowOutcome) response.getMetadata().get(WorkflowOutcome.METADATA_KEY);
+        assertThat(outcome.publicStatus()).isEqualTo("PARTIAL_SUCCESS");
+        assertThat(outcome.reason()).isEqualTo("ANSWER_EVIDENCE_AUDIT_FAILED");
+        assertThat(outcome.missingRequiredCapabilities()).containsExactly("evidence_verify");
+        assertThat(((Map<?, ?>) response.getMetadata().get("agent")).get("publicStatus")).isEqualTo("PARTIAL_SUCCESS");
+        assertThat(response.getAnswer()).isEqualTo("Report requiring evidence review");
+    }
+
+    @Test void failedAuditCannotOverwriteCancellation() {
+        var response = InteractionResponse.builder().answer("Late report").metadata(Map.of("agent",
+            Map.of("publicStatus", "CANCELLED", "answerClaimAuditPassed", false))).build();
+        CapabilityWorkflowRuntime.normalizeOutcome(response);
+        assertThat(((WorkflowOutcome) response.getMetadata().get(WorkflowOutcome.METADATA_KEY)).publicStatus())
+            .isEqualTo("CANCELLED");
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.EnumSource(value = RuntimeWorkflowFamily.class,
         names = {"DOCUMENT", "DATA_ANALYSIS", "ASSET_GUIDANCE", "ACTION"})
     @org.junit.jupiter.api.Timeout(10)

@@ -177,6 +177,7 @@ class AgentToolPolicyResolverTest {
 
         assertThat(policy.availableTools()).doesNotContain(missing);
         assertThat(policy.requiredTools()).doesNotContain(missing);
+        assertThat(policy.requiredCapabilityGaps()).containsKey(missing);
     }
 
     @Test
@@ -213,6 +214,7 @@ class AgentToolPolicyResolverTest {
         assertThat(policy.availableTools()).containsExactly(templateTool);
         assertThat(policy.requiredTools()).containsExactly(templateTool);
         assertThat(policy.workflowAutoAddedTools()).isEmpty();
+        assertThat(policy.requiredCapabilityGaps()).containsKey("asset_query");
         assertThat(policy.skippedToolReasons())
             .containsEntry("asset_query", "required workflow tool is not bound/available for this Agent");
     }

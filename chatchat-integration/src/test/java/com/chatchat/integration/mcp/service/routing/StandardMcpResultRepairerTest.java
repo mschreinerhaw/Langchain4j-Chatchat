@@ -16,6 +16,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 class StandardMcpResultRepairerTest {
     private final StandardMcpResultRepairer repairer = new StandardMcpResultRepairer(new ObjectMapper());
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"mcp_transport_failure.v1", "mcp_failure_evidence.v1"})
+    void failureEvidenceCannotBeNormalizedIntoSuccessfulData(String schema) {
+        var raw = Map.of("schemaVersion", schema, "errorCode", "MCP_PROVIDER_FAILURE",
+            "errorMessage", "provider failed", "retryable", true);
+        var result = repairer.repair(request(raw, Map.of()));
+        assertThat(result.status()).isEqualTo(McpServiceResultStatus.FAILED);
+        assertThat(result.normalizedData()).isNull();
+        assertThat(result.rawResult()).isSameAs(raw);
+        assertThat(result.diagnostics()).containsEntry("failureEvidence", true);
+    }
+
     @Test
     void envelopesPlainStdoutWithoutLosingIt() {
         String stdout = "CONTAINER ID  STATUS\nabc123        Up 2 hours";

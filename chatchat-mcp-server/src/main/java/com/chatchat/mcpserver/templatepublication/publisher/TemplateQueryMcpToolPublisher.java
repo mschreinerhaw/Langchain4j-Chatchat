@@ -196,6 +196,9 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
                 "offset", recall.offset(),
                 "limit", limit,
                 "hasMore", recall.hasMore(),
+                "nextPageToken", recall.nextCursor(),
+                "pageSize", limit,
+                "returnedCount", templates.size(),
                 "nextCursor", recall.nextCursor()
             )),
             Map.entry("publicationScope", Map.of(
@@ -230,7 +233,7 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
     }
 
     private int recallLimit(Map<String, Object> arguments) {
-        Object raw = arguments == null ? null : arguments.get("limit");
+        Object raw = arguments == null ? null : arguments.getOrDefault("pageSize", arguments.get("limit"));
         if (raw instanceof Number number) {
             return Math.max(1, Math.min(CommandTemplateDiscoveryService.MAX_LIMIT, number.intValue()));
         }
@@ -262,6 +265,10 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             "trace", Map.of("type", "object", "additionalProperties", true),
             "limit", Map.of("type", "integer", "minimum", 1,
                 "maximum", CommandTemplateDiscoveryService.MAX_LIMIT),
+            "pageSize", Map.of("type", "integer", "minimum", 1,
+                "maximum", CommandTemplateDiscoveryService.MAX_LIMIT),
+            "pageToken", Map.of("type", "string",
+                "description", "Canonical continuation token returned in pagination.nextPageToken."),
             "cursor", Map.of("type", "string",
                 "description", "Opaque cursor returned by the previous bound-scope recall page.")
         ), List.of(), false, null, null);

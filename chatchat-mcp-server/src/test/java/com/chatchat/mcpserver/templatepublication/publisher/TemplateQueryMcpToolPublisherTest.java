@@ -32,6 +32,10 @@ class TemplateQueryMcpToolPublisherTest {
     @Test
     void removesLegacyGenericTemplateQueryAndDoesNotPublishItAgain() {
         McpSyncServer server = mock(McpSyncServer.class);
+        when(server.listTools()).thenReturn(List.of(io.modelcontextprotocol.spec.McpSchema.Tool.builder()
+            .name("template_query").description("Legacy template query")
+            .inputSchema(new io.modelcontextprotocol.spec.McpSchema.JsonSchema(
+                "object", Map.of(), List.of(), false, null, null)).build()));
         TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
         TemplateQueryMcpToolPublisher publisher = new TemplateQueryMcpToolPublisher(
             server, bindings, bindings, mock(TemplateAssetCatalogService.class),
@@ -191,6 +195,21 @@ class TemplateQueryMcpToolPublisherTest {
             .containsEntry("bindingComplete", true);
         assertThat(result.get("filterAudit").toString())
             .contains("unavailableOrUnauthorizedCount=0");
+        var pagination = com.chatchat.common.mcp.service.McpPaginationResult.from(result.get("pagination"));
+        assertThat(pagination.hasMore()).isTrue();
+        assertThat(pagination.nextPageToken()).isNotBlank();
+        assertThat(pagination.pageSize()).isEqualTo(1);
+        assertThat(pagination.returnedCount()).isEqualTo(1L);
+        try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
+            var second = publisher.queryFromParent("customer_template_query", "api_template_query",
+                Map.of("pageToken", pagination.nextPageToken(), "pageSize", 2));
+            assertThat(second.get("templates").toString()).contains("template-2", "template-3")
+                .doesNotContain("template-1");
+            var last = com.chatchat.common.mcp.service.McpPaginationResult.from(second.get("pagination"));
+            assertThat(last.hasMore()).isFalse();
+            assertThat(last.nextPageToken()).isNull();
+            assertThat(last.returnedCount()).isEqualTo(2L);
+        }
     }
 
     @Test

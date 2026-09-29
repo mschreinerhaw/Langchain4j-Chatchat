@@ -28,7 +28,8 @@ public final class BoundTemplateCandidateRetriever {
                          String policyVersion) {
         List<String> signals = signals(arguments);
         String fingerprint = fingerprint(signals, policyVersion);
-        int offset = cursorOffset(arguments == null ? null : arguments.get("cursor"), fingerprint);
+        int offset = cursorOffset(arguments == null ? null
+            : arguments.getOrDefault("pageToken", arguments.get("cursor")), fingerprint);
         Set<String> allowed = allowedTemplateIds == null ? Set.of() : allowedTemplateIds;
         List<Scored> ranked = (assets == null ? List.<TemplateAssetCatalogService.TemplateAsset>of() : assets)
             .stream()

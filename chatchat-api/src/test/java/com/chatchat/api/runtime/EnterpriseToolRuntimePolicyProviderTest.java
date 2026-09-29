@@ -167,7 +167,7 @@ class EnterpriseToolRuntimePolicyProviderTest {
     }
 
     @Test
-    void assignedSuperAdminStillRequiresPersistedAssetAuthorization() {
+    void assignedSuperAdminExecutesWithoutIndividualAssetGrants() {
         SysRole role = role("role-super", "tenant-a", "SUPER_ADMIN");
         SysUser user = user("user-a", "tenant-a", "business-admin");
         when(userRepository.findById("user-a")).thenReturn(Optional.of(user));
@@ -176,8 +176,21 @@ class EnterpriseToolRuntimePolicyProviderTest {
 
         ToolRuntimePolicy policy = provider.resolve(request("tenant-a", "user-a", Map.of()), null);
 
-        assertThat(policy.allowed()).isFalse();
-        assertThat(policy.reason()).contains("No MCP asset authorization");
+        assertThat(policy.allowed()).isTrue();
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"disabled-user", "disabled-role", "foreign-role"})
+    void invalidAdministratorIdentityCannotBypassGrants(String scenario) {
+        SysRole role = role("role-super", "tenant-a", "SUPER_ADMIN");
+        SysUser user = user("user-a", "tenant-a", "admin");
+        if (scenario.equals("disabled-user")) user.setStatus("disabled");
+        if (scenario.equals("disabled-role")) role.setStatus("disabled");
+        if (scenario.equals("foreign-role")) role.setTenantId("tenant-b");
+        when(userRepository.findById("user-a")).thenReturn(Optional.of(user));
+        when(roleRepository.findByTenantIdOrderByRoleNameAsc("tenant-a")).thenReturn(List.of(role));
+        when(userRoleRepository.findByUserId("user-a")).thenReturn(List.of(binding(user, role)));
+        assertThat(provider.resolve(request("tenant-a", "user-a", Map.of()), null).allowed()).isFalse();
     }
 
     @Test

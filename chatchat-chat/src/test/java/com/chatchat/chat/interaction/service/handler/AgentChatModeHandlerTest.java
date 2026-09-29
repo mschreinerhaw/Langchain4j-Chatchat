@@ -41,6 +41,26 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentChatModeHandlerTest {
+    @Test void unavailableRequiredCapabilityCannotBecomeSuccessfulTextAnswer() {
+        var catalog = mock(SkillCatalogService.class);
+        var orchestrator = mock(AgentOrchestrator.class);
+        var policies = mock(AgentToolPolicyResolver.class);
+        var agent = skill(List.of("required_query"));
+        when(catalog.resolve("ops")).thenReturn(agent);
+        var request = InteractionRequest.builder().skillId("ops").query("analyze").build();
+        when(policies.planningSnapshot(request, agent)).thenReturn(
+            WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.GOVERNED_RUNTIME, "DECLARED_EXECUTION_CONTRACT"));
+        when(policies.resolve(request, agent)).thenReturn(new AgentToolPolicyResolver.ToolPolicy(
+            List.of(), List.of(), List.of(), true, true, List.of(), List.of("required_query"),
+            Map.of("required_query", "unauthorized"), List.of(), Map.of("required_query", "unauthorized")));
+        var handler = new AgentChatModeHandler(orchestrator, catalog, policies);
+        var response = handler.handle(request, InteractionContext.builder().build());
+        var outcome = (com.chatchat.common.runtime.capability.WorkflowOutcome)
+            response.getMetadata().get("workflowOutcome");
+        assertThat(outcome.type()).isEqualTo(com.chatchat.common.runtime.capability.WorkflowOutcome.Type.NO_EXECUTABLE_PLAN);
+        org.mockito.Mockito.verifyNoInteractions(orchestrator);
+    }
+
     @Test void configuredTemplateWorkflowGoesToNativePlannerWithoutFrontPlannerVeto() {
         var catalog = mock(SkillCatalogService.class);
         var orchestrator = mock(AgentOrchestrator.class);
@@ -54,7 +74,7 @@ class AgentChatModeHandlerTest {
         when(policies.planningSnapshot(request, agent)).thenReturn(WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.GOVERNED_RUNTIME, "DECLARED_EXECUTION_CONTRACT"));
         when(policies.resolve(request, agent)).thenReturn(new AgentToolPolicyResolver.ToolPolicy(
             List.of("opaque_template_query"), List.of(), List.of("opaque_template_query"), true, false,
-            List.of(), List.of("opaque_template_query"), Map.of(), List.of()));
+            List.of(), List.of("opaque_template_query"), Map.of(), List.of(), Map.of()));
         when(orchestrator.executeAgent(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
             anyInt(), any(), anyBoolean(), any())).thenReturn(agentResult("专业分析返回"));
         var handler = new AgentChatModeHandler(orchestrator, catalog, policies);

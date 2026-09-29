@@ -108,6 +108,12 @@ public class AgentToolPolicyResolver {
         boolean hasMcpBinding = hasMcpBinding(skill);
         Map<String, String> skippedToolReasons = new LinkedHashMap<>(workflowTools.skippedToolReasons());
         skippedToolReasons.putAll(selection.skippedToolReasons());
+        // Authorization narrows executable tools, not the workflow's obligations.
+        // Keep missing required capabilities separate from the permitted execution list.
+        Map<String, String> requiredCapabilityGaps = new LinkedHashMap<>(workflowTools.skippedToolReasons());
+        requiredTools.stream().filter(tool -> !selection.availableTools().contains(tool))
+            .forEach(tool -> requiredCapabilityGaps.put(tool,
+                skippedToolReasons.getOrDefault(tool, "required capability is unavailable")));
         List<String> optionalTools = selection.availableTools().stream()
             .filter(tool -> effectiveRequiredTools.stream().noneMatch(required -> required.equalsIgnoreCase(tool)))
             .toList();
@@ -121,7 +127,8 @@ public class AgentToolPolicyResolver {
             effectiveActivations.stream().map(ToolActivation::intentName).toList(),
             selection.selectedCandidateTools(),
             skippedToolReasons,
-            workflowTools.autoAddedTools()
+            workflowTools.autoAddedTools(),
+            requiredCapabilityGaps
         );
     }
 
@@ -843,8 +850,12 @@ public class AgentToolPolicyResolver {
         List<String> activatedIntents,
         List<String> selectedCandidateTools,
         Map<String, String> skippedToolReasons,
-        List<String> workflowAutoAddedTools
+        List<String> workflowAutoAddedTools,
+        Map<String, String> requiredCapabilityGaps
     ) {
+        public ToolPolicy {
+            requiredCapabilityGaps = Map.copyOf(requiredCapabilityGaps);
+        }
     }
 
     private record ToolIntentSpec(

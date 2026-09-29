@@ -82,7 +82,7 @@ class McpTemplateGuidanceSourceTest {
     @Test void defaultPlanAcquiresOnlyAssetMetadataThroughGovernedTools() {
         var source = source();
         when(policies.resolve(any(), any())).thenReturn(new AgentToolPolicyResolver.ToolPolicy(
-            List.of("asset", "execute"), List.of(), List.of(), true, false, List.of(), List.of(), Map.of(), List.of()));
+            List.of("asset", "execute"), List.of(), List.of(), true, false, List.of(), List.of(), Map.of(), List.of(), Map.of()));
         when(registry.getToolMetadata("asset")).thenReturn(metadata(ToolWorkflowRole.ASSET_DISCOVERY));
         when(grants.allowedIdsForAgent(any(), any(), any(), anySet(), anySet(), any())).thenReturn(Set.of("asset"));
         when(tools.execute(any())).thenReturn(new ToolRuntimeExecution(

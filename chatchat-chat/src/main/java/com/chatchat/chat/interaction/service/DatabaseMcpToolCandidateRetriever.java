@@ -3,6 +3,7 @@ package com.chatchat.chat.interaction.service;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.common.retrieval.AuthorizedRetrieval;
 import com.chatchat.common.retrieval.ResourceAuthorizationPort;
+import com.chatchat.common.security.McpAdministratorPolicy;
 import com.chatchat.common.tool.ToolWorkflowContractCatalog;
 import com.chatchat.common.tool.ToolWorkflowContractSnapshot;
 import com.chatchat.enterprise.entity.identity.SysRole;
@@ -72,14 +73,17 @@ public class DatabaseMcpToolCandidateRetriever implements McpToolCandidateRetrie
         assignedRoleIds.stream()
             .filter(activeRoles::containsKey)
             .forEach(roleIds::add);
+        boolean administrator = activeRoles.values().stream().anyMatch(role ->
+            McpAdministratorPolicy.isAdministratorRole(user.getTenantId(), role.getTenantId(),
+                role.getRoleCode(), role.getStatus()));
         List<McpToolPermission> grants = loadGrants(user, roleIds);
         List<McpToolPermission> activeGrants = grants.stream().filter(this::active).toList();
 
         List<McpToolAsset> nativeAllowed = catalog.stream()
             .filter(tool -> tool.isEnabled() && "online".equalsIgnoreCase(tool.getStatus()))
-            .filter(tool -> permitted(tool, activeGrants))
+            .filter(tool -> administrator || permitted(tool, activeGrants))
             .toList();
-        Set<String> grantAllowedIds = resourceAuthorization == null ? nativeAllowed.stream()
+        Set<String> grantAllowedIds = administrator || resourceAuthorization == null ? nativeAllowed.stream()
             .map(McpToolAsset::getLocalToolName).collect(java.util.stream.Collectors.toSet())
             : resourceAuthorization.allowedIdsForAgent(ResourceAuthorizationPort.MCP_TOOL,
                 user.getTenantId(), user.getId(), roleIds,
@@ -93,8 +97,8 @@ public class DatabaseMcpToolCandidateRetriever implements McpToolCandidateRetrie
             .filter(this::active).toList();
         java.util.function.Predicate<String> stillAllowed = name -> tools.findByLocalToolName(name)
             .filter(tool -> tool.isEnabled() && "online".equalsIgnoreCase(tool.getStatus()))
-            .filter(tool -> permitted(tool, finalGrants))
-            .filter(tool -> resourceAuthorization == null
+            .filter(tool -> administrator || permitted(tool, finalGrants))
+            .filter(tool -> administrator || resourceAuthorization == null
                 || resourceAuthorization.allowedIdsForAgent(ResourceAuthorizationPort.MCP_TOOL,
                     user.getTenantId(), user.getId(), roleIds, Set.of(tool.getLocalToolName()), request.getSkillId())
                     .contains(tool.getLocalToolName())).isPresent();

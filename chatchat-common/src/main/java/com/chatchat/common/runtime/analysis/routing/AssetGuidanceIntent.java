@@ -14,7 +14,9 @@ public final class AssetGuidanceIntent {
         if (contains(text, "帮我执行", "立即执行", "执行一下", "帮我调用", "查询数据", "取出数据", "删除", "更新数据",
                 "execute ", "run the ", "delete ", "fetch data")) return false;
         boolean reverse = contains(text, "用什么数据", "需要哪些数据", "推荐哪些资产", "用哪个接口", "用哪些表", "which data should");
-        return reverse || ASSET.matcher(text).find() && contains(text, "做什么", "干什么", "什么用", "用途", "怎么用", "如何使用",
+        boolean analysisUsage = contains(text, "主要分析哪些内容", "分析什么内容", "分析哪些内容")
+            && contains(text, "场景", "用途", "适用");
+        return reverse || analysisUsage || ASSET.matcher(text).find() && contains(text, "做什么", "干什么", "什么用", "用途", "怎么用", "如何使用",
             "如何调用", "调用方式", "怎么调用", "哪些场景", "业务场景", "使用效果", "谁在用", "使用情况", "支持哪些", "参数说明",
             "how to use", "what is", "used for", "usage", "use cases");
     }

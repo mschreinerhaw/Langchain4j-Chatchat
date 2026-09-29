@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 /**
  * Executes a maintained Agent as a role-based model conversation.
  *
- * <p>This path deliberately bypasses Agent planning, MCP selection, tool execution and
+ * <p>This path performs problem analysis but deliberately bypasses Agent tool planning, MCP selection, tool execution and
  * evidence completion. Bound knowledge documents may still be retrieved directly as
  * prompt context; document retrieval is a Runtime context capability, not an MCP call.</p>
  */
@@ -54,6 +54,8 @@ public class RoleChatModeHandler implements InteractionModeHandler {
     private SkillExecutionScopePort skillExecutionScope;
     @Autowired(required = false)
     private com.chatchat.chat.skills.runtime.SkillIntelligenceInteractionBridge skillIntelligence;
+    @Autowired
+    private com.chatchat.chat.interaction.service.ProblemAnalysisPlanner problemAnalysisPlanner;
 
     public RoleChatModeHandler(ChatModel defaultChatModel,
                                ConfigurableChatModelFactory chatModelFactory,
@@ -78,15 +80,25 @@ public class RoleChatModeHandler implements InteractionModeHandler {
                 "Agent " + skill.id() + " is configured for tool-agent execution, not role_chat");
         }
         SkillExecutionScopePort.EffectiveScope effectiveScope = resolveSkillScope(request, skill);
-        if (skillIntelligence != null && skillIntelligence.enabled(request, skill, effectiveScope.roles()))
-            return skillIntelligence.execute(request, context, skill, effectiveScope.roles());
+        var understanding = context.problemAnalysisPlan() != null ? context.problemAnalysisPlan()
+            : problemAnalysisPlanner == null ? com.chatchat.common.runtime.capability.ProblemAnalysisPlan.unavailable()
+            : problemAnalysisPlanner.analyze(request, context, skill);
+        if (!com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.executable(understanding))
+            return com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.blockedResponse(understanding);
+        if (skillIntelligence != null
+            && new com.chatchat.common.runtime.capability.CapabilityWorkflowRouter().route(understanding)
+                == com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.DATA_ANALYSIS
+            && skillIntelligence.available(request, skill, effectiveScope.roles()))
+            return com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.attach(
+                skillIntelligence.execute(request, context.toBuilder().problemAnalysisPlan(understanding).build(), skill, effectiveScope.roles()), understanding);
         com.chatchat.common.knowledge.runtime.KnowledgeContext knowledge = retrieveKnowledge(request, skill, effectiveScope);
         List<String> configuredDomainSkillIds = configuredDomainSkillIds(skill);
         List<DomainSkillRuntimePort.DomainSkillContent> domainSkills = resolveDomainSkills(
             request, skill, effectiveScope.roles(), configuredDomainSkillIds);
         DomainSkillPlanningRouter.RoutingResult domainSkillRouting = domainSkillPlanningRouter == null
             ? null : domainSkillPlanningRouter.route(request.getQuery(), resolvedModelName(request, skill), domainSkills);
-        String prompt = buildPrompt(request, context, skill, knowledge, domainSkills, domainSkillRouting);
+        String prompt = buildPrompt(request, context, skill, knowledge, domainSkills, domainSkillRouting)
+            + "\nProblem analysis plan (context only; role-chat cannot execute MCP operations):\n" + understanding;
         ChatModel model = resolveModel(request, skill);
 
         long startedAt = System.currentTimeMillis();
@@ -96,6 +108,7 @@ public class RoleChatModeHandler implements InteractionModeHandler {
         String answer = model.chat(prompt);
 
         Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.METADATA_KEY, understanding);
         metadata.put("handler", "RoleChatModeHandler");
         metadata.put("executionMode", "ROLE_CHAT");
         metadata.put("skillId", skill.id());

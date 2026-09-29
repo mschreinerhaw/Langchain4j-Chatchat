@@ -121,6 +121,7 @@ public class InteractionOrchestrationService {
                 .build();
         }
 
+        CapabilityWorkflowRuntime.projectOutcome(response);
         response.setAnswer(UserFacingAnswerSanitizer.sanitize(response.getAnswer()));
 
         if (response.getAnswer() != null && !response.getAnswer().isBlank()) {

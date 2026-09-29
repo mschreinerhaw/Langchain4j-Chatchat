@@ -28,6 +28,10 @@ class SkillIntelligenceInteractionBridgeTest {
         assertThat(bridge.enabled(request, agent, List.of("role"))).isTrue();
         when(router.route(any())).thenReturn(new com.chatchat.runtime.skill.api.discovery.SkillRouteResult(List.of(), "EMPTY", Map.of()));
         assertThat(bridge.enabled(request, agent, List.of("role"))).isFalse();
+        when(agent.workflowConfig()).thenReturn(Map.of("boundDomainSkillIds", List.of("skill"),
+            "skillIntelligenceEngine", "GOOGLE_ADK_NATIVE"));
+        assertThat(bridge.enabled(request, agent, List.of("role"))).isTrue();
+        assertThat(bridge.available(request, agent, List.of("role"))).isFalse();
     }
     @Test @SuppressWarnings("unchecked") void preservesAgentScopeAndPublishesTaskStages() {
         var intelligence = mock(SkillIntelligenceLayer.class);
@@ -53,6 +57,8 @@ class SkillIntelligenceInteractionBridgeTest {
         });
         var response = bridge.execute(request, InteractionContext.builder().requestId("req").conversationId("conv").build(), agent, List.of("role"));
         assertThat(response.getAnswer()).contains("USER_INPUT_REQUIRED");
+        assertThat(((com.chatchat.common.runtime.capability.WorkflowOutcome) response.getMetadata()
+            .get("workflowOutcome")).publicStatus()).isEqualTo("NO_PRESENTABLE_RESULT");
         verify(publisher).publish(argThat(event -> "run".equals(event.runId()) && event.type() == AgentRunEventType.OBSERVATION_RECORDED
             && "SKILL_EVALUATED".equals(event.payload().get("stage"))));
     }

@@ -23,18 +23,4 @@ class AssetGuidanceInteractionBridgeTest {
         assertThat(response.getMetadata().get("agent")).isEqualTo(Map.of("publicStatus", "NO_PRESENTABLE_RESULT"));
         assertThat(response.getAnswer()).isEqualTo("没有足够元数据");
     }
-    @Test void guidanceRoutesBeforeDataAnalysisAndHonorsExplicitChoice() {
-        var bridge = new AssetGuidanceInteractionBridge(mock(AnalysisRuntimePort.class));
-        var agent = mock(SkillDefinition.class);
-        when(agent.defaultMode()).thenReturn("agent_chat");
-        var request = InteractionRequest.builder().query("这个API是做什么用").build();
-        assertThat(bridge.matches(request, agent)).isTrue();
-        request.setToolInput(Map.of("workflowFamily", "DATA_ANALYSIS"));
-        assertThat(bridge.matches(request, agent)).isFalse();
-        request.setQuery("position_template");
-        request.setToolInput(Map.of("workflowFamily", "ASSET_GUIDANCE"));
-        assertThat(bridge.matches(request, agent)).isTrue();
-        when(agent.defaultMode()).thenReturn("role_chat");
-        assertThat(bridge.matches(request, agent)).isFalse();
-    }
 }

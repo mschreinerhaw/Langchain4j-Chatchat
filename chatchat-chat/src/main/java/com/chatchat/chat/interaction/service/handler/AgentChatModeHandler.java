@@ -67,6 +67,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     private com.chatchat.chat.skills.runtime.SkillIntelligenceInteractionBridge skillIntelligence;
     @Autowired(required = false)
     private com.chatchat.chat.asset.AssetGuidanceInteractionBridge assetGuidance;
+    @Autowired
+    private com.chatchat.chat.interaction.service.ProblemAnalysisPlanner problemAnalysisPlanner;
 
     private static final int DEFAULT_DOMAIN_KNOWLEDGE_TOKEN_BUDGET = 1500;
 
@@ -146,19 +148,48 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     @Override
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
         SkillDefinition skill = skillCatalogService.resolve(request.getSkillId());
-        if (assetGuidance != null && assetGuidance.matches(request, skill))
-            return assetGuidance.execute(request, context, skill);
-        if (skillIntelligence != null && skill.workflowConfig() != null) {
-            var scope = resolveSkillScope(request, skill, resolvedSkillId(request, skill));
-            if (skillIntelligence.enabled(request, skill, scope.roles()))
-                return skillIntelligence.execute(request, context, skill, scope.roles());
-        }
         if (InteractionMode.fromAgentConfiguration(skill.defaultMode()).isRoleConversation()
             && roleChatModeHandler != null) {
             log.info("agentChatCompatibilityRoute skillId={} configuredMode={} resolvedMode=role_chat",
                 skill.id(), skill.defaultMode());
             return roleChatModeHandler.handle(request, context);
         }
+        var understanding = context.problemAnalysisPlan() != null ? context.problemAnalysisPlan()
+            : problemAnalysisPlanner == null ? com.chatchat.common.runtime.capability.ProblemAnalysisPlan.unavailable()
+            : problemAnalysisPlanner.analyze(request, context, skill);
+        if (!com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.executable(understanding))
+            return com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.blockedResponse(understanding);
+        var family = new com.chatchat.common.runtime.capability.CapabilityWorkflowRouter().route(understanding);
+        var plannedContext = context.toBuilder().problemAnalysisPlan(understanding).build();
+        var plan = com.chatchat.common.runtime.capability.CapabilityWorkflowPlan.forFamily(family);
+        var providers = new java.util.ArrayList<com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.Provider>();
+        if (family == com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.ASSET_GUIDANCE) {
+            if (assetGuidance != null) providers.add(new com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.Provider(
+                "asset-metadata-workflow", com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.ProviderKind.MCP_WORKFLOW,
+                plan.requiredCapabilities(), () -> assetGuidance.execute(request, plannedContext, skill)));
+        } else {
+            if (family == com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.DATA_ANALYSIS
+                && skillIntelligence != null && skill.workflowConfig() != null) {
+                var scope = resolveSkillScope(request, skill, resolvedSkillId(request, skill));
+                if (skillIntelligence.available(request, skill, scope.roles())) {
+                    providers.add(new com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.Provider(
+                        "skill-analysis-workflow", com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.ProviderKind.SKILL,
+                        plan.requiredCapabilities(), () -> skillIntelligence.execute(request, plannedContext, skill, scope.roles())));
+                }
+            }
+            providers.add(new com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.Provider(
+                "governed-" + family.name().toLowerCase(java.util.Locale.ROOT),
+                family == com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.DOCUMENT
+                    ? com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.ProviderKind.DOCUMENT_RETRIEVAL
+                    : com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.ProviderKind.NATIVE_RUNTIME,
+                plan.requiredCapabilities(), () -> executeGovernedAgent(request, plannedContext, skill, understanding)));
+        }
+        return com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.attach(
+            new com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime().execute(plan, providers), understanding);
+    }
+
+    private InteractionResponse executeGovernedAgent(InteractionRequest request, InteractionContext context, SkillDefinition skill,
+            com.chatchat.common.runtime.capability.ProblemAnalysisPlan understanding) {
         String resolvedSkillId = resolvedSkillId(request, skill);
         SkillExecutionScopePort.EffectiveScope effectiveScope = resolveSkillScope(request, skill, resolvedSkillId);
         AgentToolPolicyResolver.ToolPolicy toolPolicy = toolPolicyResolver.resolve(request, skill);
@@ -202,8 +233,13 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             ),
             request
         );
+        systemPrompt += "\nProblem analysis plan (planning context, not authorization or evidence):\n" + understanding;
         Map<String, Object> runtimeAttributes = new LinkedHashMap<>(runtimeAttributes(request, skill, executionContext));
         runtimeAttributes.put("authorizationAgentId", resolvedSkillId);
+        runtimeAttributes.put(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.METADATA_KEY, understanding);
+        var workflowFamily = new com.chatchat.common.runtime.capability.CapabilityWorkflowRouter().route(understanding);
+        runtimeAttributes.put("workflowFamily", workflowFamily.name());
+        runtimeAttributes.put("capabilityPlan", com.chatchat.common.runtime.capability.CapabilityWorkflowPlan.forFamily(workflowFamily));
         runtimeAttributes.put("plannerOptionalTools", toolPolicy.optionalTools());
         if (domainSkillRouting != null && !domainSkillRouting.selected().isEmpty()) {
             runtimeAttributes.put(DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE,

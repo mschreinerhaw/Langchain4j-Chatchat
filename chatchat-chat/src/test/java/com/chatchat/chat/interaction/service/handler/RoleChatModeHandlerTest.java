@@ -1,4 +1,5 @@
 package com.chatchat.chat.interaction.service.handler;
+import static com.chatchat.chat.interaction.service.handler.ProblemPlanFixtures.*;
 
 import com.chatchat.agents.model.ConfigurableChatModelFactory;
 import com.chatchat.chat.interaction.model.InteractionContext;
@@ -72,7 +73,7 @@ class RoleChatModeHandlerTest {
         InteractionResponse response = handler.handle(
             InteractionRequest.builder().mode("role_chat").skillId("fixed-income-advisor")
                 .tenantId("tenant-a").userId("user-a").query("分析净值变化").build(),
-            InteractionContext.builder().requestId("request-skill").conversationId("conversation-skill")
+            plannedContext().requestId("request-skill").conversationId("conversation-skill")
                 .mode(InteractionMode.ROLE_CHAT).history(List.of()).build());
 
         verify(skillRuntime).retrievePublishedForAgent("tenant-a", "user-a", List.of("role-fixed-income"),
@@ -119,7 +120,7 @@ class RoleChatModeHandlerTest {
         InteractionResponse response = handler.handle(
             InteractionRequest.builder().mode("role_chat").skillId("unbound-role")
                 .tenantId("tenant-a").userId("user-a").query("Explain net value comparison").build(),
-            InteractionContext.builder().requestId("request-unbound").conversationId("conversation-unbound")
+            plannedContext().requestId("request-unbound").conversationId("conversation-unbound")
                 .mode(InteractionMode.ROLE_CHAT).history(List.of()).build());
 
         verify(knowledgeRuntime, never()).retrieveKnowledge(org.mockito.ArgumentMatchers.any());
@@ -183,7 +184,7 @@ class RoleChatModeHandlerTest {
                 .skillId("table-product-advisor")
                 .query(question)
                 .build(),
-            InteractionContext.builder()
+            plannedContext()
                 .requestId("request-role-1")
                 .conversationId("conversation-role-1")
                 .mode(InteractionMode.ROLE_CHAT)
@@ -242,7 +243,7 @@ class RoleChatModeHandlerTest {
                 .tenantId("tenant-a")
                 .userId("user-a")
                 .build(),
-            InteractionContext.builder()
+            plannedContext()
                 .requestId("request-role-docs")
                 .conversationId("conversation-role-docs")
                 .mode(InteractionMode.ROLE_CHAT)

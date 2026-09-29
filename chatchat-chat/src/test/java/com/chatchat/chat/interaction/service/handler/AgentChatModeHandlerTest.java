@@ -1,4 +1,5 @@
 package com.chatchat.chat.interaction.service.handler;
+import static com.chatchat.chat.interaction.service.handler.ProblemPlanFixtures.*;
 
 import com.chatchat.agents.orchestration.AgentOrchestrator;
 import com.chatchat.agents.tool.ToolRegistry;
@@ -40,6 +41,74 @@ import static org.mockito.Mockito.when;
 
 class AgentChatModeHandlerTest {
     @Test
+    void analyzesProblemBeforeSelectingWorkflowAndIgnoresConflictingClientHint() {
+        var catalog = mock(SkillCatalogService.class);
+        var orchestrator = mock(AgentOrchestrator.class);
+        var policies = mock(AgentToolPolicyResolver.class);
+        var guidance = mock(com.chatchat.chat.asset.AssetGuidanceInteractionBridge.class);
+        var planner = mock(com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.class);
+        var agent = skillWithoutWebSearch();
+        when(catalog.resolve("ops")).thenReturn(agent);
+        var request = InteractionRequest.builder().skillId("ops").query("净值比对分析适合什么场景？")
+            .toolInput(Map.of("workflowFamily", "ACTION")).build();
+        var context = InteractionContext.builder().mode(InteractionMode.AGENT_CHAT).build();
+        var understanding = plan(com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.ASSET_GUIDANCE);
+        when(planner.analyze(request, context, agent)).thenReturn(understanding);
+        when(guidance.execute(eq(request), any(), eq(agent))).thenReturn(
+            com.chatchat.chat.interaction.model.InteractionResponse.builder().answer("指导").build());
+        var handler = new AgentChatModeHandler(orchestrator, catalog, policies);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "problemAnalysisPlanner", planner);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "assetGuidance", guidance);
+        var response = handler.handle(request, context);
+        var ordered = org.mockito.Mockito.inOrder(planner, guidance);
+        ordered.verify(planner).analyze(request, context, agent);
+        ordered.verify(guidance).execute(eq(request), org.mockito.ArgumentMatchers.argThat(value -> value.problemAnalysisPlan() == understanding), eq(agent));
+        assertThat(response.getMetadata()).containsEntry("problemAnalysisPlan", understanding).containsEntry("workflowFamily", "ASSET_GUIDANCE");
+        org.mockito.Mockito.verifyNoInteractions(orchestrator, policies);
+    }
+
+    @Test
+    void missingProblemPlannerCannotFallBackToKeywordExecution() {
+        var catalog = mock(SkillCatalogService.class);
+        var orchestrator = mock(AgentOrchestrator.class);
+        var policies = mock(AgentToolPolicyResolver.class);
+        when(catalog.resolve("ops")).thenReturn(skillWithoutWebSearch());
+        var response = new AgentChatModeHandler(orchestrator, catalog, policies).handle(
+            InteractionRequest.builder().skillId("ops").query("执行分析").build(), InteractionContext.builder().build());
+        assertThat(response.getMetadata()).containsKey("problemAnalysisPlan").doesNotContainKey("workflowFamily");
+        assertThat(((Map<?, ?>) response.getMetadata().get("agent")).get("publicStatus")).isEqualTo("FAILED");
+        org.mockito.Mockito.verifyNoInteractions(orchestrator, policies);
+    }
+
+    @Test
+    void documentAndActionBypassSkillIntelligenceWhileAnalysisWithoutCandidatesUsesNativeRuntime() {
+        for (String family : List.of("DOCUMENT", "ACTION", "DATA_ANALYSIS")) {
+            var orchestrator = mock(AgentOrchestrator.class);
+            var catalog = mock(SkillCatalogService.class);
+            var toolRegistry = mock(ToolRegistry.class);
+            var bridge = mock(McpToolCatalogQueryPort.class);
+            var intelligence = mock(com.chatchat.chat.skills.runtime.SkillIntelligenceInteractionBridge.class);
+            var handler = new AgentChatModeHandler(orchestrator, catalog,
+                new AgentToolPolicyResolver(toolRegistry, catalog, bridge));
+            org.springframework.test.util.ReflectionTestUtils.setField(handler, "skillIntelligence", intelligence);
+            when(catalog.resolve("ops")).thenReturn(skillWithoutWebSearch());
+            when(bridge.registeredTools()).thenReturn(List.of());
+            when(orchestrator.executeAgent(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                anyInt(), any(), anyBoolean(), any())).thenReturn(agentResult("native result"));
+            var response = handler.handle(InteractionRequest.builder().skillId("ops").query("test request")
+                    .toolInput(Map.of("workflowFamily", family)).build(),
+                plannedContext().problemAnalysisPlan(plan(com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.valueOf(family))).requestId("routing").conversationId("routing")
+                    .mode(InteractionMode.AGENT_CHAT).history(List.of()).build());
+            assertThat(response.getMetadata()).containsEntry("workflowFamily", family)
+                .containsEntry("capabilityProvider", "governed-" + family.toLowerCase(java.util.Locale.ROOT));
+            verify(orchestrator).executeAgent(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                anyInt(), any(), anyBoolean(), any());
+            if (!"DATA_ANALYSIS".equals(family)) org.mockito.Mockito.verifyNoInteractions(intelligence);
+            org.mockito.Mockito.verify(intelligence, org.mockito.Mockito.never()).execute(any(), any(), any(), any());
+        }
+    }
+
+    @Test
     void assetGuidancePrecedesSkillDataAnalysisAndAgentExecution() {
         var catalog = mock(SkillCatalogService.class);
         var orchestrator = mock(AgentOrchestrator.class);
@@ -49,9 +118,9 @@ class AgentChatModeHandlerTest {
         var agent = skillWithoutWebSearch();
         when(catalog.resolve("ops")).thenReturn(agent);
         var request = InteractionRequest.builder().skillId("ops").query("这个 API 怎么用").build();
-        var context = InteractionContext.builder().requestId("guidance-request").mode(InteractionMode.AGENT_CHAT).build();
+        var context = plannedContext().problemAnalysisPlan(plan(com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.ASSET_GUIDANCE))
+            .requestId("guidance-request").mode(InteractionMode.AGENT_CHAT).build();
         var expected = com.chatchat.chat.interaction.model.InteractionResponse.builder().answer("模板指导").build();
-        when(guidance.matches(request, agent)).thenReturn(true);
         when(guidance.execute(request, context, agent)).thenReturn(expected);
         var handler = new AgentChatModeHandler(orchestrator, catalog, policies);
         org.springframework.test.util.ReflectionTestUtils.setField(handler, "assetGuidance", guidance);
@@ -85,7 +154,7 @@ class AgentChatModeHandlerTest {
         var response = handler.handle(
             InteractionRequest.builder().mode("agent_chat").skillId("ops")
                 .query("installation steps").tenantId("tenant-a").userId("user-a").build(),
-            InteractionContext.builder().requestId("req-partial").conversationId("conv-partial")
+            plannedContext().requestId("req-partial").conversationId("conv-partial")
                 .mode(InteractionMode.AGENT_CHAT).history(List.of()).build());
 
         ArgumentCaptor<String> systemPrompt = ArgumentCaptor.forClass(String.class);
@@ -132,7 +201,7 @@ class AgentChatModeHandlerTest {
         var response = handler.handle(
             InteractionRequest.builder().mode("agent_chat").skillId("ops")
                 .query("获取安装步骤").tenantId("tenant-a").userId("user-a").build(),
-            InteractionContext.builder().requestId("req-expansion-failed")
+            plannedContext().requestId("req-expansion-failed")
                 .conversationId("conv-expansion-failed").mode(InteractionMode.AGENT_CHAT)
                 .history(List.of()).build());
 
@@ -207,7 +276,7 @@ class AgentChatModeHandlerTest {
 
         handler.handle(InteractionRequest.builder().mode("agent_chat").skillId("ops")
                 .query("分析组合风险").tenantId("tenant-a").userId("u1").build(),
-            InteractionContext.builder().requestId("req-domain-skill").conversationId("conv-domain-skill")
+            plannedContext().requestId("req-domain-skill").conversationId("conv-domain-skill")
                 .mode(InteractionMode.AGENT_CHAT).history(List.of()).build());
 
         ArgumentCaptor<String> systemPrompt = ArgumentCaptor.forClass(String.class);
@@ -276,7 +345,7 @@ class AgentChatModeHandlerTest {
                 .availableTools(List.of("mcp_customer_assets"))
                 .toolInput(Map.of("mcpExecutionContext", Map.of("env", "TEST")))
                 .build(),
-            InteractionContext.builder()
+            plannedContext()
                 .requestId("req-domain-tool")
                 .conversationId("conv-domain-tool")
                 .mode(InteractionMode.AGENT_CHAT)
@@ -356,7 +425,7 @@ class AgentChatModeHandlerTest {
 
         handler.handle(InteractionRequest.builder().mode("agent_chat").skillId("ops")
                 .query("analyze current results").userId("u1").build(),
-            InteractionContext.builder().requestId("req-role").conversationId("conv-role")
+            plannedContext().requestId("req-role").conversationId("conv-role")
                 .mode(InteractionMode.AGENT_CHAT).history(List.of()).build());
 
         ArgumentCaptor<String> systemPrompt = ArgumentCaptor.forClass(String.class);
@@ -412,7 +481,7 @@ class AgentChatModeHandlerTest {
                     "__taskWorkflowTaskId", "task-100",
                     "__taskWorkflowSource", "user_defined_mcp_workflow"))
                 .build(),
-            InteractionContext.builder().requestId("req-100").conversationId("conv-100")
+            plannedContext().requestId("req-100").conversationId("conv-100")
                 .mode(InteractionMode.AGENT_CHAT).history(List.of()).build()
         );
 
@@ -474,7 +543,7 @@ class AgentChatModeHandlerTest {
                 .query("use the configured agent model")
                 .userId("u1")
                 .build(),
-            InteractionContext.builder()
+            plannedContext()
                 .requestId("req-model")
                 .conversationId("conv-model")
                 .mode(InteractionMode.AGENT_CHAT)
@@ -533,7 +602,7 @@ class AgentChatModeHandlerTest {
             .query("继续刚才的问题")
             .userId("u1")
             .build();
-        InteractionContext context = InteractionContext.builder()
+        InteractionContext context = plannedContext()
             .requestId("req")
             .conversationId("conv")
             .mode(InteractionMode.AGENT_CHAT)
@@ -616,7 +685,7 @@ class AgentChatModeHandlerTest {
             .query("continue")
             .userId("u1")
             .build();
-        InteractionContext context = InteractionContext.builder()
+        InteractionContext context = plannedContext()
             .requestId("req")
             .conversationId("conv")
             .mode(InteractionMode.AGENT_CHAT)
@@ -712,7 +781,7 @@ class AgentChatModeHandlerTest {
             .availableTools(List.of("web_search", "document_search"))
             .toolInput(Map.of("webSearch", true))
             .build();
-        InteractionContext context = InteractionContext.builder()
+        InteractionContext context = plannedContext()
             .requestId("req")
             .conversationId("conv")
             .mode(InteractionMode.AGENT_CHAT)
@@ -802,7 +871,7 @@ class AgentChatModeHandlerTest {
             .availableTools(List.of("web_search", "document_search"))
             .toolInput(Map.of("webSearch", true))
             .build();
-        InteractionContext context = InteractionContext.builder()
+        InteractionContext context = plannedContext()
             .requestId("req")
             .conversationId("conv")
             .mode(InteractionMode.AGENT_CHAT)
@@ -891,7 +960,7 @@ class AgentChatModeHandlerTest {
             .availableTools(List.of("web_search"))
             .toolInput(Map.of("documentWorkflow", true, "webSearch", true))
             .build();
-        InteractionContext context = InteractionContext.builder()
+        InteractionContext context = plannedContext()
             .requestId("req")
             .conversationId("conv")
             .mode(InteractionMode.AGENT_CHAT)
@@ -978,7 +1047,7 @@ class AgentChatModeHandlerTest {
                 "mcp_alpha_6"
             ))
             .build();
-        InteractionContext context = InteractionContext.builder()
+        InteractionContext context = plannedContext()
             .requestId("req")
             .conversationId("conv")
             .mode(InteractionMode.AGENT_CHAT)
@@ -1064,7 +1133,7 @@ class AgentChatModeHandlerTest {
                 "hostId", "server-01"
             )))
             .build();
-        InteractionContext context = InteractionContext.builder()
+        InteractionContext context = plannedContext()
             .requestId("req")
             .conversationId("conv")
             .mode(InteractionMode.AGENT_CHAT)
@@ -1139,7 +1208,7 @@ class AgentChatModeHandlerTest {
             .userId("u1")
             .toolInput(Map.of("executionContext", Map.of("env", "PROD")))
             .build();
-        InteractionContext context = InteractionContext.builder()
+        InteractionContext context = plannedContext()
             .requestId("req-agent-env")
             .conversationId("conv-agent-env")
             .mode(InteractionMode.AGENT_CHAT)
@@ -1226,7 +1295,7 @@ class AgentChatModeHandlerTest {
                 "targetType", "datanode"
             )))
             .build();
-        InteractionContext context = InteractionContext.builder()
+        InteractionContext context = plannedContext()
             .requestId("req")
             .conversationId("conv")
             .mode(InteractionMode.AGENT_CHAT)
@@ -1292,7 +1361,7 @@ class AgentChatModeHandlerTest {
 
         handler.handle(InteractionRequest.builder()
                 .mode("agent_chat").skillId("ops").query("analyze market").userId("u1").build(),
-            InteractionContext.builder().requestId("req-financial-policy")
+            plannedContext().requestId("req-financial-policy")
                 .conversationId("conv-financial-policy").mode(InteractionMode.AGENT_CHAT)
                 .history(List.of()).build());
 

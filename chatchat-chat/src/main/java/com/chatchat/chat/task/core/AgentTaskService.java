@@ -2712,12 +2712,17 @@ public class AgentTaskService {
         boolean hasObservations = metadataList(response == null ? null : response.getMetadata(), "observations");
         boolean hasArtifact = hasAnswer || hasSources || hasToolOutput || hasObservations;
         String explicitTerminalStatus = explicitExecutionTerminalStatus(response, agentMetadata);
+        String workflowStatus = workflowOutcomeStatus(metadata);
         String projectedPublicStatus = normalizeStatus(firstTextValue(
             agentMetadata.get("publicStatus"),
             valueAt(agentMetadata, "outcomeProjection", "publicStatus")
         ));
-        String status = explicitTerminalStatus != null
+        boolean budgetExhausted = "TIME_BUDGET_EXHAUSTED".equals(explicitTerminalStatus)
+            || "MODEL_BUDGET_EXHAUSTED".equals(explicitTerminalStatus);
+        String status = budgetExhausted
             ? explicitTerminalStatus
+            : workflowStatus != null ? workflowStatus
+            : explicitTerminalStatus != null ? explicitTerminalStatus
             : (TERMINAL_STATUSES.contains(projectedPublicStatus)
                 ? projectedPublicStatus
                 : ((fatalExecutionBlocked || hasFailedToolOutput) && hasArtifact
@@ -2744,7 +2749,8 @@ public class AgentTaskService {
         };
         Map<String, Object> flags = new LinkedHashMap<>();
         flags.put("hasAnswer", hasAnswer);
-        flags.put("hasInsight", hasAnswer && !fatalExecutionBlocked);
+        flags.put("hasInsight", hasAnswer && !fatalExecutionBlocked
+            && List.of("SUCCESS", "PARTIAL", "PARTIAL_SUCCESS").contains(status));
         flags.put("hasToolOutput", hasToolOutput);
         flags.put("hasSources", hasSources);
         flags.put("hasArtifact", hasArtifact);
@@ -2752,6 +2758,19 @@ public class AgentTaskService {
         UiResponseContract uiResponse = uiResponse(status, displayAnswer, response, reasoningPayload);
         Map<String, Object> debug = debugPayload(response, reasoningPayload);
         return new ExecutionResultContract(status, message, flags, uiResponse, debug);
+    }
+
+    private String workflowOutcomeStatus(Map<String, Object> metadata) {
+        Object raw = metadata.get(com.chatchat.common.runtime.capability.WorkflowOutcome.METADATA_KEY);
+        if (raw == null) return null;
+        try {
+            var outcome = raw instanceof com.chatchat.common.runtime.capability.WorkflowOutcome value ? value
+                : objectMapper.convertValue(raw, com.chatchat.common.runtime.capability.WorkflowOutcome.class);
+            return outcome.publicStatus();
+        } catch (IllegalArgumentException invalid) {
+            // A malformed runtime result must never fall through to answer-text success.
+            return "FAILED";
+        }
     }
 
     private String explicitExecutionTerminalStatus(InteractionResponse response,

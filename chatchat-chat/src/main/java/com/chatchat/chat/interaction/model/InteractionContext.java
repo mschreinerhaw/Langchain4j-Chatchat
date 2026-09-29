@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * Runtime context shared across mode handlers.
  */
-@Builder
+@Builder(toBuilder = true)
 public record InteractionContext(
     String requestId,
     String conversationId,
@@ -16,7 +16,8 @@ public record InteractionContext(
     long startedAtMs,
     String conversationSummary,
     String conversationEvidence,
-    List<ConversationMemoryService.MessageSnapshot> history
+    List<ConversationMemoryService.MessageSnapshot> history,
+    com.chatchat.common.runtime.capability.ProblemAnalysisPlan problemAnalysisPlan
 ) {
 }
 

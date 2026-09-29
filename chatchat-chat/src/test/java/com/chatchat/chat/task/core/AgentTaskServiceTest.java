@@ -199,6 +199,32 @@ class AgentTaskServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void unifiedNoPlanOutcomeOverridesExplanationAndOldPartialTrace() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        AgentTaskService service = taskService(
+            mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),
+            mock(TaskConfirmRepository.class), mapper);
+        var outcome = new com.chatchat.common.runtime.capability.WorkflowOutcome(
+            com.chatchat.common.runtime.capability.WorkflowOutcome.Type.NO_EXECUTABLE_PLAN,
+            "NO_EXECUTABLE_PLAN", List.of("data_analysis"), List.of(), false);
+        Method compile = AgentTaskService.class.getDeclaredMethod("compileExecutionResult", InteractionResponse.class);
+        compile.setAccessible(true);
+        for (Object value : List.of(outcome, mapper.convertValue(outcome, Map.class))) {
+            InteractionResponse response = InteractionResponse.builder().answer("当前没有可执行的分析计划")
+                .toolTraces(List.of(InteractionToolTrace.builder().toolName("metadata_query").success(true)
+                    .runtimeMetadata(Map.of("executionStatus", "PARTIAL_SUCCESS")).build()))
+                .metadata(Map.of("workflowOutcome", value, "agent", Map.of("publicStatus", "SUCCESS")))
+                .build();
+            Object contract = compile.invoke(service, response);
+            Method payloadMethod = contract.getClass().getDeclaredMethod("payload", InteractionResponse.class);
+            payloadMethod.setAccessible(true);
+            Map<String, Object> payload = (Map<String, Object>) payloadMethod.invoke(contract, response);
+            assertThat(payload).containsEntry("status", "NO_PRESENTABLE_RESULT");
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void exposesBoundedDomainKnowledgeProvenanceInPersistedResultPayload() throws Exception {
         AgentTaskService service = taskService(
             mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),

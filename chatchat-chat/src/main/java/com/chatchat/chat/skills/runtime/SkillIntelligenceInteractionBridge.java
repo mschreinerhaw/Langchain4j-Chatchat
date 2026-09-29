@@ -31,6 +31,10 @@ public class SkillIntelligenceInteractionBridge {
         if (agent.workflowConfig() != null && agent.workflowConfig().get("skillIntelligenceEngine") instanceof String engine && !engine.isBlank()) return true;
         return candidates(request, agent, roles).stream().anyMatch(item -> item.metadata().get("executionEngine") instanceof String engine && !engine.isBlank());
     }
+    /** Engine configuration alone is not an executable capability provider. */
+    public boolean available(InteractionRequest request, SkillDefinition agent, List<String> roles) {
+        return enabled(request, agent, roles) && !candidates(request, agent, roles).isEmpty();
+    }
     public InteractionResponse execute(InteractionRequest request, InteractionContext context, SkillDefinition agent, List<String> roles) {
         String engine = String.valueOf(agent.workflowConfig().getOrDefault("skillIntelligenceEngine", "LANGCHAIN4J")).trim().toUpperCase(Locale.ROOT);
         if (!Set.of("GOOGLE_ADK_NATIVE", "LANGCHAIN4J", "OPENAI_COMPATIBLE").contains(engine))
@@ -52,25 +56,42 @@ public class SkillIntelligenceInteractionBridge {
             });
         }
         var runId = request.getToolInput() == null ? "" : String.valueOf(request.getToolInput().getOrDefault("__agentRunId", ""));
+        var planningAttributes = new LinkedHashMap<String, Object>();
+        planningAttributes.put("modelName", model);
+        planningAttributes.put("maxSteps", 6);
+        planningAttributes.put("maxToolCalls", 0);
+        planningAttributes.put("allowDataAcquisition", context.mode() != InteractionMode.ROLE_CHAT
+            && !InteractionMode.fromAgentConfiguration(agent.defaultMode()).isRoleConversation());
+        if (context.problemAnalysisPlan() != null)
+            planningAttributes.put(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.METADATA_KEY, context.problemAnalysisPlan());
         var analysis = new SkillCompositionRequest(request.getQuery(), new SkillRoleContext(request.getTenantId(), request.getUserId(),
             roles, List.of(), Map.of("agentId", agent.id())), List.of(), skills, Map.of(), inputs, engine,
-            Map.of("modelName", model, "maxSteps", 6, "maxToolCalls", 0,
-                "allowDataAcquisition", context.mode() != InteractionMode.ROLE_CHAT
-                    && !InteractionMode.fromAgentConfiguration(agent.defaultMode()).isRoleConversation()), 4);
+            planningAttributes, 4);
         var result = intelligence.execute(analysis, event -> {
             if (!runId.isBlank()) publishers.orderedStream().forEach(publisher -> publisher.publish(AgentRunEvent.of(runId,
                 AgentRunEventType.OBSERVATION_RECORDED, "Skill Intelligence: " + event.stage(),
                 Map.of("stage", event.stage(), "round", event.round(), "skillId", event.skillId(), "status", event.status()))));
         });
-        String answer = result.results().entrySet().stream().filter(entry -> entry.getValue().execution() != null)
+        var usable = result.results().entrySet().stream().filter(entry -> entry.getValue().execution() != null
+            && "COMPLETED".equals(entry.getValue().status())
+            && entry.getValue().execution().output() != null && !entry.getValue().execution().output().isBlank()).toList();
+        String answer = usable.stream()
             .map(entry -> "### " + entry.getKey() + "\n\n" + entry.getValue().execution().output())
             .filter(text -> !text.isBlank()).collect(java.util.stream.Collectors.joining("\n\n"));
         if (answer.isBlank()) answer = "当前没有可执行的已授权分析技能或所需数据，请检查技能授权、数据契约和工作流绑定。";
         if (!"COMPLETED".equals(result.status())) answer += "\n\n分析存在限制：" + result.stopReason()
-            + "。未完成能力：" + String.join("、", result.missingCapabilities());
+            + (result.missingCapabilities().isEmpty() ? "" : "。未完成能力：" + String.join("、", result.missingCapabilities()));
+        var type = "TIME_BUDGET".equals(result.stopReason()) ? com.chatchat.common.runtime.capability.WorkflowOutcome.Type.TIME_BUDGET_EXHAUSTED
+            : "NO_EXECUTABLE_PLAN".equals(result.stopReason()) ? com.chatchat.common.runtime.capability.WorkflowOutcome.Type.NO_EXECUTABLE_PLAN
+            : "USER_INPUT_REQUIRED".equals(result.stopReason()) ? com.chatchat.common.runtime.capability.WorkflowOutcome.Type.INPUT_REQUIRED
+            : usable.isEmpty() ? com.chatchat.common.runtime.capability.WorkflowOutcome.Type.INSUFFICIENT_EVIDENCE
+            : "COMPLETED".equals(result.status()) ? com.chatchat.common.runtime.capability.WorkflowOutcome.Type.READY_TO_ANSWER
+            : com.chatchat.common.runtime.capability.WorkflowOutcome.Type.PARTIAL_RESULT;
+        var outcome = new com.chatchat.common.runtime.capability.WorkflowOutcome(type, result.stopReason(), result.missingCapabilities(), List.of(), !usable.isEmpty());
         return InteractionResponse.builder().conversationId(context.conversationId()).requestId(context.requestId())
             .mode(context.mode() == InteractionMode.ROLE_CHAT ? "role_chat" : "agent_chat").answer(answer)
-            .metadata(Map.of("skillIntelligence", result, "engine", "PER_SKILL_BINDING"))
+            .metadata(Map.of("skillIntelligence", result, "engine", "PER_SKILL_BINDING", "handler", "SkillIntelligenceInteractionBridge",
+                com.chatchat.common.runtime.capability.WorkflowOutcome.METADATA_KEY, outcome))
             .latencyMs(result.elapsedMs()).timestamp(System.currentTimeMillis()).build();
     }
     private List<String> strings(Object value) {

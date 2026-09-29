@@ -86,15 +86,17 @@ public class DatabaseSkillExecutionScopeService implements SkillExecutionScopePo
         }
         boolean agentScopeConfigured = !directIds.isEmpty() || !baseIds.isEmpty();
 
-        Map<String, Set<String>> documentBases = new HashMap<>();
+        // No Agent binding means no knowledge retrieval. Role-level access only limits
+        // an Agent's configured resources; it must never become an implicit binding to
+        // every document the caller can read.
         if (!agentScopeConfigured) {
-            for (int page = 0; ; page++) {
-                List<KnowledgeIREntity> units = knowledgeUnits.findByTenantIdAndActiveTrueOrderByIdAsc(
-                    tenantId, PageRequest.of(page, TAG_PAGE_SIZE));
-                units.forEach(unit -> addBases(documentBases, unit));
-                if (units.size() < TAG_PAGE_SIZE) break;
-            }
+            log.info("skill_execution_scope_resolved tenantId={} userId={} skillId={} documents=0 "
+                    + "directBindings=0 knowledgeBaseBindings=0 agentScopeConfigured=false",
+                tenantId, userId, skillId);
+            return new EffectiveScope(List.of(), List.of(), roleNames, true, true);
         }
+
+        Map<String, Set<String>> documentBases = new HashMap<>();
         if (!directIds.isEmpty()) {
             for (KnowledgeIREntity unit : knowledgeUnits.findByDocumentIdInAndActiveTrue(new ArrayList<>(directIds))) {
                 if (tenantId.equals(unit.getTenantId())) addBases(documentBases, unit);

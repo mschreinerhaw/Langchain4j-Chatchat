@@ -26,6 +26,8 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class DatabaseSkillExecutionScopeServiceTest {
@@ -109,24 +111,16 @@ class DatabaseSkillExecutionScopeServiceTest {
     }
 
     @Test
-    void absentAgentScopeUsesOnlyDocumentsGrantedToTheRole() {
+    void absentAgentScopeDoesNotImplicitlyBindRoleDocuments() {
         when(scopes.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc("tenant-a", "agent-skill"))
             .thenReturn(List.of());
-        KnowledgeIREntity allowed = unit("doc-allowed", "research");
-        KnowledgeIREntity denied = unit("doc-denied", "finance");
-        when(units.findByTenantIdAndActiveTrueOrderByIdAsc(eq("tenant-a"), any()))
-            .thenReturn(List.of(allowed, denied));
-        when(grants.allowedIds(eq(ResourceAuthorizationPort.KNOWLEDGE), eq("tenant-a"), eq("user-a"),
-            eq(Set.of("role-a")), eq(Set.of("doc-allowed", "doc-denied"))))
-            .thenReturn(Set.of("doc-allowed"));
-        when(grants.explicitlyAllowedIds(eq(ResourceAuthorizationPort.KNOWLEDGE), eq("tenant-a"), eq("user-a"),
-            eq(Set.of("role-a")), eq(Set.of("doc-allowed", "doc-denied"))))
-            .thenReturn(Set.of("doc-allowed"));
 
         var resolved = service.resolve("tenant-a", "user-a", "agent-skill", List.of("legacy-doc"), List.of());
 
-        assertThat(resolved.documentIds()).containsExactly("doc-allowed");
+        assertThat(resolved.documentIds()).isEmpty();
+        assertThat(resolved.hasKnowledgeResources()).isFalse();
         assertThat(resolved.managed()).isTrue();
+        verify(units, never()).findByTenantIdAndActiveTrueOrderByIdAsc(eq("tenant-a"), any());
     }
 
     @Test
@@ -143,16 +137,16 @@ class DatabaseSkillExecutionScopeServiceTest {
     }
 
     @Test
-    void legacyTagBindingCannotBypassRoleAuthorization() {
+    void absentCanonicalScopeIgnoresLegacyTagWithoutStartingRetrieval() {
         when(scopes.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc("tenant-a", "agent-skill"))
             .thenReturn(List.of());
 
         var resolved = service.resolve("tenant-a", "user-a", "agent-skill",
             List.of(), List.of("Legacy Research"));
 
-        assertThat(resolved.documentIds()).containsExactly(
-            com.chatchat.common.retrieval.SkillExecutionScopePort.DENIED_DOCUMENT_ID);
+        assertThat(resolved.documentIds()).isEmpty();
         assertThat(resolved.tags()).isEmpty();
+        assertThat(resolved.hasKnowledgeResources()).isFalse();
         assertThat(resolved.managed()).isTrue();
     }
 

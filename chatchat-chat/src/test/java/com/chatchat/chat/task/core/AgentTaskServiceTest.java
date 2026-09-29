@@ -69,6 +69,43 @@ import static org.mockito.Mockito.when;
 class AgentTaskServiceTest {
 
     @Test
+    @SuppressWarnings("unchecked")
+    void emitsRoleChatSkillExtractionAndApplicationObservations() throws Exception {
+        AgentEventStore eventStore = mock(AgentEventStore.class);
+        AgentTaskService service = taskService(
+            mock(AgentEventBus.class), eventStore, mock(AgentTaskLatestRepository.class),
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+        AgentEvent question = AgentEvent.builder()
+            .taskId("task-role-skill").runId("run-role-skill").tenantId("tenant-a")
+            .userId("user-a").agentId("fixed-income-advisor").sessionId("session-a")
+            .type("QUESTION").status("RUNNING").build();
+        Map<String, Object> projection = Map.of(
+            "schemaVersion", "domain_skill_planning.v2", "status", "MODEL_ROUTED",
+            "configuredCount", 1, "selectedCount", 1, "activatedCount", 1, "loadedCount", 1,
+            "activatedSkills", List.of(Map.of("id", "skill-fixed-income", "name", "固收净值分析")));
+        InteractionResponse response = InteractionResponse.builder().answer("回答").metadata(Map.of(
+            "handler", "RoleChatModeHandler",
+            com.chatchat.common.skills.DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE, projection)).build();
+        Method emit = AgentTaskService.class.getDeclaredMethod("emitRuntimeEvents",
+            AgentEvent.class, InteractionResponse.class, long.class, long.class);
+        emit.setAccessible(true);
+
+        emit.invoke(service, question, response, 100L, 200L);
+
+        ArgumentCaptor<List<AgentEvent>> events = ArgumentCaptor.forClass(List.class);
+        verify(eventStore).appendAll(events.capture());
+        assertThat(events.getValue()).hasSize(3);
+        assertThat(events.getValue().subList(0, 2)).allSatisfy(event -> {
+            assertThat(event.getType()).isEqualTo("RUNTIME_OBSERVATION");
+            assertThat(event.getToolName()).isEqualTo("knowledge_skills");
+            assertThat(event.getPayload()).contains("KNOWLEDGE_SKILLS");
+        });
+        assertThat(events.getValue().get(0).getPayload()).contains("SKILLS_EXTRACTED", "COMPLETED");
+        assertThat(events.getValue().get(1).getPayload()).contains("CONTEXT_APPLIED", "APPLIED");
+        assertThat(events.getValue().get(2).getType()).isEqualTo("THINK");
+    }
+
+    @Test
     void latestStateUpdateRetriesAConcurrentLeaseHeartbeatConflict() {
         AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
         AgentTaskLatestEntity firstSnapshot = new AgentTaskLatestEntity();

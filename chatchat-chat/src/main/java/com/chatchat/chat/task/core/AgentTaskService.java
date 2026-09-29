@@ -1655,6 +1655,7 @@ public class AgentTaskService {
                                    long modelStartedAt,
                                    long modelFinishedAt) {
         List<AgentEvent> events = new ArrayList<>();
+        emitRoleChatDomainSkillEvents(question, response, modelStartedAt, events);
         emitThinkEvent(question, response, modelStartedAt, modelFinishedAt, events);
         emitPlannerEvents(question, response, events);
         emitToolEvents(question, response, events);
@@ -1664,6 +1665,65 @@ public class AgentTaskService {
         // parent links and payloads remain unchanged.
         eventStore.appendAll(events);
         events.forEach(event -> logAgentTaskEvent(eventLogPhase(event, question), event));
+    }
+
+    /**
+     * ROLE_CHAT bypasses Agent Runtime, so mirror its governed Skill lifecycle into
+     * the same typed observation protocol used by the full Agent path.
+     */
+    private void emitRoleChatDomainSkillEvents(AgentEvent question,
+                                               InteractionResponse response,
+                                               long startedAt,
+                                               List<AgentEvent> events) {
+        if (response == null || response.getMetadata() == null
+            || !"RoleChatModeHandler".equals(response.getMetadata().get("handler"))) return;
+        Map<String, Object> projection = asStringMap(
+            response.getMetadata().get(com.chatchat.common.skills.DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE));
+        int configuredCount = (int) longValue(projection.get("configuredCount"), 0L);
+        if (configuredCount <= 0) return;
+        int selectedCount = (int) longValue(projection.get("selectedCount"), 0L);
+        int activatedCount = (int) longValue(projection.get("activatedCount"), 0L);
+        int loadedCount = (int) longValue(projection.get("loadedCount"), 0L);
+        List<?> activatedSkills = projection.get("activatedSkills") instanceof List<?> values
+            ? values : List.of();
+
+        Map<String, Object> extractedMetadata = new LinkedHashMap<>();
+        extractedMetadata.put("type", "knowledge_skill_lifecycle");
+        extractedMetadata.put("eventKind", "KNOWLEDGE_SKILLS");
+        extractedMetadata.put("eventState", "COMPLETED");
+        extractedMetadata.put("stage", "SKILLS_EXTRACTED");
+        extractedMetadata.put("schemaVersion", projection.get("schemaVersion"));
+        extractedMetadata.put("status", projection.get("status"));
+        extractedMetadata.put("configuredSkillCount", configuredCount);
+        extractedMetadata.put("domainSkillCount", selectedCount);
+        extractedMetadata.put("activatedDomainSkillCount", activatedCount);
+        extractedMetadata.put("activatedSkills", activatedSkills);
+        events.add(roleChatSkillEvent(question, startedAt,
+            "Role Chat extracted " + selectedCount + " authorized Skill(s)", extractedMetadata));
+
+        boolean applied = activatedCount > 0 && loadedCount > 0;
+        Map<String, Object> appliedMetadata = new LinkedHashMap<>(extractedMetadata);
+        appliedMetadata.put("eventState", applied ? "APPLIED" : "NOT_APPLIED");
+        appliedMetadata.put("stage", "CONTEXT_APPLIED");
+        appliedMetadata.put("applied", applied);
+        appliedMetadata.put("loadedCount", loadedCount);
+        events.add(roleChatSkillEvent(question, startedAt + 1,
+            applied ? "Role Chat applied " + activatedCount + " Skill(s)"
+                : "Role Chat did not apply a relevant Skill", appliedMetadata));
+    }
+
+    private AgentEvent roleChatSkillEvent(AgentEvent question, long createTime,
+                                          String contentPreview, Map<String, Object> metadata) {
+        Map<String, Object> runtimePayload = new LinkedHashMap<>();
+        runtimePayload.put("source", "knowledge_skills");
+        runtimePayload.put("contentPreview", contentPreview);
+        runtimePayload.put("metadata", metadata);
+        AgentEvent event = copyEvent(question, "RUNTIME_OBSERVATION", "RUNNING",
+            writePayload(Map.of("payload", runtimePayload)));
+        event.setParentEventId(question.getEventId());
+        event.setToolName("knowledge_skills");
+        event.setCreateTime(createTime);
+        return event;
     }
 
     /**
@@ -3755,6 +3815,10 @@ public class AgentTaskService {
             copyMetadataValue(safe, metadata, "domainKnowledgeTokenBudget");
             copyMetadataValue(safe, metadata, "domainKnowledgeTruncated");
             copyMetadataValue(safe, metadata, "domainKnowledgeSkillCount");
+            copyMetadataValue(safe, metadata, "configuredDomainSkillCount");
+            copyMetadataValue(safe, metadata, "selectedDomainSkillCount");
+            copyMetadataValue(safe, metadata, "activatedDomainSkillCount");
+            copyMetadataValue(safe, metadata, "domainSkillStatus");
             Object domainKnowledge = metadata.get("domainKnowledgeContext");
             if (domainKnowledge instanceof Map<?, ?> knowledgeMetadata) {
                 Map<String, Object> knowledge = new LinkedHashMap<>();

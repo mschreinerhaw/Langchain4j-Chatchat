@@ -6,11 +6,13 @@ import com.chatchat.chat.interaction.model.InteractionMode;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.skills.catalog.SkillCatalogService;
+import com.chatchat.chat.skills.domain.planning.DomainSkillPlanningRouter;
 import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.common.knowledge.runtime.KnowledgeContext;
 import com.chatchat.common.knowledge.runtime.KnowledgeRequest;
 import com.chatchat.common.knowledge.spi.KnowledgeRuntimePort;
 import com.chatchat.common.retrieval.SkillExecutionScopePort;
+import com.chatchat.common.skills.DomainSkillRuntimePort;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -25,6 +27,113 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class RoleChatModeHandlerTest {
+
+    @Test
+    void routesAndAppliesAuthorizedBoundSkillsWithAuditableProjection() {
+        ChatModel model = mock(ChatModel.class);
+        ConfigurableChatModelFactory modelFactory = mock(ConfigurableChatModelFactory.class);
+        SkillCatalogService skillCatalog = mock(SkillCatalogService.class);
+        KnowledgeRuntimePort knowledgeRuntime = mock(KnowledgeRuntimePort.class);
+        SkillExecutionScopePort scopePort = mock(SkillExecutionScopePort.class);
+        DomainSkillRuntimePort skillRuntime = mock(DomainSkillRuntimePort.class);
+        DomainSkillPlanningRouter planningRouter = mock(DomainSkillPlanningRouter.class);
+        RoleChatModeHandler handler = new RoleChatModeHandler(model, modelFactory, skillCatalog, knowledgeRuntime);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "skillExecutionScope", scopePort);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "domainSkillRuntime", skillRuntime);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "domainSkillPlanningRouter", planningRouter);
+
+        SkillDefinition role = mock(SkillDefinition.class);
+        when(role.id()).thenReturn("fixed-income-advisor");
+        when(role.defaultMode()).thenReturn("role_chat");
+        when(role.workflowConfig()).thenReturn(Map.of("boundDomainSkillIds", List.of("skill-fixed-income")));
+        when(role.boundDocumentIds()).thenReturn(List.of());
+        when(role.boundDocumentTags()).thenReturn(List.of());
+        when(skillCatalog.resolve("fixed-income-advisor")).thenReturn(role);
+        when(scopePort.resolve("tenant-a", "user-a", "fixed-income-advisor", List.of(), List.of()))
+            .thenReturn(new SkillExecutionScopePort.EffectiveScope(
+                List.of(), List.of(), List.of("role-fixed-income"), true, true));
+        DomainSkillRuntimePort.DomainSkillContent boundSkill = new DomainSkillRuntimePort.DomainSkillContent(
+            "skill-fixed-income", "固收净值分析", "固收", "Compare duration and credit spread.");
+        when(skillRuntime.retrievePublished("tenant-a", "user-a", List.of("role-fixed-income"),
+            "分析净值变化", List.of("skill-fixed-income"))).thenReturn(List.of(boundSkill));
+        DomainSkillPlanningRouter.RoutingResult routing = new DomainSkillPlanningRouter.RoutingResult(
+            List.of(boundSkill), List.of(boundSkill), Map.of("principles", List.of("Separate rate and credit effects")),
+            "<domain_skill_planning_knowledge>Separate rate and credit effects</domain_skill_planning_knowledge>",
+            "router-model", "MODEL_ROUTED", null);
+        when(planningRouter.route("分析净值变化", "", List.of(boundSkill))).thenReturn(routing);
+        when(planningRouter.projection(routing)).thenReturn(Map.of(
+            "schemaVersion", "domain_skill_planning.v2", "status", "MODEL_ROUTED",
+            "selectedCount", 1, "activatedCount", 1, "loadedCount", 1,
+            "skills", List.of(Map.of("id", "skill-fixed-income", "name", "固收净值分析", "category", "固收")),
+            "activatedSkills", List.of(Map.of("id", "skill-fixed-income", "name", "固收净值分析", "category", "固收")),
+            "compiledContext", routing.compiledContext()));
+        when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("回答");
+
+        InteractionResponse response = handler.handle(
+            InteractionRequest.builder().mode("role_chat").skillId("fixed-income-advisor")
+                .tenantId("tenant-a").userId("user-a").query("分析净值变化").build(),
+            InteractionContext.builder().requestId("request-skill").conversationId("conversation-skill")
+                .mode(InteractionMode.ROLE_CHAT).history(List.of()).build());
+
+        verify(skillRuntime).retrievePublished("tenant-a", "user-a", List.of("role-fixed-income"),
+            "分析净值变化", List.of("skill-fixed-income"));
+        ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
+        verify(model).chat(prompt.capture());
+        assertThat(prompt.getValue())
+            .contains("Separate rate and credit effects")
+            .doesNotContain("Compare duration and credit spread.");
+        assertThat(response.getMetadata())
+            .containsEntry("configuredDomainSkillCount", 1)
+            .containsEntry("selectedDomainSkillCount", 1)
+            .containsEntry("activatedDomainSkillCount", 1)
+            .containsEntry("domainSkillStatus", "MODEL_ROUTED")
+            .containsKey(DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE);
+    }
+
+    @Test
+    void deniedDocumentSentinelDoesNotStartKnowledgePlanningOrLeakRetrievalHints() {
+        ChatModel model = mock(ChatModel.class);
+        ConfigurableChatModelFactory modelFactory = mock(ConfigurableChatModelFactory.class);
+        SkillCatalogService skillCatalog = mock(SkillCatalogService.class);
+        KnowledgeRuntimePort knowledgeRuntime = mock(KnowledgeRuntimePort.class);
+        SkillExecutionScopePort scopePort = mock(SkillExecutionScopePort.class);
+        RoleChatModeHandler handler = new RoleChatModeHandler(
+            model, modelFactory, skillCatalog, knowledgeRuntime);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "skillExecutionScope", scopePort);
+
+        SkillDefinition role = mock(SkillDefinition.class);
+        when(role.id()).thenReturn("unbound-role");
+        when(role.label()).thenReturn("Data advisor");
+        when(role.defaultMode()).thenReturn("role_chat");
+        when(role.boundDocumentIds()).thenReturn(List.of());
+        when(role.boundDocumentTags()).thenReturn(List.of());
+        when(role.systemPrompt()).thenReturn("Always retrieve bound documents before answering.");
+        when(role.workflowConfig()).thenReturn(Map.of());
+        when(skillCatalog.resolve("unbound-role")).thenReturn(role);
+        when(scopePort.resolve("tenant-a", "user-a", "unbound-role", List.of(), List.of()))
+            .thenReturn(new SkillExecutionScopePort.EffectiveScope(
+                List.of(SkillExecutionScopePort.DENIED_DOCUMENT_ID), List.of(),
+                List.of("advisor"), true, true));
+        when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("Direct answer");
+
+        InteractionResponse response = handler.handle(
+            InteractionRequest.builder().mode("role_chat").skillId("unbound-role")
+                .tenantId("tenant-a").userId("user-a").query("Explain net value comparison").build(),
+            InteractionContext.builder().requestId("request-unbound").conversationId("conversation-unbound")
+                .mode(InteractionMode.ROLE_CHAT).history(List.of()).build());
+
+        verify(knowledgeRuntime, never()).retrieveKnowledge(org.mockito.ArgumentMatchers.any());
+        ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
+        verify(model).chat(prompt.capture());
+        assertThat(prompt.getValue())
+            .contains("Knowledge availability: no documents or knowledge bases are bound")
+            .contains("Do not attempt or claim document retrieval")
+            .doesNotContain("<domain_knowledge>");
+        assertThat(response.getMetadata())
+            .containsEntry("knowledgeRetrieval", "not_configured")
+            .containsEntry("knowledgeUsed", false)
+            .containsEntry("knowledgeSkillCount", 0);
+    }
 
     @Test
     void answersTableProductQuestionAsRoleWithoutEnteringAnyToolPath() {

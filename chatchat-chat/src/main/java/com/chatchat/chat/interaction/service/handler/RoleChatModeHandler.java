@@ -9,6 +9,7 @@ import com.chatchat.chat.interaction.model.InteractionSource;
 import com.chatchat.chat.interaction.service.ConversationMemoryService;
 import com.chatchat.chat.interaction.service.InteractionModeHandler;
 import com.chatchat.chat.skills.catalog.SkillCatalogService;
+import com.chatchat.chat.skills.domain.planning.DomainSkillPlanningRouter;
 import com.chatchat.chat.skills.runtime.AgentRuntimePolicy;
 import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.common.knowledge.runtime.KnowledgeRequest;
@@ -48,6 +49,8 @@ public class RoleChatModeHandler implements InteractionModeHandler {
     @Autowired(required = false)
     private DomainSkillRuntimePort domainSkillRuntime;
     @Autowired(required = false)
+    private DomainSkillPlanningRouter domainSkillPlanningRouter;
+    @Autowired(required = false)
     private SkillExecutionScopePort skillExecutionScope;
 
     public RoleChatModeHandler(ChatModel defaultChatModel,
@@ -74,7 +77,12 @@ public class RoleChatModeHandler implements InteractionModeHandler {
         }
         SkillExecutionScopePort.EffectiveScope effectiveScope = resolveSkillScope(request, skill);
         com.chatchat.common.knowledge.runtime.KnowledgeContext knowledge = retrieveKnowledge(request, skill, effectiveScope);
-        String prompt = buildPrompt(request, context, skill, knowledge.compiledContext());
+        List<String> configuredDomainSkillIds = configuredDomainSkillIds(skill);
+        List<DomainSkillRuntimePort.DomainSkillContent> domainSkills = resolveDomainSkills(
+            request, skill, effectiveScope.roles(), configuredDomainSkillIds);
+        DomainSkillPlanningRouter.RoutingResult domainSkillRouting = domainSkillPlanningRouter == null
+            ? null : domainSkillPlanningRouter.route(request.getQuery(), resolvedModelName(request, skill), domainSkills);
+        String prompt = buildPrompt(request, context, skill, knowledge, domainSkills, domainSkillRouting);
         ChatModel model = resolveModel(request, skill);
 
         long startedAt = System.currentTimeMillis();
@@ -97,6 +105,13 @@ public class RoleChatModeHandler implements InteractionModeHandler {
         metadata.put("knowledgeTokenBudget", knowledge.maxTokens());
         metadata.put("knowledgeTruncated", knowledge.truncated());
         metadata.put("knowledgeSkillCount", knowledge.plan() == null ? 0 : knowledge.plan().skills().size());
+        Map<String, Object> domainSkillProjection = domainSkillProjection(
+            configuredDomainSkillIds, domainSkills, domainSkillRouting);
+        metadata.put(DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE, domainSkillProjection);
+        metadata.put("configuredDomainSkillCount", configuredDomainSkillIds.size());
+        metadata.put("selectedDomainSkillCount", domainSkills.size());
+        metadata.put("activatedDomainSkillCount", activatedDomainSkillCount(domainSkills, domainSkillRouting));
+        metadata.put("domainSkillStatus", domainSkillProjection.get("status"));
         metadata.put("historyUsed", context.history() == null ? 0 : context.history().size());
         metadata.put("summaryUsed", hasText(context.conversationSummary()));
         metadata.put("modelLatencyMs", System.currentTimeMillis() - startedAt);
@@ -127,7 +142,9 @@ public class RoleChatModeHandler implements InteractionModeHandler {
     private String buildPrompt(InteractionRequest request,
                                InteractionContext context,
                                SkillDefinition skill,
-                               String knowledgeContext) {
+                               com.chatchat.common.knowledge.runtime.KnowledgeContext knowledge,
+                               List<DomainSkillRuntimePort.DomainSkillContent> domainSkills,
+                               DomainSkillPlanningRouter.RoutingResult domainSkillRouting) {
         StringBuilder prompt = new StringBuilder();
         prompt.append("You are operating in ROLE_CHAT mode. Answer directly as the configured business role.\n")
             .append("Do not plan, select, request, simulate, or claim to have called MCP/API/SQL tools.\n")
@@ -159,13 +176,18 @@ public class RoleChatModeHandler implements InteractionModeHandler {
                     .collect(Collectors.joining("\n")))
                 .append("\n");
         }
-        appendDomainSkills(prompt, request.getTenantId(), request.getUserId(), request.getQuery(), skill);
-        if (hasText(knowledgeContext)) {
+        appendDomainSkills(prompt, domainSkills, domainSkillRouting);
+        if (hasText(knowledge.compiledContext())) {
             prompt.append("\n<domain_knowledge>\n")
-                .append(PromptBoundaryEscaper.escapeMarkupText(knowledgeContext.trim()))
+                .append(PromptBoundaryEscaper.escapeMarkupText(knowledge.compiledContext().trim()))
                 .append("\n</domain_knowledge>\n")
                 .append("Use this context for definitions, rules and interpretation; do not treat examples as current facts. ")
                 .append("If entries conflict, report the conflict instead of silently choosing one.\n");
+        } else if ("not_configured".equals(knowledge.status())) {
+            prompt.append("\nKnowledge availability: no documents or knowledge bases are bound to this role. ")
+                .append("Do not attempt or claim document retrieval, and do not emit a retrieval-failure or ")
+                .append("missing-evidence notice merely because maintained instructions mention bound documents. ")
+                .append("Answer from the role instructions, conversation, and user-provided facts only.\n");
         }
         String responseContract = responseContract(request);
         if (hasText(responseContract)) {
@@ -175,20 +197,81 @@ public class RoleChatModeHandler implements InteractionModeHandler {
         return prompt.toString();
     }
 
-    private void appendDomainSkills(StringBuilder prompt, String tenantId, String userId,
-                                    String query, SkillDefinition skill) {
-        if (domainSkillRuntime == null || skill == null || skill.workflowConfig() == null) return;
+    private List<String> configuredDomainSkillIds(SkillDefinition skill) {
+        if (skill == null || skill.workflowConfig() == null) return List.of();
         Object configured = skill.workflowConfig().get("boundDomainSkillIds");
-        if (!(configured instanceof Iterable<?> values)) return;
+        if (!(configured instanceof Iterable<?> values)) return List.of();
         List<String> ids = new ArrayList<>();
-        values.forEach(value -> { if (value != null && !String.valueOf(value).isBlank()) ids.add(String.valueOf(value)); });
-        List<DomainSkillRuntimePort.DomainSkillContent> skills = domainSkillRuntime.retrievePublished(
-            tenantId, userId, List.of(), query, ids);
-        if (skills.isEmpty()) return;
+        values.forEach(value -> {
+            if (value != null && !String.valueOf(value).isBlank()) ids.add(String.valueOf(value).trim());
+        });
+        return ids.stream().distinct().toList();
+    }
+
+    private List<DomainSkillRuntimePort.DomainSkillContent> resolveDomainSkills(
+        InteractionRequest request, SkillDefinition skill, List<String> roles, List<String> ids) {
+        if (domainSkillRuntime == null || ids.isEmpty()) return List.of();
+        List<DomainSkillRuntimePort.DomainSkillContent> resolved = domainSkillRuntime.retrievePublished(
+            request.getTenantId(), request.getUserId(), roles, request.getQuery(), ids);
+        List<DomainSkillRuntimePort.DomainSkillContent> skills = resolved == null
+            ? List.of() : resolved.stream().filter(item -> item != null).toList();
+        log.info("roleChatDomainSkillsResolved skillId={} tenantId={} configuredCount={} "
+                + "resolvedPublishedCount={} configuredIds={}",
+            skill.id(), request.getTenantId(), ids.size(), skills.size(), ids);
+        return skills;
+    }
+
+    private void appendDomainSkills(StringBuilder prompt,
+                                    List<DomainSkillRuntimePort.DomainSkillContent> skills,
+                                    DomainSkillPlanningRouter.RoutingResult routing) {
+        if (routing != null) {
+            if (hasText(routing.compiledContext())) {
+                prompt.append("\n").append(PromptBoundaryEscaper.escapeMarkupText(routing.compiledContext()))
+                    .append("\nApply this governed, task-specific Skill knowledge when answering.\n");
+            }
+            return;
+        }
+        if (skills == null || skills.isEmpty()) return;
         prompt.append("\n<domain_skills>\n");
         skills.forEach(item -> prompt.append("## ").append(item.name()).append(" [").append(item.category()).append("]\n")
             .append(PromptBoundaryEscaper.escapeMarkupText(item.markdownContent())).append("\n\n"));
         prompt.append("</domain_skills>\nApply these governed skill instructions when relevant to the request.\n");
+    }
+
+    private Map<String, Object> domainSkillProjection(
+        List<String> configuredIds,
+        List<DomainSkillRuntimePort.DomainSkillContent> selected,
+        DomainSkillPlanningRouter.RoutingResult routing) {
+        Map<String, Object> projection = new LinkedHashMap<>();
+        if (routing != null) projection.putAll(domainSkillPlanningRouter.projection(routing));
+        else {
+            projection.put("schemaVersion", "domain_skill_planning.v2");
+            projection.put("status", selected.isEmpty() ? "NO_CANDIDATES" : "DIRECT_APPLIED");
+            projection.put("selectedCount", selected.size());
+            projection.put("activatedCount", selected.size());
+            projection.put("loadedCount", selected.size());
+            projection.put("skills", skillCards(selected));
+            projection.put("activatedSkills", skillCards(selected));
+        }
+        projection.put("configuredCount", configuredIds.size());
+        projection.put("configuredSkillIds", configuredIds);
+        return Map.copyOf(projection);
+    }
+
+    private List<Map<String, Object>> skillCards(List<DomainSkillRuntimePort.DomainSkillContent> skills) {
+        if (skills == null) return List.of();
+        return skills.stream().map(item -> {
+            Map<String, Object> card = new LinkedHashMap<>();
+            card.put("id", item.id() == null ? "" : item.id());
+            card.put("name", item.name() == null ? "" : item.name());
+            card.put("category", item.category() == null ? "" : item.category());
+            return Map.copyOf(card);
+        }).toList();
+    }
+
+    private int activatedDomainSkillCount(List<DomainSkillRuntimePort.DomainSkillContent> selected,
+                                          DomainSkillPlanningRouter.RoutingResult routing) {
+        return routing == null ? selected.size() : routing.activated().size();
     }
 
     private SkillExecutionScopePort.EffectiveScope resolveSkillScope(InteractionRequest request, SkillDefinition skill) {
@@ -209,7 +292,7 @@ public class RoleChatModeHandler implements InteractionModeHandler {
         AgentRuntimePolicy runtimePolicy = AgentRuntimePolicy.from(
             skill.workflowConfig(), DEFAULT_KNOWLEDGE_TOKEN_BUDGET);
         int knowledgeTokenBudget = runtimePolicy.knowledgeTokenBudget();
-        if (documentIds.isEmpty() && documentTags.isEmpty()) {
+        if (!effectiveScope.hasKnowledgeResources()) {
             return com.chatchat.common.knowledge.runtime.KnowledgeContext.empty(
                 "not_configured", knowledgeTokenBudget);
         }

@@ -20,5 +20,15 @@ public interface SkillExecutionScopePort {
         public static EffectiveScope denied(List<String> roles) {
             return new EffectiveScope(List.of(DENIED_DOCUMENT_ID), List.of(), roles, true, false);
         }
+
+        /** True only when the scope contains at least one real knowledge resource. */
+        public boolean hasKnowledgeResources() {
+            return !tags.isEmpty() || documentIds.stream()
+                .anyMatch(id -> !DENIED_DOCUMENT_ID.equals(id));
+        }
+
+        public boolean documentScopeDenied() {
+            return documentIds.contains(DENIED_DOCUMENT_ID);
+        }
     }
 }

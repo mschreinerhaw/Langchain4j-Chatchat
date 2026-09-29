@@ -226,12 +226,52 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
     @Transactional
     public DomainSkillEntity compileProtocol(String tenantId, String id, Map<String, Object> protocol) {
         DomainSkillEntity skill = owned(id, tenantId);
+        Map<String, Object> document = new LinkedHashMap<>();
+        document.put("name", skill.getName());
+        document.put("description", text(skill.getDescription()));
+        document.put("instructions", skill.getMarkdownContent());
+        document.put("runtime", protocol == null ? Map.of() : protocol);
+        return compileProtocolDocument(tenantId, skill, document);
+    }
+
+    @Transactional
+    public DomainSkillEntity recompileProtocol(String tenantId, String id) {
+        DomainSkillEntity skill = owned(id, tenantId);
+        RuntimeSkillIr previous = packageReader.latestCompilation(tenantId, id)
+            .orElseThrow(() -> new IllegalArgumentException(
+                "SKILL_PROTOCOL_UNAVAILABLE: 当前技能没有可重新编译的协议"))
+            .protocol();
+        var requirements = previous.execution().requirements();
+        Map<String, Object> declaredRequirements = new LinkedHashMap<>();
+        declaredRequirements.put("allowedDocuments", requirements.documentIds());
+        declaredRequirements.put("allowedKnowledgeBases", requirements.knowledgeBaseIds());
+        declaredRequirements.put("allowedMcp", requirements.mcpToolIds());
+        declaredRequirements.put("allowedAgents", requirements.agentIds());
+
+        Map<String, Object> runtime = new LinkedHashMap<>();
+        runtime.put("domain", text(previous.capability().domain()));
+        runtime.put("capabilities", previous.capabilities());
+        runtime.put("requiresCapabilities", previous.execution().requiredCapabilities());
+        runtime.put("workflows", requirements.workflowIds());
+        runtime.put("requiredData", requirements.data());
+        runtime.put("analysisSteps", requirements.steps());
+
+        Map<String, Object> document = new LinkedHashMap<>();
+        document.put("name", skill.getName());
+        document.put("description", text(skill.getDescription()));
+        document.put("instructions", skill.getMarkdownContent());
+        document.put("requirements", declaredRequirements);
+        document.put("runtime", runtime);
+        return compileProtocolDocument(tenantId, skill, document);
+    }
+
+    private DomainSkillEntity compileProtocolDocument(String tenantId, DomainSkillEntity skill,
+                                                       Map<String, Object> document) {
         try {
-            String json = PROTOCOL_MAPPER.writeValueAsString(Map.of("name", skill.getName(),
-                "description", text(skill.getDescription()), "instructions", skill.getMarkdownContent(), "runtime", protocol));
+            String json = PROTOCOL_MAPPER.writeValueAsString(document);
             var result = externalSkillGateway.adaptAndCompile(new ExternalSkillSource("skill.json", "JSON",
-                "editor:" + id, json, json.getBytes(StandardCharsets.UTF_8)));
-            artifactStore.store(tenantId, id, "JSON", "skill.json", result);
+                "editor:" + skill.getId(), json, json.getBytes(StandardCharsets.UTF_8)));
+            artifactStore.store(tenantId, skill.getId(), "JSON", "skill.json", result);
             skill.setMarkdownContent(result.skillIr().markdownInstructions());
             skill.setPublicationDirty(true);
             return repository.save(skill);
@@ -414,7 +454,8 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
         packageReader.latestCompilation(tenantId, id).ifPresent(compilation -> {
             RuntimeSkillIr ir = compilation.protocol();
             if (!skill.getMarkdownContent().trim().equals(ir.markdownInstructions().trim()))
-                throw new IllegalArgumentException("Skill instructions changed; recompile its protocol before publishing");
+                throw new IllegalArgumentException(
+                    "SKILL_PROTOCOL_STALE: 技能说明已修改，请重新编译协议后再发布");
             skill.setPublishedCompilationId(compilation.id());
             try {
                 skill.setRuntimeMetadataJson(PROTOCOL_MAPPER.writeValueAsString(Map.of("capabilities", ir.capabilities(),

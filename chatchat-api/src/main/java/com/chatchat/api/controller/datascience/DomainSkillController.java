@@ -42,6 +42,11 @@ public class DomainSkillController {
         return call(() -> { Scope scope = scope(request); requireAdmin(scope); return service.compileProtocol(scope.tenantId(), id, protocol); });
     }
 
+    @PostMapping("/{id}/recompile")
+    public ApiResponse<?> recompile(@PathVariable("id") String id, HttpServletRequest request) {
+        return call(() -> { Scope scope = scope(request); requireAdmin(scope); return service.recompileProtocol(scope.tenantId(), id); });
+    }
+
     @GetMapping
     public ApiResponse<?> workspace(@RequestParam(value = "keyword", defaultValue = "") String keyword,
                                     @RequestParam(value = "category", defaultValue = "") String category,

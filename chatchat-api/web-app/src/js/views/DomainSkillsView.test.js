@@ -6,7 +6,7 @@ const api = vi.hoisted(() => ({
   fetchMcpSkillSources: vi.fn(), createMcpSkillSource: vi.fn(), updateMcpSkillSource: vi.fn(),
   syncMcpSkillSource: vi.fn(), deleteMcpSkillSource: vi.fn(),
   getStoredAuthSession: vi.fn(() => ({ username: "admin" })), importDomainSkill: vi.fn(), importDomainSkillFromUrl: vi.fn(),
-  publishDomainSkill: vi.fn(), recallDomainSkill: vi.fn(), reindexDomainSkill: vi.fn(),
+  publishDomainSkill: vi.fn(), recompileDomainSkill: vi.fn(), recallDomainSkill: vi.fn(), reindexDomainSkill: vi.fn(),
   reindexDomainSkillCategory: vi.fn(), renameDomainSkillCategory: vi.fn(), updateDomainSkill: vi.fn()
 }));
 vi.mock("../../services/api.js", () => api);
@@ -48,6 +48,26 @@ describe("DomainSkillsView", () => {
     expect(context.message).toContain("领域技能索引");
     expect(context.load).toHaveBeenCalledWith(false, { silent: true });
     expect(context.scheduleNoticeDismiss).toHaveBeenCalledWith("message", context.message, 3200);
+  });
+
+  it("automatically recompiles a stale protocol before publishing", async () => {
+    api.publishDomainSkill.mockReset();
+    api.recompileDomainSkill.mockReset();
+    api.publishDomainSkill
+      .mockRejectedValueOnce(new Error("SKILL_PROTOCOL_STALE: 技能说明已修改"))
+      .mockResolvedValueOnce({ id: "skill-1", name: "风险识别" });
+    api.recompileDomainSkill.mockResolvedValue({ id: "skill-1" });
+    const context = {
+      busy: false, error: "", message: "", load: vi.fn(),
+      scheduleNoticeDismiss: vi.fn(), quota: {}
+    };
+
+    await DomainSkillsView.methods.publishSkill.call(context, { id: "skill-1", name: "风险识别" });
+
+    expect(api.recompileDomainSkill).toHaveBeenCalledWith("skill-1");
+    expect(api.publishDomainSkill).toHaveBeenCalledTimes(2);
+    expect(context.message).toContain("重新编译并发布");
+    expect(context.error).toBe("");
   });
 
   it("shows the custom publication limit prompt when the quota is full", async () => {

@@ -161,6 +161,10 @@ export function publishDomainSkill(id) {
   return apiRequest(`/data-science/domain-skills/${encodeURIComponent(id)}/publish`, { method: "POST" });
 }
 
+export function recompileDomainSkill(id) {
+  return apiRequest(`/data-science/domain-skills/${encodeURIComponent(id)}/recompile`, { method: "POST" });
+}
+
 export function recallDomainSkill(id) {
   return apiRequest(`/data-science/domain-skills/${encodeURIComponent(id)}/recall`, { method: "POST" });
 }

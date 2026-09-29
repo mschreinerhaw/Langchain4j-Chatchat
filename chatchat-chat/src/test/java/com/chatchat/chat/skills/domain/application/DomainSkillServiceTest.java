@@ -55,7 +55,46 @@ class DomainSkillServiceTest {
         assertThat(skill.getRuntimeMetadataJson()).contains("sales.summary", "runtime_skill_ir.v2");
         skill.setMarkdownContent("# Changed");
         assertThatThrownBy(() -> service.publish("tenant-a", "compiled"))
-            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("recompile");
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("SKILL_PROTOCOL_STALE");
+    }
+
+    @Test
+    void recompilesChangedInstructionsWhilePreservingExecutableDeclarations() {
+        var repository = mock(DomainSkillRepository.class);
+        var artifactStore = mock(DomainSkillArtifactStore.class);
+        var packageReader = mock(DomainSkillPackageReader.class);
+        var gateway = mock(ExternalSkillAdapterGateway.class);
+        var skill = skill("compiled", "Sales", "# Changed\n\nUse the latest instructions.");
+        skill.setPublicationDirty(true);
+        var previous = new RuntimeSkillIr(RuntimeSkillIr.SCHEMA_VERSION, "sales", "", "# Old",
+            List.of("sales.summary"), List.of(), "TEST");
+        when(repository.findByIdAndTenantId("compiled", "tenant-a")).thenReturn(Optional.of(skill));
+        when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(packageReader.latestCompilation("tenant-a", "compiled"))
+            .thenReturn(Optional.of(new DomainSkillPackageReader.CompilationView("compile-v1", previous)));
+        when(gateway.adaptAndCompile(any())).thenAnswer(invocation -> {
+            var source = (com.chatchat.chat.skills.domain.adapter.ExternalSkillSource) invocation.getArgument(0);
+            assertThat(source.content()).contains(
+                "# Changed\\n\\nUse the latest instructions.",
+                "\"capabilities\":[\"sales.summary\"]");
+            var recompiled = new RuntimeSkillIr(RuntimeSkillIr.SCHEMA_VERSION, "sales", "",
+                "# Changed\n\nUse the latest instructions.", List.of("sales.summary"), List.of(), "TEST");
+            return new ExternalSkillCompilation(recompiled, source.originalArtifact(), "hash", "{}", "{}",
+                source.sourceReference());
+        });
+        var service = new DomainSkillService(repository, mock(DomainSkillCategoryRepository.class),
+            mock(McpLicenseEntitlementPort.class), mock(DomainSkillIndexService.class),
+            mock(DomainSkillRemoteImporter.class), gateway, artifactStore, packageReader);
+
+        DomainSkillEntity result = service.recompileProtocol("tenant-a", "compiled");
+
+        var compilation = org.mockito.ArgumentCaptor.forClass(ExternalSkillCompilation.class);
+        verify(artifactStore).store(eq("tenant-a"), eq("compiled"), eq("JSON"), eq("skill.json"),
+            compilation.capture());
+        assertThat(result.getMarkdownContent()).isEqualTo("# Changed\n\nUse the latest instructions.");
+        assertThat(compilation.getValue().skillIr().markdownInstructions())
+            .isEqualTo("# Changed\n\nUse the latest instructions.");
+        assertThat(compilation.getValue().skillIr().capabilities()).containsExactly("sales.summary");
     }
 
     @Test

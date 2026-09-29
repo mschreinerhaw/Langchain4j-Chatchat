@@ -76,6 +76,11 @@ export default {
       if (value === null || value === undefined) return '5（默认）';
       return this.quotaValue(value);
     },
+    publicationQuotaHint(value) {
+      return value === null || value === undefined
+        ? '当前 License 未配置，使用兼容默认额度 5'
+        : '当前 License 授权额度';
+    },
     humanizeKey(value) {
       return String(value || '').split(/[_-]+/).filter(Boolean)
         .map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');

@@ -198,7 +198,7 @@ public class DefaultMcpAdministrationAdapter implements McpAdministrationPort {
     private RegisteredTool toRegisteredTool(McpToolRegistryBridge.RegisteredMcpTool tool) {
         return new RegisteredTool(tool.localToolName(), tool.serviceId(), tool.serviceName(), tool.remoteToolName(),
             tool.description(), tool.backendServiceType(), tool.category(), tool.categories(), tool.tags(),
-            tool.applicability());
+            tool.applicability(), tool.chineseAlias());
     }
 
     private boolean isUserVisible(String name, boolean registeredMcpTool) {

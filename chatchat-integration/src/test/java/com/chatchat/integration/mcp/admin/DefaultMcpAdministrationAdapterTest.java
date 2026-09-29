@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
 import java.util.Map;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.inOrder;
@@ -21,6 +22,30 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class DefaultMcpAdministrationAdapterTest {
+
+    @Test
+    void registeredToolsExposeTheSameChineseAliasAsCapabilityCards() {
+        McpToolRegistryBridge bridge = mock(McpToolRegistryBridge.class);
+        when(bridge.listRegisteredTools()).thenReturn(List.of(
+            new McpToolRegistryBridge.RegisteredMcpTool("mcp_service_query", "svc-1", "service",
+                "api_service_query", "description", null, null, List.of(), List.of(), Map.of(),
+                null, "API 服务查询"),
+            new McpToolRegistryBridge.RegisteredMcpTool("mcp_legacy", "svc-1", "service", "legacy", "description")));
+        DefaultMcpAdministrationAdapter adapter = new DefaultMcpAdministrationAdapter(
+            mock(McpServiceConfigService.class), mock(McpStdioProxyService.class), bridge,
+            mock(McpRuntimeKernel.class), mock(McpCenterSyncService.class), mock(McpCenterRecoveryService.class),
+            mock(ToolRegistry.class), new ObjectMapper());
+
+        var tools = adapter.listRegisteredTools();
+        assertThat(tools.get(0).chineseAlias()).isEqualTo("API 服务查询");
+        assertThat(tools.get(0).localToolName()).isEqualTo("mcp_service_query");
+        assertThat(tools.get(0).remoteToolName()).isEqualTo("api_service_query");
+        assertThat(adapter.listToolCatalog()).filteredOn(tool -> tool.localToolName().equals("mcp_service_query"))
+            .singleElement().satisfies(tool -> assertThat(tool.chineseAlias()).isEqualTo(tools.get(0).chineseAlias()));
+        assertThat(new ObjectMapper().valueToTree(tools.get(0)).path("chineseAlias").asText())
+            .isEqualTo("API 服务查询");
+        assertThat(tools.get(1).chineseAlias()).isNull();
+    }
 
     @Test
     void createOwnsPersistenceSessionInvalidationAndRuntimeRefreshTransaction() {

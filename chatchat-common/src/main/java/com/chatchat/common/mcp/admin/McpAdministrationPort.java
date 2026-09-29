@@ -149,8 +149,16 @@ public interface McpAdministrationPort extends RuntimeProtocolPort {
         String category,
         List<String> categories,
         List<String> tags,
-        Map<String, Object> applicability
+        Map<String, Object> applicability,
+        String chineseAlias
     ) {
+        public RegisteredTool(String localToolName, String serviceId, String serviceName,
+                              String remoteToolName, String description, String backendServiceType,
+                              String category, List<String> categories, List<String> tags,
+                              Map<String, Object> applicability) {
+            this(localToolName, serviceId, serviceName, remoteToolName, description, backendServiceType,
+                category, categories, tags, applicability, null);
+        }
     }
 
     record ToolCatalogEntry(

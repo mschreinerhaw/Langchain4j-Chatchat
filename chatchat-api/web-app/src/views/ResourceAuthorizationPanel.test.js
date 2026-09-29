@@ -81,10 +81,25 @@ it('shows no editable resources when the role has no bound agent', async () => {
   expect(root.querySelector('.resource-auth-resource')).toBeNull();
 });
 it('uses Chinese MCP labels and supports name filtering', async () => {
+  api.fetchMcpRegisteredTools.mockResolvedValue([
+    { localToolName: 'mcp_api_service_query', remoteToolName: 'api_service_query', chineseAlias: 'API 服务查询' },
+    { localToolName: 'mcp_legacy', remoteToolName: 'legacy' }
+  ]);
   const root = await mount();
   [...root.querySelectorAll('.resource-auth-kinds button')].find(el => el.textContent === 'MCP 工具').click(); await settle();
   expect(root.querySelector('.resource-auth-resource strong').textContent).toBe('API 服务查询');
-  const input = root.querySelectorAll('input[type=search]')[1]; input.value = '不存在'; input.dispatchEvent(new Event('input')); await nextTick();
+  expect(root.querySelectorAll('.resource-auth-resource strong')[1].textContent).toBe('legacy');
+  const input = root.querySelectorAll('input[type=search]')[1];
+  for (const keyword of ['服务查询', 'api_service_query']) {
+    input.value = keyword; input.dispatchEvent(new Event('input')); await nextTick();
+    expect(root.querySelectorAll('.resource-auth-resource')).toHaveLength(1);
+    expect(root.querySelector('.resource-auth-resource strong').textContent).toBe('API 服务查询');
+  }
+  root.querySelector('.resource-auth-resource input').click(); await settle();
+  expect(api.createResourceGrant).toHaveBeenCalledWith(expect.objectContaining({
+    resourceType: 'MCP_TOOL', resourceId: 'mcp_api_service_query'
+  }));
+  input.value = '不存在'; input.dispatchEvent(new Event('input')); await nextTick();
   expect(root.querySelector('.resource-auth-resource')).toBeNull();
 });
 

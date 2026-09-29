@@ -307,7 +307,9 @@ export default {
           : await createDomainSkill(this.form);
         if (saved?.id) this.form.id = saved.id;
         this.editorSnapshot = editorStateKey(this.form);
-        this.editorMessage = "领域技能草稿已保存";
+        this.editorMessage = saved?.status === "PUBLISHED" && !saved.publicationDirty
+          ? "领域技能内容已更新并生效"
+          : "领域技能草稿已保存";
         await this.load(false, { silent: true });
       }, "领域技能保存失败");
     },

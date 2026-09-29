@@ -204,6 +204,9 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
         String version = text(skill.getPublishedCompilationId());
         if (version.isBlank()) version = text(skill.getFederatedDigest());
         if (version.isBlank() && skill.getUpdatedAt() != null) version = skill.getUpdatedAt().toString();
+        version += ":" + java.util.UUID.nameUUIDFromBytes(
+            (text(skill.getName()) + "\u0000" + text(skill.getDescription()) + "\u0000"
+                + text(skill.getMarkdownContent())).getBytes(StandardCharsets.UTF_8));
         return new SkillDescriptor(skill.getId(), version, skill.getName(), skill.getDescription(),
             skill.getCategory(), skill.getSourceType(), skill.getFederatedSourceId(),
             skill.getFederatedSkillUri(), skill.getFederatedDigest(), score,
@@ -423,9 +426,15 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
         }
         skill.setName(name); skill.setCategory(category); skill.setDescription(text(request.description()));
         skill.setMarkdownContent(markdown.trim());
-        if (published) skill.setPublicationDirty(true);
         ensureCategory(tenantId, category);
-        return repository.save(skill);
+        DomainSkillEntity saved = repository.saveAndFlush(skill);
+        // Content updates do not invalidate the imported executable protocol or require publication.
+        // Keep an existing pending protocol change pending; only refresh currently active content.
+        if (published && !saved.isPublicationDirty()) {
+            DomainSkillIndexService.IndexResult result = indexService.index(saved);
+            if (!result.success()) throw new IllegalStateException("Domain skill index write failed: " + result.message());
+        }
+        return saved;
     }
 
     @Transactional

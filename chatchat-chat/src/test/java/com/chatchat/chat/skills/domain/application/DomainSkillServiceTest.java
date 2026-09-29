@@ -38,6 +38,40 @@ import static org.mockito.Mockito.*;
 
 class DomainSkillServiceTest {
     @Test
+    void contentUpdateResolvesLatestBodyWithoutCompilation() {
+        var repository = mock(DomainSkillRepository.class);
+        var index = mock(DomainSkillIndexService.class);
+        var grants = mock(ResourceAuthorizationPort.class);
+        var compiler = mock(ExternalSkillAdapterGateway.class);
+        var skill = skill("updated", "Old", "# Old instructions");
+        skill.setStatus("PUBLISHED");
+        skill.setPublishedCompilationId("import-v1");
+        when(repository.findByIdAndTenantId("updated", "tenant-a")).thenReturn(Optional.of(skill));
+        when(repository.findVisibleById("tenant-a", "updated")).thenReturn(Optional.of(skill));
+        when(repository.saveAndFlush(any())).thenAnswer(call -> call.getArgument(0));
+        when(index.index(skill)).thenReturn(new DomainSkillIndexService.IndexResult(true, "BM25", ""));
+        when(grants.explicitlyAllowedIds(ResourceAuthorizationPort.SKILL, "tenant-a", "user-a",
+            Set.of("role-a"), Set.of("updated"))).thenReturn(Set.of("updated"));
+        var service = service(repository, mock(McpLicenseEntitlementPort.class), index);
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "resourceAuthorization", grants);
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "externalSkillGateway", compiler);
+        var role = new SkillRoleContext("tenant-a", "user-a", List.of("role-a"), List.of(), Map.of());
+        var old = service.resolve(new SkillResolutionRequest("updated", "", role)).orElseThrow();
+
+        service.save("tenant-a", "admin", new DomainSkillService.SaveSkillCommand(
+            "updated", "Updated", "General", "New description", "# Updated instructions"));
+
+        var current = service.resolve(new SkillResolutionRequest("updated", "", role)).orElseThrow();
+        assertThat(current.instructions()).isEqualTo("# Updated instructions");
+        assertThat(current.descriptor().version()).isNotEqualTo(old.descriptor().version());
+        assertThat(skill.getPublishedCompilationId()).isEqualTo("import-v1");
+        assertThat(skill.getStatus()).isEqualTo("PUBLISHED");
+        assertThat(skill.isPublicationDirty()).isFalse();
+        verify(index).index(skill);
+        verifyNoInteractions(compiler);
+    }
+
+    @Test
     void publicationReusesCompiledProtocolWithoutRecompilingChangedInstructions() {
         var repository = mock(DomainSkillRepository.class);
         var entitlement = mock(McpLicenseEntitlementPort.class);

@@ -221,6 +221,22 @@ describe("DomainSkillsView", () => {
     expect(context.load).toHaveBeenCalledOnce();
   });
 
+  it("reports live content updates without publishing or compiling", async () => {
+    api.updateDomainSkill.mockResolvedValue({ id: "live", status: "PUBLISHED", publicationDirty: false });
+    api.publishDomainSkill.mockClear();
+    api.recompileDomainSkill.mockClear();
+    const context = {
+      busy: false, error: "", editorMessage: "",
+      form: { id: "live", name: "研究", category: "研究", description: "", markdownContent: "# 最新内容" },
+      load: vi.fn(), perform: DomainSkillsView.methods.perform
+    };
+    await DomainSkillsView.methods.save.call(context);
+    expect(api.updateDomainSkill).toHaveBeenCalledWith("live", context.form);
+    expect(context.editorMessage).toBe("领域技能内容已更新并生效");
+    expect(api.publishDomainSkill).not.toHaveBeenCalled();
+    expect(api.recompileDomainSkill).not.toHaveBeenCalled();
+  });
+
   it("uses the styled confirmation dialog for unsaved editor content", () => {
     const context = {
       busy: false, editorOpen: true, editorSnapshot: "different",

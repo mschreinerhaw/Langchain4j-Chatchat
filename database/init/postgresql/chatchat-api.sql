@@ -251,6 +251,7 @@
         created_at timestamp(6) with time zone not null,
         updated_at timestamp(6) with time zone not null,
         status varchar(32) not null,
+        source_channel varchar(32) default 'PLATFORM_UI' not null,
         mode varchar(64),
         session_id varchar(64) not null,
         tenant_id varchar(64) not null,
@@ -1614,6 +1615,9 @@
 
     create index idx_chat_session_tenant_updated
        on chat_session (tenant_id, updated_at);
+
+    create index idx_chat_session_channel_updated
+       on chat_session (tenant_id, user_id, source_channel, updated_at);
 
     create index idx_chat_session_title
        on chat_session (title);

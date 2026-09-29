@@ -23,6 +23,8 @@ import java.util.UUID;
     indexes = {
         @Index(name = "idx_chat_session_user_updated", columnList = "user_id, updated_at"),
         @Index(name = "idx_chat_session_tenant_updated", columnList = "tenant_id, updated_at"),
+        @Index(name = "idx_chat_session_channel_updated",
+            columnList = "tenant_id, user_id, source_channel, updated_at"),
         @Index(name = "idx_chat_session_title", columnList = "title")
     }
 )
@@ -43,6 +45,10 @@ public class ChatSessionEntity {
 
     @Column(length = 32, nullable = false)
     private String status = "active";
+
+    @Column(name = "source_channel", length = 32, nullable = false,
+        columnDefinition = "varchar(32) default 'PLATFORM_UI'")
+    private String sourceChannel = "PLATFORM_UI";
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -81,6 +87,9 @@ public class ChatSessionEntity {
         }
         if (status == null || status.isBlank()) {
             status = "active";
+        }
+        if (sourceChannel == null || sourceChannel.isBlank()) {
+            sourceChannel = "PLATFORM_UI";
         }
         Instant now = Instant.now();
         if (createdAt == null) {

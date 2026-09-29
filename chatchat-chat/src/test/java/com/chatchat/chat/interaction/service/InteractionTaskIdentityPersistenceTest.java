@@ -19,7 +19,7 @@ class InteractionTaskIdentityPersistenceTest {
     @Test
     void persistsAgentTaskIdentityWithTheMemoryAnswer() {
         ConversationMemoryService memoryService = mock(ConversationMemoryService.class);
-        when(memoryService.ensureConversationId("tenant-1", "conversation-1", "user-1"))
+        when(memoryService.ensureConversationId("tenant-1", "conversation-1", "user-1", null))
             .thenReturn("conversation-1");
         when(memoryService.summary("tenant-1", "conversation-1")).thenReturn(Optional.empty());
         when(memoryService.conversationEvidenceProjection("tenant-1", "conversation-1", 100, 32))

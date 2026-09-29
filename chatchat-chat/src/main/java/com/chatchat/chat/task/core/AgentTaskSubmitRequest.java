@@ -20,6 +20,7 @@ public class AgentTaskSubmitRequest {
     private String userId;
     private String agentId;
     private String sessionId;
+    private String requestSource;
     private String query;
     private String mode;
     private String systemPrompt;

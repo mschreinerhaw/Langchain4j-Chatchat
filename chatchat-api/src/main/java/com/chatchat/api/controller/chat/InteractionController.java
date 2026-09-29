@@ -151,6 +151,7 @@ public class InteractionController {
         task.setUserId(request.getUserId());
         task.setAgentId(request.getSkillId());
         task.setSessionId(request.getConversationId());
+        task.setRequestSource("PLATFORM_UI");
         task.setQuery(request.getQuery());
         task.setMode(request.getMode());
         task.setSystemPrompt(request.getSystemPrompt());
@@ -270,6 +271,9 @@ public class InteractionController {
         if (currentUserId != null && !currentUserId.isBlank()) {
             request.setUserId(currentUserId.trim());
         }
+        // This controller is the platform conversation surface. External published-Agent
+        // calls use their dedicated controller and are marked AGENT_API there.
+        request.setRequestSource("PLATFORM_UI");
     }
 
     private void authorizeAgentAccess(InteractionRequest request, HttpServletRequest servletRequest) {

@@ -95,6 +95,7 @@ public class PublishedAgentApiController {
         taskRequest.setAgentId(agent.id());
         taskRequest.setSkillId(agent.id());
         taskRequest.setSessionId(hasText(request.sessionId()) ? request.sessionId().trim() : UUID.randomUUID().toString());
+        taskRequest.setRequestSource("AGENT_API");
         taskRequest.setQuery(request.question().trim());
         taskRequest.setMode(publishedExecutionMode(agent));
         taskRequest.setStream(false);

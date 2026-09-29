@@ -44,6 +44,8 @@ public class ConversationService {
 
     private static final String DEFAULT_TENANT_ID = "default";
     private static final String DEFAULT_USER_ID = "anonymous";
+    private static final String PLATFORM_UI = "PLATFORM_UI";
+    private static final String AGENT_API = "AGENT_API";
     private static final Set<String> IN_PROGRESS_STATUSES = Set.of("running", "streaming", "pending");
 
     private final ChatSessionRepository sessionRepository;
@@ -104,9 +106,22 @@ public class ConversationService {
 
     @Transactional
     public String ensureConversationId(String tenantId, String conversationId, String userId) {
+        return ensureConversationId(tenantId, conversationId, userId, "PLATFORM_UI");
+    }
+
+    @Transactional
+    public String ensureConversationId(String tenantId, String conversationId, String userId,
+                                       String requestSource) {
         String normalizedTenantId = normalizeTenantId(tenantId);
+        String sourceChannel = normalizeSourceChannel(requestSource);
         if (conversationId == null || conversationId.isBlank()) {
-            return createConversation(normalizedTenantId, userId, "New Conversation").getId();
+            ChatSessionEntity session = new ChatSessionEntity();
+            session.setTenantId(normalizedTenantId);
+            session.setUserId(normalize(userId, DEFAULT_USER_ID));
+            session.setTitle("New Conversation");
+            session.setStatus("active");
+            session.setSourceChannel(sourceChannel);
+            return sessionRepository.save(session).getSessionId();
         }
         String normalizedConversationId = conversationId.trim();
         Optional<ChatSessionEntity> existing = sessionRepository.findById(normalizedConversationId);
@@ -120,6 +135,7 @@ public class ConversationService {
         session.setUserId(normalize(userId, DEFAULT_USER_ID));
         session.setTitle("New Conversation");
         session.setStatus("active");
+        session.setSourceChannel(sourceChannel);
         sessionRepository.save(session);
         return normalizedConversationId;
     }
@@ -151,14 +167,15 @@ public class ConversationService {
      */
     @Transactional(readOnly = true)
     public List<Conversation> listUserConversations(String userId) {
-        return sessionRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream()
+        return sessionRepository.findPlatformByUserIdOrderByUpdatedAtDesc(userId).stream()
             .map(session -> toConversation(session, List.of()))
             .toList();
     }
 
     @Transactional(readOnly = true)
     public List<Conversation> listUserConversations(String tenantId, String userId) {
-        return sessionRepository.findByTenantIdAndUserIdOrderByUpdatedAtDesc(normalizeTenantId(tenantId), normalize(userId, DEFAULT_USER_ID)).stream()
+        return sessionRepository.findPlatformByTenantIdAndUserIdOrderByUpdatedAtDesc(
+                normalizeTenantId(tenantId), normalize(userId, DEFAULT_USER_ID)).stream()
             .map(session -> toConversation(session, List.of()))
             .toList();
     }
@@ -176,7 +193,7 @@ public class ConversationService {
     public List<Conversation> listUserConversationSummaries(String tenantId, String userId, int page, int limit) {
         int normalizedLimit = Math.max(1, Math.min(limit, 100));
         int normalizedPage = Math.max(0, page);
-        return sessionRepository.findByTenantIdAndUserIdOrderByUpdatedAtDesc(
+        return sessionRepository.findPlatformByTenantIdAndUserIdOrderByUpdatedAtDesc(
                 normalizeTenantId(tenantId),
                 normalize(userId, DEFAULT_USER_ID),
                 PageRequest.of(normalizedPage, normalizedLimit)
@@ -201,10 +218,10 @@ public class ConversationService {
         String normalizedKeyword = keyword == null ? "" : keyword.trim();
         PageRequest pageable = PageRequest.of(normalizedPage - 1, normalizedPageSize);
         Page<ChatSessionEntity> result = normalizedKeyword.isBlank()
-            ? sessionRepository.findPageByTenantIdAndUserIdOrderByUpdatedAtDesc(
+            ? sessionRepository.findPlatformPageByTenantIdAndUserIdOrderByUpdatedAtDesc(
                 normalizedTenantId, normalizedUserId, pageable
             )
-            : sessionRepository.findPageByTenantIdAndUserIdAndTitleContainingIgnoreCaseOrderByUpdatedAtDesc(
+            : sessionRepository.findPlatformPageByTenantIdAndUserIdAndTitleContainingIgnoreCaseOrderByUpdatedAtDesc(
                 normalizedTenantId, normalizedUserId, normalizedKeyword, pageable
             );
         return new ConversationPage(
@@ -992,6 +1009,7 @@ public class ConversationService {
             .userId(session.getUserId())
             .title(session.getTitle())
             .status(session.getStatus())
+            .sourceChannel(session.getSourceChannel())
             .skillId(session.getSkillId())
             .modelName(session.getModelName())
             .mode(session.getMode())
@@ -1220,6 +1238,11 @@ public class ConversationService {
 
     private String normalizeTenantId(String value) {
         return normalize(value, DEFAULT_TENANT_ID);
+    }
+
+    private String normalizeSourceChannel(String value) {
+        return AGENT_API.equalsIgnoreCase(value == null ? "" : value.trim())
+            ? AGENT_API : PLATFORM_UI;
     }
 
     private void ensureTenant(ChatSessionEntity session, String tenantId) {

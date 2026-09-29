@@ -87,6 +87,7 @@ class PublishedAgentApiControllerTest {
         assertThat(submitted.getAgentId()).isEqualTo("finance-agent");
         assertThat(submitted.getSkillId()).isEqualTo("finance-agent");
         assertThat(submitted.getMode()).isEqualTo("agent_chat");
+        assertThat(submitted.getRequestSource()).isEqualTo("AGENT_API");
         assertThat(submitted.getToolInput()).containsEntry("region", "east").doesNotContainKey("__agentRunId");
         assertThat(submitted.getIdempotencyKey()).startsWith("published-api:").hasSize(78);
     }

@@ -87,7 +87,8 @@ public class InteractionOrchestrationService {
         String requestId = UUID.randomUUID().toString();
         String agentTaskId = agentTaskId(request);
         String tenantId = normalizeTenantId(request.getTenantId());
-        String conversationId = memoryService.ensureConversationId(tenantId, request.getConversationId(), request.getUserId());
+        String conversationId = memoryService.ensureConversationId(
+            tenantId, request.getConversationId(), request.getUserId(), request.getRequestSource());
         int historyWindow = request.getHistoryWindow() == null
             ? contextProperties.getRecentMessageLimit()
             : request.getHistoryWindow();

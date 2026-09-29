@@ -18,6 +18,7 @@ public class Conversation {
     private String userId;
     private String title;
     private String status;
+    private String sourceChannel;
     private String skillId;
     private String modelName;
     private String mode;
@@ -38,6 +39,7 @@ public class Conversation {
         this.userId = builder.userId;
         this.title = builder.title;
         this.status = builder.status;
+        this.sourceChannel = builder.sourceChannel;
         this.skillId = builder.skillId;
         this.modelName = builder.modelName;
         this.mode = builder.mode;
@@ -84,6 +86,7 @@ public class Conversation {
         private Map<String, Object> analysisSelection;
         private Boolean streaming;
         private String status;
+        private String sourceChannel;
         private String taskId;
 
         /**
@@ -181,6 +184,7 @@ public class Conversation {
         private String userId;
         private String title;
         private String status;
+        private String sourceChannel;
         private String skillId;
         private String modelName;
         private String mode;
@@ -236,6 +240,11 @@ public class Conversation {
          */
         public ConversationBuilder status(String status) {
             this.status = status;
+            return this;
+        }
+
+        public ConversationBuilder sourceChannel(String sourceChannel) {
+            this.sourceChannel = sourceChannel;
             return this;
         }
 

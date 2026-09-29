@@ -81,6 +81,11 @@ public class ConversationMemoryService {
         return conversationService.ensureConversationId(tenantId, conversationId, userId);
     }
 
+    public String ensureConversationId(String tenantId, String conversationId, String userId,
+                                       String requestSource) {
+        return conversationService.ensureConversationId(tenantId, conversationId, userId, requestSource);
+    }
+
     /**
      * Appends the append.
      *

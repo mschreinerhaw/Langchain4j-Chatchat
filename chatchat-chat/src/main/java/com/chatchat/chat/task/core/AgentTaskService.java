@@ -2630,6 +2630,8 @@ public class AgentTaskService {
         request.setSessionId(firstText(request.getSessionId(), request.getIdempotencyKey() == null
             ? UUID.randomUUID().toString()
             : idempotentTaskId(request.getTenantId(), "session:" + request.getIdempotencyKey())));
+        request.setRequestSource("AGENT_API".equalsIgnoreCase(request.getRequestSource())
+            ? "AGENT_API" : "PLATFORM_UI");
         request.setMode(firstText(request.getMode(), "agent_chat"));
         if (request.getSkillId() == null || request.getSkillId().isBlank()) {
             request.setSkillId(request.getAgentId());

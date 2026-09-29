@@ -21,6 +21,7 @@ import org.springframework.data.domain.Pageable;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -36,6 +37,28 @@ import static org.mockito.Mockito.when;
 class ConversationServiceHistorySummaryTest {
 
     @Test
+    void agentApiConversationIsMarkedOutsidePlatformHistoryChannel() {
+        ChatSessionRepository sessionRepository = mock(ChatSessionRepository.class);
+        when(sessionRepository.findById("api-session")).thenReturn(Optional.empty());
+        when(sessionRepository.save(any(ChatSessionEntity.class))).thenAnswer(invocation -> {
+            ChatSessionEntity session = invocation.getArgument(0);
+            session.onCreate();
+            return session;
+        });
+        ConversationService service = new ConversationService(
+            sessionRepository, mock(ChatMessageIndexRepository.class),
+            mock(ConversationSummaryRepository.class), mock(ChatMessageDetailStore.class));
+
+        String id = service.ensureConversationId(
+            "tenant-1", "api-session", "user-1", "AGENT_API");
+
+        ArgumentCaptor<ChatSessionEntity> session = ArgumentCaptor.forClass(ChatSessionEntity.class);
+        verify(sessionRepository).save(session.capture());
+        assertEquals("api-session", id);
+        assertEquals("AGENT_API", session.getValue().getSourceChannel());
+    }
+
+    @Test
     void summaryListReadsOnlySessionHeaders() {
         ChatSessionRepository sessionRepository = mock(ChatSessionRepository.class);
         ChatMessageIndexRepository messageIndexRepository = mock(ChatMessageIndexRepository.class);
@@ -48,7 +71,7 @@ class ConversationServiceHistorySummaryTest {
         session.setTitle("历史标题");
         session.setStatus("completed");
         session.onCreate();
-        when(sessionRepository.findByTenantIdAndUserIdOrderByUpdatedAtDesc(
+        when(sessionRepository.findPlatformByTenantIdAndUserIdOrderByUpdatedAtDesc(
             eq("tenant-1"), eq("user-1"), any(Pageable.class)
         )).thenReturn(List.of(session));
 
@@ -75,7 +98,7 @@ class ConversationServiceHistorySummaryTest {
         ChatMessageIndexRepository messageIndexRepository = mock(ChatMessageIndexRepository.class);
         ConversationSummaryRepository summaryRepository = mock(ConversationSummaryRepository.class);
         ChatMessageDetailStore detailStore = mock(ChatMessageDetailStore.class);
-        when(sessionRepository.findByTenantIdAndUserIdOrderByUpdatedAtDesc(
+        when(sessionRepository.findPlatformByTenantIdAndUserIdOrderByUpdatedAtDesc(
             eq("tenant-1"), eq("user-1"), any(Pageable.class)
         )).thenReturn(List.of());
         ConversationService service = new ConversationService(
@@ -84,7 +107,7 @@ class ConversationServiceHistorySummaryTest {
         service.listUserConversationSummaries("tenant-1", "user-1", 1, 30);
 
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(sessionRepository).findByTenantIdAndUserIdOrderByUpdatedAtDesc(
+        verify(sessionRepository).findPlatformByTenantIdAndUserIdOrderByUpdatedAtDesc(
             eq("tenant-1"), eq("user-1"), pageable.capture());
         assertEquals(1, pageable.getValue().getPageNumber());
         assertEquals(30, pageable.getValue().getPageSize());

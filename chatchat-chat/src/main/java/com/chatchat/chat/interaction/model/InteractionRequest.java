@@ -20,6 +20,7 @@ import java.util.Map;
 public class InteractionRequest {
 
     private String conversationId;
+    private String requestSource;
     private String tenantId;
     private String userId;
     private String mode;

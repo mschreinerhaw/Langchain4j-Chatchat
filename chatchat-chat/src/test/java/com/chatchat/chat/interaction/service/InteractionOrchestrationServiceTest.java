@@ -57,7 +57,7 @@ class InteractionOrchestrationServiceTest {
     @Test
     void sanitizesReconciliationDetailsAtUnifiedResponseBoundary() {
         ConversationMemoryService memoryService = mock(ConversationMemoryService.class);
-        when(memoryService.ensureConversationId("default", null, "user-1")).thenReturn("conversation-1");
+        when(memoryService.ensureConversationId("default", null, "user-1", null)).thenReturn("conversation-1");
         when(memoryService.summary("default", "conversation-1")).thenReturn(Optional.empty());
         when(memoryService.conversationEvidenceProjection("default", "conversation-1", 100, 32))
             .thenReturn("");

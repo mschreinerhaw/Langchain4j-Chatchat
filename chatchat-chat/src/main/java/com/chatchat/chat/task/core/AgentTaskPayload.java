@@ -23,6 +23,7 @@ public class AgentTaskPayload {
         String skillId = firstText(request.getSkillId(), request.getAgentId());
         return InteractionRequest.builder()
             .conversationId(request.getSessionId())
+            .requestSource(request.getRequestSource())
             .tenantId(request.getTenantId())
             .userId(firstText(request.getUserId(), "anonymous"))
             .mode(firstText(request.getMode(), "agent_chat"))

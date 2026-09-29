@@ -23,9 +23,23 @@ public interface ChatSessionRepository extends JpaRepository<ChatSessionEntity, 
      */
     List<ChatSessionEntity> findByUserIdOrderByUpdatedAtDesc(String userId);
 
+    @Query("select s from ChatSessionEntity s where s.userId = :userId "
+        + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' order by s.updatedAt desc")
+    List<ChatSessionEntity> findPlatformByUserIdOrderByUpdatedAtDesc(@Param("userId") String userId);
+
     List<ChatSessionEntity> findByTenantIdAndUserIdOrderByUpdatedAtDesc(String tenantId, String userId);
 
+    @Query("select s from ChatSessionEntity s where s.tenantId = :tenantId and s.userId = :userId "
+        + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' order by s.updatedAt desc")
+    List<ChatSessionEntity> findPlatformByTenantIdAndUserIdOrderByUpdatedAtDesc(
+        @Param("tenantId") String tenantId, @Param("userId") String userId);
+
     List<ChatSessionEntity> findByTenantIdAndUserIdOrderByUpdatedAtDesc(String tenantId, String userId, Pageable pageable);
+
+    @Query("select s from ChatSessionEntity s where s.tenantId = :tenantId and s.userId = :userId "
+        + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' order by s.updatedAt desc")
+    List<ChatSessionEntity> findPlatformByTenantIdAndUserIdOrderByUpdatedAtDesc(
+        @Param("tenantId") String tenantId, @Param("userId") String userId, Pageable pageable);
 
     Page<ChatSessionEntity> findPageByTenantIdAndUserIdOrderByUpdatedAtDesc(
         String tenantId,
@@ -33,12 +47,29 @@ public interface ChatSessionRepository extends JpaRepository<ChatSessionEntity, 
         Pageable pageable
     );
 
+    @Query(value = "select s from ChatSessionEntity s where s.tenantId = :tenantId and s.userId = :userId "
+        + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' order by s.updatedAt desc",
+        countQuery = "select count(s) from ChatSessionEntity s where s.tenantId = :tenantId and s.userId = :userId "
+            + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI'")
+    Page<ChatSessionEntity> findPlatformPageByTenantIdAndUserIdOrderByUpdatedAtDesc(
+        @Param("tenantId") String tenantId, @Param("userId") String userId, Pageable pageable);
+
     Page<ChatSessionEntity> findPageByTenantIdAndUserIdAndTitleContainingIgnoreCaseOrderByUpdatedAtDesc(
         String tenantId,
         String userId,
         String title,
         Pageable pageable
     );
+
+    @Query(value = "select s from ChatSessionEntity s where s.tenantId = :tenantId and s.userId = :userId "
+        + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' "
+        + "and lower(s.title) like lower(concat('%', :title, '%')) order by s.updatedAt desc",
+        countQuery = "select count(s) from ChatSessionEntity s where s.tenantId = :tenantId and s.userId = :userId "
+            + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' "
+            + "and lower(s.title) like lower(concat('%', :title, '%'))")
+    Page<ChatSessionEntity> findPlatformPageByTenantIdAndUserIdAndTitleContainingIgnoreCaseOrderByUpdatedAtDesc(
+        @Param("tenantId") String tenantId, @Param("userId") String userId,
+        @Param("title") String title, Pageable pageable);
 
     java.util.Optional<ChatSessionEntity> findBySessionIdAndTenantId(String sessionId, String tenantId);
 

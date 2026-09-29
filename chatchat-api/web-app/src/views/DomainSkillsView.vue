@@ -200,7 +200,7 @@
             <small class="domain-skill-http-hint">仅在可信内网接口需要时开启；本机、回环及链路本地地址始终禁止访问。接口响应需为 Markdown 或 ZIP。</small>
           </section>
         </div>
-        <label v-else class="file-picker"><input ref="importFileInput" type="file" accept=".zip,.md,.markdown,.json,.yaml,.yml,text/markdown,application/zip,application/json" required @change="chooseImport"><strong>{{ importFile?.name || '选择 ZIP、Markdown、JSON 或 YAML 文件' }}</strong><small>最大 5MB，导入后保存为草稿</small></label>
+        <label v-else class="file-picker"><input ref="importFileInput" type="file" accept=".zip,.md,.markdown,.json,.yaml,.yml,text/markdown,application/zip,application/json" required @change="chooseImport"><strong>{{ importFile?.name || '选择文件' }}</strong><small>支持 ZIP、Markdown、JSON、YAML，最大 5MB；导入后保存为草稿</small></label>
         <footer><button type="button" class="secondary-button" @click="requestCloseImport">取消</button><button :disabled="busy || importTaskRunning || !importCategory || (importMode === 'file' ? !importFile : !importUrl.trim())"><span v-if="busy || importTaskRunning" class="domain-skill-button-spinner" aria-hidden="true"></span>{{ busy ? '正在提交' : (importTaskRunning ? '后台处理中' : '导入') }}</button></footer>
       </form>
     </div>

@@ -21,13 +21,13 @@
           <button type="button" :disabled="!!busyKey" @click="loadRoleBindings">刷新</button>
         </div>
         <p class="resource-auth-hint">{{ allAgentAccess ? '来源：全部 Agent 访问权限。无需逐个绑定，新增 Agent 自动包含。' : '绑定关系在角色管理中维护。' }}</p>
-        <div v-if="!roleId" class="resource-auth-empty">请先选择角色</div>
-        <div v-else-if="bindingLoading" class="resource-auth-empty">正在加载…</div>
-        <div v-else-if="!filteredBoundAgents.length" class="resource-auth-empty">{{ boundAgentItems.length ? '没有匹配的 Agent' : '该角色尚未绑定 Agent' }}</div>
-        <div v-else class="resource-auth-list">
+        <div class="resource-auth-list" :aria-busy="bindingLoading">
+          <div v-if="!roleId || bindingLoading || !filteredBoundAgents.length" class="resource-auth-list-state" role="status">
+            {{ !roleId ? '请先选择角色' : bindingLoading ? '正在加载…' : boundAgentItems.length ? '没有匹配的 Agent' : '该角色尚未绑定 Agent' }}
+          </div>
           <button v-for="item in filteredBoundAgents" :key="item.id" type="button"
             class="resource-auth-item resource-auth-agent" :class="{ selected: skillId === item.id }"
-            :aria-pressed="skillId === item.id" :disabled="!!busyKey" @click="skillId = item.id">
+            :aria-pressed="skillId === item.id" :disabled="!!busyKey || bindingLoading" @click="skillId = item.id">
             <span><strong>{{ item.name }}</strong><small>{{ item.id }}</small></span>
           </button>
         </div>
@@ -44,23 +44,22 @@
           <button type="button" :disabled="!!busyKey" @click="reloadResources">刷新</button>
         </div>
         <p class="resource-auth-hint">{{ inheritedFullAccess ? '已继承角色级全部资源授权，无需逐项勾选，新增资源自动包含。本页只读展示生效状态；显式禁止和资源自身访问限制仍然生效。' : '勾选后仅授权当前角色使用所选 Agent 时访问该资源；取消勾选将禁止此关系访问该资源。资源自身的访问限制仍然生效。' }}</p>
-        <div v-if="!roleId" class="resource-auth-empty">请先选择角色</div>
-        <div v-else-if="!skillId" class="resource-auth-empty">请先从左侧选择已绑定的 Agent</div>
-        <div v-else-if="loading || grantsLoading" class="resource-auth-empty">正在加载…</div>
-        <div v-else-if="!grantItems.length" class="resource-auth-empty">没有匹配的资源</div>
-        <div v-else class="resource-auth-list">
-          <label v-for="item in grantItems" :key="item.id" class="resource-auth-item resource-auth-resource">
-            <input type="checkbox" :checked="hasGrant(item.id)" :disabled="!!busyKey || !grantsLoaded || inheritedFullAccess"
+        <div class="resource-auth-list" :aria-busy="loading || grantsLoading">
+          <div v-if="!roleId || !skillId || loading || grantsLoading || !grantItems.length" class="resource-auth-list-state" role="status">
+            {{ !roleId ? '请先选择角色' : !skillId ? '请先从左侧选择已绑定的 Agent' : loading || grantsLoading ? '正在加载…' : '没有匹配的资源' }}
+          </div>
+          <label v-for="item in (roleId && skillId ? grantItems : [])" :key="`${grantKind}:${item.id}`" class="resource-auth-item resource-auth-resource">
+            <input type="checkbox" :checked="hasGrant(item.id)" :disabled="!!busyKey || loading || bindingLoading || !grantsLoaded || inheritedFullAccess"
               @change="toggleGrant(item.id, $event.target.checked)" />
             <span><strong>{{ item.name }}</strong><small>{{ item.id }}</small></span>
           </label>
         </div>
-        <div v-if="grantKind === 'KNOWLEDGE'" class="resource-auth-page">
+        <div class="resource-auth-page" :class="{ 'resource-auth-reserved': grantKind !== 'KNOWLEDGE' }" :aria-hidden="grantKind !== 'KNOWLEDGE'">
           <button type="button" :disabled="documentPage <= 1 || loading || !!busyKey" @click="documentPage--">上一页</button>
           <span>{{ documentPage }} / {{ documentPages }}</span>
           <button type="button" :disabled="documentPage >= documentPages || loading || !!busyKey" @click="documentPage++">下一页</button>
         </div>
-        <p v-if="skillId && grantsLoaded" class="resource-auth-count">当前列表已授权 {{ selectedGrantCount }} / {{ grantItems.length }} 项{{ grantKindLabel }}{{ inheritedFullAccess ? '（继承全量授权）' : '' }}</p>
+        <p class="resource-auth-count" :class="{ 'resource-auth-reserved': !skillId || !grantsLoaded }">当前列表已授权 {{ selectedGrantCount }} / {{ grantItems.length }} 项{{ grantKindLabel }}{{ inheritedFullAccess ? '（继承全量授权）' : '' }}</p>
       </div>
     </div>
   </section>
@@ -95,7 +94,7 @@ export default {
       categories: [], documents: [], domainSkills: [], mcpTools: [], grants: [], roleAgentIds: [],
       loading: false, bindingLoading: false, grantsLoading: false, grantsLoaded: false, allAgentAccess: false,
       busyKey: "", notice: "", failed: false, noticeTimer: null,
-      catalogVersion: 0, bindingVersion: 0, grantVersion: 0
+      catalogVersion: 0, bindingVersion: 0, grantVersion: 0, catalogTenantId: ""
     };
   },
   computed: {
@@ -147,7 +146,7 @@ export default {
     },
     initialRoleId(value) { if (value) this.roleId = value; },
     roleId() {
-      this.skillId = ""; this.roleAgentIds = [];
+      this.skillId = ""; this.roleAgentIds = []; this.allAgentAccess = false;
       this.loadGrants(); this.loadRoleBindings();
     },
     boundAgentItems(items) { if (!items.some((item) => item.id === this.skillId)) this.skillId = items[0]?.id || ""; },
@@ -175,8 +174,7 @@ export default {
     async reloadResources() { await Promise.all([this.loadCatalog(), this.loadGrants()]); },
     async loadRoleBindings() {
       const version = ++this.bindingVersion;
-      this.roleAgentIds = []; this.allAgentAccess = false;
-      if (!this.roleId) { this.bindingLoading = false; return; }
+      if (!this.roleId) { this.roleAgentIds = []; this.allAgentAccess = false; this.bindingLoading = false; return; }
       this.bindingLoading = true;
       try {
         const authorization = await fetchRoleAuthorization(this.roleId);
@@ -184,12 +182,19 @@ export default {
           this.roleAgentIds = Array.isArray(authorization?.agentIds) ? authorization.agentIds : [];
           this.allAgentAccess = authorization?.allAgentAccess === true;
         }
-      } catch (error) { if (version === this.bindingVersion) this.showError(error); }
+      } catch (error) {
+        if (version === this.bindingVersion) {
+          this.roleAgentIds = []; this.allAgentAccess = false; this.showError(error);
+        }
+      }
       finally { if (version === this.bindingVersion) this.bindingLoading = false; }
     },
     async loadCatalog() {
       const version = ++this.catalogVersion;
-      this.categories = []; this.documents = []; this.domainSkills = []; this.mcpTools = [];
+      if (this.catalogTenantId !== this.tenantId) {
+        this.categories = []; this.documents = []; this.domainSkills = []; this.mcpTools = [];
+        this.catalogTenantId = this.tenantId;
+      }
       if (!this.tenantId) { this.loading = false; return; }
       this.loading = true;
       try {
@@ -233,7 +238,7 @@ export default {
       finally { if (version === this.grantVersion) this.grantsLoading = false; }
     },
     async toggleGrant(id, checked) {
-      if (!this.roleId || !this.tenantId || !this.skillId || this.busyKey || !this.grantsLoaded || this.inheritedFullAccess) return;
+      if (!this.roleId || !this.tenantId || !this.skillId || this.busyKey || this.loading || this.bindingLoading || !this.grantsLoaded || this.inheritedFullAccess) return;
       const roleId = this.roleId, kind = this.grantKind, agentId = this.skillId;
       this.busyKey = id; this.notice = "";
       try {

@@ -140,3 +140,21 @@ it('clears unrestricted access when switching to an ordinary role', async () => 
   expect(root.querySelectorAll('.resource-auth-agent')).toHaveLength(1);
   expect(root.textContent).not.toContain('拥有全部 Agent 访问权限');
 });
+
+it('keeps list containers and scroll positions while grants reload', async () => {
+  const root = await mount();
+  const lists = [...root.querySelectorAll('.resource-auth-list')];
+  lists[0].scrollTop = 120; lists[1].scrollTop = 80;
+  let resolveGrants;
+  api.fetchResourceGrants.mockImplementation((_tenant, _kind, agent) => agent
+    ? new Promise(resolve => { resolveGrants = resolve; }) : Promise.resolve([]));
+  root.querySelectorAll('.resource-auth-agent')[1].click(); await settle();
+  expect(root.querySelectorAll('.resource-auth-list')[1]).toBe(lists[1]);
+  expect(lists[1].getAttribute('aria-busy')).toBe('true');
+  expect(lists[0].scrollTop).toBe(120);
+  expect(lists[1].scrollTop).toBe(80);
+  expect(root.querySelector('.resource-auth-resource input').disabled).toBe(true);
+  resolveGrants([]); await settle();
+  expect(root.querySelectorAll('.resource-auth-list')[1]).toBe(lists[1]);
+  expect(lists[1].scrollTop).toBe(80);
+});

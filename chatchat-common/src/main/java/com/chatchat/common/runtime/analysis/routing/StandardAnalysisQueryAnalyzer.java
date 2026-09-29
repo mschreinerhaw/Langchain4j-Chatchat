@@ -20,12 +20,16 @@ public final class StandardAnalysisQueryAnalyzer implements AnalysisQueryAnalyze
 
     @Override
     public AnalysisIntent analyze(AnalysisContext context) {
+        if (context.intent() != null) return context.intent();
         Set<AnalysisCapability> required = declaredCapabilities(context);
         String query = context.query().toLowerCase(Locale.ROOT);
-        if (required.isEmpty() && AssetGuidanceIntent.matches(query)) {
-            return new AnalysisIntent("ASSET_GUIDANCE", entities(context.query()),
-                Set.of(AnalysisCapability.ASSET_GUIDANCE), "UNSPECIFIED", true);
-        }
+        // Asset guidance is selected by the upstream analysis plan, never business keywords.
+        if (required.isEmpty() && context.attributes().get("problemAnalysisPlan")
+            instanceof com.chatchat.common.runtime.capability.ProblemAnalysisPlan plan
+            && plan.status() == com.chatchat.common.runtime.capability.ProblemAnalysisPlan.Status.READY
+            && plan.tasks().stream().allMatch(task -> task.intent()
+                == com.chatchat.common.runtime.capability.ProblemAnalysisPlan.Intent.ASSET_USAGE_GUIDANCE))
+            required.add(AnalysisCapability.ASSET_GUIDANCE);
         if (required.isEmpty()) {
             if (context.attributes().containsKey(AnalysisContext.AGENT_CAPABILITY_ATTRIBUTE))
                 required.add(AnalysisCapability.DOMAIN_INTELLIGENCE);

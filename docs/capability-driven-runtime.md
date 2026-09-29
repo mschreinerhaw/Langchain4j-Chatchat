@@ -41,12 +41,18 @@ tool selection Top-K and runtime budgets still apply during execution.
 
 - Document and Action use the existing governed Agent runtime; configured Skill
   Intelligence cannot intercept them.
-- Data Analysis can use an authorized bound Skill provider. Engine configuration
-  without eligible skills does not block the existing native execution path.
+- Data Analysis always enters the original governed Runtime, even with a configured
+  Skill engine and published bound skills. Skills contribute authorized domain
+  planning knowledge; they are not a competing execution provider.
+- The authoritative execution chain remains `GraphPlanningPort → InterpretationPlan
+  → plan validation → InterpretationAnalysisGraph`. Fixed MCP workflow dependencies,
+  parameter binding, data acquisition, analysis, synthesis and publication stay with
+  that chain. Skills cannot replace the plan or acquire data through a parallel loop.
 - Asset Guidance uses the template/metadata workflow. Domain skills are optional
   enrichment. A missing template can produce a default metadata requirement;
   acquisition stays within the existing bounded metadata path.
 - Role-chat still cannot acquire data through MCP.
+  Domain skills enhance its existing prompt/context path, not a separate Skill runtime.
 - A composite provider must support every required capability. A missing required
   capability prevents its execution; an optional capability does not.
 - One selected provider runs once. A failed or empty result does not automatically
@@ -76,3 +82,12 @@ are not automatically converted into these Agent workflows.
 
 No database migration is required. Rebuild and deploy the backend to activate the
 change; previously persisted failed tasks are not rewritten.
+
+## No business-specific Asset Guidance trigger
+
+`AssetGuidanceIntent` and its business-phrase matching have been removed. The Agent
+entry selects Asset Guidance from the problem analysis plan. The lower-level
+analysis adapter honors a supplied intent, declared capability or typed plan;
+asset names and phrases cannot switch an existing execution into guidance.
+The old generic baseline analyzer remains for legacy unplanned non-guidance callers;
+this change does not redesign those callers or the existing graph engine.

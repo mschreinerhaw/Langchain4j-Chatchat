@@ -52,8 +52,6 @@ public class RoleChatModeHandler implements InteractionModeHandler {
     private DomainSkillPlanningRouter domainSkillPlanningRouter;
     @Autowired(required = false)
     private SkillExecutionScopePort skillExecutionScope;
-    @Autowired(required = false)
-    private com.chatchat.chat.skills.runtime.SkillIntelligenceInteractionBridge skillIntelligence;
     @Autowired
     private com.chatchat.chat.interaction.service.ProblemAnalysisPlanner problemAnalysisPlanner;
 
@@ -85,12 +83,7 @@ public class RoleChatModeHandler implements InteractionModeHandler {
             : problemAnalysisPlanner.analyze(request, context, skill);
         if (!com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.executable(understanding))
             return com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.blockedResponse(understanding);
-        if (skillIntelligence != null
-            && new com.chatchat.common.runtime.capability.CapabilityWorkflowRouter().route(understanding)
-                == com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.DATA_ANALYSIS
-            && skillIntelligence.available(request, skill, effectiveScope.roles()))
-            return com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.attach(
-                skillIntelligence.execute(request, context.toBuilder().problemAnalysisPlan(understanding).build(), skill, effectiveScope.roles()), understanding);
+        // Role-chat applies domain skills as context; it never starts a competing analysis runtime.
         com.chatchat.common.knowledge.runtime.KnowledgeContext knowledge = retrieveKnowledge(request, skill, effectiveScope);
         List<String> configuredDomainSkillIds = configuredDomainSkillIds(skill);
         List<DomainSkillRuntimePort.DomainSkillContent> domainSkills = resolveDomainSkills(

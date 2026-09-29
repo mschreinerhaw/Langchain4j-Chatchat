@@ -81,16 +81,14 @@ class AgentChatModeHandlerTest {
     }
 
     @Test
-    void documentAndActionBypassSkillIntelligenceWhileAnalysisWithoutCandidatesUsesNativeRuntime() {
+    void documentActionAndDataAnalysisKeepOriginalGovernedExecutionPath() {
         for (String family : List.of("DOCUMENT", "ACTION", "DATA_ANALYSIS")) {
             var orchestrator = mock(AgentOrchestrator.class);
             var catalog = mock(SkillCatalogService.class);
             var toolRegistry = mock(ToolRegistry.class);
             var bridge = mock(McpToolCatalogQueryPort.class);
-            var intelligence = mock(com.chatchat.chat.skills.runtime.SkillIntelligenceInteractionBridge.class);
             var handler = new AgentChatModeHandler(orchestrator, catalog,
                 new AgentToolPolicyResolver(toolRegistry, catalog, bridge));
-            org.springframework.test.util.ReflectionTestUtils.setField(handler, "skillIntelligence", intelligence);
             when(catalog.resolve("ops")).thenReturn(skillWithoutWebSearch());
             when(bridge.registeredTools()).thenReturn(List.of());
             when(orchestrator.executeAgent(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
@@ -103,18 +101,15 @@ class AgentChatModeHandlerTest {
                 .containsEntry("capabilityProvider", "governed-" + family.toLowerCase(java.util.Locale.ROOT));
             verify(orchestrator).executeAgent(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
                 anyInt(), any(), anyBoolean(), any());
-            if (!"DATA_ANALYSIS".equals(family)) org.mockito.Mockito.verifyNoInteractions(intelligence);
-            org.mockito.Mockito.verify(intelligence, org.mockito.Mockito.never()).execute(any(), any(), any(), any());
         }
     }
 
     @Test
-    void assetGuidancePrecedesSkillDataAnalysisAndAgentExecution() {
+    void assetGuidanceRunsOnlyWhenSelectedByProblemPlan() {
         var catalog = mock(SkillCatalogService.class);
         var orchestrator = mock(AgentOrchestrator.class);
         var policies = mock(AgentToolPolicyResolver.class);
         var guidance = mock(com.chatchat.chat.asset.AssetGuidanceInteractionBridge.class);
-        var intelligence = mock(com.chatchat.chat.skills.runtime.SkillIntelligenceInteractionBridge.class);
         var agent = skillWithoutWebSearch();
         when(catalog.resolve("ops")).thenReturn(agent);
         var request = InteractionRequest.builder().skillId("ops").query("这个 API 怎么用").build();
@@ -124,9 +119,8 @@ class AgentChatModeHandlerTest {
         when(guidance.execute(request, context, agent)).thenReturn(expected);
         var handler = new AgentChatModeHandler(orchestrator, catalog, policies);
         org.springframework.test.util.ReflectionTestUtils.setField(handler, "assetGuidance", guidance);
-        org.springframework.test.util.ReflectionTestUtils.setField(handler, "skillIntelligence", intelligence);
         assertThat(handler.handle(request, context)).isSameAs(expected);
-        org.mockito.Mockito.verifyNoInteractions(orchestrator, intelligence, policies);
+        org.mockito.Mockito.verifyNoInteractions(orchestrator, policies);
     }
 
 
@@ -244,7 +238,7 @@ class AgentChatModeHandlerTest {
             base.defaultMode(), base.modelName(), base.systemPrompt(), base.firstUseGreeting(),
             base.preferredToolPrefixes(), base.boundMcpServiceIds(), base.boundMcpToolNames(),
             base.boundDocumentIds(), base.boundDocumentTags(), base.toolConfigs(), base.routingSettings(),
-            Map.of("boundDomainSkillIds", List.of("skill-risk")), base.defaultDataAsset(),
+            Map.of("boundDomainSkillIds", List.of("skill-risk"), "skillIntelligenceEngine", "GOOGLE_ADK_NATIVE"), base.defaultDataAsset(),
             base.assetSelectionPolicy(), base.quickQuestions(), base.marketStatus(), base.defaultAgent());
         when(skillCatalogService.resolve("ops")).thenReturn(configured);
         when(bridge.registeredTools()).thenReturn(List.of());
@@ -272,9 +266,11 @@ class AgentChatModeHandlerTest {
         when(orchestrator.executeAgent(
             anyString(), eq("tenant-a"), anyList(), anyString(), isNull(), anyList(), anyList(),
             anyString(), anyString(), anyString(), anyString(), anyInt(), anyList(), anyBoolean(), anyMap()
-        )).thenReturn(agentResult("ok"));
+        )).thenReturn(new AgentOrchestrator.AgentExecutionResult("ok", List.of(), Map.of(
+            "publicStatus", "SUCCESS", "orchestrationExecutionMode", "INTERPRETATION_GRAPH_ONLY",
+            "analysisPlanningNodes", List.of("binding_preflight", "driver_planner", "plan_product"))));
 
-        handler.handle(InteractionRequest.builder().mode("agent_chat").skillId("ops")
+        var response = handler.handle(InteractionRequest.builder().mode("agent_chat").skillId("ops")
                 .query("分析组合风险").tenantId("tenant-a").userId("u1").build(),
             plannedContext().requestId("req-domain-skill").conversationId("conv-domain-skill")
                 .mode(InteractionMode.AGENT_CHAT).history(List.of()).build());
@@ -287,6 +283,11 @@ class AgentChatModeHandlerTest {
             attributes.capture());
         verify(domainSkillRuntime).retrievePublishedForAgent(eq("tenant-a"), eq("u1"), eq(List.of()), anyString(),
             eq(List.of("skill-risk")), eq("ops"));
+
+        assertThat(response.getMetadata()).containsEntry("capabilityProvider", "governed-data_analysis");
+        assertThat((Map<String, Object>) response.getMetadata().get("agent"))
+            .containsEntry("orchestrationExecutionMode", "INTERPRETATION_GRAPH_ONLY")
+            .containsKey("analysisPlanningNodes");
 
         assertThat(systemPrompt.getValue()).doesNotContain("先核验证券代码", "</domain_skills>");
         Map<String, Object> planningContext = (Map<String, Object>) attributes.getValue()

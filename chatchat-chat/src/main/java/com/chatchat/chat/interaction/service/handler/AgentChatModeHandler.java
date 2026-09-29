@@ -64,8 +64,6 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     @Autowired(required = false)
     private SkillExecutionScopePort skillExecutionScope;
     @Autowired(required = false)
-    private com.chatchat.chat.skills.runtime.SkillIntelligenceInteractionBridge skillIntelligence;
-    @Autowired(required = false)
     private com.chatchat.chat.asset.AssetGuidanceInteractionBridge assetGuidance;
     @Autowired
     private com.chatchat.chat.interaction.service.ProblemAnalysisPlanner problemAnalysisPlanner;
@@ -168,15 +166,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
                 "asset-metadata-workflow", com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.ProviderKind.MCP_WORKFLOW,
                 plan.requiredCapabilities(), () -> assetGuidance.execute(request, plannedContext, skill)));
         } else {
-            if (family == com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.DATA_ANALYSIS
-                && skillIntelligence != null && skill.workflowConfig() != null) {
-                var scope = resolveSkillScope(request, skill, resolvedSkillId(request, skill));
-                if (skillIntelligence.available(request, skill, scope.roles())) {
-                    providers.add(new com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.Provider(
-                        "skill-analysis-workflow", com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.ProviderKind.SKILL,
-                        plan.requiredCapabilities(), () -> skillIntelligence.execute(request, plannedContext, skill, scope.roles())));
-                }
-            }
+            // Skills enrich the original planner below. They must not replace its fixed MCP
+            // workflow, InterpretationPlan validation, or InterpretationAnalysisGraph execution.
             providers.add(new com.chatchat.chat.interaction.service.CapabilityWorkflowRuntime.Provider(
                 "governed-" + family.name().toLowerCase(java.util.Locale.ROOT),
                 family == com.chatchat.common.runtime.analysis.model.RuntimeWorkflowFamily.DOCUMENT

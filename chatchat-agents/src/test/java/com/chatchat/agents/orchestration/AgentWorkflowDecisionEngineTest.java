@@ -277,6 +277,7 @@ class AgentWorkflowDecisionEngineTest {
         String asset = "mcp_chatchat_mcp_server_api_asset_query";
         String query = "mcp_chatchat_mcp_server_api_template_query";
         String execute = "mcp_chatchat_mcp_server_api_template_execute";
+        AgentWorkflowDecisionEngine engine = declaredDiscoveryWorkflow(asset, query, execute, "mcp.api-template.v1");
         Map<String, Object> workflow = Map.of(
             "steps", List.of(
                 Map.of("step", 1, "tool", asset, "required", true),
@@ -298,6 +299,7 @@ class AgentWorkflowDecisionEngineTest {
         String asset = "mcp_chatchat_mcp_server_server_asset_query";
         String query = "mcp_chatchat_mcp_server_server_capability_query";
         String execute = "mcp_chatchat_mcp_server_linux_command_execute";
+        AgentWorkflowDecisionEngine engine = declaredDiscoveryWorkflow(asset, query, execute, "mcp.ssh-template.v1");
         Map<String, Object> workflow = Map.of(
             "steps", List.of(
                 Map.of("step", 1, "tool", asset, "required", true),
@@ -312,6 +314,17 @@ class AgentWorkflowDecisionEngineTest {
         assertThat(result.tools()).containsExactly(asset, query, execute);
         assertThat(result.authoritativeDag().get(1).dependsOnTools()).containsExactly(asset);
         assertThat(result.authoritativeDag().get(2).dependsOnTools()).containsExactly(query);
+    }
+
+    private AgentWorkflowDecisionEngine declaredDiscoveryWorkflow(String asset, String query, String execute, String family) {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getWorkflowRole(asset)).thenReturn(ToolWorkflowRole.ASSET_DISCOVERY);
+        when(registry.getWorkflowRole(query)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(execute)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        when(registry.getToolMetadata(asset)).thenReturn(metadata(ToolWorkflowRole.ASSET_DISCOVERY, family));
+        when(registry.getToolMetadata(query)).thenReturn(metadata(ToolWorkflowRole.TEMPLATE_DISCOVERY, family));
+        when(registry.getToolMetadata(execute)).thenReturn(metadata(ToolWorkflowRole.TEMPLATE_EXECUTION, family));
+        return new AgentWorkflowDecisionEngine(registry);
     }
 
     @Test

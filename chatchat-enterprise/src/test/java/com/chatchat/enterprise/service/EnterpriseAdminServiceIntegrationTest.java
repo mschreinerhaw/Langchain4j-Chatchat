@@ -133,6 +133,27 @@ class EnterpriseAdminServiceIntegrationTest {
     }
 
     @Test
+    void roleAuthorizationExposesEffectiveAllAgentPermissionWithoutFabricatingBindings() {
+        var user = service.login("admin", "123456").user();
+        String roleId = user.roleIds().get(0);
+        var initial = service.getRoleAuthorization(roleId);
+        assertThat(initial.allAgentAccess()).isTrue();
+        SysPermission allAgents = service.listPermissions().stream()
+            .filter(permission -> "platform:agents:all".equals(permission.getPermissionCode())).findFirst().orElseThrow();
+        allAgents.setStatus("disabled");
+        service.savePermission(allAgents);
+        assertThat(service.getRoleAuthorization(roleId).allAgentAccess()).isFalse();
+        allAgents.setStatus("enabled");
+        service.savePermission(allAgents);
+        service.saveRoleAuthorization(roleId, new EnterpriseAdminService.RoleAuthorizationRequest(
+            List.of(), List.of(), null, List.of("agent-a")));
+        var restricted = service.getRoleAuthorization(roleId);
+        assertThat(restricted.role().getRoleCode()).isEqualTo("SUPER_ADMIN");
+        assertThat(restricted.allAgentAccess()).isFalse();
+        assertThat(restricted.agentIds()).containsExactly("agent-a");
+    }
+
+    @Test
     void adminUsernameDoesNotBypassPersistedRolePermissions() {
         EnterpriseAdminService.AuthResult login = service.login("admin", "123456");
         SysPermission selfRead = service.listPermissions().stream()

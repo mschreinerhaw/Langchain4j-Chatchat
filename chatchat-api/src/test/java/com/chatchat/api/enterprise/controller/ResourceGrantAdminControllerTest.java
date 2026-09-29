@@ -42,7 +42,9 @@ class ResourceGrantAdminControllerTest {
         verify(repository).save(grant);
         when(repository.findByTenantIdAndResourceTypeOrderByUpdatedAtDesc("tenant-a", "SKILL"))
             .thenReturn(List.of(grant));
-        MockMvc mvc = standaloneSetup(controller).build();
+        MockMvc mvc = standaloneSetup(controller)
+            .setMessageConverters(new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter())
+            .build();
         mvc.perform(get("/api/v1/enterprise/resource-grants").requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-a")
             .param("tenantId", "tenant-a").param("resourceType", "SKILL"))
             .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.data.length()").value(0));

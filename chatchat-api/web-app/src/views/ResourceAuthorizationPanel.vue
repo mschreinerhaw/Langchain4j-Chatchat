@@ -14,13 +14,13 @@
     </div>
     <div class="resource-auth-columns">
       <div class="resource-auth-card">
-        <h3>角色绑定的 Agent</h3>
-        <p class="resource-auth-card-description">“{{ selectedRoleName }}”已绑定 {{ boundAgentItems.length }} 个 Agent。</p>
+        <h3>{{ allAgentAccess ? '角色可访问的 Agent' : '角色绑定的 Agent' }}</h3>
+        <p class="resource-auth-card-description">{{ allAgentAccess ? `“${selectedRoleName}”拥有全部 Agent 访问权限，当前共 ${boundAgentItems.length} 个。` : `“${selectedRoleName}”已绑定 ${boundAgentItems.length} 个 Agent。` }}</p>
         <div class="resource-auth-tools">
           <input v-model.trim="agentQuery" type="search" placeholder="搜索 Agent 名称或 ID" />
           <button type="button" :disabled="!!busyKey" @click="loadRoleBindings">刷新</button>
         </div>
-        <p class="resource-auth-hint">绑定关系在角色管理中维护。</p>
+        <p class="resource-auth-hint">{{ allAgentAccess ? '来源：全部 Agent 访问权限。无需逐个绑定，新增 Agent 自动包含。' : '绑定关系在角色管理中维护。' }}</p>
         <div v-if="!roleId" class="resource-auth-empty">请先选择角色</div>
         <div v-else-if="bindingLoading" class="resource-auth-empty">正在加载…</div>
         <div v-else-if="!filteredBoundAgents.length" class="resource-auth-empty">{{ boundAgentItems.length ? '没有匹配的 Agent' : '该角色尚未绑定 Agent' }}</div>
@@ -43,14 +43,14 @@
           <input v-model.trim="query" type="search" placeholder="筛选当前页名称或 ID" />
           <button type="button" :disabled="!!busyKey" @click="reloadResources">刷新</button>
         </div>
-        <p class="resource-auth-hint">勾选后仅授权当前角色使用所选 Agent 时访问该资源；取消勾选将禁止此关系访问该资源。资源自身的访问限制仍然生效。</p>
+        <p class="resource-auth-hint">{{ inheritedFullAccess ? '已继承角色级全部资源授权，无需逐项勾选，新增资源自动包含。本页只读展示生效状态；显式禁止和资源自身访问限制仍然生效。' : '勾选后仅授权当前角色使用所选 Agent 时访问该资源；取消勾选将禁止此关系访问该资源。资源自身的访问限制仍然生效。' }}</p>
         <div v-if="!roleId" class="resource-auth-empty">请先选择角色</div>
         <div v-else-if="!skillId" class="resource-auth-empty">请先从左侧选择已绑定的 Agent</div>
         <div v-else-if="loading || grantsLoading" class="resource-auth-empty">正在加载…</div>
         <div v-else-if="!grantItems.length" class="resource-auth-empty">没有匹配的资源</div>
         <div v-else class="resource-auth-list">
           <label v-for="item in grantItems" :key="item.id" class="resource-auth-item resource-auth-resource">
-            <input type="checkbox" :checked="hasGrant(item.id)" :disabled="!!busyKey || !grantsLoaded"
+            <input type="checkbox" :checked="hasGrant(item.id)" :disabled="!!busyKey || !grantsLoaded || inheritedFullAccess"
               @change="toggleGrant(item.id, $event.target.checked)" />
             <span><strong>{{ item.name }}</strong><small>{{ item.id }}</small></span>
           </label>
@@ -60,7 +60,7 @@
           <span>{{ documentPage }} / {{ documentPages }}</span>
           <button type="button" :disabled="documentPage >= documentPages || loading || !!busyKey" @click="documentPage++">下一页</button>
         </div>
-        <p v-if="skillId && grantsLoaded" class="resource-auth-count">当前角色下该 Agent 已授权 {{ selectedGrantCount }} 项{{ grantKindLabel }}</p>
+        <p v-if="skillId && grantsLoaded" class="resource-auth-count">当前列表已授权 {{ selectedGrantCount }} / {{ grantItems.length }} 项{{ grantKindLabel }}{{ inheritedFullAccess ? '（继承全量授权）' : '' }}</p>
       </div>
     </div>
   </section>
@@ -93,7 +93,7 @@ export default {
       skillId: "", grantKind: "SKILL", agentQuery: "", query: "",
       documentPage: 1, documentPages: 1,
       categories: [], documents: [], domainSkills: [], mcpTools: [], grants: [], roleAgentIds: [],
-      loading: false, bindingLoading: false, grantsLoading: false, grantsLoaded: false,
+      loading: false, bindingLoading: false, grantsLoading: false, grantsLoaded: false, allAgentAccess: false,
       busyKey: "", notice: "", failed: false, noticeTimer: null,
       catalogVersion: 0, bindingVersion: 0, grantVersion: 0
     };
@@ -103,6 +103,7 @@ export default {
     selectedAgentName() { return this.boundAgentItems.find((agent) => agent.id === this.skillId)?.name || "未选择 Agent"; },
     boundAgentItems() {
       const agents = new Map(this.agents.map((agent) => [String(agent.id).toLowerCase(), agent]));
+      if (this.allAgentAccess) return [...agents.values()].map((agent) => ({ id: String(agent.id), name: agent.name || agent.id }));
       return [...new Set(this.roleAgentIds.map((id) => String(id).toLowerCase()))].map((id) => {
         const agent = agents.get(id);
         return { id: agent ? String(agent.id) : id, name: agent?.name || id };
@@ -114,10 +115,13 @@ export default {
     },
     roleGrants() {
       return this.grants.filter((grant) => grant.principalType === "ROLE" && grant.principalId === this.roleId
-        && grant.agentId === this.skillId && grant.effect === "ALLOW" && grant.enabled
+        && (!grant.agentId || grant.agentId === this.skillId) && grant.enabled
         && (!grant.expiresAt || new Date(grant.expiresAt).getTime() > Date.now()));
     },
-    selectedGrantCount() { return new Set(this.roleGrants.map((grant) => grant.resourceId)).size; },
+    inheritedFullAccess() {
+      return this.allAgentAccess && this.roleGrants.some((grant) => !grant.agentId && grant.resourceId === '*' && grant.effect === 'ALLOW');
+    },
+    selectedGrantCount() { return this.grantItems.filter((item) => this.hasGrant(item.id)).length; },
     grantKindLabel() { return grantKinds.find((kind) => kind.value === this.grantKind)?.label || "资源"; },
     grantItems() {
       let items;
@@ -163,17 +167,23 @@ export default {
       this.noticeTimer = setTimeout(() => { this.notice = ""; this.noticeTimer = null; }, failed ? 5000 : 3000);
     },
     showError(error) { this.showNotice(error?.message || "操作失败", true); },
-    hasGrant(id) { return this.roleGrants.some((grant) => grant.resourceId === id); },
+    hasGrant(id) {
+      const matching = this.roleGrants.filter((grant) => grant.resourceId === id || grant.resourceId === '*');
+      return matching.some((grant) => grant.effect === 'ALLOW') && !matching.some((grant) => grant.effect === 'DENY');
+    },
     async reload() { await Promise.all([this.loadRoleBindings(), this.reloadResources()]); },
     async reloadResources() { await Promise.all([this.loadCatalog(), this.loadGrants()]); },
     async loadRoleBindings() {
       const version = ++this.bindingVersion;
-      this.roleAgentIds = [];
+      this.roleAgentIds = []; this.allAgentAccess = false;
       if (!this.roleId) { this.bindingLoading = false; return; }
       this.bindingLoading = true;
       try {
         const authorization = await fetchRoleAuthorization(this.roleId);
-        if (version === this.bindingVersion) this.roleAgentIds = Array.isArray(authorization?.agentIds) ? authorization.agentIds : [];
+        if (version === this.bindingVersion) {
+          this.roleAgentIds = Array.isArray(authorization?.agentIds) ? authorization.agentIds : [];
+          this.allAgentAccess = authorization?.allAgentAccess === true;
+        }
       } catch (error) { if (version === this.bindingVersion) this.showError(error); }
       finally { if (version === this.bindingVersion) this.bindingLoading = false; }
     },
@@ -211,16 +221,19 @@ export default {
       if (!this.tenantId || !this.roleId || !this.skillId) { this.grantsLoading = false; return; }
       this.grantsLoading = true;
       try {
-        const rows = await fetchResourceGrants(this.tenantId, this.grantKind, this.skillId);
+        const [rows, inherited] = await Promise.all([
+          fetchResourceGrants(this.tenantId, this.grantKind, this.skillId),
+          fetchResourceGrants(this.tenantId, this.grantKind)
+        ]);
         if (version === this.grantVersion) {
-          this.grants = Array.isArray(rows) ? rows : [];
+          this.grants = [...(Array.isArray(rows) ? rows : []), ...(Array.isArray(inherited) ? inherited : [])];
           this.grantsLoaded = true;
         }
       } catch (error) { if (version === this.grantVersion) this.showError(error); }
       finally { if (version === this.grantVersion) this.grantsLoading = false; }
     },
     async toggleGrant(id, checked) {
-      if (!this.roleId || !this.tenantId || !this.skillId || this.busyKey || !this.grantsLoaded) return;
+      if (!this.roleId || !this.tenantId || !this.skillId || this.busyKey || !this.grantsLoaded || this.inheritedFullAccess) return;
       const roleId = this.roleId, kind = this.grantKind, agentId = this.skillId;
       this.busyKey = id; this.notice = "";
       try {

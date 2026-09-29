@@ -87,3 +87,56 @@ it('uses Chinese MCP labels and supports name filtering', async () => {
   const input = root.querySelectorAll('input[type=search]')[1]; input.value = '不存在'; input.dispatchEvent(new Event('input')); await nextTick();
   expect(root.querySelector('.resource-auth-resource')).toBeNull();
 });
+
+it('shows all agents and inherited wildcard grants without creating explicit bindings', async () => {
+  api.fetchResearchLibrary.mockResolvedValue({ documents: [{ docId: 'doc-a', title: '资产说明' }], totalPages: 1 });
+  api.fetchRoleAuthorization.mockResolvedValue({ agentIds: ['agent-a'], allAgentAccess: true });
+  api.fetchResourceGrants.mockImplementation(async (_tenant, kind, agent) => agent ? [] : [{
+    principalType: 'ROLE', principalId: 'role-1', resourceId: '*', resourceType: kind,
+    effect: 'ALLOW', enabled: true
+  }]);
+  const root = await mount();
+  expect(root.querySelectorAll('.resource-auth-agent')).toHaveLength(3);
+  expect(root.textContent).toContain('拥有全部 Agent 访问权限');
+  expect(root.textContent).toContain('新增 Agent 自动包含');
+  for (const kind of ['领域技能', '文档', 'MCP 工具']) {
+    [...root.querySelectorAll('.resource-auth-kinds button')].find(el => el.textContent === kind).click(); await settle();
+    const checkbox = root.querySelector('.resource-auth-resource input');
+    expect(checkbox.checked).toBe(true);
+    expect(checkbox.disabled).toBe(true);
+    checkbox.click(); await settle();
+    expect(root.textContent).toContain('继承全量授权');
+  }
+  expect(api.createResourceGrant).not.toHaveBeenCalled();
+});
+
+it('does not infer admin authority from a role name or ignore explicit deny', async () => {
+  api.fetchRoleAuthorization.mockResolvedValue({ agentIds: ['agent-a'], allAgentAccess: false });
+  api.fetchResourceGrants.mockImplementation(async (_tenant, _kind, agent) => agent ? [{
+    principalType: 'ROLE', principalId: 'role-1', agentId: 'agent-a', resourceId: 'skill-a', effect: 'DENY', enabled: true
+  }] : [{ principalType: 'ROLE', principalId: 'role-1', resourceId: '*', effect: 'ALLOW', enabled: true }]);
+  const root = await mount();
+  expect(root.querySelectorAll('.resource-auth-agent')).toHaveLength(1);
+  expect(root.querySelector('.resource-auth-resource input').checked).toBe(false);
+  expect(root.querySelector('.resource-auth-resource input').disabled).toBe(false);
+});
+
+it('ignores expired wildcard grants and grants belonging to other roles', async () => {
+  api.fetchRoleAuthorization.mockResolvedValue({ agentIds: ['agent-a'], allAgentAccess: true });
+  api.fetchResourceGrants.mockResolvedValue([
+    { principalType: 'ROLE', principalId: 'role-1', resourceId: '*', effect: 'ALLOW', enabled: true, expiresAt: '2000-01-01T00:00:00Z' },
+    { principalType: 'ROLE', principalId: 'role-2', resourceId: '*', effect: 'ALLOW', enabled: true }
+  ]);
+  const root = await mount();
+  expect(root.querySelector('.resource-auth-resource input').checked).toBe(false);
+  expect(root.textContent).not.toContain('继承全量授权');
+});
+
+it('clears unrestricted access when switching to an ordinary role', async () => {
+  api.fetchRoleAuthorization.mockImplementation(async role => ({ agentIds: ['agent-b'], allAgentAccess: role === 'role-1' }));
+  const root = await mount();
+  expect(root.querySelectorAll('.resource-auth-agent')).toHaveLength(3);
+  const select = root.querySelector('select'); select.value = 'role-2'; select.dispatchEvent(new Event('change')); await settle();
+  expect(root.querySelectorAll('.resource-auth-agent')).toHaveLength(1);
+  expect(root.textContent).not.toContain('拥有全部 Agent 访问权限');
+});

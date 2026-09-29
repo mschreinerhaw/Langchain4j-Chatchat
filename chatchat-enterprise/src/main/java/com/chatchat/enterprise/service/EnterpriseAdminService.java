@@ -689,7 +689,10 @@ public class EnterpriseAdminService implements ApplicationRunner {
             permissionIds,
             roleOrgScopeRepository.findByRoleIdOrderByScopeTypeAscOrgIdAsc(role.getId()),
             userIds,
-            agentIds
+            agentIds,
+            "enabled".equalsIgnoreCase(role.getStatus()) && permissionRepository.findAllById(permissionIds).stream()
+                .anyMatch(permission -> "enabled".equalsIgnoreCase(permission.getStatus())
+                    && "platform:agents:all".equals(permission.getPermissionCode()))
         );
     }
 
@@ -2343,8 +2346,13 @@ public class EnterpriseAdminService implements ApplicationRunner {
         List<String> permissionIds,
         List<SysRoleOrgScope> orgScopes,
         List<String> userIds,
-        List<String> agentIds
+        List<String> agentIds,
+        boolean allAgentAccess
     ) {
+        public RoleAuthorizationView(SysRole role, List<String> permissionIds, List<SysRoleOrgScope> orgScopes,
+                                     List<String> userIds, List<String> agentIds) {
+            this(role, permissionIds, orgScopes, userIds, agentIds, false);
+        }
     }
 
     public record SyncResult(int total, int created, int updated) {

@@ -25,6 +25,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class DefaultSkillRuntimeTest {
     @Test
+    void resolvedSkillBindingOverridesCallerEngineAndModel() {
+        var descriptor = new SkillDescriptor("bound", "v1", "Bound", "", "finance", "DATABASE", "", "", "", 1,
+            Map.of("executionEngine", "GOOGLE_ADK_NATIVE", "executionModel", "bound-model"));
+        var scope = new AuthorizedSkillScope(true, List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+        var skill = new ResolvedSkill(descriptor, "body", List.of(), null, Map.of());
+        var runtime = new DefaultSkillRuntime(request -> new SkillRouteResult(List.of(descriptor), "ROUTED", Map.of()),
+            resolver(new SkillResolution(skill, scope, "db", "RESOLVED", Map.of())), new DefaultWorkflowResolver(), request -> {
+                assertThat(request.engine()).isEqualTo("GOOGLE_ADK_NATIVE");
+                assertThat(request.attributes()).containsEntry("modelName", "bound-model");
+                return new RuntimeAgentExecutionResult("COMPLETED", "answer", Map.of());
+            });
+        var result = runtime.execute(new SkillExecutionRequest("Analyze", new SkillRoleContext("t", "u", List.of(), List.of(), Map.of()),
+            List.of("bound"), 1, "LANGCHAIN4J", Map.of("workflowType", "DATA_ANALYSIS", "allowInstructionOnly", true),
+            Map.of("modelName", "caller-model")));
+        assertThat(result.status()).isEqualTo("COMPLETED");
+        assertThat(result.diagnostics()).containsEntry("executionEngine", "GOOGLE_ADK_NATIVE");
+    }
+    @Test
     void dataAcquisitionFailureStillReachesAnalysisAndReplacesCallerSuppliedResults() {
         var descriptor = descriptor("domain");
         var requirement = new com.chatchat.runtime.skill.api.skill.SkillDataRequirement("returns",

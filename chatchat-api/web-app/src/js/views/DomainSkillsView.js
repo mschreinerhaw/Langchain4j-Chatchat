@@ -5,7 +5,7 @@ import {
   fetchDomainSkillImportTask, getStoredAuthSession, fetchMcpSkillSources, createMcpSkillSource,
   updateMcpSkillSource, syncMcpSkillSource, deleteMcpSkillSource,
   importDomainSkill, importDomainSkillFromUrl, publishDomainSkill, recallDomainSkill, reindexDomainSkill,
-  reindexDomainSkillCategory, renameDomainSkillCategory, updateDomainSkill
+  reindexDomainSkillCategory, renameDomainSkillCategory, updateDomainSkill, fetchSkillPublicationOptions
 } from "../../services/api.js";
 import { formatDateTime } from "../utils/uiFormatters.js";
 import "../../styles/pages/domain-skills.css";
@@ -56,6 +56,8 @@ export default {
   data: () => ({
     loading: true, refreshing: false, initialLoadComplete: false,
     busy: false, error: "", message: "", skills: [], categories: [],
+    publishOpen: false, publishLoading: false, publishError: "", publishTarget: null,
+    publishEngines: [], publishModels: [], publishBinding: { engine: "GOOGLE_ADK_NATIVE", modelName: "" },
     quota: { maximum: 5, published: 0, remaining: 5, source: "DEFAULT", limited: true, licenseValid: true },
     filters: { keyword: "", category: "", status: "", page: 0, pageSize: 12 },
     total: 0, skillCount: 0, totalPages: 0, editorOpen: false, importOpen: false, form: emptyForm(),
@@ -96,6 +98,27 @@ export default {
     Object.values(this.noticeTimers || {}).forEach((timer) => { if (timer) clearTimeout(timer); });
   },
   methods: {
+    engineLabel(engine) { return ({ GOOGLE_ADK_NATIVE: "Google ADK（原生 Skills）", LANGCHAIN4J: "LangChain4j", OPENAI_COMPATIBLE: "OpenAI 兼容运行时" })[engine] || engine; },
+    async openPublish(skill) {
+      this.publishTarget = skill; this.publishOpen = true; this.publishLoading = true; this.publishError = "";
+      this.publishEngines = []; this.publishModels = [];
+      this.publishBinding = { engine: skill.executionEngine || "GOOGLE_ADK_NATIVE", modelName: skill.executionModel || "" };
+      try {
+        const options = await fetchSkillPublicationOptions();
+        this.publishEngines = options.engines || []; this.publishModels = options.models || [];
+      } catch (error) { this.publishError = error?.message || "加载发布配置失败，请重试"; }
+      finally { this.publishLoading = false; }
+    },
+    async confirmPublish() {
+      if (this.busy || this.publishLoading || !this.publishTarget) return;
+      if (!this.publishEngines.includes(this.publishBinding.engine) || !this.publishModels.includes(this.publishBinding.modelName)) {
+        this.publishError = "请选择可用的执行引擎和模型"; return;
+      }
+      await this.publishSkill(this.publishTarget, { ...this.publishBinding });
+      if (this.publicationLimitOpen) this.publishOpen = false;
+      else if (this.error) this.publishError = this.error;
+      else this.publishOpen = false;
+    },
     formatTime: formatDateTime,
     async openMcpSources() {
       this.mcpSourcesOpen = true;
@@ -431,10 +454,10 @@ export default {
         }, "技能分类删除失败");
       }
     },
-    async publishSkill(skill) {
+    async publishSkill(skill, binding) {
       this.busy = true; this.error = ""; this.message = "";
       try {
-        const value = await publishDomainSkill(skill.id);
+        const value = binding ? await publishDomainSkill(skill.id, binding) : await publishDomainSkill(skill.id);
         this.message = `“${value.name}”已发布到领域技能索引`;
         this.scheduleNoticeDismiss?.("message", this.message, 3200);
         await this.load(false, { silent: true });

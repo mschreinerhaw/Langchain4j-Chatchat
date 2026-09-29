@@ -246,8 +246,8 @@
     create table chat_session (
         created_at datetime(6) not null,
         updated_at datetime(6) not null,
-        status varchar(32) not null,
         source_channel varchar(32) default 'PLATFORM_UI' not null,
+        status varchar(32) not null,
         mode varchar(64),
         session_id varchar(64) not null,
         tenant_id varchar(64) not null,
@@ -319,12 +319,15 @@
         updated_at datetime(6) not null,
         source_type varchar(24) not null,
         status varchar(24) not null,
+        execution_engine varchar(40),
         federated_source_id varchar(64),
         id varchar(64) not null,
         owner_id varchar(64) not null,
+        published_compilation_id varchar(64),
         tenant_id varchar(64) not null,
         federated_digest varchar(80),
         category varchar(120) not null,
+        execution_model varchar(200),
         federated_source_name varchar(200),
         name varchar(200) not null,
         original_file_name varchar(300),
@@ -333,6 +336,7 @@
         search_text varchar(4000) not null,
         federated_manifest_json longtext,
         markdown_content longtext not null,
+        runtime_metadata_json longtext,
         primary key (id)
     ) engine=InnoDB;
 
@@ -493,6 +497,31 @@
         script_id varchar(64) not null,
         source_hash varchar(64) not null,
         source_code longtext not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table ds_skill_analysis_run (
+        created_at datetime(6),
+        revision bigint not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        request_json longtext not null,
+        result_json longtext not null,
+        review_json longtext,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table ds_skill_data_binding (
+        published_at datetime(6),
+        revision bigint not null,
+        domain_skill_id varchar(64) not null,
+        id varchar(64) not null,
+        published_by varchar(64),
+        tenant_id varchar(64) not null,
+        contract_id varchar(120) not null,
+        draft_json longtext not null,
+        published_json longtext,
         primary key (id)
     ) engine=InnoDB;
 
@@ -871,6 +900,7 @@
         id varchar(64) not null,
         principal_id varchar(64) not null,
         tenant_id varchar(64) not null,
+        agent_id varchar(128),
         resource_id varchar(128) not null,
         primary key (id)
     ) engine=InnoDB;
@@ -1667,6 +1697,12 @@
     alter table ds_python_script_version
        add constraint uk_python_script_version unique (script_id, version_number);
 
+    create index idx_skill_run_owner
+       on ds_skill_analysis_run (tenant_id, user_id);
+
+    alter table ds_skill_data_binding
+       add constraint UKc2sn0q29ndakt2pl32o3kqern unique (tenant_id, domain_skill_id, contract_id);
+
     alter table embed_login_token
        add constraint UK9hrjb14xt3xii2pbm7i13q0lv unique (token);
 
@@ -1750,6 +1786,12 @@
 
     create index idx_resource_grant_scope
        on resource_grant (tenant_id, resource_type, resource_id);
+
+    create index idx_resource_grant_agent
+       on resource_grant (tenant_id, agent_id, principal_id);
+
+    create index idx_resource_grant_principal
+       on resource_grant (tenant_id, principal_type, principal_id, resource_type, resource_id);
 
     create index idx_role_agent_role
        on role_agent_binding (role_id);

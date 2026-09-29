@@ -250,8 +250,8 @@
     create table chat_session (
         created_at timestamp(6) with time zone not null,
         updated_at timestamp(6) with time zone not null,
-        status varchar(32) not null,
         source_channel varchar(32) default 'PLATFORM_UI' not null,
+        status varchar(32) not null,
         mode varchar(64),
         session_id varchar(64) not null,
         tenant_id varchar(64) not null,
@@ -324,12 +324,15 @@
         updated_at timestamp(6) with time zone not null,
         source_type varchar(24) not null,
         status varchar(24) not null,
+        execution_engine varchar(40),
         federated_source_id varchar(64),
         id varchar(64) not null,
         owner_id varchar(64) not null,
+        published_compilation_id varchar(64),
         tenant_id varchar(64) not null,
         federated_digest varchar(80),
         category varchar(120) not null,
+        execution_model varchar(200),
         federated_source_name varchar(200),
         name varchar(200) not null,
         original_file_name varchar(300),
@@ -338,6 +341,7 @@
         search_text varchar(4000) not null,
         federated_manifest_json text,
         markdown_content text not null,
+        runtime_metadata_json text,
         primary key (id)
     );
 
@@ -502,6 +506,32 @@
         source_code text not null,
         primary key (id),
         constraint uk_python_script_version unique (script_id, version_number)
+    );
+
+    create table ds_skill_analysis_run (
+        created_at timestamp(6) with time zone,
+        revision bigint not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        request_json text not null,
+        result_json text not null,
+        review_json text,
+        primary key (id)
+    );
+
+    create table ds_skill_data_binding (
+        published_at timestamp(6) with time zone,
+        revision bigint not null,
+        domain_skill_id varchar(64) not null,
+        id varchar(64) not null,
+        published_by varchar(64),
+        tenant_id varchar(64) not null,
+        contract_id varchar(120) not null,
+        draft_json text not null,
+        published_json text,
+        primary key (id),
+        unique (tenant_id, domain_skill_id, contract_id)
     );
 
     create table embed_login_token (
@@ -885,6 +915,7 @@
         id varchar(64) not null,
         principal_id varchar(64) not null,
         tenant_id varchar(64) not null,
+        agent_id varchar(128),
         resource_id varchar(128) not null,
         primary key (id)
     );
@@ -1661,6 +1692,9 @@
     create index idx_python_script_folder_owner
        on ds_python_script_folder (tenant_id, owner_id, sort_order, name);
 
+    create index idx_skill_run_owner
+       on ds_skill_analysis_run (tenant_id, user_id);
+
     create index idx_experience_index_lookup
        on experience_index (tenant_id, agent_id, scenario, intent_type);
 
@@ -1717,6 +1751,12 @@
 
     create index idx_resource_grant_scope
        on resource_grant (tenant_id, resource_type, resource_id);
+
+    create index idx_resource_grant_agent
+       on resource_grant (tenant_id, agent_id, principal_id);
+
+    create index idx_resource_grant_principal
+       on resource_grant (tenant_id, principal_type, principal_id, resource_type, resource_id);
 
     create index idx_role_agent_role
        on role_agent_binding (role_id);

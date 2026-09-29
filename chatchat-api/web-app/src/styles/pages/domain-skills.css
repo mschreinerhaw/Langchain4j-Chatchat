@@ -1223,3 +1223,7 @@
   }
 
 }
+.skill-execution-binding { font-size: 12px; color: #526484; overflow-wrap: anywhere; }
+.skill-publication-help { font-size: 13px; color: #64748b; line-height: 1.6; }
+.domain-skill-dialog.skill-publication-dialog { box-sizing: border-box; width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; }
+.skill-publication-dialog *, .skill-publication-dialog *::before, .skill-publication-dialog *::after { box-sizing: border-box; }

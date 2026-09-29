@@ -44,6 +44,31 @@ import java.util.zip.ZipInputStream;
 @Service
 @RequiredArgsConstructor
 public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.chatchat.common.config.ModelResourceRegistry executionModels;
+    public record PublicationBinding(String engine, String modelName) {}
+    public Map<String, Object> publicationOptions() {
+        return Map.of("engines", List.of("GOOGLE_ADK_NATIVE", "LANGCHAIN4J", "OPENAI_COMPATIBLE"),
+            "models", executionModels == null ? List.of() : executionModels.selectableChatModels());
+    }
+    @Transactional
+    public synchronized DomainSkillEntity publish(String tenantId, String id, PublicationBinding binding) {
+        if (binding == null) return publish(tenantId, id);
+        String engine = text(binding.engine()).toUpperCase(java.util.Locale.ROOT);
+        String model = text(binding.modelName());
+        if (!Set.of("GOOGLE_ADK_NATIVE", "LANGCHAIN4J", "OPENAI_COMPATIBLE").contains(engine))
+            throw new IllegalArgumentException("请选择已支持的技能执行引擎");
+        if (model.isBlank() || model.length() > 200 || executionModels == null)
+            throw new IllegalArgumentException("请选择可用的模型");
+        var connection = executionModels.require(model);
+        if ("OPENAI_COMPATIBLE".equals(engine) && com.chatchat.agents.model.ModelEndpoint.resolve(
+            connection.config().getBaseUrl(), connection.config().getProtocol()).protocol()
+            != com.chatchat.agents.model.ModelEndpoint.Protocol.OPENAI)
+            throw new IllegalArgumentException("所选模型不支持 OpenAI 兼容协议");
+        var skill = owned(id, tenantId);
+        skill.setExecutionEngine(engine); skill.setExecutionModel(model);
+        return publish(tenantId, id);
+    }
     static final int DEFAULT_PUBLICATION_LIMIT = 5;
     static final int MAX_MARKDOWN_CHARS = 512 * 1024;
     private static final String PUBLISHED = "PUBLISHED";
@@ -207,6 +232,7 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
         version += ":" + java.util.UUID.nameUUIDFromBytes(
             (text(skill.getName()) + "\u0000" + text(skill.getDescription()) + "\u0000"
                 + text(skill.getMarkdownContent())).getBytes(StandardCharsets.UTF_8));
+        version += ":" + text(skill.getExecutionEngine()) + ":" + text(skill.getExecutionModel());
         return new SkillDescriptor(skill.getId(), version, skill.getName(), skill.getDescription(),
             skill.getCategory(), skill.getSourceType(), skill.getFederatedSourceId(),
             skill.getFederatedSkillUri(), skill.getFederatedDigest(), score,
@@ -221,6 +247,10 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
             catch (java.io.IOException invalid) { throw new IllegalStateException("Invalid published Skill metadata", invalid); }
         }
         metadata.put("builtin", skill.isBuiltin()); metadata.put("published", true);
+        if (!text(skill.getExecutionEngine()).isBlank()) {
+            metadata.put("executionEngine", skill.getExecutionEngine());
+            metadata.put("executionModel", text(skill.getExecutionModel()));
+        }
         return Map.copyOf(metadata);
     }
 

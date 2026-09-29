@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({
+  fetchSkillPublicationOptions: vi.fn(),
   createDomainSkill: vi.fn(), createDomainSkillCategory: vi.fn(), deleteDomainSkill: vi.fn(), deleteDomainSkillCategory: vi.fn(), fetchDomainSkills: vi.fn(),
   fetchDomainSkillImportTask: vi.fn(),
   fetchMcpSkillSources: vi.fn(), createMcpSkillSource: vi.fn(), updateMcpSkillSource: vi.fn(),
@@ -13,6 +14,24 @@ vi.mock("../../services/api.js", () => api);
 import DomainSkillsView from "./DomainSkillsView.js";
 
 describe("DomainSkillsView", () => {
+  it("loads saved publication binding and submits selected engine and model", async () => {
+    api.fetchSkillPublicationOptions.mockResolvedValue({ engines: ["GOOGLE_ADK_NATIVE", "LANGCHAIN4J"], models: ["model-a", "model-b"] });
+    const context = { ...DomainSkillsView.data(), publishSkill: vi.fn() };
+    const skill = { id: "s", status: "PUBLISHED", executionEngine: "LANGCHAIN4J", executionModel: "model-a" };
+    await DomainSkillsView.methods.openPublish.call(context, skill);
+    expect(context.publishBinding).toEqual({ engine: "LANGCHAIN4J", modelName: "model-a" });
+    context.publishBinding = { engine: "GOOGLE_ADK_NATIVE", modelName: "model-b" };
+    await DomainSkillsView.methods.confirmPublish.call(context);
+    expect(context.publishSkill).toHaveBeenCalledWith(skill, { engine: "GOOGLE_ADK_NATIVE", modelName: "model-b" });
+    expect(context.publishOpen).toBe(false);
+  });
+  it("does not publish an unavailable model", async () => {
+    const context = { ...DomainSkillsView.data(), publishTarget: { id: "s" }, publishModels: [], publishEngines: ["GOOGLE_ADK_NATIVE"], publishSkill: vi.fn() };
+    context.publishBinding.modelName = "removed-model";
+    await DomainSkillsView.methods.confirmPublish.call(context);
+    expect(context.publishSkill).not.toHaveBeenCalled();
+    expect(context.publishError).toBeTruthy();
+  });
   it("keeps the current list mounted while search refreshes in the background", async () => {
     let resolveSearch;
     api.fetchDomainSkills.mockImplementationOnce(() => new Promise((resolve) => { resolveSearch = resolve; }));

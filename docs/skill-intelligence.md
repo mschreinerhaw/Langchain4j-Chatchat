@@ -18,7 +18,14 @@ Spring AI 独立 SDK 适配器尚未接入；请求 `SPRING_AI` 明确拒绝，�
 
 ## Agent 任务启用
 
-通过已有 Agent 配置保存接口，在 `workflowConfig` 中设置：
+推荐在「领域技能」点击「发布」，选择执行引擎和模型后确认；已发布技能通过「发布配置」调整。
+配置保存到 `ds_domain_skill.execution_engine/execution_model`，与发布状态在同一事务中更新，不重新编译。
+Agent 绑定该技能后自动启用分析链路，无需手工设置 Agent 引擎。
+多个技能可以绑定不同引擎/模型，运行时按每个已授权技能的数据库配置执行，覆盖请求级默认值。
+意图规划使用首个候选技能绑定的模型；原有未绑定执行配置的技能维持兼容行为。
+部署前执行对应数据库的 `V20260929_03__skill_execution_binding.sql`。
+
+以下旧 Agent 配置继续兼容，但不再是必需步骤：
 
 ```json
 {
@@ -27,12 +34,12 @@ Spring AI 独立 SDK 适配器尚未接入；请求 `SPRING_AI` 明确拒绝，�
 }
 ```
 
-同时配置 Agent 的 `modelName`。未配置该键的 Agent 不改变原有行为。
-由 `AgentChatModeHandler` 接入；显式走 `role_chat` handler 的请求尚未接入这条新执行路径。
+使用旧配置时同时配置 Agent 的 `modelName`。没有已绑定执行配置的技能、也没有旧配置的 Agent 不改变原有行为。
+由 `AgentChatModeHandler` 与 `RoleChatModeHandler` 接入；角色问答仅执行说明型分析，仍禁止获取 MCP 业务数据。
 通过现有 Agent 任务接口提交 `agent_chat` 请求即可复用任务队列、事件监控与 API 会话隔离。
 业务参数通过 `toolInput.skillDataInputs` 传入，仅允许最多 32 个有界标量；不能传入已经获取的证据。
 分析阶段作为 `OBSERVATION_RECORDED` 事件输出，最终结果包含 `metadata.skillIntelligence`。
-当前不新增前端引擎选择控件，启用为显式配置操作。
+发布页只提供实际接入的引擎和可用模型；失效模型不会静默切换到其他模型。
 
 ## 独立分析 API
 

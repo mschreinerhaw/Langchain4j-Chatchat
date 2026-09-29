@@ -70,6 +70,14 @@ public final class DefaultSkillRuntime implements SkillRuntime {
         if (!workflow.resolved())
             return new SkillExecutionResult(workflow.status(), route, resolved, workflow, null, Map.of());
         Map<String, Object> attributes = new java.util.LinkedHashMap<>(request.attributes());
+        String engine = request.engine();
+        var binding = resolved.skill().descriptor().metadata();
+        if (binding.get("executionEngine") instanceof String configured && !configured.isBlank()) {
+            engine = configured;
+            if (!(binding.get("executionModel") instanceof String model) || model.isBlank())
+                return new SkillExecutionResult("SKILL_MODEL_BINDING_INVALID", route, resolved, workflow, null, Map.of());
+            attributes.put("modelName", model);
+        }
         // Callers cannot supply a supposedly acquired bundle.
         attributes.remove(SkillDataAcquisition.RESULTS);
         attributes.remove(SkillAnalysisExecutor.RESULTS);
@@ -82,7 +90,9 @@ public final class DefaultSkillRuntime implements SkillRuntime {
         if (requirements.isEmpty() && Boolean.TRUE.equals(request.intent().get("dataContractsRequired")))
             return new SkillExecutionResult("NO_DATA_REQUIREMENTS", route, resolved, workflow, null, Map.of());
         if (!requirements.isEmpty()) {
-            if (!agents.supportsAcquiredData(request.engine()))
+            if (Boolean.FALSE.equals(attributes.get("allowDataAcquisition")))
+                return new SkillExecutionResult("DATA_ACQUISITION_DISABLED", route, resolved, workflow, null, Map.of());
+            if (!agents.supportsAcquiredData(engine))
                 return new SkillExecutionResult("DATA_ANALYSIS_ENGINE_UNSUPPORTED", route, resolved, workflow, null, Map.of());
             Map<String, Object> inputs = new java.util.LinkedHashMap<>();
             if (attributes.get(SkillDataAcquisition.INPUTS) instanceof Map<?, ?> supplied)
@@ -100,10 +110,12 @@ public final class DefaultSkillRuntime implements SkillRuntime {
                 analysisSkill.resources(), analysisSkill.requirements(), analysisSkill.metadata());
         }
         RuntimeAgentExecutionResult execution = agents.execute(new RuntimeAgentExecutionRequest(
-            request.engine(), request.query(), request.roleContext(), analysisSkill,
+            engine, request.query(), request.roleContext(), analysisSkill,
             resolved.authorizedScope(), workflow.workflow(), attributes));
         Map<String, Object> diagnostics = new java.util.LinkedHashMap<>();
         diagnostics.put("deterministicRouting", true);
+        diagnostics.put("executionEngine", engine);
+        diagnostics.put("executionModel", attributes.getOrDefault("modelName", ""));
         diagnostics.put("databaseAuthorization", true);
         diagnostics.put("analysisBaseline", Boolean.TRUE.equals(attributes.get("analysisBaseline")));
         if (attributes.containsKey(SkillDataAcquisition.RESULTS))

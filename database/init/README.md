@@ -4,7 +4,7 @@ The project uses separate database boundaries. Choose the script matching both t
 
 | Application | MySQL 8+ | PostgreSQL | H2 2.x | Tables |
 | --- | --- | --- | --- | ---: |
-| ChatChat API | `mysql/chatchat-api.sql` | `postgresql/chatchat-api.sql` | `h2/chatchat-api.sql` | 84 |
+| ChatChat API | `mysql/chatchat-api.sql` | `postgresql/chatchat-api.sql` | `h2/chatchat-api.sql` | 93 |
 | Standalone MCP Server | `mysql/chatchat-mcp-server.sql` | `postgresql/chatchat-mcp-server.sql` | `h2/chatchat-mcp-server.sql` | 39 |
 | Standalone News Runtime + governed market storage | `mysql/chatchat-runtime-news.sql` | — | `h2/chatchat-runtime-news.sql` | 20 |
 
@@ -52,6 +52,8 @@ The API and standalone MCP Server may use different physical databases. Do not i
 
 For an existing ChatChat API database, apply the matching `V20260922_01__resource_grants.sql` from `database/migration/mysql`, `database/migration/postgresql`, or `database/migration/h2` before enabling cross-resource grants. New databases already include the table in the full schema above.
 Then apply the matching `V20260922_02__skill_resource_scope.sql` migration for Agent Skill document and knowledge category bindings.
+
+The full API schemas also include Skill execution engine/model bindings (`ds_domain_skill.execution_engine` and `execution_model`), publication/runtime metadata, Skill analysis runs and data bindings, and Agent-scoped resource grants with their query indexes. Existing databases need the matching `V20260929_03__skill_execution_binding.sql` migration for the execution engine/model columns; new databases initialized with these scripts must not reapply that migration. Both columns are nullable for compatibility with existing Skills.
 
 The News Runtime script contains its four relational runtime tables plus three market-governance tables and thirteen governed hot-data tables. Market weekly-snapshot archive tables are intentionally created lazily after each dataset's dynamic business columns are known.
 

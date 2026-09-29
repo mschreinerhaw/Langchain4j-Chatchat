@@ -157,8 +157,11 @@ export function updateDomainSkill(id, payload) {
   });
 }
 
-export function publishDomainSkill(id) {
-  return apiRequest(`/data-science/domain-skills/${encodeURIComponent(id)}/publish`, { method: "POST" });
+export const fetchSkillPublicationOptions = () => apiRequest("/data-science/domain-skills/publication-options");
+export function publishDomainSkill(id, binding) {
+  return apiRequest(`/data-science/domain-skills/${encodeURIComponent(id)}/publish`, {
+    method: "POST", ...(binding ? { body: JSON.stringify(binding) } : {})
+  });
 }
 
 export function recompileDomainSkill(id) {

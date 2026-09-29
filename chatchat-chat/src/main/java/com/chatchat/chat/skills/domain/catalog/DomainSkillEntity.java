@@ -42,6 +42,10 @@ public class DomainSkillEntity {
     private String publishedCompilationId;
     @Column(name = "runtime_metadata_json", length = org.hibernate.Length.LONG32)
     private String runtimeMetadataJson;
+    @Column(name = "execution_engine", length = 40)
+    private String executionEngine;
+    @Column(name = "execution_model", length = 200)
+    private String executionModel;
     @Column(name = "search_text", length = 4000, nullable = false)
     private String searchText;
     @Column(name = "source_type", length = 24, nullable = false)

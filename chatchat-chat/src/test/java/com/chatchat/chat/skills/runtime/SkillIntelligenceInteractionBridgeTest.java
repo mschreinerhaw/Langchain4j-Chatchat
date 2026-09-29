@@ -15,6 +15,20 @@ import static org.mockito.Mockito.*;
 import static org.assertj.core.api.Assertions.*;
 
 class SkillIntelligenceInteractionBridgeTest {
+    @Test @SuppressWarnings("unchecked") void automaticallyEnablesOnlyForAuthorizedBoundSkills() {
+        var bridge = new SkillIntelligenceInteractionBridge(mock(SkillIntelligenceLayer.class), mock(ObjectProvider.class));
+        var router = mock(com.chatchat.runtime.skill.port.inbound.SkillRouter.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(bridge, "router", router);
+        var agent = mock(SkillDefinition.class);
+        when(agent.id()).thenReturn("agent"); when(agent.workflowConfig()).thenReturn(Map.of("boundDomainSkillIds", List.of("skill")));
+        var request = new InteractionRequest(); request.setQuery("Analyze"); request.setTenantId("tenant"); request.setUserId("user");
+        var descriptor = new com.chatchat.runtime.skill.api.skill.SkillDescriptor("skill", "v1", "Skill", "", "finance", "DB", "", "", "", 1,
+            Map.of("executionEngine", "GOOGLE_ADK_NATIVE", "executionModel", "bound-model"));
+        when(router.route(any())).thenReturn(new com.chatchat.runtime.skill.api.discovery.SkillRouteResult(List.of(descriptor), "ROUTED", Map.of()));
+        assertThat(bridge.enabled(request, agent, List.of("role"))).isTrue();
+        when(router.route(any())).thenReturn(new com.chatchat.runtime.skill.api.discovery.SkillRouteResult(List.of(), "EMPTY", Map.of()));
+        assertThat(bridge.enabled(request, agent, List.of("role"))).isFalse();
+    }
     @Test @SuppressWarnings("unchecked") void preservesAgentScopeAndPublishesTaskStages() {
         var intelligence = mock(SkillIntelligenceLayer.class);
         var publisher = mock(AgentRunEventPublisher.class);

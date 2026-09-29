@@ -101,6 +101,7 @@
                 </div>
               </div>
               <p>{{ skill.description || '暂无说明' }}</p>
+              <p v-if="skill.executionEngine" class="skill-execution-binding">{{ engineLabel(skill.executionEngine) }} · {{ skill.executionModel }}</p>
               <span>{{ skill.category }} · {{ formatTime(skill.updatedAt) }} · {{ skill.id }}</span>
             </div>
             <div v-if="isAdmin" class="domain-skill-item-actions">
@@ -109,7 +110,7 @@
               </button>
               <div v-if="skillMenuId === skill.id" class="domain-skill-item-menu" @click.stop>
                 <button v-if="!skill.builtin" type="button" @click="skillMenuId = ''; openEdit(skill)"><Pencil :size="14" /><span>编辑</span></button>
-                <button v-if="!skill.builtin" type="button" :disabled="busy || (!skill.publicationDirty && skill.status === 'PUBLISHED')" @click="skillMenuId = ''; publishSkill(skill)"><span>{{ skill.status === 'PUBLISHED' ? '重新发布' : '发布' }}</span></button>
+                <button v-if="!skill.builtin" type="button" :disabled="busy" @click="skillMenuId = ''; openPublish(skill)"><span>{{ skill.status === 'PUBLISHED' ? '发布配置' : '发布' }}</span></button>
                 <button v-if="skill.status === 'PUBLISHED'" type="button" :disabled="busy || skill.publicationDirty" :title="skill.publicationDirty ? '存在未发布修改，请先重新发布' : '重建该技能索引'" @click="skillMenuId = ''; reindexSkill(skill)"><RefreshCw :size="14" /><span>重建索引</span></button>
                 <button v-if="!skill.builtin && skill.status === 'PUBLISHED'" type="button" :disabled="busy" @click="skillMenuId = ''; recallSkill(skill)"><span>回收</span></button>
                 <button v-if="!skill.builtin" type="button" class="danger-action" :disabled="busy" @click="removeSkill(skill)"><Trash2 :size="14" /><span>删除</span></button>
@@ -154,6 +155,20 @@
         <p v-if="categoryError" class="domain-skill-dialog-error">{{ categoryError }}</p>
         <label><span>分类名称</span><input ref="categoryNameInput" v-model="newCategoryName" required maxlength="120" placeholder="例如：金融分析、代码规范"></label>
         <footer><button type="button" class="secondary-button" :disabled="categorySaving" @click="closeCategoryDialog">取消</button><button type="submit" :disabled="categorySaving || !newCategoryName.trim()">{{ categorySaving ? '保存中' : categoryDialogMode === 'rename' ? '保存' : '创建' }}</button></footer>
+      </form>
+    </div>
+
+    <div v-if="publishOpen" class="domain-skill-dialog-backdrop">
+      <form class="domain-skill-dialog skill-publication-dialog" role="dialog" aria-modal="true" aria-labelledby="skill-publish-title" @submit.prevent="confirmPublish">
+        <header><div><p>领域技能</p><h2 id="skill-publish-title">{{ publishTarget?.status === 'PUBLISHED' ? '发布配置' : '发布技能' }}</h2></div><button type="button" class="app-dialog-close" aria-label="关闭" :disabled="busy || publishLoading" @click="publishOpen = false">×</button></header>
+        <p>{{ publishTarget?.name }}</p>
+        <p class="skill-publication-help">运行时自动使用此技能绑定的引擎和模型。仅保存配置与发布状态，不重新编译。</p>
+        <p v-if="publishError" class="domain-skill-dialog-error" role="alert">{{ publishError }}</p>
+        <p v-if="publishLoading" role="status">正在加载可用配置…</p>
+        <label>执行引擎<select v-model="publishBinding.engine" :disabled="busy || publishLoading" required><option v-for="engine in publishEngines" :key="engine" :value="engine">{{ engineLabel(engine) }}</option></select></label>
+        <label>绑定模型<input v-model="publishBinding.modelName" list="skill-publication-models" placeholder="输入或选择可用模型" :disabled="busy || publishLoading" required autocomplete="off" /><datalist id="skill-publication-models"><option v-for="model in publishModels" :key="model" :value="model" /></datalist></label>
+        <p v-if="!publishLoading && !publishModels.length" class="skill-publication-help">暂无可用模型，请先在模型管理中配置并启用模型。</p>
+        <footer><button type="button" class="secondary-button" :disabled="busy || publishLoading" @click="publishOpen = false">取消</button><button v-if="publishError" type="button" class="secondary-button" :disabled="busy || publishLoading" @click="openPublish(publishTarget)">重新加载</button><button type="submit" :disabled="busy || publishLoading || !publishModels.includes(publishBinding.modelName)">{{ busy ? '保存中…' : publishTarget?.status === 'PUBLISHED' ? '保存配置' : '确认发布' }}</button></footer>
       </form>
     </div>
 

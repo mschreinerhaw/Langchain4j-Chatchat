@@ -1,7 +1,9 @@
 package com.chatchat.api;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 
@@ -14,15 +16,30 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class DatabaseSchemaGeneratorTest {
     @Test
+    void initializeEmptyH2Database() throws Exception {
+        DriverManagerDataSource dataSource = new DriverManagerDataSource("jdbc:h2:mem:api_init_validation", "sa", "");
+        try (var connection = dataSource.getConnection()) {
+            ScriptUtils.executeSqlScript(connection,
+                new FileSystemResource(Path.of("..", "database", "init", "h2", "chatchat-api.sql")));
+            try (var statement = connection.createStatement()) {
+                statement.executeQuery("select execution_engine, execution_model, published_compilation_id, runtime_metadata_json from ds_domain_skill").close();
+                statement.executeQuery("select agent_id from resource_grant").close();
+                statement.executeQuery("select request_json, result_json from ds_skill_analysis_run").close();
+                statement.executeQuery("select domain_skill_id, contract_id, published_json from ds_skill_data_binding").close();
+            }
+        }
+    }
+
+    @Test
     void generateApiSchemasFromJpaEntities() throws Exception {
         Path output = Path.of("target", "generated-schema");
         Files.createDirectories(output);
         generate("org.hibernate.dialect.MySQLDialect", output.resolve("chatchat-api-mysql.sql"));
         generate("org.hibernate.dialect.H2Dialect", output.resolve("chatchat-api-h2.sql"));
         generate("org.hibernate.dialect.PostgreSQLDialect", output.resolve("chatchat-api-postgresql.sql"));
-        assertSchemaMatches(output.resolve("chatchat-api-mysql.sql"), Path.of("..", "database", "init", "mysql", "chatchat-api.sql"), 91);
-        assertSchemaMatches(output.resolve("chatchat-api-h2.sql"), Path.of("..", "database", "init", "h2", "chatchat-api.sql"), 91);
-        assertSchemaMatches(output.resolve("chatchat-api-postgresql.sql"), Path.of("..", "database", "init", "postgresql", "chatchat-api.sql"), 91);
+        assertSchemaMatches(output.resolve("chatchat-api-mysql.sql"), Path.of("..", "database", "init", "mysql", "chatchat-api.sql"), 93);
+        assertSchemaMatches(output.resolve("chatchat-api-h2.sql"), Path.of("..", "database", "init", "h2", "chatchat-api.sql"), 93);
+        assertSchemaMatches(output.resolve("chatchat-api-postgresql.sql"), Path.of("..", "database", "init", "postgresql", "chatchat-api.sql"), 93);
     }
 
     private void generate(String dialect, Path target) throws Exception {

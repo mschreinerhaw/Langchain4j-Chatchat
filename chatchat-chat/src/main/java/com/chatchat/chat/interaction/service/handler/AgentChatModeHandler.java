@@ -144,10 +144,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     @Override
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
         SkillDefinition skill = skillCatalogService.resolve(request.getSkillId());
-        if (skillIntelligence != null && skill.workflowConfig() != null
-            && skill.workflowConfig().get("skillIntelligenceEngine") instanceof String engine && !engine.isBlank()) {
+        if (skillIntelligence != null && skill.workflowConfig() != null) {
             var scope = resolveSkillScope(request, skill, resolvedSkillId(request, skill));
-            return skillIntelligence.execute(request, context, skill, scope.roles());
+            if (skillIntelligence.enabled(request, skill, scope.roles()))
+                return skillIntelligence.execute(request, context, skill, scope.roles());
         }
         if (InteractionMode.fromAgentConfiguration(skill.defaultMode()).isRoleConversation()
             && roleChatModeHandler != null) {

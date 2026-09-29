@@ -52,6 +52,8 @@ public class RoleChatModeHandler implements InteractionModeHandler {
     private DomainSkillPlanningRouter domainSkillPlanningRouter;
     @Autowired(required = false)
     private SkillExecutionScopePort skillExecutionScope;
+    @Autowired(required = false)
+    private com.chatchat.chat.skills.runtime.SkillIntelligenceInteractionBridge skillIntelligence;
 
     public RoleChatModeHandler(ChatModel defaultChatModel,
                                ConfigurableChatModelFactory chatModelFactory,
@@ -76,6 +78,8 @@ public class RoleChatModeHandler implements InteractionModeHandler {
                 "Agent " + skill.id() + " is configured for tool-agent execution, not role_chat");
         }
         SkillExecutionScopePort.EffectiveScope effectiveScope = resolveSkillScope(request, skill);
+        if (skillIntelligence != null && skillIntelligence.enabled(request, skill, effectiveScope.roles()))
+            return skillIntelligence.execute(request, context, skill, effectiveScope.roles());
         com.chatchat.common.knowledge.runtime.KnowledgeContext knowledge = retrieveKnowledge(request, skill, effectiveScope);
         List<String> configuredDomainSkillIds = configuredDomainSkillIds(skill);
         List<DomainSkillRuntimePort.DomainSkillContent> domainSkills = resolveDomainSkills(

@@ -153,12 +153,18 @@ public class DomainSkillController {
     }
 
     @PostMapping("/{id}/publish")
-    public ApiResponse<?> publish(@PathVariable("id") String id, HttpServletRequest request) {
+    public ApiResponse<?> publish(@PathVariable("id") String id,
+            @RequestBody(required = false) DomainSkillService.PublicationBinding binding, HttpServletRequest request) {
         return call(() -> {
             Scope scope = scope(request);
             requireAdmin(scope);
-            return service.publish(scope.tenantId(), id);
+            return service.publish(scope.tenantId(), id, binding);
         });
+    }
+
+    @GetMapping("/publication-options")
+    public ApiResponse<?> publicationOptions(HttpServletRequest request) {
+        return call(() -> { var scope = scope(request); requireAdmin(scope); return service.publicationOptions(); });
     }
 
     @PostMapping("/{id}/recall")

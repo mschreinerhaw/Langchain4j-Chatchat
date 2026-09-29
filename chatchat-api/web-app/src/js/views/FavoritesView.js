@@ -67,6 +67,7 @@ export default {
       favorites: [],
       favoriteCategories: [],
       keyword: "",
+      searchKeyword: "",
       activeCategory: "all",
       activeType: "all",
       loading: false,
@@ -114,7 +115,7 @@ export default {
       ];
     },
     filteredFavorites() {
-      const keyword = this.keyword.trim().toLowerCase();
+      const keyword = this.searchKeyword.trim().toLowerCase();
       return this.favorites.filter((favorite) => {
         const category = this.favoriteCategory(favorite);
         const type = String(favorite?.targetType || "").toUpperCase();
@@ -136,6 +137,9 @@ export default {
     this.loadFavorites();
   },
   methods: {
+    searchFavorites() {
+      this.searchKeyword = this.keyword.trim();
+    },
     async loadFavorites() {
       this.loading = true;
       this.error = "";

@@ -55,7 +55,7 @@
           }"
         >
           <button type="button" class="category-select-button" @click="selectCategory(category.name)">
-            <span>{{ categoryLabel(category.name) }}</span>
+            <span :title="categoryLabel(category.name)">{{ categoryLabel(category.name) }}</span>
             <strong>{{ category.count }}</strong>
           </button>
           <div class="category-row-actions">

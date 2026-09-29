@@ -62,7 +62,7 @@
           }"
         >
           <button type="button" class="domain-skill-category-row" @click="selectCategory(category.name)">
-            <span>{{ category.name }}</span><strong>{{ category.count }}</strong>
+            <span :title="category.name">{{ category.name }}</span><strong>{{ category.count }}</strong>
           </button>
           <div v-if="isAdmin" class="domain-skill-category-row-actions">
             <button type="button" class="domain-skill-category-actions-trigger" title="分类操作" aria-label="分类操作" :aria-expanded="categoryMenuId === (category.id || category.name)" @click.stop="toggleCategoryMenu(category)">

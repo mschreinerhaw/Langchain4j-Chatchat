@@ -251,7 +251,16 @@
   text-align: left;
 }
 
+.library-view .category-select-button > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .library-view .library-categories strong {
+  flex: 0 0 auto;
   color: var(--muted);
   font-size: 12px;
 }

@@ -3,7 +3,6 @@
     <header class="favorites-header">
       <div>
         <p>个人收藏中心</p>
-        <h1>收藏夹</h1>
         <span>统一管理收藏的历史会话和文档。</span>
       </div>
     </header>
@@ -14,10 +13,15 @@
     <section class="favorite-search-panel">
       <label>
         <span>收藏检索</span>
-        <input v-model="keyword" type="search" placeholder="搜索会话、文档标题或分类">
+        <input
+          v-model="keyword"
+          type="search"
+          placeholder="搜索会话、文档标题或分类"
+          @keyup.enter="searchFavorites"
+        >
       </label>
-      <button type="button" class="light-button" :disabled="loading" @click="loadFavorites">
-        {{ loading ? "刷新中" : "刷新" }}
+      <button type="button" class="light-button" @click="searchFavorites">
+        搜索
       </button>
     </section>
 
@@ -68,7 +72,7 @@
             :class="{ active: activeCategory === category.value }"
             @click="selectCategory(category.value)"
           >
-            <span>{{ category.label }}</span>
+            <span :title="category.label">{{ category.label }}</span>
             <strong>{{ category.count }}</strong>
           </button>
           <div v-if="isMutableCategory(category.value)" class="favorite-category-row-actions">

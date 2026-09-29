@@ -13,7 +13,6 @@
 }
 
 .favorites-view .favorites-header p,
-.favorites-view .favorites-header h1,
 .favorites-view .favorites-header span {
   margin: 0;
 }
@@ -159,9 +158,11 @@
 }
 
 .favorites-view .favorite-category-filter > span {
+  flex: 1;
   min-width: 0;
-  overflow-wrap: anywhere;
-  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .favorites-view .favorite-category-row.active {
@@ -171,6 +172,7 @@
 }
 
 .favorites-view .favorite-category-filter strong {
+  flex: 0 0 auto;
   color: var(--muted);
   font-size: 12px;
 }

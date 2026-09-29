@@ -336,12 +336,15 @@
 }
 
 .domain-skills-page .domain-skill-category-row span {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .domain-skills-page .domain-skill-category-row strong {
+  flex: 0 0 auto;
   color: var(--muted);
   font-size: 12px;
 }

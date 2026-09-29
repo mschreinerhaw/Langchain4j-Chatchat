@@ -37,7 +37,7 @@ describe("FavoritesView", () => {
         { targetType: "SESSION", title: "季度经营分析", category: "重点会话" },
         { targetType: "DOCUMENT", title: "季度报告.pdf", category: "项目资料" }
       ],
-      keyword: "",
+      searchKeyword: "",
       activeCategory: "all",
       activeType: "SESSION",
       favoriteCategory: FavoritesView.methods.favoriteCategory
@@ -45,6 +45,14 @@ describe("FavoritesView", () => {
 
     expect(FavoritesView.computed.filteredFavorites.call(context)).toHaveLength(1);
     expect(FavoritesView.computed.filteredFavorites.call(context)[0].targetType).toBe("SESSION");
+  });
+
+  it("applies the entered keyword when searching", () => {
+    const context = { keyword: "  季度报告  ", searchKeyword: "" };
+
+    FavoritesView.methods.searchFavorites.call(context);
+
+    expect(context.searchKeyword).toBe("季度报告");
   });
 
   it("sizes the category selector from the current category name", () => {

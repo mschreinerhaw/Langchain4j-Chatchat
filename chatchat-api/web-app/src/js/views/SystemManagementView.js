@@ -181,7 +181,7 @@ export default {
         roles: "角色管理",
         logins: "登录审计",
         resources: "资源授权",
-        skillRoles: "技能角色查询"
+        skillRoles: "技能权限"
       }[this.section];
     },
     sectionDescription() {

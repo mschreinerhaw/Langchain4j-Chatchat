@@ -8,13 +8,20 @@
     <form class="domain-intelligence-form" @submit.prevent="run">
       <section>
         <h2><span>1</span> 选择分析算力</h2>
-        <p class="domain-hint">这里列出已发布的通用模型和已接入的专业 Agent。也可以从 Agent 管理中的卡片直接进入并预选。</p>
+        <p class="domain-hint">选择已授权的自建 Agent、接入的专业 Agent 或通用模型。选择 Agent 后可邀请其他 Agent 基于同一证据复核。</p>
         <div class="domain-provider-list" role="group" aria-label="选择分析算力">
           <button v-for="provider in providers" :key="provider.providerId" type="button" class="domain-provider-card" :class="{ selected: form.providerId === provider.providerId }" :aria-pressed="form.providerId === provider.providerId" @click="selectProvider(provider.providerId)">
             <span class="domain-provider-mark">{{ provider.kind === 'GENERAL_LLM' ? '模' : '专' }}</span>
             <span class="domain-provider-copy"><strong>{{ provider.displayName || provider.providerId }}</strong><small>{{ providerKindLabel(provider) }} · {{ provider.professionalCapabilities?.length ? provider.professionalCapabilities.slice(0, 3).join('、') : '可用于证据分析' }}</small></span>
             <span class="domain-provider-state">{{ form.providerId === provider.providerId ? '已选择' : '选择' }}</span>
           </button>
+        </div>
+        <div v-if="selectedProvider?.kind === 'DOMAIN_AGENT'" class="domain-skill-list">
+          <strong>协作复核（可选，最多 3 个）</strong>
+          <label v-for="provider in collaboratorOptions" :key="provider.providerId" class="domain-checkbox">
+            <input v-model="form.collaboratorIds" type="checkbox" :value="provider.providerId" :disabled="form.collaboratorIds.length >= 3 && !form.collaboratorIds.includes(provider.providerId)">
+            {{ provider.displayName || provider.providerId }}
+          </label>
         </div>
         <p v-if="!providers.length" class="domain-hint">当前暂无可用的分析算力，请联系管理员发布模型或接入并授权领域 Agent。</p>
         <div v-else-if="selectedProvider" class="domain-provider-detail">
@@ -63,7 +70,9 @@
       <button class="domain-submit" type="submit" :disabled="running || loading || !selectedProvider">{{ running ? '正在取证并分析…' : '开始联合分析' }}</button>
     </form>
     <section v-if="result" class="domain-result">
-      <h2>分析结果 <small>{{ result.verification?.accepted ? '已完成证据校验' : '请查看校验说明' }}</small></h2>
+      <h2>分析结果 <small>{{ result.metadata?.collaborationStatus === 'PARTIAL' ? '部分 Agent 完成，请查看执行详情' : result.verification?.accepted ? '已完成证据校验' : '请查看校验说明' }}</small></h2>
+      <p v-if="result.metadata?.collaboration">参与任务完成 {{ result.metadata.completedTaskCount }} / {{ result.metadata.expectedTaskCount }}</p>
+      <ul v-if="result.metadata?.taskStates"><li v-for="(state, task) in result.metadata.taskStates" :key="task">{{ task }}：{{ state }}</li></ul>
       <p v-if="result.synthesis" class="domain-answer">{{ result.synthesis }}</p>
       <p v-else class="domain-hint">没有可展示的分析结论；请检查所选资源、执行状态和校验说明。</p>
       <details><summary>证据与校验详情</summary><p v-for="finding in result.verification?.findings || []" :key="finding">{{ finding }}</p><p>证据数量：{{ result.evidenceBundle?.evidence?.length || 0 }}</p></details>

@@ -699,6 +699,20 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     }
 
     private AgentOrchestrator.AgentExecutionResult executeAgentRequest(AgentRunRequest request) {
+        if (com.chatchat.agents.runtime.federation.EvidenceBoundAgentExecution.supports(request)) {
+            var attributes = runtimeGuard.attributesWithDeadline(runtimeAttributesFor(request));
+            var cancelled = runtimeGuard.cancellationCheck(attributes);
+            ChatModel model = new DeadlineAwareChatModel(chatModelResolver.resolveChatModel(request.getModelName()),
+                () -> runtimeGuard.remainingTimeMs(attributes));
+            var usage = Collections.synchronizedMap(new LinkedHashMap<String, Object>());
+            model = new MeteredChatModel(model, usage, agentRuntimeProperties.modelTokenBudget(),
+                agentRuntimeProperties.modelCostBudget(), agentRuntimeProperties.modelInputCostPerThousandTokens(),
+                agentRuntimeProperties.modelOutputCostPerThousandTokens(), agentRuntimeProperties.budgetAlertRatio());
+            var result = com.chatchat.agents.runtime.federation.EvidenceBoundAgentExecution.execute(request, model, cancelled);
+            var metadata = new LinkedHashMap<String, Object>(result.metadata());
+            metadata.put("modelUsage", usage);
+            return new AgentOrchestrator.AgentExecutionResult(result.answer(), result.toolTraces(), metadata);
+        }
         return planExecutionBridge.withRequest(request, () -> executeAgent(
                 request.getQuery(),
                 request.getTenantId(),

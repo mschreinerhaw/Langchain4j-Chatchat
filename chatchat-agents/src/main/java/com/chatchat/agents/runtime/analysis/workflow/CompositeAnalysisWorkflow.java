@@ -172,8 +172,17 @@ public class CompositeAnalysisWorkflow extends AbstractAnalysisWorkflow {
                 .map(AnalysisExecutionOutcome::synthesis)
                 .reduce((left, right) -> left + "\n" + right).orElse("");
         }
-        return new AnalysisExecutionOutcome(null, type(), plan, verification, bundle, synthesis,
-            Map.of("workflowId", workflowId(), "childCount", context.intent().requiredCapabilities().size()));
+        Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+        metadata.put("workflowId", workflowId());
+        metadata.put("childCount", context.intent().requiredCapabilities().size());
+        if (execution.outputs().get("childResults") instanceof Map<?, ?> children
+            && children.get(AnalysisCapability.DOMAIN_INTELLIGENCE.name()) instanceof AnalysisExecutionOutcome child) {
+            for (String key : List.of("collaboration", "collaborationStatus", "taskStates", "completedTaskCount",
+                "expectedTaskCount", "agentResults", "agentId", "agentStatus", "judgeDecision")) {
+                if (child.metadata().containsKey(key)) metadata.put(key, child.metadata().get(key));
+            }
+        }
+        return new AnalysisExecutionOutcome(null, type(), plan, verification, bundle, synthesis, metadata);
     }
 
     private List<AnalysisCapability> orderedCapabilities(AnalysisIntent intent) {

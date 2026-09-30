@@ -15,10 +15,17 @@ import java.util.Map;
 public class IntelligenceProviderRegistry {
     private final PlatformModelCatalogService models;
     private final AgentRegistryPort agents;
+    private final com.chatchat.common.retrieval.SkillExecutionScopePort scopes;
 
     public IntelligenceProviderRegistry(PlatformModelCatalogService models, AgentRegistryPort agents) {
+        this(models, agents, null);
+    }
+    @org.springframework.beans.factory.annotation.Autowired
+    public IntelligenceProviderRegistry(PlatformModelCatalogService models, AgentRegistryPort agents,
+                                        com.chatchat.common.retrieval.SkillExecutionScopePort scopes) {
         this.models = models;
         this.agents = agents;
+        this.scopes = scopes;
     }
 
     public record Provider(String providerId, String displayName, String kind, String origin,
@@ -28,6 +35,9 @@ public class IntelligenceProviderRegistry {
                            List<String> professionalCapabilities) { }
 
     public List<Provider> list(String tenantId) {
+        return list(tenantId, null);
+    }
+    public List<Provider> list(String tenantId, String userId) {
         List<Provider> result = new ArrayList<>();
         for (var model : models.list()) {
             if ("chat".equals(model.type()) && model.published() && model.activeEnabled())
@@ -38,11 +48,15 @@ public class IntelligenceProviderRegistry {
                     false, List.of(), List.of(), List.of(), false, List.of()));
         }
         for (AgentDescriptor agent : agents.list()) {
-            if (!agent.enabled() || agent.origin() == AgentDescriptor.Origin.LOCAL
-                || !agent.supportsExecutionMode(AgentExecutionMode.DOMAIN_INFERENCE)
-                || !(agent.metadata().get("allowedTenantIds") instanceof Iterable<?> tenants)) continue;
+            if (!agent.enabled() || !agent.supportsExecutionMode(AgentExecutionMode.DOMAIN_INFERENCE)) continue;
             boolean admitted = false;
-            for (Object tenant : tenants) if (tenantId.equals(tenant)) admitted = true;
+            if (agent.origin() == AgentDescriptor.Origin.LOCAL) {
+                if (scopes != null && userId != null && agent.metadata().get("skillId") instanceof String skill
+                    && "published".equalsIgnoreCase(String.valueOf(agent.metadata().get("marketStatus"))))
+                    admitted = scopes.resolve(tenantId, userId, skill, List.of(), List.of()).skillAllowed();
+            } else if (agent.metadata().get("allowedTenantIds") instanceof Iterable<?> tenants) {
+                for (Object tenant : tenants) if (tenantId.equals(tenant)) admitted = true;
+            }
             if (!admitted) continue;
             Object rawGrants = agent.metadata().get("analysisGrants");
             Map<?, ?> grants = rawGrants instanceof Map<?, ?> map ? map : Map.of();

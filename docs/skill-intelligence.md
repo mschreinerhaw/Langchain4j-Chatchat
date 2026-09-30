@@ -26,7 +26,7 @@ Spring AI 独立 SDK 适配器尚未接入；请求 `SPRING_AI` 明确拒绝，�
 
 通过原 Agent 任务接口提交请求，沿用任务队列、取消信号、会话隔离和事件监控。Skill 阶段作为 `OBSERVATION_RECORDED` 输出；结果的 `metadata.skillAnalysisContext` 提供状态、Skill 版本和指纹。完整方法快照保留在 Runtime 内部上下文，贯穿计划、取数语义裁决、数据分析、验证和报告。
 
-`ds_domain_skill.execution_engine/execution_model` 和旧 `skillIntelligenceEngine` 配置继续服务于独立 Skill Runtime / Intelligence 调用，不决定主业务 DAG 的路由。独立执行时可以按 Skill 的发布配置覆盖请求引擎和模型；这与主流程的方法上下文准备是不同职责。对应历史数据库迁移仍为 `V20260929_03__skill_execution_binding.sql`，本次生命周期接入没有新增表。
+模型统一由调用 Agent 配置。领域 Skill 发布页不再选择模型，旧 `execution_model` 列仅为存储兼容保留，不进入运行时元数据，也不能覆盖 Agent 模型；重新发布会清除旧绑定。独立 Intelligence API 根据已授权的 `agentId` 读取模型，忽略旧客户端传入的 `modelName`；Agent 未配置模型时明确报错。Skill 的 `execution_engine` 仍可选择独立执行适配器，不决定主业务 DAG 路由。历史迁移 `V20260929_03__skill_execution_binding.sql` 保留，无需破坏性删列。
 
 ## 独立分析 API
 
@@ -39,7 +39,6 @@ Spring AI 独立 SDK 适配器尚未接入；请求 `SPRING_AI` 明确拒绝，�
 {
   "query": "分析该组合的收益来源和风险，并说明缺少哪些数据",
   "agentId": "已授权的 Agent ID",
-  "modelName": "平台中可用的模型名称",
   "engine": "GOOGLE_ADK_NATIVE",
   "skillIds": ["可选的技能范围"],
   "capabilities": [],

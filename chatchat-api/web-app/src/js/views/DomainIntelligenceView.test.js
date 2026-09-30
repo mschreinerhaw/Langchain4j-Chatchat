@@ -2,6 +2,19 @@ import { describe, expect, it, vi } from "vitest";
 import DomainIntelligenceView from "./DomainIntelligenceView.js";
 
 describe("domain intelligence analysis composer", () => {
+  it("builds an evidence-bound review DAG using selected Agent capabilities", () => {
+    const form = { ...DomainIntelligenceView.data().form, providerId: "local.skill.first",
+      collaboratorIds: ["local.skill.second"], capability: "local.first.v1", skillIds: ["evidence-source"],
+      query: "Review available evidence", documentsBySkill: { "evidence-source": ["doc"] }, confirmRemoteTransfer: true };
+    const context = { form, selectedProvider: { kind: "DOMAIN_AGENT", evidenceTypes: ["DocumentAnalysisEvidence"] },
+      providers: [{ providerId: "local.skill.second", kind: "DOMAIN_AGENT", capabilities: ["local.second.v1"] }] };
+    const request = DomainIntelligenceView.methods.buildRequest.call(context);
+    expect(request.tasks).toHaveLength(2);
+    expect(request.tasks[1]).toMatchObject({ agentId: "local.skill.second", capability: "local.second.v1", dependsOn: ["primary"] });
+    expect(request.skills[0].skillId).toBe("evidence-source");
+    form.collaboratorIds = ["unregistered"];
+    expect(() => DomainIntelligenceView.methods.buildRequest.call(context)).toThrow(/不可用/);
+  });
   it("preselects the Agent passed from unified management without sending evidence", () => {
     const context = {
       providers: [{ providerId: "group.analysis" }],

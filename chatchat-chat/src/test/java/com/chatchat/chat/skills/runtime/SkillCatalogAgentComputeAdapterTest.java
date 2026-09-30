@@ -59,7 +59,7 @@ class SkillCatalogAgentComputeAdapterTest {
         assertThat(first.status()).isEqualTo(AgentExecutionOutcome.Status.SUPPLEMENT_EVIDENCE);
         assertThat(first.metadata()).containsKey("toolRequests");
         var evidence = new ProjectedAnalysisEvidence("e1", AnalysisCapability.DOCUMENT_SEARCH,
-            "Approved scoped fact", Map.of());
+            "Approved scoped fact" + "x".repeat(13000), Map.of());
         AgentExecutionRequest resumed = request(List.of(evidence));
         AgentExecutionOutcome second = adapter.execute(descriptor, resumed);
         assertThat(second.status()).isEqualTo(AgentExecutionOutcome.Status.COMPLETED);
@@ -73,6 +73,10 @@ class SkillCatalogAgentComputeAdapterTest {
         });
         assertThat(runs.getAllValues().get(1).getQuery()).contains("e1", "Approved scoped fact");
         assertThat(runs.getAllValues().get(0).getRunId()).isNotEqualTo(runs.getAllValues().get(1).getRunId());
+        var oversized = new ProjectedAnalysisEvidence("large", AnalysisCapability.DOCUMENT_SEARCH,
+            "x".repeat(com.chatchat.common.runtime.agent.AgentEvidenceBudget.ITEM_CHARS + 1), Map.of());
+        assertThat(adapter.execute(descriptor, request(List.of(oversized))).errorCode()).isEqualTo("AGENT_EVIDENCE_TOO_LARGE");
+        verify(runtime, times(2)).run(any());
     }
 
     @Test void rawExecutableToolRequestIsRejected() {

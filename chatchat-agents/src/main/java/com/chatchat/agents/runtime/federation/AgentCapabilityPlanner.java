@@ -18,12 +18,17 @@ import java.util.Set;
 public class AgentCapabilityPlanner {
     private final AgentRegistryPort registry;
     private final AgentHealthTracker health;
+    private final com.chatchat.common.retrieval.SkillExecutionScopePort scopes;
 
     @Autowired
-    public AgentCapabilityPlanner(AgentRegistryPort registry, AgentHealthTracker health) {
+    public AgentCapabilityPlanner(AgentRegistryPort registry, AgentHealthTracker health,
+                                  com.chatchat.common.retrieval.SkillExecutionScopePort scopes) {
         this.registry = registry;
         this.health = health;
+        this.scopes = scopes;
     }
+
+    AgentCapabilityPlanner(AgentRegistryPort registry, AgentHealthTracker health) { this(registry, health, null); }
 
     AgentCapabilityPlanner(AgentRegistryPort registry) { this(registry, new AgentHealthTracker()); }
 
@@ -51,6 +56,11 @@ public class AgentCapabilityPlanner {
 
     private boolean tenantAllowed(AgentDescriptor agent, AgentExecutionRequest request) {
         if (agent.origin() == AgentDescriptor.Origin.LOCAL) {
+            if (agent.metadata().get("skillId") instanceof String targetSkill && scopes != null) {
+                return "published".equalsIgnoreCase(String.valueOf(agent.metadata().get("marketStatus")))
+                    && scopes.resolve(request.scope().tenantId(), request.scope().userId(), targetSkill,
+                        List.of(), List.of()).skillAllowed();
+            }
             Object skillId = request.metadata().get("localSkillId");
             return !(skillId instanceof String value) || value.isBlank()
                 || agent.agentId().equals("local.skill." + value);

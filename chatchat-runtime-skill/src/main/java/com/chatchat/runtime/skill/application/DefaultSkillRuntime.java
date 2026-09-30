@@ -74,9 +74,7 @@ public final class DefaultSkillRuntime implements SkillRuntime {
         var binding = resolved.skill().descriptor().metadata();
         if (binding.get("executionEngine") instanceof String configured && !configured.isBlank()) {
             engine = configured;
-            if (!(binding.get("executionModel") instanceof String model) || model.isBlank())
-                return new SkillExecutionResult("SKILL_MODEL_BINDING_INVALID", route, resolved, workflow, null, Map.of());
-            attributes.put("modelName", model);
+            // Skill metadata chooses an adapter, never overrides the invoking Agent's model.
         }
         // Callers cannot supply a supposedly acquired bundle.
         attributes.remove(SkillDataAcquisition.RESULTS);

@@ -17,7 +17,8 @@ class SkillIntelligenceControllerTest {
     private final SkillAnalysisRunService runs = mock(SkillAnalysisRunService.class);
     private final EnterpriseAdminService authorization = mock(EnterpriseAdminService.class);
     private final HttpServletRequest http = mock(HttpServletRequest.class);
-    private final SkillIntelligenceController controller = new SkillIntelligenceController(intelligence, runs, authorization);
+    private final com.chatchat.chat.skills.catalog.SkillCatalogService agents = mock(com.chatchat.chat.skills.catalog.SkillCatalogService.class);
+    private final SkillIntelligenceController controller = new SkillIntelligenceController(intelligence, runs, authorization, agents);
     private SkillIntelligenceController.Request body(String engine) {
         return new SkillIntelligenceController.Request("Analyze", "agent", engine, "model", List.of(), List.of(),
             Map.of(), Map.of("tenantId", "forged"), 4);
@@ -27,6 +28,8 @@ class SkillIntelligenceControllerTest {
         when(user.id()).thenReturn("user"); when(user.tenantId()).thenReturn("tenant");
         when(user.status()).thenReturn("enabled"); when(user.roleIds()).thenReturn(List.of("role"));
         when(http.getAttribute(ApiAuthenticationFilter.CURRENT_USER_VIEW)).thenReturn(user);
+        var agent = mock(com.chatchat.chat.skills.model.SkillDefinition.class);
+        when(agent.modelName()).thenReturn("agent-model"); when(agents.resolve("agent")).thenReturn(agent);
     }
     @Test void rejectsAnonymousAndUnauthorizedAgentBeforePlanning() {
         assertThatThrownBy(() -> controller.plan(body(null), http)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
@@ -43,6 +46,7 @@ class SkillIntelligenceControllerTest {
         assertThat(capture.getValue().identity().attributes()).containsEntry("agentId", "agent");
         assertThat(capture.getValue().engine()).isEqualTo("GOOGLE_ADK_NATIVE");
         assertThat(capture.getValue().attributes()).doesNotContainKey("skillDataResults");
+        assertThat(capture.getValue().attributes()).containsEntry("modelName", "agent-model");
     }
     @Test void rejectsUnavailableEngineRatherThanSilentlyFallingBack() {
         authenticate(); when(authorization.canAccessAgent("user", "agent")).thenReturn(true);

@@ -64,6 +64,9 @@ public class SkillCatalogAgentComputeAdapter implements LocalAgentExecutionPort,
 
     @Override public AgentExecutionOutcome execute(AgentDescriptor descriptor, AgentExecutionRequest request) {
         SkillDefinition skill = skills.resolve(skillId(descriptor.agentId()));
+        if (!skill.id().equals(skillId(descriptor.agentId()))
+            || (skill.marketStatus() != null && !"published".equalsIgnoreCase(skill.marketStatus())))
+            return blocked(descriptor, request, "LOCAL_AGENT_UNAVAILABLE");
         if (!descriptor.supportsExecutionMode(request.executionMode()))
             return blocked(descriptor, request, "AGENT_MODE_UNSUPPORTED");
         String evidencePrompt = evidencePrompt(request);
@@ -85,7 +88,8 @@ public class SkillCatalogAgentComputeAdapter implements LocalAgentExecutionPort,
             .maxToolCalls(0)
             .timeoutMs(request.constraints().timeoutMs())
             .attributes(Map.of("federatedAgentExecution", true, "evidenceBundle", request.evidence(),
-                "capability", request.capability().value()))
+                "capability", request.capability().value(),
+                com.chatchat.agents.runtime.federation.EvidenceBoundAgentExecution.OUTPUT_CONTRACT, AgentExecutionOutcome.SCHEMA_VERSION))
             .build());
         if (!result.toolTraces().isEmpty()) return blocked(descriptor, request, "LOCAL_TOOL_EXECUTION_FORBIDDEN");
         if (result.status() != AgentRunStatus.COMPLETED)
@@ -99,12 +103,14 @@ public class SkillCatalogAgentComputeAdapter implements LocalAgentExecutionPort,
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("skillId", skill.id());
         if (skill.label() != null) metadata.put("label", skill.label());
+        if (skill.label() != null) metadata.put("displayName", skill.label());
         if (skill.marketStatus() != null) metadata.put("marketStatus", skill.marketStatus());
         metadata.put("supportedExecutionModes", List.of(AgentExecutionMode.DOMAIN_INFERENCE.name(),
             AgentExecutionMode.AGENTIC_EXECUTION.name()));
         return new AgentDescriptor(localId(skill.id()), "v1", AgentDescriptor.Origin.LOCAL,
             AgentDescriptor.Protocol.LOCAL, null, capabilities(skill), AgentDescriptor.TrustLevel.INTERNAL,
-            AgentDescriptor.DataAccessMode.RUNTIME_MANAGED, Set.of(), Set.of(),
+            AgentDescriptor.DataAccessMode.RUNTIME_MANAGED, Set.of(),
+            Set.of("DocumentAnalysisEvidence", "ToolAnalysisEvidence", "StructuredDataEvidence", "AgentAnalysisEvidence"),
             AgentExecutionOutcome.SCHEMA_VERSION, "", 50, true,
             metadata);
     }
@@ -130,11 +136,13 @@ public class SkillCatalogAgentComputeAdapter implements LocalAgentExecutionPort,
     }
 
     private String evidencePrompt(AgentExecutionRequest request) {
+        if (request.evidence().evidence().size() > com.chatchat.common.runtime.agent.AgentEvidenceBudget.MAX_ITEMS) return null;
         List<Map<String, String>> evidence = new ArrayList<>();
         int total = 0;
         for (var item : request.evidence().evidence()) {
             String content = item.content();
-            if (content.length() > 12_000 || (total += content.length()) > 60_000) return null;
+            if (content.length() > com.chatchat.common.runtime.agent.AgentEvidenceBudget.ITEM_CHARS
+                || (total += content.length()) > com.chatchat.common.runtime.agent.AgentEvidenceBudget.TOTAL_CHARS) return null;
             evidence.add(Map.of("evidenceId", item.evidenceId(), "content", content,
                 "sourceType", item.getClass().getSimpleName()));
         }

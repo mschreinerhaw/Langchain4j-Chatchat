@@ -28,6 +28,19 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doThrow;
 
 class RegisteredToolAnalysisOperatorTest {
+    @Test void discoveryStageUsesDeclaredReadOperationAndStillRejectsRiskyTools() {
+        boundSkill();
+        var metadata = ToolMetadata.builder().operationType("read").runtimeLevel("discovery").riskLevel("low").build();
+        when(registry.getToolMetadata("read_tool")).thenReturn(metadata);
+        when(runtime.execute(any())).thenReturn(new ToolRuntimeExecution(ToolOutput.success(Map.of("assets", List.of())),
+            null, null, "SUCCESS", Map.of()));
+        assertThat(operator.execute(context(), scope(), null).evidence()).hasSize(1);
+        metadata.setOperationType("write");
+        assertThat(operator.execute(context(), scope(), null).evidence()).isEmpty();
+        metadata.setOperationType("read"); metadata.setRiskLevel("high");
+        assertThat(operator.execute(context(), scope(), null).evidence()).isEmpty();
+        verify(runtime, org.mockito.Mockito.times(1)).execute(any());
+    }
     private final SkillCatalogService skills = mock(SkillCatalogService.class);
     private final McpToolCatalogQueryPort catalog = mock(McpToolCatalogQueryPort.class);
     private final ToolRegistry registry = mock(ToolRegistry.class);

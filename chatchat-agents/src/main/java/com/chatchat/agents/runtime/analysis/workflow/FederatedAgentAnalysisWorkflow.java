@@ -146,6 +146,8 @@ public class FederatedAgentAnalysisWorkflow extends AbstractAnalysisWorkflow {
             try {
                 outcome = computeNodes.execute(ComputeNodeType.AGENT, request,
                     AgentExecutionOutcome.class, context.kernelScope());
+            } catch (java.util.concurrent.CancellationException cancelled) {
+                throw cancelled;
             } catch (RuntimeException failure) {
                 taskStates.put(task.taskId(), "FAILED");
                 findings.add(task.taskId() + ": agent execution failed (" + failure.getClass().getSimpleName() + ")");
@@ -194,16 +196,26 @@ public class FederatedAgentAnalysisWorkflow extends AbstractAnalysisWorkflow {
         if (execution.outputs().containsKey("agentOutcomes")) {
             @SuppressWarnings("unchecked") Map<String, AgentExecutionOutcome> outcomes =
                 (Map<String, AgentExecutionOutcome>) execution.outputs().get("agentOutcomes");
-            String synthesis = verification.accepted() ? outcomes.values().stream()
-                .filter(outcome -> outcome.status() == AgentExecutionOutcome.Status.COMPLETED)
-                .flatMap(outcome -> outcome.claims().stream())
-                .map(AgentExecutionOutcome.GroundedClaim::text).filter(value -> !value.isBlank())
-                .reduce((left, right) -> left + "\n" + right).orElse("") : "";
+            String synthesis = verification.accepted() ? outcomes.entrySet().stream()
+                .filter(entry -> entry.getValue().status() == AgentExecutionOutcome.Status.COMPLETED)
+                .map(entry -> "[" + entry.getKey() + " · " + entry.getValue().providerAgentId() + "]\n"
+                    + entry.getValue().claims().stream().map(AgentExecutionOutcome.GroundedClaim::text)
+                        .filter(value -> !value.isBlank()).collect(java.util.stream.Collectors.joining("\n")))
+                .collect(java.util.stream.Collectors.joining("\n\n")) : "";
             Map<String, Object> metadata = new LinkedHashMap<>();
             metadata.put("workflowId", workflowId());
             metadata.put("collaboration", true);
             metadata.put("taskStates", execution.outputs().get("taskStates"));
             metadata.put("completedTaskCount", execution.outputs().get("completedTaskCount"));
+            int expected = AgentCollaborationPlan.from(context.attributes().get(AgentCollaborationPlan.CONTEXT_ATTRIBUTE)).tasks().size();
+            int completedCount = ((Number) execution.outputs().get("completedTaskCount")).intValue();
+            metadata.put("expectedTaskCount", expected);
+            metadata.put("collaborationStatus", completedCount == expected ? "COMPLETED"
+                : completedCount > 0 ? "PARTIAL" : "FAILED");
+            metadata.put("agentResults", outcomes.entrySet().stream().map(entry -> Map.of(
+                "taskId", entry.getKey(), "agentId", entry.getValue().providerAgentId(),
+                "status", entry.getValue().status().name(), "claims", entry.getValue().claims(),
+                "limitations", entry.getValue().limitations(), "errorCode", entry.getValue().errorCode())).toList());
             metadata.put("judgeDecision", verification.accepted() ? "ACCEPT" : "SUPPLEMENT");
             return new AnalysisExecutionOutcome(null, type(), plan, verification, bundle, synthesis, metadata);
         }

@@ -179,6 +179,8 @@ public class DefaultAgentComputeRuntime implements AgentComputeRuntimePort {
             if (gateway == null) return failure(request, candidate.agentId(), AgentExecutionOutcome.Status.FAILED,
                 "AGENT_GATEWAY_UNAVAILABLE", "Remote agent gateway is not configured");
             return gateway.invoke(candidate, request);
+        } catch (java.util.concurrent.CancellationException cancelled) {
+            throw cancelled;
         } catch (RuntimeException error) {
             return failure(request, candidate.agentId(), AgentExecutionOutcome.Status.FAILED,
                 "AGENT_PROVIDER_FAILURE", safeMessage(error));

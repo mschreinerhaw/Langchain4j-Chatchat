@@ -33,7 +33,7 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
     public static final String TOOL_NAME = "runtime.analysis.toolName";
     public static final String TOOL_ARGUMENTS = "runtime.analysis.toolArguments";
     public static final String TOOL_CALLS = "runtime.analysis.toolCalls";
-    private static final int MAX_EVIDENCE_CHARS = 65536;
+    private static final int MAX_EVIDENCE_CHARS = com.chatchat.common.runtime.agent.AgentEvidenceBudget.ITEM_CHARS;
 
     private final SkillCatalogService skills;
     private final McpToolCatalogQueryPort catalog;
@@ -97,7 +97,8 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
         ToolMetadata metadata = registry.getToolMetadata(name);
         if (metadata == null || !metadata.isAgentCompatible() || !metadata.isUserVisible()
             || !"read".equalsIgnoreCase(metadata.getOperationType())
-            || (metadata.getRuntimeLevel() != null && !"readonly".equalsIgnoreCase(metadata.getRuntimeLevel()))
+            || (metadata.getRuntimeLevel() != null && !Set.of("readonly", "read_only", "read", "discovery")
+                .contains(metadata.getRuntimeLevel().toLowerCase(java.util.Locale.ROOT)))
             || Set.of("high", "forbidden").contains(String.valueOf(metadata.getRiskLevel()).toLowerCase()))
             return denied("Tool is not published as a read-only analysis capability");
         Object rawArguments = context.attributes().get(TOOL_ARGUMENTS);

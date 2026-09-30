@@ -21,9 +21,10 @@ public class SkillIntelligenceController {
     private final SkillIntelligenceLayer intelligence;
     private final SkillAnalysisRunService runs;
     private final EnterpriseAdminService authorization;
+    private final com.chatchat.chat.skills.catalog.SkillCatalogService agents;
     public SkillIntelligenceController(SkillIntelligenceLayer intelligence, SkillAnalysisRunService runs,
-                                       EnterpriseAdminService authorization) {
-        this.intelligence = intelligence; this.runs = runs; this.authorization = authorization;
+                                       EnterpriseAdminService authorization, com.chatchat.chat.skills.catalog.SkillCatalogService agents) {
+        this.intelligence = intelligence; this.runs = runs; this.authorization = authorization; this.agents = agents;
     }
     @PostMapping("/plan") public ApiResponse<?> plan(@RequestBody Request body, HttpServletRequest http) {
         return ApiResponse.success(intelligence.plan(request(body, http)));
@@ -44,8 +45,9 @@ public class SkillIntelligenceController {
         String engine = body.engine() == null || body.engine().isBlank() ? "GOOGLE_ADK_NATIVE" : body.engine().toUpperCase(Locale.ROOT);
         if (!Set.of("GOOGLE_ADK_NATIVE", "LANGCHAIN4J", "OPENAI_COMPATIBLE").contains(engine))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Analysis engine is not registered");
-        if (body.modelName() == null || body.modelName().isBlank())
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "modelName required");
+        String model = agents.resolve(body.agentId()).modelName();
+        if (model == null || model.isBlank())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Configure the invoking Agent model first");
         var inputs = body.inputs() == null ? Map.<String, Object>of() : body.inputs();
         if (inputs.size() > 32 || inputs.entrySet().stream().anyMatch(entry -> entry.getKey().length() > 100
             || !(entry.getValue() instanceof String || entry.getValue() instanceof Number || entry.getValue() instanceof Boolean)
@@ -54,7 +56,7 @@ public class SkillIntelligenceController {
         try {
             return new SkillCompositionRequest(body.query(), new SkillRoleContext(user.tenantId(), user.id(), user.roleIds(),
                 List.of(), Map.of("agentId", body.agentId())), body.capabilities(), body.skillIds(), body.workflowIds(), inputs,
-                engine, Map.of("modelName", body.modelName(), "maxSteps", 6, "maxToolCalls", 0, "timeoutMs", 60000L),
+                engine, Map.of("modelName", model, "maxSteps", 6, "maxToolCalls", 0, "timeoutMs", 60000L),
                 body.maxSkills() == null ? 4 : body.maxSkills());
         } catch (IllegalArgumentException invalid) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, invalid.getMessage()); }
     }

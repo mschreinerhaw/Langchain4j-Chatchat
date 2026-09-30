@@ -13,7 +13,7 @@ export default {
       appliedProviderRequestId: null,
       providers: [], skills: [], toolCatalog: [], documentsBySkill: {}, advancedOpen: false,
       form: {
-        providerId: "", capability: "", skillId: "", skillIds: [], query: "",
+        providerId: "", collaboratorIds: [], capability: "", skillId: "", skillIds: [], query: "",
         documentIds: [], documentsBySkill: {}, documentTags: [], selectedTools: [], toolArguments: {},
         dataSkillId: "", dataTemplateId: "", dataAssetName: "", dataEnvironment: "",
         dataParameters: "{}", confirmRemoteTransfer: false
@@ -22,6 +22,7 @@ export default {
   },
   computed: {
     selectedProvider() { return this.providers.find((item) => item.providerId === this.form.providerId) || null; },
+    collaboratorOptions() { return this.providers.filter(item => item.kind === "DOMAIN_AGENT" && item.providerId !== this.form.providerId); },
     selectedEvidenceCount() {
       return (this.form.skillIds || []).reduce((count, skillId) =>
         count + (this.form.documentsBySkill?.[skillId]?.length || 0), 0) + this.form.selectedTools.length
@@ -57,6 +58,7 @@ export default {
   methods: {
     providerKindLabel(provider) {
       if (provider?.kind === "GENERAL_LLM") return "通用模型";
+      if (provider?.origin === "LOCAL") return "自建 Agent";
       if (provider?.origin === "GROUP") return "集团 Agent";
       if (provider?.origin === "EXTERNAL") return "第三方 Agent";
       return "分析算力";
@@ -105,6 +107,7 @@ export default {
       finally { this.loading = false; }
     },
     changeProvider() {
+      this.form.collaboratorIds = [];
       this.form.capability = this.selectedProvider?.capabilities?.[0] || "";
       this.form.skillIds = this.form.skillIds.filter((id) => !this.selectedProvider?.grantRestricted
         || this.selectedProvider.skillIds?.includes(id));
@@ -186,12 +189,27 @@ export default {
       }
       if (!documentCount && !tools.length && !form.dataTemplateId.trim())
         throw new Error("请至少选择一项文档知识或数据能力");
+      const tasks = [];
+      if (form.collaboratorIds?.length) {
+        if (this.selectedProvider?.kind !== "DOMAIN_AGENT" || form.collaboratorIds.length > 3
+          || new Set(form.collaboratorIds).size !== form.collaboratorIds.length)
+          throw new Error("请选择一个主分析 Agent 和最多三个不同的协作 Agent");
+        tasks.push({ taskId: "primary", agentId: form.providerId, capability: form.capability,
+          instruction: form.query.trim(), mode: "DOMAIN_INFERENCE", dependsOn: [] });
+        form.collaboratorIds.forEach((id, index) => {
+          const provider = this.providers.find(item => item.providerId === id && item.kind === "DOMAIN_AGENT");
+          if (!provider || id === form.providerId) throw new Error("协作 Agent 不可用");
+          tasks.push({ taskId: `review-${index + 1}`, agentId: id, capability: provider.capabilities[0],
+            instruction: `基于原始证据及前序 Agent 结论，从你的专业职责审查分析要求：${form.query.trim()}。指出证据支持的补充、分歧和局限；不得将前序结论视为未经核验的事实。`,
+            mode: "DOMAIN_INFERENCE", dependsOn: ["primary"] });
+        });
+      }
       return {
         query: form.query.trim(), providerId: form.providerId, capability: form.capability,
         skillId: skillIds[0], skills, documentIds: skills[0].documentIds, documentTags: [],
         tools, dataSkillId: form.dataSkillId || skillIds[0], dataTemplateId: form.dataTemplateId.trim(),
         dataAssetName: form.dataAssetName.trim(), dataEnvironment: form.dataEnvironment,
-        dataParameters, confirmRemoteTransfer: true
+        dataParameters, confirmRemoteTransfer: true, ...(tasks.length ? { tasks } : {})
       };
     },
     async run() {

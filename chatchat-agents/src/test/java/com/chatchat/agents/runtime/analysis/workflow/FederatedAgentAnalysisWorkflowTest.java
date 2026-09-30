@@ -95,7 +95,7 @@ class FederatedAgentAnalysisWorkflowTest {
             .contains("seed", "first:claim", "second:claim");
         assertThat(result.synthesis()).contains("first conclusion", "second conclusion");
         assertThat(result.metadata()).containsEntry("collaboration", true)
-            .containsEntry("completedTaskCount", 2);
+            .containsEntry("completedTaskCount", 2).containsEntry("collaborationStatus", "COMPLETED");
     }
 
     @Test void invalidCollaborationDependencyIsRejectedBeforeExecution() {
@@ -138,8 +138,9 @@ class FederatedAgentAnalysisWorkflowTest {
             .execute(context, context.kernelScope());
 
         assertThat(result.verification().accepted()).isTrue();
-        assertThat(result.synthesis()).isEqualTo("first finding");
-        assertThat(result.metadata()).containsEntry("completedTaskCount", 1);
+        assertThat(result.synthesis()).contains("first finding", "local.agent");
+        assertThat(result.metadata()).containsEntry("completedTaskCount", 1)
+            .containsEntry("collaborationStatus", "PARTIAL").containsEntry("expectedTaskCount", 3);
         assertThat(result.metadata().get("taskStates")).isEqualTo(Map.of(
             "first", "COMPLETED", "second", "FAILED", "third", "SKIPPED_DEPENDENCY"));
         assertThat(result.evidenceBundle().limitations()).anyMatch(value -> value.contains("second"));

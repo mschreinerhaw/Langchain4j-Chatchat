@@ -15,6 +15,25 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class IntelligenceProviderRegistryTest {
+    @Test void localDiscoveryRequiresPublishedAgentAndCallingUserAuthorization() {
+        var models = mock(PlatformModelCatalogService.class);
+        var agents = mock(AgentRegistryPort.class);
+        var local = new AgentDescriptor("local.skill.review", "v1", AgentDescriptor.Origin.LOCAL,
+            AgentDescriptor.Protocol.LOCAL, null, Set.of(CapabilityId.parse("local.review.v1")),
+            AgentDescriptor.TrustLevel.INTERNAL, AgentDescriptor.DataAccessMode.RUNTIME_MANAGED,
+            Set.of(), Set.of("ToolAnalysisEvidence"), null, "", 50, true,
+            Map.of("skillId", "review", "marketStatus", "published"));
+        when(agents.list()).thenReturn(List.of(local));
+        com.chatchat.common.retrieval.SkillExecutionScopePort scopes = (tenant, user, skill, docs, tags) ->
+            new com.chatchat.common.retrieval.SkillExecutionScopePort.EffectiveScope(List.of(), List.of(), List.of(), true,
+                "tenant".equals(tenant) && "authorized".equals(user));
+        var registry = new IntelligenceProviderRegistry(models, agents, scopes);
+        assertThat(registry.list("tenant", "authorized")).extracting(IntelligenceProviderRegistry.Provider::providerId)
+            .containsExactly("local.skill.review");
+        assertThat(registry.list("tenant", "denied")).isEmpty();
+        assertThat(registry.list("other", "authorized")).isEmpty();
+        assertThat(registry.list("tenant")).isEmpty();
+    }
     @Test void exposesBusinessDescriptionAndRoleGovernedMcpMode() {
         PlatformModelCatalogService models = mock(PlatformModelCatalogService.class);
         AgentRegistryPort agents = mock(AgentRegistryPort.class);

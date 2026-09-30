@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class DefaultSkillRuntimeTest {
     @Test
-    void resolvedSkillBindingOverridesCallerEngineAndModel() {
+    void resolvedSkillBindingPreservesInvokingAgentModel() {
         var descriptor = new SkillDescriptor("bound", "v1", "Bound", "", "finance", "DATABASE", "", "", "", 1,
             Map.of("executionEngine", "GOOGLE_ADK_NATIVE", "executionModel", "bound-model"));
         var scope = new AuthorizedSkillScope(true, List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
@@ -33,7 +33,7 @@ class DefaultSkillRuntimeTest {
         var runtime = new DefaultSkillRuntime(request -> new SkillRouteResult(List.of(descriptor), "ROUTED", Map.of()),
             resolver(new SkillResolution(skill, scope, "db", "RESOLVED", Map.of())), new DefaultWorkflowResolver(), request -> {
                 assertThat(request.engine()).isEqualTo("GOOGLE_ADK_NATIVE");
-                assertThat(request.attributes()).containsEntry("modelName", "bound-model");
+                assertThat(request.attributes()).containsEntry("modelName", "caller-model");
                 return new RuntimeAgentExecutionResult("COMPLETED", "answer", Map.of());
             });
         var result = runtime.execute(new SkillExecutionRequest("Analyze", new SkillRoleContext("t", "u", List.of(), List.of(), Map.of()),

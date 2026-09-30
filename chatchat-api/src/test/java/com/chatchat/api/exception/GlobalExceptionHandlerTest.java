@@ -21,6 +21,18 @@ import static org.mockito.Mockito.mock;
 
 class GlobalExceptionHandlerTest {
 
+    @Test void declaredAdmissionAndValidationStatusesAreNotRewrittenAsServerErrors() {
+        for (var status : java.util.List.of(org.springframework.http.HttpStatus.FORBIDDEN,
+            org.springframework.http.HttpStatus.BAD_REQUEST, org.springframework.http.HttpStatus.NOT_FOUND)) {
+            var response = new GlobalExceptionHandler().handleResponseStatusException(
+                new org.springframework.web.server.ResponseStatusException(status, "Request denied"),
+                new ServletWebRequest(new MockHttpServletRequest()));
+            assertEquals(status.value(), response.getStatusCode().value());
+            assertEquals(status.value(), response.getBody().getCode());
+            assertEquals("Request denied", response.getBody().getMessage());
+        }
+    }
+
     @Test
     void deniedAgentSkillReturnsForbidden() {
         ResponseEntity<ApiResponse<Void>> response = new GlobalExceptionHandler().handleSecurityException(

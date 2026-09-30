@@ -59,13 +59,13 @@ public class RemoteAgentEvidenceProjector {
                     throw new IllegalArgumentException("remoteProjection must be JSON serializable", error);
                 }
             } else throw new IllegalArgumentException("remoteProjection must be text or a JSON object");
-            if (content.isBlank() || content.length() > 100_000)
-                throw new IllegalArgumentException("remoteProjection must contain 1..100000 characters");
+            if (content.isBlank() || content.length() > com.chatchat.common.runtime.agent.AgentEvidenceBudget.ITEM_CHARS)
+                throw new IllegalArgumentException("remoteProjection exceeds the shared Agent evidence budget");
             projected.add(new ProjectedAnalysisEvidence(evidence.evidenceId(), evidence.capability(), content,
                 Map.of("sourceType", evidence.getClass().getSimpleName())));
         });
-        if (domainPackage && (projected.size() > 24
-            || projected.stream().mapToInt(item -> item.content().length()).sum() > 150_000))
+        if (domainPackage && (projected.size() > com.chatchat.common.runtime.agent.AgentEvidenceBudget.MAX_ITEMS
+            || projected.stream().mapToInt(item -> item.content().length()).sum() > com.chatchat.common.runtime.agent.AgentEvidenceBudget.TOTAL_CHARS))
             throw new IllegalArgumentException("Domain analysis evidence exceeds remote projection limits");
         EvidenceBundle bundle = new EvidenceBundle(EvidenceBundle.SCHEMA_VERSION, List.copyOf(projected),
             request.evidence().limitations(), Map.of("projection", "remote-explicit-v1"));

@@ -40,10 +40,6 @@ public class SkillIntelligenceInteractionBridge {
         if (!Set.of("GOOGLE_ADK_NATIVE", "LANGCHAIN4J", "OPENAI_COMPATIBLE").contains(engine))
             throw new IllegalArgumentException("Skill Intelligence engine is not registered");
         String model = agent.modelName() == null || agent.modelName().isBlank() ? request.getModelName() : agent.modelName();
-        // The first bound model plans the composition; each resolved skill selects its own execution binding.
-        var planningModel = candidates(request, agent, roles).stream().map(item -> item.metadata().get("executionModel"))
-            .filter(String.class::isInstance).map(String.class::cast).filter(value -> !value.isBlank()).findFirst();
-        if (planningModel.isPresent()) model = planningModel.get();
         if (model == null || model.isBlank()) throw new IllegalArgumentException("Analysis model is required");
         List<String> skills = strings(agent.workflowConfig().get("boundDomainSkillIds"));
         var inputs = new LinkedHashMap<String, Object>();

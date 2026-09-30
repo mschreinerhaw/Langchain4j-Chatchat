@@ -14,20 +14,20 @@ vi.mock("../../services/api.js", () => api);
 import DomainSkillsView from "./DomainSkillsView.js";
 
 describe("DomainSkillsView", () => {
-  it("loads saved publication binding and submits selected engine and model", async () => {
-    api.fetchSkillPublicationOptions.mockResolvedValue({ engines: ["GOOGLE_ADK_NATIVE", "LANGCHAIN4J"], models: ["model-a", "model-b"] });
+  it("ignores legacy model binding and publishes using the Agent model", async () => {
+    api.fetchSkillPublicationOptions.mockResolvedValue({ engines: ["GOOGLE_ADK_NATIVE", "LANGCHAIN4J"], modelSource: "AGENT" });
     const context = { ...DomainSkillsView.data(), publishSkill: vi.fn() };
     const skill = { id: "s", status: "PUBLISHED", executionEngine: "LANGCHAIN4J", executionModel: "model-a" };
     await DomainSkillsView.methods.openPublish.call(context, skill);
-    expect(context.publishBinding).toEqual({ engine: "LANGCHAIN4J", modelName: "model-a" });
-    context.publishBinding = { engine: "GOOGLE_ADK_NATIVE", modelName: "model-b" };
+    expect(context.publishBinding).toEqual({ engine: "LANGCHAIN4J" });
+    context.publishBinding = { engine: "GOOGLE_ADK_NATIVE" };
     await DomainSkillsView.methods.confirmPublish.call(context);
-    expect(context.publishSkill).toHaveBeenCalledWith(skill, { engine: "GOOGLE_ADK_NATIVE", modelName: "model-b" });
+    expect(context.publishSkill).toHaveBeenCalledWith(skill, { engine: "GOOGLE_ADK_NATIVE" });
     expect(context.publishOpen).toBe(false);
   });
-  it("does not publish an unavailable model", async () => {
-    const context = { ...DomainSkillsView.data(), publishTarget: { id: "s" }, publishModels: [], publishEngines: ["GOOGLE_ADK_NATIVE"], publishSkill: vi.fn() };
-    context.publishBinding.modelName = "removed-model";
+  it("does not publish an unavailable engine", async () => {
+    const context = { ...DomainSkillsView.data(), publishTarget: { id: "s" }, publishEngines: ["GOOGLE_ADK_NATIVE"], publishSkill: vi.fn() };
+    context.publishBinding.engine = "unknown";
     await DomainSkillsView.methods.confirmPublish.call(context);
     expect(context.publishSkill).not.toHaveBeenCalled();
     expect(context.publishError).toBeTruthy();

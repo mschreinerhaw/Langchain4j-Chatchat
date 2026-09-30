@@ -41,6 +41,14 @@ public class GlobalExceptionHandler {
 
     private static final HttpStatusCode CLIENT_CLOSED_REQUEST = HttpStatusCode.valueOf(499);
 
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<ApiResponse<Void>> handleResponseStatusException(
+            org.springframework.web.server.ResponseStatusException ex, WebRequest request) {
+        return ResponseEntity.status(ex.getStatusCode()).headers(ex.getHeaders())
+            .body(ApiResponse.error(ex.getStatusCode().value(),
+                ex.getReason() == null ? "Request rejected" : ex.getReason()));
+    }
+
     /**
      * Handle validation exceptions
      */

@@ -101,7 +101,7 @@
                 </div>
               </div>
               <p>{{ skill.description || '暂无说明' }}</p>
-              <p v-if="skill.executionEngine" class="skill-execution-binding">{{ engineLabel(skill.executionEngine) }} · {{ skill.executionModel }}</p>
+              <p v-if="skill.executionEngine" class="skill-execution-binding">{{ engineLabel(skill.executionEngine) }} · 使用 Agent 配置的模型</p>
               <span>{{ skill.category }} · {{ formatTime(skill.updatedAt) }} · {{ skill.id }}</span>
             </div>
             <div v-if="isAdmin" class="domain-skill-item-actions">
@@ -162,13 +162,11 @@
       <form class="domain-skill-dialog skill-publication-dialog" role="dialog" aria-modal="true" aria-labelledby="skill-publish-title" @submit.prevent="confirmPublish">
         <header><div><p>领域技能</p><h2 id="skill-publish-title">{{ publishTarget?.status === 'PUBLISHED' ? '发布配置' : '发布技能' }}</h2></div><button type="button" class="app-dialog-close" aria-label="关闭" :disabled="busy || publishLoading" @click="publishOpen = false">×</button></header>
         <p>{{ publishTarget?.name }}</p>
-        <p class="skill-publication-help">运行时自动使用此技能绑定的引擎和模型。仅保存配置与发布状态，不重新编译。</p>
+        <p class="skill-publication-help">技能使用调用它的 Agent 所配置的模型，无需重复选择模型。</p>
         <p v-if="publishError" class="domain-skill-dialog-error" role="alert">{{ publishError }}</p>
         <p v-if="publishLoading" role="status">正在加载可用配置…</p>
         <label>执行引擎<select v-model="publishBinding.engine" :disabled="busy || publishLoading" required><option v-for="engine in publishEngines" :key="engine" :value="engine">{{ engineLabel(engine) }}</option></select></label>
-        <label>绑定模型<input v-model="publishBinding.modelName" list="skill-publication-models" placeholder="输入或选择可用模型" :disabled="busy || publishLoading" required autocomplete="off" /><datalist id="skill-publication-models"><option v-for="model in publishModels" :key="model" :value="model" /></datalist></label>
-        <p v-if="!publishLoading && !publishModels.length" class="skill-publication-help">暂无可用模型，请先在模型管理中配置并启用模型。</p>
-        <footer><button type="button" class="secondary-button" :disabled="busy || publishLoading" @click="publishOpen = false">取消</button><button v-if="publishError" type="button" class="secondary-button" :disabled="busy || publishLoading" @click="openPublish(publishTarget)">重新加载</button><button type="submit" :disabled="busy || publishLoading || !publishModels.includes(publishBinding.modelName)">{{ busy ? '保存中…' : publishTarget?.status === 'PUBLISHED' ? '保存配置' : '确认发布' }}</button></footer>
+        <footer><button type="button" class="secondary-button" :disabled="busy || publishLoading" @click="publishOpen = false">取消</button><button v-if="publishError" type="button" class="secondary-button" :disabled="busy || publishLoading" @click="openPublish(publishTarget)">重新加载</button><button type="submit" :disabled="busy || publishLoading || !publishEngines.includes(publishBinding.engine)">{{ busy ? '保存中…' : publishTarget?.status === 'PUBLISHED' ? '保存配置' : '确认发布' }}</button></footer>
       </form>
     </div>
 

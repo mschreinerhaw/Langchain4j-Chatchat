@@ -38,28 +38,24 @@ import static org.mockito.Mockito.*;
 
 class DomainSkillServiceTest {
     @Test
-    void publishesBindingWithoutCompilingAndRejectsUnavailableChoices() {
+    void publishesWithoutModelAndIgnoresLegacyModelBinding() {
         var repository = mock(DomainSkillRepository.class);
         var index = mock(DomainSkillIndexService.class);
         var entitlement = mock(McpLicenseEntitlementPort.class);
-        var models = mock(com.chatchat.common.config.ModelResourceRegistry.class);
         var skill = skill("bound", "Bound", "# Instructions");
         when(repository.findByIdAndTenantId("bound", "tenant-a")).thenReturn(Optional.of(skill));
         when(index.index(skill)).thenReturn(new DomainSkillIndexService.IndexResult(true, "BM25", ""));
         when(entitlement.skillPublicationLimit()).thenReturn(new McpLicenseEntitlementPort.SkillPublicationLimit(true, "VALID", "", 5, true, "MCP"));
         var service = service(repository, entitlement, index);
-        org.springframework.test.util.ReflectionTestUtils.setField(service, "executionModels", models);
         service.publish("tenant-a", "bound", new DomainSkillService.PublicationBinding("GOOGLE_ADK_NATIVE", "model-a"));
-        verify(models).require("model-a");
         verify(repository).saveAndFlush(skill);
         assertThat(skill.getExecutionEngine()).isEqualTo("GOOGLE_ADK_NATIVE");
-        assertThat(skill.getExecutionModel()).isEqualTo("model-a");
+        assertThat(skill.getExecutionModel()).isNull();
         assertThatThrownBy(() -> service.publish("tenant-a", "bound", new DomainSkillService.PublicationBinding("SPRING_AI", "model-a")))
             .isInstanceOf(IllegalArgumentException.class);
-        when(models.require("deleted")).thenThrow(new IllegalArgumentException("Unavailable"));
-        assertThatThrownBy(() -> service.publish("tenant-a", "bound", new DomainSkillService.PublicationBinding("GOOGLE_ADK_NATIVE", "deleted")))
-            .isInstanceOf(IllegalArgumentException.class);
-        assertThat(skill.getExecutionModel()).isEqualTo("model-a");
+        service.publish("tenant-a", "bound", new DomainSkillService.PublicationBinding("GOOGLE_ADK_NATIVE", null));
+        assertThat(skill.getExecutionModel()).isNull();
+        assertThat(service.publicationOptions()).containsEntry("modelSource", "AGENT").doesNotContainKey("models");
         verifyNoInteractions(org.springframework.test.util.ReflectionTestUtils.getField(service, "artifactStore"));
     }
     @Test

@@ -31,6 +31,34 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AgentAnalysisControllerTest {
+    @Test void jointlyAdmitsAuthorizedLocalAgentsBeforeAcquiringEvidence() {
+        var registry = mock(AgentRegistryPort.class);
+        var capability = CapabilityId.parse("local.review.v1");
+        var provider = new AgentDescriptor("local.skill.review", "v1", AgentDescriptor.Origin.LOCAL,
+            AgentDescriptor.Protocol.LOCAL, null, Set.of(capability), AgentDescriptor.TrustLevel.INTERNAL,
+            AgentDescriptor.DataAccessMode.RUNTIME_MANAGED, Set.of(), Set.of("DocumentAnalysisEvidence", "AgentAnalysisEvidence"),
+            null, "", 50, true, Map.of("skillId", "review", "marketStatus", "published"));
+        when(registry.find(provider.agentId())).thenReturn(Optional.of(provider));
+        var admitted = new java.util.concurrent.atomic.AtomicBoolean(true);
+        SkillExecutionScopePort scopes = (tenant, user, skill, docs, tags) ->
+            new SkillExecutionScopePort.EffectiveScope(docs, List.of(), List.of(), true,
+                !"review".equals(skill) || admitted.get());
+        var observed = new AtomicReference<AnalysisContext>();
+        var controller = new AgentAnalysisController(context -> { observed.set(context); return null; }, scopes, registry);
+        var http = mock(HttpServletRequest.class);
+        when(http.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID)).thenReturn("tenant");
+        when(http.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)).thenReturn("user");
+        var body = new AgentAnalysisController.DomainAnalyzeRequest("Review evidence", "source", provider.agentId(),
+            capability.value(), List.of("doc"), List.of(), List.of(), null, null, null, Map.of(), 1, 60000L,
+            true, null, null, List.of(Map.of("taskId", "review", "agentId", provider.agentId(),
+                "capability", capability.value(), "instruction", "Review", "dependsOn", List.of())));
+        controller.analyzeDomain(body, http);
+        assertThat(observed.get().attributes()).containsKey(AgentCollaborationPlan.CONTEXT_ATTRIBUTE);
+        assertThat(observed.get().skillId()).isEqualTo("source");
+        admitted.set(false); observed.set(null);
+        assertThatThrownBy(() -> controller.analyzeDomain(body, http)).isInstanceOf(ResponseStatusException.class);
+        assertThat(observed.get()).isNull();
+    }
     @Test void recoveryFailureReturnsSuccessfulApiEnvelopeWithEvidenceAndUnchangedJudgment() {
         var evidence = new com.chatchat.common.runtime.analysis.evidence.DocumentAnalysisEvidence(
             "e1", "doc", "chunk", "document", "section", "doc#section", "retrieved text", 0.9,

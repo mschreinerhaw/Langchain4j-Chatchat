@@ -1,5 +1,7 @@
 # Skill Intelligence 与 Google ADK 接入
 
+2026-09-30：主 Agent 工作流现通过 ADK 渐进加载 Skill，形成贯穿计划、分析、验证和报告的请求内方法快照；未显式绑定时可发现已授权 Skill。它不会启动独立的业务取数流程。独立 Intelligence API 保留，以下引擎和固定数据绑定说明仍适用于该 API。主流程细节与验证见 [Skill 分析上下文贯穿 Runtime](skill-analysis-lifecycle-20260930.md)。
+
 ## 已实现的边界
 
 Agent Runtime OS → SkillIntelligenceLayer → SkillCompositionRuntime / SkillRuntime → AgentRuntimeAdapter。
@@ -18,28 +20,13 @@ Spring AI 独立 SDK 适配器尚未接入；请求 `SPRING_AI` 明确拒绝，�
 
 ## Agent 任务启用
 
-推荐在「领域技能」点击「发布」，选择执行引擎和模型后确认；已发布技能通过「发布配置」调整。
-配置保存到 `ds_domain_skill.execution_engine/execution_model`，与发布状态在同一事务中更新，不重新编译。
-Agent 绑定该技能后自动启用分析链路，无需手工设置 Agent 引擎。
-多个技能可以绑定不同引擎/模型，运行时按每个已授权技能的数据库配置执行，覆盖请求级默认值。
-意图规划使用首个候选技能绑定的模型；原有未绑定执行配置的技能维持兼容行为。
-部署前执行对应数据库的 `V20260929_03__skill_execution_binding.sql`。
+在「领域技能」发布 Skill，并按需要在 Agent 中勾选。显式绑定限定候选范围；未绑定时允许自动发现当前身份可使用的已发布 Skill。发布和绑定本身不授予资源权限。
 
-以下旧 Agent 配置继续兼容，但不再是必需步骤：
+`AgentChatModeHandler` 与 `RoleChatModeHandler` 默认接入 `SkillAnalysisContextService`。该子阶段使用 Agent 配置的模型和原生 ADK 读取方法，等待结束后进入原工作流，不额外执行 Skill 的独立取数绑定。角色问答仍仅作说明，不执行 MCP 业务取数。没有可用或相关 Skill 时继续基础回答，不要求选择 MCP。
 
-```json
-{
-  "skillIntelligenceEngine": "GOOGLE_ADK_NATIVE",
-  "boundDomainSkillIds": ["已发布的技能 ID"]
-}
-```
+通过原 Agent 任务接口提交请求，沿用任务队列、取消信号、会话隔离和事件监控。Skill 阶段作为 `OBSERVATION_RECORDED` 输出；结果的 `metadata.skillAnalysisContext` 提供状态、Skill 版本和指纹。完整方法快照保留在 Runtime 内部上下文，贯穿计划、取数语义裁决、数据分析、验证和报告。
 
-使用旧配置时同时配置 Agent 的 `modelName`。没有已绑定执行配置的技能、也没有旧配置的 Agent 不改变原有行为。
-由 `AgentChatModeHandler` 与 `RoleChatModeHandler` 接入；角色问答仅执行说明型分析，仍禁止获取 MCP 业务数据。
-通过现有 Agent 任务接口提交 `agent_chat` 请求即可复用任务队列、事件监控与 API 会话隔离。
-业务参数通过 `toolInput.skillDataInputs` 传入，仅允许最多 32 个有界标量；不能传入已经获取的证据。
-分析阶段作为 `OBSERVATION_RECORDED` 事件输出，最终结果包含 `metadata.skillIntelligence`。
-发布页只提供实际接入的引擎和可用模型；失效模型不会静默切换到其他模型。
+`ds_domain_skill.execution_engine/execution_model` 和旧 `skillIntelligenceEngine` 配置继续服务于独立 Skill Runtime / Intelligence 调用，不决定主业务 DAG 的路由。独立执行时可以按 Skill 的发布配置覆盖请求引擎和模型；这与主流程的方法上下文准备是不同职责。对应历史数据库迁移仍为 `V20260929_03__skill_execution_binding.sql`，本次生命周期接入没有新增表。
 
 ## 独立分析 API
 

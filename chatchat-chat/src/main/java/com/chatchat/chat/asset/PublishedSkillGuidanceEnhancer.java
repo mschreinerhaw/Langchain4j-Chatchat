@@ -39,6 +39,17 @@ public class PublishedSkillGuidanceEnhancer implements AssetGuidanceEnhancer {
     }
     private Recommendation infer(AnalysisContext context, AssetContext asset) throws Exception {
         var agent = agents.resolve(context.skillId());
+        var pinned = com.chatchat.agents.runtime.context.SkillAnalysisContext.from(context.attributes());
+        if (!pinned.isEmpty()) {
+            String prompt = "Explain the current question using supplied asset metadata and methodology. "
+                + "No business data has been acquired. Distinguish declared facts from suggested uses; never invent fields or measurements.\n"
+                + mapper.writeValueAsString(Map.of("question", context.query(), "asset", asset))
+                + com.chatchat.agents.runtime.context.SkillAnalysisContext.prompt(pinned, "REPORT");
+            String advice = (agent.modelName() == null || agent.modelName().isBlank() ? defaultModel : models.create(agent.modelName())).chat(prompt);
+            if (advice == null || advice.isBlank()) throw new IllegalStateException("Empty guidance");
+            @SuppressWarnings("unchecked") var applied = (List<Map<String, Object>>) pinned.get("skills");
+            return new Recommendation(advice, applied.stream().map(item -> String.valueOf(item.get("id"))).toList(), String.valueOf(pinned.get("status")));
+        }
         Object raw = agent.workflowConfig() == null ? null : agent.workflowConfig().get("boundDomainSkillIds");
         var ids = raw instanceof List<?> list ? list.stream().filter(String.class::isInstance).map(String.class::cast).distinct().toList() : List.<String>of();
         if (ids.isEmpty()) return new Recommendation("未绑定领域技能；仅展示模板说明和参数契约。", List.of(), "NOT_CONFIGURED");

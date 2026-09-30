@@ -122,6 +122,7 @@ public class ProblemAnalysisPlanner {
             INPUT:
             """ + input;
         String modelName = agent.modelName() == null || agent.modelName().isBlank() ? request.getModelName() : agent.modelName();
+        prompt += com.chatchat.agents.runtime.context.SkillAnalysisContext.prompt(context.skillAnalysisContext(), "PLAN");
         String answer = (modelName == null || modelName.isBlank() ? defaultModel : models.create(modelName)).chat(prompt);
         if (answer == null || answer.length() > 24000) throw new IllegalArgumentException("Invalid plan output");
         // Accept an outer JSON code fence, but never extract an arbitrary object from prose.

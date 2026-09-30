@@ -34,6 +34,18 @@ public final class DiscoveryEvidencePolicy {
         return attributes != null && Boolean.TRUE.equals(attributes.get(ATTRIBUTE));
     }
 
+    /** Rejected discovery candidates remain in the audit trail, never in report facts. */
+    public static List<Map<String, Object>> synthesisEvidence(List<InterpretationPlanRuntime.ExecutionResult> attempts) {
+        if (attempts == null || attempts.isEmpty()) return List.of();
+        var latest = attempts.get(attempts.size() - 1);
+        var steps = latest.steps() == null ? List.<InterpretationPlanRuntime.StepExecution>of() : latest.steps();
+        if (steps.stream().anyMatch(step -> "NO_MATCH".equals(step.metadata().get("discoveryMatchStatus")))) return List.of();
+        return steps.stream().filter(step -> step.success() && step.output() != null
+                && Boolean.TRUE.equals(step.metadata().get("semanticCandidateReviewSatisfied")))
+            .map(step -> Map.<String, Object>of("sourceStepId", step.stepId(), "declaredMetadata", step.output(),
+                "evidenceKind", "DISCOVERY_METADATA_ONLY", "businessDataAcquired", false)).toList();
+    }
+
     public static com.chatchat.agents.assessment.TaskContract supplementalContract(
             com.chatchat.agents.assessment.TaskContract contract) {
         return new com.chatchat.agents.assessment.TaskContract(contract.contractVersion(),

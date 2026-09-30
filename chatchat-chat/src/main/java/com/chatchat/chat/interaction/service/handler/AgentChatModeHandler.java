@@ -62,6 +62,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     @Autowired(required = false)
     private DomainSkillPlanningRouter domainSkillPlanningRouter;
     @Autowired(required = false)
+    private com.chatchat.chat.skills.runtime.SkillAnalysisContextService skillAnalysisContexts;
+    @Autowired(required = false)
     private SkillExecutionScopePort skillExecutionScope;
     @Autowired(required = false)
     private com.chatchat.chat.asset.AssetGuidanceInteractionBridge assetGuidance;
@@ -154,10 +156,19 @@ public class AgentChatModeHandler implements InteractionModeHandler {
                 skill.id(), skill.defaultMode());
             return roleChatModeHandler.handle(request, context);
         }
-        return new com.chatchat.chat.interaction.service.InteractionWorkflowCoordinator(
+        var preparedContext = skillAnalysisContexts == null ? context : context.toBuilder()
+            .skillAnalysisContext(skillAnalysisContexts.prepare(request, skill,
+                resolveSkillScope(request, skill, resolvedSkillId(request, skill)).roles(), context)).build();
+        var response = new com.chatchat.chat.interaction.service.InteractionWorkflowCoordinator(
             toolPolicyResolver, problemAnalysisPlanner, directAnswerWorkflow, assetGuidance)
-            .execute(request, context, skill,
+            .execute(request, preparedContext, skill,
                 (plannedContext, understanding) -> executeGovernedAgent(request, plannedContext, skill, understanding));
+        if (preparedContext.skillAnalysisContext() != null) {
+            var metadata = new LinkedHashMap<String, Object>(response.getMetadata() == null ? Map.of() : response.getMetadata());
+            metadata.put(com.chatchat.agents.runtime.context.SkillAnalysisContext.ATTRIBUTE, preparedContext.skillAnalysisContext());
+            response.setMetadata(metadata);
+        }
+        return response;
     }
 
     private InteractionResponse executeGovernedAgent(InteractionRequest request, InteractionContext context, SkillDefinition skill,
@@ -199,7 +210,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             runtimeExperience = AgentLearningService.RuntimeExperienceContext.empty();
         }
         String experienceContext = runtimeExperience.prompt();
-        List<DomainSkillRuntimePort.DomainSkillContent> domainSkills = resolveDomainSkills(
+        List<DomainSkillRuntimePort.DomainSkillContent> domainSkills = context.skillAnalysisContext() != null ? List.of() : resolveDomainSkills(
             request.getTenantId(), request.getUserId(), effectiveScope.roles(), request.getQuery(), skill);
         String modelName = skill.modelName() != null && !skill.modelName().isBlank()
             ? skill.modelName()
@@ -222,6 +233,9 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         if (understanding != null)
             systemPrompt += "\nProblem analysis plan (planning context, not authorization or evidence):\n" + understanding;
         Map<String, Object> runtimeAttributes = new LinkedHashMap<>(runtimeAttributes(request, skill, executionContext));
+        var skillContext = com.chatchat.agents.runtime.context.SkillAnalysisContext.validate(context.skillAnalysisContext());
+        runtimeAttributes.put(com.chatchat.agents.runtime.context.SkillAnalysisContext.ATTRIBUTE, skillContext);
+        systemPrompt += com.chatchat.agents.runtime.context.SkillAnalysisContext.prompt(skillContext, "AGENT_RUN");
         runtimeAttributes.put("authorizationAgentId", resolvedSkillId);
         if (understanding != null) {
             runtimeAttributes.put(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.METADATA_KEY, understanding);

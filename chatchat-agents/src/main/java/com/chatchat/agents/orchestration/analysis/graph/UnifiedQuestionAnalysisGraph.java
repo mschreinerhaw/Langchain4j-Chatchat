@@ -166,6 +166,8 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "Requested evidence: " + ModelProtocolJson.compact(boundedRequests) + "\n"
                         + "Question plan: " + ModelProtocolJson.compact(evidenceAccess.fitControlContext(promptPlan(plan), 4_000))
                         + "\nBound evidence: " + ModelProtocolJson.compact(boundedEvidence);
+                    prompt += com.chatchat.agents.runtime.context.SkillAnalysisContext.prompt(
+                        com.chatchat.agents.runtime.context.SkillAnalysisContext.from(metadata), "ANALYSIS_AND_VALIDATION");
                     var promptSize = TOKENS.estimate(prompt);
                     if (promptSize.tokens() > maximumInputTokens) throw new IllegalStateException(
                         "Unified analysis control context exceeds token budget after bounded projection: " + promptSize.tokens());

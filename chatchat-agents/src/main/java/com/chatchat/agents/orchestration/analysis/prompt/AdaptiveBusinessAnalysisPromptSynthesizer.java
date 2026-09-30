@@ -59,12 +59,14 @@ public final class AdaptiveBusinessAnalysisPromptSynthesizer {
             available = List.of();
         }
         Map<String, Object> input = planningInput(question, datasets, role);
+        var skillContext = com.chatchat.agents.runtime.context.SkillAnalysisContext.from(metadata);
+        input.put(com.chatchat.agents.runtime.context.SkillAnalysisContext.ATTRIBUTE, skillContext);
         input.put("availableDomainProfiles", available.stream().map(DomainAnalysisProfileProvider.Profile::catalogEntry).toList());
         if (declaredType != null) input.put("declaredAnalysisType", AnalysisPromptScaffoldRegistry.normalize(declaredType));
         metadata.put("analysisDataCapabilities", input.get("dataCapabilities"));
         // A second model call cannot specialize anything when producers supplied no role,
         // business intent or semantic metadata. Compile the safe generic contract directly.
-        if (!hasPlanningMetadata(datasets, role) && (available.isEmpty() || model == null)) {
+        if (!"APPLIED".equals(skillContext.get("status")) && !hasPlanningMetadata(datasets, role) && (available.isEmpty() || model == null)) {
             return record(fallback(question, role, declaredType, available, input, metadata),
                 "SAFE_FALLBACK", 0, metadata);
         }

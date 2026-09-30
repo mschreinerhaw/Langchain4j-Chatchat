@@ -16,6 +16,8 @@ public class AssetGuidanceInteractionBridge {
         Object rawRun = request.getToolInput() == null ? null : request.getToolInput().get("__agentRunId");
         String run = rawRun instanceof String value ? value : null;
         var attrs = new LinkedHashMap<String, Object>();
+        attrs.put(com.chatchat.agents.runtime.context.SkillAnalysisContext.ATTRIBUTE,
+            com.chatchat.agents.runtime.context.SkillAnalysisContext.validate(context.skillAnalysisContext()));
         if (context.problemAnalysisPlan() != null)
             attrs.put(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.METADATA_KEY, context.problemAnalysisPlan());
         Object templateId = request.getToolInput() == null ? null : request.getToolInput().get(AssetGuidanceWorkflow.TEMPLATE_ID);

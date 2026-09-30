@@ -7,6 +7,24 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 class DiscoveryEvidencePolicyTest {
+    @Test void rejectedCatalogDoesNotReachExplanatoryReportAsPlatformFacts() {
+        var rejected = new InterpretationPlanRuntime.StepExecution(2, "mcp_tool", "opaque", true,
+            Map.of("name", "UNMATCHED_CANDIDATE"), null, null, null, 1,
+            Map.of("discoveryMatchStatus", "NO_MATCH", "semanticCandidateReviewSatisfied", false));
+        var discovery = new InterpretationPlanRuntime.ExecutionResult("completed", true, false, null, "untrusted draft",
+            List.of(rejected), Map.of(), 1);
+        assertThat(DiscoveryEvidencePolicy.synthesisEvidence(List.of(discovery))).isEmpty();
+    }
+    @Test void onlySemanticallyAdmittedMetadataCanSupportAssetClaims() {
+        var accepted = new InterpretationPlanRuntime.StepExecution(1, "mcp_tool", "opaque", true,
+            Map.of("description", "DECLARED_METADATA"), null, null, null, 1,
+            Map.of("semanticCandidateReviewSatisfied", true));
+        var discovery = new InterpretationPlanRuntime.ExecutionResult("completed", true, false, null, "ignored draft",
+            List.of(accepted), Map.of(), 1);
+        assertThat(DiscoveryEvidencePolicy.synthesisEvidence(List.of(discovery))).singleElement()
+            .satisfies(item -> assertThat(item).containsEntry("businessDataAcquired", false)
+                .containsEntry("declaredMetadata", Map.of("description", "DECLARED_METADATA")));
+    }
     @Test void discoveryOnlyIsSupplementalButDataDocumentAndUnknownRemainStrict() {
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.getWorkflowRole("opaque_a")).thenReturn(ToolWorkflowRole.ASSET_DISCOVERY);

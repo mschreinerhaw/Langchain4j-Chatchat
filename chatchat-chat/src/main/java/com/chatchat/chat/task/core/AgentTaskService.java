@@ -3840,6 +3840,13 @@ public class AgentTaskService {
             copyMetadataValue(safe, metadata, "selectedDomainSkillCount");
             copyMetadataValue(safe, metadata, "activatedDomainSkillCount");
             copyMetadataValue(safe, metadata, "domainSkillStatus");
+            var skillAnalysis = com.chatchat.agents.runtime.context.SkillAnalysisContext.validate(metadata.get("skillAnalysisContext"));
+            if (!skillAnalysis.isEmpty()) {
+                var provenance = new LinkedHashMap<String, Object>();
+                for (String key : List.of("schemaVersion", "status", "fingerprint", "skills", "authority"))
+                    provenance.put(key, skillAnalysis.get(key));
+                safe.put("skillAnalysisContext", provenance);
+            }
             Object domainKnowledge = metadata.get("domainKnowledgeContext");
             if (domainKnowledge instanceof Map<?, ?> knowledgeMetadata) {
                 Map<String, Object> knowledge = new LinkedHashMap<>();

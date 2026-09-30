@@ -399,6 +399,8 @@ public final class AgentPlannerPromptBuilder {
 
     private void appendDomainSkillPlanningContext(StringBuilder prompt,
                                                   Map<String, Object> runtimeAttributes) {
+        prompt.append(com.chatchat.agents.runtime.context.SkillAnalysisContext.prompt(
+            com.chatchat.agents.runtime.context.SkillAnalysisContext.from(runtimeAttributes), "PLAN"));
         Map<String, Object> context = asMap(runtimeAttributes == null
             ? null : runtimeAttributes.get(DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE));
         List<Map<String, Object>> skills = objectMapList(context.get("skills"));

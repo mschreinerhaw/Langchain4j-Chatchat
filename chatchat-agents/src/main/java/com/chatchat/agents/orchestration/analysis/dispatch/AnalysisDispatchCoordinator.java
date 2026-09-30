@@ -75,7 +75,8 @@ public final class AnalysisDispatchCoordinator {
             String evidenceReference = references.next(dataset.reference());
             Map<String, Object> governedContext = summaryProtocol.govern(
                 evidenceReference,
-                AgentRoleAnalysisContext.attach(dataset.analysisContext(), request.runtimeAttributes()),
+                com.chatchat.agents.runtime.context.SkillAnalysisContext.attach(
+                    AgentRoleAnalysisContext.attach(dataset.analysisContext(), request.runtimeAttributes()), request.runtimeAttributes()),
                 dataset.records());
             String inputSha256 = ModelProtocolJson.sha256Hex(Map.of(
                 "schemaVersion", AnalysisTask.SCHEMA_VERSION,

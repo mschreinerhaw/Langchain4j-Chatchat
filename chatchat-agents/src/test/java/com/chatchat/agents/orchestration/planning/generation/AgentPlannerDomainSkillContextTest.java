@@ -15,6 +15,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 class AgentPlannerDomainSkillContextTest {
+    @Test
+    void lifecycleMethodsSurviveAuthoritativeWorkflowPlanning() {
+        var snapshot = com.chatchat.agents.runtime.context.SkillAnalysisContext.create("APPLIED",
+            List.of(Map.of("id", "opaque-skill", "version", "v2")),
+            Map.of("PLAN", List.of("Compare equal scopes"), "REPORT", List.of("Disclose missing denominators")));
+        Map<String, Object> attributes = Map.of(
+            com.chatchat.agents.runtime.context.SkillAnalysisContext.ATTRIBUTE, snapshot,
+            "authoritativeWorkflowDag", List.of(Map.of("id", "fetch", "tool", "opaque-tool")));
+        String prompt = builder().build("Compare", "system", List.of(), List.of(), List.of(), List.of(), List.of(),
+            false, false, null, null, attributes);
+        assertThat(prompt).contains("Compare equal scopes", "Disclose missing denominators", "opaque-skill", "opaque-tool");
+    }
 
     @Test
     void selectedDomainSkillsDirectlyGuideNormalPlanGeneration() {

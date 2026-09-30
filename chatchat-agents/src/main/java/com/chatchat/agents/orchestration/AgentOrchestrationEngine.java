@@ -2005,6 +2005,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         prompt.append("System policy inheritance: the validated plan already carries the user intent, scope, "
             + "constraints, and approved tools. This controller may narrow execution but must not expand that scope.\n\n");
         prompt.append("You are the responsible Agent Runtime DAG execution controller.\n");
+        prompt.append(com.chatchat.agents.runtime.context.SkillAnalysisContext.prompt(
+            com.chatchat.agents.runtime.context.SkillAnalysisContext.from(runtimeAttributes), "ACQUISITION"));
         String roleContext = AgentRoleAnalysisContext.promptSectionFromRuntime(
             runtimeAttributes, "DAG_EXECUTION_AND_SEMANTIC_ARBITRATION");
         if (!roleContext.isEmpty()) prompt.append(roleContext).append('\n');
@@ -2243,9 +2245,15 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         List<String> observations, Map<String, Object> metadata, BooleanSupplier cancelled) {
         runtimeGuard.checkCancelled(cancelled);
         List<InterpretationPlanRuntime.ExecutionResult> resolved = resolvedSummaryEvidenceAttempts(attempts);
-        String prompt = buildInterpretationPlanSummaryPrompt(query, systemPrompt,
-            resolved.isEmpty() ? result : resolved.get(resolved.size() - 1), resolved,
-            observations, storedInterpretationPlanObservations(attributes));
+        var admitted = com.chatchat.agents.runtime.plan.DiscoveryEvidencePolicy.synthesisEvidence(
+            resolved.isEmpty() ? List.of(result) : resolved);
+        String prompt = systemPrompt + "\nUser question:\n" + query
+            + "\nAdmitted supplementary metadata (not executed business data):\n" + ModelProtocolJson.compact(admitted)
+            + "\nOnly this admitted metadata may support claims about a configured asset. "
+            + "If the list is empty, answer entirely as general methodology and suggested scenarios. "
+            + "Skill descriptions of data providers, tools and procedures are hypothetical requirements, "
+            + "not proof that this platform has configured them or provides those fields. "
+            + "Do not carry rejected candidates or previous draft conclusions into this answer.\n";
         prompt += "\nExisting question analysis (planning context, not retrieved facts):\n"
             + ModelProtocolJson.compact(plan)
             + "\nWorkflow-specific answer scope (generic record-analysis requirements do not apply):\n"
@@ -5865,6 +5873,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
      */
     private void recordDomainKnowledgeCompilation(Map<String, Object> runtimeAttributes,
                                                   Map<String, Object> metadata) {
+        var skillAnalysisContext = com.chatchat.agents.runtime.context.SkillAnalysisContext.from(runtimeAttributes);
+        if (!skillAnalysisContext.isEmpty()) {
+            metadata.put(com.chatchat.agents.runtime.context.SkillAnalysisContext.ATTRIBUTE, skillAnalysisContext);
+            runResultAdapter.recordRuntimeObservation(runtimeAttributes, AGENT_RUN_ID_ATTRIBUTE,
+                "Skill methodology snapshot inherited by analysis workflow", "skill_analysis_context",
+                metadataOf("status", skillAnalysisContext.get("status"), "fingerprint", skillAnalysisContext.get("fingerprint"),
+                    "skills", skillAnalysisContext.get("skills"), "stages", com.chatchat.agents.runtime.context.SkillAnalysisContext.STAGES));
+        }
         Map<String, Object> knowledge = objectMap(runtimeAttributes == null
             ? null : runtimeAttributes.get(com.chatchat.common.knowledge.runtime.KnowledgeContext.RUNTIME_ATTRIBUTE));
         Map<String, Object> domainSkillContext = objectMap(runtimeAttributes == null

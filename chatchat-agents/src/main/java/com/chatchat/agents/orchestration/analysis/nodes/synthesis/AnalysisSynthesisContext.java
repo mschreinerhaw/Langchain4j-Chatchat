@@ -36,6 +36,8 @@ final class AnalysisSynthesisContext {
         List<AnalysisSummaryResult> reducers = reducerReports == null ? List.of() : reducerReports;
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("schemaVersion", SCHEMA_VERSION);
+        result.put(com.chatchat.agents.runtime.context.SkillAnalysisContext.ATTRIBUTE,
+            com.chatchat.agents.runtime.context.SkillAnalysisContext.from(runtimeAttributes));
         result.put("operatingModelVersion", DataAnalysisDecisionOperatingModel.SCHEMA_VERSION);
         Map<String, Object> objective = analysisObjective(workers, reducers);
         result.put("analysisObjective", objective);

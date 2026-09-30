@@ -17,7 +17,8 @@ public record InteractionContext(
     String conversationSummary,
     String conversationEvidence,
     List<ConversationMemoryService.MessageSnapshot> history,
-    com.chatchat.common.runtime.capability.ProblemAnalysisPlan problemAnalysisPlan
+    com.chatchat.common.runtime.capability.ProblemAnalysisPlan problemAnalysisPlan,
+    java.util.Map<String, Object> skillAnalysisContext
 ) {
 }
 

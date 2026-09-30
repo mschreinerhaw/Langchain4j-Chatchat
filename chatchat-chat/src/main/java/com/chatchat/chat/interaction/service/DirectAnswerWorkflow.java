@@ -42,6 +42,7 @@ public class DirectAnswerWorkflow {
                 Conversation data:
                 """ + input;
             InteractionExecution.checkCancellation(request);
+            prompt += com.chatchat.agents.runtime.context.SkillAnalysisContext.prompt(context.skillAnalysisContext(), "REPORT");
             String answer = (modelName == null || modelName.isBlank() ? defaultModel : models.create(modelName)).chat(prompt);
             InteractionExecution.checkCancellation(request);
             if (answer == null || answer.isBlank()) throw new IllegalStateException("Empty direct answer");

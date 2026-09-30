@@ -162,7 +162,8 @@ public final class AnalysisEvidenceCoordinator {
         }
         List<Dataset> scopedDatasets = datasets.stream()
             .map(dataset -> new Dataset(dataset.reference(),
-                AgentRoleAnalysisContext.attach(dataset.analysisContext(), runtimeAttributes),
+                com.chatchat.agents.runtime.context.SkillAnalysisContext.attach(
+                    AgentRoleAnalysisContext.attach(dataset.analysisContext(), runtimeAttributes), runtimeAttributes),
                 dataset.handle()))
             .toList();
         List<Dataset> projected = deduplicateRepeatedExecutions(scopedDatasets);

@@ -11,6 +11,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 class DirectAnswerWorkflowTest {
+    @Test void selectedSkillGuidesDirectAnswerWithoutBusinessTools() {
+        var model = mock(ChatModel.class);
+        var context = com.chatchat.agents.runtime.context.SkillAnalysisContext.create("APPLIED",
+            java.util.List.of(java.util.Map.of("id", "s", "version", "v1")),
+            java.util.Map.of("REPORT", java.util.List.of("Explain comparison limits")));
+        when(model.chat(anyString())).thenReturn("A bounded explanation");
+        new DirectAnswerWorkflow(model, mock(ConfigurableChatModelFactory.class), new ObjectMapper())
+            .execute(InteractionRequest.builder().query("Explain").build(),
+                InteractionContext.builder().skillAnalysisContext(context).build(), mock(SkillDefinition.class));
+        verify(model).chat(argThat((String prompt) -> prompt.contains("Explain comparison limits")
+            && prompt.contains("No tools or external evidence have been acquired")));
+    }
     @Test void modelResultCannotOverrideCancellation() {
         var model = mock(ChatModel.class);
         var cancelled = new java.util.concurrent.atomic.AtomicBoolean();

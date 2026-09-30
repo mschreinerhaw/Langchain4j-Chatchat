@@ -54,6 +54,8 @@ public class RoleChatModeHandler implements InteractionModeHandler {
     @Autowired(required = false)
     private DomainSkillPlanningRouter domainSkillPlanningRouter;
     @Autowired(required = false)
+    private com.chatchat.chat.skills.runtime.SkillAnalysisContextService skillAnalysisContexts;
+    @Autowired(required = false)
     private SkillExecutionScopePort skillExecutionScope;
 
     public RoleChatModeHandler(ChatModel defaultChatModel,
@@ -85,14 +87,17 @@ public class RoleChatModeHandler implements InteractionModeHandler {
                 "Agent " + skill.id() + " is configured for tool-agent execution, not role_chat");
         }
         SkillExecutionScopePort.EffectiveScope effectiveScope = resolveSkillScope(request, skill);
+        var skillContext = skillAnalysisContexts == null ? Map.<String, Object>of()
+            : skillAnalysisContexts.prepare(request, skill, effectiveScope.roles(), context);
         // Role-chat applies domain skills as context; it never starts a competing analysis runtime.
         com.chatchat.common.knowledge.runtime.KnowledgeContext knowledge = retrieveKnowledge(request, skill, effectiveScope);
         List<String> configuredDomainSkillIds = configuredDomainSkillIds(skill);
-        List<DomainSkillRuntimePort.DomainSkillContent> domainSkills = resolveDomainSkills(
+        List<DomainSkillRuntimePort.DomainSkillContent> domainSkills = skillAnalysisContexts != null ? List.of() : resolveDomainSkills(
             request, skill, effectiveScope.roles(), configuredDomainSkillIds);
         DomainSkillPlanningRouter.RoutingResult domainSkillRouting = domainSkillPlanningRouter == null
             ? null : domainSkillPlanningRouter.route(request.getQuery(), resolvedModelName(request, skill), domainSkills);
         String prompt = buildPrompt(request, context, skill, knowledge, domainSkills, domainSkillRouting);
+        prompt += com.chatchat.agents.runtime.context.SkillAnalysisContext.prompt(skillContext, "REPORT");
         ChatModel model = resolveModel(request, skill);
 
         long startedAt = System.currentTimeMillis();
@@ -104,6 +109,7 @@ public class RoleChatModeHandler implements InteractionModeHandler {
         InteractionExecution.checkCancellation(request);
 
         Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put(com.chatchat.agents.runtime.context.SkillAnalysisContext.ATTRIBUTE, skillContext);
         boolean usable = answer != null && !answer.isBlank();
         metadata.put(WorkflowOutcome.METADATA_KEY, new WorkflowOutcome(
             usable ? WorkflowOutcome.Type.READY_TO_ANSWER : WorkflowOutcome.Type.FAILED,

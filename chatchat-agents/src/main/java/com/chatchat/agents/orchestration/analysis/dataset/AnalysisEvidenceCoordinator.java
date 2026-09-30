@@ -16,7 +16,7 @@ import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.knowledge.template.matching.TemplateMatchAnalysis;
 import com.chatchat.common.knowledge.template.matching.TemplateWorkerAnalysisContext;
 import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisSummaryProtocol;
-import com.chatchat.common.tool.McpToolNamePolicy;
+import com.chatchat.agents.runtime.plan.DiscoveryEvidencePolicy;
 import com.chatchat.common.tool.ToolMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,6 +76,11 @@ public final class AnalysisEvidenceCoordinator {
         if (provider != null) this.semanticInsightContractProvider = provider;
     }
 
+    private boolean isRoutingDiscovery(String toolName) {
+        return toolRegistry != null && toolName != null
+            && DiscoveryEvidencePolicy.discovery(toolRegistry.getWorkflowRole(toolName));
+    }
+
     public Projection project(InterpretationPlanRuntime.ExecutionResult result) {
         return project(result, Map.of());
     }
@@ -96,7 +101,7 @@ public final class AnalysisEvidenceCoordinator {
                 "plan-step-" + (step.stepId() == null ? "unknown" : step.stepId()));
             if (!step.success()) {
                 if (step.toolName() != null && !step.toolName().isBlank()
-                    && !McpToolNamePolicy.isRoutingDiscovery(step.toolName())) {
+                    && !isRoutingDiscovery(step.toolName())) {
                     excluded.add(metadataOf("datasetReference", stepReference,
                         "toolName", step.toolName(), "reason", "SOURCE_EXECUTION_FAILED",
                         "accountingStatus", "FAILED", "executionStatus", "FAILED",
@@ -104,9 +109,11 @@ public final class AnalysisEvidenceCoordinator {
                 }
                 continue;
             }
+            if (isRoutingDiscovery(step.toolName())) continue;
             Object resolved = resolveEvidenceData(step);
             if (resolved instanceof ToolCallBatchResult batch) {
                 for (ToolCallResult child : batch.results()) {
+                    if (isRoutingDiscovery(child.toolName())) continue;
                     String templateReference = firstNonBlank(child.templateId(),
                         firstNonBlank(child.templateCode(), "result"));
                     // One template may be invoked for multiple entity bindings. A template-only
@@ -141,7 +148,7 @@ public final class AnalysisEvidenceCoordinator {
                 continue;
             }
             if (step.toolName() == null || step.toolName().isBlank()
-                || McpToolNamePolicy.isRoutingDiscovery(step.toolName())) continue;
+                || isRoutingDiscovery(step.toolName())) continue;
             List<Dataset> stepDatasets = withTemplateRequirementMatch(
                 outputDatasets(resolved, step.toolName(), toolMetadata(step.toolName())),
                 null, templateMatches);

@@ -59,6 +59,10 @@ public class FinalSummaryWebSearchEnhancer {
                         List<String> observations,
                         List<InteractionToolTrace> traces,
                         Map<String, Object> metadata) {
+        if (metadata != null && Boolean.FALSE.equals(metadata.get("finalSynthesisRetrievalAllowed"))) {
+            record(metadata, "finalSummaryWebSearchSkippedReason", "retrieval_closed_by_workflow");
+            return Enhancement.skipped(observations, traces);
+        }
         if (!properties.isFinalSummaryWebSearchEnabled() || chatModel == null
             || candidateAnswer == null || candidateAnswer.isBlank()
             || toolRegistry == null || toolRuntimeService == null) {

@@ -11,6 +11,7 @@ import com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge;
 import com.chatchat.agents.orchestration.tool.ToolCallFingerprint;
 import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
+import com.chatchat.agents.runtime.plan.DiscoveryEvidencePolicy;
 import com.chatchat.agents.runtime.plan.InterpretationPlanOptimizer;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRewriter;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
@@ -159,6 +160,17 @@ final class InterpretationAnalysisSession {
             plan = workflowDagOptimization.plan() == null ? plan : workflowDagOptimization.plan();
             authoritativeWorkflowDagPasses = workflowDagOptimization.appliedPasses();
             authoritativeWorkflowDagRepair = workflowDagOptimization.repairResult().auditMetadata();
+        }
+        runtimeAttributes = new java.util.LinkedHashMap<>(runtimeAttributes);
+        boolean supplemental = DiscoveryEvidencePolicy.supplemental(plan, tools, runtimeAttributes, host.toolRegistry);
+        runtimeAttributes.put(DiscoveryEvidencePolicy.ATTRIBUTE, supplemental);
+        metadata.put(DiscoveryEvidencePolicy.ATTRIBUTE, supplemental);
+        if (supplemental) {
+            metadata.put("evidenceRequirement", "OPTIONAL");
+            if (metadata.get("taskContract") instanceof com.chatchat.agents.assessment.TaskContract contract) {
+                metadata.put("plannerTaskContract", contract);
+                metadata.put("taskContract", DiscoveryEvidencePolicy.supplementalContract(contract));
+            }
         }
         metadata.put("interpretationPlanPipeline", true);
         metadata.put("interpretationPlanVersion", plan.version());
@@ -311,6 +323,12 @@ final class InterpretationAnalysisSession {
     }
 
     Phase initialAnalysis() {
+        if (DiscoveryEvidencePolicy.enabled(runtimeAttributes)) {
+            metadata.put("interpretationPlanRewriteCount", 0);
+            metadata.put("interpretationPlanMaxRewriteTimes", 0);
+            metadata.put("refinementStopReason", "supplemental_discovery_complete");
+            return FINAL_SUPPLEMENTAL;
+        }
         firstEvidence =
                 host.analyzeInterpretationPlanEvidence(
                         activeChatModel,
@@ -808,6 +826,18 @@ final class InterpretationAnalysisSession {
                 : REFINEMENT_GATE;
     }
 
+    Phase finalSupplemental() {
+        host.runtimeGuard.checkCancelled(cancellationCheck);
+        metadata.put("finalSynthesisRetrievalAllowed", false);
+        host.recordMandatoryWorkflowCompletion(traces, metadata, runtimeAttributes);
+        String prompt = systemPrompt + "\n" + DiscoveryEvidencePolicy.SYNTHESIS_INSTRUCTION;
+        String answer = host.synthesizeSupplementalDiscoveryAnswer(activeChatModel, query, prompt,
+                plan, firstResult, planAttemptResults, runtimeAttributes, observations, metadata, cancellationCheck);
+        completion = host.finishSynthesizedInterpretationPlanAnswer(activeChatModel, query, prompt,
+                traces, metadata, observations, answer, cancellationCheck, "supplemental_discovery_complete");
+        return END;
+    }
+
     Phase finalInitial() {
         host.recordEvidenceStopState(metadata, evidenceHistory, "evidence_sufficient", 1);
         host.recordMandatoryWorkflowCompletion(traces, metadata, runtimeAttributes);
@@ -1083,6 +1113,7 @@ final class InterpretationAnalysisSession {
             case REFINEMENT_PLAN -> refinementPlan();
             case REFINEMENT_DATA -> refinementData();
             case REFINEMENT_ANALYSIS -> refinementAnalysis();
+            case FINAL_SUPPLEMENTAL -> finalSupplemental();
             case FINAL_INITIAL -> finalInitial();
             case FINAL_REFINED -> finalRefined();
             case FINALIZE -> finalizeAnalysis();

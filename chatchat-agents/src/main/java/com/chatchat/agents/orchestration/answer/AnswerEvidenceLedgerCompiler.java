@@ -51,7 +51,14 @@ public final class AnswerEvidenceLedgerCompiler {
     public Result compile(String answer, Map<String, Object> metadata, List<String> observations,
                    List<Map<String, Object>> toolEvidence) {
         Map<String, EvidenceItem> manifestItems = manifestItems(metadata, observations, toolEvidence);
-        List<Map<String, Object>> claims = claims(answer, manifestItems);
+        List<Map<String, Object>> extractedClaims = claims(answer, manifestItems);
+        // Explanatory synthesis has no business-record claim contract. Its ordinary
+        // semantic answer review checks the narrative; this ledger still validates
+        // every explicit source reference, including fabricated references.
+        boolean explanatory = com.chatchat.agents.runtime.plan.DiscoveryEvidencePolicy.enabled(metadata)
+            && Boolean.TRUE.equals(metadata.get("discoverySynthesisCompleted"));
+        List<Map<String, Object>> claims = explanatory ? extractedClaims.stream()
+            .filter(claim -> !refs(text(claim.get("text"))).isEmpty()).toList() : extractedClaims;
         int material = claims.size();
         int verified = (int) claims.stream()
             .filter(item -> String.valueOf(item.get("verification")).startsWith("VERIFIED")).count();
@@ -60,14 +67,19 @@ public final class AnswerEvidenceLedgerCompiler {
             .filter(item -> "HIGH".equals(item.get("risk"))).count();
         int unknown = (int) claims.stream()
             .filter(item -> "UNKNOWN_REFERENCE".equals(item.get("verification"))).count();
-        boolean evidenceApplicable = manifestItems.values().stream()
-            .anyMatch(item -> "TRUSTED".equals(item.trustStatus())) || unknown > 0;
+        boolean evidenceApplicable = (!explanatory || material > 0) && (manifestItems.values().stream()
+            .anyMatch(item -> "TRUSTED".equals(item.trustStatus())) || unknown > 0);
         double coverage = !evidenceApplicable || material == 0 ? 1.0 : round((double) verified / material);
         String status = unknown > 0 || criticalUnbound > 0
             ? "FAIL" : !evidenceApplicable ? "NOT_APPLICABLE" : coverage >= 0.999 ? "PASS" : "PARTIAL";
 
         Map<String, Object> claimLedger = new LinkedHashMap<>();
         claimLedger.put("contractVersion", CLAIM_LEDGER_VERSION);
+        if (explanatory) {
+            claimLedger.put("scope", "EXPLICIT_REFERENCES_IN_EXPLANATORY_ANSWER");
+            claimLedger.put("narrativeReview", "ORDINARY_ANSWER_REVIEW");
+            claimLedger.put("explanatoryStatementCount", extractedClaims.size() - claims.size());
+        }
         claimLedger.put("status", status);
         claimLedger.put("coverage", coverage);
         claimLedger.put("materialClaimCount", material);

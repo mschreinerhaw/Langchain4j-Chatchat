@@ -2,6 +2,8 @@
 
 日期：2026-09-29。基线提交：`d5fb77a6`。本轮不能给出“架构已可靠”的结论。
 
+后续经用户要求部署的联调结果见 [2026-09-30 部署记录](runtime-reliability-deployment-20260930.md)。下文的“未部署”描述的是本次本地审计结束时的状态。
+
 ## 真实故障与控制边界
 
 复现任务：`86f02ddc-8e0e-404d-8267-5aa40742ab5e`，Agent：`data_asset_operation_management`。

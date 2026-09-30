@@ -3054,6 +3054,15 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                     execution = applyRuntimeTemplateSelection(
                         execution, lastReview, metadata, startedAt, request, completed);
                     String selectionError = semanticCandidateSelectionError(execution, metadata);
+            if (selectionError != null && supplementalDiscovery(request)) {
+                metadata.put("discoveryMatchStatus", "NO_MATCH");
+                metadata.put("discoveryMatchReason", selectionError);
+                metadata.put("semanticCandidateReviewSatisfied", false);
+                metadata.put("templateDiscoveryContinuationRequired", false);
+                metadata.put("stepFulfillmentStatus", "SUPPLEMENTAL_UNAVAILABLE");
+                metadata.put("toolResultReviewPartialAccepted", true);
+                return execution.withMetadata(metadata, elapsed(startedAt));
+            }
                     if (selectionError != null) {
                         metadata.put("semanticCandidateReviewSatisfied", false);
                         metadata.put("semanticCandidateReviewError", selectionError);
@@ -3093,6 +3102,15 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                     execution, lastReview, metadata, startedAt, request, completed);
             }
             String selectionError = semanticCandidateSelectionError(execution, metadata);
+            if (selectionError != null && supplementalDiscovery(request)) {
+                metadata.put("discoveryMatchStatus", "NO_MATCH");
+                metadata.put("discoveryMatchReason", selectionError);
+                metadata.put("semanticCandidateReviewSatisfied", false);
+                metadata.put("templateDiscoveryContinuationRequired", false);
+                metadata.put("stepFulfillmentStatus", "SUPPLEMENTAL_UNAVAILABLE");
+                metadata.put("toolResultReviewPartialAccepted", true);
+                return execution.withMetadata(metadata, elapsed(startedAt));
+            }
             if (selectionError != null) {
                 metadata.put("semanticCandidateReviewSatisfied", false);
                 metadata.put("semanticCandidateReviewError", selectionError);
@@ -3271,7 +3289,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 evaluation.templateMatchAnalysis().get("pageRef"));
             String nextCursor = stringValue(pageRef.get("nextCursor"));
             boolean continueRetrieval = "PAGE_EXHAUSTED_HAS_MORE".equals(retrievalOutcome)
-                && nextCursor != null;
+                && nextCursor != null && !supplementalDiscovery(request);
             metadata.put("templateDiscoveryContinuationRequired", continueRetrieval);
             if (continueRetrieval) {
                 metadata.put("templateDiscoveryRetryInputChanges", Map.of("cursor", nextCursor));
@@ -3376,6 +3394,12 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
 
     private boolean isSemanticCandidateDiscovery(String toolName) {
         return isAssetDiscoveryTool(toolName) || isTemplateDiscoveryTool(toolName);
+    }
+
+    private boolean supplementalDiscovery(ExecutionRequest request) {
+        return DiscoveryEvidencePolicy.enabled(request.attributes())
+            && DiscoveryEvidencePolicy.supplemental(request.plan(), request.allowedTools(),
+                request.attributes(), request.toolRegistry());
     }
 
     private String semanticCandidateSelectionError(StepExecution execution,

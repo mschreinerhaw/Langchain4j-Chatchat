@@ -63,6 +63,19 @@ class InterpretationRefinementAdmissionTest {
         verifyNoInteractions(model, rewriter);
     }
 
+    @Test
+    void supplementalDiscoveryGoesToSynthesisWithoutAnalysisOrRewrite() {
+        AgentOrchestrationEngine host = mock(AgentOrchestrationEngine.class);
+        var metadata = new LinkedHashMap<String, Object>();
+        var session = new InterpretationAnalysisSession(host, null, mock(ChatModel.class), "question", "", "t",
+            "r", "c", "u", List.of("opaque"), Map.of("discoveryEvidenceSupplemental", true),
+            new ArrayList<>(), new ArrayList<>(), metadata, List.of(), List.of(), 5, 10, () -> false);
+        assertThat(session.initialAnalysis()).isEqualTo(
+            com.chatchat.agents.orchestration.analysis.graph.InterpretationAnalysisGraph.Phase.FINAL_SUPPLEMENTAL);
+        assertThat(metadata).containsEntry("interpretationPlanRewriteCount", 0);
+        verifyNoInteractions(host);
+    }
+
     private void set(Object target, String name, Object value) throws Exception {
         var field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);

@@ -9,6 +9,27 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AnswerEvidenceAuditServiceTest {
+    @Test void explanatoryAnswerUsesReferenceAuditWithoutRequiringBusinessRecords() {
+        var service = new AnswerEvidenceAuditService(new AnswerEvidenceLedgerCompiler(), new AnswerUserFacingPolicy(null));
+        Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
+            "discoveryEvidenceSupplemental", true, "discoverySynthesisCompleted", true,
+            "answerOrigin", "planner_candidate"));
+        String answer = "A comparison window can span 30 days; the example threshold is 90%.";
+        assertThat(service.attachLedger(answer, metadata, List.of(), List.of())).isEqualTo(answer);
+        assertThat(metadata).containsEntry("claimCoverageStatus", "NOT_APPLICABLE")
+            .containsEntry("answerClaimAuditPassed", true);
+    }
+
+    @Test void explanatoryAnswerCannotPublishFabricatedReferencesAsVerified() {
+        var service = new AnswerEvidenceAuditService(new AnswerEvidenceLedgerCompiler(), new AnswerUserFacingPolicy(null));
+        Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
+            "discoveryEvidenceSupplemental", true, "discoverySynthesisCompleted", true,
+            "answerOrigin", "planner_candidate"));
+        service.attachLedger("Observed value is 42 [evidence: tool://missing#result=1].", metadata, List.of(), List.of());
+        assertThat(metadata).containsEntry("claimCoverageStatus", "FAIL")
+            .containsEntry("answerClaimAuditPassed", false);
+    }
+
     @Test
     void modelAuthoredAnalysisAuditRecordsFailureWithoutChangingTheReportBody() {
         var service = new AnswerEvidenceAuditService(

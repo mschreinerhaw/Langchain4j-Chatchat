@@ -13,17 +13,18 @@ import static org.bsc.langgraph4j.action.AsyncEdgeAction.edge_async;
 public final class InterpretationAnalysisGraph {
     public enum Phase {
         PREPARE, INITIAL_DATA, INITIAL_ANALYSIS, PREPARE_REFINEMENT, REFINEMENT_GATE,
-        REFINEMENT_PLAN, REFINEMENT_DATA, REFINEMENT_ANALYSIS, FINAL_INITIAL, FINAL_REFINED, FINALIZE, END
+        REFINEMENT_PLAN, REFINEMENT_DATA, REFINEMENT_ANALYSIS, FINAL_INITIAL, FINAL_REFINED, FINAL_SUPPLEMENTAL, FINALIZE, END
     }
     private static final Map<Phase, List<Phase>> EDGES = Map.ofEntries(
         Map.entry(Phase.PREPARE, List.of(Phase.INITIAL_DATA)),
         Map.entry(Phase.INITIAL_DATA, List.of(Phase.INITIAL_ANALYSIS, Phase.END)),
-        Map.entry(Phase.INITIAL_ANALYSIS, List.of(Phase.FINAL_INITIAL, Phase.PREPARE_REFINEMENT)),
+        Map.entry(Phase.INITIAL_ANALYSIS, List.of(Phase.FINAL_INITIAL, Phase.FINAL_SUPPLEMENTAL, Phase.PREPARE_REFINEMENT)),
         Map.entry(Phase.PREPARE_REFINEMENT, List.of(Phase.REFINEMENT_GATE)),
         Map.entry(Phase.REFINEMENT_GATE, List.of(Phase.REFINEMENT_PLAN, Phase.FINALIZE)),
         Map.entry(Phase.REFINEMENT_PLAN, List.of(Phase.REFINEMENT_DATA, Phase.REFINEMENT_GATE, Phase.FINALIZE)),
         Map.entry(Phase.REFINEMENT_DATA, List.of(Phase.REFINEMENT_ANALYSIS, Phase.END)),
         Map.entry(Phase.REFINEMENT_ANALYSIS, List.of(Phase.FINAL_REFINED, Phase.FINALIZE, Phase.REFINEMENT_GATE)),
+        Map.entry(Phase.FINAL_SUPPLEMENTAL, List.of(Phase.END)),
         Map.entry(Phase.FINAL_INITIAL, List.of(Phase.END)),
         Map.entry(Phase.FINAL_REFINED, List.of(Phase.END)),
         Map.entry(Phase.FINALIZE, List.of(Phase.END)));

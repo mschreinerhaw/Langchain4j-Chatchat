@@ -88,7 +88,10 @@ class AnalysisEvidenceCoordinatorTest {
 
     @Test
     void excludesDiscoveryMetadataFromBusinessEvidence() {
-        AnalysisEvidenceCoordinator coordinator = coordinator();
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getWorkflowRole("mcp_chatchat_mcp_server_customer_service_template_query"))
+            .thenReturn(com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        AnalysisEvidenceCoordinator coordinator = coordinator(registry);
 
         AnalysisEvidenceCoordinator.Projection projection = coordinator.project(result(step(
             "mcp_chatchat_mcp_server_customer_service_template_query",
@@ -163,7 +166,24 @@ class AnalysisEvidenceCoordinatorTest {
                 .containsEntry("error", "upstream unavailable"));
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value = com.chatchat.common.tool.ToolWorkflowRole.class)
+    void publishedRoleControlsDatasetAdmission(com.chatchat.common.tool.ToolWorkflowRole role) {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getWorkflowRole("opaque_lookup")).thenReturn(role);
+        var projection = coordinator(registry).project(result(step("opaque_lookup",
+            Map.of("rows", List.of(Map.of("value", 42))))));
+        if (role == com.chatchat.common.tool.ToolWorkflowRole.ASSET_DISCOVERY
+            || role == com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY)
+            assertThat(projection.datasets()).isEmpty();
+        else assertThat(projection.datasets()).hasSize(1);
+    }
+
     private AnalysisEvidenceCoordinator coordinator() {
+        return coordinator(mock(ToolRegistry.class));
+    }
+
+    private AnalysisEvidenceCoordinator coordinator(ToolRegistry registry) {
         RuntimeAnalysisContextProtocol context = mock(RuntimeAnalysisContextProtocol.class);
         when(context.adapt(anyString(), any(), any())).thenReturn(Map.of());
         when(context.adaptDataset(any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -173,7 +193,7 @@ class AnalysisEvidenceCoordinatorTest {
         ToolRuntimeService toolRuntime = mock(ToolRuntimeService.class);
         when(toolRuntime.resolveBatchOutputForEvidenceReview(any()))
             .thenAnswer(invocation -> invocation.getArgument(0));
-        return new AnalysisEvidenceCoordinator(mock(ToolRegistry.class), toolRuntime,
+        return new AnalysisEvidenceCoordinator(registry, toolRuntime,
             new StructuredDataProjector(), new AnalysisRecordChunkPlanner(new ObjectMapper()), 20_000,
             context, result, SemanticInsightContractProvider.disabled());
     }

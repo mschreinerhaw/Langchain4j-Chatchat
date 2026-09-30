@@ -34,6 +34,21 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class FinalSummaryWebSearchEnhancerTest {
+    @Test void closedRetrievalCannotBeReopenedByGlobalOrConfiguredEnhancement() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        ToolRuntimeService runtime = mock(ToolRuntimeService.class);
+        ChatModel model = mock(ChatModel.class);
+        Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
+            "finalSynthesisRetrievalAllowed", false,
+            "answerEvidenceRetrievalTools", List.of(Map.of("toolName", "opaque_source", "readOnly", true))));
+        var result = enhancer(registry, runtime).enhance(model, "question", "context", "explanation",
+            List.of("existing evidence"), List.of(), metadata);
+        assertThat(result.attempted()).isFalse();
+        assertThat(result.observations()).containsExactly("existing evidence");
+        assertThat(metadata).containsEntry("finalSummaryWebSearchSkippedReason", "retrieval_closed_by_workflow");
+        org.mockito.Mockito.verifyNoInteractions(model, registry, runtime);
+    }
+
 
     @Test
     void skipsRetrievalWhenModelSaysExistingAnswerIsSufficient() {

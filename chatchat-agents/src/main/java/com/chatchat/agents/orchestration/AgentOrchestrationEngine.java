@@ -2237,6 +2237,31 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return List.copyOf(records);
     }
 
+    String synthesizeSupplementalDiscoveryAnswer(ChatModel model, String query, String systemPrompt,
+        InterpretationPlan plan, InterpretationPlanRuntime.ExecutionResult result,
+        List<InterpretationPlanRuntime.ExecutionResult> attempts, Map<String, Object> attributes,
+        List<String> observations, Map<String, Object> metadata, BooleanSupplier cancelled) {
+        runtimeGuard.checkCancelled(cancelled);
+        List<InterpretationPlanRuntime.ExecutionResult> resolved = resolvedSummaryEvidenceAttempts(attempts);
+        String prompt = buildInterpretationPlanSummaryPrompt(query, systemPrompt,
+            resolved.isEmpty() ? result : resolved.get(resolved.size() - 1), resolved,
+            observations, storedInterpretationPlanObservations(attributes));
+        prompt += "\nExisting question analysis (planning context, not retrieved facts):\n"
+            + ModelProtocolJson.compact(plan)
+            + "\nWorkflow-specific answer scope (generic record-analysis requirements do not apply):\n"
+            + com.chatchat.agents.runtime.plan.DiscoveryEvidencePolicy.SYNTHESIS_INSTRUCTION;
+        recordLifecyclePhase(attributes, metadata, "final_synthesis",
+            "Explanatory synthesis started from the existing question analysis and supplementary discovery.",
+            metadataOf("stage", "supplemental_discovery", "businessDatasetAnalysis", false));
+        String answer = model.chat(prompt);
+        runtimeGuard.checkCancelled(cancelled);
+        if (answer == null || answer.isBlank())
+            throw new IllegalStateException("Supplemental discovery synthesis returned no answer");
+        metadata.put("discoverySynthesisCompleted", true);
+        metadata.put("answerOrigin", "supplemental_discovery_synthesis");
+        return removeUnsupportedCurrentTurnDocumentReferences(answer, result, metadata);
+    }
+
     String synthesizeInterpretationPlanAnswer(ChatModel activeChatModel, String query, String systemPrompt,
         InterpretationPlanRuntime.ExecutionResult result, List<InterpretationPlanRuntime.ExecutionResult> attemptResults,
         Map<String, Object> runtimeAttributes, List<String> observations, Map<String, Object> metadata,

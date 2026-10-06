@@ -67,6 +67,25 @@ class SkillAnalysisContextServiceTest {
         assertThat(service.prepare(request, agent, List.of())).containsEntry("status", "UNAVAILABLE");
         verifyNoInteractions(resolver);
     }
+    @Test void repairsClaimedSkillBeforePublishingMethodology() {
+        when(model.chat(any(ChatRequest.class)))
+            .thenReturn(answer(json(AdkAnalysisSkillSource.alias(descriptor.id()))))
+            .thenReturn(load())
+            .thenReturn(answer(json(AdkAnalysisSkillSource.alias(descriptor.id()))));
+
+        assertThat(service.prepare(request, agent, List.of())).containsEntry("status", "APPLIED");
+        verify(model, times(3)).chat(any(ChatRequest.class));
+        verify(resolver, atLeast(2)).resolve(any());
+    }
+    @Test void repairsWrongAliasAfterInstructionsWereLoaded() {
+        when(model.chat(any(ChatRequest.class)))
+            .thenReturn(load())
+            .thenReturn(answer(json(descriptor.id())))
+            .thenReturn(answer(json(AdkAnalysisSkillSource.alias(descriptor.id()))));
+
+        assertThat(service.prepare(request, agent, List.of())).containsEntry("status", "APPLIED");
+        verify(model, times(3)).chat(any(ChatRequest.class));
+    }
     @Test void emptyCatalogDoesNotCallModelOrRequireMcp() {
         when(router.route(any())).thenReturn(new SkillRouteResult(List.of(), "EMPTY", Map.of()));
         assertThat(service.prepare(request, agent, List.of())).containsEntry("status", "NO_CANDIDATES");

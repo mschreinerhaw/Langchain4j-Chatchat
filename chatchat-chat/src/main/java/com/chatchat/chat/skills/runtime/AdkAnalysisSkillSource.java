@@ -95,7 +95,10 @@ final class AdkAnalysisSkillSource implements SkillSource {
     synchronized List<Map<String, Object>> applied(List<String> aliases) throws SkillSourceException {
         var result = new ArrayList<Map<String, Object>>();
         for (String name : new LinkedHashSet<>(aliases)) {
-            if (!loaded.containsKey(name)) throw unavailable();
+            // Invalid model selections are repairable protocol errors. Keep permission,
+            // version and content rechecks below as non-repairable source failures.
+            if (!loaded.containsKey(name))
+                throw new IllegalArgumentException("Selected skill is unavailable: use an exact alias whose instructions were loaded");
             var current = resolve(name); // Recheck permission and version before publishing the snapshot.
             var selected = loaded.get(name);
             if (!current.instructions().equals(selected.instructions())) throw unavailable();

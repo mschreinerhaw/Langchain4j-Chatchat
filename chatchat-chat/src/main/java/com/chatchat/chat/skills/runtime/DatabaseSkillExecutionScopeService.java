@@ -75,7 +75,6 @@ public class DatabaseSkillExecutionScopeService implements SkillExecutionScopePo
 
         List<SkillResourceScope> configured = scopes.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc(
             tenantId, skillId);
-        boolean managed = true;
         Set<String> directIds = new LinkedHashSet<>();
         Set<String> baseIds = new LinkedHashSet<>();
         for (SkillResourceScope binding : configured) {
@@ -131,7 +130,11 @@ public class DatabaseSkillExecutionScopeService implements SkillExecutionScopePo
                 && documentBases.getOrDefault(docId, Set.of()).stream().noneMatch(explicitBases::contains)) continue;
             selected.add(docId);
         }
-        if (selected.isEmpty()) {
+        if (candidates.isEmpty()) {
+            log.warn("skill_execution_scope_empty tenantId={} userId={} skillId={} "
+                    + "reason=agent_knowledge_base_empty directBindings={} knowledgeBaseBindings={}",
+                tenantId, userId, skillId, directIds.size(), baseIds.size());
+        } else if (selected.isEmpty()) {
             log.warn("skill_execution_scope_denied tenantId={} userId={} skillId={} "
                     + "reason=resource_grant_intersection_empty candidates={} allowedDocuments={} "
                     + "explicitDocuments={} explicitKnowledgeBases={}",

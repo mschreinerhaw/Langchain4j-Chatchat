@@ -285,9 +285,11 @@ chatchat:
         endpoint: https://tokenhub.tencentmaas.com/v1/embeddings
         api-key: 
         model: kinfra-text-embedding-4b
-        dimension: 1024
-        dimension-request-mode: AUTO
-        vector-field: contentVector
+        # kinfra-text-embedding-4b returns a fixed 2560-dimensional vector.
+        # Use a new field to preserve existing indices with a 1024-dimensional contentVector.
+        dimension: 2560
+        dimension-request-mode: NEVER
+        vector-field: contentVector2560
         max-input-chars: 6000
         vector-candidate-limit: 50
   tools:

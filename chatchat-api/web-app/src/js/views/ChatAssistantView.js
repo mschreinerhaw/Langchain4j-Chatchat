@@ -65,7 +65,8 @@ const RESPONSE_RENDER_CONTRACT = {
   version: "response-contract-v2",
   prompt: [
     "RESPONSE FORMAT RULE:",
-    "- All responses MUST use explicit markdown code block language tags.",
+    "- Use explicit language tags for code blocks only; write explanations as normal Markdown.",
+    "- Never wrap the entire answer in a ```markdown or ```md code block.",
     "- Do not display executed SQL statement text in user-facing analysis answers unless the user explicitly asks to write or review SQL.",
     "- Always wrap JSON/configuration examples in ```json fenced code blocks.",
     "- Use markdown headings for explanation sections.",

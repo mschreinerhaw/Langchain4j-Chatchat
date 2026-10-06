@@ -16,6 +16,39 @@ function render(source) {
   return new DOMParser().parseFromString(`<main>${html}</main>`, "text/html").body.firstElementChild;
 }
 
+describe("Markdown document wrappers", () => {
+  const body = "### 局限性与边界条件说明\n\n当前**未绑定手册**。\n\n- 查看 `database.schema.table_name`\n";
+
+  it.each(["markdown", "md"])("renders existing %s-wrapped answers as documents", (language) => {
+    const source = `\`\`\`${language}\n${body}\`\`\``;
+    for (const html of [
+      methods.renderMarkdown.call(context, source, { role: "assistant" }),
+      renderArtifactMarkdownHtml(source)
+    ]) {
+      expect(html).toContain("<h3>局限性与边界条件说明</h3>");
+      expect(html).toContain("<strong>未绑定手册</strong>");
+      expect(html).toContain("<ul>");
+      expect(html).toContain("<code>database.schema.table_name</code>");
+      expect(html).not.toContain("<pre>");
+    }
+  });
+
+  it("preserves nested code and escapes HTML within a document", () => {
+    const source = '````markdown\n# Report\n\n```json\n{"value":1}\n```\n\n<script>alert(1)</script>\n````';
+    const html = methods.renderMarkdown.call(context, source, { role: "assistant" });
+    expect(html).toContain("<h1>Report</h1>");
+    expect(html).toContain('class="language-json"');
+    expect(html).not.toContain("<script>");
+  });
+
+  it("keeps Markdown examples and user-supplied source as code", () => {
+    const source = `\`\`\`markdown\n${body}\`\`\``;
+    expect(methods.renderMarkdown.call(context, source, { role: "user" })).toContain('class="language-markdown"');
+    expect(methods.renderMarkdown.call(context, `Example:\n\n${source}`, { role: "assistant" }))
+      .toContain('class="language-markdown"');
+  });
+});
+
 describe("tool execution evidence", () => {
   it("collapses completed execution steps by default and allows reopening them", () => {
     const collapseContext = {

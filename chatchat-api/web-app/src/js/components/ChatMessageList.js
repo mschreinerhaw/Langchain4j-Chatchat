@@ -16,6 +16,7 @@ import { answerPdfFileName, exportRenderedAnswerToPdf } from "../utils/answerPdf
 import { enhanceResultTables as enhanceSharedResultTables } from "../utils/resultTableEnhancer.js";
 import { stripInternalDocumentRefs as stripInternalDisplayMetadata } from "../utils/internalDocumentRefs.js";
 import { normalizeMarkdownTables } from "../utils/markdownTableNormalizer.js";
+import { unwrapMarkdownDocument } from "../utils/markdownDocument.js";
 import { collapseRecordCoverageEvidenceHtml } from "../utils/recordCoverageEvidence.js";
 
 const markdown = new MarkdownIt({
@@ -33,7 +34,8 @@ const JSON_START_RE = /^\s*[{[]\s*$/;
 const EXECUTED_SQL_CONTEXT_RE = /(database_query_template_query|sql_query_execute|sql_script_execute|\u6267\u884c\u7684?\s*SQL|\u5b9e\u9645\u6267\u884c\u8bed\u53e5|\u67e5\u8be2\u8bed\u53e5|\u5177\u4f53\u8bed\u53e5|operation\.statement|Executed\s+SQL|SQL\s+Statement)/i;
 
 function renderNormalizedMarkdown(source = "", env = {}) {
-  return markdown.render(normalizeMarkdownTables(String(source || "")), env);
+  const document = env.preserveMarkdownSource ? String(source || "") : unwrapMarkdownDocument(source);
+  return markdown.render(normalizeMarkdownTables(document), env);
 }
 
 function escapeHtml(value) {
@@ -819,6 +821,7 @@ export default {
         );
       }
       const rendered = stripWebCitationMarkersFromHtml(renderNormalizedMarkdown(prepared.content, {
+        preserveMarkdownSource: message.role === "user",
         webCitationUrls: new Set(prepared.citationUrls)
       }));
       return collapseRecordCoverageEvidenceHtml(
@@ -1590,8 +1593,9 @@ export default {
       ];
     },
     prepareMarkdownContent(content, message = {}) {
+      const document = message.role === "user" ? content : unwrapMarkdownDocument(content);
       const displayContent = this.stripInternalDocumentRefs(
-        this.stripExecutedSqlContent(this.stripInternalProtocolBlocks(this.stripVisualizationSpecBlocks(content)))
+        this.stripExecutedSqlContent(this.stripInternalProtocolBlocks(this.stripVisualizationSpecBlocks(document)))
       );
       const pages = this.webReferencePages(message);
       const normalizedContent = this.stripTrailingWebReferenceSection(

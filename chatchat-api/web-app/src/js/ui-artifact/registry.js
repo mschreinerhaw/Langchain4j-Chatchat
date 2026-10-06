@@ -9,6 +9,7 @@ import { enhanceResultTables } from "../utils/resultTableEnhancer.js";
 import { normalizeArtifactHtml } from "../utils/artifactHtmlNormalizer.js";
 import { isInternalDocumentRef, stripInternalDocumentRefs } from "../utils/internalDocumentRefs.js";
 import { normalizeMarkdownTables } from "../utils/markdownTableNormalizer.js";
+import { unwrapMarkdownDocument } from "../utils/markdownDocument.js";
 import { inlineWebCitationLinks, stripWebCitationMarkersFromHtml } from "../utils/webReferences.js";
 import {
   collapseRecordCoverageEvidenceHtml,
@@ -77,7 +78,7 @@ function resourceComponent(name, renderResource) {
 
 export function renderArtifactMarkdownHtml(value = "") {
   const visibleContent = inlineWebCitationLinks(
-    stripInternalDocumentRefs(String(value || "")),
+    stripInternalDocumentRefs(unwrapMarkdownDocument(value)),
     []
   ).content;
   const rendered = enhanceResultTables(stripWebCitationMarkersFromHtml(markdown.render(normalizeMarkdownTables(

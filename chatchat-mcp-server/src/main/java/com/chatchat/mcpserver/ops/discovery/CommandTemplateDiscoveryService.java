@@ -26,8 +26,7 @@ import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.template.SqlTemplateConfig;
 import com.chatchat.mcpserver.sql.template.SqlTemplateService;
 import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl;
-import com.chatchat.mcpserver.mcp.McpInvocationContext;
-import com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingService;
+import com.chatchat.mcpserver.templatepublication.catalog.TemplateAssetCatalogService;
 import com.chatchat.runtime.market.analysis.FinancialAnalysisQuerySamples;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -110,11 +109,11 @@ public class CommandTemplateDiscoveryService {
     private final TemplateDiscoveryProperties properties;
     private final LuceneMcpSearchService luceneSearchService;
     private final TargetKindRegistry targetKindRegistry;
-    private TemplateQueryBindingService templateBindings;
+    private TemplateAssetCatalogService authorizationCatalog;
 
-    @Autowired(required = false)
-    void setTemplateBindings(TemplateQueryBindingService templateBindings) {
-        this.templateBindings = templateBindings;
+    @Autowired
+    void setAuthorizationCatalog(TemplateAssetCatalogService authorizationCatalog) {
+        this.authorizationCatalog = java.util.Objects.requireNonNull(authorizationCatalog);
     }
 
     public CommandTemplateDiscoveryService(CommandTemplateService templateService,
@@ -3031,18 +3030,18 @@ public class CommandTemplateDiscoveryService {
     }
 
     private Set<String> authorizedTemplateIds(String assetType, Map<String, Object> arguments) {
-        if (templateBindings == null) {
+        if (authorizationCatalog == null) {
             return requestedTemplateIds(arguments);
         }
-        return templateBindings.resolvePolicy(McpInvocationContext.current(), null)
-            .allowedTemplates().getOrDefault(assetType, Set.of()).stream()
+        return authorizationCatalog.listAuthorizedForCallerAndType(assetType).stream()
+            .map(TemplateAssetCatalogService.TemplateAsset::templateId)
             .map(this::normalize).filter(java.util.Objects::nonNull)
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     private boolean templateAllowed(Set<String> allowedTemplateIds, String templateId) {
         String normalized = normalize(templateId);
-        return templateBindings == null
+        return authorizationCatalog == null
             ? allowedTemplateIds.isEmpty() || allowedTemplateIds.contains(normalized)
             : normalized != null && allowedTemplateIds.contains(normalized);
     }

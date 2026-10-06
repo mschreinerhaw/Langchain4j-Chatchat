@@ -35,6 +35,29 @@ import static org.mockito.Mockito.when;
 
 class McpAuthorizationServiceTest {
     @Test
+    void discoveryUsesTheSameDenyAndAssetScopeRulesAsExecution() throws Exception {
+        var service = service(snapshot("""
+            [{"tenantId":"tenant-1","targetType":"role","targetId":"role-1",
+              "localToolName":"metrics","scopeExpression":"mcp:sql_datasource:execute:query@tenant=tenant-1;domain=db-1;level=read",
+              "effect":"allow","enabled":true},
+             {"tenantId":"tenant-1","targetType":"user","targetId":"user-1",
+              "localToolName":"blocked","effect":"deny","enabled":true},
+             {"tenantId":"tenant-1","targetType":"role","targetId":"role-1",
+              "localToolName":"blocked","effect":"allow","enabled":true}]
+            """));
+        var call = new com.chatchat.common.mcp.service.McpServiceCall(null, "discovery-check",
+            "unrelated-transport-client", "discovery", Map.of(), Map.of("tenantId", "tenant-1", "userId", "user-1"), 0);
+        try (var ignored = McpInvocationContext.openCall(call)) {
+            assertThat(service.callerAllows("metrics", McpScopeExpression.of(
+                "sql_datasource", "execute", "query", "tenant-1", "db-1", "read"))).isTrue();
+            assertThat(service.callerAllows("metrics", McpScopeExpression.of(
+                "sql_datasource", "execute", "query", "tenant-1", "db-2", "read"))).isFalse();
+            assertThat(service.callerAllows("blocked", null)).isFalse();
+        }
+        assertThat(service.callerAllows("metrics", null)).isFalse();
+    }
+
+    @Test
     void cannotInventCallerIdentityInArgumentsWhenEnvelopeIdentityIsMissing() throws Exception {
         McpAuthorizationService service = service(snapshot("[]"));
         var call = new com.chatchat.common.mcp.service.McpServiceCall(null, "missing-identity",

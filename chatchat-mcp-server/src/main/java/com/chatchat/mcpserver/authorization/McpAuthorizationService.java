@@ -176,6 +176,25 @@ public class McpAuthorizationService {
             log.warn("MCP execution authorization unavailable: {}", ex.getClass().getSimpleName());
             return AuthorizationDecision.denyDecision("MCP database execution authorization is unavailable");
         }
+        return evaluateAuthorization(serviceId, toolName, arguments, snapshot, null);
+    }
+
+    /** Discovery reuses the execution policy evaluator against the synchronized DB snapshot. */
+    public boolean callerAllows(String toolName, McpScopeExpression scope) {
+        Snapshot snapshot = snapshotRef.get();
+        ToolScope declared = toolScope(toolName);
+        McpScopeExpression candidateScope = scope == null ? McpScopeExpression.of(
+            declared.assetType(), declared.capability(), declared.action(),
+            principal(Map.of(), snapshot).tenantId(), null, "read") : scope;
+        return evaluateAuthorization("chatchat-mcp-server", toolName, Map.of(), snapshot, candidateScope).allowed();
+    }
+
+    private AuthorizationDecision evaluateAuthorization(String serviceId, String toolName,
+                                                         Map<String, Object> arguments, Snapshot snapshot,
+                                                         McpScopeExpression discoveryScope) {
+        if (!properties.isEnabled()) {
+            return AuthorizationDecision.denyDecision("MCP database authorization is disabled");
+        }
         if (!snapshot.usable()) {
             return AuthorizationDecision.denyDecision("MCP authorization snapshot is unavailable");
         }
@@ -204,7 +223,8 @@ public class McpAuthorizationService {
         String authorizationToolName = delegatedAuthorizationTool(toolName, arguments);
         McpScopeExpression requestedScope;
         try {
-            requestedScope = requestedScope(authorizationToolName, arguments, principal);
+            requestedScope = discoveryScope == null
+                ? requestedScope(authorizationToolName, arguments, principal) : discoveryScope;
         } catch (IllegalArgumentException ex) {
             return AuthorizationDecision.denyDecision("MCP authorization scope is invalid");
         }

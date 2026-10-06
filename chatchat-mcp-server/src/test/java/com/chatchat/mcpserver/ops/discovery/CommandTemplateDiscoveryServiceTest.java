@@ -35,6 +35,28 @@ import static org.mockito.Mockito.when;
 class CommandTemplateDiscoveryServiceTest {
 
     @Test
+    void genericDiscoveryUsesCallerRbacAndIgnoresArgumentAuthorizationClaims() {
+        var sql = mock(SqlTemplateService.class);
+        when(sql.listEnabled()).thenReturn(List.of(sqlTemplate("METRICS_ALLOWED", "SELECT 1"),
+            sqlTemplate("METRICS_DENIED", "SELECT 2")));
+        var catalog = mock(com.chatchat.mcpserver.templatepublication.catalog.TemplateAssetCatalogService.class);
+        when(catalog.listAuthorizedForCallerAndType("sql_datasource")).thenReturn(List.of(
+            new com.chatchat.mcpserver.templatepublication.catalog.TemplateAssetCatalogService.TemplateAsset(
+                "sql_datasource:METRICS_ALLOWED", "sql_datasource", "METRICS_ALLOWED", "Metrics", "", "", "", "", Map.of())));
+        var service = service(mock(CommandTemplateService.class), mock(SshHostConfigService.class),
+            sql, mock(SqlDatasourceConfigService.class), mock(HttpEndpointConfigService.class));
+        service.setAuthorizationCatalog(catalog);
+        var args = Map.<String, Object>of("targetKind", "database", "confidence", 1.0,
+            "trace", trace(), "filters", Map.of("intent", "metrics"),
+            "_authorizedTemplateIds", List.of("METRICS_DENIED"));
+        var result = service.query(args);
+        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(result.get("templates").toString()).contains("METRICS_ALLOWED").doesNotContain("METRICS_DENIED");
+        when(catalog.listAuthorizedForCallerAndType("sql_datasource")).thenReturn(List.of());
+        assertThat(service.query(args)).containsEntry("returnedCount", 0);
+    }
+
+    @Test
     void discoversEnabledJmxTemplateWithoutReturningConnectionDetails() {
         JmxTemplateService jmxTemplateService = mock(JmxTemplateService.class);
         JmxTemplateConfig kafka = new JmxTemplateConfig();

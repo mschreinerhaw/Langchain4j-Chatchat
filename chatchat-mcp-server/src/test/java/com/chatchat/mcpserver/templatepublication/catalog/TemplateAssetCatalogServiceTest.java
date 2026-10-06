@@ -30,6 +30,32 @@ import static org.mockito.Mockito.when;
 class TemplateAssetCatalogServiceTest {
 
     @Test
+    void callerDiscoveryUsesEffectiveCallerPolicyWithoutPublicationBindings() {
+        var authorization = mock(McpAuthorizationService.class);
+        var sql = mock(SqlTemplateService.class);
+        var allowed = new com.chatchat.mcpserver.sql.template.SqlTemplateConfig();
+        allowed.setCode("METRICS_ALLOWED"); allowed.setTitle("Metrics");
+        var denied = new com.chatchat.mcpserver.sql.template.SqlTemplateConfig();
+        denied.setCode("METRICS_DENIED"); denied.setTitle("Denied metrics");
+        when(sql.listEnabled()).thenReturn(List.of(allowed, denied));
+        var service = new TemplateAssetCatalogService(
+            mock(CommandTemplateService.class), sql, mock(HttpEndpointConfigService.class),
+            mock(DatabaseQueryConfigService.class), mock(ApiServiceConfigService.class), mock(PythonTemplateCatalog.class),
+            mock(BusinessCategoryService.class), mock(SshHostConfigService.class), mock(SqlDatasourceConfigService.class),
+            authorization, new ObjectMapper());
+        when(authorization.currentCallerContext()).thenReturn(new McpAuthorizationService.CallerAuthorizationContext(
+            "tenant-1", "user-1", "member", List.of("role-1")));
+        when(authorization.callerAllows("METRICS_ALLOWED", null)).thenReturn(true);
+        when(authorization.currentCallerContext()).thenReturn(new McpAuthorizationService.CallerAuthorizationContext(
+            "tenant-1", "user-1", "member", List.of()));
+        assertThat(service.listAuthorizedForCallerAndType("sql_datasource"))
+            .extracting(TemplateAssetCatalogService.TemplateAsset::templateId).containsExactly("METRICS_ALLOWED");
+        when(authorization.callerAllows("METRICS_ALLOWED", null)).thenReturn(false);
+        assertThat(service.listAuthorizedForCallerAndType("sql_datasource")).isEmpty();
+        when(authorization.currentCallerContext()).thenReturn(null);
+        assertThat(service.listAuthorizedForCallerAndType("sql_datasource")).isEmpty();
+    }
+    @Test
     void exposesCanonicalBusinessCategoryForTemplateFiltering() {
         CommandTemplateService commands = mock(CommandTemplateService.class);
         SqlTemplateService sql = mock(SqlTemplateService.class);

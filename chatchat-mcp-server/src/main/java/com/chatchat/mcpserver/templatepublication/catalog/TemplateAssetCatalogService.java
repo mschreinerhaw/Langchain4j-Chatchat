@@ -83,6 +83,18 @@ public class TemplateAssetCatalogService {
             .toList();
     }
 
+    /** Generic discovery consumes RBAC grants, independently of child-tool publication bindings. */
+    public List<TemplateAsset> listAuthorizedForCallerAndType(String assetType) {
+        var caller = authorizationService.currentCallerContext();
+        if (caller == null || caller.tenantId() == null || caller.userId() == null) return List.of();
+        return entries().stream()
+            .filter(entry -> assetType.equals(entry.asset().assetType()))
+            .filter(entry -> entry.tenantId() == null || caller.tenantId().equals(entry.tenantId()))
+            .filter(entry -> entry.authorizationRefs().stream().anyMatch(ref ->
+                authorizationService.callerAllows(ref.toolName(), ref.scope(caller.tenantId()))))
+            .map(CatalogEntry::asset).toList();
+    }
+
     public List<TemplateAsset> listAuthorizedForRoleAndType(String roleId, String assetType) {
         if (assetType == null || assetType.isBlank()) {
             throw new IllegalArgumentException("assetType is required");

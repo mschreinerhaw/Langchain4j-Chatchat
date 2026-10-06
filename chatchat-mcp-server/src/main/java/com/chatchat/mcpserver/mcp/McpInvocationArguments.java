@@ -33,23 +33,21 @@ public final class McpInvocationArguments {
         putIfAbsent(arguments, "traceId", firstText(
             textValue(meta.get("traceId")), context == null ? null : context.traceId()));
 
-        if (!isDocumentSearch(toolName)) {
-            putIfAbsent(arguments, "workspaceId", firstText(
-                textValue(tenant.get("workspaceId")), context == null ? null : context.workspaceId()));
-            putIfAbsent(arguments, "env", firstText(
-                textValue(tenant.get("env")), context == null ? null : context.environment()));
-            putIfAbsent(arguments, "username", firstText(
-                textValue(user.get("username")), context == null ? null : context.username()));
-            putIfAbsent(arguments, "assetType", firstText(
-                textValue(scope.get("assetType")), context == null ? null : context.assetType()));
-            putIfAbsent(arguments, "domain", firstText(
-                textValue(scope.get("domain")), context == null ? null : context.domain()));
-            putIfAbsent(arguments, "permissionLevel", firstText(
-                textValue(scope.get("permissionLevel")), context == null ? null : context.permissionLevel()));
-            putIfAbsent(arguments, "scopeExpression", firstText(
-                textValue(meta.get("scopeExpression")), textValue(scope.get("scopeExpression")),
-                context == null ? null : context.scopeExpression()));
-        }
+        putIfAbsent(arguments, "workspaceId", firstText(
+            textValue(tenant.get("workspaceId")), context == null ? null : context.workspaceId()));
+        putIfAbsent(arguments, "env", firstText(
+            textValue(tenant.get("env")), context == null ? null : context.environment()));
+        putIfAbsent(arguments, "username", firstText(
+            textValue(user.get("username")), context == null ? null : context.username()));
+        putIfAbsent(arguments, "assetType", firstText(
+            textValue(scope.get("assetType")), context == null ? null : context.assetType()));
+        putIfAbsent(arguments, "domain", firstText(
+            textValue(scope.get("domain")), context == null ? null : context.domain()));
+        putIfAbsent(arguments, "permissionLevel", firstText(
+            textValue(scope.get("permissionLevel")), context == null ? null : context.permissionLevel()));
+        putIfAbsent(arguments, "scopeExpression", firstText(
+            textValue(meta.get("scopeExpression")), textValue(scope.get("scopeExpression")),
+            context == null ? null : context.scopeExpression()));
 
         Map<String, Object> mcpContext = new LinkedHashMap<>();
         putIfPresent(mcpContext, "traceId", textArgument(arguments, "traceId"));
@@ -70,12 +68,6 @@ public final class McpInvocationArguments {
             "scopeExpression", valueOrEmpty(textArgument(arguments, "scopeExpression"))
         ));
         arguments.putIfAbsent("mcpContext", mcpContext);
-    }
-
-    private static boolean isDocumentSearch(String toolName) {
-        if (toolName == null || toolName.isBlank()) return false;
-        String normalized = toolName.trim().toLowerCase();
-        return "document_search".equals(normalized) || normalized.endsWith("_document_search");
     }
 
     private static Map<String, Object> mapValue(Object value) {

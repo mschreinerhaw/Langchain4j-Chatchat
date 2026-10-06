@@ -15,6 +15,8 @@ import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.tool.McpDynamicToolRegistryMirror;
 import com.chatchat.mcpserver.tool.McpToolChineseAliasResolver;
+import com.chatchat.mcpserver.mcp.McpInvocationContext;
+import com.chatchat.mcpserver.authorization.McpAuthorizationService;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.springframework.stereotype.Component;
 
@@ -32,11 +34,14 @@ public final class LocalMcpRuntimeServiceProvider implements McpServiceProvider 
     static final String LOCAL_PREFIX = "mcp_chatchat_mcp_server_";
     private final ToolRegistry toolRegistry;
     private final McpDynamicToolRegistryMirror publicationMirror;
+    private final McpAuthorizationService authorizationService;
 
     public LocalMcpRuntimeServiceProvider(ToolRegistry toolRegistry,
-                                          McpDynamicToolRegistryMirror publicationMirror) {
+                                          McpDynamicToolRegistryMirror publicationMirror,
+                                          McpAuthorizationService authorizationService) {
         this.toolRegistry = toolRegistry;
         this.publicationMirror = publicationMirror;
+        this.authorizationService = java.util.Objects.requireNonNull(authorizationService);
     }
 
     @Override
@@ -75,7 +80,15 @@ public final class LocalMcpRuntimeServiceProvider implements McpServiceProvider 
         }
         Map<String, Object> arguments = new LinkedHashMap<>(call.arguments());
         String executionName = resolveExecutionName(registryName, arguments);
-        ToolOutput output = toolRegistry.executeEnhancedTool(executionName, ToolInput.builder()
+        ToolOutput output;
+        try (McpInvocationContext.Scope ignored = McpInvocationContext.openCall(call)) {
+            var authorization = authorizationService.authorize(SERVICE_ID, registryName, arguments);
+            if (!authorization.allowed()) {
+                return new McpServiceResult(null, call.requestId(), call.serviceId(), call.toolName(),
+                    McpServiceResultStatus.REJECTED, null, null, "MCP_TOOL_FORBIDDEN",
+                    authorization.reason(), false, "REQUEST_ACCESS", Map.of(), 0);
+            }
+            output = toolRegistry.executeEnhancedTool(executionName, ToolInput.builder()
             .parameters(arguments)
             .rawInput(String.valueOf(call.arguments()))
             .requestId(call.requestId())
@@ -83,8 +96,15 @@ public final class LocalMcpRuntimeServiceProvider implements McpServiceProvider 
             .conversationId(text(call.context(), "conversationId", "conversation_id"))
             .context(new LinkedHashMap<>(call.context()))
             .build());
+        }
         Map<String, Object> metadata = new LinkedHashMap<>(output == null || output.getMetadata() == null
             ? Map.of() : output.getMetadata());
+        ToolMetadata declared = toolRegistry.getToolMetadata(registryName);
+        Map<String, Object> contract = declared == null || declared.getMetadata() == null
+            ? Map.of() : declared.getMetadata();
+        for (String key : List.of(McpServiceResult.RESULT_KIND_KEY, McpServiceResult.RESULT_SCHEMA_REF_KEY)) {
+            if (contract.get(key) != null) metadata.putIfAbsent(key, contract.get(key));
+        }
         Map<String, Object> payload = map(output == null ? null : output.getData());
         for (String key : List.of(McpServiceResult.RESULT_KIND_KEY,
             McpServiceResult.RESULT_SCHEMA_REF_KEY, McpServiceResult.PROVENANCE_KEY,
@@ -95,7 +115,7 @@ public final class LocalMcpRuntimeServiceProvider implements McpServiceProvider 
         return new McpServiceResult(null, call.requestId(), call.serviceId(), call.toolName(),
             success ? McpServiceResultStatus.SUCCESS : McpServiceResultStatus.FAILED,
             output == null ? null : output.getData(), output == null ? null : output.getData(),
-            success ? null : "MCP_TOOL_EXECUTION_FAILED",
+            success ? null : firstText(output == null ? null : output.getExceptionType(), "MCP_TOOL_EXECUTION_FAILED"),
             success ? null : firstText(output == null ? null : output.getErrorMessage(),
                 output == null ? null : output.getMessage(), "Local MCP tool execution failed"),
             false, null, metadata, McpResultKind.parse(metadata.get(McpServiceResult.RESULT_KIND_KEY)),
@@ -163,7 +183,8 @@ public final class LocalMcpRuntimeServiceProvider implements McpServiceProvider 
         if (parent == null || identityArgument == null || !toolRegistry.hasTool(parent)) {
             return registryName;
         }
-        arguments.putIfAbsent(identityArgument, registryName);
+        // The published route owns this identity, never the caller's arguments.
+        arguments.put(identityArgument, registryName);
         return parent;
     }
 

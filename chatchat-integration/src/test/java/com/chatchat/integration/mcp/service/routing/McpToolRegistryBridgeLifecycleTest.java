@@ -59,6 +59,55 @@ import static org.mockito.Mockito.times;
 import org.mockito.ArgumentCaptor;
 
 class McpToolRegistryBridgeLifecycleTest {
+    @Test
+    void everyRegisteredRemoteToolFailsClosedAtBothInvocationBoundaries() {
+        var registry = new DefaultToolRegistry();
+        var config = mock(McpServiceConfigService.class);
+        var gateway = mock(McpGatewayClient.class);
+        var service = service("policy-service", "Policy service");
+        when(config.listEnabled()).thenReturn(List.of(service));
+        when(gateway.discoverTools(service, 1)).thenReturn(List.of(
+            new McpToolDefinition("opaque_read", "Read", Map.of()),
+            new McpToolDefinition("opaque_write", "Write", Map.of()),
+            new McpToolDefinition("opaque_delegated", "Delegated", Map.of())));
+        var bridge = new McpToolRegistryBridge(registry, config, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
+        bridge.refreshRegistry(1);
+        var context = Map.<String, Object>of("tenantId", "tenant-1", "userId", "user-1",
+            "roles", "SUPER_ADMIN", "authorizationAgentId", "agent-1");
+        for (var tool : bridge.listRegisteredTools()) {
+            assertThat(bridge.invoke(new McpServiceCall(null, "deny", "policy-service", tool.localToolName(),
+                Map.of("userId", "admin"), context, 0)).success()).isFalse();
+            var output = registry.executeEnhancedTool(tool.localToolName(), ToolInput.builder()
+                .context(context).parameters(Map.of("roles", "SUPER_ADMIN")).build());
+            assertThat(output.getExceptionType()).isEqualTo("MCP_TOOL_FORBIDDEN");
+        }
+        var authorization = mock(com.chatchat.common.retrieval.ResourceAuthorizationPort.class);
+        when(authorization.allowedIdsForAgent(anyString(), anyString(), anyString(), any(), any(), any()))
+            .thenThrow(new IllegalStateException("Database unavailable"));
+        org.springframework.test.util.ReflectionTestUtils.setField(bridge, "resourceAuthorization", authorization);
+        for (var tool : bridge.listRegisteredTools()) {
+            assertThat(bridge.invoke(new McpServiceCall(null, "deny", "policy-service", tool.localToolName(),
+                Map.of(), context, 0)).success()).isFalse();
+        }
+        verify(gateway, never()).invokeTool(any(), anyString(), anyMap(), any());
+        verify(authorization, times(3)).allowedIdsForAgent(eq("MCP_TOOL"), eq("tenant-1"), eq("user-1"),
+            eq(java.util.Set.of()), any(), eq("agent-1"));
+    }
+
+    @Test
+    void forwardedIdentityCannotBeReplacedByBusinessArguments() throws Exception {
+        var bridge = new McpToolRegistryBridge(mock(ToolRegistry.class), mock(McpServiceConfigService.class),
+            mock(McpGatewayClient.class), new ObjectMapper(), new DynamicMcpToolRouteService());
+        var enrich = McpToolRegistryBridge.class.getDeclaredMethod("enrichInvocationContext", Map.class, ToolInput.class);
+        enrich.setAccessible(true);
+        Map<String, Object> arguments = new LinkedHashMap<>(Map.of("userId", "admin", "tenantId", "other-tenant",
+            "username", "admin", "roles", "SUPER_ADMIN", "mcpContext", Map.of("userId", "admin",
+                "identity", Map.of("userId", "admin"))));
+        enrich.invoke(bridge, arguments, ToolInput.builder().context(Map.of("userId", "user-1", "tenantId", "tenant-1")).build());
+        assertThat(arguments).containsEntry("userId", "user-1").containsEntry("tenantId", "tenant-1")
+            .doesNotContainKeys("username", "roles");
+        assertThat(((Map<?, ?>) arguments.get("mcpContext")).containsKey("identity")).isFalse();
+    }
     @Test void preservesPublisherPurposeThroughRegistryRefresh() {
         var registry = mock(ToolRegistry.class);
         var configService = mock(McpServiceConfigService.class);
@@ -97,6 +146,7 @@ class McpToolRegistryBridgeLifecycleTest {
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(
             registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
 
+        allowDatabaseAuthorization(bridge);
         bridge.refreshRegistry(0);
 
         assertThat(bridge.listRegisteredTools()).extracting(McpToolRegistryBridge.RegisteredMcpTool::chineseAlias)
@@ -350,6 +400,7 @@ class McpToolRegistryBridgeLifecycleTest {
             registry, configService, gateway, new ObjectMapper(),
             new DynamicMcpToolRouteService(), provider);
 
+        allowDatabaseAuthorization(bridge);
         bridge.refreshRegistry(0);
 
         ArgumentCaptor<ToolMetadata> metadata = ArgumentCaptor.forClass(ToolMetadata.class);
@@ -478,6 +529,7 @@ class McpToolRegistryBridgeLifecycleTest {
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(
             registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
 
+        allowDatabaseAuthorization(bridge);
         bridge.refreshRegistry(0);
 
         ArgumentCaptor<ToolMetadata> metadata = ArgumentCaptor.forClass(ToolMetadata.class);
@@ -508,6 +560,7 @@ class McpToolRegistryBridgeLifecycleTest {
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(
             registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
 
+        allowDatabaseAuthorization(bridge);
         bridge.refreshRegistry(0);
 
         ArgumentCaptor<ToolMetadata> metadata = ArgumentCaptor.forClass(ToolMetadata.class);
@@ -531,7 +584,7 @@ class McpToolRegistryBridgeLifecycleTest {
             "enrichInvocationContext", Map.class, com.chatchat.common.tool.ToolInput.class);
         enrich.setAccessible(true);
         Map<String, Object> arguments = new LinkedHashMap<>();
-        var input = com.chatchat.common.tool.ToolInput.builder()
+        var input = com.chatchat.common.tool.ToolInput.builder().context(Map.of("tenantId", "tenant-1", "userId", "user-1"))
             .requestId("request-1")
             .context(Map.of("internalPurpose", "final_summary_web_enhancement", "tenantId", "tenant-1"))
             .build();
@@ -572,12 +625,13 @@ class McpToolRegistryBridgeLifecycleTest {
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(
             registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
 
+        allowDatabaseAuthorization(bridge);
         bridge.refreshRegistry(0);
 
         ArgumentCaptor<ToolRegistry.EnhancedTool> toolCaptor =
             ArgumentCaptor.forClass(ToolRegistry.EnhancedTool.class);
         verify(registry).registerTool(anyString(), any(ToolMetadata.class), toolCaptor.capture());
-        ToolOutput output = toolCaptor.getValue().execute(ToolInput.builder()
+        ToolOutput output = toolCaptor.getValue().execute(ToolInput.builder().context(Map.of("tenantId", "tenant-1", "userId", "user-1"))
             .parameters(new LinkedHashMap<>(Map.of(
                 "executionContext", Map.of("env", "PROD"),
                 "template", "legacy-template-alias",
@@ -588,7 +642,7 @@ class McpToolRegistryBridgeLifecycleTest {
                 ),
                 "parameters", Map.of("source_file", "error.log", "limit", 100)
             )))
-            .context(new LinkedHashMap<>(Map.of("tenantId", "tenant-1")))
+            .context(new LinkedHashMap<>(Map.of("tenantId", "tenant-1", "userId", "user-1")))
             .requestId("request-1")
             .build());
 
@@ -616,7 +670,7 @@ class McpToolRegistryBridgeLifecycleTest {
             "roles", "SUPER_ADMIN",
             "roleIds", "forged-role"
         ));
-        var input = com.chatchat.common.tool.ToolInput.builder()
+        var input = com.chatchat.common.tool.ToolInput.builder().context(Map.of("tenantId", "tenant-1", "userId", "user-1"))
             .context(Map.of(
                 "roles", List.of("role-a", "role-b"),
                 "canonicalRolesResolved", true
@@ -654,6 +708,7 @@ class McpToolRegistryBridgeLifecycleTest {
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(
             registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
 
+        allowDatabaseAuthorization(bridge);
         bridge.refreshRegistry(0);
         ArgumentCaptor<ToolRegistry.EnhancedTool> toolCaptor =
             ArgumentCaptor.forClass(ToolRegistry.EnhancedTool.class);
@@ -665,7 +720,7 @@ class McpToolRegistryBridgeLifecycleTest {
             .containsEntry("nodeKind", "SCOPED_SUBSET")
             .containsEntry("relationType", "scoped_subset_of")
             .containsEntry("routingMode", "api_parent_mcp_policy_filter");
-        toolCaptor.getValue().execute(com.chatchat.common.tool.ToolInput.builder()
+        toolCaptor.getValue().execute(com.chatchat.common.tool.ToolInput.builder().context(Map.of("tenantId", "tenant-1", "userId", "user-1"))
             .parameters(Map.of("limit", 10, "_templateQueryChildToolName", "spoofed_template_query"))
             .requestId("request-1")
             .build());
@@ -678,15 +733,9 @@ class McpToolRegistryBridgeLifecycleTest {
         assertThat(bridge.listRegisteredTools().get(0).remoteToolName())
             .isEqualTo("customer_service_template_query");
 
-        bridge.invoke("chatchat-mcp-server", "customer_service_template_query",
-            Map.of("_templateQueryChildToolName", "spoofed_template_query", "limit", 5));
-        ArgumentCaptor<Map<String, Object>> adminArguments = ArgumentCaptor.forClass(Map.class);
-        verify(gateway).invokeTool(eq(service), eq("api_service_query"), adminArguments.capture());
-        assertThat(adminArguments.getValue())
-            .containsEntry("_templateQueryChildToolName", "customer_service_template_query")
-            .containsEntry("limit", 5);
+        assertThat(bridge.invoke("chatchat-mcp-server", "customer_service_template_query",
+            Map.of("_templateQueryChildToolName", "spoofed_template_query", "limit", 5)).success()).isFalse();
     }
-
     @Test
     void canonicalKernelInvocationPreservesSuccessfulStateWithNullFailureFields() {
         ToolRegistry registry = new DefaultToolRegistry();
@@ -710,11 +759,12 @@ class McpToolRegistryBridgeLifecycleTest {
                 null, null, false, null, executionState));
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(
             registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
+        allowDatabaseAuthorization(bridge);
         bridge.refreshRegistry(0);
         String localToolName = bridge.listRegisteredTools().get(0).localToolName();
 
         var result = bridge.invoke(new McpServiceCall(
-            null, "request-1", "service-1", localToolName, Map.of(), Map.of(), 0));
+            null, "request-1", "service-1", localToolName, Map.of(), Map.of("tenantId", "tenant-1", "userId", "user-1"), 0));
 
         assertThat(result.success()).isTrue();
         assertThat(result.executionState()).containsEntry("state", "SUCCEEDED")
@@ -742,12 +792,13 @@ class McpToolRegistryBridgeLifecycleTest {
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(
             registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
 
+        allowDatabaseAuthorization(bridge);
         bridge.refreshRegistry(0);
         ArgumentCaptor<ToolRegistry.EnhancedTool> toolCaptor =
             ArgumentCaptor.forClass(ToolRegistry.EnhancedTool.class);
         verify(registry).registerTool(anyString(), any(ToolMetadata.class), toolCaptor.capture());
 
-        ToolOutput output = toolCaptor.getValue().execute(ToolInput.builder()
+        ToolOutput output = toolCaptor.getValue().execute(ToolInput.builder().context(Map.of("tenantId", "tenant-1", "userId", "user-1"))
             .parameters(Map.of()).requestId("request-timeout").build());
 
         assertThat(output.isSuccess()).isFalse();
@@ -782,6 +833,7 @@ class McpToolRegistryBridgeLifecycleTest {
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(
             registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
 
+        allowDatabaseAuthorization(bridge);
         bridge.refreshRegistry(0);
 
         Map<String, com.chatchat.common.mcp.capability.McpCapabilityNodeKind> kinds =
@@ -814,12 +866,13 @@ class McpToolRegistryBridgeLifecycleTest {
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(
             registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
 
+        allowDatabaseAuthorization(bridge);
         bridge.refreshRegistry(0);
         ArgumentCaptor<ToolRegistry.EnhancedTool> toolCaptor =
             ArgumentCaptor.forClass(ToolRegistry.EnhancedTool.class);
         verify(registry).registerTool(anyString(), any(ToolMetadata.class), toolCaptor.capture());
         com.chatchat.common.tool.ToolOutput output = toolCaptor.getValue().execute(
-            com.chatchat.common.tool.ToolInput.builder().parameters(Map.of()).build());
+            com.chatchat.common.tool.ToolInput.builder().context(Map.of("tenantId", "tenant-1", "userId", "user-1")).parameters(Map.of()).build());
 
         assertThat(output.isSuccess()).isFalse();
         assertThat(output.getExceptionType()).isEqualTo("MCP_CAPABILITY_IMPLEMENTATION_UNAVAILABLE");
@@ -842,14 +895,21 @@ class McpToolRegistryBridgeLifecycleTest {
         when(configService.getById("service-disabled")).thenReturn(service);
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(
             registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
+        allowDatabaseAuthorization(bridge);
         bridge.refreshRegistry(0);
         service.setEnabled(false);
         ArgumentCaptor<ToolRegistry.EnhancedTool> captured =
             ArgumentCaptor.forClass(ToolRegistry.EnhancedTool.class);
         verify(registry).registerTool(anyString(), any(ToolMetadata.class), captured.capture());
 
-        assertThat(captured.getValue().execute(com.chatchat.common.tool.ToolInput.builder()
+        assertThat(captured.getValue().execute(com.chatchat.common.tool.ToolInput.builder().context(Map.of("tenantId", "tenant-1", "userId", "user-1"))
             .parameters(Map.of()).build()).isSuccess()).isFalse();
         verify(gateway, never()).invokeTool(eq(service), anyString(), anyMap(), any());
+    }
+    private void allowDatabaseAuthorization(McpToolRegistryBridge bridge) {
+        var authorization = mock(com.chatchat.common.retrieval.ResourceAuthorizationPort.class);
+        when(authorization.allowedIdsForAgent(anyString(), anyString(), anyString(), any(), any(), any()))
+            .thenAnswer(invocation -> invocation.getArgument(4));
+        org.springframework.test.util.ReflectionTestUtils.setField(bridge, "resourceAuthorization", authorization);
     }
 }

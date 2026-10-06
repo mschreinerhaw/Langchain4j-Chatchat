@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
@@ -42,8 +43,11 @@ public class EnterpriseMcpAuthorizationSyncController {
     private long snapshotCacheTtlMs;
 
     @GetMapping("/snapshot")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     @Operation(summary = "Pull the current MCP authorization snapshot")
-    public ApiResponse<McpAuthorizationSnapshot> snapshot() {
+    public ApiResponse<McpAuthorizationSnapshot> snapshot(@RequestParam(name = "fresh", defaultValue = "false") boolean fresh) {
+        // Execution decisions must observe revocations; discovery may use the cache.
+        if (fresh) return ApiResponse.success(buildSnapshot());
         CachedSnapshot cached = cachedSnapshot.get();
         long now = System.currentTimeMillis();
         if (cached != null && cached.validAt(now, snapshotCacheTtlMs)) {

@@ -27,6 +27,87 @@ import static org.mockito.Mockito.when;
 class LocalMcpRuntimeServiceProviderTest {
 
     @Test
+    void rejectsBeforeAnyHandlerForAllRegisteredToolsAndRestoresContext() {
+        var registry = new DefaultToolRegistry();
+        var executions = new java.util.concurrent.atomic.AtomicInteger();
+        for (String name : java.util.List.of("opaque_reader", "opaque_writer", "opaque_child")) {
+            var metadata = ToolMetadata.builder().id(name).metadata(Map.of()).build();
+            registry.registerTool(name, metadata, new ToolRegistry.EnhancedTool() {
+                public ToolMetadata getMetadata() { return metadata; }
+                public ToolOutput execute(ToolInput input) {
+                    executions.incrementAndGet(); return ToolOutput.success(Map.of());
+                }
+            });
+        }
+        var authorization = mock(com.chatchat.mcpserver.authorization.McpAuthorizationService.class);
+        when(authorization.authorize(org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyMap()))
+            .thenAnswer(invocation -> {
+                assertThat(com.chatchat.mcpserver.mcp.McpInvocationContext.current().userId()).isEqualTo("actual-user");
+                return com.chatchat.mcpserver.authorization.McpAuthorizationService.AuthorizationDecision.denyDecision("Database denied");
+            });
+        var provider = new LocalMcpRuntimeServiceProvider(registry, new McpDynamicToolRegistryMirror(registry), authorization);
+        for (String name : registry.getAllToolNames()) {
+            var result = provider.invoke(new McpServiceCall(null, "request-denied", LocalMcpRuntimeServiceProvider.SERVICE_ID,
+                name, Map.of("userId", "admin", "roles", "SUPER_ADMIN"), Map.of("userId", "actual-user"), 0));
+            assertThat(result.status()).isEqualTo(McpServiceResultStatus.REJECTED);
+            assertThat(result.errorCode()).isEqualTo("MCP_TOOL_FORBIDDEN");
+            assertThat(com.chatchat.mcpserver.mcp.McpInvocationContext.current()).isNull();
+        }
+        assertThat(executions).hasValue(0);
+    }
+
+    @Test
+    void carriesEnvelopeIdentityForAnyToolWithoutChangingBusinessArgumentsAndCleansUp() {
+        DefaultToolRegistry registry = new DefaultToolRegistry();
+        var metadata = ToolMetadata.builder().id("arbitrary_capability").metadata(Map.of()).build();
+        AtomicReference<com.chatchat.mcpserver.mcp.McpInvocationContext.Context> caller = new AtomicReference<>();
+        AtomicReference<Map<String, Object>> arguments = new AtomicReference<>();
+        registry.registerTool("arbitrary_capability", metadata, new ToolRegistry.EnhancedTool() {
+            @Override public ToolMetadata getMetadata() { return metadata; }
+            @Override public ToolOutput execute(ToolInput input) {
+                caller.set(com.chatchat.mcpserver.mcp.McpInvocationContext.current());
+                arguments.set(input.getParameters());
+                return ToolOutput.success(Map.of());
+            }
+        });
+        var provider = new LocalMcpRuntimeServiceProvider(registry, new McpDynamicToolRegistryMirror(registry), allowedAuthorization());
+        provider.invoke(new McpServiceCall(null, "request-scope", LocalMcpRuntimeServiceProvider.SERVICE_ID,
+            "arbitrary_capability", Map.of("userId", "spoofed-user", "query", "generic query"),
+            Map.of("userId", "actual-user", "tenantId", "actual-tenant", "roles", java.util.List.of("reader")), 0));
+        assertThat(caller.get().userId()).isEqualTo("actual-user");
+        assertThat(caller.get().tenantId()).isEqualTo("actual-tenant");
+        assertThat(caller.get().roles()).isEqualTo("reader");
+        assertThat(arguments.get()).containsExactlyInAnyOrderEntriesOf(
+            Map.of("userId", "spoofed-user", "query", "generic query"));
+        assertThat(com.chatchat.mcpserver.mcp.McpInvocationContext.current()).isNull();
+        provider.invoke(new McpServiceCall(null, "request-anonymous", LocalMcpRuntimeServiceProvider.SERVICE_ID,
+            "arbitrary_capability", Map.of("userId", "spoofed-user"), Map.of(), 0));
+        assertThat(caller.get().userId()).isNull();
+        assertThat(caller.get().tenantId()).isNull();
+    }
+
+    @Test
+    void preservesDeclaredResultContractAndStructuredFailureCode() {
+        DefaultToolRegistry registry = new DefaultToolRegistry();
+        var metadata = ToolMetadata.builder().id("arbitrary_evidence").metadata(Map.of(
+            "resultKind", "DOCUMENT", "resultSchemaRef", "generic_evidence.v1")).build();
+        registry.registerTool("arbitrary_evidence", metadata, new ToolRegistry.EnhancedTool() {
+            @Override public ToolMetadata getMetadata() { return metadata; }
+            @Override public ToolOutput execute(ToolInput input) {
+                return ToolOutput.builder().success(false).exceptionType("AUTHORIZATION_CONTEXT_MISSING")
+                    .errorMessage("Identity required").build();
+            }
+        });
+        var provider = new LocalMcpRuntimeServiceProvider(registry, new McpDynamicToolRegistryMirror(registry), allowedAuthorization());
+        var result = provider.invoke(new McpServiceCall(null, "request-failed", LocalMcpRuntimeServiceProvider.SERVICE_ID,
+            "arbitrary_evidence", Map.of(), Map.of(), 0));
+        assertThat(result.errorCode()).isEqualTo("AUTHORIZATION_CONTEXT_MISSING");
+        assertThat(result.resultKind()).isEqualTo(com.chatchat.common.mcp.service.McpResultKind.DOCUMENT);
+        assertThat(result.resultSchemaRef()).isEqualTo("generic_evidence.v1");
+    }
+
+    @Test
     void fillsAliasForExistingToolNameWhenPublishedMetadataHasNoAlias() {
         McpToolAliasRepository aliases = mock(McpToolAliasRepository.class);
         when(aliases.findById("name:api_template_execute"))
@@ -41,7 +122,7 @@ class LocalMcpRuntimeServiceProviderTest {
             @Override public ToolOutput execute(ToolInput input) { return ToolOutput.success(Map.of()); }
         });
         LocalMcpRuntimeServiceProvider provider = new LocalMcpRuntimeServiceProvider(
-            registry, new McpDynamicToolRegistryMirror(registry));
+            registry, new McpDynamicToolRegistryMirror(registry), allowedAuthorization());
 
         assertThat(provider.tools(McpToolQuery.all())).singleElement()
             .satisfies(tool -> assertThat(tool.metadata()).containsEntry("chineseAlias", "API 模板执行"));
@@ -67,7 +148,7 @@ class LocalMcpRuntimeServiceProviderTest {
             }
         });
         LocalMcpRuntimeServiceProvider provider = new LocalMcpRuntimeServiceProvider(
-            registry, new McpDynamicToolRegistryMirror(registry));
+            registry, new McpDynamicToolRegistryMirror(registry), allowedAuthorization());
         String localName = LocalMcpRuntimeServiceProvider.LOCAL_PREFIX + "customer_template_query";
 
         assertThat(provider.tools(McpToolQuery.all())).singleElement().satisfies(tool -> {
@@ -118,15 +199,21 @@ class LocalMcpRuntimeServiceProviderTest {
                 }
             });
         LocalMcpRuntimeServiceProvider provider = new LocalMcpRuntimeServiceProvider(
-            registry, new McpDynamicToolRegistryMirror(registry));
+            registry, new McpDynamicToolRegistryMirror(registry), allowedAuthorization());
 
         var result = provider.invoke(new McpServiceCall(null, "request-2",
             LocalMcpRuntimeServiceProvider.SERVICE_ID,
             LocalMcpRuntimeServiceProvider.LOCAL_PREFIX + "customer_service_template_query",
-            Map.of("limit", 10), Map.of(), 0));
+            Map.of("limit", 10, "_templateQueryChildToolName", "spoofed-child"), Map.of(), 0));
 
         assertThat(result.status()).isEqualTo(McpServiceResultStatus.SUCCESS);
         assertThat(received.get()).containsEntry("_templateQueryChildToolName",
             "customer_service_template_query");
     }
-}
+    private com.chatchat.mcpserver.authorization.McpAuthorizationService allowedAuthorization() {
+        var authorization = mock(com.chatchat.mcpserver.authorization.McpAuthorizationService.class);
+        when(authorization.authorize(org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyMap()))
+            .thenReturn(com.chatchat.mcpserver.authorization.McpAuthorizationService.AuthorizationDecision.allowDecision());
+        return authorization;
+    }}

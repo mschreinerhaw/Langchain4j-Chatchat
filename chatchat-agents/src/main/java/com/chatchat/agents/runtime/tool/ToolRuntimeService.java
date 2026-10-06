@@ -1109,16 +1109,17 @@ public class ToolRuntimeService {
         if (normalizeText(toolInput.getConversationId()) == null) {
             toolInput.setConversationId(request.getConversationId());
         }
-        if (normalizeText(toolInput.getUserId()) == null) {
-            toolInput.setUserId(request.getUserId());
-        }
+        toolInput.setUserId(request.getUserId());
         Map<String, Object> context = toolInput.getContext() == null
             ? new LinkedHashMap<>()
             : new LinkedHashMap<>(toolInput.getContext());
-        putIfAbsentText(context, "tenantId", request.getTenantId());
-        putIfAbsentText(context, "userId", request.getUserId());
+        context.put("tenantId", request.getTenantId());
+        context.put("userId", request.getUserId());
+        for (String key : List.of("username", "userName", "user_id", "tenant_id", "operatorUserId")) context.remove(key);
+        context.remove("authorizationAgentId");
         putIfAbsentText(context, "requestId", request.getRequestId());
         putIfAbsentText(context, "conversationId", request.getConversationId());
+        copyRuntimeAttribute(context, request.getAttributes(), "authorizationAgentId");
         copyRuntimeAttribute(context, request.getAttributes(), "mcpExecutionContext");
         copyRuntimeAttribute(context, request.getAttributes(), "defaultDataAsset");
         copyRuntimeAttribute(context, request.getAttributes(), "assetSelectionPolicy");
@@ -2205,8 +2206,8 @@ public class ToolRuntimeService {
         }
         Map<String, Object> context = toolInput.getContext() == null
             ? new LinkedHashMap<>() : new LinkedHashMap<>(toolInput.getContext());
-        putIfAbsentText(context, "tenantId", request == null ? null : request.getTenantId());
-        putIfAbsentText(context, "userId", request == null ? null : request.getUserId());
+        context.put("tenantId", request == null ? null : request.getTenantId());
+        context.put("userId", request == null ? null : request.getUserId());
         putIfAbsentText(context, "conversationId", request == null ? null : request.getConversationId());
         putIfAbsentText(context, "runtimeMode", request == null ? null : request.getRuntimeMode());
         Object templateId = firstPresent(

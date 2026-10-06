@@ -66,7 +66,7 @@ public class OpenSearchEmbeddingClient {
         }
         SearchProperties.OpenSearch.Embedding config = config();
         String text = truncate(input.trim(), Math.max(1, config.getMaxInputChars()));
-        String cacheKey = config.getModel() + "|" + config.getDimension() + "|" + text;
+        String cacheKey = config.getEndpoint() + "|" + config.getModel() + "|" + config.getDimension() + "|" + text;
         List<Float> cached = embeddingCache.get(cacheKey);
         if (cached != null) return cached;
         if (System.currentTimeMillis() < incompatibleDimensionUntil.get()) {

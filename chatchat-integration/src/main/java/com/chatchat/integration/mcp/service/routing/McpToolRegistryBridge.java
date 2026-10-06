@@ -302,10 +302,8 @@ public class McpToolRegistryBridge {
      */
     @Deprecated(forRemoval = true)
     McpToolInvokeResult invoke(String serviceId, String toolName, Map<String, Object> arguments) {
-        McpServiceConfig config = configService.getById(serviceId);
-        DynamicMcpToolRouteService.InvocationPlan plan =
-            routeService.plan(serviceId, toolName, arguments);
-        return gatewayClient.invokeTool(config, plan.remoteToolName(), plan.arguments());
+        return McpToolInvokeResult.failure("Canonical caller context is required",
+            "MCP_TOOL_FORBIDDEN", false, "REQUEST_ACCESS");
     }
 
     /** Executes a canonical kernel call through the registered contract adapter. */
@@ -320,15 +318,9 @@ public class McpToolRegistryBridge {
             return McpToolInvokeResult.failure("MCP tool is not registered in the active runtime snapshot",
                 "MCP_TOOL_NOT_FOUND", true, "REFRESH_OR_DISCOVER");
         }
-        if (resourceAuthorization != null) {
-            String tenantId = stringValue(call.context().get("tenantId"));
-            String userId = stringValue(call.context().get("userId"));
-            if (tenantId == null || !resourceAuthorization.allowedIds(
-                ResourceAuthorizationPort.MCP_TOOL, tenantId, userId, Set.of(),
-                Set.of(registered.localToolName())).contains(registered.localToolName())) {
+        if (!authorized(registered.localToolName(), call.context())) {
                 return McpToolInvokeResult.failure("MCP tool is not authorized for this caller",
                     "MCP_TOOL_FORBIDDEN", false, "REQUEST_ACCESS");
-            }
         }
         Map<String, Object> context = new LinkedHashMap<>(call.context());
         Map<String, Object> parameters = new LinkedHashMap<>(call.arguments());
@@ -562,6 +554,21 @@ public class McpToolRegistryBridge {
             registeredContractChecksums.remove(localName);
         }
         return localName;
+    }
+
+    private boolean authorized(String toolName, Map<String, Object> context) {
+        if (resourceAuthorization == null || context == null) return false;
+        String tenantId = stringValue(context.get("tenantId"));
+        String userId = stringValue(context.get("userId"));
+        if (tenantId == null || userId == null) return false;
+        try {
+            return resourceAuthorization.allowedIdsForAgent(ResourceAuthorizationPort.MCP_TOOL,
+                tenantId, userId, Set.of(), Set.of(toolName),
+                stringValue(context.get("authorizationAgentId"))).contains(toolName);
+        } catch (RuntimeException ex) {
+            log.warn("MCP database resource authorization unavailable for {}: {}", toolName, ex.getClass().getSimpleName());
+            return false;
+        }
     }
 
     private boolean registeredContractStillActive(String localName) {
@@ -877,6 +884,11 @@ public class McpToolRegistryBridge {
          */
         @Override
         public ToolOutput execute(ToolInput input) {
+            if (!authorized(metadata.getId(), input == null ? null : input.getContext())) {
+                ToolOutput denied = ToolOutput.failure("MCP tool is not authorized for this caller");
+                denied.setExceptionType("MCP_TOOL_FORBIDDEN");
+                return denied;
+            }
             try {
                 if (!configService.getById(serviceId).isEnabled()) {
                     return ToolOutput.failure("MCP service is disabled");
@@ -1049,35 +1061,24 @@ public class McpToolRegistryBridge {
         }
         Map<String, Object> inputContext = input == null || input.getContext() == null ? Map.of() : input.getContext();
         String tenantId = firstText(
-            stringValue(arguments.get("tenantId")),
-            stringValue(arguments.get("tenant_id")),
             stringValue(inputContext.get("tenantId")),
             stringValue(inputContext.get("tenant_id")),
             stringValue(inputContext.get("tenant"))
         );
         String userId = firstText(
-            stringValue(arguments.get("userId")),
-            stringValue(arguments.get("user_id")),
             stringValue(inputContext.get("userId")),
             stringValue(inputContext.get("user_id")),
-            input == null ? null : input.getUserId(),
-            "anonymous"
+            input == null ? null : input.getUserId()
         );
         String username = firstText(
-            stringValue(arguments.get("username")),
             stringValue(inputContext.get("username")),
             stringValue(inputContext.get("userName"))
         );
-        boolean canonicalRolesResolved = Boolean.TRUE.equals(inputContext.get("canonicalRolesResolved"));
         String canonicalRoles = firstText(
             roleValue(inputContext.get("roles")),
             roleValue(inputContext.get("roleIds"))
         );
-        String roles = canonicalRolesResolved ? canonicalRoles : firstText(
-            roleValue(arguments.get("roles")),
-            roleValue(arguments.get("roleIds")),
-            canonicalRoles
-        );
+        String roles = canonicalRoles;
         String requestId = firstText(
             stringValue(arguments.get("requestId")),
             stringValue(arguments.get("request_id")),
@@ -1092,21 +1093,23 @@ public class McpToolRegistryBridge {
         );
 
         if (tenantId != null) {
-            arguments.putIfAbsent("tenantId", tenantId);
+            arguments.put("tenantId", tenantId);
         }
-        arguments.putIfAbsent("userId", userId);
+        arguments.remove("tenant_id");
+        arguments.remove("user_id");
+        arguments.remove("operatorUserId");
+        arguments.put("userId", userId);
+        arguments.remove("username");
         if (username != null) {
-            arguments.putIfAbsent("username", username);
+            arguments.put("username", username);
         }
-        if (canonicalRolesResolved) {
+        {
             arguments.remove("roleIds");
             if (roles == null) {
                 arguments.remove("roles");
             } else {
                 arguments.put("roles", roles);
             }
-        } else if (roles != null) {
-            arguments.putIfAbsent("roles", roles);
         }
         if (requestId != null) {
             arguments.putIfAbsent("requestId", requestId);
@@ -1125,23 +1128,22 @@ public class McpToolRegistryBridge {
             ? new LinkedHashMap<>((Map<String, Object>) map)
             : new LinkedHashMap<>();
         if (tenantId != null) {
-            tenant.putIfAbsent("tenantId", tenantId);
+            tenant.put("tenantId", tenantId);
             mcpContext.put("tenant", tenant);
-            mcpContext.putIfAbsent("tenantId", tenantId);
+            mcpContext.put("tenantId", tenantId);
         }
-        mcpContext.putIfAbsent("userId", userId);
+        for (String key : List.of("identity", "user", "user_id", "tenant_id", "username")) mcpContext.remove(key);
+        mcpContext.put("userId", userId);
         if (username != null) {
-            mcpContext.putIfAbsent("username", username);
+            mcpContext.put("username", username);
         }
-        if (canonicalRolesResolved) {
+        {
             mcpContext.remove("roleIds");
             if (roles == null) {
                 mcpContext.remove("roles");
             } else {
                 mcpContext.put("roles", roles);
             }
-        } else if (roles != null) {
-            mcpContext.putIfAbsent("roles", roles);
         }
         if (requestId != null) {
             mcpContext.putIfAbsent("traceId", requestId);

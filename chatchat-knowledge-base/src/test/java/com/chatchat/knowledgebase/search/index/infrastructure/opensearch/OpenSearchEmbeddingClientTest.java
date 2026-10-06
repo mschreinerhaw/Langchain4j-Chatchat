@@ -19,6 +19,27 @@ class OpenSearchEmbeddingClientTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private HttpServer server;
 
+    @Test
+    void changingEndpointDoesNotReuseAnotherEmbeddingSpacesCachedVector() throws Exception {
+        successfulServer();
+        SearchProperties properties = embeddingProperties(2);
+        var client = new OpenSearchEmbeddingClient(properties, objectMapper);
+        assertThat(client.embed("same text")).containsExactly(0.1F, 0.2F);
+        HttpServer other = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        other.createContext("/embeddings", exchange -> {
+            exchange.getRequestBody().readAllBytes();
+            byte[] body = "{\"data\":[{\"embedding\":[0.3,0.4]}]}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        other.start();
+        try {
+            properties.getOpenSearch().getEmbedding().setEndpoint("http://localhost:" + other.getAddress().getPort() + "/embeddings");
+            assertThat(client.embed("same text")).containsExactly(0.3F, 0.4F);
+        } finally { other.stop(0); }
+    }
+
     @AfterEach
     void stopServer() {
         if (server != null) {

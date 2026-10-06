@@ -34,6 +34,18 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class McpAuthorizationServiceTest {
+    @Test
+    void cannotInventCallerIdentityInArgumentsWhenEnvelopeIdentityIsMissing() throws Exception {
+        McpAuthorizationService service = service(snapshot("[]"));
+        var call = new com.chatchat.common.mcp.service.McpServiceCall(null, "missing-identity",
+            "generic-service", "generic-tool", Map.of(), Map.of(), 0);
+        try (var ignored = McpInvocationContext.openCall(call)) {
+            var caller = service.currentCallerContext(Map.of("tenantId", "tenant-1", "userId", "user-1"));
+            assertThat(caller.userId()).isNull();
+            assertThat(caller.tenantId()).isNull();
+        }
+    }
+
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -93,7 +105,7 @@ class McpAuthorizationServiceTest {
     }
 
     @Test
-    void concurrentAuthorizationRequestsUseSingleSnapshotRecovery() throws Exception {
+    void concurrentExecutionRequestsEachReadCurrentDatabaseSnapshot() throws Exception {
         AtomicInteger requests = new AtomicInteger();
         HttpServer server = authorizationSnapshotServer(requests, 100L);
         ExecutorService executor = Executors.newFixedThreadPool(12);
@@ -112,7 +124,7 @@ class McpAuthorizationServiceTest {
             List<Future<McpAuthorizationService.AuthorizationDecision>> futures = executor.invokeAll(calls);
 
             assertThat(futures).allSatisfy(future -> assertThat(future.get().allowed()).isTrue());
-            assertThat(requests).hasValue(1);
+            assertThat(requests).hasValue(12);
         } finally {
             executor.shutdownNow();
             server.stop(0);
@@ -191,8 +203,8 @@ class McpAuthorizationServiceTest {
 
         assertThat(allowed.allowed()).isTrue();
         assertThat(otherAsset.allowed()).isFalse();
-        assertThat(routedGateway.allowed()).isTrue();
-        assertThat(directAssetTool.allowed()).isTrue();
+        assertThat(routedGateway.allowed()).isFalse();
+        assertThat(directAssetTool.allowed()).isFalse();
     }
 
     @Test
@@ -229,6 +241,13 @@ class McpAuthorizationServiceTest {
             }]
             """;
         McpAuthorizationService service = service(snapshot(permissions));
+        var registry = mock(com.chatchat.agents.tool.ToolRegistry.class);
+        when(registry.getAllToolNames()).thenReturn(java.util.Set.of("customer_service_template_query"));
+        when(registry.getToolMetadata("customer_service_template_query")).thenReturn(
+            com.chatchat.common.tool.ToolMetadata.builder().metadata(Map.of("mcpDynamicCapabilityRoute",
+                Map.of("routingMode", "parent_delegation", "parentToolName", "api_template_query",
+                    "implementationIdentityArgument", "_templateQueryChildToolName"))).build());
+        service.setToolRegistry(registry);
 
         McpAuthorizationService.AuthorizationDecision decision = service.authorize(
             "api_template_query",
@@ -237,10 +256,96 @@ class McpAuthorizationServiceTest {
         );
 
         assertThat(decision.allowed()).isTrue();
+        assertThat(service.authorize("unrelated_parent", Map.of("userId", "user-1", "tenantId", "tenant-1",
+            "_templateQueryChildToolName", "customer_service_template_query")).allowed()).isFalse();
     }
 
     @Test
-    void usesValidatedRolesForwardedByAuthenticatedApiWhenUserMembershipSnapshotIsStale() throws Exception {
+    void unknownUserCannotImpersonateKnownUserThroughUsername() throws Exception {
+        var service = service(snapshot("""
+            [{"tenantId":"tenant-1","targetType":"user","targetId":"user-admin-id",
+              "localToolName":"opaque_tool","effect":"allow","enabled":true}]
+            """));
+        assertThat(service.authorize("opaque_tool", Map.of("userId", "unknown-user",
+            "username", "admin", "tenantId", "tenant-1")).allowed()).isFalse();
+    }
+
+    @Test
+    void denyOnlyPolicyNeverImplicitlyAllowsUnrelatedTools() throws Exception {
+        var service = service(snapshot("""
+            [{"tenantId":"tenant-1","targetType":"role","targetId":"role-1",
+              "localToolName":"blocked_tool","effect":"deny","enabled":true}]
+            """));
+        assertThat(service.authorize("unrelated_tool", Map.of("userId", "user-1",
+            "tenantId", "tenant-1")).allowed()).isFalse();
+    }
+
+    @Test
+    void databaseToolIdsAndAliasesAreResolvedWithinServiceAndDenyWins() throws Exception {
+        var database = (com.fasterxml.jackson.databind.node.ObjectNode) databaseSnapshot(snapshot("""
+            [{"tenantId":"tenant-1","targetType":"role","targetId":"role-1",
+              "toolId":"db-tool-id","effect":"allow","enabled":true}]
+            """));
+        database.set("tools", objectMapper.readTree("""
+            [{"id":"db-tool-id","localToolName":"catalog_alias","remoteToolName":"opaque_tool",
+              "serviceId":"node-a","enabled":true}]
+            """));
+        var service = service(snapshotFrom(database));
+        var caller = Map.<String, Object>of("userId", "user-1", "tenantId", "tenant-1");
+        assertThat(service.authorize("node-a", "opaque_tool", caller).allowed()).isTrue();
+        assertThat(service.authorize("node-a", "catalog_alias", caller).allowed()).isTrue();
+        assertThat(service.authorize("node-b", "opaque_tool", caller).allowed()).isFalse();
+        ((com.fasterxml.jackson.databind.node.ArrayNode) database.get("permissions")).add(objectMapper.readTree("""
+            {"tenantId":"tenant-1","targetType":"user","targetId":"user-1",
+             "localToolName":"catalog_alias","effect":"deny","enabled":true}
+            """));
+        service = service(snapshotFrom(database));
+        assertThat(service.authorize("node-a", "opaque_tool", caller).allowed()).isFalse();
+    }
+
+    @Test
+    void membershipRevocationIsObservedOnNextExecutionWithoutRefreshingDiscovery() throws Exception {
+        var current = new AtomicReference<>(databaseSnapshot(snapshot("""
+            [{"tenantId":"tenant-1","targetType":"role","targetId":"role-1",
+              "localToolName":"opaque_tool","effect":"allow","enabled":true}]
+            """)));
+        var service = new McpAuthorizationService(new McpAuthorizationProperties(),
+            mock(InternalCredentialProperties.class), objectMapper, mock(McpSynchronizedRoleRepository.class)) {
+                @Override protected JsonNode fetchExecutionSnapshot() { return current.get(); }
+            };
+        var caller = Map.<String, Object>of("userId", "user-1", "tenantId", "tenant-1", "roles", "role-1");
+        assertThat(service.authorize("opaque_tool", caller).allowed()).isTrue();
+        ((com.fasterxml.jackson.databind.node.ObjectNode) current.get().path("users").get(0))
+            .set("roleIds", objectMapper.createArrayNode());
+        assertThat(service.authorize("opaque_tool", caller).allowed()).isFalse();
+    }
+
+    @Test
+    void disabledDatabaseToolCannotBeExecutedEvenByDatabaseAdministrator() throws Exception {
+        var database = (com.fasterxml.jackson.databind.node.ObjectNode) databaseSnapshot(snapshot("[]"));
+        ((com.fasterxml.jackson.databind.node.ObjectNode) database.path("roles").get(0)).put("roleCode", "SUPER_ADMIN");
+        database.set("tools", objectMapper.readTree("""
+            [{"id":"disabled-tool-id","localToolName":"disabled_alias","remoteToolName":"opaque_tool",
+              "serviceId":"node-a","enabled":false}]
+            """));
+        var service = service(snapshotFrom(database));
+        assertThat(service.authorize("node-a", "opaque_tool", Map.of("userId", "user-1", "tenantId", "tenant-1"))
+            .allowed()).isFalse();
+    }
+
+    @Test
+    void executionCannotFallBackToCachedAllowWhenDatabaseIsUnavailable() throws Exception {
+        HttpServer server = authorizationSnapshotServer(new AtomicInteger(), 0);
+        var service = serviceWithRemoteSnapshot(server);
+        assertThat(service.authorize("database_asset_search", Map.of("userId", "user-admin-id",
+            "tenantId", "tenant-1")).allowed()).isTrue();
+        server.stop(0);
+        assertThat(service.authorize("database_asset_search", Map.of("userId", "user-admin-id",
+            "tenantId", "tenant-1")).allowed()).isFalse();
+    }
+
+    @Test
+    void deniesUnassignedRoleEvenWhenForwardedByAuthenticatedApi() throws Exception {
         String permissions = """
             [{
               "tenantId":"tenant-1",
@@ -266,7 +371,7 @@ class McpAuthorizationServiceTest {
             );
         }
 
-        assertThat(decision.allowed()).isTrue();
+        assertThat(decision.allowed()).isFalse();
     }
 
     @Test
@@ -283,7 +388,7 @@ class McpAuthorizationServiceTest {
             caller = service.currentCallerContext();
         }
 
-        assertThat(caller.roleIds()).contains("role-1");
+        assertThat(caller.roleIds()).isEmpty();
     }
 
     @Test
@@ -300,7 +405,7 @@ class McpAuthorizationServiceTest {
             caller = service.currentCallerContext();
         }
 
-        assertThat(caller.roleIds()).containsExactly("role-1");
+        assertThat(caller.roleIds()).isEmpty();
     }
 
     @Test
@@ -316,7 +421,7 @@ class McpAuthorizationServiceTest {
 
         assertThat(caller.tenantId()).isEqualTo("tenant-1");
         assertThat(caller.userId()).isEqualTo("user-1");
-        assertThat(caller.roleIds()).containsExactly("role-1");
+        assertThat(caller.roleIds()).isEmpty();
     }
 
     @Test
@@ -690,12 +795,15 @@ class McpAuthorizationServiceTest {
         properties.setEnabled(true);
         properties.setFailOpen(false);
         properties.setRequireTenantContext(true);
+        JsonNode database = databaseSnapshot(snapshot);
         McpAuthorizationService service = new McpAuthorizationService(
             properties,
             mock(InternalCredentialProperties.class),
             objectMapper,
             repository
-        );
+        ) {
+            @Override protected JsonNode fetchExecutionSnapshot() { return database; }
+        };
         Field snapshotField = McpAuthorizationService.class.getDeclaredField("snapshotRef");
         snapshotField.setAccessible(true);
         @SuppressWarnings("unchecked")
@@ -704,6 +812,17 @@ class McpAuthorizationServiceTest {
         return service;
     }
 
+    private JsonNode databaseSnapshot(Object snapshot) throws Exception {
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        for (String key : List.of("usersById", "rolesById", "tools", "permissions")) {
+            Method accessor = snapshot.getClass().getDeclaredMethod(key);
+            accessor.setAccessible(true);
+            Object value = accessor.invoke(snapshot);
+            data.put(key.equals("usersById") ? "users" : key.equals("rolesById") ? "roles" : key,
+                value instanceof Map<?, ?> map ? map.values() : value);
+        }
+        return objectMapper.valueToTree(data);
+    }
     private void synchronizeRoles(McpAuthorizationService service, Object snapshot) throws Exception {
         Method method = McpAuthorizationService.class.getDeclaredMethod(
             "synchronizeRoles",

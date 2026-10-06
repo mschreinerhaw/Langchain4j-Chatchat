@@ -3,6 +3,7 @@ package com.chatchat.chat.interaction.service;
 import com.chatchat.enterprise.entity.mcp.McpToolAsset;
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchEmbeddingClient;
+import com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchSemanticIndexSchema;
 import com.chatchat.knowledgebase.search.query.application.SearchTokenizer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -50,7 +51,8 @@ public class McpToolSemanticIndex {
     private final ObjectMapper mapper;
     private final Environment environment;
     private final Map<String, String> indexed = new java.util.concurrent.ConcurrentHashMap<>();
-    private volatile boolean indexReady;
+    private volatile String readyIndex;
+    private volatile String resolvedIndex;
     private volatile RestClient client;
 
     public List<String> rank(String query, List<McpToolAsset> allowed, int limit) {
@@ -124,33 +126,17 @@ public class McpToolSemanticIndex {
     }
 
     private synchronized void ensureIndex() throws Exception {
-        if (indexReady) return;
-        HttpResult head = request("HEAD", indexPath(), null);
-        if (head.statusCode() == 404) {
-            Map<String, Object> fields = new LinkedHashMap<>();
-            fields.put("toolId", Map.of("type", "keyword"));
-            fields.put("name", Map.of("type", "text"));
-            fields.put("description", Map.of("type", "text"));
-            fields.put("schema", Map.of("type", "text"));
-            fields.put("serviceName", Map.of("type", "text"));
-            fields.put("serviceId", Map.of("type", "keyword"));
-            Map<String, Object> body = new LinkedHashMap<>();
-            if (embeddings.configured()) {
-                fields.put("vector", Map.of("type", "knn_vector", "dimension",
-                    properties.getOpenSearch().getEmbedding().getDimension()));
-                body.put("settings", Map.of("index", Map.of("knn", true)));
-            }
-            body.put("mappings", Map.of("properties", fields));
-            HttpResult created = request("PUT", indexPath(), mapper.writeValueAsString(body));
-            if (created.statusCode() >= 300 && !created.body().contains("resource_already_exists_exception")) {
-                throw new IllegalStateException("MCP index creation returned " + created.statusCode());
-            }
-        } else if (head.statusCode() >= 300) {
-            throw new IllegalStateException("MCP index lookup returned " + head.statusCode());
-        }
-        indexReady = true;
+        String current = profileIndexName();
+        if (current.equals(readyIndex)) return;
+        Map<String, Object> fields = new LinkedHashMap<>();
+        fields.put("toolId", Map.of("type", "keyword"));
+        for (String field : List.of("name", "description", "schema", "serviceName")) fields.put(field, Map.of("type", "text"));
+        fields.put("serviceId", Map.of("type", "keyword"));
+        resolvedIndex = OpenSearchSemanticIndexSchema.ensure(client(), mapper, baseIndexName(), current,
+            "vector", properties.getOpenSearch().getEmbedding(), fields, false);
+        indexed.clear();
+        readyIndex = current;
     }
-
     private synchronized void synchronize(List<McpToolAsset> tools) throws Exception {
         StringBuilder operations = new StringBuilder();
         Map<String, String> changed = new HashMap<>();
@@ -202,7 +188,7 @@ public class McpToolSemanticIndex {
         } catch (ResponseException ex) {
             HttpResult failure = result(ex.getResponse());
             if (failure.statusCode() == 404 && !"HEAD".equals(method)) {
-                indexReady = false;
+                readyIndex = null;
                 indexed.clear();
             }
             return failure;
@@ -264,6 +250,12 @@ public class McpToolSemanticIndex {
 
     private String indexPath() { return "/" + indexName(); }
     private String indexName() {
+        return profileIndexName().equals(readyIndex) && resolvedIndex != null ? resolvedIndex : profileIndexName();
+    }
+    private String profileIndexName() {
+        return OpenSearchSemanticIndexSchema.indexName(baseIndexName(), properties.getOpenSearch().getEmbedding());
+    }
+    private String baseIndexName() {
         String configured = environment.getProperty("chatchat.mcp.capability-retrieval.index-name",
             properties.getOpenSearch().getIndexName() + "_mcp_tools_v1");
         return configured

@@ -155,21 +155,14 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
                 request.getHeader("X-User-Id"),
                 request.getHeader("X-Operator-Id"),
                 request.getHeader("X-Principal-Id"),
-                textAt(body, "params", "_meta", "user", "userId"),
-                textAt(body, "params", "arguments", "userId"),
-                textAt(body, "params", "arguments", "user_id"),
-                textAt(body, "params", "arguments", "mcpContext", "userId"),
-                textAt(body, "params", "arguments", "mcpContext", "identity", "userId")
+                textAt(body, "params", "_meta", "user", "userId")
             ),
             firstText(
                 request.getHeader("X-Username"),
                 request.getHeader("X-User-Name"),
                 request.getHeader("X-Operator"),
                 request.getHeader("X-Forwarded-User"),
-                textAt(body, "params", "_meta", "user", "username"),
-                textAt(body, "params", "arguments", "username"),
-                textAt(body, "params", "arguments", "mcpContext", "username"),
-                textAt(body, "params", "arguments", "mcpContext", "identity", "username")
+                textAt(body, "params", "_meta", "user", "username")
             ),
             firstText(
                 request.getHeader("X-Tenant-Id"),
@@ -178,21 +171,13 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
                 textAt(body, "params", "_meta", "tenant", "tenantId"),
                 textAt(body, "params", "_meta", "tenantId"),
                 textAt(body, "params", "context", "tenant", "tenantId"),
-                textAt(body, "params", "context", "tenantId"),
-                textAt(body, "params", "arguments", "tenant", "tenantId"),
-                textAt(body, "params", "arguments", "mcpContext", "tenant", "tenantId"),
-                textAt(body, "params", "arguments", "tenantId"),
-                textAt(body, "params", "arguments", "tenant_id")
+                textAt(body, "params", "context", "tenantId")
             ),
             firstText(
                 request.getHeader("X-Roles"),
                 request.getHeader("X-Role-Ids"),
                 textAt(body, "user", "roles"),
-                textAt(body, "params", "_meta", "user", "roles"),
-                textAt(body, "params", "arguments", "roles"),
-                textAt(body, "params", "arguments", "roleIds"),
-                textAt(body, "params", "arguments", "mcpContext", "roles"),
-                textAt(body, "params", "arguments", "mcpContext", "identity", "roles")
+                textAt(body, "params", "_meta", "user", "roles")
             ),
             firstText(
                 request.getHeader("X-Workspace-Id"),

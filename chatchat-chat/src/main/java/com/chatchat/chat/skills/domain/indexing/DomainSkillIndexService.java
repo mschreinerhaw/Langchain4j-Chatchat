@@ -3,6 +3,7 @@ package com.chatchat.chat.skills.domain.indexing;
 import com.chatchat.chat.skills.domain.catalog.DomainSkillEntity;
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchEmbeddingClient;
+import com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchSemanticIndexSchema;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
@@ -35,12 +36,15 @@ public class DomainSkillIndexService {
     private final SearchProperties searchProperties;
     private final OpenSearchEmbeddingClient embeddingClient;
     private final ObjectMapper objectMapper;
+    private volatile String resolvedProfile;
+    private volatile String resolvedIndex;
 
     /** Returns IDs only; database authorization and content loading remain outside the index. */
     public List<String> searchIds(String query, List<String> allowedIds, int limit) {
         if (!openSearchEnabled() || query == null || query.isBlank()
             || allowedIds == null || allowedIds.isEmpty() || limit <= 0) return List.of();
         try (RestClient client = client()) {
+            ensureIndex(client);
             int size = Math.min(Math.max(limit * 3, limit), allowedIds.size());
             List<Object> filters = List.of(
                 Map.of("terms", Map.of("skillId", allowedIds)),
@@ -77,7 +81,7 @@ public class DomainSkillIndexService {
     }
 
     private List<String> queryIds(RestClient client, Map<String, Object> body) throws Exception {
-        Request request = new Request("POST", "/" + properties.getIndexName() + "/_search");
+        Request request = new Request("POST", "/" + indexName() + "/_search");
         request.setJsonEntity(objectMapper.writeValueAsString(body));
         JsonNode hits = objectMapper.readTree(client.performRequest(request).getEntity().getContent())
             .path("hits").path("hits");
@@ -109,9 +113,15 @@ public class DomainSkillIndexService {
             document.put("publishedAt", skill.getPublishedAt().toString());
             String searchText = String.join("\n", safe(skill.getName()), safe(skill.getCategory()), safe(skill.getDescription()), safe(skill.getMarkdownContent()));
             document.put("searchText", searchText);
+            // Keep the lexical source current for the next embedding-space migration.
+            if (!properties.getIndexName().equals(indexName())) {
+                Request lexicalWrite = new Request("PUT", "/" + properties.getIndexName() + "/_doc/" + skill.getId());
+                lexicalWrite.setJsonEntity(objectMapper.writeValueAsString(document));
+                client.performRequest(lexicalWrite);
+            }
             List<Float> vector = embeddingClient.embed(searchText);
             if (!vector.isEmpty()) document.put("embedding", vector);
-            Request request = new Request("PUT", "/" + properties.getIndexName() + "/_doc/" + skill.getId() + "?refresh=true");
+            Request request = new Request("PUT", "/" + indexName() + "/_doc/" + skill.getId() + "?refresh=true");
             request.setJsonEntity(objectMapper.writeValueAsString(document));
             int status = client.performRequest(request).getStatusLine().getStatusCode();
             return new IndexResult(status < 300, vector.isEmpty() ? "BM25" : "BM25_KNN", status < 300 ? "" : "index write failed");
@@ -124,7 +134,15 @@ public class DomainSkillIndexService {
     public IndexResult remove(String skillId) {
         if (!openSearchEnabled()) return new IndexResult(true, "LOCAL_ONLY", "");
         try (RestClient client = client()) {
-            int status = client.performRequest(new Request("DELETE", "/" + properties.getIndexName() + "/_doc/" + skillId + "?refresh=true"))
+            ensureIndex(client);
+            if (!properties.getIndexName().equals(indexName())) {
+                try {
+                    client.performRequest(new Request("DELETE", "/" + properties.getIndexName() + "/_doc/" + skillId));
+                } catch (ResponseException failure) {
+                    if (failure.getResponse().getStatusLine().getStatusCode() != 404) throw failure;
+                }
+            }
+            int status = client.performRequest(new Request("DELETE", "/" + indexName() + "/_doc/" + skillId + "?refresh=true"))
                 .getStatusLine().getStatusCode();
             return new IndexResult(status < 300, "DELETE", status < 300 ? "" : "index removal failed");
         } catch (ResponseException ex) {
@@ -137,21 +155,25 @@ public class DomainSkillIndexService {
         }
     }
 
-    private void ensureIndex(RestClient client) throws Exception {
-        try {
-            client.performRequest(new Request("HEAD", "/" + properties.getIndexName()));
-            return;
-        } catch (Exception ignored) { }
+    private String indexName() {
+        String profile = profileIndexName();
+        return profile.equals(resolvedProfile) && resolvedIndex != null ? resolvedIndex : profile;
+    }
+
+    private String profileIndexName() {
+        return OpenSearchSemanticIndexSchema.indexName(properties.getIndexName(),
+            searchProperties.getOpenSearch().getEmbedding());
+    }
+
+    private synchronized void ensureIndex(RestClient client) throws Exception {
         Map<String, Object> fields = new LinkedHashMap<>();
         for (String field : List.of("name", "description", "markdownContent", "searchText")) fields.put(field, Map.of("type", "text"));
         for (String field : List.of("skillId", "tenantId", "ownerId", "category", "status")) fields.put(field, Map.of("type", "keyword"));
         fields.put("publishedAt", Map.of("type", "date"));
-        fields.put("embedding", Map.of("type", "knn_vector",
-            "dimension", searchProperties.getOpenSearch().getEmbedding().getDimension(),
-            "method", Map.of("name", "hnsw", "space_type", "cosinesimil", "engine", "lucene")));
-        Request request = new Request("PUT", "/" + properties.getIndexName());
-        request.setJsonEntity(objectMapper.writeValueAsString(Map.of("settings", Map.of("index.knn", true), "mappings", Map.of("properties", fields))));
-        client.performRequest(request);
+        String profile = profileIndexName();
+        resolvedIndex = OpenSearchSemanticIndexSchema.ensure(client, objectMapper, properties.getIndexName(), profile,
+            "embedding", searchProperties.getOpenSearch().getEmbedding(), fields, true);
+        resolvedProfile = profile;
     }
 
     private boolean openSearchEnabled() {

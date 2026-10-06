@@ -129,13 +129,23 @@ public class DocumentSearchMcpToolRegistrar implements McpServerToolRegistrar {
                 Map<String, Object> parameters = new LinkedHashMap<>(input == null ? Map.of() : input.getParameters());
                 McpAuthorizationService.CallerAuthorizationContext caller =
                     authorizationService.currentCallerContext(parameters);
+                if (caller.tenantId() == null || caller.tenantId().isBlank()
+                    || caller.userId() == null || caller.userId().isBlank()) {
+                    return ToolOutput.builder().success(false)
+                        .exceptionType("AUTHORIZATION_CONTEXT_MISSING")
+                        .errorMessage("Authenticated tenant and user context is required").build();
+                }
                 parameters.remove("tenantId");
                 parameters.remove("userId");
                 parameters.remove("roles");
                 if (caller.tenantId() != null) parameters.put("tenantId", caller.tenantId());
                 if (caller.userId() != null) parameters.put("userId", caller.userId());
                 parameters.put("roles", caller.roleIds());
-                DocumentSearchRequest request = requestMapper.map(parameters, defaultTopK);
+                Object agentScope = input == null || input.getContext() == null
+                    ? null : input.getContext().get("authorizationAgentId");
+                DocumentSearchRequest request = requestMapper.map(parameters, defaultTopK)
+                    .withAgentId(agentScope == null || String.valueOf(agentScope).isBlank()
+                        ? null : String.valueOf(agentScope));
                 DocumentSearchResult localResult = evidenceService.search(request);
                 DocumentSearchResult apiResult = null;
                 try {

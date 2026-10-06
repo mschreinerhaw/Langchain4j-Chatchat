@@ -1,5 +1,9 @@
 package com.chatchat.mcpserver.mcp;
 
+import com.chatchat.common.mcp.service.McpServiceCall;
+import java.util.Map;
+import java.util.Collection;
+
 /**
  * Carries the inbound MCP caller context from the transport thread into tool execution/audit code.
  */
@@ -12,6 +16,24 @@ public final class McpInvocationContext {
 
     public static Context current() {
         return CURRENT.get();
+    }
+
+    /** Identity comes from the authenticated invocation envelope, never model arguments. */
+    public static Scope openCall(McpServiceCall call) {
+        Map<String, Object> values = call.context();
+        return open(new Context(text(values, "userId"), null, null, call.requestId(),
+            call.serviceId(), text(values, "userId"), text(values, "username"),
+            text(values, "tenantId"), text(values, "roles"), text(values, "workspaceId"),
+            text(values, "environment"), text(values, "traceId"), text(values, "assetType"),
+            text(values, "domain"), text(values, "permissionLevel"), text(values, "scopeExpression")));
+    }
+
+    private static String text(Map<String, Object> values, String key) {
+        Object value = values.get(key);
+        if (value instanceof Collection<?> collection) {
+            return collection.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+        }
+        return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim();
     }
 
     public static Scope open(Context context) {

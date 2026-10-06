@@ -19,7 +19,7 @@ import static org.mockito.Mockito.when;
 class EnterpriseMcpAuthorizationSyncControllerTest {
 
     @Test
-    void reusesSnapshotWithinConfiguredTtl() {
+    void cachesDiscoveryButExecutionHttpRequestsReadCurrentDatabase() throws Exception {
         EnterpriseAdminService adminService = mock(EnterpriseAdminService.class);
         SysRoleRepository roles = mock(SysRoleRepository.class);
         SysTenantRepository tenants = mock(SysTenantRepository.class);
@@ -37,13 +37,20 @@ class EnterpriseMcpAuthorizationSyncControllerTest {
                 adminService, roles, tenants, tools, permissions, credential);
         ReflectionTestUtils.setField(controller, "snapshotCacheTtlMs", 60_000L);
 
-        controller.snapshot();
-        controller.snapshot();
+        controller.snapshot(false);
+        controller.snapshot(false);
 
-        verify(adminService, times(1)).listUserViews(null);
-        verify(roles, times(1)).findAll();
-        verify(tenants, times(1)).findAllByOrderByTenantNameAsc();
-        verify(tools, times(1)).findAllByOrderByLocalToolNameAsc();
-        verify(permissions, times(1)).findAll();
+        var http = org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(controller).build();
+        http.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+            "/api/v1/enterprise/mcp-auth/snapshot").param("fresh", "true"))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+        http.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+            "/api/v1/enterprise/mcp-auth/snapshot").param("fresh", "true"))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+        verify(adminService, times(3)).listUserViews(null);
+        verify(roles, times(3)).findAll();
+        verify(tenants, times(3)).findAllByOrderByTenantNameAsc();
+        verify(tools, times(3)).findAllByOrderByLocalToolNameAsc();
+        verify(permissions, times(3)).findAll();
     }
 }

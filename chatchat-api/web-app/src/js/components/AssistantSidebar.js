@@ -236,6 +236,7 @@ export default {
       this.selectedHistoryKeys = this.selectedHistoryKeys.filter((key) => availableKeys.has(key));
       this.$nextTick(() => {
         this.managerCurrentPage = Math.min(this.historyManagerPage, this.historyManagerPageCount);
+        if (this.$refs.historyManagerList) this.$refs.historyManagerList.scrollTop = 0;
       });
     }
   },

@@ -144,7 +144,8 @@ public class EvidenceContextFormatter {
         Map<String, Integer> perFile = new HashMap<>();
         List<DocumentEvidenceChunk> selected = new ArrayList<>();
         int usedChars = 0;
-        for (DocumentEvidenceChunk chunk : chunks) {
+        List<DocumentEvidenceChunk> candidates = new ArrayList<>();
+        for (DocumentEvidenceChunk chunk : new EvidenceReranker().rerank(null, chunks, chunks.size())) {
             if (chunk == null || !hasText(chunk.content())) {
                 continue;
             }
@@ -156,10 +157,16 @@ public class EvidenceContextFormatter {
             if (fileCount >= perFileLimit) {
                 continue;
             }
-            int remaining = charLimit - usedChars;
-            if (remaining <= 0 || selected.size() >= evidenceLimit) {
-                break;
-            }
+            candidates.add(chunk);
+            perFile.put(fileKey, fileCount + 1);
+            if (candidates.size() >= evidenceLimit) break;
+        }
+        for (int index = 0; index < candidates.size(); index++) {
+            DocumentEvidenceChunk chunk = candidates.get(index);
+            // Reserve space for later sources instead of emitting a one-character
+            // fragment after the first few passages exhaust the entire budget.
+            int remaining = (charLimit - usedChars) / (candidates.size() - index);
+            if (remaining <= 0) break;
             DocumentEvidenceChunk normalized = normalizeRefId(chunk);
             String content = normalized.content();
             if (content.length() > remaining) {
@@ -183,9 +190,9 @@ public class EvidenceContextFormatter {
                     normalized.permissionRoles()
                 );
             }
+            if (!hasText(normalized.content())) continue;
             selected.add(normalized);
             usedChars += normalized.content().length();
-            perFile.put(fileKey, fileCount + 1);
         }
         return List.copyOf(selected);
     }

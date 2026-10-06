@@ -22,6 +22,38 @@ class ToolObservationBuilderEvidenceTest {
     private final ToolObservationBuilder builder = new ToolObservationBuilder(new EvidenceTrustEvaluator());
 
     @Test
+    void canonicalDocumentContractPreservesEverySourceAcrossRuntimeEnvelopeAndToolAliases() {
+        Map<String, Object> body = Map.of("contractVersion", "document_evidence_v1", "total", 3,
+            "results", List.of(
+                Map.of("fileId", "core", "fileName", "Core guide", "chunkIndex", 1, "content", "Operating requirements " + "x".repeat(4000)),
+                Map.of("fileId", "optional", "fileName", "Optional guide", "chunkIndex", 2, "content", "Optional services depend on selected capabilities"),
+                Map.of("fileId", "matrix", "fileName", "Dependency matrix", "chunkIndex", 3, "content", "Core components and their dependencies")));
+        Map<String, Object> envelope = Map.of("schemaVersion", "mcp_analysis_payload.v1", "resultKind", "DOCUMENT",
+            "data", body, "rawData", Map.of("content", "RAW_MIRROR_MUST_NOT_ENTER_EVIDENCE"));
+        String observation = builder.buildSuccessObservation("catalog_lookup", ToolOutput.success(envelope, "ok"),
+            "RAW_SERIALIZED_FALLBACK_MUST_NOT_BE_USED");
+        assertThat(observation).contains("contentEvidence=3", "citation: doc://core#chunk=1",
+            "citation: doc://optional#chunk=2", "citation: doc://matrix#chunk=3",
+            "Optional services depend on selected capabilities", "Core components and their dependencies")
+            .doesNotContain("RAW_MIRROR_MUST_NOT_ENTER_EVIDENCE", "RAW_SERIALIZED_FALLBACK_MUST_NOT_BE_USED", "total=unknown", "---BEGIN_LOCKED_ANSWER---");
+        assertThat(builder.buildAuthoritativeExecutionEvidence("catalog_lookup", envelope))
+            .contains("citation: doc://matrix#chunk=3", "contentEvidence=3");
+    }
+
+    @Test
+    void wrappedDocumentVisibilityStillBlocksUnselectedSourcesWithAnArbitraryToolName() {
+        Map<String, Object> body = Map.of("contractVersion", "document_evidence_v1",
+            "documentVisibilityEnforced", true, "selectedDocumentIds", List.of("selected"),
+            "results", List.of(
+                Map.of("fileId", "selected", "chunkIndex", 1, "content", "SELECTED_SOURCE"),
+                Map.of("fileId", "other", "chunkIndex", 1, "content", "UNSELECTED_SOURCE")));
+        String observation = builder.buildSuccessObservation("catalog_lookup", ToolOutput.success(Map.of(
+            "schemaVersion", "mcp_analysis_payload.v1", "data", body), "ok"), "");
+        assertThat(observation).contains("SELECTED_SOURCE", "Document visibility constraint")
+            .doesNotContain("UNSELECTED_SOURCE");
+    }
+
+    @Test
     void unknownResultSchemaRecursivelyExtractsJsonEncodedStdoutForFinalReview() {
         Map<String, Object> result = Map.of(
             "schemaVersion", "python_analysis_bridge_result.v1",

@@ -15,6 +15,19 @@ class FederatedDocumentEvidenceSelectorTest {
         new SearchTokenizer(), new EvidenceContextFormatter());
 
     @Test
+    void reservesEvidenceForEachDocumentBeforeAddingMorePassagesFromOneDocument() {
+        DocumentEvidenceChunk first = chunk("core", "orion core", "orion core services");
+        DocumentEvidenceChunk second = new DocumentEvidenceChunk("doc://core#chunk=2", "core-2", "core", "orion core",
+            "setup", 2, "document", 26.0, "orion more core details", List.of(), null, null,
+            "tenant-1", "user-1", "tenant", List.of());
+        DocumentSearchResult local = new DocumentSearchResult("document_evidence_v1", "query", "how_to", 2,
+            List.of(first, second), "", List.of());
+        DocumentSearchResult api = result(chunk("matrix", "orion dependency matrix", "orion dependencies"));
+        assertThat(selector.select("orion core services", 2, local, api).results())
+            .extracting(DocumentEvidenceChunk::fileId).containsExactly("core", "matrix");
+    }
+
+    @Test
     void excludesGenericInstallationWhenApiHasLivedataEvidence() {
         DocumentSearchResult local = result(chunk("linux", "Linux commands", "FreeIPA installation steps"));
         DocumentSearchResult api = result(chunk("livedata", "livedata installation guide", "livedata deployment checks"));

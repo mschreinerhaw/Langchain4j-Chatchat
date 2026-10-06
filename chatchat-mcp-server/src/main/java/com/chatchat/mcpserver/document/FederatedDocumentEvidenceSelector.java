@@ -4,6 +4,7 @@ import com.chatchat.knowledgebase.search.document.api.evidence.DocumentEvidenceC
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchHit;
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchResult;
 import com.chatchat.knowledgebase.search.evidence.application.EvidenceContextFormatter;
+import com.chatchat.knowledgebase.search.evidence.application.EvidenceReranker;
 import com.chatchat.knowledgebase.search.query.application.SearchTokenizer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -37,18 +38,13 @@ public class FederatedDocumentEvidenceSelector {
             return primary;
         }
         Map<String, DocumentEvidenceChunk> chunks = new LinkedHashMap<>();
-        int primaryLimit = secondary.results().isEmpty() || topK <= 1
-            ? topK : Math.max(1, topK - 2);
-        addChunks(chunks, primary.results(), primaryLimit);
-        addChunks(chunks, secondary.results(), topK);
-        addChunks(chunks, primary.results(), topK);
+        addChunks(chunks, primary.results(), Integer.MAX_VALUE);
+        addChunks(chunks, secondary.results(), Integer.MAX_VALUE);
         Map<String, DocumentSearchHit> documents = new LinkedHashMap<>();
         addDocuments(documents, primary.documents());
         addDocuments(documents, secondary.documents());
-        if (chunks.size() == primary.results().size() && documents.size() == primary.documents().size()) {
-            return primary;
-        }
-        List<DocumentEvidenceChunk> evidence = new ArrayList<>(chunks.values());
+        List<DocumentEvidenceChunk> evidence = new EvidenceReranker().rerank(query,
+            new ArrayList<>(chunks.values()), topK);
         return new DocumentSearchResult(
             primary.contractVersion(), query, primary.intent(), evidence.size() + documents.size(),
             evidence, formatter.formatContext(evidence), formatter.citations(evidence),

@@ -31,6 +31,22 @@ public record McpAnalysisPayload(
 ) {
     public static final String SCHEMA_VERSION = "mcp_analysis_payload.v1";
 
+    /** Projects governed data only; raw transport data is never an evidence fallback. */
+    public static Object canonicalData(Object payload) {
+        Object current = payload;
+        for (int depth = 0; depth < 12; depth++) {
+            if (current instanceof McpAnalysisPayload envelope) {
+                current = envelope.data();
+            } else if (current instanceof Map<?, ?> envelope
+                && SCHEMA_VERSION.equals(envelope.get("schemaVersion"))) {
+                current = envelope.get("data");
+            } else {
+                return current;
+            }
+        }
+        throw new IllegalArgumentException("MCP analysis envelope nesting exceeds the contract limit");
+    }
+
     public McpAnalysisPayload {
         schemaVersion = SCHEMA_VERSION;
         resultKind = resultKind == null ? McpResultKind.UNDECLARED : resultKind;

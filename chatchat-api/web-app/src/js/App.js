@@ -165,6 +165,7 @@ export default {
       historyManagerPageSize: 10,
       historyManagerPageCount: 1,
       historyManagerLoading: false,
+      historyManagerRequestSerial: 0,
       historyManagerKeyword: "",
       favoriteConversationIds: [],
       favoriteConversationRecordIds: {},
@@ -624,6 +625,7 @@ export default {
       const page = Math.max(1, Number(filters.page) || 1);
       const pageSize = Math.max(1, Number(filters.pageSize) || this.historyManagerPageSize);
       const keyword = String(filters.keyword || "").trim();
+      const requestSerial = ++this.historyManagerRequestSerial;
       this.historyManagerLoading = true;
       this.historyError = "";
       try {
@@ -633,6 +635,7 @@ export default {
           pageSize,
           keyword
         });
+        if (requestSerial !== this.historyManagerRequestSerial) return;
         this.historyManagerItems = Array.isArray(payload?.items) ? payload.items : [];
         this.historyManagerTotal = Number(payload?.total) || 0;
         this.historyManagerPage = Number(payload?.page) || page;
@@ -640,10 +643,10 @@ export default {
         this.historyManagerPageCount = Math.max(1, Number(payload?.totalPages) || 1);
         this.historyManagerKeyword = keyword;
       } catch (error) {
-        this.historyManagerItems = [];
+        if (requestSerial !== this.historyManagerRequestSerial) return;
         this.historyError = errorMessage(error, "历史记录加载失败，请稍后重试");
       } finally {
-        this.historyManagerLoading = false;
+        if (requestSerial === this.historyManagerRequestSerial) this.historyManagerLoading = false;
       }
     },
     async loadFavoriteConversationIds() {

@@ -99,7 +99,8 @@ public class ToolObservationBuilder {
                                                   ToolOutput output,
                                                   String outputText,
                                                   Map<String, Object> reviewMetadata) {
-        Object data = output == null ? null : output.getData();
+        Object data = com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(
+            output == null ? null : output.getData());
         if (data instanceof ToolCallBatchResult batchResult) {
             return buildBatchExecutionObservation(toolName, output, batchResult);
         }
@@ -107,7 +108,7 @@ public class ToolObservationBuilder {
         if (!enterpriseMetadata.isEmpty()) {
             return buildEnterpriseMetadataObservation(toolName, output, enterpriseMetadata);
         }
-        if (isDocumentSearchToolName(toolName)) {
+        if (isDocumentEvidence(data) || isDocumentSearchToolName(toolName)) {
             return buildDocumentSearchObservation(toolName, output, data, outputText, reviewMetadata);
         }
         if (isSqlMetadataSearchToolName(toolName) && !asMap(data).isEmpty()) {
@@ -385,6 +386,10 @@ public class ToolObservationBuilder {
      * Legacy payloads retain semantic fallbacks for compatibility.
      */
     public String buildAuthoritativeExecutionEvidence(String toolName, Object data) {
+        data = com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(data);
+        if (isDocumentEvidence(data)) {
+            return buildDocumentSearchObservation(toolName, null, data, "", Map.of());
+        }
         if (data instanceof ToolCallBatchResult batchResult) {
             return buildBatchExecutionObservation(toolName, null, batchResult);
         }
@@ -1340,9 +1345,11 @@ public class ToolObservationBuilder {
 
         List<DocumentEvidence> evidence = extractDocumentEvidence(data);
         if (evidence.isEmpty()) {
-            String summary = observationText(outputText);
-            if (summary != null && !summary.isBlank()) {
-                observation.append(" Output summary: ").append(summary);
+            if (evidenceNormalizer.normalize(toolName, data).isEmpty()) {
+                String summary = observationText(outputText);
+                if (summary != null && !summary.isBlank()) {
+                    observation.append(" Output summary: ").append(summary);
+                }
             }
             return observation.toString();
         }
@@ -1375,7 +1382,7 @@ public class ToolObservationBuilder {
                                        Map<String, Object> reviewMetadata,
                                        ToolOutput output) {
         Object evidenceData = trustedUnifiedEvidenceData(toolName, data);
-        DocumentSelectionContext selectionContext = isDocumentSearchToolName(toolName)
+        DocumentSelectionContext selectionContext = isDocumentEvidence(evidenceData) || isDocumentSearchToolName(toolName)
             ? DocumentSelectionContext.fromToolData(evidenceData)
             : DocumentSelectionContext.unrestricted();
         List<EvidenceChunk> normalizedChunks = evidenceNormalizer.normalize(toolName, evidenceData, Integer.MAX_VALUE);
@@ -1441,16 +1448,24 @@ public class ToolObservationBuilder {
             observation.append(graphContext).append('\n');
         }
         EvidenceExecutionReport executionReport = evidencePathExecutor.execute(graph, null, selectionContext);
-        String osContext = evidenceOsV2Formatter.format(executionReport);
-        if (osContext != null && !osContext.isBlank()) {
-            observation.append(osContext).append('\n');
-        }
-        if (isDocumentSearchToolName(toolName)) {
+        if (isDocumentEvidence(evidenceData) || isDocumentSearchToolName(toolName)) {
             EvidenceExecutionContract executionContract = evidenceExecutionContractCompiler.compile(graph, executionReport);
-            String deterministicContext = deterministicAnswerCompiler.compile(executionContract);
-            if (deterministicContext != null && !deterministicContext.isBlank()) {
-                observation.append(deterministicContext).append('\n');
+            boolean coversVisibleEvidence = chunks.stream()
+                .map(chunk -> stringValue(chunk.citation().get("refId")))
+                .allMatch(executionContract.sourceRefs()::contains);
+            if (coversVisibleEvidence) {
+                observation.append(evidenceOsV2Formatter.format(executionReport)).append('\n');
+                String deterministicContext = deterministicAnswerCompiler.compile(executionContract);
+                if (deterministicContext != null && !deterministicContext.isBlank()) {
+                    observation.append(deterministicContext).append('\n');
+                }
+            } else {
+                observation.append("Document evidence coverage: selected graph path covers only a subset of the visible sources. ")
+                    .append("It cannot lock the whole answer; synthesize the independently verified evidence with source citations.\n");
             }
+        } else {
+            String osContext = evidenceOsV2Formatter.format(executionReport);
+            if (osContext != null && !osContext.isBlank()) observation.append(osContext).append('\n');
         }
         List<EvidenceAudit> audits = evidenceNormalizer.audits(toolName, data, chunks);
         if (!audits.isEmpty()) {
@@ -1783,6 +1798,10 @@ public class ToolObservationBuilder {
             citations.add(matched == null ? new WebCitation(url, url, null) : matched);
         }
         return citations;
+    }
+
+    private boolean isDocumentEvidence(Object data) {
+        return "document_evidence_v1".equals(asMap(data).get("contractVersion"));
     }
 
     private List<DocumentEvidence> extractDocumentEvidence(Object data) {

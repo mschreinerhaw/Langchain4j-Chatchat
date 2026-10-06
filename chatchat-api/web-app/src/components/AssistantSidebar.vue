@@ -250,36 +250,37 @@
             </label>
           </div>
 
-          <div class="history-manager-list">
-            <p v-if="historyManagerLoading" class="history-manager-state">正在加载历史记录…</p>
-            <p v-else-if="managerPageConversations.length === 0" class="history-manager-state">
-              {{ managerKeyword.trim() ? "没有匹配的历史记录" : "暂无历史记录" }}
-            </p>
-            <label
-              v-for="conversation in managerPageConversations"
-              v-else
-              :key="`manager-${conversationKey(conversation)}`"
-              class="history-manager-item"
-              :class="{
-                active: isConversationActive(conversation),
-                locked: isConversationInProgress(conversation)
-              }"
-            >
-              <input
-                type="checkbox"
-                :value="conversationKey(conversation)"
-                v-model="selectedHistoryKeys"
-                :disabled="historyDeleting || isConversationInProgress(conversation)"
-                :title="isConversationInProgress(conversation) ? '进行中的会话不能删除' : ''"
-              />
-              <span class="history-manager-item-copy">
-                <strong>{{ conversationTitle(conversation) }}</strong>
-                <span>{{ formatConversationCreatedAt(conversation) }}</span>
-              </span>
-              <span v-if="statusLabel(conversation)" class="history-manager-item-status">
-                {{ statusLabel(conversation) }}
-              </span>
-            </label>
+          <div class="history-manager-content" :aria-busy="historyManagerLoading">
+            <span v-if="historyManagerLoading" class="history-manager-loading" role="status">正在加载…</span>
+            <div ref="historyManagerList" class="history-manager-list">
+              <p v-if="!historyManagerLoading && managerPageConversations.length === 0" class="history-manager-state">
+                {{ managerKeyword.trim() ? "没有匹配的历史记录" : "暂无历史记录" }}
+              </p>
+              <label
+                v-for="conversation in managerPageConversations"
+                :key="`manager-${conversationKey(conversation)}`"
+                class="history-manager-item"
+                :class="{
+                  active: isConversationActive(conversation),
+                  locked: isConversationInProgress(conversation)
+                }"
+              >
+                <input
+                  type="checkbox"
+                  :value="conversationKey(conversation)"
+                  v-model="selectedHistoryKeys"
+                  :disabled="historyDeleting || historyManagerLoading || isConversationInProgress(conversation)"
+                  :title="isConversationInProgress(conversation) ? '进行中的会话不能删除' : ''"
+                />
+                <span class="history-manager-item-copy">
+                  <strong>{{ conversationTitle(conversation) }}</strong>
+                  <span>{{ formatConversationCreatedAt(conversation) }}</span>
+                </span>
+                <span v-if="statusLabel(conversation)" class="history-manager-item-status">
+                  {{ statusLabel(conversation) }}
+                </span>
+              </label>
+            </div>
           </div>
 
           <AppPagination
@@ -299,7 +300,7 @@
               <button
                 type="button"
                 class="history-manager-delete"
-                :disabled="selectedManagerConversations.length === 0 || historyDeleting"
+                :disabled="selectedManagerConversations.length === 0 || historyDeleting || historyManagerLoading"
                 @click="deleteSelectedHistory"
               >
                 <Trash2 :size="15" stroke-width="2" />

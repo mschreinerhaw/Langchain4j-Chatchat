@@ -19,6 +19,20 @@ class EvidenceContextFormatterTest {
     private final EvidenceContextFormatter formatter = new EvidenceContextFormatter();
 
     @Test
+    void distributesCharacterBudgetAcrossSourcesWithoutProducingTailFragments() {
+        List<DocumentEvidenceChunk> selected = formatter.selectEvidence(List.of(
+            chunk("file-1", 1, 95.0D, "a".repeat(5999)),
+            chunk("file-1", 2, 94.0D, "b".repeat(1200)),
+            chunk("file-2", 1, 93.0D, "c".repeat(1200))), 8, 6000, 3, 20.0D);
+        assertThat(selected).hasSize(3);
+        assertThat(selected).extracting(DocumentEvidenceChunk::fileId).containsExactly("file-1", "file-2", "file-1");
+        assertThat(selected).allSatisfy(item -> assertThat(item.content().length()).isGreaterThanOrEqualTo(1200));
+        assertThat(selected.stream().mapToInt(item -> item.content().length()).sum()).isLessThanOrEqualTo(6000);
+        assertThat(formatter.citations(selected)).extracting(citation -> citation.refId())
+            .containsExactly("doc://file-1#chunk=1", "doc://file-2#chunk=1", "doc://file-1#chunk=2");
+    }
+
+    @Test
     void formatsEvidenceContextAndBindsCitations() {
         DocumentEvidenceChunk chunk = chunk("file-1", 12, 92.5D,
             "Check account status, token expiry, and session validity.");

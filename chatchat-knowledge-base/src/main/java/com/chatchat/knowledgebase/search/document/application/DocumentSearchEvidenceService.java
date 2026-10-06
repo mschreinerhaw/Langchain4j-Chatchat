@@ -238,10 +238,9 @@ public class DocumentSearchEvidenceService {
                 .filter(document -> matchesDocumentFilters(document, filters))
                 .filter(document -> documentContainsSubject(document, focusedQuery))
                 .ifPresent(document -> {
-                    String evidenceQuery = hasText(focusedQuery) ? focusedQuery : query;
-                    List<String> focusedTokens = hasText(focusedQuery) ? List.of(focusedQuery) : queryTokens;
-                    List<DocumentEvidenceChunk> facts = toScopedEvidence(document, evidenceQuery,
-                        focusedTokens, intent, debug, Math.min(3, topK - chunks.size()));
+                    // Subject focus constrains eligible documents, never the user's information needs.
+                    List<DocumentEvidenceChunk> facts = toScopedEvidence(document, query,
+                        queryTokens, intent, debug, Math.min(3, topK - chunks.size()));
                     if (hasText(focusedQuery) && !containsFocus(document.getTitle(), focusedQuery)
                         && !containsFocus(document.getFileName(), focusedQuery)) {
                         facts = facts.stream().filter(chunk ->

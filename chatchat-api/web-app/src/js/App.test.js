@@ -4,6 +4,46 @@ import AiSearchView from "./views/AiSearchView.js";
 import ChatAssistantView from "./views/ChatAssistantView.js";
 import AssistantSidebar from "./components/AssistantSidebar.js";
 import SystemManagementView from "./views/SystemManagementView.js";
+import * as api from "../services/api.js";
+
+describe("history pagination request ordering", () => {
+  it("keeps the visible page while loading and ignores an older response", async () => {
+    let finishFirst, finishSecond;
+    const fetch = vi.spyOn(api, "fetchConversationHistoryPage")
+      .mockImplementationOnce(() => new Promise(resolve => { finishFirst = resolve; }))
+      .mockImplementationOnce(() => new Promise(resolve => { finishSecond = resolve; }));
+    const visible = [{ id: "visible" }];
+    const context = { authSession: {}, userId: "user", tenantId: "tenant", historyManagerRequestSerial: 0,
+      historyManagerPageSize: 10, historyManagerItems: visible };
+    try {
+      const first = App.methods.loadHistoryManager.call(context, { page: 2 });
+      const second = App.methods.loadHistoryManager.call(context, { page: 3 });
+      expect(context.historyManagerItems).toBe(visible);
+      finishFirst({ items: [{ id: "older" }], page: 2 });
+      await first;
+      expect(context.historyManagerLoading).toBe(true);
+      expect(context.historyManagerItems).toBe(visible);
+      finishSecond({ items: [{ id: "latest" }], page: 3, total: 21, totalPages: 3 });
+      await second;
+      expect(context.historyManagerItems).toEqual([{ id: "latest" }]);
+      expect(context.historyManagerPage).toBe(3);
+      expect(context.historyManagerLoading).toBe(false);
+    } finally { fetch.mockRestore(); }
+  });
+
+  it("retains the current records and page when pagination fails", async () => {
+    const fetch = vi.spyOn(api, "fetchConversationHistoryPage").mockRejectedValue(new Error("offline"));
+    const context = { authSession: {}, userId: "user", tenantId: "tenant", historyManagerRequestSerial: 0,
+      historyManagerPageSize: 10, historyManagerPage: 1, historyManagerItems: [{ id: "visible" }] };
+    try {
+      await App.methods.loadHistoryManager.call(context, { page: 2 });
+      expect(context.historyManagerItems).toEqual([{ id: "visible" }]);
+      expect(context.historyManagerPage).toBe(1);
+      expect(context.historyManagerLoading).toBe(false);
+      expect(context.historyError).toBe("offline");
+    } finally { fetch.mockRestore(); }
+  });
+});
 
 describe("document Ask AI conversation isolation", () => {
   it("opens joint analysis with the Agent selected in management", () => {

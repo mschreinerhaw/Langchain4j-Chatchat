@@ -12,6 +12,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 class McpAnalysisPayloadTest {
 
     @Test
+    void projectsOnlyCanonicalDataWithoutInterpretingBusinessDataKeys() {
+        Map<String, Object> body = Map.of("data", "business field", "records", java.util.List.of(1, 2));
+        Object projected = McpAnalysisPayload.canonicalData(Map.of("schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,
+            "data", body, "rawData", Map.of("records", java.util.List.of("unauthorized mirror"))));
+        assertThat(projected).isSameAs(body);
+        assertThat(McpAnalysisPayload.canonicalData(Map.of("schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,
+            "rawData", body))).isNull();
+    }
+
+    @Test
     void preservesTypedFailureForRuntimeAndUiConsumers() {
         McpServiceResult failure = new McpServiceResult(null, "request-1", "service-1", "tool-1",
             McpServiceResultStatus.FAILED, null,

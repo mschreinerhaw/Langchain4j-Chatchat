@@ -67,6 +67,26 @@ import static org.mockito.Mockito.when;
 class DocumentSearchControlPlaneTest {
 
     @Test
+    void subjectFocusDoesNotReplaceTheOriginalInformationNeedsWhenSelectingPassages() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.frontendQuickSearch(any(), any(), any(), any(), any(), any(), any(),
+            any(SearchPermissionContext.class))).thenReturn(new SearchPage(
+                "orion deployment components", List.of(), List.of(), 0, 8, 1, 8, 1, false, 1L, 1, null));
+        String content = "orion unrelated introduction " + "x".repeat(3500)
+            + " deployment components include a scheduler and database " + "y".repeat(1500);
+        when(searchService.get(eq("orion-doc"), any(SearchPermissionContext.class)))
+            .thenReturn(java.util.Optional.of(SearchDocument.builder().docId("orion-doc")
+                .title("Orion manual").fileName("Orion.md").content(content).build()));
+        KnowledgeIrDocumentRecall irRecall = mock(KnowledgeIrDocumentRecall.class);
+        when(irRecall.recall(any(DocumentSearchPlan.class), any(Integer.class)))
+            .thenReturn(new KnowledgeIrDocumentRecall.Recall(List.of("orion-doc"), "orion"));
+        DocumentSearchResult result = newEvidenceService(searchService, properties -> { }, irRecall)
+            .search(new DocumentSearchRequest("orion deployment components", 1, null, null, null, null, null, false));
+        assertThat(result.results()).hasSize(1);
+        assertThat(result.results().get(0).content()).contains("deployment components include");
+    }
+
+    @Test
     void rejectsGenericInstallationHitWithoutNamedSubjectInOriginalDocument() {
         SearchService searchService = mock(SearchService.class);
         when(searchService.frontendQuickSearch(any(), any(), any(), any(), any(), any(), any(),

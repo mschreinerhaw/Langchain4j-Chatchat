@@ -129,6 +129,10 @@ final class GroundedDocumentEvidenceReader {
             return false;
         }
         return line.startsWith("[Evidence ")
+            || line.startsWith("Canonical evidence store (")
+            || line.startsWith("Evidence graph execution (")
+            || line.startsWith("Evidence OS execution (")
+            || line.startsWith("Document evidence coverage:")
             || line.startsWith("Evidence audit:")
             || line.startsWith("Document search summary:")
             || line.startsWith("Document evidence snippets:")

@@ -1052,6 +1052,7 @@
 
 .history-manager-dialog {
   width: min(620px, calc(100vw - 32px));
+  height: min(720px, calc(100dvh - 48px));
   max-height: min(720px, calc(100dvh - 48px));
   display: flex;
   flex-direction: column;
@@ -1153,10 +1154,44 @@
   accent-color: #2878f0;
 }
 
-.history-manager-list {
-  min-height: 180px;
+.history-manager-content {
+  position: relative;
+  min-height: 0;
   flex: 1 1 auto;
+}
+
+.history-manager-header,
+.history-manager-toolbar,
+.history-manager-footer {
+  flex-shrink: 0;
+}
+
+.history-manager-dialog > .app-pagination {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  padding: 10px 24px;
+  border-top: 1px solid #eaecf0;
+}
+
+.history-manager-loading {
+  position: absolute;
+  top: 8px;
+  right: 28px;
+  z-index: 1;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #fff;
+  color: #66758f;
+  box-shadow: 0 2px 8px rgb(16 24 40 / 10%);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.history-manager-list {
+  height: 100%;
+  box-sizing: border-box;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   padding: 0 24px 12px;
 }
 

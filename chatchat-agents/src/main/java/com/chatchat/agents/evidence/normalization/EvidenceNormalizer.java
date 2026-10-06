@@ -41,7 +41,7 @@ public class EvidenceNormalizer {
     }
 
     public List<EvidenceChunk> normalize(String toolName, Object data, int limit) {
-        Map<String, Object> root = asMap(data);
+        Map<String, Object> root = asMap(com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(data));
         if (root.isEmpty()) {
             return List.of();
         }
@@ -87,7 +87,7 @@ public class EvidenceNormalizer {
     }
 
     public List<EvidenceAudit> audits(String toolName, Object data, List<EvidenceChunk> chunks) {
-        Map<String, Object> root = asMap(data);
+        Map<String, Object> root = asMap(com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(data));
         String query = firstNonBlank(stringValue(root.get("query")), stringValue(root.get("keyword")));
         List<EvidenceAudit> audits = new ArrayList<>();
         for (EvidenceChunk chunk : chunks == null ? List.<EvidenceChunk>of() : chunks) {

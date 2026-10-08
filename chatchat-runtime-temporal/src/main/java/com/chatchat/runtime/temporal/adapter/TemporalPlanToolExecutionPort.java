@@ -8,9 +8,11 @@ import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.runtime.temporal.config.TemporalWorkflowProperties;
 import com.chatchat.runtime.temporal.contract.tool.TemporalToolActivityCommand;
 import com.chatchat.runtime.temporal.workflow.tool.RuntimeOsToolExecutionWorkflow;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
+import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowOptions;
@@ -19,6 +21,7 @@ import io.temporal.client.WorkflowStub;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
@@ -52,25 +55,34 @@ public final class TemporalPlanToolExecutionPort implements PlanToolExecutionPor
             toolRuntimeService.metadata(command.request().getToolName()),
             command.idempotencyKey(),
             properties.activityStartToCloseSeconds());
+        Map<String, Object> memo = new LinkedHashMap<>(Map.of(
+            "planToolSchemaVersion", command.schemaVersion(),
+            "planRunId", command.runId(),
+            "planExecutionScope", command.planExecutionScope(),
+            "planStepId", command.stepId(),
+            "planInvocationRole", command.invocationRole(),
+            "planToolIdempotencyKey", command.idempotencyKey(),
+            "planInvocationFingerprint", command.invocationFingerprint(),
+            "planToolName", command.request().getToolName()));
+        if (command.request().getTenantId() != null && !command.request().getTenantId().isBlank()) {
+            memo.put("planTenantId", command.request().getTenantId());
+        }
+        if (command.request().getUserId() != null && !command.request().getUserId().isBlank()) {
+            memo.put("planUserId", command.request().getUserId());
+        }
         RuntimeOsToolExecutionWorkflow workflow = client.newWorkflowStub(
             RuntimeOsToolExecutionWorkflow.class,
             WorkflowOptions.newBuilder()
                 .setWorkflowId(workflowId)
                 .setTaskQueue(properties.taskQueue())
                 .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
-                .setMemo(Map.of(
-                    "planToolSchemaVersion", command.schemaVersion(),
-                    "planRunId", command.runId(),
-                    "planExecutionScope", command.planExecutionScope(),
-                    "planStepId", command.stepId(),
-                    "planInvocationRole", command.invocationRole(),
-                    "planToolIdempotencyKey", command.idempotencyKey()
-                ))
+                .setMemo(memo)
                 .build());
         try {
             WorkflowClient.start(workflow::execute, activityCommand);
         } catch (WorkflowExecutionAlreadyStarted duplicate) {
-            // Stable identity means retries and resumed plan attempts attach to the persisted result.
+            // A reused Workflow id is only safe when the persisted invocation is the same one.
+            validatePersistedIdentity(workflowId, command);
         }
         WorkflowStub stub = client.newUntypedWorkflowStub(workflowId);
         try {
@@ -131,6 +143,57 @@ public final class TemporalPlanToolExecutionPort implements PlanToolExecutionPor
             return WORKFLOW_ID_PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to derive plan tool Workflow id", ex);
+        }
+    }
+
+    private void validatePersistedIdentity(String workflowId, PlanToolExecutionCommand command) {
+        var response = client.getWorkflowServiceStubs().blockingStub()
+            .describeWorkflowExecution(DescribeWorkflowExecutionRequest.newBuilder()
+                .setNamespace(client.getOptions().getNamespace())
+                .setExecution(WorkflowExecution.newBuilder().setWorkflowId(workflowId).build())
+                .build());
+        Map<String, String> persisted = new LinkedHashMap<>();
+        response.getWorkflowExecutionInfo().getMemo().getFieldsMap().forEach((key, payload) -> {
+            if (key.startsWith("plan")) {
+                Object decoded = client.getOptions().getDataConverter()
+                    .fromPayload(payload, Object.class, Object.class);
+                persisted.put(key, decoded == null ? "" : String.valueOf(decoded));
+            }
+        });
+        validatePersistedIdentity(persisted, command);
+    }
+
+    static void validatePersistedIdentity(Map<String, String> persisted,
+                                          PlanToolExecutionCommand command) {
+        Map<String, String> required = Map.of(
+            "planToolSchemaVersion", command.schemaVersion(),
+            "planRunId", command.runId(),
+            "planExecutionScope", command.planExecutionScope(),
+            "planStepId", String.valueOf(command.stepId()),
+            "planInvocationRole", command.invocationRole(),
+            "planToolIdempotencyKey", command.idempotencyKey());
+        required.forEach((key, expected) -> {
+            if (!expected.equals(persisted.get(key))) {
+                throw new IllegalStateException("Plan tool Workflow identity mismatch: " + key);
+            }
+        });
+        // These fields were added after the first durable tool Workflow version. Validate them
+        // when present while allowing existing histories to reattach through the older identity.
+        Map<String, String> newer = Map.of(
+            "planInvocationFingerprint", command.invocationFingerprint(),
+            "planToolName", command.request().getToolName());
+        newer.forEach((key, expected) -> {
+            if (persisted.containsKey(key) && !expected.equals(persisted.get(key))) {
+                throw new IllegalStateException("Plan tool Workflow identity mismatch: " + key);
+            }
+        });
+        if (persisted.containsKey("planTenantId")
+            && !persisted.get("planTenantId").equals(command.request().getTenantId())) {
+            throw new IllegalStateException("Plan tool Workflow identity mismatch: planTenantId");
+        }
+        if (persisted.containsKey("planUserId")
+            && !persisted.get("planUserId").equals(command.request().getUserId())) {
+            throw new IllegalStateException("Plan tool Workflow identity mismatch: planUserId");
         }
     }
 

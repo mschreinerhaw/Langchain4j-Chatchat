@@ -85,6 +85,12 @@ make existing Workflow histories non-replayable. The first two migration slices 
    `ToolRuntimeService` retry loop is disabled for these calls so retry layers cannot multiply.
    The Activity revalidates serialized retry admission against the live runtime-owned tool metadata
    before invocation; stale or caller-forged retry claims fail non-retryably without calling the tool.
+4. A resumed plan tool call checks the persisted Workflow memo before attaching to an existing
+   result. Run, scope, step, role and idempotency key must match; newer Workflows also check the
+   invocation fingerprint, tool name and available tenant/user scope. Existing histories retain
+   their original identity fields.
+   The stable operation key is passed to the tool as `runtimeOperationIdempotencyKey` in the tool
+   context, with a caller-supplied value replaced by the Runtime-owned key.
 
 The coarse Agent Activity remains only as the bootstrap/resume compatibility boundary.
 `InterpretationPlanRuntime` no longer calls
@@ -151,4 +157,5 @@ runs; drain them first or reconcile them through `AgentRunStore`.
 
 The final answer/publication operation requires its own business idempotency key and database unique
 constraint. Workflow durability reduces duplicate execution but does not replace idempotent external
-side effects.
+side effects. Write-capable tool adapters must enforce `runtimeOperationIdempotencyKey` against their
+own persisted side effects before Activity retry or ambiguous-result replay can be enabled.

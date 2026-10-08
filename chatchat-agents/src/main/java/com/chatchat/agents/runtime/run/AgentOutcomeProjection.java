@@ -60,6 +60,12 @@ public final class AgentOutcomeProjection {
         if (booleanValue(values.get("runtimeExecutionFailed")) && !hasAnswer) {
             return new Outcome("FAILED", "FAILED", "FAILED", "FAILED", CONTRACT_VERSION);
         }
+        if ("FAIL".equalsIgnoreCase(text(values.get("claimCoverageStatus")))
+            || "false".equalsIgnoreCase(text(values.get("answerClaimAuditPassed")))) {
+            return new Outcome("COMPLETED", hasAnswer ? "PARTIAL" : "EMPTY",
+                "ANSWER_EVIDENCE_AUDIT_FAILED",
+                hasAnswer ? "PARTIAL_SUCCESS" : "NO_PRESENTABLE_RESULT", CONTRACT_VERSION);
+        }
         return new Outcome("COMPLETED", hasAnswer ? "SUCCESS" : "EMPTY", "COMPLETED",
             hasAnswer ? "SUCCESS" : "NO_PRESENTABLE_RESULT", CONTRACT_VERSION);
     }

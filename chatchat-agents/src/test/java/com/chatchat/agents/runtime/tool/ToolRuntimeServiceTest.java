@@ -84,11 +84,14 @@ class ToolRuntimeServiceTest {
             ToolRuntimeRequest request = ToolRuntimeRequest.builder()
                 .toolName(toolName).runtimeMode("agent_chat").requestId("kernel-1")
                 .conversationId("conversation-1").tenantId("tenant-1").userId("user-1")
-                .attributes(Map.of("authorizationAgentId", "generic-agent"))
+                .attributes(Map.of("authorizationAgentId", "generic-agent",
+                    "workflowActivityIdempotencyKey", "operation-1",
+                    "planExecutionScope", "scope-1", "planToolStepId", 2))
                 .allowedTools(List.of(toolName))
                 .toolInput(ToolInput.builder().parameters(Map.of()).userId("spoofed-user")
                     .context(Map.of("userId", "spoofed-user", "tenantId", "spoofed-tenant",
-                        "authorizationAgentId", "spoofed-agent")).build())
+                        "authorizationAgentId", "spoofed-agent",
+                        "runtimeOperationIdempotencyKey", "spoofed-operation")).build())
                 .build();
             ToolRuntimeExecution execution = service.execute(request);
 
@@ -116,6 +119,12 @@ class ToolRuntimeServiceTest {
             assertThat(canonicalCall.getValue().arguments())
                 .isEqualTo(request.getCanonicalInvocation().arguments().values());
             assertThat(canonicalCall.getValue().context()).containsEntry("authorizationAgentId", "generic-agent");
+            assertThat(canonicalCall.getValue().context())
+                .containsEntry("runtimeOperationIdempotencyKey", "operation-1");
+            assertThat(execution.trace().getRuntimeMetadata())
+                .containsEntry("runtimeOperationIdempotencyKey", "operation-1")
+                .containsEntry("planExecutionScope", "scope-1")
+                .containsEntry("planToolStepId", 2);
             assertThat(canonicalCall.getValue().context()).containsEntry("userId", "user-1")
                 .containsEntry("tenantId", "tenant-1");
             assertThat(canonicalCall.getValue().arguments()).doesNotContainKey("authorizationAgentId");

@@ -14,6 +14,9 @@
 * `largestInputTokensEstimated`：单次最大估算输入上下文。
 * `peakConcurrentInvocations`：同时未返回的包装器调用数，包含排队，不是服务端实际并行数。
 * `failedInvocations`：失败尝试数，不等同于 retry 次数。
+* 计划工具调用的 Trace `runtimeMetadata` 记录 `planExecutionScope`、`planToolStepId`、
+  `planToolInvocationRole`、调用指纹和 `runtimeOperationIdempotencyKey`；Temporal Activity
+  另记录 `workflowActivityAttempt`。这些字段用于把工具耗时与具体计划步骤、恢复尝试关联。
 
 每次调用结束会输出 `Runtime model call runId=...` 日志。`nodeName` 是实际 Java 调用位置，不是根据 prompt 内容推断的业务阶段。
 

@@ -1,7 +1,9 @@
 package com.chatchat.agents.orchestration.lifecycle;
 
 import com.chatchat.agents.orchestration.AgentRunResultAdapter;
+import com.chatchat.agents.orchestration.AgentOrchestrator;
 import com.chatchat.agents.runtime.AgentRunRequest;
+import com.chatchat.agents.runtime.observation.AgentObservationPipeline;
 import com.chatchat.agents.runtime.plan.execution.AgentPlanPipelineContinuation;
 import com.chatchat.agents.runtime.plan.execution.AgentPlanSuspendedException;
 import com.chatchat.agents.runtime.run.AgentRun;
@@ -16,6 +18,27 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentRunLifecycleCoordinatorTest {
+
+    @Test
+    void failedAnswerAuditIsPersistedAsPartialPublicOutcome() {
+        var store = new com.chatchat.agents.runtime.store.InMemoryAgentRunStore();
+        var adapter = new AgentRunResultAdapter(store, mock(AgentObservationPipeline.class));
+        var request = AgentRunRequest.builder().runId("audit-failed-run").build();
+
+        var result = new AgentRunLifecycleCoordinator(store, adapter).execute(request,
+            ignored -> new AgentOrchestrator.AgentExecutionResult("Unverified analysis", java.util.List.of(),
+                java.util.Map.of("claimCoverageStatus", "FAIL", "answerClaimAuditPassed", false)));
+
+        org.assertj.core.api.Assertions.assertThat(result.status())
+            .isEqualTo(com.chatchat.agents.runtime.run.AgentRunStatus.COMPLETED);
+        org.assertj.core.api.Assertions.assertThat(result.metadata())
+            .containsEntry("publicStatus", "PARTIAL_SUCCESS")
+            .containsEntry("answerStatus", "PARTIAL");
+        var persisted = store.find("audit-failed-run").orElseThrow();
+        org.assertj.core.api.Assertions.assertThat(persisted.finishedAt()).isNotNull();
+        org.assertj.core.api.Assertions.assertThat(persisted.metadata())
+            .containsEntry("publicStatus", "PARTIAL_SUCCESS");
+    }
 
     @Test
     void returningRunningWithoutContinuationCannotLeaveAnOrphanRun() {

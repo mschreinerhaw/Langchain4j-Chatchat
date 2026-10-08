@@ -1117,6 +1117,7 @@ public class ToolRuntimeService {
         context.put("userId", request.getUserId());
         for (String key : List.of("username", "userName", "user_id", "tenant_id", "operatorUserId")) context.remove(key);
         context.remove("authorizationAgentId");
+        context.remove("runtimeOperationIdempotencyKey");
         putIfAbsentText(context, "requestId", request.getRequestId());
         putIfAbsentText(context, "conversationId", request.getConversationId());
         copyRuntimeAttribute(context, request.getAttributes(), "authorizationAgentId");
@@ -1127,6 +1128,15 @@ public class ToolRuntimeService {
         copyRuntimeAttribute(context, request.getAttributes(), "workflowContext");
         copyRuntimeAttribute(context, request.getAttributes(), "workflowVariables");
         copyRuntimeAttribute(context, request.getAttributes(), "requiredToolParameters");
+        Map<String, Object> attributes = request.getAttributes() == null
+            ? Map.of() : request.getAttributes();
+        Object operationKey = attributes.get("workflowActivityIdempotencyKey");
+        if (!(operationKey instanceof String value) || value.isBlank()) {
+            operationKey = attributes.get("planToolIdempotencyKey");
+        }
+        if (operationKey instanceof String value && !value.isBlank()) {
+            context.put("runtimeOperationIdempotencyKey", value.trim());
+        }
         toolInput.setContext(context);
     }
 
@@ -1837,6 +1847,18 @@ public class ToolRuntimeService {
             if (context != null && context.containsKey("runtimeRequiredToolParametersApplied")) {
                 values.put("runtimeRequiredToolParametersApplied",
                     context.get("runtimeRequiredToolParametersApplied"));
+            }
+            if (context != null && context.containsKey("runtimeOperationIdempotencyKey")) {
+                values.put("runtimeOperationIdempotencyKey",
+                    context.get("runtimeOperationIdempotencyKey"));
+            }
+        }
+        if (request != null && request.getAttributes() != null) {
+            for (String key : List.of("planExecutionScope", "planToolStepId",
+                "planToolInvocationRole", "planToolInvocationFingerprint",
+                "workflowActivityAttempt")) {
+                Object value = request.getAttributes().get(key);
+                if (value != null) values.put(key, value);
             }
         }
         if (policyDecision != null) {

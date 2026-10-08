@@ -54,6 +54,29 @@ class AgentOutcomeProjectionTest {
             .containsEntry("contractVersion", "ui_response_v2");
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"claimCoverageStatus", "answerClaimAuditPassed"})
+    void failedAnswerAuditCannotPublishFullSuccess(String failedSignal) {
+        Map<String, Object> metadata = "claimCoverageStatus".equals(failedSignal)
+            ? Map.of(failedSignal, "FAIL") : Map.of(failedSignal, false);
+        Map<String, Object> enriched = projection.enrich(metadata, "An answer with unverified claims.");
+
+        assertThat(enriched).containsEntry("runStatus", "COMPLETED")
+            .containsEntry("answerStatus", "PARTIAL")
+            .containsEntry("workflowStatus", "ANSWER_EVIDENCE_AUDIT_FAILED")
+            .containsEntry("publicStatus", "PARTIAL_SUCCESS");
+        assertThat(((Map<?, ?>) enriched.get("outcomeProjection")).get("publicStatus"))
+            .isEqualTo("PARTIAL_SUCCESS");
+    }
+
+    @Test
+    void failedAnswerAuditWithoutAnswerHasNoPresentableResult() {
+        AgentOutcomeProjection.Outcome outcome = projection.project(
+            Map.of("claimCoverageStatus", "FAIL"), "");
+        assertThat(outcome.publicStatus()).isEqualTo("NO_PRESENTABLE_RESULT");
+        assertThat(outcome.answerStatus()).isEqualTo("EMPTY");
+    }
+
     @Test
     void pendingMandatoryWorkflowRemainsRecoverable() {
         AgentOutcomeProjection.Outcome outcome = projection.project(Map.of(

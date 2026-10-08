@@ -1803,6 +1803,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             toolRequest.getAttributes() == null ? Map.of() : toolRequest.getAttributes());
         attributes.put("planToolExecutionSchemaVersion", PlanToolExecutionCommand.SCHEMA_VERSION);
         attributes.put("planToolInvocationRole", role);
+        attributes.put("planToolStepId", step == null ? null : step.id());
         attributes.put("planToolInvocationFingerprint", invocationFingerprint);
         attributes.put("planToolIdempotencyKey", idempotencyKey);
         attributes.put("planExecutionScope", planExecutionScope(request));

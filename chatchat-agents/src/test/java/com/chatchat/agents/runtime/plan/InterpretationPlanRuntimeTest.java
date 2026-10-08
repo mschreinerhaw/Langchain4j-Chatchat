@@ -56,6 +56,11 @@ import static org.mockito.Mockito.when;
 
 class InterpretationPlanRuntimeTest {
 
+    private static ToolMetadata batchCapableTemplateMetadata(String toolName) {
+        return ToolMetadata.builder().id(toolName).riskLevel("low")
+            .metadata(Map.of("batchCapable", true, "templateExecution", true)).build();
+    }
+
     private static Map<String, Object> minimalMcpBindingPolicy() {
         return Map.ofEntries(
             Map.entry("logicalContextKeys", List.of("assetName")),
@@ -2052,7 +2057,7 @@ class InterpretationPlanRuntimeTest {
             )
         );
 
-        assertThat(result.success()).isTrue();
+        assertThat(result.success()).as(result.errorMessage()).isTrue();
         assertThat(executionInput.get())
             .containsEntry("templateId", "MARGIN_BALANCE_SELECTED")
             .containsEntry("template", "MARGIN_BALANCE_SELECTED");
@@ -4156,7 +4161,7 @@ class InterpretationPlanRuntimeTest {
             Map.of()
         ));
 
-        assertThat(result.success()).isTrue();
+        assertThat(result.success()).as(result.errorMessage()).isTrue();
         ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
         verify(toolRuntimeService, times(2)).execute(captor.capture());
         assertThat(captor.getAllValues()).extracting(ToolRuntimeRequest::getToolName)
@@ -4256,7 +4261,7 @@ class InterpretationPlanRuntimeTest {
             Map.of()
         ));
 
-        assertThat(result.success()).isTrue();
+        assertThat(result.success()).as(result.errorMessage()).isTrue();
         ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
         verify(toolRuntimeService, times(2)).execute(captor.capture());
         assertThat(captor.getAllValues()).extracting(ToolRuntimeRequest::getToolName)
@@ -4644,10 +4649,14 @@ class InterpretationPlanRuntimeTest {
                 Map.of("semanticCandidateReviewSatisfied", true)
             );
         Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
-            "shouldUseReviewedTemplateBatch", List.class, Map.class);
+            "shouldUseReviewedTemplateBatch", InterpretationPlan.Step.class,
+            InterpretationPlan.class, List.class, Map.class);
         method.setAccessible(true);
+        InterpretationPlan.Step executionStep = new InterpretationPlan.Step(
+            3, "mcp_tool", "mcp_tenant_linux_command_execute", Map.of(), List.of(2), null, null);
 
-        assertThat((boolean) method.invoke(runtime, checks, Map.of(2, reviewedDiscovery))).isTrue();
+        assertThat((boolean) method.invoke(runtime, executionStep, null, checks,
+            Map.of(2, reviewedDiscovery))).isTrue();
 
         InterpretationPlanRuntime.StepExecution unreviewedDiscovery =
             new InterpretationPlanRuntime.StepExecution(
@@ -4662,7 +4671,8 @@ class InterpretationPlanRuntimeTest {
                 reviewedDiscovery.durationMs(),
                 Map.of("semanticCandidateReviewSatisfied", false)
             );
-        assertThat((boolean) method.invoke(runtime, checks, Map.of(2, unreviewedDiscovery))).isFalse();
+        assertThat((boolean) method.invoke(runtime, executionStep, null, checks,
+            Map.of(2, unreviewedDiscovery))).isFalse();
     }
 
     @Test
@@ -6407,7 +6417,8 @@ class InterpretationPlanRuntimeTest {
                     new InterpretationPlan.Step(4, "final_answer", "", Map.of("answer", "done"), List.of(3), null, null)
                 ),
                 List.of(),
-                List.of(new InterpretationPlan.Binding(2, "$[0].id", 3, "templateId", "jsonpath", true)),
+                List.of(new InterpretationPlan.Binding(2, "$.templates[0].templateId", 3,
+                    "templateId", "jsonpath", true)),
                 null
             ),
             new InterpretationPlan.ExecutionPolicy(
@@ -6445,8 +6456,8 @@ class InterpretationPlanRuntimeTest {
         ));
 
         ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        assertThat(result.success()).as(result.errorMessage()).isTrue();
         verify(toolRuntimeService, times(3)).execute(captor.capture());
-        assertThat(result.success()).isTrue();
         Map<?, ?> sqlInput = captor.getAllValues().get(2).getToolInput().getParameters();
         Map<?, ?> executionContext = (Map<?, ?>) sqlInput.get("executionContext");
         assertThat(sqlInput.get("templateId")).isEqualTo("MYSQL_TABLE_METADATA");
@@ -9406,7 +9417,9 @@ class InterpretationPlanRuntimeTest {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool(any())).thenReturn(true);
         when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation ->
-            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+            executionTool.equals(invocation.getArgument(0))
+                ? batchCapableTemplateMetadata(executionTool)
+                : ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
         AtomicReference<Map<String, Object>> executionInput = new AtomicReference<>();
         ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
         when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
@@ -9539,7 +9552,9 @@ class InterpretationPlanRuntimeTest {
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.hasTool(any())).thenReturn(true);
         when(registry.getToolMetadata(any())).thenAnswer(invocation ->
-            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+            executorTool.equals(invocation.getArgument(0))
+                ? batchCapableTemplateMetadata(executorTool)
+                : ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
         AtomicReference<Map<String, Object>> batchInput = new AtomicReference<>();
         ToolRuntimeService service = mock(ToolRuntimeService.class);
         when(service.execute(any())).thenAnswer(invocation -> {
@@ -9653,7 +9668,9 @@ class InterpretationPlanRuntimeTest {
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.hasTool(any())).thenReturn(true);
         when(registry.getToolMetadata(any())).thenAnswer(invocation ->
-            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+            executorTool.equals(invocation.getArgument(0))
+                ? batchCapableTemplateMetadata(executorTool)
+                : ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
         AtomicReference<Map<String, Object>> batchInput = new AtomicReference<>();
         ToolRuntimeService service = mock(ToolRuntimeService.class);
         when(service.execute(any())).thenAnswer(invocation -> {
@@ -9871,7 +9888,7 @@ class InterpretationPlanRuntimeTest {
         when(toolRegistry.getToolMetadata(discoveryTool))
             .thenReturn(ToolMetadata.builder().id(discoveryTool).riskLevel("low").build());
         when(toolRegistry.getToolMetadata(executorTool))
-            .thenReturn(ToolMetadata.builder().id(executorTool).riskLevel("low").build());
+            .thenReturn(batchCapableTemplateMetadata(executorTool));
 
         java.util.ArrayList<ToolRuntimeRequest> requests = new java.util.ArrayList<>();
         ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);

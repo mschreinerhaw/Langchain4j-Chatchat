@@ -689,7 +689,8 @@ class InterpretationPlanOptimizerTest {
         when(registry.getToolMetadata(execute)).thenReturn(workflowMetadata(
             execute, "api_template_execute", ToolWorkflowRole.TEMPLATE_EXECUTION,
             "mcp.api-template.v1", Map.of(
-                "assetType", "api_service", "templateDiscoveryTool", "api_template_query")));
+                "assetType", "api_service", "templateDiscoveryTool", "api_template_query",
+                "argumentBindingPolicy", apiExecutionBindingPolicy())));
         InterpretationPlan source = new InterpretationPlan(
             "1.0", new InterpretationPlan.Intent("data_query", "customer trading analysis", "low"),
             new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
@@ -730,9 +731,10 @@ class InterpretationPlanOptimizerTest {
         assertThat(executable.executionPolicy().maxSteps()).isEqualTo(4);
         assertThat(executable.executionPolicy().allowTool()).contains(template);
         assertThat(optimizer.runtimeCompanionTools(executable)).containsExactly(template);
-        assertThat(new InterpretationPlanValidator().validate(
+        var validation = new InterpretationPlanValidator().validate(
             executable, registry, Set.of(asset, template, execute),
-            authoritativeDag, "customer-analysis").valid()).isTrue();
+            authoritativeDag, "customer-analysis");
+        assertThat(validation.valid()).as("%s", validation.issues()).isTrue();
     }
 
     private ToolMetadata workflowMetadata(String localName, String remoteName,
@@ -743,6 +745,24 @@ class InterpretationPlanOptimizerTest {
         metadata.put(ToolWorkflowContract.METADATA_KEY,
             ToolWorkflowContract.declaration(role, protocolFamily, "parameters"));
         return ToolMetadata.builder().id(localName).metadata(metadata).build();
+    }
+
+    private Map<String, Object> apiExecutionBindingPolicy() {
+        return Map.ofEntries(
+            Map.entry("logicalContextKeys", List.of("assetName")),
+            Map.entry("concreteTargetFields", List.of("endpointId")),
+            Map.entry("rawExecutionFields", List.of("body")),
+            Map.entry("targetKindFields", List.of("targetKind")),
+            Map.entry("filterProtocolFields", List.of("trace")),
+            Map.entry("filterFieldAliases", Map.of()),
+            Map.entry("logicalFilterFields", List.of("assetName")),
+            Map.entry("identityField", "assetName"),
+            Map.entry("semanticField", "intent"),
+            Map.entry("executionProtocolBindings", Map.of("mcp.api-template.v1", "HTTP_EXECUTION")),
+            Map.entry("executionValidationFields", Map.of("HTTP_EXECUTION", List.of("body"))),
+            Map.entry("requiredParametersByTemplateSuffix", Map.of()),
+            Map.entry("assetIdentityForbiddenParameterFields", List.of("parameters.endpointId")),
+            Map.entry("requiredExecutionContextFields", Map.of()));
     }
 
     private ToolRegistry workflowRegistry(Map<String, ToolWorkflowRole> roles, String protocolFamily) {

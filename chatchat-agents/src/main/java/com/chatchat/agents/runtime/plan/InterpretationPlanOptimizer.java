@@ -31,6 +31,7 @@ import java.util.Set;
 public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
 
     private final ToolRegistry toolRegistry;
+    private final RuntimeSemanticPolicy runtimeSemanticPolicy;
     private final McpCapabilityHierarchy capabilityHierarchy;
     private final Map<String, ToolWorkflowRole> workflowRoles;
     private final Map<String, TemplateWorkflowTool> workflowTools;
@@ -48,6 +49,11 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
     public InterpretationPlanOptimizer(ToolRegistry toolRegistry,
                                        TemplateWorkflowPluginRegistry templateWorkflowPlugins) {
         this.toolRegistry = toolRegistry;
+        RuntimeSemanticPolicy configured = toolRegistry == null ? null : toolRegistry.runtimeSemanticPolicy();
+        this.runtimeSemanticPolicy = configured != null && configured != RuntimeSemanticPolicy.empty()
+            ? configured
+            : java.util.ServiceLoader.load(RuntimeSemanticPolicySource.class).findFirst()
+                .map(RuntimeSemanticPolicySource::snapshot).orElse(RuntimeSemanticPolicy.empty());
         this.templateWorkflowPlugins = templateWorkflowPlugins == null
             ? TemplateWorkflowPluginRegistry.load() : templateWorkflowPlugins;
         this.capabilityHierarchy = toolRegistry == null
@@ -330,9 +336,23 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
         Map<String, Object> extra = metadata == null || metadata.getMetadata() == null
             ? Map.of() : metadata.getMetadata();
         String declared = mapValue(extra, "templateDiscoveryTool", "template_discovery_tool");
-        return declared != null ? declared
-            : mapValue(metadataMap(extra.get("mcpToolMeta")),
+        if (declared == null) {
+            declared = mapValue(metadataMap(extra.get("mcpToolMeta")),
                 "templateDiscoveryTool", "template_discovery_tool");
+        }
+        if (declared == null || workflowTools.containsKey(declared)) return declared;
+        String requested = declared;
+        List<String> matches = workflowTools.values().stream()
+            .filter(tool -> tool.role() == ToolWorkflowRole.TEMPLATE_DISCOVERY)
+            .map(TemplateWorkflowTool::toolName)
+            .filter(name -> {
+                ToolMetadata candidate = toolRegistry.getToolMetadata(name);
+                Map<String, Object> attributes = candidate == null || candidate.getMetadata() == null
+                    ? Map.of() : candidate.getMetadata();
+                return requested.equals(mapValue(attributes, "remoteToolName", "remote_tool_name"));
+            })
+            .toList();
+        return matches.size() == 1 ? matches.get(0) : declared;
     }
 
     private InterpretationPlan.ExecutionPolicy expandPolicyForMaterializedSteps(
@@ -826,13 +846,7 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
     }
 
     private Set<String> protocolTokens(String toolName) {
-        String semantic = semanticToolName(toolName);
-        Set<String> ignored = Set.of(
-            "asset", "query", "search", "template", "execute", "execution",
-            "request", "script", "command", "discovery", "ops");
-        return java.util.Arrays.stream(semantic.split("_"))
-            .filter(token -> !token.isBlank() && !ignored.contains(token))
-            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        return runtimeSemanticPolicy.protocolTokens(toolName);
     }
 
     private boolean isAssetDiscoveryStep(InterpretationPlan.Step step) {
@@ -853,6 +867,16 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
     private ToolWorkflowRole workflowRole(String toolName) {
         ToolWorkflowRole snapshotted = toolName == null ? null : workflowRoles.get(toolName);
         if (snapshotted != null) return snapshotted;
+        if (toolRegistry != null && toolName != null) {
+            try {
+                ToolWorkflowRole published = toolRegistry.getWorkflowRole(toolName);
+                if (published != null) return published;
+                ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
+                if (metadata != null) return ToolWorkflowContract.resolveRole(toolName, metadata);
+            } catch (RuntimeException registryRefreshRace) {
+                // The immutable snapshot remains authoritative during a registry refresh.
+            }
+        }
         return ToolWorkflowContract.resolveRole(toolName, null);
     }
 
@@ -885,17 +909,12 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
         return workflowRole(toolName);
     }
 
+    RuntimeSemanticPolicy runtimeSemanticPolicy() {
+        return runtimeSemanticPolicy;
+    }
+
     private String semanticToolName(String toolName) {
-        String value = normalize(toolName);
-        while (value.startsWith("mcp_")) {
-            value = value.substring(4);
-        }
-        for (String prefix : List.of("chatchat_mcp_server_", "chatchat_", "xxx_")) {
-            if (value.startsWith(prefix)) {
-                value = value.substring(prefix.length());
-            }
-        }
-        return value;
+        return runtimeSemanticPolicy.canonicalToolName(toolName);
     }
 
     private String normalizeField(String value) {
@@ -1545,7 +1564,8 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
     }
 
     private boolean isDocumentSearchStep(InterpretationPlan.Step step) {
-        return step != null && step.mcpToolAction() && normalize(step.toolName()).contains("document_search");
+        return step != null && step.mcpToolAction()
+            && runtimeSemanticPolicy.hasRole(step.toolName(), "DOCUMENT_SEARCH");
     }
 
     private boolean strictDocumentScope(Map<String, Object> input) {

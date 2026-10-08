@@ -110,18 +110,6 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         new EvidenceBasedTemplateCandidateEvaluator();
     private static final EvidenceBasedAssetCandidateEvaluator ASSET_CANDIDATE_EVALUATOR =
         new EvidenceBasedAssetCandidateEvaluator();
-    private static final Pattern EXPLICIT_ENV_ASSIGNMENT_PATTERN = Pattern.compile(
-        "(?iu)(?:\\benv(?:ironment)?\\b|\\u73af\\u5883)\\s*(?:[:=]|\\u4e3a|\\u662f)\\s*"
-            + "(DEV|TEST|UAT|PROD|\\u5f00\\u53d1|\\u6d4b\\u8bd5|\\u9884\\u53d1|\\u751f\\u4ea7)"
-    );
-    private static final Pattern EXPLICIT_ENV_QUALIFIER_PATTERN = Pattern.compile(
-        "(?iu)(DEV|TEST|UAT|PROD|\\u5f00\\u53d1|\\u6d4b\\u8bd5|\\u9884\\u53d1|\\u751f\\u4ea7)\\s*"
-            + "(?:\\u73af\\u5883|\\u96c6\\u7fa4|\\benv(?:ironment)?\\b)"
-    );
-    private static final Pattern EXPLICIT_ENV_ENGLISH_PATTERN = Pattern.compile(
-        "(?iu)\\b(?:in|on|under)\\s+(?:the\\s+)?(DEV|TEST|UAT|PROD)"
-            + "(?:\\s+(?:env(?:ironment)?|cluster))?\\b"
-    );
     private static final Pattern BINDING_PLACEHOLDER_PATTERN = Pattern.compile(
         "\\{\\{\\s*bindings\\.([A-Za-z0-9_.\\-\\[\\]]+)\\s*}}"
     );
@@ -4975,6 +4963,18 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         }
         Map<String, Object> semantic = new LinkedHashMap<>(input);
         semantic.remove("purpose");
+        Map<String, Object> publishedProperties = asStringMap(schema.get("properties"));
+        Object bridgeContext = firstMapValue(semantic, "executionContext", "mcpExecutionContext");
+        if (publishedProperties.containsKey("filters") && publishedProperties.containsKey("query")
+            && bridgeContext instanceof Map<?, ?> && !semantic.containsKey("filters")) {
+            semantic.put("filters", bridgeContext);
+            semantic.remove("executionContext");
+            semantic.remove("mcpExecutionContext");
+            String query = originalUserQuery(request);
+            if (!hasNonBlank(semantic, "query") && query != null && !query.isBlank()) {
+                semantic.put("query", query);
+            }
+        }
         List<String> promotedEnvelopes = promotePublishedSchemaArguments(semantic, schema);
         Map<Integer, Object> completedOutputs = new LinkedHashMap<>();
         if (completed != null) {
@@ -5122,9 +5122,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             filters.put("templateId", templateHint);
             filters.putIfAbsent("intent", templateHint);
         }
-        String targetKind = isLinuxCommandExecuteTool(step.toolName()) ? "host"
-            : isHttpRequestExecuteTool(step.toolName()) || isApiTemplateExecuteTool(step.toolName())
-                ? "api" : isSqlQueryExecuteTool(step.toolName()) ? "business_database_query" : "database";
+        String targetKind = semanticPolicy().discoveryTargetKind(step.toolName());
+        if (targetKind == null) {
+            throw new IllegalStateException("TEMPLATE_CONTRACT_RESOLUTION_FAILED: no published discovery target kind");
+        }
         Map<String, Object> discoveryInput = new LinkedHashMap<>();
         discoveryInput.put("candidates", List.of(Map.of("targetKind", targetKind, "confidence", 1.0)));
         discoveryInput.put("finalDecision", targetKind);
@@ -5190,26 +5191,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     }
 
     private String templateContractDiscoveryTool(String executorTool, List<String> allowedTools) {
-        if (allowedTools == null || allowedTools.isEmpty()) {
-            return null;
-        }
-        for (String tool : allowedTools) {
-            String semantic = toolSemanticKey(tool);
-            boolean matches = isLinuxCommandExecuteTool(executorTool)
-                ? semantic.contains("ssh") && (semantic.endsWith("template_query") || semantic.endsWith("template_search"))
-                : isApiTemplateExecuteTool(executorTool)
-                ? semantic.contains("api")
-                    && (semantic.endsWith("template_query") || semantic.endsWith("template_search"))
-                : isHttpRequestExecuteTool(executorTool)
-                ? semantic.contains("http_endpoint")
-                    && (semantic.endsWith("template_query") || semantic.endsWith("template_search"))
-                : (semantic.contains("database") || semantic.contains("sql") || semantic.contains("business_query"))
-                    && (semantic.endsWith("template_query") || semantic.endsWith("template_search"));
-            if (matches && !sameToolName(tool, executorTool)) {
-                return tool;
-            }
-        }
-        return null;
+        return semanticPolicy().relatedDiscoveryTool(executorTool, allowedTools);
     }
 
     private int structuredObservationCount(Object output, int depth) {
@@ -6014,7 +5996,17 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             .filter(execution -> isTemplateDiscoveryTool(execution.toolName()))
             .toList();
         if (directDiscoveries.isEmpty()) {
-            return null;
+            boolean directlyDependsOnDiscovery = branchSources.stream()
+                .map(completed::get)
+                .filter(Objects::nonNull)
+                .anyMatch(candidate -> isTemplateDiscoveryTool(candidate.toolName()));
+            if (!directlyDependsOnDiscovery && plan != null && plan.steps() != null) {
+                directlyDependsOnDiscovery = plan.steps().stream()
+                    .filter(Objects::nonNull)
+                    .filter(candidate -> branchSources.contains(candidate.id()))
+                    .anyMatch(candidate -> isTemplateDiscoveryTool(candidate.toolName()));
+            }
+            return directlyDependsOnDiscovery ? null : reviewedTemplateSelectionExecution(completed);
         }
         StepExecution latest = null;
         StepExecution fixedBinding = null;
@@ -6569,8 +6561,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         if (templateId == null || templateId.isBlank()) {
             return false;
         }
-        String normalized = templateId.trim().toUpperCase(Locale.ROOT);
-        return normalized.endsWith("_TABLE_METADATA") || normalized.endsWith("_TABLE_LOCATION");
+        return semanticPolicy().isTableScopedTemplate(templateId);
     }
 
     private String tableMetadataTemplateId(String templateId,
@@ -6707,43 +6698,11 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     }
 
     private String dialectFromTemplateId(String templateId) {
-        if (templateId == null || templateId.isBlank()) {
-            return null;
-        }
-        String normalized = templateId.trim().toUpperCase(Locale.ROOT);
-        if (normalized.startsWith("MYSQL_")) {
-            return "mysql";
-        }
-        if (normalized.startsWith("ORACLE_")) {
-            return "oracle";
-        }
-        if (normalized.startsWith("POSTGRES_") || normalized.startsWith("POSTGRESQL_")) {
-            return "postgresql";
-        }
-        if (normalized.startsWith("SQLSERVER_") || normalized.startsWith("SQL_SERVER_") || normalized.startsWith("MSSQL_")) {
-            return "sqlserver";
-        }
-        return null;
+        return semanticPolicy().dialectFromTemplateId(templateId);
     }
 
     private String normalizeSqlDialect(String value) {
-        String normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replace("-", "_");
-        if (normalized.isBlank()) {
-            return null;
-        }
-        if (normalized.contains("mysql")) {
-            return "mysql";
-        }
-        if (normalized.contains("oracle")) {
-            return "oracle";
-        }
-        if (normalized.contains("postgres")) {
-            return "postgresql";
-        }
-        if (normalized.contains("sqlserver") || normalized.contains("sql_server") || normalized.contains("mssql")) {
-            return "sqlserver";
-        }
-        return normalized;
+        return semanticPolicy().normalizeDialect(value);
     }
 
     @SuppressWarnings("unchecked")
@@ -7442,7 +7401,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             return reviewed;
         }
         for (StepExecution execution : completed.values()) {
-            if (execution == null || !execution.success() || !isAssetDiscoveryTool(execution.toolName())) {
+            if (execution == null || !execution.success()
+                || (!isAssetDiscoveryTool(execution.toolName())
+                    && !Boolean.TRUE.equals(firstValueAtAnyPath(
+                        execution.output(), "$.queryIr.asset.scoped")))) {
                 continue;
             }
             Map<String, Object> context = assetExecutionContext(execution.output());
@@ -7521,6 +7483,11 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
 
     private Map<String, Object> assetExecutionContext(Object output) {
         output = routingCapableOutput(output);
+        Object scopedAsset = firstValueAtAnyPath(output, "$.queryIr.asset.selected");
+        if (Boolean.TRUE.equals(firstValueAtAnyPath(output, "$.queryIr.asset.scoped"))
+            && scopedAsset instanceof Map<?, ?>) {
+            output = Map.of("selectedAsset", scopedAsset);
+        }
         Map<String, Object> context = new LinkedHashMap<>();
         Object assetName = firstValueAtAnyPath(output,
             "$.assetResolution.selected.name",
@@ -7561,8 +7528,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             "$.asset.assetId");
         Object displayName = firstValueAtAnyPath(output,
             "$.assetResolution.selected.displayName",
+            "$.assetResolution.selected.title",
             "$.assetResolution.selected.name",
             "$.selectedAsset.displayName",
+            "$.selectedAsset.title",
             "$.selectedAsset.name",
             "$.assets[0].asset.displayName",
             "$.assets[0].displayName",
@@ -7848,42 +7817,11 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     }
 
     private String explicitEnvironment(String query) {
-        if (query == null || query.isBlank()) {
-            return null;
-        }
-        for (Pattern pattern : List.of(
-            EXPLICIT_ENV_ASSIGNMENT_PATTERN,
-            EXPLICIT_ENV_QUALIFIER_PATTERN,
-            EXPLICIT_ENV_ENGLISH_PATTERN
-        )) {
-            Matcher matcher = pattern.matcher(query);
-            if (matcher.find()) {
-                return canonicalEnvironmentToken(matcher.group(1));
-            }
-        }
-        return null;
+        return semanticPolicy().explicitEnvironment(query);
     }
 
     private String canonicalProtocolEnvironment(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        String normalized = value.trim().toUpperCase(Locale.ROOT);
-        return Set.of("DEV", "TEST", "UAT", "PROD").contains(normalized) ? normalized : null;
-    }
-
-    private String canonicalEnvironmentToken(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        String normalized = value.trim().toUpperCase(Locale.ROOT);
-        return switch (normalized) {
-            case "DEV", "\u5f00\u53d1" -> "DEV";
-            case "TEST", "\u6d4b\u8bd5" -> "TEST";
-            case "UAT", "\u9884\u53d1" -> "UAT";
-            case "PROD", "\u751f\u4ea7" -> "PROD";
-            default -> null;
-        };
+        return semanticPolicy().canonicalEnvironment(value);
     }
 
     @SuppressWarnings("unchecked")
@@ -8546,29 +8484,21 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     }
 
     private boolean isWebSearchTool(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        return semantic.equals("web_search") || semantic.endsWith("_web_search") || semantic.contains("web_search");
+        return semanticPolicy().hasRole(toolName, "WEB_SEARCH");
     }
 
     private boolean isWebDiscoveryTool(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        return isWebSearchTool(toolName)
-            || semantic.equals("web_page_analyze")
-            || semantic.contains("web_page_analyze")
-            || semantic.equals("site_intelligence_resolver")
-            || semantic.contains("site_intelligence")
-            || semantic.equals("generic_web_site_search")
-            || semantic.contains("generic_web_site_search")
-            || semantic.equals("web_site_search")
-            || (semantic.contains("site_search") && !semantic.contains("search_and_extract"));
+        return semanticPolicy().hasRole(toolName, "WEB_DISCOVERY");
     }
 
     private boolean isAssetDiscoveryTool(String toolName) {
-        return optimizer.workflowRoleFor(toolName) == ToolWorkflowRole.ASSET_DISCOVERY;
+        return optimizer.workflowRoleFor(toolName) == ToolWorkflowRole.ASSET_DISCOVERY
+            || semanticPolicy().hasRole(toolName, "ASSET_DISCOVERY");
     }
 
     private boolean isTemplateDiscoveryTool(String toolName) {
-        return optimizer.workflowRoleFor(toolName) == ToolWorkflowRole.TEMPLATE_DISCOVERY;
+        return optimizer.workflowRoleFor(toolName) == ToolWorkflowRole.TEMPLATE_DISCOVERY
+            || semanticPolicy().hasRole(toolName, "TEMPLATE_DISCOVERY");
     }
 
     private boolean isTemplateDiscoveryTool(String toolName, ExecutionRequest request) {
@@ -8585,60 +8515,57 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             ToolWorkflowRole published = request.toolRegistry().getWorkflowRole(toolName);
             if (published != null) return published;
         }
-        return optimizer.workflowRoleFor(toolName);
+        ToolWorkflowRole resolved = optimizer.workflowRoleFor(toolName);
+        if (resolved != ToolWorkflowRole.DIRECT) return resolved;
+        if (semanticPolicy().hasRole(toolName, "ASSET_DISCOVERY")) return ToolWorkflowRole.ASSET_DISCOVERY;
+        if (semanticPolicy().hasRole(toolName, "TEMPLATE_DISCOVERY")) return ToolWorkflowRole.TEMPLATE_DISCOVERY;
+        if (isTemplateExecutionTool(toolName)) return ToolWorkflowRole.TEMPLATE_EXECUTION;
+        return resolved;
     }
 
     private boolean isPythonAnalysisQueryTool(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        return "python_analysis_query".equals(semantic)
-            || semantic.endsWith("_python_analysis_query");
+        return semanticPolicy().hasRole(toolName, "PYTHON_ANALYSIS");
     }
 
     private boolean isSqlQueryExecuteTool(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        return "sql_query_execute".equals(semantic) || semantic.endsWith("_sql_query_execute")
-            || "sql_script_execute".equals(semantic) || semantic.endsWith("_sql_script_execute");
+        return semanticPolicy().hasRole(toolName, "SQL_EXECUTE");
     }
 
     private boolean isLinuxCommandExecuteTool(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        return "linux_command_execute".equals(semantic) || semantic.endsWith("_linux_command_execute");
+        return semanticPolicy().hasRole(toolName, "SHELL_EXECUTE");
     }
 
     private boolean isHttpRequestExecuteTool(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        return "http_request_execute".equals(semantic) || semantic.endsWith("_http_request_execute");
+        return semanticPolicy().hasRole(toolName, "HTTP_EXECUTE");
     }
 
     private boolean isApiTemplateExecuteTool(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        return "api_template_execute".equals(semantic) || semantic.endsWith("_api_template_execute");
+        return semanticPolicy().hasRole(toolName, "API_EXECUTE");
     }
 
     private boolean isPythonTemplateExecuteTool(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        return "python_template_execute".equals(semantic)
-            || semantic.endsWith("_python_template_execute");
+        return semanticPolicy().hasRole(toolName, "PYTHON_EXECUTE");
     }
 
     private boolean isTemplateExecutionTool(String toolName) {
-        return optimizer.workflowRoleFor(toolName) == ToolWorkflowRole.TEMPLATE_EXECUTION;
+        return optimizer.workflowRoleFor(toolName) == ToolWorkflowRole.TEMPLATE_EXECUTION
+            || semanticPolicy().hasRole(toolName, "SQL_EXECUTE")
+            || semanticPolicy().hasRole(toolName, "SHELL_EXECUTE")
+            || semanticPolicy().hasRole(toolName, "HTTP_EXECUTE")
+            || semanticPolicy().hasRole(toolName, "API_EXECUTE")
+            || semanticPolicy().hasRole(toolName, "PYTHON_EXECUTE");
     }
 
     private boolean requiresTemplateId(String toolName) {
-        return isLinuxCommandExecuteTool(toolName) || isHttpRequestExecuteTool(toolName)
-            || isApiTemplateExecuteTool(toolName) || isPythonTemplateExecuteTool(toolName);
+        return semanticPolicy().hasRole(toolName, "TEMPLATE_ID_REQUIRED");
     }
 
     private boolean isSqlMetadataSearchTool(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        return "sql_metadata_search".equals(semantic) || semantic.endsWith("_sql_metadata_search");
+        return semanticPolicy().hasRole(toolName, "SQL_METADATA");
     }
 
     private boolean isEnterpriseMetadataSearchTool(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        return "enterprise_metadata_search".equals(semantic)
-            || semantic.endsWith("_enterprise_metadata_search");
+        return semanticPolicy().hasRole(toolName, "ENTERPRISE_METADATA");
     }
 
     private boolean isRoutingDiscoveryTool(String toolName) {
@@ -8646,56 +8573,19 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     }
 
     private boolean isExecutionContextTool(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        return isSqlQueryExecuteTool(toolName)
-            || isSqlMetadataSearchTool(toolName)
-            || semantic.equals("database_query")
-            || semantic.endsWith("_database_query")
-            || semantic.equals("database_query_execute")
-            || semantic.endsWith("_database_query_execute")
-            || semantic.equals("database_execute")
-            || semantic.endsWith("_database_execute")
-            || isLinuxCommandExecuteTool(toolName)
-            || isHttpRequestExecuteTool(toolName)
-            || isApiTemplateExecuteTool(toolName);
+        return semanticPolicy().hasRole(toolName, "EXECUTION_CONTEXT");
     }
 
     private boolean isCrawlerTool(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        return !isWebDiscoveryTool(toolName)
-            && (semantic.equals("crawl_url")
-            || semantic.contains("crawl")
-            || semantic.contains("crawler")
-            || semantic.contains("fetch_page")
-            || semantic.contains("page_content")
-            || semantic.contains("download")
-            || semantic.contains("extract"));
+        return !isWebDiscoveryTool(toolName) && semanticPolicy().hasRole(toolName, "CRAWLER");
+    }
+
+    private RuntimeSemanticPolicy semanticPolicy() {
+        return optimizer.runtimeSemanticPolicy();
     }
 
     private String toolSemanticKey(String toolName) {
-        if (toolName == null) {
-            return "";
-        }
-        String normalized = toolName.trim().toLowerCase(Locale.ROOT).replace('-', '_');
-        while (normalized.startsWith("mcp_")) {
-            normalized = normalized.substring(4);
-        }
-        String[] prefixes = {
-            "chatchat_mcp_server_",
-            "chatchat_",
-            "xxx_"
-        };
-        boolean changed = true;
-        while (changed) {
-            changed = false;
-            for (String prefix : prefixes) {
-                if (normalized.startsWith(prefix)) {
-                    normalized = normalized.substring(prefix.length());
-                    changed = true;
-                }
-            }
-        }
-        return normalized;
+        return semanticPolicy().canonicalToolName(toolName);
     }
 
     private String runId(ExecutionRequest request) {
@@ -8874,7 +8764,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             return false;
         }
         String normalizedField = field.toLowerCase(Locale.ROOT);
-        if (sourceStep != null && isTemplateDiscoveryTool(sourceStep.toolName())
+        if (sourceStep != null && sourceStep.mcpToolAction()
             && normalizedField.contains("template") && completed != null) {
             StepExecution discovery = completed.get(fromStepId);
             if (com.chatchat.agents.runtime.plan.selection.ReviewedTemplateTransport.owns(discovery, output -> templateCandidates(output).stream()

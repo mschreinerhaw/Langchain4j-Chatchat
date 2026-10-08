@@ -52,6 +52,14 @@ The application populates `knowledge_ir_unit` when a document is created, update
 or reindexed. Existing installations should run the document reindex operation once after this
 migration. Runtime falls back to the legacy document index while a document has no Knowledge IR.
 
+## Runtime OS semantic policy
+
+For existing API databases, apply `V20261009_01__agent_runtime_semantic_policy.sql` from the
+matching `mysql`, `postgresql`, or `h2` directory. New installations already contain the same
+table and initial policy in `database/init/<dialect>/chatchat-api.sql`. Update the `default`
+policy row to publish tool roles, dialect aliases, environment terms, and discovery relations;
+new Agent runtime instances read a snapshot of that row.
+
 
 docker rm -f postgres 2>/dev/null
 

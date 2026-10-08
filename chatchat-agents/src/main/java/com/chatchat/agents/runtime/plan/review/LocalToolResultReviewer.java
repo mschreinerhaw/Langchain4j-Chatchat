@@ -36,7 +36,8 @@ public final class LocalToolResultReviewer {
                 "localFactCheckReason", "typed asset discovery returned non-empty asset metadata",
                 "assetDiscoveryReturnedCount", count, "assetDiscoveryStepId", nullable(stepId)));
         }
-        if (roles.isTemplateDiscovery(execution.toolName())) {
+        if (roles.isTemplateDiscovery(execution.toolName())
+            || facts.publishedTemplateCandidateCount(execution.output()) > 0) {
             String resultCode = facts.discoveryResultCode(execution.output());
             if ("QUERY_CLAUSE_LIMIT_EXCEEDED".equalsIgnoreCase(resultCode)) {
                 return rejected("QUERY_CLAUSE_LIMIT_EXCEEDED: template retrieval exceeded the search clause limit; model review must rewrite a compact, intent-focused keyword set and retry template discovery.", map(

@@ -5,7 +5,11 @@ import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.agents.runtime.plan.RuntimeSemanticPolicy;
+import com.chatchat.agents.runtime.plan.RuntimeSemanticPolicySource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 
@@ -20,6 +24,22 @@ import java.util.concurrent.atomic.AtomicLong;
 @Slf4j
 @Component
 public class DefaultToolRegistry implements ToolRegistry {
+
+    private final RuntimeSemanticPolicySource semanticPolicySource;
+
+    public DefaultToolRegistry() {
+        this.semanticPolicySource = RuntimeSemanticPolicy::empty;
+    }
+
+    @Autowired
+    public DefaultToolRegistry(ObjectProvider<RuntimeSemanticPolicySource> source) {
+        this.semanticPolicySource = source.getIfAvailable(() -> RuntimeSemanticPolicy::empty);
+    }
+
+    @Override
+    public RuntimeSemanticPolicy runtimeSemanticPolicy() {
+        return semanticPolicySource.snapshot();
+    }
 
     private final Map<String, Tool> simpleTools = new ConcurrentHashMap<>();
     private final Map<String, EnhancedTool> enhancedTools = new ConcurrentHashMap<>();

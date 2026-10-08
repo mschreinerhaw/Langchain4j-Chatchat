@@ -1314,29 +1314,6 @@ public class ToolRuntimeService {
         return Math.max(0L, deadlineAt - System.currentTimeMillis());
     }
 
-    private boolean isMcpTool(String toolName, ToolMetadata metadata) {
-        String normalized = normalizePolicyKey(firstText(toolName, metadata == null ? null : metadata.getId()));
-        if (normalized.startsWith("mcp_")) {
-            return true;
-        }
-        if (metadata != null) {
-            if (metadata.getCategories() != null && metadata.getCategories().stream()
-                .anyMatch(category -> "mcp".equalsIgnoreCase(String.valueOf(category)))) {
-                return true;
-            }
-            if (metadata.getTags() != null && metadata.getTags().stream()
-                .anyMatch(tag -> "mcp".equalsIgnoreCase(String.valueOf(tag)))) {
-                return true;
-            }
-        }
-        return normalized.contains("web_search")
-            || normalized.contains("document_search")
-            || normalized.contains("crawl_url")
-            || normalized.contains("generic_web_site_search")
-            || normalized.contains("retrieve_evidence")
-            || normalized.contains("search_and_extract");
-    }
-
     /**
      * Performs the snapshot operation.
      *

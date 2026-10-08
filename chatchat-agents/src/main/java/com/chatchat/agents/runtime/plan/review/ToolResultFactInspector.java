@@ -45,6 +45,28 @@ public final class ToolResultFactInspector {
         return discoveredCount(output, listKey, 0);
     }
 
+    public int publishedTemplateCandidateCount(Object output) {
+        return publishedTemplateCandidateCount(output, 0);
+    }
+
+    private int publishedTemplateCandidateCount(Object output, int depth) {
+        if (output == null || depth > 6) return 0;
+        Object normalized = payloads.normalize(output);
+        if (normalized != output) return publishedTemplateCandidateCount(normalized, depth + 1);
+        if (!(output instanceof Map<?, ?> map)) return 0;
+        Object candidates = first(map, "candidates");
+        if (candidates instanceof List<?> list && first(map, "executionTool", "executorTool") != null) {
+            return (int) list.stream().filter(item -> item instanceof Map<?, ?> candidate
+                && first(candidate, "templateId", "template_id") != null).count();
+        }
+        for (String key : List.of("routingProjection", "preview", "structuredContent", "data",
+            "result", "payload", "body", "output")) {
+            int count = publishedTemplateCandidateCount(first(map, key), depth + 1);
+            if (count > 0) return count;
+        }
+        return 0;
+    }
+
     @SuppressWarnings("unchecked")
     public Map<String, Object> enterpriseMetadataResult(Object output) {
         return enterpriseMetadataResult(output, 0);

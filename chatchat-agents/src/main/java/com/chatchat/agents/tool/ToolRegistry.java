@@ -5,6 +5,7 @@ import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
+import com.chatchat.agents.runtime.plan.RuntimeSemanticPolicy;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 
 /**
@@ -15,6 +16,10 @@ import dev.langchain4j.agent.tool.ToolExecutionRequest;
  * compatibility with simple string-based tools.
  */
 public interface ToolRegistry {
+
+    default RuntimeSemanticPolicy runtimeSemanticPolicy() {
+        return RuntimeSemanticPolicy.empty();
+    }
 
     /**
      * Register a tool with simple interface (backward compatible)

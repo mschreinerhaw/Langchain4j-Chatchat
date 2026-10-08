@@ -30,6 +30,10 @@ import java.util.Set;
  */
 public class InterpretationPlanValidator {
 
+    private static final RuntimeSemanticPolicy FALLBACK_SEMANTIC_POLICY =
+        java.util.ServiceLoader.load(RuntimeSemanticPolicySource.class).findFirst()
+            .map(RuntimeSemanticPolicySource::snapshot).orElse(RuntimeSemanticPolicy.empty());
+
     private final TemplateWorkflowPluginRegistry templateWorkflowPlugins;
     private final McpBindingPolicyRegistry bindingPolicies = new McpBindingPolicyRegistry();
 
@@ -134,7 +138,8 @@ public class InterpretationPlanValidator {
                 continue;
             }
             List<InterpretationPlan.Step> matches = stepsById.values().stream()
-                .filter(step -> semanticToolName(tool).equals(semanticToolName(step.toolName())))
+                .filter(step -> semanticToolName(tool, toolRegistry)
+                    .equals(semanticToolName(step.toolName(), toolRegistry)))
                 .toList();
             if (matches.isEmpty()) {
                 // An abstract configured node is a logical capability boundary, not a second
@@ -155,14 +160,14 @@ public class InterpretationPlanValidator {
             // singleton invocation. Retrieval planners may legitimately split one search
             // capability into several focused calls; rejecting that plan discards all of
             // the more precise queries and forces a low-quality broad fallback call.
-            planByTool.put(semanticToolName(tool), matches);
+            planByTool.put(semanticToolName(tool, toolRegistry), matches);
         }
         for (Object rawNode : nodes) {
             if (!(rawNode instanceof Map<?, ?> node)) {
                 continue;
             }
             String tool = mapText(node, "tool", "toolName");
-            List<InterpretationPlan.Step> targets = planByTool.get(semanticToolName(tool));
+            List<InterpretationPlan.Step> targets = planByTool.get(semanticToolName(tool, toolRegistry));
             if (targets == null || targets.isEmpty()) {
                 continue;
             }
@@ -172,7 +177,8 @@ public class InterpretationPlanValidator {
             }
             for (Object rawDependency : dependencies) {
                 String dependencyTool = rawDependency == null ? null : String.valueOf(rawDependency).trim();
-                List<InterpretationPlan.Step> sources = planByTool.get(semanticToolName(dependencyTool));
+                List<InterpretationPlan.Step> sources = planByTool.get(
+                    semanticToolName(dependencyTool, toolRegistry));
                 if (sources == null || sources.isEmpty()) {
                     state.error("authoritativeWorkflowDag",
                         "Task " + workflowTaskLabel(taskId) + " configured dependency " + dependencyTool
@@ -1471,7 +1477,8 @@ public class InterpretationPlanValidator {
 
     private boolean toolExists(String toolName, ToolRegistry toolRegistry, Set<String> availableTools) {
         if (availableTools != null && !availableTools.isEmpty()) {
-            return availableTools.stream().anyMatch(available -> sameSemanticTool(available, toolName));
+            return availableTools.stream().anyMatch(available ->
+                sameSemanticTool(available, toolName, toolRegistry));
         }
         if (toolRegistry == null || blank(toolName)) {
             return false;
@@ -1482,7 +1489,8 @@ public class InterpretationPlanValidator {
             }
             Set<String> registeredTools = toolRegistry.getAllToolNames();
             if (registeredTools != null
-                && registeredTools.stream().anyMatch(registered -> sameSemanticTool(registered, toolName))) {
+                && registeredTools.stream().anyMatch(registered ->
+                    sameSemanticTool(registered, toolName, toolRegistry))) {
                 return true;
             }
         } catch (RuntimeException ignored) {
@@ -1491,9 +1499,9 @@ public class InterpretationPlanValidator {
         return toolMetadata(toolName, toolRegistry) != null;
     }
 
-    private boolean sameSemanticTool(String left, String right) {
-        String leftSemantic = semanticToolName(left);
-        String rightSemantic = semanticToolName(right);
+    private boolean sameSemanticTool(String left, String right, ToolRegistry registry) {
+        String leftSemantic = semanticToolName(left, registry);
+        String rightSemantic = semanticToolName(right, registry);
         return !leftSemantic.isBlank() && leftSemantic.equals(rightSemantic);
     }
 
@@ -1596,26 +1604,33 @@ public class InterpretationPlanValidator {
     }
 
     private ToolWorkflowRole workflowRole(String toolName, ToolRegistry registry) {
+        ToolWorkflowRole resolved;
         if (registry != null) {
             ToolWorkflowRole role = registry.getWorkflowRole(toolName);
             if (role != null) return role;
-            return com.chatchat.common.tool.ToolWorkflowContract.resolveRole(
+            resolved = com.chatchat.common.tool.ToolWorkflowContract.resolveRole(
                 toolName, registry.getToolMetadata(toolName));
+        } else {
+            resolved = com.chatchat.common.tool.ToolWorkflowContract.resolveRole(toolName, null);
         }
-        return com.chatchat.common.tool.ToolWorkflowContract.resolveRole(toolName, null);
+        if (resolved != ToolWorkflowRole.DIRECT) return resolved;
+        RuntimeSemanticPolicy policy = semanticPolicy(registry);
+        if (policy.hasRole(toolName, "ASSET_DISCOVERY")) return ToolWorkflowRole.ASSET_DISCOVERY;
+        if (policy.hasRole(toolName, "TEMPLATE_DISCOVERY")) return ToolWorkflowRole.TEMPLATE_DISCOVERY;
+        if (policy.hasRole(toolName, "SQL_EXECUTE") || policy.hasRole(toolName, "SHELL_EXECUTE")
+            || policy.hasRole(toolName, "HTTP_EXECUTE") || policy.hasRole(toolName, "API_EXECUTE")
+            || policy.hasRole(toolName, "PYTHON_EXECUTE")) return ToolWorkflowRole.TEMPLATE_EXECUTION;
+        return resolved;
     }
 
-    private String semanticToolName(String toolName) {
-        String normalized = normalize(toolName);
-        while (normalized.startsWith("mcp_")) {
-            normalized = normalized.substring(4);
-        }
-        for (String prefix : List.of("chatchat_mcp_server_", "chatchat_", "xxx_")) {
-            if (normalized.startsWith(prefix)) {
-                normalized = normalized.substring(prefix.length());
-            }
-        }
-        return normalized;
+    private RuntimeSemanticPolicy semanticPolicy(ToolRegistry registry) {
+        RuntimeSemanticPolicy published = registry == null ? null : registry.runtimeSemanticPolicy();
+        return published == null || published == RuntimeSemanticPolicy.empty()
+            ? FALLBACK_SEMANTIC_POLICY : published;
+    }
+
+    private String semanticToolName(String toolName, ToolRegistry registry) {
+        return semanticPolicy(registry).canonicalToolName(toolName);
     }
 
     private ToolMetadata toolMetadata(String toolName, ToolRegistry toolRegistry) {

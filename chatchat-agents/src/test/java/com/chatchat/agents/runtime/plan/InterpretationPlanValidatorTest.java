@@ -236,13 +236,16 @@ class InterpretationPlanValidatorTest {
         for (String tool : List.of(discovery, execute)) {
             when(toolRegistry.hasTool(tool)).thenReturn(true);
         }
-        when(toolRegistry.getToolMetadata(discovery)).thenReturn(ToolMetadata.builder()
-            .id(discovery)
-            .metadata(Map.of("workflowRole", "template_discovery"))
-            .build());
+        when(toolRegistry.getToolMetadata(discovery)).thenReturn(workflowMetadata(
+            discovery, ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.ssh-template.v1"));
         when(toolRegistry.getToolMetadata(execute)).thenReturn(ToolMetadata.builder()
             .id(execute)
-            .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution")))
+            .metadata(Map.of(
+                "capabilities", List.of("template_execution", "batch_execution"),
+                "argumentBindingPolicy", bindingPolicy(),
+                ToolWorkflowContract.METADATA_KEY,
+                ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_EXECUTION,
+                    "mcp.ssh-template.v1", "parameters")))
             .build());
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",
@@ -288,7 +291,7 @@ class InterpretationPlanValidatorTest {
         InterpretationPlanValidator.ValidationResult result = validator.validate(
             plan, toolRegistry, Set.of(discovery, execute), authoritativeDag, "host-diagnostic");
 
-        assertThat(result.valid()).isTrue();
+        assertThat(result.valid()).as("%s", result.issues()).isTrue();
     }
 
     @Test

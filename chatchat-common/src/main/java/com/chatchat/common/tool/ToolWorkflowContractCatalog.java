@@ -6,6 +6,11 @@ import java.util.Optional;
 /** Persistent source for versioned tool workflow contracts. */
 public interface ToolWorkflowContractCatalog {
 
+    /** Changes whenever an ACTIVE contract or database-owned runtime policy changes. */
+    default String runtimePolicyFingerprint() {
+        return "";
+    }
+
     Optional<ToolWorkflowContractSnapshot> findActive(String serviceId,
                                                        String localToolName,
                                                        String remoteToolName);

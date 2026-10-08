@@ -12,8 +12,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentRegressionEvaluatorTest {
 
     private final AgentRegressionCaseLoader loader = new AgentRegressionCaseLoader();
-    private final AgentRegressionEvaluator evaluator = new AgentRegressionEvaluator();
-    private final AgentDeterministicScorer deterministicScorer = new AgentDeterministicScorer();
+    private final AgentDeterministicScorer deterministicScorer = new AgentDeterministicScorer(caseId ->
+        new AgentRegressionSemanticPolicy.Profile(
+            List.of("jdbc", "filesystem", "file system", "kafka", "hdfs", "mysql",
+                "spark sql", "dataframe", "insert into", "create table"),
+            List.of(
+                new AgentRegressionSemanticPolicy.RelationRule("spark sql", "jdbc", "uses", "Spark SQL", "JDBC"),
+                new AgentRegressionSemanticPolicy.RelationRule("spark sql", "filesystem", "reads",
+                    "Spark SQL", "FileSystem"))));
+    private final AgentRegressionEvaluator evaluator = new AgentRegressionEvaluator(deterministicScorer);
 
     @Test
     void loadsYamlCaseAndDetectsFalseReject() {

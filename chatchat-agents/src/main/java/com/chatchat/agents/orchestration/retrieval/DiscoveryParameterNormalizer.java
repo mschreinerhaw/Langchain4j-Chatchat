@@ -30,7 +30,8 @@ public final class DiscoveryParameterNormalizer {
 
     public Normalization normalize(Map<String, Object> arguments,
                             Map<String, Object> inferredContext,
-                            String originalQuery) {
+                            String originalQuery,
+                            McpArgumentBindingFieldPolicy policy) {
         Map<String, Object> values = arguments == null ? Map.of() : arguments;
         Map<String, Object> filters = new LinkedHashMap<>();
         Map<String, String> provenance = new LinkedHashMap<>();
@@ -38,16 +39,16 @@ public final class DiscoveryParameterNormalizer {
         List<Repair> repairs = new ArrayList<>();
 
         // Lowest precedence first. Higher-precedence sources replace values deterministically.
-        merge(filters, provenance, conflicts, inferredContext, "inferred_context", false);
-        mergeTopLevel(filters, provenance, conflicts, values);
+        merge(filters, provenance, conflicts, inferredContext, "inferred_context", false, policy);
+        mergeTopLevel(filters, provenance, conflicts, values, policy);
         merge(filters, provenance, conflicts, map(values.get("mcpExecutionContext")),
-            "mcp_execution_context", true);
+            "mcp_execution_context", true, policy);
         merge(filters, provenance, conflicts, map(values.get("executionContext")),
-            "execution_context", true);
-        merge(filters, provenance, conflicts, map(values.get("filters")), "explicit_filters", true);
+            "execution_context", true, policy);
+        merge(filters, provenance, conflicts, map(values.get("filters")), "explicit_filters", true, policy);
 
         String query = normalizeText(originalQuery);
-        demoteSentenceShapedIdentity(filters, provenance, repairs, query);
+        demoteSentenceShapedIdentity(filters, provenance, repairs, query, policy);
         return new Normalization(
             Map.copyOf(filters),
             query,
@@ -61,15 +62,16 @@ public final class DiscoveryParameterNormalizer {
     private void mergeTopLevel(Map<String, Object> target,
                                Map<String, String> provenance,
                                List<Conflict> conflicts,
-                               Map<String, Object> source) {
+                               Map<String, Object> source,
+                               McpArgumentBindingFieldPolicy policy) {
         if (source == null || source.isEmpty()) return;
         Map<String, Object> logical = new LinkedHashMap<>();
         for (Map.Entry<String, Object> entry : source.entrySet()) {
-            if (isLogicalField(entry.getKey()) && meaningful(entry.getValue())) {
+            if (isLogicalField(entry.getKey(), policy) && meaningful(entry.getValue())) {
                 logical.put(entry.getKey(), entry.getValue());
             }
         }
-        merge(target, provenance, conflicts, logical, "top_level", true);
+        merge(target, provenance, conflicts, logical, "top_level", true, policy);
     }
 
     private void merge(Map<String, Object> target,
@@ -77,16 +79,17 @@ public final class DiscoveryParameterNormalizer {
                        List<Conflict> conflicts,
                        Map<String, Object> source,
                        String sourceName,
-                       boolean replace) {
+                       boolean replace,
+                       McpArgumentBindingFieldPolicy policy) {
         if (source == null || source.isEmpty()) return;
         // Canonical spellings are processed last so assetName beats asset_name inside one source.
         source.entrySet().stream()
             .filter(entry -> meaningful(entry.getValue()))
             .sorted((left, right) -> Boolean.compare(
-                canonicalField(left.getKey()).equals(left.getKey()),
-                canonicalField(right.getKey()).equals(right.getKey())))
+                canonicalField(left.getKey(), policy).equals(left.getKey()),
+                canonicalField(right.getKey(), policy).equals(right.getKey())))
             .forEach(entry -> {
-                String key = canonicalField(entry.getKey());
+                String key = canonicalField(entry.getKey(), policy);
                 Object previous = target.get(key);
                 if (meaningful(previous) && !Objects.equals(previous, entry.getValue())) {
                     conflicts.add(new Conflict(key, previous, entry.getValue(),
@@ -102,8 +105,11 @@ public final class DiscoveryParameterNormalizer {
     private void demoteSentenceShapedIdentity(Map<String, Object> filters,
                                                Map<String, String> provenance,
                                                List<Repair> repairs,
-                                               String query) {
-        String assetName = normalizeText(filters.get("assetName"));
+                                               String query,
+                                               McpArgumentBindingFieldPolicy policy) {
+        String identityField = policy.identityField();
+        String semanticField = policy.semanticField();
+        String assetName = normalizeText(filters.get(identityField));
         if (assetName == null || query == null || !canonicalText(assetName).equals(canonicalText(query))) {
             return;
         }
@@ -112,12 +118,12 @@ public final class DiscoveryParameterNormalizer {
             || query.codePointCount(0, query.length()) > 64;
         if (!sentenceShaped) return;
 
-        filters.remove("assetName");
-        String source = provenance.remove("assetName");
-        filters.putIfAbsent("intent", query);
-        provenance.putIfAbsent("intent", "identity_role_repair");
+        filters.remove(identityField);
+        String source = provenance.remove(identityField);
+        filters.putIfAbsent(semanticField, query);
+        provenance.putIfAbsent(semanticField, "identity_role_repair");
         repairs.add(new Repair(
-            "assetName",
+            identityField,
             "IDENTITY_SENTENCE_DEMOTED_TO_SEMANTIC_QUERY",
             assetName,
             query,
@@ -144,46 +150,12 @@ public final class DiscoveryParameterNormalizer {
         return List.copyOf(dates);
     }
 
-    private String canonicalField(String key) {
-        if (key == null) return "";
-        String canonical = key.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
-        return switch (canonical) {
-            case "assetname", "name" -> "assetName";
-            case "environment" -> "env";
-            case "targettype" -> "targetType";
-            case "databasetype" -> "databaseType";
-            case "dbtype" -> "dbType";
-            case "databaserole" -> "databaseRole";
-            case "hostselector" -> "hostSelector";
-            case "queryterms", "searchterms" -> "queryTerms";
-            case "retrievalsignals" -> "retrievalSignals";
-            case "bilingualintent" -> "bilingualIntent";
-            case "bilingualquery", "bilingualsearch" -> "bilingualQuery";
-            case "intentzh" -> "intentZh";
-            case "intenten" -> "intentEn";
-            case "intentaliases" -> "intentAliases";
-            case "intentcandidates" -> "intentCandidates";
-            case "businessgroup" -> "businessGroup";
-            case "groupname" -> "groupName";
-            case "groupdescription" -> "groupDescription";
-            case "templateid" -> "templateId";
-            case "toolname" -> "toolName";
-            case "querylanguage" -> "queryLanguage";
-            default -> key.trim();
-        };
+    private String canonicalField(String key, McpArgumentBindingFieldPolicy policy) {
+        return policy.canonicalFilterField(key);
     }
 
-    private boolean isLogicalField(String key) {
-        String canonical = canonicalField(key);
-        return List.of(
-            "env", "cluster", "namespace", "target", "targetType", "assetName",
-            "hostSelector", "database", "databaseType", "dbType", "dialect",
-            "databaseRole", "service", "labels", "intent", "goal", "category",
-            "queryTerms", "retrievalSignals", "intentCandidates", "bilingualIntent",
-            "bilingualQuery", "intentZh", "intentEn", "intentAliases", "keywords",
-            "businessGroup", "group", "groupName", "groupDescription", "toolName", "template",
-            "templateId", "view", "language", "queryLanguage", "locale"
-        ).contains(canonical);
+    private boolean isLogicalField(String key, McpArgumentBindingFieldPolicy policy) {
+        return policy.logicalFilterFields().contains(canonicalField(key, policy));
     }
 
     private String normalizeText(Object value) {

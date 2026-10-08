@@ -14,7 +14,9 @@ class ToolCallBatchSchemaTest {
     void augmentsBatchCapableExecutorWithFormalBoundedSchema() {
         Map<String, Object> schema = ToolCallBatchSchema.augment(
             "mcp_chatchat_mcp_server_sql_query_execute",
-            Map.of("type", "object", "required", List.of("templateCode"))
+            Map.of("type", "object", "required", List.of("templateCode")),
+            ToolMetadata.builder().metadata(Map.of(
+                "capabilities", List.of("template_execution", "batch_execution"))).build()
         );
 
         assertThat(schema).containsKeys("anyOf", "x-chatchat-batch");
@@ -49,8 +51,10 @@ class ToolCallBatchSchemaTest {
     @Test
     void keepsPythonDiscoveryOutsideBatchAndAdmitsNativePythonExecutor() {
         assertThat(ToolCallBatchSchema.supports("python_analysis_query")).isFalse();
-        assertThat(ToolCallBatchSchema.supports("python_template_execute")).isTrue();
-        assertThat(ToolCallBatchSchema.augment("python_template_execute", Map.of("type", "object")))
+        ToolMetadata published = ToolMetadata.builder().metadata(Map.of(
+            "capabilities", List.of("template_execution", "batch_execution"))).build();
+        assertThat(ToolCallBatchSchema.supports("python_template_execute", published)).isTrue();
+        assertThat(ToolCallBatchSchema.augment("python_template_execute", Map.of("type", "object"), published))
             .containsKey("x-chatchat-batch");
     }
 

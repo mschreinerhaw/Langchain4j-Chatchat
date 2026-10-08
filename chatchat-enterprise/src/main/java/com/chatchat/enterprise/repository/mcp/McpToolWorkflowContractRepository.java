@@ -18,6 +18,8 @@ public interface McpToolWorkflowContractRepository extends JpaRepository<McpTool
 
     List<McpToolWorkflowContract> findByToolIdOrderByContractVersionDesc(String toolId);
 
+    List<McpToolWorkflowContract> findByStatus(String status);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<McpToolWorkflowContract> findByToolIdAndStatus(String toolId, String status);
 }

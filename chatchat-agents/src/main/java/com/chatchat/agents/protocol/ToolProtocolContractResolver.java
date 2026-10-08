@@ -26,16 +26,6 @@ public final class ToolProtocolContractResolver {
     private static final int MAX_RULE_CHARS = 1_500;
     private static final Pattern SAFE_DRIVER_ID = Pattern.compile("[a-zA-Z0-9._:-]{1,128}");
 
-    private final LegacyToolProtocolDriverAdapter legacyAdapter;
-
-    public ToolProtocolContractResolver() {
-        this(new LegacyToolProtocolDriverAdapter());
-    }
-
-    ToolProtocolContractResolver(LegacyToolProtocolDriverAdapter legacyAdapter) {
-        this.legacyAdapter = legacyAdapter;
-    }
-
     public String plannerSection(List<String> availableTools, ToolRegistry registry) {
         return section(Phase.PLANNER, availableTools, registry);
     }
@@ -77,16 +67,11 @@ public final class ToolProtocolContractResolver {
             }
             ToolMetadata metadata = registry == null ? null : registry.getToolMetadata(toolName);
             List<ResolvedContract> published = publishedContracts(toolName, metadata);
-            if (published.isEmpty()) {
-                legacyAdapter.contractFor(toolName).ifPresent(contract ->
-                    resolved.putIfAbsent(contract.driverId(), contract));
-            } else {
-                published.forEach(contract -> {
-                    if (resolved.size() < MAX_CONTRACTS) {
-                        resolved.putIfAbsent(contract.driverId(), contract);
-                    }
-                });
-            }
+            published.forEach(contract -> {
+                if (resolved.size() < MAX_CONTRACTS) {
+                    resolved.putIfAbsent(contract.driverId(), contract);
+                }
+            });
         }
         return List.copyOf(resolved.values());
     }

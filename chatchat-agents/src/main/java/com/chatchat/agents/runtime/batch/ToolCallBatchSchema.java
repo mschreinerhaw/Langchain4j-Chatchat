@@ -26,10 +26,15 @@ public final class ToolCallBatchSchema {
     }
 
     public static Map<String, Object> augment(String toolName, Map<String, Object> originalSchema) {
+        return augment(toolName, originalSchema, null);
+    }
+
+    public static Map<String, Object> augment(String toolName, Map<String, Object> originalSchema,
+                                              ToolMetadata metadata) {
         Map<String, Object> original = originalSchema == null
             ? Map.of()
             : new LinkedHashMap<>(originalSchema);
-        if (!supports(toolName)) {
+        if (!supports(toolName, metadata)) {
             return original;
         }
         return augmentDeclared(original);

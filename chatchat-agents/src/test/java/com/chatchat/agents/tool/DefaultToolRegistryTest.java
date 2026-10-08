@@ -55,4 +55,20 @@ class DefaultToolRegistryTest {
 
         assertThat(registry.getToolRevision("policy_tool")).isGreaterThan(firstRevision);
     }
+
+    @Test
+    void databaseRuntimeCapabilityChangeUpdatesToolRevision() {
+        DefaultToolRegistry registry = new DefaultToolRegistry();
+        ToolRegistry.EnhancedTool tool = mock(ToolRegistry.EnhancedTool.class);
+        registry.registerTool("capability_tool", ToolMetadata.builder().id("capability_tool")
+            .metadata(Map.of("workflowContractChecksum", "unchanged",
+                "capabilities", List.of("template_execution"))).build(), tool);
+        long firstRevision = registry.getToolRevision("capability_tool");
+
+        registry.registerTool("capability_tool", ToolMetadata.builder().id("capability_tool")
+            .metadata(Map.of("workflowContractChecksum", "unchanged",
+                "capabilities", List.of("template_execution", "batch_execution"))).build(), tool);
+
+        assertThat(registry.getToolRevision("capability_tool")).isGreaterThan(firstRevision);
+    }
 }

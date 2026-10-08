@@ -183,7 +183,8 @@ public class McpToolRegistryBridge {
             try {
                 List<McpToolDefinition> tools = gatewayClient.discoverTools(
                     service, Math.max(0, discoveryTimeoutMs));
-                String catalogSignature = catalogSignature(tools);
+                String catalogSignature = catalogSignature(tools)
+                    + "|" + (contractCatalog == null ? "" : contractCatalog.runtimePolicyFingerprint());
                 if (skipUnchangedCatalog
                     && catalogSignature.equals(discoveredCatalogSignatures.get(service.getId()))) {
                     registeredTools.values().stream()
@@ -428,7 +429,8 @@ public class McpToolRegistryBridge {
         if (resolvedChineseAlias != null) extraMetadata.put("chineseAlias", resolvedChineseAlias);
         extraMetadata.put("inputSchema", ToolCallBatchSchema.augment(
             definition.name(),
-            runtimeInput
+            runtimeInput,
+            ToolMetadata.builder().metadata(effectiveMeta).build()
         ));
         extraMetadata.put("outputSchema", runtimeDefinition.outputSchema());
         extraMetadata.put("contractVersion", runtimeDefinition.contractVersion());

@@ -17,10 +17,7 @@ public final class ToolExecutionCapabilities {
     }
 
     public static boolean supportsBatch(String toolName, ToolMetadata metadata) {
-        if (declaresBatch(metadata)) {
-            return declaresTemplateExecution(metadata);
-        }
-        return LegacyBatchExecutorCapabilityAdapter.supports(toolName);
+        return declaresBatch(metadata) && declaresTemplateExecution(metadata);
     }
 
     public static boolean declaresBatch(ToolMetadata metadata) {

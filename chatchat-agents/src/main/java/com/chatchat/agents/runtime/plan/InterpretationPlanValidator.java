@@ -1,6 +1,8 @@
 package com.chatchat.agents.runtime.plan;
 
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
+import com.chatchat.agents.orchestration.retrieval.McpArgumentBindingFieldPolicy;
+import com.chatchat.agents.orchestration.retrieval.McpBindingPolicyRegistry;
 import com.chatchat.agents.runtime.plan.template.TemplateWorkflowPlugin;
 import com.chatchat.agents.runtime.plan.template.TemplateWorkflowPluginRegistry;
 import com.chatchat.agents.runtime.plan.template.TemplateWorkflowTool;
@@ -29,6 +31,7 @@ import java.util.Set;
 public class InterpretationPlanValidator {
 
     private final TemplateWorkflowPluginRegistry templateWorkflowPlugins;
+    private final McpBindingPolicyRegistry bindingPolicies = new McpBindingPolicyRegistry();
 
     public InterpretationPlanValidator() {
         this(TemplateWorkflowPluginRegistry.load());
@@ -40,45 +43,6 @@ public class InterpretationPlanValidator {
     }
 
     private static final String HIGH = "high";
-    private static final Set<String> RAW_SQL_PARAMETER_KEYS = Set.of(
-        "sql",
-        "rawsql",
-        "raw_sql",
-        "statement",
-        "query"
-    );
-    private static final Set<String> RAW_HTTP_PARAMETER_KEYS = Set.of(
-        "url",
-        "uri",
-        "method",
-        "headers",
-        "body",
-        "bodytemplate",
-        "body_template",
-        "endpointid",
-        "endpoint_id",
-        "host",
-        "hostname",
-        "ip",
-        "ipaddress",
-        "ip_address",
-        "address"
-    );
-    private static final Set<String> RAW_SSH_PARAMETER_KEYS = Set.of(
-        "command",
-        "rawcommand",
-        "raw_command",
-        "shell",
-        "script",
-        "hostid",
-        "host_id",
-        "host",
-        "hostname",
-        "ip",
-        "ipaddress",
-        "ip_address",
-        "address"
-    );
     private static final Set<String> ACTION_TYPES = Set.of(
         "mcp_tool", "reasoning", "retrieval", "aggregation", "validation", "final_answer"
     );
@@ -348,10 +312,28 @@ public class InterpretationPlanValidator {
             validateBatchToolInput(step, path, toolRegistry, availableTools, allowTools, state);
         } else {
             validateToolInput(plan, step, path, toolRegistry, state);
-            validateSqlTemplateExecutionContract(plan, step, path, toolRegistry, state);
-            validateHttpTemplateExecutionContract(step, path, state);
-            validateSshTemplateExecutionContract(step, path, state);
-            validateTemplateArgumentShape(plan, step, path, state);
+            ToolMetadata metadata = toolRegistry == null ? null : toolRegistry.getToolMetadata(step.toolName());
+            McpBindingPolicyRegistry.Policy binding = bindingPolicies.resolve(metadata);
+            McpArgumentBindingFieldPolicy fieldPolicy = McpArgumentBindingFieldPolicy.from(metadata);
+            if (binding == McpBindingPolicyRegistry.Policy.REJECTED) {
+                state.error(path + ".tool_name", "MCP executor has no published argument binding policy.");
+            }
+            if (fieldPolicy != null) {
+                switch (binding) {
+                    case SQL_EXECUTION -> validateSqlTemplateExecutionContract(plan, step, path, toolRegistry,
+                        fieldPolicy, state);
+                    case HTTP_EXECUTION -> validateHttpTemplateExecutionContract(step, path,
+                        fieldPolicy.validationFields(binding.name()), state);
+                    case SHELL_EXECUTION -> validateSshTemplateExecutionContract(step, path,
+                        fieldPolicy.validationFields(binding.name()), state);
+                    default -> { }
+                }
+            }
+            if (binding == McpBindingPolicyRegistry.Policy.SQL_EXECUTION
+                || binding == McpBindingPolicyRegistry.Policy.HTTP_EXECUTION
+                || binding == McpBindingPolicyRegistry.Policy.SHELL_EXECUTION) {
+                validateTemplateArgumentShape(plan, step, path, state);
+            }
         }
         if (isHighRisk(plan, step, toolRegistry) && !containsTool(allowTools, step.toolName())) {
             state.approval(path + ".tool_name", "High-risk tool requires explicit allow_tool approval: " + step.toolName());
@@ -389,99 +371,97 @@ public class InterpretationPlanValidator {
                                                       InterpretationPlan.Step step,
                                                       String path,
                                                       ToolRegistry toolRegistry,
+                                                      McpArgumentBindingFieldPolicy fieldPolicy,
                                                       ValidationState state) {
-        if (step == null || !isSqlQueryExecuteTool(step.toolName()) || step.input() == null || step.input().isEmpty()) {
+        if (step == null || step.input() == null || step.input().isEmpty()) {
             return;
         }
         Map<String, Object> input = step.input();
+        Set<String> rawFields = fieldPolicy.validationFields(McpBindingPolicyRegistry.Policy.SQL_EXECUTION.name());
         boolean templateMode = hasNonBlank(input, "template", "templateId", "template_id")
             || invocationValue(input, "templateRef", "template_ref", "templateId", "template") != null;
-        if (templateMode && hasNonBlank(input, "sql", "rawSql", "raw_sql", "statement", "query")) {
-            state.error(path + ".input", "SQL template execution must use a templateId returned by template_query and template parameters only; do not mix top-level raw SQL with templateId.");
+        if (templateMode && hasRawKeys(input, rawFields)) {
+            state.error(path + ".input", "Template execution cannot mix a template id with raw execution fields.");
         }
         Object executionContext = firstPresent(input, "executionContext", "mcpExecutionContext");
         if (executionContext == null) {
             executionContext = invocationValue(input, "target", "executionContext", "execution_context");
         }
-        if (!hasConcreteExecutionContext(executionContext)
+        if (!hasConcreteExecutionContext(executionContext,
+                fieldPolicy.requiredExecutionContextFields(McpBindingPolicyRegistry.Policy.SQL_EXECUTION.name()),
+                fieldPolicy)
             && !hasBindingForInput(plan, step.id(), "executionContext")
             && !hasBindingForInput(plan, step.id(), "mcpExecutionContext")
             && !dependsOnAssetDiscovery(plan, step, toolRegistry)
             && !dependsOnTemplateDiscovery(plan, step, toolRegistry)) {
             state.error(path + ".input.executionContext",
-                "sql_query_execute requires logical executionContext, for example {assetName, env}, from user context, template routing metadata, sql_metadata_search/table-location evidence, or an observed invocationExample; do not rely on template parameters for datasource routing.");
+                "Template executor requires logical executionContext fields declared by its binding policy.");
         }
         Object parameters = firstPresent(input, "parameters", "params");
         if (parameters == null) {
             parameters = invocationValue(input, "arguments", "parameters", "params");
         }
-        if (!(parameters instanceof Map<?, ?> map)) {
-            if (tableMetadataTemplate(input)
-                && !hasBindingForInput(plan, step.id(), "parameters.tableName")
-                && !hasBindingForInput(plan, step.id(), "parameters.table_name")) {
-                state.error(path + ".input.parameters",
-                    "SQL table metadata template requires parameters.tableName from the user request or a sql_metadata_search/table-location result; parameters cannot be omitted.");
+        List<String> requiredParameters = fieldPolicy.requiredParametersForTemplate(
+            firstPresent(input, "templateId", "template", "template_id"));
+        Map<?, ?> map = parameters instanceof Map<?, ?> parameterMap ? parameterMap : Map.of();
+        for (String required : requiredParameters) {
+            boolean supplied = map.entrySet().stream().anyMatch(entry ->
+                sameField(String.valueOf(entry.getKey()), required)
+                    && entry.getValue() != null && !String.valueOf(entry.getValue()).isBlank());
+            boolean bound = plan != null && plan.plan() != null && plan.plan().bindings() != null
+                && plan.plan().bindings().stream().anyMatch(binding -> binding != null
+                    && step.id().equals(binding.to())
+                    && sameField(binding.inputField(), "parameters." + required));
+            if (!supplied && !bound) {
+                state.error(path + ".input.parameters." + required,
+                    "Selected template requires parameters." + required + " from the request or a governed binding.");
             }
-            return;
         }
-        if (tableMetadataTemplate(input)
-            && !hasNonBlank(map, "tableName", "table_name")
-            && !hasBindingForInput(plan, step.id(), "parameters.tableName")
-            && !hasBindingForInput(plan, step.id(), "parameters.table_name")) {
-            state.error(path + ".input.parameters.tableName",
-                "SQL table metadata template requires parameters.tableName. Do not call sql_query_execute with empty parameters when the selected template declares required tableName.");
-        }
+        if (!(parameters instanceof Map<?, ?>)) return;
         for (Object key : map.keySet()) {
             String normalized = normalizeRawSqlKey(key);
-            if (RAW_SQL_PARAMETER_KEYS.contains(normalized)) {
+            if (rawFields.contains(normalized)) {
                 state.error(path + ".input.parameters." + key,
-                    "Raw SQL is not a template parameter. Select a template from database_ops_template_search and pass only fields declared by templates[].parameterSchema.");
+                    "Raw execution fields are not template parameters; pass only schema-declared values.");
             }
         }
-    }
-
-    private boolean tableMetadataTemplate(Map<String, Object> input) {
-        Object value = firstPresent(input, "templateId", "template", "template_id");
-        if (value == null || String.valueOf(value).isBlank()) {
-            return false;
-        }
-        String normalized = String.valueOf(value).trim().toUpperCase(Locale.ROOT);
-        return normalized.endsWith("_TABLE_METADATA");
     }
 
     private void validateHttpTemplateExecutionContract(InterpretationPlan.Step step,
                                                        String path,
+                                                       Set<String> rawFields,
                                                        ValidationState state) {
-        if (step == null || !isHttpRequestExecuteTool(step.toolName()) || step.input() == null || step.input().isEmpty()) {
+        if (step == null || step.input() == null || step.input().isEmpty()) {
             return;
         }
         Map<String, Object> input = step.input();
-        if (hasRawKeys(input, RAW_HTTP_PARAMETER_KEYS)) {
+        if (hasRawKeys(input, rawFields)) {
             state.error(path + ".input",
-                "HTTP template execution must use a returned template id plus parameters only; do not pass raw url, uri, method, headers, body, endpointId, host, or IP fields.");
+                "Template execution cannot contain raw request fields.");
         }
         Object parameters = firstPresent(input, "parameters", "params");
-        if (parameters instanceof Map<?, ?> map && hasRawKeys(map, RAW_HTTP_PARAMETER_KEYS)) {
+        if (parameters instanceof Map<?, ?> map && hasRawKeys(map, rawFields)) {
             state.error(path + ".input.parameters",
-                "Raw HTTP request fields are not template parameters. Select an HTTP/API template and pass only fields declared by templates[].parameterSchema.");
+                "Raw request fields are not template parameters; pass only schema-declared values.");
         }
     }
 
     private void validateSshTemplateExecutionContract(InterpretationPlan.Step step,
                                                       String path,
+                                                      Set<String> rawFields,
                                                       ValidationState state) {
-        if (step == null || !isLinuxCommandExecuteTool(step.toolName()) || step.input() == null || step.input().isEmpty()) {
+        if (step == null || step.input() == null || step.input().isEmpty()) {
             return;
         }
         Map<String, Object> input = step.input();
-        if (hasRawKeys(input, RAW_SSH_PARAMETER_KEYS)) {
+        if (hasRawKeys(input, rawFields)) {
             state.error(path + ".input",
-                "SSH template execution must use a returned template id plus parameters only; do not pass command, rawCommand, shell, hostId, host, hostname, IP, or address fields.");
+                "Template execution cannot contain raw command or target fields.");
         }
         Object parameters = firstPresent(input, "parameters", "params");
-        if (parameters instanceof Map<?, ?> map && hasRawKeys(map, RAW_SSH_PARAMETER_KEYS)) {
+        if (parameters instanceof Map<?, ?> map && hasRawKeys(map, rawFields)) {
             state.error(path + ".input.parameters",
-                "Raw SSH command/target fields are not template parameters. Select an SSH template and pass only fields declared by templates[].parameterSchema.");
+                "Raw command or target fields are not template parameters; pass only schema-declared values.");
         }
     }
 
@@ -490,9 +470,7 @@ public class InterpretationPlanValidator {
                                                String path,
                                                ValidationState state) {
         if (step == null || step.input() == null
-            || (!isSqlQueryExecuteTool(step.toolName())
-            && !isHttpRequestExecuteTool(step.toolName())
-            && !isLinuxCommandExecuteTool(step.toolName()))) {
+            || step.input().isEmpty()) {
             return;
         }
         Object template = firstPresent(step.input(), "templateId", "template", "template_id");
@@ -597,35 +575,9 @@ public class InterpretationPlanValidator {
         return null;
     }
 
-    private boolean isSqlQueryExecuteTool(String toolName) {
-        if (toolName == null || toolName.isBlank()) {
-            return false;
-        }
-        String normalized = toolName.trim().toLowerCase(Locale.ROOT);
-        return normalized.endsWith("sql_query_execute")
-            || normalized.contains("_sql_query_execute")
-            || normalized.endsWith("sql_script_execute")
-            || normalized.contains("_sql_script_execute")
-            || normalized.endsWith("database_execute")
-            || normalized.endsWith("sql_execute");
-    }
-
-    private boolean isHttpRequestExecuteTool(String toolName) {
-        if (toolName == null || toolName.isBlank()) {
-            return false;
-        }
-        String normalized = toolName.trim().toLowerCase(Locale.ROOT);
-        return normalized.endsWith("http_request_execute")
-            || normalized.contains("_http_request_execute");
-    }
-
-    private boolean isLinuxCommandExecuteTool(String toolName) {
-        if (toolName == null || toolName.isBlank()) {
-            return false;
-        }
-        String normalized = toolName.trim().toLowerCase(Locale.ROOT);
-        return normalized.endsWith("linux_command_execute")
-            || normalized.contains("_linux_command_execute");
+    private McpBindingPolicyRegistry.Policy executionBinding(String toolName, ToolRegistry registry) {
+        if (registry == null || toolName == null) return McpBindingPolicyRegistry.Policy.PASSTHROUGH;
+        return bindingPolicies.resolve(registry.getToolMetadata(toolName));
     }
 
     private boolean hasNonBlank(Map<?, ?> input, String... keys) {
@@ -669,26 +621,16 @@ public class InterpretationPlanValidator {
             .anyMatch(field -> inputField.equals(field) || inputField.equals(field.split("\\.")[0]));
     }
 
-    private boolean hasConcreteExecutionContext(Object executionContext) {
+    private boolean hasConcreteExecutionContext(Object executionContext,
+                                                List<String> requiredFields,
+                                                McpArgumentBindingFieldPolicy policy) {
         if (!(executionContext instanceof Map<?, ?> map) || map.isEmpty()) {
             return false;
         }
-        boolean hasAsset = hasConcreteValue(map, "assetName", "asset_name", "name");
-        boolean hasEnv = hasConcreteValue(map, "env", "environment");
-        return hasAsset && hasEnv;
-    }
-
-    private boolean hasConcreteValue(Map<?, ?> map, String... keys) {
-        if (map == null || keys == null) {
-            return false;
-        }
-        for (String key : keys) {
-            Object value = map.get(key);
-            if (value != null && !String.valueOf(value).isBlank() && !isJsonPathPlaceholder(value)) {
-                return true;
-            }
-        }
-        return false;
+        return requiredFields.stream().allMatch(required -> map.entrySet().stream().anyMatch(entry ->
+            required.equals(policy.canonicalFilterField(String.valueOf(entry.getKey())))
+                && entry.getValue() != null && !String.valueOf(entry.getValue()).isBlank()
+                && !isJsonPathPlaceholder(entry.getValue())));
     }
 
     private boolean isJsonPathPlaceholder(Object value) {
@@ -1196,9 +1138,9 @@ public class InterpretationPlanValidator {
                     "Asset-name bindings must use the canonical asset discovery path $.assets[0].asset.name.");
             }
             if (target != null
-                && (isSqlQueryExecuteTool(target.toolName())
-                || isHttpRequestExecuteTool(target.toolName())
-                || isLinuxCommandExecuteTool(target.toolName()))
+                && (executionBinding(target.toolName(), toolRegistry) == McpBindingPolicyRegistry.Policy.SQL_EXECUTION
+                || executionBinding(target.toolName(), toolRegistry) == McpBindingPolicyRegistry.Policy.HTTP_EXECUTION
+                || executionBinding(target.toolName(), toolRegistry) == McpBindingPolicyRegistry.Policy.SHELL_EXECUTION)
                 && (sameField(binding.inputField(), "template")
                 || sameField(binding.inputField(), "templateId")
                 || sameField(binding.inputField(), "template_id"))
@@ -1208,12 +1150,12 @@ public class InterpretationPlanValidator {
             }
             if (target != null
                 && source != null
-                && isSqlQueryExecuteTool(target.toolName())
+                && executionBinding(target.toolName(), toolRegistry) == McpBindingPolicyRegistry.Policy.SQL_EXECUTION
                 && isAssetDiscoveryTool(source.toolName(), toolRegistry)
-                && sameField(binding.inputField(), "parameters.schemaName")
+                && forbiddenAssetIdentityParameter(binding.inputField(), target.toolName(), toolRegistry)
                 && containsNormalized(binding.outputPath(), "asset.name")) {
                 state.error(path + ".input_field",
-                    "Do not bind asset_query assets[].asset.name into sql_query_execute parameters.schemaName. Asset name is routing context, not database/schema name; use sql_metadata_search results or omit schemaName when the selected template does not require it.");
+                    "Asset identity cannot be bound into this executor parameter; use the governed routing context.");
             }
             if (target != null
                 && binding.from() != null
@@ -1221,6 +1163,13 @@ public class InterpretationPlanValidator {
                 state.warning(path, "Binding target should depend on source step: " + binding.from() + " -> " + binding.to());
             }
         }
+    }
+
+    private boolean forbiddenAssetIdentityParameter(String inputField, String toolName, ToolRegistry registry) {
+        if (registry == null || toolName == null) return false;
+        McpArgumentBindingFieldPolicy policy = McpArgumentBindingFieldPolicy.from(registry.getToolMetadata(toolName));
+        return policy != null && policy.assetIdentityForbiddenParameterFields().stream()
+            .anyMatch(field -> sameField(inputField, field));
     }
 
     /** Every governed executor must prove governed discovery -> template -> execution provenance. */

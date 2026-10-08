@@ -70,6 +70,9 @@ class InterpretationPlanRewriterTest {
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.hasTool("mcp_chatchat_mcp_server_api_template_query")).thenReturn(true);
         when(registry.hasTool("mcp_chatchat_mcp_server_api_template_execute")).thenReturn(true);
+        when(registry.getToolMetadata("mcp_chatchat_mcp_server_api_template_execute"))
+            .thenReturn(ToolMetadata.builder().metadata(Map.of("capabilities",
+                List.of("template_execution", "batch_execution"))).build());
         InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(
             chatModel, new ObjectMapper(), new InterpretationPlanValidator());
 
@@ -535,13 +538,21 @@ class InterpretationPlanRewriterTest {
             new InterpretationPlanValidator()
         );
 
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata("mcp_chatchat_mcp_server_sql_query_execute"))
+            .thenReturn(ToolMetadata.builder().metadata(Map.of(ToolProtocolDriverContract.METADATA_KEY,
+                ToolProtocolDriverContract.of("published.sql-template.v1",
+                    List.of("Use only a registered template selected by discovery."),
+                    List.of("If no discovery path or observed compatible template contract exists, return a partial final answer"))))
+                .build());
+
         InterpretationPlanRewriter.RewriteResult result = rewriter.rewrite(new InterpretationPlanRewriter.RewriteRequest(
             originalSqlMetadataPlan(),
             originalSqlMetadataPlan().steps().get(2),
             "TOOL_ROUTING_DENIED: No typed MCP tool is available for capability=template_discovery assetType=sql_datasource",
             List.of("mcp_chatchat_mcp_server_sql_metadata_search returned 13 columns"),
             List.of("mcp_chatchat_mcp_server_sql_metadata_search", "mcp_chatchat_mcp_server_sql_query_execute"),
-            mock(ToolRegistry.class)
+            registry
         ));
 
         assertThat(result.valid()).isTrue();
@@ -549,7 +560,7 @@ class InterpretationPlanRewriterTest {
             .doesNotContain("mcp_chatchat_mcp_server_database_ops_template_search",
                 "mcp_chatchat_mcp_server_sql_datasource_template_query", "template_query");
         assertThat(chatModel.lastPrompt())
-            .contains("legacy.sql-template.v1 via mcp_chatchat_mcp_server_sql_query_execute")
+            .contains("published.sql-template.v1 via mcp_chatchat_mcp_server_sql_query_execute")
             .contains("If no discovery path or observed compatible template contract exists, return a partial final answer")
             .contains("Use only available tools")
             .contains("Preserve a decision ledger for changed retrieval or template choices")

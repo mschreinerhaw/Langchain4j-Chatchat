@@ -17,6 +17,56 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AgentToolPolicyResolverTest {
+    @Test
+    void activatesLocalToolIntentFromDatabaseBinding() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        SkillCatalogService skills = mock(SkillCatalogService.class);
+        McpToolCatalogQueryPort catalog = mock(McpToolCatalogQueryPort.class);
+        AgentToolIntentBindingRepository bindings = mock(AgentToolIntentBindingRepository.class);
+        SkillDefinition agent = mock(SkillDefinition.class);
+        AgentToolIntentBinding binding = new AgentToolIntentBinding();
+        binding.setInputKey("documentWorkflow");
+        binding.setRequestedToolName("document_search");
+        binding.setRemoteToolName("");
+        binding.setLocalToolNameSuffix("");
+        binding.setEnabled(true);
+        when(bindings.findByEnabledTrueOrderByInputKeyAsc()).thenReturn(List.of(binding));
+        when(registry.hasTool("document_search")).thenReturn(true);
+        when(registry.getAllToolNames()).thenReturn(java.util.Set.of("document_search"));
+
+        var policy = new AgentToolPolicyResolver(registry, skills, catalog, null, bindings)
+            .resolve(InteractionRequest.builder().toolInput(Map.of("documentWorkflow", true)).build(), agent);
+
+        assertThat(policy.activatedIntents()).contains("documentWorkflow");
+        assertThat(policy.requiredTools()).contains("document_search");
+    }
+
+    @Test
+    void activatesToolIntentFromDatabaseBinding() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        SkillCatalogService skills = mock(SkillCatalogService.class);
+        McpToolCatalogQueryPort catalog = mock(McpToolCatalogQueryPort.class);
+        AgentToolIntentBindingRepository bindings = mock(AgentToolIntentBindingRepository.class);
+        SkillDefinition agent = mock(SkillDefinition.class);
+        AgentToolIntentBinding binding = new AgentToolIntentBinding();
+        binding.setInputKey("graphLookup");
+        binding.setRequestedToolName("graph_search");
+        binding.setRemoteToolName("graph_search");
+        binding.setLocalToolNameSuffix("_graph_search");
+        binding.setEnabled(true);
+        when(bindings.findByEnabledTrueOrderByInputKeyAsc()).thenReturn(List.of(binding));
+        when(catalog.registeredTools()).thenReturn(List.of(registered("mcp_graph_search", "graph_search")));
+        when(registry.hasTool("mcp_graph_search")).thenReturn(true);
+        when(registry.getAllToolNames()).thenReturn(java.util.Set.of("mcp_graph_search"));
+        when(agent.boundMcpToolNames()).thenReturn(List.of("mcp_graph_search"));
+
+        var policy = new AgentToolPolicyResolver(registry, skills, catalog, null, bindings)
+            .resolve(InteractionRequest.builder().toolInput(Map.of("graphLookup", true)).build(), agent);
+
+        assertThat(policy.activatedIntents()).contains("graphLookup");
+        assertThat(policy.requiredTools()).contains("mcp_graph_search");
+    }
+
     @Test void selectedButUnavailableCapabilitiesDoNotBecomeAnUnboundConversation() {
         var registry = mock(ToolRegistry.class);
         var skills = mock(SkillCatalogService.class);

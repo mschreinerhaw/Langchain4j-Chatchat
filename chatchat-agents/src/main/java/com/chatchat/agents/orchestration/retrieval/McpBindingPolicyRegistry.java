@@ -12,15 +12,8 @@ import java.util.Map;
 public final class McpBindingPolicyRegistry {
 
     public enum Policy {
-        PASSTHROUGH, ASSET_DISCOVERY, TEMPLATE_DISCOVERY, SQL_EXECUTION, HTTP_EXECUTION, SHELL_EXECUTION
+        PASSTHROUGH, ASSET_DISCOVERY, TEMPLATE_DISCOVERY, SQL_EXECUTION, HTTP_EXECUTION, SHELL_EXECUTION, REJECTED
     }
-
-    private static final Map<String, Policy> STANDARD_EXECUTION_PROTOCOLS = Map.of(
-        "mcp.sql-template.v1", Policy.SQL_EXECUTION,
-        "mcp.ssh-template.v1", Policy.SHELL_EXECUTION,
-        "mcp.http-template.v1", Policy.HTTP_EXECUTION,
-        "mcp.api-template.v1", Policy.HTTP_EXECUTION
-    );
 
     private final Map<String, Policy> executionProtocols;
 
@@ -29,7 +22,7 @@ public final class McpBindingPolicyRegistry {
     }
 
     public McpBindingPolicyRegistry(Map<String, Policy> additionalExecutionProtocols) {
-        Map<String, Policy> protocols = new LinkedHashMap<>(STANDARD_EXECUTION_PROTOCOLS);
+        Map<String, Policy> protocols = new LinkedHashMap<>();
         additionalExecutionProtocols.forEach((family, policy) ->
             protocols.put(family.trim().toLowerCase(Locale.ROOT), policy));
         this.executionProtocols = Map.copyOf(protocols);
@@ -42,6 +35,16 @@ public final class McpBindingPolicyRegistry {
         if (role != ToolWorkflowRole.TEMPLATE_EXECUTION) return Policy.PASSTHROUGH;
         String protocol = ToolWorkflowContract.declaredProtocolFamily(metadata)
             .map(value -> value.trim().toLowerCase(Locale.ROOT)).orElse("");
-        return executionProtocols.getOrDefault(protocol, Policy.PASSTHROUGH);
+        Policy override = executionProtocols.get(protocol);
+        if (override != null) return override;
+        McpArgumentBindingFieldPolicy fields = McpArgumentBindingFieldPolicy.from(metadata);
+        if (fields == null) return Policy.REJECTED;
+        try {
+            Policy selected = Policy.valueOf(fields.executionProtocolBindings().getOrDefault(protocol, "REJECTED"));
+            return selected == Policy.SQL_EXECUTION || selected == Policy.HTTP_EXECUTION
+                || selected == Policy.SHELL_EXECUTION ? selected : Policy.REJECTED;
+        } catch (IllegalArgumentException invalidMode) {
+            return Policy.REJECTED;
+        }
     }
 }

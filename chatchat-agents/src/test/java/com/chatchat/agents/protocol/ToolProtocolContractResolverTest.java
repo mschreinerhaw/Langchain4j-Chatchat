@@ -56,7 +56,7 @@ class ToolProtocolContractResolverTest {
     }
 
     @Test
-    void rejectsMalformedContractsAndKeepsLegacyDeploymentCompatibility() {
+    void rejectsMalformedContractsAndUnpublishedLegacyNames() {
         ToolRegistry registry = mock(ToolRegistry.class);
         String malformed = "custom_gateway";
         String legacySql = "mcp_chatchat_mcp_server_sql_query_execute";
@@ -70,10 +70,7 @@ class ToolProtocolContractResolverTest {
         ToolProtocolContractResolver resolver = new ToolProtocolContractResolver();
 
         assertThat(resolver.plannerSection(List.of(malformed), registry)).isEmpty();
-        assertThat(resolver.plannerSection(List.of(legacySql), registry))
-            .contains("legacy.sql-template.v1")
-            .contains("registered template")
-            .doesNotContain("MALFORMED_RULE");
+        assertThat(resolver.plannerSection(List.of(legacySql), registry)).isEmpty();
     }
 
     private ToolMetadata metadata(Map<String, Object> values) {

@@ -49,6 +49,7 @@ import com.chatchat.common.mcp.audit.McpContractAuditReport;
 import com.chatchat.common.knowledge.template.matching.BusinessTemplateRequirementMatchingEvent;
 import com.chatchat.common.knowledge.template.matching.TemplateMatchAnalysis;
 import com.chatchat.agents.routing.McpToolRouter;
+import com.chatchat.agents.orchestration.retrieval.McpArgumentBindingFieldPolicy;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
@@ -158,39 +159,6 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     private static final LocalToolResultReviewer LOCAL_TOOL_RESULT_REVIEWER =
         new LocalToolResultReviewer(TOOL_RESULT_FACTS);
     private static final PlanStepInputCompiler STEP_INPUT_COMPILER = new PlanStepInputCompiler();
-    private static final Set<String> DISCOVERY_FILTER_PROTOCOL_FIELDS = Set.of(
-        "trace",
-        "routingTrace",
-        "routing_trace",
-        "candidates",
-        "routingCandidates",
-        "routing_candidates",
-        "finalDecision",
-        "final_decision",
-        "selectedTargetKind",
-        "selected_target_kind",
-        "targetKind",
-        "target_kind",
-        "assetType",
-        "asset_type",
-        "confidence",
-        "filtersSchemaVersion",
-        "filters_schema_version",
-        "mcpContext",
-        "mcp_context",
-        "tenantId",
-        "tenant_id",
-        "userId",
-        "user_id",
-        "requestId",
-        "request_id",
-        "conversationId",
-        "conversation_id",
-        "toolName",
-        "tool_name",
-        "remoteTool",
-        "remote_tool"
-    );
     private final PlanToolExecutionPort toolExecutionPort;
     private final ToolRuntimeService toolRuntimeService;
     private final PlanDagControlPort dagControlPort;
@@ -2027,7 +1995,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                     safeList(request.allowedTools()),
                     request.tenantId(),
                     List.of(),
-                    request.toolRegistry() == null ? null : request.toolRegistry().getWorkflowRole(step.toolName())
+                    request.toolRegistry() == null ? null : request.toolRegistry().getWorkflowRole(step.toolName()),
+                    request.toolRegistry() == null ? null : request.toolRegistry().getToolMetadata(step.toolName())
                 );
                 if (routingDecision.routed() && !routingDecision.allowed()) {
                     throw new IllegalStateException(routingDecision.errorCode() + ": " + routingDecision.reason());
@@ -7928,7 +7897,12 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         Map<String, Object> mutableFilters = map instanceof LinkedHashMap<?, ?>
             ? (Map<String, Object>) map
             : new LinkedHashMap<>((Map<String, Object>) map);
-        DISCOVERY_FILTER_PROTOCOL_FIELDS.forEach(mutableFilters::remove);
+        ToolMetadata discoveryMetadata = step == null || request == null || request.toolRegistry() == null
+            ? null : request.toolRegistry().getToolMetadata(step.toolName());
+        McpArgumentBindingFieldPolicy fieldPolicy = McpArgumentBindingFieldPolicy.from(discoveryMetadata);
+        if (fieldPolicy != null) {
+            fieldPolicy.filterProtocolFields().forEach(mutableFilters::remove);
+        }
         repairDiscoveryFiltersFromToolMetadata(step, request, mutableFilters);
         if (input.containsKey("filters") || !input.containsKey("executionContext")) {
             input.put("filters", mutableFilters);
@@ -8607,6 +8581,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     }
 
     private ToolWorkflowRole workflowRole(String toolName, ExecutionRequest request) {
+        if (request != null && request.toolRegistry() != null) {
+            ToolWorkflowRole published = request.toolRegistry().getWorkflowRole(toolName);
+            if (published != null) return published;
+        }
         return optimizer.workflowRoleFor(toolName);
     }
 

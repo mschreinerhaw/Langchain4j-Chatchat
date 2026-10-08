@@ -56,6 +56,25 @@ import static org.mockito.Mockito.when;
 
 class InterpretationPlanRuntimeTest {
 
+    private static Map<String, Object> minimalMcpBindingPolicy() {
+        return Map.ofEntries(
+            Map.entry("logicalContextKeys", List.of("assetName")),
+            Map.entry("concreteTargetFields", List.of("hostId")),
+            Map.entry("rawExecutionFields", List.of("command")),
+            Map.entry("targetKindFields", List.of("targetKind")),
+            Map.entry("filterProtocolFields", List.of("trace", "finalDecision", "filtersSchemaVersion")),
+            Map.entry("filterFieldAliases", Map.of()),
+            Map.entry("logicalFilterFields", List.of("assetName")),
+            Map.entry("identityField", "assetName"),
+            Map.entry("semanticField", "intent"),
+            Map.entry("executionProtocolBindings", Map.of("mcp.sql-template.v1", "SQL_EXECUTION")),
+            Map.entry("executionValidationFields", Map.of("SQL_EXECUTION", List.of("sql"))),
+            Map.entry("requiredParametersByTemplateSuffix", Map.of()),
+            Map.entry("assetIdentityForbiddenParameterFields", List.of("parameters.schemaName")),
+            Map.entry("requiredExecutionContextFields", Map.of("SQL_EXECUTION", List.of("assetName", "env")))
+        );
+    }
+
     @Test
     void reviewedTemplateBatchDoesNotBorrowSelectionFromSiblingDiscoveryBranch() throws Exception {
         String discoveryTool = "mcp_chatchat_mcp_server_customer_service_template_query";
@@ -3685,6 +3704,7 @@ class InterpretationPlanRuntimeTest {
                     com.chatchat.common.tool.ToolWorkflowContract.declaration(
                         com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_EXECUTION,
                         "mcp.sql-template.v1", "executionContext"));
+                attributes.put("argumentBindingPolicy", minimalMcpBindingPolicy());
             }
             return ToolMetadata.builder().id(name).riskLevel("low").metadata(attributes).build();
         });
@@ -9180,9 +9200,17 @@ class InterpretationPlanRuntimeTest {
             ),
             review()
         );
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getWorkflowRole(step.toolName())).thenReturn(com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getToolMetadata(step.toolName())).thenReturn(ToolMetadata.builder()
+            .id(step.toolName())
+            .metadata(Map.of("argumentBindingPolicy", minimalMcpBindingPolicy()))
+            .build());
+        assertThat(com.chatchat.agents.orchestration.retrieval.McpArgumentBindingFieldPolicy.from(
+            registry.getToolMetadata(step.toolName()))).isNotNull();
         InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
             plan,
-            mock(ToolRegistry.class),
+            registry,
             List.of("mcp_chatchat_mcp_server_ssh_template_query"),
             "tenant-1",
             "req-filter-sanitize",
@@ -9216,7 +9244,9 @@ class InterpretationPlanRuntimeTest {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool(toolName)).thenReturn(true);
         when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
-            .id(toolName).riskLevel("low").build());
+            .id(toolName).riskLevel("low")
+            .metadata(Map.of("capabilities", List.of("batch_execution", "template_execution")))
+            .build());
         ToolCallBatchResult batchResult = new ToolCallBatchResult(
             "oracle-health",
             "SEQUENTIAL",

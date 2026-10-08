@@ -279,7 +279,9 @@ public class DefaultToolRegistry implements ToolRegistry {
         if (leftChecksum != null || rightChecksum != null) {
             return Objects.equals(leftChecksum, rightChecksum)
                 && Objects.equals(left.getMetadata() == null ? null : left.getMetadata().get("argumentBindingPolicy"),
-                    right.getMetadata() == null ? null : right.getMetadata().get("argumentBindingPolicy"));
+                    right.getMetadata() == null ? null : right.getMetadata().get("argumentBindingPolicy"))
+                && Objects.equals(left.getMetadata() == null ? null : left.getMetadata().get("capabilities"),
+                    right.getMetadata() == null ? null : right.getMetadata().get("capabilities"));
         }
         return left.equals(right);
     }

@@ -3,6 +3,7 @@ package com.chatchat.agents.routing;
 import org.junit.jupiter.api.Test;
 
 import com.chatchat.common.tool.ToolWorkflowRole;
+import com.chatchat.common.tool.ToolMetadata;
 import java.util.List;
 import java.util.Map;
 
@@ -29,7 +30,10 @@ class McpToolRouterTest {
             ),
             "tenant-a",
             List.of(),
-            ToolWorkflowRole.TEMPLATE_DISCOVERY
+            ToolWorkflowRole.TEMPLATE_DISCOVERY,
+            ToolMetadata.builder().metadata(Map.of("mcpToolMeta", Map.of("routingProtocol", Map.of(
+                "targetKindToAssetType", Map.of("business_database_query", "database_query"),
+                "allowedTargetKinds", List.of("business_database_query"))))).build()
         );
 
         assertThat(decision.allowed()).isTrue();
@@ -112,5 +116,23 @@ class McpToolRouterTest {
         assertThat(decision.allowed()).isTrue();
         assertThat(decision.routed()).isTrue();
         assertThat(decision.capability()).isEqualTo("template_discovery");
+    }
+
+    @Test
+    void usesPublishedMappingForNewTargetKind() {
+        ToolMetadata metadata = ToolMetadata.builder().metadata(Map.of("mcpToolMeta", Map.of(
+            "routingProtocol", Map.of("targetKindToAssetType", Map.of("graph", "graph_asset"),
+                "allowedTargetKinds", List.of("graph"))))).build();
+        McpToolRouter.RoutingDecision decision = router.route("opaque_tool",
+            Map.of("finalDecision", "graph"), List.of("opaque_tool"), "tenant-a", List.of(),
+            ToolWorkflowRole.TEMPLATE_DISCOVERY, metadata);
+
+        assertThat(decision.scope().assetType()).isEqualTo("graph_asset");
+        assertThat(router.route("opaque_tool", Map.of("finalDecision", "graph", "assetType", "other_asset"),
+            List.of("opaque_tool"), "tenant-a", List.of(), ToolWorkflowRole.TEMPLATE_DISCOVERY, metadata)
+            .allowed()).isFalse();
+        assertThat(router.route("opaque_tool", Map.of("finalDecision", "database"),
+            List.of("opaque_tool"), "tenant-a", List.of(), ToolWorkflowRole.TEMPLATE_DISCOVERY)
+            .scope().assetType()).isNull();
     }
 }

@@ -3,6 +3,7 @@ package com.chatchat.enterprise.service;
 import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolProtocolDriverContract;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowContractCatalog;
 import com.chatchat.common.tool.ToolWorkflowContractSnapshot;
@@ -11,6 +12,7 @@ import com.chatchat.enterprise.entity.mcp.McpToolAsset;
 import com.chatchat.enterprise.entity.mcp.McpToolWorkflowContract;
 import com.chatchat.enterprise.repository.mcp.McpToolAssetRepository;
 import com.chatchat.enterprise.repository.mcp.McpArgumentBindingPolicyRepository;
+import com.chatchat.enterprise.repository.mcp.McpToolRuntimeCapabilityRepository;
 import com.chatchat.enterprise.repository.mcp.McpToolWorkflowContractRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.MapperFeature;
@@ -43,7 +45,23 @@ public class DatabaseToolWorkflowContractCatalog implements ToolWorkflowContract
     private final McpToolAssetRepository tools;
     private final McpToolWorkflowContractRepository contracts;
     private final McpArgumentBindingPolicyRepository argumentBindingPolicies;
+    private final McpToolRuntimeCapabilityRepository runtimeCapabilities;
     private final ObjectMapper objectMapper;
+
+    @Override
+    @Transactional(readOnly = true)
+    public String runtimePolicyFingerprint() {
+        List<String> active = contracts.findByStatus(ACTIVE).stream()
+            .map(contract -> contract.getToolId() + ":" + contract.getContractChecksum())
+            .sorted().toList();
+        String fieldPolicy = argumentBindingPolicies.findById("default")
+            .map(policy -> policy.getPolicyJson()).orElse("");
+        List<String> capabilities = runtimeCapabilities.findAll().stream()
+            .map(value -> value.getRemoteToolName() + ":" + value.isTemplateExecution()
+                + ":" + value.isBatchExecution())
+            .sorted().toList();
+        return checksum(active, fieldPolicy, capabilities);
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -312,6 +330,15 @@ public class DatabaseToolWorkflowContractCatalog implements ToolWorkflowContract
         // Tool-specific published policy wins; the database baseline serves existing tools.
         argumentBindingPolicies.findById("default")
             .ifPresent(policy -> extensions.putIfAbsent("argumentBindingPolicy", map(policy.getPolicyJson())));
+        tools.findById(value.getToolId()).ifPresent(tool -> {
+            if (tool.getRemoteToolName() == null || tool.getRemoteToolName().isBlank()) return;
+            runtimeCapabilities.findById(tool.getRemoteToolName()).ifPresent(capability -> {
+                List<String> declared = new java.util.ArrayList<>();
+                if (capability.isTemplateExecution()) declared.add("template_execution");
+                if (capability.isBatchExecution()) declared.add("batch_execution");
+                extensions.putIfAbsent("capabilities", List.copyOf(declared));
+            });
+        });
         return new ToolWorkflowContractSnapshot(value.getToolId(), value.getContractVersion(),
             value.getSchemaVersion(), ToolWorkflowRole.valueOf(value.getWorkflowRole()),
             value.getProtocolFamily(), value.getInputEnvelope(), value.getContractChecksum(),
@@ -333,6 +360,13 @@ public class DatabaseToolWorkflowContractCatalog implements ToolWorkflowContract
         // the hierarchy; transient discovery/transport state must not enter governance.
         copyMapMetadata(published, meta, McpDynamicCapabilityRoute.METADATA_KEY);
         copyMapMetadata(published, meta, McpCapabilityHierarchy.METADATA_KEY);
+        copyMapMetadata(published, meta, "routingProtocol");
+        copyMapMetadata(published, meta, ToolProtocolDriverContract.METADATA_KEY);
+        if (meta.get("capabilities") instanceof List<?> capabilities) {
+            published.put("capabilities", List.copyOf(capabilities));
+        }
+        copyScalarMetadata(published, meta, "batch_execution");
+        copyScalarMetadata(published, meta, "template_execution");
 
         // Preserve legacy publishers during rolling upgrades. The bridge normalizes
         // these fields into the canonical dynamic route before planner projection.

@@ -29,37 +29,42 @@ public class AgentToolPolicyResolver {
 
     private static final int DEFAULT_MAX_RELEVANT_MCP_TOOLS = 3;
     private static final int MAX_RELEVANT_MCP_TOOLS_LIMIT = 20;
-    private static final String DOCUMENT_WORKFLOW_INPUT = "documentWorkflow";
-    private static final String DOCUMENT_SEARCH_TOOL = "document_search";
-
-    private static final List<ToolIntentSpec> MCP_TOOL_INTENTS = List.of(
-        new ToolIntentSpec("webSearch", "web_search", "web_search", "_web_search")
-    );
 
     private final ToolRegistry toolRegistry;
     private final SkillCatalogService skillCatalogService;
     private final McpToolCatalogQueryPort mcpToolCatalog;
     private final McpToolCandidateRetriever candidateRetriever;
+    private final AgentToolIntentBindingRepository intentBindings;
 
     public AgentToolPolicyResolver(ToolRegistry toolRegistry, SkillCatalogService skillCatalogService,
                                    McpToolCatalogQueryPort mcpToolCatalog) {
-        this(toolRegistry, skillCatalogService, mcpToolCatalog, (McpToolCandidateRetriever) null);
+        this(toolRegistry, skillCatalogService, mcpToolCatalog, (McpToolCandidateRetriever) null, null);
     }
 
     @Autowired
     public AgentToolPolicyResolver(ToolRegistry toolRegistry, SkillCatalogService skillCatalogService,
                                    McpToolCatalogQueryPort mcpToolCatalog,
-                                   ObjectProvider<McpToolCandidateRetriever> retrieverProvider) {
-        this(toolRegistry, skillCatalogService, mcpToolCatalog, retrieverProvider.getIfAvailable());
+                                   ObjectProvider<McpToolCandidateRetriever> retrieverProvider,
+                                   ObjectProvider<AgentToolIntentBindingRepository> bindingsProvider) {
+        this(toolRegistry, skillCatalogService, mcpToolCatalog,
+            retrieverProvider.getIfAvailable(), bindingsProvider.getIfAvailable());
     }
 
     AgentToolPolicyResolver(ToolRegistry toolRegistry, SkillCatalogService skillCatalogService,
                             McpToolCatalogQueryPort mcpToolCatalog,
                             McpToolCandidateRetriever candidateRetriever) {
+        this(toolRegistry, skillCatalogService, mcpToolCatalog, candidateRetriever, null);
+    }
+
+    AgentToolPolicyResolver(ToolRegistry toolRegistry, SkillCatalogService skillCatalogService,
+                            McpToolCatalogQueryPort mcpToolCatalog,
+                            McpToolCandidateRetriever candidateRetriever,
+                            AgentToolIntentBindingRepository intentBindings) {
         this.toolRegistry = toolRegistry;
         this.skillCatalogService = skillCatalogService;
         this.mcpToolCatalog = mcpToolCatalog;
         this.candidateRetriever = candidateRetriever;
+        this.intentBindings = intentBindings;
     }
 
     /**
@@ -78,20 +83,8 @@ public class AgentToolPolicyResolver {
 
         WorkflowToolResolution workflowTools = resolveRequiredWorkflowTools(skill, availableTools);
 
-        boolean documentWorkflowRequested = isDocumentWorkflowRequested(request);
-        if (documentWorkflowRequested) {
-            availableTools = withAvailableTool(availableTools, DOCUMENT_SEARCH_TOOL);
-        }
-
         List<ToolIntentSpec> requestedIntents = resolveRequestedIntents(request);
         List<ToolActivation> activations = new ArrayList<>();
-        if (documentWorkflowRequested && isAvailableTool(availableTools, DOCUMENT_SEARCH_TOOL)) {
-            activations.add(new ToolActivation(
-                DOCUMENT_WORKFLOW_INPUT,
-                DOCUMENT_SEARCH_TOOL,
-                DOCUMENT_SEARCH_TOOL
-            ));
-        }
         activations.addAll(resolveToolActivations(requestedIntents, skill));
         List<String> activatedRequiredTools = activations.stream()
             .map(ToolActivation::localToolName)
@@ -232,10 +225,6 @@ public class AgentToolPolicyResolver {
      * @param skill the skill value
      * @return whether the condition is satisfied
      */
-    private boolean isDocumentWorkflowRequested(InteractionRequest request) {
-        return isIntentRequested(request, DOCUMENT_WORKFLOW_INPUT);
-    }
-
     /**
      * Performs the with available tool operation.
      *
@@ -243,16 +232,6 @@ public class AgentToolPolicyResolver {
      * @param toolName the tool name value
      * @return the operation result
      */
-    private List<String> withAvailableTool(List<String> availableTools, String toolName) {
-        List<String> normalized = normalizeToolNames(availableTools);
-        if (!isAvailableTool(normalized, toolName) && toolRegistry.hasTool(toolName)) {
-            LinkedHashSet<String> tools = new LinkedHashSet<>(normalized);
-            tools.add(toolName);
-            return new ArrayList<>(tools);
-        }
-        return normalized;
-    }
-
     private WorkflowToolResolution resolveRequiredWorkflowTools(SkillDefinition skill, List<String> availableTools) {
         List<Map<String, Object>> steps = workflowSteps(skill);
         if (steps.isEmpty()) {
@@ -380,7 +359,10 @@ public class AgentToolPolicyResolver {
      * @return the resolved requested intents
      */
     private List<ToolIntentSpec> resolveRequestedIntents(InteractionRequest request) {
-        return MCP_TOOL_INTENTS.stream()
+        if (intentBindings == null) return List.of();
+        return intentBindings.findByEnabledTrueOrderByInputKeyAsc().stream()
+            .map(binding -> new ToolIntentSpec(binding.getInputKey(), binding.getRequestedToolName(),
+                binding.getRemoteToolName(), binding.getLocalToolNameSuffix()))
             .filter(spec -> isIntentRequested(request, spec.inputKey()))
             .toList();
     }
@@ -399,7 +381,8 @@ public class AgentToolPolicyResolver {
         List<ToolActivation> activations = new ArrayList<>();
         for (ToolIntentSpec spec : requestedIntents) {
             resolveMcpTool(spec).stream()
-                .filter(localToolName -> isToolEnabledForSkill(skill, localToolName))
+                .filter(localToolName -> spec.remoteToolName().isBlank()
+                    || isToolEnabledForSkill(skill, localToolName))
                 .findFirst()
                 .ifPresent(localToolName -> activations.add(new ToolActivation(
                     spec.inputKey(),
@@ -417,6 +400,10 @@ public class AgentToolPolicyResolver {
      * @return the resolved mcp tool
      */
     private List<String> resolveMcpTool(ToolIntentSpec spec) {
+        if (spec.remoteToolName().isBlank()) {
+            return toolRegistry.hasTool(spec.requestedToolName())
+                ? List.of(spec.requestedToolName()) : List.of();
+        }
         return mcpToolCatalog.registeredTools().stream()
             .filter(tool -> matchesMcpToolIntent(tool, spec))
             .map(McpToolCatalogQueryPort.RegisteredTool::localToolName)
@@ -810,8 +797,8 @@ public class AgentToolPolicyResolver {
     public static boolean hasSelectedCapabilities(InteractionRequest request, SkillDefinition skill) {
         if (request != null && hasNames(request.getAvailableTools())) return true;
         if (request != null && request.getToolInput() != null
-            && java.util.stream.Stream.of("webSearch", "documentWorkflow")
-                .anyMatch(key -> Boolean.parseBoolean(String.valueOf(request.getToolInput().get(key))))) return true;
+            && request.getToolInput().values().stream()
+                .anyMatch(value -> Boolean.parseBoolean(String.valueOf(value)))) return true;
         return hasMcpBinding(skill) || skill != null && (hasNames(skill.preferredToolPrefixes())
             || hasNames(skill.boundDocumentIds()) || hasNames(skill.boundDocumentTags())
             || skill.workflowConfig() != null && java.util.stream.Stream.of("mcpWorkflow", "steps")

@@ -1,6 +1,7 @@
 package com.chatchat.agents.routing;
 
 import com.chatchat.common.tool.ToolWorkflowRole;
+import com.chatchat.common.tool.ToolMetadata;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -14,17 +15,6 @@ public class McpToolRouter {
 
     public static final String ASSET_DISCOVERY = "asset_discovery";
     public static final String TEMPLATE_DISCOVERY = "template_discovery";
-    private static final Map<String, String> TARGET_KIND_TO_ASSET_TYPE = Map.of(
-        "api", "api_service",
-        "api_service", "api_service",
-        "host", "ssh_host",
-        "ssh", "ssh_host",
-        "database", "sql_datasource",
-        "sql", "sql_datasource",
-        "http", "http_endpoint",
-        "business_database_query", "database_query"
-    );
-
     public RoutingDecision route(String requestedToolName,
                                  Map<String, Object> arguments,
                                  List<String> availableTools,
@@ -39,11 +29,26 @@ public class McpToolRouter {
                                  String tenantId,
                                  List<String> roles,
                                  ToolWorkflowRole publishedRole) {
+        return route(requestedToolName, arguments, availableTools, tenantId, roles, publishedRole, null);
+    }
+
+    public RoutingDecision route(String requestedToolName,
+                                 Map<String, Object> arguments,
+                                 List<String> availableTools,
+                                 String tenantId,
+                                 List<String> roles,
+                                 ToolWorkflowRole publishedRole,
+                                 ToolMetadata metadata) {
         String capability = requestedCapability(requestedToolName, arguments, publishedRole);
         if (capability == null) {
             return RoutingDecision.unrouted(requestedToolName);
         }
-        String assetType = assetType(arguments);
+        String assetType = assetType(arguments, metadata);
+        String publishedAssetType = mappedAssetType(arguments, metadata);
+        if (assetType != null && publishedAssetType != null && !assetType.equals(publishedAssetType)) {
+            return RoutingDecision.denied(requestedToolName, assetType, capability,
+                "TOOL_ROUTING_DENIED", "assetType conflicts with the published target kind mapping");
+        }
         if (availableTools != null && !availableTools.isEmpty() && !availableTools.contains(requestedToolName)) {
             return RoutingDecision.denied(
                 requestedToolName,
@@ -81,7 +86,7 @@ public class McpToolRouter {
         return null;
     }
 
-    private String assetType(Map<String, Object> arguments) {
+    private String assetType(Map<String, Object> arguments, ToolMetadata metadata) {
         String assetType = normalize(firstText(arguments, "assetType", "asset_type"));
         if (assetType != null) {
             return assetType;
@@ -95,8 +100,28 @@ public class McpToolRouter {
                 }
             }
         }
+        return mappedAssetType(arguments, metadata);
+    }
+
+    private String mappedAssetType(Map<String, Object> arguments, ToolMetadata metadata) {
         String targetKind = normalize(firstText(arguments, "finalDecision", "targetKind", "target_kind"));
-        return targetKind == null ? null : TARGET_KIND_TO_ASSET_TYPE.get(targetKind);
+        if (targetKind == null || metadata == null || metadata.getMetadata() == null) return null;
+        Object mcpMetaValue = metadata.getMetadata().get("mcpToolMeta");
+        if (!(mcpMetaValue instanceof Map<?, ?> mcpMeta)) return null;
+        Object routingValue = mcpMeta.get("routingProtocol");
+        if (!(routingValue instanceof Map<?, ?> routing)) return null;
+        Object allowedValue = routing.get("allowedTargetKinds");
+        if (allowedValue instanceof List<?> allowed && allowed.stream()
+            .map(String::valueOf).map(this::normalize).noneMatch(targetKind::equals)) return null;
+        Object forcedKind = routing.get("forcedTargetKind");
+        if (targetKind.equals(normalize(forcedKind == null ? null : String.valueOf(forcedKind)))) {
+            Object forcedType = routing.get("forcedAssetType");
+            if (forcedType != null) return normalize(String.valueOf(forcedType));
+        }
+        Object mapping = routing.get("targetKindToAssetType");
+        if (!(mapping instanceof Map<?, ?> types)) return null;
+        Object declared = types.get(targetKind);
+        return declared == null ? null : normalize(String.valueOf(declared));
     }
 
     private String domain(Map<String, Object> arguments) {

@@ -63,6 +63,9 @@ public class McpParamBindingResolver {
         }
         McpBindingPolicyRegistry.Policy binding = bindingPolicies.resolve(metadata);
         if (binding == McpBindingPolicyRegistry.Policy.PASSTHROUGH) return values;
+        if (binding == McpBindingPolicyRegistry.Policy.REJECTED) {
+            return denied(values, "Active MCP tool contract has no supported execution binding policy.");
+        }
         McpArgumentBindingFieldPolicy fields = McpArgumentBindingFieldPolicy.from(metadata);
         if (fields == null) return denied(values, "Active MCP tool contract has no valid argumentBindingPolicy.");
         return switch (binding) {
@@ -72,6 +75,7 @@ public class McpParamBindingResolver {
             case HTTP_EXECUTION -> bindHttpRequest(values, userQuery, fields);
             case SQL_EXECUTION -> bindSqlQuery(values, userQuery, fields);
             case PASSTHROUGH -> values;
+            case REJECTED -> denied(values, "Unsupported MCP execution binding policy.");
         };
     }
 
@@ -202,7 +206,7 @@ public class McpParamBindingResolver {
                 + " requires explicit filters object, even when it is empty.");
         }
         DiscoveryParameterNormalizer.Normalization normalizedParameters =
-            discoveryParameterNormalizer.normalize(values, inferLogicalContext(userQuery), userQuery);
+            discoveryParameterNormalizer.normalize(values, inferLogicalContext(userQuery), userQuery, fields);
         Map<String, Object> filters = new LinkedHashMap<>(normalizedParameters.filters());
         removeForbidden(filters, fields);
         // A single canonical envelope prevents the MCP server from applying a second,

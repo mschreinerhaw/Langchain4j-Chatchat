@@ -3,6 +3,8 @@ package com.chatchat.agents.runtime.evaluation.regression;
 import com.chatchat.agents.evidence.graph.EvidenceGraph;
 
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -15,18 +17,21 @@ import java.util.Set;
 @Component
 public class AgentDeterministicScorer {
 
-    private static final List<String> KNOWN_CONNECTORS = List.of(
-        "jdbc",
-        "filesystem",
-        "file system",
-        "kafka",
-        "hdfs",
-        "mysql",
-        "spark sql",
-        "dataframe",
-        "insert into",
-        "create table"
-    );
+    private final AgentRegressionSemanticPolicy semanticPolicy;
+
+    public AgentDeterministicScorer() {
+        this(caseId -> new AgentRegressionSemanticPolicy.Profile(List.of(), List.of()));
+    }
+
+    public AgentDeterministicScorer(AgentRegressionSemanticPolicy semanticPolicy) {
+        this.semanticPolicy = semanticPolicy;
+    }
+
+    @Autowired
+    public AgentDeterministicScorer(ObjectProvider<AgentRegressionSemanticPolicy> policies) {
+        this(policies.getIfAvailable(() -> caseId ->
+            new AgentRegressionSemanticPolicy.Profile(List.of(), List.of())));
+    }
 
     public AgentDeterministicScore score(AgentRegressionCase testCase, AgentRegressionObservation observation) {
         AgentRegressionCase safeCase = testCase == null
@@ -37,17 +42,19 @@ public class AgentDeterministicScorer {
                 "missing regression observation", 0.0D, null, "")
             : observation;
         String corpus = String.join("\n", safeObservation.retrievalTexts()).toLowerCase(Locale.ROOT);
+        AgentRegressionSemanticPolicy.Profile profile = semanticPolicy.profile(safeCase.id());
+        List<String> knownConnectors = profile.connectorTerms();
         KeywordMatch keywordMatch = match(corpus, safeCase.expected().evidence().mustContainKeywords());
-        List<String> expectedEntities = expectedEntities(safeCase);
+        List<String> expectedEntities = expectedEntities(safeCase, knownConnectors);
         KeywordMatch entityMatch = match(corpus, expectedEntities);
-        List<String> matchedConnectors = KNOWN_CONNECTORS.stream()
+        List<String> matchedConnectors = knownConnectors.stream()
             .filter(connector -> corpus.contains(connector))
             .distinct()
             .toList();
 
         double keywordCoverage = ratio(keywordMatch.matched().size(), safeCase.expected().evidence().mustContainKeywords().size());
         double entityCoverage = ratio(entityMatch.matched().size(), expectedEntities.size());
-        double connectorCoverage = ratio(matchedConnectors.size(), expectedConnectorCount(expectedEntities));
+        double connectorCoverage = ratio(matchedConnectors.size(), expectedConnectorCount(expectedEntities, knownConnectors));
         double chunkCoverage = chunkCoverage(safeObservation.retrievalTexts(), safeCase.expected().evidence().mustContainKeywords());
         double score = average(keywordCoverage, entityCoverage, connectorCoverage, chunkCoverage);
 
@@ -75,15 +82,15 @@ public class AgentDeterministicScorer {
             keywordMatch.missing(),
             entityMatch.matched(),
             matchedConnectors,
-            graph(graphEntities),
+            graph(graphEntities, profile.relationRules()),
             metrics
         );
     }
 
-    private List<String> expectedEntities(AgentRegressionCase testCase) {
+    private List<String> expectedEntities(AgentRegressionCase testCase, List<String> knownConnectors) {
         Set<String> entities = new LinkedHashSet<>();
         if (testCase.input() != null && testCase.input().query() != null) {
-            addKnownEntities(entities, testCase.input().query());
+            addKnownEntities(entities, testCase.input().query(), knownConnectors);
         }
         addAll(entities, testCase.expected().retrieval().mustContain());
         addAll(entities, testCase.expected().evidence().mustContainKeywords());
@@ -95,9 +102,9 @@ public class AgentDeterministicScorer {
             .toList();
     }
 
-    private void addKnownEntities(Set<String> entities, String text) {
+    private void addKnownEntities(Set<String> entities, String text, List<String> knownConnectors) {
         String normalized = text.toLowerCase(Locale.ROOT);
-        for (String connector : KNOWN_CONNECTORS) {
+        for (String connector : knownConnectors) {
             if (normalized.contains(connector)) {
                 entities.add(connector);
             }
@@ -130,9 +137,9 @@ public class AgentDeterministicScorer {
         return new KeywordMatch(matched, missing);
     }
 
-    private int expectedConnectorCount(List<String> expectedEntities) {
+    private int expectedConnectorCount(List<String> expectedEntities, List<String> knownConnectors) {
         long expected = expectedEntities == null ? 0L : expectedEntities.stream()
-            .filter(entity -> KNOWN_CONNECTORS.contains(entity.toLowerCase(Locale.ROOT)))
+            .filter(entity -> knownConnectors.contains(entity.toLowerCase(Locale.ROOT)))
             .count();
         return (int) Math.max(1L, expected);
     }
@@ -158,14 +165,15 @@ public class AgentDeterministicScorer {
         return ratio(covered, chunks.size());
     }
 
-    private AgentRegressionResult.EvidenceGraph graph(List<String> entities) {
+    private AgentRegressionResult.EvidenceGraph graph(List<String> entities,
+        List<AgentRegressionSemanticPolicy.RelationRule> rules) {
         List<String> safeEntities = entities == null ? List.of() : List.copyOf(entities);
         List<String> relations = new ArrayList<>();
-        if (safeEntities.contains("spark sql") && safeEntities.contains("jdbc")) {
-            relations.add("Spark SQL -> uses -> JDBC");
-        }
-        if (safeEntities.contains("spark sql") && safeEntities.contains("filesystem")) {
-            relations.add("Spark SQL -> reads -> FileSystem");
+        for (AgentRegressionSemanticPolicy.RelationRule rule : rules) {
+            if (safeEntities.contains(rule.source().toLowerCase(Locale.ROOT))
+                && safeEntities.contains(rule.target().toLowerCase(Locale.ROOT))) {
+                relations.add(rule.sourceLabel() + " -> " + rule.relation() + " -> " + rule.targetLabel());
+            }
         }
         if (relations.isEmpty() && safeEntities.size() > 1) {
             String root = safeEntities.get(0);

@@ -47,6 +47,25 @@ class McpParamBindingResolverTest {
     }
 
     @Test
+    void publishedFilterAliasesAndLogicalFieldsDriveNormalization() {
+        ToolMetadata original = declaredDiscoveryMetadata(ToolWorkflowRole.ASSET_DISCOVERY);
+        Map<String, Object> policy = new java.util.LinkedHashMap<>(bindingPolicy());
+        policy.put("filterFieldAliases", Map.of("regioncode", "region"));
+        policy.put("logicalFilterFields", List.of("region"));
+        Map<String, Object> extra = new java.util.LinkedHashMap<>(original.getMetadata());
+        extra.put("argumentBindingPolicy", policy);
+        ToolMetadata updated = ToolMetadata.builder().id("opaque_discovery").categories(List.of("mcp"))
+            .metadata(extra).build();
+
+        Map<String, Object> result = resolver.resolve("opaque_discovery", updated,
+            Map.of("regionCode", "east-1", "filters", Map.of(),
+                "finalDecision", "database", "confidence", 0.91), "find assets");
+
+        assertThat(result).doesNotContainKey(McpParamBindingResolver.STATUS_KEY);
+        assertThat(((Map<?, ?>) result.get("filters")).get("region")).isEqualTo("east-1");
+    }
+
+    @Test
     void explicitDiscoveryRoleWinsOverExecutorProtocolFamily() {
         String toolName = "mcp_runtime_capability_bridge";
         ToolMetadata metadata = ToolMetadata.builder()
@@ -619,7 +638,7 @@ class McpParamBindingResolverTest {
     }
 
     private Map<String, Object> bindingPolicy() {
-        return Map.of(
+        Map<String, Object> policy = new java.util.LinkedHashMap<>(Map.of(
             "logicalContextKeys", List.of("env", "environment", "cluster", "namespace", "target",
                 "targetType", "target_type", "assetName", "asset_name", "name", "hostSelector",
                 "host_selector", "database", "databaseType", "dbType", "dialect", "databaseRole",
@@ -634,7 +653,42 @@ class McpParamBindingResolverTest {
                 "selected_target_kind", "targetKind", "target_kind", "assetType", "asset_type", "confidence",
                 "filtersSchemaVersion", "filters_schema_version", "mcpContext", "mcp_context", "tenantId",
                 "tenant_id", "userId", "user_id", "requestId", "request_id", "conversationId",
-                "conversation_id", "toolName", "tool_name", "remoteTool", "remote_tool"));
+                "conversation_id", "toolName", "tool_name", "remoteTool", "remote_tool")));
+        policy.put("filterFieldAliases", Map.ofEntries(
+            Map.entry("assetname", "assetName"), Map.entry("name", "assetName"),
+            Map.entry("environment", "env"), Map.entry("targettype", "targetType"),
+            Map.entry("databasetype", "databaseType"), Map.entry("dbtype", "dbType"),
+            Map.entry("databaserole", "databaseRole"), Map.entry("hostselector", "hostSelector"),
+            Map.entry("queryterms", "queryTerms"), Map.entry("searchterms", "queryTerms"),
+            Map.entry("retrievalsignals", "retrievalSignals"), Map.entry("bilingualintent", "bilingualIntent"),
+            Map.entry("bilingualquery", "bilingualQuery"), Map.entry("bilingualsearch", "bilingualQuery"),
+            Map.entry("intentzh", "intentZh"), Map.entry("intenten", "intentEn"),
+            Map.entry("intentaliases", "intentAliases"), Map.entry("intentcandidates", "intentCandidates"),
+            Map.entry("businessgroup", "businessGroup"), Map.entry("groupname", "groupName"),
+            Map.entry("groupdescription", "groupDescription"), Map.entry("templateid", "templateId"),
+            Map.entry("toolname", "toolName"), Map.entry("querylanguage", "queryLanguage")));
+        policy.put("logicalFilterFields", List.of("env", "cluster", "namespace", "target", "targetType",
+            "assetName", "hostSelector", "database", "databaseType", "dbType", "dialect", "databaseRole",
+            "service", "labels", "intent", "goal", "category", "queryTerms", "retrievalSignals",
+            "intentCandidates", "bilingualIntent", "bilingualQuery", "intentZh", "intentEn",
+            "intentAliases", "keywords", "businessGroup", "group", "groupName", "groupDescription",
+            "toolName", "template", "templateId", "view", "language", "queryLanguage", "locale"));
+        policy.put("identityField", "assetName");
+        policy.put("semanticField", "intent");
+        policy.put("executionProtocolBindings", Map.of("mcp.sql-template.v1", "SQL_EXECUTION",
+            "mcp.ssh-template.v1", "SHELL_EXECUTION", "mcp.http-template.v1", "HTTP_EXECUTION",
+            "mcp.api-template.v1", "HTTP_EXECUTION"));
+        policy.put("executionValidationFields", Map.of(
+            "SQL_EXECUTION", List.of("sql", "rawsql", "raw_sql", "statement", "query"),
+            "HTTP_EXECUTION", List.of("url", "uri", "method", "headers", "body", "bodytemplate",
+                "body_template", "endpointid", "endpoint_id", "host", "hostname", "ip", "ipaddress",
+                "ip_address", "address"),
+            "SHELL_EXECUTION", List.of("command", "rawcommand", "raw_command", "shell", "script",
+                "hostid", "host_id", "host", "hostname", "ip", "ipaddress", "ip_address", "address")));
+        policy.put("requiredParametersByTemplateSuffix", Map.of("_TABLE_METADATA", List.of("tableName")));
+        policy.put("assetIdentityForbiddenParameterFields", List.of("parameters.schemaName"));
+        policy.put("requiredExecutionContextFields", Map.of("SQL_EXECUTION", List.of("assetName", "env")));
+        return Map.copyOf(policy);
     }
 
     private List<String> strings(Object value) {

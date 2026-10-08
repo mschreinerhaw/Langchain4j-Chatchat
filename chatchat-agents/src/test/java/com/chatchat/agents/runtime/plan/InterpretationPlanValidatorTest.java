@@ -509,7 +509,9 @@ class InterpretationPlanValidatorTest {
             ToolWorkflowRole role = asset.equals(toolName) ? ToolWorkflowRole.ASSET_DISCOVERY
                 : template.equals(toolName) ? ToolWorkflowRole.TEMPLATE_DISCOVERY
                 : ToolWorkflowRole.TEMPLATE_EXECUTION;
-            metadata.metadata(Map.of(ToolWorkflowContract.METADATA_KEY,
+            metadata.metadata(Map.of(
+                "argumentBindingPolicy", bindingPolicy(),
+                ToolWorkflowContract.METADATA_KEY,
                 ToolWorkflowContract.declaration(role, "mcp.api-template.v1", "parameters")));
             if (execute.equals(toolName)) {
                 metadata.parameters(List.of(
@@ -738,10 +740,7 @@ class InterpretationPlanValidatorTest {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_execute")).thenReturn(true);
         when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_sql_query_execute"))
-            .thenReturn(ToolMetadata.builder()
-                .id("mcp_chatchat_mcp_server_sql_query_execute")
-                .riskLevel("low")
-                .build());
+            .thenReturn(executionMetadata("mcp_chatchat_mcp_server_sql_query_execute", "mcp.sql-template.v1"));
 
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",
@@ -780,7 +779,7 @@ class InterpretationPlanValidatorTest {
 
         assertThat(result.valid()).isFalse();
         assertThat(result.errors()).extracting(InterpretationPlanValidator.ValidationIssue::message)
-            .anyMatch(message -> message.contains("Raw SQL is not a template parameter"));
+            .anyMatch(message -> message.contains("Raw execution fields are not template parameters"));
     }
 
 
@@ -860,7 +859,7 @@ class InterpretationPlanValidatorTest {
 
         assertThat(result.valid()).isFalse();
         assertThat(result.errors()).extracting(InterpretationPlanValidator.ValidationIssue::message)
-            .anyMatch(message -> message.contains("Do not bind asset_query assets[].asset.name"));
+            .anyMatch(message -> message.contains("Asset identity cannot be bound"));
     }
 
     @Test
@@ -1012,10 +1011,7 @@ class InterpretationPlanValidatorTest {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_execute")).thenReturn(true);
         when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_sql_query_execute"))
-            .thenReturn(ToolMetadata.builder()
-                .id("mcp_chatchat_mcp_server_sql_query_execute")
-                .riskLevel("low")
-                .build());
+            .thenReturn(executionMetadata("mcp_chatchat_mcp_server_sql_query_execute", "mcp.sql-template.v1"));
 
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",
@@ -1059,7 +1055,7 @@ class InterpretationPlanValidatorTest {
 
         assertThat(result.valid()).isFalse();
         assertThat(result.errors()).extracting(InterpretationPlanValidator.ValidationIssue::message)
-            .anyMatch(message -> message.contains("sql_query_execute requires logical executionContext"));
+            .anyMatch(message -> message.contains("Template executor requires logical executionContext"));
     }
 
     @Test
@@ -1205,10 +1201,7 @@ class InterpretationPlanValidatorTest {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_execute")).thenReturn(true);
         when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_sql_query_execute"))
-            .thenReturn(ToolMetadata.builder()
-                .id("mcp_chatchat_mcp_server_sql_query_execute")
-                .riskLevel("low")
-                .build());
+            .thenReturn(executionMetadata("mcp_chatchat_mcp_server_sql_query_execute", "mcp.sql-template.v1"));
 
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",
@@ -1270,10 +1263,7 @@ class InterpretationPlanValidatorTest {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_execute")).thenReturn(true);
         when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_sql_query_execute"))
-            .thenReturn(ToolMetadata.builder()
-                .id("mcp_chatchat_mcp_server_sql_query_execute")
-                .riskLevel("low")
-                .build());
+            .thenReturn(executionMetadata("mcp_chatchat_mcp_server_sql_query_execute", "mcp.sql-template.v1"));
 
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",
@@ -1341,10 +1331,7 @@ class InterpretationPlanValidatorTest {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_http_request_execute")).thenReturn(true);
         when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_http_request_execute"))
-            .thenReturn(ToolMetadata.builder()
-                .id("mcp_chatchat_mcp_server_http_request_execute")
-                .riskLevel("low")
-                .build());
+            .thenReturn(executionMetadata("mcp_chatchat_mcp_server_http_request_execute", "mcp.http-template.v1"));
 
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",
@@ -1390,7 +1377,7 @@ class InterpretationPlanValidatorTest {
 
         assertThat(result.valid()).isFalse();
         assertThat(result.errors()).extracting(InterpretationPlanValidator.ValidationIssue::message)
-            .anyMatch(message -> message.contains("Raw HTTP request fields are not template parameters")
+            .anyMatch(message -> message.contains("Raw request fields are not template parameters")
                 || message.contains("HTTP template execution must use a returned template id"));
     }
 
@@ -1399,10 +1386,7 @@ class InterpretationPlanValidatorTest {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_linux_command_execute")).thenReturn(true);
         when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_linux_command_execute"))
-            .thenReturn(ToolMetadata.builder()
-                .id("mcp_chatchat_mcp_server_linux_command_execute")
-                .riskLevel("low")
-                .build());
+            .thenReturn(executionMetadata("mcp_chatchat_mcp_server_linux_command_execute", "mcp.ssh-template.v1"));
 
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",
@@ -1448,7 +1432,7 @@ class InterpretationPlanValidatorTest {
 
         assertThat(result.valid()).isFalse();
         assertThat(result.errors()).extracting(InterpretationPlanValidator.ValidationIssue::message)
-            .anyMatch(message -> message.contains("Raw SSH command/target fields are not template parameters")
+            .anyMatch(message -> message.contains("Raw command or target fields are not template parameters")
                 || message.contains("SSH template execution must use a returned template id"));
     }
 
@@ -1457,10 +1441,7 @@ class InterpretationPlanValidatorTest {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_execute")).thenReturn(true);
         when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_sql_query_execute"))
-            .thenReturn(ToolMetadata.builder()
-                .id("mcp_chatchat_mcp_server_sql_query_execute")
-                .riskLevel("low")
-                .build());
+            .thenReturn(executionMetadata("mcp_chatchat_mcp_server_sql_query_execute", "mcp.sql-template.v1"));
 
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",
@@ -1508,7 +1489,7 @@ class InterpretationPlanValidatorTest {
 
         assertThat(result.valid()).isFalse();
         assertThat(result.errors()).extracting(InterpretationPlanValidator.ValidationIssue::message)
-            .anyMatch(message -> message.contains("sql_query_execute requires logical executionContext"));
+            .anyMatch(message -> message.contains("Template executor requires logical executionContext"));
     }
 
     @Test
@@ -1616,9 +1597,41 @@ class InterpretationPlanValidatorTest {
         return ToolMetadata.builder()
             .id(toolName)
             .riskLevel("low")
-            .metadata(Map.of(ToolWorkflowContract.METADATA_KEY,
+            .metadata(Map.of(
+                "argumentBindingPolicy", bindingPolicy(),
+                ToolWorkflowContract.METADATA_KEY,
                 ToolWorkflowContract.declaration(role, protocolFamily, "parameters")))
             .build();
+    }
+
+    private ToolMetadata executionMetadata(String toolName, String protocolFamily) {
+        return workflowMetadata(toolName, ToolWorkflowRole.TEMPLATE_EXECUTION, protocolFamily);
+    }
+
+    private Map<String, Object> bindingPolicy() {
+        return Map.ofEntries(
+            Map.entry("logicalContextKeys", List.of("env")),
+            Map.entry("concreteTargetFields", List.of("hostId")),
+            Map.entry("rawExecutionFields", List.of("command")),
+            Map.entry("targetKindFields", List.of("targetKind")),
+            Map.entry("filterProtocolFields", List.of("trace")),
+            Map.entry("filterFieldAliases", Map.of("environment", "env")),
+            Map.entry("logicalFilterFields", List.of("env")),
+            Map.entry("identityField", "assetName"),
+            Map.entry("semanticField", "intent"),
+            Map.entry("requiredParametersByTemplateSuffix", Map.of("_TABLE_METADATA", List.of("tableName"))),
+            Map.entry("assetIdentityForbiddenParameterFields", List.of("parameters.schemaName")),
+            Map.entry("requiredExecutionContextFields", Map.of("SQL_EXECUTION", List.of("assetName", "env"))),
+            Map.entry("executionProtocolBindings", Map.of("mcp.sql-template.v1", "SQL_EXECUTION",
+                "mcp.http-template.v1", "HTTP_EXECUTION", "mcp.api-template.v1", "HTTP_EXECUTION",
+                "mcp.ssh-template.v1", "SHELL_EXECUTION")),
+            Map.entry("executionValidationFields", Map.of(
+                "SQL_EXECUTION", List.of("sql", "rawsql", "raw_sql", "statement", "query"),
+                "HTTP_EXECUTION", List.of("url", "uri", "method", "headers", "body", "bodytemplate",
+                    "body_template", "endpointid", "endpoint_id", "host", "hostname", "ip", "ipaddress",
+                    "ip_address", "address"),
+                "SHELL_EXECUTION", List.of("command", "rawcommand", "raw_command", "shell", "script",
+                    "hostid", "host_id", "host", "hostname", "ip", "ipaddress", "ip_address", "address"))));
     }
 
     private InterpretationPlan.Context context() {

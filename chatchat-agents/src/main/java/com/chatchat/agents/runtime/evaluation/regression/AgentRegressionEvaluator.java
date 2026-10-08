@@ -1,6 +1,7 @@
 package com.chatchat.agents.runtime.evaluation.regression;
 
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -22,6 +23,7 @@ public class AgentRegressionEvaluator {
         this(new AgentDeterministicScorer());
     }
 
+    @Autowired
     public AgentRegressionEvaluator(AgentDeterministicScorer deterministicScorer) {
         this.deterministicScorer = deterministicScorer == null ? new AgentDeterministicScorer() : deterministicScorer;
     }

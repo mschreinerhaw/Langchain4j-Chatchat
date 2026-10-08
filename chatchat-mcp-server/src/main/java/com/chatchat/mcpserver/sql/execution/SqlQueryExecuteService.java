@@ -54,6 +54,8 @@ public class SqlQueryExecuteService {
     private final DynamicJdbcDriverLoader driverLoader;
     private final DynamicDateParamService dynamicDateParamService;
     private final DatabaseToolProperties databaseToolProperties;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.mcpserver.sql.datasource.NativeQueryDatasourceProbe nativeProbe;
 
     public SqlQueryResult execute(Map<String, Object> arguments) {
         return executeInternal(arguments, null);
@@ -122,6 +124,7 @@ public class SqlQueryExecuteService {
     }
 
     public SqlQueryResult testConnection(SqlDatasourceConfig datasource) {
+        if (com.chatchat.mcpserver.sql.datasource.NativeQueryDatasource.isNative(datasource)) return nativeProbe.test(datasource);
         long startedAt = System.currentTimeMillis();
         int timeoutSeconds = Math.max(1, Math.min(datasource.getDefaultTimeoutSeconds(), 60));
         log.info("MCP SQL execution capability probe started: datasourceName={}, tool={}, env={}, jdbcUrl={}, timeoutSeconds={}",

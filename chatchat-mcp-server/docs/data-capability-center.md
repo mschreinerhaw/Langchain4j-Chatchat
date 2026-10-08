@@ -7,7 +7,8 @@
 ## 统一查询工作台
 
 原查询配置表、`sqlSteps` JSON 字段及 `/api/v1/database-query` 保存、测试接口承载所有查询类型。
-已有关系库配置继续使用原资产 ID；图库和检索使用 `http:<资产ID>` 引用资产配置中的 HTTP 资产，避免与 SQL 资产 ID 冲突。
+关系库、Trino、Neo4j、OpenSearch 和 Elasticsearch 统一在“资产中心 → 数据库资产”管理，并使用原数据库资产 ID。
+已有图库和检索的 `http:<资产ID>` 引用继续兼容，无需重建已有查询。
 `GET /api/v1/database-query/datasources` 返回可选资产的名称、类型、查询语言及启用状态，不返回连接地址或认证信息。
 
 选择数据源后，同一个步骤编辑器按类型显示查询语法及选项：
@@ -18,6 +19,12 @@
 | Trino | 只读 SQL | 可选 `catalog`、`schema` | 沿用 SQL 参数 |
 | Neo4j | 只读 Cypher | `database`，默认 `neo4j` | 原生 `$name`，单独传递参数 |
 | OpenSearch | JSON DSL | 必填 `index` | 完整 JSON 值 `"{{name}}"`，保留数组和对象类型 |
+| Elasticsearch | JSON DSL | 必填 `index` | 同上，语句使用 Elasticsearch 原生 DSL |
+
+数据库资产中的查询驱动新增 `neo4j-http`、`opensearch-http`、`elasticsearch-http`，分别对应 Cypher、OpenSearch JSON DSL 和 Elasticsearch JSON DSL。
+连接地址填写 HTTP(S) 基础地址，例如 `http://host:7474` 或 `https://host:9200`；账号密码在原字段维护，执行时读取最新资产配置并传递 Basic 认证。
+这些是内置原生查询适配器，不依赖额外 JDBC 驱动包；原关系库的 JDBC、自定义驱动选项保留。
+资产“测试连接”分别执行 Neo4j 只读探测或检索集群根接口请求；原生驱动不执行 JDBC 元数据刷新，交易日历仍选用 JDBC 数据库资产。
 
 数据源切换不会自动翻译或覆盖已有语句，用户按目标语法编辑同一查询步骤。
 依赖编排、流程输入、系统日期变量、上游结果、结果语义、测试预览、审计、缓存及既有 API/MCP 发布链路共用原实现。
@@ -32,7 +39,7 @@
   "templateCode": "REPORT_SEARCH",
   "templateName": "报告检索",
   "templateType": "DATABASE_QUERY",
-  "datasourceId": "http:search_asset_id",
+  "datasourceId": "search_asset_id",
   "description": "检索相关报告",
   "implementationSteps": "检索报告并分析结果",
   "sqlSteps": [{

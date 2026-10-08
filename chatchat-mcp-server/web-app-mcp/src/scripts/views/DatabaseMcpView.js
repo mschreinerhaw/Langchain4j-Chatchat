@@ -302,6 +302,8 @@ export default {
     },
     datasourceOptions(enabledOnly) {
       return this.sqlAssets
+        .filter(asset => !['neo4j', 'opensearch', 'elasticsearch'].some(type => asset.driverClass === type + '-http')
+          && !(['neo4j', 'opensearch', 'elasticsearch'].includes(asset.databaseType) && /^https?:\/\//.test(asset.jdbcUrl || '')))
         .filter(asset => !enabledOnly || asset.enabled !== false)
         .map(asset => ({
           value: asset.id,

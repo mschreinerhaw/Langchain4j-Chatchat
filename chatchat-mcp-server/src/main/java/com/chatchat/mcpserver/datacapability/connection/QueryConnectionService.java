@@ -15,6 +15,8 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class QueryConnectionService {
     private final HttpEndpointConfigService assets;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService databaseAssets;
 
     public List<AssetReference> list(CapabilityType type) {
         return assets.listAll().stream()
@@ -24,7 +26,10 @@ public class QueryConnectionService {
     }
 
     public HttpEndpointConfig get(String id, CapabilityType type, boolean enabled) {
-        HttpEndpointConfig asset = assets.getById(id);
+        HttpEndpointConfig asset = id.startsWith("db:")
+            ? com.chatchat.mcpserver.sql.datasource.NativeQueryDatasource.connection(enabled
+                ? databaseAssets.getEnabled(id.substring(3)) : databaseAssets.getById(id.substring(3)))
+            : assets.getById(id);
         if (typeOf(asset) != type || (enabled && !asset.isEnabled()))
             throw new IllegalArgumentException("Datasource asset type mismatch or disabled");
         if (!"POST".equalsIgnoreCase(asset.getMethod()))
@@ -40,7 +45,7 @@ public class QueryConnectionService {
         String category = asset.getCategory() == null ? "" : asset.getCategory().toLowerCase(Locale.ROOT);
         return switch (category) {
             case "graph_database", "neo4j" -> CapabilityType.GRAPH;
-            case "search_engine", "opensearch" -> CapabilityType.UNSTRUCTURED;
+            case "search_engine", "opensearch", "elasticsearch" -> CapabilityType.UNSTRUCTURED;
             default -> null;
         };
     }

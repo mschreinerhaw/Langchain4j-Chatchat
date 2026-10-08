@@ -161,6 +161,7 @@
                   :reserve-keyword="false"
                   :placeholder="field.placeholder"
                   :required="isFieldRequired(field)"
+                  @change="onFieldChange(field, $event)"
                 >
                   <el-option v-for="option in fieldOptions(field)" :key="String(option.value)" :label="option.label" :value="option.value" />
                 </el-select>

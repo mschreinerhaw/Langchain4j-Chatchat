@@ -165,7 +165,9 @@ public class DatabaseQueryAdminController {
      */
     @PostMapping("/test")
     public ApiResponse<ToolOutput> test(@RequestBody DatabaseQueryTestRequest request) {
-        if (!com.chatchat.mcpserver.database.execution.DatabaseQuerySourceAdapterService.isHttp(request.datasourceId())
+        boolean nativeQuery = sourceAdapters != null ? sourceAdapters.usesAdapter(request.datasourceId())
+            : com.chatchat.mcpserver.database.execution.DatabaseQuerySourceAdapterService.isHttp(request.datasourceId());
+        if (!nativeQuery
             && !toolRegistry.hasTool(TOOL_NAME)) {
             return ApiResponse.internalError("database_query tool is not registered");
         }

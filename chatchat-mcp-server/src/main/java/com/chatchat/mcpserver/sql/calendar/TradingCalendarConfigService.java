@@ -36,7 +36,10 @@ public class TradingCalendarConfigService {
         if (config == null || config.getDatasourceId() == null || config.getDatasourceId().isBlank()) {
             return null;
         }
-        return datasourceConfigService.getEnabled(config.getDatasourceId());
+        SqlDatasourceConfig asset = datasourceConfigService.getEnabled(config.getDatasourceId());
+        if (com.chatchat.mcpserver.sql.datasource.NativeQueryDatasource.isNative(asset))
+            throw new IllegalArgumentException("交易日历请选择 JDBC 数据库资产");
+        return asset;
     }
 
     public TradingCalendarConfig normalizeForExecution(TradingCalendarConfig request) {

@@ -111,7 +111,7 @@ export default {
     databaseQueryProfile() {
       const source = this.querySources.find(item => item.id === this.form.datasourceId);
       if (source?.type === 'GRAPH') return { type: 'GRAPH', title: '只读 Cypher', hint: '使用 $name 传入参数，数据库默认 neo4j', placeholder: 'MATCH (n:Company) WHERE n.name = $name RETURN n', parameterHint: '扫描 $name 参数；实体标签与关系类型不会识别为参数。' };
-      if (source?.type === 'UNSTRUCTURED') return { type: 'UNSTRUCTURED', title: 'OpenSearch JSON DSL', hint: '指定索引，支持关键词、条件过滤和向量检索', placeholder: '{ "query": { "match": { "name": "{{name}}" } } }', parameterHint: '参数使用完整 JSON 字符串值 {{name}}，支持数组、对象和数字。' };
+      if (source?.type === 'UNSTRUCTURED') return { type: 'UNSTRUCTURED', title: source.databaseType === 'elasticsearch' ? 'Elasticsearch JSON DSL' : 'OpenSearch JSON DSL', hint: '指定索引，支持关键词、条件过滤和向量检索', placeholder: '{ "query": { "match": { "name": "{{name}}" } } }', parameterHint: '参数使用完整 JSON 字符串值 {{name}}，支持数组、对象和数字。' };
       return { type: source?.type || 'RELATIONAL', title: source?.type === 'TRINO' ? '只读 Trino SQL' : '只读 SQL', hint: '支持 SELECT、SHOW、DESCRIBE、EXPLAIN', placeholder: 'SELECT ... WHERE customer_id = :customerId', parameterHint: '可识别 :name、${trade_date}、{{name}}；扫描只补充缺失参数，不覆盖已有配置。' };
     },
     filtered() {
@@ -648,6 +648,13 @@ export default {
       if (typeof field.visible === 'function') return field.visible(this.form);
       if (typeof field.hidden === 'function') return !field.hidden(this.form);
       return field.visible !== false && field.hidden !== true;
+    },
+    onFieldChange(field, value) {
+      if (typeof field.onChange !== 'function') return;
+      const lists = this.formFields.filter(item => item.type === 'jsonStringList');
+      lists.forEach(item => { this.form[item.key] = JSON.stringify(this.listDraft[item.key] || []); });
+      field.onChange(this.form, value);
+      lists.forEach(item => { this.listDraft[item.key] = parseStringList(this.form[item.key], []); });
     },
     renderedSectionFields(section) {
       const fields = Array.isArray(section?.fields) ? section.fields : [];

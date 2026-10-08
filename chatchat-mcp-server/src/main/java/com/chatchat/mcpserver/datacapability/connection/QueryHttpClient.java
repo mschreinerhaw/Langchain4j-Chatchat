@@ -17,10 +17,18 @@ public class QueryHttpClient {
         .followRedirects(HttpClient.Redirect.NEVER).build();
 
     public JsonNode post(HttpEndpointConfig asset, String path, Object body, int timeoutSeconds, Map<String, String> headers) throws Exception {
+        return send(asset, path, body, timeoutSeconds, headers, false);
+    }
+
+    public JsonNode get(HttpEndpointConfig asset, String path, int timeoutSeconds) throws Exception {
+        return send(asset, path, null, timeoutSeconds, Map.of(), true);
+    }
+
+    private JsonNode send(HttpEndpointConfig asset, String path, Object body, int timeoutSeconds, Map<String, String> headers, boolean get) throws Exception {
         String endpoint = asset.getUrlTemplate().replaceAll("/+$", "");
         HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(endpoint + path))
-            .timeout(Duration.ofMillis(Math.min(timeoutSeconds * 1000L, Math.max(1000, asset.getTimeoutMs()))))
-            .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
+            .timeout(Duration.ofMillis(Math.min(timeoutSeconds * 1000L, Math.max(1000, asset.getTimeoutMs()))));
+        if (get) request.GET(); else request.POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
         request.setHeader("Content-Type", "application/json");
         if (asset.getHeadersJson() != null && !asset.getHeadersJson().isBlank()) {
             JsonNode assetHeaders = json.readTree(asset.getHeadersJson());

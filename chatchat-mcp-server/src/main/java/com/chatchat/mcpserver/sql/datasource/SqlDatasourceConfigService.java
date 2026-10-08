@@ -57,7 +57,7 @@ public class SqlDatasourceConfigService {
     public SqlDatasourceConfig create(SqlDatasourceConfig config) {
         normalize(config, null);
         SqlDatasourceConfig saved = repository.save(config);
-        metadataAssetRegistryService.syncDefaultForDatasource(saved);
+        if (!NativeQueryDatasource.isNative(saved)) metadataAssetRegistryService.syncDefaultForDatasource(saved);
         syncExecutionTargets(saved, config.getExecutionTargets());
         return saved;
     }
@@ -95,7 +95,7 @@ public class SqlDatasourceConfigService {
         config.setGovernanceJson(normalizeJsonObject(request.getGovernanceJson(), "governance"));
         normalize(config, id);
         SqlDatasourceConfig saved = repository.save(config);
-        metadataAssetRegistryService.syncDefaultForDatasource(saved);
+        if (!NativeQueryDatasource.isNative(saved)) metadataAssetRegistryService.syncDefaultForDatasource(saved);
         syncExecutionTargets(saved, request.getExecutionTargets());
         return saved;
     }
@@ -135,13 +135,16 @@ public class SqlDatasourceConfigService {
                 throw new IllegalArgumentException("SQL datasource toolName already exists: " + config.getToolName());
             });
         config.setTitle(firstText(config.getTitle(), config.getName()));
-        config.setDescription(firstText(config.getDescription(),
-            "用途：查询 " + config.getName() + "，只允许 SELECT/SHOW/DESCRIBE/EXPLAIN。禁止任何写入、DDL、权限、删除、更新操作。"));
         config.setJdbcUrl(requireText(config.getJdbcUrl(), "jdbcUrl is required"));
         if (isApplicationJdbcUrl(config.getJdbcUrl())) {
             throw new IllegalArgumentException("Local configuration datasource is forbidden");
         }
         config.setDatabaseType(normalizeDatabaseType(config.getDatabaseType(), config.getJdbcUrl(), config.getDriverClass()));
+        NativeQueryDatasource.normalize(config);
+        config.setDescription(firstText(config.getDescription(),
+            "用途：查询 " + config.getName() + (NativeQueryDatasource.isNative(config)
+                ? "，提供只读 " + ("neo4j".equals(config.getDatabaseType()) ? "Cypher" : "JSON DSL") + " 查询。"
+                : "，只允许 SELECT/SHOW/DESCRIBE/EXPLAIN。禁止任何写入、DDL、权限、删除、更新操作。")));
         config.setEnvironment(normalizeEnvironment(config.getEnvironment()));
         config.setRuntimeAction("confirm_required");
         config.setMetadataScopeType(normalizeMetadataScopeType(config.getMetadataScopeType()));
@@ -150,8 +153,10 @@ public class SqlDatasourceConfigService {
         config.setRoutingLabelsJson(normalizeJsonArray(mergedProtocolValues(config.getRoutingLabelsJson(), config.getRoutingLabels()), "routingLabels"));
         String capabilitiesJson = normalizeJsonArray(
             mergedProtocolValues(config.getCapabilitiesJson(), config.getCapabilities()), "capabilities");
-        config.setCapabilitiesJson("[]".equals(capabilitiesJson)
-            ? ModelProtocolJson.compact(List.of("jdbc", "sql_query_execute"))
+        config.setCapabilitiesJson(capabilitiesJson == null || "[]".equals(capabilitiesJson)
+            ? ModelProtocolJson.compact(NativeQueryDatasource.isNative(config)
+                ? List.of("database_query", "neo4j".equals(config.getDatabaseType()) ? "cypher_query" : "search_query", "http")
+                : List.of("jdbc", "sql_query_execute"))
             : capabilitiesJson);
         config.setDefaultTimeoutSeconds(Math.max(1, Math.min(config.getDefaultTimeoutSeconds(), 60)));
         config.setDefaultMaxRows(Math.max(1, Math.min(config.getDefaultMaxRows(), 5000)));

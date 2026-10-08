@@ -190,6 +190,8 @@ public class MetadataIndexService {
     }
 
     public synchronized MetadataRefreshResult refreshDatasource(SqlDatasourceConfig datasource) {
+        if (com.chatchat.mcpserver.sql.datasource.NativeQueryDatasource.isNative(datasource))
+            throw new IllegalArgumentException("原生查询资产不使用 JDBC 元数据刷新");
         long startedAt = System.currentTimeMillis();
         if (datasource == null) {
             MetadataIndex failed = MetadataIndex.failed(null, "generic", "datasource is required");

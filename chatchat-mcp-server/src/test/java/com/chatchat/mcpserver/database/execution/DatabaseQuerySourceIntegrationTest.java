@@ -13,6 +13,11 @@ import com.chatchat.mcpserver.datacapability.unstructured.OpenSearchQueryAdapter
 import com.chatchat.mcpserver.ops.http.HttpEndpointConfig;
 import com.chatchat.mcpserver.sql.calendar.DynamicDateParamService;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
+import com.chatchat.mcpserver.sql.datasource.NativeQueryDatasource;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import com.chatchat.mcpserver.sql.execution.SqlScriptExecuteService;
 import com.chatchat.tools.builtin.DynamicJdbcDriverLoader;
 import com.fasterxml.jackson.databind.*;
@@ -150,5 +155,56 @@ class DatabaseQuerySourceIntegrationTest {
         ReflectionTestUtils.setField(guard, "queryDefinitions", repository);
         assertThatThrownBy(() -> guard.assertUnused("asset", false)).hasMessageContaining("query_company");
         guard.assertUnused("asset", true);
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"neo4j", "opensearch", "elasticsearch"})
+    void databaseAssetsUseNativeDriversInOriginalWorkflow(String type) throws Exception {
+        var database = new SqlDatasourceConfig();
+        database.setId("native"); database.setName(type); database.setEnabled(true);
+        database.setDatabaseType(type); database.setDriverClass(type + "-http");
+        database.setJdbcUrl("http://127.0.0.1:" + server.getAddress().getPort());
+        database.setUsername("reader"); database.setPassword("secret");
+        when(sqlAssets.getEnabled("native")).thenReturn(database);
+        when(sqlAssets.getById("native")).thenReturn(database);
+        when(sqlAssets.listAll()).thenReturn(List.of(database));
+        var legacyHttp = mock(HttpEndpointConfigService.class);
+        var centralConnections = new QueryConnectionService(legacyHttp);
+        ReflectionTestUtils.setField(centralConnections, "databaseAssets", sqlAssets);
+        var http = new QueryHttpClient(json);
+        adapters = new DatabaseQuerySourceAdapterService(sqlAssets, centralConnections,
+            new GraphQueryAdapter(centralConnections, http, json), new OpenSearchQueryAdapter(centralConnections, http, json));
+        ReflectionTestUtils.setField(invoke, "sourceAdapters", adapters);
+        assertThat(adapters.list()).singleElement().satisfies(source -> {
+            assertThat(source.id()).isEqualTo("native");
+            assertThat(source.databaseType()).isEqualTo(type);
+            assertThat(source.queryLanguage()).isEqualTo(type.equals("neo4j") ? "Cypher" : "JSON DSL");
+        });
+        String path = type.equals("neo4j") ? "/db/neo4j/tx/commit" : "/documents/_search";
+        String response = type.equals("neo4j")
+            ? "{\"errors\":[],\"results\":[{\"columns\":[\"title\"],\"data\":[{\"row\":[\"Report\"]}]}]}"
+            : "{\"hits\":{\"total\":1,\"hits\":[{\"_id\":\"doc-1\",\"_source\":{\"title\":\"Report\"}}]}}";
+        var authHeaders = new ArrayList<String>();
+        server.createContext(path, exchange -> {
+            authHeaders.add(exchange.getRequestHeaders().getFirst("Authorization"));
+            requests.add(json.readTree(exchange.getRequestBody()));
+            byte[] body = response.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length); exchange.getResponseBody().write(body); exchange.close();
+        });
+        server.start();
+        var step = step("READ", type.equals("neo4j") ? "RETURN $name AS title" : "{\"query\":{\"terms\":{\"tags\":\"{{tags}}\"}}}");
+        step.setParameters(type.equals("neo4j") ? Map.of("name", "Report") : Map.of("tags", List.of("finance", "news")));
+        step.setQueryOptions(type.equals("neo4j") ? Map.of("database", "neo4j") : Map.of("index", "documents"));
+        var configuration = config(List.of(step)); configuration.setDatasourceId("native");
+        var result = invoke.invokePreview(configuration, Map.of());
+        assertThat(result.isSuccess()).as(result.getErrorMessage()).isTrue();
+        assertThat(json.valueToTree(result.getData()).at("/rows/0/title").asText()).isEqualTo("Report");
+        assertThat(authHeaders).containsExactly("Basic " + Base64.getEncoder().encodeToString("reader:secret".getBytes(StandardCharsets.UTF_8)));
+        if (!type.equals("neo4j")) assertThat(requests.get(0).at("/query/terms/tags").isArray()).isTrue();
+        database.setPassword("changed");
+        assertThat(centralConnections.get("db:native", type.equals("neo4j") ? CapabilityType.GRAPH : CapabilityType.UNSTRUCTURED, true).getHeadersJson())
+            .contains(Base64.getEncoder().encodeToString("reader:changed".getBytes(StandardCharsets.UTF_8)));
+        verifyNoInteractions(tools);
+        verify(legacyHttp, never()).getById(anyString());
+        verify(legacyHttp, never()).create(any());
     }
 }

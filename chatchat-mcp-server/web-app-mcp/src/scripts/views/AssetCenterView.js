@@ -98,7 +98,7 @@ export default {
           key: 'refresh-metadata',
           label: '刷新元数据',
           type: 'primary',
-          disabled: row => !row?.id,
+          disabled: row => !row?.id || isNativeQueryAsset(row),
           successMessage: '元数据刷新已提交',
           run: row => api.refreshSqlMetadata(row.id)
         }
@@ -305,17 +305,20 @@ export default {
         { key: 'categoryId', label: '业务分类', type: 'select', required: true, options: () => this.businessCategoryOptions, placeholder: '选择统一业务分类', help: '用于资产发现、模板分类检索和执行目标约束。' },
         { key: 'enabled', label: '状态', type: 'select', options: boolOptions() },
         { key: 'description', label: '工具描述', type: 'textarea', span: 'col-12', placeholder: '说明该数据源包含哪些业务数据，以及允许查询的范围', help: '建议写清楚库用途、数据敏感性和适用查询场景。' },
-        { key: 'jdbcUrl', label: 'JDBC URL', required: true, span: 'col-12', placeholder: '如 jdbc:mysql://10.10.1.20:3306/orders?useSSL=false', help: '填写完整 JDBC URL，必须能从 MCP server 连接到数据库。' },
+        { key: 'jdbcUrl', label: '连接地址（JDBC / HTTP）', required: true, span: 'col-12', placeholder: 'JDBC URL 或 http://host:7474、https://host:9200', help: '关系库填写 JDBC URL；Neo4j、OpenSearch、Elasticsearch 原生驱动填写 HTTP(S) 基础地址，认证信息在下方账号和密码中维护。' },
         {
           key: 'driverClass',
-          label: 'Driver Class',
+          label: '查询驱动 / Driver Class',
           type: 'select',
           allowCreate: true,
           options: driverClassOptions(),
-          placeholder: '选择或输入 JDBC Driver Class',
-          help: '可从常用驱动中选择，也可以直接输入自定义驱动类；留空时系统按数据库类型尝试推断。'
+          onChange: (form, value) => { if (nativeQueryTypes.includes(String(value).replace(/-http$/, ''))) setQueryAssetType(form, value.replace(/-http$/, '')); },
+          placeholder: '选择查询驱动或输入自定义 JDBC Driver Class',
+          help: '图库和检索选择内置原生查询驱动；关系库保留 JDBC 驱动类和自定义驱动支持。'
         },
-        { key: 'databaseType', label: 'Database Type', type: 'select', options: databaseTypeOptions(), placeholder: '选择数据库类型', help: '数据库类型会影响探测 SQL、元数据读取和模板匹配。' },
+        { key: 'databaseType', label: 'Database Type', type: 'select', options: databaseTypeOptions(), placeholder: '选择数据库类型', help: '数据库类型决定查询语法及默认驱动。', onChange: (form, value) => {
+          setQueryAssetType(form, value);
+        } },
         { key: 'username', label: '只读账号', placeholder: '如 readonly_user', help: '建议配置只读账号，避免使用 DDL/DML 权限账号。' },
         { key: 'password', label: '密码', type: 'password', placeholder: '数据库账号密码' },
         { key: 'environment', label: '环境', type: 'select', options: envOptions() },
@@ -352,8 +355,11 @@ export default {
         { key: 'sensitiveTablesJson', label: '敏感表', type: 'jsonStringList', placeholder: '输入敏感表名，如 user_secret', span: 'col-md-6', help: '用于标记需要更严格治理的表。' },
         { key: 'sensitiveFieldsJson', label: '敏感字段', type: 'jsonStringList', placeholder: '输入字段名，如 phone、id_card', span: 'col-md-6', help: '用于标记敏感字段，可按 表.字段 或字段名填写。' },
         { key: 'routingLabelsJson', label: '路由标签', type: 'jsonStringList', placeholder: '输入标签，如 mysql、prod', span: 'col-md-6', help: '用于资产检索和路由匹配。' },
-        { key: 'capabilitiesJson', label: '能力标签', type: 'jsonStringList', required: true, requiredAnyOf: ['sql_query_execute', 'sql_exec', 'sql', 'jdbc'], requiredAnyOfMessage: '数据库能力标签必须包含 jdbc、sql 或 sql_query_execute', placeholder: '输入能力，如 sql、metadata', span: 'col-md-6', help: '描述该资产可提供的能力。' }
-      ].map(field => ({ ...field, ...assetFieldLayout('sql', field.key) }));
+        { key: 'capabilitiesJson', label: '能力标签', type: 'jsonStringList', required: true, requiredAnyOf: ['sql_query_execute', 'sql_exec', 'sql', 'jdbc', 'database_query', 'cypher_query', 'search_query'], requiredAnyOfMessage: '数据库能力标签必须包含 SQL、Cypher 或检索查询能力', placeholder: '输入能力，如 sql、cypher_query、search_query', span: 'col-md-6', help: '描述该资产可提供的能力。' }
+      ].map(field => ({ ...field, ...assetFieldLayout('sql', field.key),
+        ...(['metadataScopeType', 'metadataScopeValue', 'metadataAutoRefreshEnabled', 'metadataRefreshIntervalMinutes', 'allowedTemplatesJson', 'allowedTablesJson'].includes(field.key)
+          ? { visible: form => !isNativeQueryAsset(form) } : {})
+      }));
     },
     httpFields() {
       return [
@@ -952,12 +958,35 @@ function databaseTypeOptions() {
     'sqlserver',
     'mariadb',
     'clickhouse',
-    'trino'
-  ].map(value => ({ value, label: value }));
+    'trino', 'neo4j', 'opensearch', 'elasticsearch'
+  ].map(value => ({ value, label: ({ neo4j: 'Neo4j', opensearch: 'OpenSearch', elasticsearch: 'Elasticsearch' })[value] || value }));
+}
+
+const nativeQueryTypes = ['neo4j', 'opensearch', 'elasticsearch'];
+function setQueryAssetType(form, type) {
+  form.databaseType = type;
+  const native = nativeQueryTypes.includes(type);
+  if (native) { form.driverClass = type + '-http'; form.metadataAutoRefreshEnabled = false; }
+  else if (nativeQueryTypes.some(item => form.driverClass === item + '-http')) form.driverClass = '';
+  const managed = ['jdbc', 'sql_query_execute', 'metadata', 'database_query', 'cypher_query', 'search_query', 'http'];
+  let labels;
+  try { labels = JSON.parse(form.capabilitiesJson || '[]'); } catch { return; }
+  if (!Array.isArray(labels)) return;
+  const custom = labels.filter(label => !managed.includes(label));
+  form.capabilitiesJson = JSON.stringify([...custom, ...(native
+    ? ['database_query', type === 'neo4j' ? 'cypher_query' : 'search_query', 'http']
+    : ['jdbc', 'sql_query_execute', 'metadata'])]);
+}
+function isNativeQueryAsset(asset) {
+  return nativeQueryTypes.some(type => asset?.driverClass === type + '-http')
+    || (nativeQueryTypes.includes(asset?.databaseType) && /^https?:\/\//.test(asset?.jdbcUrl || ''));
 }
 
 function driverClassOptions() {
   return [
+    { value: 'neo4j-http', label: 'Neo4j - Cypher 原生查询驱动（HTTP）' },
+    { value: 'opensearch-http', label: 'OpenSearch - JSON DSL 原生查询驱动（HTTP）' },
+    { value: 'elasticsearch-http', label: 'Elasticsearch - JSON DSL 原生查询驱动（HTTP）' },
     { value: 'io.trino.jdbc.TrinoDriver', label: 'Trino - io.trino.jdbc.TrinoDriver' },
     { value: 'com.mysql.cj.jdbc.Driver', label: 'MySQL / TiDB / TDSQL / GoldenDB - com.mysql.cj.jdbc.Driver' },
     { value: 'org.mariadb.jdbc.Driver', label: 'MariaDB - org.mariadb.jdbc.Driver' },

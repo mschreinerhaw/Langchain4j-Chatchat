@@ -169,7 +169,7 @@ public class DatabaseQueryInvokeService {
      */
     public ToolOutput invoke(Map<String, Object> parameters) {
         long startedAt = System.currentTimeMillis();
-        if (DatabaseQuerySourceAdapterService.isHttp(text(parameters, "datasource_id"))) {
+        if (usesSourceAdapter(text(parameters, "datasource_id"))) {
             return sourceAdapters.execute(parameters);
         }
         if (!toolRegistry.hasTool(TOOL_NAME)) {
@@ -324,7 +324,7 @@ public class DatabaseQueryInvokeService {
     }
 
     private ToolOutput invokeSingleStatement(Map<String, Object> parameters) {
-        if (DatabaseQuerySourceAdapterService.isHttp(text(parameters, "datasource_id"))) {
+        if (usesSourceAdapter(text(parameters, "datasource_id"))) {
             return sourceAdapters.execute(parameters);
         }
         ToolInput input = ToolInput.builder()
@@ -367,7 +367,7 @@ public class DatabaseQueryInvokeService {
         systemContext.put("currentUser", invocationUserId(userInput));
         systemContext.put("datasourceId", baseParameters.get("datasource_id"));
         systemContext.put("datasourceName", baseParameters.get("datasource_name"));
-        SqlDatasourceConfig workflowDatasource = DatabaseQuerySourceAdapterService.isHttp(config.getDatasourceId())
+        SqlDatasourceConfig workflowDatasource = usesSourceAdapter(config.getDatasourceId())
             ? null : datasourceConfigService.getEnabled(config.getDatasourceId());
         steps.stream()
             .flatMap(step -> step.getParameterMappings().stream())
@@ -528,7 +528,7 @@ public class DatabaseQueryInvokeService {
                                                      DatabaseQuerySqlStep stepConfig,
                                                      Map<String, Object> resolvedParameters) {
         Map<String, Object> parameters = new LinkedHashMap<>(baseParameters);
-        boolean httpSource = DatabaseQuerySourceAdapterService.isHttp(config.getDatasourceId());
+        boolean httpSource = usesSourceAdapter(config.getDatasourceId());
         SqlDatasourceConfig datasource = httpSource ? null : datasourceConfigService.getEnabled(config.getDatasourceId());
         Map<String, Object> resolvedParams = dynamicDateParamService.enrichParameters(
             resolvedParameters,
@@ -645,7 +645,7 @@ public class DatabaseQueryInvokeService {
         if (config.getDatasourceId() == null || config.getDatasourceId().isBlank()) {
             throw new IllegalArgumentException("database query requires an enabled datasource asset");
         }
-        boolean httpSource = DatabaseQuerySourceAdapterService.isHttp(config.getDatasourceId());
+        boolean httpSource = usesSourceAdapter(config.getDatasourceId());
         SqlDatasourceConfig datasource = httpSource ? null : datasourceConfigService.getEnabled(config.getDatasourceId());
         String sqlContext = hasSqlSteps(config)
             ? readSqlSteps(config.getSqlStepsJson()).stream()
@@ -714,6 +714,11 @@ public class DatabaseQueryInvokeService {
 
     private boolean hasSqlSteps(DatabaseQueryConfig config) {
         return config != null && config.getSqlStepsJson() != null && !config.getSqlStepsJson().isBlank();
+    }
+
+    private boolean usesSourceAdapter(String reference) {
+        return DatabaseQuerySourceAdapterService.isHttp(reference)
+            || (sourceAdapters != null && sourceAdapters.usesAdapter(reference));
     }
 
     private List<DatabaseQuerySqlStep> readSqlSteps(String json) {

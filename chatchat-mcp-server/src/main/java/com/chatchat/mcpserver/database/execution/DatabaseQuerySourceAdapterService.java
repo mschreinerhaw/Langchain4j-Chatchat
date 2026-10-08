@@ -9,6 +9,8 @@ import com.chatchat.mcpserver.datacapability.execution.CapabilityAdapter;
 import com.chatchat.mcpserver.datacapability.graph.GraphQueryAdapter;
 import com.chatchat.mcpserver.datacapability.unstructured.OpenSearchQueryAdapter;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
+import com.chatchat.mcpserver.sql.datasource.NativeQueryDatasource;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -33,8 +35,7 @@ public class DatabaseQuerySourceAdapterService {
 
     public List<SourceView> list() {
         List<SourceView> sources = new ArrayList<>();
-        sqlAssets.listAll().forEach(asset -> sources.add(new SourceView(asset.getId(), asset.getName(),
-            asset.getDatabaseType(), sqlType(asset.getDatabaseType(), asset.getJdbcUrl()).name(), "SQL", asset.isEnabled())));
+        sqlAssets.listAll().forEach(asset -> sources.add(databaseSource(asset)));
         httpAssets.list(null).forEach(asset -> sources.add(new SourceView(HTTP_PREFIX + asset.id(), asset.name(),
             asset.type() == CapabilityType.GRAPH ? "neo4j" : "opensearch", asset.type().name(),
             asset.type() == CapabilityType.GRAPH ? "Cypher" : "JSON DSL", asset.enabled())));
@@ -44,8 +45,8 @@ public class DatabaseQuerySourceAdapterService {
     public SourceView getEnabled(String reference) {
         if (!isHttp(reference)) {
             var asset = sqlAssets.getEnabled(reference);
-            return new SourceView(reference, asset.getName(), asset.getDatabaseType(),
-                sqlType(asset.getDatabaseType(), asset.getJdbcUrl()).name(), "SQL", true);
+            if (NativeQueryDatasource.isNative(asset)) NativeQueryDatasource.validateAddress(asset.getJdbcUrl());
+            return databaseSource(asset);
         }
         String id = reference.substring(HTTP_PREFIX.length());
         var asset = httpAssets.list(null).stream().filter(item -> item.id().equals(id)).findFirst()
@@ -60,9 +61,23 @@ public class DatabaseQuerySourceAdapterService {
             ? CapabilityType.TRINO : CapabilityType.RELATIONAL;
     }
 
+    private SourceView databaseSource(SqlDatasourceConfig asset) {
+        String nativeType = NativeQueryDatasource.type(asset);
+        CapabilityType type = nativeType == null ? sqlType(asset.getDatabaseType(), asset.getJdbcUrl())
+            : "neo4j".equals(nativeType) ? CapabilityType.GRAPH : CapabilityType.UNSTRUCTURED;
+        return new SourceView(asset.getId(), asset.getName(), nativeType == null ? asset.getDatabaseType() : nativeType,
+            type.name(), type == CapabilityType.GRAPH ? "Cypher" : type == CapabilityType.UNSTRUCTURED ? "JSON DSL" : "SQL", asset.isEnabled());
+    }
+
+    public boolean usesAdapter(String reference) {
+        if (isHttp(reference)) return true;
+        if (reference == null || reference.isBlank()) return false;
+        return NativeQueryDatasource.isNative(sqlAssets.getEnabled(reference));
+    }
+
     public void validate(String reference, List<DatabaseQuerySqlStep> steps, String legacyQuery) {
         SourceView source = getEnabled(reference);
-        if (isHttp(reference)) {
+        if (source.type().equals("GRAPH") || source.type().equals("UNSTRUCTURED")) {
             if (steps.isEmpty()) throw new IllegalArgumentException("图库和检索查询请配置查询步骤及查询选项");
             for (var step : steps) {
                 if (step.enabled()) adapter(source).validate(definition(source, step.getSqlContent(), step.getQueryOptions(), 30, 50));
@@ -117,7 +132,7 @@ public class DatabaseQuerySourceAdapterService {
 
     private CapabilityDefinition definition(SourceView source, String query, Map<String, Object> options, int timeout, int maxRows) {
         return new CapabilityDefinition("workflow_step", "查询步骤", "统一查询工作台", CapabilityType.valueOf(source.type()),
-            null, source.id().substring(HTTP_PREFIX.length()), query, null, null, options,
+            null, isHttp(source.id()) ? source.id().substring(HTTP_PREFIX.length()) : "db:" + source.id(), query, null, null, options,
             Math.max(1, Math.min(300, timeout)), Math.max(1, Math.min(1000, maxRows)), true, false, false);
     }
 

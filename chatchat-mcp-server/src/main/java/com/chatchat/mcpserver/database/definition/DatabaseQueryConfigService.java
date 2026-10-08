@@ -534,7 +534,9 @@ public class DatabaseQueryConfigService {
             if (name == null) {
                 throw new IllegalArgumentException("sqlSteps[" + stepIndex + "].parameters contains an empty parameter name");
             }
-            if (!com.chatchat.mcpserver.database.execution.DatabaseQuerySourceAdapterService.isHttp(configuredParameterDatasource)
+            boolean nativeParameters = sourceAdapters != null ? sourceAdapters.usesAdapter(configuredParameterDatasource)
+                : com.chatchat.mcpserver.database.execution.DatabaseQuerySourceAdapterService.isHttp(configuredParameterDatasource);
+            if (!nativeParameters
                 && (value instanceof Map<?, ?> || value instanceof Iterable<?> || (value != null && value.getClass().isArray()))) {
                 throw new IllegalArgumentException("sqlSteps[" + stepIndex + "].parameters." + name
                     + " must be a text, number or boolean value");

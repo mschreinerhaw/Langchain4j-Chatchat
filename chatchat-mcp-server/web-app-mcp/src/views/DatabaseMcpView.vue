@@ -33,6 +33,7 @@
       search-placeholder="搜索名称、描述、实现步骤、工作台步骤、标签或数据源"
       :columns="columns"
       :form-fields="formFields"
+      :query-sources="querySources"
       :defaults="defaults"
       :searchable-fields="['toolName', 'title', 'capabilityCategory', 'businessGroupName', 'domain', 'businessScope', 'description', 'implementationSteps', 'tags', 'indexTags', 'sqlSteps', 'datasourceId']"
       :list-action="listQueries"
@@ -129,7 +130,7 @@
       </header>
       <el-row :gutter="12">
         <el-col :xs="24" :md="12">
-          <label class="form-label">目标数据库资产</label>
+          <label class="form-label">目标数据源资产</label>
           <el-select
             v-model="dslDatasourceId"
             class="w-100"
@@ -138,7 +139,7 @@
             placeholder="可选；默认使用模板内 datasourceId"
           >
             <el-option
-              v-for="option in datasourceSelectOptions"
+              v-for="option in querySourceOptions"
               :key="String(option.value)"
               :label="option.label"
               :value="option.value"

@@ -59,6 +59,8 @@ public class DatabaseQueryInvokeService {
     private final DatabaseQueryCacheService cacheService;
     private final SqlWorkflowEngine workflowEngine = new SqlWorkflowEngine();
     private FinancialMarketQueryExecutor financialMarketQueryExecutor;
+    @Autowired
+    private DatabaseQuerySourceAdapterService sourceAdapters;
 
     @Value("${chatchat.tools.database-query.workflow.max-parallelism:4}")
     private int workflowMaxParallelism = 4;
@@ -167,6 +169,9 @@ public class DatabaseQueryInvokeService {
      */
     public ToolOutput invoke(Map<String, Object> parameters) {
         long startedAt = System.currentTimeMillis();
+        if (DatabaseQuerySourceAdapterService.isHttp(text(parameters, "datasource_id"))) {
+            return sourceAdapters.execute(parameters);
+        }
         if (!toolRegistry.hasTool(TOOL_NAME)) {
             long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
             log.warn("Database query invoke failed tool={} durationMs={} error={}",
@@ -319,6 +324,9 @@ public class DatabaseQueryInvokeService {
     }
 
     private ToolOutput invokeSingleStatement(Map<String, Object> parameters) {
+        if (DatabaseQuerySourceAdapterService.isHttp(text(parameters, "datasource_id"))) {
+            return sourceAdapters.execute(parameters);
+        }
         ToolInput input = ToolInput.builder()
             .requestId(UUID.randomUUID().toString())
             .userId(invocationUserId(parameters))
@@ -359,7 +367,8 @@ public class DatabaseQueryInvokeService {
         systemContext.put("currentUser", invocationUserId(userInput));
         systemContext.put("datasourceId", baseParameters.get("datasource_id"));
         systemContext.put("datasourceName", baseParameters.get("datasource_name"));
-        SqlDatasourceConfig workflowDatasource = datasourceConfigService.getEnabled(config.getDatasourceId());
+        SqlDatasourceConfig workflowDatasource = DatabaseQuerySourceAdapterService.isHttp(config.getDatasourceId())
+            ? null : datasourceConfigService.getEnabled(config.getDatasourceId());
         steps.stream()
             .flatMap(step -> step.getParameterMappings().stream())
             .filter(mapping -> "SYSTEM_CONTEXT".equalsIgnoreCase(mapping.getSourceType()))
@@ -519,15 +528,21 @@ public class DatabaseQueryInvokeService {
                                                      DatabaseQuerySqlStep stepConfig,
                                                      Map<String, Object> resolvedParameters) {
         Map<String, Object> parameters = new LinkedHashMap<>(baseParameters);
-        SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(config.getDatasourceId());
+        boolean httpSource = DatabaseQuerySourceAdapterService.isHttp(config.getDatasourceId());
+        SqlDatasourceConfig datasource = httpSource ? null : datasourceConfigService.getEnabled(config.getDatasourceId());
         Map<String, Object> resolvedParams = dynamicDateParamService.enrichParameters(
             resolvedParameters,
             datasource,
             stepConfig.getSqlContent()
         );
-        String sql = dynamicDateParamService.resolveSqlPlaceholders(stepConfig.getSqlContent(), datasource);
+        String sql = httpSource ? stepConfig.getSqlContent()
+            : dynamicDateParamService.resolveSqlPlaceholders(stepConfig.getSqlContent(), datasource);
         parameters.put("sql", sql);
         parameters.put("params", resolvedParams);
+        parameters.put("query_options", stepConfig.getQueryOptions());
+        stepConfig.getQueryOptions().forEach((key, value) -> {
+            if (Set.of("catalog", "schema").contains(key) && value != null && !value.toString().isBlank()) parameters.put(key, value);
+        });
         int maxRows = stepConfig.getMaxResultRows() == null || stepConfig.getMaxResultRows() <= 0
             ? config.getMaxRows()
             : stepConfig.getMaxResultRows();
@@ -630,7 +645,8 @@ public class DatabaseQueryInvokeService {
         if (config.getDatasourceId() == null || config.getDatasourceId().isBlank()) {
             throw new IllegalArgumentException("database query requires an enabled datasource asset");
         }
-        SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(config.getDatasourceId());
+        boolean httpSource = DatabaseQuerySourceAdapterService.isHttp(config.getDatasourceId());
+        SqlDatasourceConfig datasource = httpSource ? null : datasourceConfigService.getEnabled(config.getDatasourceId());
         String sqlContext = hasSqlSteps(config)
             ? readSqlSteps(config.getSqlStepsJson()).stream()
                 .map(DatabaseQuerySqlStep::getSqlContent)
@@ -645,12 +661,19 @@ public class DatabaseQueryInvokeService {
         );
         Map<String, Object> parameters = new LinkedHashMap<>();
         if (!hasSqlSteps(config)) {
-            parameters.put("sql", dynamicDateParamService.resolveSqlPlaceholders(config.getSqlTemplate(), datasource));
+            parameters.put("sql", httpSource ? config.getSqlTemplate()
+                : dynamicDateParamService.resolveSqlPlaceholders(config.getSqlTemplate(), datasource));
         }
         parameters.put("params", resolvedArguments);
         parameters.put("max_rows", config.getMaxRows());
         parameters.put("timeoutSeconds", config.getTimeoutSeconds());
         parameters.put("timeout_seconds", config.getTimeoutSeconds());
+        if (httpSource) {
+            var source = sourceAdapters.getEnabled(config.getDatasourceId());
+            parameters.put("datasource_id", source.id());
+            parameters.put("datasource_name", source.name());
+            return parameters;
+        }
         putIfPresent(parameters, "jdbc_url", datasource.getJdbcUrl());
         putIfPresent(parameters, "driver_class", datasource.getDriverClass());
         putIfPresent(parameters, "database_type", datasource.getDatabaseType());

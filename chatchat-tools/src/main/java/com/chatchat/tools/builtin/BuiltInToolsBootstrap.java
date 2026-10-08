@@ -239,6 +239,11 @@ public class BuiltInToolsBootstrap {
                     .required(false)
                     .defaultValue(false)
                     .build()
+                ,
+                ToolParameter.builder().name("catalog").type("string")
+                    .description("Optional Trino catalog for this query.").required(false).build(),
+                ToolParameter.builder().name("schema").type("string")
+                    .description("Optional Trino schema for this query.").required(false).build()
             ))
             .tags(Arrays.asList("database", "sql", "read-only", "agent"))
             .metadata(Map.of(
@@ -656,13 +661,41 @@ public class BuiltInToolsBootstrap {
             if (input.getParameterAsBoolean("reload_drivers", false)) {
                 dynamicJdbcDriverLoader.reloadDrivers();
             }
-            return dynamicJdbcDriverLoader.createDataSource(
+            DataSource source = dynamicJdbcDriverLoader.createDataSource(
                 jdbcUrl.trim(),
                 input.getParameterAsString("username", ""),
                 input.getParameterAsString("password", ""),
                 input.getParameterAsString("driver_class", ""),
                 input.getParameterAsString("database_type", "")
             );
+            if (!jdbcUrl.startsWith("jdbc:trino:")) return source;
+            String catalog = queryNamespace(input.getParameterAsString("catalog", ""));
+            String schema = queryNamespace(input.getParameterAsString("schema", ""));
+            if (catalog == null && schema == null) return source;
+            return new org.springframework.jdbc.datasource.DelegatingDataSource(source) {
+                @Override public java.sql.Connection getConnection() throws java.sql.SQLException {
+                    return configure(super.getConnection());
+                }
+                @Override public java.sql.Connection getConnection(String username, String password) throws java.sql.SQLException {
+                    return configure(super.getConnection(username, password));
+                }
+                private java.sql.Connection configure(java.sql.Connection connection) throws java.sql.SQLException {
+                    try {
+                        if (catalog != null) connection.setCatalog(catalog);
+                        if (schema != null) connection.setSchema(schema);
+                        return connection;
+                    } catch (java.sql.SQLException | RuntimeException ex) {
+                        try { connection.close(); } catch (java.sql.SQLException closeError) { ex.addSuppressed(closeError); }
+                        throw ex;
+                    }
+                }
+            };
+        }
+
+        private String queryNamespace(String value) {
+            if (value == null || value.isBlank()) return null;
+            if (!value.matches("[A-Za-z_][A-Za-z0-9_]*")) throw new IllegalArgumentException("Invalid Trino catalog/schema");
+            return value;
         }
 
         /**

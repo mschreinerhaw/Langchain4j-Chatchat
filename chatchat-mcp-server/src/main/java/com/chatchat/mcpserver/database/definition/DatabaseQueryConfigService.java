@@ -55,6 +55,8 @@ public class DatabaseQueryConfigService {
     private final LuceneMcpSearchService luceneSearchService;
     private final DataQueryCategoryService categoryService;
     private FinancialDatasetReadinessService financialDatasetReadinessService;
+    @Autowired
+    private com.chatchat.mcpserver.database.execution.DatabaseQuerySourceAdapterService sourceAdapters;
 
     public DatabaseQueryConfigService(DatabaseQueryConfigRepository repository,
                                       ApiServiceConfigRepository apiServiceConfigRepository,
@@ -361,6 +363,10 @@ public class DatabaseQueryConfigService {
         }
         if (isInternalFinancialMarketDatasource(config)) {
             config.setDatabaseType("financial_market");
+        } else if (sourceAdapters != null) {
+            var source = sourceAdapters.getEnabled(config.getDatasourceId());
+            sourceAdapters.validate(config.getDatasourceId(), sqlSteps, config.getSqlTemplate());
+            config.setDatabaseType(normalizeDatabaseType(source.databaseType()));
         } else {
             SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(config.getDatasourceId());
             config.setDatabaseType(normalizeDatabaseType(
@@ -424,6 +430,9 @@ public class DatabaseQueryConfigService {
             step.setSqlName(normalizeRequired(source.getSqlName(), "sqlSteps[" + index + "].sqlName"));
             step.setSqlDescription(normalizeRequired(source.getSqlDescription(), "sqlSteps[" + index + "].sqlDescription"));
             step.setSqlContent(normalizeRequired(source.getSqlContent(), "sqlSteps[" + index + "].sqlContent"));
+            step.setQueryOptions(source.getQueryOptions());
+            step.getQueryOptions().entrySet().removeIf(entry -> entry.getValue() == null
+                || (entry.getValue() instanceof String text && text.isBlank()));
             step.setExecutionOrder(executionOrder);
             step.setDependencies(source.getDependencies() == null ? List.of() : source.getDependencies().stream()
                 .filter(value -> value != null && !value.isBlank())
@@ -450,7 +459,7 @@ public class DatabaseQueryConfigService {
                 ? config.getMaxRows()
                 : source.getMaxResultRows();
             step.setMaxResultRows(Math.max(1, Math.min(1000, maxRows)));
-            step.setParameters(normalizeStepParameters(source.getParameters(), index));
+            step.setParameters(normalizeStepParameters(source.getParameters(), index, config.getDatasourceId()));
             step.setParameterMappings(normalizeParameterMappings(source.getParameterMappings(), index));
             Set<String> duplicatedParameterSources = new LinkedHashSet<>(step.getParameters().keySet());
             duplicatedParameterSources.retainAll(step.getParameterMappings().stream()
@@ -517,7 +526,7 @@ public class DatabaseQueryConfigService {
         return normalized;
     }
 
-    private Map<String, Object> normalizeStepParameters(Map<String, Object> parameters, int stepIndex) {
+    private Map<String, Object> normalizeStepParameters(Map<String, Object> parameters, int stepIndex, String configuredParameterDatasource) {
         if (parameters == null || parameters.isEmpty()) return Map.of();
         Map<String, Object> normalized = new LinkedHashMap<>();
         parameters.forEach((key, value) -> {
@@ -525,7 +534,8 @@ public class DatabaseQueryConfigService {
             if (name == null) {
                 throw new IllegalArgumentException("sqlSteps[" + stepIndex + "].parameters contains an empty parameter name");
             }
-            if (value instanceof Map<?, ?> || value instanceof Iterable<?> || (value != null && value.getClass().isArray())) {
+            if (!com.chatchat.mcpserver.database.execution.DatabaseQuerySourceAdapterService.isHttp(configuredParameterDatasource)
+                && (value instanceof Map<?, ?> || value instanceof Iterable<?> || (value != null && value.getClass().isArray()))) {
                 throw new IllegalArgumentException("sqlSteps[" + stepIndex + "].parameters." + name
                     + " must be a text, number or boolean value");
             }
@@ -917,6 +927,10 @@ public class DatabaseQueryConfigService {
         }
         if (blankToNull(config.getDatasourceId()) != null) {
             try {
+                if (sourceAdapters != null) {
+                    sourceAdapters.getEnabled(config.getDatasourceId());
+                    return true;
+                }
                 datasourceConfigService.getEnabled(config.getDatasourceId());
                 return true;
             } catch (Exception ignored) {

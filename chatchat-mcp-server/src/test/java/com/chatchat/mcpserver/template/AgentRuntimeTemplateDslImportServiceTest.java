@@ -23,6 +23,33 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentRuntimeTemplateDslImportServiceTest {
+    @Test
+    void importsAdaptedQueriesIntoExistingRegistryWithoutLosingWorkflowOptions() throws Exception {
+        when(databaseQueryConfigService.listAll()).thenReturn(List.of());
+        when(databaseQueryConfigService.create(any())).thenAnswer(call -> {
+            DatabaseQueryConfig config = call.getArgument(0); config.setId("query-search"); return config;
+        });
+        String dsl = """
+            {"templateCode":"SEARCH_REPORTS","templateName":"检索报告","templateType":"DATABASE_QUERY",
+             "datasourceId":"http:search-asset","description":"报告检索","implementationSteps":"检索并分析报告",
+             "sqlSteps":[{"sqlCode":"SEARCH","sqlName":"检索报告","sqlDescription":"报告结果",
+               "sqlContent":"{\\"query\\":{\\"match_all\\":{}}}","queryOptions":{"index":"reports"},
+               "executionOrder":1,"workflowEnabled":true,"dependencies":[],"returnToModel":false,
+               "resultSemantic":{"businessEntity":"报告"},
+               "parameterMappings":[{"parameter":"vector","sourceType":"STATIC","defaultValue":[0.1,0.2]}]}]}
+            """;
+        var request = new AgentRuntimeTemplateDslImportService.ImportRequest(dsl, "DATABASE_QUERY", null, null);
+        assertThat(service.validate(request).valid()).isTrue();
+        assertThat(service.importTemplate(request).targetRegistry()).isEqualTo("database_query_template");
+        var captor = ArgumentCaptor.forClass(DatabaseQueryConfig.class);
+        verify(databaseQueryConfigService).create(captor.capture());
+        var saved = new ObjectMapper().readTree(captor.getValue().getSqlStepsJson());
+        assertThat(saved.at("/0/queryOptions/index").asText()).isEqualTo("reports");
+        assertThat(saved.at("/0/workflowEnabled").asBoolean()).isTrue();
+        assertThat(saved.at("/0/returnToModel").asBoolean()).isFalse();
+        assertThat(saved.at("/0/parameterMappings/0/defaultValue").isArray()).isTrue();
+        assertThat(saved.at("/0/resultSemantic/businessEntity").asText()).isEqualTo("报告");
+    }
 
     private final CommandTemplateService commandTemplateService = mock(CommandTemplateService.class);
     private final SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);

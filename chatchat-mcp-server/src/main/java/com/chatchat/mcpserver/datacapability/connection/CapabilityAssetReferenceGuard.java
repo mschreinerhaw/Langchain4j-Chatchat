@@ -11,8 +11,18 @@ import org.springframework.stereotype.Component;
 public class CapabilityAssetReferenceGuard {
     private final CapabilityRepository definitions;
     private final ObjectMapper json;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.mcpserver.database.definition.DatabaseQueryConfigRepository queryDefinitions;
 
     public void assertUnused(String assetId, boolean jdbcAsset) {
+        if (queryDefinitions != null) {
+            String reference = jdbcAsset ? assetId
+                : com.chatchat.mcpserver.database.execution.DatabaseQuerySourceAdapterService.HTTP_PREFIX + assetId;
+            for (var query : queryDefinitions.findAllByOrderByToolNameAsc()) {
+                if (reference.equals(query.getDatasourceId()))
+                    throw new IllegalArgumentException("Datasource asset is referenced by query: " + query.getToolName());
+            }
+        }
         for (CapabilityEntity definition : definitions.findAll()) {
             boolean matchesFamily = jdbcAsset
                 ? definition.getType() == CapabilityType.TRINO || definition.getType() == CapabilityType.RELATIONAL

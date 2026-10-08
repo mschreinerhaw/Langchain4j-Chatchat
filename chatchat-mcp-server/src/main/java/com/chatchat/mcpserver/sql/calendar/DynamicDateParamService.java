@@ -111,10 +111,9 @@ public class DynamicDateParamService {
                     throw new IllegalArgumentException("Unsupported dynamic date parameter: " + token);
                 }
                 int today = Integer.parseInt(formatDate(currentDate));
-                TradingCalendarSource source = new TradingCalendarSource(
-                    datasource,
-                    firstText(calendarSql, TradingCalendarConfig.DEFAULT_SQL)
-                );
+                TradingCalendarSource source = datasource == null ? tradingCalendarSource(null)
+                    : new TradingCalendarSource(datasource, firstText(calendarSql, TradingCalendarConfig.DEFAULT_SQL));
+                if (source.datasource() == null) throw new IllegalArgumentException("请先配置交易日数据源模板");
                 yield String.valueOf(tradingCalendar(source).find(today, tradeOffset(token)));
             }
         };

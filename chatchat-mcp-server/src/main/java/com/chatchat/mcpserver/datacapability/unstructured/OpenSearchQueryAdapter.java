@@ -38,6 +38,7 @@ public class OpenSearchQueryAdapter implements CapabilityAdapter {
         if (!response.path("hits").path("hits").isArray()) throw new IllegalStateException("Invalid OpenSearch response");
         List<Map<String, Object>> rows = new ArrayList<>();
         for (JsonNode hit : response.path("hits").path("hits")) {
+            if (rows.size() >= d.maxRows()) break;
             Map<String, Object> row = new LinkedHashMap<>();
             if (hit.path("_source").isObject()) hit.path("_source").fields().forEachRemaining(e -> row.put(e.getKey(), json.convertValue(e.getValue(), Object.class)));
             row.put("_id", hit.path("_id").asText()); row.put("_score", json.convertValue(hit.path("_score"), Object.class));

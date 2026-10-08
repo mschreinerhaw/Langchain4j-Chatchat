@@ -11,6 +11,7 @@ public class DatabaseQuerySqlStep {
     private String sqlName;
     private String sqlDescription;
     private String sqlContent;
+    private Map<String, Object> queryOptions = new LinkedHashMap<>();
     private Integer executionOrder;
     private List<String> dependencies = new ArrayList<>();
     private Boolean workflowEnabled = false;
@@ -50,6 +51,11 @@ public class DatabaseQuerySqlStep {
 
     public String getSqlContent() {
         return sqlContent;
+    }
+
+    public Map<String, Object> getQueryOptions() { return queryOptions; }
+    public void setQueryOptions(Map<String, Object> queryOptions) {
+        this.queryOptions = queryOptions == null ? new LinkedHashMap<>() : new LinkedHashMap<>(queryOptions);
     }
 
     public void setSqlContent(String sqlContent) {

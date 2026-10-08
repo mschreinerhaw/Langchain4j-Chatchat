@@ -29,6 +29,7 @@ public class GraphQueryAdapter implements CapabilityAdapter {
     }
     private String database(CapabilityDefinition d) {
         String name = String.valueOf(d.options().getOrDefault("database", "neo4j"));
+        if (name.isBlank()) name = "neo4j";
         if (!name.matches("[A-Za-z0-9_-]+")) throw new IllegalArgumentException("Invalid Neo4j database");
         return name;
     }

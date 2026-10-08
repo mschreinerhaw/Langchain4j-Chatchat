@@ -1,7 +1,54 @@
 # 数据能力中心
 
-管理页面按 Trino 查询、关系库查询、图数据库查询、非结构化数据查询、交易日历、批量导入拆分。
+管理入口使用原有 `DatabaseMcpView`，保留“数据查询能力 / 交易日历 / 批量导入”三个页签。
+新增数据源适配按后端模块组织，不替换原有查询分析、交易日查询和 DSL 导入页面。
 后端位于 `com.chatchat.mcpserver.datacapability`，按业务模块组织，不增加独立启动进程。
+
+## 统一查询工作台
+
+原查询配置表、`sqlSteps` JSON 字段及 `/api/v1/database-query` 保存、测试接口承载所有查询类型。
+已有关系库配置继续使用原资产 ID；图库和检索使用 `http:<资产ID>` 引用资产配置中的 HTTP 资产，避免与 SQL 资产 ID 冲突。
+`GET /api/v1/database-query/datasources` 返回可选资产的名称、类型、查询语言及启用状态，不返回连接地址或认证信息。
+
+选择数据源后，同一个步骤编辑器按类型显示查询语法及选项：
+
+| 数据源 | 语句 | 步骤 `queryOptions` | 参数 |
+| --- | --- | --- | --- |
+| 关系库 | 原有只读 SQL | 无需新增选项 | 原有 `:name`、`{{name}}` 和日期参数 |
+| Trino | 只读 SQL | 可选 `catalog`、`schema` | 沿用 SQL 参数 |
+| Neo4j | 只读 Cypher | `database`，默认 `neo4j` | 原生 `$name`，单独传递参数 |
+| OpenSearch | JSON DSL | 必填 `index` | 完整 JSON 值 `"{{name}}"`，保留数组和对象类型 |
+
+数据源切换不会自动翻译或覆盖已有语句，用户按目标语法编辑同一查询步骤。
+依赖编排、流程输入、系统日期变量、上游结果、结果语义、测试预览、审计、缓存及既有 API/MCP 发布链路共用原实现。
+交易日历仍使用原数据库资产和 SQL 配置；图库和检索步骤的交易日参数也通过原日历配置解析。
+批量导入使用原 DSL 页面和接口，在原 `sqlSteps` 中增加可选 `queryOptions`，保留依赖、参数映射及结果语义。
+这条统一工作台链路不写入独立的 `data-capabilities` 定义或执行表，不要求迁移已有查询。
+
+例如原导入模板中的 OpenSearch 步骤可以写为：
+
+```json
+{
+  "templateCode": "REPORT_SEARCH",
+  "templateName": "报告检索",
+  "templateType": "DATABASE_QUERY",
+  "datasourceId": "http:search_asset_id",
+  "description": "检索相关报告",
+  "implementationSteps": "检索报告并分析结果",
+  "sqlSteps": [{
+    "sqlCode": "SEARCH",
+    "sqlName": "检索报告",
+    "sqlDescription": "相关报告列表",
+    "sqlContent": "{\"query\":{\"match\":{\"title\":\"{{keyword}}\"}}}",
+    "queryOptions": {"index": "reports"},
+    "executionOrder": 1,
+    "parameterMappings": [{"parameter":"keyword","sourceType":"USER_INPUT","sourceKey":"keyword","required":true}]
+  }],
+  "parameterSchema": {"type":"object","properties":{"keyword":{"type":"string"}},"required":["keyword"]}
+}
+```
+
+以下模块和接口说明还包含先前独立能力 API 的兼容实现；管理工作台使用上面的统一配置和执行路径。
 
 | 模块 | 包 | 实现 |
 | --- | --- | --- |
@@ -15,7 +62,10 @@
 | 批量导入 | `importing` | JSON 标准模板、逐行校验、部分成功、持久化反馈与异常记录 |
 | API / MCP | `admin` / `publication` | 共用能力定义和执行服务，接入已有 MCP 发布审核、并发与 License 管理 |
 
-原有 `/api/v1/database-query` 接口、数据表和 SQL 工作台继续可用；关系库页面可展开原工作台。
+数据能力中心直接展示原有完整页面，保留分类、查询分析步骤、测试、索引、动态交易日历和 DSL 批量导入操作。
+切换侧边菜单时通过 `KeepAlive` 保留原工作台、日历配置和导入编辑状态。
+原有 `/api/v1/database-query`、`/api/v1/dynamic-date-params/trading-calendar/*`、`/api/v1/template-dsl/database-query/*` 接口和数据表继续使用。
+下文 `/api/v1/data-capabilities` 为新增后端能力接口；不作为原有交易日查询和 DSL 导入的替代入口。
 旧查询不会自动复制到新定义中。旧动态日期 SQL 配置仍用于旧工作流，新日历模块独立维护多市场日期。
 
 ## 连接配置

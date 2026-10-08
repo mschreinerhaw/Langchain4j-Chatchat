@@ -22,6 +22,7 @@ export default {
     formTestAction: { type: Function, default: null },
     formTestLabel: { type: String, default: '测试' },
     formPreviewType: { type: String, default: '' },
+    querySources: { type: Array, default: () => [] },
     refreshAction: { type: Function, default: null },
     rebuildAction: { type: Function, default: null },
     rebuildLabel: { type: String, default: '' },
@@ -107,6 +108,12 @@ export default {
     };
   },
   computed: {
+    databaseQueryProfile() {
+      const source = this.querySources.find(item => item.id === this.form.datasourceId);
+      if (source?.type === 'GRAPH') return { type: 'GRAPH', title: '只读 Cypher', hint: '使用 $name 传入参数，数据库默认 neo4j', placeholder: 'MATCH (n:Company) WHERE n.name = $name RETURN n', parameterHint: '扫描 $name 参数；实体标签与关系类型不会识别为参数。' };
+      if (source?.type === 'UNSTRUCTURED') return { type: 'UNSTRUCTURED', title: 'OpenSearch JSON DSL', hint: '指定索引，支持关键词、条件过滤和向量检索', placeholder: '{ "query": { "match": { "name": "{{name}}" } } }', parameterHint: '参数使用完整 JSON 字符串值 {{name}}，支持数组、对象和数字。' };
+      return { type: source?.type || 'RELATIONAL', title: source?.type === 'TRINO' ? '只读 Trino SQL' : '只读 SQL', hint: '支持 SELECT、SHOW、DESCRIBE、EXPLAIN', placeholder: 'SELECT ... WHERE customer_id = :customerId', parameterHint: '可识别 :name、${trade_date}、{{name}}；扫描只补充缺失参数，不覆盖已有配置。' };
+    },
     filtered() {
       const keyword = this.keyword.toLowerCase();
       const fields = this.searchableFields.length ? this.searchableFields : this.columns.map(column => column.key);
@@ -707,7 +714,7 @@ export default {
             }
           }
         });
-        extractDatabaseQueryParameters(step.sqlContent).filter(param => !param.dynamic).forEach(param => {
+        this.extractQueryParameters(step.sqlContent).filter(param => !param.dynamic).forEach(param => {
           const mapping = mappings.get(param.name);
           if (!names.has(param.name) && !fixedNames.has(param.name) && !mapping) {
             errors.push(`步骤 ${stepIndex + 1} 的参数 ${param.name} 尚未配置来源`);
@@ -995,7 +1002,7 @@ export default {
         const mappingsByName = new Map(mappings
           .filter(mapping => mapping?.parameter)
           .map(mapping => [String(mapping.parameter).trim(), mapping]));
-        extractDatabaseQueryParameters(step.sqlContent).forEach(param => {
+        this.extractQueryParameters(step.sqlContent).forEach(param => {
           const usage = usages.get(param.name) || new Set();
           usage.add(step.sqlName || step.sqlCode);
           usages.set(param.name, usage);
@@ -1275,7 +1282,7 @@ export default {
         const mappingsByName = new Map(mappings
           .filter(mapping => mapping?.parameter)
           .map(mapping => [String(mapping.parameter).trim(), mapping]));
-        extractDatabaseQueryParameters(step.sqlContent).forEach(param => {
+        this.extractQueryParameters(step.sqlContent).forEach(param => {
           if (param.dynamic) {
             if (!mappingsByName.has(param.name)) {
               mappings.push({
@@ -1362,13 +1369,13 @@ export default {
       this.syncDatabaseParamsFromSql(paramField, true, entry.sqlCode);
     },
     databaseParamSummary(field) {
-      const params = extractDatabaseQueryParameters(this.databaseSqlTextForField(field));
+      const params = this.extractQueryParameters(this.databaseSqlTextForField(field));
       if (!params.length) return '';
       return `参数：${params.map(param => param.dynamic ? `${param.name}:自动` : param.name).join(', ')}`;
     },
     databaseParamNodeSummaries(field) {
       const steps = normalizeDatabaseSqlSteps(this.form[field.sqlStepsKey], this.form[field.sqlKey]);
-      return steps.map(step => databaseSqlStepParameterSummary(step)).filter(summary => summary.total > 0);
+      return steps.map(step => databaseSqlStepParameterSummary(step, this.databaseQueryProfile.type)).filter(summary => summary.total > 0);
     },
     databaseSqlTextForField(field) {
       const steps = normalizeDatabaseSqlSteps(this.form[field.sqlStepsKey], this.form[field.sqlKey]);
@@ -1396,6 +1403,19 @@ export default {
     },
     databaseParamConfigField() {
       return this.formFields.find(field => field.type === 'databaseParamConfig') || null;
+    },
+    extractQueryParameters(query) {
+      return extractDatabaseQueryParameters(query, this.databaseQueryProfile.type);
+    },
+    databaseMappingValue(mapping) {
+      return mapping.defaultValue && typeof mapping.defaultValue === 'object'
+        ? JSON.stringify(mapping.defaultValue) : mapping.defaultValue;
+    },
+    setDatabaseMappingValue(mapping, value) {
+      if (['GRAPH', 'UNSTRUCTURED'].includes(this.databaseQueryProfile.type) && /^[\[{]/.test(value.trim())) {
+        try { mapping.defaultValue = JSON.parse(value); return; } catch { /* Keep incomplete input editable. */ }
+      }
+      mapping.defaultValue = value;
     },
     databaseSqlStepInputCount(step) {
       return (step?.staticParameterEntries?.length || 0) + (step?.parameterMappings?.length || 0);
@@ -1926,6 +1946,7 @@ function databaseSqlStepRow(step = {}, index = 0) {
     sqlName: step.sqlName || `SQL ${index + 1}`,
     sqlDescription: step.sqlDescription || step.description || '',
     sqlContent: step.sqlContent || step.sql || '',
+    queryOptions: step.queryOptions && typeof step.queryOptions === 'object' ? { ...step.queryOptions } : {},
     executionOrder: Number(step.executionOrder || index + 1),
     workflowEnabled: step.workflowEnabled === true,
     dependencies: Array.isArray(step.dependencies) ? [...new Set(step.dependencies.filter(Boolean))] : [],
@@ -1956,7 +1977,7 @@ function databaseSqlStepRow(step = {}, index = 0) {
 
 function databaseStaticParameterRow(parameter = {}) {
   const inferredType = databaseStaticParameterType(parameter.value);
-  const type = ['string', 'integer', 'number', 'boolean', 'date', 'dynamic_date'].includes(parameter.type)
+  const type = ['string', 'integer', 'number', 'boolean', 'date', 'dynamic_date', 'array', 'object'].includes(parameter.type)
     ? parameter.type
     : inferredType;
   return {
@@ -1967,6 +1988,8 @@ function databaseStaticParameterRow(parameter = {}) {
 }
 
 function databaseStaticParameterType(value) {
+  if (Array.isArray(value)) return 'array';
+  if (value && typeof value === 'object') return 'object';
   if (typeof value === 'boolean') return 'boolean';
   if (typeof value === 'number') return Number.isInteger(value) ? 'integer' : 'number';
   if (typeof value === 'string' && /^\$\{(?:today|natural_date|month|month_start|month_end|trade_date(?:[+-]\d+)?)\}$/.test(value)) return 'dynamic_date';
@@ -1975,6 +1998,10 @@ function databaseStaticParameterType(value) {
 }
 
 function coerceDatabaseStaticParameterValue(value, type) {
+  if (type === 'array' || type === 'object') {
+    if (value && typeof value === 'object') return value;
+    try { return JSON.parse(value); } catch { return value; }
+  }
   if (type === 'boolean') {
     if (typeof value === 'boolean') return value;
     return String(value).toLowerCase() === 'true';
@@ -2064,10 +2091,11 @@ const DATABASE_DYNAMIC_PARAMS = new Set([
 
 const DATABASE_DIRECT_DYNAMIC_TOKEN = /^(?:today|natural_date|month|month_start|month_end|trade_date[+-]?\d*)$/;
 
-function extractDatabaseQueryParameters(sql) {
+function extractDatabaseQueryParameters(sql, sourceType = 'RELATIONAL') {
   const params = new Map();
   const text = String(sql || '');
-  const namedPattern = /(^|[^:]):([A-Za-z_][A-Za-z0-9_]*)\b/g;
+  const namedPattern = sourceType === 'GRAPH' ? /(^|[^$])\$([A-Za-z_][A-Za-z0-9_]*)\b/g
+    : sourceType === 'UNSTRUCTURED' ? /$^/g : /(^|[^:]):([A-Za-z_][A-Za-z0-9_]*)\b/g;
   let match;
   while ((match = namedPattern.exec(text)) !== null) {
     const name = match[2];
@@ -2094,7 +2122,7 @@ function extractDatabaseQueryParameters(sql) {
   return [...params.values()];
 }
 
-function databaseSqlStepParameterSummary(step) {
+function databaseSqlStepParameterSummary(step, sourceType) {
   const summary = {
     code: step.sqlCode,
     name: step.sqlName || step.sqlCode,
@@ -2111,7 +2139,7 @@ function databaseSqlStepParameterSummary(step) {
   const mappings = new Map((step.parameterMappings || [])
     .filter(mapping => mapping?.parameter)
     .map(mapping => [String(mapping.parameter).trim(), mapping]));
-  extractDatabaseQueryParameters(step.sqlContent).forEach(param => {
+  extractDatabaseQueryParameters(step.sqlContent, sourceType).forEach(param => {
     summary.total += 1;
     if (param.dynamic) {
       summary.dynamic.push(param.name);

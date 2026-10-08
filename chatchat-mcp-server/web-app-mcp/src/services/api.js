@@ -305,6 +305,7 @@ export const assetsApi = {
 };
 
 export const databaseApi = {
+  listSources: () => apiFetch(`${API_BASE}/database-query/datasources`),
   list: () => apiFetch(`${API_BASE}/database-query`),
   listCategories: () => apiFetch(`${API_BASE}/business-categories`),
   save: (query) => saveEntity(`${API_BASE}/database-query`, query),

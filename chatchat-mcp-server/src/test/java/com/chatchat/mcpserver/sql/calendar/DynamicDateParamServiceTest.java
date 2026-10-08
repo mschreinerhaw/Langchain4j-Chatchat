@@ -104,6 +104,9 @@ class DynamicDateParamServiceTest {
 
         assertThat(calendarService.checkTradingDay(LocalDate.of(2026, 7, 10)).tradingDay()).isTrue();
         assertThat(calendarService.checkTradingDay(LocalDate.of(2026, 7, 11)).tradingDay()).isFalse();
+        // HTTP query workflows have no JDBC datasource but use the same configured calendar for system parameters.
+        assertThat(calendarService.resolveTokenForSource(null, null, "trade_date")).isEqualTo("20260710");
+        assertThat(calendarService.resolveTokenForSource(null, null, "trade_date+1")).isEqualTo("20260713");
         assertThatThrownBy(() -> calendarService.checkTradingDay(LocalDate.of(2026, 7, 14)))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("不包含日期");

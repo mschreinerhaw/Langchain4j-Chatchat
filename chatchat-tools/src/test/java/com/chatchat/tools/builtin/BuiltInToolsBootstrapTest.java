@@ -22,6 +22,30 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 class BuiltInToolsBootstrapTest {
+    @Test
+    void trinoNamespacesAreAppliedToEachConnectionAndFailedSetupClosesConnection() throws Exception {
+        var loader = mock(DynamicJdbcDriverLoader.class);
+        var underlying = mock(javax.sql.DataSource.class);
+        var connection = mock(java.sql.Connection.class);
+        org.mockito.Mockito.when(underlying.getConnection()).thenReturn(connection);
+        org.mockito.Mockito.when(loader.createDataSource(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString())).thenReturn(underlying);
+        var constructor = Class.forName("com.chatchat.tools.builtin.BuiltInToolsBootstrap$DatabaseQueryTool")
+            .getDeclaredConstructor(DynamicJdbcDriverLoader.class, DatabaseToolProperties.class, String.class, ObjectMapper.class);
+        constructor.setAccessible(true);
+        var tool = constructor.newInstance(loader, new DatabaseToolProperties(), "", new ObjectMapper());
+        var resolver = tool.getClass().getDeclaredMethod("resolveDataSource", ToolInput.class);
+        resolver.setAccessible(true);
+        var input = ToolInput.builder().parameters(Map.of("jdbc_url", "jdbc:trino://localhost:8080",
+            "catalog", "hive", "schema", "finance")).build();
+        var source = (javax.sql.DataSource) resolver.invoke(tool, input);
+        assertThat(source.getConnection()).isSameAs(connection);
+        org.mockito.Mockito.verify(connection).setCatalog("hive");
+        org.mockito.Mockito.verify(connection).setSchema("finance");
+        org.mockito.Mockito.doThrow(new SQLException("unknown schema")).when(connection).setSchema("finance");
+        assertThatThrownBy(source::getConnection).hasMessageContaining("unknown schema");
+        org.mockito.Mockito.verify(connection).close();
+    }
 
     @Test
     void builtInToolsExposeGovernanceMetadataWithoutLegacyWebSearch() {

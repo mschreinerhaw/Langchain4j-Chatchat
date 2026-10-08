@@ -330,6 +330,15 @@ public class AgentRuntimeTemplateDslImportService {
             step.setSqlName(name);
             step.setSqlDescription(description);
             step.setSqlContent(sql);
+            step.setQueryOptions(objectMap(map.get("queryOptions")));
+            step.setDependencies(stringList(map.get("dependencies")));
+            step.setWorkflowEnabled(bool(map.get("workflowEnabled"), false));
+            step.setEmptyResultStrategy(firstText(text(map.get("emptyResultStrategy")), "CONTINUE"));
+            step.setReturnToModel(bool(map.get("returnToModel"), true));
+            if (map.get("parameterMappings") != null) step.setParameterMappings(objectMapper.convertValue(map.get("parameterMappings"),
+                new com.fasterxml.jackson.core.type.TypeReference<java.util.List<com.chatchat.mcpserver.database.definition.DatabaseQueryParameterMapping>>() {}));
+            if (map.get("resultSemantic") != null) step.setResultSemantic(objectMapper.convertValue(map.get("resultSemantic"),
+                com.chatchat.mcpserver.database.definition.DatabaseQueryResultSemantic.class));
             step.setExecutionOrder(order);
             step.setEnabled(bool(firstPresent(map, "enabled"), true));
             step.setTimeoutSeconds(integerObject(firstPresent(map, "timeoutSeconds", "timeout_seconds")));

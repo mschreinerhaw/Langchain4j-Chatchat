@@ -44,6 +44,13 @@ public class DatabaseQueryAdminController {
     private final ObjectMapper objectMapper;
     private final SqlDatasourceConfigService datasourceConfigService;
     private final DynamicDateParamService dynamicDateParamService;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.mcpserver.database.execution.DatabaseQuerySourceAdapterService sourceAdapters;
+
+    @GetMapping("/datasources")
+    public ApiResponse<List<com.chatchat.mcpserver.database.execution.DatabaseQuerySourceAdapterService.SourceView>> datasources() {
+        return ApiResponse.success(sourceAdapters.list());
+    }
 
     /**
      * Lists the list.
@@ -158,10 +165,12 @@ public class DatabaseQueryAdminController {
      */
     @PostMapping("/test")
     public ApiResponse<ToolOutput> test(@RequestBody DatabaseQueryTestRequest request) {
-        if (!toolRegistry.hasTool(TOOL_NAME)) {
+        if (!com.chatchat.mcpserver.database.execution.DatabaseQuerySourceAdapterService.isHttp(request.datasourceId())
+            && !toolRegistry.hasTool(TOOL_NAME)) {
             return ApiResponse.internalError("database_query tool is not registered");
         }
         if (request.sqlSteps() != null && !request.sqlSteps().isEmpty()) {
+            if (sourceAdapters != null) sourceAdapters.validate(request.datasourceId(), request.sqlSteps(), request.sql());
             DatabaseQueryConfig draft = new DatabaseQueryConfig();
             draft.setId("draft");
             draft.setToolName("draft_database_query");

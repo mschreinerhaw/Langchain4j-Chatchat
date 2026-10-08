@@ -21,6 +21,7 @@ export default {
       activeTab: 'queries',
       busy: false,
       sqlAssets: [],
+      querySources: [],
       categories: [],
       allQueries: [],
       selectedCategory: '',
@@ -82,12 +83,12 @@ export default {
         },
         {
           key: 'datasourceId',
-          label: '数据库资产',
+          label: '数据源资产',
           type: 'select',
           required: true,
-          options: () => this.enabledDatasourceOptions,
-          placeholder: '选择资产中心已维护并启用的数据库资产',
-          help: '从资产中心已维护并启用的数据库资产中选择，不需要手工填写数据源 ID。',
+          options: () => [internalFinancialDatasource, ...this.querySourceOptions.filter(option => option.enabled)],
+          placeholder: '选择资产配置中已启用的数据源',
+          help: '复用资产配置中的关系库、Trino、图库和检索资产；查询语法随数据源自动适配。',
           section: 'basic'
         },
         {
@@ -141,14 +142,14 @@ export default {
         },
         {
           key: 'sqlSteps',
-          label: 'SQL 明细',
+          label: '查询步骤',
           type: 'databaseSqlSteps',
           required: true,
           span: 'col-12',
-          help: '通过前置依赖编排串行、并行和汇聚关系；下游参数可安全引用上游结果。',
+          help: '不同数据源共用步骤编排、输入参数、结果语义和运行策略。',
           section: 'query',
-          sectionTitle: 'SQL 流程编排',
-          sectionSubtitle: '维护只读 SQL 节点、执行依赖、独立参数映射和结果集业务语义。'
+          sectionTitle: '查询流程编排',
+          sectionSubtitle: '维护查询节点、执行依赖、独立参数映射和结果集业务语义。'
         },
         {
           key: 'tags',
@@ -219,6 +220,10 @@ export default {
     };
   },
   computed: {
+    querySourceOptions() {
+      return this.querySources.map(source => ({ value: source.id,
+        label: `${source.name} / ${source.databaseType} / ${source.queryLanguage}`, enabled: source.enabled }));
+    },
     enabledDatasourceOptions() {
       return [internalFinancialDatasource, ...this.datasourceOptions(true)];
     },
@@ -254,8 +259,13 @@ export default {
   },
   mounted() {
     this.loadSqlAssets();
+    this.loadQuerySources();
     this.loadCategories();
     this.loadTradingCalendar();
+  },
+  activated() {
+    this.loadSqlAssets();
+    this.loadQuerySources();
   },
   methods: {
     dataAvailabilityLabel(value, row) {
@@ -302,7 +312,12 @@ export default {
     datasourceLabel(value) {
       if (!value) return '-';
       if (value === internalFinancialDatasource.value) return internalFinancialDatasource.label;
-      return this.datasourceSelectOptions.find(option => option.value === value)?.label || value;
+      return this.querySourceOptions.find(option => option.value === value)?.label
+        || this.datasourceSelectOptions.find(option => option.value === value)?.label || value;
+    },
+    async loadQuerySources() {
+      try { this.querySources = await api.listSources() || []; }
+      catch (error) { this.$emit('error', error); }
     },
     async loadSqlAssets() {
       try {

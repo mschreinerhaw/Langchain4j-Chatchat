@@ -472,6 +472,26 @@ class DatabaseQueryInvokeServiceTest {
         return step;
     }
 
+    @Test
+    void forwardsTrinoStepNamespaceAndNamedParametersThroughExistingWorkflow() throws Exception {
+        var datasource = dmDatasource(); datasource.setJdbcUrl("jdbc:trino://localhost:8080"); datasource.setDatabaseType("trino");
+        when(datasourceConfigService.getEnabled("asset-dm")).thenReturn(datasource);
+        when(toolRegistry.executeEnhancedTool(eq("database_query"), any(ToolInput.class)))
+            .thenReturn(ToolOutput.success(Map.of("rows", List.of(Map.of("id", 7)), "rowCount", 1)));
+        var step = sqlStep("READ", "读取", "SELECT :id", 1, Map.of("id", 7));
+        step.setQueryOptions(Map.of("catalog", "hive", "schema", "finance"));
+        var config = new DatabaseQueryConfig();
+        config.setId("trino-query"); config.setToolName("trino_query"); config.setDatasourceId("asset-dm");
+        config.setTitle("Trino 查询"); config.setDescription("验证查询命名空间");
+        config.setSqlStepsJson(new ObjectMapper().writeValueAsString(List.of(step)));
+        var result = service.invokePreview(config, Map.of());
+        assertThat(result.isSuccess()).isTrue();
+        var input = ArgumentCaptor.forClass(ToolInput.class);
+        verify(toolRegistry).executeEnhancedTool(eq("database_query"), input.capture());
+        assertThat(input.getValue().getParameters()).containsEntry("catalog", "hive").containsEntry("schema", "finance");
+        assertThat(((Map<?, ?>) input.getValue().getParameters().get("params")).get("id")).isEqualTo(7);
+    }
+
     private SqlDatasourceConfig dmDatasource() {
         SqlDatasourceConfig config = new SqlDatasourceConfig();
         config.setId("asset-dm");

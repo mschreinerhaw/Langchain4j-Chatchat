@@ -5,6 +5,8 @@ import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowContractSnapshot;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.enterprise.entity.mcp.McpToolAsset;
+import com.chatchat.enterprise.entity.mcp.McpArgumentBindingPolicy;
+import com.chatchat.enterprise.repository.mcp.McpArgumentBindingPolicyRepository;
 import com.chatchat.enterprise.entity.mcp.McpToolWorkflowContract;
 import com.chatchat.enterprise.repository.mcp.McpToolAssetRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -54,6 +56,27 @@ class DatabaseToolWorkflowContractCatalogTest {
 
     @Autowired
     private McpToolAssetRepository tools;
+
+    @Autowired
+    private McpArgumentBindingPolicyRepository argumentBindingPolicies;
+
+    @Test
+    void activeToolSnapshotIncludesDatabaseFieldPolicy() {
+        McpArgumentBindingPolicy policy = new McpArgumentBindingPolicy();
+        policy.setPolicyKey("default");
+        policy.setPolicyJson("{\"logicalContextKeys\":[\"region\"]}");
+        argumentBindingPolicies.saveAndFlush(policy);
+
+        ToolWorkflowContractSnapshot active = catalog.synchronizeDiscovery(
+            "service-a", "Service A", "opaque_policy_tool", "remote-policy", "policy",
+            Map.of(), Map.of(), Map.of(), true).orElseThrow();
+
+        assertThat(active.extensions().get("argumentBindingPolicy"))
+            .isEqualTo(Map.of("logicalContextKeys", List.of("region")));
+        assertThat(catalog.findActive("service-a", "opaque_policy_tool", "remote-policy")
+            .orElseThrow().extensions().get("argumentBindingPolicy"))
+            .isEqualTo(Map.of("logicalContextKeys", List.of("region")));
+    }
 
     @Test
     void stagesPublishesVersionsAndRollsBackWithoutToolNameSemantics() {

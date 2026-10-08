@@ -10,6 +10,7 @@ import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.enterprise.entity.mcp.McpToolAsset;
 import com.chatchat.enterprise.entity.mcp.McpToolWorkflowContract;
 import com.chatchat.enterprise.repository.mcp.McpToolAssetRepository;
+import com.chatchat.enterprise.repository.mcp.McpArgumentBindingPolicyRepository;
 import com.chatchat.enterprise.repository.mcp.McpToolWorkflowContractRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.MapperFeature;
@@ -41,6 +42,7 @@ public class DatabaseToolWorkflowContractCatalog implements ToolWorkflowContract
 
     private final McpToolAssetRepository tools;
     private final McpToolWorkflowContractRepository contracts;
+    private final McpArgumentBindingPolicyRepository argumentBindingPolicies;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -306,11 +308,15 @@ public class DatabaseToolWorkflowContractCatalog implements ToolWorkflowContract
     }
 
     private ToolWorkflowContractSnapshot snapshot(McpToolWorkflowContract value) {
+        Map<String, Object> extensions = new LinkedHashMap<>(map(value.getExtensionsJson()));
+        // Tool-specific published policy wins; the database baseline serves existing tools.
+        argumentBindingPolicies.findById("default")
+            .ifPresent(policy -> extensions.putIfAbsent("argumentBindingPolicy", map(policy.getPolicyJson())));
         return new ToolWorkflowContractSnapshot(value.getToolId(), value.getContractVersion(),
             value.getSchemaVersion(), ToolWorkflowRole.valueOf(value.getWorkflowRole()),
             value.getProtocolFamily(), value.getInputEnvelope(), value.getContractChecksum(),
             map(value.getInputSchemaJson()), map(value.getOutputSchemaJson()),
-            map(value.getExtensionsJson()));
+            extensions);
     }
 
     private Map<String, Object> publishedContract(Map<String, Object> meta) {

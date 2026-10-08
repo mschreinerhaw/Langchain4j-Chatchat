@@ -1,6 +1,10 @@
 package com.chatchat.agents.tool;
 
+import com.chatchat.common.tool.ToolMetadata;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -32,5 +36,23 @@ class DefaultToolRegistryTest {
 
         assertThat(registry.getRevision()).isGreaterThan(firstRevision);
         assertThat(registry.getToolRevision("first")).isEqualTo(firstRevision);
+    }
+
+    @Test
+    void databaseFieldPolicyChangeUpdatesToolRevision() {
+        DefaultToolRegistry registry = new DefaultToolRegistry();
+        ToolRegistry.EnhancedTool tool = mock(ToolRegistry.EnhancedTool.class);
+        registry.registerTool("policy_tool", ToolMetadata.builder().id("policy_tool")
+            .metadata(Map.of("workflowContractChecksum", "unchanged",
+                "argumentBindingPolicy", Map.of("logicalContextKeys", List.of("region"))))
+            .build(), tool);
+        long firstRevision = registry.getToolRevision("policy_tool");
+
+        registry.registerTool("policy_tool", ToolMetadata.builder().id("policy_tool")
+            .metadata(Map.of("workflowContractChecksum", "unchanged",
+                "argumentBindingPolicy", Map.of("logicalContextKeys", List.of("zone"))))
+            .build(), tool);
+
+        assertThat(registry.getToolRevision("policy_tool")).isGreaterThan(firstRevision);
     }
 }

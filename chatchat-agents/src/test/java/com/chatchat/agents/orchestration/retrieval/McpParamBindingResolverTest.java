@@ -18,6 +18,35 @@ class McpParamBindingResolverTest {
     private final McpParamBindingResolver resolver = new McpParamBindingResolver();
 
     @Test
+    void missingDatabaseFieldPolicyDeniesContractBinding() {
+        ToolMetadata metadata = ToolMetadata.builder()
+            .id("opaque_discovery")
+            .metadata(Map.of(ToolWorkflowContract.METADATA_KEY,
+                ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                    "mcp.template-discovery.v1", "filters")))
+            .build();
+
+        assertThat(resolver.resolve("opaque_discovery", metadata, Map.of("filters", Map.of()), "search"))
+            .containsEntry(McpParamBindingResolver.STATUS_KEY, "DENIED");
+    }
+
+    @Test
+    void publishedFieldPolicyCanAddNewConcreteTargetWithoutCodeChange() {
+        ToolMetadata original = declaredDiscoveryMetadata(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        Map<String, Object> policy = new java.util.LinkedHashMap<>(bindingPolicy());
+        policy.put("concreteTargetFields", List.of("tenantPhysicalTarget"));
+        Map<String, Object> extra = new java.util.LinkedHashMap<>(original.getMetadata());
+        extra.put("argumentBindingPolicy", policy);
+        ToolMetadata updated = ToolMetadata.builder().id("opaque_discovery").categories(List.of("mcp"))
+            .metadata(extra).build();
+
+        assertThat(resolver.resolve("opaque_discovery", updated,
+            Map.of("tenantPhysicalTarget", "opaque-id", "filters", Map.of("intent", "search"),
+                "finalDecision", "database", "confidence", 0.91), "search"))
+            .containsEntry(McpParamBindingResolver.STATUS_KEY, "DENIED");
+    }
+
+    @Test
     void explicitDiscoveryRoleWinsOverExecutorProtocolFamily() {
         String toolName = "mcp_runtime_capability_bridge";
         ToolMetadata metadata = ToolMetadata.builder()
@@ -25,6 +54,7 @@ class McpParamBindingResolverTest {
             .categories(List.of("mcp"))
             .metadata(Map.of(
                 "remoteToolName", "runtime_capability_bridge",
+                "argumentBindingPolicy", bindingPolicy(),
                 "inputSchema", Map.of(
                     "type", "object",
                     "properties", Map.of(
@@ -56,7 +86,11 @@ class McpParamBindingResolverTest {
     void createsReplayableRuntimeTraceForAssetDiscoveryWithExplicitFilters() {
         Map<String, Object> result = resolver.resolve(
             "mcp_chatchat_mcp_server_database_asset_search",
-            null,
+            publishedDiscoveryMetadata(ToolWorkflowRole.ASSET_DISCOVERY,
+                "database_asset_search",
+                List.of("filters", "trace", "candidates", "finalDecision", "confidence", "assetType", "targetKind"),
+                List.of("filters"),
+                Map.of("forcedTargetKind", "database", "forcedAssetType", "sql_datasource")),
             Map.of(
                 "filters", Map.of("env", "DEV", "databaseType", "oracle"),
                 "finalDecision", "database",
@@ -79,7 +113,7 @@ class McpParamBindingResolverTest {
 
         Map<String, Object> result = resolver.resolve(
             "mcp_chatchat_mcp_server_database_ops_template_search",
-            null,
+            declaredDiscoveryMetadata(ToolWorkflowRole.TEMPLATE_DISCOVERY),
             Map.of(
                 "filters", Map.of("env", "DEV", "intent", "Oracle health"),
                 "finalDecision", "database",
@@ -98,6 +132,7 @@ class McpParamBindingResolverTest {
         Map<String, Object> result = resolver.resolve(
             "mcp_chatchat_mcp_server_jmx_template_query",
             publishedDiscoveryMetadata(
+                ToolWorkflowRole.TEMPLATE_DISCOVERY,
                 "jmx_template_query",
                 List.of("filters", "filtersSchemaVersion", "trace", "candidates", "finalDecision",
                     "confidence", "assetType", "targetKind", "limit"),
@@ -120,6 +155,7 @@ class McpParamBindingResolverTest {
         Map<String, Object> result = resolver.resolve(
             "mcp_chatchat_mcp_server_microservice_asset_query",
             publishedDiscoveryMetadata(
+                ToolWorkflowRole.ASSET_DISCOVERY,
                 "microservice_asset_query",
                 List.of("filters", "filtersSchemaVersion", "trace", "candidates", "finalDecision",
                     "confidence", "assetType", "targetKind", "limit"),
@@ -140,6 +176,7 @@ class McpParamBindingResolverTest {
         Map<String, Object> result = resolver.resolve(
             "mcp_chatchat_mcp_server_api_asset_query",
             publishedDiscoveryMetadata(
+                ToolWorkflowRole.ASSET_DISCOVERY,
                 "api_asset_query",
                 List.of("filters", "filtersSchemaVersion", "limit"),
                 List.of("filters"),
@@ -164,6 +201,7 @@ class McpParamBindingResolverTest {
         Map<String, Object> result = resolver.resolve(
             "mcp_chatchat_mcp_server_tenant_authorized_template_query",
             publishedDiscoveryMetadata(
+                ToolWorkflowRole.TEMPLATE_DISCOVERY,
                 "tenant_authorized_template_query",
                 List.of("assetType", "filters", "trace", "limit"),
                 List.of(),
@@ -183,7 +221,7 @@ class McpParamBindingResolverTest {
     void doesNotInferEnvironmentFromDatabaseAssetProperName() {
         Map<String, Object> result = resolver.resolve(
             "mcp_chatchat_mcp_server_sql_datasource_asset_query",
-            null,
+            declaredDiscoveryMetadata(ToolWorkflowRole.ASSET_DISCOVERY),
             Map.of(
                 "finalDecision", "database",
                 "confidence", 0.95,
@@ -203,7 +241,7 @@ class McpParamBindingResolverTest {
     void infersCanonicalEnvironmentOnlyFromExplicitEnvironmentExpression() {
         Map<String, Object> result = resolver.resolve(
             "mcp_chatchat_mcp_server_sql_datasource_asset_query",
-            null,
+            declaredDiscoveryMetadata(ToolWorkflowRole.ASSET_DISCOVERY),
             Map.of(
                 "finalDecision", "database",
                 "confidence", 0.95,
@@ -220,7 +258,7 @@ class McpParamBindingResolverTest {
     void removesProtocolFieldsFromTemplateDiscoveryFilters() {
         Map<String, Object> result = resolver.resolve(
             "mcp_chatchat_mcp_server_ssh_template_query",
-            null,
+            declaredDiscoveryMetadata(ToolWorkflowRole.TEMPLATE_DISCOVERY),
             Map.of(
                 "candidates", List.of(Map.of("targetKind", "host", "confidence", 0.9)),
                 "finalDecision", "host",
@@ -249,10 +287,10 @@ class McpParamBindingResolverTest {
     }
 
     @Test
-    void enrichesTemplateQueryWithBilingualMetadataSignalsWhenModelOnlyProvidedChineseIntent() {
+    void preservesTemplateIntentForServerSideMetadataExpansion() {
         Map<String, Object> result = resolver.resolve(
             "mcp_chatchat_mcp_server_template_query",
-            null,
+            declaredDiscoveryMetadata(ToolWorkflowRole.TEMPLATE_DISCOVERY),
             Map.of(
                 "finalDecision", "database",
                 "confidence", 0.95,
@@ -265,21 +303,16 @@ class McpParamBindingResolverTest {
         );
 
         Map<?, ?> filters = (Map<?, ?>) result.get("filters");
-        assertThat(strings(filters.get("bilingualIntent")))
-            .contains("\u8868\u5143\u6570\u636e", "table metadata", "table schema", "user_info_file");
-        assertThat(strings(filters.get("intentAliases")))
-            .contains("\u8868\u7ed3\u6784", "table metadata", "SHOW CREATE TABLE", "DESCRIBE TABLE");
-        assertThat(strings(filters.get("keywords")))
-            .contains("INFORMATION_SCHEMA", "SHOW COLUMNS", "COLUMNS", "user_info_file", "\u5b57\u6bb5");
-        assertThat(filters.get("intentZh")).isEqualTo("\u8868\u5143\u6570\u636e");
-        assertThat(filters.get("intentEn")).isEqualTo("table metadata");
+        assertThat(filters.get("intent")).isEqualTo("\u67e5\u8be2 user_info_file \u8868\u5143\u6570\u636e\u4fe1\u606f");
+        assertThat(List.of("bilingualIntent", "intentAliases", "keywords", "intentZh", "intentEn")
+            .stream().noneMatch(filters::containsKey)).isTrue();
     }
 
     @Test
-    void enrichesTemplateQueryWithEnglishInnoDbCommandSignalsWhenModelOnlyProvidedChineseIntent() {
+    void preservesInnoDbIntentWithoutClientSideVocabulary() {
         Map<String, Object> result = resolver.resolve(
             "mcp_chatchat_mcp_server_template_query",
-            null,
+            declaredDiscoveryMetadata(ToolWorkflowRole.TEMPLATE_DISCOVERY),
             Map.of(
                 "finalDecision", "database",
                 "confidence", 0.95,
@@ -292,13 +325,10 @@ class McpParamBindingResolverTest {
         );
 
         Map<?, ?> filters = (Map<?, ?>) result.get("filters");
-        assertThat(strings(filters.get("bilingualIntent")))
-            .contains("\u67e5\u8be2InnoDB\u72b6\u6001", "SHOW ENGINE INNODB STATUS", "InnoDB engine status", "lock wait", "deadlock");
-        assertThat(strings(filters.get("intentAliases")))
-            .contains("\u5206\u6790InnoDB\u72b6\u6001", "SHOW ENGINE INNODB STATUS", "InnoDB status", "deadlock");
-        assertThat(strings(filters.get("keywords")))
-            .contains("InnoDB", "SHOW ENGINE INNODB STATUS", "transaction", "lock wait", "deadlock", "buffer pool");
-        assertThat(filters.get("intentEn")).isEqualTo("SHOW ENGINE INNODB STATUS");
+        assertThat(filters.get("intent")).isEqualTo(
+            "\u5206\u6790InnoDB\u72b6\u6001\uff0c\u5305\u62ec\u9501\u7b49\u5f85\u3001\u6b7b\u9501\u548c\u7f13\u51b2\u6c60");
+        assertThat(List.of("bilingualIntent", "intentAliases", "keywords", "intentEn")
+            .stream().noneMatch(filters::containsKey)).isTrue();
     }
 
     @org.junit.jupiter.params.ParameterizedTest
@@ -308,12 +338,11 @@ class McpParamBindingResolverTest {
         "elasticsearch_query_template_query"
     })
     void dedicatedBusinessQueryTemplateToolOverridesMismatchedPlannerTargetKind(String parentTool) {
-        ToolMetadata metadata = ToolMetadata.builder()
-            .id(parentTool)
-            .metadata(Map.of(ToolWorkflowContract.METADATA_KEY,
-                ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY,
-                    "mcp.authorized-template-query.v1", "filters", "template")))
-            .build();
+        ToolMetadata metadata = publishedDiscoveryMetadata(
+            ToolWorkflowRole.TEMPLATE_DISCOVERY, parentTool,
+            List.of("filters", "trace", "candidates", "finalDecision", "confidence", "assetType", "targetKind", "limit"),
+            List.of("filters"),
+            Map.of("forcedTargetKind", "business_database_query", "forcedAssetType", "database_query"));
         Map<String, Object> result = resolver.resolve(
             "mcp_chatchat_mcp_server_" + parentTool,
             metadata,
@@ -342,11 +371,100 @@ class McpParamBindingResolverTest {
     }
 
     @Test
+    void publishedTargetMappingSupportsNewDomainWithoutToolNameBranch() {
+        ToolMetadata metadata = publishedDiscoveryMetadata(
+            ToolWorkflowRole.TEMPLATE_DISCOVERY, "opaque_discovery_capability",
+            List.of("filters", "trace", "candidates", "finalDecision", "confidence", "assetType", "targetKind"),
+            List.of("filters"),
+            Map.of("targetKindToAssetType", Map.of(
+                    "graph_query", "graph_query_asset", "document", "document_search"),
+                "allowedTargetKinds", List.of("graph_query")));
+
+        Map<String, Object> result = resolver.resolve(
+            "mcp_tenant_opaque_discovery_capability", metadata,
+            Map.of("filters", Map.of("intent", "find neighbors"),
+                "finalDecision", "graph_query", "confidence", 0.91),
+            "find neighbors");
+
+        assertThat(result).doesNotContainKey(McpParamBindingResolver.STATUS_KEY)
+            .containsEntry("targetKind", "graph_query")
+            .containsEntry("assetType", "graph_query_asset");
+
+        Map<String, Object> outsideScope = resolver.resolve(
+            "mcp_tenant_opaque_discovery_capability", metadata,
+            Map.of("filters", Map.of("intent", "find documents"),
+                "finalDecision", "document", "confidence", 0.91),
+            "find documents");
+        assertThat(outsideScope).containsEntry(McpParamBindingResolver.STATUS_KEY, "DENIED");
+    }
+
+    @Test
+    void missingPublishedTargetMappingDoesNotFallBackToBuiltInCatalog() {
+        ToolMetadata metadata = publishedDiscoveryMetadata(
+            ToolWorkflowRole.TEMPLATE_DISCOVERY, "opaque_discovery_capability",
+            List.of("filters", "trace", "candidates", "finalDecision", "confidence", "assetType", "targetKind"),
+            List.of("filters"), Map.of("allowedTargetKinds", List.of("database")));
+
+        Map<String, Object> result = resolver.resolve(
+            "mcp_tenant_opaque_discovery_capability", metadata,
+            Map.of("filters", Map.of("intent", "health"),
+                "finalDecision", "database", "confidence", 0.91), "health");
+
+        assertThat(result).containsEntry(McpParamBindingResolver.STATUS_KEY, "DENIED");
+        assertThat(result).doesNotContainKey("assetType");
+
+        Map<String, Object> assetTypeOnly = resolver.resolve(
+            "mcp_tenant_opaque_discovery_capability", metadata,
+            Map.of("filters", Map.of("intent", "health"),
+                "assetType", "sql_datasource", "confidence", 0.91), "health");
+        assertThat(assetTypeOnly).containsEntry(McpParamBindingResolver.STATUS_KEY, "DENIED");
+    }
+
+    @Test
+    void undeclaredToolNameDoesNotSelectBusinessBinding() {
+        Map<String, Object> arguments = Map.of("templateId", "approved_template");
+        assertThat(resolver.resolve("mcp_tenant_sql_query_execute", null, arguments, "query"))
+            .isEqualTo(arguments);
+    }
+
+    @Test
+    void protocolRegistrySupportsAdditionalExecutionFamily() {
+        McpBindingPolicyRegistry policies = new McpBindingPolicyRegistry(Map.of(
+            "mcp.graph-template.v1", McpBindingPolicyRegistry.Policy.SQL_EXECUTION));
+        McpParamBindingResolver graphResolver = new McpParamBindingResolver(policies);
+        ToolMetadata metadata = ToolMetadata.builder()
+            .id("opaque_executor_42")
+            .metadata(Map.of(
+                "argumentBindingPolicy", bindingPolicy(),
+                ToolWorkflowContract.METADATA_KEY,
+                ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_EXECUTION,
+                    "mcp.graph-template.v1", "executionContext")))
+            .build();
+
+        assertThat(policies.resolve(metadata)).isEqualTo(McpBindingPolicyRegistry.Policy.SQL_EXECUTION);
+        assertThat(graphResolver.resolve("opaque_executor_42", metadata,
+            Map.of("templateId", "approved_template", "query", "find neighbors"), "find neighbors"))
+            .containsEntry("template", "approved_template")
+            .doesNotContainKey("query");
+    }
+
+    @Test
+    void preservesPlannerSuppliedBilingualSignalsForServerRetrieval() {
+        Map<String, Object> result = resolver.resolve(
+            "mcp_tenant_opaque_discovery", declaredDiscoveryMetadata(ToolWorkflowRole.TEMPLATE_DISCOVERY),
+            Map.of("filters", Map.of("intent", "find neighbors", "intentEn", "graph neighbors"),
+                "finalDecision", "database", "confidence", 0.91), "find neighbors");
+
+        assertThat(result).doesNotContainKey(McpParamBindingResolver.STATUS_KEY);
+        assertThat(((Map<?, ?>) result.get("filters")).get("intentEn")).isEqualTo("graph neighbors");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void enrichesAssetDiscoveryRetrievalWithTopTwoIntentCandidatesAndOriginalQuery() {
         Map<String, Object> result = resolver.resolve(
             "mcp_chatchat_mcp_server_ssh_asset_query",
-            null,
+            declaredDiscoveryMetadata(ToolWorkflowRole.ASSET_DISCOVERY),
             Map.of(
                 "candidates", List.of(Map.of("targetKind", "host", "confidence", 0.9)),
                 "finalDecision", "host",
@@ -381,7 +499,7 @@ class McpParamBindingResolverTest {
     void keepsAllIntentCandidatesAboveThresholdAndIncludesExpandedQueries() {
         Map<String, Object> result = resolver.resolve(
             "mcp_chatchat_mcp_server_ssh_asset_query",
-            null,
+            declaredDiscoveryMetadata(ToolWorkflowRole.ASSET_DISCOVERY),
             Map.of(
                 "candidates", List.of(Map.of("targetKind", "host", "confidence", 0.91)),
                 "finalDecision", "host",
@@ -418,7 +536,7 @@ class McpParamBindingResolverTest {
         String query = "A股主要指数 2026年8月14日 行情数据 成交量";
         Map<String, Object> result = resolver.resolve(
             "mcp_chatchat_mcp_server_sql_datasource_asset_query",
-            null,
+            declaredDiscoveryMetadata(ToolWorkflowRole.ASSET_DISCOVERY),
             Map.of(
                 "finalDecision", "database",
                 "confidence", 0.95,
@@ -449,7 +567,7 @@ class McpParamBindingResolverTest {
     void explicitFiltersWinAndStaleContextEnvelopeIsRemoved() {
         Map<String, Object> result = resolver.resolve(
             "mcp_chatchat_mcp_server_sql_datasource_asset_query",
-            null,
+            declaredDiscoveryMetadata(ToolWorkflowRole.ASSET_DISCOVERY),
             Map.of(
                 "finalDecision", "database",
                 "confidence", 0.95,
@@ -466,7 +584,18 @@ class McpParamBindingResolverTest {
         assertThat(result).doesNotContainKeys("executionContext", "mcpExecutionContext");
     }
 
-    private ToolMetadata publishedDiscoveryMetadata(String remoteToolName,
+    private ToolMetadata declaredDiscoveryMetadata(ToolWorkflowRole role) {
+        return publishedDiscoveryMetadata(role, "opaque_discovery",
+            List.of("filters", "trace", "candidates", "finalDecision", "confidence", "assetType", "targetKind", "limit"),
+            List.of("filters"),
+            Map.of("allowedTargetKinds", List.of("host", "database", "http", "java", "business_database_query"),
+                "targetKindToAssetType", Map.of(
+                    "host", "ssh_host", "database", "sql_datasource", "http", "http_endpoint",
+                    "java", "jmx_endpoint", "business_database_query", "database_query")));
+    }
+
+    private ToolMetadata publishedDiscoveryMetadata(ToolWorkflowRole role,
+                                                     String remoteToolName,
                                                      List<String> fields,
                                                      List<String> required,
                                                      Map<String, Object> routingProtocol) {
@@ -477,12 +606,35 @@ class McpParamBindingResolverTest {
             .categories(List.of("mcp"))
             .metadata(Map.of(
                 "remoteToolName", remoteToolName,
+                "argumentBindingPolicy", bindingPolicy(),
                 "inputSchema", Map.of(
                     "type", "object",
                     "properties", properties,
                     "required", required),
-                "mcpToolMeta", Map.of("routingProtocol", routingProtocol)))
+                "mcpToolMeta", Map.of(
+                    "routingProtocol", routingProtocol,
+                    ToolWorkflowContract.METADATA_KEY,
+                    ToolWorkflowContract.declaration(role, "mcp.template-discovery.v1", "filters", "template"))))
             .build();
+    }
+
+    private Map<String, Object> bindingPolicy() {
+        return Map.of(
+            "logicalContextKeys", List.of("env", "environment", "cluster", "namespace", "target",
+                "targetType", "target_type", "assetName", "asset_name", "name", "hostSelector",
+                "host_selector", "database", "databaseType", "dbType", "dialect", "databaseRole",
+                "database_role", "service", "labels"),
+            "concreteTargetFields", List.of("hostId", "host", "hostname", "ip", "ipAddress", "address",
+                "datasourceId", "jdbcUrl", "url", "connectionString", "endpointId", "uri"),
+            "rawExecutionFields", List.of("command", "rawCommand", "shell", "sql", "rawSql", "body", "bodyTemplate"),
+            "targetKindFields", List.of("targetKind", "target_kind", "queryDomain", "query_domain", "domain",
+                "resourceType", "resource_type", "resourceKind", "resource_kind"),
+            "filterProtocolFields", List.of("trace", "routingTrace", "routing_trace", "candidates",
+                "routingCandidates", "routing_candidates", "finalDecision", "final_decision", "selectedTargetKind",
+                "selected_target_kind", "targetKind", "target_kind", "assetType", "asset_type", "confidence",
+                "filtersSchemaVersion", "filters_schema_version", "mcpContext", "mcp_context", "tenantId",
+                "tenant_id", "userId", "user_id", "requestId", "request_id", "conversationId",
+                "conversation_id", "toolName", "tool_name", "remoteTool", "remote_tool"));
     }
 
     private List<String> strings(Object value) {

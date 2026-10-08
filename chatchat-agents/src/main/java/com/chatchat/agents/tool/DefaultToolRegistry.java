@@ -277,7 +277,9 @@ public class DefaultToolRegistry implements ToolRegistry {
         Object rightChecksum = right.getMetadata() == null ? null
             : right.getMetadata().get("workflowContractChecksum");
         if (leftChecksum != null || rightChecksum != null) {
-            return Objects.equals(leftChecksum, rightChecksum);
+            return Objects.equals(leftChecksum, rightChecksum)
+                && Objects.equals(left.getMetadata() == null ? null : left.getMetadata().get("argumentBindingPolicy"),
+                    right.getMetadata() == null ? null : right.getMetadata().get("argumentBindingPolicy"));
         }
         return left.equals(right);
     }

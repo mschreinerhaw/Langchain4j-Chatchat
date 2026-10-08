@@ -2,9 +2,7 @@ package com.chatchat.agents.orchestration.retrieval;
 
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
 import com.chatchat.common.tool.ToolMetadata;
-import com.chatchat.common.tool.McpToolNamePolicy;
 import com.chatchat.common.tool.ToolWorkflowContract;
-import com.chatchat.common.tool.ToolWorkflowRole;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -17,12 +15,21 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Normalizes loose planner arguments into the logical MCP gateway contracts.
+ * Normalizes planner arguments using published MCP workflow and routing contracts.
  */
 public class McpParamBindingResolver {
 
     private final DiscoveryParameterNormalizer discoveryParameterNormalizer =
         new DiscoveryParameterNormalizer();
+    private final McpBindingPolicyRegistry bindingPolicies;
+
+    public McpParamBindingResolver() {
+        this(new McpBindingPolicyRegistry());
+    }
+
+    public McpParamBindingResolver(McpBindingPolicyRegistry bindingPolicies) {
+        this.bindingPolicies = java.util.Objects.requireNonNull(bindingPolicies);
+    }
 
     private static final Pattern ENV_ASSIGNMENT_PATTERN = Pattern.compile(
         "(?iu)(?:\\benv(?:ironment)?\\b|\\u73af\\u5883)\\s*(?:[:=]|\\u4e3a|\\u662f)\\s*"
@@ -42,95 +49,6 @@ public class McpParamBindingResolver {
     public static final String CODE_KEY = "__runtimeParamBindingCode";
 
     private static final Set<String> MCP_CATEGORIES = Set.of("mcp");
-    private static final List<String> LOGICAL_CONTEXT_KEYS = List.of(
-        "env",
-        "environment",
-        "cluster",
-        "namespace",
-        "target",
-        "targetType",
-        "target_type",
-        "assetName",
-        "asset_name",
-        "name",
-        "hostSelector",
-        "host_selector",
-        "database",
-        "databaseType",
-        "dbType",
-        "dialect",
-        "databaseRole",
-        "database_role",
-        "service",
-        "labels"
-    );
-    private static final List<String> CONCRETE_TARGET_FIELDS = List.of(
-        "hostId",
-        "host",
-        "hostname",
-        "ip",
-        "ipAddress",
-        "address",
-        "datasourceId",
-        "jdbcUrl",
-        "url",
-        "connectionString",
-        "endpointId",
-        "uri"
-    );
-    private static final List<String> RAW_EXECUTION_FIELDS = List.of(
-        "command",
-        "rawCommand",
-        "shell",
-        "sql",
-        "rawSql",
-        "body",
-        "bodyTemplate"
-    );
-    private static final List<String> TARGET_KIND_FIELDS = List.of(
-        "targetKind",
-        "target_kind",
-        "queryDomain",
-        "query_domain",
-        "domain",
-        "resourceType",
-        "resource_type",
-        "resourceKind",
-        "resource_kind"
-    );
-    private static final List<String> FILTER_PROTOCOL_FIELDS = List.of(
-        "trace",
-        "routingTrace",
-        "routing_trace",
-        "candidates",
-        "routingCandidates",
-        "routing_candidates",
-        "finalDecision",
-        "final_decision",
-        "selectedTargetKind",
-        "selected_target_kind",
-        "targetKind",
-        "target_kind",
-        "assetType",
-        "asset_type",
-        "confidence",
-        "filtersSchemaVersion",
-        "filters_schema_version",
-        "mcpContext",
-        "mcp_context",
-        "tenantId",
-        "tenant_id",
-        "userId",
-        "user_id",
-        "requestId",
-        "request_id",
-        "conversationId",
-        "conversation_id",
-        "toolName",
-        "tool_name",
-        "remoteTool",
-        "remote_tool"
-    );
     private static final String FILTERS_SCHEMA_VERSION = AgentProtocolCatalog.TARGET_FILTERS;
     private static final double TARGET_KIND_CONFIDENCE_THRESHOLD = 0.60;
     private static final double INTENT_RETRIEVAL_THRESHOLD = 0.75;
@@ -143,49 +61,28 @@ public class McpParamBindingResolver {
         if (!isMcpTool(toolName, metadata)) {
             return values;
         }
-        String remoteToolName = remoteToolName(toolName, metadata);
-        ToolWorkflowRole workflowRole = workflowRole(remoteToolName, metadata);
-        String protocolFamily = ToolWorkflowContract.declaredProtocolFamily(metadata)
-            .map(value -> value.toLowerCase(Locale.ROOT)).orElse("");
-        // A protocol family describes how members of a workflow interoperate; it does not
-        // identify the current tool's operation. Discovery bridges intentionally publish the
-        // executor family they feed (for example an SSH or SQL template family). Dispatching on
-        // that family before the explicit workflow role misclassifies the bridge as its executor,
-        // strips the discovery query, and leaves downstream execution without a canonical asset.
-        // Publisher-owned role metadata is therefore authoritative. Name/family matching below
-        // remains only the compatibility path for legacy DIRECT tools.
-        if (workflowRole == ToolWorkflowRole.ASSET_DISCOVERY) {
-            return bindDiscoveryQuery(toolName, metadata, values, userQuery, false);
-        }
-        if (workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
-            return bindDiscoveryQuery(toolName, metadata, values, userQuery, true);
-        }
-        if (protocolFamily.contains("ssh") || protocolFamily.contains("shell")
-            || sameTool(remoteToolName, "linux_command_execute")
-            || sameTool(remoteToolName, "ssh_linux_execute")) {
-            return bindLinuxCommand(values, userQuery);
-        }
-        if (protocolFamily.contains("http") || protocolFamily.contains("api")
-            || sameTool(remoteToolName, "http_request_execute")
-            || sameTool(remoteToolName, "api_query_execute")) {
-            return bindHttpRequest(values, userQuery);
-        }
-        if (protocolFamily.contains("sql") || protocolFamily.contains("database")
-            || sameTool(remoteToolName, "sql_query_execute")) {
-            return bindSqlQuery(values, userQuery);
-        }
-        return values;
+        McpBindingPolicyRegistry.Policy binding = bindingPolicies.resolve(metadata);
+        if (binding == McpBindingPolicyRegistry.Policy.PASSTHROUGH) return values;
+        McpArgumentBindingFieldPolicy fields = McpArgumentBindingFieldPolicy.from(metadata);
+        if (fields == null) return denied(values, "Active MCP tool contract has no valid argumentBindingPolicy.");
+        return switch (binding) {
+            case ASSET_DISCOVERY -> bindDiscoveryQuery(toolName, metadata, values, userQuery, false, fields);
+            case TEMPLATE_DISCOVERY -> bindDiscoveryQuery(toolName, metadata, values, userQuery, true, fields);
+            case SHELL_EXECUTION -> bindLinuxCommand(values, userQuery, fields);
+            case HTTP_EXECUTION -> bindHttpRequest(values, userQuery, fields);
+            case SQL_EXECUTION -> bindSqlQuery(values, userQuery, fields);
+            case PASSTHROUGH -> values;
+        };
     }
 
-    private Map<String, Object> bindSqlQuery(Map<String, Object> values, String userQuery) {
-        String forbidden = firstPresentField(values, List.of(
-            "hostId", "host", "hostname", "ip", "ipAddress", "address", "datasourceId", "jdbcUrl", "connectionString"
-        ));
+    private Map<String, Object> bindSqlQuery(Map<String, Object> values, String userQuery,
+                                             McpArgumentBindingFieldPolicy fields) {
+        String forbidden = firstPresentField(values, fields.concreteTargetFields());
         if (forbidden != null) {
             return denied(values, "Concrete datasource target is not allowed for sql_query_execute: " + forbidden);
         }
         renameFirst(values, "template", "templateId", "template_id", "sqlTemplate", "sql_template");
-        Map<String, Object> context = logicalExecutionContext(values, userQuery);
+        Map<String, Object> context = logicalExecutionContext(values, userQuery, fields);
         if (!context.isEmpty()) {
             values.put("executionContext", context);
         }
@@ -196,19 +93,20 @@ public class McpParamBindingResolver {
         return values;
     }
 
-    private Map<String, Object> bindLinuxCommand(Map<String, Object> values, String userQuery) {
-        String forbidden = firstPresentField(values, CONCRETE_TARGET_FIELDS);
+    private Map<String, Object> bindLinuxCommand(Map<String, Object> values, String userQuery,
+                                                 McpArgumentBindingFieldPolicy fields) {
+        String forbidden = firstPresentField(values, fields.concreteTargetFields());
         if (forbidden != null) {
             return denied(values, "Concrete execution target is not allowed for linux_command_execute: " + forbidden);
         }
-        String rawExecution = firstPresentField(values, RAW_EXECUTION_FIELDS);
+        String rawExecution = firstPresentField(values, fields.rawExecutionFields());
         if (rawExecution != null) {
             return denied(values, "Raw execution field is not allowed for linux_command_execute: " + rawExecution
                 + ". Use a registered template plus parameters.");
         }
 
         renameFirst(values, "template", "templateId", "template_id", "commandTemplate", "command_template");
-        Map<String, Object> context = logicalExecutionContext(values, userQuery);
+        Map<String, Object> context = logicalExecutionContext(values, userQuery, fields);
         if (!context.isEmpty()) {
             values.put("executionContext", context);
         }
@@ -220,13 +118,14 @@ public class McpParamBindingResolver {
         return values;
     }
 
-    private Map<String, Object> bindHttpRequest(Map<String, Object> values, String userQuery) {
-        String forbidden = firstPresentField(values, CONCRETE_TARGET_FIELDS);
+    private Map<String, Object> bindHttpRequest(Map<String, Object> values, String userQuery,
+                                                McpArgumentBindingFieldPolicy fields) {
+        String forbidden = firstPresentField(values, fields.concreteTargetFields());
         if (forbidden != null) {
             return denied(values, "Concrete endpoint target is not allowed for http_request_execute: " + forbidden);
         }
         renameFirst(values, "template", "templateId", "template_id", "endpoint", "endpointName");
-        Map<String, Object> context = logicalExecutionContext(values, userQuery);
+        Map<String, Object> context = logicalExecutionContext(values, userQuery, fields);
         if (!context.isEmpty()) {
             values.put("executionContext", context);
         }
@@ -242,28 +141,27 @@ public class McpParamBindingResolver {
                                                    ToolMetadata metadata,
                                                    Map<String, Object> values,
                                                    String userQuery,
-                                                   boolean templateQuery) {
+                                                   boolean templateQuery,
+                                                   McpArgumentBindingFieldPolicy fields) {
         PublishedDiscoveryContract publishedContract = publishedDiscoveryContract(metadata);
-        String forbidden = firstPresentField(values, CONCRETE_TARGET_FIELDS);
+        String forbidden = firstPresentField(values, fields.concreteTargetFields());
         if (forbidden != null) {
             return denied(values, "Concrete target field is not allowed for discovery: " + forbidden);
         }
         if (templateQuery) {
-            String rawExecution = firstPresentField(values, RAW_EXECUTION_FIELDS);
+            String rawExecution = firstPresentField(values, fields.rawExecutionFields());
             if (rawExecution != null) {
                 return denied(values, "Raw execution field is not allowed for template_query: " + rawExecution);
             }
         }
 
-        String targetKind = removeTargetKind(values);
+        String targetKind = removeTargetKind(values, fields);
         Object rawCandidates = firstPresent(values, "candidates", "routingCandidates", "routing_candidates");
         String finalDecision = firstText(firstPresent(values, "finalDecision", "final_decision", "selectedTargetKind", "selected_target_kind"));
         if (targetKind == null) {
             targetKind = finalDecision;
         }
-        String toolTargetKind = firstNonBlank(
-            publishedContract.forcedTargetKind(),
-            publishedContract.published() ? null : targetKindFromDiscoveryToolName(toolName, templateQuery));
+        String toolTargetKind = publishedContract.forcedTargetKind();
         if (toolTargetKind != null) {
             targetKind = toolTargetKind;
             forceDiscoveryTargetKind(values, toolTargetKind, rawCandidates);
@@ -278,9 +176,7 @@ public class McpParamBindingResolver {
                 targetKind = firstNonBlank(targetKind, toolTargetKind);
                 Map<String, Object> filters = new LinkedHashMap<>();
                 inferLogicalContext(userQuery).forEach(filters::putIfAbsent);
-                if (templateQuery && hasText(userQuery)) {
-                    filters.putIfAbsent("intent", trim(userQuery));
-                } else if (hasText(userQuery)) {
+                if (hasText(userQuery)) {
                     filters.putIfAbsent("intent", trim(userQuery));
                 }
                 values.put("filters", filters);
@@ -308,7 +204,7 @@ public class McpParamBindingResolver {
         DiscoveryParameterNormalizer.Normalization normalizedParameters =
             discoveryParameterNormalizer.normalize(values, inferLogicalContext(userQuery), userQuery);
         Map<String, Object> filters = new LinkedHashMap<>(normalizedParameters.filters());
-        removeForbidden(filters);
+        removeForbidden(filters, fields);
         // A single canonical envelope prevents the MCP server from applying a second,
         // different precedence order to stale aliases.
         values.remove("executionContext");
@@ -324,16 +220,12 @@ public class McpParamBindingResolver {
             );
         }
         if (targetKind == null) {
-            targetKind = removeTargetKind(filters);
+            targetKind = removeTargetKind(filters, fields);
         }
         if (templateQuery && !hasText(firstPresent(filters, "intent", "goal", "category"))) {
-            String intent = hasText(userQuery) ? trim(userQuery) : inferIntent(userQuery);
-            if (intent != null) {
-                filters.put("intent", intent);
+            if (hasText(userQuery)) {
+                filters.put("intent", trim(userQuery));
             }
-        }
-        if (templateQuery) {
-            enrichTemplateIntentSignals(filters, userQuery);
         }
         enrichRetrievalTerms(filters, values, userQuery);
         repairFiltersFromPublishedContract(metadata, filters);
@@ -349,11 +241,10 @@ public class McpParamBindingResolver {
             return finishPublishedScopedDiscovery(values, toolName, targetKind, publishedContract,
                 synthesizedLegacyFilterEnvelope);
         }
-        if (targetKind == null && !hasText(values.get("assetType"))) {
+        if (targetKind == null) {
             return denied(values, (templateQuery ? "template_query" : "asset_query")
-                + " requires explicit finalDecision/targetKind/assetType. Use finalDecision="
-                + (templateQuery ? "host, database, http, java, or business_database_query" : "host, database, or http")
-                + "; use document_search for targetKind=document.");
+                + " requires explicit finalDecision/targetKind. Allowed targetKind values are "
+                + publishedContract.allowedKindsDescription() + ".");
         }
         if (hasText(publishedContract.forcedAssetType())) {
             values.put("assetType", publishedContract.forcedAssetType());
@@ -380,32 +271,29 @@ public class McpParamBindingResolver {
                 + " requires trace object for replayable routing.");
         }
         if (!hasText(values.get("assetType"))) {
-            String assetType = assetTypeFromTargetKind(targetKind);
+            String assetType = publishedContract.assetTypeFor(targetKind);
             if (assetType != null) {
                 values.put("assetType", assetType);
-                values.put("targetKind", normalizeTargetKind(targetKind));
-                values.putIfAbsent("finalDecision", normalizeTargetKind(targetKind));
+                values.put("targetKind", normalizeRoutingValue(targetKind));
+                values.putIfAbsent("finalDecision", normalizeRoutingValue(targetKind));
             } else if (hasText(targetKind)) {
                 return denied(values, "Unsupported targetKind for " + (templateQuery ? "template_query" : "asset_query")
                     + ": " + targetKind + ". Allowed targetKind values are "
-                    + (templateQuery ? "host, database, http, java, business_database_query" : "host, database, http")
-                    + "; use document_search for targetKind=document.");
+                    + publishedContract.allowedKindsDescription() + ".");
             } else {
                 return denied(values, (templateQuery ? "template_query" : "asset_query")
-                    + " requires explicit finalDecision/targetKind/assetType. Use finalDecision="
-                    + (templateQuery ? "host, database, http, java, or business_database_query" : "host, database, or http")
-                    + "; use document_search for targetKind=document.");
+                    + " requires explicit finalDecision/targetKind. Allowed targetKind values are "
+                    + publishedContract.allowedKindsDescription() + ".");
             }
         } else if (targetKind != null) {
-            String normalizedTargetKind = normalizeTargetKind(targetKind);
-            String expectedAssetType = assetTypeFromTargetKind(normalizedTargetKind);
+            String normalizedTargetKind = normalizeRoutingValue(targetKind);
+            String expectedAssetType = publishedContract.assetTypeFor(normalizedTargetKind);
             if (expectedAssetType == null) {
                 return denied(values, "Unsupported targetKind for " + (templateQuery ? "template_query" : "asset_query")
                     + ": " + targetKind + ". Allowed targetKind values are "
-                    + (templateQuery ? "host, database, http, java, business_database_query" : "host, database, http")
-                    + "; use document_search for targetKind=document.");
+                    + publishedContract.allowedKindsDescription() + ".");
             }
-            String providedAssetType = normalizeAssetType(values.get("assetType") == null ? null : String.valueOf(values.get("assetType")));
+            String providedAssetType = normalizeRoutingValue(firstText(values.get("assetType")));
             if (providedAssetType != null && !providedAssetType.equals(expectedAssetType)) {
                 return denied(values, "targetKind=" + normalizedTargetKind + " maps to assetType="
                     + expectedAssetType + ", but request provided assetType=" + providedAssetType + ".");
@@ -436,7 +324,7 @@ public class McpParamBindingResolver {
         trace.put("schemaVersion", AgentProtocolCatalog.ROUTING_TRACE);
         trace.put("source", source);
         trace.put("toolName", toolName == null ? "" : toolName);
-        trace.put("finalDecision", firstNonBlank(normalizeTargetKind(targetKind), ""));
+        trace.put("finalDecision", firstNonBlank(normalizeRoutingValue(targetKind), ""));
         if (confidence != null) {
             trace.put("confidence", confidence);
         }
@@ -521,10 +409,26 @@ public class McpParamBindingResolver {
             firstNonBlank(
                 firstText(firstPresent(toolBoundary, "forcedAssetType", "assetType")),
                 firstText(firstPresent(mcpMeta, "assetType"))));
+        Map<String, String> targetKindToAssetType = new LinkedHashMap<>();
+        asMap(routingProtocol.get("targetKindToAssetType")).forEach((kind, assetType) -> {
+            String normalizedKind = normalizeRoutingValue(kind);
+            String normalizedAssetType = normalizeRoutingValue(firstText(assetType));
+            if (normalizedKind != null && normalizedAssetType != null) {
+                targetKindToAssetType.put(normalizedKind, normalizedAssetType);
+            }
+        });
+        Set<String> allowedTargetKinds = new java.util.LinkedHashSet<>();
+        if (routingProtocol.get("allowedTargetKinds") instanceof Iterable<?> kinds) {
+            for (Object kind : kinds) {
+                String normalizedKind = normalizeRoutingValue(firstText(kind));
+                if (normalizedKind != null) allowedTargetKinds.add(normalizedKind);
+            }
+        }
         boolean requiresRoutingDecision = accepted.contains(canonicalField("finalDecision"))
             || accepted.contains(canonicalField("candidates"));
         return new PublishedDiscoveryContract(true, Set.copyOf(accepted), Set.copyOf(required),
-            forcedTargetKind, forcedAssetType, requiresRoutingDecision);
+            forcedTargetKind, forcedAssetType, Map.copyOf(targetKindToAssetType),
+            Set.copyOf(allowedTargetKinds), requiresRoutingDecision);
     }
 
     /**
@@ -587,38 +491,22 @@ public class McpParamBindingResolver {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> logicalExecutionContext(Map<String, Object> values, String userQuery) {
+    private Map<String, Object> logicalExecutionContext(Map<String, Object> values, String userQuery,
+                                                        McpArgumentBindingFieldPolicy fields) {
         Map<String, Object> context = new LinkedHashMap<>();
         Object existing = firstPresent(values, "executionContext", "mcpExecutionContext");
         if (existing instanceof Map<?, ?> map) {
             context.putAll((Map<String, Object>) map);
         }
-        for (String key : LOGICAL_CONTEXT_KEYS) {
+        for (String key : fields.logicalContextKeys()) {
             Object value = values.remove(key);
             if (value != null && hasText(value)) {
                 context.putIfAbsent(key, value);
             }
         }
         inferLogicalContext(userQuery).forEach(context::putIfAbsent);
-        removeForbidden(context);
+        removeForbidden(context, fields);
         return context;
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> filters(Map<String, Object> values) {
-        Map<String, Object> filters = new LinkedHashMap<>();
-        Object existing = firstPresent(values, "filters", "executionContext", "mcpExecutionContext");
-        if (existing instanceof Map<?, ?> map) {
-            filters.putAll((Map<String, Object>) map);
-        }
-        for (String key : LOGICAL_CONTEXT_KEYS) {
-            Object value = values.remove(key);
-            if (value != null && hasText(value)) {
-                filters.putIfAbsent(key, value);
-            }
-        }
-        removeForbidden(filters);
-        return filters;
     }
 
     private void enrichRetrievalTerms(Map<String, Object> filters, Map<String, Object> values, String userQuery) {
@@ -709,63 +597,6 @@ public class McpParamBindingResolver {
         }
     }
 
-    private void enrichTemplateIntentSignals(Map<String, Object> filters, String userQuery) {
-        if (filters == null) {
-            return;
-        }
-        String text = normalize(String.join(" ",
-            firstText(filters.get("intent")) == null ? "" : firstText(filters.get("intent")),
-            userQuery == null ? "" : userQuery
-        ));
-        if (text == null) {
-            return;
-        }
-        String tableName = firstTableName(text);
-        if (text.contains("metadata") || text.contains("schema") || text.contains("table")
-            || text.contains("元数据") || text.contains("表结构") || text.contains("字段")) {
-            putListIfAbsent(filters, "bilingualIntent", List.of("表元数据", "table metadata", "table schema", tableName));
-            putListIfAbsent(filters, "intentAliases", List.of("表结构", "table metadata", "SHOW CREATE TABLE", "DESCRIBE TABLE"));
-            putListIfAbsent(filters, "keywords", List.of("INFORMATION_SCHEMA", "SHOW COLUMNS", "COLUMNS", tableName, "字段"));
-            filters.putIfAbsent("intentZh", "表元数据");
-            filters.putIfAbsent("intentEn", "table metadata");
-            return;
-        }
-        if (text.contains("innodb")) {
-            putListIfAbsent(filters, "bilingualIntent", List.of("查询InnoDB状态", "SHOW ENGINE INNODB STATUS",
-                "InnoDB engine status", "lock wait", "deadlock"));
-            putListIfAbsent(filters, "intentAliases", List.of("分析InnoDB状态", "SHOW ENGINE INNODB STATUS",
-                "InnoDB status", "deadlock"));
-            putListIfAbsent(filters, "keywords", List.of("InnoDB", "SHOW ENGINE INNODB STATUS", "transaction",
-                "lock wait", "deadlock", "buffer pool"));
-            filters.putIfAbsent("intentEn", "SHOW ENGINE INNODB STATUS");
-        }
-    }
-
-    private void putListIfAbsent(Map<String, Object> filters, String key, List<String> values) {
-        if (filters == null || filters.containsKey(key)) {
-            return;
-        }
-        List<String> compact = values == null ? List.of() : values.stream()
-            .filter(this::hasText)
-            .distinct()
-            .toList();
-        if (!compact.isEmpty()) {
-            filters.put(key, compact);
-        }
-    }
-
-    private String firstTableName(String text) {
-        if (text == null) {
-            return null;
-        }
-        for (String token : text.split("[^a-z0-9_]+")) {
-            if (token.contains("_") && token.length() > 2) {
-                return token;
-            }
-        }
-        return "table";
-    }
-
     @SuppressWarnings("unchecked")
     private void normalizeParameters(Map<String, Object> values, String userQuery) {
         Map<String, Object> parameters = new LinkedHashMap<>();
@@ -777,17 +608,6 @@ public class McpParamBindingResolver {
         moveIfPresent(values, parameters, "path", "filePath", "file_path", "logPath", "log_path");
         moveIfPresent(values, parameters, "lines", "tailLines", "tail_lines", "limit");
         moveIfPresent(values, parameters, "keyword", "keywords", "pattern");
-        String serviceName = firstText(parameters.get("serviceName"));
-        if (serviceName == null) {
-            String service = firstText(firstPresent(asMap(values.get("executionContext")), "service", "target"));
-            serviceName = canonicalServiceName(service);
-            if (serviceName == null) {
-                serviceName = canonicalServiceName(inferService(userQuery));
-            }
-            if (serviceName != null && looksServiceTemplate(values.get("template"))) {
-                parameters.put("serviceName", serviceName);
-            }
-        }
         if (!parameters.isEmpty()) {
             values.put("parameters", parameters);
         }
@@ -798,10 +618,6 @@ public class McpParamBindingResolver {
         String env = inferEnvironment(query);
         if (env != null) {
             context.put("env", env);
-        }
-        String service = inferService(query);
-        if (service != null) {
-            context.put("service", service);
         }
         return context;
     }
@@ -837,98 +653,8 @@ public class McpParamBindingResolver {
         };
     }
 
-    private String inferService(String query) {
-        String text = normalize(query);
-        if (text == null) {
-            return null;
-        }
-        for (String service : List.of(
-            "hive",
-            "nginx",
-            "mysql",
-            "redis",
-            "kafka",
-            "spark",
-            "flink",
-            "hdfs",
-            "yarn",
-            "zookeeper",
-            "elasticsearch",
-            "postgresql",
-            "postgres",
-            "oracle"
-        )) {
-            if (text.matches(".*(^|[^a-z0-9_-])" + service + "([^a-z0-9_-]|$).*")) {
-                return service;
-            }
-        }
-        return null;
-    }
-
-    private String inferIntent(String query) {
-        String text = normalize(query);
-        if (text == null) {
-            return null;
-        }
-        if (containsAny(text, "状态", "status", "健康", "health")) {
-            return "service status";
-        }
-        if (containsAny(text, "日志", "log", "tail")) {
-            return "log";
-        }
-        if (containsAny(text, "磁盘", "disk")) {
-            return "disk";
-        }
-        if (containsAny(text, "内存", "memory", "mem")) {
-            return "memory";
-        }
-        if (containsAny(text, "cpu")) {
-            return "cpu";
-        }
-        return null;
-    }
-
-    private String inferAssetType(String query) {
-        String text = normalize(query);
-        if (text != null && containsAny(text, "数据库", "数据源", "库", "sql", "mysql", "postgres", "postgresql", "oracle")) {
-            return "sql_datasource";
-        }
-        if (text != null && containsAny(text, "hive")) {
-            return containsAny(text, "表", "元数据", "schema", "sql", "数据库", "数据源")
-                ? "sql_datasource"
-                : "ssh_host";
-        }
-        if (text != null && containsAny(text, "数据库", "sql", "mysql", "postgres", "postgresql", "oracle", "hive")) {
-            return containsAny(text, "状态", "日志", "系统", "主机", "服务", "status", "log") ? "ssh_host" : "sql_datasource";
-        }
-        return "ssh_host";
-    }
-
-    private String targetKindFromDiscoveryToolName(String toolName, boolean templateQuery) {
-        String normalized = normalizeToolName(toolName);
-        if (normalized.contains("database_query_template_query")
-            || normalized.contains("trino_query_template_query")
-            || normalized.contains("neo4j_query_template_query")
-            || normalized.contains("opensearch_query_template_query")
-            || normalized.contains("elasticsearch_query_template_query")) {
-            return "business_database_query";
-        }
-        if (normalized.contains("database_asset_search")
-            || normalized.contains("database_ops_template_search")
-            || normalized.contains("sql_datasource")) {
-            return "database";
-        }
-        if (normalized.contains("http_endpoint") || normalized.contains("api_")) {
-            return "http";
-        }
-        if (normalized.contains("ssh_") || normalized.contains("linux_")) {
-            return "host";
-        }
-        return null;
-    }
-
     private void forceDiscoveryTargetKind(Map<String, Object> values, String targetKind, Object rawCandidates) {
-        String normalizedTargetKind = normalizeTargetKind(targetKind);
+        String normalizedTargetKind = normalizeRoutingValue(targetKind);
         if (values == null || normalizedTargetKind == null) {
             return;
         }
@@ -952,13 +678,13 @@ public class McpParamBindingResolver {
     }
 
     private boolean candidateContains(Object rawCandidates, String targetKind) {
-        String normalizedTargetKind = normalizeTargetKind(targetKind);
+        String normalizedTargetKind = normalizeRoutingValue(targetKind);
         if (!(rawCandidates instanceof List<?> candidates) || normalizedTargetKind == null) {
             return false;
         }
         for (Object item : candidates) {
             if (item instanceof Map<?, ?> candidate
-                && normalizedTargetKind.equals(normalizeTargetKind(firstText(candidate.get("targetKind"))))) {
+                && normalizedTargetKind.equals(normalizeRoutingValue(firstText(candidate.get("targetKind"))))) {
                 return true;
             }
         }
@@ -986,24 +712,6 @@ public class McpParamBindingResolver {
         return hasText(first) ? first : second;
     }
 
-    private String canonicalServiceName(String service) {
-        String value = normalize(service);
-        if (value == null) {
-            return null;
-        }
-        return switch (value) {
-            case "hive" -> "hive-server2";
-            case "postgres" -> "postgresql";
-            case "elasticsearch" -> "elasticsearch";
-            default -> value;
-        };
-    }
-
-    private boolean looksServiceTemplate(Object template) {
-        String value = normalize(template == null ? null : String.valueOf(template));
-        return value != null && (value.contains("service") || value.contains("status") || value.contains("log"));
-    }
-
     private Map<String, Object> denied(Map<String, Object> values, String message) {
         Map<String, Object> result = new LinkedHashMap<>(values == null ? Map.of() : values);
         result.put(STATUS_KEY, "DENIED");
@@ -1027,6 +735,12 @@ public class McpParamBindingResolver {
 
     private boolean isMcpTool(String toolName, ToolMetadata metadata) {
         if (metadata != null) {
+            if (ToolWorkflowContract.isDeclared(metadata)
+                && ToolWorkflowContract.declaredProtocolFamily(metadata)
+                    .map(family -> family.toLowerCase(Locale.ROOT).startsWith("mcp."))
+                    .orElse(false)) {
+                return true;
+            }
             if (metadata.getCategories() != null && metadata.getCategories().stream()
                 .map(value -> value == null ? "" : String.valueOf(value).trim().toLowerCase(Locale.ROOT))
                 .anyMatch(MCP_CATEGORIES::contains)) {
@@ -1039,86 +753,17 @@ public class McpParamBindingResolver {
         return toolName != null && toolName.startsWith("mcp_");
     }
 
-    private String remoteToolName(String toolName, ToolMetadata metadata) {
-        if (metadata != null && metadata.getMetadata() != null) {
-            Object remote = metadata.getMetadata().get("remoteToolName");
-            if (hasText(remote)) {
-                return String.valueOf(remote).trim();
-            }
-        }
-        if (toolName == null) {
-            return "";
-        }
-        for (String known : List.of("linux_command_execute", "ssh_linux_execute",
-            "http_request_execute", "api_query_execute", "sql_query_execute",
-            "database_query_execute", "asset_query", "template_query", "database_asset_search",
-            "database_ops_template_search", "sql_datasource_asset_query",
-            "sql_datasource_template_query", "database_query_template_query")) {
-            if (sameTool(toolName, known) || normalizeToolName(toolName).endsWith("_" + known)) {
-                return known;
-            }
-        }
-        return toolName;
-    }
-
-    private String removeTargetKind(Map<String, Object> values) {
+    private String removeTargetKind(Map<String, Object> values, McpArgumentBindingFieldPolicy fields) {
         if (values == null) {
             return null;
         }
-        for (String field : TARGET_KIND_FIELDS) {
+        for (String field : fields.targetKindFields()) {
             Object value = values.remove(field);
             if (hasText(value)) {
                 return String.valueOf(value).trim();
             }
         }
         return null;
-    }
-
-    private String assetTypeFromTargetKind(String targetKind) {
-        String normalized = normalizeTargetKind(targetKind);
-        if (normalized == null) {
-            return null;
-        }
-        return switch (normalized) {
-            case "host" -> "ssh_host";
-            case "database" -> "sql_datasource";
-            case "http" -> "http_endpoint";
-            case "java" -> "jmx_endpoint";
-            case "business_database_query" -> "database_query";
-            default -> null;
-        };
-    }
-
-    private String normalizeAssetType(String assetType) {
-        String normalized = normalize(assetType);
-        if (normalized == null) {
-            return null;
-        }
-        return switch (normalized) {
-            case "host", "ssh", "sshhost" -> "ssh_host";
-            case "database", "db", "sql", "sqldatasource", "datasource" -> "sql_datasource";
-            case "http", "api", "endpoint", "httpendpoint" -> "http_endpoint";
-            case "jmx", "java", "jvm", "jmxendpoint" -> "jmx_endpoint";
-            case "businessdatabasequery", "business_database_query", "business_db_query", "sqltemplateregistry",
-                "sql_template_registry" -> "database_query";
-            default -> normalized;
-        };
-    }
-
-    private String normalizeTargetKind(String targetKind) {
-        String normalized = normalize(targetKind);
-        if (normalized == null) {
-            return null;
-        }
-        return switch (normalized) {
-            case "host", "ssh", "ssh_host", "server", "machine", "linux" -> "host";
-            case "database", "db", "sql", "sql_datasource", "datasource" -> "database";
-            case "http", "api", "endpoint", "http_endpoint" -> "http";
-            case "jmx", "java", "jvm", "jmx_endpoint" -> "java";
-            case "business_database_query", "database_query", "business_db_query" -> "business_database_query";
-            case "document", "doc", "knowledge", "file" -> "document";
-            default -> normalized;
-        };
     }
 
     private Double confidence(Object value) {
@@ -1133,13 +778,13 @@ public class McpParamBindingResolver {
     }
 
     private Double candidateConfidence(Object rawCandidates, String targetKind) {
-        String normalizedTargetKind = normalizeTargetKind(targetKind);
+        String normalizedTargetKind = normalizeRoutingValue(targetKind);
         if (normalizedTargetKind == null || !(rawCandidates instanceof List<?> candidates)) {
             return null;
         }
         for (Object item : candidates) {
             Map<String, Object> candidate = asMap(item);
-            if (normalizedTargetKind.equals(normalizeTargetKind(firstText(candidate.get("targetKind"))))) {
+            if (normalizedTargetKind.equals(normalizeRoutingValue(firstText(candidate.get("targetKind"))))) {
                 return confidence(candidate.get("confidence"));
             }
         }
@@ -1194,13 +839,13 @@ public class McpParamBindingResolver {
         return null;
     }
 
-    private void removeForbidden(Map<String, Object> values) {
+    private void removeForbidden(Map<String, Object> values, McpArgumentBindingFieldPolicy fields) {
         if (values == null) {
             return;
         }
-        CONCRETE_TARGET_FIELDS.forEach(values::remove);
-        RAW_EXECUTION_FIELDS.forEach(values::remove);
-        FILTER_PROTOCOL_FIELDS.forEach(values::remove);
+        fields.concreteTargetFields().forEach(values::remove);
+        fields.rawExecutionFields().forEach(values::remove);
+        fields.filterProtocolFields().forEach(values::remove);
     }
 
     @SuppressWarnings("unchecked")
@@ -1225,28 +870,8 @@ public class McpParamBindingResolver {
         return hasText(value) ? String.valueOf(value).trim() : null;
     }
 
-    private boolean containsAny(String text, String... probes) {
-        if (text == null || probes == null) {
-            return false;
-        }
-        for (String probe : probes) {
-            if (probe != null && text.contains(probe.toLowerCase(Locale.ROOT))) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean sameTool(String first, String second) {
-        return normalizeToolName(first).equals(normalizeToolName(second));
-    }
-
-    private ToolWorkflowRole workflowRole(String toolName, ToolMetadata metadata) {
-        return ToolWorkflowContract.resolveRole(toolName, metadata);
-    }
-
-    private String normalizeToolName(String value) {
-        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+    private static String normalizeRoutingValue(String value) {
+        return value == null || value.isBlank() ? null : value.trim().toLowerCase(Locale.ROOT);
     }
 
     private String normalize(Object value) {
@@ -1272,9 +897,32 @@ public class McpParamBindingResolver {
                                                Set<String> requiredFields,
                                                String forcedTargetKind,
                                                String forcedAssetType,
+                                               Map<String, String> targetKindToAssetType,
+                                               Set<String> allowedTargetKinds,
                                                boolean requiresRoutingDecision) {
         private static PublishedDiscoveryContract legacy() {
-            return new PublishedDiscoveryContract(false, Set.of(), Set.of(), null, null, true);
+            return new PublishedDiscoveryContract(false, Set.of(), Set.of(), null, null,
+                Map.of(), Set.of(), true);
+        }
+
+        private String assetTypeFor(String targetKind) {
+            String normalizedKind = normalizeRoutingValue(targetKind);
+            if (normalizedKind == null) return null;
+            if (!allowedTargetKinds.isEmpty() && !allowedTargetKinds.contains(normalizedKind)) return null;
+            if (normalizedKind.equals(normalizeRoutingValue(forcedTargetKind))
+                && forcedAssetType != null && !forcedAssetType.isBlank()) {
+                return normalizeRoutingValue(forcedAssetType);
+            }
+            return targetKindToAssetType.get(normalizedKind);
+        }
+
+        private String allowedKindsDescription() {
+            if (!allowedTargetKinds.isEmpty()) return String.join(", ", allowedTargetKinds.stream().sorted().toList());
+            if (forcedTargetKind != null && !forcedTargetKind.isBlank()) return forcedTargetKind;
+            if (!targetKindToAssetType.isEmpty()) {
+                return String.join(", ", targetKindToAssetType.keySet().stream().sorted().toList());
+            }
+            return "none published by the MCP tool";
         }
 
         private boolean accepts(String field) {

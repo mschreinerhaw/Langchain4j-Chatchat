@@ -1,10 +1,25 @@
 # 数据能力中心
 
-管理入口使用原有 `DatabaseMcpView`，保留“数据查询能力 / 交易日历 / 批量导入”三个页签。
+数据能力中心提供“关系库查询 / Trino 查询 / Neo4j 查询 / OpenSearch 查询 / Elasticsearch 查询 / 交易日历 / 批量导入”子菜单。
+各查询子菜单复用原有 `DatabaseMcpView` 和步骤编辑器，通过类型参数筛选查询和数据源；原关系库查询页面及日历、导入流程保留。
 新增数据源适配按后端模块组织，不替换原有查询分析、交易日查询和 DSL 导入页面。
 后端位于 `com.chatchat.mcpserver.datacapability`，按业务模块组织，不增加独立启动进程。
 
 ## 统一查询工作台
+
+查询父模板默认不发布，不提供全库通用检索入口。管理员在“子模板发布”选择专用父模板、角色或用户及查询模板后，发布继承的子工具：
+
+| 查询子菜单 | 专用父模板工具 |
+| --- | --- |
+| 关系库查询 | `database_query_template_query`（沿用原工具标识） |
+| Trino 查询 | `trino_query_template_query` |
+| Neo4j 查询 | `neo4j_query_template_query` |
+| OpenSearch 查询 | `opensearch_query_template_query` |
+| Elasticsearch 查询 | `elasticsearch_query_template_query` |
+
+父模板仅在存在启用的继承子工具时按需注册，标记为 `agentSelectable=false`；调用必须携带 Runtime 委托的子工具身份并通过原角色、用户、服务和租户授权校验。
+最后一个子工具停用或删除后，相应父模板撤下。原 `data_query_query` 通用检索工具从默认发布清单移除，元数据和查询执行网关继续保留。
+子模板选择、保存校验、调用时授权交集及候选检索均限制查询类型。关系库父模板不会返回 Trino、图库或检索模板；原来跨类型的子工具绑定需拆分到对应父模板，已有查询配置无需重建。
 
 原查询配置表、`sqlSteps` JSON 字段及 `/api/v1/database-query` 保存、测试接口承载所有查询类型。
 关系库、Trino、Neo4j、OpenSearch 和 Elasticsearch 统一在“资产中心 → 数据库资产”管理，并使用原数据库资产 ID。
@@ -69,7 +84,7 @@
 | 批量导入 | `importing` | JSON 标准模板、逐行校验、部分成功、持久化反馈与异常记录 |
 | API / MCP | `admin` / `publication` | 共用能力定义和执行服务，接入已有 MCP 发布审核、并发与 License 管理 |
 
-数据能力中心直接展示原有完整页面，保留分类、查询分析步骤、测试、索引、动态交易日历和 DSL 批量导入操作。
+各查询子菜单直接复用原有完整页面，保留分类、查询分析步骤、测试、索引、动态交易日历和 DSL 批量导入操作。
 切换侧边菜单时通过 `KeepAlive` 保留原工作台、日历配置和导入编辑状态。
 原有 `/api/v1/database-query`、`/api/v1/dynamic-date-params/trading-calendar/*`、`/api/v1/template-dsl/database-query/*` 接口和数据表继续使用。
 下文 `/api/v1/data-capabilities` 为新增后端能力接口；不作为原有交易日查询和 DSL 导入的替代入口。

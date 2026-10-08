@@ -73,7 +73,7 @@ public class TemplateQueryAdminController {
         @RequestParam("roleId") String roleId,
         @RequestParam("parentToolName") String parentToolName) {
         TemplateQueryParentCatalog.ParentTool parent = parentCatalog.require(parentToolName);
-        return ApiResponse.success(catalogService.listAuthorizedForRoleAndType(roleId, parent.assetType()));
+        return ApiResponse.success(catalogService.listAuthorizedForRoleAndType(roleId, parent.assetType()).stream().filter(parent::accepts).toList());
     }
 
     @GetMapping("/parents")

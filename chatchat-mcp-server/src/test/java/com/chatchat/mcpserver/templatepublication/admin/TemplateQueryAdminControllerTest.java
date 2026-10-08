@@ -19,6 +19,20 @@ import static org.mockito.Mockito.when;
 class TemplateQueryAdminControllerTest {
 
     @Test
+    void templatePickerRestrictsTemplatesToSelectedQueryParent() {
+        var catalog = mock(TemplateAssetCatalogService.class);
+        var relational = new TemplateAssetCatalogService.TemplateAsset("database_query:sql", "database_query", "sql", "SQL",
+            "SQL", "finance", "finance", "Finance", java.util.Map.of());
+        var graph = new TemplateAssetCatalogService.TemplateAsset("database_query:graph", "database_query", "graph", "Graph",
+            "Graph", "finance", "finance", "Finance", java.util.Map.of()).withQueryFamily("neo4j");
+        when(catalog.listAuthorizedForRoleAndType("role-1", "database_query")).thenReturn(List.of(relational, graph));
+        var controller = new TemplateQueryAdminController(mock(TemplateQueryBindingService.class), catalog,
+            new TemplateQueryParentCatalog(), mock(McpAuthorizationService.class), mock(TemplateQueryMcpToolPublisher.class));
+        assertThat(controller.templates("role-1", "neo4j_query_template_query").getData()).containsExactly(graph);
+        assertThat(controller.templates("role-1", "database_query_template_query").getData()).containsExactly(relational);
+    }
+
+    @Test
     void listReturnsBindingsFromTheService() {
         TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
         TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);

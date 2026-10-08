@@ -163,7 +163,7 @@ public class TemplateAssetCatalogService {
             DATABASE_QUERY, item.getToolName(), item.getTitle(), item.getDescription(), item.getCapabilityCategory(),
             category(categoriesById, categoriesByCode, item.getCategoryId(),
                 firstText(item.getCapabilityCategory(), item.getBusinessGroup()), item.getBusinessGroupName()),
-            item.getInputSchemaJson()),
+            item.getInputSchemaJson()).withQueryFamily(databaseQueryFamily(item, datasources)),
             List.of(new AuthorizationRef(item.getToolName(), null, null, null, null)))));
         apiServiceConfigService.listEnabled().forEach(item -> result.add(entry(asset(
             API, item.getToolName(), item.getTitle(), item.getDescription(), item.getBusinessGroup(),
@@ -199,6 +199,8 @@ public class TemplateAssetCatalogService {
                 TemplateAsset asset = new TemplateAsset(type + ":" + publishedName,
                     type, publishedName, template.title(), template.description(), service.getName(),
                     "external_mcp", service.getName(), template.inputSchema());
+                String queryFamily = com.chatchat.mcpserver.database.definition.DatabaseQueryFamily.forParent(service.getParentToolName());
+                if (queryFamily != null) asset = asset.withQueryFamily(queryFamily);
                 entries.add(entry(asset, List.of(new AuthorizationRef(publishedName, null, null, null, null))));
             }
         }
@@ -290,7 +292,25 @@ public class TemplateAssetCatalogService {
 
     public record TemplateAsset(String key, String assetType, String templateId, String title,
                                 String description, String category, String businessCategoryCode,
-                                String businessCategoryName, Map<String, Object> parameterSchema) { }
+                                String businessCategoryName, Map<String, Object> parameterSchema, String queryFamily) {
+        public TemplateAsset(String key, String assetType, String templateId, String title, String description,
+                             String category, String businessCategoryCode, String businessCategoryName, Map<String, Object> parameterSchema) {
+            this(key, assetType, templateId, title, description, category, businessCategoryCode, businessCategoryName, parameterSchema,
+                DATABASE_QUERY.equals(assetType) ? "relational" : null);
+        }
+        public TemplateAsset withQueryFamily(String family) {
+            return new TemplateAsset(key, assetType, templateId, title, description, category, businessCategoryCode, businessCategoryName, parameterSchema, family);
+        }
+    }
+
+    private String databaseQueryFamily(com.chatchat.mcpserver.database.definition.DatabaseQueryConfig query,
+                                     List<com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig> datasources) {
+        String type = datasources.stream().filter(asset -> asset.getId().equals(query.getDatasourceId()))
+            .map(asset -> com.chatchat.mcpserver.sql.datasource.NativeQueryDatasource.isNative(asset)
+                ? com.chatchat.mcpserver.sql.datasource.NativeQueryDatasource.type(asset) : asset.getDatabaseType())
+            .filter(java.util.Objects::nonNull).findFirst().orElse(query.getDatabaseType());
+        return com.chatchat.mcpserver.database.definition.DatabaseQueryFamily.fromDatabaseType(type);
+    }
 
     private record CategoryRef(String code, String name) { }
 

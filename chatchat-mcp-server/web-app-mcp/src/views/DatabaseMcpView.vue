@@ -12,23 +12,19 @@
       <template #header>
         <div class="panel-heading">
           <div>
-            <h2>数据能力中心</h2>
-            <p>按金融业务分类管理可被 Agent 发现和调用的只读数据能力。</p>
+            <h2>{{ pageTitle }}</h2>
+            <p v-if="section === 'queries'">父模板 {{ parentTemplateName }} 默认不发布。通过“子模板发布”继承，限定角色、用户及可用查询模板。</p>
+            <p v-else>沿用原有交易日历和批量导入配置流程。</p>
           </div>
         </div>
       </template>
 
-      <el-tabs v-model="activeTab" class="workspace-tabs">
-        <el-tab-pane label="数据查询能力" name="queries" />
-        <el-tab-pane label="交易日历" name="calendar" />
-        <el-tab-pane label="批量导入" name="dsl" />
-      </el-tabs>
     </el-card>
 
     <CrudCatalog
       v-if="activeTab === 'queries'"
       ref="catalog"
-      title="数据查询能力"
+      :title="pageTitle"
       subtitle="分类维护金融数据服务，并将安全查询发布为带业务元数据的 MCP 工具。"
       search-placeholder="搜索名称、描述、实现步骤、工作台步骤、标签或数据源"
       :columns="columns"

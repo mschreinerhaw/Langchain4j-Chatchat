@@ -30,6 +30,24 @@ import static org.mockito.Mockito.when;
 class TemplateAssetCatalogServiceTest {
 
     @Test
+    void databaseFamiliesFollowCurrentCentralDatasourceType() {
+        var queries = mock(DatabaseQueryConfigService.class);
+        var datasources = mock(SqlDatasourceConfigService.class);
+        var query = new com.chatchat.mcpserver.database.definition.DatabaseQueryConfig();
+        query.setToolName("graph_query"); query.setTitle("Graph"); query.setDatasourceId("graph"); query.setDatabaseType("mysql");
+        var asset = new com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig();
+        asset.setId("graph"); asset.setDatabaseType("neo4j"); asset.setDriverClass("neo4j-http"); asset.setJdbcUrl("http://localhost:7474");
+        when(queries.listEnabled()).thenReturn(List.of(query)); when(datasources.listEnabled()).thenReturn(List.of(asset));
+        var service = new TemplateAssetCatalogService(mock(CommandTemplateService.class), mock(SqlTemplateService.class),
+            mock(HttpEndpointConfigService.class), queries, mock(ApiServiceConfigService.class), mock(PythonTemplateCatalog.class),
+            mock(BusinessCategoryService.class), mock(SshHostConfigService.class), datasources,
+            mock(McpAuthorizationService.class), new ObjectMapper());
+        assertThat(service.listEnabled()).singleElement().satisfies(template -> assertThat(template.queryFamily()).isEqualTo("neo4j"));
+        asset.setDatabaseType("elasticsearch"); asset.setDriverClass("elasticsearch-http");
+        assertThat(service.listEnabled()).singleElement().satisfies(template -> assertThat(template.queryFamily()).isEqualTo("elasticsearch"));
+    }
+
+    @Test
     void callerDiscoveryUsesEffectiveCallerPolicyWithoutPublicationBindings() {
         var authorization = mock(McpAuthorizationService.class);
         var sql = mock(SqlTemplateService.class);

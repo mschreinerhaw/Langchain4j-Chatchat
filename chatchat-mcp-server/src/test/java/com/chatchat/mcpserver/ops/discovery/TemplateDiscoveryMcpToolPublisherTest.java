@@ -20,6 +20,28 @@ import static org.mockito.Mockito.verify;
 class TemplateDiscoveryMcpToolPublisherTest {
 
     @Test
+    void databaseParentsPublishOnlyForChildrenAndRejectDirectGlobalQueries() {
+        var discovery = mock(CommandTemplateDiscoveryService.class);
+        var children = mock(com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisher.class);
+        var provider = mock(org.springframework.beans.factory.ObjectProvider.class);
+        org.mockito.Mockito.when(provider.getIfAvailable()).thenReturn(children);
+        var server = mock(McpSyncServer.class);
+        var publisher = new TemplateDiscoveryMcpToolPublisher(server, discovery, new TargetKindRegistry(), provider);
+        assertThat(publisher.contribute()).noneMatch(publication -> publication.toolName().contains("query_template_query"));
+        org.mockito.Mockito.when(children.hasPublishedChildren("neo4j_query_template_query")).thenReturn(true);
+        var parent = publisher.contribute().stream().filter(publication -> publication.toolName().equals("neo4j_query_template_query")).findFirst().orElseThrow();
+        publisher.refresh();
+        assertThat(parent.specification().tool().meta()).containsEntry("queryFamily", "neo4j").containsEntry("agentSelectable", false);
+        var direct = parent.specification().callHandler().apply(null, new McpSchema.CallToolRequest("neo4j_query_template_query", Map.of("filters", Map.of()), Map.of()));
+        assertThat(direct.isError()).isTrue();
+        org.mockito.Mockito.verifyNoInteractions(discovery);
+        org.mockito.Mockito.when(children.hasPublishedChildren("neo4j_query_template_query")).thenReturn(false);
+        assertThat(publisher.contribute()).noneMatch(publication -> publication.toolName().equals("neo4j_query_template_query"));
+        publisher.refresh();
+        verify(server).removeTool("neo4j_query_template_query");
+    }
+
+    @Test
     void sshTemplateToolIsTypedReadOnlyDiscoveryTool() throws Exception {
         TemplateDiscoveryMcpToolPublisher publisher = publisher(mock(McpSyncServer.class));
         Method method = TemplateDiscoveryMcpToolPublisher.class.getDeclaredMethod(
@@ -94,26 +116,29 @@ class TemplateDiscoveryMcpToolPublisherTest {
             .isEqualTo("ranking_signal_and_model_selection_metadata");
         assertThat(routingProtocol.get("crossCategoryResultsAllowed")).isEqualTo(true);
         assertThat(meta.get("executionFlow").toString())
-            .contains("business_category_resolution", "sql_template_execution", "evidence_analysis");
+            .contains("FIXED_BINDING", "globalSearchPerformed=false");
+        assertThat(meta.get("agentSelectable")).isEqualTo(false);
+        assertThat(meta.get("defaultPublished")).isEqualTo(false);
+        assertThat(meta.get("requiresChildBinding")).isEqualTo(true);
     }
 
     @Test
-    void refreshPublishesEveryParentToolboxReferencedByTheBindingCatalog() {
+    void refreshLeavesDatabaseParentsUnpublishedWithoutChildrenAndRemovesLegacyTools() {
         McpSyncServer server = mock(McpSyncServer.class);
-        org.mockito.Mockito.when(server.listTools()).thenReturn(List.of());
+        org.mockito.Mockito.when(server.listTools()).thenReturn(List.of(McpSchema.Tool.builder()
+            .name(TemplateDiscoveryMcpToolPublisher.JMX_TEMPLATE_TOOL_NAME).description("Legacy JMX toolbox").build()));
         TemplateDiscoveryMcpToolPublisher publisher = publisher(server);
 
         publisher.refresh();
 
         ArgumentCaptor<McpServerFeatures.SyncToolSpecification> specifications =
             ArgumentCaptor.forClass(McpServerFeatures.SyncToolSpecification.class);
-        verify(server, times(4)).addTool(specifications.capture());
+        verify(server, times(3)).addTool(specifications.capture());
         assertThat(specifications.getAllValues().stream().map(item -> item.tool().name()))
             .containsExactlyInAnyOrder(
                 TemplateDiscoveryMcpToolPublisher.SSH_TEMPLATE_TOOL_NAME,
                 TemplateDiscoveryMcpToolPublisher.SQL_DATASOURCE_TEMPLATE_TOOL_NAME,
-                TemplateDiscoveryMcpToolPublisher.HTTP_ENDPOINT_TEMPLATE_TOOL_NAME,
-                TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME);
+                TemplateDiscoveryMcpToolPublisher.HTTP_ENDPOINT_TEMPLATE_TOOL_NAME);
         assertThat(specifications.getAllValues()).allSatisfy(spec ->
             assertThat((Map<?, ?>) spec.tool().inputSchema().get("properties"))
                 .satisfies(properties -> assertThat(properties.containsKey(

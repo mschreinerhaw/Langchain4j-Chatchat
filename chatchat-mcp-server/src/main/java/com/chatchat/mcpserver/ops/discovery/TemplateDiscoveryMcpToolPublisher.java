@@ -44,20 +44,28 @@ public class TemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
     @Override public String contributorId() { return "operations_template_discovery_legacy"; }
     @Override public McpSyncServer publicationServer() { return mcpSyncServer; }
     @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() {
-        return List.of(
+        var publications = new java.util.ArrayList<com.chatchat.mcpserver.tool.ToolPublication>(List.of(
             publication(SSH_TEMPLATE_TOOL_NAME, "SSH command template discovery",
                 "Read-only parent toolbox for SSH command templates.", "ssh_host", "host", "host command templates"),
             publication(SQL_DATASOURCE_TEMPLATE_TOOL_NAME, "Database operations template discovery",
                 "Read-only parent toolbox for database operations templates.", "sql_datasource", "database", "database operations templates"),
             publication(HTTP_ENDPOINT_TEMPLATE_TOOL_NAME, "HTTP endpoint template discovery",
-                "Read-only parent toolbox for HTTP endpoint templates.", "http_endpoint", "http", "HTTP endpoint templates"),
-            publication(DATABASE_QUERY_TEMPLATE_TOOL_NAME, "Categorized database query template discovery",
-                "Read-only parent toolbox for governed business database query templates.", "database_query",
-                "business_database_query", "categorized database query templates")
-        );
+                "Read-only parent toolbox for HTTP endpoint templates.", "http_endpoint", "http", "HTTP endpoint templates")
+        ));
+        var children = dynamicQueryPublisher.getIfAvailable();
+        if (children != null) for (String parent : com.chatchat.mcpserver.database.definition.DatabaseQueryFamily.PARENTS) {
+            if (!children.hasPublishedChildren(parent)) continue;
+            String family = com.chatchat.mcpserver.database.definition.DatabaseQueryFamily.forParent(parent);
+            publications.add(publication(parent, family + " query parent template",
+                "Inherited-only parent toolbox for " + family + " queries. A published child binding is required.",
+                "database_query", "business_database_query", family + " query templates"));
+        }
+        return List.copyOf(publications);
     }
     @Override public Set<String> retiredToolNames() {
-        return Set.of(LEGACY_SQL_DATASOURCE_TEMPLATE_TOOL_NAME, JMX_TEMPLATE_TOOL_NAME);
+        var retired = new java.util.LinkedHashSet<String>(com.chatchat.mcpserver.database.definition.DatabaseQueryFamily.PARENTS);
+        retired.add(LEGACY_SQL_DATASOURCE_TEMPLATE_TOOL_NAME); retired.add(JMX_TEMPLATE_TOOL_NAME);
+        return Set.copyOf(retired);
     }
 
     private com.chatchat.mcpserver.tool.ToolPublication publication(
@@ -86,6 +94,8 @@ public class TemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
             .callHandler((exchange, request) -> {
                 try {
                     String childToolName = TemplateQueryMcpToolPublisher.childToolName(request.arguments());
+                    if (com.chatchat.mcpserver.database.definition.DatabaseQueryFamily.forParent(toolName) != null && childToolName.isBlank())
+                        throw new IllegalArgumentException("查询父模板必须通过已授权的子模板继承调用");
                     Map<String, Object> result = childToolName.isBlank()
                         ? templateDiscoveryService.query(forcedTemplateArguments(
                             request.arguments(), toolName, assetType, targetKind))
@@ -426,7 +436,7 @@ public class TemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
                                                   String assetType,
                                                   String targetKind,
                                                   String domainLabel) {
-        return mapOf(
+        Map<String, Object> metadata = mapOf(
             "schemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION,
             "kind", "typed_template_discovery_tool",
             "domain", domainLabel,
@@ -502,6 +512,15 @@ public class TemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
                 : Map.of(),
             "rawExecutionSpecReturned", false
         );
+        String family = com.chatchat.mcpserver.database.definition.DatabaseQueryFamily.forParent(toolName);
+        if (family != null) {
+            metadata.put("queryFamily", family);
+            metadata.put("defaultPublished", false);
+            metadata.put("agentSelectable", false);
+            metadata.put("requiresChildBinding", true);
+            metadata.put("executionFlow", mapOf("scopeMode", "FIXED_BINDING", "globalSearchPerformed", false));
+        }
+        return metadata;
     }
 
     private Map<String, Object> domainRoutingProtocol(String assetType, String targetKind) {

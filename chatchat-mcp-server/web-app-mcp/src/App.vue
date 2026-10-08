@@ -48,7 +48,7 @@
           <component
             :is="activeNav.component"
             :key="activeView"
-            v-bind="activeNav.section ? { section: activeNav.section } : {}"
+            v-bind="{ ...(activeNav.section ? { section: activeNav.section } : {}), ...(activeNav.queryFamily ? { queryFamily: activeNav.queryFamily } : {}) }"
             @notify="notify"
             @error="handleError"
             @result="showResult"

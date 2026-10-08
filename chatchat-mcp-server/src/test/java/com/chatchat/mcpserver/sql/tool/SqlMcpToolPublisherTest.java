@@ -85,13 +85,12 @@ class SqlMcpToolPublisherTest {
 
         ArgumentCaptor<McpServerFeatures.SyncToolSpecification> tools =
             ArgumentCaptor.forClass(McpServerFeatures.SyncToolSpecification.class);
-        verify(mcpSyncServer, times(3)).addTool(tools.capture());
+        verify(mcpSyncServer, times(2)).addTool(tools.capture());
         assertThat(tools.getAllValues().stream().map(tool -> tool.tool().name()).toList())
             .containsExactly(
-                SqlMcpToolPublisher.DATA_QUERY_BRIDGE_TOOL,
                 SqlMcpToolPublisher.SQL_METADATA_BRIDGE_TOOL,
                 "sql_query_execute")
-            .doesNotContain(SqlMcpToolPublisher.SQL_METADATA_SEARCH_TOOL, "sql_script_execute");
+            .doesNotContain(SqlMcpToolPublisher.DATA_QUERY_BRIDGE_TOOL, SqlMcpToolPublisher.SQL_METADATA_SEARCH_TOOL, "sql_script_execute");
         verify(mcpSyncServer).removeTool("sql_script_execute");
         verify(mcpSyncServer).notifyToolsListChanged();
         verify(sqlTemplateService).listEnabled();

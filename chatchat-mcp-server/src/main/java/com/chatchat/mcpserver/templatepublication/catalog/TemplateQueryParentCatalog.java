@@ -26,7 +26,11 @@ public class TemplateQueryParentCatalog {
             "HTTP 请求模板检索", TemplateAssetCatalogService.HTTP),
         new ParentTool(SERVICE_ID, SERVICE_NAME,
             TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME,
-            "业务数据库查询模板检索", TemplateAssetCatalogService.DATABASE_QUERY),
+            "关系库查询父模板", TemplateAssetCatalogService.DATABASE_QUERY),
+        new ParentTool(SERVICE_ID, SERVICE_NAME, "trino_query_template_query", "Trino 查询父模板", TemplateAssetCatalogService.DATABASE_QUERY),
+        new ParentTool(SERVICE_ID, SERVICE_NAME, "neo4j_query_template_query", "Neo4j 查询父模板", TemplateAssetCatalogService.DATABASE_QUERY),
+        new ParentTool(SERVICE_ID, SERVICE_NAME, "opensearch_query_template_query", "OpenSearch 查询父模板", TemplateAssetCatalogService.DATABASE_QUERY),
+        new ParentTool(SERVICE_ID, SERVICE_NAME, "elasticsearch_query_template_query", "Elasticsearch 查询父模板", TemplateAssetCatalogService.DATABASE_QUERY),
         new ParentTool(SERVICE_ID, SERVICE_NAME,
             ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME,
             "API 服务模板检索", TemplateAssetCatalogService.API),
@@ -51,5 +55,13 @@ public class TemplateQueryParentCatalog {
     }
 
     public record ParentTool(String serviceId, String serviceName, String toolName,
-                             String title, String assetType) { }
+                             String title, String assetType) {
+        @com.fasterxml.jackson.annotation.JsonProperty
+        public String queryFamily() { return com.chatchat.mcpserver.database.definition.DatabaseQueryFamily.forParent(toolName); }
+        @com.fasterxml.jackson.annotation.JsonProperty
+        public boolean defaultPublished() { return queryFamily() == null; }
+        public boolean accepts(TemplateAssetCatalogService.TemplateAsset asset) {
+            return assetType.equals(asset.assetType()) && (queryFamily() == null || queryFamily().equals(asset.queryFamily()));
+        }
+    }
 }

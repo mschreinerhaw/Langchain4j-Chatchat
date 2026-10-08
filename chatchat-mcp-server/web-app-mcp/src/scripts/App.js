@@ -46,6 +46,15 @@ const menuComponents = {
   settings: SettingsView
 };
 const licenseMenu = { key: 'license', label: 'License 授权', icon: 'Key', component: LicenseView };
+const databaseSections = [
+  { key: 'databaseRelational', label: '关系库查询', queryFamily: 'relational' },
+  { key: 'databaseTrino', label: 'Trino 查询', queryFamily: 'trino' },
+  { key: 'databaseNeo4j', label: 'Neo4j 查询', queryFamily: 'neo4j' },
+  { key: 'databaseOpenSearch', label: 'OpenSearch 查询', queryFamily: 'opensearch' },
+  { key: 'databaseElasticsearch', label: 'Elasticsearch 查询', queryFamily: 'elasticsearch' },
+  { key: 'databaseCalendar', label: '交易日历', section: 'calendar' },
+  { key: 'databaseImport', label: '批量导入', section: 'dsl' }
+].map(item => ({ ...item, icon: 'Coin', component: DatabaseMcpView }));
 const userSettingsSection =
   { key: 'settingsUsers', label: '用户管理', icon: 'User', component: SettingsView, section: 'users' };
 const authorizationSettingsSection =
@@ -120,7 +129,9 @@ export default {
         const access = await licenseApi.menus();
         const licensed = (Array.isArray(access) ? access : [])
           .filter(item => item.authorized && menuComponents[item.key])
-          .map(item => ({ ...item, component: menuComponents[item.key] }));
+          .map(item => item.key === 'databaseMcp'
+            ? { ...item, children: databaseSections }
+            : { ...item, component: menuComponents[item.key] });
         const settings = licensed.find(item => item.key === 'settings');
         const authorization = licensed.find(item => item.key === 'authorizationManagement');
         this.navItems = [

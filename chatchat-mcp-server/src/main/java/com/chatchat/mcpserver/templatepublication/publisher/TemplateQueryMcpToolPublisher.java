@@ -46,8 +46,11 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
     private final McpToolConcurrencyManager concurrencyManager;
     private final BoundTemplateCandidateRetriever candidateRetriever = new BoundTemplateCandidateRetriever();
     private final Set<String> publishedToolNames = new LinkedHashSet<>();
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.beans.factory.ObjectProvider<com.chatchat.mcpserver.ops.discovery.TemplateDiscoveryMcpToolPublisher> parentPublisher;
 
     public synchronized void refresh() {
+        if (parentPublisher != null) parentPublisher.getObject().refresh();
         com.chatchat.mcpserver.tool.McpToolPublicationPipeline.PublicationResult result = refreshPublication();
         publishedToolNames.clear();
         publishedToolNames.addAll(result.publishedTools());
@@ -55,6 +58,10 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
     }
 
     @Override public String contributorId() { return "template_query"; }
+    public boolean hasPublishedChildren(String parentToolName) {
+        return bindingService.publishedToolNames().stream()
+            .anyMatch(child -> parentToolName.equals(bindingService.parentToolName(child)));
+    }
     @Override public McpSyncServer publicationServer() { return mcpSyncServer; }
     @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() {
         return bindingService.publishedToolNames().stream()
@@ -148,6 +155,10 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         }
         scopedAssets.stream()
             .filter(asset -> route.assetType().equals(asset.assetType()))
+            .filter(asset -> {
+                String family = com.chatchat.mcpserver.database.definition.DatabaseQueryFamily.forParent(route.parentToolName());
+                return family == null || family.equals(asset.queryFamily());
+            })
             .forEach(asset -> enabledAssets.put(asset.templateId(), asset));
         int limit = recallLimit(arguments);
         BoundTemplateCandidateRetriever.Recall recall = candidateRetriever.recall(

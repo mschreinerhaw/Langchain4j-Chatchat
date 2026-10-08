@@ -22,6 +22,25 @@ import static org.mockito.Mockito.when;
 
 class TemplateQueryBindingServiceTest {
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"relational", "trino", "neo4j", "opensearch", "elasticsearch"})
+    void rejectsCrossFamilyDatabaseTemplateEvenWhenRoleAuthorizesIt(String family) {
+        var repository = mock(TemplateQueryBindingRepository.class);
+        var roles = mock(McpSynchronizedRoleRepository.class);
+        var catalog = mock(TemplateAssetCatalogService.class);
+        var service = new TemplateQueryBindingService(repository, catalog, new TemplateQueryParentCatalog(), roles,
+            new ObjectMapper(), mock(McpAuthorizationService.class));
+        when(roles.findById("role-1")).thenReturn(Optional.of(role("role-1", "FINANCE")));
+        var wrong = new TemplateAssetCatalogService.TemplateAsset("database_query:wrong", "database_query", "wrong",
+            "wrong", "wrong", "finance", "finance", "Finance", Map.of())
+            .withQueryFamily(family.equals("neo4j") ? "elasticsearch" : "neo4j");
+        when(catalog.listAuthorizedForRoleAndType("role-1", "database_query")).thenReturn(List.of(wrong));
+        String parent = family.equals("relational") ? "database_query_template_query" : family + "_query_template_query";
+        var request = new TemplateQueryBindingService.UpsertRequest(parent, "role-1", "ROLE", null, "customer",
+            List.of(wrong.key()), true, null);
+        assertThatThrownBy(() -> service.create(request)).hasMessageContaining("does not match the selected parent");
+    }
+
     @Test
     void rejectsTemplateWhoseCategoryDoesNotMatchTheFixedParentQuery() {
         TemplateQueryBindingRepository repository = mock(TemplateQueryBindingRepository.class);

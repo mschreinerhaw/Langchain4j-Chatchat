@@ -187,9 +187,10 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
             // It must not disappear merely because the current template authorization
             // intersection is empty (for example after an asset was disabled).
             parentToolNames.add(parent.toolName());
-            String authorizationKey = role.getId() + "|" + parent.assetType();
+            String authorizationKey = role.getId() + "|" + parent.toolName();
             Set<String> authorizedKeys = authorizedKeysByRole.computeIfAbsent(authorizationKey, ignored ->
                 catalogService.listAuthorizedForRoleAndType(role.getId(), parent.assetType()).stream()
+                    .filter(parent::accepts)
                     .map(TemplateAssetCatalogService.TemplateAsset::key)
                     .collect(java.util.stream.Collectors.toUnmodifiableSet()));
             for (String key : readKeys(binding.getTemplateKeysJson())) {
@@ -288,7 +289,7 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
         if (aliasConflict) {
             throw new IllegalArgumentException("All bindings of the same dynamic tool must use the same chineseAlias");
         }
-        List<String> keys = normalizeKeys(request.templateKeys(), role.getId(), parent.assetType());
+        List<String> keys = normalizeKeys(request.templateKeys(), role.getId(), parent);
         if (keys.isEmpty()) {
             throw new IllegalArgumentException("At least one template must be selected");
         }
@@ -326,8 +327,9 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
         }
     }
 
-    private List<String> normalizeKeys(List<String> keys, String roleId, String assetType) {
-        Set<String> enabledKeys = catalogService.listAuthorizedForRoleAndType(roleId, assetType).stream()
+    private List<String> normalizeKeys(List<String> keys, String roleId, TemplateQueryParentCatalog.ParentTool parent) {
+        Set<String> enabledKeys = catalogService.listAuthorizedForRoleAndType(roleId, parent.assetType()).stream()
+            .filter(parent::accepts)
             .map(TemplateAssetCatalogService.TemplateAsset::key)
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
         return keys == null ? List.of() : keys.stream()

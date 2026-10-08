@@ -14,11 +14,15 @@ const internalFinancialDatasource = {
 export default {
   name: 'DatabaseMcpView',
   components: { CrudCatalog, CategoryCardPager },
+  props: {
+    queryFamily: { type: String, default: 'relational' },
+    section: { type: String, default: 'queries' }
+  },
   emits: ['notify', 'error', 'result'],
   data() {
     return {
       api,
-      activeTab: 'queries',
+      activeTab: this.section,
       busy: false,
       sqlAssets: [],
       querySources: [],
@@ -86,7 +90,7 @@ export default {
           label: '数据源资产',
           type: 'select',
           required: true,
-          options: () => [internalFinancialDatasource, ...this.querySourceOptions.filter(option => option.enabled)],
+          options: () => [...(this.queryFamily === 'relational' ? [internalFinancialDatasource] : []), ...this.querySourceOptions.filter(option => option.enabled)],
           placeholder: '选择资产配置中已启用的数据源',
           help: '复用资产配置中的关系库、Trino、图库和检索资产；查询语法随数据源自动适配。',
           section: 'basic'
@@ -220,8 +224,16 @@ export default {
     };
   },
   computed: {
+    pageTitle() {
+      return this.section === 'calendar' ? '交易日历' : this.section === 'dsl' ? '批量导入'
+        : ({ relational: '关系库查询', trino: 'Trino 查询', neo4j: 'Neo4j 查询', opensearch: 'OpenSearch 查询', elasticsearch: 'Elasticsearch 查询' })[this.queryFamily];
+    },
+    parentTemplateName() {
+      return this.queryFamily === 'relational' ? 'database_query_template_query' : this.queryFamily + '_query_template_query';
+    },
+    familyQueries() { return this.allQueries.filter(query => this.queryMatchesFamily(query)); },
     querySourceOptions() {
-      return this.querySources.map(source => ({ value: source.id,
+      return this.querySources.filter(source => this.section !== 'queries' || this.sourceFamily(source) === this.queryFamily).map(source => ({ value: source.id,
         label: `${source.name} / ${source.databaseType} / ${source.queryLanguage}`, enabled: source.enabled }));
     },
     enabledDatasourceOptions() {
@@ -237,10 +249,10 @@ export default {
     },
     categoryCards() {
       return [
-        { id: '', code: '', name: '全部能力', description: '查看全部数据查询能力', count: this.allQueries.length },
+        { id: '', code: '', name: '全部能力', description: '查看本类型的查询能力', count: this.familyQueries.length },
         ...this.categories.filter(item => item.enabled !== false).map(item => ({
           ...item,
-          count: this.allQueries.filter(query =>
+          count: this.familyQueries.filter(query =>
             query.categoryId === item.id || query.capabilityCategory === item.code).length
         }))
       ];
@@ -268,6 +280,17 @@ export default {
     this.loadQuerySources();
   },
   methods: {
+    sourceFamily(source) {
+      if (source?.type === 'TRINO') return 'trino';
+      if (source?.type === 'GRAPH') return 'neo4j';
+      if (source?.type === 'UNSTRUCTURED') return source.databaseType === 'elasticsearch' ? 'elasticsearch' : 'opensearch';
+      return 'relational';
+    },
+    queryMatchesFamily(query) {
+      const source = this.querySources.find(item => item.id === query.datasourceId);
+      const type = query.databaseType;
+      return (source ? this.sourceFamily(source) : ['trino', 'neo4j', 'opensearch', 'elasticsearch'].includes(type) ? type : 'relational') === this.queryFamily;
+    },
     dataAvailabilityLabel(value, row) {
       if (value === 'NOT_APPLICABLE') return '外部数据源';
       if (value === 'READY') return '已采集';
@@ -288,10 +311,11 @@ export default {
       }
     },
     async listQueries() {
+      await this.loadQuerySources();
       const queries = await api.list() || [];
       this.allQueries = queries;
-      if (!this.selectedCategory) return queries;
-      return queries.filter(query => query.categoryId === this.selectedCategory
+      if (!this.selectedCategory) return this.familyQueries;
+      return this.familyQueries.filter(query => query.categoryId === this.selectedCategory
         || query.capabilityCategory === this.selectedCategory);
     },
     async selectCategory(category) {

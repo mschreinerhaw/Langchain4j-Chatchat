@@ -29,6 +29,27 @@ import static org.mockito.Mockito.when;
 
 class TemplateQueryMcpToolPublisherTest {
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"relational", "trino", "neo4j", "opensearch", "elasticsearch"})
+    void inheritedDatabaseScopeCannotReturnOtherQueryFamilies(String family) {
+        var bindings = mock(TemplateQueryBindingService.class);
+        var catalog = mock(TemplateAssetCatalogService.class);
+        var publisher = publisher(bindings, catalog);
+        String parent = family.equals("relational") ? "database_query_template_query" : family + "_query_template_query";
+        String child = "customer_template_query";
+        var arguments = Map.<String, Object>of("limit", 20);
+        when(bindings.requireRoute(child)).thenReturn(route(child, parent, "database_query"));
+        when(bindings.resolvePolicy(null, child, arguments)).thenReturn(new TemplateQueryBindingService.PolicyResolution(
+            Map.of("database_query", Set.of("correct", "wrong")), Set.of(parent), "policy-v1", false, 2, Instant.now()));
+        when(catalog.listEnabled()).thenReturn(List.of(
+            asset("database_query", "correct", Map.of()).withQueryFamily(family),
+            asset("database_query", "wrong", Map.of()).withQueryFamily(family.equals("neo4j") ? "elasticsearch" : "neo4j")));
+        var result = publisher.queryFromParent(child, parent, arguments);
+        assertThat(result.get("templates").toString()).contains("correct").doesNotContain("wrong");
+        assertThat(result.get("globalSearchPerformed")).isEqualTo(false);
+        assertThat(result.get("bindingComplete")).isEqualTo(false);
+    }
+
     @Test
     void removesLegacyGenericTemplateQueryAndDoesNotPublishItAgain() {
         McpSyncServer server = mock(McpSyncServer.class);

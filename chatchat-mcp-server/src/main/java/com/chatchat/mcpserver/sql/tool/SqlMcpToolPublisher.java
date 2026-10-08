@@ -99,7 +99,7 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
 
     public synchronized void refresh() {
         refreshPublication();
-        log.info("SQL discovery tools refreshed: dataBridge={}, metadataBridge={}; "
+        log.info("SQL discovery tools refreshed: retiredGenericBridge={}, metadataBridge={}; "
                 + "sql_metadata_search retained as an internal capability; Runtime SQL executor retained: sql_query_execute",
             DATA_QUERY_BRIDGE_TOOL, SQL_METADATA_BRIDGE_TOOL);
     }
@@ -107,13 +107,12 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
     @Override public String contributorId() { return "sql"; }
     @Override public McpSyncServer publicationServer() { return mcpSyncServer; }
     @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() {
-        return List.of(com.chatchat.mcpserver.tool.ToolPublication.from(dataQueryBridgeTool()),
-            com.chatchat.mcpserver.tool.ToolPublication.from(sqlMetadataBridgeTool()),
+        return List.of(com.chatchat.mcpserver.tool.ToolPublication.from(sqlMetadataBridgeTool()),
             com.chatchat.mcpserver.tool.ToolPublication.from(sqlQueryGatewayTool()));
     }
     @Override public Set<String> retiredToolNames() {
         java.util.LinkedHashSet<String> retired = new java.util.LinkedHashSet<>(List.of(
-            "sql_query_execute", "sql_script_execute", SQL_METADATA_SEARCH_TOOL));
+            "sql_query_execute", "sql_script_execute", SQL_METADATA_SEARCH_TOOL, DATA_QUERY_BRIDGE_TOOL));
         datasourceConfigService.listAll().stream().map(item -> item.getToolName())
             .filter(java.util.Objects::nonNull).forEach(retired::add);
         retired.addAll(managedToolNames);

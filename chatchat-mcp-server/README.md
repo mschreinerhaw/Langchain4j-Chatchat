@@ -1,5 +1,10 @@
 # ChatChat MCP Server
 
+## Data capability center
+
+The administration UI separates Trino, relational queries, graph queries, unstructured
+search, trading calendars and bulk import. See [configuration, API and upgrade guide](docs/data-capability-center.md).
+
 ## Database selection
 
 The MCP server's development and production profiles use PostgreSQL by default.

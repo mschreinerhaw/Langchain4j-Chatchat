@@ -4,7 +4,7 @@ import McpServicesView from '../views/McpServicesView.vue';
 import TemplateQueryPublicationsView from '../views/TemplateQueryPublicationsView.vue';
 import AssetCenterView from '../views/AssetCenterView.vue';
 import BusinessCategoriesView from '../views/BusinessCategoriesView.vue';
-import DatabaseMcpView from '../views/DatabaseMcpView.vue';
+import DataCapabilityCenterView from '../views/DataCapabilityCenterView.vue';
 import CacheSettingsView from '../views/CacheSettingsView.vue';
 import NotificationChannelsView from '../views/NotificationChannelsView.vue';
 import AuditLogsView from '../views/AuditLogsView.vue';
@@ -37,7 +37,7 @@ const menuComponents = {
   newsCollection: NewsCollectionView,
   assetCenter: AssetCenterView,
   businessCategories: BusinessCategoriesView,
-  databaseMcp: DatabaseMcpView,
+  databaseMcp: DataCapabilityCenterView,
   cacheSettings: CacheSettingsView,
   notificationChannels: NotificationChannelsView,
   auditLogs: AuditLogsView,

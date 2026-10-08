@@ -44,7 +44,7 @@
           <p v-if="isSystemSettingsView" class="topbar-endpoint">MCP Endpoint: <code>{{ mcpEndpoint }}</code></p>
         </header>
 
-        <KeepAlive include="ApiServicesView,AssetCenterView,DatabaseMcpView,TemplateQueryPublicationsView">
+        <KeepAlive include="ApiServicesView,AssetCenterView,DataCapabilityCenterView,TemplateQueryPublicationsView">
           <component
             :is="activeNav.component"
             :key="activeView"

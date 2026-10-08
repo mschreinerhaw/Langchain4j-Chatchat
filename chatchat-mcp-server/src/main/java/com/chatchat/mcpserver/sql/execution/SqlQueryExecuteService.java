@@ -438,6 +438,13 @@ public class SqlQueryExecuteService {
                 diagnostics.put("streamCompleted", false);
             }
             applyDefaultCatalog(connection, datasource, diagnostics);
+            // Capability definitions may select a Trino namespace independently of the JDBC URL.
+            if (datasource.getJdbcUrl().startsWith("jdbc:trino:")) {
+                Object catalog = diagnostics.get("requestedCatalog");
+                Object schema = diagnostics.get("requestedSchema");
+                if (catalog != null) connection.setCatalog(validNamespace(catalog));
+                if (schema != null) connection.setSchema(validNamespace(schema));
+            }
             statement.setQueryTimeout(timeoutSeconds);
             statement.setMaxRows(maxRows);
             diagnostics.put("connection", connectionDiagnostics(connection, datasource));
@@ -626,6 +633,8 @@ public class SqlQueryExecuteService {
 
     Map<String, Object> baseDiagnostics(SqlDatasourceConfig datasource, Map<String, Object> request) {
         Map<String, Object> diagnostics = new LinkedHashMap<>();
+        diagnostics.put("requestedCatalog", request.get("catalog"));
+        diagnostics.put("requestedSchema", request.get("schema"));
         diagnostics.put("schemaVersion", "sql_query_diagnostics.v1");
         diagnostics.put("templateId", requestedTemplate(request));
         diagnostics.put("templateParameters", new LinkedHashMap<>(mapValue(request.get("parameters"))));
@@ -642,6 +651,12 @@ public class SqlQueryExecuteService {
             "jdbcDatabase", firstText(defaultSchemaName(datasource, request), "")
         ));
         return diagnostics;
+    }
+
+    private String validNamespace(Object value) {
+        String name = String.valueOf(value);
+        if (!name.matches("[A-Za-z_][A-Za-z0-9_]*")) throw new IllegalArgumentException("Invalid Trino namespace");
+        return name;
     }
 
     Map<String, Object> contextFrom(Map<String, Object> request) {

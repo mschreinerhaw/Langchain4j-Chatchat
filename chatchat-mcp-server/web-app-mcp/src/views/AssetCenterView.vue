@@ -19,7 +19,7 @@
       <el-tabs v-model="activeTab" class="workspace-tabs">
         <el-tab-pane label="服务器资产" name="ssh" />
         <el-tab-pane label="数据库资产" name="sql" />
-        <el-tab-pane label="API 网关资产" name="http" />
+        <el-tab-pane label="HTTP / 图库 / 检索资产" name="http" />
         <el-tab-pane label="执行模板" name="templates" />
         <el-tab-pane label="索引检索" name="index-search" />
       </el-tabs>
@@ -79,8 +79,8 @@
     <CrudCatalog
       v-if="visitedTabs.includes('http')"
       v-show="activeTab === 'http'"
-      title="API 网关资产"
-      subtitle="维护可复用的 HTTP/API 网关资产。"
+      title="HTTP / 图库 / 检索资产"
+      subtitle="统一维护 HTTP 网关、图数据库及检索引擎的数据源地址、认证信息和启用状态。"
       search-placeholder="搜索名称、工具、URL、环境、方法或标签"
       :columns="httpColumns"
       :form-fields="httpFields"

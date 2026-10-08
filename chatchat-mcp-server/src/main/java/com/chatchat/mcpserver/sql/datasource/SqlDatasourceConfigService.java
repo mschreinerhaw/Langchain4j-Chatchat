@@ -27,6 +27,9 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class SqlDatasourceConfigService {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.mcpserver.datacapability.connection.CapabilityAssetReferenceGuard capabilityReferences;
+
     private static final Pattern TOOL_NAME_PATTERN = Pattern.compile("^db_query_[A-Za-z0-9_]{2,120}$");
 
     private final SqlDatasourceConfigRepository repository;
@@ -116,6 +119,7 @@ public class SqlDatasourceConfigService {
     @Transactional
     public void delete(String id) {
         SqlDatasourceConfig config = getById(id);
+        if (capabilityReferences != null) capabilityReferences.assertUnused(id, true);
         repository.delete(config);
         metadataAssetRegistryService.deleteByDatasource(id);
     }

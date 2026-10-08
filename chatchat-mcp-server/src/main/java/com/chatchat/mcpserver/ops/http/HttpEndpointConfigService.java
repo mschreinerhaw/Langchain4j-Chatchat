@@ -25,6 +25,9 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class HttpEndpointConfigService {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.mcpserver.datacapability.connection.CapabilityAssetReferenceGuard capabilityReferences;
+
     private static final Pattern TOOL_NAME_PATTERN = Pattern.compile("^http_[A-Za-z0-9_]{2,123}$");
     private static final List<String> ALLOWED_METHODS = List.of("GET", "POST", "PUT", "DELETE");
     private static final String DEFAULT_CAPABILITY = "http_request";
@@ -137,6 +140,7 @@ public class HttpEndpointConfigService {
     @Transactional
     public void delete(String id) {
         HttpEndpointConfig config = getById(id);
+        if (capabilityReferences != null) capabilityReferences.assertUnused(id, false);
         repository.delete(config);
     }
 

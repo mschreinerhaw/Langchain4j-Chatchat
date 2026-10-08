@@ -367,7 +367,7 @@ export default {
         { key: 'method', label: '方法', type: 'select', required: true, options: methodOptions(), placeholder: '选择 HTTP 方法' },
         { key: 'urlTemplate', label: 'URL 模板', required: true, span: 'col-12', placeholder: '如 https://api.example.com/orders/{orderId}', help: '填写完整 HTTP/HTTPS 地址；路径变量使用 {参数名}，参数名需和入参 Schema 保持一致。' },
         { key: 'environment', label: '环境', type: 'select', options: envOptions() },
-        { key: 'category', label: '分类', type: 'select', options: httpCategoryOptions(), placeholder: '选择接口分类' },
+        { key: 'category', label: '分类', type: 'select', options: httpCategoryOptions(), placeholder: '选择接口或数据源分类', help: 'Neo4j 选择图数据库，OpenSearch 选择检索引擎；方法选择 POST，URL 填写服务基础地址，认证信息在请求头中统一维护。' },
         { key: 'runtimeAction', label: '运行策略', type: 'select', options: httpRuntimeActionOptions(), placeholder: '选择执行策略', help: '只读适合查询接口；执行前确认适合可能产生业务影响的接口。' },
         { key: 'timeoutMs', label: '超时毫秒', type: 'number', min: 1, step: 1000, placeholder: '10000', help: '请求超时时间，单位毫秒；10000 表示 10 秒。' },
         { key: 'tags', label: '标签', placeholder: '输入逗号分隔标签，如 gateway,prod', help: '用于页面搜索、资产分组和人工识别，不参与角色授权。' },
@@ -951,12 +951,14 @@ function databaseTypeOptions() {
     'oceanbase',
     'sqlserver',
     'mariadb',
-    'clickhouse'
+    'clickhouse',
+    'trino'
   ].map(value => ({ value, label: value }));
 }
 
 function driverClassOptions() {
   return [
+    { value: 'io.trino.jdbc.TrinoDriver', label: 'Trino - io.trino.jdbc.TrinoDriver' },
     { value: 'com.mysql.cj.jdbc.Driver', label: 'MySQL / TiDB / TDSQL / GoldenDB - com.mysql.cj.jdbc.Driver' },
     { value: 'org.mariadb.jdbc.Driver', label: 'MariaDB - org.mariadb.jdbc.Driver' },
     { value: 'org.postgresql.Driver', label: 'PostgreSQL - org.postgresql.Driver' },
@@ -974,6 +976,8 @@ function driverClassOptions() {
 
 function httpCategoryOptions() {
   return [
+    { value: 'graph_database', label: '图数据库（Neo4j）' },
+    { value: 'search_engine', label: '检索引擎（OpenSearch）' },
     { value: 'api_gateway', label: 'API 网关' },
     { value: 'business_api', label: '业务接口' },
     { value: 'monitoring', label: '监控接口' },

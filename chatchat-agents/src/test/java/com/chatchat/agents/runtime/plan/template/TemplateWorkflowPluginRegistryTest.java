@@ -129,6 +129,35 @@ class TemplateWorkflowPluginRegistryTest {
         assertThat(optimizer.runtimeCompanionTools(optimized)).containsExactly(child);
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+        "database_query_template_query", "trino_query_template_query",
+        "neo4j_query_template_query", "opensearch_query_template_query",
+        "elasticsearch_query_template_query"
+    })
+    void databaseQueryFamiliesBindTheirAuthorizedChildToSqlExecution(String parent) {
+        String child = "authorized_data_template_query";
+        String executor = "sql_query_execute";
+        ToolRegistry tools = registry(Map.of(
+            child, metadata(ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                "mcp.authorized-template-query.v1", "database_query", Map.of(
+                    "parentRemoteToolName", parent)),
+            executor, metadata(ToolWorkflowRole.TEMPLATE_EXECUTION,
+                "mcp.sql-template.v1", "sql_datasource")
+        ));
+        InterpretationPlan optimized = new InterpretationPlanOptimizer(tools).optimize(
+            plan(List.of(step(1, child, List.of()), step(2, executor, List.of(1))))).plan();
+
+        assertThat(optimized.plan().bindings()).singleElement().satisfies(binding -> {
+            assertThat(binding.from()).isEqualTo(1);
+            assertThat(binding.to()).isEqualTo(2);
+            assertThat(binding.outputPath()).isEqualTo("$.templates[0].templateId");
+            assertThat(binding.inputField()).isEqualTo("$.templateId");
+        });
+        assertThat(new InterpretationPlanValidator().validate(
+            optimized, tools, Set.of(child, executor)).issues()).isEmpty();
+    }
+
     private ToolRegistry registry(Map<String, ToolMetadata> metadata) {
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.getAllToolNames()).thenReturn(metadata.keySet());

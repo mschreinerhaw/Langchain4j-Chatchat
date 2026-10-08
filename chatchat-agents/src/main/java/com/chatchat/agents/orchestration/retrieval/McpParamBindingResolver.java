@@ -906,7 +906,11 @@ public class McpParamBindingResolver {
 
     private String targetKindFromDiscoveryToolName(String toolName, boolean templateQuery) {
         String normalized = normalizeToolName(toolName);
-        if (normalized.contains("database_query_template_query")) {
+        if (normalized.contains("database_query_template_query")
+            || normalized.contains("trino_query_template_query")
+            || normalized.contains("neo4j_query_template_query")
+            || normalized.contains("opensearch_query_template_query")
+            || normalized.contains("elasticsearch_query_template_query")) {
             return "business_database_query";
         }
         if (normalized.contains("database_asset_search")

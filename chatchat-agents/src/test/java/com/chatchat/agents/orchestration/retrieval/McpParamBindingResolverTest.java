@@ -301,11 +301,22 @@ class McpParamBindingResolverTest {
         assertThat(filters.get("intentEn")).isEqualTo("SHOW ENGINE INNODB STATUS");
     }
 
-    @Test
-    void dedicatedBusinessQueryTemplateToolOverridesMismatchedPlannerTargetKind() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+        "database_query_template_query", "trino_query_template_query",
+        "neo4j_query_template_query", "opensearch_query_template_query",
+        "elasticsearch_query_template_query"
+    })
+    void dedicatedBusinessQueryTemplateToolOverridesMismatchedPlannerTargetKind(String parentTool) {
+        ToolMetadata metadata = ToolMetadata.builder()
+            .id(parentTool)
+            .metadata(Map.of(ToolWorkflowContract.METADATA_KEY,
+                ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                    "mcp.authorized-template-query.v1", "filters", "template")))
+            .build();
         Map<String, Object> result = resolver.resolve(
-            "mcp_chatchat_mcp_server_database_query_template_query",
-            null,
+            "mcp_chatchat_mcp_server_" + parentTool,
+            metadata,
             Map.of(
                 "candidates", List.of(Map.of("targetKind", "database", "confidence", 0.9)),
                 "finalDecision", "database",

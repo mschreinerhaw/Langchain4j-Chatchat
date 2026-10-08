@@ -8329,6 +8329,13 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         if (value != null) {
             return value;
         }
+        if (isTemplateDiscoveryTool(source.toolName())) {
+            Object projection = firstValueAtAnyPath(reviewedOutput, "$.routingProjection");
+            value = valueAtPath(projection, binding.outputPath());
+            if (value != null) {
+                return value;
+            }
+        }
         value = canonicalProtocolValue(reviewedOutput, binding.inputField());
         if (value != null) {
             return value;

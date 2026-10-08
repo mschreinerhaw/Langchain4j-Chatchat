@@ -116,6 +116,11 @@ public final class PlanEdgeContractValidator {
         if (value != null || !semantics.isTemplateDiscoveryTool(source.toolName())) {
             return value;
         }
+        Object projection = payloads.valueAtPath(source.output(), "$.routingProjection");
+        value = contractValue(projection, field);
+        if (value != null) {
+            return value;
+        }
         String key = payloads.fieldKey(field);
         if ("templateid".equals(key) || "id".equals(key) || "template".equals(key)) {
             return payloads.firstValue(source.output(),

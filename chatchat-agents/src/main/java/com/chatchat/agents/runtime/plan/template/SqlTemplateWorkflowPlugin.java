@@ -6,7 +6,7 @@ import java.util.Set;
 public final class SqlTemplateWorkflowPlugin extends ProtocolFamilyTemplateWorkflowPlugin {
     public SqlTemplateWorkflowPlugin() {
         super("sql-template-workflow.v1", Set.of("mcp.sql-template.v1"),
-            Set.of("database", "database_schema", "sql"));
+            Set.of("database", "database_schema", "database_query", "sql"));
     }
 
     @Override

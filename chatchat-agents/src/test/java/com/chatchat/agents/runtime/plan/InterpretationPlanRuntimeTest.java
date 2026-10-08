@@ -40,6 +40,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -3651,15 +3652,42 @@ class InterpretationPlanRuntimeTest {
             .doesNotContain("edayQuqtMoni");
     }
 
-    @Test
-    void executesSelectedTemplateFromOversizedDiscoveryControlPlaneProjection() {
-        String discoveryTool = "mcp_tenant_database_query_template_query";
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({
+        "database_query_template_query, h2",
+        "trino_query_template_query, trino",
+        "neo4j_query_template_query, neo4j",
+        "opensearch_query_template_query, opensearch",
+        "elasticsearch_query_template_query, elasticsearch"
+    })
+    void executesSelectedTemplateFromOversizedDiscoveryControlPlaneProjection(
+        String parentTool, String databaseType) {
+        String discoveryTool = "mcp_tenant_authorized_data_template_query";
         String executionTool = "mcp_tenant_sql_query_execute";
         String templateId = "sample_margin_trade_latest";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool(any())).thenReturn(true);
-        when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation ->
-            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+        when(toolRegistry.getAllToolNames()).thenReturn(Set.of(discoveryTool, executionTool));
+        when(toolRegistry.getWorkflowRole(discoveryTool)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(toolRegistry.getWorkflowRole(executionTool)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation -> {
+            String name = invocation.getArgument(0);
+            Map<String, Object> attributes = new java.util.LinkedHashMap<>();
+            if (discoveryTool.equals(name)) {
+                attributes.put("assetType", "database_query");
+                attributes.put("parentRemoteToolName", parentTool);
+                attributes.put(com.chatchat.common.tool.ToolWorkflowContract.METADATA_KEY,
+                    com.chatchat.common.tool.ToolWorkflowContract.declaration(
+                        com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                        "mcp.authorized-template-query.v1", "filters", "template"));
+            } else if (executionTool.equals(name)) {
+                attributes.put(com.chatchat.common.tool.ToolWorkflowContract.METADATA_KEY,
+                    com.chatchat.common.tool.ToolWorkflowContract.declaration(
+                        com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_EXECUTION,
+                        "mcp.sql-template.v1", "executionContext"));
+            }
+            return ToolMetadata.builder().id(name).riskLevel("low").metadata(attributes).build();
+        });
         ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
         when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
             ToolRuntimeRequest request = invocation.getArgument(0);
@@ -3678,7 +3706,7 @@ class InterpretationPlanRuntimeTest {
                                 "executionContext", Map.of(
                                     "assetName", "financial-market-runtime",
                                     "env", "RUNTIME",
-                                    "databaseType", "h2"))
+                                    "databaseType", databaseType))
                         )))
                     )),
                     ToolMetadata.builder().id(discoveryTool).build(), null, "success", Map.of());
@@ -3703,9 +3731,13 @@ class InterpretationPlanRuntimeTest {
                 3, false, List.of(discoveryTool, executionTool), List.of(), 30_000),
             review()
         );
+        InterpretationPlanOptimizer optimizer = new InterpretationPlanOptimizer(toolRegistry);
+        assertThat(optimizer.workflowRoleFor(discoveryTool)).isEqualTo(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        assertThat(optimizer.workflowRoleFor(executionTool)).isEqualTo(ToolWorkflowRole.TEMPLATE_EXECUTION);
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             toolRuntimeService,
             new InterpretationPlanValidator(),
+            optimizer,
             scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
         );
 
@@ -3726,7 +3758,7 @@ class InterpretationPlanRuntimeTest {
             .containsEntry("executionContext", Map.of(
                 "assetName", "financial-market-runtime",
                 "env", "RUNTIME",
-                "databaseType", "h2"));
+                "databaseType", databaseType));
     }
 
     @Test

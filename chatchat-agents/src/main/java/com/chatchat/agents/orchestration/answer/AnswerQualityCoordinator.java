@@ -212,7 +212,7 @@ final class AnswerQualityCoordinator {
         }
         Object rawContract = metadata.get("analysisReportContract");
         return rawContract instanceof Map<?, ?> contract
-            && "DRIVER_REPORT".equals(String.valueOf(contract.get("reportType")));
+            && "MODEL_REPORT".equals(String.valueOf(contract.get("reportType")));
     }
 
     private void add(List<AnswerQualityEvaluator.AnswerCandidate> target,

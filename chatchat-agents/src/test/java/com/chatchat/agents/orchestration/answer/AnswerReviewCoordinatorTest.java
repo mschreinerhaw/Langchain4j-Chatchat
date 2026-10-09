@@ -23,7 +23,7 @@ class AnswerReviewCoordinatorTest {
             reviewer, new AnswerEvidenceLedgerCompiler(), 0);
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("agentRunId", "run-review-retention");
-        metadata.put("analysisReportContract", Map.of("reportType", "DRIVER_REPORT"));
+        metadata.put("analysisReportContract", Map.of("reportType", "MODEL_REPORT"));
         String original = "# Full report\n\n" + "Evidence, metrics, validation, patterns, risks and actions.\n".repeat(20);
 
         AgentAnswerReview result = coordinator.review(mock(ChatModel.class), "analyze", null,

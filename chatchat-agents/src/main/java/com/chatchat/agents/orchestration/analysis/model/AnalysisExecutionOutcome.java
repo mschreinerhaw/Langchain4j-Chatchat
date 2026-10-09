@@ -16,27 +16,27 @@ public record AnalysisExecutionOutcome(
     ExecutionStatus status,
     FailureCategory failureCategory,
     PhaseStatus dataStatus,
-    PhaseStatus workerStatus,
-    PhaseStatus reductionStatus,
-    PhaseStatus synthesisStatus,
-    PhaseStatus governanceStatus,
+    PhaseStatus workspaceStatus,
+    PhaseStatus toolExecutionStatus,
+    PhaseStatus modelStatus,
+    PhaseStatus publicationStatus,
     List<Map<String, Object>> unresolvedGaps,
     RetryDirective retryDirective,
     Publishability publishability,
     String reason
 ) {
 
-    public static final String SCHEMA_VERSION = "analysis_execution_outcome.v1";
+    public static final String SCHEMA_VERSION = "analysis_execution_outcome.v2";
 
     public AnalysisExecutionOutcome {
         schemaVersion = SCHEMA_VERSION;
         status = status == null ? ExecutionStatus.EXECUTION_FAILED : status;
         failureCategory = failureCategory == null ? FailureCategory.NONE : failureCategory;
         dataStatus = dataStatus == null ? PhaseStatus.NOT_STARTED : dataStatus;
-        workerStatus = workerStatus == null ? PhaseStatus.NOT_STARTED : workerStatus;
-        reductionStatus = reductionStatus == null ? PhaseStatus.NOT_STARTED : reductionStatus;
-        synthesisStatus = synthesisStatus == null ? PhaseStatus.NOT_STARTED : synthesisStatus;
-        governanceStatus = governanceStatus == null ? PhaseStatus.NOT_STARTED : governanceStatus;
+        workspaceStatus = workspaceStatus == null ? PhaseStatus.NOT_STARTED : workspaceStatus;
+        toolExecutionStatus = toolExecutionStatus == null ? PhaseStatus.NOT_STARTED : toolExecutionStatus;
+        modelStatus = modelStatus == null ? PhaseStatus.NOT_STARTED : modelStatus;
+        publicationStatus = publicationStatus == null ? PhaseStatus.NOT_STARTED : publicationStatus;
         unresolvedGaps = unresolvedGaps == null ? List.of() : List.copyOf(unresolvedGaps);
         retryDirective = retryDirective == null ? RetryDirective.none() : retryDirective;
         publishability = publishability == null
@@ -50,10 +50,10 @@ public record AnalysisExecutionOutcome(
         value.put("status", status.name());
         value.put("failureCategory", failureCategory.name());
         value.put("dataStatus", dataStatus.name());
-        value.put("workerStatus", workerStatus.name());
-        value.put("reductionStatus", reductionStatus.name());
-        value.put("synthesisStatus", synthesisStatus.name());
-        value.put("governanceStatus", governanceStatus.name());
+        value.put("workspaceStatus", workspaceStatus.name());
+        value.put("toolExecutionStatus", toolExecutionStatus.name());
+        value.put("modelStatus", modelStatus.name());
+        value.put("publicationStatus", publicationStatus.name());
         value.put("unresolvedGaps", unresolvedGaps);
         value.put("retryDirective", retryDirective.toMap());
         value.put("publishability", publishability.name());
@@ -76,7 +76,7 @@ public record AnalysisExecutionOutcome(
         return switch (failureCategory) {
             case NONE -> "分析链路已完成。";
             case DATA_FAILURE -> "数据获取未形成可供分析的完整证据。";
-            case ANALYSIS_FAILURE -> "Worker 或 Reducer 没有返回可解析的分析正文。";
+            case ANALYSIS_FAILURE -> "模型没有返回可解析的分析正文。";
             case GOVERNANCE_REJECTION -> "分析输出包含内部协议或无法解析的技术内容，需要重新生成正文。";
         };
     }

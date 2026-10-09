@@ -153,9 +153,6 @@ chatchat:
     native-tool-calling-enabled: ${CHATCHAT_AGENT_NATIVE_TOOL_CALLING_ENABLED:true}
     # Safety deadline only. Never meet the latency SLO by truncating the quality pipeline.
     execution-timeout-ms: ${CHATCHAT_AGENT_EXECUTION_TIMEOUT_MS:900000}
-    adaptive-analysis-prompt-model-enabled: ${CHATCHAT_ADAPTIVE_ANALYSIS_PROMPT_MODEL_ENABLED:true}
-    unified-analysis-max-evidence-rounds: ${CHATCHAT_UNIFIED_ANALYSIS_MAX_EVIDENCE_ROUNDS:2}
-    unified-analysis-report-draft-enabled: ${CHATCHAT_UNIFIED_ANALYSIS_REPORT_DRAFT_ENABLED:true}
     temporal:
       target: ${CHATCHAT_TEMPORAL_TARGET:127.0.0.1:7233}
       namespace: ${CHATCHAT_TEMPORAL_NAMESPACE:default}
@@ -186,16 +183,11 @@ chatchat:
     final-summary-web-search-evidence-max-chars: 16000
     final-summary-web-search-timeout-ms: 120000
     # Lossless processing boundaries; these values never truncate returned evidence.
+    harness-max-model-turns: ${CHATCHAT_HARNESS_MAX_MODEL_TURNS:8}
     record-analysis-chunk-max-chars: ${CHATCHAT_AGENT_RECORD_ANALYSIS_CHUNK_MAX_CHARS:12000}
     record-analysis-chunk-max-rows: ${CHATCHAT_AGENT_RECORD_ANALYSIS_CHUNK_MAX_ROWS:50}
-    analysis-summary-worker-count: ${CHATCHAT_AGENT_ANALYSIS_SUMMARY_WORKER_COUNT:4}
-    analysis-per-dataset-worker-threshold: ${CHATCHAT_AGENT_ANALYSIS_PER_DATASET_WORKER_THRESHOLD:3}
-    analysis-per-dataset-worker-total-chars-threshold: ${CHATCHAT_AGENT_ANALYSIS_PER_DATASET_WORKER_TOTAL_CHARS_THRESHOLD:24000}
-    analysis-summary-worker-max-retries: ${CHATCHAT_AGENT_ANALYSIS_SUMMARY_WORKER_MAX_RETRIES:3}
     # Worker completion has no independent wall-clock timeout. Model calls use the configured
     # system model/request timeout; these values govern Worker liveness only.
-    analysis-summary-worker-heartbeat-interval-ms: ${CHATCHAT_AGENT_ANALYSIS_WORKER_HEARTBEAT_INTERVAL_MS:10000}
-    analysis-summary-worker-heartbeat-timeout-ms: ${CHATCHAT_AGENT_ANALYSIS_WORKER_HEARTBEAT_TIMEOUT_MS:30000}
     analysis-spill-enabled: ${CHATCHAT_AGENT_ANALYSIS_SPILL_ENABLED:true}
     analysis-spill-rocks-db-path: ${CHATCHAT_AGENT_ANALYSIS_SPILL_ROCKSDB_PATH:./data/agent-analysis-spill-rocksdb}
     analysis-spill-rocks-db-create-if-missing: true

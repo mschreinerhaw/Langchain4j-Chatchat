@@ -88,30 +88,6 @@ class BoundedAnalysisEvidenceTest {
         assertThat(largestRequestedPage).hasValueLessThanOrEqualTo(1_000);
     }
 
-    @Test void finalFindingCheckpointAlsoDependsOnRecordsOutsideTheModelView() {
-        var rows = rows();
-        var store = store(new ConcurrentHashMap<>());
-        var model = mock(dev.langchain4j.model.chat.ChatModel.class);
-        when(model.chat(anyString())).thenReturn("""
-            {"schemaVersion":"unified_question_analysis.v1","findings":[{
-              "datasetReference":"d","claimClass":"OBSERVED_RETURNED_FACT",
-              "claim":"The first returned value is 0","recordRefs":["d.records[1]"],
-              "supportingValues":[{"recordRef":"d.records[1]","value":0}]
-            }],"limitations":[]}
-            """);
-        var graph = new UnifiedQuestionAnalysisGraph();
-        var protocol = new com.chatchat.agents.orchestration.analysis.nodes.analysis.AnalysisNodeProtocol();
-        var metadata = new LinkedHashMap<String, Object>();
-        var datasets = List.of(new Dataset("d", Map.of(), rows));
-        graph.execute("question", datasets, () -> datasets, model, scope, protocol, store, metadata, () -> {});
-        graph.execute("question", datasets, () -> datasets, model, scope, protocol, store, metadata, () -> {});
-        assertThat(metadata).containsEntry("unifiedAnalysisModelCalls", 0).containsEntry("unifiedAnalysisRestored", true);
-        rows.set(501, Map.of("value", 1, "padding", "changed-but-not-selected"));
-        var changed = List.of(new Dataset("d", Map.of(), rows));
-        graph.execute("question", changed, () -> changed, model, scope, protocol, store, metadata, () -> {});
-        assertThat(metadata).containsEntry("unifiedAnalysisModelCalls", 1).containsEntry("unifiedAnalysisRestored", false);
-        verify(model, times(2)).chat(anyString());
-    }
 
     @Test void semanticContextCanBeReadInPagesWithoutInventingCalculations() {
         var datasets = List.of(new Dataset("d", Map.of("runtimeAnalysisInputs", Map.of(

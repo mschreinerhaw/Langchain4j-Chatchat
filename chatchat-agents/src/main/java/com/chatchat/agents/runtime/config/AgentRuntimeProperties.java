@@ -52,32 +52,12 @@ public class AgentRuntimeProperties {
     private long answerCriticTimeoutMs = 45_000;
     /** Hard wall-clock budget for one Agent execution; zero keeps the legacy unlimited behavior. */
     private long executionTimeoutMs = 0L;
-    /** Uses the deterministic governed prompt contract instead of an extra prompt-design model call. */
-    private boolean adaptiveAnalysisPromptModelEnabled = true;
-    /** Maximum unified evidence/model rounds. One is the production fast path. */
-    private int unifiedAnalysisMaxEvidenceRounds = 2;
-    /** Reuses the evidence-bound Markdown authored by unified analysis as the final report. */
-    private boolean unifiedAnalysisReportDraftEnabled = true;
-    /** Model owns evidence navigation, working notes and report composition; no semantic quality gate. */
-    private boolean modelNativeHarnessEnabled = true;
     /** Resource budget for model-selected evidence navigation, rather than a business-analysis rule. */
     private int harnessMaxModelTurns = 8;
     /** Governs lossless analysis chunk boundaries only; it never truncates returned evidence. */
     private int recordAnalysisChunkMaxChars = 12_000;
     /** Governs lossless analysis chunk boundaries only; every returned record remains covered. */
     private int recordAnalysisChunkMaxRows = 50;
-    /** Maximum model workers used to analyze independent datasets in parallel. */
-    private int analysisSummaryWorkerCount = 4;
-    /** Spark-style retries after the initial attempt for one failed dataset chunk. */
-    private int analysisSummaryWorkerMaxRetries = 3;
-    /** Worker heartbeat cadence; independent of blocking model inference. */
-    private long analysisSummaryWorkerHeartbeatIntervalMs = 10_000;
-    /** Remote Worker lease window. Missing heartbeats mean unreachable, not model failure. */
-    private long analysisSummaryWorkerHeartbeatTimeoutMs = 30_000;
-    /** Dataset count at which analysis switches from the unified fast path to isolated workers. */
-    private int analysisPerDatasetWorkerThreshold = 3;
-    /** Aggregate dataset size that switches to isolated workers even for a small dataset count. */
-    private long analysisPerDatasetWorkerTotalCharsThreshold = 24_000L;
     /** Spills oversized loop-analysis mirrors outside the JVM without truncating source evidence. */
     private boolean analysisSpillEnabled = true;
     /** Must be different from rocksDbPath because RocksDB does not allow two independent handles on one path. */
@@ -187,9 +167,6 @@ public class AgentRuntimeProperties {
         return Math.max(0L, executionTimeoutMs);
     }
 
-    public int unifiedAnalysisMaxEvidenceRounds() {
-        return Math.max(1, Math.min(2, unifiedAnalysisMaxEvidenceRounds));
-    }
 
     public int recordAnalysisChunkMaxChars() {
         return Math.max(1_000, recordAnalysisChunkMaxChars);
@@ -199,30 +176,11 @@ public class AgentRuntimeProperties {
         return Math.max(1, recordAnalysisChunkMaxRows);
     }
 
-    public int analysisSummaryWorkerCount() {
-        return Math.max(1, Math.min(16, analysisSummaryWorkerCount));
-    }
 
-    public int analysisSummaryWorkerMaxRetries() {
-        return Math.max(0, Math.min(9, analysisSummaryWorkerMaxRetries));
-    }
 
-    public long analysisSummaryWorkerHeartbeatIntervalMs() {
-        return Math.max(250L, analysisSummaryWorkerHeartbeatIntervalMs);
-    }
 
-    public long analysisSummaryWorkerHeartbeatTimeoutMs() {
-        return Math.max(analysisSummaryWorkerHeartbeatIntervalMs() * 2,
-            analysisSummaryWorkerHeartbeatTimeoutMs);
-    }
 
-    public int analysisPerDatasetWorkerThreshold() {
-        return Math.max(1, analysisPerDatasetWorkerThreshold);
-    }
 
-    public long analysisPerDatasetWorkerTotalCharsThreshold() {
-        return Math.max(2_000L, analysisPerDatasetWorkerTotalCharsThreshold);
-    }
 
     public String analysisSpillRocksDbPath() {
         return analysisSpillRocksDbPath == null || analysisSpillRocksDbPath.isBlank()

@@ -699,7 +699,7 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         metadata.put("executionStatus", "NO_PRESENTABLE_ANALYSIS");
         metadata.put("analysisReportContract", Map.of(
             "schemaVersion", AnalysisReportContract.SCHEMA_VERSION,
-            "reportType", "DRIVER_REPORT",
+            "reportType", "MODEL_REPORT",
             "sourceStage", "DRIVER",
             "admittedFactCount", 0,
             "admittedInsightCount", 0,
@@ -716,7 +716,7 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         assertThat(result.metadata())
             .containsEntry("finalPayloadContractMode", "PROVENANCE_ONLY")
             .containsEntry("finalPayloadHumanReviewRequired", true)
-            .containsEntry("finalPayloadType", "DRIVER_REPORT")
+            .containsEntry("finalPayloadType", "MODEL_REPORT")
             .containsEntry("rawAnalysisOutputWithheld", false)
             .containsEntry("analysisSynthesisBlocked", false)
             .containsEntry("evidenceRefusalBlocked", false)

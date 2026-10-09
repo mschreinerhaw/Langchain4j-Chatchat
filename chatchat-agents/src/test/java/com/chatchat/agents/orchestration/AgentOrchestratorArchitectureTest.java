@@ -3,7 +3,6 @@ package com.chatchat.agents.orchestration;
 import com.chatchat.agents.orchestration.analysis.contract.AnalysisObjectiveContractCompiler;
 import com.chatchat.agents.orchestration.analysis.contract.AnalysisSemanticContractCompiler;
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisRecordScopeProfiler;
-import com.chatchat.agents.orchestration.analysis.dispatch.DatasetAnalysisNode;
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisSummaryGovernanceCoordinator;
 import org.junit.jupiter.api.Test;
 
@@ -20,7 +19,7 @@ class AgentOrchestratorArchitectureTest {
         Path root = Path.of(System.getProperty("basedir", ".")).resolve(
             "src/main/java/com/chatchat/agents/orchestration");
         assertThat(Files.readString(root.resolve("analysis/governance/AnalysisCoverageCoordinator.java")))
-            .contains("UnifiedQuestionAnalysisGraph().execute(")
+            .contains("ModelNativeAnalysisHarness(configuration.harnessMaxModelTurns())")
             .doesNotContain(".dispatch(", "dispatchCoordinator", "summarizeChunk(", "summarizeWithModel(");
         assertThat(Files.readString(root.resolve("AgentOrchestrationEngine.java")))
             .doesNotContain("new AnalysisDispatchCoordinator(", "analysisDispatchCoordinator");
@@ -79,10 +78,11 @@ class AgentOrchestratorArchitectureTest {
             assertThat(directories
                 .filter(Files::isDirectory)
                 .map(path -> path.getFileName().toString())
+                .filter(name -> !java.util.Set.of("checkpoint", "dispatch").contains(name))
                 .sorted()
                 .toList())
                 .containsExactly(
-                    "checkpoint", "context", "contract", "dataset", "dispatch",
+                    "context", "contract", "dataset", "execution",
                     "governance", "graph", "insight", "logging", "loop", "model", "nodes", "prompt", "protocol",
                     "report", "semantic");
         }
@@ -199,9 +199,9 @@ class AgentOrchestratorArchitectureTest {
             MAX_DOMAIN_COMPONENT_LINES,
             "Evidence audit must remain independent from answer candidate selection");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/analysis/dispatch/DatasetAnalysisNode.java",
+            "src/main/java/com/chatchat/agents/orchestration/analysis/graph/DataWorkspaceOperations.java",
             MAX_DOMAIN_COMPONENT_LINES,
-            "Dataset chunking, retry, checkpoint and reduction must remain worker-owned");
+            "Data computation and batch execution must remain separate from model planning");
         assertSourceLineCount(
             "src/main/java/com/chatchat/agents/orchestration/analysis/contract/AnalysisObjectiveContractCompiler.java",
             MAX_DOMAIN_COMPONENT_LINES,
@@ -243,7 +243,7 @@ class AgentOrchestratorArchitectureTest {
             MAX_DOMAIN_COMPONENT_LINES,
             "Evidence projection and relationship planning must remain outside the orchestration engine");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/analysis/dispatch/AnalysisDispatchCoordinator.java",
+            "src/main/java/com/chatchat/agents/orchestration/analysis/graph/DataWorkspaceOperations.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Worker task preparation, dispatch and reconciliation must remain outside the orchestration engine");
         assertSourceLineCount(

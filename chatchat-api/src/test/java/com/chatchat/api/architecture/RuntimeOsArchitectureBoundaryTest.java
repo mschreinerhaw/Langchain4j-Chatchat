@@ -1,9 +1,6 @@
 package com.chatchat.api.architecture;
 
-import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
-import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
 
 
 import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
@@ -127,7 +124,7 @@ class RuntimeOsArchitectureBoundaryTest {
         assertThat(source(
             "chatchat-common/src/main/java/com/chatchat/common/runtime/summary/analysis/spi/DataAnalysisSummaryProtocol.java"))
             .contains("interface DataAnalysisSummaryProtocol", "extends RuntimeProtocolPort",
-                "ModelSummaryModel model", "DataAnalysisPosition position")
+                "Map<String, Object> govern", "S finalResult")
             .doesNotContain("com.chatchat.agents", "dev.langchain4j", "org.springframework");
         assertThat(source(
             "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrator.java"))
@@ -142,7 +139,7 @@ class RuntimeOsArchitectureBoundaryTest {
     }
 
     @Test
-    void driverWorkerControlPlaneHasOneTransportNeutralCommonContract() {
+    void singleBrainDoesNotInstallASecondAnalysisDecisionPlane() {
         assertThat(source(
             "chatchat-common/src/main/java/com/chatchat/common/runtime/summary/spi/ModelSummaryDispatcher.java"))
             .contains("ModelSummaryProgressListener progressListener", "boolean cancel(String taskId)",
@@ -154,7 +151,7 @@ class RuntimeOsArchitectureBoundaryTest {
             .doesNotContain("com.chatchat.agents", "dev.langchain4j", "org.springframework");
         assertThat(source(
             "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrator.java"))
-            .contains("ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult>")
+            .doesNotContain("ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult>")
             .doesNotContain(
                 "import com.chatchat.agents.orchestration.analysis.AnalysisTaskDispatcher;",
                 "import com.chatchat.agents.orchestration.analysis.AnalysisTaskProgress;");

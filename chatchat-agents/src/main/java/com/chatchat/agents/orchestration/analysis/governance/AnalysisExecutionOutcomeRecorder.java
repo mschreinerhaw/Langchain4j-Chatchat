@@ -1,7 +1,5 @@
 package com.chatchat.agents.orchestration.analysis.governance;
 
-import com.chatchat.agents.orchestration.analysis.model.AnalysisExecutionOutcome;
-import com.chatchat.agents.orchestration.analysis.model.AnalysisReportContract;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
@@ -10,99 +8,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Records non-publishable analysis execution state without making it a Driver concern. */
+/** Records non-publishable analysis execution state as technical provenance. */
 public final class AnalysisExecutionOutcomeRecorder {
 
-    public AnalysisExecutionOutcome recordBlocked(
-        Map<String, Object> metadata,
-        int returnedRecordCount,
-        List<AnalysisSummaryResult> summaryResults,
-        List<AnalysisSummaryResult> synthesisInputs,
-        String reason,
-        boolean governanceReached
-    ) {
-        List<Map<String, Object>> gaps = unresolvedGaps(metadata, synthesisInputs);
-        boolean sourceExecutionFailed = "FAILED".equals(String.valueOf(
-            metadata.get("analysisCompletionOutcome")))
-            || number(metadata.get("recordAnalysisFailedDatasetCount")) > 0;
-        boolean projectionCompleted = Boolean.TRUE.equals(
-            metadata.get("analysisDatasetProjectionCompleted"));
-        // A successful query returning zero rows is an observed fact, not a transport/data
-        // failure. Only an explicit source failure is classified as DATA_FAILURE.
-        boolean dataAcquisitionCompleted = returnedRecordCount > 0
-            || projectionCompleted && !sourceExecutionFailed;
-        boolean dataAvailable = returnedRecordCount > 0;
-        boolean workersAccepted = number(metadata.get("analysisAcceptedWorkerCount")) > 0
-            || !summaryResults.isEmpty();
-        boolean reducersAccepted = !synthesisInputs.isEmpty();
-        AnalysisExecutionOutcome.ExecutionStatus status;
-        AnalysisExecutionOutcome.FailureCategory category;
-        AnalysisExecutionOutcome.RetryDirective retry;
-        boolean driverReviewFailure = reason != null && reason.startsWith("DRIVER_REVIEW");
-        boolean driverDecisionFailure = reason != null && reason.startsWith("DRIVER_DECISION");
-        boolean driverChallengeFailure = "DRIVER_CHALLENGE_REQUIRES_REPAIR".equals(reason);
-        boolean workerChallenge = maps(metadata.get("analysisDriverChallenges"))
-            .stream().anyMatch(challenge ->
-                "WORKER_REPORT".equals(text(challenge.get("targetLayer"))));
-        if (!dataAcquisitionCompleted) {
-            status = AnalysisExecutionOutcome.ExecutionStatus.EXECUTION_FAILED;
-            category = AnalysisExecutionOutcome.FailureCategory.DATA_FAILURE;
-            retry = AnalysisExecutionOutcome.RetryDirective.none();
-        } else if (driverReviewFailure || driverDecisionFailure || driverChallengeFailure) {
-            status = AnalysisExecutionOutcome.ExecutionStatus.NEEDS_REANALYSIS;
-            category = AnalysisExecutionOutcome.FailureCategory.GOVERNANCE_REJECTION;
-            String resumeFrom = driverReviewFailure ? "DRIVER_REVIEW"
-                : driverDecisionFailure ? "DRIVER_DECISION"
-                : workerChallenge ? "WORKER_ANALYSIS" : "REDUCER_REVIEW";
-            retry = new AnalysisExecutionOutcome.RetryDirective(
-                driverReviewFailure ? "RETRY_DRIVER_REVIEW"
-                    : driverDecisionFailure ? "RETRY_DRIVER_DECISION" : "RETRY_ANALYSIS",
-                resumeFrom, true, false, 1);
-        } else {
-            status = AnalysisExecutionOutcome.ExecutionStatus.NEEDS_REANALYSIS;
-            category = governanceReached
-                ? AnalysisExecutionOutcome.FailureCategory.GOVERNANCE_REJECTION
-                : AnalysisExecutionOutcome.FailureCategory.ANALYSIS_FAILURE;
-            String resumeFrom = driverReviewFailure ? "DRIVER_REVIEW"
-                : workerChallenge ? "WORKER_ANALYSIS"
-                : workersAccepted ? "REDUCER_REVIEW" : "WORKER_ANALYSIS";
-            retry = new AnalysisExecutionOutcome.RetryDirective(
-                driverReviewFailure ? "RETRY_DRIVER_REVIEW" : "RETRY_ANALYSIS", resumeFrom,
-                true, false, 1);
-        }
-        AnalysisExecutionOutcome executionOutcome = new AnalysisExecutionOutcome(
-            AnalysisExecutionOutcome.SCHEMA_VERSION, status, category,
-            dataAcquisitionCompleted ? AnalysisExecutionOutcome.PhaseStatus.COMPLETED
-                : AnalysisExecutionOutcome.PhaseStatus.FAILED,
-            workersAccepted ? AnalysisExecutionOutcome.PhaseStatus.COMPLETED
-                : AnalysisExecutionOutcome.PhaseStatus.REJECTED,
-            reducersAccepted ? AnalysisExecutionOutcome.PhaseStatus.COMPLETED
-                : AnalysisExecutionOutcome.PhaseStatus.BLOCKED,
-            AnalysisExecutionOutcome.PhaseStatus.BLOCKED,
-            governanceReached ? AnalysisExecutionOutcome.PhaseStatus.REJECTED
-                : AnalysisExecutionOutcome.PhaseStatus.NOT_STARTED,
-            gaps, retry, AnalysisExecutionOutcome.Publishability.GOVERNED_FAILURE_REPORT_ONLY,
-            reason);
-        metadata.put("analysisExecutionOutcome", executionOutcome.toMap());
-        metadata.put("analysisExecutionOutcomeSchemaVersion", AnalysisExecutionOutcome.SCHEMA_VERSION);
-        metadata.put("analysisExecutionStatus", executionOutcome.status().name());
-        metadata.put("analysisFailureCategory", executionOutcome.failureCategory().name());
-        metadata.put("analysisRetryDirective", executionOutcome.retryDirective().toMap());
-        metadata.put("analysisReuseExistingDataset", retry.reuseExistingDataset());
-        metadata.put("analysisDataRequeryAllowed", retry.dataAcquisitionAllowed());
-        metadata.put("returnedDataAnalysisRequired", dataAvailable);
-        metadata.put("rawAnalysisOutputWithheld", dataAvailable);
-        metadata.put("validEmptyEvidence", dataAcquisitionCompleted && !dataAvailable);
-        metadata.put("supportingDatasetChannel", "supporting_dataset");
-        metadata.put("supportingDatasetPrimaryDisplayAllowed", false);
-        metadata.put("supportingDatasetDefaultCollapsed", true);
-        AnalysisReportContract reportContract = AnalysisReportContract.failureReport(
-            executionOutcome.failureReport());
-        metadata.put("analysisReportContract", reportContract.toMap());
-        metadata.put("analysisReportContractSchemaVersion", AnalysisReportContract.SCHEMA_VERSION);
-        metadata.put("finalPayloadType", reportContract.reportType().name());
-        return executionOutcome;
-    }
 
     public List<Map<String, Object>> unresolvedGaps(
         Map<String, Object> metadata,

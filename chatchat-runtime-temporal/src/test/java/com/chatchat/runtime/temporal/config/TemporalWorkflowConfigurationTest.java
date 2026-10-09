@@ -7,7 +7,6 @@ import com.chatchat.agents.runtime.plan.execution.PlanExecutionPhaseHandler;
 import com.chatchat.agents.runtime.plan.execution.ResumableAgentRunExecutor;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
-import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetExecutionPort;
 import com.chatchat.agents.orchestration.protocol.RuntimeProtocolConfiguration;
 import com.chatchat.runtime.temporal.adapter.TemporalPlanDagControlPort;
 import com.chatchat.runtime.temporal.adapter.TemporalPlanToolExecutionPort;
@@ -46,9 +45,7 @@ class TemporalWorkflowConfigurationTest {
                 assertThat(context).hasSingleBean(PlanDagControlPort.class);
                 assertThat(context.getBean(PlanDagControlPort.class))
                     .isInstanceOf(TemporalPlanDagControlPort.class);
-                assertThat(context).hasSingleBean(ModelSummaryDispatcher.class);
-                assertThat(context.getBean(ModelSummaryDispatcher.class).getClass().getSimpleName())
-                    .isEqualTo("TemporalModelSummaryDispatcher");
+                assertThat(context).doesNotHaveBean(ModelSummaryDispatcher.class);
             });
     }
 
@@ -90,8 +87,7 @@ class TemporalWorkflowConfigurationTest {
         @Bean
         PlanExecutionPhaseHandler planExecutionPhaseHandler() {
             return mock(PlanExecutionPhaseHandler.class,
-                withSettings().extraInterfaces(ResumableAgentRunExecutor.class,
-                    AnalysisDatasetExecutionPort.class));
+                withSettings().extraInterfaces(ResumableAgentRunExecutor.class));
         }
 
         @Bean AgentRuntimeProperties agentRuntimeProperties() { return new AgentRuntimeProperties(); }

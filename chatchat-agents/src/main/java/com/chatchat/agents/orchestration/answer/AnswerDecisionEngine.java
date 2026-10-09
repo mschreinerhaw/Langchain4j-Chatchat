@@ -243,7 +243,7 @@ public class AnswerDecisionEngine {
         if (!(rawContract instanceof Map<?, ?> contract)) {
             return false;
         }
-        return "DRIVER_REPORT".equals(String.valueOf(contract.get("reportType")));
+        return "MODEL_REPORT".equals(String.valueOf(contract.get("reportType")));
     }
 
     private boolean modelEvidenceRepairAllowed(Map<String, Object> metadata) {

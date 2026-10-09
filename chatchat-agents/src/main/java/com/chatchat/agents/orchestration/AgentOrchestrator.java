@@ -1,9 +1,6 @@
 package com.chatchat.agents.orchestration;
 
-import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
-import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
 
 
 import com.chatchat.agents.orchestration.evidence.EvidenceTrustEvaluator;
@@ -21,7 +18,6 @@ import com.chatchat.common.config.ModelsConfig;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisSummaryProtocol;
-import com.chatchat.common.runtime.summary.spi.ModelSummaryDispatcher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -110,13 +106,6 @@ public class AgentOrchestrator extends AgentOrchestrationEngine {
         DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope> protocol
     ) {
         super.setAnalysisSummaryProtocol(protocol);
-    }
-
-    @Override
-    public void setModelSummaryDispatcher(
-        ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult> dispatcher
-    ) {
-        super.setModelSummaryDispatcher(dispatcher);
     }
 
     @Override

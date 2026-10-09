@@ -211,7 +211,6 @@ class RuntimeOsBusinessAnalysisGoldenTest {
         ToolRegistry registry = mock(ToolRegistry.class);
         ObjectMapper mapper = new ObjectMapper();
         AgentRuntimeProperties runtime = new AgentRuntimeProperties();
-        runtime.setAnalysisSummaryWorkerCount(workerCount);
         return new AgentOrchestrator(model, registry,
             new ToolRuntimeService(registry, mapper, toolRuntimeProperties(), List.of(), List.of()),
             mapper, new ModelsConfig(), new EvidenceTrustEvaluator(), runStore,

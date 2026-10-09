@@ -31,7 +31,7 @@ class AgentAnswerFinalizerTaskAssessmentTest {
         metadata.put("modelNativeHarnessActive", true);
         metadata.put("harnessStopReason", "MODEL_COMPLETED");
         metadata.put("analysisReportGenerationMode", "MODEL_NATIVE_HARNESS");
-        metadata.put("analysisReportContract", Map.of("reportType", "DRIVER_REPORT", "renderedText", report));
+        metadata.put("analysisReportContract", Map.of("reportType", "MODEL_REPORT", "renderedText", report));
         metadata.put("claimCoverageStatus", "FAIL");
         metadata.put("answerClaimAuditPassed", false);
         var result = finalizer.finishReviewedAnswer(null, "Analyze", null, List.of(), metadata,
@@ -144,7 +144,7 @@ class AgentAnswerFinalizerTaskAssessmentTest {
         );
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("analysisReportContract", Map.of(
-            "reportType", "DRIVER_REPORT",
+            "reportType", "MODEL_REPORT",
             "renderedText", "## Original report\n\nThe customer is always an aggressive trader."
         ));
         metadata.put("analysisDriverReturnedDatasetCount", 1);

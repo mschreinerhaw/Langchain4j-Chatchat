@@ -2,22 +2,18 @@ package com.chatchat.agents.orchestration.answer;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisReportContract;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.analysis.nodes.analysis.AnalysisNodeProtocol;
 import com.chatchat.agents.orchestration.analysis.prompt.AdaptiveReportGenerationSpec;
 
 
-import com.chatchat.agents.evidence.normalization.EvidenceType;
 
 import com.chatchat.agents.evidence.normalization.EvidenceChunk;
 
 import com.chatchat.agents.evidence.answer.EvidenceAnswer;
 
-import com.chatchat.agents.evidence.answer.AnswerAssemblyMode;
 
 import com.chatchat.agents.protocol.AnswerContract;
 
 import com.chatchat.agents.orchestration.AgentOrchestrator;
-import com.chatchat.agents.orchestration.evidence.EvidenceSufficiencyGate;
 import com.chatchat.agents.orchestration.planning.validation.AgentRuntimeGuard;
 
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
@@ -34,13 +30,11 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.answer.AgentAnswerReview;
 import com.chatchat.agents.runtime.answer.AgentAnswerReviewer;
 import com.chatchat.agents.runtime.observation.AgentRuntimeFactGroundingContract;
-import com.chatchat.agents.runtime.answer.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.answer.DraftArtifactRuntimePolicy;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisSummaryProtocol;
 import com.chatchat.agents.orchestration.protocol.RuntimeProtocolDefaults;
-import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRunStateMachine;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.interaction.UserFacingAnswerSanitizer;
@@ -1212,11 +1206,11 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             return false;
         }
         Map<String, Object> contract = objectMap(metadata.get("analysisReportContract"));
-        return "DRIVER_REPORT".equals(stringValue(contract.get("reportType")));
+        return "MODEL_REPORT".equals(stringValue(contract.get("reportType")));
     }
 
     private boolean isModelOwnedDataAnalysisReport(Map<String, Object> metadata) {
-        // DRIVER_REPORT is the ownership boundary. Requiring extra counters here allowed stale
+        // MODEL_REPORT is the ownership boundary. Requiring extra counters here allowed stale
         // or absent bookkeeping to hand the report back to Runtime quality heuristics.
         return isGovernedAnalysisReport(metadata);
     }

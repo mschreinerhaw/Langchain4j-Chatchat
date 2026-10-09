@@ -35,12 +35,12 @@ public record AnalysisReportContract(
         renderedText = renderedText == null ? "" : renderedText.trim();
     }
 
-    public static AnalysisReportContract driverReport(String text, int facts,
+    public static AnalysisReportContract modelReport(String text, int facts,
                                                        int insights, int conclusions) {
         boolean hasAnalysisNarrative = text != null && !text.isBlank()
             && !isInternalOrTechnicalPayload(text);
-        return new AnalysisReportContract(SCHEMA_VERSION, ReportType.DRIVER_REPORT,
-            AnalysisStage.DRIVER, facts, insights, conclusions,
+        return new AnalysisReportContract(SCHEMA_VERSION, ReportType.MODEL_REPORT,
+            AnalysisStage.MODEL, facts, insights, conclusions,
             hasAnalysisNarrative ? Publishability.PUBLISHABLE_REPORT
                 : Publishability.NON_PUBLISHABLE, text);
     }
@@ -53,7 +53,7 @@ public record AnalysisReportContract(
 
     public boolean mayEnterFinalPayload() {
         if (renderedText.isBlank() || isInternalOrTechnicalPayload(renderedText)) return false;
-        return (reportType == ReportType.DRIVER_REPORT
+        return (reportType == ReportType.MODEL_REPORT
                 && publishability == Publishability.PUBLISHABLE_REPORT)
             || (reportType == ReportType.FAILURE_REPORT
                 && publishability == Publishability.PUBLISHABLE_FAILURE_REPORT);
@@ -101,18 +101,14 @@ public record AnalysisReportContract(
     public enum ReportType {
         INSTRUCTION,
         ANALYSIS_CONTEXT,
-        WORKER_REPORT,
-        REDUCER_REPORT,
-        DRIVER_REPORT,
+        MODEL_REPORT,
         FAILURE_REPORT,
         EVIDENCE_ATTACHMENT
     }
 
     public enum AnalysisStage {
         RUNTIME,
-        WORKER,
-        REDUCER,
-        DRIVER,
+        MODEL,
         GOVERNANCE
     }
 

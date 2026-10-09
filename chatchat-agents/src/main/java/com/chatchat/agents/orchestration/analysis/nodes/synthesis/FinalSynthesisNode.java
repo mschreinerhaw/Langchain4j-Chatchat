@@ -1,46 +1,22 @@
 package com.chatchat.agents.orchestration.analysis.nodes.synthesis;
 
 import com.chatchat.agents.orchestration.AgentRunResultAdapter;
-import com.chatchat.agents.orchestration.analysis.graph.AnalysisExecutionGraph;
-import com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisResponsibilityContract;
-import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine;
-import com.chatchat.agents.orchestration.analysis.logging.AnalysisReportLogProjection;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisExecutionOutcome;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisReportContract;
 import com.chatchat.agents.orchestration.analysis.report.VerifiedReportDataCatalog;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
-import com.chatchat.agents.orchestration.analysis.prompt.AdaptiveReportGenerationSpec;
-import com.chatchat.agents.orchestration.analysis.protocol.AnalysisArtifactProtocol;
-import com.chatchat.agents.orchestration.analysis.governance.AnalysisOutputAdmissionPolicy;
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisExecutionOutcomeRecorder;
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisSummaryGovernanceCoordinator;
-import com.chatchat.agents.orchestration.analysis.nodes.merge.StructuredFindingMerger;
-import com.chatchat.agents.orchestration.model.AgentDeadlineExceededException;
-import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator;
 import com.chatchat.agents.orchestration.analysis.context.SynthesisContextBudget;
 import com.chatchat.agents.runtime.answer.AnswerCandidateCollector;
-import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
-import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLifecycle;
-import com.chatchat.common.knowledge.runtime.KnowledgeContext;
-import com.chatchat.common.runtime.summary.analysis.contract.DataAnalysisDecisionOperatingModel;
-import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLayerGovernanceContract;
-import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLineageGraph;
-import com.chatchat.common.runtime.summary.spi.ModelSummaryModel;
-import com.chatchat.common.runtime.summary.spi.ModelSummaryReducer;
 import dev.langchain4j.model.chat.ChatModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.function.Supplier;
-import java.util.function.UnaryOperator;
 
 /**
  * Coordinates dataset, cross-dataset and final governed synthesis without domain knowledge.
@@ -52,63 +28,19 @@ public final class FinalSynthesisNode {
     private final AgentRunResultAdapter resultAdapter;
     private final String runIdAttribute;
     private final AnalysisSummaryGovernanceCoordinator governanceCoordinator;
-    private final DeterministicInsightEngine deterministicInsightEngine;
     private final AnswerCandidateCollector answerCandidateCollector;
-    private final GovernedFinalClaimContract finalClaimContract = new GovernedFinalClaimContract();
-    private final AnalysisExecutionOutcomeRecorder outcomeRecorder =
-        new AnalysisExecutionOutcomeRecorder();
-    private final AnalysisSynthesisContext driverPipelineContext =
-        new AnalysisSynthesisContext();
-    private ModelSummaryReducer<AnalysisSummaryResult, StructuredFindingMerger.Context,
-        StructuredFindingMerger.Result> hierarchicalReducer;
-
+    private final AnalysisExecutionOutcomeRecorder outcomeRecorder = new AnalysisExecutionOutcomeRecorder();
     public FinalSynthesisNode(
         AgentRunResultAdapter resultAdapter,
         String runIdAttribute,
         AnalysisSummaryGovernanceCoordinator governanceCoordinator,
-        DeterministicInsightEngine deterministicInsightEngine,
-        AnswerCandidateCollector answerCandidateCollector,
-        ModelSummaryReducer<AnalysisSummaryResult, StructuredFindingMerger.Context,
-            StructuredFindingMerger.Result> hierarchicalReducer
+        AnswerCandidateCollector answerCandidateCollector
     ) {
         this.resultAdapter = resultAdapter;
         this.runIdAttribute = runIdAttribute;
         this.governanceCoordinator = governanceCoordinator;
-        this.deterministicInsightEngine = deterministicInsightEngine;
         this.answerCandidateCollector = answerCandidateCollector;
-        this.hierarchicalReducer = hierarchicalReducer;
     }
-
-    public void setHierarchicalReducer(
-        ModelSummaryReducer<AnalysisSummaryResult, StructuredFindingMerger.Context,
-            StructuredFindingMerger.Result> reducer
-    ) {
-        if (reducer != null) this.hierarchicalReducer = reducer;
-    }
-
-    public HierarchicalSynthesisResult synthesizeHierarchy(HierarchicalSynthesisRequest request) {
-        DeterministicInsightEngine.Result crossDataset = deterministicInsightEngine.analyzeBundle(
-            request.isolationScope(), request.deterministicDatasets());
-        StructuredFindingMerger.Result hierarchy = hierarchicalReducer.reduce(
-            new StructuredFindingMerger.Context(
-                request.model(), request.isolationScope(), request.relationshipPlan(), request.userQuestion()),
-            request.workerDatasetSummaries());
-        DataAnalysisLifecycle lifecycle = request.lifecycle()
-            .finalSummaryCompleted(hierarchy.finalInputs().size());
-
-        for (AnalysisSummaryResult datasetSummary : hierarchy.datasetSummaries()) {
-            record(request, "数据集归并分析完成："
-                + datasetSummary.position().get("datasetReference") + "。", "dataset_synthesis",
-                Map.of("analysisSummaryResult", datasetSummary.toMap()));
-        }
-        for (AnalysisSummaryResult groupSummary : hierarchy.relationshipGroupSummaries()) {
-            record(request, "关系组归并分析完成："
-                + groupSummary.position().get("groupId") + "。", "relationship_group_synthesis",
-                Map.of("analysisSummaryResult", groupSummary.toMap()));
-        }
-        return new HierarchicalSynthesisResult(crossDataset, hierarchy, lifecycle);
-    }
-
     public AnalysisSummaryResult finalizeSummary(FinalSynthesisRequest request) {
         return governanceCoordinator.finalizeSummary(
             new AnalysisSummaryGovernanceCoordinator.FinalSummaryRequest(
@@ -119,11 +51,9 @@ public final class FinalSynthesisNode {
                 request.rawReplayChunkCount(), request.summaryResults(),
                 request.synthesisInputs(), request.runtimeAttributes(), request.metadata()));
     }
-
-    /** Executes the single final model call, its deterministic fallback and final governance. */
     public FinalSynthesisResult synthesizeFinal(FinalModelSynthesisRequest request) {
         try {
-            return new ReportPublicationGraph().execute(request, this::synthesizeFinalAdmitted);
+            return new ReportPublicationGraph().execute(request, this::publishModelReport);
         } catch (RuntimeException ex) {
             request.metadata().put("analysisGraphStatus", ex instanceof java.util.concurrent.CancellationException
                 ? "CANCELLED" : "FAILED");
@@ -134,445 +64,19 @@ public final class FinalSynthesisNode {
             throw ex;
         }
     }
-
-    private FinalSynthesisResult synthesizeFinalAdmitted(FinalModelSynthesisRequest request) {
-        if (Boolean.TRUE.equals(request.metadata().get("modelNativeHarnessActive"))) {
-            return publishHarnessReport(request);
+    private FinalSynthesisResult publishModelReport(FinalModelSynthesisRequest request) {
+        if (String.valueOf(request.metadata().getOrDefault("modelNativeReportDraft", "")).isBlank()) {
+            // A request without dataset evidence still receives one model-authored summary.
+            if (request.model() == null) throw new IllegalStateException("Analysis model unavailable");
+            if (new ContextTokenEstimator().estimate(request.prompt()).tokens() > SynthesisContextBudget.fromRuntime(request.metadata()).inputTokens())
+                throw new IllegalStateException("Report context exceeds the model input budget");
+            String draft = request.model().chat(request.prompt());
+            request.metadata().put("modelNativeReportDraft", draft == null ? "" : draft);
+            request.metadata().put("modelNativeHarnessActive", true);
         }
-        boolean noFindings = request.metadata().get("unifiedAnalysisFindingCount") instanceof Number findings
-            && findings.longValue() == 0;
-        boolean retainedUnifiedDraft = Boolean.TRUE.equals(
-            request.metadata().get("semanticClaimPreflightReportRetained"))
-            && request.metadata().get("unifiedAnalysisReportDraft") instanceof String draft
-            && !draft.isBlank();
-        if ((Boolean.TRUE.equals(request.metadata().get("semanticClaimPreflightFailed")) || noFindings)
-            && !retainedUnifiedDraft
-            && request.metadata().get("analysisObservedReturnedRecordCount") instanceof Number rows && rows.longValue() > 0) {
-            // Missing structured findings means claim extraction needs review; it does not mean
-            // the returned records disappeared. The Driver prompt below still receives the
-            // bounded verified dataset projection and must produce a limited analysis.
-            request.metadata().put("analysisSemanticExtractionAdvisory", true);
-            request.metadata().put("analysisHumanReviewRequired", true);
-            request.metadata().put("semanticClaimPreflightFailureDisposition",
-                "ADVISORY_DRIVER_ANALYSIS_FROM_RETURNED_DATA");
-            log.warn("analysisSemanticExtractionAdvisory runId={} returnedRecordCount={} "
-                    + "preflightFailed={} findingCount={}",
-                request.runId(), rows.longValue(),
-                request.metadata().get("semanticClaimPreflightFailed"),
-                request.metadata().get("unifiedAnalysisFindingCount"));
-        }
-        if (retainedUnifiedDraft) {
-            request.metadata().put("analysisSemanticExtractionAdvisory", true);
-        }
-        if (Boolean.FALSE.equals(request.metadata().get("analysisSynthesisBarrierReady"))) {
-            recordHumanReviewAdvisory(request, "SYNTHESIS_INPUT_REVIEW",
-                String.valueOf(request.metadata().getOrDefault(
-                    "analysisSynthesisBarrierStatus", "ANALYSIS_PRODUCTS_REQUIRE_REVIEW")));
-            request.metadata().put("analysisSynthesisBarrierWasAdvisory", true);
-            log.warn("analysisSynthesisReviewAdvisory runId={} stage={} status={} "
-                    + "acceptedWorkerCount={} rejectedWorkerCount={}",
-                request.runId(), request.stage(),
-                request.metadata().get("analysisSynthesisBarrierStatus"),
-                request.metadata().get("analysisAcceptedWorkerCount"),
-                request.metadata().get("analysisRejectedWorkerCount"));
-        }
-        long startedAt = System.currentTimeMillis();
-        // The Driver consumes the final Worker/Reducer reports. Chunk-level products remain
-        // lineage and audit evidence, but cannot bypass hierarchical consolidation.
-        List<AnalysisSummaryResult> claimSources = request.synthesisInputs().isEmpty()
-            ? new ArrayList<>(request.summaryResults())
-            : new ArrayList<>(request.synthesisInputs());
-        request.metadata().put("analysisDecisionOperatingModelVersion",
-            DataAnalysisDecisionOperatingModel.SCHEMA_VERSION);
-        request.metadata().put("analysisParticipantRole",
-            DataAnalysisDecisionOperatingModel.ParticipantRole.DRIVER.name());
-        request.metadata().put("analysisDriverInputMode", request.synthesisInputs().isEmpty()
-            ? DataAnalysisDecisionOperatingModel.DriverInputMode.WORKER_REPORT_COMPATIBILITY_FALLBACK.name()
-            : DataAnalysisDecisionOperatingModel.DriverInputMode.GOVERNED_WORKER_REDUCER_REPORTS_ONLY.name());
-        request.metadata().put("analysisDriverInputReportCount", claimSources.size());
-        GovernedFinalClaimContract.Compilation claimCompilation =
-            finalClaimContract.compile(claimSources);
-        SynthesisContextBudget synthesisBudget = SynthesisContextBudget.fromRuntime(request.metadata());
-        request.metadata().put(SynthesisContextBudget.RUNTIME_KEY, synthesisBudget.toMap());
-        boolean synthesisBarrierReady =
-            Boolean.TRUE.equals(request.metadata().get("analysisSynthesisBarrierReady"));
-        boolean claimBoundPublication = claimCompilation.active() && synthesisBarrierReady;
-        request.metadata().put("finalClaimPublicationContractVersion",
-            GovernedFinalClaimContract.SCHEMA_VERSION);
-        request.metadata().put("finalClaimPublicationContractObserved",
-            claimCompilation.claimContractObserved());
-        request.metadata().put("finalClaimPublicationContractActive", claimBoundPublication);
-        request.metadata().put("finalAdmittedClaimCount", claimCompilation.claims().size());
-        if (claimCompilation.claimContractObserved() && !claimCompilation.active()) {
-            request.metadata().put("analysisHumanReviewRequired", true);
-            request.metadata().put("analysisClaimReviewStatus",
-                "NO_ADMITTED_CLAIMS_ADVISORY");
-        }
-        Map<String, Object> pipelineContext = driverPipelineContext.build(
-            request.summaryResults(), claimSources, request.runtimeAttributes(), request.metadata(),
-            synthesisBudget);
-        request.metadata().put("analysisDriverPipelineContext", pipelineContext);
-        request.metadata().put("analysisDriverPipelineContextSchemaVersion",
-            AnalysisSynthesisContext.SCHEMA_VERSION);
-        boolean boundedClaimComposition = claimCompilation.claimContractObserved()
-            && synthesisBarrierReady;
-        String driverPrompt = boundedClaimComposition
-            ? claimBoundReportComposerPrompt(request, pipelineContext)
-            : request.prompt()
-                + "\n\nBinding report-composition pipeline context (not evidence): "
-                + ModelProtocolJson.compact(pipelineContext);
-        String modelPrompt = finalClaimContract.appendNarrativeInstruction(
-            driverPrompt, claimCompilation, synthesisBudget);
-        VerifiedReportDataCatalog reportData = VerifiedReportDataCatalog.fromRuntime(request.metadata());
-        request.metadata().remove("reportBlocks");
-        request.metadata().remove("visualizationPlanning");
-        var visualizationRegistry = com.chatchat.agents.orchestration.analysis.report.VisualizationCapabilityRegistry.active(request.runtimeAttributes());
-        var visualizationInjector = new com.chatchat.agents.orchestration.analysis.report.VisualizationCapabilityInjector(visualizationRegistry);
-        request.metadata().put("visualizationCapabilities", visualizationInjector.snapshot(reportData));
-        request.metadata().remove("analyticalReport");
-        request.metadata().remove("claimAcceptance");
-        request.metadata().remove("claimAcceptanceGraphNodes");
-        String acceptanceQuestion = String.valueOf(request.metadata().getOrDefault(
-            "analysisAcceptanceQuestion", ""));
-        boolean visualizationRequested = explicitlyRequestsVisualization(acceptanceQuestion);
-        if (claimBoundPublication && visualizationRequested) {
-            modelPrompt += "\nVerified supporting data for the report (not a required outline): "
-                + ModelProtocolJson.compact(reportData.promptView());
-        } else if (claimBoundPublication) {
-            request.metadata().put("analysisDriverDuplicateReportDataOmitted", true);
-            request.metadata().put("analysisDriverEvidenceInputMode",
-                "ADMITTED_CLAIM_LEDGER_WITH_EXACT_SUPPORTING_VALUES");
-        }
-        VerifiedReportDataCatalog.DatasetPromptProjection datasetProjection =
-            reportData.datasetPromptProjection(synthesisBudget.datasetTokens());
-        List<Map<String, Object>> datasetPromptView = datasetProjection.datasets();
-        modelPrompt += "\nVerified returned datasets for model-authored report tables and analysis "
-            + "(bounded source projection, not a required outline): "
-            + ModelProtocolJson.compact(Map.of("datasets", datasetPromptView,
-                "omittedDatasetCount", datasetProjection.omittedDatasetReferences().size(),
-                "omittedDatasetReferences", datasetProjection.omittedDatasetReferences()));
-        request.metadata().put("analysisDriverReturnedDatasetsIncluded", !datasetPromptView.isEmpty());
-        request.metadata().put("analysisDriverReturnedDatasetCount", datasetPromptView.size());
-        String enrichedPrompt = visualizationInjector.inject(modelPrompt, reportData);
-        boolean visualizationInjected = new ContextTokenEstimator().estimate(enrichedPrompt + finalReportCalibrationRules()).tokens()
-            <= synthesisBudget.inputTokens();
-        if (visualizationInjected) modelPrompt = enrichedPrompt;
-        request.metadata().put("visualizationCapabilitiesInjected", visualizationInjected);
-        // Put calibration last so a large evidence contract cannot dilute the publication boundary.
-        modelPrompt += finalReportCalibrationRules();
-        ContextTokenEstimator.Size finalPromptSize = new ContextTokenEstimator().estimate(modelPrompt);
-        request.metadata().put("analysisDriverModelPromptEstimatedTokens", finalPromptSize.tokens());
-        request.metadata().put("analysisDriverInputTokenBudget", synthesisBudget.inputTokens());
-        request.metadata().put("analysisDriverReservedOutputTokens", synthesisBudget.reservedOutputTokens());
-        request.metadata().put("analysisDriverNarrativeOmittedDatasetReferences",
-            datasetProjection.omittedDatasetReferences());
-        if (finalPromptSize.tokens() > synthesisBudget.inputTokens()) {
-            request.metadata().put("analysisDriverModelInvoked", false);
-            request.metadata().put("analysisDriverContextBudgetExceeded", true);
-            throw new IllegalStateException("Final synthesis input requires " + finalPromptSize.tokens()
-                + " estimated tokens but the active model runtime allows "
-                + synthesisBudget.inputTokens() + " after output reservation");
-        }
-        boolean selfContainedCurrentTableBrief = Boolean.TRUE.equals(
-            request.metadata().get("selfContainedCurrentTableBrief"));
-        String unifiedReportDraft = claimBoundPublication || selfContainedCurrentTableBrief || retainedUnifiedDraft
-            ? String.valueOf(request.metadata().getOrDefault("unifiedAnalysisReportDraft", "")).trim()
-            : "";
-        boolean reuseUnifiedReportDraft = !unifiedReportDraft.isBlank();
-        request.metadata().put("analysisDriverModelInvoked", !reuseUnifiedReportDraft);
-        request.metadata().put("analysisDriverRawResponseChars", 0);
-        request.metadata().put("analysisFinalSynthesisInputMode", reuseUnifiedReportDraft
-            ? selfContainedCurrentTableBrief ? "SELF_CONTAINED_PLANNER_REPORT_DRAFT"
-                : "UNIFIED_ANALYSIS_REPORT_DRAFT"
-            : boundedClaimComposition ? "ADMITTED_CLAIMS_AND_BOUNDED_COMPOSITION_CONTEXT"
-                : "COMPATIBILITY_EVIDENCE_PROMPT");
-        request.metadata().put("analysisDriverModelPromptChars", modelPrompt.length());
-        String answer;
-        String outcome = reuseUnifiedReportDraft
-            ? "UNIFIED_ANALYSIS_REPORT_DRAFT" : "MODEL_FINAL_SUMMARY";
-        GovernedFinalClaimContract.DriverAudit driverAudit = null;
-        if (reuseUnifiedReportDraft) {
-            answer = unifiedReportDraft;
-            request.metadata().put("analysisDriverRawResponseChars", answer.length());
-            request.metadata().put("analysisReportGenerationMode", selfContainedCurrentTableBrief
-                ? "SELF_CONTAINED_PLANNER_AUTHORED_MARKDOWN"
-                : "UNIFIED_ANALYSIS_MODEL_AUTHORED_MARKDOWN");
-            log.info("analysisDriverModelSkipped runId={} stage={} mode={} reportChars={} admittedClaimCount={}",
-                request.runId(), request.stage(), "UNIFIED_ANALYSIS_REPORT_DRAFT",
-                answer.length(), claimCompilation.claims().size());
-        } else {
-            log.info("agentModelRequest phase=interpretation_plan_summary runId={} stage={} modelClass={} promptChars={} stepCount={} storedObservationCount={} claimBoundPublication={} admittedClaimCount={}",
-                request.runId(), request.stage(), request.model().getClass().getName(),
-                modelPrompt.length(), request.stepCount(), request.storedObservationCount(),
-                claimBoundPublication, claimCompilation.claims().size());
-            log.info("analysisDriverModelRequest runId={} stage={} modelClass={} promptChars={} "
-                    + "claimBoundPublication={} admittedClaimCount={}",
-                request.runId(), request.stage(), request.model().getClass().getName(),
-                modelPrompt.length(), claimBoundPublication, claimCompilation.claims().size());
-            try {
-                answer = request.model().chat(modelPrompt);
-                request.metadata().put("analysisDriverRawResponseChars", answer == null ? 0 : answer.length());
-                if (claimBoundPublication) {
-                    driverAudit = finalClaimContract.inspectDriverAudit(answer, claimCompilation,
-                        claimSources.stream().map(AnalysisSummaryResult::resultId).toList());
-                }
-            } catch (RuntimeException ex) {
-                if (ex instanceof AgentDeadlineExceededException) throw ex;
-                log.warn("agentModelFailure phase=interpretation_plan_summary runId={} stage={} "
-                        + "fallbackAllowed={} errorType={} error={}",
-                    request.runId(), request.stage(), request.fallbackAllowed(),
-                    ex.getClass().getName(), safeMessage(ex));
-                request.metadata().put("interpretationPlanSummaryGenerated", false);
-                request.metadata().put("interpretationPlanSummaryFailure", safeMessage(ex));
-                // Only the model may author the final report. Let the same-data repair path
-                // handle failures; never publish a claim inventory or a runtime fallback body.
-                answer = "";
-                outcome = "MODEL_FINAL_REPORT_UNAVAILABLE";
-            }
-        }
-
-        answer = sanitizeReport(answer, request);
-        boolean authoredNarrative = answer != null && !answer.stripLeading().startsWith("{")
-            && !answer.stripLeading().startsWith("```json");
-        if (claimBoundPublication && authoredNarrative) {
-            request.metadata().remove("analysisDriverReview");
-            request.metadata().put("analysisDriverReviewCompleted", false);
-            request.metadata().put("analysisDriverReviewStatus", "STRUCTURED_REVIEW_NOT_REQUESTED");
-            request.metadata().put("analysisReportGenerationMode", "MODEL_AUTHORED_MARKDOWN");
-        }
-        if (claimBoundPublication && !authoredNarrative) {
-            recordDriverAudit(request, driverAudit);
-            if (driverAudit == null || !driverAudit.valid()) {
-                String reason = driverAudit == null
-                    ? "DRIVER_REVIEW_NOT_COMPLETED" : driverAudit.reason();
-                recordHumanReviewAdvisory(request, "DRIVER_REVIEW", reason);
-            } else if (!driverAudit.challenges().isEmpty()) {
-                recordDriverChallenges(request, driverAudit);
-            }
-            if (driverAudit != null && driverAudit.valid()) {
-                recordDriverDerivedClaims(request, driverAudit);
-                claimCompilation = finalClaimContract.includeDriverDerivedClaims(
-                    claimCompilation, driverAudit);
-                request.metadata().put("finalAdmittedClaimCount", claimCompilation.claims().size());
-            }
-        }
-
-        if (claimBoundPublication) {
-            GovernedFinalClaimContract.Projection projection =
-                authoredNarrative ? finalClaimContract.publishNarrative(answer, claimCompilation)
-                    : finalClaimContract.project(answer, claimCompilation, reportData);
-            boolean partialDelivery = "GOVERNED_CLAIM_PARTIAL_DELIVERY".equals(
-                projection.analyticalReport().get("publicationMode"));
-            if (!projection.modelSelectionAccepted() && !partialDelivery) {
-                recordHumanReviewAdvisory(request, "DRIVER_DECISION", projection.reason());
-            }
-            answer = projection.markdown();
-            outcome = authoredNarrative ? "MODEL_ANALYSIS_PUBLISHED_WITH_EVIDENCE_AUDIT"
-                : partialDelivery ? "CLAIM_BOUND_PARTIAL_SUMMARY" : projection.modelSelectionAccepted()
-                ? "CLAIM_BOUND_FINAL_SUMMARY"
-                : "MODEL_FINAL_REPORT_REPAIR_REQUIRED";
-            request.metadata().put("finalClaimSelectionAccepted",
-                projection.modelSelectionAccepted());
-            request.metadata().put("finalClaimSelectionReason", projection.reason());
-            request.metadata().put("finalPublishedClaimIds", projection.selectedClaimIds());
-            if ((projection.modelSelectionAccepted() || partialDelivery)
-                && !projection.analyticalReport().isEmpty()) {
-                request.metadata().put("analyticalReport", projection.analyticalReport());
-            }
-            if (projection.analyticalReport().containsKey("claimAcceptance")) {
-                request.metadata().put("claimAcceptance", projection.analyticalReport().get("claimAcceptance"));
-            }
-            request.metadata().put("claimAcceptanceGraphNodes", projection.analyticalReport().getOrDefault("acceptanceGraphNodes", List.of()));
-            log.info("analysisDriverGovernance runId={} stage={} admitted={} reason={} "
-                    + "publishedClaimCount={}",
-                request.runId(), request.stage(), projection.modelSelectionAccepted(),
-                projection.reason(), projection.selectedClaimIds().size());
-        } else {
-            var reportPayloads = com.chatchat.agents.orchestration.analysis.report.ReportBlockMarkdownProtocol.protectProposals(answer);
-            answer = reportPayloads.restore(request.postProcessor().apply(reportPayloads.markdown()));
-        }
-        answer = sanitizeReport(answer, request);
-        if (answer == null || answer.isBlank()) {
-            answer = "";
-            outcome = "MODEL_FINAL_REPORT_REPAIR_REQUIRED";
-        }
-        AnalysisOutputAdmissionPolicy.Admission admission =
-            AnalysisOutputAdmissionPolicy.admit(answer);
-        if (!admission.admitted() && (answer == null || answer.isBlank())) {
-            AnalysisRecovery recovery = recoverAnalysisNarrative(
-                request, modelPrompt, admission.reason());
-            if (recovery.recovered()) {
-                request.metadata().remove("analyticalReport");
-                request.metadata().remove("claimAcceptance");
-                request.metadata().remove("claimAcceptanceGraphNodes");
-                answer = recovery.content();
-                if (claimBoundPublication) {
-                    request.metadata().put("analyticalReport",
-                        finalClaimContract.publishNarrative(answer, claimCompilation).analyticalReport());
-                    request.metadata().put("analysisReportGenerationMode", "MODEL_AUTHORED_MARKDOWN");
-                }
-                outcome = recovery.outcome();
-                admission = AnalysisOutputAdmissionPolicy.admit(answer);
-                request.metadata().put("analysisRecoveryApplied", true);
-                request.metadata().put("analysisRecoverySource", recovery.source());
-                request.metadata().put("analysisHumanReviewRequired", true);
-                recordHumanReviewAdvisory(request, "ANALYSIS_RECOVERY", recovery.reason());
-            }
-        }
-        if (!admission.admitted() && answer != null && !answer.isBlank()) {
-            // A non-empty Driver model response is the analysis result. Runtime classifiers may
-            // describe its shape, but must never overrule the model and suppress publication.
-            request.metadata().put("analysisOutputClassifierAdvisory", admission.reason());
-            admission = new AnalysisOutputAdmissionPolicy.Admission(
-                true, "MODEL_OUTPUT_PRESENT_CLASSIFIER_ADVISORY");
-        }
-        request.metadata().put("analysisOutputAdmissionReason", admission.reason());
-        request.metadata().put("analysisOutputAdmitted", admission.admitted());
-        request.metadata().put("analysisOutputPresent", answer != null && !answer.isBlank());
-        if (!admission.admitted()) {
-            request.metadata().remove("analyticalReport");
-            request.metadata().remove("claimAcceptance");
-            request.metadata().remove("claimAcceptanceGraphNodes");
-            AnalysisExecutionOutcome executionOutcome = blockedOutcome(
-                request, admission.reason(), true);
-            answer = executionOutcome.failureReport();
-            outcome = "ANALYSIS_OUTPUT_WITHHELD";
-            request.metadata().put("executionStatus", "NO_PRESENTABLE_ANALYSIS");
-            request.metadata().put("rawAnalysisOutputWithheld", true);
-        } else {
-            recordCompletedOutcome(request);
-            var factAudit = new com.chatchat.agents.orchestration.analysis.report.ReportFactBindingAudit()
-                .audit(answer, reportData);
-            answer = factAudit.markdown();
-            request.metadata().put("analysisFactBindingAudit", factAudit.checks());
-            var visualPlan = new com.chatchat.agents.orchestration.analysis.report.VisualizationPlanningNode(visualizationRegistry,
-                claimCompilation.claims().keySet())
-                .execute(answer, reportData);
-            answer = visualPlan.markdown();
-            request.metadata().put("analysisVisualizationAudit", visualPlan.checks());
-            request.metadata().put("reportBlocks", Map.of("schemaVersion", "report_blocks.v1",
-                "reportId", request.runId(), "blocks", visualPlan.blocks()));
-            request.metadata().put("visualizationPlanning", Map.of("stage", "VISUALIZATION_PLANNING",
-                "modelCalls", 0, "verifiedBlockCount", visualPlan.visualizationCount(),
-                "rejectedBlockCount", visualPlan.checks().stream().filter(check -> "REJECTED".equals(check.get("status"))).count(),
-                "status", visualPlan.visualizationCount() == 0 ? "TEXT_ONLY" : "COMPLETED"));
-            resultAdapter.recordRuntimeObservation(request.runtimeAttributes(), runIdAttribute,
-                "Visualization planning completed using verified run-scoped datasets.", "visualization_planning",
-                Map.of("type", "visualization_planning", "eventKind", "VISUALIZATION_PLANNING", "stage", "VISUALIZATION_PLANNING",
-                    "planning", request.metadata().get("visualizationPlanning"), "checks", visualPlan.checks()));
-            request.metadata().put("analysisNumericAudit",
-                new com.chatchat.agents.orchestration.analysis.report.ReportNumericAudit().audit(answer, reportData));
-        }
-        String authoredBodyHash = ModelProtocolJson.sha256Hex(answer == null ? "" : answer);
-        AnalysisSummaryResult governed = finalizeSummary(request.governance(answer, outcome));
-        List<String> publishedClaimIds = strings(request.metadata().get("finalPublishedClaimIds"));
-        DataAnalysisLayerGovernanceContract.Admission driverAdmission =
-            new DataAnalysisLayerGovernanceContract.Admission(
-                "", governed.resultId(), DataAnalysisLayerGovernanceContract.Layer.DRIVER_DECISION,
-                admission.admitted() ? DataAnalysisLayerGovernanceContract.State.PUBLISHED
-                    : DataAnalysisLayerGovernanceContract.State.REJECTED,
-                admission.admitted(), List.of(admission.reason()),
-                request.synthesisInputs().stream().map(AnalysisSummaryResult::resultId).toList(),
-                publishedClaimIds);
-        List<DataAnalysisLayerGovernanceContract.LineageEdge> driverLineageEdges = new ArrayList<>();
-        String governedResultId = governed.resultId();
-        request.synthesisInputs().forEach(input -> driverLineageEdges.add(
-            new DataAnalysisLayerGovernanceContract.LineageEdge(
-                "", input.resultId(), governedResultId,
-                DataAnalysisLayerGovernanceContract.Relation.DERIVED_FROM,
-                DataAnalysisLayerGovernanceContract.Layer.DRIVER_DECISION)));
-        publishedClaimIds.forEach(claimId -> driverLineageEdges.add(
-            new DataAnalysisLayerGovernanceContract.LineageEdge(
-                "", claimId, governedResultId,
-                DataAnalysisLayerGovernanceContract.Relation.SUPPORTS,
-                DataAnalysisLayerGovernanceContract.Layer.DRIVER_DECISION)));
-        List<Map<String, Object>> driverLineage = driverLineageEdges.stream()
-            .map(DataAnalysisLayerGovernanceContract.LineageEdge::toMap).toList();
-        List<Map<String, Object>> publishedClaimLifecycle = publishedClaimIds.stream()
-            .map(claimId -> new DataAnalysisLayerGovernanceContract.ClaimTransition(
-                "", claimId, DataAnalysisLayerGovernanceContract.Layer.DRIVER_DECISION,
-                DataAnalysisLayerGovernanceContract.State.SYNTHESIZED,
-                DataAnalysisLayerGovernanceContract.State.PUBLISHED,
-                request.synthesisInputs().stream().map(AnalysisSummaryResult::resultId).toList(),
-                "Claim was selected by the governed Driver publication contract.").toMap())
-            .toList();
-        governed = governed.withEvidence(Map.of(
-            "analysisReportAdmission", driverAdmission.toMap(),
-            "analysisEvidenceLineage", List.copyOf(driverLineage),
-            "analysisClaimLifecycle", publishedClaimLifecycle,
-            "analysisPublishedClaimIds", publishedClaimIds,
-            AnalysisArtifactProtocol.EVIDENCE_KEY,
-                claimCompilation.artifacts(publishedClaimIds),
-            "analysisArtifactSchemaVersion", AnalysisArtifactProtocol.SCHEMA_VERSION));
-        request.metadata().put("analysisDriverAdmission", driverAdmission.toMap());
-        request.metadata().put("analysisEvidenceLineage", List.copyOf(driverLineage));
-        request.metadata().put("analysisClaimLifecycle", publishedClaimLifecycle);
-        List<DataAnalysisLineageGraph.Node> driverNodes = new ArrayList<>();
-        driverNodes.add(new DataAnalysisLineageGraph.Node(
-            governedResultId, "DRIVER_DECISION",
-            Map.of("outcome", governed.outcome(), "admitted", admission.admitted())));
-        request.synthesisInputs().forEach(input -> driverNodes.add(
-            new DataAnalysisLineageGraph.Node(input.resultId(), "REPORT",
-                Map.of("scope", input.scope()))));
-        publishedClaimIds.forEach(claimId -> driverNodes.add(
-            new DataAnalysisLineageGraph.Node(claimId, "CLAIM", Map.of("published", true))));
-        DataAnalysisLineageGraph lineageGraph = DataAnalysisLineageGraph
-            .fromMap(request.metadata().get("analysisLineageGraph"))
-            .plus(driverNodes, driverLineageEdges);
-        request.metadata().put("analysisLineageGraph", lineageGraph.toMap());
-        request.metadata().put("analysisLineageGraphSchemaVersion",
-            DataAnalysisLineageGraph.SCHEMA_VERSION);
-        request.metadata().put("analysisSummaryResult", governed.toMap());
-        answer = governed.content();
-        boolean bodyPreserved = authoredBodyHash.equals(ModelProtocolJson.sha256Hex(answer == null ? "" : answer));
-        request.metadata().put("analysisReportBodyPreserved", bodyPreserved);
-        request.metadata().put("analysisReportBodySha256", ModelProtocolJson.sha256Hex(answer == null ? "" : answer));
-        log.info("analysisReportPublication runId={} outcome={} rawResponseChars={} reportChars={} bodyPreserved={}",
-            request.runId(), outcome, request.metadata().getOrDefault("analysisDriverRawResponseChars", 0),
-            answer == null ? 0 : answer.length(), bodyPreserved);
-        if (admission.admitted()) {
-            if (claimBoundPublication) {
-                recordFinalReportContract(request, answer);
-            } else {
-                AnalysisReportContract reportContract = AnalysisReportContract.driverReport(
-                    answer, 0, 0, 1);
-                request.metadata().put("analysisReportContract", reportContract.toMap());
-                request.metadata().put("analysisReportContractSchemaVersion",
-                    AnalysisReportContract.SCHEMA_VERSION);
-                request.metadata().put("finalPayloadType", reportContract.reportType().name());
-            }
-        }
-        log.info("agentModelResponse phase=interpretation_plan_summary runId={} stage={} durationMs={} responseChars={}",
-            request.runId(), request.stage(), System.currentTimeMillis() - startedAt,
-            answer == null ? 0 : answer.length());
-        log.info("analysisDriverReport runId={} stage={} report={}",
-            request.runId(), request.stage(), ModelProtocolJson.compact(
-                AnalysisReportLogProjection.project(
-                    "DRIVER", governed, request.synthesisInputs().size())));
-        answerCandidateCollector.register(request.metadata(), AnswerCandidateCollector.FINAL_SYNTHESIS, answer);
-        request.metadata().put("interpretationPlanSummaryGenerated",
-            !"DETERMINISTIC_FINAL_FALLBACK".equals(outcome)
-                && !"ANALYSIS_OUTPUT_WITHHELD".equals(outcome));
-        request.metadata().put("interpretationPlanFinalResultProduced",
-            !"ANALYSIS_OUTPUT_WITHHELD".equals(outcome));
-        request.metadata().put("interpretationPlanSummaryStage", request.stage());
-        request.metadata().put("interpretationPlanAttemptCount", request.attemptCount());
-        request.metadata().put("interpretationPlanStoredObservationCount", request.storedObservationCount());
-        Map<String, Object> observation = new LinkedHashMap<>();
-        observation.put("type", "final_summary");
-        observation.put("workflow", "interpretation_plan");
-        observation.put("stage", request.stage());
-        observation.put("answerPreview", preview(answer));
-        observation.put("analysisSummaryResult", governed.toMap());
-        observation.put("tenantId", governed.isolationScope().tenantId());
-        observation.put("runId", governed.isolationScope().runId());
-        resultAdapter.recordRuntimeObservation(request.runtimeAttributes(), runIdAttribute,
-            "InterpretationPlan " + request.stage() + " final analytical report composed.",
-            "interpretation_plan_summary", observation);
-        return new FinalSynthesisResult(answer, governed,
-            !"ANALYSIS_OUTPUT_WITHHELD".equals(outcome));
+        request.metadata().put("modelNativeHarnessActive", true);
+        return publishHarnessReport(request);
     }
-
     private FinalSynthesisResult publishHarnessReport(FinalModelSynthesisRequest request) {
         String answer = String.valueOf(request.metadata().getOrDefault("modelNativeReportDraft", ""));
         if (answer.isBlank()) throw new IllegalStateException("Model-native report is empty");
@@ -595,11 +99,10 @@ public final class FinalSynthesisNode {
                 Map.of("type", "visualization_planning", "eventKind", "VISUALIZATION_PLANNING", "stage", "VISUALIZATION_PLANNING", "planning", planning, "checks", plan.checks()));
         }
         if (answer.isBlank()) throw new IllegalStateException("Report contains no publishable content");
-        request.metadata().put("analysisDriverModelInvoked", false);
         request.metadata().put("analysisReportGenerationMode", "MODEL_NATIVE_HARNESS");
         request.metadata().put("analysisSemanticReviewPolicy", "NONE_USER_JUDGES");
         request.metadata().put("analysisReportBodyPreserved", true);
-        request.metadata().put("analysisReportContract", AnalysisReportContract.driverReport(answer, 0, 0, 1).toMap());
+        request.metadata().put("analysisReportContract", AnalysisReportContract.modelReport(answer, 0, 0, 1).toMap());
         request.metadata().put("analysisReportContractSchemaVersion", AnalysisReportContract.SCHEMA_VERSION);
         request.metadata().put("analysisSynthesisBlocked", false);
         request.metadata().put("interpretationPlanSummaryGenerated", true);
@@ -614,343 +117,6 @@ public final class FinalSynthesisNode {
                 "modelCalls", 0, "analysisSummaryResult", governed.toMap(), "reportQualityAuthority", "USER"));
         return new FinalSynthesisResult(answer, governed, true);
     }
-
-    private String claimBoundReportComposerPrompt(FinalModelSynthesisRequest request,
-                                                   Map<String, Object> pipelineContext) {
-        Map<String, Object> boundedContext = new LinkedHashMap<>();
-        boundedContext.put("schemaVersion", "analysis_report_composer_context.v1");
-        for (String key : List.of("analysisObjective", "analysisMethodology", "analysisTree",
-            "methodologyExecutionPolicy", AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY,
-            "adaptiveAnalysisPrompt", KnowledgeContext.RUNTIME_ATTRIBUTE,
-            "conflictSet", "evidenceGapCount", "evidenceGaps", "evidenceGapPolicy",
-            "activeRepairRequests")) {
-            Object value = pipelineContext.get(key);
-            if (value != null) {
-                Set<String> presentationKeys = "analysisMethodology".equals(key)
-                        ? Set.of("reportSections", "reportOrder", "insightBlockPolicy")
-                        : "adaptiveAnalysisPrompt".equals(key)
-                            ? Set.of("output", "sectionTitles")
-                            : Set.of();
-                boundedContext.put(key, omitPresentationDirectives(value, presentationKeys));
-            }
-        }
-        Object producerSemantics = compactProducerSemantics(pipelineContext.get("modelAnalysisInputs"));
-        if (producerSemantics != null) {
-            boundedContext.put("producerDeclaredSemantics", producerSemantics);
-        }
-        boundedContext.put("rawRecordAccess", "BOUNDED_VERIFIED_REPORT_DATASETS_ONLY");
-        String question = String.valueOf(request.metadata().getOrDefault(
-            "analysisAcceptanceQuestion", ""));
-        return "You are the final analytical report author. Write one coherent, decision-useful Markdown "
-            + "report that expresses the completed analysis artifacts and analysis-layer judgments. Preserve those analyses, "
-            + "and freely extend their evidence-grounded comparisons, synthesis, interpretations, hypotheses and scenarios. "
-            + "Do not invent stronger facts or silently replace supplied conflicts or evidence-sufficiency judgments. "
-            + "Preserve each artifact's material evidence and reasoning; do not mechanically reproduce optional "
-            + "confidence fields, alternative lists or caveats when they add no decision value. Do not replay raw tool output or execution "
-            + "chronology. Use the supplied analysis and evidence, and verify any calculation you present. "
-            + "Your task is to write the best report supported by the supplied facts and analysis artifacts. Treat "
-            + "adaptiveAnalysisPrompt as a question-specific analytical brief, not a fixed outline. Choose the report "
-            + "structure, emphasis, headings and narrative flow yourself in the user's language and business vocabulary; "
-            + "combine, reorder or omit suggested sections whenever that improves clarity, while still answering the user. "
-            + "When structured evidence can support comparison or verification, combine the narrative with concise, model-authored Markdown tables and interpret them in prose. If no "
-            + "Claim is admitted, return a useful limited analysis and explicit human-review note "
-            + "without inventing facts or suppressing the report. Evidence gaps are ADVISORY_ONLY and "
-            + "never treat their count as a publication veto. Write in the user's language. Do not expose "
-            + "DRIVER_REVIEW, DRIVER_REASONING, DRIVER_DECISION, Claim IDs, Runtime status or governance diagnostics in the user-facing report. "
-            + "During your internal consistency review, qualify statements that infer intent, causality or persistent behavior from co-occurrence alone; use comparative labels without an evidence baseline; change a producer field's measurement basis; or expand a sample into a population claim. "
-            + "Preserve producer-declared labels, definitions, units, measurement bases and inclusion/exclusion rules. "
-            + "Use domainKnowledgeContext as cited domain definitions, rules, methods and constraints when it is relevant. "
-            + "It is not current factual evidence: never copy its example people, accounts, dates or numbers into current findings, "
-            + "and do not let it override conflicting verified tool evidence. Name the supplied knowledge source in the report when a material definition or rule is used. "
-            + "When any of these is undeclared, leave it unknown; never import a domain convention or reuse a definition from a similarly named field. "
-            + "Never turn a returned row count into a population count. State truncation, omission, or 'at least N' only when an admitted artifact explicitly says truncated=true, sourceComplete=false, or pagination.hasMore=true. UNKNOWN completeness or paginationAssessed=false means unknown, not truncated. "
-            + "Do not repeat a summary paragraph as a section body; each section must add evidence, comparison, interpretation, or a bounded implication. "
-            + "Keep useful observed-period conclusions after narrowing them. Ensure any summary and its supporting detail use the same scope and claim strength.\n"
-            + "Use analytical_reasoning_arc.v1 as quality inspiration rather than a report template. Include facts, indicators, validation, patterns, interpretation, hypotheses, scenarios, risks, gaps or actions only where they materially improve this answer; connect the elements you use into a coherent argument. You may develop additional evidence-grounded synthesis from the supplied artifacts. Never turn an observed-period pattern into a persistent profile, a correlation into causality, or a hypothesis into a fact.\n"
-            + "Reason freely from the evidence, but keep the wording boundary visible: a plausible explanation or example remains a hypothesis, and later conclusions, customer labels and recommendations must not assume that hypothesis has become observed fact.\n"
-            + AdaptiveReportGenerationSpec.promptSection()
-            + RuntimeAnalysisResponsibilityContract.promptSection()
-            + "User question: " + question + "\n"
-            + "Bounded composition context (not factual evidence): "
-            + ModelProtocolJson.compact(boundedContext);
-    }
-
-    private Object compactProducerSemantics(Object modelAnalysisInputs) {
-        if (!(modelAnalysisInputs instanceof Map<?, ?> inputs)
-            || !(inputs.get("reports") instanceof List<?> reports)) {
-            return null;
-        }
-        List<Map<String, Object>> compact = new ArrayList<>();
-        for (Object value : reports) {
-            if (!(value instanceof Map<?, ?> report)) continue;
-            Map<String, Object> item = new LinkedHashMap<>();
-            for (String key : List.of("reportId", "sourceScope", "declaredSemantics", "semanticsTruncated")) {
-                if (report.get(key) != null) item.put(key, report.get(key));
-            }
-            if (!item.isEmpty()) compact.add(Map.copyOf(item));
-        }
-        return compact.isEmpty() ? null : Map.of("reports", List.copyOf(compact));
-    }
-
-    private boolean explicitlyRequestsVisualization(String question) {
-        if (question == null || question.isBlank()) return false;
-        String normalized = question.toLowerCase(java.util.Locale.ROOT);
-        return normalized.contains("图表") || normalized.contains("可视化")
-            || normalized.contains("趋势图") || normalized.contains("柱状图")
-            || normalized.contains("折线图") || normalized.contains("饼图")
-            || normalized.contains("chart") || normalized.contains("graph")
-            || normalized.contains("visualiz");
-    }
-
-    private String finalReportCalibrationRules() {
-        return "\nFinal report policy resolution: use the user request, active Agent analysis contract, producer "
-            + "semantics and relevant domain knowledge as the authority for analytical style and inference boundaries. "
-            + "Runtime contributes evidence scope and provenance, but introduces no customer, product, metric, threshold, "
-            + "causality or recommendation rules of its own. Preserve material source identity and values, then allow the "
-            + "model to express the strongest useful analysis supported by that resolved policy and evidence.";
-    }
-
-    private Object omitPresentationDirectives(Object source, Set<String> omittedKeys) {
-        if (source == null || omittedKeys.isEmpty()) return source;
-        if (source instanceof Map<?, ?> map) {
-            Map<String, Object> sanitized = new LinkedHashMap<>();
-            map.forEach((key, value) -> {
-                String name = String.valueOf(key);
-                if (!omittedKeys.contains(name)) {
-                    sanitized.put(name, omitPresentationDirectives(value, omittedKeys));
-                }
-            });
-            return sanitized;
-        }
-        if (source instanceof List<?> list) {
-            return list.stream().map(value -> omitPresentationDirectives(value, omittedKeys)).toList();
-        }
-        return source;
-    }
-
-    private String sanitizeReport(String answer, FinalModelSynthesisRequest request) {
-        String cleaned = AnalysisOutputAdmissionPolicy.sanitizeNarrative(answer);
-        if (!java.util.Objects.equals(answer, cleaned)) {
-            request.metadata().put("analysisReportSanitized", true);
-        }
-        return cleaned;
-    }
-
-    /**
-     * Asks the model to recover the complete report using already acquired evidence.
-     * A failed repair never falls back to concatenating lower-layer reports or claim fields.
-     */
-    private AnalysisRecovery recoverAnalysisNarrative(FinalModelSynthesisRequest request,
-                                                       String originalPrompt,
-                                                       String rejectionReason) {
-        request.metadata().put("analysisDriverRepairAttemptCount", 1);
-        request.metadata().put("analysisDriverRepairReusedExistingData", true);
-        request.metadata().put("analysisDriverRepairDataRequeryAllowed", false);
-        String repairPrompt = originalPrompt
-            + "\n\nDriver repair request: the previous response was classified as "
-            + rejectionReason + ". Reuse the Worker/Reducer reports and existing evidence above. "
-            + "Produce the professional business analysis now: lead with supported findings, quantify "
-            + "material observations, explain their meaning, review lower-layer mistakes, and give "
-            + "prioritized recommendations. Evidence gaps and REVIEW_REQUIRED items are advisory labels "
-            + "for human judgment, never a reason to suppress the report. Return only the analysis; do "
-            + "not repeat prompts, runtime instructions, tool envelopes or publication-governance status. "
-            + "This repair supersedes the JSON output format above: return the complete report as "
-            + "Markdown only, not JSON or a findings list. Runtime will not assemble a report for you.";
-        try {
-            String repaired = request.model().chat(repairPrompt);
-            var reportPayloads = com.chatchat.agents.orchestration.analysis.report.ReportBlockMarkdownProtocol.protectProposals(repaired);
-            repaired = reportPayloads.restore(request.postProcessor().apply(reportPayloads.markdown()));
-            repaired = sanitizeReport(repaired, request);
-            AnalysisOutputAdmissionPolicy.Admission repairedAdmission =
-                AnalysisOutputAdmissionPolicy.admit(repaired);
-            if (repairedAdmission.admitted()) {
-                return new AnalysisRecovery(true, repaired,
-                    "MODEL_DRIVER_REPAIR_WITH_HUMAN_REVIEW", "DRIVER_MODEL_REPAIR",
-                    rejectionReason);
-            }
-        } catch (RuntimeException ex) {
-            if (ex instanceof AgentDeadlineExceededException) throw ex;
-            log.warn("analysisDriverRepairFailure runId={} stage={} errorType={} error={}",
-                request.runId(), request.stage(), ex.getClass().getName(), safeMessage(ex));
-        }
-
-        return AnalysisRecovery.none(rejectionReason);
-    }
-
-    /** Preserve the final model body; coverage and source records belong in metadata. */
-    public String presentGovernedAnalysis(String answer, PresentationRequest request) {
-        request.metadata().put("recordAnalysisCoverageAppendixApplied", false);
-        if (Boolean.TRUE.equals(request.metadata().get("modelNativeHarnessActive")) && answer != null && !answer.isBlank()) {
-            request.metadata().put("analysisOutputAdmissionReason", "MODEL_NATIVE_REPORT");
-            request.metadata().put("analysisOutputAdmitted", true);
-            request.metadata().put("analysisOutputPresent", true);
-            return answer;
-        }
-        AnalysisOutputAdmissionPolicy.Admission admission = AnalysisOutputAdmissionPolicy.admit(answer);
-        if (answer == null || answer.isBlank()) {
-            recordWithheld(request, admission.reason());
-            return AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE;
-        }
-        if (!admission.admitted()) {
-            request.metadata().put("analysisOutputClassifierAdvisory", admission.reason());
-        }
-        request.metadata().put("analysisOutputAdmissionReason",
-            admission.admitted() ? admission.reason() : "MODEL_OUTPUT_PRESENT_CLASSIFIER_ADVISORY");
-        request.metadata().put("analysisOutputAdmitted", true);
-        request.metadata().put("analysisOutputPresent", true);
-        String completion = datasetCompletionAppendix(request.metadata());
-        if (completion.isBlank() || answer.contains("## 数据集完整性")
-            || answer.contains("## 观察值完整性")) return answer;
-        request.metadata().put("recordAnalysisCoverageAppendixApplied", true);
-        return answer.stripTrailing() + "\n\n" + completion;
-    }
-
-    private String datasetCompletionAppendix(Map<String, Object> metadata) {
-        if (metadata == null) {
-            return "";
-        }
-        List<String> truncatedObservations = strings(metadata.get("truncatedObservationSources"));
-        if (!(metadata.get("datasetCompletionSnapshot") instanceof Map<?, ?> raw)) {
-            return truncatedObservations.isEmpty() ? "" : "## 观察值完整性\n\n"
-                + "- 已截断来源：" + String.join("、", truncatedObservations);
-        }
-        List<String> successful = strings(raw.get("successfulDatasetReferences"));
-        List<String> failed = strings(raw.get("failedDatasetReferences"));
-        List<String> excluded = strings(raw.get("excludedDatasetReferences"));
-        boolean partial = Boolean.TRUE.equals(raw.get("partial"));
-        String appendix = "## 数据集完整性\n\n"
-            + "- 状态：" + (partial ? "PARTIAL" : "COMPLETE") + "\n"
-            + "- 成功分析：" + (successful.isEmpty() ? "无" : String.join("、", successful)) + "\n"
-            + "- 分析失败：" + (failed.isEmpty() ? "无" : String.join("、", failed)) + "\n"
-            + "- 排除数据集：" + (excluded.isEmpty() ? "无" : String.join("、", excluded));
-        return truncatedObservations.isEmpty() ? appendix : appendix + "\n"
-            + "- 已截断观察来源：" + String.join("、", truncatedObservations);
-    }
-
-    private void recordWithheld(PresentationRequest request, String reason) {
-        request.metadata().put("analysisOutputAdmissionReason", reason);
-        request.metadata().put("analysisOutputAdmitted", false);
-        request.metadata().put("analysisOutputPresent", false);
-        request.metadata().put("rawAnalysisOutputWithheld", true);
-        request.metadata().put("returnedDataAnalysisRequired", true);
-        request.metadata().put("supportingDatasetPrimaryDisplayAllowed", false);
-        request.metadata().put("supportingDatasetDefaultCollapsed", true);
-        request.metadata().put("executionStatus", "NO_PRESENTABLE_ANALYSIS");
-    }
-
-    private void recordDriverAudit(FinalModelSynthesisRequest request,
-                                   GovernedFinalClaimContract.DriverAudit audit) {
-        Map<String, Object> value = audit == null
-            ? GovernedFinalClaimContract.DriverAudit.invalid(
-                "DRIVER_REVIEW_NOT_COMPLETED").toMap()
-            : audit.toMap();
-        request.metadata().put("analysisDriverReview", value);
-        request.metadata().put("analysisDriverReviewStatus",
-            audit == null ? "INVALID" : audit.status());
-        request.metadata().put("analysisDriverReviewCompleted", audit != null && audit.valid());
-        request.metadata().put("analysisDriverDecisionStages", Map.of(
-            "DRIVER_REVIEW", audit != null && audit.valid() ? "COMPLETED" : "REVIEW_REQUIRED",
-            "DRIVER_REASONING", audit != null && audit.valid() ? "COMPLETED" : "PRESERVED",
-            "DRIVER_DECISION", audit != null && audit.valid()
-                ? (audit.challenges().isEmpty() ? "READY" : "READY_WITH_REVIEW_NOTES")
-                : "READY_WITH_REVIEW_NOTES"));
-        log.info("analysisDriverReview runId={} status={} valid={} challengeCount={} "
-                + "derivedClaimCount={} reason={}", request.runId(),
-            audit == null ? "INVALID" : audit.status(), audit != null && audit.valid(),
-            audit == null ? 0 : audit.challenges().size(),
-            audit == null ? 0 : audit.derivedClaims().size(),
-            audit == null ? "DRIVER_REVIEW_NOT_COMPLETED" : audit.reason());
-        if (audit != null && !audit.valid() && !audit.review().isEmpty()) {
-            log.info("analysisDriverReviewDiagnostics runId={} diagnostics={}",
-                request.runId(), ModelProtocolJson.compact(audit.review()));
-        }
-    }
-
-    private void recordHumanReviewAdvisory(FinalModelSynthesisRequest request,
-                                           String stage, String reason) {
-        List<Map<String, Object>> notes = new ArrayList<>(
-            maps(request.metadata().get("analysisHumanReviewNotes")));
-        notes.add(Map.of(
-            "stage", stage == null ? "ANALYSIS" : stage,
-            "reason", reason == null ? "REVIEW_RECOMMENDED" : reason,
-            "effect", "ADVISORY_ONLY"));
-        request.metadata().put("analysisHumanReviewRequired", true);
-        request.metadata().put("analysisHumanReviewNotes", List.copyOf(notes));
-        request.metadata().put("analysisRepairRequired", false);
-        request.metadata().remove("analysisDriverRepairRequests");
-        request.metadata().put("analysisDriverDecisionAction", "PUBLISH_WITH_REVIEW_NOTES");
-        request.metadata().put("analysisSynthesisBarrierReady", true);
-        request.metadata().put("analysisSynthesisBarrierStatus", "READY_WITH_HUMAN_REVIEW_NOTES");
-    }
-
-    private void recordDriverChallenges(FinalModelSynthesisRequest request,
-                                        GovernedFinalClaimContract.DriverAudit audit) {
-        List<Map<String, Object>> challenges = audit.challenges().stream()
-            .map(GovernedFinalClaimContract.DriverChallenge::toMap).toList();
-        List<Map<String, Object>> repairs = new ArrayList<>();
-        for (GovernedFinalClaimContract.DriverChallenge challenge : audit.challenges()) {
-            boolean worker = "WORKER_REPORT".equals(challenge.targetLayer());
-            DataAnalysisLayerGovernanceContract.Layer target = worker
-                ? DataAnalysisLayerGovernanceContract.Layer.WORKER_REPORT
-                : DataAnalysisLayerGovernanceContract.Layer.REDUCER_REPORT;
-            DataAnalysisLayerGovernanceContract.RepairRoute route = worker
-                ? DataAnalysisLayerGovernanceContract.RepairRoute.REANALYZE_WORKER
-                : DataAnalysisLayerGovernanceContract.RepairRoute.RERUN_REDUCER;
-            DataAnalysisLayerGovernanceContract.RepairRequest repair =
-                new DataAnalysisLayerGovernanceContract.RepairRequest(
-                    "", challenge.targetReportId(), target, route,
-                    challenge.requiredCorrection(), List.of(challenge.reason()),
-                    List.of("GOVERNED_REPORT_REANALYSIS"), List.of(), "", "", target);
-            Map<String, Object> repairMap = new LinkedHashMap<>(repair.toMap());
-            repairMap.put("challengedClaimIds", challenge.claimIds());
-            repairMap.put("issuedBy", "DRIVER_REVIEW");
-            repairs.add(Map.copyOf(repairMap));
-        }
-        request.metadata().put("analysisDriverChallenges", challenges);
-        request.metadata().put("analysisDriverSuggestedRepairRequests", List.copyOf(repairs));
-        request.metadata().remove("analysisDriverRepairRequests");
-        request.metadata().put("analysisRepairRequired", false);
-        request.metadata().put("analysisHumanReviewRequired", true);
-        request.metadata().put("analysisHumanReviewReasons", challenges);
-        request.metadata().put("analysisDriverDecisionAction", "CHALLENGE_RECORDED_FOR_HUMAN_REVIEW");
-        request.metadata().put("analysisSynthesisBarrierReady", true);
-        request.metadata().put("analysisSynthesisBarrierStatus", "READY_WITH_DRIVER_REVIEW_NOTES");
-    }
-
-    private void recordDriverDerivedClaims(FinalModelSynthesisRequest request,
-                                           GovernedFinalClaimContract.DriverAudit audit) {
-        request.metadata().put("analysisDriverDecisionAction",
-            audit.challenges().isEmpty() ? "APPROVE" : "APPROVE_WITH_REVIEW_NOTES");
-        if (request.metadata().containsKey("analysisDriverRepairRound")) {
-            request.metadata().put("analysisDriverRepairCompleted", true);
-            request.metadata().put("analysisDriverRepairBudgetRemaining", 0);
-            request.metadata().put("analysisRepairRequired", false);
-            request.metadata().put("analysisDriverChallenges", List.of());
-        }
-        List<Map<String, Object>> derived = audit.derivedClaims().stream()
-            .map(GovernedFinalClaimContract.DerivedClaim::toMap).toList();
-        request.metadata().put("analysisDriverDerivedClaims", derived);
-        if (audit.derivedClaims().isEmpty()) return;
-        List<DataAnalysisLineageGraph.Node> nodes = audit.derivedClaims().stream()
-            .map(claim -> new DataAnalysisLineageGraph.Node(
-                claim.derivedClaimId(), "DRIVER_DERIVED_CLAIM",
-                Map.of("caveats", claim.caveats()))).toList();
-        List<DataAnalysisLayerGovernanceContract.LineageEdge> edges = new ArrayList<>();
-        for (GovernedFinalClaimContract.DerivedClaim claim : audit.derivedClaims()) {
-            claim.basisClaimIds().forEach(basis -> edges.add(
-                new DataAnalysisLayerGovernanceContract.LineageEdge(
-                    "", basis, claim.derivedClaimId(),
-                    DataAnalysisLayerGovernanceContract.Relation.DERIVED_FROM,
-                    DataAnalysisLayerGovernanceContract.Layer.DRIVER_DECISION)));
-        }
-        DataAnalysisLineageGraph graph = DataAnalysisLineageGraph
-            .fromMap(request.metadata().get("analysisLineageGraph"))
-            .plus(nodes, edges);
-        request.metadata().put("analysisLineageGraph", graph.toMap());
-        request.metadata().put("analysisLineageGraphSchemaVersion",
-            DataAnalysisLineageGraph.SCHEMA_VERSION);
-    }
-
     private void recordCompletedOutcome(FinalModelSynthesisRequest request) {
         boolean complete = request.coverageComplete() && request.evidenceTraceComplete()
             && request.sourceContentComplete();
@@ -976,130 +142,7 @@ public final class FinalSynthesisNode {
         request.metadata().put("analysisReportChannel", "analysis_report");
         request.metadata().putIfAbsent("supportingDatasetChannel", "supporting_dataset");
     }
-
-    private void recordFinalReportContract(FinalModelSynthesisRequest request, String answer) {
-        List<String> publishedClaimIds = strings(request.metadata().get("finalPublishedClaimIds"));
-        Set<String> published = Set.copyOf(publishedClaimIds);
-        Set<String> facts = new java.util.LinkedHashSet<>();
-        Set<String> insights = new java.util.LinkedHashSet<>();
-        List<AnalysisSummaryResult> reports = request.synthesisInputs().isEmpty()
-            ? request.summaryResults() : request.synthesisInputs();
-        for (AnalysisSummaryResult report : reports) {
-            if (report == null || report.evidence() == null) continue;
-            for (Map<String, Object> fact : maps(report.evidence().get("observedFactClaims"))) {
-                String claimId = text(fact.get("claimId"));
-                if (published.contains(claimId)) facts.add(claimId);
-            }
-            for (Map<String, Object> insight : maps(report.evidence().get("insights"))) {
-                String claimId = text(insight.get("claimId"));
-                if (!published.contains(claimId)) continue;
-                if ("OBSERVED_RETURNED_FACT".equals(text(insight.get("claimClass")))) {
-                    facts.add(claimId);
-                } else {
-                    insights.add(claimId);
-                }
-            }
-        }
-        int unclassifiedConclusions = Math.max(0,
-            published.size() - facts.size() - insights.size());
-        AnalysisReportContract reportContract = AnalysisReportContract.driverReport(
-            answer, facts.size(), insights.size(), unclassifiedConclusions);
-        request.metadata().put("analysisReportContract", reportContract.toMap());
-        request.metadata().put("analysisReportContractSchemaVersion",
-            AnalysisReportContract.SCHEMA_VERSION);
-        request.metadata().put("finalPayloadType", reportContract.reportType().name());
-    }
-
-    private AnalysisExecutionOutcome blockedOutcome(FinalModelSynthesisRequest request,
-                                                     String reason,
-                                                     boolean governanceReached) {
-        return outcomeRecorder.recordBlocked(request.metadata(), request.returnedRecordCount(),
-            request.summaryResults(), request.synthesisInputs(), reason, governanceReached);
-    }
-
-    private int number(Object value) {
-        if (value instanceof Number number) return number.intValue();
-        try {
-            return value == null ? 0 : Integer.parseInt(String.valueOf(value));
-        } catch (NumberFormatException ignored) {
-            return 0;
-        }
-    }
-
-    private List<Map<String, Object>> maps(Object value) {
-        if (!(value instanceof Iterable<?> iterable)) return List.of();
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (Object item : iterable) {
-            if (item instanceof Map<?, ?> source) result.add(map(source));
-        }
-        return List.copyOf(result);
-    }
-
-    private String text(Object value) { return value == null ? null : String.valueOf(value); }
-
-    private Map<String, Object> map(Object value) {
-        if (!(value instanceof Map<?, ?> source)) return Map.of();
-        Map<String, Object> result = new LinkedHashMap<>();
-        source.forEach((key, item) -> result.put(String.valueOf(key), item));
-        return result;
-    }
-
-    private String safeMessage(RuntimeException exception) {
-        String message = exception.getMessage();
-        return message == null || message.isBlank() ? exception.getClass().getSimpleName() : message;
-    }
-
-    private String preview(String value) {
-        if (value == null) return "";
-        return value.length() <= 500 ? value : value.substring(0, 500) + "...";
-    }
-
-    private List<String> strings(Object value) {
-        if (!(value instanceof Iterable<?> iterable)) return List.of();
-        List<String> result = new ArrayList<>();
-        iterable.forEach(item -> {
-            if (item != null && !String.valueOf(item).isBlank()) {
-                result.add(String.valueOf(item).trim());
-            }
-        });
-        return result.stream().distinct().toList();
-    }
-
-    private void record(HierarchicalSynthesisRequest request, String message, String type,
-                        Map<String, Object> details) {
-        Map<String, Object> metadata = new LinkedHashMap<>(details);
-        metadata.put("type", type);
-        metadata.put("tenantId", request.isolationScope().tenantId());
-        metadata.put("runId", request.isolationScope().runId());
-        resultAdapter.recordRuntimeObservation(request.runtimeAttributes(), runIdAttribute,
-            message, "analysis_summary_governance", metadata);
-    }
-
-    public record HierarchicalSynthesisRequest(
-        ModelSummaryModel model,
-        GovernanceIsolationScope isolationScope,
-        DatasetRelationshipPlan relationshipPlan,
-        String userQuestion,
-        List<AnalysisSummaryResult> workerDatasetSummaries,
-        List<DeterministicInsightEngine.DatasetInput> deterministicDatasets,
-        DataAnalysisLifecycle lifecycle,
-        Map<String, Object> runtimeAttributes
-    ) {
-        public HierarchicalSynthesisRequest {
-            workerDatasetSummaries = workerDatasetSummaries == null
-                ? List.of() : List.copyOf(workerDatasetSummaries);
-            deterministicDatasets = deterministicDatasets == null
-                ? List.of() : List.copyOf(deterministicDatasets);
-            runtimeAttributes = runtimeAttributes == null ? Map.of() : runtimeAttributes;
-        }
-    }
-
-    public record HierarchicalSynthesisResult(
-        DeterministicInsightEngine.Result crossDatasetInsights,
-        StructuredFindingMerger.Result hierarchy,
-        DataAnalysisLifecycle lifecycle
-    ) {}
-
+    public String presentGovernedAnalysis(String answer, PresentationRequest request) { return answer; }
     public record FinalSynthesisRequest(
         String stage,
         String content,
@@ -1121,7 +164,6 @@ public final class FinalSynthesisNode {
             synthesisInputs = synthesisInputs == null ? List.of() : List.copyOf(synthesisInputs);
         }
     }
-
     public record FinalModelSynthesisRequest(
         ChatModel model,
         String prompt,
@@ -1130,10 +172,6 @@ public final class FinalSynthesisNode {
         int stepCount,
         int attemptCount,
         int storedObservationCount,
-        boolean fallbackAllowed,
-        Supplier<String> fallbackSupplier,
-        UnaryOperator<String> postProcessor,
-        String emptyModelFallback,
         int returnedRecordCount,
         int processedRecordCount,
         boolean coverageComplete,
@@ -1150,9 +188,6 @@ public final class FinalSynthesisNode {
             prompt = prompt == null ? "" : prompt;
             stage = stage == null ? "final_synthesis" : stage;
             runId = runId == null ? "" : runId;
-            fallbackSupplier = fallbackSupplier == null ? () -> "" : fallbackSupplier;
-            postProcessor = postProcessor == null ? UnaryOperator.identity() : postProcessor;
-            emptyModelFallback = emptyModelFallback == null ? "" : emptyModelFallback;
             summaryResults = summaryResults == null ? List.of() : List.copyOf(summaryResults);
             synthesisInputs = synthesisInputs == null ? List.of() : List.copyOf(synthesisInputs);
             runtimeAttributes = runtimeAttributes == null ? Map.of() : runtimeAttributes;
@@ -1166,19 +201,11 @@ public final class FinalSynthesisNode {
                 summaryResults, synthesisInputs, runtimeAttributes, metadata);
         }
     }
-
     public record FinalSynthesisResult(
         String content,
         AnalysisSummaryResult governedResult,
         boolean generated
     ) {}
-
-    private record AnalysisRecovery(boolean recovered, String content, String outcome,
-                                    String source, String reason) {
-        private static AnalysisRecovery none(String reason) {
-            return new AnalysisRecovery(false, "", "", "", reason);
-        }
-    }
 
     public record PresentationRequest(
         String appendix,

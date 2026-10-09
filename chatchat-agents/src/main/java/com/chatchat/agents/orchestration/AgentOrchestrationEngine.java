@@ -8,22 +8,9 @@ import com.chatchat.agents.orchestration.analysis.contract.SemanticInsightContra
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisRecordChunkPlanner;
 import com.chatchat.agents.orchestration.analysis.dataset.StructuredDataProjector;
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator;
-import com.chatchat.agents.orchestration.analysis.dispatch.DatasetAnalysisNode;
-import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetExecutionPort;
-import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetActivityExecutor;
-import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisWorkerRetryPolicy;
-import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisProgressRecorder;
-import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDispatchCoordinator;
-import com.chatchat.agents.orchestration.analysis.dispatch.LocalAnalysisTaskDispatcher;
 import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine;
-import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
-import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
-import com.chatchat.agents.orchestration.analysis.checkpoint.AnalysisSummaryCheckpointService;
-import com.chatchat.agents.orchestration.analysis.nodes.analysis.AnalysisNodeProtocol;
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisSummaryGovernanceCoordinator;
-import com.chatchat.agents.orchestration.analysis.nodes.merge.StructuredFindingMerger;
 import com.chatchat.agents.orchestration.analysis.semantic.SemanticClaimCoordinator;
 import com.chatchat.agents.orchestration.analysis.loop.AnalysisLoopCoordinator;
 import com.chatchat.agents.orchestration.analysis.loop.AnalysisRefinementCoordinator;
@@ -31,8 +18,6 @@ import com.chatchat.agents.orchestration.analysis.nodes.synthesis.FinalSynthesis
 import com.chatchat.agents.orchestration.analysis.prompt.AdaptiveReportGenerationSpec;
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinator;
 import com.chatchat.agents.orchestration.presentation.AgentLifecyclePresentationPolicy;
-import com.chatchat.agents.evidence.normalization.EvidenceSource;
-import com.chatchat.agents.evidence.graph.EvidenceGraph;
 import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizer;
 import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizationPort;
 import com.chatchat.agents.orchestration.evidence.ContextEvidenceAggregator;
@@ -40,13 +25,11 @@ import com.chatchat.agents.orchestration.evidence.InterpretationPlanEvidenceAnal
 import com.chatchat.agents.orchestration.evidence.AgentToolResultFactExtractor;
 import com.chatchat.agents.orchestration.evidence.AgentEvidenceGraphService;
 import com.chatchat.agents.orchestration.evidence.EvidenceTrustEvaluator;
-import com.chatchat.agents.orchestration.evidence.RecoveredBatchEvidenceBridge;
 import com.chatchat.agents.orchestration.model.AgentChatModelResolver;
 import com.chatchat.agents.orchestration.model.AgentDeadlineExceededException;
 import com.chatchat.agents.orchestration.model.DeadlineAwareChatModel;
 import com.chatchat.agents.orchestration.model.MeteredChatModel;
 import com.chatchat.agents.orchestration.planning.model.AgentContextBudget;
-import com.chatchat.agents.orchestration.planning.validation.AgentPlanBudgetPolicy;
 import com.chatchat.agents.orchestration.planning.model.AgentDecision;
 import com.chatchat.agents.orchestration.planning.validation.AgentRuntimeGuard;
 import com.chatchat.agents.orchestration.planning.execution.PlanExecutionResultCoordinator;
@@ -59,7 +42,6 @@ import com.chatchat.agents.orchestration.planning.evolution.AgentPlanPhaseActivi
 import com.chatchat.agents.orchestration.lifecycle.AgentRunLifecycleCoordinator;
 import com.chatchat.agents.orchestration.lifecycle.AgentRuntimeAttributeCompiler;
 import com.chatchat.agents.orchestration.lifecycle.AgentRunScopeBinder;
-import com.chatchat.agents.orchestration.retrieval.McpParamBindingResolver;
 import com.chatchat.agents.orchestration.retrieval.ModelAssistedContextParameterBridge;
 import com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge;
 import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
@@ -67,7 +49,6 @@ import com.chatchat.agents.orchestration.tool.AgentToolArgumentResolver;
 import com.chatchat.agents.orchestration.tool.AgentToolExecutor;
 import com.chatchat.agents.orchestration.tool.AgentToolCallCoordinator;
 import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
-import com.chatchat.agents.orchestration.tool.McpAnalysisContextAdapter;
 import com.chatchat.agents.orchestration.tool.ToolCallFingerprint;
 import com.chatchat.agents.orchestration.tool.ToolObservationBuilder;
 import com.chatchat.agents.orchestration.workflow.AgentWorkflowStatePort;
@@ -79,8 +60,6 @@ import com.chatchat.agents.orchestration.workflow.MandatoryWorkflowRecoveryCoord
 import com.chatchat.agents.orchestration.workflow.MandatoryWorkflowTopology;
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
-import com.chatchat.agents.runtime.governance.McpEvidenceResult;
-import com.chatchat.agents.runtime.run.AgentOutcomeProjection;
 import com.chatchat.agents.assessment.EvidenceAugmentationPolicy;
 import com.chatchat.agents.assessment.RuntimeAnswerCandidate;
 import com.chatchat.agents.assessment.TaskContract;
@@ -89,11 +68,9 @@ import com.chatchat.agents.runtime.answer.AgentAnswerReviewer;
 import com.chatchat.agents.runtime.answer.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.observation.AgentObservation;
 import com.chatchat.agents.runtime.observation.AgentObservationPipeline;
-import com.chatchat.agents.runtime.run.AgentRun;
 import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.AgentRunExecutor;
-import com.chatchat.agents.runtime.run.AgentRunStatus;
 import com.chatchat.agents.runtime.store.AgentRunStore;
 import com.chatchat.agents.runtime.observation.AgentRuntimeFactGroundingContract;
 import com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore;
@@ -101,22 +78,16 @@ import com.chatchat.agents.runtime.answer.DefaultAgentAnswerReviewer;
 import com.chatchat.agents.runtime.observation.DefaultAgentObservationPipeline;
 import com.chatchat.agents.runtime.store.InMemoryAgentRunStore;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
-import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
 import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisSummaryProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisProtocol;
 import com.chatchat.common.runtime.protocol.RuntimeProtocolRegistry;
-import com.chatchat.common.runtime.summary.spi.ModelSummaryDispatcher;
-import com.chatchat.common.runtime.summary.spi.ModelSummaryProgressReporter;
-import com.chatchat.common.runtime.summary.spi.ModelSummaryReducer;
 import com.chatchat.agents.orchestration.protocol.RuntimeProtocolDefaults;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
-import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRun;
 import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRunStateMachine;
 import com.chatchat.agents.runtime.plan.DagGovernanceContractProvider;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRewriter;
@@ -126,9 +97,7 @@ import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionPort;
 import com.chatchat.agents.runtime.plan.execution.LocalPlanDagControlPort;
 import com.chatchat.agents.runtime.plan.execution.PlanDagControlPort;
 import com.chatchat.agents.runtime.plan.execution.AgentPlanPipelineContinuation;
-import com.chatchat.agents.runtime.plan.execution.AgentPlanSuspendedException;
 import com.chatchat.agents.runtime.plan.execution.AgentRunExecutionSlice;
-import com.chatchat.agents.runtime.plan.execution.PlanExecutionContinuation;
 import com.chatchat.agents.runtime.plan.execution.ResumableAgentRunExecutor;
 import com.chatchat.agents.runtime.plan.execution.PlanExecutionPhaseHandler;
 import com.chatchat.agents.runtime.plan.execution.PlanModelArbitrationCommand;
@@ -141,23 +110,18 @@ import com.chatchat.agents.runtime.plan.execution.PlanNodePersistenceCommand;
 import com.chatchat.agents.runtime.plan.execution.PlanNodePersistenceResult;
 import com.chatchat.agents.runtime.plan.persistence.InterpretationPlanStore;
 import com.chatchat.agents.runtime.plan.persistence.NodeAttemptStore;
-import com.chatchat.agents.runtime.plan.InterpretationPlanOptimizer;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
 import com.chatchat.common.kernel.KernelDataScope;
-import com.chatchat.common.kernel.KernelViolationException;
 import com.chatchat.agents.runtime.plan.selection.EvidenceBasedAssetCandidateEvaluator;
 import com.chatchat.agents.runtime.plan.selection.EvidenceBasedTemplateCandidateEvaluator;
-import com.chatchat.agents.runtime.plan.selection.RetrievalQualityGate;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.knowledge.template.matching.TemplateMatchAnalysis;
-import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.common.tool.ToolOutput;
-import com.chatchat.common.tool.ToolParameter;
 import com.chatchat.common.config.ModelsConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
@@ -186,7 +150,6 @@ import static com.chatchat.agents.orchestration.support.AgentValueSupport.*;
  */
 @Slf4j
 class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExecutor,
-    AnalysisDatasetExecutionPort,
     PlanExecutionPhaseHandler {
 
     private static final int DEFAULT_MAX_STEPS = 3;
@@ -275,20 +238,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private final int recordAnalysisChunkMaxRows;
     private final int analysisSpillThresholdBytes;
     private final AgentRuntimeProperties agentRuntimeProperties;
-    private final int analysisSummaryWorkerCount;
-    private final int analysisSummaryWorkerMaxRetries;
-    private final long analysisSummaryWorkerHeartbeatIntervalMs;
-    private final long analysisSummaryWorkerHeartbeatTimeoutMs;
     private final ContextTokenEstimator contextTokenEstimator = new ContextTokenEstimator();
     private final AnalysisRecordChunkPlanner recordChunkPlanner;
-    private final AnalysisSummaryCheckpointService summaryCheckpointService;
     private final AnalysisSummaryGovernanceCoordinator summaryGovernanceCoordinator;
     private final FinalSynthesisNode analysisSynthesisCoordinator;
     private final AnalysisCoverageCoordinator analysisCoverageCoordinator;
-    private final AnalysisDispatchCoordinator analysisDispatchCoordinator;
-    private final DatasetAnalysisNode analysisDatasetWorker;
-    private final AnalysisDatasetActivityExecutor analysisDatasetActivityExecutor;
-    private final AnalysisProgressRecorder analysisProgressRecorder;
     private final AnalysisEvidenceCoordinator analysisEvidenceCoordinator;
     private final ContextEvidenceAggregator contextEvidenceAggregator = new ContextEvidenceAggregator();
     private final AgentToolResultFactExtractor toolResultFactExtractor;
@@ -297,16 +251,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         RuntimeProtocolDefaults.analysisSummary();
     private RuntimeResultAnalysisProtocol evidenceGovernanceBridge =
         RuntimeProtocolDefaults.resultAnalysis();
-    private ModelSummaryReducer<AnalysisSummaryResult, StructuredFindingMerger.Context,
-        StructuredFindingMerger.Result> hierarchicalAnalysisReducer =
-        new StructuredFindingMerger();
     private final DeterministicInsightEngine deterministicInsightEngine =
         new DeterministicInsightEngine();
     private final StructuredDataProjector structuredDataProjector = new StructuredDataProjector();
-    private final AnalysisWorkerRetryPolicy analysisWorkerRetryPolicy =
-        new AnalysisWorkerRetryPolicy();
-    private final StructuredFindingMerger workerDatasetReducer =
-        new StructuredFindingMerger();
     private RuntimeAnalysisContextProtocol mcpAnalysisContextAdapter;
     private DagGovernanceContractProvider dagGovernanceContractProvider =
         DagGovernanceContractProvider.builtInFallback();
@@ -314,8 +261,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         SemanticInsightContractProvider.disabled();
     NodeAttemptStore nodeAttemptStore;
     private AnalysisEvidenceSpillStore analysisEvidenceSpillStore = AnalysisEvidenceSpillStore.disabled();
-    private ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult>
-        analysisTaskDispatcher;
     public AgentOrchestrationEngine(ChatModel chatModel,
                              ToolRegistry toolRegistry,
                              ToolRuntimeService toolRuntimeService,
@@ -413,8 +358,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         this.planExecutionBridge = new AgentPlanExecutionBridge(objectMapper, AGENT_CANCELLATION_ATTRIBUTE);
         this.toolResultFactExtractor = new AgentToolResultFactExtractor(objectMapper);
         this.recordChunkPlanner = new AnalysisRecordChunkPlanner(objectMapper);
-        this.summaryCheckpointService = new AnalysisSummaryCheckpointService(
-            objectMapper, this.analysisEvidenceSpillStore);
         this.evidenceGraphService = new AgentEvidenceGraphService(objectMapper);
         this.mcpAnalysisContextAdapter = RuntimeProtocolDefaults.analysisContext(objectMapper);
         this.evidenceTrustEvaluator = evidenceTrustEvaluator == null ? new EvidenceTrustEvaluator() : evidenceTrustEvaluator;
@@ -427,26 +370,17 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
         this.analysisLoopCoordinator = new AnalysisLoopCoordinator(
             this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
-        this.analysisProgressRecorder = new AnalysisProgressRecorder(
-            this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
         this.summaryGovernanceCoordinator = new AnalysisSummaryGovernanceCoordinator(
             this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
         this.analysisSynthesisCoordinator = new FinalSynthesisNode(
             this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE, this.summaryGovernanceCoordinator,
-            this.deterministicInsightEngine, this.answerCandidateCollector,
-            this.hierarchicalAnalysisReducer);
-        this.analysisDatasetWorker = new DatasetAnalysisNode(
-            this.recordChunkPlanner, this.summaryCheckpointService,
-            this.analysisWorkerRetryPolicy, this.workerDatasetReducer,
-            this.analysisSummaryGovernanceBridge, this.analysisEvidenceSpillStore);
+            this.answerCandidateCollector);
         this.runScopeBinder = new AgentRunScopeBinder();
         this.runLifecycle = new AgentRunLifecycleCoordinator(this.runStore, this.runResultAdapter);
         this.planEvolutionAuditor =
             new AgentPlanEvolutionAuditor(this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
         this.toolObservationBuilder = new ToolObservationBuilder(this.evidenceTrustEvaluator);
         this.chatModelResolver = new AgentChatModelResolver(chatModel, modelsConfig, agentRuntimeProperties);
-        this.analysisDatasetActivityExecutor = new AnalysisDatasetActivityExecutor(
-            this.chatModelResolver, this.analysisDatasetWorker);
         this.toolNames = new AgentToolNameResolver(
             new RegistryMcpCapabilityHierarchy(toolRegistry), toolRegistry);
         this.analysisRefinementCoordinator = new AnalysisRefinementCoordinator(
@@ -504,23 +438,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         this.recordAnalysisChunkMaxChars = resolvedRuntimeProperties.recordAnalysisChunkMaxChars();
         this.recordAnalysisChunkMaxRows = resolvedRuntimeProperties.recordAnalysisChunkMaxRows();
         this.analysisSpillThresholdBytes = resolvedRuntimeProperties.analysisSpillThresholdBytes();
-        this.analysisSummaryWorkerCount = resolvedRuntimeProperties.analysisSummaryWorkerCount();
-        this.analysisSummaryWorkerMaxRetries =
-            resolvedRuntimeProperties.analysisSummaryWorkerMaxRetries();
-        this.analysisSummaryWorkerHeartbeatIntervalMs =
-            resolvedRuntimeProperties.analysisSummaryWorkerHeartbeatIntervalMs();
-        this.analysisSummaryWorkerHeartbeatTimeoutMs =
-            resolvedRuntimeProperties.analysisSummaryWorkerHeartbeatTimeoutMs();
-        this.analysisTaskDispatcher = new LocalAnalysisTaskDispatcher(
-            this.analysisSummaryWorkerCount, this.analysisSummaryWorkerHeartbeatIntervalMs);
-        this.analysisDispatchCoordinator = new AnalysisDispatchCoordinator(
-            this.analysisDatasetWorker, this.analysisProgressRecorder,
-            new AnalysisDispatchCoordinator.Configuration(
-                this.recordAnalysisChunkMaxRows, this.recordAnalysisChunkMaxChars,
-                this.analysisSpillThresholdBytes, this.analysisSummaryWorkerMaxRetries,
-                this.analysisSummaryWorkerHeartbeatIntervalMs,
-                this.analysisSummaryWorkerHeartbeatTimeoutMs),
-            this.analysisSummaryGovernanceBridge, this.analysisTaskDispatcher);
         this.analysisEvidenceCoordinator = new AnalysisEvidenceCoordinator(
             this.toolRegistry, this.toolRuntimeService, this.structuredDataProjector,
             this.recordChunkPlanner, this.recordAnalysisChunkMaxChars,
@@ -528,19 +445,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             this.semanticInsightContractProvider);
         this.analysisCoverageCoordinator = new AnalysisCoverageCoordinator(
             this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE, this.analysisEvidenceCoordinator,
-            this.deterministicInsightEngine,
-            this.analysisSynthesisCoordinator, this.analysisEvidenceSpillStore,
-            this.analysisDispatchCoordinator,
-            new AnalysisCoverageCoordinator.Configuration(
-                this.analysisSummaryWorkerMaxRetries,
-                this.analysisSummaryWorkerHeartbeatIntervalMs,
-                this.analysisSummaryWorkerHeartbeatTimeoutMs,
-                resolvedRuntimeProperties.isAdaptiveAnalysisPromptModelEnabled(),
-                resolvedRuntimeProperties.unifiedAnalysisMaxEvidenceRounds(),
-                resolvedRuntimeProperties.isUnifiedAnalysisReportDraftEnabled(),
-                resolvedRuntimeProperties.analysisPerDatasetWorkerThreshold(),
-                resolvedRuntimeProperties.analysisPerDatasetWorkerTotalCharsThreshold(),
-                resolvedRuntimeProperties.isModelNativeHarnessEnabled(), resolvedRuntimeProperties.getHarnessMaxModelTurns()));
+            this.analysisEvidenceSpillStore, new AnalysisCoverageCoordinator.Configuration(
+                resolvedRuntimeProperties.getHarnessMaxModelTurns()));
         InterpretationPlanStore resolvedPlanStore = interpretationPlanStore == null && this.runStore instanceof InterpretationPlanStore store
             ? store
             : interpretationPlanStore;
@@ -593,32 +499,16 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         this.analysisEvidenceSpillStore = spillStore == null
             ? AnalysisEvidenceSpillStore.disabled()
             : spillStore;
-        this.summaryCheckpointService.setStore(this.analysisEvidenceSpillStore);
-        this.analysisDatasetWorker.setSpillStore(this.analysisEvidenceSpillStore);
         this.analysisCoverageCoordinator.setSpillStore(this.analysisEvidenceSpillStore);
     }
 
-    /** Replaces local workers with a distributed task dispatcher without changing Driver orchestration. */
     public void setAnalysisSummaryProtocol(
         DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope> protocol
     ) {
         if (protocol != null) {
             this.analysisSummaryGovernanceBridge = protocol;
             this.summaryGovernanceCoordinator.setProtocol(protocol);
-            this.analysisDatasetWorker.setSummaryProtocol(protocol);
-            this.analysisDispatchCoordinator.setSummaryProtocol(protocol);
             this.answerFinalizer.setAnalysisSummaryProtocol(protocol);
-        }
-    }
-
-    /** Replaces local workers with a distributed task dispatcher without changing Driver orchestration. */
-    @Autowired(required = false)
-    public void setModelSummaryDispatcher(
-        ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult> dispatcher
-    ) {
-        if (dispatcher != null) {
-            this.analysisTaskDispatcher = dispatcher;
-            this.analysisDispatchCoordinator.setDispatcher(dispatcher);
         }
     }
 
@@ -628,10 +518,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
      * @param request the agent run request
      * @return the agent run result
      */
-    @Override
-    public AgentRunResult execute(AgentRunRequest request, KernelDataScope scope) {
-        return execute(runScopeBinder.bind(request, scope));
-    }
 
 
     @Override
@@ -747,17 +633,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 (DataAnalysisSummaryProtocol<?, ?>)
                     registry.require(DataAnalysisSummaryProtocol.class);
         this.summaryGovernanceCoordinator.setProtocol(this.analysisSummaryGovernanceBridge);
-        this.analysisDatasetWorker.setSummaryProtocol(this.analysisSummaryGovernanceBridge);
-        this.analysisDispatchCoordinator.setSummaryProtocol(this.analysisSummaryGovernanceBridge);
-        this.analysisTaskDispatcher =
-            (ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult>)
-                (ModelSummaryDispatcher<?, ?, ?>) registry.require(ModelSummaryDispatcher.class);
-        this.analysisDispatchCoordinator.setDispatcher(this.analysisTaskDispatcher);
-        this.hierarchicalAnalysisReducer =
-            (ModelSummaryReducer<AnalysisSummaryResult, StructuredFindingMerger.Context,
-                StructuredFindingMerger.Result>) (ModelSummaryReducer<?, ?, ?>)
-                    registry.require(ModelSummaryReducer.class);
-        this.analysisSynthesisCoordinator.setHierarchicalReducer(this.hierarchicalAnalysisReducer);
         this.analysisEvidenceCoordinator.setProtocols(
             this.mcpAnalysisContextAdapter, this.evidenceGovernanceBridge);
         this.toolObservationBuilder = new ToolObservationBuilder(
@@ -2227,21 +2102,16 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             && latest != null
             && latest.finalAnswer() != null
             && !latest.finalAnswer().isBlank()) {
-            metadata.put("unifiedAnalysisReportDraft", latest.finalAnswer().trim());
+            metadata.put("modelNativeReportDraft", latest.finalAnswer().trim());
+            metadata.put("modelNativeHarnessActive", true);
             metadata.put("unifiedAnalysisReportDraftChars", latest.finalAnswer().trim().length());
             metadata.put("analysisCoverageSkipped", true);
             metadata.put("analysisCoverageSkipReason", "SELF_CONTAINED_CURRENT_TABLE_BRIEF");
             return RecordCoverageBundle.empty();
         }
         if (activeChatModel == null || latest == null) return RecordCoverageBundle.empty();
-        if (agentRuntimeProperties.isModelNativeHarnessEnabled()) {
-            return buildRecordCoverageBundle(activeChatModel, query, cumulativeEvidenceResult(latest, attempts),
-                runtimeAttributes, metadata, cancellationCheck);
-        }
-        return semanticClaimCoordinator.preflight(
-            () -> buildRecordCoverageBundle(activeChatModel, query, cumulativeEvidenceResult(latest, attempts),
-                runtimeAttributes, metadata, cancellationCheck),
-            RecordCoverageBundle::empty, runtimeAttributes, metadata);
+        return buildRecordCoverageBundle(activeChatModel, query, cumulativeEvidenceResult(latest, attempts),
+            runtimeAttributes, metadata, cancellationCheck);
     }
 
     private List<Map<String, Object>> objectMapList(Object value) {
@@ -2405,67 +2275,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                     activeChatModel, finalPrompt, stage, firstNonBlank(runId, ""),
                     result == null || result.steps() == null ? 0 : result.steps().size(),
                     attemptResults == null ? 0 : attemptResults.size(), storedObservations.size(),
-                    summarizeAvailableResults(runtimeAttributes),
-                    () -> ensureCompleteRecordCoveragePresented(
-                        buildDeterministicAvailableResultAnswer(cumulativeEvidenceResult),
-                        recordCoverage, metadata),
-                    candidate -> {
-                        String guarded = ensureConcreteBatchEvidencePresented(
-                            candidate, query, cumulativeEvidenceResult, metadata);
-                        guarded = ensureCompleteRecordCoveragePresented(guarded, recordCoverage, metadata);
-                        return removeUnsupportedCurrentTurnDocumentReferences(
-                            guarded, cumulativeEvidenceResult, metadata);
-                    },
-                    result == null ? "" : firstNonBlank(result.finalAnswer(), ""),
                     recordCoverage.returnedRecordCount(), recordCoverage.processedRecordCount(),
                     recordCoverage.coverageComplete(), recordCoverage.evidenceTraceComplete(),
                     recordCoverage.sourceContentComplete(), recordCoverage.iterations(),
                     recordCoverage.rawReplayChunkCount(), recordCoverage.summaryResults(),
                     recordCoverage.synthesisInputs(), runtimeAttributes, metadata));
         if (Boolean.TRUE.equals(metadata.get("analysisFinalAdmissionBlocked"))) return synthesis.content();
-        if (driverChallengeRepairRequired(metadata)) {
-            metadata.put("analysisDriverRepairRound", 1);
-            metadata.put("analysisDriverRepairStarted", true);
-            metadata.put("analysisDriverRepairBudget", 1);
-            metadata.put("analysisDriverRepairBudgetRemaining", 0);
-            metadata.put("analysisReuseExistingDataset", true);
-            metadata.put("analysisDataRequeryAllowed", false);
-            recordLifecyclePhase(runtimeAttributes, metadata, "driver_challenge_repair",
-                "Driver challenge routed to the governed analysis pipeline using retained data.",
-                metadataOf("stage", stage, "round", 1, "reuseExistingDataset", true,
-                    "dataAcquisitionAllowed", false,
-                    "repairRequests", metadata.get("analysisDriverRepairRequests")));
-            RecordCoverageBundle repairedCoverage = buildRecordCoverageBundle(
-                activeChatModel, query, cumulativeEvidenceResult,
-                runtimeAttributes, metadata, cancellationCheck);
-            String repairedPrompt = com.chatchat.agents.orchestration.analysis.prompt
-                .GovernedRecordFinalPromptBuilder.build(
-                    query, systemPrompt, repairedCoverage.promptEvidence());
-            synthesis = analysisSynthesisCoordinator.synthesizeFinal(
-                new FinalSynthesisNode.FinalModelSynthesisRequest(
-                    activeChatModel, repairedPrompt, stage, firstNonBlank(runId, ""),
-                    result == null || result.steps() == null ? 0 : result.steps().size(),
-                    attemptResults == null ? 0 : attemptResults.size(), storedObservations.size(),
-                    summarizeAvailableResults(runtimeAttributes),
-                    () -> ensureCompleteRecordCoveragePresented(
-                        buildDeterministicAvailableResultAnswer(cumulativeEvidenceResult),
-                        repairedCoverage, metadata),
-                    candidate -> {
-                        String guarded = ensureConcreteBatchEvidencePresented(
-                            candidate, query, cumulativeEvidenceResult, metadata);
-                        guarded = ensureCompleteRecordCoveragePresented(
-                            guarded, repairedCoverage, metadata);
-                        return removeUnsupportedCurrentTurnDocumentReferences(
-                            guarded, cumulativeEvidenceResult, metadata);
-                    },
-                    result == null ? "" : firstNonBlank(result.finalAnswer(), ""),
-                    repairedCoverage.returnedRecordCount(), repairedCoverage.processedRecordCount(),
-                    repairedCoverage.coverageComplete(), repairedCoverage.evidenceTraceComplete(),
-                    repairedCoverage.sourceContentComplete(), repairedCoverage.iterations(),
-                    repairedCoverage.rawReplayChunkCount(), repairedCoverage.summaryResults(),
-                    repairedCoverage.synthesisInputs(), runtimeAttributes, metadata));
-            metadata.put("analysisDriverRepairFinished", true);
-        }
         return synthesis.content();
     }
 
@@ -2477,14 +2292,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return count instanceof Number number && number.intValue() > 0;
     }
 
-    private boolean driverChallengeRepairRequired(Map<String, Object> metadata) {
-        if (metadata == null || metadata.containsKey("analysisDriverRepairRound")) return false;
-        Object repairs = metadata.get("analysisDriverRepairRequests");
-        return Boolean.TRUE.equals(metadata.get("analysisRepairRequired"))
-            && repairs instanceof java.util.Collection<?> values && !values.isEmpty()
-            && Boolean.TRUE.equals(metadata.get("analysisReuseExistingDataset"))
-            && Boolean.FALSE.equals(metadata.get("analysisDataRequeryAllowed"));
-    }
 
     private List<InterpretationPlanRuntime.ExecutionResult> resolvedSummaryEvidenceAttempts(
         List<InterpretationPlanRuntime.ExecutionResult> attempts
@@ -2617,11 +2424,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             latest == null || latest.metadata() == null ? Map.of() : latest.metadata(),
             latest == null ? 0L : latest.durationMs()
         );
-    }
-
-    @Autowired(required = false)
-    public void setDomainAnalysisProfileProvider(com.chatchat.agents.orchestration.analysis.prompt.DomainAnalysisProfileProvider provider) {
-        this.analysisCoverageCoordinator.setDomainAnalysisProfileProvider(provider);
     }
 
     /** Returns whether trace recovery contributes evidence absent from the executed plan chain. */
@@ -2812,7 +2614,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         prompt.append("- A missing diagnostic child with no ToolCallResult is NOT_EXECUTED. Do not speculate that it timed out, hit resource contention, lacked permissions, or failed remotely unless a child result explicitly records that status/reason.\n");
         prompt.append("- Do not recommend manual one-by-one execution as the product solution when an ordered runtime batch is expected. Report the missing batch dispatch/evidence and recommend repairing or retrying the batch workflow.\n");
         prompt.append("- For batch_execution_evidence.v1, enforce resultSetContract.mode=ONE_TEMPLATE_ONE_RESULT_SET: every results[] item is one independently addressable template result set identified by resultSetId and templateId. Never merge rows from different templates before interpreting their individual semantics. Preserve successful empty result sets as facts when the template contract defines empty as success. results[].dataset.rows or results[].datasets[].rows contains the complete returned structured rows; path identifies the original nested JSON location. For non-tabular child results, results[].analysisProjection.datasets[].records contains the Runtime evidence bridge's protocol-governed analysis records. Analyze these values directly. Row and stream coverage is losslessly processed through record_grounded_analysis.v1 model chunk summaries, never capped or sampled. Never reduce a successful non-empty batch to execution metadata or claim that concrete values are unavailable when dataset rows or analysis projection records are present.\n");
-        prompt.append(analysisSummaryGovernanceBridge.finalSynthesisInstruction());
+        prompt.append("Model decides. Runtime executes. User judges. Use the scoped evidence to author the report.");
         prompt.append(AdaptiveReportGenerationSpec.promptSection());
         prompt.append("- Final report authorship contract: the model writes the entire user-facing business report. Runtime supplies and validates evidence but never assembles report sections, prose, conclusions or tables. When structured results materially support comparison, diagnosis or verification, combine the analysis narrative with compact Markdown tables selected from exact returned values. Choose table columns, rows and placement yourself; preserve labels, units, time basis and scope, and explain the findings around each table. A heading, row count or table without analytical interpretation is incomplete.\n");
         prompt.append("- Develop a useful closed analytical loop from facts through derived indicators, cross-validation, patterns, interpretation, hypotheses, scenarios, risks, gaps and actions. These are flexible reasoning lenses, not mandatory headings, a fixed sequence or a Runtime-authored template; select, combine, reorder or omit them according to the question, Agent role, domain knowledge and available evidence.\n");
@@ -3248,14 +3050,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             coverage.summaryResults(), coverage.synthesisInputs());
     }
 
-    /** Executes a durable dataset Activity by resolving all process-local dependencies afresh. */
-    @Override
-    public AnalysisTaskResult execute(
-        AnalysisTask task,
-        ModelSummaryProgressReporter progressReporter
-    ) {
-        return analysisDatasetActivityExecutor.execute(task, progressReporter);
-    }
 
     String ensureCompleteRecordCoveragePresented(
         String answer,

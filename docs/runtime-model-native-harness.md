@@ -15,7 +15,7 @@
 
 ## 本轮实现范围
 
-`AnalysisCoverageCoordinator` 在数据集绑定后选择 `ModelNativeAnalysisHarness`。该路径绕过 Worker Claim 提取、固定关系推断、业务洞察生成、逐数据集 findings 修复及方法修复。原路径保留为配置回退。
+`AnalysisCoverageCoordinator` 在数据集绑定后直接执行 `ModelNativeAnalysisHarness`。Driver–Worker 分析架构及配置回退已删除，包括分派器、独立数据集 Agent、强制归并、专属提示词和 Temporal 分析 Workflow。通用工具并发、DAG 调度、任务状态与重试仍保留。大数据执行协议见 [Single Brain 数据工作区](runtime-single-brain-data-workspace.md)。
 
 模型上下文分为当前问题及模型工作状态、授权 Skills/Agent 角色/领域知识及可用能力、证据导航视图与执行回执。较大的证据仍由既有 DatasetHandle/SpillStore 承载；投影省略不等于源证据不存在。
 
@@ -49,7 +49,6 @@ workspace 由模型维护；Runtime 保存版本、上下文指纹、输出检�
 ```yaml
 chatchat:
   agent-runtime:
-    model-native-harness-enabled: true
     harness-max-model-turns: 8
 ```
 
@@ -71,6 +70,6 @@ chatchat:
 
 生产前端使用该实际任务结果进行浏览器内回放，未写入或替换服务器会话：查询明细默认折叠，摘要文字 12px 灰色；未生成启发式图表；页面无 JavaScript 异常。截图、任务、事件、运行元数据、完整报告及验证指标保存在 `target/codex-live/harness-20261009/`。其中 `final-*.json` 是最终实测，`after-*.json` 是第一次部署后暴露发布层遗留评分的实测，`comparison-*`/`market-*` 是修复前样本。
 
-最终 API 进程 PID 为 1202866，部署包 SHA-256 为 `3fd49178d57bcfe001519edc24987452fe5a389a5412af4e0e8f36be62ab5edc`。更新前原包保留在 `/opt/chatchat-deploy-backup/harness-20261009/chatchat.jar`。如需回退分析路径，可设置 `chatchat.agent-runtime.model-native-harness-enabled=false` 后重启。
+上述为第一阶段部署记录。Driver–Worker 删除后的部署记录见 [Single Brain 数据工作区](runtime-single-brain-data-workspace.md)。当前版本没有旧分析路径开关；部署备份用于整包恢复，不是保留旧架构的执行入口。
 
 扩展检查发现两个旧路径问题：InterpretationPlanRuntimeArchitectureTest 的主文件行数上限为 8730，而当前 HEAD 已超过该值；AgentAnswerFinalizerEvidenceAnswerTest 的 reviewerTimeoutUsesConfiguredModelTimeout 实际等待约 5 秒，未满足小于 3 秒的断言。本轮未修改对应执行器主文件或旧 reviewer 超时逻辑，也未放宽门槛。新路径不调用该 reviewer。扩展失败日志保留在 target/codex-live 与 target/harness-tests-extended-20261009.log；最终部署记录见联机记录。

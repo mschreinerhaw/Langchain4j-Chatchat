@@ -175,7 +175,7 @@ class AnswerQualityPipelineTest {
         metadata.put("modelEvidenceReviewRewriteAllowed", true);
         metadata.put("analysisReportContract", Map.of(
             "schemaVersion", "analysis_report_contract.v1",
-            "reportType", "DRIVER_REPORT",
+            "reportType", "MODEL_REPORT",
             "sourceStage", "DRIVER",
             "renderedText", analysis
         ));
@@ -206,7 +206,7 @@ class AnswerQualityPipelineTest {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("analysisReportContract", Map.of(
             "schemaVersion", "analysis_report_contract.v1",
-            "reportType", "DRIVER_REPORT",
+            "reportType", "MODEL_REPORT",
             "sourceStage", "DRIVER",
             "renderedText", refusal
         ));

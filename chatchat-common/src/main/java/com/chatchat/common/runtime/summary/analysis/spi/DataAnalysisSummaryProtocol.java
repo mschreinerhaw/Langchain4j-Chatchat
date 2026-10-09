@@ -1,10 +1,8 @@
 package com.chatchat.common.runtime.summary.analysis.spi;
 
 import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisIsolationScope;
-import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisPosition;
 import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisSummary;
 
-import com.chatchat.common.runtime.summary.spi.ModelSummaryModel;
 
 import com.chatchat.common.runtime.protocol.RuntimeProtocolPort;
 
@@ -23,35 +21,8 @@ public interface DataAnalysisSummaryProtocol<
     String BRIDGE_SCHEMA_VERSION = "analysis_summary_bridge.v1";
     String EVIDENCE_SCHEMA_VERSION = "traceable_chunk_evidence.v1";
 
-    boolean requiresModelSummary(Map<String, Object> governedContext, boolean oversized);
-
-    Map<String, Object> govern(String reference,
-                               Map<String, Object> suppliedContext,
+    Map<String, Object> govern(String reference, Map<String, Object> suppliedContext,
                                List<Map<String, Object>> records);
-
-    DataAnalysisPosition position(String reference, int chunkIndex, int chunkCount,
-                                  int from, int to, int totalRecords);
-
-    S summarize(ModelSummaryModel model, I isolationScope,
-                DataAnalysisPosition position, Map<String, Object> governedContext,
-                List<Map<String, Object>> records);
-
-    S summarize(ModelSummaryModel model, I isolationScope,
-                DataAnalysisPosition position, Map<String, Object> governedContext,
-                List<Map<String, Object>> records, String userObjective);
-
-    S preserve(I isolationScope, DataAnalysisPosition position,
-               Map<String, Object> governedContext, List<Map<String, Object>> records);
-
-    /** Validate an already generated product without invoking any model. */
-    S validateProduct(I isolationScope, DataAnalysisPosition position,
-                      Map<String, Object> governedContext, List<Map<String, Object>> records,
-                      String userObjective, String productJson);
-
-    S fallback(I isolationScope, DataAnalysisPosition position,
-               Map<String, Object> governedContext, List<Map<String, Object>> records);
-
-    String finalSynthesisInstruction();
 
     Map<String, Object> ledger(List<S> summaries, int returnedRecordCount,
                                int processedRecordCount, boolean complete);

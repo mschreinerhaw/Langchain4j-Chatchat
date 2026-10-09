@@ -6,7 +6,7 @@ import com.chatchat.agents.orchestration.analysis.nodes.synthesis.FinalSynthesis
 import com.chatchat.agents.orchestration.analysis.nodes.synthesis.FinalSynthesisNode.FinalSynthesisResult;
 import java.util.List;
 
-/** Mechanical publication graph; the Driver owns all analytical judgment. */
+/** Mechanical publication graph; the model owns all analytical judgment. */
 final class ReportPublicationGraph {
     FinalSynthesisResult execute(FinalModelSynthesisRequest request,
         java.util.function.Function<FinalModelSynthesisRequest, FinalSynthesisResult> synthesis) {
@@ -24,7 +24,7 @@ final class ReportPublicationGraph {
                 if (flow != null) {
                     request.metadata().put("analysisEvidenceStateAdvisory", flow.decision().name());
                     request.metadata().put("analysisEvidenceStateReason", flow.stopReason());
-                    // Evidence sufficiency and exactness are inputs to the Driver, not Runtime
+                    // Evidence sufficiency and exactness are inputs to the model, not Runtime
                     // authority to suppress analysis. Only an unfinished retrieval loop or an
                     // authorization boundary is a real execution barrier here.
                     if (flow.decision()
@@ -39,8 +39,7 @@ final class ReportPublicationGraph {
                 }
                 return AnalysisExecutionGraph.Status.READY;
             }),
-            new AnalysisExecutionGraph.Step(Boolean.TRUE.equals(request.metadata().get("modelNativeHarnessActive"))
-                ? "deliver_model_report" : "judge_and_compose", () -> {
+            new AnalysisExecutionGraph.Step("deliver_model_report", () -> {
                 result.set(synthesis.apply(request));
                 return AnalysisExecutionGraph.Status.READY;
             }),
@@ -63,7 +62,6 @@ final class ReportPublicationGraph {
         request.metadata().put("analysisGraphNodes", execution.nodes());
         if (result.get() == null) {
             request.metadata().remove("analyticalReport");
-            request.metadata().put("analysisDriverModelInvoked", false);
             request.metadata().put("interpretationPlanFinalResultProduced", false);
             request.metadata().put("interpretationPlanSummaryGenerated", false);
             request.metadata().put("finalClaimSelectionAccepted", false);

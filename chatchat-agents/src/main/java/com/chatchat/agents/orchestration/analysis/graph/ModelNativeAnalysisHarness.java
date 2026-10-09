@@ -26,7 +26,8 @@ public final class ModelNativeAnalysisHarness {
         if (model == null) throw new IllegalStateException("Analysis model unavailable");
         var access = new BoundedAnalysisEvidence();
         var prepared = access.prepare(datasets, checkpoints, scope, metadata, guard);
-        var reportDatasets = prepared.sources().entrySet().stream().limit(12).map(entry -> {
+        var operations = new DataWorkspaceOperations(prepared.sources(), checkpoints, scope, model, guard, observe, metadata);
+        var reportDatasets = prepared.sources().entrySet().stream().map(entry -> {
             var source = entry.getValue();
             var captured = ReturnedReportDataset.capture(entry.getKey(), source.handle().readPage(0,
                 Math.max(1, (int)Math.min(120, source.recordCount()))).rows(), source.analysisContext());
@@ -49,10 +50,13 @@ public final class ModelNativeAnalysisHarness {
         metadata.put("harnessSemanticCoverage", "MODEL_DECIDES_NOT_RUNTIME_CERTIFIED");
         for (int turn = 1; turn <= maximumTurns; turn++) {
             guard.run();
+            refreshReportCatalog(prepared.sources(), metadata);
+            catalog = VerifiedReportDataCatalog.fromRuntime(metadata);
             Map<String,Object> layers = new LinkedHashMap<>();
             layers.put("L1", Map.of("question", question, "turn", turn, "maximumTurns", maximumTurns,
                 "workspace", workspace, "priorReport", report));
             layers.put("L2", Map.of("evidenceOperations", EVIDENCE_OPERATIONS,
+                "workspaceOperations", operations.capabilities(),
                 "skillMethodology", SkillAnalysisContext.from(metadata), "roleContext", metadata.getOrDefault("agentRoleAnalysisContext", Map.of()),
                 "domainKnowledgeContext", metadata.getOrDefault("domainKnowledgeContext", Map.of())));
             layers.put("L3", Map.of("datasets", access.fitViews(prepared.views(), Math.max(4000, budget.inputTokens())), "receipts", receipts));
@@ -69,7 +73,12 @@ public final class ModelNativeAnalysisHarness {
                 Optional turn protocol: JSON {schemaVersion:'model_native_analysis.v1',completed:true,
                 reportMarkdown:'your report',workspace:{notes:'your own working notes',artifacts:[]},evidenceRequests:[]}.
                 A final plain Markdown report is also accepted. Intermediate notes are not the published report.
-                At most four evidenceRequests per turn. Each must reference an existing datasetReference.
+                At most four evidenceRequests per turn. Data requests reference an existing datasetReference.
+                Workspace capabilities are registered in L2. CATALOG lists further sources/results by cursor.
+                QUERY_DATASET computes over the full handle, including records absent from the context view.
+                BATCH_MODEL_INFERENCE executes only your explicit instruction/schema over your chosen scope.
+                Use result handles and pages for continued analysis and graphics; do not assume a preview is all data.
+                Execution completion counts certify processing, never the correctness of semantic judgments.
                 READ_RECORDS: {operation,datasetReference,fromRecord:1,limit:1..100,fields:[]}.
                 READ_TEXT: {operation,datasetReference,record:1,field,fromChar:0,maxChars:1..3000};
                 follow nextChar until hasMore=false to read an entire original field without another model extractor.
@@ -126,7 +135,14 @@ public final class ModelNativeAnalysisHarness {
                 else for (var request : requests) {
                     guard.run();
                     try {
-                        if (!EVIDENCE_OPERATIONS.contains(String.valueOf(request.get("operation"))))
+                        String operation = String.valueOf(request.get("operation"));
+                        if (operations.supports(operation)) {
+                            var receipt = operations.execute(request);
+                            receipts.add(receipt);
+                            audit.add(Map.of("status", "ACCEPTED", "request", request, "receiptFingerprint", ModelProtocolJson.sha256Hex(receipt)));
+                            continue;
+                        }
+                        if (!EVIDENCE_OPERATIONS.contains(operation))
                             throw new IllegalArgumentException("Operation is not registered for this harness");
                         var read = access.read(prepared, List.of(request), guard, model, scope, checkpoints, question, metadata);
                         receipts.addAll(read);
@@ -150,8 +166,19 @@ public final class ModelNativeAnalysisHarness {
         metadata.put("harnessStopReason", exhausted ? "RESOURCE_BUDGET_EXHAUSTED" : "MODEL_COMPLETED");
         metadata.put("harnessMaxModelTurns", maximumTurns);
         metadata.put("visualizationCapabilitiesDraftInjected", true);
+        refreshReportCatalog(prepared.sources(), metadata);
         if (report.isBlank()) throw new IllegalStateException("Model produced no report within the execution budget");
         return new Result(report, calls, List.copyOf(prepared.sources().keySet()));
+    }
+    private static void refreshReportCatalog(Map<String,Dataset> datasets, Map<String,Object> metadata) {
+        var captured = datasets.entrySet().stream().map(entry -> {
+            var source = entry.getValue();
+            var bounded = ReturnedReportDataset.capture(entry.getKey(), source.handle().readPage(0,
+                Math.max(1,(int)Math.min(120,source.recordCount()))).rows(), source.analysisContext());
+            return new ReturnedReportDataset(bounded.reference(),bounded.rows(),Math.toIntExact(source.recordCount()),
+                bounded.complete() && bounded.rows().size()==source.recordCount(),bounded.metricPolicies());
+        }).toList();
+        metadata.put("runtimeReturnedReportDatasets",captured);
     }
     private static Map<String,Object> parse(String response) {
         if (response == null || response.isBlank()) throw new IllegalArgumentException("Empty model response");

@@ -14,7 +14,6 @@ import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisProtocol;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.knowledge.template.matching.TemplateMatchAnalysis;
-import com.chatchat.common.knowledge.template.matching.TemplateWorkerAnalysisContext;
 import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisSummaryProtocol;
 import com.chatchat.agents.runtime.plan.DiscoveryEvidencePolicy;
 import com.chatchat.common.tool.ToolMetadata;
@@ -456,11 +455,6 @@ public final class AnalysisEvidenceCoordinator {
                 List<Map<String, Object>> related = maps(match.get("templateRelationships")).stream()
                     .filter(item -> effectiveId.equalsIgnoreCase(stringValue(item.get("fromTemplateId")))
                         || effectiveId.equalsIgnoreCase(stringValue(item.get("toTemplateId")))).toList();
-                context.put(TemplateWorkerAnalysisContext.ANALYSIS_CONTEXT_KEY,
-                    new TemplateWorkerAnalysisContext(
-                        firstNonBlank(stringValue(match.get("userQuestion")), "unknown user question"),
-                        map(match.get("globalAnalysisContext")), map(match.get("analysisIntent")),
-                        match, current, related).toMap());
                 if (!related.isEmpty()) {
                     List<Object> relationships = new ArrayList<>();
                     Object declared = context.get("relationships");

@@ -29,11 +29,8 @@ class RuntimeProtocolRegistryTest {
             .isInstanceOf(RuntimeAnalysisContextProtocol.class);
         assertThat(registry.require(DataAnalysisSummaryProtocol.class))
             .isInstanceOf(DataAnalysisSummaryProtocol.class);
-        assertThat(registry.require(ModelSummaryDispatcher.class))
-            .isInstanceOf(ModelSummaryDispatcher.class);
-        assertThat(registry.require(ModelSummaryReducer.class))
-            .isInstanceOf(ModelSummaryReducer.class);
-        assertThat(registry.ports()).hasSize(6);
+        assertThatThrownBy(() -> registry.require(ModelSummaryDispatcher.class)).isInstanceOf(IllegalStateException.class);
+        assertThat(registry.ports()).hasSize(4);
     }
 
     @Test

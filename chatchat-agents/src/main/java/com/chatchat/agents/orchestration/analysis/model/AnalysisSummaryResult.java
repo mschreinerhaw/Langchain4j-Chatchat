@@ -136,7 +136,7 @@ public record AnalysisSummaryResult(
         return new AnalysisSummaryResult(
             SCHEMA_VERSION,
             safeScope.partitionKey() + ":" + safeKey,
-            text(scope, "DATASET_SYNTHESIS"),
+            text(scope, "WORKSPACE_RESULT"),
             content,
             outcome,
             safeScope,

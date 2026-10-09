@@ -26,6 +26,9 @@ public final class SemanticClaimCoordinator {
                                         int iteration,
                                         Map<String, Object> runtimeAttributes,
                                         Map<String, Object> metadata) {
+        if (metadata != null && Boolean.TRUE.equals(metadata.get("modelNativeHarnessActive"))) {
+            return evidence == null ? Map.of() : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(evidence));
+        }
         return evidenceBridge.merge(evidence, summaries, iteration, runtimeAttributes, metadata);
     }
 }

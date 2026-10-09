@@ -20,6 +20,29 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AgentAnswerFinalizerTaskAssessmentTest {
+    @Test
+    void nativeModelReportHasExecutionProvenanceWithoutClaimScoringOrReviewGate() {
+        AgentAnswerReviewer reviewer = (model, query, prompt, observations, answer) ->
+            { throw new AssertionError("Native report cannot be sent to a reviewer"); };
+        var finalizer = new AgentAnswerFinalizer(reviewer,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt"));
+        String report = "# Report\n\nThe model selected its own interpretation of all available evidence.";
+        var metadata = new LinkedHashMap<String,Object>();
+        metadata.put("modelNativeHarnessActive", true);
+        metadata.put("harnessStopReason", "MODEL_COMPLETED");
+        metadata.put("analysisReportGenerationMode", "MODEL_NATIVE_HARNESS");
+        metadata.put("analysisReportContract", Map.of("reportType", "DRIVER_REPORT", "renderedText", report));
+        metadata.put("claimCoverageStatus", "FAIL");
+        metadata.put("answerClaimAuditPassed", false);
+        var result = finalizer.finishReviewedAnswer(null, "Analyze", null, List.of(), metadata,
+            List.of("Available source records"), report, () -> false, "final_answer");
+        assertThat(result.answer()).isEqualTo(report);
+        assertThat(result.metadata()).containsEntry("answerClaimAuditSkipped", true)
+            .containsEntry("executionStatus", "COMPLETED")
+            .containsEntry("reportQualityAuthority", "USER")
+            .doesNotContainKeys("claimCoverage", "claimCoverageStatus", "answerClaimAuditPassed");
+        assertThat(((Map<?,?>)result.metadata().get("answerEvidenceAudit")).containsKey("claimCoverage")).isFalse();
+    }
 
     @Test
     void reviewerCannotReplaceASelectedBusinessResult() {

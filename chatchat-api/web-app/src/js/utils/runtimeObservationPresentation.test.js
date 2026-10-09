@@ -6,6 +6,16 @@ import {
 } from "./runtimeObservationPresentation.js";
 
 describe("runtime observation presentation", () => {
+  it("keeps model-directed evidence turns separately observable", () => {
+    const first = { metadata: { eventKind: "HARNESS_TURN", turn: 1, datasetFingerprint: "sources-a" } };
+    const second = { metadata: { ...first.metadata, turn: 2 } };
+    expect(runtimeObservationPresentation(first)).toEqual({ title: "模型分析与证据访问",
+      toolName: "model_native_harness", status: "done" });
+    expect(runtimeObservationIdentity(first)).not.toBe(runtimeObservationIdentity(second));
+    const started = { metadata: { ...first.metadata, eventState: "STARTED" } };
+    expect(runtimeObservationPresentation(started).status).toBe("active");
+    expect(runtimeObservationIdentity(started)).toBe(runtimeObservationIdentity(first));
+  });
   it('presents visualization planning as an independent Runtime step', () => {
     expect(runtimeObservationPresentation({ metadata: { eventKind: 'VISUALIZATION_PLANNING',
       stage: 'VISUALIZATION_PLANNING', planning: { modelCalls: 0, verifiedBlockCount: 1 } } }))

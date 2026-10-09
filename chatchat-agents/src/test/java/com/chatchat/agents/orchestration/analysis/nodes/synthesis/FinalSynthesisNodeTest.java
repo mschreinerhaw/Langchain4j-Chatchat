@@ -27,6 +27,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 class FinalSynthesisNodeTest {
@@ -1168,6 +1170,22 @@ class FinalSynthesisNodeTest {
         assertThat(metadata).containsEntry("visualizationCapabilitiesInjected", true).containsKey("reportBlocks");
         assertThat(((Map<?, ?>) metadata.get("visualizationPlanning")).get("modelCalls")).isEqualTo(0);
         verify(model, org.mockito.Mockito.times(1)).chat(any(String.class));
+    }
+
+    @Test void publishesHarnessReportWithoutClaimGatesAnotherModelOrMandatoryCharts() {
+        var adapter = mock(AgentRunResultAdapter.class);
+        var coordinator = new FinalSynthesisNode(adapter, "agentRunId", passthroughGovernance(),
+            new DeterministicInsightEngine(), new AnswerCandidateCollector(), new StructuredFindingMerger());
+        var model = mock(ChatModel.class); var metadata = new LinkedHashMap<String,Object>();
+        metadata.put("modelNativeHarnessActive", true);
+        metadata.put("modelNativeReportDraft", "# Findings\nModel-selected reasoning and report.");
+        metadata.put("unifiedAnalysisFindingCount", 0);
+        var result = coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
+        assertThat(result.content()).isEqualTo("# Findings\nModel-selected reasoning and report.");
+        assertThat(metadata).containsEntry("analysisDriverModelInvoked", false).containsEntry("analysisSemanticReviewPolicy", "NONE_USER_JUDGES")
+            .doesNotContainKey("visualizationPlanning");
+        verifyNoInteractions(model);
+        verify(adapter, times(1)).recordRuntimeObservation(any(), any(), any(), any(), any());
     }
 
     private AnalysisSummaryResult claimSummary() {

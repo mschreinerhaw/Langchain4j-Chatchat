@@ -270,6 +270,23 @@ final class BoundedAnalysisEvidence {
             String ref = String.valueOf(request.get("datasetReference"));
             Dataset dataset = prepared.sources().get(ref);
             if (dataset == null) throw new IllegalArgumentException("Evidence request cites an unbound dataset");
+            if ("READ_TEXT".equals(request.get("operation"))) {
+                int record = integer(request.get("record")), from = integer(request.getOrDefault("fromChar", 0));
+                int limit = integer(request.getOrDefault("maxChars", 3000));
+                if (record < 1 || record > dataset.recordCount() || from < 0 || limit < 1 || limit > 3000)
+                    throw new IllegalArgumentException("Invalid text window");
+                String field = String.valueOf(request.get("field"));
+                var row = dataset.handle().readPage(record - 1L, 1).rows().get(0);
+                if (!(row.get(field) instanceof String text) || from > text.length())
+                    throw new IllegalArgumentException("Unknown text field or offset");
+                int end = Math.min(text.length(), from + limit);
+                Map<String,Object> fragment = new LinkedHashMap<>();
+                fragment.put("datasetReference", ref); fragment.put("recordRef", ref + ".records[" + record + "]");
+                fragment.put("field", field); fragment.put("fromChar", from); fragment.put("text", text.substring(from, end));
+                fragment.put("totalChars", text.length()); fragment.put("hasMore", end < text.length());
+                if (end < text.length()) fragment.put("nextChar", end);
+                results.add(fragment); continue;
+            }
             if ("READ_NESTED_RECORDS".equals(request.get("operation"))) {
                 int record = integer(request.get("record"));
                 if (record < 1 || record > dataset.recordCount())

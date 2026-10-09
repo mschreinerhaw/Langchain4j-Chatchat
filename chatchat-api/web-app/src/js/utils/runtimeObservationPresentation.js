@@ -16,6 +16,10 @@ export function runtimeObservationPresentation(runtimePayload = {}) {
   const eventState = upper(metadata.eventState);
   const type = upper(metadata.type);
   const stage = upper(metadata.stage);
+  if (eventKind === "HARNESS_TURN") {
+    return { title: "模型分析与证据访问", toolName: "model_native_harness",
+      status: eventState === "FAILED" ? "error" : eventState === "STARTED" ? "active" : "done" };
+  }
   if (eventKind === 'VISUALIZATION_PLANNING') {
     return { title: '图形化规划', toolName: 'visualization_planning', status: 'done' };
   }
@@ -119,6 +123,9 @@ export function runtimeObservationPresentation(runtimePayload = {}) {
 
 export function runtimeObservationIdentity(runtimePayload = {}) {
   const metadata = objectValue(runtimePayload.metadata);
+  if (upper(metadata.eventKind) === "HARNESS_TURN") {
+    return `harness-turn:${metadata.datasetFingerprint || "run"}:${metadata.turn || "unknown"}`;
+  }
   if (upper(metadata.eventKind) === "ANALYSIS_GRAPH"
       || upper(metadata.type).startsWith("UNIFIED_QUESTION_ANALYSIS_")) {
     return `analysis-graph:${metadata.graphId || "unified-question-analysis"}`;

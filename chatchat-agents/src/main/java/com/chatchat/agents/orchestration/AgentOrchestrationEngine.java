@@ -539,7 +539,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 resolvedRuntimeProperties.unifiedAnalysisMaxEvidenceRounds(),
                 resolvedRuntimeProperties.isUnifiedAnalysisReportDraftEnabled(),
                 resolvedRuntimeProperties.analysisPerDatasetWorkerThreshold(),
-                resolvedRuntimeProperties.analysisPerDatasetWorkerTotalCharsThreshold()));
+                resolvedRuntimeProperties.analysisPerDatasetWorkerTotalCharsThreshold(),
+                resolvedRuntimeProperties.isModelNativeHarnessEnabled(), resolvedRuntimeProperties.getHarnessMaxModelTurns()));
         InterpretationPlanStore resolvedPlanStore = interpretationPlanStore == null && this.runStore instanceof InterpretationPlanStore store
             ? store
             : interpretationPlanStore;
@@ -2233,6 +2234,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             return RecordCoverageBundle.empty();
         }
         if (activeChatModel == null || latest == null) return RecordCoverageBundle.empty();
+        if (agentRuntimeProperties.isModelNativeHarnessEnabled()) {
+            return buildRecordCoverageBundle(activeChatModel, query, cumulativeEvidenceResult(latest, attempts),
+                runtimeAttributes, metadata, cancellationCheck);
+        }
         return semanticClaimCoordinator.preflight(
             () -> buildRecordCoverageBundle(activeChatModel, query, cumulativeEvidenceResult(latest, attempts),
                 runtimeAttributes, metadata, cancellationCheck),

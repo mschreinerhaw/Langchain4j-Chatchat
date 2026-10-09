@@ -39,7 +39,8 @@ final class ReportPublicationGraph {
                 }
                 return AnalysisExecutionGraph.Status.READY;
             }),
-            new AnalysisExecutionGraph.Step("judge_and_compose", () -> {
+            new AnalysisExecutionGraph.Step(Boolean.TRUE.equals(request.metadata().get("modelNativeHarnessActive"))
+                ? "deliver_model_report" : "judge_and_compose", () -> {
                 result.set(synthesis.apply(request));
                 return AnalysisExecutionGraph.Status.READY;
             }),

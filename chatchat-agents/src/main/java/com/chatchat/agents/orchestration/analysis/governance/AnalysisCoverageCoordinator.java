@@ -112,6 +112,10 @@ public final class AnalysisCoverageCoordinator {
                 !sourceFailed, true, !sourceFailed, 0, List.of(), List.of());
         }
 
+        if (configuration.modelNativeHarnessEnabled()) {
+            return analyzeWithHarness(request, datasets);
+        }
+
         DatasetExecutionRegistry datasetRegistry = new DatasetExecutionRegistry();
         DatasetReferenceSequence registryReferences = datasetReferences(datasets);
         for (AnalysisEvidenceCoordinator.Dataset dataset : datasets) {
@@ -917,11 +921,21 @@ public final class AnalysisCoverageCoordinator {
                                 long heartbeatTimeoutMs, boolean adaptivePromptModelEnabled,
                                 int maximumEvidenceRounds, boolean reportDraftEnabled,
                                 int perDatasetWorkerThreshold,
-                                long perDatasetWorkerTotalCharsThreshold) {
+                                long perDatasetWorkerTotalCharsThreshold,
+                                boolean modelNativeHarnessEnabled, int harnessMaxModelTurns) {
         public Configuration {
             perDatasetWorkerThreshold = Math.max(1, perDatasetWorkerThreshold);
             perDatasetWorkerTotalCharsThreshold = Math.max(2_000L,
                 perDatasetWorkerTotalCharsThreshold);
+            harnessMaxModelTurns = Math.max(1, Math.min(64, harnessMaxModelTurns));
+        }
+        public Configuration(int maximumRetries, long heartbeatIntervalMs, long heartbeatTimeoutMs,
+                             boolean adaptivePromptModelEnabled, int maximumEvidenceRounds,
+                             boolean reportDraftEnabled, int perDatasetWorkerThreshold,
+                             long perDatasetWorkerTotalCharsThreshold) {
+            this(maximumRetries, heartbeatIntervalMs, heartbeatTimeoutMs, adaptivePromptModelEnabled,
+                maximumEvidenceRounds, reportDraftEnabled, perDatasetWorkerThreshold,
+                perDatasetWorkerTotalCharsThreshold, false, 8);
         }
         public Configuration(int maximumRetries, long heartbeatIntervalMs, long heartbeatTimeoutMs) {
             this(maximumRetries, heartbeatIntervalMs, heartbeatTimeoutMs, true, 2, false,
@@ -934,6 +948,59 @@ public final class AnalysisCoverageCoordinator {
                 adaptivePromptModelEnabled, maximumEvidenceRounds, reportDraftEnabled,
                 3, 24_000L);
         }
+    }
+
+    private CoverageBundle analyzeWithHarness(Request request, List<AnalysisEvidenceCoordinator.Dataset> datasets) {
+        var skillContext = com.chatchat.agents.runtime.context.SkillAnalysisContext.from(request.runtimeAttributes());
+        if (!skillContext.isEmpty()) request.metadata().put("skillAnalysisContext", skillContext);
+        else request.metadata().remove("skillAnalysisContext");
+        request.metadata().put("agentRoleAnalysisContext",
+            com.chatchat.agents.runtime.context.AgentRoleAnalysisContext.fromRuntimeAttributes(request.runtimeAttributes()));
+        for (String key : List.of("visualizationAuthorizedTypes", "visualizationSupportedTypes")) {
+            if (request.runtimeAttributes().containsKey(key)) request.metadata().put(key, request.runtimeAttributes().get(key));
+            else request.metadata().remove(key);
+        }
+        request.metadata().put("modelNativeHarnessActive", true);
+        request.metadata().put("datasetAnalysisMode", "MODEL_NATIVE_HARNESS");
+        request.metadata().put("recordAnalysisSummaryDispatchMode", "MODEL_NATIVE_HARNESS");
+        request.metadata().put("recordAnalysisSummaryWorkerCount", 0);
+        request.metadata().put("analysisSemanticReviewPolicy", "NONE_USER_JUDGES");
+        var result = new com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarness(configuration.harnessMaxModelTurns())
+            .execute(request.query(), datasets, request.model(), request.isolationScope(), spillStore,
+                request.metadata(), request.cancellationGuard(), trace -> observe(request,
+                    "STARTED".equals(trace.get("eventState")) ? "Model-directed evidence workspace turn started."
+                        : "Model-directed evidence workspace turn finished.", "model_native_harness", trace));
+        long rows = datasets.stream().mapToLong(AnalysisEvidenceCoordinator.Dataset::recordCount).sum();
+        int count = Math.toIntExact(rows);
+        var summary = AnalysisSummaryResult.chunk(request.isolationScope(), Map.of("datasetReference", "harness:question",
+            "recordFrom", 1, "recordTo", count, "totalRecords", count), Map.of("analysisMode", "MODEL_NATIVE_HARNESS"),
+            result.markdown(), "MODEL_AUTHORED", Map.of("authority", "MODEL_AUTHORED_NOT_RUNTIME_CERTIFIED",
+                "datasetReferences", result.datasetReferences()));
+        request.metadata().put("modelNativeReportDraft", result.markdown());
+        request.metadata().put("analysisSynthesisBarrierReady", true);
+        request.metadata().put("analysisSynthesisBarrierStatus", "READY");
+        request.metadata().put("recordAnalysisDatasetCount", datasets.size());
+        request.metadata().put("recordAnalysisSuccessfulDatasetCount", datasets.size());
+        var failures = sourceFailureDatasets(request.metadata());
+        boolean[] sourceCompleteness = {true};
+        datasets.forEach(dataset -> dataset.handle().scan(1000, page -> {
+            request.cancellationGuard().run();
+            sourceCompleteness[0] &= page.rows().stream().noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
+        }));
+        boolean sourceComplete = sourceCompleteness[0];
+        boolean availableComplete = failures.isEmpty();
+        request.metadata().put("recordAnalysisFailedDatasetCount", failures.size());
+        request.metadata().put("recordAnalysisReturnedRecordCount", count);
+        request.metadata().put("recordAnalysisProcessedRecordCount", count);
+        request.metadata().put("recordAnalysisCoverageComplete", availableComplete);
+        request.metadata().put("recordAnalysisProcessingMeaning", "RUNTIME_EVIDENCE_ACCESS_PREPARATION_NOT_MODEL_SEMANTIC_COVERAGE");
+        request.metadata().put("recordAnalysisEvidenceTraceComplete", availableComplete);
+        request.metadata().put("recordAnalysisSourceContentComplete", sourceComplete);
+        request.metadata().put("datasetCompletionSnapshot", Map.of("successfulDatasetReferences", result.datasetReferences(),
+            "failedDatasetReferences", failures.stream().map(item -> item.get("datasetReference")).toList(), "partial", !availableComplete));
+        return new CoverageBundle("Model-authored report and complete scoped evidence workspace retained; no semantic quality gate.",
+            "", List.of(), count, count, result.modelCalls(), result.modelCalls() > 1, availableComplete, sourceComplete, availableComplete,
+            0, List.of(summary), List.of(summary));
     }
 
     private List<String> evidenceIds(AnalysisDatasetSummary summary) {

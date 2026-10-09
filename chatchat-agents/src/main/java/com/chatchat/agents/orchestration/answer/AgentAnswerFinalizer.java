@@ -1255,6 +1255,18 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         metadata.put("evidenceRefusalBlocked", false);
         metadata.put("interpretationPlanSummaryGenerated", true);
         metadata.put("interpretationPlanFinalResultProduced", true);
+        if (Boolean.TRUE.equals(metadata.get("modelNativeHarnessActive"))) {
+            boolean partial = "RESOURCE_BUDGET_EXHAUSTED".equals(metadata.get("harnessStopReason"))
+                || Boolean.FALSE.equals(metadata.get("recordAnalysisSourceContentComplete"))
+                || Boolean.FALSE.equals(metadata.get("recordAnalysisEvidenceTraceComplete"));
+            metadata.put("executionStatus", partial ? "PARTIAL_RESULT_PRESENTED" : "COMPLETED");
+            metadata.put("analysisExecutionStatus", partial ? "COMPLETED_WITH_LIMITATIONS" : "COMPLETED");
+            metadata.put("finalPayloadHumanReviewRequired", false);
+            metadata.put("reportQualityAuthority", "USER");
+            metadata.remove("finalPayloadContractRejectionReason");
+            metadata.remove("evidenceRefusalBlockedReason");
+            return;
+        }
         metadata.put("executionStatus", "PARTIAL_RESULT_PRESENTED");
         metadata.put("analysisExecutionStatus", "COMPLETED_WITH_HUMAN_REVIEW");
         metadata.remove("finalPayloadContractRejectionReason");

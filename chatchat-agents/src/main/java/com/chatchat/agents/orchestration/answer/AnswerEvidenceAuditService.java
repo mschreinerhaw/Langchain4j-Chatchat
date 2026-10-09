@@ -25,6 +25,13 @@ final class AnswerEvidenceAuditService {
     String attachLedger(String answer, Map<String, Object> metadata,
                         List<String> observations, List<Map<String, Object>> toolEvidence) {
         if (metadata == null) return answer;
+        if (Boolean.TRUE.equals(metadata.get("modelNativeHarnessActive"))) {
+            for (String key : List.of("claimLedger", "claimLedgerVersion", "claimCoverage", "claimCoverageStatus", "answerClaimAuditPassed"))
+                metadata.remove(key);
+            metadata.put("answerClaimAuditSkipped", true);
+            metadata.put("answerClaimAuditSkippedReason", "MODEL_NATIVE_REPORT_USER_JUDGES");
+            return answer;
+        }
         AnswerEvidenceLedgerCompiler.Result result = ledgerCompiler.compile(
             answer, metadata, observations, toolEvidence);
         metadata.put("claimLedger", result.claimLedger());
@@ -133,6 +140,12 @@ final class AnswerEvidenceAuditService {
         audit.put("claimLedger", map(metadata.get("claimLedger")));
         audit.put("evidenceManifest", map(metadata.get("evidenceManifest")));
         audit.put("toolEvidence", objects(metadata.get("toolResultEvidence")));
+        if (Boolean.TRUE.equals(metadata.get("modelNativeHarnessActive"))) {
+            audit.remove("claimCoverage"); audit.remove("claimCoverageStatus"); audit.remove("claimLedger");
+            audit.put("semanticReview", "NOT_RUN_MODEL_OWNS_ANALYSIS");
+            audit.put("reportQualityAuthority", "USER");
+            audit.put("datasetReferences", objects(metadata.get("harnessAvailableDatasetReferences")));
+        }
         audit.put("presentationPolicy", Map.of(
             "default", "METADATA_ONLY", "userVisible", requested, "explicitRequestRequired", true));
         metadata.put("answerEvidenceAudit", Map.copyOf(audit));

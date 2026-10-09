@@ -136,6 +136,9 @@ public final class FinalSynthesisNode {
     }
 
     private FinalSynthesisResult synthesizeFinalAdmitted(FinalModelSynthesisRequest request) {
+        if (Boolean.TRUE.equals(request.metadata().get("modelNativeHarnessActive"))) {
+            return publishHarnessReport(request);
+        }
         boolean noFindings = request.metadata().get("unifiedAnalysisFindingCount") instanceof Number findings
             && findings.longValue() == 0;
         boolean retainedUnifiedDraft = Boolean.TRUE.equals(
@@ -570,6 +573,48 @@ public final class FinalSynthesisNode {
             !"ANALYSIS_OUTPUT_WITHHELD".equals(outcome));
     }
 
+    private FinalSynthesisResult publishHarnessReport(FinalModelSynthesisRequest request) {
+        String answer = String.valueOf(request.metadata().getOrDefault("modelNativeReportDraft", ""));
+        if (answer.isBlank()) throw new IllegalStateException("Model-native report is empty");
+        var catalog = VerifiedReportDataCatalog.fromRuntime(request.metadata());
+        request.metadata().remove("reportBlocks");
+        request.metadata().remove("visualizationPlanning");
+        boolean hasProposals = !com.chatchat.agents.orchestration.analysis.report.ReportBlockMarkdownProtocol
+            .protectProposals(answer).payloads().isEmpty();
+        if (hasProposals) {
+            var registry = com.chatchat.agents.orchestration.analysis.report.VisualizationCapabilityRegistry.active(request.runtimeAttributes());
+            var plan = new com.chatchat.agents.orchestration.analysis.report.VisualizationPlanningNode(registry).execute(answer, catalog);
+            answer = plan.markdown();
+            request.metadata().put("analysisVisualizationAudit", plan.checks());
+            request.metadata().put("reportBlocks", Map.of("schemaVersion", "report_blocks.v1", "reportId", request.runId(), "blocks", plan.blocks()));
+            var planning = Map.of("stage", "VISUALIZATION_PLANNING", "modelCalls", 0,
+                "verifiedBlockCount", plan.visualizationCount(), "status", plan.visualizationCount() > 0 ? "COMPLETED" : "TEXT_ONLY");
+            request.metadata().put("visualizationPlanning", planning);
+            resultAdapter.recordRuntimeObservation(request.runtimeAttributes(), runIdAttribute,
+                "Model-selected report artifacts bound to run-scoped evidence.", "visualization_planning",
+                Map.of("type", "visualization_planning", "eventKind", "VISUALIZATION_PLANNING", "stage", "VISUALIZATION_PLANNING", "planning", planning, "checks", plan.checks()));
+        }
+        if (answer.isBlank()) throw new IllegalStateException("Report contains no publishable content");
+        request.metadata().put("analysisDriverModelInvoked", false);
+        request.metadata().put("analysisReportGenerationMode", "MODEL_NATIVE_HARNESS");
+        request.metadata().put("analysisSemanticReviewPolicy", "NONE_USER_JUDGES");
+        request.metadata().put("analysisReportBodyPreserved", true);
+        request.metadata().put("analysisReportContract", AnalysisReportContract.driverReport(answer, 0, 0, 1).toMap());
+        request.metadata().put("analysisReportContractSchemaVersion", AnalysisReportContract.SCHEMA_VERSION);
+        request.metadata().put("analysisSynthesisBlocked", false);
+        request.metadata().put("interpretationPlanSummaryGenerated", true);
+        request.metadata().put("interpretationPlanFinalResultProduced", true);
+        request.metadata().put("interpretationPlanSummaryStage", request.stage());
+        recordCompletedOutcome(request);
+        var governed = finalizeSummary(request.governance(answer, "MODEL_NATIVE_REPORT"));
+        answerCandidateCollector.register(request.metadata(), AnswerCandidateCollector.FINAL_SYNTHESIS, answer);
+        resultAdapter.recordRuntimeObservation(request.runtimeAttributes(), runIdAttribute,
+            "Model-authored report published without a semantic quality gate or another summary model call.", "interpretation_plan_summary",
+            Map.of("type", "final_summary", "workflow", "model_native_harness", "stage", request.stage(),
+                "modelCalls", 0, "analysisSummaryResult", governed.toMap(), "reportQualityAuthority", "USER"));
+        return new FinalSynthesisResult(answer, governed, true);
+    }
+
     private String claimBoundReportComposerPrompt(FinalModelSynthesisRequest request,
                                                    Map<String, Object> pipelineContext) {
         Map<String, Object> boundedContext = new LinkedHashMap<>();
@@ -735,6 +780,12 @@ public final class FinalSynthesisNode {
     /** Preserve the final model body; coverage and source records belong in metadata. */
     public String presentGovernedAnalysis(String answer, PresentationRequest request) {
         request.metadata().put("recordAnalysisCoverageAppendixApplied", false);
+        if (Boolean.TRUE.equals(request.metadata().get("modelNativeHarnessActive")) && answer != null && !answer.isBlank()) {
+            request.metadata().put("analysisOutputAdmissionReason", "MODEL_NATIVE_REPORT");
+            request.metadata().put("analysisOutputAdmitted", true);
+            request.metadata().put("analysisOutputPresent", true);
+            return answer;
+        }
         AnalysisOutputAdmissionPolicy.Admission admission = AnalysisOutputAdmissionPolicy.admit(answer);
         if (answer == null || answer.isBlank()) {
             recordWithheld(request, admission.reason());

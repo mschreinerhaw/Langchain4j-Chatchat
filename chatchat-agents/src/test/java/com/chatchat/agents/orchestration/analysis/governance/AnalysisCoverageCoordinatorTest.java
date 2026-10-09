@@ -22,6 +22,34 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AnalysisCoverageCoordinatorTest {
+    @Test
+    @SuppressWarnings("unchecked")
+    void nativeHarnessOwnsAnalysisWhileSourceFailuresRemainObservable() {
+        var evidence = mock(AnalysisEvidenceCoordinator.class);
+        var datasets = java.util.stream.IntStream.range(0, 3).mapToObj(index ->
+            new AnalysisEvidenceCoordinator.Dataset("source-" + index, Map.of(),
+                List.of(Map.<String,Object>of("value", index, "sourceComplete", false)))).toList();
+        when(evidence.project(any(), any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(datasets,
+            List.of(Map.of("datasetReference", "failed-source", "accountingStatus", "FAILED", "reason", "SOURCE_EXECUTION_FAILED"))));
+        var insight = mock(DeterministicInsightEngine.class);
+        var protocol = mock(DataAnalysisSummaryProtocol.class);
+        var dispatch = mock(com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDispatchCoordinator.class);
+        var model = mock(dev.langchain4j.model.chat.ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn("Model-selected final analysis.");
+        var coordinator = new AnalysisCoverageCoordinator(mock(AgentRunResultAdapter.class), "agentRunId", evidence,
+            insight, mock(FinalSynthesisNode.class), AnalysisEvidenceSpillStore.disabled(), dispatch,
+            new AnalysisCoverageCoordinator.Configuration(1, 1000, 5000, true, 2, true, 1, 2000, true, 8));
+        var metadata = new LinkedHashMap<String,Object>();
+        var execution = new InterpretationPlanRuntime.ExecutionResult("completed", true, false, null, null, List.of(), Map.of(), 1);
+        var result = coordinator.analyze(new AnalysisCoverageCoordinator.Request(model, "Question", execution, Map.of(), metadata,
+            () -> false, () -> {}, GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation"), protocol));
+        assertThat(metadata).containsEntry("modelNativeHarnessActive", true)
+            .containsEntry("modelNativeReportDraft", "Model-selected final analysis.")
+            .containsEntry("recordAnalysisFailedDatasetCount", 1);
+        assertThat(result.sourceContentComplete()).isFalse();
+        assertThat(result.evidenceTraceComplete()).isFalse();
+        org.mockito.Mockito.verifyNoInteractions(insight, protocol, dispatch);
+    }
 
     @Test
     @SuppressWarnings("unchecked")

@@ -58,6 +58,10 @@ public class AgentRuntimeProperties {
     private int unifiedAnalysisMaxEvidenceRounds = 2;
     /** Reuses the evidence-bound Markdown authored by unified analysis as the final report. */
     private boolean unifiedAnalysisReportDraftEnabled = true;
+    /** Model owns evidence navigation, working notes and report composition; no semantic quality gate. */
+    private boolean modelNativeHarnessEnabled = true;
+    /** Resource budget for model-selected evidence navigation, rather than a business-analysis rule. */
+    private int harnessMaxModelTurns = 8;
     /** Governs lossless analysis chunk boundaries only; it never truncates returned evidence. */
     private int recordAnalysisChunkMaxChars = 12_000;
     /** Governs lossless analysis chunk boundaries only; every returned record remains covered. */

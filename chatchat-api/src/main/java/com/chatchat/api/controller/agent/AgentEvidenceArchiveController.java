@@ -33,7 +33,7 @@ public class AgentEvidenceArchiveController {
 
     @GetMapping("/{archiveId}")
     @Operation(summary = "Read a verified evidence archive owned by the authenticated tenant and user")
-    public ApiResponse<ArchiveView> get(@PathVariable String archiveId, HttpServletRequest request) {
+    public ApiResponse<ArchiveView> get(@PathVariable("archiveId") String archiveId, HttpServletRequest request) {
         String tenant = attribute(request, ApiAuthenticationFilter.CURRENT_TENANT_ID);
         String user = attribute(request, ApiAuthenticationFilter.CURRENT_USER_ID);
         if (tenant == null || user == null)
@@ -55,7 +55,7 @@ public class AgentEvidenceArchiveController {
 
     @GetMapping
     @Operation(summary = "List evidence archives for a run owned by the authenticated tenant and user")
-    public ApiResponse<List<AnalysisEvidenceArchivePort.Reference>> list(@RequestParam String runId,
+    public ApiResponse<List<AnalysisEvidenceArchivePort.Reference>> list(@RequestParam("runId") String runId,
                                                                            HttpServletRequest request) {
         String tenant = attribute(request, ApiAuthenticationFilter.CURRENT_TENANT_ID);
         String user = attribute(request, ApiAuthenticationFilter.CURRENT_USER_ID);

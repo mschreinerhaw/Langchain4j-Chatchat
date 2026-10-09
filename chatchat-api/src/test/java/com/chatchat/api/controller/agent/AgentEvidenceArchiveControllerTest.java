@@ -18,6 +18,22 @@ import static org.mockito.Mockito.when;
 
 class AgentEvidenceArchiveControllerTest {
     private static final String ID = "00000000-0000-0000-0000-000000000001";
+    @Test void archiveHttpRoutesBindIdentityAndRunParameters() throws Exception {
+        var archive = mock(AnalysisEvidenceArchivePort.class);
+        when(archive.read("tenant", "user", ID)).thenReturn(Optional.of(
+            new AnalysisEvidenceArchivePort.ArchivedEvidence(new AnalysisEvidenceArchivePort.Reference(ID, "sha", 2), "{}")));
+        when(archive.listByRun("tenant", "user", "run")).thenReturn(List.of());
+        var mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(
+            new AgentEvidenceArchiveController(archive, new ObjectMapper())).build();
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/agent/analysis/evidence/" + ID)
+            .requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant")
+            .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user"))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/agent/analysis/evidence")
+            .param("runId", "run").requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant")
+            .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user"))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+    }
 
     @Test void onlyAuthenticatedOwnerCanReadArchive() {
         AnalysisEvidenceArchivePort archive = new AnalysisEvidenceArchivePort() {

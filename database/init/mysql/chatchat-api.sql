@@ -2016,3 +2016,36 @@ create table if not exists mcp_argument_binding_policy (
 insert into mcp_argument_binding_policy (policy_key, policy_json)
 select 'default', '{"logicalContextKeys":["env","environment","cluster","namespace","target","targetType","target_type","assetName","asset_name","name","hostSelector","host_selector","database","databaseType","dbType","dialect","databaseRole","database_role","service","labels"],"concreteTargetFields":["hostId","host","hostname","ip","ipAddress","address","datasourceId","jdbcUrl","url","connectionString","endpointId","uri"],"rawExecutionFields":["command","rawCommand","shell","sql","rawSql","body","bodyTemplate"],"targetKindFields":["targetKind","target_kind","queryDomain","query_domain","domain","resourceType","resource_type","resourceKind","resource_kind"],"filterProtocolFields":["trace","routingTrace","routing_trace","candidates","routingCandidates","routing_candidates","finalDecision","final_decision","selectedTargetKind","selected_target_kind","targetKind","target_kind","assetType","asset_type","confidence","filtersSchemaVersion","filters_schema_version","mcpContext","mcp_context","tenantId","tenant_id","userId","user_id","requestId","request_id","conversationId","conversation_id","toolName","tool_name","remoteTool","remote_tool"],"filterFieldAliases":{"assetname":"assetName","name":"assetName","environment":"env","targettype":"targetType","databasetype":"databaseType","dbtype":"dbType","databaserole":"databaseRole","hostselector":"hostSelector","queryterms":"queryTerms","searchterms":"queryTerms","retrievalsignals":"retrievalSignals","bilingualintent":"bilingualIntent","bilingualquery":"bilingualQuery","bilingualsearch":"bilingualQuery","intentzh":"intentZh","intenten":"intentEn","intentaliases":"intentAliases","intentcandidates":"intentCandidates","businessgroup":"businessGroup","groupname":"groupName","groupdescription":"groupDescription","templateid":"templateId","toolname":"toolName","querylanguage":"queryLanguage"},"logicalFilterFields":["env","cluster","namespace","target","targetType","assetName","hostSelector","database","databaseType","dbType","dialect","databaseRole","service","labels","intent","goal","category","queryTerms","retrievalSignals","intentCandidates","bilingualIntent","bilingualQuery","intentZh","intentEn","intentAliases","keywords","businessGroup","group","groupName","groupDescription","toolName","template","templateId","view","language","queryLanguage","locale"],"identityField":"assetName","semanticField":"intent","executionProtocolBindings":{"mcp.sql-template.v1":"SQL_EXECUTION","mcp.ssh-template.v1":"SHELL_EXECUTION","mcp.http-template.v1":"HTTP_EXECUTION","mcp.api-template.v1":"HTTP_EXECUTION"},"executionValidationFields":{"SQL_EXECUTION":["sql","rawsql","raw_sql","statement","query"],"HTTP_EXECUTION":["url","uri","method","headers","body","bodytemplate","body_template","endpointid","endpoint_id","host","hostname","ip","ipaddress","ip_address","address"],"SHELL_EXECUTION":["command","rawcommand","raw_command","shell","script","hostid","host_id","host","hostname","ip","ipaddress","ip_address","address"]},"requiredParametersByTemplateSuffix":{"_TABLE_METADATA":["tableName"]},"assetIdentityForbiddenParameterFields":["parameters.schemaName"],"requiredExecutionContextFields":{"SQL_EXECUTION":["assetName","env"]},"runtimeOwnedExecutionInputsByProtocol":{"mcp.sql-template.v1":["parameters","params","arguments","executionContext","mcpExecutionContext"],"mcp.ssh-template.v1":["parameters","params","arguments","executionContext","mcpExecutionContext"],"mcp.http-template.v1":["parameters","params","arguments"],"mcp.api-template.v1":["parameters","params","arguments"]}}'
 where not exists (select 1 from mcp_argument_binding_policy where policy_key = 'default');
+
+-- Runtime OS evidence facts, process snapshots and durable revision gate.
+CREATE TABLE IF NOT EXISTS runtime_evidence_partition (
+ id varchar(64) PRIMARY KEY,
+ tenant_id varchar(128) NOT NULL,
+ user_id varchar(128) NOT NULL,
+ run_id varchar(128) NOT NULL,
+ revision bigint NOT NULL DEFAULT 0,
+ analysis_rounds integer NOT NULL DEFAULT 0,
+ max_rounds integer NOT NULL DEFAULT 3,
+ observation_revision bigint NOT NULL DEFAULT 0,
+ consumed_revision bigint NOT NULL DEFAULT 0,
+ observation_hash varchar(64),
+ analysis_action varchar(16),
+ analysis_reason varchar(64),
+ terminal boolean NOT NULL DEFAULT false,
+ CHECK (analysis_rounds >= 0 AND analysis_rounds <= max_rounds AND max_rounds BETWEEN 1 AND 3 AND consumed_revision <= observation_revision)
+);
+CREATE TABLE IF NOT EXISTS runtime_evidence_entry (
+ id varchar(64) PRIMARY KEY,
+ partition_id varchar(64) NOT NULL,
+ entry_kind varchar(16) NOT NULL,
+ entry_id varchar(256) NOT NULL,
+ revision bigint NOT NULL,
+ stored_at bigint NOT NULL,
+ occurred_at bigint NOT NULL,
+ evidence_type varchar(128),
+ source_node varchar(256),
+ sha256 varchar(64) NOT NULL,
+ record_json longtext NOT NULL,
+ lineage_json longtext
+);
+CREATE INDEX idx_runtime_evidence_partition ON runtime_evidence_entry(partition_id,entry_kind,stored_at);

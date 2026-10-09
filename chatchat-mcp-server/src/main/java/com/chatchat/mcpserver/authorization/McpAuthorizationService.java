@@ -683,7 +683,7 @@ public class McpAuthorizationService {
         return snapshot;
     }
 
-    private String resolveBearerToken() throws Exception {
+    private synchronized String resolveBearerToken() throws Exception {
         McpAuthorizationProperties.Auth auth = properties.getAuth();
         if (!auth.isEnabled()) {
             return null;
@@ -718,6 +718,25 @@ public class McpAuthorizationService {
 
     private JsonNode apiJson(String method, String path, String body) throws Exception {
         String token = resolveBearerToken();
+        HttpResponse<String> response = sendApiRequest(method, path, body, token);
+        // API login sessions may be invalidated by restart. Renew cached login credentials once;
+        // explicit bearer tokens and permission denials remain authoritative.
+        if (response.statusCode() == 401
+            && (properties.getAuth().getBearerToken() == null || properties.getAuth().getBearerToken().isBlank())
+            && isLoginAuthConfigured()) {
+            synchronized (this) {
+                if (Objects.equals(bearerToken, token)) bearerToken = null;
+            }
+            response = sendApiRequest(method, path, body, resolveBearerToken());
+        }
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new IllegalStateException("api endpoint returned " + response.statusCode());
+        }
+        JsonNode root = objectMapper.readTree(response.body());
+        return root.has("data") ? root.get("data") : root;
+    }
+
+    private HttpResponse<String> sendApiRequest(String method, String path, String body, String token) throws Exception {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
             .uri(uri(path))
             .timeout(Duration.ofSeconds(15));
@@ -730,12 +749,7 @@ public class McpAuthorizationService {
             builder.header("Content-Type", "application/json")
                 .method(method, HttpRequest.BodyPublishers.ofString(body));
         }
-        HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new IllegalStateException("api endpoint returned " + response.statusCode());
-        }
-        JsonNode root = objectMapper.readTree(response.body());
-        return root.has("data") ? root.get("data") : root;
+        return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
     }
 
     private boolean isLoginAuthConfigured() {

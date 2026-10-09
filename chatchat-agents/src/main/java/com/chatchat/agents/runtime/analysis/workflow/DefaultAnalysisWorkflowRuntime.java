@@ -9,6 +9,7 @@ import com.chatchat.common.runtime.analysis.routing.StandardAnalysisQueryAnalyze
 import com.chatchat.common.runtime.analysis.spi.AnalysisRuntimePort;
 import com.chatchat.common.runtime.analysis.spi.AnalysisEvidenceArchivePort;
 import com.chatchat.common.runtime.analysis.spi.AnalysisWorkflow;
+import com.chatchat.common.runtime.analysis.spi.AnalysisProgressPort;
 import com.chatchat.common.runtime.analysis.spi.EvidenceRecoveryWorkflow;
 
 import com.chatchat.common.runtime.analysis.recovery.EvidenceGap;
@@ -48,6 +49,12 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
     private final EvidenceStateInspector evidenceInspector = new EvidenceStateInspector();
     private final AdaptiveAnalysisController adaptiveController = new AdaptiveAnalysisController();
     private final AtomicBoolean registered = new AtomicBoolean(false);
+    private AnalysisProgressPort progressPort;
+
+    @Autowired
+    public void setProgressPort(ObjectProvider<AnalysisProgressPort> provider) {
+        this.progressPort = provider.getIfAvailable();
+    }
 
     public DefaultAnalysisWorkflowRuntime(List<AnalysisWorkflow> workflows) {
         this(workflows, () -> null, () -> null, List.of());
@@ -123,6 +130,32 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
 
     private AnalysisExecutionOutcome executeInline(AnalysisContext context) {
         AnalysisWorkflowRouter.RoutedWorkflow routed = router.route(context);
+        AnalysisProgressPort journal = progress(context);
+        if (journal != null) {
+            var reservation = journal.start(context.kernelScope(), recoveryMaxRounds(context) + 1);
+            if (!reservation.admitted())
+                return new AnalysisExecutionOutcome(null, routed.workflow().type(), null,
+                    new VerificationResult(false, List.of(), List.of(reservation.reason())),
+                    EvidenceBundle.empty(reservation.reason()), "", Map.of(
+                        "adaptiveAnalysisAction", "STOP", "adaptiveAnalysisReason", reservation.reason(),
+                        "adaptiveAnalysisRounds", reservation.rounds(), "adaptiveAnalysisMaxRounds", reservation.maxRounds(),
+                        "runtimeEvidenceRevision", reservation.revision(), "runtimeProgressPersistence", "DATABASE"));
+        }
+        try {
+            return executeClaimed(routed, journal);
+        } catch (RuntimeException failure) {
+            if (journal != null) journal.stop(context.kernelScope(),
+                failure instanceof java.util.concurrent.CancellationException ? "CANCELLED" : "EXECUTION_FAILED");
+            throw failure;
+        }
+    }
+
+    private AnalysisProgressPort progress(AnalysisContext context) {
+        return context.kernelScope().tenantId() != null && context.kernelScope().userId() != null ? progressPort : null;
+    }
+
+    private AnalysisExecutionOutcome executeClaimed(AnalysisWorkflowRouter.RoutedWorkflow routed,
+                                                   AnalysisProgressPort journal) {
         AnalysisExecutionOutcome primary = routed.workflow().execute(
             routed.context(), routed.context().kernelScope());
         if (routed.workflow() instanceof com.chatchat.common.runtime.analysis.asset.AssetGuidancePlanningWorkflow guidance) {
@@ -132,7 +165,24 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
             var data = guidance.acquireData(routed.context(), request, templates);
             primary = guidance.synthesize(routed.context(), request, data);
         }
-        return recoverAndContinue(routed.context(), routed.workflow(), primary);
+        AnalysisExecutionOutcome result = recoverAndContinue(routed.context(), routed.workflow(), primary);
+        if (journal != null) {
+            if (primary.workflowType() == com.chatchat.common.runtime.analysis.model.AnalysisWorkflowType.ASSET_GUIDANCE)
+                journal.observe(routed.context(), result, List.of(), 1, new AdaptiveAnalysisController.Decision(
+                    AdaptiveAnalysisController.Action.STOP, "GUIDANCE_COMPLETE"));
+            else if (!"DELIVER".equals(result.metadata().get("adaptiveAnalysisAction")))
+                journal.stop(routed.context().kernelScope(), String.valueOf(result.metadata().get("adaptiveAnalysisReason")));
+            var state = journal.state(routed.context().kernelScope()).orElseThrow();
+            Map<String, Object> metadata = new LinkedHashMap<>(result.metadata());
+            metadata.put("runtimeEvidenceRevision", state.revision());
+            metadata.put("runtimeConsumedEvidenceRevision", state.consumedRevision());
+            metadata.put("runtimeProgressPersistence", "DATABASE");
+            metadata.put("adaptiveAnalysisRounds", state.rounds());
+            metadata.put("runtimeRunId", routed.context().kernelScope().runId() == null
+                ? routed.context().kernelScope().requestId() : routed.context().kernelScope().runId());
+            result = outcome(result, result.verification(), result.evidenceBundle(), metadata);
+        }
+        return result;
     }
 
     private AnalysisExecutionOutcome recoverAndContinue(AnalysisContext context, AnalysisWorkflow workflow,
@@ -152,6 +202,8 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
         String status = "NOT_NEEDED";
         int maxRounds = recoveryMaxRounds(context);
         var decision = adaptiveController.decide(feedback(analyzed, gaps, true, false, false), 0, maxRounds);
+        AnalysisProgressPort journal = progress(context);
+        long revision = journal == null ? 0 : journal.observe(context, analyzed, gaps, 1, decision).revision();
         boolean continuedThisRound = false;
         for (int round = 1; decision.action() == AdaptiveAnalysisController.Action.RECOVER; round++) {
             if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
@@ -177,6 +229,14 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
             if (recovery == null) {
                 status = "NO_WORKFLOW";
                 break;
+            }
+            if (journal != null) {
+                var wake = journal.reserveRecovery(context.kernelScope(), revision);
+                if (!wake.admitted()) {
+                    decision = new AdaptiveAnalysisController.Decision(AdaptiveAnalysisController.Action.STOP, wake.reason());
+                    status = wake.reason();
+                    break;
+                }
             }
             EvidenceRecoveryResult recovered;
             try {
@@ -214,6 +274,12 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
             decision = adaptiveController.decide(feedback(analyzed, gaps, progress,
                 recovered.status() == RecoveryStatus.FAILED, recovered.status() == RecoveryStatus.EXHAUSTED),
                 round, maxRounds);
+            if (journal != null) {
+                var persisted = journal.observe(context, analyzed, gaps, round + 1, decision);
+                revision = persisted.revision();
+                decision = new AdaptiveAnalysisController.Decision(
+                    AdaptiveAnalysisController.Action.valueOf(persisted.action()), persisted.reason());
+            }
             Map<String, Object> observed = new LinkedHashMap<>(trace.get(trace.size() - 1));
             observed.put("decision", decision.action().name());
             observed.put("reason", decision.reason());
@@ -298,7 +364,8 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
             Map<String, Object> audit = new LinkedHashMap<>();
             for (String key : List.of("adaptiveAnalysisSchema", "adaptiveAnalysisAction", "adaptiveAnalysisReason",
                     "adaptiveAnalysisMaxRounds", "adaptiveAnalysisRounds", "adaptiveAnalysisGapReasons",
-                    "evidenceRecoveryTrace")) {
+                    "evidenceRecoveryTrace", "runtimeEvidenceRevision", "runtimeConsumedEvidenceRevision",
+                    "runtimeProgressPersistence", "runtimeRunId")) {
                 if (metadata.containsKey(key)) audit.put(key, metadata.get(key));
             }
             audit.put("workflowType", source.workflowType().name());

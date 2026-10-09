@@ -92,7 +92,7 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
         String name = String.valueOf(context.attributes().get(TOOL_NAME));
         SkillDefinition skill = skills.list().stream().filter(item -> item.id().equals(context.skillId()))
             .findFirst().orElse(null);
-        if (skill == null || !registry.hasTool(name) || !explicitlyBound(skill, name))
+        if (skill == null || !registry.hasTool(name) || !AnalysisToolBindingPolicy.bound(skill, name, catalog))
             return denied("Tool is not explicitly bound to the selected Skill");
         ToolMetadata metadata = registry.getToolMetadata(name);
         if (metadata == null || !metadata.isAgentCompatible() || !metadata.isUserVisible()
@@ -101,6 +101,8 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
                 .contains(metadata.getRuntimeLevel().toLowerCase(java.util.Locale.ROOT)))
             || Set.of("high", "forbidden").contains(String.valueOf(metadata.getRiskLevel()).toLowerCase()))
             return denied("Tool is not published as a read-only analysis capability");
+        long invocationRevision = registry.getToolRevision(name);
+        String contractHash = AnalysisToolContractIdentity.fingerprint(metadata, mapper);
         Object rawArguments = context.attributes().get(TOOL_ARGUMENTS);
         if (rawArguments != null && !(rawArguments instanceof Map<?, ?>))
             return denied("Tool arguments must be an object");
@@ -126,7 +128,7 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
                 .toolName(name).runtimeMode("analysis").requestId(requestId)
                 .tenantId(scope.tenantId()).userId(scope.userId()).allowedTools(List.of(name))
                 .toolInput(input).attributes(Map.of("analysisSkillId", skill.id(),
-                    "toolRegistryRevisions", Map.of(name, registry.getToolRevision(name)))).build());
+                    "toolRegistryRevisions", Map.of(name, invocationRevision))).build());
         } catch (RuntimeException failure) {
             if (failure instanceof java.util.concurrent.CancellationException
                 || Thread.currentThread().isInterrupted()) throw failure;
@@ -134,6 +136,8 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
         }
         if (execution == null || execution.output() == null || !execution.output().isSuccess())
             return denied("Governed tool execution failed or was denied");
+        if (registry.getToolRevision(name) != invocationRevision)
+            return denied("Published tool contract changed during evidence acquisition");
         if (execution.output().getData() == null)
             return denied("Governed tool produced no evidence data");
         String content;
@@ -143,22 +147,18 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
             return denied("Tool output is empty or exceeds the evidence limit");
         var evidence = new ToolAnalysisEvidence(UUID.randomUUID().toString(), name, requestId, content,
             Map.of("skillId", skill.id(), "tenantId", scope.tenantId(),
+                "toolRevision", invocationRevision, "toolContractHash", contractHash,
+                "authorizationParameters", authorizationScope(arguments),
                 "runtimeOutcome", execution.outcome() == null ? "unknown" : execution.outcome()));
         return new WorkflowExecutionResult(List.of(evidence), Map.of(), List.of());
     }
 
-    private boolean explicitlyBound(SkillDefinition skill, String name) {
-        if (skill.toolConfigs() != null && skill.toolConfigs().stream()
-            .anyMatch(config -> config != null && name.equals(config.toolName())
-                && Boolean.FALSE.equals(config.enabled())))
-            return false;
-        if (skill.boundMcpToolNames() != null && skill.boundMcpToolNames().contains(name)) return true;
-        if (skill.toolConfigs() != null && skill.toolConfigs().stream()
-            .anyMatch(config -> config != null && name.equals(config.toolName())
-                && Boolean.TRUE.equals(config.enabled()))) return true;
-        if (skill.boundMcpServiceIds() == null || skill.boundMcpServiceIds().isEmpty()) return false;
-        return catalog.registeredTools().stream().anyMatch(tool -> name.equals(tool.localToolName())
-            && skill.boundMcpServiceIds().contains(tool.serviceId()));
+    private Map<String, Object> authorizationScope(Map<String, Object> arguments) {
+        // Only the existing enterprise scope grammar is retained; invocation payloads and credentials are excluded.
+        Map<String, Object> projection = new LinkedHashMap<>();
+        for (String key : List.of("scopeExpression", "assetType", "capability", "action", "domain", "permissionLevel"))
+            if (arguments.get(key) != null) projection.put(key, String.valueOf(arguments.get(key)));
+        return Map.copyOf(projection);
     }
 
     private WorkflowExecutionResult denied(String reason) {

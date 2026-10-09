@@ -69,10 +69,12 @@ public class PreauthorizedStructuredDataOperator implements AnalysisCapabilityOp
             long rows = data.path("rowCount").asLong();
             if (rows < 0 || rows > 100 || data.path("rows").size() != rows)
                 return failed("SQL template result is truncated or exceeds the analysis row limit");
+            Map<String, Object> attributes = new java.util.LinkedHashMap<>(result.evidence().get(0).attributes());
+            attributes.put("sourceTool", TOOL_NAME);
+            attributes.put("tenantId", scope.tenantId());
+            attributes.put("remoteProjection", Map.of("assetName", asset, "templateId", template, "rowCount", rows));
             var evidence = new StructuredDataEvidence(result.evidence().get(0).evidenceId(), asset, template,
-                rows, Instant.now().toString(), content,
-                Map.of("sourceTool", TOOL_NAME, "tenantId", scope.tenantId(),
-                    "remoteProjection", Map.of("assetName", asset, "templateId", template, "rowCount", rows)));
+                rows, Instant.now().toString(), content, attributes);
             return new WorkflowExecutionResult(List.of(evidence), Map.of(), List.of());
         } catch (Exception invalid) {
             return failed("SQL template result cannot be verified");

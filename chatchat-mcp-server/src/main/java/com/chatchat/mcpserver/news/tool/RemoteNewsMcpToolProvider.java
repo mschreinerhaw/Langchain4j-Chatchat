@@ -26,14 +26,22 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
     public RemoteNewsMcpToolProvider(WebSearchExecutionWorkflow workflow) {
         this.workflow = workflow;
         McpToolDefinition webSearch = definition("web_search", "Unified Web Search",
-            "Unified one-call retrieval for current hotspots, place names, knowledge beyond the local corpus, "
+            "Retrieve news/web content AND registered financial observations, including market-price datasets when available. "
+                + "Inspect the publisher capabilityManifest for actual dataset codes. You choose the dataset supporting your analysis; "
+                + "operation=discover_datasets returns registered fields and descriptions without reading data. "
+                + "operation=read_dataset with dataset, filters, startDate/endDate reads stored observations directly. "
+                + "Search auto-matches are candidates, not proof of coverage. Refine or explicitly read when they do not support your conclusion. "
+                + "Unified one-call retrieval for current hotspots, place names, knowledge beyond the local corpus, "
                 + "news, and governed financial data. Governed financial data and local news are searched first; "
                 + "external search is a supplemental fallback and is not "
                 + "a separate user-facing tool. The tool dynamically matches the governed financial-data-asset "
                 + "index and reads bounded observations from relevant collected datasets before considering the "
                 + "external API. Financial asset mapping is an internal stage of this tool and always receives the "
                 + "same query. For an exact dataset follow-up, call web_search again with dataset.",
-            List.of(text("query", "Original user question retained for local routing and audit; it is never sent directly to the external search provider", false),
+            List.of(ToolParameter.builder().name("operation").type("string").required(false)
+                    .description("search (default): unified retrieval; discover_datasets: full registered dataset/field directory; read_dataset: explicit governed observation read, requires dataset")
+                    .metadata(Map.of("enum", List.of("search", "discover_datasets", "read_dataset"))).build(),
+                text("query", "Original user question retained for local routing and audit; it is never sent directly to the external search provider", false),
                 stringArray("queryTerms", "Analyzed, independent search keywords or short phrases. Local retrieval searches each item; external retrieval combines them and excludes the original question.", 8),
                 stringArray("keywords", "Alias of queryTerms for analyzed search keywords", 8),
                 text("intent", "Analyzed search intent used by external retrieval when analyzed keywords are unavailable", false),
@@ -61,6 +69,9 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
 
     @Override public String capabilityCode() { return McpCapabilityCodes.NEWS; }
     @Override public Collection<McpToolDefinition> definitions() { return definitions.values(); }
+    @Override public Map<String, Object> capabilityManifest(String toolName) {
+        return definitions.containsKey(toolName) ? workflow.capabilityManifest() : Map.of();
+    }
     @Override public Optional<McpToolExecutor> findExecutor(String toolName) {
         return definitions.containsKey(toolName) ? Optional.of(workflow::execute) : Optional.empty();
     }

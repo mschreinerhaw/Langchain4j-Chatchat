@@ -52,6 +52,8 @@ public class AgentRuntimeGovernanceFactory {
             putAlias(meta, "timeout_ms", metadata.getTimeoutMillis());
         }
         if (metadata != null && metadata.getMetadata() != null) {
+            Object manifest = metadata.getMetadata().get("capabilityManifest");
+            if (manifest instanceof Map<?, ?>) meta.put("capabilityManifest", manifest);
             Object applicability = metadata.getMetadata().get("applicability");
             if (applicability instanceof Map<?, ?>) {
                 meta.put("applicability", applicability);

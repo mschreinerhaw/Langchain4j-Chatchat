@@ -18,6 +18,10 @@ public final class AnalysisCoverageCoordinator {
     private final AnalysisEvidenceCoordinator evidenceCoordinator;
     private final Configuration configuration;
     private AnalysisEvidenceSpillStore spillStore;
+    private java.util.function.Function<Request, com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccess> toolAccessFactory;
+    public void setToolAccessFactory(java.util.function.Function<Request, com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccess> factory) {
+        this.toolAccessFactory = factory;
+    }
     public AnalysisCoverageCoordinator(AgentRunResultAdapter resultAdapter, String runIdAttribute,
         AnalysisEvidenceCoordinator evidenceCoordinator, AnalysisEvidenceSpillStore spillStore, Configuration configuration) {
         this.resultAdapter = resultAdapter;
@@ -176,6 +180,7 @@ public final class AnalysisCoverageCoordinator {
         request.metadata().put("recordAnalysisSummaryDispatchMode", "MODEL_NATIVE_HARNESS");
         request.metadata().put("analysisSemanticReviewPolicy", "NONE_USER_JUDGES");
         var result = new com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarness(configuration.harnessMaxModelTurns())
+            .withToolAccess(toolAccessFactory == null ? null : toolAccessFactory.apply(request))
             .execute(request.query(), datasets, request.model(), request.isolationScope(), spillStore,
                 request.metadata(), request.cancellationGuard(), trace -> observe(request,
                     "STARTED".equals(trace.get("eventState")) ? "Model-directed evidence workspace turn started."

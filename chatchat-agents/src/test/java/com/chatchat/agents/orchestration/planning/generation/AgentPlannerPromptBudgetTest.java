@@ -10,8 +10,24 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class AgentPlannerPromptBudgetTest {
+
+    @Test void compactWorkflowPreservesAuthorizedPublisherContracts() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        var metadata = com.chatchat.common.tool.ToolMetadata.builder().description("short label").metadata(Map.of(
+            "inputSchema", Map.of("type", "object", "properties", Map.of("operation", Map.of("enum", List.of("read_dataset")))),
+            "mcpToolMeta", Map.of("capabilityManifest", Map.of("datasets", List.of(Map.of("dataset", "registered_dataset"))))))
+            .build();
+        when(registry.getToolMetadata("authorized_tool")).thenReturn(metadata);
+        when(registry.getToolMetadata("unauthorized_tool")).thenThrow(new AssertionError("Must not inspect unauthorized contracts"));
+        var builder = new AgentPlannerPromptBuilder(registry, new ObjectMapper(), Clock.systemUTC());
+        var prompt = builder.build("analyze", null, List.of("authorized_tool"), List.of(), List.of(), List.of(),
+            List.of("authorized_tool"), true, false, null, null,
+            Map.of("authoritativeWorkflowDag", List.of(Map.of("id", "read", "tool", "authorized_tool"))));
+        assertThat(prompt).contains("registered_dataset", "read_dataset", "inputSchema").doesNotContain("unauthorized_tool");
+    }
 
     @Test
     void authoritativeWorkflowUsesCompactModelFacingContract() {

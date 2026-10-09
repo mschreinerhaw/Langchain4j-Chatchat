@@ -10,6 +10,7 @@ import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
 import com.chatchat.agents.runtime.plan.InterpretationPlanJsonSchema;
 import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.agents.tool.CapabilityManifestInjector;
 import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import com.chatchat.common.mcp.capability.McpTemplateSelectionScope;
 import com.chatchat.common.knowledge.runtime.KnowledgeContext;
@@ -494,6 +495,7 @@ public final class AgentPlannerPromptBuilder {
                 .append(" [role=").append(workflowRole(toolName)).append("): ")
                 .append(boundedText(description, COMPACT_TOOL_DESCRIPTION_CHARS, "tool description"))
                 .append('\n');
+            CapabilityManifestInjector.append(result, toolName, metadata, objectMapper);
         }
         return result.append('\n').toString();
     }
@@ -733,6 +735,7 @@ public final class AgentPlannerPromptBuilder {
                     .append(firstNonBlank(configuredDescription, metadata.getDescription()))
                     .append("\n");
                 appendApplicability(sb, metadata);
+                CapabilityManifestInjector.append(sb, toolName, metadata, objectMapper);
                 appendBatchInputSchema(sb, toolName, metadata);
             } else {
                 ToolRegistry.Tool simpleTool = toolRegistry.getTool(toolName);

@@ -168,6 +168,15 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
                                                                       Map<String, Object> metadata,
                                                                       List<String> observations) {
         Map<String, Object> values = metadata == null ? new LinkedHashMap<>() : metadata;
+        if (values.get("harnessToolTraces") instanceof Iterable<?> additional) {
+            var combined = new java.util.ArrayList<InteractionToolTrace>(traces == null ? List.of() : traces);
+            for (Object item : additional) {
+                InteractionToolTrace trace = item instanceof InteractionToolTrace typed ? typed
+                    : item instanceof Map<?, ?> ? new com.fasterxml.jackson.databind.ObjectMapper().convertValue(item, InteractionToolTrace.class) : null;
+                if (trace != null && !combined.contains(trace)) combined.add(trace);
+            }
+            traces = List.copyOf(combined);
+        }
         McpResultEvidencePolicy.Assessment mcpAssessment =
             recordMcpResultEvidencePolicy(values, traces);
         String policyCompliantCandidate = values.containsKey("analysisReportContract")

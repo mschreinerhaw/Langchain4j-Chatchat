@@ -447,6 +447,26 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE, this.analysisEvidenceCoordinator,
             this.analysisEvidenceSpillStore, new AnalysisCoverageCoordinator.Configuration(
                 resolvedRuntimeProperties.getHarnessMaxModelTurns()));
+        this.analysisCoverageCoordinator.setToolAccessFactory(request -> {
+            var scope = request.isolationScope();
+            List<String> authorized = metadataStringList(request.metadata(), "availableTools");
+            List<InteractionToolTrace> priorTraces = new ArrayList<>();
+            if (request.result() != null && request.result().steps() != null) {
+                request.result().steps().stream().map(InterpretationPlanRuntime.StepExecution::toolExecution)
+                    .filter(java.util.Objects::nonNull).map(com.chatchat.agents.runtime.tool.ToolRuntimeExecution::trace)
+                    .filter(java.util.Objects::nonNull).forEach(priorTraces::add);
+            }
+            return new com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccess(toolRegistry, authorized,
+                (name, arguments) -> {
+                    var execution = toolCallCoordinator.execute(name, arguments, scope.conversationId(),
+                    scope.requestId(), scope.userId(), scope.tenantId(), authorized, Map.of(), priorTraces,
+                    request.runtimeAttributes()).runtimeExecution();
+                    if (execution.trace() != null) priorTraces.add(execution.trace());
+                    return execution;
+                }, analysisEvidenceCoordinator,
+                request.runtimeAttributes(), request.metadata(), scope, analysisEvidenceSpillStore,
+                request.result() == null || request.result().steps() == null ? 0 : request.result().steps().size());
+        });
         InterpretationPlanStore resolvedPlanStore = interpretationPlanStore == null && this.runStore instanceof InterpretationPlanStore store
             ? store
             : interpretationPlanStore;

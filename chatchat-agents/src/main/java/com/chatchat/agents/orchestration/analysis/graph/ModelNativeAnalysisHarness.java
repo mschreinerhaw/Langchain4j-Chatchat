@@ -18,7 +18,9 @@ public final class ModelNativeAnalysisHarness {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final List<String> EVIDENCE_OPERATIONS = List.of("READ_RECORDS", "READ_TEXT", "READ_NESTED_RECORDS", "READ_CONTEXT", "CALCULATE", "EXECUTE_OPERATION");
     private final int maximumTurns;
+    private HarnessToolAccess toolAccess;
     public ModelNativeAnalysisHarness(int maximumTurns) { this.maximumTurns = Math.max(1, Math.min(64, maximumTurns)); }
+    public ModelNativeAnalysisHarness withToolAccess(HarnessToolAccess access) { this.toolAccess = access; return this; }
     public record Result(String markdown, int modelCalls, List<String> datasetReferences) { }
 
     public Result execute(String question, List<Dataset> datasets, ChatModel model, GovernanceIsolationScope scope,
@@ -57,6 +59,7 @@ public final class ModelNativeAnalysisHarness {
                 "workspace", workspace, "priorReport", report));
             layers.put("L2", Map.of("evidenceOperations", EVIDENCE_OPERATIONS,
                 "workspaceOperations", operations.capabilities(),
+                "externalToolCapabilities", toolAccess == null ? "No external continuation tools authorized." : toolAccess.capabilities(),
                 "skillMethodology", SkillAnalysisContext.from(metadata), "roleContext", metadata.getOrDefault("agentRoleAnalysisContext", Map.of()),
                 "domainKnowledgeContext", metadata.getOrDefault("domainKnowledgeContext", Map.of())));
             layers.put("L3", Map.of("datasets", access.fitViews(prepared.views(), Math.max(4000, budget.inputTokens())), "receipts", receipts));
@@ -73,7 +76,9 @@ public final class ModelNativeAnalysisHarness {
                 Optional turn protocol: JSON {schemaVersion:'model_native_analysis.v1',completed:true,
                 reportMarkdown:'your report',workspace:{notes:'your own working notes',artifacts:[]},evidenceRequests:[]}.
                 A final plain Markdown report is also accepted. Intermediate notes are not the published report.
-                At most four evidenceRequests per turn. Data requests reference an existing datasetReference.
+                At most four evidenceRequests per turn. Workspace reads reference an existing datasetReference.
+                Optional CALL_TOOL requests may obtain new evidence through the L2 authorized external tool contracts.
+                If you choose to obtain evidence, return completed:false and evidenceRequests instead of finalizing.
                 Workspace capabilities are registered in L2. CATALOG lists further sources/results by cursor.
                 QUERY_DATASET computes over the full handle, including records absent from the context view.
                 BATCH_MODEL_INFERENCE executes only your explicit instruction/schema over your chosen scope.
@@ -136,6 +141,13 @@ public final class ModelNativeAnalysisHarness {
                     guard.run();
                     try {
                         String operation = String.valueOf(request.get("operation"));
+                        if ("CALL_TOOL".equals(operation) && toolAccess != null) {
+                            var receipt = toolAccess.call(request, prepared.sources());
+                            receipts.add(receipt);
+                            audit.add(Map.of("status", "EXECUTED", "request", request,
+                                "receiptFingerprint", ModelProtocolJson.sha256Hex(receipt)));
+                            continue;
+                        }
                         if (operations.supports(operation)) {
                             var receipt = operations.execute(request);
                             receipts.add(receipt);

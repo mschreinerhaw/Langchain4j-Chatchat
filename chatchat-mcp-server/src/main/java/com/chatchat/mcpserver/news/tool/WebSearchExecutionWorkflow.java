@@ -35,6 +35,40 @@ public class WebSearchExecutionWorkflow extends AbstractStagedExecutionWorkflow<
 
     @Override public String workflowId() { return WORKFLOW_ID; }
 
+    public Map<String, Object> capabilityManifest() {
+        Map<String, Object> manifest = new LinkedHashMap<>();
+        manifest.put("version", "capability_manifest.v1");
+        manifest.put("workflow", WORKFLOW_ID);
+        manifest.put("operations", financialSearch.isPresent()
+            ? List.of("search", "discover_datasets", "read_dataset") : List.of("search"));
+        manifest.put("selectionAuthority", "MODEL");
+        if (financialSearch.isPresent()) manifest.put("searchContract", Map.of(
+            "datasetSelection", "Automatic relevance matching; may not cover all requested metrics",
+            "entityScope", "Queries every entity filter resolved within the existing per-dataset resolver limit",
+            "rowScope", "Each dataset/entity read is bounded; returned observations are not the full retention history",
+            "continuation", "Use discover_datasets or read_dataset with registered fields for a model-selected evidence scope"));
+        if (financialSearch.isPresent()) manifest.put("readContract", Map.of("operation", "read_dataset", "required", List.of("dataset"),
+            "filters", "Registered fields only; exact match or the declared _like operator. No guessed fields.",
+            "result", "Actual bounded observation rows, registered fields, query scope and source metadata. Not live exchange quotes."));
+        if (financialSearch.isPresent()) {
+            try {
+                manifest.put("datasets", financialSearch.get().datasetCatalog().stream().map(source -> {
+                    Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("dataset", text(source, "dataset_code", "datasetCode"));
+                    entry.put("title", text(source, "asset_name", "assetName", "title"));
+                    entry.put("description", text(source, "business_description", "businessDescription", "description"));
+                    entry.put("lastObservationDate", text(source, "last_observation_date", "lastObservationDate"));
+                    entry.put("fields", financialFields(source.get("fields")).stream().map(field -> field.get("name")).toList());
+                    return entry;
+                }).toList());
+            } catch (RuntimeException unavailable) {
+                CancellationSupport.rethrowIfCancelled(unavailable, "capability directory");
+                manifest.put("directoryStatus", "UNAVAILABLE");
+            }
+        }
+        return manifest;
+    }
+
     @Override
     protected void validateInput(ToolInput input, KernelDataScope scope) {
         if (input == null) throw new IllegalArgumentException("web_search input is required");
@@ -44,12 +78,21 @@ public class WebSearchExecutionWorkflow extends AbstractStagedExecutionWorkflow<
     protected Analysis analyze(ToolInput input, KernelDataScope scope) {
         String dataset = input.getParameterAsString("dataset", "").trim();
         String query = input.getParameterAsString("query", "").trim();
+        String operation = input.getParameterAsString("operation", "search").trim();
+        if (!List.of("search", "discover_datasets", "read_dataset").contains(operation)) {
+            throw new IllegalArgumentException("Unsupported registered operation: " + operation);
+        }
+        if ("discover_datasets".equals(operation)) return new Analysis("CATALOG", query, "");
+        if ("read_dataset".equals(operation) && dataset.isBlank()) {
+            throw new IllegalArgumentException("read_dataset requires a registered dataset code");
+        }
         return new Analysis(dataset.isBlank() ? "DISCOVERY" : "DATASET_QUERY", query, dataset);
     }
 
     @Override
     protected Plan plan(ToolInput input, Analysis analysis, KernelDataScope scope) {
-        List<String> steps = "DATASET_QUERY".equals(analysis.mode())
+        List<String> steps = "CATALOG".equals(analysis.mode()) ? List.of("LOAD_REGISTERED_CATALOG", "ASSEMBLE_CAPABILITIES")
+            : "DATASET_QUERY".equals(analysis.mode())
             ? List.of("VALIDATE_DATASET_SCOPE", "LOAD_GOVERNED_DATASET", "VERIFY_FACT_ROWS", "ASSEMBLE_EVIDENCE")
             : List.of("ANALYZE_QUERY", "SEARCH_GOVERNED_FINANCIAL_DATA", "SEARCH_LOCAL_NEWS",
                 "SUPPLEMENT_EXTERNAL_WEB", "MERGE_AND_RANK", "VERIFY_EVIDENCE");
@@ -78,6 +121,14 @@ public class WebSearchExecutionWorkflow extends AbstractStagedExecutionWorkflow<
     }
     private ToolOutput executeSearch(ToolInput input, Analysis analysis) {
         CancellationSupport.throwIfCancelled("unified web_search");
+        if ("CATALOG".equals(analysis.mode())) {
+            var service = financialSearch.orElseThrow(() -> new IllegalStateException("Dataset directory is unavailable"));
+            String discoveryId = UUID.randomUUID().toString();
+            var assets = service.datasetCatalog().stream().map(source -> assetResult(source, discoveryId)).toList();
+            return ToolOutput.success(Map.of("result_type", "dataset_capability_catalog", "financialAssets", assets,
+                "count", assets.size(), "discovery_id", discoveryId, "selectionAuthority", "MODEL",
+                "isObservationEvidence", false), "Registered dataset directory; select a dataset and read observations");
+        }
         String dataset = analysis.dataset();
         if (!dataset.isBlank()) {
             try {
@@ -98,6 +149,14 @@ public class WebSearchExecutionWorkflow extends AbstractStagedExecutionWorkflow<
                 data.put("sample_only", false);
                 data.put("requires_second_query", false);
                 data.put("empty_result", factRows.isEmpty());
+                data.put("queryScope", Map.of("filters", input.getParameter("filters") instanceof Map<?, ?> filters ? filters : Map.of(),
+                    "startDate", input.getParameterAsString("startDate", ""),
+                    "endDate", input.getParameterAsString("endDate", ""),
+                    "requestedLimit", bounded(input.getParameterAsNumber("limit"), 50, 1, 200)));
+                data.put("availableFields", financialFields(map(data.get("asset")).get("fields")));
+                data.put("readTool", "web_search");
+                data.put("boundedRead", true);
+                data.put("totalRecordCountKnown", false);
                 String discoveryId = input.getParameterAsString("discovery_id", "").trim();
                 if (!discoveryId.isBlank()) data.put("discovery_id", discoveryId);
                 ToolOutput result = ToolOutput.success(data, "Financial dataset query completed");
@@ -252,6 +311,12 @@ public class WebSearchExecutionWorkflow extends AbstractStagedExecutionWorkflow<
         return first == null || first.isBlank() ? fallback : first;
     }
 
+    private Map<String, Object> map(Object value) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (value instanceof Map<?, ?> source) source.forEach((key, item) -> result.put(String.valueOf(key), item));
+        return result;
+    }
+
     private Map<String, Object> assetResult(Map<String, Object> source, String discoveryId) {
         String dataset = text(source, "dataset_code", "datasetCode");
         String title = text(source, "title", "asset_name", "assetName");
@@ -353,7 +418,6 @@ public class WebSearchExecutionWorkflow extends AbstractStagedExecutionWorkflow<
             item.put("exactFilterKey", name);
             if ("STRING".equalsIgnoreCase(type)) item.put("containsFilterKey", name + "_like");
             result.add(Map.copyOf(item));
-            if (result.size() >= 40) break;
         }
         return List.copyOf(result);
     }

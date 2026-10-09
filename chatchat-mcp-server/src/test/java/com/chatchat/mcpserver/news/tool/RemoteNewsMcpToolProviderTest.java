@@ -28,6 +28,63 @@ import static org.mockito.Mockito.verify;
 
 class RemoteNewsMcpToolProviderTest {
 
+    @Test void unifiedSearchExecutesAllResolvedEntityBindingsWithoutCountingThemAsDifferentDatasets() {
+        var catalog = mock(FinancialAssetCatalogService.class);
+        var store = mock(FinancialDataStore.class);
+        when(store.assetSearchQuery(any(), any(Integer.class))).thenReturn("measurements");
+        when(catalog.search(any(), any(Integer.class))).thenReturn(List.of(
+            Map.of("dataset_code", "registered", "asset_name", "measurements")));
+        var bindings = List.of(Map.<String,Object>of("entity", "first"), Map.<String,Object>of("entity", "second"),
+            Map.<String,Object>of("entity", "third"));
+        when(store.resolveEntityFilters("registered", "compare subjects", 5)).thenReturn(bindings);
+        for (var filters : bindings) when(store.query("registered", filters, null, null, 20, "auto"))
+            .thenReturn(Map.of("rows", List.of(Map.of("entity", filters.get("entity"), "value", 42))));
+        var result = new FinancialEnrichmentService(catalog, store).enrich("compare subjects",
+            ToolInput.builder().parameters(Map.of("financial_data_required", true, "financial_dataset_limit", 1)).build(), 2);
+        assertThat(result.financialData()).hasSize(3).extracting(item -> item.get("filters")).containsExactlyElementsOf(bindings);
+        for (var filters : bindings) verify(store).query("registered", filters, null, null, 20, "auto");
+        when(store.query("registered", bindings.get(0), null, null, 20, "auto")).thenThrow(new IllegalStateException("read unavailable"));
+        var partial = new FinancialEnrichmentService(catalog, store).enrich("compare subjects",
+            ToolInput.builder().parameters(Map.of("financial_data_required", true, "financial_dataset_limit", 1)).build(), 2);
+        assertThat(partial.financialData()).hasSize(2).extracting(item -> item.get("filters")).containsExactly(bindings.get(1), bindings.get(2));
+        assertThat(partial.warnings()).anyMatch(warning -> warning.contains("first") && warning.contains("read unavailable"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void publisherDirectoryAndExplicitReadUseRegisteredContractWithoutAutoRouting() {
+        NewsRuntimeClient news = mock(NewsRuntimeClient.class);
+        FinancialAssetCatalogService market = mock(FinancialAssetCatalogService.class);
+        FinancialDataStore store = mock(FinancialDataStore.class);
+        var fields = List.of(Map.of("field_name", "entity_id", "field_type", "STRING"),
+            Map.of("field_name", "measurement", "field_type", "DECIMAL"));
+        var asset = Map.<String, Object>of("dataset_code", "new_dataset", "asset_name", "Registered measurements", "fields", fields);
+        when(store.catalogCodes()).thenReturn(List.of("new_dataset"));
+        when(store.catalog("new_dataset")).thenReturn(asset);
+        when(store.query("new_dataset", Map.of("entity_id", "subject"), null, null, 50, "auto"))
+            .thenReturn(Map.of("asset", asset, "rows", List.of(Map.of("entity_id", "subject", "measurement", 42))));
+        var provider = provider(news, market, store);
+        assertThat(provider.capabilityManifest("web_search").toString()).contains("new_dataset", "entity_id", "read_dataset");
+        var executor = provider.findExecutor("web_search").orElseThrow();
+        var catalog = executor.execute(ToolInput.builder().parameters(Map.of("operation", "discover_datasets")).build());
+        assertThat(catalog.isSuccess()).isTrue();
+        assertThat((Map<String, Object>) catalog.getData()).containsEntry("isObservationEvidence", false);
+        var read = executor.execute(ToolInput.builder().parameters(Map.of("operation", "read_dataset", "dataset", "new_dataset",
+            "filters", Map.of("entity_id", "subject"))).build());
+        assertThat(read.isSuccess()).isTrue();
+        assertThat((Map<String, Object>) read.getData()).containsEntry("count", 1).containsEntry("totalRecordCountKnown", false);
+        assertThat(read.getMetadata()).containsEntry("workflowMode", "DATASET_QUERY");
+        verify(market, never()).search(any(), any(Integer.class));
+        verify(news, never()).invoke(any(), any());
+        verify(store, never()).resolveEntityFilters(any(), any(), any(Integer.class));
+    }
+
+    @Test void absentFinancialProviderDoesNotAdvertiseDatasetOperations() {
+        var provider = new RemoteNewsMcpToolProvider(new NewsSearchService(mock(NewsRuntimeClient.class)), java.util.Optional.empty());
+        assertThat(provider.capabilityManifest("web_search")).containsEntry("operations", List.of("search"))
+            .doesNotContainKey("readContract");
+    }
+
     @Test
     void webSearchPublishesIndependentLocalNewsQueryTerms() {
         RemoteNewsMcpToolProvider provider = new RemoteNewsMcpToolProvider(

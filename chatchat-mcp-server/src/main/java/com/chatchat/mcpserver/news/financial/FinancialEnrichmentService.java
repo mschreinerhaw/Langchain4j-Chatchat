@@ -76,26 +76,39 @@ public class FinancialEnrichmentService {
         List<Map<String, Object>> financialData = new ArrayList<>();
         int candidateLimit = Math.min(assets.size(), Math.max(datasetLimit, datasetLimit * 2));
         int attempted = 0;
+        int populatedDatasets = 0;
         for (Map<String, Object> asset : assets) {
-            if (financialData.size() >= datasetLimit || attempted >= candidateLimit) break;
+            if (populatedDatasets >= datasetLimit || attempted >= candidateLimit) break;
             String dataset = text(asset, "dataset_code", "datasetCode");
             if (dataset.isBlank()) continue;
             attempted++;
             try {
                 List<Map<String, Object>> resolved = store.resolveEntityFilters(dataset, query, 5);
-                Map<String, Object> filters = resolved.isEmpty() ? Map.of() : resolved.get(0);
-                Map<String, Object> result = new java.util.LinkedHashMap<>(cachedQuery(
-                    dataset, filters, startDate, endDate, rowLimit, historyMode, input));
-                result.put("dataset", dataset);
-                result.put("resultType", "financial_dataset_query");
-                result.put("retrievalSource", "governed_financial_store");
-                result.put("filters", filters);
-                result.put("analysisContext", financialAnalysisContext(dataset, asset, result));
-                if (hasObservations(result)) {
-                    financialData.add(result);
-                } else {
-                    warnings.add("financial dataset " + dataset + ": no matching observations");
+                List<Map<String, Object>> bindings = resolved.isEmpty() ? List.of(Map.of()) : resolved;
+                boolean hasDatasetRows = false;
+                for (Map<String, Object> filters : bindings) {
+                    CancellationSupport.throwIfCancelled("governed entity observation read");
+                    try {
+                        Map<String, Object> result = new java.util.LinkedHashMap<>(cachedQuery(
+                            dataset, filters, startDate, endDate, rowLimit, historyMode, input));
+                        result.put("dataset", dataset);
+                        result.put("resultType", "financial_dataset_query");
+                        result.put("retrievalSource", "governed_financial_store");
+                        result.put("filters", filters);
+                        result.put("resolvedEntityBindingCount", bindings.size());
+                        result.put("analysisContext", financialAnalysisContext(dataset, asset, result));
+                        if (hasObservations(result)) {
+                            financialData.add(result);
+                            hasDatasetRows = true;
+                        } else {
+                            warnings.add("financial dataset " + dataset + " filters=" + filters + ": no matching observations");
+                        }
+                    } catch (Exception ex) {
+                        CancellationSupport.rethrowIfCancelled(ex, "governed entity observation read");
+                        warnings.add("financial dataset " + dataset + " filters=" + filters + ": " + safe(ex.getMessage()));
+                    }
                 }
+                if (hasDatasetRows) populatedDatasets++;
             } catch (Exception ex) {
                 CancellationSupport.rethrowIfCancelled(ex, "explicit financial enrichment");
                 warnings.add("financial dataset " + dataset + ": " + safe(ex.getMessage()));
@@ -119,6 +132,11 @@ public class FinancialEnrichmentService {
         result.put("dataset", dataset);
         result.put("analysisContext", financialAnalysisContext(dataset, map(result.get("asset")), result));
         return java.util.Collections.unmodifiableMap(result);
+    }
+
+    /** Complete registered directory, not a relevance-ranked business selection. */
+    public List<Map<String, Object>> datasetCatalog() {
+        return store.catalogCodes().stream().map(store::catalog).filter(entry -> !entry.isEmpty()).toList();
     }
 
     private Map<String, Object> financialAnalysisContext(String dataset,

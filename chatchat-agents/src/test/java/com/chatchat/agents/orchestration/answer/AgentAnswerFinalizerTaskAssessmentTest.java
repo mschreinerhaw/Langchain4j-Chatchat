@@ -34,9 +34,13 @@ class AgentAnswerFinalizerTaskAssessmentTest {
         metadata.put("analysisReportContract", Map.of("reportType", "MODEL_REPORT", "renderedText", report));
         metadata.put("claimCoverageStatus", "FAIL");
         metadata.put("answerClaimAuditPassed", false);
+        var continuationTrace = InteractionToolTrace.builder().toolName("registered_read").success(true).output("{}").build();
+        metadata.put("harnessToolTraces", List.of(new com.fasterxml.jackson.databind.ObjectMapper().convertValue(continuationTrace, Map.class)));
         var result = finalizer.finishReviewedAnswer(null, "Analyze", null, List.of(), metadata,
             List.of("Available source records"), report, () -> false, "final_answer");
         assertThat(result.answer()).isEqualTo(report);
+        assertThat(result.toolTraces()).containsExactly(continuationTrace);
+        assertThat(result.metadata()).containsEntry("toolTraceCount", 1);
         assertThat(result.metadata()).containsEntry("answerClaimAuditSkipped", true)
             .containsEntry("executionStatus", "COMPLETED")
             .containsEntry("reportQualityAuthority", "USER")

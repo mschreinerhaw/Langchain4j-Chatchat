@@ -57,6 +57,10 @@ public record McpToolDefinition(
                 Map<String, Object> property = new LinkedHashMap<>();
                 property.put("type", parameter.getType() == null ? "string" : parameter.getType());
                 if (parameter.getDescription() != null) property.put("description", parameter.getDescription());
+                if (parameter.getMetadata() != null) property.putAll(parameter.getMetadata());
+                if (parameter.getDefaultValue() != null) property.put("default", parameter.getDefaultValue());
+                if (parameter.getMinimum() != null) property.put("minimum", parameter.getMinimum());
+                if (parameter.getMaximum() != null) property.put("maximum", parameter.getMaximum());
                 properties.put(parameter.getName(), Map.copyOf(property));
             }
         }

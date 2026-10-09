@@ -21,6 +21,7 @@ public class McpToolRegistry {
     private final McpCapabilityStatePort capabilityStatePort;
     private final McpCapabilitiesProperties properties;
     private final Map<String, RegisteredMcpTool> tools;
+    private final Map<String, McpToolProvider> publishers = new LinkedHashMap<>();
 
     public McpToolRegistry(List<McpToolProvider> providers, McpToolPublicationPort publicationPort,
                            McpCapabilityStatePort capabilityStatePort, McpCapabilitiesProperties properties) {
@@ -36,6 +37,7 @@ public class McpToolRegistry {
                 McpToolExecutor executor = provider.findExecutor(definition.name())
                     .orElseThrow(() -> new IllegalStateException("MCP tool has no executor: " + definition.name()));
                 RegisteredMcpTool registered = configured(definition, executor);
+                publishers.put(definition.name(), provider);
                 if (discovered.putIfAbsent(definition.name(), registered) != null) {
                     throw new IllegalStateException("Duplicate MCP tool registration: " + definition.name());
                 }
@@ -107,6 +109,12 @@ public class McpToolRegistry {
                 "outputSchema", definition.outputSchema(),
                 "governance", governance
             )).build();
+        Map<String, Object> manifest = publishers.get(definition.name()).capabilityManifest(definition.name());
+        if (manifest != null && !manifest.isEmpty()) {
+            Map<String, Object> extra = new LinkedHashMap<>(metadata.getMetadata());
+            extra.put("capabilityManifest", manifest);
+            metadata.setMetadata(extra);
+        }
         publicationPort.publish(definition.name(), metadata,
             input -> McpKernelBridge.invoke(definition.name(), registered.executor(), input));
     }

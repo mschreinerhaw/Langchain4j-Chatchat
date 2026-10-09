@@ -46,6 +46,10 @@ final class InternalFinancialDataSearchExecutor {
         return financialData.queryDataset(dataset, bridgeInput(input));
     }
 
+    java.util.List<Map<String, Object>> datasetCatalog() {
+        return financialData.datasetCatalog();
+    }
+
     private ToolInput bridgeInput(ToolInput source) {
         Map<String, Object> parameters = new LinkedHashMap<>(source.getParameters() == null
             ? Map.of() : source.getParameters());

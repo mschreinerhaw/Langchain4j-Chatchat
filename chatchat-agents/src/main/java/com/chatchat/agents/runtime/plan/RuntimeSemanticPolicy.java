@@ -12,9 +12,10 @@ import java.util.regex.Pattern;
 
 /** Immutable, database-published business vocabulary for Runtime OS. */
 public final class RuntimeSemanticPolicy {
+    public static final String SCHEMA_VERSION = "runtime-semantic-policy.v1";
     private static final RuntimeSemanticPolicy EMPTY = new RuntimeSemanticPolicy(
         List.of(), Map.of(), List.of(), Map.of(), Map.of(), List.of(), Map.of(), Map.of(),
-        List.of(), List.of(), List.of());
+        List.of(), List.of(), List.of(), "legacy-v1", Map.of(), null);
 
     private final List<ToolRule> toolRules;
     private final Map<String, String> dialectAliases;
@@ -27,6 +28,9 @@ public final class RuntimeSemanticPolicy {
     private final List<String> tableScopedTemplateSuffixes;
     private final List<String> toolNamePrefixes;
     private final Set<String> protocolStopWords;
+    private final String policyVersion;
+    private final Map<String, Set<String>> publishedRoles;
+    private final Set<String> legacyExecutionTools;
 
     private RuntimeSemanticPolicy(List<ToolRule> toolRules,
                                   Map<String, String> dialectAliases,
@@ -38,7 +42,10 @@ public final class RuntimeSemanticPolicy {
                                   Map<String, String> discoveryTargetKinds,
                                   List<String> tableScopedTemplateSuffixes,
                                   List<String> toolNamePrefixes,
-                                  List<String> protocolStopWords) {
+                                  List<String> protocolStopWords,
+                                  String policyVersion,
+                                  Map<String, Set<String>> publishedRoles,
+                                  Set<String> legacyExecutionTools) {
         this.toolRules = List.copyOf(toolRules);
         this.dialectAliases = Map.copyOf(dialectAliases);
         this.dialectContains = List.copyOf(dialectContains);
@@ -50,12 +57,23 @@ public final class RuntimeSemanticPolicy {
         this.tableScopedTemplateSuffixes = List.copyOf(tableScopedTemplateSuffixes);
         this.toolNamePrefixes = List.copyOf(toolNamePrefixes);
         this.protocolStopWords = Set.copyOf(protocolStopWords);
+        this.policyVersion = policyVersion;
+        this.publishedRoles = Map.copyOf(publishedRoles);
+        this.legacyExecutionTools = legacyExecutionTools == null ? null : Set.copyOf(legacyExecutionTools);
     }
 
     public static RuntimeSemanticPolicy empty() { return EMPTY; }
 
     public static RuntimeSemanticPolicy from(Map<String, Object> values) {
         if (values == null || values.isEmpty()) return EMPTY;
+        String schemaVersion = values.get("schemaVersion") == null
+            ? SCHEMA_VERSION : String.valueOf(values.get("schemaVersion"));
+        if (!SCHEMA_VERSION.equals(schemaVersion)) {
+            throw new IllegalArgumentException("Unsupported Runtime semantic policy schema: " + schemaVersion);
+        }
+        String policyVersion = values.get("policyVersion") == null
+            ? "legacy-v1" : String.valueOf(values.get("policyVersion")).trim();
+        if (policyVersion.isEmpty()) throw new IllegalArgumentException("Runtime semantic policy version is required");
         List<ToolRule> rules = new ArrayList<>();
         if (values.get("toolRules") instanceof List<?> configured) {
             for (Object item : configured) {
@@ -98,11 +116,50 @@ public final class RuntimeSemanticPolicy {
             strings(values, "environmentAliases", true), environmentPatterns,
             strings(values, "discoveryRoles", false), strings(values, "discoveryTargetKinds", false),
             list(values, "tableScopedTemplateSuffixes"), lowercaseList(values, "toolNamePrefixes"),
-            lowercaseList(values, "protocolStopWords"));
+            lowercaseList(values, "protocolStopWords"), policyVersion, Map.of(), null);
+    }
+
+    public String policyVersion() { return policyVersion; }
+
+    /** Published roles override compatibility name rules for their exact tool identity. */
+    public RuntimeSemanticPolicy withPublishedRoles(Map<String, Set<String>> roles) {
+        if (roles == null || roles.isEmpty()) return this;
+        Map<String, Set<String>> normalized = new LinkedHashMap<>();
+        roles.forEach((tool, values) -> {
+            if (tool == null || tool.isBlank()) throw new IllegalArgumentException("Published tool name is required");
+            Set<String> normalizedRoles = new LinkedHashSet<>();
+            if (values != null) values.forEach(role -> {
+                if (role == null || role.isBlank()) throw new IllegalArgumentException("Published role is required");
+                normalizedRoles.add(role.trim().toUpperCase(Locale.ROOT));
+            });
+            normalized.put(tool.trim().toLowerCase(Locale.ROOT), Set.copyOf(normalizedRoles));
+        });
+        return new RuntimeSemanticPolicy(toolRules, dialectAliases, dialectContains,
+            templateDialectPrefixes, environmentAliases, explicitEnvironmentPatterns,
+            discoveryRoles, discoveryTargetKinds, tableScopedTemplateSuffixes,
+            toolNamePrefixes, List.copyOf(protocolStopWords), policyVersion, normalized,
+            legacyExecutionTools);
+    }
+
+    /** Enables the bounded compatibility set captured at migration time. */
+    public RuntimeSemanticPolicy withLegacyExecutionTools(Set<String> names) {
+        Set<String> normalized = new LinkedHashSet<>();
+        if (names != null) names.stream().filter(java.util.Objects::nonNull)
+            .map(name -> name.trim().toLowerCase(Locale.ROOT))
+            .filter(name -> !name.isEmpty()).forEach(normalized::add);
+        return new RuntimeSemanticPolicy(toolRules, dialectAliases, dialectContains,
+            templateDialectPrefixes, environmentAliases, explicitEnvironmentPatterns,
+            discoveryRoles, discoveryTargetKinds, tableScopedTemplateSuffixes,
+            toolNamePrefixes, List.copyOf(protocolStopWords), policyVersion, publishedRoles,
+            normalized);
     }
 
     public boolean hasRole(String toolName, String role) {
         if (toolName == null || role == null) return false;
+        Set<String> declared = publishedRoles.get(toolName.trim().toLowerCase(Locale.ROOT));
+        if (declared != null) return declared.contains(role.trim().toUpperCase(Locale.ROOT));
+        if (legacyExecutionTools != null && role.trim().toUpperCase(Locale.ROOT).endsWith("_EXECUTE")
+            && !legacyExecutionTools.contains(toolName.trim().toLowerCase(Locale.ROOT))) return false;
         String name = toolName.trim().toLowerCase(Locale.ROOT).replace('-', '_');
         return toolRules.stream().anyMatch(rule -> rule.role.equals(role) && rule.matches(name));
     }

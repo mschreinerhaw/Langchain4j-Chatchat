@@ -46,4 +46,19 @@ class RuntimeSemanticPolicyTest {
         assertThat(policy.explicitEnvironment("environment: sandbox")).isEqualTo("DEV");
         assertThat(RuntimeSemanticPolicy.empty().hasRole("sql_query_execute", "SQL_EXECUTE")).isFalse();
     }
+
+    @Test
+    void publishedRolesOverrideCompatibilityNameRulesForExactTool() {
+        RuntimeSemanticPolicy policy = RuntimeSemanticPolicy.from(Map.of(
+            "schemaVersion", RuntimeSemanticPolicy.SCHEMA_VERSION,
+            "policyVersion", "2",
+            "toolRules", List.of(Map.of("role", "SQL_EXECUTE", "mode", "SUFFIX",
+                "value", "sql_query_execute"))))
+            .withPublishedRoles(Map.of("tenant_sql_query_execute", java.util.Set.of("GRAPH_EXECUTE")));
+
+        assertThat(policy.policyVersion()).isEqualTo("2");
+        assertThat(policy.hasRole("tenant_sql_query_execute", "SQL_EXECUTE")).isFalse();
+        assertThat(policy.hasRole("tenant_sql_query_execute", "GRAPH_EXECUTE")).isTrue();
+        assertThat(policy.hasRole("legacy_sql_query_execute", "SQL_EXECUTE")).isTrue();
+    }
 }

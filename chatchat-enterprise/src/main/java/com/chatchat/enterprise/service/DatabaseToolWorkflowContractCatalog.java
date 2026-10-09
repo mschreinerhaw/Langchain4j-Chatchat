@@ -365,6 +365,12 @@ public class DatabaseToolWorkflowContractCatalog implements ToolWorkflowContract
         if (meta.get("capabilities") instanceof List<?> capabilities) {
             published.put("capabilities", List.copyOf(capabilities));
         }
+        if (meta.get("runtimeRoles") instanceof List<?> roles) {
+            if (roles.stream().anyMatch(role -> !(role instanceof String name) || name.isBlank())) {
+                throw new IllegalArgumentException("Invalid published Runtime role");
+            }
+            published.put("runtimeRoles", List.copyOf(roles));
+        }
         copyScalarMetadata(published, meta, "batch_execution");
         copyScalarMetadata(published, meta, "template_execution");
 

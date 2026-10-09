@@ -69,6 +69,19 @@ The validator reads these fields from the published database policy; a missing p
 keeps execution blocked. Refresh the MCP tool catalog or restart the application after
 applying the migration so active tool metadata includes the new policy.
 
+Runtime semantic policies use `schemaVersion=runtime-semantic-policy.v1` and a separately
+managed `policyVersion`. The seed is repeatable and preserves an existing `default` row.
+Apply `V20261009_03__version_runtime_semantic_policy.sql` to label existing unversioned
+rows without replacing their configured rules. Runtime validates the mandatory policy at
+startup. A published MCP capability may declare `runtimeRoles` in its active workflow
+contract; roles are resolved by exact registered tool identity before legacy `toolRules`
+name matching. Role metadata does not authorize execution; normal grants and tool
+governance still apply.
+Apply `V20261009_04__capture_legacy_tool_semantics.sql` before running the new Runtime:
+it freezes existing MCP tool identities that may still use execution-role name rules.
+The migration marker makes repeated application preserve that boundary. New installations
+start with an empty legacy list, so new execution tools must publish `runtimeRoles`.
+
 
 docker rm -f postgres 2>/dev/null
 

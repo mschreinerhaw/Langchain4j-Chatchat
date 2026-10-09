@@ -114,6 +114,17 @@ class DatabaseToolWorkflowContractCatalogTest {
     }
 
     @Test
+    void publishedToolCarriesRuntimeRolesWithoutNameInference() {
+        ToolWorkflowContractSnapshot active = catalog.synchronizeDiscovery(
+            "service-a", "Service A", "opaque_graph_executor", "opaque-remote", "graph",
+            Map.of(), Map.of(), Map.of("runtimeRoles", List.of("GRAPH_EXECUTE")), true).orElseThrow();
+
+        assertThat(active.extensions()).containsEntry("runtimeRoles", List.of("GRAPH_EXECUTE"));
+        assertThat(catalog.findActive("service-a", "opaque_graph_executor", "opaque-remote")
+            .orElseThrow().extensions()).containsEntry("runtimeRoles", List.of("GRAPH_EXECUTE"));
+    }
+
+    @Test
     void stagesPublishesVersionsAndRollsBackWithoutToolNameSemantics() {
         Map<String, Object> schemaV1 = Map.of("type", "object", "required", List.of("asset"));
         Map<String, Object> metadata = Map.of(ToolWorkflowContract.METADATA_KEY, Map.of(

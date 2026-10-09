@@ -3,6 +3,7 @@ package com.chatchat.agents.runtime.plan.template;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationPlanOptimizer;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
+import com.chatchat.agents.orchestration.retrieval.McpArgumentBindingFieldPolicy;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolWorkflowContract;
@@ -20,14 +21,16 @@ import static org.mockito.Mockito.when;
 class TemplateWorkflowPluginRegistryTest {
 
     @Test
-    void sqlOwnsRuntimeRoutingButApiDoesNot() {
-        TemplateWorkflowPlugin sql = new SqlTemplateWorkflowPlugin();
-        TemplateWorkflowPlugin api = new ApiTemplateWorkflowPlugin();
+    void runtimeOwnedInputsFollowPublishedBindingPolicy() {
+        McpArgumentBindingFieldPolicy sql = McpArgumentBindingFieldPolicy.from(
+            metadata(ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.sql-template.v1", "database"));
+        McpArgumentBindingFieldPolicy api = McpArgumentBindingFieldPolicy.from(
+            metadata(ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.api-template.v1", "api_service"));
 
-        assertThat(sql.runtimeOwnsExecutionInput("executionContext")).isTrue();
-        assertThat(sql.runtimeOwnsExecutionInput("mcp_execution_context")).isTrue();
-        assertThat(api.runtimeOwnsExecutionInput("executionContext")).isFalse();
-        assertThat(api.runtimeOwnsExecutionInput("parameters")).isTrue();
+        assertThat(sql.runtimeOwnsExecutionInput("mcp.sql-template.v1", "executionContext")).isTrue();
+        assertThat(sql.runtimeOwnsExecutionInput("mcp.sql-template.v1", "mcp_execution_context")).isTrue();
+        assertThat(api.runtimeOwnsExecutionInput("mcp.api-template.v1", "executionContext")).isFalse();
+        assertThat(api.runtimeOwnsExecutionInput("mcp.api-template.v1", "parameters")).isTrue();
     }
 
     @Test
@@ -179,7 +182,31 @@ class TemplateWorkflowPluginRegistryTest {
         values.put(ToolWorkflowContract.METADATA_KEY,
             ToolWorkflowContract.declaration(role, family, "input"));
         values.put("assetType", assetType);
+        if (role == ToolWorkflowRole.TEMPLATE_EXECUTION) {
+            values.put("argumentBindingPolicy", bindingPolicy(family));
+        }
         return ToolMetadata.builder().metadata(values).build();
+    }
+
+    private Map<String, Object> bindingPolicy(String family) {
+        return Map.ofEntries(
+            Map.entry("logicalContextKeys", List.of("env")),
+            Map.entry("concreteTargetFields", List.of("hostId")),
+            Map.entry("rawExecutionFields", List.of("command")),
+            Map.entry("targetKindFields", List.of("targetKind")),
+            Map.entry("filterProtocolFields", List.of("trace")),
+            Map.entry("filterFieldAliases", Map.of()),
+            Map.entry("logicalFilterFields", List.of("env")),
+            Map.entry("identityField", "assetName"),
+            Map.entry("semanticField", "intent"),
+            Map.entry("executionProtocolBindings", Map.of(family, "SQL_EXECUTION")),
+            Map.entry("executionValidationFields", Map.of("SQL_EXECUTION", List.of("sql"))),
+            Map.entry("requiredParametersByTemplateSuffix", Map.of()),
+            Map.entry("assetIdentityForbiddenParameterFields", List.of("parameters.hostId")),
+            Map.entry("requiredExecutionContextFields", Map.of()),
+            Map.entry("runtimeOwnedExecutionInputsByProtocol", Map.of(
+                "mcp.sql-template.v1", List.of("parameters", "executionContext", "mcpExecutionContext"),
+                "mcp.api-template.v1", List.of("parameters"))));
     }
 
     private InterpretationPlan.Step step(int id, String tool, List<Integer> dependencies) {

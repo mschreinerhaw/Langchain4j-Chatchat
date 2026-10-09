@@ -22,7 +22,8 @@ public record McpArgumentBindingFieldPolicy(List<String> logicalContextKeys,
                                      Map<String, List<String>> executionValidationFields,
                                      Map<String, List<String>> requiredParametersByTemplateSuffix,
                                      List<String> assetIdentityForbiddenParameterFields,
-                                     Map<String, List<String>> requiredExecutionContextFields) {
+                                     Map<String, List<String>> requiredExecutionContextFields,
+                                     Map<String, List<String>> runtimeOwnedExecutionInputsByProtocol) {
 
     public static McpArgumentBindingFieldPolicy from(ToolMetadata metadata) {
         if (metadata == null || metadata.getMetadata() == null) return null;
@@ -43,6 +44,7 @@ public record McpArgumentBindingFieldPolicy(List<String> logicalContextKeys,
         Object validationValue = policy.get("executionValidationFields");
         Object requiredParametersValue = policy.get("requiredParametersByTemplateSuffix");
         Object contextValue = policy.get("requiredExecutionContextFields");
+        Object runtimeOwnedValue = policy.get("runtimeOwnedExecutionInputsByProtocol");
         if (logical == null || concrete == null || raw == null || target == null || protocol == null
             || filterFields == null || !(aliasValue instanceof Map<?, ?> aliases)
             || !(executionValue instanceof Map<?, ?> bindings)
@@ -91,10 +93,30 @@ public record McpArgumentBindingFieldPolicy(List<String> logicalContextKeys,
                 requiredContext.put(mode.trim(), rawFields.stream().map(String::valueOf).toList());
             }
         });
+        Map<String, List<String>> runtimeOwned = new LinkedHashMap<>();
+        if (runtimeOwnedValue instanceof Map<?, ?> runtimeOwnedRequirements) {
+            runtimeOwnedRequirements.forEach((key, item) -> {
+                if (key instanceof String protocolFamily && item instanceof List<?> fields
+                    && fields.stream().allMatch(field -> field instanceof String text && !text.isBlank())) {
+                    runtimeOwned.put(protocolFamily.trim().toLowerCase(Locale.ROOT),
+                        fields.stream().map(String::valueOf).toList());
+                }
+            });
+        }
         return new McpArgumentBindingFieldPolicy(logical, concrete, raw, target, protocol,
             Map.copyOf(normalizedAliases), filterFields, identity, semantic,
             Map.copyOf(executionBindings), Map.copyOf(validationFields),
-            Map.copyOf(requiredBySuffix), forbiddenIdentityBindings, Map.copyOf(requiredContext));
+            Map.copyOf(requiredBySuffix), forbiddenIdentityBindings, Map.copyOf(requiredContext),
+            Map.copyOf(runtimeOwned));
+    }
+
+    public boolean runtimeOwnsExecutionInput(String protocolFamily, String inputName) {
+        if (protocolFamily == null || inputName == null) return false;
+        String requested = normalizeKey(inputName);
+        return runtimeOwnedExecutionInputsByProtocol
+            .getOrDefault(protocolFamily.trim().toLowerCase(Locale.ROOT), List.of()).stream()
+            .map(McpArgumentBindingFieldPolicy::normalizeKey)
+            .anyMatch(requested::equals);
     }
 
     private static List<String> fields(Map<?, ?> policy, String key) {

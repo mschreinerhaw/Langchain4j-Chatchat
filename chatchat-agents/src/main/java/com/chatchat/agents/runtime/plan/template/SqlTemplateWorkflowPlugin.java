@@ -15,11 +15,6 @@ public final class SqlTemplateWorkflowPlugin extends ProtocolFamilyTemplateWorkf
             || canonicalOutput(outputPath) && "template".equals(normalize(inputPath));
     }
 
-    @Override
-    public Set<String> runtimeOwnedExecutionInputs() {
-        return Set.of("parameters", "params", "arguments", "executionContext", "mcpExecutionContext");
-    }
-
     private boolean canonicalOutput(String value) {
         return "templates0templateid".equals(normalize(value));
     }

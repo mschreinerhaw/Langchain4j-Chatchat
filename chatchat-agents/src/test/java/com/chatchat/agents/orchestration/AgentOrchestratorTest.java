@@ -80,6 +80,56 @@ import static org.mockito.Mockito.when;
 class AgentOrchestratorTest {
 
     @Test
+    void deterministicBoundTemplatePlanPassesPublishedWorkflowValidation() {
+        String discovery = "mcp_chatchat_mcp_server_server_capability_query";
+        String executor = "mcp_chatchat_mcp_server_linux_command_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.hasTool(discovery)).thenReturn(true);
+        when(registry.hasTool(executor)).thenReturn(true);
+        when(registry.getToolMetadata(discovery)).thenReturn(ToolMetadata.builder()
+            .id(discovery)
+            .metadata(Map.of("assetType", "ssh_host", com.chatchat.common.tool.ToolWorkflowContract.METADATA_KEY,
+                com.chatchat.common.tool.ToolWorkflowContract.declaration(
+                    com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                    "mcp.ssh-template.v1", "intent+filters")))
+            .build());
+        when(registry.getToolMetadata(executor)).thenReturn(ToolMetadata.builder()
+            .id(executor)
+            .parameters(List.of(
+                ToolParameter.builder().name("template").required(true).type("string").build(),
+                ToolParameter.builder().name("executionContext").required(true).type("object").build()))
+            .metadata(Map.of("argumentBindingPolicy", Map.ofEntries(
+                Map.entry("logicalContextKeys", List.of("env")),
+                Map.entry("concreteTargetFields", List.of("hostId")),
+                Map.entry("rawExecutionFields", List.of("command")),
+                Map.entry("targetKindFields", List.of("targetKind")),
+                Map.entry("filterProtocolFields", List.of("trace")),
+                Map.entry("filterFieldAliases", Map.of()),
+                Map.entry("logicalFilterFields", List.of("env")),
+                Map.entry("identityField", "assetName"),
+                Map.entry("semanticField", "intent"),
+                Map.entry("executionProtocolBindings", Map.of("mcp.ssh-template.v1", "SHELL_EXECUTION")),
+                Map.entry("executionValidationFields", Map.of("SHELL_EXECUTION", List.of("command"))),
+                Map.entry("requiredParametersByTemplateSuffix", Map.of()),
+                Map.entry("assetIdentityForbiddenParameterFields", List.of("parameters.hostId")),
+                Map.entry("requiredExecutionContextFields", Map.of()),
+                Map.entry("runtimeOwnedExecutionInputsByProtocol", Map.of(
+                    "mcp.ssh-template.v1", List.of("parameters", "executionContext")))),
+                com.chatchat.common.tool.ToolWorkflowContract.METADATA_KEY,
+                com.chatchat.common.tool.ToolWorkflowContract.declaration(
+                    com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_EXECUTION,
+                    "mcp.ssh-template.v1", "executionContext")))
+            .build());
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class), registry);
+        InterpretationPlan plan = orchestrator.deterministicBoundTemplatePlan(
+            "Check host health", List.of(discovery, executor));
+        assertThat(plan).isNotNull();
+        var evaluation = new com.chatchat.agents.runtime.plan.InterpretationPlanValidator()
+            .validate(plan, registry, Set.of(discovery, executor));
+        assertThat(evaluation.errors()).isEmpty();
+    }
+
+    @Test
     void legacyActionsAndPlainAnswersCannotExecuteOrPublishThroughCompatibilityRoutes() {
         for (String response : List.of(
             "{\"action\":\"tool\",\"toolName\":\"document_search\",\"arguments\":{}}",

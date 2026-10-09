@@ -86,24 +86,6 @@ public interface TemplateWorkflowPlugin {
         return Map.of();
     }
 
-    /**
-     * Required executor inputs compiled by Runtime after governed template discovery.
-     *
-     * <p>Names are normalized (case and punctuation are ignored) by
-     * {@link #runtimeOwnsExecutionInput(String)}. This is deliberately asset-specific:
-     * declaring a field here never makes it optional for an unrelated executor.</p>
-     */
-    default Set<String> runtimeOwnedExecutionInputs() {
-        return Set.of("parameters", "params", "arguments");
-    }
-
-    default boolean runtimeOwnsExecutionInput(String inputName) {
-        String requested = normalizeField(inputName);
-        return runtimeOwnedExecutionInputs().stream()
-            .map(TemplateWorkflowPlugin::normalizeField)
-            .anyMatch(requested::equals);
-    }
-
     default boolean isExecution(TemplateWorkflowTool tool) {
         return tool != null && tool.role() == ToolWorkflowRole.TEMPLATE_EXECUTION && supports(tool);
     }
@@ -111,10 +93,6 @@ public interface TemplateWorkflowPlugin {
     private static String normalizePath(String value) {
         return value == null ? "" : value.toLowerCase(java.util.Locale.ROOT)
             .replaceAll("[^a-z0-9]", "");
-    }
-
-    private static String normalizeField(String value) {
-        return normalizePath(value);
     }
 
     private static boolean sameTool(String left, String right) {

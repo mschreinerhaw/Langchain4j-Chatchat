@@ -446,6 +446,9 @@ public class McpToolRegistryBridge {
         }
         if (effectiveMeta != null && !effectiveMeta.isEmpty()) {
             extraMetadata.put("mcpToolMeta", effectiveMeta);
+            if (effectiveMeta.get("capabilities") != null) {
+                extraMetadata.put("capabilities", effectiveMeta.get("capabilities"));
+            }
             String dataType = com.chatchat.common.tool.ToolDataType.declared(effectiveMeta);
             if (dataType != null) extraMetadata.put(com.chatchat.common.tool.ToolDataType.METADATA_KEY, dataType);
             copyToolResultInstruction(extraMetadata, effectiveMeta);

@@ -60,6 +60,15 @@ table and initial policy in `database/init/<dialect>/chatchat-api.sql`. Update t
 policy row to publish tool roles, dialect aliases, environment terms, and discovery relations;
 new Agent runtime instances read a snapshot of that row.
 
+## MCP runtime-owned execution inputs
+
+Apply `V20261009_02__mcp_runtime_owned_execution_inputs.sql` from the matching database
+directory. It creates the default MCP argument binding policy when absent and adds the
+protocol-specific executor fields that Runtime may populate after governed discovery.
+The validator reads these fields from the published database policy; a missing policy
+keeps execution blocked. Refresh the MCP tool catalog or restart the application after
+applying the migration so active tool metadata includes the new policy.
+
 
 docker rm -f postgres 2>/dev/null
 

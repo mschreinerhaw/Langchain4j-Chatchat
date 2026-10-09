@@ -1625,6 +1625,11 @@ class InterpretationPlanValidatorTest {
             Map.entry("requiredParametersByTemplateSuffix", Map.of("_TABLE_METADATA", List.of("tableName"))),
             Map.entry("assetIdentityForbiddenParameterFields", List.of("parameters.schemaName")),
             Map.entry("requiredExecutionContextFields", Map.of("SQL_EXECUTION", List.of("assetName", "env"))),
+            Map.entry("runtimeOwnedExecutionInputsByProtocol", Map.of(
+                "mcp.sql-template.v1", List.of("parameters", "params", "arguments", "executionContext", "mcpExecutionContext"),
+                "mcp.ssh-template.v1", List.of("parameters", "params", "arguments", "executionContext", "mcpExecutionContext"),
+                "mcp.http-template.v1", List.of("parameters", "params", "arguments"),
+                "mcp.api-template.v1", List.of("parameters", "params", "arguments"))),
             Map.entry("executionProtocolBindings", Map.of("mcp.sql-template.v1", "SQL_EXECUTION",
                 "mcp.http-template.v1", "HTTP_EXECUTION", "mcp.api-template.v1", "HTTP_EXECUTION",
                 "mcp.ssh-template.v1", "SHELL_EXECUTION")),

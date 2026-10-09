@@ -342,7 +342,8 @@ class McpToolRegistryBridgeLifecycleTest {
             ToolWorkflowRole.TEMPLATE_EXECUTION, "generic", "json", "sha",
             Map.of("type", "object", "properties", Map.of("templateId", Map.of("type", "string")),
                 "required", List.of("templateId")),
-            Map.of("type", "object"), Map.of());
+            Map.of("type", "object"), Map.of(
+                "capabilities", List.of("template_execution", "batch_execution")));
         when(provider.getIfAvailable()).thenReturn(catalog);
         when(configService.listEnabled()).thenReturn(List.of(service));
         when(gateway.discoverTools(service, 0)).thenReturn(List.of(definition));
@@ -361,6 +362,12 @@ class McpToolRegistryBridgeLifecycleTest {
         assertThat(metadata.getValue().getParameters())
             .extracting(com.chatchat.common.tool.ToolParameter::getName)
             .containsExactly("templateId");
+        assertThat(metadata.getValue().getMetadata())
+            .containsEntry("capabilities", List.of("template_execution", "batch_execution"));
+        assertThat(metadata.getValue().getMetadata().get("inputSchema"))
+            .isInstanceOf(Map.class)
+            .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.map(String.class, Object.class))
+            .containsKey("x-chatchat-batch");
     }
 
     @Test

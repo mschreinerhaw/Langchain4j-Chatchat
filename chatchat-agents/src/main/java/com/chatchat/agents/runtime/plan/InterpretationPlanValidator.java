@@ -1537,13 +1537,14 @@ public class InterpretationPlanValidator {
         if (!templateExecutionTool(step.toolName(), toolRegistry)) {
             return false;
         }
-        // The parameter container is compiled only after template discovery has selected and
-        // reviewed the admitted template contract. An empty object in the planner DAG therefore
-        // means "no model-supplied overrides", not "required input missing". The Runtime will
-        // retain it for a zero-argument template or populate it from verified user/tool evidence.
+        // Publisher policy declares which executor fields Runtime can compile after compatible
+        // discovery. A missing planner value is admissible only for those declared fields.
         TemplateWorkflowTool executionTool = workflowTool(step.toolName(), toolRegistry);
         TemplateWorkflowPlugin plugin = templateWorkflowPlugins.resolve(executionTool).orElse(null);
-        if (plugin != null && plugin.runtimeOwnsExecutionInput(parameterName)
+        ToolMetadata metadata = toolMetadata(step.toolName(), toolRegistry);
+        McpArgumentBindingFieldPolicy fieldPolicy = McpArgumentBindingFieldPolicy.from(metadata);
+        if (plugin != null && fieldPolicy != null
+            && fieldPolicy.runtimeOwnsExecutionInput(executionTool.protocolFamily(), parameterName)
             && dependsOnCompatibleTemplateDiscovery(plan, step, executionTool, plugin, toolRegistry)) {
             return true;
         }

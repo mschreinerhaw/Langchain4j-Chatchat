@@ -27,7 +27,10 @@ public final class ToolExecutionCapabilities {
         if (containsCapability(metadata.getTags()) || containsCapability(metadata.getCategories())) {
             return true;
         }
-        return declaresBatch(metadata.getMetadata());
+        Map<String, Object> values = metadata.getMetadata();
+        if (declaresBatch(values)) return true;
+        return values != null && values.get("mcpToolMeta") instanceof Map<?, ?> published
+            && declaresBatch(stringKeyed(published));
     }
 
     public static boolean declaresTemplateExecution(ToolMetadata metadata) {
@@ -49,7 +52,24 @@ public final class ToolExecutionCapabilities {
         return truthy(values.get(TEMPLATE_EXECUTION))
             || truthy(values.get("templateExecution"))
             || containsCapability(values.get("capabilities"), TEMPLATE_EXECUTION)
+            || containsCapability(values.get("governanceContracts"), TEMPLATE_EXECUTION)
+            || (values.get("mcpToolMeta") instanceof Map<?, ?> published
+                && declaresTemplateExecution(stringKeyed(published)));
+    }
+
+    private static boolean declaresTemplateExecution(Map<String, ?> values) {
+        return truthy(values.get(TEMPLATE_EXECUTION))
+            || truthy(values.get("templateExecution"))
+            || containsCapability(values.get("capabilities"), TEMPLATE_EXECUTION)
             || containsCapability(values.get("governanceContracts"), TEMPLATE_EXECUTION);
+    }
+
+    private static Map<String, Object> stringKeyed(Map<?, ?> source) {
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        source.forEach((key, value) -> {
+            if (key != null) result.put(String.valueOf(key), value);
+        });
+        return result;
     }
 
     public static boolean declaresBatch(Map<String, ?> metadata) {

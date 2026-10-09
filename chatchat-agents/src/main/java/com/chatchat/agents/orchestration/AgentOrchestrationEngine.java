@@ -1568,8 +1568,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         metadata.put("deterministicMandatoryWorkflowFailure", true);
         String workflowContractError = stringValue(metadata.get("mandatoryWorkflowContractError"));
         if (workflowContractError != null && !workflowContractError.isBlank()) {
-            String contractFailure = "必需数据获取步骤未执行：模板发现结果没有提供兼容的运行时合同。"
-                + " 已完成的数据证据均已保留；请检查数据能力配置或维护匹配的模板。";
+            String contractCode = stringValue(metadata.get("mandatoryWorkflowContractCode"));
+            String contractFailure = "必需数据工作流未执行：MCP 运行时合同无效："
+                + (contractCode == null ? "" : contractCode + "：") + workflowContractError;
             return answerFinalizer.finishExecution(contractFailure, traces, metadata, observations);
         }
         List<String> failureParts = new ArrayList<>();

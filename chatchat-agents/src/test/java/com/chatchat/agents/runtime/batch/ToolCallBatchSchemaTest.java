@@ -89,6 +89,19 @@ class ToolCallBatchSchemaTest {
     }
 
     @Test
+    void acceptsCapabilityPublishedInsideMcpToolMetadata() {
+        ToolMetadata metadata = ToolMetadata.builder()
+            .id("published_executor")
+            .metadata(Map.of("mcpToolMeta", Map.of(
+                "capabilities", List.of("template_execution", "batch_execution"))))
+            .build();
+
+        assertThat(ToolCallBatchSchema.supports("published_executor", metadata)).isTrue();
+        assertThat(ToolCallBatchSchema.augment("published_executor", Map.of("type", "object"), metadata))
+            .containsKey("x-chatchat-batch");
+    }
+
+    @Test
     void rejectsBatchTransportDeclarationWithoutTemplateGovernance() {
         ToolMetadata metadata = ToolMetadata.builder()
             .id("unmanaged_batch_gateway")

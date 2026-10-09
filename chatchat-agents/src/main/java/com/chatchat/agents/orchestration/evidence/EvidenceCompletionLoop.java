@@ -1,5 +1,7 @@
 package com.chatchat.agents.orchestration.evidence;
 
+import com.chatchat.common.runtime.analysis.execution.AdaptiveAnalysisController;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -18,25 +20,31 @@ public final class EvidenceCompletionLoop {
         if (request == null || retriever == null || assessor == null) {
             throw new IllegalArgumentException("request, retriever and assessor are required");
         }
-        int maxRounds = Math.max(0, request.maxRounds());
+        int maxRounds = AdaptiveAnalysisController.boundedRecoveryRounds(request.maxRounds());
         List<EvidenceItem> evidence = new ArrayList<>(safe(request.initialEvidence()));
         List<Round> rounds = new ArrayList<>();
+        boolean stalled = false;
         Assessment assessment = assessor.assess(request.query(), List.copyOf(evidence));
         for (int round = 1; !assessment.sufficient() && round <= maxRounds; round++) {
+            if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
             List<String> missing = assessment.missingSourceIds().isEmpty()
                 ? request.sources().stream().map(SourceContract::id).toList()
                 : assessment.missingSourceIds();
             List<EvidenceItem> added = new ArrayList<>();
             for (SourceContract source : safe(request.sources())) {
+                if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
                 if (!missing.contains(source.id())) continue;
                 List<EvidenceItem> batch = retriever.retrieve(new RetrievalRequest(
                     request.query(), round, source, assessment.gaps()));
+                if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
                 if (batch != null) added.addAll(batch.stream().filter(item -> item != null).toList());
             }
-            evidence.addAll(deduplicate(added, evidence));
+            List<EvidenceItem> fresh = deduplicate(added, evidence);
+            evidence.addAll(fresh);
             Assessment next = assessor.assess(request.query(), List.copyOf(evidence));
-            rounds.add(new Round(round, List.copyOf(missing), List.copyOf(added), next));
-            if (added.isEmpty()) {
+            rounds.add(new Round(round, List.copyOf(missing), List.copyOf(fresh), next));
+            if (fresh.isEmpty() && !next.sufficient()) {
+                stalled = true;
                 List<String> unresolved = next.missingSourceIds().isEmpty()
                     ? unresolvedSourceIds(request.sources(), evidence)
                     : next.missingSourceIds();
@@ -47,7 +55,7 @@ public final class EvidenceCompletionLoop {
             assessment = next;
         }
         String stopReason = assessment.sufficient() ? "evidence_sufficient"
-            : rounds.size() >= maxRounds ? "max_rounds_reached" : "no_new_evidence";
+            : stalled ? "no_new_evidence" : "max_rounds_reached";
         return new Result(List.copyOf(evidence), assessment, List.copyOf(rounds), stopReason);
     }
 
@@ -60,11 +68,10 @@ public final class EvidenceCompletionLoop {
     }
 
     private List<EvidenceItem> deduplicate(List<EvidenceItem> candidates, List<EvidenceItem> existing) {
-        Set<String> seen = new LinkedHashSet<>();
-        safe(existing).forEach(item -> seen.add(item.identity()));
+        Set<EvidenceItem> seen = new LinkedHashSet<>(safe(existing));
         List<EvidenceItem> result = new ArrayList<>();
         safe(candidates).forEach(item -> {
-            if (seen.add(item.identity())) result.add(item);
+            if (seen.add(item)) result.add(item);
         });
         return result;
     }
@@ -113,10 +120,6 @@ public final class EvidenceCompletionLoop {
                                String locator, Map<String, Object> attributes) {
         public EvidenceItem {
             attributes = attributes == null ? Map.of() : Map.copyOf(new LinkedHashMap<>(attributes));
-        }
-        String identity() {
-            if (id != null && !id.isBlank()) return id;
-            return String.join("|", String.valueOf(sourceId), String.valueOf(locator), String.valueOf(text));
         }
     }
 

@@ -10,11 +10,19 @@ import com.chatchat.common.runtime.workflow.RuntimeWorkflow;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.List;
+import com.chatchat.common.runtime.analysis.recovery.EvidenceGap;
 
 public interface AnalysisWorkflow extends RuntimeWorkflow<AnalysisContext, AnalysisExecutionOutcome> {
     AnalysisWorkflowType type();
     boolean supports(AnalysisContext context, AnalysisIntent intent);
     default int priority() { return 0; }
+
+    /** Analysis may request supplementation using typed feedback, never source text instructions. */
+    default List<EvidenceGap> recoveryRequests(
+            AnalysisContext context, AnalysisExecutionOutcome outcome) {
+        return List.of();
+    }
 
     /**
      * Receives acquisition results without replaying execution or side effects. Implementations

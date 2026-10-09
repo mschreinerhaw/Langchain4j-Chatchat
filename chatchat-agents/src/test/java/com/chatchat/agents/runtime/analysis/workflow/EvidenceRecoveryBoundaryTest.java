@@ -46,7 +46,8 @@ class EvidenceRecoveryBoundaryTest {
             new EvidenceBundle(null, List.of(document("new", false)), List.of(), Map.of())), Map.of());
         assertThat(result.evidenceBundle().evidence()).hasSize(2);
         assertThat(result.verification()).isSameAs(rejected);
-        assertThat(result.metadata()).containsEntry("evidenceRecoveryStatus", "COMPLETE");
+        assertThat(result.metadata()).containsEntry("evidenceRecoveryStatus", "NO_NEW_EVIDENCE")
+            .containsEntry("adaptiveAnalysisAction", "STOP");
     }
 
     @Test void differentContentWithSameIdDoesNotOverwriteOriginalObservation() {
@@ -95,6 +96,72 @@ class EvidenceRecoveryBoundaryTest {
     @Test void cancellationIsNotConvertedToRecoveryFailure() {
         assertThatThrownBy(() -> run(current -> { throw new CancellationException("cancelled"); }, Map.of()))
             .isInstanceOf(CancellationException.class);
+    }
+
+    @Test void oversizedBudgetCannotExceedThreeAnalysisRounds() {
+        AtomicInteger calls = new AtomicInteger();
+        var result = run(current -> recovery(RecoveryStatus.RETRY_REQUIRED,
+            new EvidenceBundle(null, List.of(document("next-" + calls.incrementAndGet(), true)),
+                List.of(), Map.of())), Map.of("evidenceRecoveryMaxRounds", 999));
+        assertThat(calls).hasValue(2);
+        assertThat(result.metadata()).containsEntry("adaptiveAnalysisMaxRounds", 3)
+            .containsEntry("adaptiveAnalysisRounds", 3L)
+            .containsEntry("adaptiveAnalysisReason", "BUDGET_EXHAUSTED");
+    }
+
+    @Test void typedAnalysisFeedbackReplansAndVerifiesAfterEachRecovery() {
+        AtomicInteger analyses = new AtomicInteger();
+        var coverage = new EvidenceGap(EvidenceGapReason.LOW_COVERAGE, "claim", null, null,
+            0.1, 1, false, false, List.of("additional observations"));
+        var conflict = new EvidenceGap(EvidenceGapReason.CONFLICTING_EVIDENCE, "claim", null, null,
+            0.5, 1, false, false, List.of("independent verification"));
+        AnalysisWorkflow workflow = new AnalysisWorkflow() {
+            public AnalysisWorkflowType type() { return AnalysisWorkflowType.DOCUMENT; }
+            public String workflowId() { return "test.adaptive"; }
+            public boolean supports(AnalysisContext context, AnalysisIntent intent) { return true; }
+            public AnalysisExecutionOutcome execute(AnalysisContext context) {
+                return new AnalysisExecutionOutcome(null, type(), null, rejected,
+                    new EvidenceBundle(null, List.of(document("initial", false)), List.of(), Map.of()),
+                    "insufficient", Map.of());
+            }
+            public List<EvidenceGap> recoveryRequests(AnalysisContext context, AnalysisExecutionOutcome outcome) {
+                return switch (outcome.evidenceBundle().evidence().size()) {
+                    case 1 -> List.of(coverage);
+                    case 2 -> List.of(conflict);
+                    default -> List.of();
+                };
+            }
+            public AnalysisExecutionOutcome continueAfterRecovery(AnalysisContext context,
+                    AnalysisExecutionOutcome previous, EvidenceBundle evidence, Map<String, Object> metadata) {
+                analyses.incrementAndGet();
+                boolean accepted = evidence.evidence().size() == 3;
+                return new AnalysisExecutionOutcome(null, type(), null,
+                    new VerificationResult(accepted, accepted ? evidence.evidence() : List.of(), List.of()),
+                    evidence, accepted ? "verified conclusion" : "cross verification needed", Map.of());
+            }
+        };
+        List<EvidenceGapReason> requested = new java.util.ArrayList<>();
+        List<EvidenceRecoveryWorkflow> providers = List.of(coverage, conflict).stream().map(gap ->
+            (EvidenceRecoveryWorkflow) new EvidenceRecoveryWorkflow() {
+                public int priority() { return 0; }
+                public boolean supports(AnalysisContext ctx, EvidenceGap request) { return request.reason() == gap.reason(); }
+                public EvidenceRecoveryResult recover(AnalysisContext ctx, EvidenceBundle current, EvidenceGap request, int round) {
+                    requested.add(request.reason());
+                    return recovery(RecoveryStatus.COMPLETE, new EvidenceBundle(null,
+                        List.of(document("round-" + round, false)), List.of(), Map.of()));
+                }
+            }).toList();
+        var result = new DefaultAnalysisWorkflowRuntime(List.of(workflow), null, null, providers)
+            .analyze(context(Map.of()));
+        assertThat(requested).containsExactly(EvidenceGapReason.LOW_COVERAGE, EvidenceGapReason.CONFLICTING_EVIDENCE);
+        assertThat(analyses).hasValue(2);
+        assertThat(result.verification().accepted()).isTrue();
+        assertThat(result.synthesis()).isEqualTo("verified conclusion");
+        assertThat(result.metadata()).containsEntry("adaptiveAnalysisAction", "DELIVER")
+            .containsEntry("adaptiveAnalysisReason", "VERIFIED");
+        var audit = (Map<?, ?>) result.evidenceBundle().metadata().get("runtimeAnalysisAudit");
+        assertThat(audit.containsKey("evidenceRecoveryTrace")).isTrue();
+        assertThat(audit.containsKey("evidenceIds")).isTrue();
     }
 
     @Test void inspectorIgnoresSemanticOpinionsAndUnknownBoundaries() {

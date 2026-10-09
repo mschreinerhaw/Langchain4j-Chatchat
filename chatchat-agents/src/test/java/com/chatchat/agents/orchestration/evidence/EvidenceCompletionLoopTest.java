@@ -11,6 +11,37 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class EvidenceCompletionLoopTest {
 
+    @Test void conflictingObservationsWithTheSameIdReachTheAssessor() {
+        var original = new EvidenceCompletionLoop.EvidenceItem("same", "docs", "document", "first", "", Map.of());
+        var changed = new EvidenceCompletionLoop.EvidenceItem("same", "docs", "document", "second", "", Map.of());
+        var result = new EvidenceCompletionLoop().run(new EvidenceCompletionLoop.Request("q", 2,
+            List.of(new EvidenceCompletionLoop.SourceContract("docs", "document", Map.of())), List.of(original)),
+            request -> List.of(changed),
+            (query, evidence) -> new EvidenceCompletionLoop.Assessment(evidence.size() == 2, 1, List.of(), List.of()));
+        assertThat(result.evidence()).containsExactly(original, changed);
+        assertThat(result.assessment().sufficient()).isTrue();
+    }
+
+    @Test void duplicateBatchesStopWithoutConsumingTheRemainingBudget() {
+        var item = new EvidenceCompletionLoop.EvidenceItem("same", "docs", "document", "text", "", Map.of());
+        var result = new EvidenceCompletionLoop().run(new EvidenceCompletionLoop.Request("q", 999,
+            List.of(new EvidenceCompletionLoop.SourceContract("docs", "document", Map.of())), List.of(item)),
+            request -> List.of(item),
+            (query, evidence) -> new EvidenceCompletionLoop.Assessment(false, 0.2, List.of("docs"), List.of("gap")));
+        assertThat(result.rounds()).hasSize(1);
+        assertThat(result.rounds().get(0).addedEvidence()).isEmpty();
+        assertThat(result.stopReason()).isEqualTo("no_new_evidence");
+    }
+
+    @Test void capsOversizedBudgetAtTwoRecoveriesAfterInitialAssessment() {
+        var result = new EvidenceCompletionLoop().run(new EvidenceCompletionLoop.Request("q", 999,
+            List.of(new EvidenceCompletionLoop.SourceContract("docs", "document", Map.of())), List.of()),
+            request -> List.of(new EvidenceCompletionLoop.EvidenceItem("e" + request.round(), "docs", "document", "text", "", Map.of())),
+            (query, evidence) -> new EvidenceCompletionLoop.Assessment(false, 0.2, List.of("docs"), List.of("gap")));
+        assertThat(result.rounds()).hasSize(2);
+        assertThat(result.stopReason()).isEqualTo("max_rounds_reached");
+    }
+
     @Test
     void completesAcrossDocumentDatabaseAndWebAndReassessesEveryRound() {
         EvidenceCompletionLoop loop = new EvidenceCompletionLoop();

@@ -153,7 +153,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     PlanExecutionPhaseHandler {
 
     private static final int DEFAULT_MAX_STEPS = 3;
-    static final int MAX_INTERPRETATION_PLAN_ATTEMPTS = 3;
+    static final int MAX_INTERPRETATION_PLAN_ATTEMPTS =
+        com.chatchat.common.runtime.analysis.execution.AdaptiveAnalysisController.MAX_ANALYSIS_ROUNDS;
     private static final int WEB_SEARCH_REFERENCE_LIMIT = 10;
     private static final int DAG_DECISION_OUTPUT_SUMMARY_CHARS = 64_000;
     private static final int DAG_DECISION_EVIDENCE_TOKEN_BUDGET = 12_000;

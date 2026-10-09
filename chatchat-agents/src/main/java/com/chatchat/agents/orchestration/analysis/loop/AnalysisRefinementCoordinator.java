@@ -5,6 +5,7 @@ import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRewriter;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
+import com.chatchat.common.runtime.analysis.execution.AdaptiveAnalysisController;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -19,10 +20,11 @@ public final class AnalysisRefinementCoordinator {
 
     private final AgentToolNameResolver toolNames;
     private final int maximumAttempts;
+    private final AdaptiveAnalysisController adaptiveController = new AdaptiveAnalysisController();
 
     public AnalysisRefinementCoordinator(AgentToolNameResolver toolNames, int maximumAttempts) {
         this.toolNames = toolNames;
-        this.maximumAttempts = Math.max(1, maximumAttempts);
+        this.maximumAttempts = Math.max(1, AdaptiveAnalysisController.boundedRounds(maximumAttempts));
     }
 
     public String rewriteReason(InterpretationPlanRuntime.ExecutionResult result,
@@ -57,23 +59,12 @@ public final class AnalysisRefinementCoordinator {
     public RefinementAdmission admitRefinement(InterpretationPlanRuntime.ExecutionResult result,
         List<InterpretationPlanRuntime.ExecutionResult> attempts,
         List<Map<String, Object>> evidenceHistory, List<String> availableTools, int rewrites) {
-        if (result != null && result.approvalRequired()) {
-            return new RefinementAdmission(false, false, "authorization_required");
-        }
-        if (rewrites >= maximumAttempts - 1) {
-            return new RefinementAdmission(false, false, "runtime_attempt_limit");
-        }
-        if (dependencyRecoveryRequired(result)) {
-            return new RefinementAdmission(true, false, "dependency_replan_required");
-        }
-        boolean structural = result != null && "INVALID_PLAN".equals(result.status());
-        if (structural) {
-            return new RefinementAdmission(rewrites == 0, true,
-                rewrites == 0 ? "invalid_plan" : "structural_repair_already_attempted");
-        }
-        if (templateDiscoveryContinuationRequired(result)) {
-            return new RefinementAdmission(true, false, "template_discovery_next_page");
-        }
+        var initial = adaptiveController.decideReplan(new AdaptiveAnalysisController.ReplanFeedback(
+            result != null && result.approvalRequired(), rewrites, maximumAttempts,
+            dependencyRecoveryRequired(result), result != null && "INVALID_PLAN".equals(result.status()),
+            templateDiscoveryContinuationRequired(result), false));
+        if (!"no_verified_new_retrieval_path".equals(initial.reason()))
+            return new RefinementAdmission(initial.allowed(), initial.structuralRepair(), initial.reason());
         List<String> attempted = new ArrayList<>();
         for (var attempt : attempts == null ? List.<InterpretationPlanRuntime.ExecutionResult>of() : attempts) {
             if (attempt != null && attempt.steps() != null) {
@@ -90,8 +81,9 @@ public final class AnalysisRefinementCoordinator {
         boolean newPath = requiredTools(evidenceHistory, availableTools, false).stream()
             .anyMatch(required -> attempted.stream().noneMatch(tool ->
                 toolNames.sameToolName(tool, required.toolName())));
-        return new RefinementAdmission(newPath, false,
-            newPath ? "untried_evidence_tool" : "no_verified_new_retrieval_path");
+        var decision = adaptiveController.decideReplan(new AdaptiveAnalysisController.ReplanFeedback(
+            false, rewrites, maximumAttempts, false, false, false, newPath));
+        return new RefinementAdmission(decision.allowed(), decision.structuralRepair(), decision.reason());
     }
 
     public record RefinementAdmission(boolean allowed, boolean structuralRepair, String reason) {}

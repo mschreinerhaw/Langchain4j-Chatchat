@@ -1,6 +1,7 @@
 package com.chatchat.agents.runtime.analysis.workflow;
 
 import com.chatchat.common.runtime.analysis.execution.AnalysisExecutionOutcome;
+import com.chatchat.common.runtime.analysis.execution.AdaptiveAnalysisController;
 import com.chatchat.common.runtime.analysis.model.AnalysisContext;
 import com.chatchat.common.runtime.analysis.model.AnalysisExecutionMode;
 import com.chatchat.common.runtime.analysis.routing.AnalysisWorkflowRouter;
@@ -45,6 +46,7 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
     private final Supplier<AnalysisEvidenceArchivePort> evidenceArchive;
     private final List<EvidenceRecoveryWorkflow> evidenceRecoveryWorkflows;
     private final EvidenceStateInspector evidenceInspector = new EvidenceStateInspector();
+    private final AdaptiveAnalysisController adaptiveController = new AdaptiveAnalysisController();
     private final AtomicBoolean registered = new AtomicBoolean(false);
 
     public DefaultAnalysisWorkflowRuntime(List<AnalysisWorkflow> workflows) {
@@ -140,6 +142,8 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
             return completeAssetGuidance(context, workflow, primary);
         EvidenceBundle current = primary.evidenceBundle();
         EvidenceStateInspector.State state = evidenceInspector.inspect(current, primary.metadata());
+        AnalysisExecutionOutcome analyzed = primary;
+        List<EvidenceGap> gaps = analysisGaps(context, workflow, analyzed, state, List.of());
         Map<String, Object> metadata = new LinkedHashMap<>(primary.metadata());
         Map<String, Object> acquisitionMetadata = new LinkedHashMap<>(primary.metadata());
         metadata.put("runtimePrimaryPath", (primary.workflowType() == com.chatchat.common.runtime.analysis.model.AnalysisWorkflowType.DOCUMENT
@@ -147,12 +151,14 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
         List<Map<String, Object>> trace = new java.util.ArrayList<>();
         String status = "NOT_NEEDED";
         int maxRounds = recoveryMaxRounds(context);
-        if (!state.issues().isEmpty()) status = maxRounds == 0 ? "DISABLED" : "BUDGET_EXHAUSTED";
-        for (int round = 1; round <= maxRounds && !state.issues().isEmpty(); round++) {
+        var decision = adaptiveController.decide(feedback(analyzed, gaps, true, false, false), 0, maxRounds);
+        boolean continuedThisRound = false;
+        for (int round = 1; decision.action() == AdaptiveAnalysisController.Action.RECOVER; round++) {
+            if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
             EvidenceGap issue = null;
             EvidenceRecoveryWorkflow recovery = null;
             try {
-                for (EvidenceGap candidate : state.issues()) {
+                for (EvidenceGap candidate : gaps) {
                     recovery = selectRecovery(context, candidate);
                     if (recovery != null) {
                         issue = candidate;
@@ -186,34 +192,57 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
                 break;
             }
             EvidenceBundle previous = current;
+            if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
             current = mergeEvidence(current, recovered.evidence());
             trace.add(Map.of("round", round, "gap", issue.reason().name(),
                 "status", recovered.status().name(), "workflow", recovery.getClass().getSimpleName(),
                 "evidenceCount", current.evidence().size()));
             acquisitionMetadata.putAll(recovered.metadata());
             state = evidenceInspector.inspect(current, acquisitionMetadata);
-            status = recovered.status().name();
-            if (recovered.status() == RecoveryStatus.COMPLETE || recovered.status() == RecoveryStatus.EXHAUSTED
-                || recovered.status() == RecoveryStatus.FAILED) break;
-            if (current.evidence().equals(previous.evidence())) {
-                status = "NO_NEW_EVIDENCE";
-                break;
-            }
-            if (state.issues().isEmpty()) {
-                status = "COMPLETE";
-                break;
-            }
-            status = "BUDGET_EXHAUSTED";
+            metadata.put("evidenceRecoveryTrace", List.copyOf(trace));
+            metadata.put("evidenceRecoveryStatus", recovered.status().name());
+            metadata.put("evidenceState", state.projection());
+            metadata.put("runtimeRoute", "CONTINUE_ANALYSIS");
+            analyzed = workflow.continueAfterRecovery(context, analyzed, current, Map.copyOf(metadata));
+            continuedThisRound = true;
+            current = analyzed.evidenceBundle();
+            acquisitionMetadata.putAll(analyzed.metadata());
+            state = evidenceInspector.inspect(current, acquisitionMetadata);
+            List<EvidenceGap> nextGaps = analysisGaps(context, workflow, analyzed, state, recovered.remainingGaps());
+            boolean progress = !current.evidence().equals(previous.evidence()) || !nextGaps.equals(gaps);
+            gaps = nextGaps;
+            decision = adaptiveController.decide(feedback(analyzed, gaps, progress,
+                recovered.status() == RecoveryStatus.FAILED, recovered.status() == RecoveryStatus.EXHAUSTED),
+                round, maxRounds);
+            Map<String, Object> observed = new LinkedHashMap<>(trace.get(trace.size() - 1));
+            observed.put("decision", decision.action().name());
+            observed.put("reason", decision.reason());
+            observed.put("remainingGapReasons", gaps.stream().map(gap -> gap.reason().name()).toList());
+            observed.put("verificationAccepted", analyzed.verification() != null && analyzed.verification().accepted());
+            trace.set(trace.size() - 1, Map.copyOf(observed));
+            status = recovered.status() == RecoveryStatus.FAILED || recovered.status() == RecoveryStatus.EXHAUSTED
+                ? recovered.status().name() : gaps.isEmpty() ? "COMPLETE" : decision.reason();
         }
+        if (trace.isEmpty() && !gaps.isEmpty() && !"NO_WORKFLOW".equals(status) && !"FAILED".equals(status))
+            status = decision.reason();
         metadata.put("evidenceState", state.projection());
         metadata.put("evidenceRecoveryStatus", status);
         metadata.put("evidenceRecoveryTrace", List.copyOf(trace));
+        metadata.put("adaptiveAnalysisSchema", "adaptive_analysis_decision.v1");
+        metadata.put("adaptiveAnalysisAction", "NO_WORKFLOW".equals(status) || "FAILED".equals(status)
+            ? "STOP" : decision.action().name());
+        metadata.put("adaptiveAnalysisReason", "NO_WORKFLOW".equals(status) || "FAILED".equals(status)
+            ? status : decision.reason());
+        metadata.put("adaptiveAnalysisMaxRounds", maxRounds + 1);
+        metadata.put("adaptiveAnalysisRounds", trace.stream().filter(item -> !"SELECTION".equals(item.get("stage"))).count() + 1);
+        metadata.put("adaptiveAnalysisGapReasons", gaps.stream().map(gap -> gap.reason().name()).toList());
         metadata.put("runtimeRoute", "CONTINUE_ANALYSIS");
-        if (state.issues().isEmpty() && trace.isEmpty()) {
-            return outcome(primary, primary.verification(), current, metadata);
+        if (gaps.isEmpty() && trace.isEmpty()) {
+            return outcome(analyzed, analyzed.verification(), current, metadata);
         }
         // The analysis workflow owns verification and synthesis, including when recovery failed.
-        AnalysisExecutionOutcome continued = workflow.continueAfterRecovery(context, primary, current, Map.copyOf(metadata));
+        AnalysisExecutionOutcome continued = continuedThisRound ? analyzed
+            : workflow.continueAfterRecovery(context, analyzed, current, Map.copyOf(metadata));
         Map<String, Object> combined = new LinkedHashMap<>(continued.metadata());
         combined.putAll(metadata);
         return outcome(continued, continued.verification(), continued.evidenceBundle(), combined);
@@ -240,14 +269,46 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
 
     private int recoveryMaxRounds(AnalysisContext context) {
         Object value = context.attributes().get("evidenceRecoveryMaxRounds");
-        int resolved = value instanceof Number number ? number.intValue() : 5;
-        return Math.max(0, Math.min(6, resolved));
+        int resolved = value instanceof Number number ? number.intValue() : 2;
+        return AdaptiveAnalysisController.boundedRecoveryRounds(resolved);
+    }
+
+    private List<EvidenceGap> analysisGaps(AnalysisContext context, AnalysisWorkflow workflow,
+            AnalysisExecutionOutcome outcome, EvidenceStateInspector.State state, List<EvidenceGap> remaining) {
+        var gaps = new java.util.LinkedHashSet<>(state.issues());
+        gaps.addAll(workflow.recoveryRequests(context, outcome));
+        gaps.addAll(remaining);
+        return List.copyOf(gaps);
+    }
+
+    private AdaptiveAnalysisController.Feedback feedback(
+            AnalysisExecutionOutcome outcome, List<EvidenceGap> gaps, boolean progress, boolean failed, boolean exhausted) {
+        return new AdaptiveAnalysisController.Feedback(gaps,
+            outcome.verification() != null && outcome.verification().accepted()
+                && !outcome.verification().acceptedEvidence().isEmpty()
+                && !"PRIMARY_ANALYSIS_ONLY".equals(outcome.metadata().get("synthesisEvidenceScope")),
+            progress, failed, exhausted);
     }
 
     private AnalysisExecutionOutcome outcome(AnalysisExecutionOutcome source,
                                              VerificationResult verification,
                                              EvidenceBundle evidence,
                                              Map<String, Object> metadata) {
+        if (metadata.containsKey("adaptiveAnalysisAction")) {
+            Map<String, Object> audit = new LinkedHashMap<>();
+            for (String key : List.of("adaptiveAnalysisSchema", "adaptiveAnalysisAction", "adaptiveAnalysisReason",
+                    "adaptiveAnalysisMaxRounds", "adaptiveAnalysisRounds", "adaptiveAnalysisGapReasons",
+                    "evidenceRecoveryTrace")) {
+                if (metadata.containsKey(key)) audit.put(key, metadata.get(key));
+            }
+            audit.put("workflowType", source.workflowType().name());
+            if (source.plan() != null) audit.put("planId", source.plan().planId());
+            audit.put("verificationAccepted", verification != null && verification.accepted());
+            audit.put("evidenceIds", evidence.evidence().stream().map(item -> item.evidenceId()).toList());
+            Map<String, Object> bundleMetadata = new LinkedHashMap<>(evidence.metadata());
+            bundleMetadata.put("runtimeAnalysisAudit", Map.copyOf(audit));
+            evidence = new EvidenceBundle(evidence.schemaVersion(), evidence.evidence(), evidence.limitations(), bundleMetadata);
+        }
         return new AnalysisExecutionOutcome(source.schemaVersion(), source.workflowType(), source.plan(),
             verification, evidence, source.synthesis(), metadata);
     }

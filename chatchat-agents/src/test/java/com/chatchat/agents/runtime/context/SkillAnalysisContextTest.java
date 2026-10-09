@@ -5,6 +5,25 @@ import java.util.*;
 import static org.assertj.core.api.Assertions.*;
 
 class SkillAnalysisContextTest {
+    @Test void activationProjectionUsesValidatedMethodologyWithoutExposingInstructions() throws Exception {
+        var skill = Map.<String, Object>of("id", "s", "name", "Research", "version", "v1", "contentSha256", "digest");
+        var snapshot = SkillAnalysisContext.create("APPLIED", List.of(skill), Map.of("PLAN", List.of("private method")));
+        var projection = SkillAnalysisContext.planningProjection(snapshot, List.of("s"));
+        assertThat(projection).containsEntry("activatedCount", 1).containsEntry("selectedCount", 1)
+            .containsEntry("loadedCount", 1).containsEntry("configuredCount", 1)
+            .containsEntry("activatedSkills", List.of(skill)).containsEntry("fingerprint", snapshot.get("fingerprint"));
+        assertThat(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(projection))
+            .doesNotContain("private method", "stages");
+        var tampered = new LinkedHashMap<>(snapshot); tampered.put("status", "NO_RELEVANT_SKILL");
+        assertThat(SkillAnalysisContext.planningProjection(tampered, List.of("s"))).isEmpty();
+    }
+
+    @Test void noRelevantSkillProjectionCannotReactivateOldRoutingResults() {
+        var snapshot = SkillAnalysisContext.create("NO_RELEVANT_SKILL", List.of(), Map.of());
+        assertThat(SkillAnalysisContext.planningProjection(snapshot, List.of("s")))
+            .containsEntry("activatedCount", 0).containsEntry("selectedCount", 0)
+            .containsEntry("status", "NO_RELEVANT_SKILL").containsEntry("configuredCount", 1);
+    }
     @Test void pinnedMethodologyReplacesToolSuppliedInstructionsAndSurvivesSerialization() throws Exception {
         var stages = new LinkedHashMap<String, Object>();
         SkillAnalysisContext.STAGES.forEach(stage -> stages.put(stage, List.of(stage + "_METHOD")));

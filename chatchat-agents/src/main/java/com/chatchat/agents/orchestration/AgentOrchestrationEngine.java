@@ -5899,12 +5899,17 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             ? null : runtimeAttributes.get(com.chatchat.common.knowledge.runtime.KnowledgeContext.RUNTIME_ATTRIBUTE));
         Map<String, Object> domainSkillContext = objectMap(runtimeAttributes == null
             ? null : runtimeAttributes.get(com.chatchat.common.skills.DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE));
+        if (!skillAnalysisContext.isEmpty()) {
+            domainSkillContext = com.chatchat.agents.runtime.context.SkillAnalysisContext.planningProjection(
+                skillAnalysisContext, stringList(domainSkillContext.get("configuredSkillIds")));
+        }
+        metadata.put(com.chatchat.common.skills.DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE, domainSkillContext);
         List<Map<String, Object>> selectedDomainSkills = objectMapList(domainSkillContext.get("skills"));
         List<Map<String, Object>> routedDomainSkills = objectMapList(domainSkillContext.get("activatedSkills"));
         List<Map<String, Object>> activatedDomainSkills = routedDomainSkills.isEmpty()
             && "domain_skill_planning.v1".equals(stringValue(domainSkillContext.get("schemaVersion")))
             ? selectedDomainSkills : routedDomainSkills;
-        if (knowledge.isEmpty() && selectedDomainSkills.isEmpty()) return;
+        if (knowledge.isEmpty() && domainSkillContext.isEmpty()) return;
         List<Map<String, Object>> sources = objectMapList(knowledge.get("sources"));
         List<Map<String, Object>> activatedSkills = new ArrayList<>(objectMapList(knowledge.get("activatedSkills")));
         activatedDomainSkills.stream().map(skill -> metadataOf(
@@ -5929,11 +5934,13 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             "stage", "SKILLS_EXTRACTED",
             "schemaVersion", firstNonBlank(stringValue(knowledge.get("schemaVersion")),
                 stringValue(domainSkillContext.get("schemaVersion"))),
-            "status", knowledge.isEmpty() ? "DOMAIN_SKILLS_SELECTED" : knowledge.get("status"),
+            "status", domainSkillContext.isEmpty() ? knowledge.get("status") : domainSkillContext.get("status"),
             "skillCount", activatedSkills.size(),
             "activatedSkills", activatedSkills,
             "domainSkillCount", selectedDomainSkills.size(),
             "activatedDomainSkillCount", activatedDomainSkills.size(),
+            "methodologyFingerprint", skillAnalysisContext.getOrDefault("fingerprint", ""),
+            "methodologyStatus", skillAnalysisContext.getOrDefault("status", ""),
             "skillTypes", skillTypes
         );
         runResultAdapter.recordRuntimeObservation(runtimeAttributes, AGENT_RUN_ID_ATTRIBUTE,
@@ -5949,12 +5956,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             "stage", "CONTEXT_APPLIED",
             "schemaVersion", firstNonBlank(stringValue(knowledge.get("schemaVersion")),
                 stringValue(domainSkillContext.get("schemaVersion"))),
-            "status", knowledge.isEmpty() ? "DOMAIN_SKILLS_APPLIED" : knowledge.get("status"),
+            "status", domainSkillContext.isEmpty() ? knowledge.get("status") : domainSkillContext.get("status"),
             "applied", applied,
             "skillCount", activatedSkills.size(),
             "activatedSkills", activatedSkills,
             "domainSkillCount", selectedDomainSkills.size(),
             "activatedDomainSkillCount", activatedDomainSkills.size(),
+            "methodologyFingerprint", skillAnalysisContext.getOrDefault("fingerprint", ""),
+            "methodologyStatus", skillAnalysisContext.getOrDefault("status", ""),
             "sourceCount", sources.size(),
             "sources", sources.stream().map(source -> metadataOf(
                 "documentId", source.get("documentId"),
@@ -5975,7 +5984,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         metadata.put("selectedDomainSkills", selectedDomainSkills.stream().map(skill -> metadataOf(
             "id", skill.get("id"), "name", skill.get("name"), "category", skill.get("category"))).toList());
         runResultAdapter.recordRuntimeObservation(runtimeAttributes, AGENT_RUN_ID_ATTRIBUTE,
-            "领域知识已应用到分析流程，共绑定 " + sources.size() + " 个文档来源、"
+            (applied ? "领域知识已应用到分析流程，共使用 " : "领域知识未应用到分析流程，共使用 ") + sources.size() + " 个文档来源、"
                 + activatedSkills.size() + " 个 Knowledge Skill、"
                 + selectedDomainSkills.size() + " 个领域技能。",
             "knowledge_skills", appliedEvent);

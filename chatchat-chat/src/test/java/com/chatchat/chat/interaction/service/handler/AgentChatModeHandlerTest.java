@@ -41,6 +41,34 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentChatModeHandlerTest {
+    @Test void validatedMethodologyReachesRuntimeWithMatchingActivationProjection() {
+        var catalog = mock(SkillCatalogService.class);
+        var orchestrator = mock(AgentOrchestrator.class);
+        var policies = mock(AgentToolPolicyResolver.class);
+        var agent = skill(List.of("opaque_query"));
+        when(catalog.resolve("ops")).thenReturn(agent);
+        var request = InteractionRequest.builder().skillId("ops").query("question").build();
+        when(policies.planningSnapshot(request, agent)).thenReturn(WorkflowEntryPlan.of(
+            WorkflowEntryPlan.Owner.GOVERNED_RUNTIME, "DECLARED_EXECUTION_CONTRACT"));
+        when(policies.resolve(request, agent)).thenReturn(new AgentToolPolicyResolver.ToolPolicy(
+            List.of("opaque_query"), List.of(), List.of("opaque_query"), true, false,
+            List.of(), List.of("opaque_query"), Map.of(), List.of(), Map.of()));
+        when(orchestrator.executeAgent(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+            anyInt(), any(), anyBoolean(), any())).thenReturn(agentResult("answer"));
+        var handler = new AgentChatModeHandler(orchestrator, catalog, policies);
+        var snapshot = com.chatchat.agents.runtime.context.SkillAnalysisContext.create("APPLIED",
+            List.of(Map.of("id", "s", "name", "Method")), Map.of("PLAN", List.of("method")));
+        var response = handler.handle(request, InteractionContext.builder().requestId("methodology-run")
+            .skillAnalysisContext(snapshot).build());
+        verify(orchestrator).executeAgent(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+            anyInt(), any(), anyBoolean(), org.mockito.ArgumentMatchers.argThat(attributes -> {
+                var projection = (Map<?, ?>) attributes.get(com.chatchat.common.skills.DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE);
+                return snapshot.equals(attributes.get(com.chatchat.agents.runtime.context.SkillAnalysisContext.ATTRIBUTE))
+                    && projection != null && Integer.valueOf(1).equals(projection.get("activatedCount"))
+                    && snapshot.get("fingerprint").equals(projection.get("fingerprint"));
+            }));
+        assertThat(response.getMetadata()).containsEntry("activatedDomainSkillCount", 1);
+    }
     @Test void unavailableRequiredCapabilityCannotBecomeSuccessfulTextAnswer() {
         var catalog = mock(SkillCatalogService.class);
         var orchestrator = mock(AgentOrchestrator.class);

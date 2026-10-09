@@ -29,6 +29,34 @@ import static org.mockito.Mockito.when;
 
 class RoleChatModeHandlerTest {
 
+    @Test void adkMethodologyDrivesRolePromptAndActivationSummary() {
+        var model = mock(ChatModel.class);
+        var catalog = mock(SkillCatalogService.class);
+        var role = mock(SkillDefinition.class);
+        when(role.id()).thenReturn("role");
+        when(role.defaultMode()).thenReturn("role_chat");
+        when(role.workflowConfig()).thenReturn(Map.of("boundDomainSkillIds", List.of("s")));
+        when(catalog.resolve("role")).thenReturn(role);
+        when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("answer");
+        var handler = new RoleChatModeHandler(model, mock(ConfigurableChatModelFactory.class), catalog,
+            mock(KnowledgeRuntimePort.class));
+        var contexts = mock(com.chatchat.chat.skills.runtime.SkillAnalysisContextService.class);
+        var snapshot = com.chatchat.agents.runtime.context.SkillAnalysisContext.create("APPLIED",
+            List.of(Map.of("id", "s", "name", "Method")), Map.of("REPORT", List.of("Disclose missing checks")));
+        when(contexts.prepare(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).thenReturn(snapshot);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "skillAnalysisContexts", contexts);
+        var response = handler.handle(InteractionRequest.builder().skillId("role").query("question").build(),
+            InteractionContext.builder().build());
+        assertThat(response.getMetadata()).containsEntry("selectedDomainSkillCount", 1)
+            .containsEntry("activatedDomainSkillCount", 1).containsEntry("domainSkillStatus", "APPLIED");
+        var projection = (Map<?, ?>) response.getMetadata().get(DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE);
+        assertThat(projection.get("fingerprint")).isEqualTo(snapshot.get("fingerprint"));
+        var prompt = ArgumentCaptor.forClass(String.class);
+        verify(model).chat(prompt.capture());
+        assertThat(prompt.getValue()).contains("Disclose missing checks");
+    }
+
     @Test
     void roleConversationWithoutProblemPlanAnswersAndRejectsLateCancelledResult() {
         var model = mock(ChatModel.class);

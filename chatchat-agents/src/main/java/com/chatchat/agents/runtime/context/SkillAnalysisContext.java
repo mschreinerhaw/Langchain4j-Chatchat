@@ -53,6 +53,28 @@ public final class SkillAnalysisContext {
         return Collections.unmodifiableMap(result);
     }
 
+    /** Provenance-only compatibility projection; the validated snapshot owns activation. */
+    public static Map<String, Object> planningProjection(Object raw, List<String> configuredIds) {
+        var context = validate(raw);
+        if (context.isEmpty()) return Map.of();
+        List<?> skills = context.get("skills") instanceof List<?> list ? list : List.of();
+        List<?> activated = "APPLIED".equals(context.get("status")) ? skills : List.of();
+        var result = new LinkedHashMap<String, Object>();
+        result.put("schemaVersion", "domain_skill_planning.v2");
+        result.put("status", context.get("status"));
+        result.put("configuredSkillIds", configuredIds == null ? List.of() : List.copyOf(configuredIds));
+        result.put("configuredCount", configuredIds == null ? 0 : configuredIds.size());
+        result.put("selectedCount", skills.size());
+        result.put("activatedCount", activated.size());
+        result.put("loadedCount", skills.size());
+        result.put("skills", skills);
+        result.put("activatedSkills", activated);
+        result.put("fingerprint", context.get("fingerprint"));
+        result.put("source", VERSION);
+        result.put("currentFactAuthority", false);
+        return Map.copyOf(result);
+    }
+
     private static Object canonical(Object value) {
         if (value instanceof Map<?, ?> map) {
             var sorted = new TreeMap<String, Object>();

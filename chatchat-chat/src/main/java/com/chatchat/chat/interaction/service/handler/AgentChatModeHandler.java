@@ -248,6 +248,11 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             runtimeAttributes.put(DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE,
                 domainSkillPlanningRouter.projection(domainSkillRouting));
         }
+        var methodologyProjection = com.chatchat.agents.runtime.context.SkillAnalysisContext.planningProjection(
+            skillContext, configuredDomainSkillIds(skill));
+        if (!methodologyProjection.isEmpty()) {
+            runtimeAttributes.put(DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE, methodologyProjection);
+        }
         // Always propagate the governed projection. An empty/not-applied plan is still an
         // auditable Skill outcome and must not disappear from the Runtime event stream.
         runtimeAttributes.put(KnowledgeContext.RUNTIME_ATTRIBUTE, domainKnowledge.toRuntimeProjection());
@@ -287,6 +292,11 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         metadata.put("skillId", resolvedSkillId);
         metadata.put("modelName", modelName);
         metadata.put("agent", result.metadata());
+        if (!methodologyProjection.isEmpty()) {
+            metadata.put(DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE, methodologyProjection);
+            metadata.put("selectedDomainSkillCount", methodologyProjection.get("selectedCount"));
+            metadata.put("activatedDomainSkillCount", methodologyProjection.get("activatedCount"));
+        }
         metadata.put("handler", "AgentChatModeHandler");
         metadata.put("historyUsed", context.history() == null ? 0 : context.history().size());
         metadata.put("summaryUsed", context.conversationSummary() != null && !context.conversationSummary().isBlank());
@@ -343,11 +353,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
                                                                                 String userId, List<String> roles,
                                                                                 String query,
                                                                                 SkillDefinition skill) {
-        if (domainSkillRuntime == null || skill == null || skill.workflowConfig() == null) return List.of();
-        Object configured = skill.workflowConfig().get("boundDomainSkillIds");
-        if (!(configured instanceof Iterable<?> values)) return List.of();
-        List<String> ids = new ArrayList<>();
-        values.forEach(value -> { if (value != null && !String.valueOf(value).isBlank()) ids.add(String.valueOf(value)); });
+        if (domainSkillRuntime == null || skill == null) return List.of();
+        List<String> ids = configuredDomainSkillIds(skill);
         if (ids.isEmpty()) return List.of();
         List<DomainSkillRuntimePort.DomainSkillContent> skills = domainSkillRuntime.retrievePublishedForAgent(
             tenantId, userId, roles, query, ids, skill.id());
@@ -356,6 +363,15 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         log.info("agentDomainSkillsResolved skillId={} tenantId={} configuredCount={} resolvedPublishedCount={} configuredIds={}",
             skill.id(), tenantId, ids.size(), resolved.size(), ids);
         return resolved;
+    }
+
+    private List<String> configuredDomainSkillIds(SkillDefinition skill) {
+        if (skill == null || skill.workflowConfig() == null) return List.of();
+        Object configured = skill.workflowConfig().get("boundDomainSkillIds");
+        if (!(configured instanceof Iterable<?> values)) return List.of();
+        List<String> ids = new ArrayList<>();
+        values.forEach(value -> { if (value != null && !String.valueOf(value).isBlank()) ids.add(String.valueOf(value)); });
+        return cleanList(ids);
     }
 
     private SkillExecutionScopePort.EffectiveScope resolveSkillScope(InteractionRequest request,

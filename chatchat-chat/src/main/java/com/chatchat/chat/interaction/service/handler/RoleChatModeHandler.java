@@ -129,10 +129,13 @@ public class RoleChatModeHandler implements InteractionModeHandler {
         metadata.put("knowledgeSkillCount", knowledge.plan() == null ? 0 : knowledge.plan().skills().size());
         Map<String, Object> domainSkillProjection = domainSkillProjection(
             configuredDomainSkillIds, domainSkills, domainSkillRouting);
+        var methodologyProjection = com.chatchat.agents.runtime.context.SkillAnalysisContext.planningProjection(
+            skillContext, configuredDomainSkillIds);
+        if (!methodologyProjection.isEmpty()) domainSkillProjection = methodologyProjection;
         metadata.put(DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE, domainSkillProjection);
         metadata.put("configuredDomainSkillCount", configuredDomainSkillIds.size());
-        metadata.put("selectedDomainSkillCount", domainSkills.size());
-        metadata.put("activatedDomainSkillCount", activatedDomainSkillCount(domainSkills, domainSkillRouting));
+        metadata.put("selectedDomainSkillCount", domainSkillProjection.get("selectedCount"));
+        metadata.put("activatedDomainSkillCount", domainSkillProjection.get("activatedCount"));
         metadata.put("domainSkillStatus", domainSkillProjection.get("status"));
         metadata.put("historyUsed", context.history() == null ? 0 : context.history().size());
         metadata.put("summaryUsed", hasText(context.conversationSummary()));

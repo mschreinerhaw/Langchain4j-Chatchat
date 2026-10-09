@@ -1,11 +1,12 @@
 import * as echarts from "echarts";
 import { markRaw } from "vue";
+import { registeredGraphTypes } from '../utils/visualizationCapabilities.js';
 import { isDirectionalMetric, trendColor, TREND_SEMANTICS_UPDATED_EVENT } from "../utils/trendSemantics.js";
 
 export { isDirectionalMetric, trendColor, TREND_COLORS } from "../utils/trendSemantics.js";
 
 const PALETTE = ["#2563eb", "#7c3aed", "#0891b2", "#d97706", "#db2777", "#4f46e5", "#0f766e", "#9333ea"];
-const CHART_TYPES = new Set(["line", "bar", "pie", "scatter"]);
+const CHART_TYPES = registeredGraphTypes;
 const PANEL_LAYOUTS = new Set(["grid", "stack"]);
 const MAX_PANEL_BLOCKS = 6;
 const AXIS_LABEL_FONT = "12px Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
@@ -497,7 +498,8 @@ export default {
       if (this.rows.some((row) => numeric(row?.[this.xKey]) !== null)) {
         options.push({ value: "scatter", label: "散点图" });
       }
-      return options;
+      const allowed = this.normalizedSpec?.ui?.allowedChartTypes;
+      return Array.isArray(allowed) ? options.filter(option => allowed.includes(option.value)) : options;
     },
     recommendationReason() {
       return compact(this.normalizedSpec?.recommendation?.reason);

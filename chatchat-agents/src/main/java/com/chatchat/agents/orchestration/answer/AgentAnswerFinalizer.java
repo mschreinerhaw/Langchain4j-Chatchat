@@ -218,7 +218,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         String selectedAnswer = decision.finalAnswer();
         selectedAnswer = answerQualityCoordinator.applyTargetedRepair(
             activeChatModel, query, systemPrompt, selectedAnswer, values, observations,
-            this::sanitizeFinalMarkdown);
+            candidate -> sanitizeFinalMarkdown(candidate, values));
         boolean governedReviewerRepair = governedAnalysisReport
             && AnswerDecisionEngine.REVIEWER_REWRITE.equals(decision.action())
             && Boolean.TRUE.equals(values.get("modelEvidenceReviewRewriteAllowed"));
@@ -230,7 +230,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         } else if (governedReviewerRepair) {
             values.put("governedAnalysisPublicationRepairApplied", true);
         }
-        String finalAnswer = sanitizeFinalMarkdown(selectedAnswer);
+        String finalAnswer = sanitizeFinalMarkdown(selectedAnswer, values);
         if (values.containsKey("analysisReportContract")) {
             finalAnswer = enforceAnalysisReportContract(finalAnswer, values);
         }
@@ -350,7 +350,8 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         }
         values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
         attachGovernedSummaryResult(finalAnswer, values, traces, observations);
-        String userFacingAnswer = UserFacingAnswerSanitizer.sanitize(finalAnswer);
+        var reportPayloads = com.chatchat.agents.orchestration.analysis.report.ReportBlockMarkdownProtocol.protectVerified(finalAnswer, values);
+        String userFacingAnswer = reportPayloads.restore(UserFacingAnswerSanitizer.sanitize(reportPayloads.markdown()));
         if (!userFacingAnswer.equals(finalAnswer)) {
             values.put("userFacingReconciliationDetailsSuppressed", true);
         }
@@ -671,7 +672,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
                               String systemPrompt,
                               Map<String, Object> metadata) {
         if (answer != null && !answer.isBlank()) {
-            String sanitized = sanitizeFinalMarkdown(answer);
+            String sanitized = sanitizeFinalMarkdown(answer, metadata == null ? Map.of() : metadata);
             if (!sanitized.isBlank()) {
                 return sanitized;
             }
@@ -807,7 +808,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         log.info("agentModelOutput phase=summary runId={} answer=\n{}",
             firstNonBlank(runId, ""),
             ModelProtocolJson.prettyJsonForLog(answer));
-        return sanitizeFinalMarkdown(answer);
+        return sanitizeFinalMarkdown(answer, metadata == null ? Map.of() : metadata);
     }
 
     private void appendDatasetEvidence(StringBuilder prompt, Map<String, Object> metadata) {
@@ -836,6 +837,11 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
     private String xml(String value) {
         return value == null ? "" : value.replace("&", "&amp;")
             .replace("\"", "&quot;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    private String sanitizeFinalMarkdown(String answer, Map<String, Object> metadata) {
+        var payloads = com.chatchat.agents.orchestration.analysis.report.ReportBlockMarkdownProtocol.protectVerified(answer, metadata);
+        return payloads.restore(sanitizeFinalMarkdown(payloads.markdown()));
     }
 
     private String sanitizeFinalMarkdown(String answer) {

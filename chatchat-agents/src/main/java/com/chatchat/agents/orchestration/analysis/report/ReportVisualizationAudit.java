@@ -12,35 +12,14 @@ import java.util.regex.Pattern;
 public final class ReportVisualizationAudit {
     private static final ObjectMapper JSON = new ObjectMapper()
         .enable(com.fasterxml.jackson.databind.DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
+    private final VisualizationCapabilityRegistry registry;
+    public ReportVisualizationAudit() { this(VisualizationCapabilityRegistry.active()); }
+    public ReportVisualizationAudit(VisualizationCapabilityRegistry registry) { this.registry = registry; }
     public record Result(String markdown, List<Map<String, Object>> checks) { }
 
     public static String instruction() {
-        return """
-            Visualization recommendation: whenever a returned table has meaningful chart semantics, include one nearby
-            fenced json block containing
-            {"visualizationSpec":{"schemaVersion":"visualization_spec.v2","chartType":"bar",
-            "title":"comparison","dataset":{"sourceRef":"returned dataset reference","xKey":"category",
-            "series":[{"name":"measure","yKey":"amount"}]},"reason":"why this graphic best explains the table",
-            "alternativeChartTypes":["line","pie"]}}.
-            Use chartType bar, line (ISO-date x values), pie (nonnegative values), scatter (numeric x/y) or kpi (one value).
-            Alternatively use a json:visualization fence with {"intent":"trend|ranking|comparison|composition|metric|relationship",
-            "datasetRef":"returned reference","x":"actual field","y":"actual metric","title":"business title"}.
-            Runtime chooses the chart, orders rankings and supplies exact source rows.
-            Prefer dataRef from the verified computed catalog when it answers the question; otherwise use dataset.sourceRef
-            from the returned-data catalog. Select actual field names, keeping their labels and units unchanged.
-            dataset.rows is optional. If supplied, every selected row and value must match the referenced source.
-            For a new derived view, add transform:{operation:"SUM|AVG|COUNT|SHARE",groupBy:"category",metric:"amount"}
-            inside visualizationSpec. Runtime executes the explicitly selected operation over the referenced returned rows.
-            Use dataset.xKey equal to groupBy and one series with yKey:"value" for derived views. SHARE means each
-            group's SUM divided by the SUM over all returned rows, expressed in percent; it requires nonnegative inputs.
-            Only operations explicitly allowed by source metricPolicies are available. Unknown or preAggregated metrics
-            cannot be aggregated again. Incomplete projections cannot be aggregated.
-            Explain calculation meaning and returned-sample scope in prose. These operations do not establish population
-            completeness, causality or accounting semantics. Omit dataset.rows to let Runtime provide exact computed values.
-            Recommend a chart only when dimensions and measures support it; otherwise keep the table. Keep each graphic
-            next to its supporting discussion; use at most six graphics. No JavaScript, HTML, SQL,
-            arbitrary ECharts options or additional audit forms. A failed graphic never replaces the narrative report.
-            """;
+        return new VisualizationCapabilityInjector(VisualizationCapabilityRegistry.active())
+            .inject("", VerifiedReportDataCatalog.empty());
     }
 
     public Result audit(String markdown, VerifiedReportDataCatalog catalog) {
@@ -98,9 +77,9 @@ public final class ReportVisualizationAudit {
         return new Result(checks.isEmpty() ? markdown : result.toString(), List.copyOf(checks));
     }
 
-    private Map<String, Object> verify(Map<String, Object> spec, VerifiedReportDataCatalog catalog) {
+    Map<String, Object> verify(Map<String, Object> spec, VerifiedReportDataCatalog catalog) {
         String type = text(spec.get("chartType")).toLowerCase(Locale.ROOT);
-        require(Set.of("bar", "line", "pie", "scatter", "kpi").contains(type), "UNSUPPORTED_CHART");
+        require(registry.types().stream().anyMatch(allowed -> registry.rendererType(allowed).equals(type)), "UNSUPPORTED_CHART");
         Map<String, Object> dataset = map(spec.get("dataset"));
         String reference = text(spec.get("dataRef"));
         List<Map<String, Object>> rows;

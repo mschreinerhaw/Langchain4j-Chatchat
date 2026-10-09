@@ -7,11 +7,12 @@
         <pre>{{ part.content }}</pre>
       </details>
       <section v-else class="report-inline-visualization">
+        <p v-if="part.block?.conclusion" class="report-visualization-conclusion">{{ part.block.conclusion }}</p>
         <VisualizationRenderer
-          :spec="part.spec"
-          :preference="preferences[`report:${index}`] || null"
+          :spec="applyReportChartPreference(part.spec, preferences[part.slot || `report:${index}`])"
+          :preference="preferences[part.slot || `report:${index}`] || null"
           @drill-down="$emit('drill-down', $event)"
-          @preference-change="$emit('preference-change', { slot: `report:${index}`, preference: $event })"
+          @preference-change="$emit('preference-change', { slot: part.slot || `report:${index}`, preference: $event })"
         />
         <p v-if="part.spec.scope" class="report-visualization-scope">{{ part.spec.scope }}</p>
       </section>
@@ -23,6 +24,7 @@
 import { computed } from "vue";
 import VisualizationRenderer from "./VisualizationRenderer.vue";
 import { splitReportVisualizations } from "../js/utils/reportVisualization.js";
+import { applyReportChartPreference } from "../js/utils/reportChartPreferences.js";
 import { splitThinkBlocks } from "../js/utils/thinkBlocks.js";
 const props = defineProps({
   content: { type: String, default: "" },

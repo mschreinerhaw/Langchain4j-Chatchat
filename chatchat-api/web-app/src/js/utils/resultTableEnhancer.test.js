@@ -27,6 +27,14 @@ function payloadFor(root, selector = ".query-result-chart-button") {
 }
 
 describe("dynamic report table regression matrix", () => {
+  it('collapses query detail tables without folding the next report section', () => {
+    const root = dom(enhanceResultTables(renderMarkdown('## 查询结果明细\n\n供事实核对。\n\n'
+      + '| 对象 | 数量 |\n|---|---|\n| A | 2 |\n\n## 正式结论\n\n结论正文。')));
+    expect(root.querySelector('details.query-result-evidence')?.open).toBe(false);
+    expect(root.querySelector('details table')).not.toBeNull();
+    expect(root.querySelector('details').textContent).not.toContain('结论正文');
+    expect(payloadFor(root).dataRole).toBe('raw_data');
+  });
   it("preserves duplicate and empty header positions in chart datasets", () => {
     const html = "<table><thead><tr><th>对象</th><th>金额</th><th>金额</th><th></th></tr></thead>"
       + "<tbody><tr><td>A</td><td>12</td><td>-3</td><td>7</td></tr></tbody></table>";

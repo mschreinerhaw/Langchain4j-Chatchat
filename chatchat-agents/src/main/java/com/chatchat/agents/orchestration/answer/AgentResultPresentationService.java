@@ -45,9 +45,9 @@ public final class AgentResultPresentationService {
             }
             int rowCount = firstInt(data.get("rowCount"), data.get("total"), data.get("count"), rows.size());
             String title = firstNonBlank(stringValue(data.get("title")), "查询结果明细");
-            Map<String, Object> tableSpec = tableVisualizationSpec(title, columns, rows, rowCount, trace);
-            Map<String, Object> chartSpec = chartVisualizationSpec(title, columns, rows);
-            return chartSpec.isEmpty() ? tableSpec : panelVisualizationSpec(title, chartSpec, tableSpec, trace);
+            // Tool rows are fact-checking attachments. Report charts belong to analyzed findings,
+            // whose dimensions, measures and scope have been selected in the report pipeline.
+            return tableVisualizationSpec(title, columns, rows, rowCount, trace);
         }
         return Map.of();
     }

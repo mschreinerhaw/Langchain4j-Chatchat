@@ -153,7 +153,7 @@ public class ConversationController {
         if (preference == null) throw new IllegalArgumentException("Visualization preference is required");
         return ApiResponse.success(conversationService.updateVisualizationPreference(
             resolveTenantId(servletRequest, tenantId), conversationId, messageId,
-            preference.slot(), preference.view(), preference.chartType()),
+            preference.slot(), preference.view(), preference.chartType(), preference.settings()),
             "Visualization preference saved");
     }
 
@@ -198,7 +198,8 @@ public class ConversationController {
     public record RenameConversationRequest(String title) {
     }
 
-    public record VisualizationPreferenceRequest(String slot, String view, String chartType) { }
+    public record VisualizationPreferenceRequest(String slot, String view, String chartType,
+                                                 Map<String, Object> settings) { }
 
     public record ConversationListItem(
         String id,

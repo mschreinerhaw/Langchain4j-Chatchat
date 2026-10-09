@@ -157,6 +157,10 @@ public final class AnalysisCoverageCoordinator {
             return List.copyOf(preparedDatasets);
         };
         DatasetAnalysisMode mode = selectMode(datasets);
+        for (String key : List.of("visualizationAuthorizedTypes", "visualizationSupportedTypes")) {
+            if (request.runtimeAttributes().containsKey(key)) request.metadata().put(key, request.runtimeAttributes().get(key));
+            else request.metadata().remove(key);
+        }
         request.metadata().put("datasetAnalysisMode", mode.name());
         request.metadata().put("recordAnalysisSummaryDispatchMode", mode.name());
         if (mode == DatasetAnalysisMode.UNIFIED_QUESTION) {

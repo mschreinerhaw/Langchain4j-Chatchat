@@ -18,6 +18,7 @@ import {
 
 export const ARTIFACT_RESOURCE_LOADER = Symbol("artifact-resource-loader");
 export const ARTIFACT_EVENT_DISPATCHER = Symbol("artifact-event-dispatcher");
+export const ARTIFACT_VISUALIZATION_PREFERENCES = Symbol("artifact-visualization-preferences");
 
 const markdown = new MarkdownIt({
   html: false,
@@ -45,6 +46,7 @@ function resourceComponent(name, renderResource) {
     setup(props) {
       const loader = inject(ARTIFACT_RESOURCE_LOADER, null);
       const dispatchArtifactEvent = inject(ARTIFACT_EVENT_DISPATCHER, null);
+      const preferences = inject(ARTIFACT_VISUALIZATION_PREFERENCES, null);
       const value = ref(null);
       const loading = ref(true);
       const error = ref("");
@@ -70,7 +72,7 @@ function resourceComponent(name, renderResource) {
         if (error.value) {
           return h("div", { class: "artifact-resource-state error", role: "alert" }, error.value);
         }
-        return renderResource(value.value, props, dispatchArtifactEvent);
+        return renderResource(value.value, props, dispatchArtifactEvent, preferences?.value || {});
       };
     }
   });
@@ -95,13 +97,16 @@ export function renderArtifactHtml(value = "") {
   return collapseRecordCoverageEvidenceHtml(collapseToolExecutionEvidenceHtml(rendered));
 }
 
-const MarkdownResource = resourceComponent("ArtifactMarkdown", (value, props, dispatch) =>
+const MarkdownResource = resourceComponent("ArtifactMarkdown", (value, props, dispatch, preferences) =>
   h(ReportMarkdown, { class: "artifact-markdown message-markdown", content: String(value || ""),
-    renderMarkdown: renderArtifactMarkdownHtml, onDrillDown: (payload) => dispatch?.("drill-down", payload) })
+    preferences, renderMarkdown: renderArtifactMarkdownHtml,
+    onPreferenceChange: payload => dispatch?.('preference-change', payload),
+    onDrillDown: (payload) => dispatch?.("drill-down", payload) })
 );
 
-const AnalyticalReportResource = resourceComponent("ArtifactAnalyticalReport", (value, props, dispatchArtifactEvent) =>
-  h(AnalyticalReport, { report: value,
+const AnalyticalReportResource = resourceComponent("ArtifactAnalyticalReport", (value, props, dispatchArtifactEvent, preferences) =>
+  h(AnalyticalReport, { report: value, preferences,
+    onPreferenceChange: event => dispatchArtifactEvent?.("preference-change", event),
     onDrillDown: (event) => dispatchArtifactEvent?.("drill-down", event, { resourceId: props.resourceId }) })
 );
 
@@ -127,10 +132,12 @@ const NoticeResource = resourceComponent("ArtifactNotice", (value, props) =>
   ])
 );
 
-const VisualizationResource = resourceComponent("ArtifactVisualization", (value, props, dispatchArtifactEvent) =>
+const VisualizationResource = resourceComponent("ArtifactVisualization", (value, props, dispatchArtifactEvent, preferences) =>
   value && typeof value === "object"
     ? h(VisualizationRenderer, {
         spec: value,
+        preference: preferences?.[`resource:${props.resourceId}`],
+        onPreferenceChange: preference => dispatchArtifactEvent?.("preference-change", { slot: `resource:${props.resourceId}`, preference }),
         onDrillDown: (event) => dispatchArtifactEvent?.("drill-down", event, {
           resourceId: props.resourceId
         })

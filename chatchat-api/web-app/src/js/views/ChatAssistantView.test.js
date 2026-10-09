@@ -15,6 +15,12 @@ import ChatAssistantView, {
 } from "./ChatAssistantView";
 
 describe("restored assistant result deduplication", () => {
+  it('retains chart editor preferences for Markdown reports without a visualization attachment', () => {
+    const preferences = { 'table:sample': { view: 'graph', chartType: 'line', yKey: 'value', selectedColumns: ['value'] } };
+    const [message] = normalizeMessages([{ id: 'answer', role: 'assistant', content: 'Report',
+      visualizationSpec: { ui: { userPreferences: preferences } } }], 'completed');
+    expect(message.visualizationSpec.ui.userPreferences).toEqual(preferences);
+  });
   it.each(["agent_chat", "role_chat"])("refreshes the actual Agent mode before sending: %s", async (mode) => {
     const agent = { id: "asset", defaultMode: mode, marketStatus: "published" };
     apiRequest.mockResolvedValue(agent);

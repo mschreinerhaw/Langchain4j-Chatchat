@@ -1,4 +1,6 @@
 import { isDirectionalMetric, trendState } from "./trendSemantics.js";
+import { collapseQueryResultDetailsHtml } from "./recordCoverageEvidence.js";
+import { reportTableSlot } from "./reportChartPreferences.js";
 
 function parseNumber(value) {
   if (typeof value === "number") {
@@ -11,6 +13,8 @@ function parseNumber(value) {
 }
 
 function tableTitle(table, index) {
+  const evidenceTitle = table.closest('.query-result-evidence')?.dataset.reportTitle;
+  if (evidenceTitle) return evidenceTitle;
   let node = table.previousElementSibling;
   let distance = 0;
   while (node && distance < 6) {
@@ -49,7 +53,10 @@ function tablePayload(table, index) {
     .filter(Boolean);
   if (!rows.length) return null;
 
-  return { title: tableTitle(table, index), columns, rows };
+  const title = tableTitle(table, index);
+  return { title, columns, rows, slot: reportTableSlot(title, columns),
+    dataRole: table.closest('.query-result-evidence, .record-coverage-evidence, .tool-evidence-details')
+      ? 'raw_data' : 'analysis_conclusion' };
 }
 
 function removeEmptySourceColumns(table) {
@@ -123,7 +130,8 @@ export function enhanceResultTables(html = "") {
       cell.append(toggle);
     });
 
-    const tables = [...root.querySelectorAll("table")];
+    root.innerHTML = collapseQueryResultDetailsHtml(root.innerHTML);
+    const tables = [...root.querySelectorAll("table")].filter(table => !table.closest(".query-result-table-card"));
     tables.forEach(removeEmptySourceColumns);
     tables.forEach(decorateDirectionalCells);
     const enhanced = tables

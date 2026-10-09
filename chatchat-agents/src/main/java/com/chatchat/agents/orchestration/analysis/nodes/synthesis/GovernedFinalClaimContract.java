@@ -501,7 +501,6 @@ final class GovernedFinalClaimContract {
             + "These lenses are not mandatory headings or a Runtime checklist. Existing table controls can visualize those datasets without a computed dataRef. "
             + "Runtime will publish this body without composing sections or filling business conclusions. "
             + AnalysisSynthesisContract.narrativeCoherenceInstruction()
-            + com.chatchat.agents.orchestration.analysis.report.ReportVisualizationAudit.instruction()
             + "The Evidence provenance ledger below is the lossless completed-analysis hand-off and not a required outline. "
             + "Use it as grounded source material for synthesis, comparison and further bounded interpretation; "
             + "Preserve its separate observation, interpretation and implication fields and its method/scope semantics. "

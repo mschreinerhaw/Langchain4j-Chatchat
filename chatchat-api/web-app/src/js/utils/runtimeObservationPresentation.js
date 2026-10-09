@@ -16,6 +16,9 @@ export function runtimeObservationPresentation(runtimePayload = {}) {
   const eventState = upper(metadata.eventState);
   const type = upper(metadata.type);
   const stage = upper(metadata.stage);
+  if (eventKind === 'VISUALIZATION_PLANNING') {
+    return { title: '图形化规划', toolName: 'visualization_planning', status: 'done' };
+  }
   if (eventKind === "ANALYSIS_GRAPH" || type.startsWith("UNIFIED_QUESTION_ANALYSIS_")) {
     const state = eventState || (type.endsWith("_STARTED") ? "STARTED"
       : type.endsWith("_FAILED") ? "FAILED" : "COMPLETED");

@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight, Maximize2, Minimize2, Pin, PinOff, X } from "@lucide/vue";
 import { defineAsyncComponent } from "vue";
 import { coerceChartMetricRows, parseChartNumber, selectChartMetricKey } from "../utils/chartDatasetTypes.js";
+import { reportTableSlot } from "../utils/reportChartPreferences.js";
 
 const VisualizationRenderer = defineAsyncComponent(() => import("../../components/VisualizationRenderer.vue"));
 
@@ -14,10 +15,12 @@ function normalizeChartDataset(data = {}, index = 0) {
   const xKey = data.xKey || columns[0] || "";
   return {
     id: data.id || makeDatasetId(index),
+    slot: data.slot || reportTableSlot(data.title || `数据集 ${index + 1}`, columns),
     title: data.title || `数据集 ${index + 1}`,
     columns,
     rows,
-    chartType: data.chartType || "bar",
+    chartType: data.chartType || (data.dataRole === 'raw_data' ? 'table' : 'bar'),
+    view: data.view || ((data.chartType === 'table' || data.dataRole === 'raw_data') ? 'table' : 'graph'),
     xKey,
     yKey: selectChartMetricKey(columns, rows, xKey, data.yKey),
     groupKey: data.groupKey || "",
@@ -39,6 +42,7 @@ export default {
   data() {
     return {
       chartAnalysisModal: null,
+      chartAnalysisPreferenceCache: {},
       chartAnalysisFloating: false,
       chartAnalysisFullscreen: false,
       chartAnalysisSettingsOpen: false,
@@ -51,7 +55,7 @@ export default {
     this.stopChartAnalysisDrag();
   },
   methods: {
-    openChartAnalysisModal(payload) {
+    openChartAnalysisModal(payload, message = null) {
       try {
         const data = JSON.parse(decodeURIComponent(payload || ""));
         const rawDatasets = Array.isArray(data.datasets) && data.datasets.length
@@ -59,12 +63,19 @@ export default {
           : [data];
         const datasets = rawDatasets
           .map((item, index) => normalizeChartDataset(item, index))
+          .map(item => {
+            const preference = this.chartAnalysisPreferenceCache[`${message?.id || 'transient'}:${item.slot}`]
+              || this.visualizationPreference?.(message, item.slot) || {};
+            return normalizeChartDataset({ ...item, ...preference,
+              chartType: preference.view === 'table' ? 'table' : (preference.chartType || item.chartType) });
+          })
           .filter((item) => item.columns.length && item.rows.length);
         if (!datasets.length) {
           return;
         }
         this.chartAnalysisModal = {
           title: data.title || "查询结果图形化分析",
+          message,
           datasets,
           activeDatasetId: data.activeDatasetId || datasets[0].id
         };
@@ -276,8 +287,24 @@ export default {
       }
       this.chartAnalysisModal = {
         ...modal,
-        datasets: modal.datasets.map((item) => item.id === dataset.id ? { ...item, ...patch } : item)
+        datasets: modal.datasets.map((item) => item.id === dataset.id ? { ...item, ...patch,
+          view: patch.view || (patch.chartType ? (patch.chartType === 'table' ? 'table' : 'graph') : item.view) } : item)
       };
+      const current = this.chartAnalysisActiveDataset();
+      const preference = { view: current.view,
+        chartType: current.chartType === 'table' ? '' : current.chartType,
+        xKey: current.xKey, yKey: current.yKey, groupKey: current.groupKey,
+        selectedColumns: [...current.selectedColumns] };
+      const cacheKey = `${modal.message?.id || 'transient'}:${current.slot}`;
+      this.chartAnalysisPreferenceCache[cacheKey] = preference;
+      if (modal.message) this.handleVisualizationPreference(modal.message, { slot: current.slot, preference });
+    },
+    handleChartAnalysisPreference(preference = {}) {
+      const dataset = this.chartAnalysisActiveDataset();
+      if (!dataset) return;
+      const type = preference.view === 'table' ? 'table' : (preference.chartType || dataset.chartType);
+      const view = preference.view || dataset.view;
+      if (type !== dataset.chartType || view !== dataset.view) this.updateChartAnalysisDataset({ chartType: type, view });
     },
     setChartField(key, value) {
       if (!this.chartAnalysisActiveDataset()) {
@@ -308,8 +335,8 @@ export default {
           type: "table",
           title: modal.title,
           dataset: {
-            columns: modal.columns,
-            rows: modal.rows
+            columns: modal.selectedColumns,
+            rows: modal.rows.map(row => Object.fromEntries(modal.selectedColumns.map(key => [key, row[key]])))
           },
           ui: { defaultView: "table" }
         };
@@ -340,7 +367,8 @@ export default {
         return [...new Set(modal.rows.map((row) => String(row[modal.groupKey] ?? "未分组")))]
           .map((group) => ({ name: `${modal.groupKey}=${group} / ${yKey}`, yKey: group }));
       }
-      return [{ name: yKey, yKey }];
+      const unit = modal.rows.every(row => String(row[yKey] ?? '').trim().endsWith('%')) ? '%' : '';
+      return [{ name: yKey, yKey, unit }];
     },
     chartAnalysisSemanticSummary() {
       const modal = this.chartAnalysisActiveDataset();
@@ -368,7 +396,9 @@ export default {
           const xValue = String(row[xKey] ?? "未命名");
           const group = String(row[modal.groupKey] ?? "未分组");
           const target = rowsByX.get(xValue) || { [xKey]: xValue };
-          target[group] = (parseChartNumber(target[group]) ?? 0) + (parseChartNumber(row[yKey]) ?? 0);
+          const value = parseChartNumber(row[yKey]);
+          if (value === null) return;
+          target[group] = (parseChartNumber(target[group]) ?? 0) + value;
           rowsByX.set(xValue, target);
         });
         return [...rowsByX.values()];
@@ -376,15 +406,17 @@ export default {
       if (chartType === "scatter") {
         return modal.rows.map((row) => ({
           ...row,
-          [xKey]: parseChartNumber(row[xKey]) ?? 0,
-          [yKey]: parseChartNumber(row[yKey]) ?? 0
-        }));
+          [xKey]: parseChartNumber(row[xKey]),
+          [yKey]: parseChartNumber(row[yKey])
+        })).filter(row => row[xKey] !== null && row[yKey] !== null);
       }
       if (chartType === "pie") {
         const totals = new Map();
         modal.rows.forEach((row) => {
           const label = String(row[xKey] ?? "未分组");
-          totals.set(label, (totals.get(label) || 0) + (parseChartNumber(row[yKey]) ?? 0));
+          const value = parseChartNumber(row[yKey]);
+          if (value === null) return;
+          totals.set(label, (totals.get(label) || 0) + value);
         });
         return [...totals.entries()].map(([label, value]) => ({ [xKey]: label, [yKey]: value }));
       }

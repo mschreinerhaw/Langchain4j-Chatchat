@@ -394,6 +394,12 @@ public class ConversationService {
                                                                String slot,
                                                                String view,
                                                                String chartType) {
+        return updateVisualizationPreference(tenantId, conversationId, messageId, slot, view, chartType, Map.of());
+    }
+
+    @Transactional
+    public Conversation.Message updateVisualizationPreference(String tenantId, String conversationId,
+        String messageId, String slot, String view, String chartType, Map<String, Object> settings) {
         String normalizedTenantId = normalizeTenantId(tenantId);
         ChatSessionEntity session = sessionRepository
             .findBySessionIdAndTenantId(conversationId, normalizedTenantId)
@@ -413,9 +419,25 @@ public class ConversationService {
         Map<String, Object> spec = deepMutableMap(detail.getVisualizationSpec());
         Map<String, Object> ui = mutableNestedMap(spec, "ui");
         Map<String, Object> preferences = mutableNestedMap(ui, "userPreferences");
-        Map<String, Object> preference = new LinkedHashMap<>();
+        Map<String, Object> preference = mutableNestedMap(preferences, normalizedSlot);
         preference.put("view", normalizedView);
         if (!normalizedChartType.isBlank()) preference.put("chartType", normalizedChartType);
+        if (settings != null) {
+            for (String key : List.of("xKey", "yKey", "groupKey")) {
+                Object raw = settings.get(key);
+                if (raw == null) continue;
+                if (!(raw instanceof String text) || text.length() > 256)
+                    throw new IllegalArgumentException("Invalid chart field: " + key);
+                preference.put(key, text);
+            }
+            Object rawColumns = settings.get("selectedColumns");
+            if (rawColumns != null) {
+                if (!(rawColumns instanceof List<?> columns) || columns.size() > 128
+                    || columns.stream().anyMatch(c -> !(c instanceof String text) || text.length() > 256))
+                    throw new IllegalArgumentException("Invalid selected chart columns");
+                preference.put("selectedColumns", List.copyOf(columns));
+            }
+        }
         preference.put("updatedAt", Instant.now().toString());
         preferences.put(normalizedSlot, preference);
         ui.put("userPreferences", preferences);

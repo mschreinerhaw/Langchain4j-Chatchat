@@ -1,5 +1,31 @@
 const COVERAGE_HEADING_RE = /^(?:证据\s*[·:\-—]\s*)?全量记录覆盖分析$/i;
 
+export function collapseQueryResultDetailsHtml(html = "") {
+  if (typeof DOMParser === "undefined") return html;
+  const doc = new DOMParser().parseFromString(String(html || ""), "text/html");
+  doc.querySelectorAll("h1,h2,h3,h4,h5,h6").forEach((heading) => {
+    if (!/^(?:查询结果明细|数据明细|原始数据明细)$/.test(heading.textContent.trim())
+      || heading.closest(".query-result-evidence")) return;
+    const level = Number(heading.tagName.slice(1));
+    const details = doc.createElement("details");
+    details.className = "query-result-evidence";
+    details.dataset.reportTitle = heading.textContent.trim();
+    const summary = doc.createElement("summary");
+    summary.textContent = "事实核对 · 查询明细";
+    const body = doc.createElement("div");
+    body.className = "query-result-evidence-body";
+    let next = heading.nextElementSibling;
+    heading.replaceWith(details);
+    details.append(summary, body);
+    while (next && !(/^H[1-6]$/.test(next.tagName) && Number(next.tagName.slice(1)) <= level)) {
+      const sibling = next.nextElementSibling;
+      body.append(next);
+      next = sibling;
+    }
+  });
+  return doc.body.innerHTML;
+}
+
 function headingText(value = "") {
   return String(value)
     .replace(/<[^>]+>/g, " ")

@@ -4606,6 +4606,17 @@
 }
 
 .visualization-raw-data,
+.query-result-evidence {
+  margin: 14px 0; padding: 8px 12px; border: 1px solid #e5e7eb;
+  border-radius: 8px; background: #f8fafc; color: #7a8493; font-size: 12px;
+}
+.query-result-evidence > summary { cursor: pointer; font-size: 12px; color: #7a8493; }
+.query-result-evidence-body { margin-top: 10px; overflow-x: auto; }
+.query-result-evidence-body :is(p,li,th,td,a,code) {
+  color: #7a8493 !important; font-size: 12px !important; line-height: 1.6;
+}
+.query-result-evidence-body .query-result-table-card th,
+.query-result-evidence-body .query-result-table-card td { padding: 6px 8px; }
 .supporting-dataset-attachment {
   margin-top: 6px;
   border: 0;

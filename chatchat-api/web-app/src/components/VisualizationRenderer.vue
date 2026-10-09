@@ -89,8 +89,8 @@
     </p>
 
     <div v-if="hasDirectionalSeries" class="visualization-trend-legend" aria-label="涨跌颜色说明">
-      <span class="up"><i></i>上涨 / 正收益</span>
-      <span class="down"><i></i>下跌 / 负收益</span>
+      <span class="up"><i></i>增加 / 正值</span>
+      <span class="down"><i></i>减少 / 负值</span>
       <span class="neutral"><i></i>持平 / 起点 / 零值</span>
     </div>
 

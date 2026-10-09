@@ -14,13 +14,15 @@ import { JSONUIProvider, Renderer } from "@json-render/vue";
 import { fetchUiArtifact, fetchUiArtifactResource } from "../services/api.js";
 import {
   ARTIFACT_EVENT_DISPATCHER,
+  ARTIFACT_VISUALIZATION_PREFERENCES,
   ARTIFACT_RESOURCE_LOADER,
   enterpriseUiRegistry
 } from "../js/ui-artifact/registry.js";
 
-const emit = defineEmits(["drill-down", "table-chart"]);
+const emit = defineEmits(["drill-down", "table-chart", "preference-change"]);
 
 const props = defineProps({
+  preferences: { type: Object, default: () => ({}) },
   artifact: {
     type: Object,
     required: true
@@ -77,7 +79,9 @@ async function loadResource(resourceId) {
 }
 
 provide(ARTIFACT_RESOURCE_LOADER, loadResource);
+provide(ARTIFACT_VISUALIZATION_PREFERENCES, computed(() => props.preferences));
 provide(ARTIFACT_EVENT_DISPATCHER, (eventName, payload = {}, context = {}) => {
+  if (eventName === 'preference-change') { emit('preference-change', payload); return; }
   if (eventName !== "drill-down") {
     return;
   }

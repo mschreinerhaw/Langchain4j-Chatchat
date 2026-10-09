@@ -141,7 +141,9 @@
           v-if="message.role === 'assistant' && !message.streaming && messageUiArtifact(message)"
           :artifact="messageUiArtifact(message)"
           @drill-down="handleVisualizationDrillDown(message, $event)"
-          @table-chart="openChartAnalysisModal"
+          :preferences="visualizationPreferences(message)"
+          @preference-change="handleVisualizationPreference(message, $event)"
+          @table-chart="openChartAnalysisModal($event, message)"
         />
         <ReportMarkdown
           v-else-if="messageHasRenderableContent(message)"
@@ -152,7 +154,7 @@
           @drill-down="handleVisualizationDrillDown(message, $event)"
           :preferences="visualizationPreferences(message)"
           @preference-change="handleVisualizationPreference(message, $event)"
-          @click="handleMarkdownClick"
+          @click="handleMarkdownClick($event, message)"
         />
         <section
           v-if="message.role === 'assistant' && !message.streaming && metadataTableCatalog(message).rows.length"
@@ -244,21 +246,21 @@
           </section>
         </div>
         <details
-          v-if="message.role === 'assistant' && message.visualizationSpec && !message.streaming && !hasComposedAnalysisReport(message) && isCollapsibleRawDataVisualization(message.visualizationSpec)"
+          v-if="message.role === 'assistant' && messageVisualizationSpec(message) && !message.streaming && !hasComposedAnalysisReport(message) && isCollapsibleRawDataVisualization(messageVisualizationSpec(message))"
           class="supporting-dataset-attachment"
-          :open="message.visualizationSpec?.ui?.defaultCollapsed === false"
+          :open="messageVisualizationSpec(message)?.ui?.defaultCollapsed === false"
         >
-          <summary>{{ rawDataVisualizationToggleLabel(message.visualizationSpec) }}</summary>
+          <summary>{{ rawDataVisualizationToggleLabel(messageVisualizationSpec(message)) }}</summary>
           <VisualizationRenderer
-            :spec="message.visualizationSpec"
+            :spec="messageVisualizationSpec(message)"
             :preference="visualizationPreference(message, 'attachment')"
             @drill-down="handleVisualizationDrillDown(message, $event)"
             @preference-change="handleVisualizationPreference(message, { slot: 'attachment', preference: $event })"
           />
         </details>
         <VisualizationRenderer
-          v-else-if="message.role === 'assistant' && message.visualizationSpec && !message.streaming && !hasComposedAnalysisReport(message)"
-          :spec="message.visualizationSpec"
+          v-else-if="message.role === 'assistant' && messageVisualizationSpec(message) && !message.streaming && !hasComposedAnalysisReport(message)"
+          :spec="messageVisualizationSpec(message)"
           :preference="visualizationPreference(message, 'attachment')"
           @drill-down="handleVisualizationDrillDown(message, $event)"
           @preference-change="handleVisualizationPreference(message, { slot: 'attachment', preference: $event })"
@@ -551,7 +553,9 @@
         <VisualizationRenderer
           v-if="chartAnalysisSpec()"
           :spec="chartAnalysisSpec()"
+          :preference="{ view: chartAnalysisActiveDataset()?.view, chartType: chartAnalysisActiveDataset()?.chartType }"
           @drill-down="handleChartAnalysisDrillDown"
+          @preference-change="handleChartAnalysisPreference"
         />
 
         <footer>

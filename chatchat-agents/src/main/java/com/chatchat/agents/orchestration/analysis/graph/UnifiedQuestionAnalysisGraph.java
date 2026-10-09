@@ -169,6 +169,20 @@ public final class UnifiedQuestionAnalysisGraph {
                     prompt += com.chatchat.agents.runtime.context.SkillAnalysisContext.prompt(
                         com.chatchat.agents.runtime.context.SkillAnalysisContext.from(metadata), "ANALYSIS_AND_VALIDATION");
                     var promptSize = TOKENS.estimate(prompt);
+                    if (reportDraftEnabled) {
+                        var reportCatalog = com.chatchat.agents.orchestration.analysis.report.VerifiedReportDataCatalog.fromRuntime(
+                            Map.of("runtimeReturnedReportDatasets", prepared.sources().entrySet().stream().limit(12)
+                                .map(entry -> com.chatchat.agents.orchestration.analysis.report.ReturnedReportDataset.capture(
+                                    entry.getKey(), entry.getValue().records(), entry.getValue().analysisContext())).toList()));
+                        var injector = new com.chatchat.agents.orchestration.analysis.report.VisualizationCapabilityInjector(
+                            com.chatchat.agents.orchestration.analysis.report.VisualizationCapabilityRegistry.active(metadata));
+                        String enriched = injector.injectReportDraft(prompt, reportCatalog);
+                        if (TOKENS.estimate(enriched).tokens() <= maximumInputTokens) {
+                            prompt = enriched;
+                            promptSize = TOKENS.estimate(prompt);
+                            metadata.put("visualizationCapabilitiesDraftInjected", true);
+                        }
+                    }
                     if (promptSize.tokens() > maximumInputTokens) throw new IllegalStateException(
                         "Unified analysis control context exceeds token budget after bounded projection: " + promptSize.tokens());
                     metadata.put("unifiedAnalysisMaxPromptTokens", Math.max(promptSize.tokens(),

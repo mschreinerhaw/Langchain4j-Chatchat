@@ -1,5 +1,6 @@
 ﻿import ChatMessageList from "../../components/ChatMessageList.vue";
 import PromptComposer from "../../components/PromptComposer.vue";
+import { visualizationCapabilities } from '../utils/visualizationCapabilities.js';
 import { Trash2 } from "@lucide/vue";
 import {
   analyzeChatImage,
@@ -858,10 +859,11 @@ function normalizeMessageVisualization(message = {}) {
     message.metadata?.dataVisualization,
     visualizationSpecFromAnswer(message.content || message.answer || "")
   );
-  if (!visualization) {
-    return null;
-  }
   const storedPreferences = message.visualizationSpec?.ui?.userPreferences;
+  if (!visualization) {
+    return storedPreferences && typeof storedPreferences === 'object' && !Array.isArray(storedPreferences)
+      ? { ui: { userPreferences: storedPreferences } } : null;
+  }
   if (!storedPreferences || typeof storedPreferences !== "object" || Array.isArray(storedPreferences)) {
     return visualization;
   }
@@ -2042,6 +2044,7 @@ export default {
           webSearch: !!payload?.webSearch,
           imageAnalysisIds,
           responseContract: RESPONSE_RENDER_CONTRACT,
+          visualizationSupportedTypes: visualizationCapabilities.map(capability => capability.type),
           analysisTree: this.analysisTree,
           analysisNodeId: analysisNode.id,
           analysisParentNodeId: analysisNode.parentId,
@@ -3380,15 +3383,26 @@ export default {
       const ui = { ...(spec.ui || {}) };
       ui.userPreferences = {
         ...(ui.userPreferences || {}),
-        [normalizedSlot]: { ...(preference || {}) }
+        [normalizedSlot]: { ...(ui.userPreferences?.[normalizedSlot] || {}), ...(preference || {}) }
       };
+      preference = ui.userPreferences[normalizedSlot];
       message.visualizationSpec = { ...spec, ui };
       try {
-        await saveVisualizationPreference(this.conversationId, message.id, {
+        this._visualizationPreferenceSaves ||= new Map();
+        const key = `${this.conversationId}:${message.id}`;
+        const conversationId = this.conversationId;
+        const tenantId = this.effectiveTenantId();
+        const previous = this._visualizationPreferenceSaves.get(key) || Promise.resolve();
+        const saved = previous.catch(() => {}).then(() => saveVisualizationPreference(conversationId, message.id, {
           slot: normalizedSlot,
           view: preference.view,
-          chartType: preference.chartType || ""
-        }, this.effectiveTenantId());
+          chartType: preference.chartType || "",
+          settings: Object.fromEntries(['xKey', 'yKey', 'groupKey', 'selectedColumns']
+            .filter(key => key in preference).map(key => [key, preference[key]]))
+        }, tenantId));
+        this._visualizationPreferenceSaves.set(key, saved);
+        await saved;
+        if (this._visualizationPreferenceSaves.get(key) === saved) this._visualizationPreferenceSaves.delete(key);
       } catch (error) {
         this.errorMessage = error?.message || "图表显示偏好保存失败";
       }

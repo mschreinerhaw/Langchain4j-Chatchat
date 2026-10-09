@@ -22,6 +22,27 @@ const report = () => '# 报告\n\n结论段落。\n\n' + fence() + '\n\n后续�
 const render = (text) => new MarkdownIt({ html: false }).render(text);
 
 describe("inline report visualizations", () => {
+  it('does not guess report graphics from Markdown tables', () => {
+    const source = '## Comparison\n\n| Period | Value |\n|---|---:|\n| **A** | 12 |\n| B | 3 |';
+    expect(splitReportVisualizations(source)).toEqual([{ type: 'markdown', content: source }]);
+  });
+  it('renders only Runtime verified ReportBlocks with stable preference slots', () => {
+    const block = { id: 'comparison', schemaVersion: 'report_block.v1', type: 'chart', chartType: 'bar',
+      datasetRef: 'returned:1', conclusion: 'B exceeds A', validationStatus: 'VERIFIED_SOURCE_DATA',
+      visualizationSpec: { ...spec, validationStatus: 'VERIFIED_SOURCE_DATA' } };
+    const source = 'Conclusion\n\n```json\n' + JSON.stringify({ reportBlock: block }) + '\n```';
+    expect(splitReportVisualizations(source)[1]).toMatchObject({ type: 'visualization', slot: 'block:comparison', block });
+    block.validationStatus = 'REQUESTED';
+    const unaudited = '```json\n' + JSON.stringify({ reportBlock: block }) + '\n```';
+    expect(splitReportVisualizations(unaudited)).toEqual([{ type: 'markdown', content: unaudited }]);
+  });
+  it('does not infer charts from identifiers, missing measures or qualitative conclusions', () => {
+    for (const table of ['| 对象 | id |\n|---|---|\n| A | 1 |\n| B | 2 |',
+      '| 对象 | 数量 |\n|---|---|\n| A | 1 |\n| B | - |',
+      '| 维度 | 结论 |\n|---|---|\n| A | 改善 |\n| B | 稳定 |']) {
+      expect(splitReportVisualizations('## 结论\n\n' + table).filter(p => p.type === 'visualization')).toHaveLength(0);
+    }
+  });
   it("preserves compiled ranking orientation and verified units", () => {
     const compiled = { ...spec, orientation: "horizontal", validationStatus: "VERIFIED_SOURCE_DATA",
       dataset: { ...spec.dataset, series: [{ name: "amount", yKey: "amount", unit: "CNY" }] } };

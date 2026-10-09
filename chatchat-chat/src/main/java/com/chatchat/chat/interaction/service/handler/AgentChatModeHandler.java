@@ -758,6 +758,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             copyInternalExecutionAttribute(request, attributes, "__parentAttemptId");
             copyInternalExecutionAttribute(request, attributes, "__executionAttemptNumber");
             Object responseContract = request.getToolInput().get("responseContract");
+            Object visualizationTypes = request.getToolInput().get("visualizationSupportedTypes");
+            if (visualizationTypes instanceof java.util.Collection<?> types) {
+                attributes.put("visualizationSupportedTypes", types.stream().filter(String.class::isInstance).limit(32).toList());
+            }
             if (responseContract instanceof Map<?, ?>) {
                 attributes.put("responseContract", responseContract);
             }
@@ -773,6 +777,9 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             }
         }
         if (skill != null && skill.workflowConfig() != null) {
+            Object allowedVisualizationTypes = skill.workflowConfig().get("visualizationAllowedTypes");
+            if (allowedVisualizationTypes instanceof java.util.Collection<?> types)
+                attributes.put("visualizationAuthorizedTypes", types.stream().filter(String.class::isInstance).limit(32).toList());
             Object resultHandlingPolicy = firstPresent(
                 skill.workflowConfig().get("resultHandlingPolicy"),
                 skill.workflowConfig().get("result_handling_policy")

@@ -166,7 +166,7 @@ class FinalSynthesisNodeTest {
         assertThat(metadata).containsEntry("interpretationPlanSummaryGenerated", true);
         assertThat(candidates.hasCandidates(metadata)).isTrue();
         verify(governance).finalizeSummary(any());
-        verify(adapter).recordRuntimeObservation(any(), any(), any(), any(), any());
+        verify(adapter, org.mockito.Mockito.times(2)).recordRuntimeObservation(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -1116,7 +1116,7 @@ class FinalSynthesisNodeTest {
             passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(), new StructuredFindingMerger());
         var model = mock(ChatModel.class);
         when(model.chat(any(String.class))).thenAnswer(invocation -> {
-            assertThat((String) invocation.getArgument(0)).contains("returned:1", "visualization_spec.v2");
+            assertThat((String) invocation.getArgument(0)).contains("returned:1", "report_block.v1");
             return """
                 # 报告
                 正文数值为42。
@@ -1139,6 +1139,35 @@ class FinalSynthesisNodeTest {
             .doesNotContain("999", "已省略图表", "原始返回记录");
         assertThat(metadata).containsKey("analysisVisualizationAudit").containsKey("analysisNumericAudit");
         verify(model).chat(any(String.class));
+    }
+
+    @Test
+    void plansVerifiedReportBlocksInTheExistingSummaryCall() {
+        var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
+            passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(), new StructuredFindingMerger());
+        var model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenAnswer(invocation -> {
+            assertThat((String) invocation.getArgument(0)).contains("VisualizationCapabilityInjector", "report_block.v1", "allowedChartTypes", "returned:1");
+            return """
+                # Findings
+                The verified indicator is 42.
+                ```json:report-block
+                {"id":"indicator","type":"metric","chartType":"metric","datasetRef":"returned:1",
+                 "title":"Verified indicator","conclusion":"The indicator is 42","reason":"Summarize the observed key value",
+                 "encoding":{"x":"name","y":["value"]}}
+                ```
+                Follow-up action.
+                """;
+        });
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisSynthesisBarrierReady", true);
+        metadata.put("runtimeReturnedReportDatasets", List.of(
+            com.chatchat.agents.orchestration.analysis.report.ReturnedReportDataset.capture("returned:1", List.of(Map.of("name", "A", "value", 42)))));
+        var result = coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
+        assertThat(result.content()).contains("reportBlock", "VERIFIED_SOURCE_DATA", "\"value\":42", "Follow-up action.");
+        assertThat(metadata).containsEntry("visualizationCapabilitiesInjected", true).containsKey("reportBlocks");
+        assertThat(((Map<?, ?>) metadata.get("visualizationPlanning")).get("modelCalls")).isEqualTo(0);
+        verify(model, org.mockito.Mockito.times(1)).chat(any(String.class));
     }
 
     private AnalysisSummaryResult claimSummary() {

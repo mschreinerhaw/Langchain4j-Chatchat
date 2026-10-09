@@ -491,12 +491,9 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .doesNotContainKeys("answerEvidenceLabel", "answerEvidenceDisclosure");
         Map<String, Object> visualizationSpec = (Map<String, Object>) result.metadata().get("visualizationSpec");
         assertThat(visualizationSpec)
-            .containsEntry("type", "panel")
+            .containsEntry("type", "table")
+            .doesNotContainKey("blocks")
             .containsEntry("sourceTool", "mcp_chatchat_mcp_server_sql_query_execute");
-        List<Map<String, Object>> blocks = (List<Map<String, Object>>) visualizationSpec.get("blocks");
-        assertThat(blocks)
-            .extracting(block -> block.get("type"))
-            .containsExactly("chart", "table");
         Map<String, Object> dataset = (Map<String, Object>) visualizationSpec.get("dataset");
         assertThat((List<Map<String, Object>>) dataset.get("rows"))
             .hasSize(2)
@@ -879,7 +876,7 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void autoBuildsDistributionChartForCategoricalToolRows() {
+    void preservesCategoricalToolRowsAsEvidenceWithoutInventingDistribution() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
             new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
@@ -912,17 +909,7 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         );
 
         Map<String, Object> visualizationSpec = (Map<String, Object>) result.metadata().get("visualizationSpec");
-        assertThat(visualizationSpec).containsEntry("type", "panel");
-        List<Map<String, Object>> blocks = (List<Map<String, Object>>) visualizationSpec.get("blocks");
-        Map<String, Object> chartSpec = (Map<String, Object>) blocks.get(0).get("spec");
-        assertThat(chartSpec)
-            .containsEntry("type", "chart")
-            .containsEntry("analysisType", "distribution");
-        Map<String, Object> chartDataset = (Map<String, Object>) chartSpec.get("dataset");
-        assertThat(chartDataset).containsEntry("xKey", "evt_type");
-        assertThat((List<Map<String, Object>>) chartDataset.get("rows"))
-            .extracting(row -> row.get("evt_type") + ":" + row.get("count"))
-            .contains("价格异动:2", "评级调整:1", "分红:1");
+        assertThat(visualizationSpec).containsEntry("type", "table").doesNotContainKey("blocks");
 
         Map<String, Object> rawDataset = (Map<String, Object>) visualizationSpec.get("dataset");
         assertThat((List<Map<String, Object>>) rawDataset.get("rows")).hasSize(4);

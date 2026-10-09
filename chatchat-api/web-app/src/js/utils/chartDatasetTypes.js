@@ -6,7 +6,7 @@ export function parseChartNumber(value) {
   if (!text) {
     return null;
   }
-  const parsed = Number(text.replace(/,/g, ""));
+  const parsed = Number(text.replace(/,/g, "").replace(/%$/, ""));
   return Number.isFinite(parsed) && Math.abs(parsed) <= Number.MAX_SAFE_INTEGER ? parsed : null;
 }
 
@@ -24,7 +24,7 @@ export function isNumericChartColumn(rows = [], column = "") {
 }
 
 export function selectChartMetricKey(columns = [], rows = [], xKey = "", requestedKey = "") {
-  if (requestedKey && requestedKey !== xKey && isNumericChartColumn(rows, requestedKey)) {
+  if (requestedKey && requestedKey !== xKey && columns.includes(requestedKey)) {
     return requestedKey;
   }
   return columns.find((column) => column !== xKey && isNumericChartColumn(rows, column))

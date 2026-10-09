@@ -215,6 +215,15 @@ export default {
       return spec?.ui?.role === "raw_data"
         || (type === "table" && spec?.ui?.defaultCollapsed !== false);
     },
+    messageVisualizationSpec(message = {}) {
+      const spec = message.visualizationSpec;
+      if (!spec || (!spec.type && !spec.chartType && !spec.schemaVersion)) return null;
+      if (spec.type === 'panel' && spec.analysisType === 'tool_result_visualization') {
+        const table = (spec.blocks || []).find(block => block.spec?.type === 'table');
+        return table ? { ...table.spec, ui: { ...table.spec.ui, userPreferences: spec.ui?.userPreferences } } : null;
+      }
+      return spec;
+    },
     rawDataVisualizationToggleLabel(spec = {}) {
       const title = this.isSupportingDatasetVisualization(spec) ? "查看支撑数据" : "查看原始数据";
       const declared = Number(spec?.dataset?.rowCount);
@@ -2616,7 +2625,7 @@ export default {
       }
       return "medium";
     },
-    async handleMarkdownClick(event) {
+    async handleMarkdownClick(event, message = null) {
       const sourceToggle = event.target?.closest?.("[data-source-tags-toggle]");
       if (sourceToggle) {
         event.preventDefault();
@@ -2633,7 +2642,7 @@ export default {
       if (chartButton) {
         event.preventDefault();
         event.stopPropagation();
-        this.openChartAnalysisModal(chartButton.dataset.resultChartPayload || "");
+        this.openChartAnalysisModal(chartButton.dataset.resultChartPayload || "", message);
         return;
       }
       const reasoningButton = event.target?.closest?.("[data-reasoning-path]");

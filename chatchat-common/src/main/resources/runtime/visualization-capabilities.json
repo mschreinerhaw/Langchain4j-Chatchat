@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "visualization_capabilities.v1",
+  "reportBlockSchema": "report_block.v1",
+  "maxBlocks": 6,
+  "maxRows": 120,
+  "maxSeries": 4,
+  "capabilities": [
+    { "type": "line", "rendererType": "line", "description": "Ordered time series and trends", "rules": ["At least two strictly increasing ISO dates", "Numeric measures with compatible units"] },
+    { "type": "bar", "rendererType": "bar", "description": "Category comparisons and rankings", "rules": ["Named dimensions", "Numeric measures with compatible units"] },
+    { "type": "pie", "rendererType": "pie", "description": "Composition of a verified complete partition", "rules": ["One nonnegative measure", "Unique categories and positive total", "Top-N and incomplete samples are not a complete partition"] },
+    { "type": "scatter", "rendererType": "scatter", "description": "Relationships between numeric dimensions and measures", "rules": ["Numeric x and y", "No implied causality"] },
+    { "type": "metric", "rendererType": "kpi", "description": "One verified key indicator", "rules": ["Exactly one source row and one measure"] },
+    { "type": "table", "rendererType": "table", "description": "Selected verified fields when a chart adds no explanatory value", "rules": ["Existing fields only", "Preserve source values and scope"] }
+  ]
+}

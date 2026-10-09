@@ -14,7 +14,8 @@
       <p class="insight-observation">{{ block.observation }}</p>
       <p v-if="block.presentation?.validationStatus !== 'VERIFIED_DATA_BOUND'" class="insight-state">数据状态：待补充可验证数据</p>
       <template v-else>
-        <VisualizationRenderer v-if="block.visualization?.type === 'chart'" :spec="block.visualization"
+        <VisualizationRenderer v-if="block.visualization?.type === 'chart'" :spec="block.visualization" :preference="preferences[`finding:${block.id}`]"
+          @preference-change="$emit('preference-change', { slot: `finding:${block.id}`, preference: $event })"
           :style="{ '--insight-chart-height': `${Math.max(300, Math.min(1000, (block.data.rows?.length || 0) * 26 + 100))}px` }"
           @drill-down="$emit('drill-down', { ...$event, findingId: block.id })" />
         <dl v-if="block.presentation?.showKeyMetrics" class="insight-metric">
@@ -47,8 +48,8 @@
 <script setup>
 import { computed } from 'vue';
 import VisualizationRenderer from './VisualizationRenderer.vue';
-const props = defineProps({ report: { type: Object, default: () => ({}) } });
-defineEmits(['drill-down']);
+const props = defineProps({ report: { type: Object, default: () => ({}) }, preferences: { type: Object, default: () => ({}) } });
+defineEmits(['drill-down', 'preference-change']);
 const blocks = computed(() => props.report?.schemaVersion === 'analytical_report.v1'
   && Array.isArray(props.report.blocks) ? props.report.blocks : []);
 const primaryBlocks = computed(() => blocks.value.filter(block => block.presentation?.primaryConclusion

@@ -6,6 +6,11 @@ import {
 } from "./runtimeObservationPresentation.js";
 
 describe("runtime observation presentation", () => {
+  it('presents visualization planning as an independent Runtime step', () => {
+    expect(runtimeObservationPresentation({ metadata: { eventKind: 'VISUALIZATION_PLANNING',
+      stage: 'VISUALIZATION_PLANNING', planning: { modelCalls: 0, verifiedBlockCount: 1 } } }))
+      .toEqual({ title: '图形化规划', toolName: 'visualization_planning', status: 'done' });
+  });
   it("keeps the analysis graph active until its matching completion event", () => {
     const started = { metadata: {
       eventKind: "ANALYSIS_GRAPH", eventState: "STARTED",

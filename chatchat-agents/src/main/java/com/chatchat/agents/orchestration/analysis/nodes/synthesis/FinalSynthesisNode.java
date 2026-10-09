@@ -221,6 +221,11 @@ public final class FinalSynthesisNode {
         String modelPrompt = finalClaimContract.appendNarrativeInstruction(
             driverPrompt, claimCompilation, synthesisBudget);
         VerifiedReportDataCatalog reportData = VerifiedReportDataCatalog.fromRuntime(request.metadata());
+        request.metadata().remove("reportBlocks");
+        request.metadata().remove("visualizationPlanning");
+        var visualizationRegistry = com.chatchat.agents.orchestration.analysis.report.VisualizationCapabilityRegistry.active(request.runtimeAttributes());
+        var visualizationInjector = new com.chatchat.agents.orchestration.analysis.report.VisualizationCapabilityInjector(visualizationRegistry);
+        request.metadata().put("visualizationCapabilities", visualizationInjector.snapshot(reportData));
         request.metadata().remove("analyticalReport");
         request.metadata().remove("claimAcceptance");
         request.metadata().remove("claimAcceptanceGraphNodes");
@@ -245,6 +250,11 @@ public final class FinalSynthesisNode {
                 "omittedDatasetReferences", datasetProjection.omittedDatasetReferences()));
         request.metadata().put("analysisDriverReturnedDatasetsIncluded", !datasetPromptView.isEmpty());
         request.metadata().put("analysisDriverReturnedDatasetCount", datasetPromptView.size());
+        String enrichedPrompt = visualizationInjector.inject(modelPrompt, reportData);
+        boolean visualizationInjected = new ContextTokenEstimator().estimate(enrichedPrompt + finalReportCalibrationRules()).tokens()
+            <= synthesisBudget.inputTokens();
+        if (visualizationInjected) modelPrompt = enrichedPrompt;
+        request.metadata().put("visualizationCapabilitiesInjected", visualizationInjected);
         // Put calibration last so a large evidence contract cannot dilute the publication boundary.
         modelPrompt += finalReportCalibrationRules();
         ContextTokenEstimator.Size finalPromptSize = new ContextTokenEstimator().estimate(modelPrompt);
@@ -375,7 +385,8 @@ public final class FinalSynthesisNode {
                 request.runId(), request.stage(), projection.modelSelectionAccepted(),
                 projection.reason(), projection.selectedClaimIds().size());
         } else {
-            answer = request.postProcessor().apply(answer);
+            var reportPayloads = com.chatchat.agents.orchestration.analysis.report.ReportBlockMarkdownProtocol.protectProposals(answer);
+            answer = reportPayloads.restore(request.postProcessor().apply(reportPayloads.markdown()));
         }
         answer = sanitizeReport(answer, request);
         if (answer == null || answer.isBlank()) {
@@ -431,10 +442,21 @@ public final class FinalSynthesisNode {
                 .audit(answer, reportData);
             answer = factAudit.markdown();
             request.metadata().put("analysisFactBindingAudit", factAudit.checks());
-            var visualAudit = new com.chatchat.agents.orchestration.analysis.report.ReportComposer()
-                .auditVisualizations(answer, reportData);
-            answer = visualAudit.markdown();
-            request.metadata().put("analysisVisualizationAudit", visualAudit.checks());
+            var visualPlan = new com.chatchat.agents.orchestration.analysis.report.VisualizationPlanningNode(visualizationRegistry,
+                claimCompilation.claims().keySet())
+                .execute(answer, reportData);
+            answer = visualPlan.markdown();
+            request.metadata().put("analysisVisualizationAudit", visualPlan.checks());
+            request.metadata().put("reportBlocks", Map.of("schemaVersion", "report_blocks.v1",
+                "reportId", request.runId(), "blocks", visualPlan.blocks()));
+            request.metadata().put("visualizationPlanning", Map.of("stage", "VISUALIZATION_PLANNING",
+                "modelCalls", 0, "verifiedBlockCount", visualPlan.visualizationCount(),
+                "rejectedBlockCount", visualPlan.checks().stream().filter(check -> "REJECTED".equals(check.get("status"))).count(),
+                "status", visualPlan.visualizationCount() == 0 ? "TEXT_ONLY" : "COMPLETED"));
+            resultAdapter.recordRuntimeObservation(request.runtimeAttributes(), runIdAttribute,
+                "Visualization planning completed using verified run-scoped datasets.", "visualization_planning",
+                Map.of("type", "visualization_planning", "eventKind", "VISUALIZATION_PLANNING", "stage", "VISUALIZATION_PLANNING",
+                    "planning", request.metadata().get("visualizationPlanning"), "checks", visualPlan.checks()));
             request.metadata().put("analysisNumericAudit",
                 new com.chatchat.agents.orchestration.analysis.report.ReportNumericAudit().audit(answer, reportData));
         }
@@ -691,7 +713,8 @@ public final class FinalSynthesisNode {
             + "Markdown only, not JSON or a findings list. Runtime will not assemble a report for you.";
         try {
             String repaired = request.model().chat(repairPrompt);
-            repaired = request.postProcessor().apply(repaired);
+            var reportPayloads = com.chatchat.agents.orchestration.analysis.report.ReportBlockMarkdownProtocol.protectProposals(repaired);
+            repaired = reportPayloads.restore(request.postProcessor().apply(reportPayloads.markdown()));
             repaired = sanitizeReport(repaired, request);
             AnalysisOutputAdmissionPolicy.Admission repairedAdmission =
                 AnalysisOutputAdmissionPolicy.admit(repaired);

@@ -108,6 +108,34 @@ public final class VerifiedReportDataCatalog {
     }
     public List<String> datasetReferences() { return datasets.keySet().stream().sorted().toList(); }
     public int datasetCount() { return datasets.size(); }
+    /** Compact planning input. Values remain in the run-scoped catalog, never in this projection. */
+    public List<Map<String, Object>> visualizationMetadataView() {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (String reference : datasetReferences()) {
+            var source = datasets.get(reference);
+            Map<String, Object> fields = new LinkedHashMap<>();
+            source.rows().forEach(row -> row.forEach((key, value) -> {
+                String type = value == null ? "unknown" : value instanceof Number ? "number"
+                    : value instanceof Boolean ? "boolean"
+                    : String.valueOf(value).matches("\\d{4}-\\d{2}-\\d{2}") ? "date" : "string";
+                var policy = source.metricPolicies().get(key);
+                fields.putIfAbsent(key, Map.of("name", key, "type", type,
+                    "role", "number".equals(type) ? "measure" : "dimension",
+                    "unit", policy == null ? "" : policy.unit()));
+            }));
+            result.add(Map.of("datasetRef", reference, "fields", fields.values().stream().limit(64).toList(),
+                "rowCount", source.returnedRowCount(), "projectionRowCount", source.rows().size(),
+                "projectionComplete", source.complete(), "scope", "THIS_RUN_RETURNED_RECORDS_ONLY"));
+        }
+        entries.values().stream().sorted(java.util.Comparator.comparing(Data::id)).forEach(data -> result.add(Map.of(
+            "datasetRef", data.id(), "title", data.title(), "operation", data.operation(),
+            "rowCount", data.rows().isEmpty() ? 1 : data.rows().size(), "evidenceRefs", data.recordRefs(),
+            "fields", List.of(Map.of("name", "entity", "type", "string", "role", "dimension", "unit", ""),
+                Map.of("name", "value", "type", "number", "role", "measure",
+                    "unit", data.rows().isEmpty() ? data.metricUnit() : data.unit())),
+            "scope", "VERIFIED_COMPUTED_FINDING")));
+        return List.copyOf(result);
+    }
     public List<Map<String, Object>> promptView() {
         return entries.values().stream().sorted(java.util.Comparator.comparing(Data::id)).map(Data::toMap).toList();
     }

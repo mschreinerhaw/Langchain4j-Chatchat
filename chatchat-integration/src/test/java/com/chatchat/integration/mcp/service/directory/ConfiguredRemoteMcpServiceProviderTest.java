@@ -24,6 +24,20 @@ import static org.mockito.ArgumentMatchers.any;
 
 class ConfiguredRemoteMcpServiceProviderTest {
     @Test
+    void retainsPublisherCapabilitiesAndLifecycleInRuntimeDirectory() {
+        McpToolRegistryBridge registry = mock(McpToolRegistryBridge.class);
+        ToolRegistry tools = mock(ToolRegistry.class);
+        when(registry.listRegisteredTools()).thenReturn(List.of(new McpToolRegistryBridge.RegisteredMcpTool(
+            "data", "server", "Server", "remote-data", "data read")));
+        Map<String, Object> manifest = Map.of("operations", List.of("read_dataset"));
+        when(tools.getToolMetadata("data")).thenReturn(ToolMetadata.builder().publicationStatus("deprecated")
+            .schemaVersion("2").metadata(Map.of("mcpToolMeta", Map.of("capabilityManifest", manifest))).build());
+        var descriptor = new ConfiguredRemoteMcpServiceProvider(mock(McpServiceConfigService.class), registry, tools)
+            .tools(McpToolQuery.all()).iterator().next();
+        assertThat(descriptor.metadata()).containsEntry("capabilityManifest", manifest);
+        assertThat(descriptor.governance()).containsEntry("publicationStatus", "deprecated").containsEntry("schemaVersion", "2");
+    }
+    @Test
     void recoversServiceDescriptorFromLiveRegistryWhenConfigurationSnapshotIsEmpty() {
         McpServiceConfigService configService = mock(McpServiceConfigService.class);
         McpToolRegistryBridge registry = mock(McpToolRegistryBridge.class);

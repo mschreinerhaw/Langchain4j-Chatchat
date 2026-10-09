@@ -129,6 +129,11 @@ public class ConfiguredRemoteMcpServiceProvider implements McpServiceProvider {
         Map<String, Object> extra = source == null || source.getMetadata() == null ? Map.of() : source.getMetadata();
         Map<String, Object> governance = new LinkedHashMap<>();
         if (source != null) {
+            governance.put("publicationStatus", source.getPublicationStatus());
+            governance.put("schemaVersion", source.getSchemaVersion());
+            governance.put("agentCompatible", source.isAgentCompatible());
+            governance.put("visibleTenantIds", source.getVisibleTenantIds());
+            governance.put("rolloutPercentage", source.getRolloutPercentage());
             governance.put("riskLevel", source.getRiskLevel());
             governance.put("operationType", source.getOperationType());
             governance.put("runtimeLevel", source.getRuntimeLevel());
@@ -149,6 +154,10 @@ public class ConfiguredRemoteMcpServiceProvider implements McpServiceProvider {
         metadata.put("workflowContractVersion", extra.get("workflowContractVersion"));
         metadata.put("workflowContractChecksum", extra.get("workflowContractChecksum"));
         metadata.put("contractMeta", safeContractMeta(extra.get("mcpToolMeta")));
+        Object capabilityManifest = extra.get("capabilityManifest");
+        if (capabilityManifest == null) capabilityManifest = map(extra.get("mcpToolMeta")).get("capabilityManifest");
+        if (capabilityManifest instanceof Map<?, ?> declared && !declared.isEmpty())
+            metadata.put("capabilityManifest", declared);
         for (String key : List.of(McpServiceResult.RESULT_KIND_KEY, McpServiceResult.RESULT_SCHEMA_REF_KEY,
             McpServiceResult.PROVENANCE_KEY, "resultEntityKind", "paginationSupported")) {
             if (extra.get(key) != null) metadata.put(key, extra.get(key));

@@ -148,6 +148,7 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
         var evidence = new ToolAnalysisEvidence(UUID.randomUUID().toString(), name, requestId, content,
             Map.of("skillId", skill.id(), "tenantId", scope.tenantId(),
                 "toolRevision", invocationRevision, "toolContractHash", contractHash,
+                "toolContractIdentityVersion", AnalysisToolContractIdentity.SCHEMA_VERSION,
                 "authorizationParameters", authorizationScope(arguments),
                 "runtimeOutcome", execution.outcome() == null ? "unknown" : execution.outcome()));
         return new WorkflowExecutionResult(List.of(evidence), Map.of(), List.of());

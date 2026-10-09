@@ -30,6 +30,38 @@ class ModelNativeAnalysisHarnessTest {
             .doesNotContainKeys("unifiedAnalysisDatasetCoverageRepairAttempts", "semanticClaimPreflightFailed");
         verify(model, times(1)).chat(any(String.class));
     }
+    @Test void modelChoosesPartialScopeAndPublishesEvenWhenReferenceDiagnosticsFindAGap() {
+        var model = mock(ChatModel.class);
+        var assessment = Map.of("evidenceStatus", "PARTIAL", "missingEvidence", List.of("source#chunk2"),
+            "conclusionScope", "SNAPSHOT_ONLY", "requiresReanalysis", false,
+            "claims", List.of(Map.of("claimId", "C1", "claim", "The observed window has low activity.",
+                "references", List.of(Map.of("datasetReference", "source", "record", 1, "fieldPath", List.of("unknown"))))));
+        when(model.chat(any(String.class))).thenAnswer(call -> {
+            assertThat((String)call.getArgument(0)).contains("cumulative counters from interval deltas",
+                "publication", "SOURCE_TRANSPORT_ONLY_NOT_ANALYTICAL_SUFFICIENCY", "failed-source");
+            return ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v1", "completed", true,
+                "reportMarkdown", "The observed window has low activity; another chunk is missing.", "evidenceAssessment", assessment));
+        });
+        var meta = new LinkedHashMap<String, Object>();
+        meta.put("recordAnalysisExcludedDatasets", List.of(Map.of("datasetReference", "failed-source", "accountingStatus", "FAILED")));
+        var result = execute(3, sources(), model, meta);
+        assertThat(result.markdown()).isEqualTo("The observed window has low activity; another chunk is missing.");
+        var audit = (Map<?, ?>) meta.get("modelEvidenceAssessmentAudit");
+        assertThat(audit.get("assessment")).isEqualTo(assessment);
+        assertThat(audit.get("publicationEffect")).isEqualTo("NONE");
+        assertThat(audit.toString()).contains("FIELD_PATH_NOT_FOUND", "reportSha256");
+        verify(model, times(1)).chat(any(String.class));
+    }
+    @Test void finalPlainReportDoesNotInheritAnEarlierDraftAssessment() {
+        var model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn(ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v1",
+            "completed", false, "reportMarkdown", "Draft", "evidenceAssessment", Map.of("evidenceStatus", "COMPLETE"))), "Final report.");
+        var meta = new LinkedHashMap<String, Object>();
+        assertThat(execute(3, sources(), model, meta).markdown()).isEqualTo("Final report.");
+        assertThat(((Map<?, ?>) meta.get("modelEvidenceAssessmentAudit")).get("status")).isEqualTo("NOT_SUPPLIED");
+        assertThat(((Map<?, ?>) meta.get("modelEvidenceAssessmentAudit")).get("turn")).isEqualTo(2);
+        verify(model, times(2)).chat(any(String.class));
+    }
     @Test void readsOriginalTextAcrossWindowsAndRetainsModelNotes() {
         var datasets = List.of(new Dataset("source", Map.of(), List.of(Map.of("text", "A".repeat(5500) + "SOURCE_END", "large", "B".repeat(50000)))));
         var calls = new AtomicInteger(); var model = mock(ChatModel.class);

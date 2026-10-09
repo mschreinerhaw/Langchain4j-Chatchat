@@ -85,7 +85,7 @@ public class GovernedExecutionTraceRetrieval implements ExecutionTraceRetrievalP
                 && !metadata.getVisibleTenantIds().contains(record.scope().tenantId())) return false;
         Object raw = record.payload().get("attributes");
         if (!(raw instanceof Map<?, ?> attrs) || !(attrs.get("toolContractHash") instanceof String contractHash)
-            || !contractHash.equals(AnalysisToolContractIdentity.fingerprint(metadata, mapper))
+            || !AnalysisToolContractIdentity.matches(contractHash, attrs.get("toolContractIdentityVersion"), metadata, mapper)
             || !(attrs.get("authorizationParameters") instanceof Map<?, ?> parameters)) return false;
         var skill = skills.list().stream().filter(item -> skillId.equals(item.id())).findFirst().orElse(null);
         if (skill == null) return false;

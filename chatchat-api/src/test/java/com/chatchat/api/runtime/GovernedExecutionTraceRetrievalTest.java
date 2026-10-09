@@ -91,6 +91,7 @@ class GovernedExecutionTraceRetrievalTest {
             Map.of("content", "{\"rows\":[42],\"accessToken\":\"sensitive-value\",\"system_prompt\":\"hidden-prompt\"}",
                 "attributes", Map.of("toolRevision", 7L,
                     "toolContractHash", AnalysisToolContractIdentity.fingerprint(metadata, new ObjectMapper()),
+                    "toolContractIdentityVersion", AnalysisToolContractIdentity.SCHEMA_VERSION,
                     "authorizationParameters", Map.of("domain", "dataset"))),
             null, 100, Map.of("skillId", "skill", "toolName", "tool", "documentId", "doc", "verified", true));
     }

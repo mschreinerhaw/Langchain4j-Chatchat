@@ -28,6 +28,17 @@ public final class AdaptiveReportGenerationSpec {
               trait, or correlation into causation. Narrow weak or conflicting claims.
             - Preserve uncertainty naturally; state material data, sample or time limits near the affected
               conclusion and explain their impact once.
+            - Distinguish cumulative counters from current rates: absent interval deltas, elapsed time or
+              denominators, do not diagnose a current anomaly from a historical absolute count alone.
+              A rounded displayed ratio is not an exact measurement. High resource occupancy alone
+              does not establish a capacity problem. Do not expand a component setting into a whole-system guarantee.
+            - Keep missing sources or chunks explicit. Another observation can support a narrower claim
+              but does not fill a missing source. You decide whether the requested task requires more
+              evidence or can be delivered with a stated scope. Runtime records gaps and permissions;
+              it does not decide analytical sufficiency or approve business conclusions.
+            - Cite source, record and field when practical; distinguish returned values from calculations.
+              State recommendation triggers and how to verify them. Ensure headings describing raw
+              values or complete lists actually match the content supplied beneath them.
             - Produce a professional, high-density report natural to this task without limiting analytical creativity.
             """;
     }

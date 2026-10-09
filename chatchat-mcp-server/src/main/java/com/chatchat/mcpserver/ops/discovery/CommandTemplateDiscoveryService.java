@@ -109,6 +109,8 @@ public class CommandTemplateDiscoveryService {
     private final TemplateDiscoveryProperties properties;
     private final LuceneMcpSearchService luceneSearchService;
     private final TargetKindRegistry targetKindRegistry;
+    @Autowired(required = false)
+    private com.chatchat.mcpserver.sql.metadata.QueryMetadataContextService metadataContext;
     private TemplateAssetCatalogService authorizationCatalog;
 
     @Autowired
@@ -1560,6 +1562,7 @@ public class CommandTemplateDiscoveryService {
             "mcpToolName", executorTool,
             "templateConfig", databaseQueryTemplateConfig(config, datasourceAsset, executionContext, parameterSchema),
             "datasourceAsset", datasourceAsset,
+            "metadataContext", databaseQueryMetadataContext(config),
             "executionContext", executionContext,
             "sqlExecutionBinding", mapOf(
                 "toolName", executorTool,
@@ -1628,6 +1631,12 @@ public class CommandTemplateDiscoveryService {
         // bridges registered multi-step/DAG templates to the internal script
         // executor, so discovery must never leak that transport implementation.
         return "sql_query_execute";
+    }
+
+    private Map<String, Object> databaseQueryMetadataContext(DatabaseQueryConfig config) {
+        if (metadataContext == null) return Map.of();
+        try { return metadataContext.context(config); }
+        catch (Exception ex) { return Map.of("reviewStatus", "METADATA_UNAVAILABLE", "objects", List.of()); }
     }
 
     private Map<String, Object> databaseQueryExecutionContext(DatabaseQueryConfig config) {

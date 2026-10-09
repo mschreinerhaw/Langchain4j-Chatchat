@@ -57,7 +57,7 @@ public class SqlDatasourceConfigService {
     public SqlDatasourceConfig create(SqlDatasourceConfig config) {
         normalize(config, null);
         SqlDatasourceConfig saved = repository.save(config);
-        if (!NativeQueryDatasource.isNative(saved)) metadataAssetRegistryService.syncDefaultForDatasource(saved);
+        metadataAssetRegistryService.syncDefaultForDatasource(saved);
         syncExecutionTargets(saved, config.getExecutionTargets());
         return saved;
     }
@@ -95,7 +95,7 @@ public class SqlDatasourceConfigService {
         config.setGovernanceJson(normalizeJsonObject(request.getGovernanceJson(), "governance"));
         normalize(config, id);
         SqlDatasourceConfig saved = repository.save(config);
-        if (!NativeQueryDatasource.isNative(saved)) metadataAssetRegistryService.syncDefaultForDatasource(saved);
+        metadataAssetRegistryService.syncDefaultForDatasource(saved);
         syncExecutionTargets(saved, request.getExecutionTargets());
         return saved;
     }
@@ -148,6 +148,9 @@ public class SqlDatasourceConfigService {
         config.setEnvironment(normalizeEnvironment(config.getEnvironment()));
         config.setRuntimeAction("confirm_required");
         config.setMetadataScopeType(normalizeMetadataScopeType(config.getMetadataScopeType()));
+        if ("trino".equals(config.getDatabaseType())) config.setMetadataScopeType("TRINO_NAMESPACE");
+        if ("neo4j".equals(config.getDatabaseType())) config.setMetadataScopeType("GRAPH_DATABASE");
+        if (java.util.Set.of("opensearch", "elasticsearch").contains(config.getDatabaseType())) config.setMetadataScopeType("SEARCH_INDEX");
         config.setMetadataScopeValue(blankToNull(config.getMetadataScopeValue()));
         config.setMetadataRefreshIntervalMinutes(normalizeMetadataRefreshIntervalMinutes(config.getMetadataRefreshIntervalMinutes()));
         config.setRoutingLabelsJson(normalizeJsonArray(mergedProtocolValues(config.getRoutingLabelsJson(), config.getRoutingLabels()), "routingLabels"));
@@ -155,7 +158,7 @@ public class SqlDatasourceConfigService {
             mergedProtocolValues(config.getCapabilitiesJson(), config.getCapabilities()), "capabilities");
         config.setCapabilitiesJson(capabilitiesJson == null || "[]".equals(capabilitiesJson)
             ? ModelProtocolJson.compact(NativeQueryDatasource.isNative(config)
-                ? List.of("database_query", "neo4j".equals(config.getDatabaseType()) ? "cypher_query" : "search_query", "http")
+                ? List.of("database_query", "neo4j".equals(config.getDatabaseType()) ? "cypher_query" : "search_query", "http", "metadata")
                 : List.of("jdbc", "sql_query_execute"))
             : capabilitiesJson);
         config.setDefaultTimeoutSeconds(Math.max(1, Math.min(config.getDefaultTimeoutSeconds(), 60)));
@@ -231,7 +234,7 @@ public class SqlDatasourceConfigService {
             .replace('-', '_')
             .replace(' ', '_');
         return switch (normalized) {
-            case "JDBC_DATABASE", "LOGIN_USER_SCHEMA", "EXPLICIT_SCHEMA" -> normalized;
+            case "JDBC_DATABASE", "LOGIN_USER_SCHEMA", "EXPLICIT_SCHEMA", "TRINO_NAMESPACE", "GRAPH_DATABASE", "SEARCH_INDEX" -> normalized;
             default -> "JDBC_DATABASE";
         };
     }

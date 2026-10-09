@@ -223,6 +223,36 @@ OpenSearch 查询参数必须占据一个完整 JSON 字符串值，以保留数
 
 ## 数据库与验证
 
+### 数据源技术元数据升级
+
+数据源连接和认证继续由数据库资产维护；各查询子菜单复用已有工作台。资产的“刷新元数据”和自动刷新现已适配关系库、Trino、Neo4j、OpenSearch、Elasticsearch，查询列表的“元数据”操作返回该查询引用的结构与复核状态。
+
+| 类型 | 资产索引范围 | 采集内容 |
+| --- | --- | --- |
+| 关系库 | 原数据库/Schema 配置 | 保留原有表、视图、列采集与 SQL 元数据查询接口 |
+| Trino | `Catalog` 或 `Catalog.Schema`，逗号分隔；空值使用 JDBC URL 中的 Catalog/Schema | JDBC 元数据；完整保留 Catalog、Schema、表和列，跨 Catalog 与跨 Schema 同名表分别存储 |
+| Neo4j | Database，逗号分隔；空值默认 `neo4j` | 节点标签、关系类型、观察到的属性类型、声明的索引与约束、统计拓扑 |
+| OpenSearch / Elasticsearch | 显式配置索引名或别名，逗号分隔；支持索引通配符 | `_mapping`、`_alias`、`_field_caps`；保留对象、nested、多字段、runtime、字段检索/聚合能力与向量定义 |
+
+HTTP 驱动复用资产认证和超时。搜索引擎不读取业务文档；通配符默认排除点号开头的系统索引，只有显式以点号开头的范围才包含它们。Neo4j 使用固定的内部元数据过程，不放开业务 Cypher 的任意 `CALL`。观察到的 mandatory 和属性类型不视为约束；统计拓扑明确标记可能包含未实际存在的关系。Neo4j 需要支持 `db.schema.*` 和 `SHOW INDEXES/CONSTRAINTS` 的版本及相应只读权限；不支持或权限不足会报告错误并保留旧快照。属性结构过程可能扫描图数据，应按数据规模配置刷新频率。Trino JDBC 用户需要 `system.jdbc` 查询权限：[官方说明](https://trino.io/docs/current/client/jdbc.html)。
+
+统一 `MetadataObject` 使用资产、类型、对象种类和分层路径生成身份，保持标识符原始拼写。旧 RocksDB 表列快照可以读取；新快照同时包含类型化对象、配置指纹和结构变化记录。修改连接、认证或范围后不复用旧配置快照；相同配置刷新失败时保留上一次成功快照。采集对象上限 20000、字段上限 50000，超限失败并提示缩小范围，避免将截断结果标记为完整快照。刷新成功会同步更新资产检索索引，包括定时刷新。
+
+管理接口：
+
+- `GET /api/v1/sql/datasources/{id}/metadata`：`snapshot` 技术元数据快照、最后成功采集时间与结构变化，以及 `registries` 范围状态和最近刷新错误。
+- 原 `POST /api/v1/sql/datasources/{id}/metadata/refresh`：新增 `objectCount` / `fieldCount`，保留原表列计数字段。
+- 原 `POST /api/v1/mcp-search-index/search` 使用 `indexType=datasource_metadata`：统一检索，支持资产、类型、环境、命名空间、对象名、关键词和字段返回开关；`sql_metadata` 保留兼容入口。
+- `GET /api/v1/database-query/{id}/metadata`：查询引用的元数据与 `reviewStatus`。
+
+已授权子模板发现结果附带 `metadataContext`。它只读取已选查询绑定的资产与静态对象引用，不进行全局元数据召回。资产允许对象、敏感对象和敏感字段规则在 BM25 排序前生效。解析不到静态引用时返回 `REFERENCE_SCOPE_REQUIRED`；元数据缺失时返回 `METADATA_UNAVAILABLE` 或 `REFERENCE_NOT_INDEXED`，不扩大范围。索引别名会解析到实际索引；Trino 引用结合 JDBC 默认 Catalog/Schema 及步骤选项解析；Neo4j 区分节点标签和关系类型。现有 HTTP 资产兼容查询继续可执行，元数据采集需采用资产中心的数据库原生驱动。
+
+结构改变或对象删除会记录变化，引用它们的查询返回 `NEEDS_REVIEW`。管理员复核后保存查询，以保存时间作为复核界限；系统保留原 SQL/Cypher/DSL。该状态为提示，不自动阻断业务查询。变化记录保留每个对象的最近一次变化，最多 20000 项。
+
+统一检索每个对象最多返回 200 个字段并提供 `fieldCount` / `fieldsTruncated`；模板上下文最多返回 20 个对象并提供 `totalMatched` / `objectsTruncated`。缺失引用和同名歧义分别返回 `missingReferences` / `ambiguousReferences`，有歧义时不扩大结构范围。完整结构可在资产快照中查看。本次技术元数据升级复用已有资产与范围登记表，通过 RocksDB JSON 快照扩展结构，无新增数据库 DDL。
+
+技术元数据索引与查询模板的 BM25+kNN 索引、企业标准字段词根索引分别管理。数据库向量字段的类型、维度等属于 Mapping 元数据，不把业务向量值或文档内容写入技术元数据索引。
+
 已有数据库升级前执行对应的 `database/migration/{h2|mysql|postgresql}/V20261008_01__mcp_data_capability_center.sql`，
 迁移只新增四张表及执行历史索引，不创建数据源连接表，也不迁移旧查询。全新安装的初始化 SQL 已包含这些表。
 迁移脚本执行一次；现有开发配置仍支持 JPA `ddl-auto=update`。

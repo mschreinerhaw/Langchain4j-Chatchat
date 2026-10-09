@@ -16,6 +16,16 @@ import static org.mockito.Mockito.when;
 
 class SqlMetadataAssetRegistryServiceTest {
 
+    @Test void clearingNativeScopeDisablesPreviousRegistrations() {
+        var repository = mock(SqlMetadataAssetRegistryRepository.class);
+        var registry = new SqlMetadataAssetRegistry(); registry.setDatasourceId("asset-elasticsearch");
+        registry.setDatabaseName("news"); registry.setEnabled(true);
+        when(repository.findByDatasourceIdOrderByDatabaseNameAsc("asset-elasticsearch")).thenReturn(List.of(registry));
+        var asset = NativeMetadataCollectorTest.asset("elasticsearch", "http://localhost:9200");
+        new SqlMetadataAssetRegistryService(repository).syncDefaultForDatasource(asset);
+        assertThat(registry.isEnabled()).isFalse();
+    }
+
     @Test
     void syncDefaultForDatasourceSupportsMultipleScopeValues() {
         SqlMetadataAssetRegistryRepository repository = mock(SqlMetadataAssetRegistryRepository.class);

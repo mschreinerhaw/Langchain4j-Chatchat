@@ -379,6 +379,9 @@ export default {
       this.formOpen = true;
     },
     prepareJsonDraft() {
+      this.formFields.forEach(field => {
+        if (typeof field.initialize === 'function') field.initialize(this.form);
+      });
       this.databaseParameterValidationAttempted = false;
       this.jsonDraft = {};
       this.formFields.filter(field => field.type === 'json').forEach(field => {
@@ -642,7 +645,10 @@ export default {
       return this.busy || Boolean(this.rowOperation && !this.isRowOperation(type, row, action));
     },
     fieldOptions(field) {
-      return typeof field.options === 'function' ? field.options() : field.options || [];
+      return typeof field.options === 'function' ? field.options(this.form) : field.options || [];
+    },
+    fieldText(field, key) {
+      return typeof field[key] === 'function' ? field[key](this.form) : field[key];
     },
     isFieldVisible(field) {
       if (typeof field.visible === 'function') return field.visible(this.form);

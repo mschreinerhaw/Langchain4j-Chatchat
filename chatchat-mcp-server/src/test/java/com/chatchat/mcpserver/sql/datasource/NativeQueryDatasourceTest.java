@@ -26,7 +26,7 @@ class NativeQueryDatasourceTest {
     }
 
     @ParameterizedTest @ValueSource(strings = {"neo4j", "opensearch", "elasticsearch"})
-    void savesInExistingDatabaseAssetsWithoutJdbcMetadata(String type) {
+    void savesInExistingDatabaseAssetsWithNativeMetadataRefresh(String type) {
         var repository = mock(SqlDatasourceConfigRepository.class);
         when(repository.save(any())).thenAnswer(call -> call.getArgument(0));
         var metadata = mock(SqlMetadataAssetRegistryService.class);
@@ -37,10 +37,11 @@ class NativeQueryDatasourceTest {
         var saved = service.create(asset(type, "https://localhost:9200"));
         assertThat(saved.getDatabaseType()).isEqualTo(type);
         assertThat(saved.getDriverClass()).isEqualTo(type + "-http");
-        assertThat(saved.isMetadataAutoRefreshEnabled()).isFalse();
+        assertThat(saved.isMetadataAutoRefreshEnabled()).isTrue();
+        assertThat(saved.getMetadataScopeType()).isEqualTo(type.equals("neo4j") ? "GRAPH_DATABASE" : "SEARCH_INDEX");
         assertThat(saved.getCapabilitiesJson()).contains("database_query").doesNotContain("jdbc");
         assertThat(saved.getPassword()).isEqualTo("secret");
-        verifyNoInteractions(metadata);
+        verify(metadata).syncDefaultForDatasource(saved);
     }
 
     @ParameterizedTest @ValueSource(strings = {"neo4j", "opensearch", "elasticsearch"})

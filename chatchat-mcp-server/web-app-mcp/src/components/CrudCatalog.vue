@@ -149,7 +149,7 @@
             <el-row v-show="!isFormSectionCollapsed(section.key)" class="form-section-grid" :gutter="12">
               <template v-for="field in renderedSectionFields(section)" :key="field.key">
                 <el-col :xs="24" :md="fieldColSpan(field)">
-              <el-form-item :label="field.label" :required="isFieldRequired(field)">
+              <el-form-item :label="fieldText(field, 'label')" :required="isFieldRequired(field)">
                 <el-select
                   v-if="field.type === 'select'"
                   v-model="form[field.key]"
@@ -238,9 +238,9 @@
                   <div class="metadata-scope-input-row">
                     <el-input
                       v-model.trim="form[field.key]"
-                      :placeholder="field.placeholder || '可手动输入，多个值用逗号分隔'"
+                      :placeholder="fieldText(field, 'placeholder') || '可手动输入，多个值用逗号分隔'"
                     />
-                    <el-button plain @click="toggleMetadataScopePanel(field.key)">选择库/Schema</el-button>
+                    <el-button plain @click="toggleMetadataScopePanel(field.key)">选择索引范围</el-button>
                   </div>
                   <div class="visual-list-tags">
                     <el-tag
@@ -586,7 +586,7 @@
                   :placeholder="field.placeholder"
                   :required="isFieldRequired(field)"
                 />
-                <div v-if="field.help" class="form-text">{{ field.help }}</div>
+                <div v-if="field.help" class="form-text">{{ fieldText(field, 'help') }}</div>
               </el-form-item>
                 </el-col>
               </template>

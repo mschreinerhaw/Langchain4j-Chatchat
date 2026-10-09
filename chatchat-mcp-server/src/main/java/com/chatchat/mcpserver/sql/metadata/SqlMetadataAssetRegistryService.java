@@ -71,7 +71,16 @@ public class SqlMetadataAssetRegistryService {
     @Transactional
     public SqlMetadataAssetRegistry syncDefaultForDatasource(SqlDatasourceConfig datasource) {
         List<String> databaseNames = defaultDatabaseNames(datasource);
-        if (datasource == null || datasource.getId() == null || datasource.getId().isBlank() || databaseNames.isEmpty()) {
+        if (datasource == null || datasource.getId() == null || datasource.getId().isBlank()) {
+            return null;
+        }
+        if (databaseNames.isEmpty()) {
+            if (MetadataScopes.adapted(com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService.normalizeDatabaseType(
+                datasource.getDatabaseType(), datasource.getJdbcUrl(), datasource.getDriverClass()))) {
+                List<SqlMetadataAssetRegistry> existing = repository.findByDatasourceIdOrderByDatabaseNameAsc(datasource.getId());
+                existing.forEach(registry -> registry.setEnabled(false));
+                if (!existing.isEmpty()) repository.saveAll(existing);
+            }
             return null;
         }
         Set<String> desired = databaseNames.stream()
@@ -147,6 +156,9 @@ public class SqlMetadataAssetRegistryService {
         if (datasource == null) {
             return List.of();
         }
+        String type = com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService.normalizeDatabaseType(
+            datasource.getDatabaseType(), datasource.getJdbcUrl(), datasource.getDriverClass());
+        if (MetadataScopes.adapted(type)) return MetadataScopes.defaults(datasource);
         String scopeType = firstText(datasource.getMetadataScopeType(), "JDBC_DATABASE")
             .toUpperCase(Locale.ROOT)
             .replace('-', '_')

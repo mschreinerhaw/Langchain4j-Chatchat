@@ -232,6 +232,7 @@ export const assetsApi = {
     apiFetch(`${API_BASE}/sql/datasources/${encodeURIComponent(id)}/metadata/refresh`, {
       method: 'POST'
     }),
+  getSqlMetadata: id => apiFetch(`${API_BASE}/sql/datasources/${encodeURIComponent(id)}/metadata`),
   listCommandTemplates: () => apiFetch(`${API_BASE}/ops/command-templates`),
   saveCommandTemplate: (template) => saveEntity(`${API_BASE}/ops/command-templates`, template),
   deleteCommandTemplate: (id) =>
@@ -305,6 +306,7 @@ export const assetsApi = {
 };
 
 export const databaseApi = {
+  metadata: id => apiFetch(`${API_BASE}/database-query/${encodeURIComponent(id)}/metadata`),
   listSources: () => apiFetch(`${API_BASE}/database-query/datasources`),
   list: () => apiFetch(`${API_BASE}/database-query`),
   listCategories: () => apiFetch(`${API_BASE}/business-categories`),

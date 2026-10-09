@@ -35,7 +35,6 @@ public final class NativeQueryDatasource {
             throw new IllegalArgumentException("HTTP 连接请选择对应的原生查询驱动");
         validateAddress(asset.getJdbcUrl());
         asset.setDatabaseType(type); asset.setDriverClass(type + "-http");
-        asset.setMetadataAutoRefreshEnabled(false);
     }
 
     public static void validateAddress(String address) {

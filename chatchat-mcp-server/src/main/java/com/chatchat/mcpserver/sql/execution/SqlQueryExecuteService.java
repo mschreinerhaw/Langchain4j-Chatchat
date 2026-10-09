@@ -136,7 +136,7 @@ public class SqlQueryExecuteService {
                 connection.setReadOnly(true);
                 statement.setQueryTimeout(timeoutSeconds);
                 ProbeQueryResult probe = executeProbeQuery(statement);
-                List<String> availableDatabases = availableDatabases(connection);
+                List<String> availableDatabases = availableDatabases(connection, datasource);
                 long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
                 SqlQueryResult result = new SqlQueryResult(
                     true,
@@ -590,6 +590,16 @@ public class SqlQueryExecuteService {
             .distinct()
             .sorted(String.CASE_INSENSITIVE_ORDER)
             .toList();
+    }
+
+    private List<String> availableDatabases(Connection connection, SqlDatasourceConfig datasource) {
+        String type = SqlDatasourceConfigService.normalizeDatabaseType(datasource.getDatabaseType(), datasource.getJdbcUrl(), datasource.getDriverClass());
+        if (!"trino".equals(type)) return availableDatabases(connection);
+        try { return com.chatchat.mcpserver.sql.metadata.MetadataScopes.trinoNamespaces(connection); }
+        catch (Exception ex) {
+            log.debug("Trino namespace enumeration skipped: {}", ex.getMessage());
+            return com.chatchat.mcpserver.sql.metadata.MetadataScopes.defaults(datasource);
+        }
     }
 
     private void addIfText(Set<String> values, String value) {

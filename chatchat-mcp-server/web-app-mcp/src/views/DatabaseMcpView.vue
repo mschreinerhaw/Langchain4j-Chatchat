@@ -39,6 +39,7 @@
       :batch-remove="api.batchRemove"
       :toggle-action="api.setEnabled"
       :test-action="testSaved"
+      :extra-actions="metadataActions"
       :form-test-action="testDraft"
       form-test-label="测试调用"
       form-preview-type="databaseQuery"

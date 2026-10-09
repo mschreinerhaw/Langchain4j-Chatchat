@@ -95,6 +95,12 @@ public class SqlAdminController {
         return ApiResponse.success(metadataAssetRegistryService.listByDatasource(id));
     }
 
+    @GetMapping("/datasources/{id}/metadata")
+    public ApiResponse<Map<String, Object>> datasourceMetadata(@PathVariable("id") String id) {
+        return ApiResponse.success(Map.of("snapshot", metadataIndexService.indexFor(datasourceConfigService.getEnabled(id)),
+            "registries", metadataAssetRegistryService.listByDatasource(id)));
+    }
+
     @PostMapping("/datasources/{id}/metadata/assets")
     public ApiResponse<SqlMetadataAssetRegistry> createDatasourceMetadataAsset(@PathVariable("id") String id,
                                                                                @RequestBody SqlMetadataAssetRegistry request) {

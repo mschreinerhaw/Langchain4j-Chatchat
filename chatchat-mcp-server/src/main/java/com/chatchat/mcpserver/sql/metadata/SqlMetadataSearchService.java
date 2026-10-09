@@ -99,6 +99,8 @@ public class SqlMetadataSearchService {
         String database = qualifiedTable.database();
         String schema = qualifiedTable.schema();
         String lookupNamespace = firstText(schema, database);
+        String requestedCatalog = firstText(text(input.get("catalog")), text(executionContext.get("catalog")),
+            requestedTableName != null && requestedTableName.split("\\.").length >= 3 ? qualifiedTable.database() : null);
         String assetId = firstText(
             text(defaultDataAsset.get("assetId")),
             text(defaultDataAsset.get("asset_id")),
@@ -159,8 +161,10 @@ public class SqlMetadataSearchService {
         stageStartedAt = System.nanoTime();
         List<Candidate> uniqueCandidates = candidates.stream()
             .filter(candidate -> matchesDatabase(candidate.table(), lookupNamespace))
+            .filter(candidate -> !"trino".equalsIgnoreCase(candidate.datasource().getDatabaseType()) || requestedCatalog == null
+                || equalsNormalized(requestedCatalog, candidate.table().database()))
             .collect(java.util.stream.Collectors.toMap(
-                candidate -> candidate.datasource().getId() + "::" + normalize(candidate.table().database()) + "::" + normalize(candidate.table().table()),
+                candidate -> candidate.datasource().getId() + "::" + normalize(candidate.table().database()) + "::" + normalize(candidate.table().schema()) + "::" + normalize(candidate.table().table()),
                 candidate -> candidate,
                 (left, right) -> left.score() >= right.score() ? left : right,
                 LinkedHashMap::new
@@ -476,7 +480,8 @@ public class SqlMetadataSearchService {
                 "tableRows", table.tableRows(),
                 "tableComment", table.tableComment(),
                 "databaseComment", table.databaseComment(),
-                "fullPath", joinPath(assetName, table.database(), table.table())
+                "fullPath", "trino".equalsIgnoreCase(datasource.getDatabaseType()) ? joinPath(assetName, table.database(), table.schema(), table.table())
+                    : joinPath(assetName, table.database(), table.table())
             )),
             "score", round(candidate.score()),
             "source", candidate.source(),

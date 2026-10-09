@@ -411,6 +411,28 @@ public class LuceneMcpSearchService {
         }
     }
 
+    /** Rank an already authorized snapshot. No global index or external search engine is queried. */
+    public Map<String, Float> rankScopedMetadata(List<AssetDoc> authorizedDocs, String query) {
+        if (authorizedDocs == null || authorizedDocs.isEmpty()) return Map.of();
+        try (var directory = new org.apache.lucene.store.ByteBuffersDirectory()) {
+            try (IndexWriter writer = new IndexWriter(directory, new IndexWriterConfig(analyzer))) {
+                for (AssetDoc doc : authorizedDocs) writer.addDocument(assetDocument(doc));
+            }
+            try (DirectoryReader reader = DirectoryReader.open(directory)) {
+                IndexSearcher searcher = new IndexSearcher(reader);
+                Query parsed = query == null || query.isBlank() ? new MatchAllDocsQuery()
+                    : query.length() > MAX_QUERY_TEXT_LENGTH ? new MatchNoDocsQuery("query too long")
+                    : textQuery(query, FIELD_NAME_TEXT, FIELD_TEXT, FIELD_KEYWORD_ALIASES);
+                Map<String, Float> scores = new LinkedHashMap<>();
+                for (ScoreDoc hit : searcher.search(parsed, authorizedDocs.size()).scoreDocs)
+                    scores.put(searcher.storedFields().document(hit.doc).get(FIELD_ID), hit.score);
+                return scores;
+            }
+        } catch (Exception ex) {
+            throw new IllegalStateException("Scoped metadata ranking failed", ex);
+        }
+    }
+
     private void indexNamedTemplateIndex(String indexName, List<TemplateDoc> docs, String label) {
         if (!enabled()) {
             return;

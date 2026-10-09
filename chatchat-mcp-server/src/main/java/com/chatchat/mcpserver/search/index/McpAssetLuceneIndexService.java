@@ -34,6 +34,12 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class McpAssetLuceneIndexService {
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.chatchat.mcpserver.sql.metadata.DatasourceMetadataSearchService metadataSearch;
+    @org.springframework.context.event.EventListener
+    public void onMetadataRefreshed(MetadataIndexService.MetadataRefreshed event) {
+        upsertSqlDatasource(event.datasource());
+    }
 
     public static final String HTTP_ASSET_INDEX_TYPE = "http_endpoint_http";
     public static final String MICROSERVICE_ASSET_INDEX_TYPE = "http_endpoint_microservice";
@@ -438,8 +444,12 @@ public class McpAssetLuceneIndexService {
             return List.of();
         }
         MetadataIndex index = metadataIndexService.indexFor(datasource);
-        if (index == null || index.error() != null || index.tables() == null || index.tables().isEmpty()) {
+        if (index == null || index.error() != null) {
             return List.of();
+        }
+        if (com.chatchat.mcpserver.sql.metadata.MetadataScopes.adapted(index.databaseType())) {
+            var objects = metadataSearch == null ? index.objects() : metadataSearch.visibleObjects(datasource, index);
+            return objects.stream().map(object -> com.chatchat.mcpserver.sql.metadata.DatasourceMetadataSearchService.assetDoc(datasource, object)).toList();
         }
         return index.tables().stream()
             .map(table -> tableAssetDoc(datasource, table, index))

@@ -228,13 +228,13 @@
             </el-form-item>
           </el-col>
           <el-col :xs="24" :md="8" :lg="4">
-            <el-form-item label="表名">
-              <el-input v-model.trim="search.tableName" placeholder="os_historystep" />
+            <el-form-item :label="search.indexType === 'datasource_metadata' ? '对象名 / 路径' : '表名'">
+              <el-input v-model.trim="search.tableName" placeholder="表、节点标签、关系类型或索引" />
             </el-form-item>
           </el-col>
           <el-col :xs="24" :md="8" :lg="4">
-            <el-form-item label="库/Schema">
-              <el-input v-model.trim="search.database" placeholder="livebos" />
+            <el-form-item label="命名空间">
+              <el-input v-model.trim="search.database" placeholder="库、Catalog.Schema、Database 或索引" />
             </el-form-item>
           </el-col>
           <el-col :xs="24" :md="8" :lg="5">
@@ -349,8 +349,8 @@
         <el-table-column prop="kind" label="类型" width="100" />
         <el-table-column prop="name" label="名称" min-width="180" />
         <el-table-column prop="assetType" label="资产类型" min-width="140" />
-        <el-table-column prop="database" label="库/Schema" min-width="130" />
-        <el-table-column prop="table" label="表名" min-width="150" />
+        <el-table-column :prop="search.indexType === 'datasource_metadata' ? 'namespace' : 'database'" label="命名空间" min-width="130" />
+        <el-table-column :prop="search.indexType === 'datasource_metadata' ? 'qualifiedName' : 'table'" label="对象路径" min-width="150" />
         <el-table-column prop="score" label="分数" width="100" />
         <el-table-column prop="description" label="描述" min-width="220" />
       </el-table>

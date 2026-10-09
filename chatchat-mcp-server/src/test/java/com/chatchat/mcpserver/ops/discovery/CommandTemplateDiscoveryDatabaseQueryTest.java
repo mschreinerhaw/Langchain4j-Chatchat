@@ -147,6 +147,10 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
             lucene()
         );
 
+        var metadataContext = mock(com.chatchat.mcpserver.sql.metadata.QueryMetadataContextService.class);
+        var scopedMetadata = Map.<String, Object>of("scope", "template_references", "reviewStatus", "NEEDS_REVIEW");
+        when(metadataContext.context(query)).thenReturn(scopedMetadata);
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "metadataContext", metadataContext);
         Map<String, Object> result = service.query(Map.of(
             "targetKind", "business_database_query",
             "confidence", 0.9,
@@ -164,6 +168,8 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
         assertThat(first.get("templateId")).isEqualTo("query_active_services");
         assertThat(first.get("mcpToolName")).isEqualTo("sql_query_execute");
         assertThat(first.get("databaseQueryId")).isEqualTo("query-1");
+        assertThat(first.get("metadataContext")).isEqualTo(scopedMetadata);
+        org.mockito.Mockito.verify(metadataContext).context(query);
         assertThat(first.get("intent")).isEqualTo("service_status");
         assertThat(first.get("businessGroup").toString()).contains("service_ops", "Service operations", "active service health");
         assertThat(first.get("description").toString()).contains("Service operations", "service_ops", "active service health");

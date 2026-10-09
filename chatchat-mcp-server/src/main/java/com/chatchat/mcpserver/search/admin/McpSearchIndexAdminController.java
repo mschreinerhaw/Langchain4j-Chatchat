@@ -30,6 +30,9 @@ import java.util.Map;
 @RequestMapping("/api/v1/mcp-search-index")
 public class McpSearchIndexAdminController {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.mcpserver.sql.metadata.DatasourceMetadataSearchService datasourceMetadataSearchService;
+
     private final McpAssetLuceneIndexService assetLuceneIndexService;
     private final McpTemplateLuceneIndexService templateLuceneIndexService;
     private final LuceneMcpSearchService luceneSearchService;
@@ -149,7 +152,10 @@ public class McpSearchIndexAdminController {
         int limit = boundedInt(input.get("limit"), 10, 1, 50);
         Map<String, Object> result;
         String assetIndexAssetType = assetTypeForAssetIndex(indexType);
-        if (assetIndexAssetType != null) {
+        if ("datasource_metadata".equalsIgnoreCase(indexType)) {
+            result = new LinkedHashMap<>(datasourceMetadataSearchService.search(input));
+            result.put("indexType", "datasource_metadata");
+        } else if (assetIndexAssetType != null) {
             Map<String, Object> effectiveInput = new LinkedHashMap<>(input);
             effectiveInput.put("assetType", assetIndexAssetType);
             List<LuceneMcpSearchService.SearchHit> hits = "http_endpoint".equals(assetIndexAssetType)

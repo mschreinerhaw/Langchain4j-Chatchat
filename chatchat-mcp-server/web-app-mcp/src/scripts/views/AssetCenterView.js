@@ -45,7 +45,7 @@ export default {
         dsl: ''
       },
       search: {
-        indexType: 'sql_metadata',
+        indexType: 'datasource_metadata',
         query: '',
         tableName: '',
         database: '',
@@ -71,7 +71,8 @@ export default {
         }
       ],
       searchIndexOptions: [
-        { value: 'sql_metadata', label: '元数据索引' },
+        { value: 'datasource_metadata', label: '元数据索引' },
+        { value: 'sql_metadata', label: '关系库元数据（兼容入口）' },
         { value: 'ssh_host_assets', label: '服务器资产索引' },
         { value: 'sql_datasource_assets', label: '数据库资产索引' },
         { value: 'http_endpoint_assets', label: 'API 网关资产索引' },
@@ -98,9 +99,21 @@ export default {
           key: 'refresh-metadata',
           label: '刷新元数据',
           type: 'primary',
-          disabled: row => !row?.id || isNativeQueryAsset(row),
-          successMessage: '元数据刷新已提交',
-          run: row => api.refreshSqlMetadata(row.id)
+          disabled: row => !row?.id,
+          successMessage: '元数据刷新完成',
+          run: async row => {
+            const result = await api.refreshSqlMetadata(row.id);
+            this.$emit('result', { title: `${row.name} 元数据刷新结果`, value: result });
+            if (result?.error) throw new Error(result.error);
+            return result;
+          }
+        },
+        {
+          key: 'view-metadata', label: '查看元数据', disabled: row => !row?.id,
+          run: async row => {
+            const result = await api.getSqlMetadata(row.id);
+            this.$emit('result', { title: `${row.name} 元数据快照`, value: result });
+          }
         }
       ],
       sshDefaults: {
@@ -325,15 +338,17 @@ export default {
         { key: 'runtimeAction', label: '运行策略', type: 'select', options: runtimeActionOptions() },
         { key: 'defaultTimeoutSeconds', label: '默认超时秒', type: 'number', min: 1, step: 1, placeholder: '30', help: '查询执行超时时间，建议 10-60 秒。' },
         { key: 'defaultMaxRows', label: '默认最大行数', type: 'number', min: 1, step: 100, placeholder: '1000', help: '限制查询返回行数，避免大结果集拖慢服务。' },
-        { key: 'metadataScopeType', label: '元数据索引范围', type: 'select', options: metadataScopeOptions(), placeholder: '选择元数据索引范围', help: '决定系统自动索引哪些库或 Schema。' },
+        { key: 'metadataScopeType', label: '元数据索引范围', type: 'select', options: form => metadataScopeOptions(form),
+          initialize: form => { const options = metadataScopeOptions(form); if (options.length === 1) form.metadataScopeType = options[0].value; },
+          placeholder: '选择元数据索引范围', help: '决定系统采集哪些命名空间；连接与认证复用当前资产。' },
         {
           key: 'metadataScopeValue',
           label: '索引范围',
           type: 'metadataScopePicker',
           span: 'col-12',
-          placeholder: '手动输入库/Schema，多个用逗号分隔',
+          placeholder: form => metadataScopeHint(form),
           extractOptions: extractSqlMetadataScopeOptions,
-          help: '测试连接后会展示可选库/Schema，勾选后自动写入范围。'
+          help: form => metadataScopeHint(form) + '。多个范围用逗号分隔；检索引擎只采集 Mapping 和字段能力，图库属性标记为观察结构。'
         },
         { key: 'metadataAutoRefreshEnabled', label: '元数据自动刷新', type: 'select', options: boolOptions('定时自动刷新', '手动刷新') },
         { key: 'metadataRefreshIntervalMinutes', label: '刷新间隔分钟', type: 'number', min: 5, step: 5, placeholder: '60', help: '启用自动刷新时生效，最小 5 分钟。' },
@@ -351,13 +366,13 @@ export default {
           span: 'col-12',
           help: '从已维护的 SQL 运维模板中按数据库类型筛选并勾选，保存时自动生成 JSON。'
         },
-        { key: 'allowedTablesJson', label: '允许表', type: 'jsonStringList', placeholder: '输入表名，如 public.orders', span: 'col-md-6', help: '为空表示不额外限制；可回车或用逗号批量添加。' },
-        { key: 'sensitiveTablesJson', label: '敏感表', type: 'jsonStringList', placeholder: '输入敏感表名，如 user_secret', span: 'col-md-6', help: '用于标记需要更严格治理的表。' },
+        { key: 'allowedTablesJson', label: form => isNativeQueryAsset(form) ? '元数据允许对象' : '允许表', type: 'jsonStringList', placeholder: '输入对象名或完整路径', span: 'col-md-6', help: '表、节点标签、关系类型或索引的元数据白名单；为空表示不额外限制。' },
+        { key: 'sensitiveTablesJson', label: form => isNativeQueryAsset(form) ? '敏感对象' : '敏感表', type: 'jsonStringList', placeholder: '输入敏感对象名或完整路径', span: 'col-md-6', help: '敏感对象不进入统一元数据检索与模板上下文。' },
         { key: 'sensitiveFieldsJson', label: '敏感字段', type: 'jsonStringList', placeholder: '输入字段名，如 phone、id_card', span: 'col-md-6', help: '用于标记敏感字段，可按 表.字段 或字段名填写。' },
         { key: 'routingLabelsJson', label: '路由标签', type: 'jsonStringList', placeholder: '输入标签，如 mysql、prod', span: 'col-md-6', help: '用于资产检索和路由匹配。' },
         { key: 'capabilitiesJson', label: '能力标签', type: 'jsonStringList', required: true, requiredAnyOf: ['sql_query_execute', 'sql_exec', 'sql', 'jdbc', 'database_query', 'cypher_query', 'search_query'], requiredAnyOfMessage: '数据库能力标签必须包含 SQL、Cypher 或检索查询能力', placeholder: '输入能力，如 sql、cypher_query、search_query', span: 'col-md-6', help: '描述该资产可提供的能力。' }
       ].map(field => ({ ...field, ...assetFieldLayout('sql', field.key),
-        ...(['metadataScopeType', 'metadataScopeValue', 'metadataAutoRefreshEnabled', 'metadataRefreshIntervalMinutes', 'allowedTemplatesJson', 'allowedTablesJson'].includes(field.key)
+        ...(['allowedTemplatesJson'].includes(field.key)
           ? { visible: form => !isNativeQueryAsset(form) } : {})
       }));
     },
@@ -923,12 +938,22 @@ function commonHttpHeaderPresets() {
   ];
 }
 
-function metadataScopeOptions() {
+function metadataScopeOptions(form = {}) {
+  if (form.databaseType === 'trino') return [{ value: 'TRINO_NAMESPACE', label: '指定 Catalog / Schema' }];
+  if (form.databaseType === 'neo4j') return [{ value: 'GRAPH_DATABASE', label: '指定 Neo4j Database' }];
+  if (['opensearch', 'elasticsearch'].includes(form.databaseType)) return [{ value: 'SEARCH_INDEX', label: '指定索引 / 别名' }];
   return [
     { value: 'JDBC_DATABASE', label: 'JDBC 当前数据库' },
     { value: 'LOGIN_USER_SCHEMA', label: '登录用户/Schema' },
     { value: 'EXPLICIT_SCHEMA', label: '指定数据库/Schema' }
   ];
+}
+
+function metadataScopeHint(form = {}) {
+  if (form.databaseType === 'trino') return '填写 Catalog 或 Catalog.Schema，如 hive.sales';
+  if (form.databaseType === 'neo4j') return '填写 Database，如 neo4j；留空使用 neo4j';
+  if (['opensearch', 'elasticsearch'].includes(form.databaseType)) return '填写索引名或别名，如 news；必须明确配置范围';
+  return '填写数据库或 Schema；测试连接后可选择可用范围';
 }
 
 function extractSqlMetadataScopeOptions(result) {
@@ -966,15 +991,17 @@ const nativeQueryTypes = ['neo4j', 'opensearch', 'elasticsearch'];
 function setQueryAssetType(form, type) {
   form.databaseType = type;
   const native = nativeQueryTypes.includes(type);
-  if (native) { form.driverClass = type + '-http'; form.metadataAutoRefreshEnabled = false; }
+  if (native) form.driverClass = type + '-http';
   else if (nativeQueryTypes.some(item => form.driverClass === item + '-http')) form.driverClass = '';
+  form.metadataScopeType = type === 'trino' ? 'TRINO_NAMESPACE' : type === 'neo4j' ? 'GRAPH_DATABASE'
+    : native ? 'SEARCH_INDEX' : 'JDBC_DATABASE';
   const managed = ['jdbc', 'sql_query_execute', 'metadata', 'database_query', 'cypher_query', 'search_query', 'http'];
   let labels;
   try { labels = JSON.parse(form.capabilitiesJson || '[]'); } catch { return; }
   if (!Array.isArray(labels)) return;
   const custom = labels.filter(label => !managed.includes(label));
   form.capabilitiesJson = JSON.stringify([...custom, ...(native
-    ? ['database_query', type === 'neo4j' ? 'cypher_query' : 'search_query', 'http']
+    ? ['database_query', type === 'neo4j' ? 'cypher_query' : 'search_query', 'http', 'metadata']
     : ['jdbc', 'sql_query_execute', 'metadata'])]);
 }
 function isNativeQueryAsset(asset) {

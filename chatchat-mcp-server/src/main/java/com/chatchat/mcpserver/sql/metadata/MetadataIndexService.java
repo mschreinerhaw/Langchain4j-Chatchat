@@ -46,6 +46,11 @@ public class MetadataIndexService {
     private final SystemMetadataQueryProvider metadataQueryProvider = new SystemMetadataQueryProvider();
 
     @Autowired(required = false)
+    private List<MetadataCollector> collectors = List.of(new TrinoMetadataCollector());
+    @Autowired(required = false)
+    private org.springframework.context.ApplicationEventPublisher events;
+
+    @Autowired(required = false)
     private McpRocksDbStore rocksDbStore;
 
     @Autowired(required = false)
@@ -102,7 +107,10 @@ public class MetadataIndexService {
         if (datasource == null || table == null) {
             return List.of();
         }
-        List<MetadataColumn> values = indexFor(datasource).tableColumns().get(tableKey(table.database(), table.table()));
+        MetadataIndex index = indexFor(datasource);
+        String key = "trino".equals(index.databaseType())
+            ? MetadataIndex.tableKey(table.database(), table.schema(), table.table()) : tableKey(table.database(), table.table());
+        List<MetadataColumn> values = index.tableColumns().get(key);
         return values == null ? List.of() : values;
     }
 
@@ -119,7 +127,7 @@ public class MetadataIndexService {
         }
         String cacheKey = datasource.getId();
         CacheEntry<MetadataIndex> cached = indexCache.get(cacheKey);
-        if (cached != null && !cached.expired()) {
+        if (cached != null && !cached.expired() && compatible(cached.value(), datasource)) {
             MetadataIndex value = cached.value();
             return new MetadataIndex(
                 value.datasourceId(),
@@ -131,11 +139,14 @@ public class MetadataIndexService {
                 value.datasourceSchemas(),
                 value.refreshedAtMs(),
                 true,
-                value.error()
+                value.error(),
+                value.objects(),
+                value.configurationFingerprint(),
+                value.changes()
             );
         }
         MetadataIndex persisted = loadPersistedIndex(datasource);
-        if (persisted != null) {
+        if (persisted != null && compatible(persisted, datasource)) {
             indexCache.put(cacheKey, new CacheEntry<>(persisted));
             trimCache(indexCache);
             return cachedIndex(persisted, true);
@@ -190,8 +201,6 @@ public class MetadataIndexService {
     }
 
     public synchronized MetadataRefreshResult refreshDatasource(SqlDatasourceConfig datasource) {
-        if (com.chatchat.mcpserver.sql.datasource.NativeQueryDatasource.isNative(datasource))
-            throw new IllegalArgumentException("原生查询资产不使用 JDBC 元数据刷新");
         long startedAt = System.currentTimeMillis();
         if (datasource == null) {
             MetadataIndex failed = MetadataIndex.failed(null, "generic", "datasource is required");
@@ -203,7 +212,8 @@ public class MetadataIndexService {
             return refreshResult(failed, startedAt, PersistState.skipped("unsupported_database_type"));
         }
         ensureRegistered(datasource);
-        MetadataIndex refreshed = refresh(datasource);
+        MetadataIndex previous = indexFor(datasource);
+        MetadataIndex refreshed = refresh(datasource).withFingerprint(MetadataScopes.fingerprint(datasource)).withChanges(previous);
         if ((refreshed.error() == null || refreshed.error().isBlank()) && datasource.getId() != null && !datasource.getId().isBlank()) {
             indexCache.put(datasource.getId(), new CacheEntry<>(refreshed));
             databaseCache.remove("databases:" + datasource.getId());
@@ -213,6 +223,7 @@ public class MetadataIndexService {
             ? persistIndex(datasource, refreshed)
             : PersistState.skipped("metadata refresh failed; previous persisted snapshot was preserved");
         markRegistryIndexed(datasource, refreshed);
+        if (refreshed.error() == null && events != null) events.publishEvent(new MetadataRefreshed(datasource));
         return refreshResult(refreshed, startedAt, persistState);
     }
 
@@ -247,7 +258,10 @@ public class MetadataIndexService {
             value.datasourceSchemas(),
             value.refreshedAtMs(),
             cacheHit,
-            value.error()
+            value.error(),
+            value.objects(),
+            value.configurationFingerprint(),
+            value.changes()
         );
     }
 
@@ -307,7 +321,14 @@ public class MetadataIndexService {
         try {
             List<ScopeValue> scopeValues = metadataScopeValues(datasource);
             if (scopeValues.isEmpty()) {
-                return MetadataIndex.failed(datasource.getId(), datasourceType, "metadata_asset_registry_empty");
+                return MetadataIndex.failed(datasource.getId(), datasourceType, MetadataScopes.adapted(datasourceType)
+                    ? "metadata_scope_required: 请配置元数据采集范围" : "metadata_asset_registry_empty");
+            }
+            if (MetadataScopes.adapted(datasourceType)) {
+                MetadataCollector collector = collectors.stream().filter(candidate -> candidate.supports(datasourceType)).findFirst()
+                    .orElseThrow(() -> new IllegalStateException("metadata_collector_unavailable: " + datasourceType));
+                return MetadataIndex.collected(datasource.getId(), datasourceType,
+                    collector.collect(datasource, scopeValues.stream().map(ScopeValue::value).toList()));
             }
             List<TableLocation> tables = queryAllTableLocations(datasource, datasourceType, scopeValues).stream()
                 .filter(table -> schemaAllowed(scopeValues, table.database()))
@@ -626,7 +647,12 @@ public class MetadataIndexService {
     }
 
     private boolean isSupportedMetadataIndexType(String datasourceType) {
-        return metadataQueryProvider.supportsMetadataIndexType(datasourceType);
+        return MetadataScopes.adapted(datasourceType) || metadataQueryProvider.supportsMetadataIndexType(datasourceType);
+    }
+
+    private boolean compatible(MetadataIndex index, SqlDatasourceConfig datasource) {
+        return java.util.Objects.equals(index.datasourceId(), datasource.getId()) && resolvedDatabaseType(datasource).equals(index.databaseType())
+            && (index.configurationFingerprint() == null || index.configurationFingerprint().equals(MetadataScopes.fingerprint(datasource)));
     }
 
     private String defaultSchemaName(SqlDatasourceConfig datasource) {
@@ -636,6 +662,16 @@ public class MetadataIndexService {
     private List<ScopeValue> metadataScopeValues(SqlDatasourceConfig datasource) {
         if (datasource == null) {
             return List.of();
+        }
+        String datasourceType = resolvedDatabaseType(datasource);
+        if (MetadataScopes.adapted(datasourceType)) {
+            if (metadataAssetRegistryService != null && datasource.getId() != null
+                && !metadataAssetRegistryService.listByDatasource(datasource.getId()).isEmpty()) {
+                return metadataAssetRegistryService.listEnabledByDatasource(datasource.getId()).stream()
+                    .map(SqlMetadataAssetRegistry::getDatabaseName).filter(java.util.Objects::nonNull)
+                    .map(value -> new ScopeValue(value, value)).toList();
+            }
+            return MetadataScopes.defaults(datasource).stream().map(value -> new ScopeValue(value, value)).toList();
         }
         if (metadataAssetRegistryService != null && datasource.getId() != null && !datasource.getId().isBlank()) {
             List<ScopeValue> values = metadataAssetRegistryService.listEnabledByDatasource(datasource.getId()).stream()
@@ -691,7 +727,7 @@ public class MetadataIndexService {
         if (metadataAssetRegistryService == null || datasource == null || datasource.getId() == null || datasource.getId().isBlank()) {
             return;
         }
-        if (metadataAssetRegistryService.listEnabledByDatasource(datasource.getId()).isEmpty()) {
+        if (metadataAssetRegistryService.listByDatasource(datasource.getId()).isEmpty()) {
             metadataAssetRegistryService.syncDefaultForDatasource(datasource);
         }
     }
@@ -705,6 +741,7 @@ public class MetadataIndexService {
         }
         List<SqlMetadataAssetRegistry> registries = metadataAssetRegistryService.listEnabledByDatasource(datasource.getId());
         if (registries.isEmpty()) {
+            if (!metadataAssetRegistryService.listByDatasource(datasource.getId()).isEmpty()) return false;
             SqlMetadataAssetRegistry synced = metadataAssetRegistryService.syncDefaultForDatasource(datasource);
             return synced != null && "AUTO".equalsIgnoreCase(synced.getRefreshMode());
         }
@@ -716,7 +753,11 @@ public class MetadataIndexService {
             return;
         }
         try {
-            metadataAssetRegistryService.markIndexed(datasource.getId(), index.datasourceSchemas(), index.error());
+            List<String> namespaces = new ArrayList<>(index.datasourceSchemas());
+            if (index.error() == null && MetadataScopes.adapted(index.databaseType()))
+                namespaces.addAll(metadataScopeValues(datasource).stream().map(ScopeValue::value).filter(scope -> index.objects().stream().anyMatch(object ->
+                    scope.equals(object.namespace()) || object.namespace().startsWith(scope + ".") || scope.equals(object.attributes().get("requestedScope")))).toList());
+            metadataAssetRegistryService.markIndexed(datasource.getId(), namespaces, index.error());
         } catch (Exception ex) {
             log.debug("Metadata asset registry status update failed: datasourceId={}, error={}", datasource.getId(), ex.getMessage());
         }
@@ -794,9 +835,7 @@ public class MetadataIndexService {
     }
 
     private MetadataRefreshResult refreshResult(MetadataIndex index, long startedAt, PersistState persistState) {
-        int columnCount = index.tableColumns() == null
-            ? 0
-            : index.tableColumns().values().stream().mapToInt(List::size).sum();
+        int columnCount = index.tableColumns() == null ? 0 : index.tableColumns().values().stream().mapToInt(List::size).sum();
         PersistState state = persistState == null ? PersistState.skipped("persist state was not evaluated") : persistState;
         return new MetadataRefreshResult(
             index.datasourceId(),
@@ -808,12 +847,15 @@ public class MetadataIndexService {
             System.currentTimeMillis() - startedAt,
             "PERSISTED".equals(state.status()),
             state,
-            index.error()
+            index.error(),
+            index.objects().size(),
+            index.objects().stream().mapToInt(object -> object.fields().size()).sum()
         );
     }
 
     private record ScopeValue(String value, String normalized) {
     }
+    public record MetadataRefreshed(SqlDatasourceConfig datasource) {}
 
     private record JdbcMetadataScope(String catalog, String schemaPattern) {
     }
@@ -838,8 +880,14 @@ public class MetadataIndexService {
         long durationMs,
         boolean persistedToRocksDb,
         PersistState persistState,
-        String error
+        String error,
+        int objectCount,
+        int fieldCount
     ) {
+        public MetadataRefreshResult(String datasourceId, String databaseType, int schemaCount, int tableCount, int columnCount,
+                                     long refreshedAtMs, long durationMs, boolean persistedToRocksDb, PersistState persistState, String error) {
+            this(datasourceId, databaseType, schemaCount, tableCount, columnCount, refreshedAtMs, durationMs, persistedToRocksDb, persistState, error, tableCount, columnCount);
+        }
     }
 
     public record PersistState(

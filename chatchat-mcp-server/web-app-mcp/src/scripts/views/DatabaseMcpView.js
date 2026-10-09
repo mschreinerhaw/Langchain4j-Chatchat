@@ -24,6 +24,13 @@ export default {
     const queryProfile = databaseQueryProfile(null, this.queryFamily);
     return {
       api,
+      metadataActions: [{
+        key: 'query-metadata', label: '元数据', disabled: row => !row?.id,
+        run: async row => {
+          const value = await api.metadata(row.id);
+          this.$emit('result', { title: `${row.title || row.toolName} 元数据与结构复核状态`, value });
+        }
+      }],
       activeTab: this.section,
       busy: false,
       sqlAssets: [],

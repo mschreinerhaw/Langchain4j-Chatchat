@@ -46,6 +46,13 @@ public class DatabaseQueryAdminController {
     private final DynamicDateParamService dynamicDateParamService;
     @org.springframework.beans.factory.annotation.Autowired
     private com.chatchat.mcpserver.database.execution.DatabaseQuerySourceAdapterService sourceAdapters;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.mcpserver.sql.metadata.QueryMetadataContextService metadataContext;
+
+    @GetMapping("/{id}/metadata")
+    public ApiResponse<Map<String, Object>> metadata(@PathVariable("id") String id) {
+        return ApiResponse.success(metadataContext.context(configService.getById(id)));
+    }
 
     @GetMapping("/datasources")
     public ApiResponse<List<com.chatchat.mcpserver.database.execution.DatabaseQuerySourceAdapterService.SourceView>> datasources() {

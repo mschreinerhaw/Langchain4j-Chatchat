@@ -3,6 +3,7 @@ import ModalPanel from '../../components/ModalPanel.vue';
 import ApiTestParameterDialog from '../../components/ApiTestParameterDialog.vue';
 import { parseJsonObject, prettyJson } from '../../utils/json';
 import { buildTestNotification, isTestFailure } from '../../utils/test-result';
+import { databaseQueryProfile } from '../../utils/database-query-profile';
 import '../../styles/components/crud-catalog.css';
 
 export default {
@@ -23,6 +24,7 @@ export default {
     formTestLabel: { type: String, default: '测试' },
     formPreviewType: { type: String, default: '' },
     querySources: { type: Array, default: () => [] },
+    queryFamily: { type: String, default: 'relational' },
     refreshAction: { type: Function, default: null },
     rebuildAction: { type: Function, default: null },
     rebuildLabel: { type: String, default: '' },
@@ -110,9 +112,7 @@ export default {
   computed: {
     databaseQueryProfile() {
       const source = this.querySources.find(item => item.id === this.form.datasourceId);
-      if (source?.type === 'GRAPH') return { type: 'GRAPH', title: '只读 Cypher', hint: '使用 $name 传入参数，数据库默认 neo4j', placeholder: 'MATCH (n:Company) WHERE n.name = $name RETURN n', parameterHint: '扫描 $name 参数；实体标签与关系类型不会识别为参数。' };
-      if (source?.type === 'UNSTRUCTURED') return { type: 'UNSTRUCTURED', title: source.databaseType === 'elasticsearch' ? 'Elasticsearch JSON DSL' : 'OpenSearch JSON DSL', hint: '指定索引，支持关键词、条件过滤和向量检索', placeholder: '{ "query": { "match": { "name": "{{name}}" } } }', parameterHint: '参数使用完整 JSON 字符串值 {{name}}，支持数组、对象和数字。' };
-      return { type: source?.type || 'RELATIONAL', title: source?.type === 'TRINO' ? '只读 Trino SQL' : '只读 SQL', hint: '支持 SELECT、SHOW、DESCRIBE、EXPLAIN', placeholder: 'SELECT ... WHERE customer_id = :customerId', parameterHint: '可识别 :name、${trade_date}、{{name}}；扫描只补充缺失参数，不覆盖已有配置。' };
+      return databaseQueryProfile(source, this.queryFamily);
     },
     filtered() {
       const keyword = this.keyword.toLowerCase();
@@ -225,7 +225,7 @@ export default {
       return resultSets.map((item, index) => ({
         ...item,
         previewKey: String(item.nodeCode || item.sqlCode || item.statementIndex || `sql-${index + 1}`),
-        previewName: item.nodeName || item.sqlName || item.stepName || item.nodeCode || item.sqlCode || `SQL ${index + 1}`
+        previewName: item.nodeName || item.sqlName || item.stepName || item.nodeCode || item.sqlCode || `查询步骤 ${index + 1}`
       }));
     },
     databasePreviewData() {
@@ -255,7 +255,7 @@ export default {
       return previews
         .map((item, index) => ({
           key: item.nodeCode || item.sqlCode || `sql-${index + 1}`,
-          name: item.nodeName || item.sqlName || item.nodeCode || `SQL ${index + 1}`,
+          name: item.nodeName || item.sqlName || item.nodeCode || `查询步骤 ${index + 1}`,
           sql: item.resolvedSqlPreview || (hasDirectPreviews ? item.sql : '')
         }))
         .filter(item => String(item.sql || '').trim());
@@ -276,7 +276,7 @@ export default {
       const nodes = Array.isArray(data.nodeExecutions) && data.nodeExecutions.length
         ? data.nodeExecutions
         : (Array.isArray(data.resultSets) ? data.resultSets : (Array.isArray(data.results) ? data.results : []));
-      return nodes.map((item, index) => item.nodeName || item.sqlName || item.nodeCode || `SQL ${index + 1}`).join(' → ');
+      return nodes.map((item, index) => item.nodeName || item.sqlName || item.nodeCode || `查询步骤 ${index + 1}`).join(' → ');
     },
     databaseTestDurationMs() {
       return this.formTestResult?.data?.execution?.durationMs ?? this.formTestResult?.executionTimeMs ?? null;
@@ -774,38 +774,41 @@ export default {
           value.forEach((step, index) => {
             const stepNumber = index + 1;
             if (this.isEmptyFieldValue(step?.sqlCode)) {
-              errors.push(`第 ${stepNumber} 条 SQL 的节点编码不能为空`);
+              errors.push(`第 ${stepNumber} 个查询步骤的节点编码不能为空`);
             } else if (codes.has(String(step.sqlCode).trim().toUpperCase())) {
-              errors.push(`第 ${stepNumber} 条 SQL 的节点编码重复`);
+              errors.push(`第 ${stepNumber} 个查询步骤的节点编码重复`);
             } else {
               codes.add(String(step.sqlCode).trim().toUpperCase());
             }
             if (this.isEmptyFieldValue(step?.sqlName)) {
-              errors.push(`第 ${stepNumber} 条 SQL 的名称不能为空`);
+              errors.push(`第 ${stepNumber} 个查询步骤的名称不能为空`);
             }
             if (this.isEmptyFieldValue(step?.sqlDescription)) {
-              errors.push(`第 ${stepNumber} 条 SQL 的结果集说明不能为空`);
+              errors.push(`第 ${stepNumber} 个查询步骤的结果集说明不能为空`);
             }
             if (this.isEmptyFieldValue(step?.sqlContent)) {
-              errors.push(`第 ${stepNumber} 条 SQL 内容不能为空`);
+              errors.push(`第 ${stepNumber} 个步骤的 ${this.databaseQueryProfile.queryLabel} 不能为空`);
+            } else if (this.databaseQueryProfile.jsonBody && step.enabled !== false) {
+              try { this.parseDslQuery(step.sqlContent); }
+              catch (error) { errors.push(`第 ${stepNumber} 个步骤：${error.message}`); }
             }
             const staticParameterNames = new Set();
             (step?.staticParameterEntries || []).forEach((parameter, parameterIndex) => {
               const name = String(parameter?.name || '').trim();
               if (!name) {
-                errors.push(`第 ${stepNumber} 条 SQL 的独立参数 ${parameterIndex + 1} 缺少参数名`);
+                errors.push(`第 ${stepNumber} 个查询步骤的独立参数 ${parameterIndex + 1} 缺少参数名`);
               } else if (staticParameterNames.has(name)) {
-                errors.push(`第 ${stepNumber} 条 SQL 的独立参数 ${name} 重复`);
+                errors.push(`第 ${stepNumber} 个查询步骤的独立参数 ${name} 重复`);
               } else {
                 staticParameterNames.add(name);
               }
             });
             (step?.parameterMappings || []).forEach((mapping, mappingIndex) => {
               if (this.isEmptyFieldValue(mapping?.parameter)) {
-                errors.push(`第 ${stepNumber} 条 SQL 的参数映射 ${mappingIndex + 1} 缺少参数名`);
+                errors.push(`第 ${stepNumber} 个查询步骤的参数映射 ${mappingIndex + 1} 缺少参数名`);
               }
               if (mapping?.sourceType === 'UPSTREAM_RESULT' && this.isEmptyFieldValue(mapping?.sourceNode)) {
-                errors.push(`第 ${stepNumber} 条 SQL 的上游结果参数 ${mappingIndex + 1} 缺少来源节点`);
+                errors.push(`第 ${stepNumber} 个查询步骤的上游结果参数 ${mappingIndex + 1} 缺少来源节点`);
               }
             });
             if (errors.length) invalidSections.add(field.section || 'basic');
@@ -986,13 +989,13 @@ export default {
       if (!field) return;
       const workflowField = this.formFields.find(item => item.type === 'databaseSqlSteps');
       if (!workflowField) {
-        this.$emit('error', '当前数据库查询未配置 SQL 流程');
+        this.$emit('error', '当前查询未配置执行流程');
         return;
       }
       const allSteps = normalizeDatabaseSqlSteps(this.form[workflowField.key], this.form.sqlTemplate);
       const steps = allSteps.filter(step => step.enabled !== false);
       if (!steps.length) {
-        this.$emit('error', '当前没有启用的 SQL 步骤');
+        this.$emit('error', '当前没有启用的查询步骤');
         return;
       }
       const rows = [...(this.schemaDraft[field.key] || [])];
@@ -1069,7 +1072,7 @@ export default {
             row = databaseParamRow({
               name: param.name, type: 'string', required: true, defaultSource: 'user_input',
               testValue: previousValue || param.example,
-              description: 'SQL 流程统一输入参数'
+              description: '查询流程统一输入参数'
             });
             rows.push(row);
             rowsByName.set(param.name, row);
@@ -1085,7 +1088,7 @@ export default {
       });
       rows.forEach(row => {
         const names = usages.get(String(row?.name || '').trim());
-        if (names?.size) row.description = `SQL 流程参数；使用步骤：${[...names].join('、')}`;
+        if (names?.size) row.description = `查询流程参数；使用步骤：${[...names].join('、')}`;
       });
       this.schemaDraft[field.key] = rows;
       this.form[workflowField.key] = allSteps;
@@ -1352,7 +1355,7 @@ export default {
       this.reconcileDatabaseFlowInputs(field, steps);
       if (notifyUser) {
         const details = [
-          mappingAdded > 0 ? `新增 ${mappingAdded} 个当前 SQL 独立参数` : '节点参数无新增',
+          mappingAdded > 0 ? `新增 ${mappingAdded} 个当前步骤独立参数` : '节点参数无新增',
           fixedSkipped > 0 ? `${fixedSkipped} 项已有独立参数` : '',
           mappedSkipped > 0 ? `${mappedSkipped} 项保留已有来源` : '',
           dynamicConfigured > 0 ? `${dynamicConfigured} 项为系统动态参数` : ''
@@ -1365,7 +1368,7 @@ export default {
     },
     syncDatabaseSqlStepParams(entry) {
       if (!String(entry?.sqlContent || '').trim()) {
-        this.$emit('error', '请先填写当前节点的 SQL 模板');
+        this.$emit('error', `请先填写当前节点的 ${this.databaseQueryProfile.queryLabel}`);
         return;
       }
       const paramField = this.formFields.find(field => field.type === 'databaseParamConfig');
@@ -1540,9 +1543,24 @@ export default {
     removeDatabaseResultUnit(entry, index) {
       entry.unitDescriptionEntries = (entry.unitDescriptionEntries || []).filter((_, currentIndex) => currentIndex !== index);
     },
+    parseDslQuery(text) {
+      let body;
+      try { body = JSON.parse(text); }
+      catch { throw new Error(`${this.databaseQueryProfile.language} 查询体必须是有效的 JSON，不包含 HTTP 方法或请求路径`); }
+      if (!body || typeof body !== 'object' || Array.isArray(body))
+        throw new Error(`${this.databaseQueryProfile.language} 查询体必须是 JSON 对象`);
+      return body;
+    },
+    formatDslQuery(entry) {
+      try { entry.sqlContent = JSON.stringify(this.parseDslQuery(entry.sqlContent), null, 2); }
+      catch (error) { this.$emit('error', error); }
+    },
     addDatabaseSqlStep(field, source = {}) {
       const steps = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate);
-      steps.push(databaseSqlStepRow({ executionOrder: steps.length + 1, workflowEnabled: true, ...source }, steps.length));
+      const number = steps.length + 1;
+      steps.push(databaseSqlStepRow({ executionOrder: number, workflowEnabled: true,
+        sqlCode: `${this.databaseQueryProfile.stepPrefix}_${number}`,
+        sqlName: `${this.databaseQueryProfile.language} ${number}`, ...source }, steps.length));
       if (steps.length > 1) steps.forEach(step => { step.workflowEnabled = true; });
       this.form[field.key] = resequenceDatabaseSqlSteps(steps);
       this.databaseSqlSelectedIndexes[field.key] = steps.length - 1;
@@ -1552,8 +1570,8 @@ export default {
       const steps = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate);
       const copy = databaseSqlStepRow({
         ...steps[index],
-        sqlCode: `${steps[index]?.sqlCode || 'SQL'}_COPY`,
-        sqlName: `${steps[index]?.sqlName || 'SQL'} Copy`
+        sqlCode: `${steps[index]?.sqlCode || this.databaseQueryProfile.stepPrefix}_COPY`,
+        sqlName: `${steps[index]?.sqlName || this.databaseQueryProfile.language} Copy`
       }, index + 1);
       steps.splice(index + 1, 0, copy);
       this.form[field.key] = resequenceDatabaseSqlSteps(steps);
@@ -2082,7 +2100,7 @@ function validateDatabaseSqlWorkflow(steps) {
   const planned = levels.reduce((count, level) => count + level.length, 0);
   if (planned !== enabled.length || (levels.at(-1) || []).some(step =>
     (step.dependencies || []).some(code => !levels.slice(0, -1).flat().some(item => item.sqlCode === code)))) {
-    return 'SQL 执行流程存在循环依赖，请调整前置依赖';
+    return '查询执行流程存在循环依赖，请调整前置依赖';
   }
   return '';
 }

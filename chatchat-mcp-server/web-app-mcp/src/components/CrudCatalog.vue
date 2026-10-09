@@ -397,7 +397,7 @@
                           </header>
 
                           <nav class="database-flow-tabs">
-                            <button v-for="tab in [{ key: 'basic', label: '基础信息' }, { key: 'sql', label: '查询语句' }, { key: 'inputs', label: '输入参数' }, { key: 'output', label: '输出定义' }, { key: 'rules', label: '执行规则' }]" :key="tab.key" type="button" :class="{ active: databaseSqlActiveTabs[field.key] === tab.key }" @click="databaseSqlActiveTabs[field.key] = tab.key">{{ tab.label }}</button>
+                            <button v-for="tab in [{ key: 'basic', label: '基础信息' }, { key: 'sql', label: databaseQueryProfile.language + ' 语句' }, { key: 'inputs', label: '输入参数' }, { key: 'output', label: '输出定义' }, { key: 'rules', label: '执行规则' }]" :key="tab.key" type="button" :class="{ active: databaseSqlActiveTabs[field.key] === tab.key }" @click="databaseSqlActiveTabs[field.key] = tab.key">{{ tab.label }}</button>
                           </nav>
 
                           <div v-if="databaseSqlActiveTabs[field.key] === 'basic'" class="database-flow-tab-panel">
@@ -409,14 +409,16 @@
                           </div>
 
                           <div v-else-if="databaseSqlActiveTabs[field.key] === 'sql'" class="database-flow-tab-panel">
-                            <div class="database-sql-editor-head"><div><strong>{{ databaseQueryProfile.title }}</strong><small>{{ databaseQueryProfile.hint }}</small></div><div><el-button plain size="small" @click="syncDatabaseSqlStepParams(entry)">扫描参数</el-button><el-button v-if="formTestAction" type="primary" plain size="small" :loading="busy" @click="testFormDraft">试运行流程</el-button></div></div>
+                            <div class="database-sql-editor-head"><div><strong>{{ databaseQueryProfile.title }}</strong><small>{{ databaseQueryProfile.hint }}</small></div><div><el-button v-if="databaseQueryProfile.jsonBody" plain size="small" @click="formatDslQuery(entry)">格式化 JSON</el-button><el-button plain size="small" @click="syncDatabaseSqlStepParams(entry)">扫描参数</el-button><el-button v-if="formTestAction" type="primary" plain size="small" :loading="busy" @click="testFormDraft">试运行流程</el-button></div></div>
                             <div v-if="databaseQueryProfile.type === 'TRINO'" class="database-flow-form-grid two">
                               <el-form-item label="Catalog"><el-input v-model.trim="entry.queryOptions.catalog" placeholder="可选；使用连接默认值" /></el-form-item>
                               <el-form-item label="Schema"><el-input v-model.trim="entry.queryOptions.schema" placeholder="可选；使用连接默认值" /></el-form-item>
                             </div>
-                            <el-form-item v-if="databaseQueryProfile.type === 'GRAPH'" label="图数据库"><el-input v-model.trim="entry.queryOptions.database" placeholder="neo4j" /></el-form-item>
+                            <el-form-item v-if="databaseQueryProfile.type === 'GRAPH'" label="Neo4j 数据库"><el-input v-model.trim="entry.queryOptions.database" placeholder="neo4j" /></el-form-item>
                             <el-form-item v-if="databaseQueryProfile.type === 'UNSTRUCTURED'" label="检索索引" required><el-input v-model.trim="entry.queryOptions.index" placeholder="填写资产中的目标索引名称" /></el-form-item>
-                            <el-input v-model="entry.sqlContent" class="codebox database-flow-codebox" type="textarea" :rows="16" spellcheck="false" :placeholder="databaseQueryProfile.placeholder" />
+                            <el-form-item :label="databaseQueryProfile.queryLabel" required>
+                              <el-input v-model="entry.sqlContent" class="codebox database-flow-codebox" type="textarea" :rows="16" spellcheck="false" :aria-label="databaseQueryProfile.queryLabel" :placeholder="databaseQueryProfile.placeholder" />
+                            </el-form-item>
                             <p class="database-flow-tip">{{ databaseQueryProfile.parameterHint }}</p>
                           </div>
 
@@ -655,7 +657,7 @@
                 <el-alert
                   v-if="databasePreviewData.success === false"
                   type="error"
-                  :title="databasePreviewData.errorMessage || '该 SQL 执行失败'"
+                  :title="databasePreviewData.errorMessage || databaseQueryProfile.language + ' 查询执行失败'"
                   :closable="false"
                   show-icon
                 />
@@ -670,7 +672,7 @@
                 />
 
                 <details v-if="databasePreviewResolvedSql" class="database-resolved-sql" open>
-                  <summary>{{ databasePreviewData.previewName }} · 参数代入后 SQL</summary>
+                  <summary>{{ databasePreviewData.previewName }} · {{ databaseQueryProfile.previewLabel }}</summary>
                   <pre><code>{{ databasePreviewResolvedSql }}</code></pre>
                 </details>
 

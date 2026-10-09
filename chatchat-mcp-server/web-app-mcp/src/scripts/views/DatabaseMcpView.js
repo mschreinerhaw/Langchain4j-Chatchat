@@ -3,6 +3,7 @@ import { assetsApi, databaseApi as api } from '../../services/api';
 import CategoryCardPager from '../../components/CategoryCardPager.vue';
 import { prettyJson } from '../../utils/json';
 import { buildTestNotification } from '../../utils/test-result';
+import { databaseQueryProfile } from '../../utils/database-query-profile';
 import '../../styles/views/database-mcp.css';
 
 const inputSchema = { type: 'object', properties: {}, required: [], additionalProperties: false };
@@ -20,6 +21,7 @@ export default {
   },
   emits: ['notify', 'error', 'result'],
   data() {
+    const queryProfile = databaseQueryProfile(null, this.queryFamily);
     return {
       api,
       activeTab: this.section,
@@ -141,7 +143,7 @@ export default {
           rows: 4,
           span: 'col-12',
           placeholder: '1. 查询客户基础信息。\n2. 查询客户资产汇总。\n3. 汇总多个结果集进行分析。',
-          help: '集合层业务步骤说明会与依赖执行计划、SQL 明细和结果数据一起返回给模型。',
+          help: '集合层业务步骤说明会与依赖执行计划、查询语句和结果数据一起返回给模型。',
           section: 'basic'
         },
         {
@@ -187,7 +189,7 @@ export default {
           span: 'col-12',
           tableTitle: '查询参数配置',
           tableSubtitle: '维护模型入参和页面测试值。日期参数可在“默认来源”中直接选择。',
-          help: '点击“同步参数”可从 SQL 模板中的 :name、${trade_date} 或 {{name}} 自动生成参数行。',
+          help: queryProfile.parameterHint,
           section: 'query'
         },
         {

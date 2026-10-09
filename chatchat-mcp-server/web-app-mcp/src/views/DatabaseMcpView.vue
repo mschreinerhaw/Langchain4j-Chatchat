@@ -30,6 +30,7 @@
       :columns="columns"
       :form-fields="formFields"
       :query-sources="querySources"
+      :query-family="queryFamily"
       :defaults="defaults"
       :searchable-fields="['toolName', 'title', 'capabilityCategory', 'businessGroupName', 'domain', 'businessScope', 'description', 'implementationSteps', 'tags', 'indexTags', 'sqlSteps', 'datasourceId']"
       :list-action="listQueries"

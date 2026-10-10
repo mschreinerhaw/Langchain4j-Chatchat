@@ -30,6 +30,8 @@ public final class HarnessToolAccess {
         .configure(com.fasterxml.jackson.databind.SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
         .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     private BiFunction<String, Map<String,Object>, ToolRuntimeExecution> recoveryAdmission;
+    private boolean batchRecovery;
+    public HarnessToolAccess withBatchRecovery(boolean enabled) { batchRecovery = enabled; return this; }
     private com.chatchat.common.runtime.evidence.RuntimeExecutionCheckpointPort executionCheckpoints;
     public HarnessToolAccess withExecutionCheckpoints(com.chatchat.common.runtime.evidence.RuntimeExecutionCheckpointPort port) {
         executionCheckpoints = port; return this;
@@ -126,7 +128,10 @@ public final class HarnessToolAccess {
             return receipt;
         }
         ToolRuntimeExecution execution = pendingResults.get(identity);
-        if (execution == null && !owner)
+        boolean resumableBatch = batchRecovery && executionCheckpoints != null
+            && com.chatchat.agents.runtime.batch.ToolCallBatchSchema.supports(name, currentTool)
+            && (args.containsKey("calls") || args.containsKey("toolCalls") || args.containsKey("tool_calls"));
+        if (execution == null && !owner && !resumableBatch)
             return recoveryReceipt(identity, name, "EXECUTION_OUTCOME_UNKNOWN", "Execution was claimed but no committed result exists; Runtime will not re-execute it");
         if (execution == null) {
             metadata.put("harnessActiveToolRequestId", identity);
@@ -138,6 +143,22 @@ public final class HarnessToolAccess {
             } finally { metadata.remove("harnessActiveToolRequestId"); }
             if (execution == null || execution.output() == null)
                 return recoveryReceipt(identity, name, "EXECUTION_OUTCOME_UNKNOWN", "Invocation returned no execution receipt");
+            if (Boolean.TRUE.equals(execution.output().getMetadata().get("executionRecoveryPending"))) {
+                String status = Boolean.TRUE.equals(execution.output().getMetadata().get("executionOutcomeUnknown"))
+                    ? "EXECUTION_OUTCOME_UNKNOWN" : Boolean.TRUE.equals(execution.output().getMetadata().get("executionResultNotRetained"))
+                        ? "RESULT_NOT_RETAINED" : "RESULT_PERSISTENCE_PENDING";
+                var receipt = new LinkedHashMap<>(recoveryReceipt(identity, name, status,
+                    "Retry this requestId to recover batch receipts; claimed children without committed results are never redispatched"));
+                if (execution.output().isSuccess()) {
+                    try {
+                        receipt.putAll(projectExecution(name, "harness:tool:" + key.substring("harness:call:".length()), execution, sources));
+                        receipt.put("status", status);
+                    } catch (java.util.concurrent.CancellationException cancelled) { throw cancelled; }
+                    catch (RuntimeException projectionFailure) { receipt.put("evidenceProjectionState", "FAILED"); }
+                }
+                receipt.put("children", execution.output().getMetadata().getOrDefault("batchRecoveryDetails", List.of()));
+                return receipt;
+            }
             pendingResults.put(identity, execution);
         }
         var recorded = new LinkedHashMap<>(entry);

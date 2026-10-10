@@ -108,6 +108,29 @@ public class ToolRuntimeService {
     private final ExecutorService toolExecutionExecutor;
     private final ExecutorService auditExecutor;
     private volatile EvidencePayloadStorePort evidenceStore;
+    private volatile com.chatchat.common.runtime.evidence.RuntimeExecutionCheckpointPort executionCheckpoints;
+    private final Map<String,PendingBatchResult> pendingBatchResults = new LinkedHashMap<>();
+    private long pendingBatchBytes;
+    private record PendingBatchResult(ToolRuntimeExecution execution, long bytes) { }
+    private synchronized ToolRuntimeExecution pendingBatchResult(String key) {
+        var result = pendingBatchResults.get(key); return result == null ? null : result.execution();
+    }
+    private synchronized boolean retainBatchResult(String key, ToolRuntimeExecution execution) {
+        var content = new LinkedHashMap<String,Object>(); content.put("output", execution.output());
+        content.put("trace", execution.trace()); content.put("audit", execution.audit());
+        long bytes = canonicalRecoveryJson(content).getBytes(StandardCharsets.UTF_8).length;
+        if (pendingBatchResults.containsKey(key)) return true;
+        if (bytes > properties.safeMaxRecoveryPendingBytes() - pendingBatchBytes) return false;
+        pendingBatchResults.put(key, new PendingBatchResult(execution, bytes)); pendingBatchBytes += bytes; return true;
+    }
+    private synchronized void releaseBatchResult(String key) {
+        var removed = pendingBatchResults.remove(key); if (removed != null) pendingBatchBytes -= removed.bytes();
+    }
+
+    @Autowired(required = false)
+    public void setExecutionCheckpoints(com.chatchat.common.runtime.evidence.RuntimeExecutionCheckpointPort port) {
+        executionCheckpoints = port;
+    }
     private volatile DistributedToolRateLimiter distributedRateLimiter;
     private volatile McpRuntimeKernel mcpRuntimeKernel;
 
@@ -335,6 +358,10 @@ public class ToolRuntimeService {
         }
         ToolCallBatch batch = toolCallBatch(request);
         if (batch != null) {
+            if (request.getAttributes() != null && request.getAttributes().containsKey("harnessToolRequestId")) {
+                var denied = checkRecoveryAdmission(request);
+                if (denied != null) return denied;
+            }
             return executeBatchRequest(batch, request);
         }
         int retryAttempts = resolveToolRetryAttempts(request);
@@ -540,7 +567,9 @@ public class ToolRuntimeService {
                 }
                 ToolRuntimeRequest childRequest = batchChildRequest(
                     context, batchId, callId, toolName, arguments, index);
-                return TemplateExecutionLayer.Invocation.completed(execute(childRequest));
+                return TemplateExecutionLayer.Invocation.completed(context.getAttributes() != null
+                    && context.getAttributes().containsKey("harnessToolRequestId")
+                    ? executeRecoverableBatchChild(childRequest, callId, index) : execute(childRequest));
             };
         List<TemplateExecutionLayer.Attempt> attempts =
             batch.executionMode() == BatchExecutionMode.PARALLEL_READ_ONLY
@@ -742,6 +771,16 @@ public class ToolRuntimeService {
         runtimeMetadata.put("remoteToolInvoked", false);
         runtimeMetadata.put("remoteToolInvocationCount", result.summary().remoteToolInvocations());
         runtimeMetadata.put("batchExecution", true);
+        if (request.getAttributes() != null && request.getAttributes().containsKey("harnessToolRequestId")) {
+            runtimeMetadata.put("executionRecoveryPending", result.results().stream()
+                .anyMatch(child -> Set.of("RESULT_PERSISTENCE_PENDING", "RESULT_NOT_RETAINED", "EXECUTION_OUTCOME_UNKNOWN").contains(String.valueOf(child.error().get("code")))));
+            runtimeMetadata.put("executionResultNotRetained", result.results().stream()
+                .anyMatch(child -> "RESULT_NOT_RETAINED".equals(child.error().get("code"))));
+            runtimeMetadata.put("executionOutcomeUnknown", result.results().stream()
+                .anyMatch(child -> "EXECUTION_OUTCOME_UNKNOWN".equals(child.error().get("code"))));
+            runtimeMetadata.put("batchRecoveryDetails", result.results().stream().map(child -> Map.of(
+                "callId", child.callId(), "status", child.status(), "errorCode", String.valueOf(child.error().getOrDefault("code", "")))).toList());
+        }
         runtimeMetadata.put("failureIsolatedBatchExecution", true);
         runtimeMetadata.put("templateExecutionLayer", true);
         runtimeMetadata.put("failureIsolation", true);
@@ -823,10 +862,127 @@ public class ToolRuntimeService {
     public ToolRuntimeExecution checkRecoveryAdmission(ToolRuntimeRequest request) {
         var conflict = registryRevisionConflict(request);
         if (conflict != null) return conflict;
-        if (validateBatchEnvelope(request).present())
-            return deniedExecution(request.getToolName(), request, toolRegistry.getToolMetadata(request.getToolName()),
-                "Recovery admission of a batch requires per-child authorization", "RECOVERY_BATCH_ADMISSION_UNSUPPORTED", null, null);
+        var envelope = validateBatchEnvelope(request);
+        if (envelope.present()) {
+            if (!envelope.valid()) return deniedExecution(request.getToolName(), request, toolRegistry.getToolMetadata(request.getToolName()),
+                envelope.message(), envelope.errorCode(), null, null);
+            var outerDenied = executeOnce(request, true);
+            if (outerDenied != null) return outerDenied;
+            var batch = toolCallBatch(request);
+            var validation = validateBatchObject(batch, request);
+            if (!validation.valid()) return deniedExecution(request.getToolName(), request, toolRegistry.getToolMetadata(request.getToolName()),
+                validation.message(), validation.errorCode(), null, null);
+            for (int index = 0; index < batch.calls().size(); index++) {
+                var call = batch.calls().get(index);
+                if (call.preflightErrorCode() != null && !call.preflightErrorCode().isBlank()) continue;
+                var child = batchChildRequest(request, batch.batchId(), call.callId(), call.toolName(), call.arguments(), index);
+                if (request.getAttributes() != null && Boolean.TRUE.equals(request.getAttributes().get("harnessReadOnlyContinuation"))
+                    && !"read".equalsIgnoreCase(toolRegistry.getToolMetadata(child.getToolName()).getOperationType()))
+                    return deniedExecution(child.getToolName(), child, toolRegistry.getToolMetadata(child.getToolName()),
+                        "The continuation scope authorizes read operations only", "TOOL_OPERATION_NOT_ALLOWED", null, null);
+                var denied = executeOnce(child, true);
+                if (denied != null) return denied;
+            }
+            return null;
+        }
         return executeOnce(request, true);
+    }
+
+    /** Same scoped batch intent restores child receipts. Claimed children without a receipt are never redispatched. */
+    private ToolRuntimeExecution executeRecoverableBatchChild(ToolRuntimeRequest request, String callId, int index) {
+        var port = executionCheckpoints;
+        if (port == null) return batchRecoveryFact(request, "RECOVERY_UNAVAILABLE", "Shared child execution checkpoints are unavailable");
+        var scope = new com.chatchat.common.kernel.KernelDataScope(request.getTenantId(), request.getUserId(), request.getRequestId(),
+            request.getConversationId(), firstText(stringValue(request.getAttributes().get("harnessRunId")), workflowRunScope(request)), null, Map.of());
+        String identity = ModelProtocolJson.sha256Hex(canonicalRecoveryJson(List.of(request.getAttributes().get("harnessToolRequestId"), callId, index)));
+        String key = "harness:batch-child:" + identity;
+        String pendingKey = ModelProtocolJson.sha256Hex(canonicalRecoveryJson(List.of(scope.tenantId(), scope.userId(), scope.runId(), identity)));
+        String fingerprint = ModelProtocolJson.sha256Hex(canonicalRecoveryJson(Map.of("tool", request.getToolName(),
+            "arguments", request.getToolInput().getParameters(), "scope", scope)));
+        String contract = ModelProtocolJson.sha256Hex(canonicalRecoveryJson(toolRegistry.getToolMetadata(request.getToolName())));
+        String raw = port.readExecutionCheckpoint(scope, key).orElse(null);
+        boolean owner = false;
+        Map<String,Object> journal;
+        if (raw == null) {
+            raw = canonicalRecoveryJson(Map.of("schemaVersion", "harness_batch_child.v1", "state", "STARTED",
+                "fingerprint", fingerprint, "toolContractSha256", contract));
+            owner = port.compareAndSetExecutionCheckpoint(scope, key, null, raw);
+            if (!owner) raw = port.readExecutionCheckpoint(scope, key).orElseThrow();
+        }
+        journal = recoveryJournal(raw);
+        if (!"harness_batch_child.v1".equals(journal.get("schemaVersion")))
+            return batchRecoveryFact(request, "RECOVERY_PROTOCOL_UNSUPPORTED", "Batch child checkpoint version is unsupported");
+        if (!fingerprint.equals(journal.get("fingerprint")))
+            return batchRecoveryFact(request, "RECOVERY_IDENTITY_CONFLICT", "Batch child identity has different arguments");
+        if (!contract.equals(journal.get("toolContractSha256")))
+            return batchRecoveryFact(request, "RECOVERY_ADMISSION_REJECTED", "Published child tool contract changed");
+        var execution = pendingBatchResult(pendingKey);
+        if (!owner) {
+            Object arguments = journal.getOrDefault("executedArguments", request.getToolInput().getParameters());
+            if (execution != null && execution.trace() != null && execution.trace().getInput() != null) arguments = execution.trace().getInput();
+            var input = request.getToolInput();
+            var admission = ToolRuntimeRequest.builder().toolName(request.getToolName()).runtimeMode(request.getRuntimeMode())
+                .tenantId(request.getTenantId()).userId(request.getUserId()).requestId(request.getRequestId())
+                .conversationId(request.getConversationId()).allowedTools(request.getAllowedTools()).attributes(request.getAttributes())
+                .toolInput(ToolInput.builder().rawInput(input.getRawInput()).userId(input.getUserId()).requestId(input.getRequestId())
+                    .conversationId(input.getConversationId()).context(new LinkedHashMap<>(input.getContext()))
+                    .parameters(recoveryJournal(canonicalRecoveryJson(arguments))).build()).build();
+            var denied = executeOnce(admission, true);
+            if (denied != null) return denied;
+        }
+        if ("RESULT_RECORDED".equals(journal.get("state"))) {
+            releaseBatchResult(pendingKey);
+            var audit = new LinkedHashMap<>(recoveryJournal(canonicalRecoveryJson(journal.get("audit"))));
+            audit.put("originalRemoteToolInvoked", audit.getOrDefault("remoteToolInvoked", false));
+            audit.put("remoteToolInvoked", false); audit.put("executionResultRestored", true);
+            return new ToolRuntimeExecution(objectMapper.convertValue(journal.get("output"), ToolOutput.class),
+                toolRegistry.getToolMetadata(request.getToolName()), objectMapper.convertValue(journal.get("trace"), InteractionToolTrace.class),
+                String.valueOf(journal.get("outcome")), audit);
+        }
+        if (!owner && execution == null)
+            return batchRecoveryFact(request, "EXECUTION_OUTCOME_UNKNOWN", "Child was claimed without a committed result; Runtime will not re-execute it");
+        if (execution == null) {
+            try { execution = execute(request); }
+            catch (java.util.concurrent.CancellationException cancelled) { throw cancelled; }
+            catch (RuntimeException failure) {
+                if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
+                return batchRecoveryFact(request, "EXECUTION_OUTCOME_UNKNOWN", "Child invocation did not produce an execution receipt");
+            }
+            if (execution == null || execution.output() == null)
+                return batchRecoveryFact(request, "EXECUTION_OUTCOME_UNKNOWN", "Child returned no execution receipt");
+            retainBatchResult(pendingKey, execution);
+        }
+        var recorded = new LinkedHashMap<>(journal);
+        recorded.put("state", "RESULT_RECORDED"); recorded.put("output", execution.output());
+        recorded.put("trace", execution.trace()); recorded.put("outcome", execution.outcome());
+        recorded.put("audit", execution.audit() == null ? Map.of() : execution.audit());
+        recorded.put("executedArguments", execution.trace() != null && execution.trace().getInput() != null
+            ? execution.trace().getInput() : request.getToolInput().getParameters());
+        try {
+            String next = canonicalRecoveryJson(recorded);
+            if (!port.compareAndSetExecutionCheckpoint(scope, key, raw, next)
+                && !next.equals(port.readExecutionCheckpoint(scope, key).orElse(null))) throw new IllegalStateException("Child receipt commit conflict");
+            releaseBatchResult(pendingKey);
+            return execution;
+        } catch (RuntimeException failure) {
+            if (pendingBatchResult(pendingKey) == null) return batchRecoveryFact(request, "RESULT_NOT_RETAINED",
+                "Child returned a result but persistence failed and the volatile retention budget was exhausted; it will not be redispatched");
+            return batchRecoveryFact(request, "RESULT_PERSISTENCE_PENDING", "Child result retained in process; retry the same batch intent to persist it");
+        }
+    }
+
+    private ToolRuntimeExecution batchRecoveryFact(ToolRuntimeRequest request, String code, String reason) {
+        var output = ToolOutput.failure(reason); output.setExceptionType(code);
+        return new ToolRuntimeExecution(output, toolRegistry.getToolMetadata(request.getToolName()), null,
+            code.toLowerCase(Locale.ROOT), Map.of("errorCode", code, "remoteToolInvoked", false, "blockedBeforeInvocation", true));
+    }
+    private String canonicalRecoveryJson(Object value) {
+        try { return objectMapper.copy().findAndRegisterModules().enable(com.fasterxml.jackson.databind.SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS).writeValueAsString(value); }
+        catch (java.io.IOException failure) { throw new IllegalStateException("Child execution receipt cannot be encoded", failure); }
+    }
+    @SuppressWarnings("unchecked") private Map<String,Object> recoveryJournal(String value) {
+        try { return objectMapper.readValue(value, Map.class); }
+        catch (java.io.IOException failure) { throw new IllegalStateException("Child execution receipt cannot be decoded", failure); }
     }
 
     private ToolRuntimeExecution executeOnce(ToolRuntimeRequest request) { return executeOnce(request, false); }
@@ -1234,6 +1390,7 @@ public class ToolRuntimeService {
     public void shutdown() {
         toolExecutionExecutor.shutdownNow();
         auditExecutor.shutdownNow();
+        synchronized (this) { pendingBatchResults.clear(); pendingBatchBytes = 0; }
     }
 
     private ToolOutput executeToolWithTimeout(String toolName,
@@ -1967,6 +2124,8 @@ public class ToolRuntimeService {
         if (declaredTool == null || declaredTool.isBlank()) {
             return request == null ? declaredTool : request.getToolName();
         }
+        if (request != null && request.getAttributes() != null && request.getAttributes().containsKey("harnessToolRequestId")
+            && request.getAllowedTools() != null && request.getAllowedTools().contains(declaredTool)) return declaredTool;
         if (request != null && request.getAllowedTools() != null) {
             for (String allowedTool : request.getAllowedTools()) {
                 if (sameTool(allowedTool, declaredTool)) {

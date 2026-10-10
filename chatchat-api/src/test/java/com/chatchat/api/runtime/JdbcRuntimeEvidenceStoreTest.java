@@ -30,19 +30,58 @@ class JdbcRuntimeEvidenceStoreTest {
         store = new JdbcRuntimeEvidenceStore(jdbc, new ObjectMapper(), new DataSourceTransactionManager(datasource));
     }
 
+    @Test void oversizedExecutionReceiptsRecoverAcrossWorkersWithoutChangingOrdinaryEvidenceLimits() {
+        String content = "\u6d4b\u8bd5\ud83d\ude80\n\"".repeat(450_000);
+        assertThat(store.compareAndSetExecutionCheckpoint(scope, "large", null, "STARTED")).isTrue();
+        assertThat(store.compareAndSetExecutionCheckpoint(scope, "large", "STARTED", content)).isTrue();
+        var restarted = new JdbcRuntimeEvidenceStore(jdbc, new ObjectMapper(), new DataSourceTransactionManager(datasource));
+        assertThat(restarted.readExecutionCheckpoint(scope, "large")).contains(content);
+        assertThat(jdbc.queryForObject("select count(*) from runtime_evidence_entry where entry_kind='EXEC_PAYLOAD'", Integer.class)).isGreaterThan(1);
+        assertThat(jdbc.queryForObject("select max(octet_length(record_json)) from runtime_evidence_entry", Integer.class)).isLessThanOrEqualTo(2 * 1024 * 1024);
+        assertThat(store.compareAndSetExecutionCheckpoint(scope, "large", "wrong", "replace")).isFalse();
+        assertThat(store.readExecutionCheckpoint(scope("other", "owner", "run"), "large")).isEmpty();
+        store.register(fact("disposable", scope, "value"), lineage("disposable", scope, List.of()));
+        assertThat(store.delete(scope, "disposable")).isTrue();
+        assertThat(restarted.readExecutionCheckpoint(scope, "large")).contains(content);
+    }
+
+    @Test void chunkFailureRollsBackPayloadAndManifestTogether() {
+        store.compareAndSetExecutionCheckpoint(scope, "large", null, "STARTED");
+        jdbc.execute("alter table runtime_evidence_entry add constraint reject_second_chunk check (entry_kind <> 'EXEC_PAYLOAD' or entry_id not like '%:1')");
+        assertThatThrownBy(() -> store.compareAndSetExecutionCheckpoint(scope, "large", "STARTED", "x".repeat(3 * 1024 * 1024)))
+            .isInstanceOf(RuntimeException.class);
+        assertThat(store.readExecutionCheckpoint(scope, "large")).contains("STARTED");
+        assertThat(jdbc.queryForObject("select count(*) from runtime_evidence_entry where entry_kind='EXEC_PAYLOAD'", Integer.class)).isZero();
+    }
+
+    @Test void missingOrModifiedExecutionChunksAreNeverTreatedAsUnclaimedRequests() {
+        store.compareAndSetExecutionCheckpoint(scope, "large", null, "x".repeat(3 * 1024 * 1024));
+        jdbc.update("update runtime_evidence_entry set record_json='{}' where entry_kind='EXEC_PAYLOAD' and entry_id like '%:1'");
+        assertThatThrownBy(() -> store.readExecutionCheckpoint(scope, "large")).isInstanceOf(IllegalStateException.class);
+        jdbc.update("delete from runtime_evidence_entry where entry_kind='EXEC_PAYLOAD' and entry_id like '%:1'");
+        assertThatThrownBy(() -> store.compareAndSetExecutionCheckpoint(scope, "large", null, "new execution"))
+            .isInstanceOf(IllegalStateException.class);
+    }
+
     @Test void toolResultCanRecoverOnAnotherWorkerWithoutItsLocalSpillStore() {
+        String completePayload = "full-" + "\u6d4b\u8bd5\ud83d\ude80".repeat(350_000) + "-tail";
         var registry = org.mockito.Mockito.mock(com.chatchat.agents.tool.ToolRegistry.class);
         org.mockito.Mockito.when(registry.getToolMetadata("read_tool")).thenReturn(com.chatchat.common.tool.ToolMetadata.builder()
             .id("read_tool").agentCompatible(true).operationType("read").build());
         var evidence = org.mockito.Mockito.mock(com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.class);
         org.mockito.Mockito.when(evidence.project(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyMap()))
-            .thenReturn(new com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Projection(List.of(
-                new com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Dataset("source", Map.of(), List.of(Map.of("value", 42)))), List.of()));
+            .thenAnswer(invocation -> {
+                var result = (com.chatchat.agents.runtime.plan.InterpretationPlanRuntime.ExecutionResult)invocation.getArgument(0);
+                var data = (Map<?,?>)((com.chatchat.common.tool.ToolOutput)result.steps().get(0).output()).getData();
+                return new com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Projection(List.of(
+                    new com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Dataset("source", Map.of(),
+                        List.of(Map.of("value", data.get("value"))))), List.of());
+            });
         var governanceScope = com.chatchat.agents.runtime.governance.GovernanceIsolationScope.runtime("tenant", "owner", "run", "request", "conversation");
         var calls = new java.util.concurrent.atomic.AtomicInteger();
         java.util.function.BiFunction<String,Map<String,Object>,com.chatchat.agents.runtime.tool.ToolRuntimeExecution> execute = (name,args) -> {
             calls.incrementAndGet(); return new com.chatchat.agents.runtime.tool.ToolRuntimeExecution(
-                com.chatchat.common.tool.ToolOutput.success(Map.of("value", 42)), null, null, "success", Map.of());
+                com.chatchat.common.tool.ToolOutput.success(Map.of("value", completePayload)), null, null, "success", Map.of());
         };
         var request = Map.<String,Object>of("toolName", "read_tool", "arguments", Map.of(), "requestId", "intent");
         var original = new com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccess(registry, List.of("read_tool"), execute,
@@ -56,6 +95,7 @@ class JdbcRuntimeEvidenceStoreTest {
             .withExecutionCheckpoints(otherWorker).withRecoveryAdmission((name,args) -> null);
         assertThat(recovered.call(request, restoredSources, "coordinate")).isEqualTo(first);
         assertThat(calls).hasValue(1); assertThat(restoredSources).hasSize(1);
+        assertThat(restoredSources.values().iterator().next().handle().readPage(0, 1).rows().get(0)).containsEntry("value", completePayload);
         assertThat(metadata).containsEntry("harnessRecoveryMode", "SHARED_DATABASE").containsEntry("harnessToolCalls", 1);
     }
 

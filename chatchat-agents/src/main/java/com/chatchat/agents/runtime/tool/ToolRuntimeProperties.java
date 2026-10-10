@@ -28,6 +28,10 @@ public class ToolRuntimeProperties {
     /** Maximum serialized result retained inline across Agent/task/event boundaries. */
     private int maxOutputBytes = 262_144;
     private int maxOutputPreviewChars = 16_000;
+    /** Volatile receipts retained after a failed durable commit; never an analytical quality threshold. */
+    private long maxRecoveryPendingBytes = 64L * 1024L * 1024L;
+
+    public long safeMaxRecoveryPendingBytes() { return Math.max(0L, maxRecoveryPendingBytes); }
     private int defaultRetryAttempts = 3;
     private int executionCorePoolSize = 4;
     private int executionMaxPoolSize = 32;

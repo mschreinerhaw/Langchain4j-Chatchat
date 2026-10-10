@@ -46,9 +46,26 @@ public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProg
         if (row.isEmpty()) return Optional.empty();
         verify(row);
         var envelope = decode(row.get("record_json"), Map.class);
-        if (!"runtime_execution_checkpoint.v1".equals(envelope.get("schemaVersion"))
-            || !key.equals(envelope.get("key"))) throw new IllegalStateException("Execution checkpoint identity is invalid");
-        return Optional.of((String)envelope.get("value"));
+        if (!key.equals(envelope.get("key"))) throw new IllegalStateException("Execution checkpoint identity is invalid");
+        if ("runtime_execution_checkpoint.v1".equals(envelope.get("schemaVersion")))
+            return Optional.of((String)envelope.get("value"));
+        if (!"runtime_execution_checkpoint.v2".equals(envelope.get("schemaVersion")))
+            throw new IllegalStateException("Execution checkpoint version is invalid");
+        String checksum = (String)envelope.get("contentSha256");
+        int count = ((Number)envelope.get("chunkCount")).intValue();
+        if (count <= 0) throw new IllegalStateException("Execution checkpoint chunks are invalid");
+        var content = new StringBuilder();
+        for (int index = 0; index < count; index++) {
+            var chunk = entry(entryId(partition(scope), "EXEC_PAYLOAD", checksum + ":" + index));
+            if (chunk.isEmpty()) throw new IllegalStateException("Execution checkpoint payload is missing");
+            verify(chunk);
+            var payload = decode(chunk.get("record_json"), Map.class);
+            if (!checksum.equals(payload.get("contentSha256")) || ((Number)payload.get("index")).intValue() != index)
+                throw new IllegalStateException("Execution checkpoint payload identity is invalid");
+            content.append((String)payload.get("value"));
+        }
+        if (!checksum.equals(hash(content.toString()))) throw new IllegalStateException("Execution checkpoint payload checksum is invalid");
+        return Optional.of(content.toString());
     }
 
     @Override public boolean compareAndSetExecutionCheckpoint(KernelDataScope scope, String key, String expectedJson, String nextJson) {
@@ -57,15 +74,44 @@ public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProg
             var current = readExecutionCheckpoint(scope, key).orElse(null);
             if (!Objects.equals(current, expectedJson)) return false;
             String id = entryId(partition(scope), "EXEC_CHECKPOINT", key);
-            String body = json(Map.of("schemaVersion", "runtime_execution_checkpoint.v1", "key", key, "value", nextJson));
             long revision = advance(partition(scope));
             long now = System.currentTimeMillis();
+            String body = executionCheckpointBody(scope, key, nextJson, revision, now);
             if (current == null) jdbc.update("insert into runtime_evidence_entry (id,partition_id,entry_kind,entry_id,revision,stored_at,occurred_at,sha256,record_json) values (?,?,?,?,?,?,?,?,?)",
                 id, partition(scope), "EXEC_CHECKPOINT", key, revision, now, now, hash(body + "\u0000"), body);
             else jdbc.update("update runtime_evidence_entry set revision=?,stored_at=?,sha256=?,record_json=? where id=?",
                 revision, now, hash(body + "\u0000"), body, id);
             return true;
         });
+    }
+
+    /** Chunk payload and manifest commit in the same owner transaction; ordinary evidence limits stay unchanged. */
+    private String executionCheckpointBody(KernelDataScope scope, String key, String value, long revision, long now) {
+        String inline;
+        try { inline = mapper.writeValueAsString(Map.of("schemaVersion", "runtime_execution_checkpoint.v1", "key", key, "value", value)); }
+        catch (com.fasterxml.jackson.core.JsonProcessingException failure) { throw new IllegalArgumentException("Execution checkpoint cannot be encoded", failure); }
+        if (inline.getBytes(StandardCharsets.UTF_8).length <= MAX_BYTES) return inline;
+        String checksum = hash(value);
+        // Even an escaped UTF-16 code unit fits within the existing per-row JSON byte limit.
+        int chunkCharacters = MAX_BYTES / 16;
+        int count = 0;
+        for (int offset = 0; offset < value.length();) {
+            int end = Math.min(value.length(), offset + chunkCharacters);
+            if (end < value.length() && Character.isHighSurrogate(value.charAt(end - 1))) end--;
+            String chunkKey = checksum + ":" + count;
+            String id = entryId(partition(scope), "EXEC_PAYLOAD", chunkKey);
+            String body = json(Map.of("contentSha256", checksum, "index", count, "value", value.substring(offset, end)));
+            var existing = entry(id);
+            if (existing.isEmpty()) jdbc.update("insert into runtime_evidence_entry (id,partition_id,entry_kind,entry_id,revision,stored_at,occurred_at,sha256,record_json) values (?,?,?,?,?,?,?,?,?)",
+                id, partition(scope), "EXEC_PAYLOAD", chunkKey, revision, now, now, hash(body + "\u0000"), body);
+            else {
+                verify(existing);
+                if (!body.equals(existing.get("record_json"))) throw new IllegalStateException("Execution payload is immutable");
+            }
+            count++; offset = end;
+        }
+        return json(Map.of("schemaVersion", "runtime_execution_checkpoint.v2", "key", key,
+            "contentSha256", checksum, "chunkCount", count));
     }
 
     public String contentHash(Map<String, Object> payload) { return hash(json(payload)); }
@@ -184,7 +230,7 @@ public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProg
 
     @Override public boolean delete(KernelDataScope scope, String evidenceId) {
         return locked(scope, () -> {
-            for (var row : jdbc.queryForList("select * from runtime_evidence_entry where partition_id=?", partition(scope))) {
+            for (var row : jdbc.queryForList("select * from runtime_evidence_entry where partition_id=? and entry_kind in ('EVIDENCE','SNAPSHOT')", partition(scope))) {
                 verify(row);
                 boolean referenced = "SNAPSHOT".equals(row.get("entry_kind"))
                     ? decode(row.get("record_json"), EvidenceSnapshot.class).evidenceIds().contains(evidenceId)

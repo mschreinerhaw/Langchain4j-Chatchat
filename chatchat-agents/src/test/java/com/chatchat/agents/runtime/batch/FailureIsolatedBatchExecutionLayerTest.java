@@ -10,10 +10,47 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class FailureIsolatedBatchExecutionLayerTest {
 
     private final FailureIsolatedBatchExecutionLayer layer = new FailureIsolatedBatchExecutionLayer();
+
+    @Test void cancellationPropagatesAndDoesNotInvokeLaterChildren() {
+        List<String> invoked = new ArrayList<>();
+        assertThatThrownBy(() -> layer.execute(List.of(call("first"), call("second")), (call,index) -> {
+            invoked.add(call.callId()); throw new java.util.concurrent.CancellationException();
+        })).isInstanceOf(java.util.concurrent.CancellationException.class);
+        assertThat(invoked).containsExactly("first");
+    }
+
+    @Test void parallelCancellationPropagatesInsteadOfBecomingAFailedChild() {
+        assertThatThrownBy(() -> layer.executeParallelReadOnly(List.of(call("first")), (call,index) -> {
+            throw new java.util.concurrent.CancellationException();
+        })).isInstanceOf(java.util.concurrent.CancellationException.class);
+    }
+
+    @Test void interruptedParallelWaitReturnsWithInterruptFlagPreserved() throws Exception {
+        var entered = new CountDownLatch(1); var release = new CountDownLatch(1);
+        var worker = new java.util.concurrent.atomic.AtomicReference<Thread>();
+        var executor = java.util.concurrent.Executors.newSingleThreadExecutor();
+        try {
+            var future = executor.submit(() -> {
+                worker.set(Thread.currentThread());
+                try {
+                    layer.executeParallelReadOnly(List.of(call("first")), (call,index) -> {
+                        entered.countDown();
+                        try { release.await(); }
+                        catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); throw new java.util.concurrent.CancellationException(); }
+                        return FailureIsolatedBatchExecutionLayer.Invocation.completed(execution(call.callId()));
+                    });
+                    return false;
+                } catch (java.util.concurrent.CancellationException cancelled) { return Thread.currentThread().isInterrupted(); }
+            });
+            assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue(); worker.get().interrupt();
+            assertThat(future.get(5, TimeUnit.SECONDS)).isTrue();
+        } finally { release.countDown(); executor.shutdownNow(); }
+    }
 
     @Test
     void isolatesInvocationExceptionAndRunsEveryLaterChild() {

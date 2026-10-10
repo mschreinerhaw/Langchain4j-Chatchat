@@ -29,7 +29,10 @@ public final class FailureIsolatedBatchExecutionLayer {
             Invocation invocation;
             try {
                 invocation = invoker.invoke(call, index);
+            } catch (java.util.concurrent.CancellationException cancelled) {
+                throw cancelled;
             } catch (RuntimeException ex) {
+                if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
                 attempts.add(Attempt.failure(index, call, "FAILED", "BATCH_CHILD_RUNTIME_ERROR",
                     firstText(ex.getMessage(), ex.getClass().getSimpleName())));
                 continue;
@@ -72,14 +75,29 @@ public final class FailureIsolatedBatchExecutionLayer {
             futures.add(CompletableFuture.supplyAsync(
                 () -> isolatedAttempt(call, invocationIndex, invoker)));
         }
-        return futures.stream().map(CompletableFuture::join).toList();
+        List<Attempt> attempts = new ArrayList<>(futures.size());
+        try {
+            for (var future : futures) attempts.add(future.get());
+            return List.copyOf(attempts);
+        } catch (InterruptedException interrupted) {
+            futures.forEach(future -> future.cancel(true));
+            Thread.currentThread().interrupt();
+            throw new java.util.concurrent.CancellationException("Batch wait was interrupted");
+        } catch (java.util.concurrent.ExecutionException failure) {
+            futures.forEach(future -> future.cancel(true));
+            if (failure.getCause() instanceof java.util.concurrent.CancellationException cancelled) throw cancelled;
+            throw new java.util.concurrent.CompletionException(failure.getCause());
+        }
     }
 
     private Attempt isolatedAttempt(ToolCallRequest call, int index, ChildInvoker invoker) {
         Invocation invocation;
         try {
             invocation = invoker.invoke(call, index);
+        } catch (java.util.concurrent.CancellationException cancelled) {
+            throw cancelled;
         } catch (RuntimeException ex) {
+            if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
             return Attempt.failure(index, call, "FAILED", "BATCH_CHILD_RUNTIME_ERROR",
                 firstText(ex.getMessage(), ex.getClass().getSimpleName()));
         }

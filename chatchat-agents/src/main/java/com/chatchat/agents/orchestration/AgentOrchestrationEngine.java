@@ -467,6 +467,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                     var callAttributes = new LinkedHashMap<String,Object>(request.runtimeAttributes());
                     if (request.metadata().containsKey("harnessActiveToolRequestId")) {
                         callAttributes.put("harnessToolRequestId", request.metadata().get("harnessActiveToolRequestId"));
+                        callAttributes.put("harnessRunId", scope.runId());
+                        callAttributes.put("harnessReadOnlyContinuation", true);
                         callAttributes.put("toolRetryAttempts", 0);
                     }
                     var execution = toolCallCoordinator.execute(name, arguments, scope.conversationId(),
@@ -478,6 +480,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 request.runtimeAttributes(), request.metadata(), scope, analysisEvidenceSpillStore,
                 request.result() == null || request.result().steps() == null ? 0 : request.result().steps().size())
                 .withExecutionCheckpoints(executionCheckpoints)
+                .withBatchRecovery(executionCheckpoints != null)
                 .withRecoveryAdmission((name, arguments) -> toolCallCoordinator.checkRecoveryAdmission(name, arguments,
                     scope.conversationId(), scope.requestId(), scope.userId(), scope.tenantId(), authorized,
                     Map.of(), harnessRecoveryTraces(priorTraces, request.metadata()), request.runtimeAttributes()));

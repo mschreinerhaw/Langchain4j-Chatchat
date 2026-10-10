@@ -28,6 +28,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ConversationMemoryServiceTest {
+    @Test void capturesModelContentProvenanceForSubsequentConversationReads() {
+        @SuppressWarnings("unchecked") ObjectProvider<ChatModel> models=mock(ObjectProvider.class);
+        var service=new ConversationMemoryService(mock(ConversationService.class),new ObjectMapper(),models,new ConversationContextProperties());
+        var declaration=Map.of("author","MODEL","type","FINAL");
+        var response=InteractionResponse.builder().metadata(Map.of("agent",Map.of(
+            "modelAnalysisProtocol","model_native_analysis.v2","modelOutput",declaration))).build();
+        assertThat(service.responseMemoryContext(response)).containsEntry("modelAnalysisProtocol","model_native_analysis.v2")
+            .containsEntry("modelOutput",declaration);
+    }
 
     @Test
     void refreshSummaryKeepsRecentMessagesAndSavesCondensedContext() {

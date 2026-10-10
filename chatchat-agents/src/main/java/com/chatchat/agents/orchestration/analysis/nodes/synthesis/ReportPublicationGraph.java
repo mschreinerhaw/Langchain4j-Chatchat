@@ -17,7 +17,9 @@ final class ReportPublicationGraph {
         var execution = new AnalysisExecutionGraph().execute(List.of(
             new AnalysisExecutionGraph.Step("preflight", () -> {
                 String status = String.valueOf(request.metadata().get("executionStatus"));
-                if ("NEEDS_CLARIFICATION".equals(status)) return AnalysisExecutionGraph.Status.NEEDS_CLARIFICATION;
+                if ("NEEDS_CLARIFICATION".equals(status)
+                    && !com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata()))
+                    return AnalysisExecutionGraph.Status.NEEDS_CLARIFICATION;
                 if (Boolean.TRUE.equals(request.metadata().get("confirmationRequired"))
                     || (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata())
                         && Boolean.TRUE.equals(request.metadata().get("fatalExecutionBlocked"))))

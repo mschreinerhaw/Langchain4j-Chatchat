@@ -78,7 +78,10 @@ public final class FinalSynthesisNode {
         }
     }
     private FinalSynthesisResult publishModelReport(FinalModelSynthesisRequest request) {
-        if (String.valueOf(request.metadata().getOrDefault("modelNativeReportDraft", "")).isBlank()) {
+        if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.retainedContent(request.metadata()).isBlank()) {
+            // Legacy requests may generate a summary. A declared v2 final must never be silently replaced.
+            if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata()))
+                throw new IllegalStateException("Declared final content is unavailable");
             // A request without dataset evidence still receives one model-authored summary.
             if (request.model() == null) throw new IllegalStateException("Analysis model unavailable");
             if (new ContextTokenEstimator().estimate(request.prompt()).tokens() > SynthesisContextBudget.fromRuntime(request.metadata()).inputTokens())
@@ -91,7 +94,7 @@ public final class FinalSynthesisNode {
         return publishHarnessReport(request);
     }
     private FinalSynthesisResult publishHarnessReport(FinalModelSynthesisRequest request) {
-        String answer = String.valueOf(request.metadata().getOrDefault("modelNativeReportDraft", ""));
+        String answer = com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.retainedContent(request.metadata());
         if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata())) {
             Object raw = request.metadata().get("modelPublicationRequest");
             if (!(raw instanceof Map<?,?> binding)
@@ -111,7 +114,8 @@ public final class FinalSynthesisNode {
             .protectProposals(answer).payloads().isEmpty();
         if (hasProposals) {
             var registry = com.chatchat.agents.orchestration.analysis.report.VisualizationCapabilityRegistry.active(request.runtimeAttributes());
-            var plan = new com.chatchat.agents.orchestration.analysis.report.VisualizationPlanningNode(registry).execute(answer, catalog);
+            var plan = new com.chatchat.agents.orchestration.analysis.report.VisualizationPlanningNode(registry).execute(answer, catalog,
+                com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata()));
             answer = plan.markdown();
             request.metadata().put("analysisVisualizationAudit", plan.checks());
             request.metadata().put("reportBlocks", Map.of("schemaVersion", "report_blocks.v1", "reportId", request.runId(), "blocks", plan.blocks()));

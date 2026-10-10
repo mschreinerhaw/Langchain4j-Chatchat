@@ -1,7 +1,7 @@
 // Independent projection of Runtime facts. ARTEX inspired typed exploration links;
 // no ARTEX implementation is copied and no analytical completion is inferred here.
-const kinds = { goal: "分析目标", intent: "模型探索", tool: "工具调用", evidence: "数据证据", observation: "结果观察", hypothesis: "模型假设", finding: "模型发现", decision: "模型决定", event: "运行事件" };
-const decisions = { CONTINUE: "继续探索", WAIT: "请求等待", COMPLETE: "完成（未请求发布）", PARTIAL_COMPLETE: "有限范围完成（未请求发布）", PUBLISH: "请求发布" };
+const kinds = { goal: "分析目标", intent: "模型探索", tool: "工具调用", evidence: "数据证据", observation: "结果观察", hypothesis: "模型假设", finding: "模型发现", decision: "模型决定", output: "模型内容声明", event: "运行事件" };
+const decisions = { CONTINUE: "继续探索", WAIT: "请求等待", COMPLETE: "模型声明完成", PARTIAL_COMPLETE: "模型声明有限范围完成", PUBLISH: "请求发布" };
 const object = value => {
   if (value && typeof value === "object") return value;
   try { return JSON.parse(value || "{}"); } catch { return {}; }
@@ -85,6 +85,11 @@ export function buildExplorationGraph(task, timeline = {}, events = []) {
       const action = turn.modelDecision.action;
       const id = add(`decision:${identity}`, "decision", decisions[action] || action, turn.modelDecision);
       link(turnId, id, "decides", "模型决定"); previous = id;
+    }
+    if (turn.modelOutput?.author === "MODEL") {
+      const labels = { FINAL: "模型最终回答", DRAFT: "模型声明草稿", INTERMEDIATE: "模型中间输出", UNDECLARED: "内容类型未声明" };
+      const id = add(`output:${identity}`, "output", labels[turn.modelOutput.type] || turn.modelOutput.type, turn.modelOutput);
+      link(turnId, id, "declares", "模型内容声明");
     }
   }
   // Task lifecycle events remain separately identified; adjacency is never claimed to be causation.

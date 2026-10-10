@@ -47,7 +47,7 @@ public final class AdaptiveAnalysisController {
         if ("RESOURCE_BUDGET_EXHAUSTED".equals(metadata.get("executionStopReason")))
             return new Decision(Action.STOP, "BUDGET_EXHAUSTED");
         if (!ModelAnalysisIntent.continuing(metadata))
-            return new Decision(action == ModelAnalysisIntent.Action.PUBLISH ? Action.DELIVER : Action.STOP, "MODEL_" + action);
+            return new Decision(ModelAnalysisIntent.publishRequested(metadata) ? Action.DELIVER : Action.STOP, "MODEL_" + action);
         if (completedRecoveryRounds >= boundedRecoveryRounds(recoveryBudget))
             return new Decision(Action.STOP, "BUDGET_EXHAUSTED");
         return new Decision(Action.RECOVER, "MODEL_CONTINUE");

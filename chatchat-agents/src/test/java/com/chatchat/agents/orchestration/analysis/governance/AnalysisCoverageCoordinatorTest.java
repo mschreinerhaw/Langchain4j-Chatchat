@@ -32,7 +32,7 @@ class AnalysisCoverageCoordinatorTest {
         var base = request(metadata);
         var result = coordinator.analyze(new AnalysisCoverageCoordinator.Request(model, "Question", base.result(),
             Map.of("modelAnalysisProtocol", "model_native_analysis.v2"), metadata, () -> false, () -> {}, base.isolationScope(), base.summaryProtocol()));
-        assertThat(metadata).containsEntry("publicationState", "NOT_REQUESTED").containsEntry("modelNativeReportDraft", "Working notes");
+        assertThat(metadata).containsEntry("publicationState", "NOT_REQUESTED").containsEntry("modelAnalysisOutput", "Working notes");
         assertThat(((Map<?,?>) metadata.get("modelDecision")).get("action")).isEqualTo("COMPLETE");
         assertThat(result.returnedRecordCount()).isZero();
         org.mockito.Mockito.verify(model).chat(any(String.class));

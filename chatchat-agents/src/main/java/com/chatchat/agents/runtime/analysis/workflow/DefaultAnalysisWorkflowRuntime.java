@@ -114,7 +114,7 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
             if (store == null) throw new IllegalStateException("Evidence archive unavailable");
             Map<String, Object> bundleMetadata = new LinkedHashMap<>(outcome.evidenceBundle().metadata());
             for (String key : List.of("modelEvidenceAssessmentAudit", "modelEvidenceAssessmentHistory", "analysisExecutionOutcome", "modelAnalysisProtocol", "modelDecision",
-                "executionState", "executionStopReason", "publicationState", "modelPublicationRequest", "modelEvidenceSnapshotRef")) {
+                "executionState", "executionStopReason", "publicationState", "modelPublicationRequest", "modelEvidenceSnapshotRef", "modelOutput")) {
                 if (outcome.metadata().containsKey(key)) bundleMetadata.put(key, outcome.metadata().get(key));
             }
             EvidenceBundle archived = new EvidenceBundle(null, outcome.evidenceBundle().evidence(),
@@ -367,7 +367,7 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
                     || com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.action(metadata)
                         == com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.Action.WAIT)
                     metadata.put("executionState", "STOPPED");
-                metadata.put("modelNativeReportDraft", current.synthesis());
+                metadata.put("modelAnalysisOutput", current.synthesis());
                 if (publish) {
                     Object raw = metadata.get("modelPublicationRequest");
                     if (!(raw instanceof Map<?,?> binding)
@@ -394,7 +394,7 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
                     metadata.put("adaptiveAnalysisAction", "STOP");
                     metadata.put("adaptiveAnalysisReason", reservation.reason());
                     metadata.put("publicationState", "NOT_REQUESTED");
-                    metadata.put("modelNativeReportDraft", current.synthesis());
+                    metadata.put("modelAnalysisOutput", current.synthesis());
                     return new AnalysisExecutionOutcome(null, current.workflowType(), current.plan(), current.verification(),
                         current.evidenceBundle(), "", metadata);
                 }

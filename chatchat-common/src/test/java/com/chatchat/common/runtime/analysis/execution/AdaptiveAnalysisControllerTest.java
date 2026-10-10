@@ -46,4 +46,14 @@ class AdaptiveAnalysisControllerTest {
         org.assertj.core.api.Assertions.assertThat(controller.decideModel(metadata,2,2).reason()).isEqualTo("BUDGET_EXHAUSTED");
     }
 
+    @Test void declaredFinalCanDeliverWithCompleteWhileUndeclaredCompleteCannotInventAContentType() {
+        var metadata = new java.util.LinkedHashMap<String,Object>();
+        metadata.put("modelAnalysisProtocol",ModelAnalysisIntent.VERSION);
+        metadata.put("modelDecision",java.util.Map.of("action","COMPLETE"));
+        assertThat(controller.decideModel(metadata,0,2).action()).isEqualTo(AdaptiveAnalysisController.Action.STOP);
+        metadata.put("modelOutput",java.util.Map.of("author","MODEL","type","FINAL"));
+        metadata.put("publicationState","REQUESTED");
+        assertThat(controller.decideModel(metadata,0,2).action()).isEqualTo(AdaptiveAnalysisController.Action.DELIVER);
+    }
+
 }

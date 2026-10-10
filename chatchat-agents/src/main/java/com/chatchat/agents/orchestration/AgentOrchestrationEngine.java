@@ -2155,7 +2155,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             && latest != null
             && latest.finalAnswer() != null
             && !latest.finalAnswer().isBlank()) {
-            metadata.put("modelNativeReportDraft", latest.finalAnswer().trim());
+            metadata.put(com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(metadata) ? "modelAnalysisOutput" : "modelNativeReportDraft", latest.finalAnswer().trim());
             metadata.put("modelNativeHarnessActive", true);
             metadata.put("unifiedAnalysisReportDraftChars", latest.finalAnswer().trim().length());
             metadata.put("analysisCoverageSkipped", true);

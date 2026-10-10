@@ -82,4 +82,26 @@ class FinalSynthesisNodeTest {
         assertThat(changed).containsEntry("publicationState", "REJECTED");
     }
 
+    @Test void modelDeclaredFinalIsDeliveredWithoutPublishAndWithoutSemanticReview() {
+        for(String action:List.of("COMPLETE", "PARTIAL_COMPLETE")) {
+            var metadata=v2Metadata(action);
+            metadata.put("modelAnalysisOutput", "Chosen report");
+            metadata.put("modelOutput", Map.of("author","MODEL","type","FINAL"));
+            metadata.put("publicationState","REQUESTED");
+            metadata.put("executionStatus","NEEDS_CLARIFICATION");
+            metadata.put("modelEvidenceAssessmentAudit", Map.of("assessment",Map.of("evidenceStatus","PARTIAL")));
+            var result=node().synthesizeFinal(request(metadata));
+            assertThat(result.content()).isEqualTo("Chosen report");
+            assertThat(metadata).containsEntry("publicationState","DELIVERED");
+            assertThat(((Map<?,?>)metadata.get("modelDecision")).get("action")).isEqualTo(action);
+        }
+        verifyNoInteractions(model);
+    }
+    @Test void anExplicitDraftOverridesLegacyPublishAndIsNeverPromotedByExecution() {
+        var metadata=v2Metadata("PUBLISH");metadata.put("modelOutput",Map.of("author","MODEL","type","DRAFT"));
+        assertThat(node().synthesizeFinal(request(metadata)).generated()).isFalse();
+        assertThat(((Map<?,?>)metadata.get("modelOutput")).get("type")).isEqualTo("DRAFT");
+        verifyNoInteractions(model);
+    }
+
 }

@@ -42,6 +42,28 @@ import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DefaultAnalysisWorkflowRuntimeTest {
+    @Test void modelFinalWithCompleteAndEvidenceGapsIsDeliveredByTheGenericWorkflow() {
+        String report = "Model final with explicitly limited scope";
+        AnalysisWorkflow workflow = new AnalysisWorkflow() {
+            public AnalysisWorkflowType type() { return AnalysisWorkflowType.COMPUTATION; }
+            public String workflowId() { return "test.model-final"; }
+            public boolean supports(AnalysisContext context, AnalysisIntent intent) { return true; }
+            public AnalysisExecutionOutcome execute(AnalysisContext context) {
+                return new AnalysisExecutionOutcome(null, type(), null, new VerificationResult(false,List.of(),List.of("missing evidence")),
+                    EvidenceBundle.empty("missing evidence"), report, Map.of(
+                        "modelAnalysisProtocol", "model_native_analysis.v2", "modelDecision", Map.of("action","COMPLETE"),
+                        "modelOutput", Map.of("author","MODEL","type","FINAL"), "publicationState","REQUESTED",
+                        "modelEvidenceSnapshotRef","snapshot", "modelPublicationRequest", Map.of(
+                            "reportSha256",com.chatchat.agents.protocol.ModelProtocolJson.sha256Hex(report), "evidenceSnapshotRef","snapshot")));
+            }
+        };
+        var context = new AnalysisContext("calculate",new KernelDataScope("tenant","user","request",null,"run",null,Map.of()),
+            "skill",List.of(),List.of(),List.of(),new AnalysisIntent("CALCULATION",List.of(),Set.of(AnalysisCapability.COMPUTATION),"UNSPECIFIED",true),Map.of());
+        var result = new DefaultAnalysisWorkflowRuntime(List.of(workflow),null,null).analyze(context);
+        assertThat(result.synthesis()).isEqualTo(report);
+        assertThat(result.metadata()).containsEntry("publicationState","DELIVERED");
+        assertThat(result.metadata().get("modelDecision")).isEqualTo(Map.of("action","COMPLETE"));
+    }
     @Test void archivesModelAssessmentWithOriginalEvidenceAndLimitations() {
         var validation = Map.<String,Object>of("evidenceStatus", "PARTIAL", "missingEvidence", List.of("source#chunk2"),
             "requiresReanalysis", false, "conclusionScope", "SNAPSHOT_ONLY");

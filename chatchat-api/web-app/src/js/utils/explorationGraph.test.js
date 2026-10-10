@@ -53,4 +53,13 @@ describe("Runtime exploration fact projection", () => {
     expect(after.nodes.map(node => node.id)).toEqual(expect.arrayContaining(before.nodes.map(node => node.id)));
     expect(after.edges.every(edge => after.nodes.some(node => node.id === edge.source) && after.nodes.some(node => node.id === edge.target))).toBe(true);
   });
+  it("renders the model's declared Final independently of COMPLETE and never infers Draft", () => {
+    const observation = { metadata: { eventKind: "HARNESS_TURN", turn: 1, modelDecision: { action: "COMPLETE" },
+      modelOutput: { author: "MODEL", type: "FINAL", target: "CURRENT_SESSION" } } };
+    const graph = buildExplorationGraph(task, { observations: [observation] });
+    expect(graph.nodes.find(node => node.kind === "output").label).toBe("模型最终回答");
+    delete observation.metadata.modelOutput;
+    expect(buildExplorationGraph(task, { observations: [observation] }).nodes.some(node => node.kind === "output")).toBe(false);
+  });
+
 });

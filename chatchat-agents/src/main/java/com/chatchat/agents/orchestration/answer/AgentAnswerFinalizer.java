@@ -179,15 +179,15 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         }
         if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(values)) {
             boolean delivered = "DELIVERED".equals(values.get("publicationState"))
-                && com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.action(values)
-                    == com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.Action.PUBLISH
+                && com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.finalDeclared(values)
                 && !Boolean.TRUE.equals(values.get("confirmationRequired"))
                 && !Boolean.TRUE.equals(values.get("fatalExecutionBlocked"));
             String content = "";
             if (delivered) {
                 var payloads = com.chatchat.agents.orchestration.analysis.report.ReportBlockMarkdownProtocol.protectVerified(
                     candidateAnswer == null ? "" : candidateAnswer, values);
-                content = payloads.restore(UserFacingAnswerSanitizer.sanitize(payloads.markdown()));
+                // Model-authored citations and execution limitations are content, not Runtime cleanup targets.
+                content = payloads.restore(payloads.markdown());
             }
             values.put("reportQualityAuthority", "USER");
             values.put("finalAnswerPreview", shortText(content, 1000));

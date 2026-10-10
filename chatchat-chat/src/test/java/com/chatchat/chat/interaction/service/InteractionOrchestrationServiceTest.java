@@ -15,6 +15,23 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class InteractionOrchestrationServiceTest {
+    @Test void preservesModelNativeFinalCitationsAndPersistsTheSameTextWithoutRuntimeCleanup() {
+        var memoryService = mock(ConversationMemoryService.class);
+        when(memoryService.ensureConversationId("default",null,"user-1",null)).thenReturn("conversation-1");
+        when(memoryService.summary("default","conversation-1")).thenReturn(Optional.empty());
+        when(memoryService.conversationEvidenceProjection("default","conversation-1",100,32)).thenReturn("");
+        when(memoryService.recent("default","conversation-1",8)).thenReturn(List.of());
+        var handler=mock(InteractionModeHandler.class);when(handler.mode()).thenReturn(InteractionMode.LLM_CHAT);
+        String answer="Model final: `mcp_server_tool` [SQL-1], #chunk-2.\nLimitations are model-authored.";
+        when(handler.handle(any(),any())).thenReturn(InteractionResponse.builder().answer(answer).metadata(Map.of("agent",Map.of(
+            "modelAnalysisProtocol","model_native_analysis.v2","modelDecision",Map.of("action","COMPLETE"),
+            "modelOutput",Map.of("author","MODEL","type","FINAL"),"publicationState","DELIVERED"))).build());
+        var response=new InteractionOrchestrationService(List.of(handler),memoryService).chat(InteractionRequest.builder()
+            .userId("user-1").mode("llm_chat").query("Analyze").build());
+        assertThat(response.getAnswer()).isEqualTo(answer);
+        org.mockito.Mockito.verify(memoryService).append(org.mockito.ArgumentMatchers.eq("conversation-1"),org.mockito.ArgumentMatchers.eq("assistant"),
+            org.mockito.ArgumentMatchers.eq(answer),any(),any(),any(),org.mockito.ArgumentMatchers.isNull());
+    }
 
     @Test
     void recognizesUserQuestionAlreadyPersistedByConversationSnapshot() {

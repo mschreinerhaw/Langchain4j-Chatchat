@@ -1,5 +1,17 @@
 # Model Sovereignty, Runtime Governance
 
+## Runtime OS Semantic Non-Interference Principle
+
+模型拥有分析主权，用户拥有最终采纳及对外确认权，Runtime 只拥有执行治理权。内容为 Intermediate、Draft 或 Final，由模型声明；执行完成、证据缺口、预算耗尽或缺少独立发布动作，都不能替代模型的内容声明。
+
+v2 增补 `output_type` 和 `content`：模型声明 Final 后直接向当前用户交付，无需第二次模型评审或独立 PUBLISH。旧 PUBLISH 是兼容的模型显式 Final 意图；显式内容声明优先。未声明类型的内容记录 UNDECLARED，以中性 `modelAnalysisOutput` 保存。`modelNativeReportDraft` 为旧协议及旧数据的兼容字段，不作为 v2 内容语义判据。
+
+`modelOutput` 记录模型声明、正文哈希、证据快照和 CURRENT_SESSION 目标；`executionState`、`executionStopReason` 只描述执行事实；`publicationState` 是兼容的会话交付事实，不表示报告被平台认证。权限、安全、协议版本绑定、取消及显式 Contract 仍执行；证据诊断不得改写模型内容类型。对外发送、入库或其他操作必须走独立授权工具，模型 Final 不授予外部操作权限。
+
+v2 已交付正文不再使用旧的 UserFacingAnswerSanitizer 删除模型引用的工具名、分块标识或证据索引；答案收尾与统一交互边界均保留模型正文，会话记忆保存同一文本。HTML 安全渲染、工具权限、版本绑定及显式数据约束不受影响。旧 v1 展示清洗继续兼容。
+
+WAIT 自动恢复、动态 Skill 发现和长时探索调度尚未由此次内容语义调整实现。
+
 模型拥有分析与业务决策自主权，包括理解问题、规划、工具选择、推理、证据充分性判断、补证选择、结论生成及发布意图。Runtime OS 提供可信的执行环境、能力与数据、状态管理和资源治理。除明确的权限、安全及业务 Contract 外，Runtime 不因分析质量评价阻断模型输出，不评分、不改写结论。
 
 ## 职责边界

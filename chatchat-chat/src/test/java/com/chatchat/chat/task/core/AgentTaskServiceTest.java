@@ -214,13 +214,35 @@ class AgentTaskServiceTest {
             Method payloadMethod = contract.getClass().getDeclaredMethod("payload", InteractionResponse.class);
             payloadMethod.setAccessible(true);
             Map<String,Object> payload = (Map<String,Object>)payloadMethod.invoke(contract, response);
-            assertThat(payload.get("answer").toString()).doesNotContain("PRIVATE DRAFT", "结果整理失败");
+            assertThat(payload.get("answer").toString()).doesNotContain("PRIVATE DRAFT", "结果整理失败", "草稿");
             if (action.equals("CONTINUE")) assertThat(payload.get("answer").toString()).doesNotContain("已完成");
             var agent = (Map<String,Object>)((Map<?,?>)payload.get("metadata")).get("agent");
             assertThat(agent.get("modelDecision")).isEqualTo(Map.of("action", action));
             assertThat(agent.get("executionStopReason")).isEqualTo(reason);
             assertThat(agent).doesNotContainKey("modelNativeReportDraft");
         }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void modelFinalIsPresentedWithCompleteWithoutAnIndependentPublishDecision() throws Exception {
+        AgentTaskService service = taskService(mock(AgentEventBus.class), mock(AgentEventStore.class),
+            mock(AgentTaskLatestRepository.class), mock(TaskConfirmRepository.class), new ObjectMapper());
+        Method compile = AgentTaskService.class.getDeclaredMethod("compileExecutionResult", InteractionResponse.class);
+        compile.setAccessible(true);
+        var facts = Map.<String,Object>of("modelAnalysisProtocol", "model_native_analysis.v2", "modelDecision", Map.of("action", "COMPLETE"),
+            "modelOutput", Map.of("author", "MODEL", "type", "FINAL", "target", "CURRENT_SESSION"),
+            "publicationState", "DELIVERED", "executionState", "COMPLETED", "executionStopReason", "MODEL_DECISION");
+        var response = InteractionResponse.builder().answer("Model-declared final with `mcp_server_tool` [SQL-1], #chunk-2.\n```text\nModel payload\n```").metadata(Map.of("agent", facts)).build();
+        Object contract = compile.invoke(service, response);
+        Method payloadMethod = contract.getClass().getDeclaredMethod("payload", InteractionResponse.class);
+        payloadMethod.setAccessible(true);
+        Map<String,Object> payload = (Map<String,Object>)payloadMethod.invoke(contract, response);
+        assertThat(payload.get("answer")).isEqualTo(response.getAnswer());
+        var agent = (Map<String,Object>)((Map<?,?>)payload.get("metadata")).get("agent");
+        assertThat(agent.get("modelOutput")).isEqualTo(facts.get("modelOutput"));
+        assertThat(agent.get("modelDecision")).isEqualTo(Map.of("action", "COMPLETE"));
+        assertThat(((Map<?,?>)payload.get("uiResponse")).get("modelAnalysisProtocol")).isEqualTo("model_native_analysis.v2");
     }
 
     @Test

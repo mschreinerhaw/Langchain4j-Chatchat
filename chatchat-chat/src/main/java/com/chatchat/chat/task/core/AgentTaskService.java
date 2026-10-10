@@ -2702,7 +2702,7 @@ public class AgentTaskService {
         Map<String, Object> agentMetadata = asStringMap(metadata.get("agent"));
         boolean modelNativeV2 = com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(agentMetadata);
         boolean unpublishedV2 = modelNativeV2 && !("DELIVERED".equals(agentMetadata.get("publicationState"))
-            && "PUBLISH".equals(asStringMap(agentMetadata.get("modelDecision")).get("action")));
+            && com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.finalDeclared(agentMetadata));
         if (unpublishedV2) answer = "";
         boolean fatalExecutionBlocked = booleanValue(firstPresent(
             agentMetadata.get("fatalExecutionBlocked"),
@@ -2757,9 +2757,9 @@ public class AgentTaskService {
             String reason = String.valueOf(agentMetadata.getOrDefault("executionStopReason", ""));
             String action = String.valueOf(asStringMap(agentMetadata.get("modelDecision")).getOrDefault("action", ""));
             displayAnswer = "MODEL_DECISION".equals(reason) && List.of("COMPLETE", "PARTIAL_COMPLETE").contains(action)
-                ? "模型已完成" + ("PARTIAL_COMPLETE".equals(action) ? "限定范围" : "") + "分析，未请求发布；草稿和执行记录已保留。"
-                : "WAIT_UNSUPPORTED".equals(reason) ? "模型请求等待；当前执行器尚不支持自动等待恢复，草稿和执行记录已保留。"
-                : "分析执行已停止，未发布报告；草稿、模型决定和停止原因已保留。";
+                ? "模型已完成" + ("PARTIAL_COMPLETE".equals(action) ? "限定范围" : "") + "分析；内容及模型声明已保留，模型未声明最终回答。"
+                : "WAIT_UNSUPPORTED".equals(reason) ? "模型请求等待；当前执行器尚不支持自动等待恢复，内容和执行记录已保留。"
+                : "分析执行已停止；内容、模型声明和停止原因已保留。";
             message = "Model analysis execution ended without publication: " + reason;
         }
         Map<String, Object> flags = new LinkedHashMap<>();
@@ -2771,7 +2771,7 @@ public class AgentTaskService {
         flags.put("hasArtifact", hasArtifact);
         if (modelNativeV2) {
             for (String key : List.of("modelAnalysisProtocol", "modelDecision", "executionState", "executionStopReason", "publicationState",
-                "modelPublicationRequest", "modelEvidenceSnapshotRef"))
+                "modelPublicationRequest", "modelEvidenceSnapshotRef", "modelOutput"))
                 if (agentMetadata.containsKey(key)) flags.put(key, agentMetadata.get(key));
         }
         Map<String, Object> reasoningPayload = evidenceReasoningPayload(response, answer);
@@ -2904,11 +2904,12 @@ public class AgentTaskService {
             responseMetadata.get("htmlContent")
         );
         Map<String, Object> visualization = visualization(visualizationSpec, reasoningPayload);
+        boolean nativeContent = UserFacingContentSanitizer.modelNativeContent(responseMetadata);
         return new UiResponseContract(
             "ui_response_v2",
             status,
-            firstText(cleanDisplayAnswer(answer), ""),
-            removeInternalEvidenceMarkers(reportHtml),
+            nativeContent ? (fallbackAnswer == null ? "" : fallbackAnswer) : firstText(cleanDisplayAnswer(answer), ""),
+            UserFacingContentSanitizer.removeInternalEvidenceMarkers(reportHtml, responseMetadata),
             citations,
             evidencePremises,
             confidence,
@@ -3774,7 +3775,12 @@ public class AgentTaskService {
         }
 
         private Map<String, Object> uiResponseView() {
-            return uiResponse == null ? Map.of() : uiResponse.asMap();
+            var view = new LinkedHashMap<String,Object>(uiResponse == null ? Map.of() : uiResponse.asMap());
+            if (semanticFlags != null && com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(semanticFlags)) {
+                view.put("modelAnalysisProtocol", semanticFlags.get("modelAnalysisProtocol"));
+                if (semanticFlags.containsKey("modelOutput")) view.put("modelOutput", semanticFlags.get("modelOutput"));
+            }
+            return view;
         }
 
         private Map<String, Object> payload(InteractionResponse response) {
@@ -3896,7 +3902,7 @@ public class AgentTaskService {
                 copyRawMetadataValue(governance, agentMetadata, "answerClaimAuditPassed");
                 if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.VERSION.equals(agentMetadata.get("modelAnalysisProtocol"))) {
                     for (String key : List.of("modelAnalysisProtocol", "modelDecision", "executionState", "executionStopReason", "publicationState",
-                        "modelPublicationRequest", "modelEvidenceSnapshotRef"))
+                        "modelPublicationRequest", "modelEvidenceSnapshotRef", "modelOutput"))
                         copyRawMetadataValue(governance, agentMetadata, key);
                 }
                 if (!governance.isEmpty()) {

@@ -18,6 +18,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class UiArtifactServiceTest {
+    @Test void preservesModelCitationsAcrossExternalizationAndAuthorizedResourceRetrieval() {
+        Fixture fixture=fixture(64);
+        String answer="Model final: `mcp_server_tool` [SQL-1], #chunk-2.\n".repeat(4);
+        var presentation=fixture.service().externalizeIfNeeded("tenant-a","task-model",Map.of(
+            "modelAnalysisProtocol","model_native_analysis.v2","answer",answer,"status","SUCCESS"));
+        assertThat(presentation.externalized()).isTrue();
+        assertThat(presentation.uiResponse()).containsEntry("modelAnalysisProtocol","model_native_analysis.v2");
+        String id=String.valueOf(presentation.reference().get("artifactId"));
+        assertThat(fixture.service().resource("tenant-a",id,"answer")).hasValue(answer);
+        assertThat(fixture.service().resource("tenant-b",id,"answer")).isEmpty();
+    }
 
     @TempDir
     Path temporaryDirectory;

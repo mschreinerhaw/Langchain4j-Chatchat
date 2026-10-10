@@ -106,15 +106,15 @@ public final class ModelNativeAnalysisHarness {
                 Optional turn protocol: JSON {schemaVersion:'model_native_analysis.v1',completed:true,
                 reportMarkdown:'your report',workspace:{notes:'your own working notes',artifacts:[]},evidenceRequests:[]}.
                 A final plain Markdown report is also accepted. Intermediate notes are not the published report.
-                Optional v2 protocol: {schemaVersion:'model_native_analysis.v2',decision:{action:'CONTINUE|WAIT|COMPLETE|PUBLISH|PARTIAL_COMPLETE'},workspace:{},reportMarkdown:'draft',evidenceRequests:[]}.
+                Optional v2 protocol: {schemaVersion:'model_native_analysis.v2',decision:{action:'CONTINUE|WAIT|COMPLETE|PUBLISH|PARTIAL_COMPLETE'},output_type:'intermediate|draft|final',workspace:{},reportMarkdown:'your content',evidenceRequests:[]}.
                 Every v2 response requires a decision OBJECT, for example:
-                {"schemaVersion":"model_native_analysis.v2","decision":{"action":"CONTINUE"},"reportMarkdown":"draft","evidenceRequests":[]}.
+                {"schemaVersion":"model_native_analysis.v2","decision":{"action":"CONTINUE"},"output_type":"draft","reportMarkdown":"your content","evidenceRequests":[]}.
                 v1 and plain Markdown retain legacy delivery behavior. Once v2 is selected, keep using v2.
-                In v2 only PUBLISH requests delivery. COMPLETE and PARTIAL_COMPLETE retain work without publication.
+                Content type belongs to the model: output_type:'intermediate|draft|final'. Declare final to deliver to the current user immediately, without a separate PUBLISH action. COMPLETE describes exploration completion, not content type. Missing output_type means UNDECLARED, never an inferred draft.
                 CONTINUE may have no requests. WAIT retains work and returns WAIT_UNSUPPORTED: automatic wait/resume is not implemented.
-                PUBLISH binds the current draft and current evidence snapshot; optional publication {reportSha256,evidenceSnapshotRef}
-                must match L1 or the newly authored draft. Requests execute only with CONTINUE; completion actions cannot carry requests.
-                Budget exhaustion retains a draft and your last decision, never creates a publication request.
+                Use decision:{action:'COMPLETE'},output_type:'final',content:'your answer' for a final session response. PUBLISH remains a legacy explicit final declaration; external publication requires an independently authorized tool. A final binds the output and current evidence snapshot; optional publication {reportSha256,evidenceSnapshotRef}
+                must match L1 or the newly authored content. Requests execute only with CONTINUE; completion actions cannot carry requests.
+                Budget exhaustion retains your content, its declared type and your last decision; it never invents a final declaration.
                 Optional evidenceAssessment in the same JSON records YOUR assessment, not Runtime approval:
                 {evidenceStatus:'your assessment',missingEvidence:[],conclusionScope:'your chosen scope',
                 requiresReanalysis:false,claims:[{claimId:'C1',claim:'your conclusion',reason:'your reasoning',
@@ -178,7 +178,8 @@ public final class ModelNativeAnalysisHarness {
                 if (turn == maximumTurns) exhausted = true;
                 continue;
             }
-            if (product.get("reportMarkdown") instanceof String authored && !authored.isBlank()) report = authored;
+            if (product.get("content") instanceof String content && !content.isBlank()) report = content;
+            else if (product.get("reportMarkdown") instanceof String authored && !authored.isBlank()) report = authored;
             var assessmentAudit = new LinkedHashMap<String, Object>(new ModelEvidenceAssessmentAudit()
                 .record(product.get("evidenceAssessment"), prepared.sources(), guard));
             assessmentAudit.put("turn", turn);
@@ -205,7 +206,7 @@ public final class ModelNativeAnalysisHarness {
             }
             List<Map<String,Object>> audit = new ArrayList<>();
             boolean completed;
-            if (v2) metadata.put("modelNativeReportDraft", report);
+            if (v2) metadata.put("modelAnalysisOutput", report);
             try { completed = v2 ? recordIntent(product, report, snapshot(prepared.sources()), metadata)
                 : Boolean.TRUE.equals(product.get("completed")); }
             catch (IllegalArgumentException rejected) {
@@ -266,6 +267,7 @@ public final class ModelNativeAnalysisHarness {
             }
             span.put("workspace", Map.of("state", explorationState));
             span.put("publicationState", metadata.getOrDefault("publicationState", "NOT_REQUESTED"));
+            span.put("modelOutput", metadata.getOrDefault("modelOutput", Map.of()));
             span.put("eventState", "COMPLETED");
             trace.add(span); observe.accept(span);
             metadata.put("harnessTrace", List.copyOf(trace));
@@ -277,7 +279,7 @@ public final class ModelNativeAnalysisHarness {
         metadata.put("visualizationCapabilitiesDraftInjected", true);
         refreshReportCatalog(prepared.sources(), metadata);
         if (v2) {
-            metadata.put("modelNativeReportDraft", report);
+            metadata.put("modelAnalysisOutput", report);
             if (!metadata.containsKey("modelDecision")) {
                 metadata.put("executionState", "STOPPED");
                 metadata.put("executionStopReason", exhausted ? "RESOURCE_BUDGET_EXHAUSTED" : "INVALID_TURN_PROTOCOL");
@@ -310,9 +312,19 @@ public final class ModelNativeAnalysisHarness {
         metadata.put("analysisEvidenceSnapshotFingerprint", snapshot);
         metadata.put("publicationState", "NOT_REQUESTED");
         var action = ModelAnalysisIntent.action(metadata);
-        if (action == ModelAnalysisIntent.Action.PUBLISH) {
+        // A model declaration is the only source of content semantics. Execution completion is separate.
+        String type = product.containsKey("output_type")
+            ? String.valueOf(product.get("output_type")).toUpperCase(java.util.Locale.ROOT)
+            : action == ModelAnalysisIntent.Action.PUBLISH ? "FINAL" : "UNDECLARED";
+        if (!List.of("INTERMEDIATE", "DRAFT", "FINAL", "UNDECLARED").contains(type))
+            throw new IllegalArgumentException("Invalid model output_type");
+        metadata.put("modelOutput", Map.of("author", "MODEL", "type", type,
+            "declaration", product.containsKey("output_type") ? "output_type" : action == ModelAnalysisIntent.Action.PUBLISH ? "legacy_PUBLISH" : "NONE",
+            "reportSha256", ModelProtocolJson.sha256Hex(report), "evidenceSnapshotRef", snapshot, "target", "CURRENT_SESSION"));
+        metadata.remove("modelPublicationRequest");
+        if (ModelAnalysisIntent.finalDeclared(metadata)) {
             String hash = ModelProtocolJson.sha256Hex(report);
-            if (report.isBlank()) throw new IllegalArgumentException("PUBLISH requires a non-empty report");
+            if (report.isBlank()) throw new IllegalArgumentException("A model-declared final requires non-empty content");
             if (product.get("publication") instanceof Map<?,?> publication
                 && (!hash.equals(publication.getOrDefault("reportSha256", null))
                     || !snapshot.equals(publication.getOrDefault("evidenceSnapshotRef", null))))
@@ -320,7 +332,7 @@ public final class ModelNativeAnalysisHarness {
             metadata.put("modelPublicationRequest", Map.of("reportSha256", hash, "evidenceSnapshotRef", snapshot));
             metadata.put("publicationState", "REQUESTED");
         }
-        return action != ModelAnalysisIntent.Action.CONTINUE;
+        return ModelAnalysisIntent.finalDeclared(metadata) || action != ModelAnalysisIntent.Action.CONTINUE;
     }
     private static void refreshReportCatalog(Map<String,Dataset> datasets, Map<String,Object> metadata) {
         var captured = datasets.entrySet().stream().map(entry -> {

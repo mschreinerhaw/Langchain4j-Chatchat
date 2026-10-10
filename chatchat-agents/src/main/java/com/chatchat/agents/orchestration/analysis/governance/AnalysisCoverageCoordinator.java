@@ -191,7 +191,7 @@ public final class AnalysisCoverageCoordinator {
         int count = Math.toIntExact(rows);
         var intentMetadata = new LinkedHashMap<String,Object>();
         for (String key : List.of("modelAnalysisProtocol", "modelDecision", "executionState", "executionStopReason",
-            "publicationState", "modelPublicationRequest", "modelEvidenceSnapshotRef"))
+            "publicationState", "modelPublicationRequest", "modelEvidenceSnapshotRef", "modelOutput"))
             if (request.metadata().containsKey(key)) intentMetadata.put(key, request.metadata().get(key));
         request.metadata().put("analysisModelIntent", Map.copyOf(intentMetadata));
         var summary = AnalysisSummaryResult.chunk(request.isolationScope(), Map.of("datasetReference", "harness:question",
@@ -201,7 +201,7 @@ public final class AnalysisCoverageCoordinator {
                 "modelEvidenceAssessmentAudit", request.metadata().getOrDefault("modelEvidenceAssessmentAudit", Map.of()),
                 "modelEvidenceAssessmentHistory", request.metadata().getOrDefault("modelEvidenceAssessmentHistory", List.of()),
                 "modelIntent", Map.copyOf(intentMetadata)));
-        request.metadata().put("modelNativeReportDraft", result.markdown());
+        request.metadata().put(com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata()) ? "modelAnalysisOutput" : "modelNativeReportDraft", result.markdown());
         request.metadata().put("analysisSynthesisBarrierReady", true);
         request.metadata().put("analysisSynthesisBarrierStatus", "READY");
         request.metadata().put("recordAnalysisDatasetCount", datasets.size());

@@ -42,6 +42,22 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AgentAnswerFinalizerEvidenceAnswerTest {
+    @Test void declaredSessionFinalWithCompleteBypassesReviewerAndIsNotRelabeledByEvidenceGaps() {
+        AgentAnswerReviewer reviewer = mock(AgentAnswerReviewer.class);
+        var finalizer = new AgentAnswerFinalizer(reviewer,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt"));
+        var metadata = new LinkedHashMap<String,Object>();
+        metadata.put("modelAnalysisProtocol", "model_native_analysis.v2");
+        metadata.put("modelDecision", Map.of("action","COMPLETE"));
+        metadata.put("modelOutput", Map.of("author","MODEL","type","FINAL"));
+        metadata.put("publicationState","DELIVERED");
+        metadata.put("modelEvidenceAssessmentAudit",Map.of("assessment",Map.of("evidenceStatus","PARTIAL")));
+        String answer = "Model's final answer. Source `mcp_server_tool`, [SQL-1], #chunk-2.\nLimitations: request rejected.";
+        var result=finalizer.finishExecution(answer,List.of(),metadata,List.of());
+        assertThat(result.answer()).isEqualTo(answer);
+        assertThat(result.metadata().get("modelOutput")).isEqualTo(Map.of("author","MODEL","type","FINAL"));
+        org.mockito.Mockito.verifyNoInteractions(reviewer);
+    }
     @Test void preservesExecutionPartialStatusWithoutEvaluatingModelConclusion() {
         var finalizer = new AgentAnswerFinalizer(
             (model, query, prompt, observations, answer) -> new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),

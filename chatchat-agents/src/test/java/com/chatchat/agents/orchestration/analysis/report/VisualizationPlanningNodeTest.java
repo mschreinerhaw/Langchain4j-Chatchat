@@ -6,6 +6,18 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class VisualizationPlanningNodeTest {
+    @Test void nativeInvalidArtifactIsInertModelTextRatherThanAnExecutableChartOrDeletedConclusion() {
+        var candidate=block("bar");candidate.put("encoding",Map.of("x","category","y",List.of("unknown")));
+        candidate.put("conclusion","Model chooses this conclusion, Runtime does not delete it");
+        var result=new VisualizationPlanningNode(registry).execute(report(candidate),catalog(),true);
+        assertThat(result.visualizationCount()).isZero();
+        assertThat(result.markdown()).contains("```text", "Model chooses this conclusion, Runtime does not delete it", "unknown")
+            .doesNotContain("```json:report-block");
+        assertThat(result.checks().get(0)).containsEntry("status","REJECTED");
+        String legacy = "```json:visualization\n{\"chartType\":\"unknown\",\"conclusion\":\"Model owns the conclusion\"}\n```";
+        var rejected = new VisualizationPlanningNode(registry).execute(legacy,catalog(),true);
+        assertThat(rejected.markdown()).contains("```text", "Model owns the conclusion").doesNotContain("```json:visualization");
+    }
     private final VisualizationCapabilityRegistry registry = VisualizationCapabilityRegistry.active();
     private VerifiedReportDataCatalog catalog() {
         return VerifiedReportDataCatalog.fromRuntime(Map.of("runtimeReturnedReportDatasets", List.of(

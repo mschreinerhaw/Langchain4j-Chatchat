@@ -22,6 +22,9 @@ public final class VisualizationPlanningNode {
     }
 
     public Result execute(String markdown, VerifiedReportDataCatalog catalog) {
+        return execute(markdown, catalog, false);
+    }
+    public Result execute(String markdown, VerifiedReportDataCatalog catalog, boolean preserveRejectedText) {
         StringBuilder output = new StringBuilder();
         StringBuilder narrative = new StringBuilder();
         List<Map<String, Object>> blocks = new ArrayList<>(), checks = new ArrayList<>();
@@ -62,13 +65,21 @@ public final class VisualizationPlanningNode {
                 output.append("```json\n").append(ModelProtocolJson.compact(Map.of("reportBlock", verified))).append("\n```\n");
                 checks.add(Map.of("status", "VERIFIED", "blockId", proposed.get("id"), "datasetRef", proposed.get("datasetRef")));
             } catch (Exception rejected) {
+                if (preserveRejectedText) {
+                    // Deny executable artifact binding, preserve the model's payload as inert text.
+                    String openingText = marker + "text\n";
+                    output.append(openingText); narrative.append(openingText);
+                    for (int line = i + 1; line < Math.min(end + 1, lines.length); line++) {
+                        output.append(lines[line]); narrative.append(lines[line]);
+                    }
+                }
                 if (checks.size() < 12) checks.add(Map.of("status", "REJECTED", "reason",
                     rejected instanceof IllegalArgumentException ? String.valueOf(rejected.getMessage()) : "INVALID_REPORT_BLOCK_JSON"));
             }
             i = end;
         }
         // Retain support for already deployed v2 reports, using the same data binding verifier.
-        var legacy = audit.audit(output.toString(), catalog);
+        var legacy = audit.audit(output.toString(), catalog, preserveRejectedText);
         appendNarrative(blocks, narrative);
         checks.addAll(legacy.checks());
         return new Result(legacy.markdown(), List.copyOf(blocks), List.copyOf(checks));

@@ -62,9 +62,10 @@ public class UiArtifactService {
         List<String> reportChildren = new ArrayList<>();
 
         String answer = UserFacingContentSanitizer.removeInternalEvidenceMarkers(
-            text(uiResponse.get("answer")));
+            UserFacingContentSanitizer.modelNativeContent(uiResponse)
+                ? String.valueOf(uiResponse.getOrDefault("answer", "")) : text(uiResponse.get("answer")), uiResponse);
         String explicitHtml = UserFacingContentSanitizer.removeInternalEvidenceMarkers(
-            explicitReportHtml(uiResponse));
+            explicitReportHtml(uiResponse), uiResponse);
         Object analyticalReport = uiResponse.get("analyticalReport");
         boolean hasAnalyticalReport = analyticalReport instanceof Map<?, ?> report
             && "analytical_report.v1".equals(report.get("schemaVersion"))
@@ -136,6 +137,8 @@ public class UiArtifactService {
         manifest.put("createdAt", Instant.now().toString());
         manifest.put("spec", spec);
         manifest.put("resources", resourceCatalog);
+        if (UserFacingContentSanitizer.modelNativeContent(uiResponse))
+            manifest.put("modelAnalysisProtocol", uiResponse.get("modelAnalysisProtocol"));
 
         UiArtifactEntity metadataEntity = metadataEntity(
             tenantId, taskId, artifactId, resources.size(), properties.getTtlSeconds());
@@ -191,6 +194,10 @@ public class UiArtifactService {
         }
         lightweight.put("uiArtifact", reference);
         lightweight.put("renderMode", renderMode);
+        if (UserFacingContentSanitizer.modelNativeContent(uiResponse)) {
+            lightweight.put("modelAnalysisProtocol", uiResponse.get("modelAnalysisProtocol"));
+            if (uiResponse.containsKey("modelOutput")) lightweight.put("modelOutput", uiResponse.get("modelOutput"));
+        }
         return new Presentation(lightweight, reference, true);
     }
 
@@ -220,13 +227,13 @@ public class UiArtifactService {
             objectKey.isBlank() ? resourceKey(resourceId) : objectKey);
         if ("text/html".equalsIgnoreCase(mediaType)) {
             return readText(location)
-                .map(UserFacingContentSanitizer::removeInternalEvidenceMarkers)
+                .map(value -> UserFacingContentSanitizer.removeInternalEvidenceMarkers(value, manifest.get()))
                 .map(value -> (Object) value);
         }
         Optional<Object> resource = readObject(location, Object.class);
         if ("text/markdown".equalsIgnoreCase(mediaType)) {
             return resource.map(value -> value instanceof String content
-                ? UserFacingContentSanitizer.removeInternalEvidenceMarkers(content)
+                ? UserFacingContentSanitizer.removeInternalEvidenceMarkers(content, manifest.get())
                 : value);
         }
         return resource;

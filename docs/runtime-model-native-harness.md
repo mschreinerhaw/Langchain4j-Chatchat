@@ -78,19 +78,20 @@ chatchat:
 
 ## 2026-10-10：v2 意图、工具恢复与链路探索
 
-`model_native_analysis.v2` 每轮必须声明 `decision` 对象；`CONTINUE` 可以没有取证请求。`COMPLETE`、`PARTIAL_COMPLETE` 保留草稿，只有 `PUBLISH` 发起发布并绑定 `reportSha256` 与 `evidenceSnapshotRef`。`WAIT` 保存模型意图，但当前返回 `WAIT_UNSUPPORTED`，尚无自动暂停、唤醒和进程重启后持续探索调度。v1 和纯 Markdown 保持旧交付语义；选择 v2 后禁止静默降级。
+`model_native_analysis.v2` 每轮必须声明 `decision` 对象；`CONTINUE` 可以没有取证请求。内容语义独立于执行意图：模型通过 `output_type: intermediate|draft|final` 声明，正文可使用 `content` 或兼容字段 `reportMarkdown`。`final` 自动发起向当前用户的会话交付，无需额外 PUBLISH；`COMPLETE`、`PARTIAL_COMPLETE` 本身不定义内容类型。缺少声明时记录 `UNDECLARED`，不推断为草稿。旧 `PUBLISH` 保留为模型显式最终回答的兼容入口；显式 `output_type` 优先。最终回答绑定正文版本与证据快照用于恢复一致性，不作语义审批。外部提交必须独立通过用户授权工具。`WAIT` 当前返回 `WAIT_UNSUPPORTED`，尚无自动暂停、唤醒和进程重启后持续探索调度。v1 和纯 Markdown 保持旧交付语义；选择 v2 后禁止静默降级。
 
 ```json
 {
   "schemaVersion": "model_native_analysis.v2",
   "decision": { "action": "CONTINUE" },
+  "output_type": "draft",
   "reportMarkdown": "模型草稿",
   "workspace": { "findings": ["模型明确声明的发现"] },
   "evidenceRequests": []
 }
 ```
 
-外层 Task 继续使用既有公共状态码，`NO_PRESENTABLE_RESULT` 可表示没有正式发布内容，不应据此认定模型分析失败。v2 执行结果及安全元数据另行保留 `modelDecision`、`executionState`、`executionStopReason`、`publicationState` 和发布绑定。未发布时返回执行事实提示，不输出私有草稿，不再将主动完成解释成“结果整理失败”。预算停止不生成模型完成决定。
+外层 Task 继续使用既有公共状态码，`NO_PRESENTABLE_RESULT` 可表示没有会话最终回答，不应据此认定模型分析失败或内容是草稿。v2 执行结果及安全元数据另行保留 `modelDecision`、`modelOutput`、`executionState`、`executionStopReason`、`publicationState` 和版本绑定。尚无 Final 声明时返回中性的执行事实提示，保留正文及其声明，不将主动完成解释成“结果整理失败”。预算停止不生成模型完成决定或内容类型。
 
 `HarnessToolAccess.call(request, sources, runtimeIdentity)` 通过原有 `RuntimeExecutionCheckpointPort` 保存调用身份、参数与工具 Contract 指纹、原子领取记录和完整回执。相同请求恢复前复核现行授权；不同参数须使用不同 requestId。已提交结果可以跨 Worker 恢复；结果投影失败可重建证据。当前进程持有成功但未落盘结果时可以重试保存；重启后只剩领取记录时返回结果未知，不自动重做远程调用。批量子项分别领取和保存结果，取消继续传播；不承诺外部工具的 exactly-once 副作用。
 
@@ -105,8 +106,16 @@ chatchat:
 | 组件 | 方法 | 调整 |
 | --- | --- | --- |
 | HarnessToolAccess | `call(request, sources, runtimeIdentity)` | 单独记录回执来源，保留原回执身份和恢复语义 |
-| ModelNativeAnalysisHarness | `execute`、`explorationReceipt` | 明确 v2 decision 对象；持久化模型声明和有界回执事实，不输出私有工作笔记 |
-| AgentTaskService | `compileExecutionResult`、`ExecutionResultContract.safeMetadata` | v2 未发布提示与执行事实贯通；旧公共状态协议兼容，草稿不进入正式答案 |
+| ModelNativeAnalysisHarness | `execute`、`recordIntent`、`explorationReceipt` | 记录模型内容类型、完成决定与版本绑定；Final 自动发起会话交付，未声明不推断草稿 |
+| ModelAnalysisIntent / AdaptiveAnalysisController | `finalDeclared`、`publishRequested`、`retainedContent`、`continuing`、`decideModel` | 分离内容类型与执行意图；旧 PUBLISH 兼容，新 Final 无需 PUBLISH，读取旧正文别名 |
+| FinalSynthesisNode / ReportPublicationGraph | `synthesizeFinal`、`publishModelReport`、`publishHarnessReport`、`execute` | 直接交付模型 Final，不重新生成正文或评审结论；保留权限和版本一致性校验 |
+| AgentAnswerFinalizer / InteractionOrchestrationService | `finishWithDecision`、`chat` | 已交付 Final 不再要求 action=PUBLISH，不调用语义 reviewer；v2 正文及其引用不经过旧文本清洗 |
+| AnalysisCoverageCoordinator / AnalysisSummaryGovernanceCoordinator | `analyze`、`finalizeSummary` | 既有摘要与证据元数据贯通 modelOutput，不复制内容语义裁决逻辑 |
+| DefaultAnalysisWorkflowRuntime | `continueModelDirected`、`archive` | 通用链按模型 Final 交付并归档其声明，证据缺口不阻止交付 |
+| AgentTaskService | `compileExecutionResult`、`ExecutionResultContract.safeMetadata` | 保留模型内容类型与执行事实；不再将未声明 Final 的正文称为草稿 |
+| UserFacingContentSanitizer / UiArtifactService | `modelNativeContent`、`sanitizeUiResponse`、`externalizeIfNeeded`、`resource` | v2 正文来源在 UI 与资源 manifest 中贯通，授权资源读取保留模型引用 |
+| ConversationMemoryService / ConversationService | `responseMemoryContext`、`toMessage` | 保存模型内容声明来源，会话重读不再清洗 v2 原文 |
+| VisualizationPlanningNode / ReportVisualizationAudit | `execute`、`audit` | v2 无法绑定的图形保留为普通文本，不执行图形、不丢弃模型 payload；v1 兼容 |
 | JdbcRuntimeEvidenceStore | `readExecutionCheckpoint`、`readExecutionCheckpointLocked`、`cleanupUnreferencedExecutionPayloads` | 分块读取、替换及清理一致性；有界游标扫描和无引用分块回收 |
 | RuntimeExecutionCheckpointPort | `cleanupUnreferencedExecutionPayloads` | 可选默认维护方法，既有实现无需新增实现才能兼容 |
 | AgentRunRetentionScheduler | `cleanup` | 复用既有维护周期，不新增执行调度器 |

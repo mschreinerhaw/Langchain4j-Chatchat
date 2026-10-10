@@ -159,6 +159,10 @@ public class ConversationMemoryService {
         Map<String, Object> agent = safeMap(metadata.get("agent"));
         Map<String, Object> context = new LinkedHashMap<>();
         context.put("contractVersion", "conversation_memory_context_v1");
+        if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(agent)) {
+            copyIfPresent(context, agent, "modelAnalysisProtocol");
+            copyIfPresent(context, agent, "modelOutput");
+        }
         copyIfPresent(context, metadata, "handler");
         copyIfPresent(context, metadata, "skillId");
         copyIfPresent(context, metadata, "modelName");

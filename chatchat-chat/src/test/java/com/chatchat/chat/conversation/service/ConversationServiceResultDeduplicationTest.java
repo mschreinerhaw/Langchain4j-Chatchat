@@ -31,6 +31,18 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class ConversationServiceResultDeduplicationTest {
+    @Test void restoredModelNativeConversationKeepsTheModelTextAndItsProvenance() throws Exception {
+        var service=new ConversationService(mock(ChatSessionRepository.class),mock(ChatMessageIndexRepository.class),
+            mock(ConversationSummaryRepository.class),mock(ChatMessageDetailStore.class));
+        String text="Model final: `mcp_server_tool` [SQL-1], #chunk-2.";
+        var detail=ChatMessageDetail.builder().content(text).role("assistant").createdAt(Instant.now())
+            .memoryContext(Map.of("modelAnalysisProtocol","model_native_analysis.v2"))
+            .uiResponse(Map.of("modelAnalysisProtocol","model_native_analysis.v2","answer",text)).build();
+        var method=ConversationService.class.getDeclaredMethod("toMessage",ChatMessageDetail.class);method.setAccessible(true);
+        var projected=(Conversation.Message)method.invoke(service,detail);
+        assertThat(projected.getContent()).isEqualTo(text);
+        assertThat(projected.getUiResponse()).containsEntry("answer",text);
+    }
 
     @Test
     void keepsTheRicherOfTwoAdjacentEquivalentAssistantResults() {

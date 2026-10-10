@@ -46,9 +46,11 @@ public final class AnalysisSummaryGovernanceCoordinator {
         AnalysisSummaryResult result = protocol.finalResult(
             scope, request.stage(), request.content(), request.outcome(), coverage,
             request.synthesisInputs());
-        if (request.metadata() != null && request.metadata().containsKey("modelEvidenceAssessmentAudit")) {
+        if (request.metadata() != null && (request.metadata().containsKey("modelEvidenceAssessmentAudit")
+            || com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata()))) {
             Map<String, Object> evidence = new LinkedHashMap<>(result.evidence());
-            for (String key : List.of("modelEvidenceAssessmentAudit", "modelEvidenceAssessmentHistory", "analysisExecutionOutcome")) {
+            for (String key : List.of("modelEvidenceAssessmentAudit", "modelEvidenceAssessmentHistory", "analysisExecutionOutcome",
+                "modelAnalysisProtocol", "modelDecision", "modelOutput", "executionState", "executionStopReason")) {
                 if (request.metadata().containsKey(key)) evidence.put(key, request.metadata().get(key));
             }
             result = new AnalysisSummaryResult(result.schemaVersion(), result.resultId(), result.scope(),

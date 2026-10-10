@@ -122,7 +122,10 @@ public class InteractionOrchestrationService {
         }
 
         CapabilityWorkflowRuntime.projectOutcome(response);
-        response.setAnswer(UserFacingAnswerSanitizer.sanitize(response.getAnswer()));
+        boolean modelNativeV2 = response.getMetadata() != null
+            && response.getMetadata().get("agent") instanceof Map<?,?> agentMetadata
+            && com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.VERSION.equals(agentMetadata.get("modelAnalysisProtocol"));
+        if (!modelNativeV2) response.setAnswer(UserFacingAnswerSanitizer.sanitize(response.getAnswer()));
 
         if (response.getAnswer() != null && !response.getAnswer().isBlank()) {
             memoryService.append(

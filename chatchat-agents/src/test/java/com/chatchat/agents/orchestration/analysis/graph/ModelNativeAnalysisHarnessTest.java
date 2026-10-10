@@ -202,7 +202,7 @@ class ModelNativeAnalysisHarnessTest {
     @Test void v2BudgetExhaustionPreservesDraftAndContinueDecisionWithoutPublishing() {
         var model = mock(ChatModel.class); when(model.chat(anyString())).thenReturn(v2("CONTINUE", "Draft only", List.of()));
         var meta = new LinkedHashMap<String,Object>(); execute(1, sources(), model, meta);
-        assertThat(meta).containsEntry("modelNativeReportDraft", "Draft only").containsEntry("executionState", "STOPPED")
+        assertThat(meta).containsEntry("modelAnalysisOutput", "Draft only").containsEntry("executionState", "STOPPED")
             .containsEntry("executionStopReason", "RESOURCE_BUDGET_EXHAUSTED").containsEntry("publicationState", "NOT_REQUESTED");
         assertThat(((Map<?,?>)meta.get("modelDecision")).get("action")).isEqualTo("CONTINUE");
     }
@@ -226,7 +226,7 @@ class ModelNativeAnalysisHarnessTest {
             var model = mock(ChatModel.class); var meta = new LinkedHashMap<String,Object>();
             when(model.chat(anyString())).thenReturn(v2("CONTINUE", "Retained draft", List.of())).thenThrow(failure);
             assertThatThrownBy(() -> execute(3, sources(), model, meta)).isSameAs(failure);
-            assertThat(meta).containsEntry("modelNativeReportDraft", "Retained draft").containsEntry("publicationState", "NOT_REQUESTED")
+            assertThat(meta).containsEntry("modelAnalysisOutput", "Retained draft").containsEntry("publicationState", "NOT_REQUESTED")
                 .containsEntry("executionState", "STOPPED").containsEntry("executionStopReason",
                     failure instanceof com.chatchat.agents.orchestration.model.AgentDeadlineExceededException ? "TIMEOUT" : "CANCELLED");
             assertThat(((Map<?,?>)meta.get("modelDecision")).get("action")).isEqualTo("CONTINUE");
@@ -240,6 +240,28 @@ class ModelNativeAnalysisHarnessTest {
         assertThatThrownBy(() -> execute(3, sources(), model, meta)).isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("does not match");
         assertThat(meta).containsEntry("publicationState", "REJECTED").containsEntry("executionStopReason", "GOVERNANCE_REJECTION");
+    }
+
+    @Test void modelDeclaresContentTypeIndependentlyOfCompletionAndPublicationActions() {
+        for (String type : List.of("final", "draft", "intermediate")) {
+            var model = mock(ChatModel.class);
+            when(model.chat(anyString())).thenReturn(ModelProtocolJson.compact(Map.of(
+                "schemaVersion", "model_native_analysis.v2", "decision", Map.of("action", "PARTIAL_COMPLETE"),
+                "output_type", type, "content", "Limited model response",
+                "evidenceAssessment", Map.of("evidenceStatus", "PARTIAL", "missingEvidence", List.of("chunk2")))));
+            var metadata = new LinkedHashMap<String,Object>(); execute(3, sources(), model, metadata);
+            assertThat(metadata).containsEntry("modelAnalysisOutput", "Limited model response").doesNotContainKey("modelNativeReportDraft");
+            assertThat(((Map<?,?>)metadata.get("modelOutput")).get("type")).isEqualTo(type.toUpperCase(java.util.Locale.ROOT));
+            assertThat(metadata.get("publicationState")).isEqualTo(type.equals("final") ? "REQUESTED" : "NOT_REQUESTED");
+            assertThat(((Map<?,?>)metadata.get("modelDecision")).get("action")).isEqualTo("PARTIAL_COMPLETE");
+            verify(model).chat(anyString());
+        }
+    }
+    @Test void budgetStopDoesNotClassifyUndeclaredContentAsDraftOrFinal() {
+        var model=mock(ChatModel.class); when(model.chat(anyString())).thenReturn(v2("CONTINUE", "Saved output", List.of()));
+        var metadata=new LinkedHashMap<String,Object>(); execute(1, sources(), model, metadata);
+        assertThat(((Map<?,?>)metadata.get("modelOutput")).get("type")).isEqualTo("UNDECLARED");
+        assertThat(metadata).containsEntry("executionStopReason", "RESOURCE_BUDGET_EXHAUSTED");
     }
 
 }

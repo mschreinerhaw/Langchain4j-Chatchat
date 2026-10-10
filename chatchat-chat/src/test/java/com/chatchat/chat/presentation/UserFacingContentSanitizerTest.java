@@ -9,6 +9,14 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class UserFacingContentSanitizerTest {
+    @Test void modelNativeProvenancePreservesCitationsAndCodeBlocksWithoutChangingLegacyCleanup() {
+        String text="Source `mcp_server_tool` [SQL-1], #chunk-2.\n```text\nLiteral payload\n```";
+        var nativeResponse=Map.<String,Object>of("modelAnalysisProtocol","model_native_analysis.v2","answer",text,
+            "answerBlocks",List.of(Map.of("content",text)));
+        assertThat(UserFacingContentSanitizer.sanitizeUiResponse(nativeResponse)).isEqualTo(nativeResponse);
+        assertThat(UserFacingContentSanitizer.removeInternalEvidenceMarkers(text,nativeResponse)).isEqualTo(text);
+        assertThat(UserFacingContentSanitizer.removeInternalEvidenceMarkers(text)).doesNotContain("mcp_server_tool","#chunk-2");
+    }
 
     @Test
     @SuppressWarnings("unchecked")

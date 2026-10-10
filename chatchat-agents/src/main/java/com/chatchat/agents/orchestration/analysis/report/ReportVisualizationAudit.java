@@ -23,6 +23,9 @@ public final class ReportVisualizationAudit {
     }
 
     public Result audit(String markdown, VerifiedReportDataCatalog catalog) {
+        return audit(markdown, catalog, false);
+    }
+    public Result audit(String markdown, VerifiedReportDataCatalog catalog, boolean preserveRejectedText) {
         if (markdown == null) return new Result("", List.of());
         StringBuilder result = new StringBuilder();
         List<Map<String, Object>> checks = new ArrayList<>();
@@ -67,7 +70,11 @@ public final class ReportVisualizationAudit {
                     i--;
                     continue;
                 }
-                // Invalid model-authored visualizations are withheld and recorded as audit metadata.
+                if (preserveRejectedText) {
+                    result.append(marker).append("text\n");
+                    for (int line = i + 1; line <= end; line++) result.append(lines[line]);
+                }
+                // Invalid executable visualizations are withheld and recorded as audit metadata.
                 // Runtime must not replace them with prose or a generated data table inside the report body.
                 if (checks.size() < 12) checks.add(Map.of("status", "REJECTED", "reason",
                     invalid instanceof IllegalArgumentException ? String.valueOf(invalid.getMessage()) : "INVALID_VISUALIZATION_JSON"));

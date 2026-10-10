@@ -17,6 +17,17 @@ public final class UserFacingContentSanitizer {
     private UserFacingContentSanitizer() {
     }
 
+    public static boolean modelNativeContent(Map<?,?> context) {
+        if (context == null) return false;
+        String version = com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.VERSION;
+        return version.equals(context.get("modelAnalysisProtocol"))
+            || context.get("agent") instanceof Map<?,?> agent && version.equals(agent.get("modelAnalysisProtocol"));
+    }
+
+    public static String removeInternalEvidenceMarkers(String value, Map<?,?> context) {
+        return modelNativeContent(context) ? (value == null ? "" : value) : removeInternalEvidenceMarkers(value);
+    }
+
     public static String removeInternalEvidenceMarkers(String value) {
         if (value == null || value.isBlank()) {
             return "";
@@ -32,6 +43,7 @@ public final class UserFacingContentSanitizer {
             return Map.of();
         }
         Map<String, Object> sanitized = new LinkedHashMap<>(uiResponse);
+        if (modelNativeContent(uiResponse)) return sanitized;
         for (String field : new String[] {"answer", "reportHtml", "answerHtml", "htmlContent"}) {
             Object value = sanitized.get(field);
             if (value instanceof String text) {

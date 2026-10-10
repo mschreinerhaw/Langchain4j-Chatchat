@@ -96,7 +96,7 @@ class AnalysisCoverageCoordinatorTest {
         Map<String, Object> exclusion = Map.of(
             "datasetReference", "empty-source",
             "accountingStatus", "EXCLUDED",
-            "reason", "NO_NON_EMPTY_STRUCTURED_RECORDS");
+            "reason", "NO_PROJECTED_CONTENT");
         AnalysisEvidenceCoordinator evidence = mock(AnalysisEvidenceCoordinator.class);
         when(evidence.project(any(), any())).thenReturn(
             new AnalysisEvidenceCoordinator.Projection(List.of(), List.of(exclusion)));
@@ -142,6 +142,22 @@ class AnalysisCoverageCoordinatorTest {
             mock(AgentRunResultAdapter.class), "agentRunId", evidence,
             AnalysisEvidenceSpillStore.disabled(),
             new AnalysisCoverageCoordinator.Configuration(8));
+    }
+
+    @Test
+    void failureObservationDescribesExecutionFailureRatherThanContentFormat() {
+        var evidence = mock(AnalysisEvidenceCoordinator.class);
+        when(evidence.project(any(), any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(),
+            List.of(Map.of("datasetReference", "opaque", "accountingStatus", "FAILED",
+                "reason", "SOURCE_EXECUTION_FAILED", "executionStatus", "FAILED", "error", "SSH timeout"))));
+        var adapter = mock(AgentRunResultAdapter.class);
+        new AnalysisCoverageCoordinator(adapter, "agentRunId", evidence, AnalysisEvidenceSpillStore.disabled(),
+            new AnalysisCoverageCoordinator.Configuration(8)).analyze(request(new LinkedHashMap<>()));
+        var text = org.mockito.ArgumentCaptor.forClass(String.class);
+        org.mockito.Mockito.verify(adapter).recordRuntimeObservation(any(), org.mockito.ArgumentMatchers.eq("agentRunId"),
+            text.capture(), org.mockito.ArgumentMatchers.eq("analysis_summary_governance"), any());
+        assertThat(text.getValue()).contains("SOURCE_EXECUTION_FAILED", "FAILED", "SSH timeout")
+            .doesNotContain("结构化", "未返回");
     }
 
     private AnalysisCoverageCoordinator.Request request(Map<String, Object> metadata) {

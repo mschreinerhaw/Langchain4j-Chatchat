@@ -146,7 +146,7 @@ class AnalysisEvidenceCoordinatorTest {
             assertThat(excluded)
                 .containsEntry("datasetReference", "runtime_empty_source")
                 .containsEntry("accountingStatus", "EXCLUDED")
-                .containsEntry("reason", "NO_NON_EMPTY_STRUCTURED_RECORDS"));
+                .containsEntry("reason", "NO_PROJECTED_CONTENT"));
     }
 
     @Test
@@ -184,6 +184,10 @@ class AnalysisEvidenceCoordinatorTest {
     }
 
     private AnalysisEvidenceCoordinator coordinator(ToolRegistry registry) {
+        return coordinator(registry, null);
+    }
+
+    private AnalysisEvidenceCoordinator coordinator(ToolRegistry registry, RuntimeResultAnalysisProtocol bridge) {
         RuntimeAnalysisContextProtocol context = mock(RuntimeAnalysisContextProtocol.class);
         when(context.adapt(anyString(), any(), any())).thenReturn(Map.of());
         when(context.adaptDataset(any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -195,7 +199,25 @@ class AnalysisEvidenceCoordinatorTest {
             .thenAnswer(invocation -> invocation.getArgument(0));
         return new AnalysisEvidenceCoordinator(registry, toolRuntime,
             new StructuredDataProjector(), new AnalysisRecordChunkPlanner(new ObjectMapper()), 20_000,
-            context, result, SemanticInsightContractProvider.disabled());
+            context, bridge == null ? result : bridge, SemanticInsightContractProvider.disabled());
+    }
+
+    @Test
+    void admitsPlainTextBodyAndCommandStreamsThroughTheRealProtocolRegistry() {
+        var coordinator = coordinator(mock(ToolRegistry.class),
+            new com.chatchat.agents.runtime.analysis.McpResultAnalysisBridge());
+        String text = "load average: 0.01\n内存观测值，不预判是否足够\n";
+        for (Object payload : List.of(text, Map.of(
+            "schemaVersion", com.chatchat.common.mcp.runtime.McpAnalysisPayload.SCHEMA_VERSION,
+            "data", Map.of("body", text)), Map.of("dataSchema", "ssh_steps.v1",
+                "data", Map.of("stdout", text)))) {
+            var projection = coordinator.project(result(step("opaque_source", payload)));
+            assertThat(projection.excludedDatasets()).isEmpty();
+            assertThat(projection.datasets()).singleElement().satisfies(dataset -> {
+                assertThat(dataset.reference()).startsWith("opaque_source#");
+                assertThat(dataset.records()).extracting(record -> record.get("content")).containsExactly(text);
+            });
+        }
     }
 
     private InterpretationPlanRuntime.StepExecution step(String toolName, Object output) {

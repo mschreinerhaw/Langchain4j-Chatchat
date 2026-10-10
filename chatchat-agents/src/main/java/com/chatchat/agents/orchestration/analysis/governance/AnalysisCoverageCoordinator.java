@@ -49,7 +49,9 @@ public final class AnalysisCoverageCoordinator {
         request.metadata().put("analysisObservedReturnedRecordCount", datasets.stream().mapToLong(AnalysisEvidenceCoordinator.Dataset::recordCount).sum());
         writeExcludedMetadata(request.metadata(), projection.excludedDatasets());
         projection.excludedDatasets().forEach(excluded -> observe(request,
-            "数据集未进入分析：" + excluded.get("datasetReference") + "（未返回非空结构化记录）。",
+            "证据入口记录：" + excluded.get("datasetReference") + "（reason="
+                + excluded.get("reason") + ", executionStatus=" + excluded.get("executionStatus")
+                + (excluded.get("error") == null ? "" : ", error=" + excluded.get("error")) + "）。",
             "analysis_summary_governance", metadataOf(
                 "type", "analysis_dataset_excluded", "exclusion", excluded)));
         if (datasets.isEmpty() && !com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata())) {

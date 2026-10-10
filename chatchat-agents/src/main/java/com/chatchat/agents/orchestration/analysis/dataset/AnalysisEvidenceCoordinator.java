@@ -124,7 +124,8 @@ public final class AnalysisEvidenceCoordinator {
                     if (!"SUCCESS".equalsIgnoreCase(child.status())) {
                         excluded.add(metadataOf("datasetReference", reference,
                             "toolName", child.toolName(), "reason", "SOURCE_EXECUTION_FAILED",
-                            "accountingStatus", "FAILED", "executionStatus", child.status()));
+                            "accountingStatus", "FAILED", "executionStatus", child.status(),
+                            "error", child.error()));
                         continue;
                     }
                     if (!child.evidenceUsable()) {
@@ -137,7 +138,7 @@ public final class AnalysisEvidenceCoordinator {
                         child.output(), reference, toolMetadata(child.toolName()));
                     if (childDatasets.isEmpty()) {
                         excluded.add(metadataOf("datasetReference", reference,
-                            "toolName", child.toolName(), "reason", "NO_NON_EMPTY_STRUCTURED_RECORDS",
+                            "toolName", child.toolName(), "reason", "NO_PROJECTED_CONTENT",
                             "accountingStatus", "EXCLUDED", "executionStatus", child.status()));
                     } else {
                         datasets.addAll(withTemplateRequirementMatch(childDatasets,
@@ -153,7 +154,7 @@ public final class AnalysisEvidenceCoordinator {
                 null, templateMatches);
             if (stepDatasets.isEmpty()) {
                 excluded.add(metadataOf("datasetReference", stepReference,
-                    "toolName", step.toolName(), "reason", "NO_NON_EMPTY_STRUCTURED_RECORDS",
+                    "toolName", step.toolName(), "reason", "NO_PROJECTED_CONTENT",
                     "accountingStatus", "EXCLUDED", "executionStatus", "SUCCESS"));
             } else {
                 datasets.addAll(stepDatasets);

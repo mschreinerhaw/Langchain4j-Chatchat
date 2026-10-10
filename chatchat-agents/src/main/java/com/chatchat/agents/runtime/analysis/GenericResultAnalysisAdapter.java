@@ -33,7 +33,8 @@ final class GenericResultAnalysisAdapter implements RuntimeResultAnalysisAdapter
 
     @Override
     public AnalysisResult adapt(AnalysisRequest request) {
-        String content = ModelProtocolJson.compact(request.payload());
+        String content = request.payload() instanceof CharSequence text ? text.toString()
+            : ModelProtocolJson.compact(request.payload());
         if (content.isBlank()) {
             return new AnalysisResult(sourceSchema(request.payload()),
                 "GENERIC_RUNTIME_RESULT", List.of());
@@ -56,6 +57,7 @@ final class GenericResultAnalysisAdapter implements RuntimeResultAnalysisAdapter
             Map.of(
                 "contentType", contentType(request.payload()),
                 "projectionMode", "LOSSLESS_FALLBACK",
+                "recordMeaning", "CONTENT_CHUNK_NOT_BUSINESS_ROW",
                 "analysisPolicy", Map.of("mode", "PRESERVE_ONLY")),
             records);
         return new AnalysisResult(sourceSchema(request.payload()),

@@ -104,6 +104,19 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
         }
         List<AnalysisDataset> datasets = toDatasets(
             request.datasetReference(), candidates, source, merge(analysisContext(governedData), contractContext));
+        if (datasets.isEmpty() && governedBodyPresent) {
+            List<Candidate> bodies = new ArrayList<>();
+            findBodies(normalizeJson(governedData), "$.data", 0, bodies);
+            List<AnalysisDataset> textBodies = new ArrayList<>();
+            for (Candidate body : bodies) {
+                if (!(body.value() instanceof String text) || text.isBlank()) continue;
+                textBodies.add(payloadDataset(request, text,
+                    request.datasetReference() + "#" + body.path(),
+                    Map.of("projectionMode", "CANONICAL_MCP_TEXT", "canonicalPath", body.path(),
+                        "contentType", "text/plain", "recordMeaning", "CONTENT_CHUNK_NOT_BUSINESS_ROW")));
+            }
+            datasets = List.copyOf(textBodies);
+        }
         if (datasets.isEmpty() && governedData != null && !governedBodyPresent) {
             datasets = List.of(canonicalPayloadDataset(request, governedData));
         }
@@ -341,7 +354,18 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
     }
 
     private AnalysisDataset canonicalPayloadDataset(AnalysisRequest request, Object governedData) {
-        String content = ModelProtocolJson.compact(governedData);
+        String content = governedData instanceof String text ? text : ModelProtocolJson.compact(governedData);
+        return payloadDataset(request, content, request.datasetReference() + "#payload", Map.of(
+            "projectionMode", "CANONICAL_MCP_PAYLOAD", "source", "governed_data",
+            "recordMeaning", "CONTENT_CHUNK_NOT_BUSINESS_ROW",
+            "contentType", governedData instanceof String ? "text/plain" : "application/json",
+            "analysisPolicy", Map.of("mode", "PRESERVE_ONLY")));
+    }
+
+    private AnalysisDataset payloadDataset(AnalysisRequest request, String content,
+                                          String reference, Map<String, Object> context) {
+        boolean sourceComplete = !Boolean.FALSE.equals(
+            map(map(request.payload()).get("completeness")).get("complete"));
         int chunkChars = Math.max(1_000, request.maximumRecordChars());
         List<Map<String, Object>> records = new ArrayList<>();
         for (int from = 0, index = 1; from < content.length(); from += chunkChars, index++) {
@@ -350,13 +374,10 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
                 "chunkIndex", index,
                 "fromChar", from,
                 "toChar", to,
-                "sourceComplete", true,
+                "sourceComplete", sourceComplete,
                 "content", content.substring(from, to)));
         }
-        return new AnalysisDataset(request.datasetReference() + "#payload", Map.of(
-            "projectionMode", "CANONICAL_MCP_PAYLOAD",
-            "source", "governed_data",
-            "analysisPolicy", Map.of("mode", "PRESERVE_ONLY")), records);
+        return new AnalysisDataset(reference, context, records);
     }
 
     private Map<String, Object> analysisContext(Object governedData) {

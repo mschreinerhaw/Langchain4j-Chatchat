@@ -13,6 +13,34 @@ import static org.assertj.core.api.Assertions.assertThat;
 class McpAnalysisPayloadResultAnalysisAdapterTest {
 
     @Test
+    void preservesTextBodyAndItsCanonicalPathWithoutUsingRawMirror() {
+        String text = "观测值\n".repeat(700);
+        var result = new McpAnalysisPayloadResultAnalysisAdapter().adapt(new AnalysisRequest("opaque",
+            Map.of("schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,
+                "completeness", Map.of("complete", false),
+                "data", Map.of("body", text), "rawData", Map.of("body", "incorrect mirror")), 1000));
+        assertThat(result.datasets()).singleElement().satisfies(dataset -> {
+            assertThat(dataset.analysisContext()).containsEntry("canonicalPath", "$.data.body")
+                .containsEntry("contentType", "text/plain")
+                .containsEntry("recordMeaning", "CONTENT_CHUNK_NOT_BUSINESS_ROW")
+                .containsEntry("completeness", Map.of("complete", false));
+            assertThat(dataset.records().stream().map(row -> (String) row.get("content"))
+                .collect(java.util.stream.Collectors.joining())).isEqualTo(text);
+            assertThat(dataset.records()).allSatisfy(row -> assertThat(row.get("sourceComplete")).isEqualTo(false));
+        });
+    }
+
+    @Test
+    void emptyCanonicalBodyDoesNotResurrectRawMirror() {
+        for (Object body : List.of("", "   ", List.of())) {
+            var result = new McpAnalysisPayloadResultAnalysisAdapter().adapt(new AnalysisRequest("opaque",
+                Map.of("schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,
+                    "data", Map.of("body", body), "rawData", Map.of("rows", List.of(Map.of("stale", 1)))), 1000));
+            assertThat(result.datasets()).isEmpty();
+        }
+    }
+
+    @Test
     void undeclaredDocumentEvidenceProjectsChunksInsteadOfTransportJson() {
         Map<String, Object> payload = Map.of(
             "schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,

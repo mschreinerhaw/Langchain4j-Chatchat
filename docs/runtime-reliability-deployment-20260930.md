@@ -96,3 +96,17 @@ Chrome 实测 Final 与 Draft 内容声明节点，最终场景 23 个节点，�
 最终相关后端 18 个测试类 171 项通过，Maven package 返回 0；前端 27 个文件 263 项通过、构建通过。新增覆盖 Final 无需 PUBLISH、声明 Draft 不被升级、预算停止不定义内容类型、证据缺口不阻断 Final、权限及版本绑定仍阻断、正文引用在任务/会话/资源间保留、非法图表不执行且保留模型内容。扩展检查中的旧 `reviewerTimeoutUsesConfiguredModelTimeout` 仍约 5 秒而断言要求小于 3 秒，未修复或放宽；本次 v2 交付不调用该 reviewer。此前 ToolRuntimeServiceTest 的 16 项既有失败仍未被宣称解决。
 
 WAIT 自动恢复、动态 Skill 发现、长任务持续探索及进程重启后自动继续仍未实现。本轮没有新增 Planner、Agent、探索图存储或业务结论审核器，也没有将内容类型与业务正确性绑定。
+
+## 2026-10-10：非结构化证据入口与失败原因纠正
+
+用户报告 `CHECK_SYSTEM_OVERVIEW#template-binding-8-schema-completed-8` 被描述为“未返回非空结构化记录”。实际读取线上运行 `att-1-ff468850-bec1-460b-be6f-c130f2f5dd1f`，该调用状态为 FAILED，错误为 SSH 操作 10000ms 超时，规范 envelope 的 data 为 null。此前 AnalysisCoverageCoordinator 对全部投影排除原因使用同一句结构化记录提示，混淆了执行失败与数据格式；这不是已证实存在可分析 stdout 却被该次调用丢弃的证据。
+
+修正 AnalysisCoverageCoordinator.analyze 的观察文本，显示实际 reason、executionStatus 及已有 error；AnalysisEvidenceCoordinator.project 对批次保留错误详情，无投影内容记为 NO_PROJECTED_CONTENT，不再将格式当作排除依据。现有 metadata 结构、v1/v2 模型意图与发布行为兼容，新增 reason 值仅描述投影事实；源码消费者没有按旧 reason 字符串分支。
+
+同时修复 McpAnalysisPayloadResultAnalysisAdapter.adapt：规范 data 中存在纯文本 body 但没有对象记录集合时，保留文本证据、canonicalPath、contentType、分块及原始字符偏移，禁止从 rawData 镜像替换规范 body。来源明确 complete=false 时内容块同步保留该事实。GenericResultAnalysisAdapter.adapt 保留纯文本原文，避免 JSON 字符串转义改变 READ_TEXT 内容；内容块记录标记 CONTENT_CHUNK_NOT_BUSINESS_ROW。仍复用现有 DatasetHandle、Evidence Bundle 和 Harness READ_TEXT，没有新增 Agent、业务阈值或结论裁判。
+
+相关 5 类测试共 54 项通过，Maven API package 返回 0，git diff --check 通过。覆盖真实协议 registry 的纯文本、MCP body、命令 stdout 进入投影，长文本可无损拼接，空 body 不复活 rawData 镜像，执行失败观察不声称缺少结构化数据，以及现有 Harness 回归。
+
+API 部署 SHA-256 为 `a671a02a1c5265c5de8dfc6b93195c5c45b17bda89c3cdbcb1a39064150b9734`，进程 PID `1698708`，回退包目录 `/opt/chatchat-deploy-backup/runtime-exploration-chatchat-20261010-173304`。部署前检查无活动 Task，字节增量重建与完整哈希校验通过；启动后登录成功，MCP 注册表恢复 30 个工具。MCP 服务及业务数据库配置未修改。历史观察保持原样，不回写既有审计记录。
+
+部署后真实只读任务 `8edd6cc6-96b8-3b51-a937-d4c23892dbf7`，运行 `att-1-3bfe6be5-35c7-4f11-bfae-cd6f6576d887`：模型动态发现主机模板，返回 20 份规范证据，CHECK_SYSTEM_OVERVIEW 调用 SUCCESS，stdout 为 2410 字符；投影 datasetCount=20、excludedDatasetCount=0。Harness 接受系统总览 READ_RECORDS 与内存 READ_TEXT，并继续自主读取；最终模型选择 COMPLETE、显式 output_type=final，任务 SUCCESS、publicationState=DELIVERED，回答 1697 字符。正文模型版本哈希 `d7c0ac3d5cd1aa73ac5ca0163f8ffe534959459b09ae916f3a5261f19324453a`，证据快照 `d1affc94ce2f64cfa8f9d568399a2824ecf511fd5d0f8f549cfd432ed2b7e9c0`。期间一次 Invalid JSON turn protocol 经现有恢复机制后继续；不把该协议错误等同于业务分析失败。原始记录保存在忽略目录 target/codex-live，不提交原始主机数据或会话凭据。

@@ -8,6 +8,17 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DiscoveryQueryPlanTest {
+    @Test void explicitKeywordsExcludeTaskInstructionsFromEveryQueryUnit() {
+        String task = "Read only; read all available chunks; output evidenceAssessment with field references.";
+        var plan = DiscoveryQueryPlan.from(Map.of("goal", task, "intent", task, "query", task,
+            "queryTerms", List.of("LiveData测试库_223", "InnoDB", "transactions"), "env", "DEV"));
+        assertThat(plan.queries()).containsExactly("livedata测试库 223", "innodb", "transactions");
+        assertThat(plan.queries()).doesNotContain(task, "DEV");
+    }
+    @Test void legacyShortIntentRemainsSearchableWithoutExplicitKeywords() {
+        assertThat(DiscoveryQueryPlan.from(Map.of("intent", "InnoDB status", "assetName", "db1")).queries())
+            .containsExactly("db1", "innodb status");
+    }
 
     @Test
     void keepsEveryAnalyzedKeywordAsAnIndependentTraceableQueryUnit() {

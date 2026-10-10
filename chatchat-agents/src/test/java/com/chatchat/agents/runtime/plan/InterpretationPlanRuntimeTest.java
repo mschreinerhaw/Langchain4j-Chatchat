@@ -5332,7 +5332,7 @@ class InterpretationPlanRuntimeTest {
             .doesNotContainKey("assetName")
             .containsEntry("intent", "test_mysql\u6570\u636e\u5e93 connections")
             .containsEntry("goal", "test_mysql\u6570\u636e\u5e93 connections");
-        assertThat((List<String>) filters.get("queryTerms")).containsExactly("test_mysql\u6570\u636e\u5e93 connections");
+        assertThat(filters).doesNotContainKey("queryTerms");
         assertThat(resolved.get("trace")).isInstanceOf(Map.class);
     }
 
@@ -5400,7 +5400,7 @@ class InterpretationPlanRuntimeTest {
             .doesNotContainKeys("env", "environment")
             .containsEntry("intent", userQuery)
             .containsEntry("goal", userQuery);
-        assertThat((List<String>) filters.get("queryTerms")).containsExactly(userQuery);
+        assertThat(filters).doesNotContainKey("queryTerms");
     }
 
     @Test
@@ -5640,7 +5640,7 @@ class InterpretationPlanRuntimeTest {
             .doesNotContainKey("assetName")
             .containsEntry("intent", "分析 MySQL服务器 管理进程信息")
             .containsEntry("goal", "分析 MySQL服务器 管理进程信息");
-        assertThat((List<String>) filters.get("queryTerms")).containsExactly("分析 MySQL服务器 管理进程信息");
+        assertThat(filters).doesNotContainKey("queryTerms");
         assertThat(resolved.get("trace")).isInstanceOf(Map.class);
     }
 

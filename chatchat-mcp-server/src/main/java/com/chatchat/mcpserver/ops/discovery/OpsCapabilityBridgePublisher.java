@@ -87,13 +87,17 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
 
     private McpServerFeatures.SyncToolSpecification specification(Domain domain) {
         Map<String, Object> properties = new LinkedHashMap<>();
-        properties.put("query", Map.of("type", "string", "description", "Complete " + domain.title() + " request"));
+        properties.put("query", Map.of("type", "string", "description",
+            "Concise search keywords or a short capability phrase; never the full task or report instructions. "
+                + "For multiple concepts use filters.queryTerms as independent retrieval units."));
         properties.put("stage", Map.of("type", "string",
             "enum", domain.assetDiscoverySupported() ? List.of("template", "asset") : List.of("template"),
             "description", "template by default" + (domain.assetDiscoverySupported()
                 ? "; use asset only to disambiguate a logical target" : "")));
         properties.put("filters", Map.of("type", "object", "additionalProperties", true,
-            "description", "Logical domain filters only; concrete endpoints and credentials are forbidden"));
+            "description", "Logical domain filters; queryTerms/keywords are concise independent search units. "
+                + "Task context in goal/intent is not searched when explicit units are provided. "
+                + "Concrete endpoints and credentials are forbidden"));
         properties.put("templateIds", Map.of("type", "array", "items", Map.of("type", "string")));
         properties.put("limit", Map.of("type", "integer", "minimum", 1, "maximum", 20));
         McpSchema.Tool tool = McpSchema.Tool.builder()
@@ -136,7 +140,9 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
         normalized.remove("assetType");
         Map<String, Object> filters = map(arguments.get("filters"));
         String query = text(arguments.get("query"));
-        if (query != null) filters.putIfAbsent("intent", query);
+        if (query != null) {
+            filters.putIfAbsent("intent", query);
+        }
         normalized.put("filters", filters);
         normalized.put("assetType", domain.assetType());
         normalized.put("finalDecision", domain.targetKind());
@@ -180,6 +186,9 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
                 return result;
             }
         }
+        // Preserve the model's capability phrase after identity-only asset pre-resolution.
+        // Existing independent search units remain authoritative.
+        if (query != null) filters.putIfAbsent("queryTerms", List.of(query));
         Map<String, Object> discovered;
         if (!childToolName.isBlank()) {
             discovered = requireDynamicTemplateQueries().queryFromParent(
@@ -418,6 +427,17 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
         meta.put("readOnly", true);
         meta.put("bridgeManaged", true);
         meta.put("executionTool", domain.executionTool());
+        meta.put("modelInputBridgeContract", Map.of(
+            "contractVersion", "model_assisted_retrieval.v1", "mode", "DISCOVERY_QUERY_PROFILE",
+            "contextPaths", List.of("query", "filters.intent", "filters.goal", "filters.queryTerms", "filters.keywords"),
+            "allowedArgumentPaths", List.of("query", "filters.queryTerms", "filters.keywords", "filters.retrievalSignals", "filters.intent", "filters.goal"),
+            "mergeModes", Map.of("query", "replace", "filters.queryTerms", "replace", "filters.keywords", "replace",
+                "filters.retrievalSignals", "replace", "filters.intent", "replace", "filters.goal", "replace"),
+            "guidance", "The model selects concise search units for published asset/template discovery. "
+                + "Return query and filters.queryTerms; replace any task-sized intent, goal, keywords or retrievalSignals "
+                + "with short retrieval phrases. Preserve exact names from evidence without inventing routing identities. "
+                + "Exclude execution constraints, output formats and report/evidence-assessment instructions. "
+                + "Do not answer the analysis question. No retrieval quality gate applies."));
         meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
             ToolWorkflowRole.TEMPLATE_DISCOVERY, domain.workflowFamily(), "intent+filters"));
         meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(

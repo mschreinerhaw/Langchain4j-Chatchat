@@ -18,6 +18,41 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class ModelAssistedRetrievalBridgeTest {
+    @Test void appliesModelSearchTermsReturnedAsDeclaredDottedPaths() {
+        var registry = registry("capability_query", contract("DISCOVERY_QUERY_PROFILE",
+            List.of("query"), List.of("query", "filters.queryTerms"), Map.of()));
+        var model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn("""
+            {"arguments":{"query":"engine status","filters.queryTerms":["engine","transactions"],"filters.env":"PROD"}}
+            """);
+        var result = new ModelAssistedRetrievalBridge(registry, new ObjectMapper()).enrich(model, "capability_query",
+            Map.of("query", "Inspect engine state with a detailed report", "filters", Map.of("env", "DEV")));
+        assertThat((Map<?, ?>) result.get("filters"))
+            .isEqualTo(Map.of("env", "DEV", "queryTerms", List.of("engine", "transactions")));
+    }
+
+    @Test void modelExtractsSearchUnitsFromTaskContextWithoutChangingEnvironment() {
+        var registry = registry("capability_query", contract("DISCOVERY_QUERY_PROFILE",
+            List.of("query", "filters.intent"), List.of("query", "filters.queryTerms", "filters.intent"), Map.of()));
+        var model = mock(ChatModel.class);
+        String task = "Read only, inspect the current engine state, list variables and include field references.";
+        when(model.chat(anyString())).thenAnswer(call -> {
+            assertThat((String) call.getArgument(0)).contains(task, "runtime.userQuery", "concise search keywords");
+            return """
+                {"arguments":{"query":"InnoDB","filters":{"queryTerms":["LiveData测试库_223","InnoDB","transactions"],
+                "intent":"InnoDB diagnostics","env":"PROD","assetName":"invented"}}}
+                """;
+        });
+        var result = new ModelAssistedRetrievalBridge(registry, new ObjectMapper()).enrichWithGate(model, "capability_query",
+            Map.of("query", task, "filters", Map.of("env", "DEV", "intent", task, "queryTerms", List.of(task))),
+            new ModelAssistedRetrievalBridge.RetrievalEvidenceContext(task, Map.of()));
+        assertThat(result.arguments().get("query")).isEqualTo("InnoDB");
+        var filters = (Map<?, ?>) result.arguments().get("filters");
+        assertThat(filters.get("env")).isEqualTo("DEV");
+        assertThat(filters.get("queryTerms")).isEqualTo(List.of("LiveData测试库_223", "InnoDB", "transactions"));
+        assertThat(filters.containsKey("assetName")).isFalse();
+        assertThat(result.qualityGate()).isEmpty();
+    }
 
     @Test
     @SuppressWarnings("unchecked")

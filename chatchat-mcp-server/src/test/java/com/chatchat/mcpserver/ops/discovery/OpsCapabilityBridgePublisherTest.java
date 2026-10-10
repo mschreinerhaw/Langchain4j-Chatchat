@@ -59,10 +59,12 @@ class OpsCapabilityBridgePublisherTest {
         Map<String, Object> result = publisher.query(
             OpsCapabilityBridgePublisher.SERVER_QUERY_TOOL,
             Map.of("query", "inspect two independent capabilities", "limit", 3,
-                "filters", Map.of("assetName", "known-host")));
+                "filters", Map.of("assetName", "known-host", "intent", "Full task context; include a detailed report")));
 
         verify(discovery).query(argThat(query ->
-            Integer.valueOf(CommandTemplateDiscoveryService.MAX_LIMIT).equals(query.get("limit"))));
+            Integer.valueOf(CommandTemplateDiscoveryService.MAX_LIMIT).equals(query.get("limit"))
+                && java.util.List.of("inspect two independent capabilities")
+                    .equals(((Map<?, ?>) query.get("filters")).get("queryTerms"))));
         assertThat(result.get("candidateWindowPolicy").toString())
             .contains("FULL_BOUNDED_REVIEW_WINDOW", "runtimeOwned=true");
     }

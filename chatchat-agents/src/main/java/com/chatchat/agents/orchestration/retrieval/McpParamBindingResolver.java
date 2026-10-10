@@ -522,7 +522,8 @@ public class McpParamBindingResolver {
             rawCandidates = firstPresent(values, "intentCandidates", "intent_candidates");
         }
         List<String> selectedIntentTerms = selectedIntentTerms(rawCandidates);
-        List<String> queryTerms = mergeTerms(filters.get("queryTerms"), selectedIntentTerms, userQuery);
+        // Task text remains model context; only model-selected retrieval units belong here.
+        List<String> queryTerms = mergeTerms(filters.get("queryTerms"), filters.get("keywords"), selectedIntentTerms);
         if (!queryTerms.isEmpty()) {
             filters.put("queryTerms", queryTerms);
         }
@@ -533,9 +534,9 @@ public class McpParamBindingResolver {
         if (rawCandidates instanceof List<?> candidates && !candidates.isEmpty()
             && !filters.containsKey("intentScoring")) {
             filters.put("intentScoring", Map.of(
-                "strategy", "threshold_intent_ensemble_plus_original_query",
+                "strategy", "threshold_intent_ensemble",
                 "threshold", INTENT_RETRIEVAL_THRESHOLD,
-                "fallback", "original_query_only_when_no_candidate_reaches_threshold",
+                "fallback", "model_supplied_search_terms_only",
                 "selectedTerms", selectedIntentTerms,
                 "candidateCount", candidates.size()
             ));

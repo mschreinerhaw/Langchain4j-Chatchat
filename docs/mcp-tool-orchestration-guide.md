@@ -843,7 +843,7 @@ final_answer 只能引用已完成 step 的 structuredContent
 不能把可能原因写成已确认事实
 ```
 > Intent Ensemble Retrieval contract: see `docs/intent-ensemble-retrieval-contract.md`.
-> Asset/template/document discovery must use `intentCandidates`, threshold selection (`score >= 0.75`), multi-query fields (`queries`, `expandedQueries`, `keywords`), original user question in `queryTerms/retrievalSignals`, and retrieval review. Natural-language aggregate phrases must not be written into `assetName` unless they are exact registered asset names or came from prior observations.
+> Asset/template discovery uses model-selected concise search units in `queryTerms/keywords`, with useful aliases and multi-query expansions. The full task stays in model context and execution trace; report instructions, execution constraints and analysis protocols must not become search keywords. Explicit search units take precedence over `intent/goal` context. Natural-language aggregate phrases must not be written into `assetName` unless they are exact registered names or came from prior observations.
 
 ## Agent Runtime Template DSL Contract
 

@@ -32,6 +32,10 @@ public final class DiscoveryQueryPlan {
         "queryTerms", "searchTerms", "bilingualIntent", "intentAliases", "aliases",
         "keywords", "retrievalSignals"
     );
+    private static final List<String> CONTEXT_KEYS = List.of("intent", "goal", "query", "q");
+    private static final List<String> SEARCH_KEYS = List.of("queryTerms", "searchTerms", "keywords", "retrievalSignals",
+        "bilingualQuery", "bilingualSearch", "bilingualIntent", "intentAliases", "intentZh", "intentEn",
+        "intentCandidates", "intent_candidates");
 
     private final List<QueryUnit> units;
 
@@ -47,8 +51,15 @@ public final class DiscoveryQueryPlan {
                                           Collection<String> generatedSignals) {
         LinkedHashMap<String, QueryUnitDraft> drafts = new LinkedHashMap<>();
         if (filters != null) {
+            LinkedHashMap<String, QueryUnitDraft> searchUnits = new LinkedHashMap<>();
+            for (String key : SEARCH_KEYS) add(searchUnits, filters.get(key), key);
             for (String key : FILTER_KEYS) {
+                if (CONTEXT_KEYS.contains(key)) continue;
                 add(drafts, filters.get(key), key);
+            }
+            // Explicit search units are authoritative; task context must not add noisy queries.
+            if (searchUnits.isEmpty()) {
+                for (String key : CONTEXT_KEYS) add(drafts, filters.get(key), key);
             }
         }
         if (generatedSignals != null) {

@@ -7592,17 +7592,12 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                     : new LinkedHashMap<>((Map<String, Object>) filterMap);
                 mutableFilters.putIfAbsent("intent", searchText);
                 mutableFilters.putIfAbsent("goal", searchText);
-                mutableFilters.putIfAbsent("queryTerms", List.of(searchText));
                 input.put("filters", mutableFilters);
             }
         }
         sanitizeDiscoveryFilters(step, request, input);
         if (isTemplateDiscoveryTool(step.toolName(), request)) {
             normalizeTemplateDiscoveryCandidateLimit(input);
-            String searchText = discoverySearchText(request);
-            if (searchText != null && !searchText.isBlank()) {
-                input.putIfAbsent("query", searchText);
-            }
         }
         input.putIfAbsent("filtersSchemaVersion", AgentProtocolCatalog.TARGET_FILTERS);
         Object trace = firstMapValue(input, "trace", "routingTrace", "routing_trace");

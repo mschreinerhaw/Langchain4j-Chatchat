@@ -251,9 +251,7 @@ class McpParamBindingResolverTest {
 
         Map<?, ?> filters = (Map<?, ?>) result.get("filters");
         assertThat(filters.containsKey("env")).isFalse();
-        assertThat(filters.get("queryTerms"))
-            .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.LIST)
-            .contains("\u5206\u6790248\u6d4b\u8bd5\u6570\u636e\u5e93");
+        assertThat(filters.containsKey("queryTerms")).isFalse();
     }
 
     @Test
@@ -503,12 +501,12 @@ class McpParamBindingResolverTest {
 
         Map<?, ?> filters = (Map<?, ?>) result.get("filters");
         assertThat(strings(filters.get("queryTerms")))
-            .containsExactly("MySQL服务器管理进程", "mysqld process status", "分析MySQL服务器管理进程信息");
+            .containsExactly("MySQL服务器管理进程", "mysqld process status");
         assertThat(strings(filters.get("retrievalSignals")))
-            .containsExactly("MySQL服务器管理进程", "mysqld process status", "分析MySQL服务器管理进程信息");
+            .containsExactly("MySQL服务器管理进程", "mysqld process status");
         Map<String, Object> intentScoring = (Map<String, Object>) filters.get("intentScoring");
         assertThat(intentScoring)
-            .containsEntry("strategy", "threshold_intent_ensemble_plus_original_query")
+            .containsEntry("strategy", "threshold_intent_ensemble")
             .containsEntry("threshold", 0.75);
         assertThat(filters.containsKey("assetName")).isFalse();
     }
@@ -542,11 +540,11 @@ class McpParamBindingResolverTest {
             .contains("Kafka", "consumer lag", "offset commit")
             .contains("RocksDB", "write stall", "compaction")
             .contains("Flink", "checkpoint", "state backend")
-            .contains("kafka消费慢是不是rocksdb写入导致的")
+            .doesNotContain("kafka消费慢是不是rocksdb写入导致的")
             .doesNotContain("Linux", "iowait");
         Map<String, Object> intentScoring = (Map<String, Object>) filters.get("intentScoring");
         assertThat(intentScoring)
-            .containsEntry("fallback", "original_query_only_when_no_candidate_reaches_threshold");
+            .containsEntry("fallback", "model_supplied_search_terms_only");
     }
 
     @Test
@@ -573,12 +571,10 @@ class McpParamBindingResolverTest {
 
         Map<String, Object> filters = (Map<String, Object>) result.get("filters");
         assertThat(filters).doesNotContainKey("assetName").containsEntry("intent", query);
-        assertThat(strings(filters.get("queryTerms")))
-            .containsExactly(query)
-            .doesNotContain("债券托管量", "融资融券");
+        assertThat(strings(filters.get("queryTerms"))).isEmpty();
         assertThat((Map<String, Object>) filters.get("intentScoring"))
             .containsEntry("selectedTerms", List.of())
-            .containsEntry("fallback", "original_query_only_when_no_candidate_reaches_threshold");
+            .containsEntry("fallback", "model_supplied_search_terms_only");
     }
 
     @Test

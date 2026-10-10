@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -16,10 +15,6 @@ import java.util.Set;
 
 /** Performs bounded candidate recall strictly inside a persisted child-tool binding. */
 public final class BoundTemplateCandidateRetriever {
-
-    private static final List<String> SIGNAL_KEYS = List.of(
-        "query", "intent", "goal", "intentZh", "intentEn", "bilingualIntent",
-        "intentAliases", "queryTerms", "keywords", "retrievalSignals");
 
     public Recall recall(List<TemplateAssetCatalogService.TemplateAsset> assets,
                          Set<String> allowedTemplateIds,
@@ -68,26 +63,10 @@ public final class BoundTemplateCandidateRetriever {
     }
 
     private List<String> signals(Map<String, Object> arguments) {
-        LinkedHashSet<String> values = new LinkedHashSet<>();
-        collectSignals(arguments, values);
-        return List.copyOf(values);
-    }
-
-    private void collectSignals(Map<String, Object> source, Set<String> target) {
-        if (source == null) return;
-        for (String key : SIGNAL_KEYS) collect(source.get(key), target);
-        Object filters = source.get("filters");
-        if (filters instanceof Map<?, ?> map) collectSignals(cast(map), target);
-    }
-
-    private void collect(Object value, Set<String> target) {
-        if (value instanceof Collection<?> collection) {
-            collection.forEach(item -> collect(item, target));
-            return;
-        }
-        if (value == null) return;
-        String normalized = String.valueOf(value).trim();
-        if (!normalized.isEmpty() && normalized.length() <= 512) target.add(normalized);
+        Map<String, Object> filters = new java.util.LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        if (filters.get("filters") instanceof Map<?, ?> nested) filters.putAll(cast(nested));
+        return com.chatchat.mcpserver.search.query.DiscoveryQueryPlan.from(filters).queries().stream()
+            .filter(value -> value.length() <= 512).toList();
     }
 
     private Set<String> terms(String value) {

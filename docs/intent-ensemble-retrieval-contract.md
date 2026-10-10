@@ -63,8 +63,7 @@ User Question
       "offset commit",
       "RocksDB",
       "write stall",
-      "compaction",
-      "kafka消费慢是不是rocksdb写入导致的"
+      "compaction"
     ],
     "retrievalSignals": [
       "Kafka",
@@ -72,13 +71,12 @@ User Question
       "offset commit",
       "RocksDB",
       "write stall",
-      "compaction",
-      "kafka消费慢是不是rocksdb写入导致的"
+      "compaction"
     ],
     "intentScoring": {
-      "strategy": "threshold_intent_ensemble_plus_original_query",
+      "strategy": "threshold_intent_ensemble",
       "threshold": 0.75,
-      "fallback": "top2_when_no_candidate_reaches_threshold"
+      "fallback": "model_supplied_search_terms_only"
     }
   }
 }
@@ -106,12 +104,12 @@ Runtime/Resolver 必须使用以下确定性选择规则：
 
 1. 按 `score/confidence` 从高到低排序。
 2. 选择所有 `score >= 0.75` 的候选意图。
-3. 如果没有任何候选达到 `0.75`，回退选择 Top 2。
+3. 如果没有候选达到阈值，保留模型明确提供的检索词；不自动追加原始任务。
 4. 将被选中候选的 `intent`、扩写 query、关键词、别名合并为 `queryTerms`。
-5. 将用户原始问题加入 `queryTerms` 和 `retrievalSignals`。
+5. 原始问题保存在模型上下文和执行轨迹中，不能自动加入 `queryTerms` 和 `retrievalSignals`。搜索词由模型提取，报告格式、执行约束和分析协议不属于检索关键词。
 6. 合并时必须去重并保持稳定顺序。
 
-不得固定只取 Top 2。Top 2 只是低置信回退策略。
+多个搜索词独立检索后合并；有明确搜索词时，`intent/goal` 仅作上下文，不再增加查询单元。缺少明确搜索词的旧接口仍兼容简短 `intent/query`；模型辅助能力工具使用发布的 `DISCOVERY_QUERY_PROFILE` 合同生成简短查询，不由 Runtime 按领域词典截取。
 
 ## Multi Query 生成规则
 
@@ -220,8 +218,8 @@ Filter field is not allowed for targetKind=host: intentCandidates
 每次修改该契约相关实现，至少覆盖：
 
 1. Planner prompt 是否要求生成 `intentCandidates` 和阈值选择规则。
-2. Resolver 是否选择所有 `score >= 0.75` 候选，并在全低置信时回退 Top 2。
-3. Resolver 是否合并原始问题和 multi-query expansions。
+2. Resolver 是否选择所有 `score >= 0.75` 候选，并保留模型直接提供的搜索词；全低置信时不自动追加原始任务。
+3. Resolver 是否合并模型提供的独立搜索词与 multi-query expansions，并避免追加原始问题。
 4. MCP Server 是否允许 `intentCandidates/queries/expandedQueries` 通过 targetKind 校验。
 5. Asset/template retrieval 是否能消费语义检索字段。
 

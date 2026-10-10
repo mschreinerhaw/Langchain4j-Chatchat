@@ -80,7 +80,8 @@ public class ModelAssistedRetrievalBridge {
                 context.put(path, value);
             }
         }
-        if ("BILINGUAL_TEMPLATE_PROFILE".equalsIgnoreCase(mode)) {
+        if ("BILINGUAL_TEMPLATE_PROFILE".equalsIgnoreCase(mode)
+            || "DISCOVERY_QUERY_PROFILE".equalsIgnoreCase(mode)) {
             addTrustedTemplateEvidenceContext(context, evidenceContext);
         }
         if (context.isEmpty()) {
@@ -349,6 +350,13 @@ public class ModelAssistedRetrievalBridge {
                physical table, template id or execution fields.
             4. Output only allowed argument paths. Omit a path when no safe improvement is available.
             5. Added terms are retrieval hints, not facts or evidence.
+            6. For DISCOVERY_QUERY_PROFILE, extract concise search keywords/short phrases from task context.
+               Separate asset identity clues from requested capabilities. Do not copy report instructions,
+               read-only execution constraints, evidence governance rules or the full user request into
+               query, queryTerms, keywords or retrievalSignals. Replace old task-sized search values;
+               keep environment and all exact routing fields unchanged. Do not invent exact identities.
+               Return independent units in arguments.filters.queryTerms, using nested JSON:
+               {"arguments":{"query":"short capability phrase","filters":{"queryTerms":["concept","another concept"]}}}.
             %s
 
             Context:
@@ -409,6 +417,9 @@ public class ModelAssistedRetrievalBridge {
     private Object valueAtPath(Map<String, Object> root, String path) {
         if (root == null || path == null || path.isBlank()) {
             return null;
+        }
+        if (root.containsKey(path)) {
+            return root.get(path);
         }
         Object current = root;
         for (String segment : path.split("\\.")) {

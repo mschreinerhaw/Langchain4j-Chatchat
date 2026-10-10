@@ -111,13 +111,19 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
         try {
             AnalysisEvidenceArchivePort store = evidenceArchive.get();
             if (store == null) throw new IllegalStateException("Evidence archive unavailable");
-            AnalysisEvidenceArchivePort.Reference reference = store.archive(context, outcome.evidenceBundle());
+            Map<String, Object> bundleMetadata = new LinkedHashMap<>(outcome.evidenceBundle().metadata());
+            for (String key : List.of("modelEvidenceAssessmentAudit", "modelEvidenceAssessmentHistory", "analysisExecutionOutcome")) {
+                if (outcome.metadata().containsKey(key)) bundleMetadata.put(key, outcome.metadata().get(key));
+            }
+            EvidenceBundle archived = new EvidenceBundle(null, outcome.evidenceBundle().evidence(),
+                outcome.evidenceBundle().limitations(), bundleMetadata);
+            AnalysisEvidenceArchivePort.Reference reference = store.archive(context, archived);
             Map<String, Object> metadata = new LinkedHashMap<>(outcome.metadata());
             metadata.put("evidenceArchiveId", reference.archiveId());
             metadata.put("evidenceSha256", reference.sha256());
             metadata.put("evidenceByteLength", reference.byteLength());
             return new AnalysisExecutionOutcome(outcome.schemaVersion(), outcome.workflowType(), outcome.plan(),
-                outcome.verification(), outcome.evidenceBundle(), outcome.synthesis(), metadata);
+                outcome.verification(), archived, outcome.synthesis(), metadata);
         } catch (RuntimeException failure) {
             if (failure instanceof java.util.concurrent.CancellationException
                 || Thread.currentThread().isInterrupted()) throw failure;

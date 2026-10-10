@@ -2,6 +2,8 @@
 
 原则：Model decides. Runtime executes. User judges.
 
+职责公约与证据审计边界见 [Model Sovereignty, Runtime Governance](runtime-model-sovereignty.md)。
+
 ## 本轮联机问题定位
 
 2026-10-09 捕获了两次实际执行：

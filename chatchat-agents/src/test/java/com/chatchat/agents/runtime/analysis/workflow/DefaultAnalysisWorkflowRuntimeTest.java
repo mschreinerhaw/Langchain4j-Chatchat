@@ -42,6 +42,38 @@ import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DefaultAnalysisWorkflowRuntimeTest {
+    @Test void archivesModelAssessmentWithOriginalEvidenceAndLimitations() {
+        var validation = Map.<String,Object>of("evidenceStatus", "PARTIAL", "missingEvidence", List.of("source#chunk2"),
+            "requiresReanalysis", false, "conclusionScope", "SNAPSHOT_ONLY");
+        var item = new ComputationEvidence("e1", "sum", List.of("source"), "42", Map.of());
+        AnalysisWorkflow workflow = new AnalysisWorkflow() {
+            public AnalysisWorkflowType type() { return AnalysisWorkflowType.COMPUTATION; }
+            public String workflowId() { return "test.claim-audit"; }
+            public boolean supports(AnalysisContext context, AnalysisIntent intent) { return true; }
+            public AnalysisExecutionOutcome execute(AnalysisContext context) {
+                return new AnalysisExecutionOutcome(null, type(), null, new VerificationResult(true, List.of(item), List.of()),
+                    new EvidenceBundle(null, List.of(item), List.of("missing chunk"), Map.of("provenance", "original")),
+                    "Bounded analysis", Map.of("modelEvidenceAssessmentAudit", validation,
+                        "modelEvidenceAssessmentHistory", List.of(validation)));
+            }
+        };
+        var archive = org.mockito.Mockito.mock(AnalysisEvidenceArchivePort.class);
+        org.mockito.Mockito.when(archive.archive(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+            .thenAnswer(call -> {
+                EvidenceBundle bundle = call.getArgument(1);
+                assertThat(bundle.metadata()).containsEntry("provenance", "original").containsEntry("modelEvidenceAssessmentAudit", validation)
+                    .containsEntry("modelEvidenceAssessmentHistory", List.of(validation));
+                assertThat(bundle.evidence()).containsExactly(item);
+                assertThat(bundle.limitations()).containsExactly("missing chunk");
+                return new AnalysisEvidenceArchivePort.Reference("archive", "hash", 42);
+            });
+        var context = new AnalysisContext("calculate", new KernelDataScope("tenant", "user", "request", null, "run", null, Map.of()),
+            "skill", List.of(), List.of(), List.of(), new AnalysisIntent("CALCULATION", List.of(),
+                Set.of(AnalysisCapability.COMPUTATION), "UNSPECIFIED", true), Map.of());
+        var result = new DefaultAnalysisWorkflowRuntime(List.of(workflow), null, archive).analyze(context);
+        assertThat(result.evidenceBundle().metadata()).containsEntry("modelEvidenceAssessmentAudit", validation);
+        org.mockito.Mockito.verify(archive).archive(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
     @Test
     void missingAssetMetadataNeverTriggersDataOrDocumentRecovery() {
         AnalysisWorkflow guidance = new AnalysisWorkflow() {

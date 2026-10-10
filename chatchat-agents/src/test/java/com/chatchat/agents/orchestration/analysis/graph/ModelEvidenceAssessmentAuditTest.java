@@ -33,6 +33,20 @@ class ModelEvidenceAssessmentAuditTest {
         assertThat(status(audit.record(assessment(1, List.of("missing"), "observations"), sources, () -> {})))
             .isEqualTo("FIELD_PATH_NOT_FOUND");
     }
+    @Test void malformedReferencesAreRecordedWithoutAffectingPublication() {
+        var input = Map.of("claims", List.of(Map.of("claimId", "C1", "references", List.of("not a reference"))));
+        var result = new ModelEvidenceAssessmentAudit().record(input, Map.of(), () -> {});
+        assertThat(status(result)).isEqualTo("REFERENCE_SCHEMA_INVALID");
+        assertThat(result).containsEntry("publicationEffect", "NONE").containsEntry("assessment", input);
+    }
+    @Test void recordsSourceAndModelSemanticAuthorityWithoutJudgingContradictions() {
+        var input = assessment(1, List.of("value"), "source");
+        var source = new Dataset("source", Map.of("evidenceSemantics", Map.of("[\"value\"]", Map.of("precision", "ROUNDED"))),
+            List.of(Map.of("value", 42)));
+        var result = new ModelEvidenceAssessmentAudit().record(input, Map.of("source", source), () -> {});
+        assertThat(result.toString()).contains("SOURCE_CONTRACT", "ROUNDED", "fieldPath=[value]", "record=1");
+        assertThat(result).containsEntry("publicationEffect", "NONE").containsEntry("assessment", input);
+    }
     @Test void optionalAndOversizedAssessmentNeverBecomesAnAdmissionFailure() {
         var audit = new ModelEvidenceAssessmentAudit();
         assertThat(audit.record(null, Map.of(), () -> {})).containsEntry("status", "NOT_SUPPLIED").containsEntry("publicationEffect", "NONE");

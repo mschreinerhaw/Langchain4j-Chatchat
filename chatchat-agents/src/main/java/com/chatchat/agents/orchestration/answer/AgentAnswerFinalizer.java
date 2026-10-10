@@ -409,6 +409,15 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             List.of(),
             upstreamIds
         );
+        if (values.containsKey("modelEvidenceAssessmentAudit")) {
+            Map<String, Object> evidence = new LinkedHashMap<>(result.evidence());
+            for (String key : List.of("modelEvidenceAssessmentAudit", "modelEvidenceAssessmentHistory", "analysisExecutionOutcome")) {
+                if (values.containsKey(key)) evidence.put(key, values.get(key));
+            }
+            result = new AnalysisSummaryResult(result.schemaVersion(), result.resultId(), result.scope(),
+                result.content(), result.outcome(), result.isolationScope(), result.position(),
+                result.analysisContext(), result.coverage(), result.inputSummaryResultIds(), evidence, result.governance());
+        }
         values.put("analysisSummaryResult", result.toMap());
         values.put("analysisSummaryResultSchemaVersion", AnalysisSummaryResult.SCHEMA_VERSION);
         values.put("analysisSummaryObservable", true);
@@ -1260,10 +1269,11 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         metadata.put("interpretationPlanFinalResultProduced", true);
         if (Boolean.TRUE.equals(metadata.get("modelNativeHarnessActive"))) {
             boolean partial = "RESOURCE_BUDGET_EXHAUSTED".equals(metadata.get("harnessStopReason"))
+                || "PARTIALLY_COMPLETED".equals(metadata.get("analysisExecutionStatus"))
                 || Boolean.FALSE.equals(metadata.get("recordAnalysisSourceContentComplete"))
                 || Boolean.FALSE.equals(metadata.get("recordAnalysisEvidenceTraceComplete"));
             metadata.put("executionStatus", partial ? "PARTIAL_RESULT_PRESENTED" : "COMPLETED");
-            metadata.put("analysisExecutionStatus", partial ? "COMPLETED_WITH_LIMITATIONS" : "COMPLETED");
+            metadata.putIfAbsent("analysisExecutionStatus", partial ? "COMPLETED_WITH_LIMITATIONS" : "COMPLETED");
             metadata.put("finalPayloadHumanReviewRequired", false);
             metadata.put("reportQualityAuthority", "USER");
             metadata.remove("finalPayloadContractRejectionReason");

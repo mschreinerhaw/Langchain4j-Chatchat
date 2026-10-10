@@ -60,7 +60,27 @@ class ModelNativeAnalysisHarnessTest {
         assertThat(execute(3, sources(), model, meta).markdown()).isEqualTo("Final report.");
         assertThat(((Map<?, ?>) meta.get("modelEvidenceAssessmentAudit")).get("status")).isEqualTo("NOT_SUPPLIED");
         assertThat(((Map<?, ?>) meta.get("modelEvidenceAssessmentAudit")).get("turn")).isEqualTo(2);
+        var history = (List<?>) meta.get("modelEvidenceAssessmentHistory");
+        assertThat(history).hasSize(2);
+        assertThat(((Map<?, ?>) history.get(0)).get("status")).isEqualTo("RECORDED");
+        assertThat(((Map<?, ?>) history.get(1)).get("status")).isEqualTo("NOT_SUPPLIED");
         verify(model, times(2)).chat(any(String.class));
+    }
+    @Test void declaredOverclaimsAndReanalysisPreferenceDoNotTriggerRuntimeRepair() {
+        var model = mock(ChatModel.class);
+        var assessment = Map.of("evidenceStatus", "COMPLETE", "missingEvidence", List.of("source#chunk2"),
+            "requiresReanalysis", true, "claims", List.of(Map.of("claimId", "C1",
+                "scope", Map.of("temporalScope", "LONG_TERM", "precision", "EXACT", "guaranteeScope", "SYSTEM"),
+                "references", List.of(Map.of("datasetReference", "source", "record", 1, "fieldPath", List.of("value"),
+                    "semantics", Map.of("temporalScope", "SNAPSHOT", "precision", "ROUNDED", "guaranteeScope", "COMPONENT"))))));
+        when(model.chat(any(String.class))).thenReturn(ModelProtocolJson.compact(Map.of(
+            "schemaVersion", "model_native_analysis.v1", "completed", true,
+            "reportMarkdown", "The model chooses to publish this conclusion.", "evidenceAssessment", assessment)));
+        var meta = new LinkedHashMap<String, Object>();
+        assertThat(execute(8, sources(), model, meta).markdown()).isEqualTo("The model chooses to publish this conclusion.");
+        assertThat(meta).containsEntry("harnessStopReason", "MODEL_COMPLETED").doesNotContainKey("evidenceClaimValidation");
+        assertThat(((Map<?, ?>) meta.get("modelEvidenceAssessmentAudit")).get("assessment")).isEqualTo(assessment);
+        verify(model, times(1)).chat(any(String.class));
     }
     @Test void readsOriginalTextAcrossWindowsAndRetainsModelNotes() {
         var datasets = List.of(new Dataset("source", Map.of(), List.of(Map.of("text", "A".repeat(5500) + "SOURCE_END", "large", "B".repeat(50000)))));

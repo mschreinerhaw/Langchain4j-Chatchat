@@ -190,7 +190,9 @@ public final class AnalysisCoverageCoordinator {
         var summary = AnalysisSummaryResult.chunk(request.isolationScope(), Map.of("datasetReference", "harness:question",
             "recordFrom", 1, "recordTo", count, "totalRecords", count), Map.of("analysisMode", "MODEL_NATIVE_HARNESS"),
             result.markdown(), "MODEL_AUTHORED", Map.of("authority", "MODEL_AUTHORED_NOT_RUNTIME_CERTIFIED",
-                "datasetReferences", result.datasetReferences()));
+                "datasetReferences", result.datasetReferences(),
+                "modelEvidenceAssessmentAudit", request.metadata().getOrDefault("modelEvidenceAssessmentAudit", Map.of()),
+                "modelEvidenceAssessmentHistory", request.metadata().getOrDefault("modelEvidenceAssessmentHistory", List.of())));
         request.metadata().put("modelNativeReportDraft", result.markdown());
         request.metadata().put("analysisSynthesisBarrierReady", true);
         request.metadata().put("analysisSynthesisBarrierStatus", "READY");

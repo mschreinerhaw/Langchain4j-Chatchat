@@ -21,14 +21,32 @@ final class ModelEvidenceAssessmentAudit {
                 if (!(item instanceof Map<?, ?> claim) || !(claim.get("references") instanceof List<?> refs)) continue;
                 for (Object raw : refs.stream().limit(16).toList()) {
                     guard.run();
-                    if (!(raw instanceof Map<?, ?> ref)) continue;
+                    if (!(raw instanceof Map<?, ?> ref)) {
+                        observations.add(Map.of("claimId", String.valueOf(claim.get("claimId")),
+                            "status", "REFERENCE_SCHEMA_INVALID")); continue;
+                    }
                     String sourceId = ref.get("datasetReference") instanceof String text ? text : "";
                     String status;
                     try { status = referenceStatus(ref, sources.get(sourceId)); }
                     catch (java.util.concurrent.CancellationException cancelled) { throw cancelled; }
                     catch (RuntimeException unavailable) { status = "REFERENCE_READ_UNAVAILABLE"; }
-                    observations.add(Map.of("claimId", String.valueOf(claim.get("claimId")),
-                        "datasetReference", sourceId, "status", status));
+                    Map<String, Object> observation = new LinkedHashMap<>();
+                    observation.put("claimId", String.valueOf(claim.get("claimId")));
+                    observation.put("datasetReference", sourceId);
+                    observation.put("record", ref.get("record") == null ? "UNSPECIFIED" : ref.get("record"));
+                    observation.put("status", status);
+                    observation.put("role", ref.get("role") == null ? "OBSERVATION" : ref.get("role"));
+                    observation.put("fieldPath", ref.get("fieldPath") == null ? List.of() : ref.get("fieldPath"));
+                    Object semantics = ref.get("semantics");
+                    Dataset source = sources.get(sourceId);
+                    Object contracts = source == null ? null : source.analysisContext().get("evidenceSemantics");
+                    if (contracts instanceof Map<?, ?> fields && ref.get("fieldPath") instanceof List<?> path) {
+                        Object declared = fields.get(ModelProtocolJson.compact(path));
+                        if (declared instanceof Map<?, ?>) semantics = declared;
+                        observation.put("semanticsAuthority", declared instanceof Map<?, ?> ? "SOURCE_CONTRACT" : "MODEL_DECLARED");
+                    } else observation.put("semanticsAuthority", "MODEL_DECLARED");
+                    if (semantics instanceof Map<?, ?>) observation.put("semantics", semantics);
+                    observations.add(Collections.unmodifiableMap(observation));
                 }
             }
         }

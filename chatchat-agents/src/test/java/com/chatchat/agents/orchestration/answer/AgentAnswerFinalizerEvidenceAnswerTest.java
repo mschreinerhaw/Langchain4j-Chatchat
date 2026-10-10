@@ -42,6 +42,27 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AgentAnswerFinalizerEvidenceAnswerTest {
+    @Test void preservesExecutionPartialStatusWithoutEvaluatingModelConclusion() {
+        var finalizer = new AgentAnswerFinalizer(
+            (model, query, prompt, observations, answer) -> new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt"));
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("modelNativeHarnessActive", true);
+        metadata.put("analysisExecutionStatus", "PARTIALLY_COMPLETED");
+        var audit = Map.of("publicationEffect", "NONE", "assessment", Map.of("missingEvidence", List.of("source#chunk2")));
+        metadata.put("modelEvidenceAssessmentAudit", audit);
+        metadata.put("modelEvidenceAssessmentHistory", List.of(audit));
+        metadata.put("analysisReportContract", AnalysisReportContract.modelReport("Model conclusion.", 0, 0, 0).toMap());
+        var result = finalizer.finishReviewedAnswer(null, "Analyze", null, List.of(), metadata, List.of(),
+            "Model conclusion.", () -> false, "completed");
+        assertThat(result.answer()).isEqualTo("Model conclusion.");
+        assertThat(result.metadata()).containsEntry("analysisExecutionStatus", "PARTIALLY_COMPLETED")
+            .containsEntry("executionStatus", "PARTIAL_RESULT_PRESENTED");
+        var summary = (Map<?, ?>) result.metadata().get("analysisSummaryResult");
+        var evidence = (Map<?, ?>) summary.get("evidence");
+        assertThat(evidence.get("modelEvidenceAssessmentAudit")).isEqualTo(audit);
+        assertThat(evidence.get("modelEvidenceAssessmentHistory")).isEqualTo(List.of(audit));
+    }
 
     @Test
     void exposesToolEvidenceOnlyWhenUserExplicitlyRequestsIt() {

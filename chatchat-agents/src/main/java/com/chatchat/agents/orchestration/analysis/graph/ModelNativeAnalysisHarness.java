@@ -46,6 +46,7 @@ public final class ModelNativeAnalysisHarness {
         String report = "";
         int calls = 0;
         boolean exhausted = false;
+        List<Map<String, Object>> assessmentHistory = new ArrayList<>();
         metadata.put("runtimeReturnedReportDatasets", reportDatasets);
         metadata.put("visualizationCapabilities", injector.snapshot(catalog));
         metadata.put("harnessAvailableDatasetReferences", List.copyOf(prepared.sources().keySet()));
@@ -73,6 +74,9 @@ public final class ModelNativeAnalysisHarness {
                 infer business formulas, or require more research. Use the supplied Skills as methodology.
                 Preserve source identities and values; separate observations and your interpretations in your reasoning.
                 Evidence governance records provenance, declared gaps and access receipts, not analytical truth.
+                Model Sovereignty, Runtime Governance: you own planning, reasoning, evidence sufficiency,
+                additional evidence choices, conclusions and publication intent. Runtime enforces explicit
+                authorization, safety, tool/data contracts and resource limits, never a report quality gate.
                 You decide whether evidence supports a claim, whether to obtain more evidence, and what scope to deliver.
                 Distinguish snapshots from sustained observations, cumulative counters from interval deltas,
                 displayed or rounded precision from exact values, and correlation from causality or guarantees.
@@ -90,6 +94,7 @@ public final class ModelNativeAnalysisHarness {
                 requiresReanalysis:false,claims:[{claimId:'C1',claim:'your conclusion',reason:'your reasoning',
                 references:[{datasetReference:'source',record:1,fieldPath:['values','field']}]}]}.
                 record is one based; fieldPath traverses original row keys and optional zero-based array indices.
+                Each fieldPath selects one nested value; sibling fields use separate references.
                 Runtime records bounded reference diagnostics for audit only. They do not suppress publication,
                 rewrite your report, request additional analysis, or authorize tools. Cite fields near findings
                 where useful; do not claim to show all raw values if you have not actually included them.
@@ -140,6 +145,8 @@ public final class ModelNativeAnalysisHarness {
             assessmentAudit.put("turn", turn);
             assessmentAudit.put("reportSha256", ModelProtocolJson.sha256Hex(report));
             metadata.put("modelEvidenceAssessmentAudit", Collections.unmodifiableMap(assessmentAudit));
+            assessmentHistory.add(Collections.unmodifiableMap(assessmentAudit));
+            metadata.put("modelEvidenceAssessmentHistory", List.copyOf(assessmentHistory));
             if (product.containsKey("evidenceAssessment"))
                 observe.accept(Map.of("eventKind", "MODEL_EVIDENCE_ASSESSMENT", "turn", turn, "audit", assessmentAudit));
             receipts = new ArrayList<>();

@@ -46,6 +46,15 @@ public final class AnalysisSummaryGovernanceCoordinator {
         AnalysisSummaryResult result = protocol.finalResult(
             scope, request.stage(), request.content(), request.outcome(), coverage,
             request.synthesisInputs());
+        if (request.metadata() != null && request.metadata().containsKey("modelEvidenceAssessmentAudit")) {
+            Map<String, Object> evidence = new LinkedHashMap<>(result.evidence());
+            for (String key : List.of("modelEvidenceAssessmentAudit", "modelEvidenceAssessmentHistory", "analysisExecutionOutcome")) {
+                if (request.metadata().containsKey(key)) evidence.put(key, request.metadata().get(key));
+            }
+            result = new AnalysisSummaryResult(result.schemaVersion(), result.resultId(), result.scope(),
+                result.content(), result.outcome(), result.isolationScope(), result.position(),
+                result.analysisContext(), result.coverage(), result.inputSummaryResultIds(), evidence, result.governance());
+        }
         if (request.metadata() != null) {
             request.metadata().put("analysisSummaryResult", result.toMap());
             request.metadata().put("analysisSummaryResultSchemaVersion", AnalysisSummaryResult.SCHEMA_VERSION);

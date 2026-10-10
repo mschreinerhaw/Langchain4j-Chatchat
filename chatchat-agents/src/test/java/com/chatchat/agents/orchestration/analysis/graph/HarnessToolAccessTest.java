@@ -61,4 +61,30 @@ class HarnessToolAccessTest {
             .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("budget exhausted");
         assertThat(calls).hasValue(0);
     }
+
+    @Test void v2ModelChoosesSameToolWithDifferentParametersAndCanReadOldEvidence() {
+        when(registry.getToolMetadata("read_tool")).thenReturn(ToolMetadata.builder().agentCompatible(true).operationType("read").build());
+        when(evidence.project(any(), anyMap())).thenReturn(new AnalysisEvidenceCoordinator.Projection(
+            List.of(new AnalysisEvidenceCoordinator.Dataset("result", Map.of(), List.of(Map.of("value", 7)))), List.of()));
+        var arguments = new ArrayList<Map<String,Object>>();
+        var access = new HarnessToolAccess(registry, List.of("read_tool"), (name,args) -> {
+            arguments.add(args); return new ToolRuntimeExecution(ToolOutput.success(Map.of("value", 7)), null, null, "success", Map.of());
+        }, evidence, Map.of(), metadata, scope, AnalysisEvidenceSpillStore.disabled(), 0);
+        var model = mock(ChatModel.class);
+        var turns = new ArrayList<String>();
+        for (int value : List.of(1,2)) turns.add(com.chatchat.agents.protocol.ModelProtocolJson.compact(Map.of(
+            "schemaVersion", "model_native_analysis.v2", "decision", Map.of("action", "CONTINUE"),
+            "evidenceRequests", List.of(Map.of("operation", "CALL_TOOL", "toolName", "read_tool", "arguments", Map.of("sample", value)),
+                Map.of("operation", "READ_RECORDS", "datasetReference", "initial", "fromRecord", 1, "limit", 1)))));
+        turns.add(com.chatchat.agents.protocol.ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v2",
+            "decision", Map.of("action", "PUBLISH"), "reportMarkdown", "Model revised interpretation")));
+        when(model.chat(anyString())).thenReturn(turns.get(0), turns.get(1), turns.get(2));
+        new ModelNativeAnalysisHarness(4).withToolAccess(access).execute("analyze", List.of(
+            new AnalysisEvidenceCoordinator.Dataset("initial", Map.of(), List.of(Map.of("seed", 1)))), model,
+            scope, AnalysisEvidenceSpillStore.disabled(), metadata, () -> {}, event -> {});
+        assertThat(arguments).containsExactly(Map.of("sample",1), Map.of("sample",2));
+        assertThat(metadata).containsEntry("publicationState", "REQUESTED");
+        assertThat(((Map<?,?>)metadata.get("modelDecision")).get("action")).isEqualTo("PUBLISH");
+    }
+
 }

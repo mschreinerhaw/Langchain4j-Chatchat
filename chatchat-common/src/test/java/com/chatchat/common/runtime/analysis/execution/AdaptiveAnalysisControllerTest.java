@@ -36,4 +36,14 @@ class AdaptiveAnalysisControllerTest {
         assertThat(controller.decideReplan(new AdaptiveAnalysisController.ReplanFeedback(true, 0, 3, true, true, true, true)))
             .isEqualTo(new AdaptiveAnalysisController.ReplanDecision(false, false, "authorization_required"));
     }
+
+    @org.junit.jupiter.api.Test void modelContinuationAndReplanDependOnlyOnAdmissionAndBudget() {
+        var controller = new AdaptiveAnalysisController();
+        var metadata = java.util.Map.<String,Object>of("modelAnalysisProtocol", "model_native_analysis.v2", "modelDecision", java.util.Map.of("action", "CONTINUE"));
+        org.assertj.core.api.Assertions.assertThat(controller.decideModel(metadata,0,2).action()).isEqualTo(AdaptiveAnalysisController.Action.RECOVER);
+        org.assertj.core.api.Assertions.assertThat(controller.admitModelReplan(false,0,3).allowed()).isTrue();
+        org.assertj.core.api.Assertions.assertThat(controller.admitModelReplan(true,0,3).allowed()).isFalse();
+        org.assertj.core.api.Assertions.assertThat(controller.decideModel(metadata,2,2).reason()).isEqualTo("BUDGET_EXHAUSTED");
+    }
+
 }

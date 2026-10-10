@@ -1,5 +1,7 @@
 package com.chatchat.api.runtime;
 
+import com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent;
+
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.runtime.analysis.evidence.*;
 import com.chatchat.common.runtime.analysis.execution.AnalysisExecutionOutcome;
@@ -25,7 +27,7 @@ import java.util.function.Supplier;
 
 /** Immutable facts plus a durable revision-driven controller journal. All mutations serialize on the owner partition. */
 @Component
-public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProgressPort {
+public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProgressPort, RuntimeExecutionCheckpointPort {
     private static final int MAX_BYTES = 2 * 1024 * 1024;
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
@@ -37,6 +39,33 @@ public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProg
         this.tx = new TransactionTemplate(manager);
         tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         tx.setTimeout(30);
+    }
+
+    @Override public Optional<String> readExecutionCheckpoint(KernelDataScope scope, String key) {
+        var row = entry(entryId(partition(scope), "EXEC_CHECKPOINT", key));
+        if (row.isEmpty()) return Optional.empty();
+        verify(row);
+        var envelope = decode(row.get("record_json"), Map.class);
+        if (!"runtime_execution_checkpoint.v1".equals(envelope.get("schemaVersion"))
+            || !key.equals(envelope.get("key"))) throw new IllegalStateException("Execution checkpoint identity is invalid");
+        return Optional.of((String)envelope.get("value"));
+    }
+
+    @Override public boolean compareAndSetExecutionCheckpoint(KernelDataScope scope, String key, String expectedJson, String nextJson) {
+        if (nextJson == null) throw new IllegalArgumentException("Execution checkpoint value is required");
+        return locked(scope, () -> {
+            var current = readExecutionCheckpoint(scope, key).orElse(null);
+            if (!Objects.equals(current, expectedJson)) return false;
+            String id = entryId(partition(scope), "EXEC_CHECKPOINT", key);
+            String body = json(Map.of("schemaVersion", "runtime_execution_checkpoint.v1", "key", key, "value", nextJson));
+            long revision = advance(partition(scope));
+            long now = System.currentTimeMillis();
+            if (current == null) jdbc.update("insert into runtime_evidence_entry (id,partition_id,entry_kind,entry_id,revision,stored_at,occurred_at,sha256,record_json) values (?,?,?,?,?,?,?,?,?)",
+                id, partition(scope), "EXEC_CHECKPOINT", key, revision, now, now, hash(body + "\u0000"), body);
+            else jdbc.update("update runtime_evidence_entry set revision=?,stored_at=?,sha256=?,record_json=? where id=?",
+                revision, now, hash(body + "\u0000"), body, id);
+            return true;
+        });
     }
 
     public String contentHash(Map<String, Object> payload) { return hash(json(payload)); }
@@ -231,15 +260,24 @@ public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProg
             boolean changed = !fingerprint.equals(previous);
             String action = decision.action().name();
             String reason = decision.reason();
-            if (!changed && "RECOVER".equals(action)) { action = "STOP"; reason = "NO_NEW_EVIDENCE"; }
+            boolean modelDirected = ModelAnalysisIntent.active(outcome.metadata());
+            if (!modelDirected && !changed && "RECOVER".equals(action)) { action = "STOP"; reason = "NO_NEW_EVIDENCE"; }
             if ("RECOVER".equals(action) && round >= current.maxRounds()) { action = "STOP"; reason = "BUDGET_EXHAUSTED"; }
-            snapshotLocked(scope, "analysis-round-" + round, snapshotIds.stream().distinct().sorted().toList(),
-                Map.of("round", round, "action", action, "reason", reason,
-                    "planId", outcome.plan() == null ? "" : outcome.plan().planId(),
-                    "workflowType", outcome.workflowType().name(),
-                    "gapReasons", gaps.stream().map(gap -> gap.reason().name()).toList()));
+            var snapshotMetadata = new LinkedHashMap<String,Object>(Map.of("round", round, "action", action, "reason", reason,
+                "planId", outcome.plan() == null ? "" : outcome.plan().planId(),
+                "workflowType", outcome.workflowType().name(),
+                "gapReasons", gaps.stream().map(gap -> gap.reason().name()).toList()));
+            if (modelDirected) for (String key : List.of("modelAnalysisProtocol", "modelDecision", "executionState",
+                "executionStopReason", "publicationState", "modelPublicationRequest", "modelEvidenceSnapshotRef", "modelNativeReportDraft"))
+                if (outcome.metadata().containsKey(key)) snapshotMetadata.put(key, outcome.metadata().get(key));
+            if (modelDirected && "BUDGET_EXHAUSTED".equals(reason)) {
+                snapshotMetadata.put("executionState", "STOPPED");
+                snapshotMetadata.put("executionStopReason", "RESOURCE_BUDGET_EXHAUSTED");
+                snapshotMetadata.put("publicationState", "NOT_REQUESTED");
+            }
+            snapshotLocked(scope, "analysis-round-" + round, snapshotIds.stream().distinct().sorted().toList(), snapshotMetadata);
             jdbc.update("update runtime_evidence_partition set observation_hash=?,observation_revision=observation_revision+?,analysis_action=?,analysis_reason=?,terminal=? where id=?",
-                fingerprint, changed ? 1 : 0, action, reason, !"RECOVER".equals(action), partition(scope));
+                fingerprint, changed || modelDirected ? 1 : 0, action, reason, !"RECOVER".equals(action), partition(scope));
             return admitted(scope);
         });
     }

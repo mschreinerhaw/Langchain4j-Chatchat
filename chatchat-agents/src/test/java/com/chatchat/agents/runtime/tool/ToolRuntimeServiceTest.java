@@ -45,6 +45,23 @@ import org.mockito.ArgumentCaptor;
 
 class ToolRuntimeServiceTest {
 
+    @Test void recoveryAdmissionReusesCurrentGovernanceWithoutInvokingOrRetryingTool() {
+        var registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata("read_tool")).thenReturn(ToolMetadata.builder().id("read_tool")
+            .operationType("read").agentCompatible(true).build());
+        var service = new ToolRuntimeService(registry, new ObjectMapper(), properties(), List.of(), List.of());
+        try {
+            var request = ToolRuntimeRequest.builder().toolName("read_tool").tenantId("tenant").userId("user")
+                .allowedTools(List.of("read_tool")).attributes(Map.of())
+                .toolInput(ToolInput.builder().userId("user").parameters(Map.of()).build()).build();
+            assertThat(service.checkRecoveryAdmission(request)).isNull();
+            request.setAllowedTools(List.of("another_tool"));
+            var denied = service.checkRecoveryAdmission(request);
+            assertThat(denied).isNotNull(); assertThat(denied.output().isSuccess()).isFalse();
+            verify(registry, never()).executeEnhancedTool(any(), any());
+        } finally { service.shutdown(); }
+    }
+
     @Test
     void refreshesKernelBeforePlanResourceSnapshotsAreCreated() {
         ToolRuntimeService service = new ToolRuntimeService(

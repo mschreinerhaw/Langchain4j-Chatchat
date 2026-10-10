@@ -22,6 +22,22 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AnalysisCoverageCoordinatorTest {
+    @Test void explicitV2ModeCanThinkWithoutInitialDatasetsAndRetainItsCompletionIntent() {
+        var evidence = mock(AnalysisEvidenceCoordinator.class);
+        when(evidence.project(any(), any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(), List.of()));
+        var model = mock(dev.langchain4j.model.chat.ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn(com.chatchat.agents.protocol.ModelProtocolJson.compact(Map.of(
+            "schemaVersion", "model_native_analysis.v2", "decision", Map.of("action", "COMPLETE"), "reportMarkdown", "Working notes")));
+        var coordinator = coordinator(evidence); var metadata = new LinkedHashMap<String,Object>();
+        var base = request(metadata);
+        var result = coordinator.analyze(new AnalysisCoverageCoordinator.Request(model, "Question", base.result(),
+            Map.of("modelAnalysisProtocol", "model_native_analysis.v2"), metadata, () -> false, () -> {}, base.isolationScope(), base.summaryProtocol()));
+        assertThat(metadata).containsEntry("publicationState", "NOT_REQUESTED").containsEntry("modelNativeReportDraft", "Working notes");
+        assertThat(((Map<?,?>) metadata.get("modelDecision")).get("action")).isEqualTo("COMPLETE");
+        assertThat(result.returnedRecordCount()).isZero();
+        org.mockito.Mockito.verify(model).chat(any(String.class));
+    }
+
     @Test
     @SuppressWarnings("unchecked")
     void nativeHarnessOwnsAnalysisWhileSourceFailuresRemainObservable() {

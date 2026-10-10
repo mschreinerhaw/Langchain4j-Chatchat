@@ -11,6 +11,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import java.util.*;
+import com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent;
 import java.util.function.Consumer;
 
 /** Model owns navigation, working state and prose; Runtime owns scoped reads and resource bounds. */
@@ -24,6 +25,20 @@ public final class ModelNativeAnalysisHarness {
     public record Result(String markdown, int modelCalls, List<String> datasetReferences) { }
 
     public Result execute(String question, List<Dataset> datasets, ChatModel model, GovernanceIsolationScope scope,
+        AnalysisEvidenceSpillStore checkpoints, Map<String,Object> metadata, Runnable guard, Consumer<Map<String,Object>> observe) {
+        try {
+            return executeInternal(question, datasets, model, scope, checkpoints, metadata, guard, observe);
+        } catch (java.util.concurrent.CancellationException stopped) {
+            if (ModelAnalysisIntent.active(metadata)) {
+                metadata.put("executionState", "STOPPED");
+                metadata.put("executionStopReason", stopped instanceof com.chatchat.agents.orchestration.model.AgentDeadlineExceededException
+                    ? "TIMEOUT" : "CANCELLED");
+                metadata.put("publicationState", "NOT_REQUESTED");
+            }
+            throw stopped;
+        }
+    }
+    private Result executeInternal(String question, List<Dataset> datasets, ChatModel model, GovernanceIsolationScope scope,
         AnalysisEvidenceSpillStore checkpoints, Map<String,Object> metadata, Runnable guard, Consumer<Map<String,Object>> observe) {
         if (model == null) throw new IllegalStateException("Analysis model unavailable");
         var access = new BoundedAnalysisEvidence();
@@ -45,6 +60,7 @@ public final class ModelNativeAnalysisHarness {
         List<Map<String,Object>> receipts = new ArrayList<>(), trace = new ArrayList<>();
         String report = "";
         int calls = 0;
+        boolean v2 = ModelAnalysisIntent.VERSION.equals(metadata.get("modelAnalysisProtocol"));
         boolean exhausted = false;
         List<Map<String, Object>> assessmentHistory = new ArrayList<>();
         metadata.put("runtimeReturnedReportDatasets", reportDatasets);
@@ -57,7 +73,8 @@ public final class ModelNativeAnalysisHarness {
             catalog = VerifiedReportDataCatalog.fromRuntime(metadata);
             Map<String,Object> layers = new LinkedHashMap<>();
             layers.put("L1", Map.of("question", question, "turn", turn, "maximumTurns", maximumTurns,
-                "workspace", workspace, "priorReport", report));
+                "workspace", workspace, "priorReport", report,
+                "reportSha256", ModelProtocolJson.sha256Hex(report), "evidenceSnapshotRef", snapshot(prepared.sources())));
             layers.put("L2", Map.of("evidenceOperations", EVIDENCE_OPERATIONS,
                 "workspaceOperations", operations.capabilities(),
                 "externalToolCapabilities", toolAccess == null ? "No external continuation tools authorized." : toolAccess.capabilities(),
@@ -89,6 +106,13 @@ public final class ModelNativeAnalysisHarness {
                 Optional turn protocol: JSON {schemaVersion:'model_native_analysis.v1',completed:true,
                 reportMarkdown:'your report',workspace:{notes:'your own working notes',artifacts:[]},evidenceRequests:[]}.
                 A final plain Markdown report is also accepted. Intermediate notes are not the published report.
+                Optional v2 protocol: {schemaVersion:'model_native_analysis.v2',decision:{action:'CONTINUE|WAIT|COMPLETE|PUBLISH|PARTIAL_COMPLETE'},workspace:{},reportMarkdown:'draft',evidenceRequests:[]}.
+                v1 and plain Markdown retain legacy delivery behavior. Once v2 is selected, keep using v2.
+                In v2 only PUBLISH requests delivery. COMPLETE and PARTIAL_COMPLETE retain work without publication.
+                CONTINUE may have no requests. WAIT retains work and returns WAIT_UNSUPPORTED: automatic wait/resume is not implemented.
+                PUBLISH binds the current draft and current evidence snapshot; optional publication {reportSha256,evidenceSnapshotRef}
+                must match L1 or the newly authored draft. Requests execute only with CONTINUE; completion actions cannot carry requests.
+                Budget exhaustion retains a draft and your last decision, never creates a publication request.
                 Optional evidenceAssessment in the same JSON records YOUR assessment, not Runtime approval:
                 {evidenceStatus:'your assessment',missingEvidence:[],conclusionScope:'your chosen scope',
                 requiresReanalysis:false,claims:[{claimId:'C1',claim:'your conclusion',reason:'your reasoning',
@@ -119,7 +143,11 @@ public final class ModelNativeAnalysisHarness {
                 """ + ModelProtocolJson.compact(layers);
             prompt = injector.injectReportDraft(prompt, catalog);
             int tokens = Math.toIntExact(estimator.estimate(prompt).tokens());
-            if (tokens > budget.inputTokens()) throw new IllegalStateException("Harness context exceeds active model input budget");
+            if (tokens > budget.inputTokens()) {
+                if (!v2) throw new IllegalStateException("Harness context exceeds active model input budget");
+                exhausted = true;
+                break;
+            }
             String fingerprint = ModelProtocolJson.sha256Hex(prompt);
             checkpoints.checkpoint(scope, "harness:input:" + turn, fingerprint, ModelProtocolJson.compact(Map.of("prompt", prompt, "datasetFingerprint", prepared.fingerprint())));
             observe.accept(Map.of("eventKind", "HARNESS_TURN", "eventState", "STARTED", "stage", "MODEL_NATIVE_ANALYSIS",
@@ -130,7 +158,16 @@ public final class ModelNativeAnalysisHarness {
             metadata.put("harnessModelCalls", calls);
             checkpoints.checkpoint(scope, "harness:output:" + turn, fingerprint, response == null ? "" : response);
             Map<String,Object> product;
-            try { product = parse(response); }
+            try {
+                product = parse(response);
+                boolean nextV2 = ModelAnalysisIntent.VERSION.equals(product.get("schemaVersion"));
+                if (v2 && !nextV2) throw new IllegalArgumentException("v2 cannot silently downgrade to legacy publication");
+                if (nextV2) {
+                    v2 = true;
+                    metadata.put("modelAnalysisProtocol", ModelAnalysisIntent.VERSION);
+                    validateIntent(product);
+                }
+            }
             catch (IllegalArgumentException invalid) {
                 receipts = new ArrayList<>(List.of(Map.of("status", "INVALID_TURN_PROTOCOL", "reason", invalid.getMessage())));
                 var span = Map.<String,Object>of("eventKind", "HARNESS_TURN", "eventState", "FAILED", "turn", turn,
@@ -165,15 +202,27 @@ public final class ModelNativeAnalysisHarness {
                 if (!Boolean.TRUE.equals(product.get("completed")) && report.isBlank() && turn < maximumTurns) continue;
             }
             List<Map<String,Object>> audit = new ArrayList<>();
-            boolean completed = Boolean.TRUE.equals(product.get("completed"));
+            boolean completed;
+            if (v2) metadata.put("modelNativeReportDraft", report);
+            try { completed = v2 ? recordIntent(product, report, snapshot(prepared.sources()), metadata)
+                : Boolean.TRUE.equals(product.get("completed")); }
+            catch (IllegalArgumentException rejected) {
+                metadata.put("executionState", "STOPPED");
+                metadata.put("executionStopReason", "GOVERNANCE_REJECTION");
+                metadata.put("publicationState", "REJECTED");
+                throw rejected;
+            }
+            metadata.put("modelEvidenceRequests", v2 ? List.copyOf(requests) : List.of());
             if (!completed && turn < maximumTurns) {
                 if (requests.size() > 4) receipts.add(Map.of("status", "REQUEST_REJECTED", "reason", "At most four requests per turn"));
-                else for (var request : requests) {
+                else for (int requestIndex = 0; requestIndex < requests.size(); requestIndex++) {
+                    var request = requests.get(requestIndex);
                     guard.run();
                     try {
                         String operation = String.valueOf(request.get("operation"));
                         if ("CALL_TOOL".equals(operation) && toolAccess != null) {
-                            var receipt = toolAccess.call(request, prepared.sources());
+                            var receipt = v2 ? toolAccess.call(request, prepared.sources(), "runtime:turn:" + fingerprint + ":" + requestIndex)
+                                : toolAccess.call(request, prepared.sources());
                             receipts.add(receipt);
                             audit.add(Map.of("status", "EXECUTED", "request", request,
                                 "receiptFingerprint", ModelProtocolJson.sha256Hex(receipt)));
@@ -199,19 +248,65 @@ public final class ModelNativeAnalysisHarness {
             } else if (!completed) exhausted = true;
             var span = new LinkedHashMap<String,Object>(Map.<String,Object>of("type", "harness_turn", "eventKind", "HARNESS_TURN", "stage", "MODEL_NATIVE_ANALYSIS",
                 "turn", turn, "inputTokensEstimated", tokens, "contextFingerprint", fingerprint,
-                "datasetFingerprint", prepared.fingerprint(), "workspaceVersion", turn, "reads", audit, "modelCompleted", completed));
+                "datasetFingerprint", prepared.fingerprint(), "workspaceVersion", turn, "reads", audit, "modelCompleted", v2
+                    ? ModelAnalysisIntent.action(metadata) == ModelAnalysisIntent.Action.COMPLETE
+                        || ModelAnalysisIntent.action(metadata) == ModelAnalysisIntent.Action.PARTIAL_COMPLETE : completed));
             span.put("outputCheckpointRestored", restored.isPresent());
             span.put("eventState", "COMPLETED");
             trace.add(span); observe.accept(span);
             metadata.put("harnessTrace", List.copyOf(trace));
             if (completed) break;
         }
-        metadata.put("harnessStopReason", exhausted ? "RESOURCE_BUDGET_EXHAUSTED" : "MODEL_COMPLETED");
+        metadata.put("harnessStopReason", exhausted ? "RESOURCE_BUDGET_EXHAUSTED"
+            : v2 ? "MODEL_DECISION" : "MODEL_COMPLETED");
         metadata.put("harnessMaxModelTurns", maximumTurns);
         metadata.put("visualizationCapabilitiesDraftInjected", true);
         refreshReportCatalog(prepared.sources(), metadata);
-        if (report.isBlank()) throw new IllegalStateException("Model produced no report within the execution budget");
+        if (v2) {
+            metadata.put("modelNativeReportDraft", report);
+            if (!metadata.containsKey("modelDecision")) {
+                metadata.put("executionState", "STOPPED");
+                metadata.put("executionStopReason", exhausted ? "RESOURCE_BUDGET_EXHAUSTED" : "INVALID_TURN_PROTOCOL");
+                metadata.put("publicationState", "NOT_REQUESTED");
+                return new Result(report, calls, List.copyOf(prepared.sources().keySet()));
+            }
+            metadata.put("executionState", exhausted || ModelAnalysisIntent.action(metadata) == ModelAnalysisIntent.Action.WAIT
+                ? "STOPPED" : "COMPLETED");
+            metadata.put("executionStopReason", exhausted ? "RESOURCE_BUDGET_EXHAUSTED"
+                : ModelAnalysisIntent.action(metadata) == ModelAnalysisIntent.Action.WAIT ? "WAIT_UNSUPPORTED" : "MODEL_DECISION");
+            if (exhausted) metadata.put("publicationState", "NOT_REQUESTED");
+        } else if (report.isBlank()) throw new IllegalStateException("Model produced no report within the execution budget");
         return new Result(report, calls, List.copyOf(prepared.sources().keySet()));
+    }
+    private static String snapshot(Map<String,Dataset> sources) {
+        return ModelProtocolJson.sha256Hex(sources.entrySet().stream().map(entry -> Map.of(
+            "reference", entry.getKey(), "contentSha256", entry.getValue().handle().contentSha256())).toList());
+    }
+    private static void validateIntent(Map<String,Object> product) {
+        if (!(product.get("decision") instanceof Map<?,?> decision)) throw new IllegalArgumentException("v2 decision is required");
+        ModelAnalysisIntent.Action action;
+        try { action = ModelAnalysisIntent.Action.valueOf(String.valueOf(decision.get("action"))); }
+        catch (IllegalArgumentException invalid) { throw new IllegalArgumentException("Invalid v2 action"); }
+        if (action != ModelAnalysisIntent.Action.CONTINUE && !maps(product.get("evidenceRequests")).isEmpty())
+            throw new IllegalArgumentException("Only CONTINUE may execute evidence requests");
+    }
+    private static boolean recordIntent(Map<String,Object> product, String report, String snapshot, Map<String,Object> metadata) {
+        metadata.put("modelDecision", product.get("decision"));
+        metadata.put("modelEvidenceSnapshotRef", snapshot);
+        metadata.put("analysisEvidenceSnapshotFingerprint", snapshot);
+        metadata.put("publicationState", "NOT_REQUESTED");
+        var action = ModelAnalysisIntent.action(metadata);
+        if (action == ModelAnalysisIntent.Action.PUBLISH) {
+            String hash = ModelProtocolJson.sha256Hex(report);
+            if (report.isBlank()) throw new IllegalArgumentException("PUBLISH requires a non-empty report");
+            if (product.get("publication") instanceof Map<?,?> publication
+                && (!hash.equals(publication.getOrDefault("reportSha256", null))
+                    || !snapshot.equals(publication.getOrDefault("evidenceSnapshotRef", null))))
+                throw new IllegalArgumentException("Publication report or evidence snapshot does not match");
+            metadata.put("modelPublicationRequest", Map.of("reportSha256", hash, "evidenceSnapshotRef", snapshot));
+            metadata.put("publicationState", "REQUESTED");
+        }
+        return action != ModelAnalysisIntent.Action.CONTINUE;
     }
     private static void refreshReportCatalog(Map<String,Dataset> datasets, Map<String,Object> metadata) {
         var captured = datasets.entrySet().stream().map(entry -> {
@@ -242,7 +337,7 @@ public final class ModelNativeAnalysisHarness {
         if (!text.startsWith("{")) return Map.of("completed", true, "reportMarkdown", response);
         try {
             Map<String,Object> product = JSON.readValue(text, new TypeReference<>() {});
-            if (!"model_native_analysis.v1".equals(product.get("schemaVersion"))) throw new IllegalArgumentException("Unsupported turn protocol");
+            if (!Set.of("model_native_analysis.v1", ModelAnalysisIntent.VERSION).contains(product.get("schemaVersion"))) throw new IllegalArgumentException("Unsupported turn protocol");
             return product;
         } catch (java.io.IOException invalid) { throw new IllegalArgumentException("Invalid JSON turn protocol"); }
     }

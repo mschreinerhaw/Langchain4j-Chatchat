@@ -177,6 +177,22 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             }
             traces = List.copyOf(combined);
         }
+        if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(values)) {
+            boolean delivered = "DELIVERED".equals(values.get("publicationState"))
+                && com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.action(values)
+                    == com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.Action.PUBLISH
+                && !Boolean.TRUE.equals(values.get("confirmationRequired"))
+                && !Boolean.TRUE.equals(values.get("fatalExecutionBlocked"));
+            String content = "";
+            if (delivered) {
+                var payloads = com.chatchat.agents.orchestration.analysis.report.ReportBlockMarkdownProtocol.protectVerified(
+                    candidateAnswer == null ? "" : candidateAnswer, values);
+                content = payloads.restore(UserFacingAnswerSanitizer.sanitize(payloads.markdown()));
+            }
+            values.put("reportQualityAuthority", "USER");
+            values.put("finalAnswerPreview", shortText(content, 1000));
+            return new AgentOrchestrator.AgentExecutionResult(content, traces == null ? List.of() : List.copyOf(traces), values);
+        }
         McpResultEvidencePolicy.Assessment mcpAssessment =
             recordMcpResultEvidencePolicy(values, traces);
         String policyCompliantCandidate = values.containsKey("analysisReportContract")

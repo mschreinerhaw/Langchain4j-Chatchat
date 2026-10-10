@@ -819,7 +819,19 @@ public class ToolRuntimeService {
             && result.results().size() == result.summary().total();
     }
 
-    private ToolRuntimeExecution executeOnce(ToolRuntimeRequest request) {
+    /** Rechecks the same schema, tenant policy, workflow, confirmation and identity gates without remote invocation. */
+    public ToolRuntimeExecution checkRecoveryAdmission(ToolRuntimeRequest request) {
+        var conflict = registryRevisionConflict(request);
+        if (conflict != null) return conflict;
+        if (validateBatchEnvelope(request).present())
+            return deniedExecution(request.getToolName(), request, toolRegistry.getToolMetadata(request.getToolName()),
+                "Recovery admission of a batch requires per-child authorization", "RECOVERY_BATCH_ADMISSION_UNSUPPORTED", null, null);
+        return executeOnce(request, true);
+    }
+
+    private ToolRuntimeExecution executeOnce(ToolRuntimeRequest request) { return executeOnce(request, false); }
+
+    private ToolRuntimeExecution executeOnce(ToolRuntimeRequest request, boolean admissionOnly) {
         String toolName = normalizeText(request == null ? null : request.getToolName());
         if (toolName == null) {
             return deniedExecution("unknown", request, null, "Tool name is required", "INVALID_REQUEST", null, null);
@@ -906,6 +918,7 @@ public class ToolRuntimeService {
                 executionPlan,
                 policyDecision);
         }
+        if (admissionOnly) return null;
         if (isCircuitOpen(toolName, policy) && !isToolRetryContinuation(request)) {
             return rejectedExecution(toolName, request, metadata,
                 "Tool circuit is open: " + toolName,

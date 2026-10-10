@@ -179,6 +179,22 @@ class RocksDbAnalysisEvidenceSpillStoreTest {
         assertThat(futureStore.readCheckpoint(scope, "old-chunk", "old-input")).isEmpty();
     }
 
+    @Test void atomicExecutionCheckpointsRetainOwnershipAcrossTtlAndReleaseWithPartition() {
+        var properties = properties("execution-ttl"); properties.setAnalysisSpillTtlMs(1_000);
+        var first = new RocksDbAnalysisEvidenceSpillStore(properties, new ObjectMapper(),
+            Clock.fixed(Instant.parse("2026-08-16T00:00:00Z"), ZoneOffset.UTC)); stores.add(first); first.open();
+        var scope = scope("tenant", "run");
+        assertThat(first.compareAndSetCheckpoint(scope, "execution", "identity", null, "STARTED")).isTrue();
+        assertThat(first.compareAndSetCheckpoint(scope, "execution", "identity", null, "OTHER_OWNER")).isFalse();
+        first.close();
+        var reopened = new RocksDbAnalysisEvidenceSpillStore(properties, new ObjectMapper(),
+            Clock.fixed(Instant.parse("2026-08-16T00:00:02Z"), ZoneOffset.UTC)); stores.add(reopened); reopened.open();
+        assertThat(reopened.readCheckpoint(scope, "execution", "identity")).contains("STARTED");
+        assertThat(reopened.compareAndSetCheckpoint(scope, "execution", "identity", "STARTED", "RESULT")).isTrue();
+        reopened.deletePartition(scope);
+        assertThat(reopened.readCheckpoint(scope, "execution", "identity")).isEmpty();
+    }
+
     private RocksDbAnalysisEvidenceSpillStore store(String name) {
         RocksDbAnalysisEvidenceSpillStore store = new RocksDbAnalysisEvidenceSpillStore(
             properties(name), new ObjectMapper());

@@ -46,6 +46,13 @@ public final class AgentToolCallCoordinator {
         return execution;
     }
 
+    public ToolRuntimeExecution checkRecoveryAdmission(String toolName, Map<String,Object> arguments,
+            String conversationId, String requestId, String userId, String tenantId, List<String> allowedTools,
+            Map<String,Object> plannerExecutionPlan, List<InteractionToolTrace> priorTraces, Map<String,Object> runtimeAttributes) {
+        return executor.checkRecoveryAdmission(toolName, arguments, conversationId, requestId, userId, tenantId,
+            allowedTools, plannerExecutionPlan, priorTraces, runtimeAttributes);
+    }
+
     private void record(Map<String, Object> runtimeAttributes,
                         String toolName,
                         ToolOutput output,

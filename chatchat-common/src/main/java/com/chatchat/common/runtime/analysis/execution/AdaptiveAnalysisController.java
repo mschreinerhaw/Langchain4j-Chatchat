@@ -42,6 +42,22 @@ public final class AdaptiveAnalysisController {
             feedback.untriedAuthorizedTool() ? "untried_evidence_tool" : "no_verified_new_retrieval_path");
     }
 
+    public Decision decideModel(java.util.Map<String,Object> metadata, int completedRecoveryRounds, int recoveryBudget) {
+        var action = ModelAnalysisIntent.action(metadata);
+        if ("RESOURCE_BUDGET_EXHAUSTED".equals(metadata.get("executionStopReason")))
+            return new Decision(Action.STOP, "BUDGET_EXHAUSTED");
+        if (!ModelAnalysisIntent.continuing(metadata))
+            return new Decision(action == ModelAnalysisIntent.Action.PUBLISH ? Action.DELIVER : Action.STOP, "MODEL_" + action);
+        if (completedRecoveryRounds >= boundedRecoveryRounds(recoveryBudget))
+            return new Decision(Action.STOP, "BUDGET_EXHAUSTED");
+        return new Decision(Action.RECOVER, "MODEL_CONTINUE");
+    }
+    public ReplanDecision admitModelReplan(boolean authorizationRequired, int completedRewrites, int attemptLimit) {
+        if (authorizationRequired) return new ReplanDecision(false, false, "authorization_required");
+        if (completedRewrites >= Math.max(1, boundedRounds(attemptLimit)) - 1)
+            return new ReplanDecision(false, false, "runtime_attempt_limit");
+        return new ReplanDecision(true, false, "model_requested_replan");
+    }
     public Decision decide(Feedback feedback, int completedRecoveryRounds, int recoveryBudget) {
         if (feedback.providerFailed()) return new Decision(Action.STOP, "FAILED");
         if (feedback.gaps().isEmpty()) return feedback.verified()

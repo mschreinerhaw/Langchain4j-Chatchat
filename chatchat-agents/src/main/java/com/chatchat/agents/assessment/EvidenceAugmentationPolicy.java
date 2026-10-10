@@ -41,6 +41,14 @@ public final class EvidenceAugmentationPolicy {
             "The evidence-required task has no usable factual result after exploration.");
     }
 
+    public Outcome decideModel(java.util.Map<String,Object> metadata, boolean authorizationRequired) {
+        if (authorizationRequired) return outcome(Decision.BLOCKED_AUTHORIZATION, false, false, "AUTHORIZATION_REQUIRED");
+        var action = com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.action(metadata);
+        return outcome(action == com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.Action.CONTINUE
+            ? Decision.RETRIEVE_MORE : Decision.COMPLETE,
+            com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.publishRequested(metadata),
+            com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.continuing(metadata), "MODEL_" + action);
+    }
     private Outcome outcome(Decision decision, boolean answerAllowed, boolean continueLoop, String reason) {
         return new Outcome(CONTRACT_VERSION, decision, answerAllowed, continueLoop, reason);
     }

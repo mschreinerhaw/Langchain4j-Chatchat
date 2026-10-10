@@ -56,6 +56,26 @@ public final class AgentToolExecutor {
                              Map<String, Object> plannerExecutionPlan,
                              List<InteractionToolTrace> priorTraces,
                              Map<String, Object> runtimeAttributes) {
+        ToolRuntimeExecution runtimeExecution = toolRuntimeService.execute(prepareRequest(toolName, arguments,
+            conversationId, requestId, userId, tenantId, allowedTools, plannerExecutionPlan, priorTraces, runtimeAttributes));
+        ToolOutput output = runtimeExecution.output();
+        String outputText = stringify(output.getData());
+        String observation = output.isSuccess()
+            ? observationBuilder.buildSuccessObservation(toolName, output, outputText)
+            : observationBuilder.buildFailureObservation(toolName, output);
+        return new Execution(runtimeExecution.trace(), observation, output, runtimeExecution);
+    }
+
+    public ToolRuntimeExecution checkRecoveryAdmission(String toolName, Map<String,Object> arguments,
+            String conversationId, String requestId, String userId, String tenantId, List<String> allowedTools,
+            Map<String,Object> plannerExecutionPlan, List<InteractionToolTrace> priorTraces, Map<String,Object> runtimeAttributes) {
+        return toolRuntimeService.checkRecoveryAdmission(prepareRequest(toolName, arguments, conversationId,
+            requestId, userId, tenantId, allowedTools, plannerExecutionPlan, priorTraces, runtimeAttributes));
+    }
+
+    private ToolRuntimeRequest prepareRequest(String toolName, Map<String,Object> arguments,
+            String conversationId, String requestId, String userId, String tenantId, List<String> allowedTools,
+            Map<String,Object> plannerExecutionPlan, List<InteractionToolTrace> priorTraces, Map<String,Object> runtimeAttributes) {
         String originalUserQuery = stringValue(runtimeAttributes == null
             ? null
             : runtimeAttributes.get("originalUserQuery"));
@@ -85,7 +105,7 @@ public final class AgentToolExecutor {
             .userId(userId)
             .parameters(safeArguments)
             .build();
-        ToolRuntimeExecution runtimeExecution = toolRuntimeService.execute(ToolRuntimeRequest.builder()
+        return ToolRuntimeRequest.builder()
             .toolName(toolName)
             .runtimeMode("agent_chat")
             .requestId(requestId)
@@ -95,13 +115,7 @@ public final class AgentToolExecutor {
             .allowedTools(allowedTools == null ? List.of() : allowedTools)
             .toolInput(toolInput)
             .attributes(attributes)
-            .build());
-        ToolOutput output = runtimeExecution.output();
-        String outputText = stringify(output.getData());
-        String observation = output.isSuccess()
-            ? observationBuilder.buildSuccessObservation(toolName, output, outputText)
-            : observationBuilder.buildFailureObservation(toolName, output);
-        return new Execution(runtimeExecution.trace(), observation, output, runtimeExecution);
+            .build();
     }
 
     private boolean containsTemplatePreflightResult(Map<String, Object> arguments) {

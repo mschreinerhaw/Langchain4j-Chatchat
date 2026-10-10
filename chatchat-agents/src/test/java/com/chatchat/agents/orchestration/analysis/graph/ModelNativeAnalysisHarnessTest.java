@@ -159,4 +159,74 @@ class ModelNativeAnalysisHarnessTest {
         assertThat(execute(8, sources(), model, new LinkedHashMap<>()).modelCalls()).isEqualTo(2);
         verify(model, times(2)).chat(any(String.class));
     }
+
+    private String v2(String action, String draft, List<Map<String,Object>> requests) {
+        return ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v2",
+            "decision", Map.of("action", action), "reportMarkdown", draft, "evidenceRequests", requests));
+    }
+    @Test void v2ContinuesWithoutNewEvidenceAndPublishesOnlyOnModelRequest() {
+        var model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn(v2("CONTINUE", "First draft", List.of()),
+            v2("CONTINUE", "Revised draft", List.of()), v2("PUBLISH", "Chosen report", List.of()));
+        var meta = new LinkedHashMap<String,Object>();
+        assertThat(execute(4, sources(), model, meta).markdown()).isEqualTo("Chosen report");
+        assertThat(meta).containsEntry("publicationState", "REQUESTED").containsEntry("executionStopReason", "MODEL_DECISION");
+        assertThat(((Map<?,?>)meta.get("modelPublicationRequest")).get("reportSha256"))
+            .isEqualTo(ModelProtocolJson.sha256Hex("Chosen report"));
+        verify(model, times(3)).chat(anyString());
+    }
+    @Test void v2CompletionAndWaitRetainDraftWithoutRequestingPublication() {
+        for (String action : List.of("COMPLETE", "PARTIAL_COMPLETE", "WAIT")) {
+            var model = mock(ChatModel.class); when(model.chat(anyString())).thenReturn(v2(action, "Private draft", List.of()));
+            var meta = new LinkedHashMap<String,Object>();
+            assertThat(execute(3, sources(), model, meta).markdown()).isEqualTo("Private draft");
+            assertThat(meta).containsEntry("publicationState", "NOT_REQUESTED");
+            assertThat(((Map<?,?>)meta.get("modelDecision")).get("action")).isEqualTo(action);
+            if (action.equals("WAIT")) assertThat(meta).containsEntry("executionStopReason", "WAIT_UNSUPPORTED");
+            verify(model).chat(anyString());
+        }
+    }
+    @Test void v2BudgetExhaustionPreservesDraftAndContinueDecisionWithoutPublishing() {
+        var model = mock(ChatModel.class); when(model.chat(anyString())).thenReturn(v2("CONTINUE", "Draft only", List.of()));
+        var meta = new LinkedHashMap<String,Object>(); execute(1, sources(), model, meta);
+        assertThat(meta).containsEntry("modelNativeReportDraft", "Draft only").containsEntry("executionState", "STOPPED")
+            .containsEntry("executionStopReason", "RESOURCE_BUDGET_EXHAUSTED").containsEntry("publicationState", "NOT_REQUESTED");
+        assertThat(((Map<?,?>)meta.get("modelDecision")).get("action")).isEqualTo("CONTINUE");
+    }
+    @Test void v2CannotImplicitlyPublishByReturningLegacyMarkdown() {
+        var model = mock(ChatModel.class); when(model.chat(anyString())).thenReturn(v2("CONTINUE", "Private", List.of()), "Accidental legacy report");
+        var meta = new LinkedHashMap<String,Object>();
+        assertThat(execute(2, sources(), model, meta).markdown()).isEqualTo("Private");
+        assertThat(meta).containsEntry("publicationState", "NOT_REQUESTED");
+    }
+    @Test void v2ExplicitPublicationCanDeclareGapsWithoutRuntimeRepair() {
+        var model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn(ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v2",
+            "decision", Map.of("action", "PUBLISH"), "reportMarkdown", "Limited report",
+            "evidenceAssessment", Map.of("evidenceStatus", "PARTIAL", "missingEvidence", List.of("chunk2")))));
+        var meta = new LinkedHashMap<String,Object>(); execute(3, sources(), model, meta);
+        assertThat(meta).containsEntry("publicationState", "REQUESTED"); verify(model).chat(anyString());
+    }
+    @Test void v2CancellationAndTimeoutRetainLastModelDecisionAndDraft() {
+        for (java.util.concurrent.CancellationException failure : List.of(new java.util.concurrent.CancellationException("cancel"),
+            new com.chatchat.agents.orchestration.model.AgentDeadlineExceededException("deadline"))) {
+            var model = mock(ChatModel.class); var meta = new LinkedHashMap<String,Object>();
+            when(model.chat(anyString())).thenReturn(v2("CONTINUE", "Retained draft", List.of())).thenThrow(failure);
+            assertThatThrownBy(() -> execute(3, sources(), model, meta)).isSameAs(failure);
+            assertThat(meta).containsEntry("modelNativeReportDraft", "Retained draft").containsEntry("publicationState", "NOT_REQUESTED")
+                .containsEntry("executionState", "STOPPED").containsEntry("executionStopReason",
+                    failure instanceof com.chatchat.agents.orchestration.model.AgentDeadlineExceededException ? "TIMEOUT" : "CANCELLED");
+            assertThat(((Map<?,?>)meta.get("modelDecision")).get("action")).isEqualTo("CONTINUE");
+        }
+    }
+    @Test void v2RejectsWrongPublicationVersion() {
+        var model = mock(ChatModel.class); var meta = new LinkedHashMap<String,Object>();
+        when(model.chat(anyString())).thenReturn(ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v2",
+            "decision", Map.of("action", "PUBLISH"), "reportMarkdown", "Report",
+            "publication", Map.of("reportSha256", "wrong", "evidenceSnapshotRef", "wrong"))));
+        assertThatThrownBy(() -> execute(3, sources(), model, meta)).isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("does not match");
+        assertThat(meta).containsEntry("publicationState", "REJECTED").containsEntry("executionStopReason", "GOVERNANCE_REJECTION");
+    }
+
 }

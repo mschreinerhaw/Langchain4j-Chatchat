@@ -261,6 +261,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private SemanticInsightContractProvider semanticInsightContractProvider =
         SemanticInsightContractProvider.disabled();
     NodeAttemptStore nodeAttemptStore;
+    private com.chatchat.common.runtime.evidence.RuntimeExecutionCheckpointPort executionCheckpoints;
+    @Autowired(required = false)
+    public void setExecutionCheckpoints(com.chatchat.common.runtime.evidence.RuntimeExecutionCheckpointPort port) {
+        this.executionCheckpoints = port;
+    }
     private AnalysisEvidenceSpillStore analysisEvidenceSpillStore = AnalysisEvidenceSpillStore.disabled();
     public AgentOrchestrationEngine(ChatModel chatModel,
                              ToolRegistry toolRegistry,
@@ -459,20 +464,39 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             }
             return new com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccess(toolRegistry, authorized,
                 (name, arguments) -> {
+                    var callAttributes = new LinkedHashMap<String,Object>(request.runtimeAttributes());
+                    if (request.metadata().containsKey("harnessActiveToolRequestId")) {
+                        callAttributes.put("harnessToolRequestId", request.metadata().get("harnessActiveToolRequestId"));
+                        callAttributes.put("toolRetryAttempts", 0);
+                    }
                     var execution = toolCallCoordinator.execute(name, arguments, scope.conversationId(),
-                    scope.requestId(), scope.userId(), scope.tenantId(), authorized, Map.of(), priorTraces,
-                    request.runtimeAttributes()).runtimeExecution();
+                    scope.requestId(), scope.userId(), scope.tenantId(), authorized, Map.of(), harnessRecoveryTraces(priorTraces, request.metadata()),
+                    callAttributes).runtimeExecution();
                     if (execution.trace() != null) priorTraces.add(execution.trace());
                     return execution;
                 }, analysisEvidenceCoordinator,
                 request.runtimeAttributes(), request.metadata(), scope, analysisEvidenceSpillStore,
-                request.result() == null || request.result().steps() == null ? 0 : request.result().steps().size());
+                request.result() == null || request.result().steps() == null ? 0 : request.result().steps().size())
+                .withExecutionCheckpoints(executionCheckpoints)
+                .withRecoveryAdmission((name, arguments) -> toolCallCoordinator.checkRecoveryAdmission(name, arguments,
+                    scope.conversationId(), scope.requestId(), scope.userId(), scope.tenantId(), authorized,
+                    Map.of(), harnessRecoveryTraces(priorTraces, request.metadata()), request.runtimeAttributes()));
         });
         InterpretationPlanStore resolvedPlanStore = interpretationPlanStore == null && this.runStore instanceof InterpretationPlanStore store
             ? store
             : interpretationPlanStore;
         this.planSnapshotService = new InterpretationPlanSnapshotService(
             resolvedPlanStore, AGENT_RUN_ID_ATTRIBUTE);
+    }
+
+    private List<InteractionToolTrace> harnessRecoveryTraces(List<InteractionToolTrace> prior, Map<String,Object> metadata) {
+        var result = new ArrayList<InteractionToolTrace>(prior);
+        if (metadata.get("harnessToolTraces") instanceof Iterable<?> restored)
+            for (Object value : restored) {
+                var trace = value instanceof InteractionToolTrace typed ? typed : objectMapper.convertValue(value, InteractionToolTrace.class);
+                if (!result.contains(trace)) result.add(trace);
+            }
+        return List.copyOf(result);
     }
 
     /** Production supplies the database-backed provider; direct unit construction retains a deterministic fallback. */
@@ -1343,6 +1367,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         BooleanSupplier cancellationCheck,
         String stopReason
     ) {
+        if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(metadata)) {
+            return answerFinalizer.finishExecution("DELIVERED".equals(metadata.get("publicationState"))
+                ? synthesizedAnswer : "", traces, metadata, observations);
+        }
         String directPublication = com.chatchat.agents.orchestration.analysis.graph.AnalysisFinalizationPolicy
             .directPublicationReason(metadata);
         if (!directPublication.isBlank()) {

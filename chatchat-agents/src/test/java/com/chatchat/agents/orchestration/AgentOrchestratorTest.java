@@ -4146,6 +4146,50 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void v2ModelIntentSurvivesTheFullInterpretationDagAndAnswerFinalizer() {
+        for (String action : List.of("PUBLISH", "COMPLETE", "PARTIAL_COMPLETE", "WAIT")) {
+            String plan = """
+                {"version":"1.0","intent":{"type":"database_health","goal":"Read metrics","risk_level":"low"},
+                 "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
+                 "plan":{"steps":[
+                   {"id":1,"action_type":"mcp_tool","tool_name":"read_metrics","input":{"templateCode":"STATUS"},"depends_on":[]},
+                   {"id":2,"action_type":"final_answer","tool_name":"","input":{"answer":"Intermediate plan draft"},"depends_on":[1]}]},
+                 "execution_policy":{"max_steps":2,"allow_parallel":false,"allow_tool":["read_metrics"],"deny_tool":[],"timeout_ms":30000,"max_rewrite_times":0},
+                 "review":{"self_check":{"completeness_score":0.9,"hallucination_risk":0.1,"tool_sufficiency":true,"missing_steps":[]},"fallback_plan":[],"optional_tool_decisions":[{"tool_name":"read_metrics","decision":"SELECT","reason":"Read requested metrics","question_aspects":["metrics"]}]}}
+                """;
+            String continued = "{\"schemaVersion\":\"model_native_analysis.v2\",\"decision\":{\"action\":\"CONTINUE\"},\"reportMarkdown\":\"Intermediate draft\",\"evidenceRequests\":[]}";
+            String finished = "{\"schemaVersion\":\"model_native_analysis.v2\",\"decision\":{\"action\":\"" + action
+                + "\"},\"reportMarkdown\":\"Model chosen report\",\"evidenceRequests\":[]}";
+            var model = new QueueChatModel(plan, continued, finished);
+            var registry = mock(ToolRegistry.class);
+            when(registry.hasTool("read_metrics")).thenReturn(true);
+            when(registry.getToolMetadata("read_metrics")).thenReturn(ToolMetadata.builder().id("read_metrics")
+                .title("Read metrics").description("Read only template").riskLevel("low").build());
+            when(registry.executeEnhancedTool(eq("read_metrics"), any())).thenReturn(ToolOutput.success(
+                Map.of("records", List.of(Map.of("VALUE", 42)))));
+            var config = new ModelsConfig(); config.setDefaultChatModel("fixture");
+            var connection = new ModelsConfig.ModelConnectionConfig(); connection.setModelName("fixture");
+            connection.setBaseUrl("http://localhost:1"); config.setChatModels(Map.of("fixture", connection));
+            var orchestrator = new AgentOrchestrator(model, registry,
+                new ToolRuntimeService(registry, new ObjectMapper(), toolRuntimeProperties(), List.of(), List.of()),
+                new ObjectMapper(), config);
+            var result = orchestrator.executeAgent("Read database metrics", "tenant-1", List.of("read_metrics"),
+                "Read only", null, List.of(), List.of(), "database", "v2-request", "v2-conversation", "user-1", 10, List.of(), false);
+            assertThat(result.metadata()).containsEntry("modelAnalysisProtocol", "model_native_analysis.v2");
+            assertThat(((Map<?,?>) result.metadata().get("modelDecision")).get("action")).isEqualTo(action);
+            assertThat(result.metadata()).containsEntry("modelNativeReportDraft", "Model chosen report");
+            if (action.equals("PUBLISH")) {
+                assertThat(result.answer()).isEqualTo("Model chosen report");
+                assertThat(result.metadata()).containsEntry("publicationState", "DELIVERED");
+            } else {
+                assertThat(result.answer()).isEmpty();
+                assertThat(result.metadata()).containsEntry("publicationState", "NOT_REQUESTED");
+            }
+            verify(registry, times(1)).executeEnhancedTool(eq("read_metrics"), any());
+        }
+    }
+
+    @Test
     void fiveCallBatchUsesOneFinalSynthesisAndNoPerResultModelReview() {
         String toolName = "sql_query_execute";
         String plan = """

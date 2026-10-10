@@ -42,6 +42,8 @@ public final class AnalysisLoopCoordinator {
                                                      boolean explorationAvailable,
                                                      boolean authorizationRequired,
                                                      Map<String, Object> metadata) {
+        if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(metadata))
+            return augmentationPolicy.decideModel(metadata, authorizationRequired);
         List<Map<String, Object>> snapshots = evidenceHistory == null
             ? List.of() : evidenceHistory.stream().filter(java.util.Objects::nonNull).toList();
         EvidenceCoverageAssessment.Result coverage = coverageAssessment.assess(
@@ -128,6 +130,10 @@ public final class AnalysisLoopCoordinator {
                            String stopReason,
                            int iterations) {
         if (metadata == null) return;
+        if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(metadata)) {
+            metadata.put("stopReason", metadata.getOrDefault("executionStopReason", "MODEL_DECISION"));
+            return;
+        }
         List<Map<String, Object>> snapshots = evidenceHistory == null
             ? List.of()
             : evidenceHistory.stream().filter(java.util.Objects::nonNull).toList();

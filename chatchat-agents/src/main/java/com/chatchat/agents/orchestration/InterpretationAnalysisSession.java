@@ -358,6 +358,7 @@ final class InterpretationAnalysisSession {
                         runtimeAttributes,
                         metadata);
         evidenceHistory.add(firstEvidence);
+        if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(metadata)) return FINAL_INITIAL;
         configuredMaxRewriteTimes = host.maxRewriteTimes(initialPipelinePlan);
         firstEvidenceAvailable = host.usableEvidenceAvailable(firstEvidence);
         boolean actionableEvidenceRefinementAvailable =
@@ -444,7 +445,9 @@ final class InterpretationAnalysisSession {
     }
 
     Phase refinementGate() {
-        var admission = host.analysisRefinementCoordinator.admitRefinement(
+        var admission = com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(metadata)
+            ? host.analysisRefinementCoordinator.admitModelRefinement(currentResult, rewriteCount)
+            : host.analysisRefinementCoordinator.admitRefinement(
                 currentResult, planAttemptResults, evidenceHistory, tools, rewriteCount);
         metadata.put("refinementAdmission", Map.of("allowed", admission.allowed(),
                 "structuralRepair", admission.structuralRepair(), "reason", admission.reason()));
@@ -644,7 +647,8 @@ final class InterpretationAnalysisSession {
             return REFINEMENT_GATE;
         }
 
-        if (ToolCallFingerprint.materiallyEquivalent(currentPlan, rewrittenPlan)) {
+        if (!com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(metadata)
+            && ToolCallFingerprint.materiallyEquivalent(currentPlan, rewrittenPlan)) {
             duplicateToolPlanSuppressed = true;
             metadata.put("duplicateToolPlanSuppressed", true);
             metadata.put("duplicateToolPlanStage", rewriteStage);
@@ -769,6 +773,7 @@ final class InterpretationAnalysisSession {
                         runtimeAttributes,
                         metadata);
         evidenceHistory.add(currentEvidence);
+        if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(metadata)) return FINAL_REFINED;
         latestAugmentationDecision =
                 host.decideEvidenceAugmentation(
                         evidenceHistory,

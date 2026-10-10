@@ -36,6 +36,15 @@ public interface AnalysisEvidenceSpillStore {
                     String inputSha256,
                     String summaryJson);
 
+    /** Atomic ownership/result updates; providers without this capability cannot promise durable tool recovery. */
+    default boolean supportsAtomicCheckpoints() { return false; }
+
+    /** Execution checkpoints survive ordinary spill TTL; remove them only with their run partition. */
+    default boolean compareAndSetCheckpoint(GovernanceIsolationScope scope, String checkpointKey,
+            String inputSha256, String expectedJson, String nextJson) {
+        throw new UnsupportedOperationException("Atomic execution checkpoints are unavailable");
+    }
+
     default void deletePartition(GovernanceIsolationScope scope) {
         // Optional lifecycle cleanup hook.
     }

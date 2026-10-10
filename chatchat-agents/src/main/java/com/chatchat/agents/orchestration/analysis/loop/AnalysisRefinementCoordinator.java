@@ -86,6 +86,10 @@ public final class AnalysisRefinementCoordinator {
         return new RefinementAdmission(decision.allowed(), decision.structuralRepair(), decision.reason());
     }
 
+    public RefinementAdmission admitModelRefinement(InterpretationPlanRuntime.ExecutionResult result, int rewrites) {
+        var decision = adaptiveController.admitModelReplan(result != null && result.approvalRequired(), rewrites, maximumAttempts);
+        return new RefinementAdmission(decision.allowed(), decision.structuralRepair(), decision.reason());
+    }
     public record RefinementAdmission(boolean allowed, boolean structuralRepair, String reason) {}
 
     public boolean dependencyRecoveryRequired(InterpretationPlanRuntime.ExecutionResult result) {

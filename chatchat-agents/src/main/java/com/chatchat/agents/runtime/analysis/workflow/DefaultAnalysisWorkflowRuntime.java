@@ -104,7 +104,8 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
     }
 
     private AnalysisExecutionOutcome archive(AnalysisContext context, AnalysisExecutionOutcome outcome) {
-        if (outcome.verification() == null || !outcome.verification().accepted()
+        if ((!com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(outcome.metadata())
+            && (outcome.verification() == null || !outcome.verification().accepted()))
             || outcome.evidenceBundle().evidence().isEmpty()) return outcome;
         if (context.kernelScope().tenantId() == null || context.kernelScope().userId() == null)
             return outcome;
@@ -112,7 +113,8 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
             AnalysisEvidenceArchivePort store = evidenceArchive.get();
             if (store == null) throw new IllegalStateException("Evidence archive unavailable");
             Map<String, Object> bundleMetadata = new LinkedHashMap<>(outcome.evidenceBundle().metadata());
-            for (String key : List.of("modelEvidenceAssessmentAudit", "modelEvidenceAssessmentHistory", "analysisExecutionOutcome")) {
+            for (String key : List.of("modelEvidenceAssessmentAudit", "modelEvidenceAssessmentHistory", "analysisExecutionOutcome", "modelAnalysisProtocol", "modelDecision",
+                "executionState", "executionStopReason", "publicationState", "modelPublicationRequest", "modelEvidenceSnapshotRef")) {
                 if (outcome.metadata().containsKey(key)) bundleMetadata.put(key, outcome.metadata().get(key));
             }
             EvidenceBundle archived = new EvidenceBundle(null, outcome.evidenceBundle().evidence(),
@@ -193,6 +195,8 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
 
     private AnalysisExecutionOutcome recoverAndContinue(AnalysisContext context, AnalysisWorkflow workflow,
                                                          AnalysisExecutionOutcome primary) {
+        if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(primary.metadata()))
+            return continueModelDirected(context, workflow, primary);
         // Missing template metadata is not a request to acquire or analyze business data.
         if (primary.workflowType() == com.chatchat.common.runtime.analysis.model.AnalysisWorkflowType.ASSET_GUIDANCE)
             return completeAssetGuidance(context, workflow, primary);
@@ -320,6 +324,102 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
         return outcome(continued, continued.verification(), continued.evidenceBundle(), combined);
     }
 
+    private AnalysisExecutionOutcome continueModelDirected(AnalysisContext context, AnalysisWorkflow workflow,
+                                                            AnalysisExecutionOutcome primary) {
+        var current = primary;
+        int budget = recoveryMaxRounds(context);
+        var journal = progress(context);
+        for (int round = 0; ; round++) {
+            if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
+            var decision = adaptiveController.decideModel(current.metadata(), round, budget);
+            // Only the workflow/model's explicit requests can initiate acquisition. Inspector gaps are observations.
+            var requests = workflow.recoveryRequests(context, current);
+            if (Boolean.TRUE.equals(current.metadata().get("confirmationRequired"))
+                || Boolean.TRUE.equals(current.metadata().get("fatalExecutionBlocked")))
+                decision = new AdaptiveAnalysisController.Decision(AdaptiveAnalysisController.Action.STOP, "GOVERNANCE_REJECTION");
+            var metadata = new LinkedHashMap<String,Object>(current.metadata());
+            metadata.put("adaptiveAnalysisAction", decision.action().name());
+            metadata.put("adaptiveAnalysisReason", decision.reason());
+            metadata.put("decisionAuthority", "MODEL");
+            metadata.put("executionState", decision.action() == AdaptiveAnalysisController.Action.RECOVER ? "RUNNING" : "COMPLETED");
+            metadata.put("executionStopReason", "BUDGET_EXHAUSTED".equals(decision.reason()) ? "RESOURCE_BUDGET_EXHAUSTED"
+                : com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.action(metadata)
+                    == com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.Action.WAIT ? "WAIT_UNSUPPORTED" : "MODEL_DECISION");
+            current = outcome(current, current.verification(), current.evidenceBundle(), metadata);
+            long revision = 0;
+            if (journal != null) {
+                var persisted = journal.observe(context, current, requests, round + 1, decision);
+                revision = persisted.revision();
+                // Respect persisted execution admission (budget/lease), never infer business completion.
+                if (!persisted.action().equals(decision.action().name()))
+                    decision = new AdaptiveAnalysisController.Decision(
+                        AdaptiveAnalysisController.Action.valueOf(persisted.action()), persisted.reason());
+            }
+            if (decision.action() != AdaptiveAnalysisController.Action.RECOVER) {
+                metadata.put("adaptiveAnalysisAction", decision.action().name());
+                metadata.put("adaptiveAnalysisReason", decision.reason());
+                boolean denied = "GOVERNANCE_REJECTION".equals(decision.reason());
+                boolean publish = !denied && decision.action() == AdaptiveAnalysisController.Action.DELIVER
+                    && com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.publishRequested(metadata);
+                if (denied) metadata.put("executionStopReason", "GOVERNANCE_REJECTION");
+                if ("BUDGET_EXHAUSTED".equals(decision.reason())) metadata.put("executionStopReason", "RESOURCE_BUDGET_EXHAUSTED");
+                if (denied || "BUDGET_EXHAUSTED".equals(decision.reason())
+                    || com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.action(metadata)
+                        == com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.Action.WAIT)
+                    metadata.put("executionState", "STOPPED");
+                metadata.put("modelNativeReportDraft", current.synthesis());
+                if (publish) {
+                    Object raw = metadata.get("modelPublicationRequest");
+                    if (!(raw instanceof Map<?,?> binding)
+                        || !(metadata.get("modelEvidenceSnapshotRef") instanceof String snapshot) || snapshot.isBlank()
+                        || !com.chatchat.agents.protocol.ModelProtocolJson.sha256Hex(current.synthesis()).equals(binding.get("reportSha256"))
+                        || !java.util.Objects.equals(metadata.get("modelEvidenceSnapshotRef"), binding.get("evidenceSnapshotRef")))
+                    {
+                        metadata.put("publicationState", "REJECTED");
+                        metadata.put("executionState", "STOPPED");
+                        metadata.put("executionStopReason", "GOVERNANCE_REJECTION");
+                        throw new IllegalArgumentException("Publication version binding is required");
+                    }
+                    metadata.put("publicationState", "DELIVERED");
+                } else metadata.put("publicationState", denied ? "REJECTED" : "NOT_REQUESTED");
+                return new AnalysisExecutionOutcome(null, current.workflowType(), current.plan(), current.verification(),
+                    current.evidenceBundle(), publish ? current.synthesis() : "", metadata);
+            }
+            if (journal != null) {
+                var reservation = journal.reserveRecovery(context.kernelScope(), revision);
+                if (!reservation.admitted()) {
+                    metadata.put("executionState", "STOPPED");
+                    metadata.put("executionStopReason", "BUDGET_EXHAUSTED".equals(reservation.reason())
+                        ? "RESOURCE_BUDGET_EXHAUSTED" : "EXECUTION_ADMISSION_REJECTED");
+                    metadata.put("adaptiveAnalysisAction", "STOP");
+                    metadata.put("adaptiveAnalysisReason", reservation.reason());
+                    metadata.put("publicationState", "NOT_REQUESTED");
+                    metadata.put("modelNativeReportDraft", current.synthesis());
+                    return new AnalysisExecutionOutcome(null, current.workflowType(), current.plan(), current.verification(),
+                        current.evidenceBundle(), "", metadata);
+                }
+            }
+            var evidence = current.evidenceBundle();
+            var receipts = new java.util.ArrayList<Map<String,Object>>();
+            for (var request : requests) {
+                var recovery = selectRecovery(context, request);
+                if (recovery == null) { receipts.add(Map.of("status", "NO_AUTHORIZED_RECOVERY_WORKFLOW")); continue; }
+                try {
+                    var recovered = recovery.recover(context, evidence, request, round + 1);
+                    evidence = mergeEvidence(evidence, recovered.evidence());
+                    receipts.add(Map.of("status", recovered.status().name(), "metadata", recovered.metadata()));
+                } catch (java.util.concurrent.CancellationException cancelled) { throw cancelled; }
+                catch (RuntimeException failure) {
+                    if (Thread.currentThread().isInterrupted()) throw failure;
+                    receipts.add(Map.of("status", "TOOL_FAILED", "reason", safe(failure.getMessage())));
+                }
+            }
+            metadata.put("modelRecoveryReceipts", List.copyOf(receipts));
+            current = workflow.continueAfterRecovery(context, current, evidence, Map.copyOf(metadata));
+            if (!com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(current.metadata()))
+                throw new IllegalArgumentException("Model continuation cannot downgrade its intent protocol");
+        }
+    }
     private EvidenceBundle mergeEvidence(EvidenceBundle previous, EvidenceBundle recovered) {
         // Deduplicate exact copies only. Two different observations with the same ID must both
         // reach analysis; Runtime cannot choose which content is authoritative.

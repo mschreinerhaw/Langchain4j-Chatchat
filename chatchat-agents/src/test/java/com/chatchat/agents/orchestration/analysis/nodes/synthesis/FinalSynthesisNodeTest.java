@@ -41,4 +41,45 @@ class FinalSynthesisNodeTest {
         assertThat(node().synthesizeFinal(partial).content()).isEqualTo("Analysis of available records.");
         assertThat(metadata).containsEntry("analysisGraphStatus","COMPLETED_WITH_LIMITATIONS");verifyNoInteractions(model);
     }
+
+    private Map<String,Object> v2Metadata(String action) {
+        var metadata = new LinkedHashMap<String,Object>();
+        metadata.put("modelAnalysisProtocol", "model_native_analysis.v2");
+        metadata.put("modelDecision", Map.of("action", action));
+        metadata.put("modelNativeReportDraft", "Chosen report");
+        metadata.put("modelEvidenceSnapshotRef", "snapshot");
+        metadata.put("publicationState", action.equals("PUBLISH") ? "REQUESTED" : "NOT_REQUESTED");
+        metadata.put("modelPublicationRequest", Map.of("reportSha256", com.chatchat.agents.protocol.ModelProtocolJson.sha256Hex("Chosen report"),
+            "evidenceSnapshotRef", "snapshot"));
+        return metadata;
+    }
+    @Test void v2DraftCompleteWaitAndPartialCompletionNeverPublish() {
+        for (String action : List.of("CONTINUE", "COMPLETE", "WAIT", "PARTIAL_COMPLETE")) {
+            var metadata = v2Metadata(action); var result = node().synthesizeFinal(request(metadata));
+            assertThat(result.generated()).isFalse(); assertThat(result.content()).isEmpty();
+            assertThat(metadata).containsEntry("modelNativeReportDraft", "Chosen report").containsEntry("publicationState", "NOT_REQUESTED");
+        }
+        verifyNoInteractions(model);
+    }
+    @Test void v2PublishesBoundVersionDespiteGapsAndPreservesPartialScope() {
+        var metadata = v2Metadata("PUBLISH");
+        metadata.put("modelEvidenceAssessmentAudit", Map.of("assessment", Map.of("evidenceStatus", "PARTIAL", "missingEvidence", List.of("chunk2"))));
+        var result = node().synthesizeFinal(request(metadata));
+        assertThat(result.content()).isEqualTo("Chosen report");
+        assertThat(metadata).containsEntry("publicationState", "DELIVERED").containsEntry("analysisExecutionStatus", "PARTIALLY_COMPLETED");
+        verifyNoInteractions(model);
+    }
+    @Test void v2AuthorizationAndReportVersionStillBlockPublication() {
+        var denied = v2Metadata("PUBLISH"); denied.put("confirmationRequired", true);
+        assertThat(node().synthesizeFinal(request(denied)).generated()).isFalse();
+        assertThat(denied).containsEntry("publicationState", "REJECTED");
+        var fatal = v2Metadata("PUBLISH"); fatal.put("fatalExecutionBlocked", true);
+        assertThat(node().synthesizeFinal(request(fatal)).generated()).isFalse();
+        assertThat(fatal).containsEntry("publicationState", "REJECTED");
+        var changed = v2Metadata("PUBLISH"); changed.put("modelNativeReportDraft", "Changed report");
+        assertThatThrownBy(() -> node().synthesizeFinal(request(changed))).isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("version binding");
+        assertThat(changed).containsEntry("publicationState", "REJECTED");
+    }
+
 }

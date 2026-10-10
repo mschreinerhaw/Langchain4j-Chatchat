@@ -168,11 +168,26 @@ public class RocksDbAnalysisEvidenceSpillStore implements AnalysisEvidenceSpillS
         }
     }
 
+    @Override public boolean supportsAtomicCheckpoints() { return true; }
+
+    @Override public synchronized boolean compareAndSetCheckpoint(GovernanceIsolationScope scope, String key,
+            String fingerprint, String expectedJson, String nextJson) {
+        String current = readCheckpoint(scope, key, fingerprint).orElse(null);
+        if (!java.util.Objects.equals(current, expectedJson)) return false;
+        writeCheckpoint(scope, key, fingerprint, nextJson, true);
+        return true;
+    }
+
     @Override
     public void checkpoint(GovernanceIsolationScope scope,
                            String checkpointKey,
                            String inputSha256,
                            String summaryJson) {
+        writeCheckpoint(scope, checkpointKey, inputSha256, summaryJson, false);
+    }
+
+    private void writeCheckpoint(GovernanceIsolationScope scope, String checkpointKey,
+            String inputSha256, String summaryJson, boolean executionIdentity) {
         requireScope(scope);
         requireText(checkpointKey, "Checkpoint key");
         requireText(inputSha256, "Checkpoint input checksum");
@@ -184,6 +199,7 @@ public class RocksDbAnalysisEvidenceSpillStore implements AnalysisEvidenceSpillS
         envelope.put("inputSha256", inputSha256);
         envelope.put("summaryJson", summaryJson == null ? "" : summaryJson);
         envelope.put("createdAtEpochMs", clock.millis());
+        envelope.put("executionIdentity", executionIdentity);
         try {
             ensureOpen();
             try (WriteOptions writeOptions = new WriteOptions().setSync(true)) {
@@ -196,7 +212,7 @@ public class RocksDbAnalysisEvidenceSpillStore implements AnalysisEvidenceSpillS
     }
 
     @Override
-    public void deletePartition(GovernanceIsolationScope scope) {
+    public synchronized void deletePartition(GovernanceIsolationScope scope) {
         requireScope(scope);
         ensureOpen();
         deleteByPartitionPrefix(partitionPrefix(scope));
@@ -207,7 +223,7 @@ public class RocksDbAnalysisEvidenceSpillStore implements AnalysisEvidenceSpillS
         if (properties.isCleanupEnabled()) deleteExpired();
     }
 
-    void deleteExpired() {
+    synchronized void deleteExpired() {
         long ttl = properties.analysisSpillTtlMs();
         if (ttl <= 0 || db == null) return;
         long cutoff = clock.millis() - ttl;
@@ -232,7 +248,8 @@ public class RocksDbAnalysisEvidenceSpillStore implements AnalysisEvidenceSpillS
                 Map<?, ?> envelope = objectMapper.readValue(iterator.value(), Map.class);
                 Object createdAtValue = envelope.containsKey("createdAtEpochMs")
                     ? envelope.get("createdAtEpochMs") : 0L;
-                if (Long.parseLong(String.valueOf(createdAtValue)) < cutoff) {
+                if (!Boolean.TRUE.equals(envelope.get("executionIdentity"))
+                    && Long.parseLong(String.valueOf(createdAtValue)) < cutoff) {
                     batch.delete(iterator.key());
                 }
             }

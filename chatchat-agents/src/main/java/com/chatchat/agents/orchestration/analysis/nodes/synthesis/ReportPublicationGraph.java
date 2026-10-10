@@ -18,7 +18,9 @@ final class ReportPublicationGraph {
             new AnalysisExecutionGraph.Step("preflight", () -> {
                 String status = String.valueOf(request.metadata().get("executionStatus"));
                 if ("NEEDS_CLARIFICATION".equals(status)) return AnalysisExecutionGraph.Status.NEEDS_CLARIFICATION;
-                if (Boolean.TRUE.equals(request.metadata().get("confirmationRequired")))
+                if (Boolean.TRUE.equals(request.metadata().get("confirmationRequired"))
+                    || (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata())
+                        && Boolean.TRUE.equals(request.metadata().get("fatalExecutionBlocked"))))
                     return AnalysisExecutionGraph.Status.BLOCKED;
                 AnalysisFlowState flow = AnalysisFlowState.read(request.metadata());
                 if (flow != null) {
@@ -29,7 +31,8 @@ final class ReportPublicationGraph {
                     // authorization boundary is a real execution barrier here.
                     if (flow.decision()
                         == com.chatchat.agents.assessment.EvidenceAugmentationPolicy.Decision.RETRIEVE_MORE
-                        && !flow.loopClosed()) {
+                        && !flow.loopClosed()
+                        && !com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata())) {
                         return AnalysisExecutionGraph.Status.NEEDS_MORE_EVIDENCE;
                     }
                     if (flow.decision()

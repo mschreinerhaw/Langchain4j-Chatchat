@@ -116,4 +116,15 @@ class AnalysisLoopCoordinatorTest {
             .isEqualTo(EvidenceAugmentationPolicy.Decision.NO_EVIDENCE);
         assertThat(metadata).containsEntry("evidenceAugmentationAnswerAllowed", false);
     }
+
+    @Test void v2DecisionIsNotReplacedByEvidenceGradeOrLackOfTools() {
+        var metadata = new LinkedHashMap<String,Object>(Map.of("modelAnalysisProtocol", "model_native_analysis.v2",
+            "modelDecision", Map.of("action", "CONTINUE"), "executionStopReason", "MODEL_DECISION"));
+        var decision = coordinator.decide(Map.of("sufficient",true), true, false, false, metadata);
+        assertThat(decision.continueLoop()).isTrue(); assertThat(decision.reason()).isEqualTo("MODEL_CONTINUE");
+        coordinator.recordStop(metadata, List.of(), "no_verified_new_retrieval_path", 1);
+        assertThat(metadata.get("modelDecision")).isEqualTo(Map.of("action", "CONTINUE"));
+        assertThat(metadata).containsEntry("stopReason", "MODEL_DECISION");
+    }
+
 }

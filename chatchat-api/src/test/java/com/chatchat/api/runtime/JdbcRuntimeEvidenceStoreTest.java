@@ -30,6 +30,57 @@ class JdbcRuntimeEvidenceStoreTest {
         store = new JdbcRuntimeEvidenceStore(jdbc, new ObjectMapper(), new DataSourceTransactionManager(datasource));
     }
 
+    @Test void toolResultCanRecoverOnAnotherWorkerWithoutItsLocalSpillStore() {
+        var registry = org.mockito.Mockito.mock(com.chatchat.agents.tool.ToolRegistry.class);
+        org.mockito.Mockito.when(registry.getToolMetadata("read_tool")).thenReturn(com.chatchat.common.tool.ToolMetadata.builder()
+            .id("read_tool").agentCompatible(true).operationType("read").build());
+        var evidence = org.mockito.Mockito.mock(com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.class);
+        org.mockito.Mockito.when(evidence.project(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyMap()))
+            .thenReturn(new com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Projection(List.of(
+                new com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Dataset("source", Map.of(), List.of(Map.of("value", 42)))), List.of()));
+        var governanceScope = com.chatchat.agents.runtime.governance.GovernanceIsolationScope.runtime("tenant", "owner", "run", "request", "conversation");
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.function.BiFunction<String,Map<String,Object>,com.chatchat.agents.runtime.tool.ToolRuntimeExecution> execute = (name,args) -> {
+            calls.incrementAndGet(); return new com.chatchat.agents.runtime.tool.ToolRuntimeExecution(
+                com.chatchat.common.tool.ToolOutput.success(Map.of("value", 42)), null, null, "success", Map.of());
+        };
+        var request = Map.<String,Object>of("toolName", "read_tool", "arguments", Map.of(), "requestId", "intent");
+        var original = new com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccess(registry, List.of("read_tool"), execute,
+            evidence, Map.of(), new LinkedHashMap<>(), governanceScope, com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore.disabled(), 0)
+            .withExecutionCheckpoints(store).withRecoveryAdmission((name,args) -> null);
+        var first = original.call(request, new LinkedHashMap<>(), "coordinate");
+        var otherWorker = new JdbcRuntimeEvidenceStore(jdbc, new ObjectMapper(), new DataSourceTransactionManager(datasource));
+        var metadata = new LinkedHashMap<String,Object>(); var restoredSources = new LinkedHashMap<String,com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Dataset>();
+        var recovered = new com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccess(registry, List.of("read_tool"), execute,
+            evidence, Map.of(), metadata, governanceScope, com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore.disabled(), 0)
+            .withExecutionCheckpoints(otherWorker).withRecoveryAdmission((name,args) -> null);
+        assertThat(recovered.call(request, restoredSources, "coordinate")).isEqualTo(first);
+        assertThat(calls).hasValue(1); assertThat(restoredSources).hasSize(1);
+        assertThat(metadata).containsEntry("harnessRecoveryMode", "SHARED_DATABASE").containsEntry("harnessToolCalls", 1);
+    }
+
+    @Test void sharedExecutionCheckpointsFenceConcurrentOwnersAndSurviveAdapterRestart() throws Exception {
+        var executor = Executors.newFixedThreadPool(4);
+        try {
+            var tasks = new ArrayList<Future<Boolean>>();
+            for (int index = 0; index < 4; index++) {
+                String value = "owner-" + index;
+                tasks.add(executor.submit(() -> store.compareAndSetExecutionCheckpoint(scope, "call", null, value)));
+            }
+            int winners = 0;
+            for (var task : tasks) if (task.get(10, TimeUnit.SECONDS)) winners++;
+            assertThat(winners).isEqualTo(1);
+            var restarted = new JdbcRuntimeEvidenceStore(jdbc, new ObjectMapper(), new DataSourceTransactionManager(datasource));
+            String owner = restarted.readExecutionCheckpoint(scope, "call").orElseThrow();
+            assertThat(restarted.compareAndSetExecutionCheckpoint(scope, "call", "wrong", "RESULT")).isFalse();
+            assertThat(restarted.compareAndSetExecutionCheckpoint(scope, "call", owner, "RESULT")).isTrue();
+            assertThat(store.readExecutionCheckpoint(scope, "call")).contains("RESULT");
+            assertThat(store.readExecutionCheckpoint(scope("other", "owner", "run"), "call")).isEmpty();
+            assertThat(store.readExecutionCheckpoint(scope("tenant", "other", "run"), "call")).isEmpty();
+            assertThat(store.readExecutionCheckpoint(scope("tenant", "owner", "other"), "call")).isEmpty();
+        } finally { executor.shutdownNow(); }
+    }
+
     @Test void durableImmutableFactsAreScopedAndSnapshotsPinTheirSources() {
         var fact = fact("e1", scope, "payload");
         var lineage = lineage("e1", scope, List.of());
@@ -93,6 +144,7 @@ class JdbcRuntimeEvidenceStoreTest {
         var third = store.observe(context(), outcome("third"), gaps(), 3, recover());
         assertThat(third.action()).isEqualTo("STOP");
         assertThat(third.reason()).isEqualTo("BUDGET_EXHAUSTED");
+
         assertThat(store.reserveRecovery(scope, third.revision()).admitted()).isFalse();
         assertThat(store.state(scope).orElseThrow().rounds()).isEqualTo(3);
         assertThat(store.snapshot(scope, "analysis-round-3")).isPresent();
@@ -217,4 +269,26 @@ class JdbcRuntimeEvidenceStoreTest {
     }
     private List<EvidenceGap> gaps() { return List.of(new EvidenceGap(EvidenceGapReason.RETRIEVAL_EMPTY, null, null, null, 0, 0, false, false, List.of())); }
     private AdaptiveAnalysisController.Decision recover() { return new AdaptiveAnalysisController.Decision(AdaptiveAnalysisController.Action.RECOVER, "EVIDENCE_GAPS"); }
+
+    @Test void modelContinuationWithIdenticalEvidenceStillReservesNextRound() {
+        store.start(scope, 3);
+        var legacy = outcome("same data");
+        var directed = new AnalysisExecutionOutcome(null, legacy.workflowType(), legacy.plan(), legacy.verification(), legacy.evidenceBundle(),
+            "Draft", Map.of("modelAnalysisProtocol", "model_native_analysis.v2", "modelDecision", Map.of("action", "CONTINUE")));
+        var first = store.observe(context(), directed, gaps(), 1, recover());
+        assertThat(store.reserveRecovery(scope, first.revision()).admitted()).isTrue();
+        var second = store.observe(context(), directed, gaps(), 2, recover());
+        assertThat(store.snapshot(scope, "analysis-round-2").orElseThrow().metadata())
+            .containsEntry("modelAnalysisProtocol", "model_native_analysis.v2")
+            .containsEntry("modelDecision", Map.of("action", "CONTINUE"));
+        assertThat(second.action()).isEqualTo("RECOVER");
+        assertThat(second.revision()).isGreaterThan(first.revision());
+        assertThat(store.reserveRecovery(scope, second.revision()).admitted()).isTrue();
+        var third = store.observe(context(), directed, gaps(), 3, recover());
+        assertThat(third.reason()).isEqualTo("BUDGET_EXHAUSTED");
+        assertThat(store.snapshot(scope, "analysis-round-3").orElseThrow().metadata())
+            .containsEntry("modelDecision", Map.of("action", "CONTINUE"))
+            .containsEntry("executionStopReason", "RESOURCE_BUDGET_EXHAUSTED");
+    }
+
 }

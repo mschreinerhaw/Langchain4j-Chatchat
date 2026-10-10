@@ -52,8 +52,21 @@ public final class FinalSynthesisNode {
                 request.synthesisInputs(), request.runtimeAttributes(), request.metadata()));
     }
     public FinalSynthesisResult synthesizeFinal(FinalModelSynthesisRequest request) {
+        if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata())
+            && !com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.publishRequested(request.metadata())) {
+            request.metadata().put("interpretationPlanFinalResultProduced", false);
+            request.metadata().put("interpretationPlanSummaryGenerated", false);
+            request.metadata().put("publicationState", "NOT_REQUESTED");
+            return new FinalSynthesisResult("", null, false);
+        }
         try {
-            return new ReportPublicationGraph().execute(request, this::publishModelReport);
+            var result = new ReportPublicationGraph().execute(request, this::publishModelReport);
+            if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata()) && !result.generated()) {
+                request.metadata().put("publicationState", "REJECTED");
+                request.metadata().put("executionStopReason", "GOVERNANCE_REJECTION");
+                request.metadata().put("executionState", "STOPPED");
+            }
+            return result;
         } catch (RuntimeException ex) {
             request.metadata().put("analysisGraphStatus", ex instanceof java.util.concurrent.CancellationException
                 ? "CANCELLED" : "FAILED");
@@ -79,6 +92,17 @@ public final class FinalSynthesisNode {
     }
     private FinalSynthesisResult publishHarnessReport(FinalModelSynthesisRequest request) {
         String answer = String.valueOf(request.metadata().getOrDefault("modelNativeReportDraft", ""));
+        if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata())) {
+            Object raw = request.metadata().get("modelPublicationRequest");
+            if (!(raw instanceof Map<?,?> binding)
+                || !(request.metadata().get("modelEvidenceSnapshotRef") instanceof String snapshot) || snapshot.isBlank()
+                || !com.chatchat.agents.protocol.ModelProtocolJson.sha256Hex(answer).equals(binding.get("reportSha256"))
+                || !java.util.Objects.equals(request.metadata().get("modelEvidenceSnapshotRef"), binding.get("evidenceSnapshotRef"))) {
+                request.metadata().put("publicationState", "REJECTED");
+                request.metadata().put("executionStopReason", "GOVERNANCE_REJECTION");
+                throw new IllegalArgumentException("Publication version binding does not match retained report and evidence");
+            }
+        }
         if (answer.isBlank()) throw new IllegalStateException("Model-native report is empty");
         var catalog = VerifiedReportDataCatalog.fromRuntime(request.metadata());
         request.metadata().remove("reportBlocks");
@@ -115,11 +139,18 @@ public final class FinalSynthesisNode {
             "Model-authored report published without a semantic quality gate or another summary model call.", "interpretation_plan_summary",
             Map.of("type", "final_summary", "workflow", "model_native_harness", "stage", request.stage(),
                 "modelCalls", 0, "analysisSummaryResult", governed.toMap(), "reportQualityAuthority", "USER"));
+        if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata()))
+            request.metadata().put("publicationState", "DELIVERED");
         return new FinalSynthesisResult(answer, governed, true);
     }
     private void recordCompletedOutcome(FinalModelSynthesisRequest request) {
         boolean complete = request.coverageComplete() && request.evidenceTraceComplete()
             && request.sourceContentComplete();
+        if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata())) {
+            Object audit = request.metadata().get("modelEvidenceAssessmentAudit");
+            if (audit instanceof Map<?,?> entry && entry.get("assessment") instanceof Map<?,?> assessment
+                && "PARTIAL".equals(assessment.get("evidenceStatus"))) complete = false;
+        }
         AnalysisExecutionOutcome outcome = new AnalysisExecutionOutcome(
             AnalysisExecutionOutcome.SCHEMA_VERSION,
             complete ? AnalysisExecutionOutcome.ExecutionStatus.COMPLETED

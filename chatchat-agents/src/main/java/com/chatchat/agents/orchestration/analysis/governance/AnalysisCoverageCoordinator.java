@@ -34,6 +34,8 @@ public final class AnalysisCoverageCoordinator {
         this.spillStore = store == null ? AnalysisEvidenceSpillStore.disabled() : store;
     }
     public CoverageBundle analyze(Request request) {
+        if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.VERSION.equals(request.runtimeAttributes().get("modelAnalysisProtocol")))
+            request.metadata().put("modelAnalysisProtocol", com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.VERSION);
         request.metadata().put("analysisDatasetProjectionAttempted", true);
         AnalysisEvidenceCoordinator.Projection projection = evidenceCoordinator.project(
             request.result(), request.runtimeAttributes());
@@ -50,7 +52,7 @@ public final class AnalysisCoverageCoordinator {
             "数据集未进入分析：" + excluded.get("datasetReference") + "（未返回非空结构化记录）。",
             "analysis_summary_governance", metadataOf(
                 "type", "analysis_dataset_excluded", "exclusion", excluded)));
-        if (datasets.isEmpty()) {
+        if (datasets.isEmpty() && !com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata())) {
             writeEmptyProjectionCompletion(request, projection.excludedDatasets());
             boolean sourceFailed = projection.excludedDatasets().stream().anyMatch(
                 item -> "FAILED".equals(item.get("accountingStatus")));
@@ -187,12 +189,18 @@ public final class AnalysisCoverageCoordinator {
                         : "Model-directed evidence workspace turn finished.", "model_native_harness", trace));
         long rows = datasets.stream().mapToLong(AnalysisEvidenceCoordinator.Dataset::recordCount).sum();
         int count = Math.toIntExact(rows);
+        var intentMetadata = new LinkedHashMap<String,Object>();
+        for (String key : List.of("modelAnalysisProtocol", "modelDecision", "executionState", "executionStopReason",
+            "publicationState", "modelPublicationRequest", "modelEvidenceSnapshotRef"))
+            if (request.metadata().containsKey(key)) intentMetadata.put(key, request.metadata().get(key));
+        request.metadata().put("analysisModelIntent", Map.copyOf(intentMetadata));
         var summary = AnalysisSummaryResult.chunk(request.isolationScope(), Map.of("datasetReference", "harness:question",
             "recordFrom", 1, "recordTo", count, "totalRecords", count), Map.of("analysisMode", "MODEL_NATIVE_HARNESS"),
             result.markdown(), "MODEL_AUTHORED", Map.of("authority", "MODEL_AUTHORED_NOT_RUNTIME_CERTIFIED",
                 "datasetReferences", result.datasetReferences(),
                 "modelEvidenceAssessmentAudit", request.metadata().getOrDefault("modelEvidenceAssessmentAudit", Map.of()),
-                "modelEvidenceAssessmentHistory", request.metadata().getOrDefault("modelEvidenceAssessmentHistory", List.of())));
+                "modelEvidenceAssessmentHistory", request.metadata().getOrDefault("modelEvidenceAssessmentHistory", List.of()),
+                "modelIntent", Map.copyOf(intentMetadata)));
         request.metadata().put("modelNativeReportDraft", result.markdown());
         request.metadata().put("analysisSynthesisBarrierReady", true);
         request.metadata().put("analysisSynthesisBarrierStatus", "READY");
@@ -215,7 +223,9 @@ public final class AnalysisCoverageCoordinator {
         request.metadata().put("recordAnalysisSourceContentComplete", sourceComplete);
         request.metadata().put("datasetCompletionSnapshot", Map.of("successfulDatasetReferences", result.datasetReferences(),
             "failedDatasetReferences", failures.stream().map(item -> item.get("datasetReference")).toList(), "partial", !availableComplete));
-        return new CoverageBundle("Model-authored report and complete scoped evidence workspace retained; no semantic quality gate.",
+        return new CoverageBundle(com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata())
+                ? "Model-authored working state and scoped evidence workspace retained; publication follows explicit model intent."
+                : "Model-authored report and complete scoped evidence workspace retained; no semantic quality gate.",
             "", List.of(), count, count, result.modelCalls(), result.modelCalls() > 1, availableComplete, sourceComplete, availableComplete,
             0, List.of(summary), List.of(summary));
     }

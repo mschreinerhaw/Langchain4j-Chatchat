@@ -24,6 +24,8 @@ public class AgentRunRetentionScheduler {
 
     private final AgentRunStore runStore;
     private final AgentRuntimeProperties properties;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.chatchat.common.runtime.evidence.RuntimeExecutionCheckpointPort executionCheckpoints;
 
     @Scheduled(
         fixedDelayString = "${chatchat.agent-runtime.cleanup-interval-ms:3600000}",
@@ -32,6 +34,10 @@ public class AgentRunRetentionScheduler {
     public void cleanup() {
         try {
             int removed = runStore.cleanupExpiredRuns();
+            if (executionCheckpoints != null) {
+                int payloads = executionCheckpoints.cleanupUnreferencedExecutionPayloads();
+                if (payloads > 0) log.info("Execution receipt maintenance removedUnreferencedPayloads={}", payloads);
+            }
             if (removed > 0) {
                 log.info("Agent run retention cleanup completed removedRuns={} retentionMs={}",
                     removed, properties.terminalRunTtlMs());

@@ -2,8 +2,8 @@
   <section class="feature-view runtime-view">
     <header class="runtime-header">
       <div class="runtime-title">
-        <p>Agent运行监控</p>
-        <span>按租户监控任务执行、事件链路和工具治理。</span>
+        <p>Agent链路探索</p>
+        <span>追踪模型探索步骤、工具执行与证据关联。</span>
       </div>
       <div class="runtime-actions">
         <label class="runtime-filter" :style="{ '--tenant-field-width': runtimeTenantFieldWidth }">
@@ -27,7 +27,7 @@
       </article>
     </div>
 
-    <nav class="runtime-tabs" aria-label="运行监控视图">
+    <nav class="runtime-tabs" aria-label="链路探索与运行治理视图">
       <button
         v-for="tab in tabs"
         :key="tab.key"
@@ -677,10 +677,10 @@
     <section v-else-if="activeTab === 'plan'" class="runtime-panel">
       <header>
         <div>
-          <p>解读计划</p>
-          <h2>计划图</h2>
+          <p>模型探索 · 执行观察 · 证据关联</p>
+          <h2>链路探索</h2>
         </div>
-        <button type="button" class="light-button" :disabled="!selectedTask || planLoading" @click="loadPlanDag">
+        <button type="button" class="light-button" :disabled="!selectedTask || planLoading || explorationLoading" @click="loadPlanDag(); loadExplorationTimeline(); reloadEvents()">
           <GitBranch :size="15" stroke-width="2" />
           <span>{{ planLoading ? "加载中" : "加载" }}</span>
         </button>
@@ -696,9 +696,12 @@
             </option>
           </select>
         </label>
-        <span class="runtime-pill">{{ latestPlanVersionLabel }}</span>
-        <span class="runtime-pill">{{ planNodes.length }} 个节点</span>
-        <span class="runtime-pill">{{ planEdges.length }} 条边</span>
+        <button type="button" class="light-button" :aria-pressed="graphMode === 'exploration'" @click="graphMode = 'exploration'; selectedPlanNodeId = ''">探索链路</button>
+        <button type="button" class="light-button" :aria-pressed="graphMode === 'plan'" @click="graphMode = 'plan'; selectedPlanNodeId = ''">计划快照</button>
+        <span class="runtime-pill">{{ activeGraphNodes.length }} 个节点</span>
+        <span class="runtime-pill">{{ activeGraphEdges.length }} 条关联</span>
+        <label v-if="graphMode === 'exploration'"><input v-model="explorationShowEvents" type="checkbox" /> 显示运行事件</label>
+        <button v-if="explorationHasMore" type="button" class="light-button" @click="loadExplorationTimeline()">读取后续探索记录</button>
       </div>
 
       <div v-if="selectedTaskDisplay" class="plan-task-summary" :class="{ open: planTaskDetailsOpen }">
@@ -729,8 +732,9 @@
         </div>
       </div>
 
-      <div v-if="selectedTask && planNodes.length > 0" class="plan-dag-layout">
-        <aside class="plan-dag-side">
+      <p v-if="explorationWarning && graphMode === 'exploration'" class="runtime-empty">{{ explorationWarning }}</p>
+      <div v-if="selectedTask && activeGraphNodes.length > 0" class="plan-dag-layout">
+        <aside v-if="graphMode === 'plan' && selectedPlanDag" class="plan-dag-side">
           <div>
             <span>快照</span>
             <strong>{{ selectedPlanDag.planId || "-" }}</strong>
@@ -754,26 +758,33 @@
         <div ref="planDagCanvas" class="plan-dag-canvas">
           <PlanDagGraph
             ref="planDagGraph"
-            :nodes="planNodeViews"
-            :edges="planEdges"
+            :nodes="activeGraphNodes"
+            :edges="activeGraphEdges"
+            :exploration="graphMode === 'exploration'"
+            :title="graphMode === 'exploration' ? '自主探索链路' : '计划快照'"
             :selected-node-id="selectedPlanNodeId"
-            :layout-key="`${selectedPlanDag?.planId || selectedTaskId}-${selectedPlanDag?.version || 'snapshot'}`"
+            :layout-key="graphMode === 'exploration' ? `exploration-${selectedTask?.attemptId || selectedTaskId}` : `${selectedPlanDag?.planId || selectedTaskId}-${selectedPlanDag?.version || 'snapshot'}`"
             :download-name="planDownloadName()"
             @node-select="handlePlanNodeSelect"
             @export-json="downloadPlanDagJson"
           />
         </div>
 
+        <aside v-if="graphMode === 'exploration' && selectedExplorationNode" class="exploration-detail">
+          <strong>{{ selectedExplorationNode.actionText }} · {{ selectedExplorationNode.label }}</strong>
+          <p>仅展示实际记录或模型显式声明；模型假设与发现不代表 Runtime 审核结论。</p>
+          <pre>{{ JSON.stringify(selectedExplorationNode.detail, null, 2) }}</pre>
+        </aside>
         <div ref="planNodeList" class="plan-dag-node-list">
           <article
-            v-for="node in planNodeViews"
+            v-for="node in activeGraphNodes"
             :key="`${node.id}-detail`"
             :data-plan-node-id="node.id"
             :class="[String(node.statusText || '').toLowerCase(), { selected: selectedPlanNodeId === node.id }]"
             role="button"
             tabindex="0"
             :aria-pressed="selectedPlanNodeId === node.id"
-            title="点击在计划图中定位"
+            title="点击定位链路节点"
             @click="focusPlanNode(node.id)"
             @keydown.enter.prevent="focusPlanNode(node.id)"
             @keydown.space.prevent="focusPlanNode(node.id)"
@@ -788,7 +799,7 @@
         </div>
       </div>
       <p v-if="!selectedTask" class="runtime-empty">请先在任务页或任务选择器中选择任务。</p>
-      <p v-else-if="!planLoading && planNodes.length === 0" class="runtime-empty">当前任务暂无解读计划图快照。</p>
+      <p v-else-if="!planLoading && activeGraphNodes.length === 0" class="runtime-empty">当前视图暂无运行记录。</p>
     </section>
 
     <section v-else-if="activeTab === 'tools'" class="runtime-panel">

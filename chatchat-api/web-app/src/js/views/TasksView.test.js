@@ -2,6 +2,17 @@ import { describe, expect, it, vi } from "vitest";
 import TasksView from "./TasksView.js";
 
 describe("TasksView persisted plan restoration", () => {
+  it("loads final exploration observations when a poll changes the selected task to terminal", async () => {
+    const context = {
+      selectedTask: { taskId: "task", status: "RUNNING" }, activeTab: "plan", runtimeRefreshing: false, loading: false,
+      isActiveTask: task => task.status === "RUNNING", reloadEvents: vi.fn(), loadPlanDag: vi.fn(), loadExplorationTimeline: vi.fn()
+    };
+    context.loadRuntime = vi.fn(async () => { context.selectedTask.status = "SUCCESS"; });
+    await TasksView.methods.refreshRuntimeSnapshot.call(context);
+    expect(context.loadExplorationTimeline).toHaveBeenCalledOnce();
+    expect(context.reloadEvents).toHaveBeenCalledOnce();
+    expect(context.runtimeRefreshing).toBe(false);
+  });
   it("localizes long terminal task statuses for the compact task table", () => {
     expect(TasksView.methods.formatTaskStatus("NO_PRESENTABLE_RESULT")).toBe("无可展示结果");
     expect(TasksView.methods.formatTaskStatus("TIME_BUDGET_EXHAUSTED")).toBe("执行超时");

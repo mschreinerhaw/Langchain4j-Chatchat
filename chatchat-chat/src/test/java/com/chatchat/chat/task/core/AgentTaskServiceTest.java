@@ -199,6 +199,32 @@ class AgentTaskServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void modelNativeNonPublicationRemainsAnExecutionFactAndNeverPublishesAStrayDraft() throws Exception {
+        AgentTaskService service = taskService(mock(AgentEventBus.class), mock(AgentEventStore.class),
+            mock(AgentTaskLatestRepository.class), mock(TaskConfirmRepository.class), new ObjectMapper());
+        Method compile = AgentTaskService.class.getDeclaredMethod("compileExecutionResult", InteractionResponse.class);
+        compile.setAccessible(true);
+        for (String action : List.of("COMPLETE", "PARTIAL_COMPLETE", "CONTINUE", "WAIT")) {
+            String reason = action.equals("CONTINUE") ? "RESOURCE_BUDGET_EXHAUSTED" : action.equals("WAIT") ? "WAIT_UNSUPPORTED" : "MODEL_DECISION";
+            var facts = Map.<String,Object>of("modelAnalysisProtocol", "model_native_analysis.v2", "modelDecision", Map.of("action", action),
+                "publicationState", "NOT_REQUESTED", "executionState", "COMPLETED", "executionStopReason", reason,
+                "modelNativeReportDraft", "PRIVATE DRAFT", "publicStatus", "NO_PRESENTABLE_RESULT");
+            var response = InteractionResponse.builder().answer("PRIVATE DRAFT").metadata(Map.of("agent", facts)).build();
+            Object contract = compile.invoke(service, response);
+            Method payloadMethod = contract.getClass().getDeclaredMethod("payload", InteractionResponse.class);
+            payloadMethod.setAccessible(true);
+            Map<String,Object> payload = (Map<String,Object>)payloadMethod.invoke(contract, response);
+            assertThat(payload.get("answer").toString()).doesNotContain("PRIVATE DRAFT", "结果整理失败");
+            if (action.equals("CONTINUE")) assertThat(payload.get("answer").toString()).doesNotContain("已完成");
+            var agent = (Map<String,Object>)((Map<?,?>)payload.get("metadata")).get("agent");
+            assertThat(agent.get("modelDecision")).isEqualTo(Map.of("action", action));
+            assertThat(agent.get("executionStopReason")).isEqualTo(reason);
+            assertThat(agent).doesNotContainKey("modelNativeReportDraft");
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void unifiedNoPlanOutcomeOverridesExplanationAndOldPartialTrace() throws Exception {
         ObjectMapper mapper = new ObjectMapper();
         AgentTaskService service = taskService(

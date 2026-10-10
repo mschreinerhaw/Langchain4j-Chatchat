@@ -107,6 +107,8 @@ public final class ModelNativeAnalysisHarness {
                 reportMarkdown:'your report',workspace:{notes:'your own working notes',artifacts:[]},evidenceRequests:[]}.
                 A final plain Markdown report is also accepted. Intermediate notes are not the published report.
                 Optional v2 protocol: {schemaVersion:'model_native_analysis.v2',decision:{action:'CONTINUE|WAIT|COMPLETE|PUBLISH|PARTIAL_COMPLETE'},workspace:{},reportMarkdown:'draft',evidenceRequests:[]}.
+                Every v2 response requires a decision OBJECT, for example:
+                {"schemaVersion":"model_native_analysis.v2","decision":{"action":"CONTINUE"},"reportMarkdown":"draft","evidenceRequests":[]}.
                 v1 and plain Markdown retain legacy delivery behavior. Once v2 is selected, keep using v2.
                 In v2 only PUBLISH requests delivery. COMPLETE and PARTIAL_COMPLETE retain work without publication.
                 CONTINUE may have no requests. WAIT retains work and returns WAIT_UNSUPPORTED: automatic wait/resume is not implemented.
@@ -124,7 +126,7 @@ public final class ModelNativeAnalysisHarness {
                 where useful; do not claim to show all raw values if you have not actually included them.
                 At most four evidenceRequests per turn. Workspace reads reference an existing datasetReference.
                 Optional CALL_TOOL requests may obtain new evidence through the L2 authorized external tool contracts.
-                If you choose to obtain evidence, return completed:false and evidenceRequests instead of finalizing.
+                If you choose to obtain evidence, use v1 completed:false or v2 decision:{action:'CONTINUE'} with evidenceRequests.
                 Workspace capabilities are registered in L2. CATALOG lists further sources/results by cursor.
                 QUERY_DATASET computes over the full handle, including records absent from the context view.
                 BATCH_MODEL_INFERENCE executes only your explicit instruction/schema over your chosen scope.
@@ -137,7 +139,7 @@ public final class ModelNativeAnalysisHarness {
                 READ_CONTEXT: {operation,datasetReference,path:[],fromItem:0,limit:1..100}; path is a list of object keys.
                 CALCULATE and EXECUTE_OPERATION are available only through the source's declared computation
                 contract. Runtime executes or rejects the supplied expression/specification; it never chooses it.
-                If you request reads, set completed:false and retain useful notes/report in workspace/reportMarkdown.
+                For reads use v1 completed:false or v2 decision:{action:'CONTINUE'} and retain useful notes/report in workspace/reportMarkdown.
                 Requests are optional. Do not produce a claim ledger or a fixed analysis checklist for Runtime.
                 Resource limits apply to a single view/turn, not whether the full original source exists.
                 """ + ModelProtocolJson.compact(layers);
@@ -225,20 +227,22 @@ public final class ModelNativeAnalysisHarness {
                                 : toolAccess.call(request, prepared.sources());
                             receipts.add(receipt);
                             audit.add(Map.of("status", "EXECUTED", "request", request,
-                                "receiptFingerprint", ModelProtocolJson.sha256Hex(receipt)));
+                                "receiptFingerprint", ModelProtocolJson.sha256Hex(receipt), "receipt", explorationReceipt(receipt),
+                                "receiptOrigin", v2 ? metadata.getOrDefault("harnessLastToolReceipt", Map.of()) : Map.of("origin", "LEGACY_EXECUTION")));
                             continue;
                         }
                         if (operations.supports(operation)) {
                             var receipt = operations.execute(request);
                             receipts.add(receipt);
-                            audit.add(Map.of("status", "ACCEPTED", "request", request, "receiptFingerprint", ModelProtocolJson.sha256Hex(receipt)));
+                            audit.add(Map.of("status", "ACCEPTED", "request", request, "receiptFingerprint", ModelProtocolJson.sha256Hex(receipt), "receipt", explorationReceipt(receipt)));
                             continue;
                         }
                         if (!EVIDENCE_OPERATIONS.contains(operation))
                             throw new IllegalArgumentException("Operation is not registered for this harness");
                         var read = access.read(prepared, List.of(request), guard, model, scope, checkpoints, question, metadata);
                         receipts.addAll(read);
-                        audit.add(Map.of("status", "ACCEPTED", "request", request, "receiptFingerprint", ModelProtocolJson.sha256Hex(read)));
+                        audit.add(Map.of("status", "ACCEPTED", "request", request, "receiptFingerprint", ModelProtocolJson.sha256Hex(read),
+                            "receipts", read.stream().map(ModelNativeAnalysisHarness::explorationReceipt).toList()));
                     } catch (IllegalArgumentException rejected) {
                         var rejection = Map.<String,Object>of("status", "REQUEST_REJECTED", "request", request, "reason", String.valueOf(rejected.getMessage()),
                             "sourceAvailability", "UNCHANGED");
@@ -252,6 +256,16 @@ public final class ModelNativeAnalysisHarness {
                     ? ModelAnalysisIntent.action(metadata) == ModelAnalysisIntent.Action.COMPLETE
                         || ModelAnalysisIntent.action(metadata) == ModelAnalysisIntent.Action.PARTIAL_COMPLETE : completed));
             span.put("outputCheckpointRestored", restored.isPresent());
+            span.put("modelDecision", metadata.getOrDefault("modelDecision", Map.of()));
+            // Persist model-declared exploration summaries, not a Runtime assessment or prescribed graph.
+            var explorationState = new LinkedHashMap<String,Object>();
+            for (String key : List.of("hypotheses", "findings")) {
+                if (workspace.containsKey(key)) explorationState.put(key, workspace.get(key));
+                else if (workspace.get("state") instanceof Map<?,?> declared && declared.containsKey(key))
+                    explorationState.put(key, declared.get(key));
+            }
+            span.put("workspace", Map.of("state", explorationState));
+            span.put("publicationState", metadata.getOrDefault("publicationState", "NOT_REQUESTED"));
             span.put("eventState", "COMPLETED");
             trace.add(span); observe.accept(span);
             metadata.put("harnessTrace", List.copyOf(trace));
@@ -329,6 +343,22 @@ public final class ModelNativeAnalysisHarness {
             }
         }
         return List.copyOf(observations);
+    }
+    private static Map<String,Object> explorationReceipt(Map<String,Object> receipt) {
+        var facts = new LinkedHashMap<String,Object>();
+        for (String key : List.of("status", "operation", "requestId", "toolName", "datasetReference", "rawResultReference", "reason", "children"))
+            if (receipt.containsKey(key)) facts.put(key, receipt.get(key));
+        if (receipt.get("datasets") instanceof List<?> datasets) {
+            var sources = new ArrayList<Map<String,Object>>();
+            for (Object value : datasets) if (value instanceof Map<?,?> dataset) {
+                var source = new LinkedHashMap<String,Object>();
+                for (String key : List.of("datasetReference", "sourceReference", "contentSha256", "recordCount"))
+                    if (dataset.containsKey(key)) source.put(key, dataset.get(key));
+                sources.add(source);
+            }
+            facts.put("datasets", sources);
+        }
+        return facts;
     }
     private static Map<String,Object> parse(String response) {
         if (response == null || response.isBlank()) throw new IllegalArgumentException("Empty model response");

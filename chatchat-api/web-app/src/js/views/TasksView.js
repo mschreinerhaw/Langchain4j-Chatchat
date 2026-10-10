@@ -30,6 +30,8 @@ import {
   updateConversationHistoryStatus
 } from "../../services/api";
 import { notifyAgentTaskCancelled } from "../utils/agentTaskEvents";
+import { fetchGenericAgentRunTimeline } from "../../services/api";
+import { buildExplorationGraph } from "../utils/explorationGraph.js";
 const PlanDagGraph = defineAsyncComponent(() => import("../../components/PlanDagGraph.vue"));
 
 const DEFAULT_RUNTIME_PAGE_SIZE = 10;
@@ -120,6 +122,13 @@ export default {
       selectedEvents: [],
       selectedEventId: "",
       selectedPlanDag: null,
+      graphMode: "exploration",
+      explorationShowEvents: false,
+      explorationTimeline: { observations: [], steps: [] },
+      explorationRunId: "",
+      explorationLoading: false,
+      explorationWarning: "",
+      explorationHasMore: false,
       planLoadedTaskId: "",
       selectedPlanVersions: [],
       selectedPlanNodeId: "",
@@ -164,7 +173,7 @@ export default {
         { key: "effects", label: "效果", icon: Activity, count: this.lowScoreTasks.length },
         { key: "experiences", label: "经验", icon: GitBranch, count: this.experienceItems.length },
         { key: "events", label: "事件", icon: Database, count: this.filteredEvents.length },
-        { key: "plan", label: "计划图", icon: GitBranch, count: this.planNodes.length },
+        { key: "plan", label: "链路探索", icon: GitBranch, count: this.explorationGraph?.nodes?.length || 0 },
         { key: "tools", label: "工具", icon: ShieldAlert, count: this.filteredTopTools.length },
         { key: "governance", label: "治理", icon: ShieldCheck, count: this.filteredGovernanceTools.length },
         { key: "audits", label: "审计", icon: ShieldCheck, count: this.filteredAudits.length }
@@ -354,6 +363,10 @@ export default {
         || "未命名任务";
       return this.compactPlanText(content, 120);
     },
+    explorationGraph() { return buildExplorationGraph(this.selectedTask, this.explorationTimeline, this.explorationShowEvents ? this.selectedEvents : []); },
+    activeGraphNodes() { return this.graphMode === "exploration" ? this.explorationGraph.nodes : this.planNodeViews; },
+    activeGraphEdges() { return this.graphMode === "exploration" ? this.explorationGraph.edges : this.planEdges; },
+    selectedExplorationNode() { return this.explorationGraph.nodes.find(node => node.id === this.selectedPlanNodeId) || null; },
     planNodes() {
       return Array.isArray(this.selectedPlanDag?.nodes) ? this.selectedPlanDag.nodes : [];
     },
@@ -547,13 +560,15 @@ export default {
         return;
       }
       this.runtimeRefreshing = true;
+      const wasActive = this.selectedTask && this.isActiveTask(this.selectedTask);
       try {
         await this.loadRuntime({ silent: true });
-        if (this.selectedTask?.taskId && (this.activeTab === "events" || this.isActiveTask(this.selectedTask))) {
+        if (this.selectedTask?.taskId && (this.activeTab === "events" || wasActive || this.isActiveTask(this.selectedTask))) {
           await this.reloadEvents({ silent: true });
         }
-        if (this.selectedTask?.taskId && this.activeTab === "plan" && this.isActiveTask(this.selectedTask)) {
+        if (this.selectedTask?.taskId && this.activeTab === "plan" && (wasActive || this.isActiveTask(this.selectedTask))) {
           await this.loadPlanDag({ silent: true });
+          await this.loadExplorationTimeline?.({ silent: true });
         }
       } finally {
         this.runtimeRefreshing = false;
@@ -642,6 +657,7 @@ export default {
       }
       if (key === "plan") {
         this.loadPlanDag();
+        this.loadExplorationTimeline?.();
       }
     },
     async inspectTask(task) {
@@ -654,13 +670,16 @@ export default {
       this.syncFeedbackDraft(task);
       this.resetRuntimePage("events");
       this.selectedPlanDag = null;
+      this.explorationTimeline = { observations: [], steps: [] };
+      this.explorationRunId = "";
       this.selectedPlanVersions = [];
       this.planLoadedTaskId = "";
       this.selectedPlanNodeId = "";
       this.planTaskDetailsOpen = false;
       await Promise.all([
         this.reloadEvents(),
-        this.loadPlanDag({ silent: this.activeTab !== "plan" })
+        this.loadPlanDag({ silent: this.activeTab !== "plan" }),
+        this.loadExplorationTimeline?.({ silent: this.activeTab !== "plan" })
       ]);
     },
     syncFeedbackDraft(task) {
@@ -732,7 +751,7 @@ export default {
         const latestVersion = this.selectedPlanVersions[this.selectedPlanVersions.length - 1];
         this.selectedPlanDag = dag || this.planPayloadFromRecord(latestVersion);
         this.planLoadedTaskId = requestedTaskId;
-        this.selectedPlanNodeId = "";
+        if (this.graphMode !== "exploration") this.selectedPlanNodeId = "";
       } catch (error) {
         if (!silent && this.selectedTask?.taskId === requestedTaskId) {
           this.error = error.message || "加载计划图失败。";
@@ -746,7 +765,39 @@ export default {
         }
       }
     },
+    async loadExplorationTimeline() {
+      const taskId = this.selectedTask?.taskId;
+      const runId = this.selectedTask?.attemptId;
+      if (!taskId || !runId || this.explorationLoading) return;
+      this.explorationLoading = true;
+      this.explorationWarning = "";
+      if (this.explorationRunId !== runId) {
+        this.explorationTimeline = { observations: [], steps: [] };
+        this.explorationRunId = runId;
+      }
+      try {
+        for (let page = 0; page < 5; page++) {
+          const offset = this.explorationTimeline.observations.length;
+          const result = await fetchGenericAgentRunTimeline(runId, { observationOffset: offset, observationLimit: 200, stepLimit: 100, eventLimit: 100 });
+          if (this.selectedTask?.taskId !== taskId || this.selectedTask?.attemptId !== runId) return;
+          const observations = Array.isArray(result?.observations) ? result.observations : [];
+          const steps = new Map(this.explorationTimeline.steps.map(step => [step.step, step]));
+          for (const step of result?.steps || []) steps.set(step.step, step);
+          this.explorationTimeline = { ...result, observations: [...this.explorationTimeline.observations, ...observations], steps: [...steps.values()] };
+          this.explorationHasMore = observations.length === 200;
+          if (!this.explorationHasMore) break;
+        }
+      } catch (error) {
+        if (this.selectedTask?.taskId === taskId) this.explorationWarning = error.message || "探索记录暂不可读取，已保留已加载记录。";
+      } finally {
+        this.explorationLoading = false;
+        if (this.selectedTask?.taskId !== taskId || this.selectedTask?.attemptId !== runId) {
+          this.loadExplorationTimeline();
+        }
+      }
+    },
     selectPlanVersion(version) {
+      this.graphMode = "plan";
       const payload = this.planPayloadFromRecord(version);
       if (payload) {
         this.selectedPlanDag = payload;
@@ -790,6 +841,10 @@ export default {
       });
     },
     downloadPlanDagJson() {
+      if (this.graphMode === "exploration") {
+        this.downloadText(`exploration-${this.selectedTask?.taskId || 'task'}.json`, JSON.stringify(this.explorationGraph, null, 2), "application/json");
+        return;
+      }
       if (!this.selectedPlanDag) {
         return;
       }

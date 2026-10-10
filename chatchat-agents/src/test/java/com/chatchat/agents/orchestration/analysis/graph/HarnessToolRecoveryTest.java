@@ -61,7 +61,9 @@ class HarnessToolRecoveryTest {
     @Test void committedResultSurvivesStoreReopenAndRechecksAuthorizationWithoutReexecution() {
         var store = store(); var request = request("intent-1", Map.of("sample", 1));
         var firstSources = new LinkedHashMap<String,AnalysisEvidenceCoordinator.Dataset>();
-        var first = access(store, new LinkedHashMap<>(), this::execute).call(request, firstSources, "coordinate");
+        var firstMetadata = new LinkedHashMap<String,Object>();
+        var first = access(store, firstMetadata, this::execute).call(request, firstSources, "coordinate");
+        assertThat(((Map<?,?>)firstMetadata.get("harnessLastToolReceipt")).get("origin")).isEqualTo("NEW_EXECUTION");
         store.close(); var reopened = store(); var metadata = new LinkedHashMap<String,Object>();
         var sources = new LinkedHashMap<String,AnalysisEvidenceCoordinator.Dataset>();
         when(registry.getToolRevision("read_tool")).thenReturn(42L); // Process-local registration order is not a contract version.
@@ -71,6 +73,7 @@ class HarnessToolRecoveryTest {
         assertThat((List<?>) metadata.get("harnessToolTraces")).hasSize(1);
         assertThat(metadata).containsEntry("harnessToolCalls", 1);
         assertThat(((Map<?,?>) metadata.get("harnessLastRecovery")).get("state")).isEqualTo("RESTORED");
+        assertThat(((Map<?,?>) metadata.get("harnessLastToolReceipt")).get("origin")).isEqualTo("COMMITTED_RESULT");
     }
     @Test void projectionFailureRetainsCommittedResultAndRetriesProjectionWithoutToolInvocation() {
         var access = access(store(), new LinkedHashMap<>(), this::execute);

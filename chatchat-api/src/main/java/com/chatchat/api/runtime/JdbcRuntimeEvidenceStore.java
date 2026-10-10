@@ -32,6 +32,8 @@ public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProg
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
     private final TransactionTemplate tx;
+    // Maintenance cursor only; losing it repeats a safe scan, never an execution.
+    private String payloadCleanupCursor = "";
 
     public JdbcRuntimeEvidenceStore(JdbcTemplate jdbc, ObjectMapper mapper, PlatformTransactionManager manager) {
         this.jdbc = jdbc;
@@ -42,6 +44,12 @@ public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProg
     }
 
     @Override public Optional<String> readExecutionCheckpoint(KernelDataScope scope, String key) {
+        if (entry(entryId(partition(scope), "EXEC_CHECKPOINT", key)).isEmpty()) return Optional.empty();
+        // Manifest and chunks share the owner lock with CAS and payload maintenance.
+        return locked(scope, () -> readExecutionCheckpointLocked(scope, key));
+    }
+
+    private Optional<String> readExecutionCheckpointLocked(KernelDataScope scope, String key) {
         var row = entry(entryId(partition(scope), "EXEC_CHECKPOINT", key));
         if (row.isEmpty()) return Optional.empty();
         verify(row);
@@ -71,7 +79,7 @@ public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProg
     @Override public boolean compareAndSetExecutionCheckpoint(KernelDataScope scope, String key, String expectedJson, String nextJson) {
         if (nextJson == null) throw new IllegalArgumentException("Execution checkpoint value is required");
         return locked(scope, () -> {
-            var current = readExecutionCheckpoint(scope, key).orElse(null);
+            var current = readExecutionCheckpointLocked(scope, key).orElse(null);
             if (!Objects.equals(current, expectedJson)) return false;
             String id = entryId(partition(scope), "EXEC_CHECKPOINT", key);
             long revision = advance(partition(scope));
@@ -112,6 +120,37 @@ public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProg
         }
         return json(Map.of("schemaVersion", "runtime_execution_checkpoint.v2", "key", key,
             "contentSha256", checksum, "chunkCount", count));
+    }
+
+    @Override public synchronized int cleanupUnreferencedExecutionPayloads() {
+        int removed = 0;
+        var partitions = jdbc.queryForList("select p.* from runtime_evidence_partition p where p.id>? and exists (select 1 from runtime_evidence_entry e where e.partition_id=p.id and e.entry_kind='EXEC_PAYLOAD') order by p.id limit 128", payloadCleanupCursor);
+        for (var owner : partitions) {
+            var scope = new KernelDataScope((String)owner.get("tenant_id"), (String)owner.get("user_id"), null, null,
+                (String)owner.get("run_id"), null, Map.of());
+            removed += locked(scope, () -> {
+                var referenced = new HashSet<String>();
+                for (var row : jdbc.queryForList("select * from runtime_evidence_entry where partition_id=? and entry_kind='EXEC_CHECKPOINT'", partition(scope))) {
+                    verify(row);
+                    var manifest = decode(row.get("record_json"), Map.class);
+                    if ("runtime_execution_checkpoint.v2".equals(manifest.get("schemaVersion"))) referenced.add((String)manifest.get("contentSha256"));
+                    else if (!"runtime_execution_checkpoint.v1".equals(manifest.get("schemaVersion")))
+                        throw new IllegalStateException("Cannot clean payloads referenced by an unknown checkpoint protocol");
+                }
+                int changed = 0;
+                for (var row : jdbc.queryForList("select * from runtime_evidence_entry where partition_id=? and entry_kind='EXEC_PAYLOAD'", partition(scope))) {
+                    verify(row);
+                    var chunk = decode(row.get("record_json"), Map.class);
+                    if (!referenced.contains((String)chunk.get("contentSha256")))
+                        changed += jdbc.update("delete from runtime_evidence_entry where id=?", row.get("id"));
+                }
+                if (changed > 0) advance(partition(scope));
+                return changed;
+            });
+            payloadCleanupCursor = (String)owner.get("id");
+        }
+        if (partitions.size() < 128) payloadCleanupCursor = "";
+        return removed;
     }
 
     public String contentHash(Map<String, Object> payload) { return hash(json(payload)); }

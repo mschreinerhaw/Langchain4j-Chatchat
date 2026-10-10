@@ -1003,6 +1003,9 @@
   gap: 14px;
   align-items: start;
 }
+.exploration-detail { grid-column: 1 / -1; border: 1px solid #dbe5f2; border-radius: 12px; padding: 16px; background: #fff; }
+.exploration-detail p { color: #667085; font-size: 12px; }
+.exploration-detail pre { max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
 
 .plan-dag-canvas {
   position: relative;

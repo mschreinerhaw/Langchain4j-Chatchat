@@ -2700,6 +2700,10 @@ public class AgentTaskService {
         String answer = response == null ? "" : firstText(response.getAnswer(), "");
         Map<String, Object> metadata = response == null ? Map.of() : asStringMap(response.getMetadata());
         Map<String, Object> agentMetadata = asStringMap(metadata.get("agent"));
+        boolean modelNativeV2 = com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(agentMetadata);
+        boolean unpublishedV2 = modelNativeV2 && !("DELIVERED".equals(agentMetadata.get("publicationState"))
+            && "PUBLISH".equals(asStringMap(agentMetadata.get("modelDecision")).get("action")));
+        if (unpublishedV2) answer = "";
         boolean fatalExecutionBlocked = booleanValue(firstPresent(
             agentMetadata.get("fatalExecutionBlocked"),
             agentMetadata.get("mandatoryWorkflowBlocked")
@@ -2747,6 +2751,17 @@ public class AgentTaskService {
             case "EMPTY", "NO_PRESENTABLE_RESULT" -> firstText(answer, "执行已结束，但结果整理失败。请查看已保留的工具轨迹和结构化证据。");
             default -> answer;
         };
+        // Keep legacy public status consumers compatible; show execution facts rather than
+        // treating the model's intentional non-publication as a report assembly failure.
+        if (unpublishedV2) {
+            String reason = String.valueOf(agentMetadata.getOrDefault("executionStopReason", ""));
+            String action = String.valueOf(asStringMap(agentMetadata.get("modelDecision")).getOrDefault("action", ""));
+            displayAnswer = "MODEL_DECISION".equals(reason) && List.of("COMPLETE", "PARTIAL_COMPLETE").contains(action)
+                ? "模型已完成" + ("PARTIAL_COMPLETE".equals(action) ? "限定范围" : "") + "分析，未请求发布；草稿和执行记录已保留。"
+                : "WAIT_UNSUPPORTED".equals(reason) ? "模型请求等待；当前执行器尚不支持自动等待恢复，草稿和执行记录已保留。"
+                : "分析执行已停止，未发布报告；草稿、模型决定和停止原因已保留。";
+            message = "Model analysis execution ended without publication: " + reason;
+        }
         Map<String, Object> flags = new LinkedHashMap<>();
         flags.put("hasAnswer", hasAnswer);
         flags.put("hasInsight", hasAnswer && !fatalExecutionBlocked
@@ -2754,6 +2769,11 @@ public class AgentTaskService {
         flags.put("hasToolOutput", hasToolOutput);
         flags.put("hasSources", hasSources);
         flags.put("hasArtifact", hasArtifact);
+        if (modelNativeV2) {
+            for (String key : List.of("modelAnalysisProtocol", "modelDecision", "executionState", "executionStopReason", "publicationState",
+                "modelPublicationRequest", "modelEvidenceSnapshotRef"))
+                if (agentMetadata.containsKey(key)) flags.put(key, agentMetadata.get(key));
+        }
         Map<String, Object> reasoningPayload = evidenceReasoningPayload(response, answer);
         UiResponseContract uiResponse = uiResponse(status, displayAnswer, response, reasoningPayload);
         Map<String, Object> debug = debugPayload(response, reasoningPayload);
@@ -3874,6 +3894,11 @@ public class AgentTaskService {
                 copyRawMetadataValue(governance, agentMetadata, "claimCoverage");
                 copyRawMetadataValue(governance, agentMetadata, "claimCoverageStatus");
                 copyRawMetadataValue(governance, agentMetadata, "answerClaimAuditPassed");
+                if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.VERSION.equals(agentMetadata.get("modelAnalysisProtocol"))) {
+                    for (String key : List.of("modelAnalysisProtocol", "modelDecision", "executionState", "executionStopReason", "publicationState",
+                        "modelPublicationRequest", "modelEvidenceSnapshotRef"))
+                        copyRawMetadataValue(governance, agentMetadata, key);
+                }
                 if (!governance.isEmpty()) {
                     safe.put("agent", governance);
                 }

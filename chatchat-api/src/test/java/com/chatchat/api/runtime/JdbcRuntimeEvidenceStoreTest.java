@@ -45,6 +45,63 @@ class JdbcRuntimeEvidenceStoreTest {
         assertThat(restarted.readExecutionCheckpoint(scope, "large")).contains(content);
     }
 
+    @Test void cleanupOnlyRemovesUnreferencedPayloadsAndPreservesClaimsAndLiveReceipts() {
+        String content = "x".repeat(3 * 1024 * 1024);
+        store.compareAndSetExecutionCheckpoint(scope, "receipt", null, content);
+        store.compareAndSetExecutionCheckpoint(scope, "shared", null, content);
+        store.compareAndSetExecutionCheckpoint(scope, "claim", null, "STARTED");
+        assertThat(store.cleanupUnreferencedExecutionPayloads()).isZero();
+        store.compareAndSetExecutionCheckpoint(scope, "receipt", content, "small");
+        assertThat(store.cleanupUnreferencedExecutionPayloads()).isZero();
+        assertThat(store.readExecutionCheckpoint(scope, "shared")).contains(content);
+        store.compareAndSetExecutionCheckpoint(scope, "shared", content, "small");
+        assertThat(store.cleanupUnreferencedExecutionPayloads()).isGreaterThan(1);
+        assertThat(store.readExecutionCheckpoint(scope, "claim")).contains("STARTED");
+        assertThat(store.readExecutionCheckpoint(scope, "receipt")).contains("small");
+        assertThat(store.cleanupUnreferencedExecutionPayloads()).isZero();
+    }
+
+    @Test void corruptedManifestPreventsCleanupOfPotentiallyReferencedPayloads() {
+        store.compareAndSetExecutionCheckpoint(scope, "large", null, "x".repeat(3 * 1024 * 1024));
+        Integer before = jdbc.queryForObject("select count(*) from runtime_evidence_entry where entry_kind='EXEC_PAYLOAD'", Integer.class);
+        jdbc.update("update runtime_evidence_entry set record_json='{}' where entry_kind='EXEC_CHECKPOINT'");
+        assertThatThrownBy(store::cleanupUnreferencedExecutionPayloads).isInstanceOf(IllegalStateException.class);
+        assertThat(jdbc.queryForObject("select count(*) from runtime_evidence_entry where entry_kind='EXEC_PAYLOAD'", Integer.class)).isEqualTo(before);
+    }
+
+    @Test void readingLargeReceiptCannotRaceReplacementAndPayloadCleanup() throws Exception {
+        String content = "x".repeat(3 * 1024 * 1024);
+        store.compareAndSetExecutionCheckpoint(scope, "large", null, content);
+        var chunkRead = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        var jdbcReader = new JdbcTemplate(datasource) {
+            @Override public List<Map<String,Object>> queryForList(String sql, Object... args) {
+                var rows = super.queryForList(sql, args);
+                if (!rows.isEmpty() && "EXEC_PAYLOAD".equals(rows.get(0).get("entry_kind"))) {
+                    chunkRead.countDown();
+                    try { if (!release.await(5, TimeUnit.SECONDS)) throw new IllegalStateException("Test reader release timed out"); }
+                    catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); throw new RuntimeException(interrupted); }
+                }
+                return rows;
+            }
+        };
+        var reader = new JdbcRuntimeEvidenceStore(jdbcReader, new ObjectMapper(), new DataSourceTransactionManager(datasource));
+        var threads = Executors.newFixedThreadPool(2);
+        try {
+            var reading = threads.submit(() -> reader.readExecutionCheckpoint(scope, "large"));
+            assertThat(chunkRead.await(5, TimeUnit.SECONDS)).isTrue();
+            var replacement = threads.submit(() -> {
+                store.compareAndSetExecutionCheckpoint(scope, "large", content, "small");
+                return store.cleanupUnreferencedExecutionPayloads();
+            });
+            assertThatThrownBy(() -> replacement.get(100, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+            release.countDown();
+            assertThat(reading.get(5, TimeUnit.SECONDS)).contains(content);
+            assertThat(replacement.get(5, TimeUnit.SECONDS)).isGreaterThan(1);
+            assertThat(store.readExecutionCheckpoint(scope, "large")).contains("small");
+        } finally { release.countDown(); threads.shutdownNow(); }
+    }
+
     @Test void chunkFailureRollsBackPayloadAndManifestTogether() {
         store.compareAndSetExecutionCheckpoint(scope, "large", null, "STARTED");
         jdbc.execute("alter table runtime_evidence_entry add constraint reject_second_chunk check (entry_kind <> 'EXEC_PAYLOAD' or entry_id not like '%:1')");

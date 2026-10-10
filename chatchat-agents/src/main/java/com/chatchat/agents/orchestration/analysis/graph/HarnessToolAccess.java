@@ -88,6 +88,7 @@ public final class HarnessToolAccess {
         args = decode(encode(args));
         String identity = request.get("requestId") instanceof String id ? id : runtimeIdentity;
         if (identity == null || identity.isBlank() || identity.length() > 256) throw new IllegalArgumentException("Invalid tool request identity");
+        metadata.put("harnessLastToolReceipt", Map.of("requestId", identity, "origin", "UNKNOWN"));
         String key = "harness:call:" + ModelProtocolJson.sha256Hex(identity);
         String fingerprint = ModelProtocolJson.sha256Hex(encode(Map.of("tool", name, "arguments", args, "scope", scope.toMap())));
         if (executionCheckpoints == null && store.isEnabled() && !store.supportsAtomicCheckpoints())
@@ -121,6 +122,7 @@ public final class HarnessToolAccess {
             if (denied != null) return recoveryReceipt(identity, name, "RECOVERY_ADMISSION_REJECTED", String.valueOf(denied.outcome()));
         }
         if ("RESULT_RECORDED".equals(entry.get("state"))) {
+            metadata.put("harnessLastToolReceipt", Map.of("requestId", identity, "origin", "COMMITTED_RESULT"));
             pendingResults.remove(identity);
             var receipt = recoveredReceipt(identity, name, key, entry, sources);
             if (!"RESULT_AVAILABLE_PROJECTION_FAILED".equals(receipt.get("status")))
@@ -128,12 +130,14 @@ public final class HarnessToolAccess {
             return receipt;
         }
         ToolRuntimeExecution execution = pendingResults.get(identity);
+        if (execution != null) metadata.put("harnessLastToolReceipt", Map.of("requestId", identity, "origin", "PENDING_RESULT"));
         boolean resumableBatch = batchRecovery && executionCheckpoints != null
             && com.chatchat.agents.runtime.batch.ToolCallBatchSchema.supports(name, currentTool)
             && (args.containsKey("calls") || args.containsKey("toolCalls") || args.containsKey("tool_calls"));
         if (execution == null && !owner && !resumableBatch)
             return recoveryReceipt(identity, name, "EXECUTION_OUTCOME_UNKNOWN", "Execution was claimed but no committed result exists; Runtime will not re-execute it");
         if (execution == null) {
+            metadata.put("harnessLastToolReceipt", Map.of("requestId", identity, "origin", owner ? "NEW_EXECUTION" : "BATCH_RECOVERY"));
             metadata.put("harnessActiveToolRequestId", identity);
             try { execution = execute.apply(name, decode(encode(args))); }
             catch (java.util.concurrent.CancellationException cancelled) { throw cancelled; }

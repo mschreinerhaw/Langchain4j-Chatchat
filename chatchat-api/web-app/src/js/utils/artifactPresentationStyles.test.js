@@ -67,14 +67,14 @@ describe("dynamic report presentation contract", () => {
   });
 
   it("retains the table-chart event bridge into the existing analysis modal", () => {
-    expect(artifactRenderer).toContain('defineEmits(["drill-down", "table-chart"])');
+    expect(artifactRenderer).toContain('defineEmits(["drill-down", "table-chart", "preference-change"])');
     expect(artifactRenderer).toContain('emit("table-chart"');
   });
 
-  it("shows an explicit financial trend legend and professional report hierarchy", () => {
+  it("shows a domain-neutral trend legend and professional report hierarchy", () => {
     expect(visualizationRenderer).toContain("visualization-trend-legend");
-    expect(visualizationRenderer).toContain("上涨 / 正收益");
-    expect(visualizationRenderer).toContain("下跌 / 负收益");
+    expect(visualizationRenderer).toContain("增加 / 正值");
+    expect(visualizationRenderer).toContain("减少 / 负值");
     expect(visualizationRenderer).toContain("持平 / 起点 / 零值");
     expect(chatStyles).toMatch(/\.visualization-trend-legend \.up i\s*\{\s*background:\s*var\(--trend-up-color, #e5484d\)/);
     expect(chatStyles).toMatch(/\.visualization-trend-legend \.down i\s*\{\s*background:\s*var\(--trend-down-color, #16a36a\)/);
@@ -89,7 +89,10 @@ describe("dynamic report presentation contract", () => {
   });
 
   it("keeps runtime refresh and load actions aligned with Agent scheduler buttons", () => {
-    expect(tasksView.match(/class="light-button"/g)).toHaveLength(3);
+    expect(tasksView).toContain('>探索链路</button>');
+    expect(tasksView).toContain('>计划快照</button>');
+    expect(tasksView).toContain('>读取后续探索记录</button>');
+    expect(tasksView.match(/class="light-button"/g)).toHaveLength(6);
     expect(skillHubStyles).toMatch(/\.runtime-view \.light-button\s*\{[^}]*min-height:\s*34px[^}]*border-radius:\s*7px[^}]*background:\s*#eef4ff[^}]*font-size:\s*13px/s);
     expect(skillHubStyles).toMatch(/\.runtime-view \.light-button:hover:not\(:disabled\)\s*\{[^}]*background:\s*#dceaff/s);
   });

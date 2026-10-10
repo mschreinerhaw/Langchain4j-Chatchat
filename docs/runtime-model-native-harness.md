@@ -75,3 +75,42 @@ chatchat:
 上述为第一阶段部署记录。Driver–Worker 删除后的部署记录见 [Single Brain 数据工作区](runtime-single-brain-data-workspace.md)。当前版本没有旧分析路径开关；部署备份用于整包恢复，不是保留旧架构的执行入口。
 
 扩展检查发现两个旧路径问题：InterpretationPlanRuntimeArchitectureTest 的主文件行数上限为 8730，而当前 HEAD 已超过该值；AgentAnswerFinalizerEvidenceAnswerTest 的 reviewerTimeoutUsesConfiguredModelTimeout 实际等待约 5 秒，未满足小于 3 秒的断言。本轮未修改对应执行器主文件或旧 reviewer 超时逻辑，也未放宽门槛。新路径不调用该 reviewer。扩展失败日志保留在 target/codex-live 与 target/harness-tests-extended-20261009.log；最终部署记录见联机记录。
+
+## 2026-10-10：v2 意图、工具恢复与链路探索
+
+`model_native_analysis.v2` 每轮必须声明 `decision` 对象；`CONTINUE` 可以没有取证请求。`COMPLETE`、`PARTIAL_COMPLETE` 保留草稿，只有 `PUBLISH` 发起发布并绑定 `reportSha256` 与 `evidenceSnapshotRef`。`WAIT` 保存模型意图，但当前返回 `WAIT_UNSUPPORTED`，尚无自动暂停、唤醒和进程重启后持续探索调度。v1 和纯 Markdown 保持旧交付语义；选择 v2 后禁止静默降级。
+
+```json
+{
+  "schemaVersion": "model_native_analysis.v2",
+  "decision": { "action": "CONTINUE" },
+  "reportMarkdown": "模型草稿",
+  "workspace": { "findings": ["模型明确声明的发现"] },
+  "evidenceRequests": []
+}
+```
+
+外层 Task 继续使用既有公共状态码，`NO_PRESENTABLE_RESULT` 可表示没有正式发布内容，不应据此认定模型分析失败。v2 执行结果及安全元数据另行保留 `modelDecision`、`executionState`、`executionStopReason`、`publicationState` 和发布绑定。未发布时返回执行事实提示，不输出私有草稿，不再将主动完成解释成“结果整理失败”。预算停止不生成模型完成决定。
+
+`HarnessToolAccess.call(request, sources, runtimeIdentity)` 通过原有 `RuntimeExecutionCheckpointPort` 保存调用身份、参数与工具 Contract 指纹、原子领取记录和完整回执。相同请求恢复前复核现行授权；不同参数须使用不同 requestId。已提交结果可以跨 Worker 恢复；结果投影失败可重建证据。当前进程持有成功但未落盘结果时可以重试保存；重启后只剩领取记录时返回结果未知，不自动重做远程调用。批量子项分别领取和保存结果，取消继续传播；不承诺外部工具的 exactly-once 副作用。
+
+大回执分块与索引在同一个数据库事务提交，读取与 CAS、分块清理共用所属分区锁。清理复用 `AgentRunRetentionScheduler`，只删除无检查点引用的分块；保留有效回执、请求领取和预算身份。没有引入自动删除这些执行事实的 TTL，否则相同请求可能被误认为从未执行。完整执行事实的退休/墓碑保留策略仍需明确的治理 Contract。
+
+运行页面的“链路探索”复用 Task 事件与 Runtime timeline，不新增独立 Exploration Graph 存储或 Planner。`buildExplorationGraph` 将真实的 Goal、模型轮次、工具请求、证据返回/读取、模型显式 hypotheses/findings 与 decision 投影为稳定节点及关联。计划步骤不等于实际调用，模型调用记录中的 toolName 不等于工具执行。`receiptOrigin` 区分新执行、已提交回执恢复、已有结果重试保存及批量恢复，恢复不会被描述成新远程调用。默认隐藏可展开的运行事件，保留计划快照对照、节点详情及 JSON/SVG 导出；动态增加节点保留已有位置和视角，终态轮询补齐最后一轮观察。
+
+图的类型与探索关联借鉴 ARTEX 的设计思想，代码独立实现，未复制 ARTEX 实现。公开展示的是模型显式声明的探索摘要与执行事实，不展示 workspace 私有工作笔记，不对模型结论进行质量评分或强制纠正。运行时动态 Skill 发现和长任务唤醒属于后续阶段，当前能力注入和授权工具集仍沿用现有机制。
+
+本轮方法级改动：
+
+| 组件 | 方法 | 调整 |
+| --- | --- | --- |
+| HarnessToolAccess | `call(request, sources, runtimeIdentity)` | 单独记录回执来源，保留原回执身份和恢复语义 |
+| ModelNativeAnalysisHarness | `execute`、`explorationReceipt` | 明确 v2 decision 对象；持久化模型声明和有界回执事实，不输出私有工作笔记 |
+| AgentTaskService | `compileExecutionResult`、`ExecutionResultContract.safeMetadata` | v2 未发布提示与执行事实贯通；旧公共状态协议兼容，草稿不进入正式答案 |
+| JdbcRuntimeEvidenceStore | `readExecutionCheckpoint`、`readExecutionCheckpointLocked`、`cleanupUnreferencedExecutionPayloads` | 分块读取、替换及清理一致性；有界游标扫描和无引用分块回收 |
+| RuntimeExecutionCheckpointPort | `cleanupUnreferencedExecutionPayloads` | 可选默认维护方法，既有实现无需新增实现才能兼容 |
+| AgentRunRetentionScheduler | `cleanup` | 复用既有维护周期，不新增执行调度器 |
+| TasksView / explorationGraph | `loadExplorationTimeline`、`refreshRuntimeSnapshot`、`buildExplorationGraph` | 读取实际 timeline，切换任务隔离，增量续取与终态补齐，投影真实探索关联 |
+| PlanDagGraph | `rebuild`、`focusReadableView` | 动态增长保留布局和视角，避免新增节点重叠，控制布局缓存，保留旧计划消费者默认行为 |
+
+前端还调整了 TasksView 模板、样式与默认测试入口；更新两条与当前展示组件不一致的旧断言，没有为通过断言改变金融或工具治理逻辑。新增测试覆盖读取与替换/清理并发、无引用回收、模型显式状态展示、终态最后一轮加载、真实工具调用与模型推理记录的区分、草稿不发布和回执来源。

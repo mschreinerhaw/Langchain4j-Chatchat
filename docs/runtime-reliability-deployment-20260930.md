@@ -44,3 +44,37 @@ Runtime：`att-1-e6d590d3-5555-4d24-8351-29fc4fbc9551`。
 本次验证了部署可用、实际重规划、父子流程等待与生命周期闭合；没有验证通过全部业务结论，也没有消除原有 132 项自动化失败。历史任务的异常状态没有被重写。
 
 运行记录保存在本地忽略目录 `target/codex-live/reliability-*`。记录包含任务时间线、计划、事件、最终结果和 Runtime 快照；不将业务结果、令牌或凭据提交到仓库。
+
+## 2026-10-10 后续部署：模型意图、CALL_TOOL 恢复与链路探索
+
+部署至 `192.168.195.221`，保留原安装目录、配置、驱动与插件。每次替换前校验上传 JAR 和旧包备份的 SHA-256；安装脚本重启服务。MCP 在停止脚本的 30 秒等待窗口后触发强停，重新启动后实际调用验证正常。部署在测试任务已结束、RUNNING 任务查询为空时进行，没有取消或改写历史任务。
+
+最终安装产物：
+
+| 服务 | SHA-256 | 最后一次替换前备份 |
+| --- | --- | --- |
+| API | `25c5c7c6a03b59166d814a904e962551164415243ef30aebb359140fef69b951` | `/opt/chatchat-deploy-backup/runtime-exploration-chatchat-20261010-145242/chatchat.jar` |
+| MCP | `3185d3faae6b47066f7b2ca18e7e639cf3327ed6102a668eb13b0b6fb56e7074` | `/opt/chatchat-deploy-backup/runtime-exploration-chatchat-mcp-server-20261010-145153/chatchat-mcp-server.jar` |
+
+开始整改前的 API 包备份保存在 `/opt/chatchat-deploy-backup/runtime-exploration-20261010-142032/chatchat.jar`。登录会话在 API 重启后失效，联机验证重新认证，未修改账号权限。
+
+真实场景均使用数据库运维 Agent 和已授权只读模板，目标为 `LiveData测试库_223`（DEV）；分析任务没有调用主机命令工具，也没有修改目标数据库配置或数据。
+
+| 场景 | Task ID | 执行事实 |
+| --- | --- | --- |
+| InnoDB 自主分析与显式发布 | `7c6cbdac-7f6c-3232-bbe7-9bc0002bdc82` | SUCCESS；8 轮 Harness，CONTINUE 续读后 PUBLISH；格式错误返回协议回执，未静默改为旧发布协议；报告哈希与证据快照绑定 |
+| 草稿完成，不发布 | `65be6eb6-005b-3d06-b295-d04fa639298b` | CONTINUE → COMPLETE；`publicationState=NOT_REQUESTED`；外层兼容状态 NO_PRESENTABLE_RESULT，提示“模型已完成分析，未请求发布；草稿和执行记录已保留” |
+| 稳定请求恢复 | `9790fec0-aadd-3396-9719-18e1e32695bf` | 同一 requestId、工具、参数连续请求两轮，回执一致；SHARED_DATABASE，调用预算 1，RESTORED，最终 PUBLISH/DELIVERED |
+| 最终 API/MCP 产物复测 | `10603377-1bcd-3027-82b4-6608c618674e` | SUCCESS；CONTINUE → CONTINUE → PUBLISH；两个回执分别标记 NEW_EXECUTION、COMMITTED_RESULT，指纹相同；调用预算 1，最终报告 SHA-256 与发布绑定一致 |
+
+最终复测的 Runtime ID 为 `att-1-37b48036-1787-4e6b-933a-5ce4362e068a`。发布请求的报告 SHA-256 为 `cfb09838b2b36a7a23c998439515047321bd5a8c0bafabb363b75c1cd8546ef3`，证据快照为 `698710f67a6ba395c5aa3b67cf2e4d57f24d0d106e47d5c8b8d3e9eb10dbf042`。Runtime 记录这些绑定，不认证报告业务结论。
+
+完成任务后的 API 重启复核：最初 InnoDB 任务的 50 条执行观察、模型决定、报告草稿和发布绑定全部恢复；草稿 SHA-256 匹配。该验证覆盖已完成运行的持久化读取，不等于已实现运行中长任务的自动唤醒。
+
+Chrome 实际访问 `http://192.168.195.221:8080/#/tasks`。默认链路视图按真实观察增加节点，最终版本的一段动态采样从 17 增至 24，完成后为 30 个节点；可展开运行事件、切换计划快照、定位已提交回执恢复节点并查看 COMMITTED_RESULT、查看 PUBLISH 决定。浏览器没有 pageerror。观察、截图、报告与部署清单保存在忽略目录 `target/codex-live/`，不提交令牌、凭据和业务原始数据。
+
+最终场景还实际返回了模型显式 hypotheses/findings，页面已展示对应“模型假设”和“模型发现”节点，与第二轮探索节点关联。它们来自模型声明，未由 Runtime 从指标或报告文字生成。展示截图为 `target/codex-live/graph-recovery-final-restored.png`。
+
+本轮 19 个相关后端/检索测试类共 181 项通过，前端 27 个测试文件共 262 项通过；前端构建、API/MCP 打包和 `git diff --check` 通过。另行完整重跑 ToolRuntimeServiceTest：70 项中 13 个失败、3 个错误；与此前 69 项基线逐项比较，新增失败为 0，原有 16 项问题未修复。该套件没有被宣称通过，也没有为了通过而改变工具治理逻辑。
+
+仍需明确的后续边界：WAIT 自动恢复、运行时动态 Skill 发现和持续探索调度尚未实现；外部工具成功但回执在进程崩溃前彻底丢失时返回结果未知，不自动重跑；有效执行事实仍保留，只有无引用分块会被回收，完整退休/墓碑策略需要治理 Contract。升级后的大回执索引需要恢复 Worker 同步升级。机制说明见 [Model Native Analysis Harness](runtime-model-native-harness.md#2026-10-10v2-意图工具恢复与链路探索)。

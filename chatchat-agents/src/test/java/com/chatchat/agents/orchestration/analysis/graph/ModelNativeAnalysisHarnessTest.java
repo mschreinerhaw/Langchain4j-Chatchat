@@ -175,6 +175,19 @@ class ModelNativeAnalysisHarnessTest {
             .isEqualTo(ModelProtocolJson.sha256Hex("Chosen report"));
         verify(model, times(3)).chat(anyString());
     }
+    @Test void explorationObservationsExposeExplicitDecisionsAndDeclaredStateWithoutPrivateWorkspaceNotes() {
+        var model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn(ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v2",
+            "decision", Map.of("action", "COMPLETE"), "reportMarkdown", "Draft",
+            "workspace", Map.of("notes", "private working notes", "state", Map.of("findings", List.of("explicit finding"))))));
+        var observations = new ArrayList<Map<String,Object>>();
+        new ModelNativeAnalysisHarness(3).execute("Goal", sources(), model, scope,
+            AnalysisEvidenceSpillStore.disabled(), new LinkedHashMap<>(), () -> {}, observations::add);
+        var completed = observations.stream().filter(span -> "COMPLETED".equals(span.get("eventState"))).findFirst().orElseThrow();
+        assertThat(((Map<?,?>)completed.get("modelDecision")).get("action")).isEqualTo("COMPLETE");
+        assertThat(completed).containsEntry("publicationState", "NOT_REQUESTED");
+        assertThat(completed.toString()).contains("explicit finding").doesNotContain("private working notes");
+    }
     @Test void v2CompletionAndWaitRetainDraftWithoutRequestingPublication() {
         for (String action : List.of("COMPLETE", "PARTIAL_COMPLETE", "WAIT")) {
             var model = mock(ChatModel.class); when(model.chat(anyString())).thenReturn(v2(action, "Private draft", List.of()));

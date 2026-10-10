@@ -7,4 +7,6 @@ import java.util.Optional;
 public interface RuntimeExecutionCheckpointPort {
     Optional<String> readExecutionCheckpoint(KernelDataScope scope, String key);
     boolean compareAndSetExecutionCheckpoint(KernelDataScope scope, String key, String expectedJson, String nextJson);
+    /** Optional maintenance: never removes referenced receipts, claims or resource-budget identities. */
+    default int cleanupUnreferencedExecutionPayloads() { return 0; }
 }

@@ -1,8 +1,8 @@
 <template>
-  <section class="interactive-plan-dag" aria-label="可交互解读计划图">
+  <section class="interactive-plan-dag" :aria-label="title">
     <div class="plan-flow-toolbar">
       <div>
-        <strong>交互式计划图</strong>
+        <strong>{{ title }}</strong>
         <span>拖动节点整理布局 · 滚轮缩放 · 拖动空白处平移</span>
       </div>
       <div class="plan-flow-actions">
@@ -23,17 +23,17 @@
       :nodes-draggable="true"
       :nodes-connectable="false"
       :edges-updatable="false"
-      :fit-view-on-init="true"
+      :fit-view-on-init="!exploration"
       :zoom-on-double-click="false"
       @node-click="handleNodeClick"
     >
       <template #node-plan="{ data, selected }">
-        <article class="plan-flow-node" :class="[nodeTone(data), { selected }]">
+        <article class="plan-flow-node" :class="[nodeTone(data), { selected }]" :style="exploration ? kindStyle(data.kind) : {}">
           <Handle type="target" :position="Position.Left" />
           <header>
             <span class="plan-flow-status-dot"></span>
             <small>{{ statusLabel(data) }}</small>
-            <code>#{{ data.stepId || data.id }}</code>
+            <code>{{ exploration ? data.actionText : `#${data.stepId || data.id}` }}</code>
           </header>
           <strong :title="data.fullLabelText || data.labelText || data.label">{{ data.fullLabelText || data.labelText || data.label || data.id }}</strong>
           <p :title="data.toolName || data.actionText">{{ data.toolName || data.actionText || "运行节点" }}</p>
@@ -64,6 +64,8 @@ import "@vue-flow/controls/dist/style.css";
 import "@vue-flow/minimap/dist/style.css";
 
 const props = defineProps({
+  title: { type: String, default: "交互式计划图" },
+  exploration: { type: Boolean, default: false },
   nodes: { type: Array, default: () => [] },
   edges: { type: Array, default: () => [] },
   selectedNodeId: { type: String, default: "" },
@@ -76,6 +78,11 @@ const flowEdges = ref([]);
 const { fitView, setCenter } = useVueFlow();
 const positionCache = new Map();
 let activeGraphKey = "";
+let activeLayoutKey = "";
+function kindStyle(kind) {
+  const color = { goal: "#0f766e", intent: "#2563eb", tool: "#7c3aed", evidence: "#b45309", observation: "#0369a1", hypothesis: "#9333ea", finding: "#be185d", decision: "#047857", event: "#64748b" }[kind] || "#64748b";
+  return { '--node-accent': color, '--node-border': color, borderLeftColor: color };
+}
 
 function graphKey() {
   const nodeIds = props.nodes.map((node, index) => String(node?.id || `step-${node?.stepId || index + 1}`));
@@ -86,22 +93,34 @@ function graphKey() {
 function rememberCurrentPositions() {
   if (!activeGraphKey || !flowNodes.value.length) return;
   positionCache.set(activeGraphKey, Object.fromEntries(flowNodes.value.map((node) => [node.id, { ...node.position }])));
+  while (positionCache.size > 12) positionCache.delete(positionCache.keys().next().value);
 }
 
 function rebuild(nextGraphKey = graphKey(), discardCurrent = false) {
+  const keepViewport = props.exploration && activeLayoutKey === props.layoutKey && flowNodes.value.length > 0 && !discardCurrent;
+  const livePositions = keepViewport ? Object.fromEntries(flowNodes.value.map(node => [node.id, { ...node.position }])) : null;
   if (!discardCurrent) rememberCurrentPositions();
   else positionCache.delete(nextGraphKey);
   const layout = layoutPlanDag(props.nodes, props.edges);
-  const savedPositions = positionCache.get(nextGraphKey);
+  const savedPositions = livePositions || positionCache.get(nextGraphKey);
   if (savedPositions) {
     layout.nodes.forEach((node) => {
       if (savedPositions[node.id]) node.position = { ...savedPositions[node.id] };
     });
+    const placed = layout.nodes.filter(node => savedPositions[node.id]);
+    for (const node of layout.nodes.filter(node => !savedPositions[node.id])) {
+      while (placed.some(other => Math.abs(other.position.x - node.position.x) < PLAN_FLOW_NODE_WIDTH + 20
+        && Math.abs(other.position.y - node.position.y) < PLAN_FLOW_NODE_HEIGHT + 20)) {
+        node.position.y += PLAN_FLOW_NODE_HEIGHT + 54;
+      }
+      placed.push(node);
+    }
   }
   flowNodes.value = layout.nodes;
   flowEdges.value = layout.edges;
   activeGraphKey = nextGraphKey;
-  nextTick(() => focusReadableView());
+  activeLayoutKey = props.layoutKey;
+  if (!keepViewport) nextTick(() => focusReadableView());
 }
 
 function fitGraph() {
@@ -109,6 +128,11 @@ function fitGraph() {
 }
 
 function focusReadableView() {
+  if (props.exploration && flowNodes.value.length) {
+    const focus = flowNodes.value.find(node => node.data.kind === "intent") || flowNodes.value[0];
+    return setCenter(focus.position.x + PLAN_FLOW_NODE_WIDTH / 2, focus.position.y + PLAN_FLOW_NODE_HEIGHT / 2,
+      { zoom: 0.85, duration: 0 });
+  }
   return fitView({ padding: 0.12, duration: 260, minZoom: 0.68, maxZoom: 1.05 });
 }
 
@@ -131,13 +155,14 @@ function nodeTone(data) {
   const status = statusKey(data);
   if (/fail|error|kill|cancel/.test(status)) return "failed";
   if (/success|complete|done/.test(status)) return "success";
-  if (/run|execut/.test(status)) return "running";
+  if (/run|execut|started/.test(status)) return "running";
   if (/wait|confirm|pending/.test(status)) return "waiting";
   if (/final/.test(String(data.actionType || "").toLowerCase())) return "final";
   return "planned";
 }
 
 function statusLabel(data) {
+  if (props.exploration) return ({ OBSERVED: "已记录", PLANNED: "模型计划", STARTED: "运行中", COMPLETED: "已执行", SUCCESS: "成功", FAILED: "失败", EXECUTION_OUTCOME_UNKNOWN: "结果未知", RESULT_PERSISTENCE_PENDING: "待落盘" }[String(data.statusText || data.status).toUpperCase()] || String(data.statusText || data.status || "已记录"));
   return data.statusLabel || ({ success: "成功", failed: "失败", running: "运行中", waiting: "等待", planned: "计划" }[nodeTone(data)] || "计划");
 }
 

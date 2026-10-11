@@ -280,6 +280,8 @@ public class DynamicDateParamService {
 
     private TradingCalendar loadTradingCalendar(TradingCalendarSource source) {
         SqlDatasourceConfig datasource = source.datasource();
+        if (com.chatchat.mcpserver.sql.datasource.NativeQueryDatasource.isNative(datasource))
+            throw new IllegalArgumentException("Trading-calendar SQL requires a relational/JDBC datasource; native graph/search assets do not load JDBC drivers");
         try {
             DataSource dataSource = driverLoader.createDataSource(
                 datasource.getJdbcUrl(),

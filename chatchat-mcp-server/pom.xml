@@ -23,6 +23,8 @@
         <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
         <node.version>v20.19.0</node.version>
         <npm.version>10.8.2</npm.version>
+        <neo4j.driver.version>5.28.4</neo4j.driver.version>
+        <elasticsearch.rest-client.version>8.15.3</elasticsearch.rest-client.version>
     </properties>
 
     <dependencies>
@@ -175,6 +177,17 @@
             <groupId>org.opensearch.client</groupId>
             <artifactId>opensearch-rest-client</artifactId>
             <version>${opensearch.client.version}</version>
+        </dependency>
+        <!-- Native clients are bundled with MCP; never loaded from lib/drivers at runtime. -->
+        <dependency>
+            <groupId>org.elasticsearch.client</groupId>
+            <artifactId>elasticsearch-rest-client</artifactId>
+            <version>${elasticsearch.rest-client.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j.driver</groupId>
+            <artifactId>neo4j-java-driver</artifactId>
+            <version>${neo4j.driver.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

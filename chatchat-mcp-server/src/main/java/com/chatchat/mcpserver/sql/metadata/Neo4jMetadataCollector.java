@@ -1,6 +1,6 @@
 package com.chatchat.mcpserver.sql.metadata;
 
-import com.chatchat.mcpserver.datacapability.connection.QueryHttpClient;
+import com.chatchat.mcpserver.datacapability.connection.NativeDatabaseClient;
 import com.chatchat.mcpserver.sql.datasource.NativeQueryDatasource;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -12,7 +12,7 @@ import java.util.*;
 @Component
 @RequiredArgsConstructor
 public class Neo4jMetadataCollector implements MetadataCollector {
-    private final QueryHttpClient http;
+    private final NativeDatabaseClient client;
     private static final List<String> QUERIES = List.of(
         "CALL db.labels() YIELD label RETURN label LIMIT 20001",
         "CALL db.relationshipTypes() YIELD relationshipType RETURN relationshipType LIMIT 20001",
@@ -32,9 +32,9 @@ public class Neo4jMetadataCollector implements MetadataCollector {
         int fieldCount = 0;
         for (String database : databases) {
             if (!database.matches("[A-Za-z0-9_.-]+")) throw new IllegalArgumentException("无效的 Neo4j Database: " + database);
-            JsonNode response = http.post(connection, "/db/" + SearchEngineMetadataCollector.segment(database) + "/tx/commit",
-                Map.of("statements", QUERIES.stream().map(query -> Map.of("statement", query, "resultDataContents", List.of("row", "graph"))).toList()),
-                Math.max(1, Math.min(60, asset.getDefaultTimeoutSeconds())), Map.of());
+            List<Map<String,Object>> statements = QUERIES.stream().map(query -> Map.<String,Object>of("statement", query)).toList();
+            JsonNode response = client.cypher(connection, database, statements,
+                Math.max(1, Math.min(60, asset.getDefaultTimeoutSeconds())));
             SearchEngineMetadataCollector.requireObject(response);
             if (!response.path("errors").isArray() || !response.path("errors").isEmpty())
                 throw new IllegalStateException("Neo4j 元数据采集失败: " + response.path("errors"));

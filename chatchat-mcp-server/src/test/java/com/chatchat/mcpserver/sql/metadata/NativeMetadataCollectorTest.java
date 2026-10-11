@@ -1,6 +1,6 @@
 package com.chatchat.mcpserver.sql.metadata;
 
-import com.chatchat.mcpserver.datacapability.connection.QueryHttpClient;
+import com.chatchat.mcpserver.datacapability.connection.NativeDatabaseClient;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
@@ -36,9 +36,9 @@ class NativeMetadataCollectorTest {
             exchange.sendResponseHeaders(200, bytes.length); exchange.getResponseBody().write(bytes); exchange.close();
         });
         server.start();
-        try {
+        try (var client = new NativeDatabaseClient(json)) {
             var asset = asset(type, "http://127.0.0.1:" + server.getAddress().getPort());
-            var objects = new SearchEngineMetadataCollector(new QueryHttpClient(json)).collect(asset, List.of("news"));
+            var objects = new SearchEngineMetadataCollector(client).collect(asset, List.of("news"));
             assertThat(objects).hasSize(1);
             var object = objects.get(0);
             assertThat(object.databaseType()).isEqualTo(type);
@@ -53,7 +53,7 @@ class NativeMetadataCollectorTest {
     }
 
     @Test void emptyOrInvalidSearchScopesNeverContactTheEndpoint() {
-        var http = mock(QueryHttpClient.class);
+        var http = mock(NativeDatabaseClient.class);
         var collector = new SearchEngineMetadataCollector(http);
         var asset = asset("opensearch", "http://localhost:9200");
         assertThatThrownBy(() -> collector.collect(asset, List.of())).isInstanceOf(IllegalArgumentException.class);
@@ -62,7 +62,7 @@ class NativeMetadataCollectorTest {
     }
 
     @Test void incompleteFieldCapabilitiesNeverProduceASuccessfulPartialSnapshot() throws Exception {
-        var http = mock(QueryHttpClient.class);
+        var http = mock(NativeDatabaseClient.class);
         when(http.get(any(), contains("/_mapping"), anyInt())).thenReturn(json.readTree("{\"news\":{\"mappings\":{\"properties\":{\"title\":{\"type\":\"text\"}}}}}"));
         when(http.get(any(), contains("/_alias"), anyInt())).thenReturn(json.readTree("{\"news\":{\"aliases\":{}}}"));
         when(http.get(any(), contains("/_field_caps"), anyInt())).thenReturn(json.readTree("{}"));
@@ -71,7 +71,7 @@ class NativeMetadataCollectorTest {
     }
 
     @Test void keepsGraphDeclarationsSeparateFromObservedTypesAndStatistics() throws Exception {
-        var http = mock(QueryHttpClient.class);
+        var http = mock(NativeDatabaseClient.class);
         var results = json.createArrayNode();
         results.add(result(List.of("label"), List.of(List.of("Person"), List.of("Company"))));
         results.add(result(List.of("relationshipType"), List.of(List.of("WORKS_AT"))));
@@ -88,8 +88,8 @@ class NativeMetadataCollectorTest {
             "relationships":[{"id":"3","type":"WORKS_AT","startNode":"1","endNode":"2"}]}}]}
             """));
         var response = json.createObjectNode(); response.set("results", results); response.putArray("errors");
-        when(http.post(any(), eq("/db/analytics/tx/commit"), any(), anyInt(), anyMap())).thenReturn(response);
-        var objects = new Neo4jMetadataCollector(http).collect(asset("neo4j", "http://localhost:7474"), List.of("analytics"));
+        when(http.cypher(any(), eq("analytics"), anyList(), anyInt())).thenReturn(response);
+        var objects = new Neo4jMetadataCollector(http).collect(asset("neo4j", "bolt://localhost:7687"), List.of("analytics"));
         assertThat(objects).hasSize(3);
         var person = objects.stream().filter(object -> object.name().equals("Person")).findFirst().orElseThrow();
         assertThat(person.fields().get(0).nullable()).isNull();
@@ -101,12 +101,12 @@ class NativeMetadataCollectorTest {
     }
 
     @Test void graphErrorsAndIncompleteResultsFailTheRefresh() throws Exception {
-        var http = mock(QueryHttpClient.class);
+        var http = mock(NativeDatabaseClient.class);
         var collector = new Neo4jMetadataCollector(http);
-        when(http.post(any(), anyString(), any(), anyInt(), anyMap())).thenReturn(json.readTree("{\"errors\":[{\"code\":\"Forbidden\"}],\"results\":[]}"));
-        assertThatThrownBy(() -> collector.collect(asset("neo4j", "http://localhost:7474"), List.of("neo4j"))).hasMessageContaining("采集失败");
-        when(http.post(any(), anyString(), any(), anyInt(), anyMap())).thenReturn(json.readTree("{\"errors\":[],\"results\":[]}"));
-        assertThatThrownBy(() -> collector.collect(asset("neo4j", "http://localhost:7474"), List.of("neo4j"))).hasMessageContaining("不完整");
+        when(http.cypher(any(), anyString(), anyList(), anyInt())).thenReturn(json.readTree("{\"errors\":[{\"code\":\"Forbidden\"}],\"results\":[]}"));
+        assertThatThrownBy(() -> collector.collect(asset("neo4j", "bolt://localhost:7687"), List.of("neo4j"))).hasMessageContaining("采集失败");
+        when(http.cypher(any(), anyString(), anyList(), anyInt())).thenReturn(json.readTree("{\"errors\":[],\"results\":[]}"));
+        assertThatThrownBy(() -> collector.collect(asset("neo4j", "bolt://localhost:7687"), List.of("neo4j"))).hasMessageContaining("不完整");
     }
 
     private com.fasterxml.jackson.databind.JsonNode result(List<String> columns, List<List<Object>> rows) {

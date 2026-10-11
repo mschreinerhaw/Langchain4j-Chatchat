@@ -123,7 +123,6 @@ export default {
       selectedEventId: "",
       selectedPlanDag: null,
       graphMode: "exploration",
-      explorationShowEvents: false,
       explorationTimeline: { observations: [], steps: [] },
       explorationRunId: "",
       explorationLoading: false,
@@ -363,7 +362,7 @@ export default {
         || "未命名任务";
       return this.compactPlanText(content, 120);
     },
-    explorationGraph() { return buildExplorationGraph(this.selectedTask, this.explorationTimeline, this.explorationShowEvents ? this.selectedEvents : []); },
+    explorationGraph() { return buildExplorationGraph(this.selectedTask, this.explorationTimeline); },
     activeGraphNodes() { return this.graphMode === "exploration" ? this.explorationGraph.nodes : this.planNodeViews; },
     activeGraphEdges() { return this.graphMode === "exploration" ? this.explorationGraph.edges : this.planEdges; },
     selectedExplorationNode() { return this.explorationGraph.nodes.find(node => node.id === this.selectedPlanNodeId) || null; },

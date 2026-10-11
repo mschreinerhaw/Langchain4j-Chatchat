@@ -609,6 +609,8 @@ public class SqlQueryExecuteService {
     }
 
     Connection openConnection(SqlDatasourceConfig datasource) throws Exception {
+        if (com.chatchat.mcpserver.sql.datasource.NativeQueryDatasource.isNative(datasource))
+            throw new IllegalArgumentException("Native database assets use the Cypher/JSON DSL query workflow, not a dynamically loaded JDBC driver");
         DataSource dataSource = driverLoader.createDataSource(
             datasource.getJdbcUrl(),
             datasource.getUsername(),

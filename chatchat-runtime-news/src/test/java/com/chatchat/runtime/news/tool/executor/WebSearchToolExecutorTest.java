@@ -25,6 +25,25 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 class WebSearchToolExecutorTest {
+    @Test
+    @SuppressWarnings("unchecked")
+    void modelMayRequestExternalEvidenceDespiteSufficientLocalRowCount() throws Exception {
+        NewsRuntimeProperties properties = new NewsRuntimeProperties();
+        properties.getOpenSearch().setEnabled(true);
+        NewsDocumentStore store = mock(NewsDocumentStore.class);
+        when(store.search(any())).thenReturn(List.of());
+        TencentWebSearchClient external = mock(TencentWebSearchClient.class);
+        when(external.enabled()).thenReturn(true);
+        when(external.search("margin balance", 10)).thenReturn(response("requested-external"));
+        var output = new WebSearchToolExecutor(store, properties, external).execute(ToolInput.builder()
+            .parameters(Map.of("query", "Original question", "queryTerms", List.of("margin balance"),
+                "external_search_required", true))
+            .context(Map.of("upstreamLocalEvidenceCount", 30)).build());
+        assertThat(output.isSuccess()).isTrue();
+        assertThat((Map<String,Object>)output.getData()).containsEntry("localEvidenceSufficient", true)
+            .containsEntry("externalSearchRequested", true).containsEntry("externalSearchSucceeded", true);
+        verify(external).search("margin balance", 10);
+    }
 
     @Test
     @SuppressWarnings("unchecked")

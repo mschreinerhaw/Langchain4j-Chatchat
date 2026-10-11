@@ -36,7 +36,7 @@ class TemplateAssetCatalogServiceTest {
         var query = new com.chatchat.mcpserver.database.definition.DatabaseQueryConfig();
         query.setToolName("graph_query"); query.setTitle("Graph"); query.setDatasourceId("graph"); query.setDatabaseType("mysql");
         var asset = new com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig();
-        asset.setId("graph"); asset.setDatabaseType("neo4j"); asset.setDriverClass("neo4j-http"); asset.setJdbcUrl("http://localhost:7474");
+        asset.setId("graph"); asset.setDatabaseType("neo4j"); asset.setDriverClass("neo4j-http"); asset.setJdbcUrl("bolt://localhost:7687");
         when(queries.listEnabled()).thenReturn(List.of(query)); when(datasources.listEnabled()).thenReturn(List.of(asset));
         var service = new TemplateAssetCatalogService(mock(CommandTemplateService.class), mock(SqlTemplateService.class),
             mock(HttpEndpointConfigService.class), queries, mock(ApiServiceConfigService.class), mock(PythonTemplateCatalog.class),

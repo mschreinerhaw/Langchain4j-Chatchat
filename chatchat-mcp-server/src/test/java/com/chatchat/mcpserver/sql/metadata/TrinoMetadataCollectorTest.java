@@ -44,7 +44,7 @@ class TrinoMetadataCollectorTest {
         var trino = NativeMetadataCollectorTest.asset("trino", "jdbc:trino://localhost:8080/hive/sales?SSL=true");
         assertThat(MetadataScopes.defaults(trino)).containsExactly("hive.sales");
         assertThat(MetadataScopes.defaults(NativeMetadataCollectorTest.asset("elasticsearch", "http://localhost:9200"))).isEmpty();
-        assertThat(MetadataScopes.defaults(NativeMetadataCollectorTest.asset("neo4j", "http://localhost:7474"))).containsExactly("neo4j");
+        assertThat(MetadataScopes.defaults(NativeMetadataCollectorTest.asset("neo4j", "bolt://localhost:7687"))).containsExactly("neo4j");
     }
 
     @Test void connectionPickerReturnsQualifiedNamespacesInsteadOfBareSchemas() throws Exception {

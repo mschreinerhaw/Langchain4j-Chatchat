@@ -35,6 +35,8 @@ import static org.mockito.ArgumentMatchers.*;
 
 class DatabaseQuerySourceIntegrationTest {
     private final ObjectMapper json = new ObjectMapper();
+    private NativeDatabaseClient nativeClient;
+    private final NativeDatabaseClient graphClient = mock(NativeDatabaseClient.class);
     private final QueryConnectionService connections = mock(QueryConnectionService.class);
     private final SqlDatasourceConfigService sqlAssets = mock(SqlDatasourceConfigService.class);
     private final ToolRegistry tools = mock(ToolRegistry.class);
@@ -47,19 +49,19 @@ class DatabaseQuerySourceIntegrationTest {
     @BeforeEach void start() throws Exception {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         var asset = new HttpEndpointConfig();
-        asset.setId("asset"); asset.setEnabled(true); asset.setTimeoutMs(5000);
+        asset.setId("asset"); asset.setEnabled(true); asset.setTimeoutMs(5000); asset.setCategory("opensearch");
         asset.setUrlTemplate("http://127.0.0.1:" + server.getAddress().getPort());
         when(connections.get(eq("asset"), any(), anyBoolean())).thenReturn(asset);
-        var http = new QueryHttpClient(json);
+        var http = nativeClient = new NativeDatabaseClient(json);
         adapters = new DatabaseQuerySourceAdapterService(sqlAssets, connections,
-            new GraphQueryAdapter(connections, http, json), new OpenSearchQueryAdapter(connections, http, json));
+            new GraphQueryAdapter(connections, graphClient, json), new OpenSearchQueryAdapter(connections, http, json));
         invoke = new DatabaseQueryInvokeService(tools, sqlAssets, mock(SqlScriptExecuteService.class),
             new DynamicDateParamService(mock(DynamicJdbcDriverLoader.class)), json, mock(InvocationAuditService.class), cache);
         ReflectionTestUtils.setField(invoke, "sourceAdapters", adapters);
         when(cache.getOrLoad(any(), anyMap(), any(), any())).thenAnswer(call -> ((Supplier<ToolOutput>) call.getArgument(3)).get());
     }
 
-    @AfterEach void stop() { server.stop(0); }
+    @AfterEach void stop() { if (nativeClient != null) nativeClient.close(); server.stop(0); }
 
     private void serve(String path, String response) {
         server.createContext(path, exchange -> {
@@ -69,6 +71,13 @@ class DatabaseQuerySourceIntegrationTest {
             exchange.getResponseBody().write(body); exchange.close();
         });
         server.start();
+    }
+
+    private void graphResponse(String response) throws Exception {
+        when(graphClient.cypher(any(), anyString(), anyList(), anyInt())).thenAnswer(call -> {
+            requests.add(json.valueToTree(Map.of("statements", call.getArgument(2))));
+            return json.readTree(response);
+        });
     }
 
     private DatabaseQuerySqlStep step(String code, String query) {
@@ -91,7 +100,7 @@ class DatabaseQuerySourceIntegrationTest {
 
     @Test void graphUsesExistingWorkflowDependenciesAndStructuredPreview() throws Exception {
         when(connections.list(null)).thenReturn(List.of(new QueryConnectionService.AssetReference("asset", "图资产", CapabilityType.GRAPH, true)));
-        serve("/db/neo4j/tx/commit", "{\"errors\":[],\"results\":[{\"columns\":[\"id\"],\"data\":[{\"row\":[\"company-1\"]}]}]}");
+        graphResponse( "{\"errors\":[],\"results\":[{\"columns\":[\"id\"],\"data\":[{\"row\":[\"company-1\"]}]}]}");
         var first = step("COMPANY", "MATCH (c:Company) WHERE c.name = $name RETURN c.id AS id");
         first.setParameters(Map.of("name", "Alice' DELETE c"));
         first.setReturnToModel(false);
@@ -162,7 +171,7 @@ class DatabaseQuerySourceIntegrationTest {
         var database = new SqlDatasourceConfig();
         database.setId("native"); database.setName(type); database.setEnabled(true);
         database.setDatabaseType(type); database.setDriverClass(type + "-http");
-        database.setJdbcUrl("http://127.0.0.1:" + server.getAddress().getPort());
+        database.setJdbcUrl(type.equals("neo4j") ? "bolt://127.0.0.1:7687" : "http://127.0.0.1:" + server.getAddress().getPort());
         database.setUsername("reader"); database.setPassword("secret");
         when(sqlAssets.getEnabled("native")).thenReturn(database);
         when(sqlAssets.getById("native")).thenReturn(database);
@@ -170,9 +179,9 @@ class DatabaseQuerySourceIntegrationTest {
         var legacyHttp = mock(HttpEndpointConfigService.class);
         var centralConnections = new QueryConnectionService(legacyHttp);
         ReflectionTestUtils.setField(centralConnections, "databaseAssets", sqlAssets);
-        var http = new QueryHttpClient(json);
+        var http = nativeClient = new NativeDatabaseClient(json);
         adapters = new DatabaseQuerySourceAdapterService(sqlAssets, centralConnections,
-            new GraphQueryAdapter(centralConnections, http, json), new OpenSearchQueryAdapter(centralConnections, http, json));
+            new GraphQueryAdapter(centralConnections, graphClient, json), new OpenSearchQueryAdapter(centralConnections, http, json));
         ReflectionTestUtils.setField(invoke, "sourceAdapters", adapters);
         assertThat(adapters.list()).singleElement().satisfies(source -> {
             assertThat(source.id()).isEqualTo("native");
@@ -190,7 +199,7 @@ class DatabaseQuerySourceIntegrationTest {
             byte[] body = response.getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(200, body.length); exchange.getResponseBody().write(body); exchange.close();
         });
-        server.start();
+        if (type.equals("neo4j")) graphResponse(response); else server.start();
         var step = step("READ", type.equals("neo4j") ? "RETURN $name AS title" : "{\"query\":{\"terms\":{\"tags\":\"{{tags}}\"}}}");
         step.setParameters(type.equals("neo4j") ? Map.of("name", "Report") : Map.of("tags", List.of("finance", "news")));
         step.setQueryOptions(type.equals("neo4j") ? Map.of("database", "neo4j") : Map.of("index", "documents"));
@@ -198,7 +207,7 @@ class DatabaseQuerySourceIntegrationTest {
         var result = invoke.invokePreview(configuration, Map.of());
         assertThat(result.isSuccess()).as(result.getErrorMessage()).isTrue();
         assertThat(json.valueToTree(result.getData()).at("/rows/0/title").asText()).isEqualTo("Report");
-        assertThat(authHeaders).containsExactly("Basic " + Base64.getEncoder().encodeToString("reader:secret".getBytes(StandardCharsets.UTF_8)));
+        if (!type.equals("neo4j")) assertThat(authHeaders).containsExactly("Basic " + Base64.getEncoder().encodeToString("reader:secret".getBytes(StandardCharsets.UTF_8)));
         if (!type.equals("neo4j")) assertThat(requests.get(0).at("/query/terms/tags").isArray()).isTrue();
         database.setPassword("changed");
         assertThat(centralConnections.get("db:native", type.equals("neo4j") ? CapabilityType.GRAPH : CapabilityType.UNSTRUCTURED, true).getHeadersJson())

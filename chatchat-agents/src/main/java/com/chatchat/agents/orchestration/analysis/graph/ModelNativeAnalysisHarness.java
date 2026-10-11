@@ -106,6 +106,7 @@ public final class ModelNativeAnalysisHarness {
                 Optional turn protocol: JSON {schemaVersion:'model_native_analysis.v1',completed:true,
                 reportMarkdown:'your report',workspace:{notes:'your own working notes',artifacts:[]},evidenceRequests:[]}.
                 A final plain Markdown report is also accepted. Intermediate notes are not the published report.
+                Choose prose, Markdown tables or optional visualization declarations according to the user's request.
                 Optional v2 protocol: {schemaVersion:'model_native_analysis.v2',decision:{action:'CONTINUE|WAIT|COMPLETE|PUBLISH|PARTIAL_COMPLETE'},output_type:'intermediate|draft|final',workspace:{},reportMarkdown:'your content',evidenceRequests:[]}.
                 Every v2 response requires a decision OBJECT, for example:
                 {"schemaVersion":"model_native_analysis.v2","decision":{"action":"CONTINUE"},"output_type":"draft","reportMarkdown":"your content","evidenceRequests":[]}.
@@ -141,6 +142,8 @@ public final class ModelNativeAnalysisHarness {
                 contract. Runtime executes or rejects the supplied expression/specification; it never chooses it.
                 For reads use v1 completed:false or v2 decision:{action:'CONTINUE'} and retain useful notes/report in workspace/reportMarkdown.
                 Requests are optional. Do not produce a claim ledger or a fixed analysis checklist for Runtime.
+                You may provide progress:{summary:'brief public status'} and workspace hypotheses/findings
+                for the exploration view. These are optional public summaries, not private working notes.
                 Resource limits apply to a single view/turn, not whether the full original source exists.
                 """ + ModelProtocolJson.compact(layers);
             prompt = injector.injectReportDraft(prompt, catalog);
@@ -216,11 +219,36 @@ public final class ModelNativeAnalysisHarness {
                 throw rejected;
             }
             metadata.put("modelEvidenceRequests", v2 ? List.copyOf(requests) : List.of());
+            var explorationState = new LinkedHashMap<String,Object>();
+            for (String key : List.of("hypotheses", "findings")) {
+                if (workspace.containsKey(key)) explorationState.put(key, workspace.get(key));
+                else if (workspace.get("state") instanceof Map<?,?> declared && declared.containsKey(key))
+                    explorationState.put(key, declared.get(key));
+            }
+            var progress = new LinkedHashMap<String,Object>();
+            progress.put("eventKind", "HARNESS_TURN");
+            progress.put("eventState", "RUNNING");
+            progress.put("stage", "MODEL_RETURNED");
+            progress.put("turn", turn);
+            progress.put("contextFingerprint", fingerprint);
+            progress.put("datasetFingerprint", prepared.fingerprint());
+            progress.put("modelDecision", metadata.getOrDefault("modelDecision", Map.of()));
+            progress.put("workspace", Map.of("state", explorationState));
+            progress.put("requestCount", requests.size());
+            progress.put("completedRequestCount", 0);
+            if (product.get("progress") instanceof Map<?,?> declared && declared.get("summary") instanceof String summary)
+                progress.put("summary", summary.substring(0, Math.min(500, summary.length())));
+            observe.accept(Collections.unmodifiableMap(new LinkedHashMap<>(progress)));
             if (!completed && turn < maximumTurns) {
                 if (requests.size() > 4) receipts.add(Map.of("status", "REQUEST_REJECTED", "reason", "At most four requests per turn"));
                 else for (int requestIndex = 0; requestIndex < requests.size(); requestIndex++) {
                     var request = requests.get(requestIndex);
                     guard.run();
+                    progress.put("stage", "EVIDENCE_REQUEST_STARTED");
+                    var pending = new ArrayList<Map<String,Object>>(audit);
+                    pending.add(Map.of("status", "STARTED", "request", request));
+                    progress.put("reads", List.copyOf(pending));
+                    observe.accept(Collections.unmodifiableMap(new LinkedHashMap<>(progress)));
                     try {
                         String operation = String.valueOf(request.get("operation"));
                         if ("CALL_TOOL".equals(operation) && toolAccess != null) {
@@ -230,25 +258,35 @@ public final class ModelNativeAnalysisHarness {
                             audit.add(Map.of("status", "EXECUTED", "request", request,
                                 "receiptFingerprint", ModelProtocolJson.sha256Hex(receipt), "receipt", explorationReceipt(receipt),
                                 "receiptOrigin", v2 ? metadata.getOrDefault("harnessLastToolReceipt", Map.of()) : Map.of("origin", "LEGACY_EXECUTION")));
-                            continue;
-                        }
-                        if (operations.supports(operation)) {
+                        } else if (operations.supports(operation)) {
                             var receipt = operations.execute(request);
                             receipts.add(receipt);
                             audit.add(Map.of("status", "ACCEPTED", "request", request, "receiptFingerprint", ModelProtocolJson.sha256Hex(receipt), "receipt", explorationReceipt(receipt)));
-                            continue;
+                        } else {
+                            if (!EVIDENCE_OPERATIONS.contains(operation))
+                                throw new IllegalArgumentException("Operation is not registered for this harness");
+                            var read = access.read(prepared, List.of(request), guard, model, scope, checkpoints, question, metadata);
+                            receipts.addAll(read);
+                            audit.add(Map.of("status", "ACCEPTED", "request", request, "receiptFingerprint", ModelProtocolJson.sha256Hex(read),
+                                "receipts", read.stream().map(ModelNativeAnalysisHarness::explorationReceipt).toList()));
                         }
-                        if (!EVIDENCE_OPERATIONS.contains(operation))
-                            throw new IllegalArgumentException("Operation is not registered for this harness");
-                        var read = access.read(prepared, List.of(request), guard, model, scope, checkpoints, question, metadata);
-                        receipts.addAll(read);
-                        audit.add(Map.of("status", "ACCEPTED", "request", request, "receiptFingerprint", ModelProtocolJson.sha256Hex(read),
-                            "receipts", read.stream().map(ModelNativeAnalysisHarness::explorationReceipt).toList()));
                     } catch (IllegalArgumentException rejected) {
                         var rejection = Map.<String,Object>of("status", "REQUEST_REJECTED", "request", request, "reason", String.valueOf(rejected.getMessage()),
                             "sourceAvailability", "UNCHANGED");
                         receipts.add(rejection); audit.add(rejection);
+                    } catch (RuntimeException failed) {
+                        pending.set(pending.size() - 1, Map.of("status", "FAILED", "request", request,
+                            "reason", failed.getClass().getSimpleName()));
+                        progress.put("stage", "EVIDENCE_REQUEST_FAILED");
+                        progress.put("eventState", "FAILED");
+                        progress.put("reads", List.copyOf(pending));
+                        observe.accept(Collections.unmodifiableMap(new LinkedHashMap<>(progress)));
+                        throw failed;
                     }
+                    progress.put("stage", "EVIDENCE_REQUEST_FINISHED");
+                    progress.put("completedRequestCount", audit.size());
+                    progress.put("reads", List.copyOf(audit));
+                    observe.accept(Collections.unmodifiableMap(new LinkedHashMap<>(progress)));
                 }
             } else if (!completed) exhausted = true;
             var span = new LinkedHashMap<String,Object>(Map.<String,Object>of("type", "harness_turn", "eventKind", "HARNESS_TURN", "stage", "MODEL_NATIVE_ANALYSIS",
@@ -259,13 +297,10 @@ public final class ModelNativeAnalysisHarness {
             span.put("outputCheckpointRestored", restored.isPresent());
             span.put("modelDecision", metadata.getOrDefault("modelDecision", Map.of()));
             // Persist model-declared exploration summaries, not a Runtime assessment or prescribed graph.
-            var explorationState = new LinkedHashMap<String,Object>();
-            for (String key : List.of("hypotheses", "findings")) {
-                if (workspace.containsKey(key)) explorationState.put(key, workspace.get(key));
-                else if (workspace.get("state") instanceof Map<?,?> declared && declared.containsKey(key))
-                    explorationState.put(key, declared.get(key));
-            }
             span.put("workspace", Map.of("state", explorationState));
+            span.put("requestCount", requests.size());
+            span.put("completedRequestCount", audit.size());
+            if (progress.containsKey("summary")) span.put("summary", progress.get("summary"));
             span.put("publicationState", metadata.getOrDefault("publicationState", "NOT_REQUESTED"));
             span.put("modelOutput", metadata.getOrDefault("modelOutput", Map.of()));
             span.put("eventState", "COMPLETED");

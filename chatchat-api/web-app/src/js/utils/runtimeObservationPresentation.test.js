@@ -6,6 +6,13 @@ import {
 } from "./runtimeObservationPresentation.js";
 
 describe("runtime observation presentation", () => {
+  it("keeps request progress active until the whole turn completes", () => {
+    const metadata = { eventKind: "HARNESS_TURN", eventState: "RUNNING", stage: "EVIDENCE_REQUEST_FINISHED",
+      turn: 1, datasetFingerprint: "sources-a", completedRequestCount: 1, requestCount: 2 };
+    expect(runtimeObservationPresentation({ metadata })).toEqual({ title: "取证已返回 1/2",
+      toolName: "model_native_harness", status: "active" });
+    expect(runtimeObservationIdentity({ metadata })).toBe(runtimeObservationIdentity({ metadata: { ...metadata, eventState: "COMPLETED" } }));
+  });
   it("keeps model-directed evidence turns separately observable", () => {
     const first = { metadata: { eventKind: "HARNESS_TURN", turn: 1, datasetFingerprint: "sources-a" } };
     const second = { metadata: { ...first.metadata, turn: 2 } };

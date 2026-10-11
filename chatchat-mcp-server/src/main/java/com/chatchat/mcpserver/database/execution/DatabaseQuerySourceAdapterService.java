@@ -37,7 +37,7 @@ public class DatabaseQuerySourceAdapterService {
         List<SourceView> sources = new ArrayList<>();
         sqlAssets.listAll().forEach(asset -> sources.add(databaseSource(asset)));
         httpAssets.list(null).forEach(asset -> sources.add(new SourceView(HTTP_PREFIX + asset.id(), asset.name(),
-            asset.type() == CapabilityType.GRAPH ? "neo4j" : "opensearch", asset.type().name(),
+            asset.databaseType(), asset.type().name(),
             asset.type() == CapabilityType.GRAPH ? "Cypher" : "JSON DSL", asset.enabled())));
         return sources;
     }
@@ -45,14 +45,14 @@ public class DatabaseQuerySourceAdapterService {
     public SourceView getEnabled(String reference) {
         if (!isHttp(reference)) {
             var asset = sqlAssets.getEnabled(reference);
-            if (NativeQueryDatasource.isNative(asset)) NativeQueryDatasource.validateAddress(asset.getJdbcUrl());
+            if (NativeQueryDatasource.isNative(asset)) NativeQueryDatasource.validateAddress(NativeQueryDatasource.type(asset), asset.getJdbcUrl());
             return databaseSource(asset);
         }
         String id = reference.substring(HTTP_PREFIX.length());
         var asset = httpAssets.list(null).stream().filter(item -> item.id().equals(id)).findFirst()
             .orElseThrow(() -> new IllegalArgumentException("查询数据源资产不存在: " + reference));
         httpAssets.get(id, asset.type(), true);
-        return new SourceView(reference, asset.name(), asset.type() == CapabilityType.GRAPH ? "neo4j" : "opensearch",
+        return new SourceView(reference, asset.name(), asset.databaseType(),
             asset.type().name(), asset.type() == CapabilityType.GRAPH ? "Cypher" : "JSON DSL", true);
     }
 

@@ -85,7 +85,7 @@ class MetadataUpgradeTest {
     }
 
     @Test void templateGraphReferencesKeepNodeAndRelationshipKindsAndDatabasesSeparate() throws Exception {
-        var asset = NativeMetadataCollectorTest.asset("neo4j", "http://localhost:7474");
+        var asset = NativeMetadataCollectorTest.asset("neo4j", "bolt://localhost:7687");
         var datasources = mock(SqlDatasourceConfigService.class); when(datasources.getEnabled(asset.getId())).thenReturn(asset);
         var metadata = mock(DatasourceMetadataSearchService.class);
         when(metadata.context(any(), anyList(), anyList(), anyLong())).thenReturn(Map.of());

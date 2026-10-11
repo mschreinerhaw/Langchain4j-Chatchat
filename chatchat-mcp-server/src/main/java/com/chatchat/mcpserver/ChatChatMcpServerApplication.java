@@ -9,7 +9,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 
-@SpringBootApplication
+// Native database assets own their clients; do not create unused localhost clients on the classpath.
+@SpringBootApplication(exclude = {
+    org.springframework.boot.autoconfigure.neo4j.Neo4jAutoConfiguration.class,
+    org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration.class
+})
 @ComponentScan(basePackages = {
     "com.chatchat.common",
     "com.chatchat.agents.tool",

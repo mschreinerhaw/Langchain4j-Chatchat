@@ -17,8 +17,10 @@ export function runtimeObservationPresentation(runtimePayload = {}) {
   const type = upper(metadata.type);
   const stage = upper(metadata.stage);
   if (eventKind === "HARNESS_TURN") {
-    return { title: "模型分析与证据访问", toolName: "model_native_harness",
-      status: eventState === "FAILED" ? "error" : eventState === "STARTED" ? "active" : "done" };
+    const titles = { MODEL_RETURNED: "模型已返回探索请求", EVIDENCE_REQUEST_STARTED: "正在执行取证操作",
+      EVIDENCE_REQUEST_FINISHED: `取证已返回 ${metadata.completedRequestCount ?? 0}/${metadata.requestCount ?? 0}` };
+    return { title: titles[stage] || "模型分析与证据访问", toolName: "model_native_harness",
+      status: eventState === "FAILED" ? "error" : ["STARTED", "RUNNING"].includes(eventState) ? "active" : "done" };
   }
   if (eventKind === 'VISUALIZATION_PLANNING') {
     return { title: '图形化规划', toolName: 'visualization_planning', status: 'done' };

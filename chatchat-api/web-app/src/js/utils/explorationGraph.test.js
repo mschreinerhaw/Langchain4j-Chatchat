@@ -2,6 +2,16 @@ import { describe, expect, it } from "vitest";
 import { buildExplorationGraph } from "./explorationGraph.js";
 const task = { taskId: "task", attemptId: "run", question: "Explore data", status: "RUNNING" };
 describe("Runtime exploration fact projection", () => {
+  it("shows a pending request immediately and updates it in place on receipt", () => {
+    const base = { eventKind: "HARNESS_TURN", contextFingerprint: "stable", turn: 1, eventState: "RUNNING" };
+    const started = { metadata: { ...base, reads: [{ status: "STARTED", request: { operation: "READ_RECORDS", datasetReference: "source" } }] } };
+    const before = buildExplorationGraph(task, { observations: [started] });
+    expect(before.nodes.find(node => node.id === "request:stable:0").status).toBe("STARTED");
+    const after = buildExplorationGraph(task, { observations: [started, { metadata: { ...base,
+      reads: [{ status: "ACCEPTED", request: { operation: "READ_RECORDS", datasetReference: "source" }, receipt: { requestId: "runtime-generated" } }] } }] });
+    expect(after.nodes.filter(node => node.id === "request:stable:0")).toHaveLength(1);
+    expect(after.nodes.find(node => node.id === "request:stable:0").status).toBe("ACCEPTED");
+  });
   it("does not treat a model inference lifecycle record naming a tool as a remote invocation", () => {
     const graph = buildExplorationGraph(task, { observations: [
       { type: "lifecycle", source: "agent_lifecycle", metadata: { eventKind: "MODEL_INFERENCE", toolName: "read", eventState: "COMPLETED" } },

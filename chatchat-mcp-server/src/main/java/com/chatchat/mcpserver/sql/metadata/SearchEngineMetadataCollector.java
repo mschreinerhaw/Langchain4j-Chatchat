@@ -1,6 +1,6 @@
 package com.chatchat.mcpserver.sql.metadata;
 
-import com.chatchat.mcpserver.datacapability.connection.QueryHttpClient;
+import com.chatchat.mcpserver.datacapability.connection.NativeDatabaseClient;
 import com.chatchat.mcpserver.sql.datasource.NativeQueryDatasource;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -13,7 +13,7 @@ import java.util.*;
 @Component
 @RequiredArgsConstructor
 public class SearchEngineMetadataCollector implements MetadataCollector {
-    private final QueryHttpClient http;
+    private final NativeDatabaseClient client;
     private static final com.fasterxml.jackson.databind.ObjectMapper JSON = new com.fasterxml.jackson.databind.ObjectMapper();
 
     @Override public boolean supports(String type) { return Set.of("opensearch", "elasticsearch").contains(type); }
@@ -28,9 +28,9 @@ public class SearchEngineMetadataCollector implements MetadataCollector {
             if (!scope.matches("[A-Za-z0-9_*.-]+") || scope.equals("_all"))
                 throw new IllegalArgumentException("无效的元数据索引范围: " + scope);
             String selected = segment(scope);
-            JsonNode mappings = http.get(connection, "/" + selected + "/_mapping?expand_wildcards=open&allow_no_indices=false", timeout);
+            JsonNode mappings = client.get(connection, "/" + selected + "/_mapping?expand_wildcards=open&allow_no_indices=false", timeout);
             requireObject(mappings);
-            JsonNode aliases = http.get(connection, "/" + selected + "/_alias", timeout);
+            JsonNode aliases = client.get(connection, "/" + selected + "/_alias", timeout);
             requireObject(aliases);
             for (var iterator = mappings.fields(); iterator.hasNext();) {
                 var entry = iterator.next();
@@ -39,7 +39,7 @@ public class SearchEngineMetadataCollector implements MetadataCollector {
                 if (index.startsWith(".") && !scope.startsWith(".")) continue;
                 if (objects.containsKey(index)) continue;
                 if (objects.size() >= 20000) throw new IllegalStateException("元数据对象超过 20000，请缩小索引范围");
-                JsonNode caps = http.get(connection, "/" + segment(index) + "/_field_caps?fields=*&include_unmapped=true", timeout);
+                JsonNode caps = client.get(connection, "/" + segment(index) + "/_field_caps?fields=*&include_unmapped=true", timeout);
                 requireObject(caps);
                 JsonNode mapping = entry.getValue().path("mappings");
                 if (!mapping.isObject() || !caps.path("fields").isObject() || !aliases.path(index).path("aliases").isObject())

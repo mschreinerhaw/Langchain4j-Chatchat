@@ -37,7 +37,9 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
                 + "a separate user-facing tool. The tool dynamically matches the governed financial-data-asset "
                 + "index and reads bounded observations from relevant collected datasets before considering the "
                 + "external API. Financial asset mapping is an internal stage of this tool and always receives the "
-                + "same query. For an exact dataset follow-up, call web_search again with dataset.",
+                + "same query. For an exact dataset follow-up, call web_search again with dataset. "
+                + "Local result counts are routing facts, not evidence sufficiency for your question. "
+                + "Set external_search_required=true when you choose external supplementation even if local results exist.",
             List.of(ToolParameter.builder().name("operation").type("string").required(false)
                     .description("search (default): unified retrieval; discover_datasets: full registered dataset/field directory; read_dataset: explicit governed observation read, requires dataset")
                     .metadata(Map.of("enum", List.of("search", "discover_datasets", "read_dataset"))).build(),
@@ -46,6 +48,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
                 stringArray("keywords", "Alias of queryTerms for analyzed search keywords", 8),
                 text("intent", "Analyzed search intent used by external retrieval when analyzed keywords are unavailable", false),
                 number("num_results", "Maximum number of unified search results to return", 10, 1, 50),
+                bool("external_search_required", "Explicitly request external web supplementation even when local evidence exists. Uses analyzed queryTerms/keywords/intent; existing provider permissions and cache still apply.", false),
                 bool("financial_data_required", "Compatibility marker for callers that explicitly require financial "
                     + "observations. Normal web_search calls already retrieve dynamically matched local financial data; "
                     + "callers never need to guess a dataset code.", false),

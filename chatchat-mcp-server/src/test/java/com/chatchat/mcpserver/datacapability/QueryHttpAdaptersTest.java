@@ -19,7 +19,8 @@ import static org.mockito.ArgumentMatchers.*;
 class QueryHttpAdaptersTest {
     private final ObjectMapper json = new ObjectMapper();
     private final QueryConnectionService connections = mock(QueryConnectionService.class);
-    private final QueryHttpClient http = new QueryHttpClient(json);
+    private final NativeDatabaseClient http = new NativeDatabaseClient(json);
+    private final NativeDatabaseClient graph = mock(NativeDatabaseClient.class);
     private HttpServer server;
     private final AtomicReference<JsonNode> request = new AtomicReference<>();
     private final AtomicReference<String> authorization = new AtomicReference<>();
@@ -27,10 +28,11 @@ class QueryHttpAdaptersTest {
     @BeforeEach void start() throws Exception {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         connection = new HttpEndpointConfig(); connection.setId("test_connection"); connection.setEnabled(true);
+        connection.setCategory("opensearch");
         connection.setUrlTemplate("http://127.0.0.1:" + server.getAddress().getPort());
         when(connections.get(any(), any(), anyBoolean())).thenReturn(connection);
     }
-    @AfterEach void stop() { server.stop(0); }
+    @AfterEach void stop() { http.close(); server.stop(0); }
     private CapabilityDefinition definition(CapabilityType type, String query, Map<String, Object> options) {
         return new CapabilityDefinition("test_query", "测试", null, type, null, connection.getId(), query, null, null, options, 5, 1, true, true, true);
     }
@@ -43,8 +45,11 @@ class QueryHttpAdaptersTest {
         }); server.start();
     }
     @Test void graphUsesSeparateCypherParametersAndReturnsGraphStructure() throws Exception {
-        response("/db/neo4j/tx/commit", "{\"errors\":[],\"results\":[{\"columns\":[\"name\"],\"data\":[{\"row\":[\"Alice\"],\"graph\":{\"nodes\":[],\"relationships\":[]}}]}]}");
-        var adapter = new GraphQueryAdapter(connections, http, json);
+        when(graph.cypher(any(), anyString(), anyList(), anyInt())).thenAnswer(call -> {
+            request.set(json.valueToTree(Map.of("statements", call.getArgument(2))));
+            return json.readTree("{\"errors\":[],\"results\":[{\"columns\":[\"name\"],\"data\":[{\"row\":[\"Alice\"],\"graph\":{\"nodes\":[],\"relationships\":[]}}]}]}");
+        });
+        var adapter = new GraphQueryAdapter(connections, graph, json);
         var d = definition(CapabilityType.GRAPH, "MATCH (n) WHERE n.name = $name RETURN n.name AS name", Map.of("database", "neo4j"));
         adapter.validate(d);
         var result = adapter.execute(d, Map.of("name", "Alice' DELETE n"));
@@ -52,18 +57,18 @@ class QueryHttpAdaptersTest {
         assertThat(request.get().at("/statements/0/parameters/name").asText()).isEqualTo("Alice' DELETE n");
         assertThat(request.get().at("/statements/0/statement").asText()).endsWith("RETURN * LIMIT 2");
     }
-    @Test void graphRejectsWriteClausesAndBackendErrors() {
-        var adapter = new GraphQueryAdapter(connections, http, json);
+    @Test void graphRejectsWriteClausesAndBackendErrors() throws Exception {
+        var adapter = new GraphQueryAdapter(connections, graph, json);
         assertThatThrownBy(() -> adapter.validate(definition(CapabilityType.GRAPH, "MATCH (n) DELETE n RETURN n", Map.of())))
             .hasMessageContaining("write");
-        response("/db/neo4j/tx/commit", "{\"errors\":[{\"message\":\"Unknown property\"}],\"results\":[]}");
+        when(graph.cypher(any(), anyString(), anyList(), anyInt())).thenThrow(new IllegalStateException("Unknown property"));
         assertThatThrownBy(() -> adapter.execute(definition(CapabilityType.GRAPH, "MATCH (n) RETURN n", Map.of()), Map.of()))
             .hasMessageContaining("Unknown property");
     }
     @Test void readsUpdatedAuthenticationFromTheSameCentralAsset() throws Exception {
-        response("/db/neo4j/tx/commit", "{\"errors\":[],\"results\":[{\"columns\":[],\"data\":[]}]}");
-        var adapter = new GraphQueryAdapter(connections, http, json);
-        var definition = definition(CapabilityType.GRAPH, "MATCH (n) RETURN n", Map.of());
+        response("/documents/_search", "{\"hits\":{\"hits\":[]}}");
+        var adapter = new OpenSearchQueryAdapter(connections, http, json);
+        var definition = definition(CapabilityType.UNSTRUCTURED, "{}", Map.of("index", "documents"));
         connection.setHeadersJson("{\"Authorization\":\"Bearer first\"}");
         adapter.execute(definition, Map.of()); assertThat(authorization.get()).isEqualTo("Bearer first");
         connection.setHeadersJson("{\"Authorization\":\"Bearer second\"}");

@@ -1,5 +1,12 @@
 # JDBC drivers
 
+Neo4j, OpenSearch and Elasticsearch do not use this directory. Their official clients are
+bundled with MCP and managed by `NativeDatabaseClient`. Choose `neo4j-native`,
+`opensearch-native` or `elasticsearch-native` in database assets. Neo4j requires a Bolt/neo4j
+URI (for example `bolt://host:7687`); search engines use HTTP(S) base addresses.
+Legacy search `-http` identifiers are accepted and normalized when saved. Legacy Neo4j
+HTTP addresses must be migrated to the actual Bolt endpoint; custom ports are never guessed.
+
 Prefer putting external JDBC driver jars in a database-type subdirectory:
 
 ```text

@@ -3,6 +3,8 @@ import manifest from '../../../../../chatchat-common/src/main/resources/runtime/
 // These adapters are registered by VisualizationRenderer; the shared manifest supplies their contract.
 const registeredAdapters = new Set(['line', 'bar', 'pie', 'scatter', 'kpi', 'table']);
 export const visualizationCapabilities = manifest.capabilities.filter(capability => registeredAdapters.has(capability.rendererType));
+export const reportVisualizationLimits = Object.freeze({ maxBlocks: manifest.maxBlocks, maxRows: manifest.maxRows });
+export const reportRendererTypes = new Set(visualizationCapabilities.map(capability => capability.rendererType));
 export const registeredGraphTypes = new Set(visualizationCapabilities
   .filter(capability => !['metric', 'table'].includes(capability.type)).map(capability => capability.rendererType));
 

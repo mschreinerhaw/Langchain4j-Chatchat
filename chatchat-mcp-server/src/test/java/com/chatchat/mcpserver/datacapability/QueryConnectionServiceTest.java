@@ -16,7 +16,7 @@ class QueryConnectionServiceTest {
     private HttpEndpointConfig asset(String id, String category) {
         var asset = new HttpEndpointConfig();
         asset.setId(id); asset.setName(category); asset.setCategory(category); asset.setEnabled(true);
-        asset.setMethod("POST"); asset.setUrlTemplate("https://datasource.example.com");
+        asset.setMethod("POST"); asset.setUrlTemplate(category.equals("graph_database") ? "neo4j+s://datasource.example.com:7687" : "https://datasource.example.com");
         asset.setHeadersJson("{\"Authorization\":\"Bearer secret\"}"); return asset;
     }
 
@@ -41,12 +41,18 @@ class QueryConnectionServiceTest {
         verify(assets, times(4)).getById("graph");
     }
 
-    @Test void rejectsQueryTemplatesAndNonPostAssetsAsDatasourceBases() {
+    @Test void nativeConnectionsIgnoreHttpMethodAndRejectLegacyGraphHttpAddresses() {
         var graph = asset("graph", "graph_database"); when(assets.getById("graph")).thenReturn(graph);
         graph.setMethod("GET");
-        assertThatThrownBy(() -> service.get("graph", CapabilityType.GRAPH, false)).hasMessageContaining("POST");
+        assertThat(service.get("graph", CapabilityType.GRAPH, false)).isSameAs(graph);
         graph.setMethod("POST"); graph.setUrlTemplate("https://example.com?token=secret");
-        assertThatThrownBy(() -> service.get("graph", CapabilityType.GRAPH, false)).hasMessageContaining("base address");
+        assertThatThrownBy(() -> service.get("graph", CapabilityType.GRAPH, false)).hasMessageContaining("Bolt/neo4j");
+    }
+
+    @Test void searchReferencesKeepTheOfficialProviderIdentity() {
+        when(assets.listAll()).thenReturn(List.of(asset("es", "elasticsearch"), asset("os", "search_engine")));
+        assertThat(service.list(CapabilityType.UNSTRUCTURED)).extracting(QueryConnectionService.AssetReference::databaseType)
+            .containsExactly("elasticsearch", "opensearch");
     }
 
     @Test void centralAssetDeletionGuardPreventsDanglingReferencesAndSeparatesAssetFamilies() {

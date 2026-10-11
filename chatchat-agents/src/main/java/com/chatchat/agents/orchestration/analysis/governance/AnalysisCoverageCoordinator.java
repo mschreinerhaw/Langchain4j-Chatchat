@@ -13,6 +13,7 @@ import java.util.function.BooleanSupplier;
 import static com.chatchat.agents.orchestration.support.AgentValueSupport.*;
 /** Prepares scoped data access for the single analysis model. No partitioned Agent workflow. */
 public final class AnalysisCoverageCoordinator {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AnalysisCoverageCoordinator.class);
     private final AgentRunResultAdapter resultAdapter;
     private final String runIdAttribute;
     private final AnalysisEvidenceCoordinator evidenceCoordinator;
@@ -186,9 +187,22 @@ public final class AnalysisCoverageCoordinator {
         var result = new com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarness(configuration.harnessMaxModelTurns())
             .withToolAccess(toolAccessFactory == null ? null : toolAccessFactory.apply(request))
             .execute(request.query(), datasets, request.model(), request.isolationScope(), spillStore,
-                request.metadata(), request.cancellationGuard(), trace -> observe(request,
-                    "STARTED".equals(trace.get("eventState")) ? "Model-directed evidence workspace turn started."
-                        : "Model-directed evidence workspace turn finished.", "model_native_harness", trace));
+                request.metadata(), request.cancellationGuard(), trace -> {
+                    String stage = String.valueOf(trace.getOrDefault("stage", "MODEL_NATIVE_ANALYSIS"));
+                    String state = String.valueOf(trace.getOrDefault("eventState", "OBSERVED"));
+                    String message = "第 " + trace.getOrDefault("turn", "?") + " 轮自主分析：" + switch (stage) {
+                        case "MODEL_RETURNED" -> "模型已返回，正在处理其探索请求";
+                        case "EVIDENCE_REQUEST_STARTED" -> "正在执行模型请求的取证操作";
+                        case "EVIDENCE_REQUEST_FINISHED" -> "取证操作已返回（" + trace.getOrDefault("completedRequestCount", 0)
+                            + "/" + trace.getOrDefault("requestCount", 0) + "）";
+                        default -> "STARTED".equals(state) ? "模型分析中" : "FAILED".equals(state)
+                            ? "本轮执行失败" : "本轮执行已结束";
+                    };
+                    log.info("Runtime analysis progress runId={} turn={} stage={} state={} requests={}/{}",
+                        request.isolationScope().runId(), trace.get("turn"), stage, state,
+                        trace.getOrDefault("completedRequestCount", 0), trace.getOrDefault("requestCount", 0));
+                    observe(request, message, "model_native_harness", trace);
+                });
         long rows = datasets.stream().mapToLong(AnalysisEvidenceCoordinator.Dataset::recordCount).sum();
         int count = Math.toIntExact(rows);
         var intentMetadata = new LinkedHashMap<String,Object>();

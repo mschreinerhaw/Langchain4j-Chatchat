@@ -700,7 +700,6 @@
         <button type="button" class="light-button" :aria-pressed="graphMode === 'plan'" @click="graphMode = 'plan'; selectedPlanNodeId = ''">计划快照</button>
         <span class="runtime-pill">{{ activeGraphNodes.length }} 个节点</span>
         <span class="runtime-pill">{{ activeGraphEdges.length }} 条关联</span>
-        <label v-if="graphMode === 'exploration'"><input v-model="explorationShowEvents" type="checkbox" /> 显示运行事件</label>
         <button v-if="explorationHasMore" type="button" class="light-button" @click="loadExplorationTimeline()">读取后续探索记录</button>
       </div>
 

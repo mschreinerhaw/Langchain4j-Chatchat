@@ -12,7 +12,7 @@ import java.util.*;
 @Component @RequiredArgsConstructor
 public class OpenSearchQueryAdapter implements CapabilityAdapter {
     private final QueryConnectionService connections;
-    private final QueryHttpClient http;
+    private final NativeDatabaseClient client;
     private final ObjectMapper json;
     @Override public CapabilityType type() { return CapabilityType.UNSTRUCTURED; }
     @Override public void validate(CapabilityDefinition d) {
@@ -31,7 +31,7 @@ public class OpenSearchQueryAdapter implements CapabilityAdapter {
     @Override public QueryResult execute(CapabilityDefinition d, Map<String, Object> parameters) throws Exception {
         ObjectNode body = (ObjectNode) QueryTemplates.json(json.readTree(d.query()), parameters, json);
         body.put("size", d.maxRows()); body.put("timeout", d.timeoutSeconds() + "s");
-        JsonNode response = http.post(connections.get(d.connectionId(), type(), true),
+        JsonNode response = client.post(connections.get(d.connectionId(), type(), true),
             "/" + index(d) + "/_search", body, d.timeoutSeconds(), Map.of());
         if (response.has("error") || response.path("timed_out").asBoolean() || response.path("_shards").path("failed").asInt() > 0)
             throw new IllegalStateException("OpenSearch query failed, timed out or returned partial shard results");

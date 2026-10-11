@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp, h, nextTick } from "vue";
 import MarkdownIt from "markdown-it";
 import { splitReportVisualizations } from "./reportVisualization.js";
+import { reportVisualizationLimits } from './visualizationCapabilities.js';
 import ReportMarkdown from "../../components/ReportMarkdown.vue";
 import ChatMessageList from "../../components/ChatMessageList.vue";
 import VisualizationRenderer from "../components/VisualizationRenderer.js";
@@ -34,7 +35,7 @@ describe("inline report visualizations", () => {
     expect(splitReportVisualizations(source)[1]).toMatchObject({ type: 'visualization', slot: 'block:comparison', block });
     block.validationStatus = 'REQUESTED';
     const unaudited = '```json\n' + JSON.stringify({ reportBlock: block }) + '\n```';
-    expect(splitReportVisualizations(unaudited)).toEqual([{ type: 'markdown', content: unaudited }]);
+    expect(splitReportVisualizations(unaudited)[0].type).toBe('visualization-summary');
   });
   it('does not infer charts from identifiers, missing measures or qualitative conclusions', () => {
     for (const table of ['| 对象 | id |\n|---|---|\n| A | 1 |\n| B | 2 |',
@@ -53,6 +54,46 @@ describe("inline report visualizations", () => {
   it("does not compile unaudited model intent in the browser", () => {
     const text = '```json:visualization\n{"intent":"ranking","datasetRef":"returned:1","x":"category","y":"amount"}\n```';
     expect(splitReportVisualizations(text)).toEqual([{ type: "markdown", content: text }]);
+  });
+  it('presents direct table declarations as readable summaries without inventing source rows', async () => {
+    const declaration = { id: 'table:603383_recent_quotes', type: 'table', chartType: 'table',
+      datasetRef: 'mcp_chatchat_mcp_server_web_search', title: '近期关键行情快照',
+      conclusion: '成交额显著放大', reason: '根据行情快照对比', encoding: { columns: ['trade_date', 'close'] } };
+    for (const language of ['text', 'json', 'json:report-block', '']) {
+      const source = `前文\n\n\`\`\`${language}\n${JSON.stringify(declaration)}\n\`\`\`\n\n后文`;
+      const parts = splitReportVisualizations(source);
+      expect(parts.map(part => part.type)).toEqual(['markdown', 'visualization-summary', 'markdown']);
+      expect(parts[1].block.title).toBe(declaration.title);
+      expect(JSON.stringify(parts)).not.toContain('datasetRef');
+    }
+    expect(splitReportVisualizations(JSON.stringify(declaration))[0].type).toBe('visualization-summary');
+    const root = document.createElement('div'); document.body.append(root);
+    app = createApp(ReportMarkdown, { content: '```text\n' + JSON.stringify(declaration) + '\n```', renderMarkdown: render });
+    app.mount(root); await nextTick();
+    expect(root.textContent).toContain(declaration.title);
+    expect(root.textContent).toContain(declaration.conclusion);
+    expect(root.textContent).toContain('缺少可用的已校验数据');
+    expect(root.textContent).not.toContain('datasetRef');
+    expect(root.querySelector('pre')).toBeNull();
+  });
+  it('does not leak declarations beyond the inline chart count limit', () => {
+    const source = Array.from({ length: reportVisualizationLimits.maxBlocks + 2 }, () => fence()).join('\n\n');
+    const parts = splitReportVisualizations(source);
+    expect(parts.filter(part => part.type === 'visualization')).toHaveLength(reportVisualizationLimits.maxBlocks);
+    expect(parts.filter(part => part.type === 'visualization-summary')).toHaveLength(2);
+    expect(parts.filter(part => part.type === 'markdown').some(part => part.content.includes('visualizationSpec'))).toBe(false);
+  });
+  it.each([
+    ['warehouse:stock', 'dataset:warehouse', '库存变化', 'table'],
+    ['service:latency', 'dataset:service', '服务延迟', 'line'],
+    ['experiment:result', 'dataset:experiment', '实验结果', 'scatter'],
+    ['custom:result', 'arbitrary:source', '自定义分析', 'future-renderer']
+  ])('handles declarations using their protocol rather than business identity: %s', (id, datasetRef, title, chartType) => {
+    const declaration = { id, datasetRef, title, chartType, conclusion: `${title}结论`, reason: '模型自主选择展示' };
+    const parts = splitReportVisualizations('```text\n' + JSON.stringify(declaration) + '\n```');
+    expect(parts).toHaveLength(1);
+    expect(parts[0]).toMatchObject({ type: 'visualization-summary', block: { title, conclusion: declaration.conclusion } });
+    expect(parts[0]).not.toHaveProperty('spec');
   });
   it("preserves document order and parses multiple chart types", () => {
     const parts = splitReportVisualizations(report());

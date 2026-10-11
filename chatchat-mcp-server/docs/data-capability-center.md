@@ -100,12 +100,15 @@ Trino、关系库使用资产中心已有 SQL 数据源。Trino 连接需使用 
 SQL 可以直接使用完整的 `catalog.schema.table` 名称联合查询。
 
 所有数据源地址、认证信息和启用状态均在资产配置中统一维护，数据能力中心只通过 `connectionId` 引用资产。
-Trino、关系库引用数据库资产；图数据库和检索引擎复用“HTTP / 图库 / 检索资产”，不创建独立连接表。
-Neo4j 资产的分类选择“图数据库（Neo4j）”（`graph_database`），OpenSearch 选择“检索引擎（OpenSearch）”（`search_engine`）。
-两者的方法配置为 POST，URL 填写基础地址，如 `http://localhost:7474` 或 `https://search.example.com:9200`，
-不要填写具体查询接口或占位符；查询路径由能力适配器生成。
-认证使用资产配置已有的请求头，例如 `Authorization: Basic ...` 或 `Authorization: Bearer ...`。
-查询使用资产中当前的请求头和启用状态，HTTP 超时同时受资产超时和查询超时约束，取较短值。
+Trino、关系库、Neo4j、OpenSearch 和 Elasticsearch 均可引用数据库资产，不创建独立连接表。
+图库和检索引擎选择随 MCP 打包的内置官方客户端，无需向 `lib/drivers` 添加驱动。
+Neo4j 使用 `neo4j-native` 和 Bolt/neo4j 地址（如 `bolt://localhost:7687`）；
+OpenSearch 使用 `opensearch-native`，Elasticsearch 使用 `elasticsearch-native`，地址仍为 HTTP(S) 基础地址。
+数据库资产的认证在账号、密码字段维护。旧检索资产引用仍兼容；`search_engine` 分类保留 OpenSearch 语义，
+Elasticsearch 应使用 `elasticsearch` 分类。旧 Neo4j HTTP 地址需要改为实际 Bolt 地址，不自动推导端口。
+Neo4j 只读会话和事务由官方 Java Driver 执行，不再调用 HTTP 事务接口。
+搜索请求使用对应官方 REST Client，并对连接池等待、连接、读取及请求总等待设置超时；
+资产配置或凭据更新会替换客户端，正在使用旧连接的查询结束后才释放旧客户端。
 选择列表仅返回资产 ID、名称、类型及状态，不返回地址和认证信息。
 被数据能力引用的 JDBC 或 HTTP 资产不能直接删除，应先删除或更改能力的资产引用。
 

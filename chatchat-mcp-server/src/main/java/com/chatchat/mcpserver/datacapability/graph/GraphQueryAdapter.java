@@ -12,7 +12,7 @@ import java.util.*;
 @Component @RequiredArgsConstructor
 public class GraphQueryAdapter implements CapabilityAdapter {
     private final QueryConnectionService connections;
-    private final QueryHttpClient http;
+    private final NativeDatabaseClient client;
     private final ObjectMapper json;
     @Override public CapabilityType type() { return CapabilityType.GRAPH; }
     @Override public void validate(CapabilityDefinition d) {
@@ -37,8 +37,7 @@ public class GraphQueryAdapter implements CapabilityAdapter {
         HttpEndpointConfig connection = connections.get(d.connectionId(), type(), true);
         Map<String, Object> statement = Map.of("statement", "CALL { " + d.query() + " } RETURN * LIMIT " + (d.maxRows() + 1), "parameters", parameters,
             "resultDataContents", List.of("row", "graph"));
-        JsonNode response = http.post(connection, "/db/" + database(d) + "/tx/commit",
-            Map.of("statements", List.of(statement)), d.timeoutSeconds(), Map.of("max-execution-time", String.valueOf(d.timeoutSeconds() * 1000)));
+        JsonNode response = client.cypher(connection, database(d), List.of(statement), d.timeoutSeconds());
         if (response.path("errors").size() > 0) throw new IllegalStateException(response.path("errors").get(0).path("message").asText("Graph query failed"));
         if (!response.path("results").isArray() || response.path("results").isEmpty())
             throw new IllegalStateException("Invalid Neo4j query response");

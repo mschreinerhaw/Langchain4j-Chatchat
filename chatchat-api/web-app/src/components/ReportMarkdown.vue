@@ -6,6 +6,12 @@
         <summary>思考内容 <small class="thinking-expand-label">点击展开</small><small class="thinking-collapse-label">点击收起</small></summary>
         <pre>{{ part.content }}</pre>
       </details>
+      <section v-else-if="part.type === 'visualization-summary'" class="report-visualization-summary">
+        <h4>{{ part.block.title }}</h4>
+        <p v-if="part.block.conclusion">{{ part.block.conclusion }}</p>
+        <p v-if="part.block.reason">{{ part.block.reason }}</p>
+        <p class="report-visualization-scope">{{ part.message }}</p>
+      </section>
       <section v-else class="report-inline-visualization">
         <p v-if="part.block?.conclusion" class="report-visualization-conclusion">{{ part.block.conclusion }}</p>
         <VisualizationRenderer
@@ -41,6 +47,8 @@ const parts = computed(() => (props.collapseThinking
 
 <style scoped>
 .report-inline-visualization { margin: 1rem 0; min-width: 0; }
+.report-visualization-summary { margin: 1rem 0; padding: 12px 16px; border: 1px solid var(--border-color, #d8e1ef); border-radius: 8px; }
+.report-visualization-summary h4 { margin: 0 0 8px; }
 .report-visualization-scope { color: var(--text-secondary, #667085); font-size: 0.85rem; }
 .model-thinking-block { margin: 8px 0 12px; padding: 7px 10px; border-radius: 8px; background: #f3f5f8; color: #7a8493; font-size: 11px; line-height: 1.5; }
 .model-thinking-block summary { cursor: pointer; user-select: none; }

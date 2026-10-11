@@ -33,6 +33,18 @@ import static org.mockito.Mockito.when;
 
 class SqlQueryExecuteServiceTest {
 
+    @Test void nativeAssetsNeverFallThroughToDynamicJdbcDriverLoading() {
+        var loader = mock(DynamicJdbcDriverLoader.class);
+        var nativeService = new SqlQueryExecuteService(datasourceConfigService, new SqlSafetyService(), templateService,
+            metadataResolverService, auditService, new ObjectMapper(), loader, dynamicDateParamService, databaseToolProperties);
+        for (String type : List.of("neo4j", "opensearch", "elasticsearch")) {
+            var asset = new SqlDatasourceConfig(); asset.setDatabaseType(type); asset.setDriverClass(type + "-native");
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> nativeService.openConnection(asset))
+                .hasMessageContaining("not a dynamically loaded JDBC driver");
+        }
+        org.mockito.Mockito.verifyNoInteractions(loader);
+    }
+
     @Test
     void streamingDeliversMaskedBoundedPagesAndOnlyRetainsPreview() throws Exception {
         String url = "jdbc:h2:mem:streamed_sql;DB_CLOSE_DELAY=-1";

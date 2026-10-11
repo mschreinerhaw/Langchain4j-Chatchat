@@ -158,7 +158,7 @@ public class SqlDatasourceConfigService {
             mergedProtocolValues(config.getCapabilitiesJson(), config.getCapabilities()), "capabilities");
         config.setCapabilitiesJson(capabilitiesJson == null || "[]".equals(capabilitiesJson)
             ? ModelProtocolJson.compact(NativeQueryDatasource.isNative(config)
-                ? List.of("database_query", "neo4j".equals(config.getDatabaseType()) ? "cypher_query" : "search_query", "http", "metadata")
+                ? List.of("database_query", "neo4j".equals(config.getDatabaseType()) ? "cypher_query" : "search_query", "native_client", "metadata")
                 : List.of("jdbc", "sql_query_execute"))
             : capabilitiesJson);
         config.setDefaultTimeoutSeconds(Math.max(1, Math.min(config.getDefaultTimeoutSeconds(), 60)));

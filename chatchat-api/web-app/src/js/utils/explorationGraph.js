@@ -60,7 +60,7 @@ export function buildExplorationGraph(task, timeline = {}, events = []) {
       const receipt = { ...(audit.request || {}), ...audit, ...(audit.receipt || {}) };
       const origins = { COMMITTED_RESULT: "恢复已提交回执", PENDING_RESULT: "重试保存已有结果", BATCH_RECOVERY: "恢复批量执行", NEW_EXECUTION: "新执行请求" };
       if (receipt.receiptOrigin?.origin) receipt.summary = origins[receipt.receiptOrigin.origin] || receipt.receiptOrigin.origin;
-      const requestId = `request:${identity}:${receipt.requestId || index}`;
+      const requestId = `request:${identity}:${audit.request?.requestId || index}`;
       const request = add(requestId, receipt.toolName ? "tool" : "observation", receipt.toolName || receipt.operation || "证据读取", receipt, receipt.status || "OBSERVED");
       link(turnId, request, "requests", "请求 / 读取");
       if (receipt.datasetReference) {

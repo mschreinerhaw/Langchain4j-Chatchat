@@ -1,6 +1,6 @@
 package com.chatchat.mcpserver.sql.datasource;
 
-import com.chatchat.mcpserver.datacapability.connection.QueryHttpClient;
+import com.chatchat.mcpserver.datacapability.connection.NativeDatabaseClient;
 import com.chatchat.mcpserver.sql.execution.SqlQueryResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -10,7 +10,7 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class NativeQueryDatasourceProbe {
-    private final QueryHttpClient http;
+    private final NativeDatabaseClient client;
 
     public SqlQueryResult test(SqlDatasourceConfig asset) {
         long started = System.currentTimeMillis();
@@ -19,8 +19,8 @@ public class NativeQueryDatasourceProbe {
         try {
             var connection = NativeQueryDatasource.connection(asset);
             var response = "neo4j".equals(NativeQueryDatasource.type(asset))
-                ? http.post(connection, "/db/neo4j/tx/commit", Map.of("statements", List.of(Map.of("statement", query))), timeout, Map.of())
-                : http.get(connection, "/", timeout);
+                ? client.cypher(connection, probeDatabase(asset), List.of(Map.of("statement", query)), timeout)
+                : client.get(connection, "/", timeout);
             if (response == null || !response.isObject() || response.has("error") || response.path("errors").size() > 0)
                 throw new IllegalArgumentException("原生查询驱动连接测试失败");
             if ("neo4j".equals(NativeQueryDatasource.type(asset)) && response.path("results").isEmpty())
@@ -28,6 +28,11 @@ public class NativeQueryDatasourceProbe {
             return result(asset, timeout, query, started, null);
         } catch (Exception ex) { return result(asset, timeout, query, started,
             ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage()); }
+    }
+
+    private String probeDatabase(SqlDatasourceConfig asset) {
+        String scope = asset.getMetadataScopeValue();
+        return scope == null || scope.isBlank() ? "neo4j" : scope.split(",")[0].trim();
     }
 
     private SqlQueryResult result(SqlDatasourceConfig asset, int timeout, String query, long started, String error) {

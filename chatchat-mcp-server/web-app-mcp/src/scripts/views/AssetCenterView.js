@@ -318,14 +318,14 @@ export default {
         { key: 'categoryId', label: '业务分类', type: 'select', required: true, options: () => this.businessCategoryOptions, placeholder: '选择统一业务分类', help: '用于资产发现、模板分类检索和执行目标约束。' },
         { key: 'enabled', label: '状态', type: 'select', options: boolOptions() },
         { key: 'description', label: '工具描述', type: 'textarea', span: 'col-12', placeholder: '说明该数据源包含哪些业务数据，以及允许查询的范围', help: '建议写清楚库用途、数据敏感性和适用查询场景。' },
-        { key: 'jdbcUrl', label: '连接地址（JDBC / HTTP）', required: true, span: 'col-12', placeholder: 'JDBC URL 或 http://host:7474、https://host:9200', help: '关系库填写 JDBC URL；Neo4j、OpenSearch、Elasticsearch 原生驱动填写 HTTP(S) 基础地址，认证信息在下方账号和密码中维护。' },
+        { key: 'jdbcUrl', label: '连接地址', required: true, span: 'col-12', placeholder: 'JDBC URL、bolt://host:7687 或 https://host:9200', help: '关系库填写 JDBC URL；Neo4j 填写 Bolt/neo4j 地址；OpenSearch、Elasticsearch 填写 HTTP(S) 基础地址。账号和密码在下方维护。' },
         {
           key: 'driverClass',
           label: '查询驱动 / Driver Class',
           type: 'select',
           allowCreate: true,
           options: driverClassOptions(),
-          onChange: (form, value) => { if (nativeQueryTypes.includes(String(value).replace(/-http$/, ''))) setQueryAssetType(form, value.replace(/-http$/, '')); },
+          onChange: (form, value) => { const type = String(value).replace(/-(http|native)$/, ''); if (nativeQueryTypes.includes(type)) setQueryAssetType(form, type); },
           placeholder: '选择查询驱动或输入自定义 JDBC Driver Class',
           help: '图库和检索选择内置原生查询驱动；关系库保留 JDBC 驱动类和自定义驱动支持。'
         },
@@ -991,29 +991,29 @@ const nativeQueryTypes = ['neo4j', 'opensearch', 'elasticsearch'];
 function setQueryAssetType(form, type) {
   form.databaseType = type;
   const native = nativeQueryTypes.includes(type);
-  if (native) form.driverClass = type + '-http';
-  else if (nativeQueryTypes.some(item => form.driverClass === item + '-http')) form.driverClass = '';
+  if (native) form.driverClass = type + '-native';
+  else if (nativeQueryTypes.some(item => [item + '-http', item + '-native'].includes(form.driverClass))) form.driverClass = '';
   form.metadataScopeType = type === 'trino' ? 'TRINO_NAMESPACE' : type === 'neo4j' ? 'GRAPH_DATABASE'
     : native ? 'SEARCH_INDEX' : 'JDBC_DATABASE';
-  const managed = ['jdbc', 'sql_query_execute', 'metadata', 'database_query', 'cypher_query', 'search_query', 'http'];
+  const managed = ['jdbc', 'sql_query_execute', 'metadata', 'database_query', 'cypher_query', 'search_query', 'http', 'native_client'];
   let labels;
   try { labels = JSON.parse(form.capabilitiesJson || '[]'); } catch { return; }
   if (!Array.isArray(labels)) return;
   const custom = labels.filter(label => !managed.includes(label));
   form.capabilitiesJson = JSON.stringify([...custom, ...(native
-    ? ['database_query', type === 'neo4j' ? 'cypher_query' : 'search_query', 'http', 'metadata']
+    ? ['database_query', type === 'neo4j' ? 'cypher_query' : 'search_query', 'native_client', 'metadata']
     : ['jdbc', 'sql_query_execute', 'metadata'])]);
 }
 function isNativeQueryAsset(asset) {
-  return nativeQueryTypes.some(type => asset?.driverClass === type + '-http')
-    || (nativeQueryTypes.includes(asset?.databaseType) && /^https?:\/\//.test(asset?.jdbcUrl || ''));
+  return nativeQueryTypes.some(type => [type + '-http', type + '-native'].includes(asset?.driverClass))
+    || nativeQueryTypes.includes(asset?.databaseType);
 }
 
 function driverClassOptions() {
   return [
-    { value: 'neo4j-http', label: 'Neo4j - Cypher 原生查询驱动（HTTP）' },
-    { value: 'opensearch-http', label: 'OpenSearch - JSON DSL 原生查询驱动（HTTP）' },
-    { value: 'elasticsearch-http', label: 'Elasticsearch - JSON DSL 原生查询驱动（HTTP）' },
+    { value: 'neo4j-native', label: 'Neo4j - 官方 Java Driver（Bolt）' },
+    { value: 'opensearch-native', label: 'OpenSearch - 官方 REST Client' },
+    { value: 'elasticsearch-native', label: 'Elasticsearch - 官方 REST Client' },
     { value: 'io.trino.jdbc.TrinoDriver', label: 'Trino - io.trino.jdbc.TrinoDriver' },
     { value: 'com.mysql.cj.jdbc.Driver', label: 'MySQL / TiDB / TDSQL / GoldenDB - com.mysql.cj.jdbc.Driver' },
     { value: 'org.mariadb.jdbc.Driver', label: 'MariaDB - org.mariadb.jdbc.Driver' },

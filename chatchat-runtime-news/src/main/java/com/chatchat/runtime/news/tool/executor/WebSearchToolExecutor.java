@@ -121,7 +121,8 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         int totalLocalEvidenceCount = qualifiedLocalNewsCount + upstreamLocalEvidenceCount;
         boolean localSufficient = (localSucceeded || upstreamLocalEvidenceCount > 0)
             && totalLocalEvidenceCount >= requiredLocalResults;
-        boolean externalSupplementRequired = forceExternal || !localSufficient;
+        boolean externalRequested = input.getParameterAsBoolean("external_search_required", false);
+        boolean externalSupplementRequired = externalRequested || forceExternal || !localSufficient;
         log.info("webSearchBridgeRoute query=\"{}\" requested={} localCandidateCount={} qualifiedLocalNewsCount={} "
                 + "upstreamLocalEvidenceCount={} requiredLocalCount={} externalTool={} externalRequired={}",
             auditQuery(query), size, localCandidateCount, qualifiedLocalNewsCount,
@@ -144,6 +145,7 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         } else if (!externalSupplementRequired) {
             log.info("internalExternalWebSearchSkipped query=\"{}\" reason=local_evidence_sufficient", auditQuery(query));
         } else {
+            warnings.add("External web retrieval was requested but the provider is unavailable");
             log.info("internalExternalWebSearchSkipped query=\"{}\" reason=provider_unavailable", auditQuery(query));
         }
 
@@ -176,6 +178,8 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         data.put("minimumLocalResults", requiredLocalResults);
         data.put("externalSearchRole", "supplementary_fallback");
         data.put("externalSearchRequired", externalSupplementRequired);
+        data.put("externalSearchRequested", externalRequested);
+        data.put("externalSearchSucceeded", externalSucceeded);
         data.put("externalSearchTool", ExternalWebSearchToolExecutor.INTERNAL_TOOL_NAME);
         data.put("externalSearchToolVisibility", "internal_bridge_only");
         copyIfPresent(externalData, data, "cachedQuery", "cacheSimilarity", "externalProvider",

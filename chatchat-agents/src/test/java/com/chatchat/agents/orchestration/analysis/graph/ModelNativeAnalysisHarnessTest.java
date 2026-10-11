@@ -13,6 +13,65 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class ModelNativeAnalysisHarnessTest {
+    @Test void freeReportPromptOffersOptionalVisualizationProtocolAndPreservesRequestedJson() {
+        var model = mock(ChatModel.class);
+        String authored = "# Example\n```json\n{\"example\":42}\n```\n\n| Value |\n| --- |\n| 42 |";
+        when(model.chat(any(String.class))).thenAnswer(call -> {
+            String prompt = call.getArgument(0);
+            assertThat(prompt).contains("VisualizationCapabilityInjector:", "json:report-block",
+                "reportBlockSchema", "allowedChartTypes", "Put the narrative and optional");
+            assertThat(prompt).contains("Markdown tables",
+                "READ_RECORDS", "\"datasetReference\":\"source\"");
+            return authored;
+        });
+        var metadata = new LinkedHashMap<String,Object>();
+        assertThat(execute(3, sources(), model, metadata).markdown()).isEqualTo(authored);
+        assertThat(metadata).containsKey("visualizationCapabilities");
+        verify(model, times(1)).chat(any(String.class));
+    }
+    @Test void recordsFailedRequestBeforePropagatingCancellation() {
+        var model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn(ModelProtocolJson.compact(Map.of(
+            "schemaVersion", "model_native_analysis.v2", "decision", Map.of("action", "CONTINUE"),
+            "evidenceRequests", List.of(Map.of("operation", "READ_RECORDS", "datasetReference", "source", "fromRecord", 1, "limit", 1)))));
+        var pending = new java.util.concurrent.atomic.AtomicBoolean();
+        var observed = new ArrayList<Map<String,Object>>();
+        var meta = new LinkedHashMap<String,Object>();
+        assertThatThrownBy(() -> new ModelNativeAnalysisHarness(3).execute("Analyze", sources(), model, scope,
+            AnalysisEvidenceSpillStore.disabled(), meta,
+            () -> { if (pending.get()) throw new java.util.concurrent.CancellationException(); },
+            event -> { observed.add(event); if ("EVIDENCE_REQUEST_STARTED".equals(event.get("stage"))) pending.set(true); }))
+            .isInstanceOf(java.util.concurrent.CancellationException.class);
+        assertThat(observed.get(observed.size() - 1)).containsEntry("stage", "EVIDENCE_REQUEST_FAILED")
+            .containsEntry("eventState", "FAILED");
+        assertThat(meta).containsEntry("executionStopReason", "CANCELLED");
+        verify(model, times(1)).chat(any(String.class));
+    }
+    @Test void streamsPublicExplorationBeforeReadsAndPreservesModelAutonomy() {
+        var model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn(ModelProtocolJson.compact(Map.of(
+            "schemaVersion", "model_native_analysis.v2", "decision", Map.of("action", "CONTINUE"),
+            "workspace", Map.of("notes", "PRIVATE_NOTES", "findings", List.of("Public observation")),
+            "progress", Map.of("summary", "Reading source"),
+            "evidenceRequests", List.of(Map.of("operation", "READ_RECORDS", "datasetReference", "source", "fromRecord", 1, "limit", 1)))),
+            ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v2",
+                "decision", Map.of("action", "COMPLETE"), "output_type", "final", "content", "Model report")));
+        var observed = new ArrayList<Map<String,Object>>();
+        var meta = new LinkedHashMap<String,Object>();
+        var result = new ModelNativeAnalysisHarness(3).execute("Analyze", sources(), model, scope,
+            AnalysisEvidenceSpillStore.disabled(), meta, () -> {}, observed::add);
+        assertThat(result.markdown()).isEqualTo("Model report");
+        assertThat(observed.stream().filter(e -> "RUNNING".equals(e.get("eventState")))
+            .map(e -> e.get("stage"))).containsExactly("MODEL_RETURNED", "EVIDENCE_REQUEST_STARTED",
+                "EVIDENCE_REQUEST_FINISHED", "MODEL_RETURNED");
+        assertThat(observed.toString()).doesNotContain("PRIVATE_NOTES");
+        var started = observed.stream().filter(e -> "EVIDENCE_REQUEST_STARTED".equals(e.get("stage"))).findFirst().orElseThrow();
+        assertThat(started.toString()).contains("STARTED", "Public observation", "Reading source");
+        assertThat(started).containsEntry("completedRequestCount", 0);
+        var finished = observed.stream().filter(e -> "EVIDENCE_REQUEST_FINISHED".equals(e.get("stage"))).findFirst().orElseThrow();
+        assertThat(finished).containsEntry("completedRequestCount", 1);
+        verify(model, times(2)).chat(any(String.class));
+    }
     private final GovernanceIsolationScope scope = GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation");
     private List<Dataset> sources() { return List.of(new Dataset("source", Map.of(), List.of(Map.of("value", 42)))); }
     private ModelNativeAnalysisHarness.Result execute(int turns, List<Dataset> datasets, ChatModel model, Map<String,Object> meta) {

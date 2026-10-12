@@ -20,6 +20,29 @@ import static org.mockito.Mockito.when;
 class OpsCapabilityBridgePublisherTest {
 
     @Test
+    void publishedFilterVocabularyMatchesProviderAdmissionForEveryDomain() {
+        var registry = new com.chatchat.mcpserver.routing.target.TargetKindRegistry();
+        for (var publication : publisher(mock(CommandTemplateDiscoveryService.class)).contribute()) {
+            var tool = publication.specification().tool();
+            String kind = switch (tool.name()) {
+                case OpsCapabilityBridgePublisher.SERVER_QUERY_TOOL -> "host";
+                case OpsCapabilityBridgePublisher.DATABASE_QUERY_TOOL -> "database";
+                case OpsCapabilityBridgePublisher.HTTP_QUERY_TOOL -> "http";
+                default -> "java";
+            };
+            var properties = (Map<?, ?>) tool.inputSchema().get("properties");
+            var filters = (Map<?, ?>) properties.get("filters");
+            assertThat(filters.get("additionalProperties")).isEqualTo(false);
+            var fields = ((Map<?, ?>) filters.get("properties")).keySet().stream()
+                .map(String::valueOf).map(name -> name.toLowerCase(java.util.Locale.ROOT).replace("_", ""))
+                .collect(java.util.stream.Collectors.toSet());
+            assertThat(fields).isEqualTo(registry.allowedTemplateFilterFieldsForTargetKind(kind).stream()
+                .map(name -> name.replace("_", "")).collect(java.util.stream.Collectors.toSet()));
+            assertThat(fields).contains("env", "queryterms", "intent").doesNotContain("description");
+        }
+    }
+
+    @Test
     void explicitAssetSelectionContinuesTemplateStageWithoutRediscovery() {
         var assets = mock(AssetDiscoveryService.class);
         var templates = mock(CommandTemplateDiscoveryService.class);

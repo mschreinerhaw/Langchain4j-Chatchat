@@ -94,12 +94,8 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
             "enum", domain.assetDiscoverySupported() ? List.of("template", "asset") : List.of("template"),
             "description", "template by default" + (domain.assetDiscoverySupported()
                 ? "; use asset only to disambiguate a logical target" : "")));
-        properties.put("filters", Map.of("type", "object", "additionalProperties", true,
-            "properties", domain.assetDiscoverySupported() ? Map.of("assetIds", Map.of("type", "array", "items", Map.of("type", "string"),
-                "description", "Exact asset ID set handed off by the completed system asset stage; template stage only, intersected with existing filters and authorization.")) : Map.of(),
-            "description", "Logical domain filters; queryTerms/keywords are concise independent search units. "
-                + "Task context in goal/intent is not searched when explicit units are provided. "
-                + "Concrete endpoints and credentials are forbidden"));
+        properties.put("filters", new com.chatchat.mcpserver.routing.target.TargetKindRegistry()
+            .filterInputSchema(domain.targetKind(), "template_query"));
         properties.put("templateIds", Map.of("type", "array", "items", Map.of("type", "string")));
         properties.put("limit", Map.of("type", "integer", "minimum", 1, "maximum", 20));
         properties.put("cursor", Map.of("type", "string", "description",

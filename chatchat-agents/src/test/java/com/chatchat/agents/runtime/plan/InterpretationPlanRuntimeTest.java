@@ -58,6 +58,35 @@ import static org.mockito.Mockito.when;
 class InterpretationPlanRuntimeTest {
 
     @Test
+    void rejectsUndeclaredDiscoveryFilterBeforeProviderInvocation() throws Exception {
+        String tool = "mcp_chatchat_mcp_server_server_capability_query";
+        var registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder().id(tool)
+            .metadata(Map.of("inputSchema", Map.of("type", "object", "properties", Map.of(
+                "stage", Map.of("type", "string"), "query", Map.of("type", "string"),
+                "filters", Map.of("type", "object", "additionalProperties", false,
+                    "properties", Map.of("env", Map.of(), "queryTerms", Map.of())))))).build());
+        var service = mock(ToolRuntimeService.class);
+        var runtime = new InterpretationPlanRuntime(service, new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class));
+        var step = new InterpretationPlan.Step(1, "mcp_tool", tool,
+            Map.of("stage", "asset", "query", "target", "filters",
+                Map.of("env", "DEV", "description", "logical target")), List.of(), null, null);
+        var plan = new InterpretationPlan("1.0", new InterpretationPlan.Intent("data_query", "target", "low"),
+            context(), new InterpretationPlan.Plan(List.of(step)),
+            new InterpretationPlan.ExecutionPolicy(1, false, List.of(tool), List.of(), 30000), review());
+        var request = new InterpretationPlanRuntime.ExecutionRequest(plan, registry, List.of(tool),
+            "tenant-1", "scope-test", "scope-conv", "user-1", Map.of());
+        var method = InterpretationPlanRuntime.class.getDeclaredMethod("resolvedStepInput",
+            InterpretationPlan.Step.class, InterpretationPlanRuntime.ExecutionRequest.class, Map.class);
+        method.setAccessible(true);
+        assertThatThrownBy(() -> method.invoke(runtime, step, request, Map.of()))
+            .hasRootCauseInstanceOf(IllegalStateException.class)
+            .rootCause().hasMessageContaining("filters.description").hasMessageContaining("UNKNOWN_NESTED_PARAMETER");
+        org.mockito.Mockito.verifyNoInteractions(service);
+    }
+
+    @Test
     void validatedAssetSelectionIsHandedOffWithoutOptionalNextActions() throws Exception {
         var registry = mock(ToolRegistry.class);
         when(registry.getAllToolNames()).thenReturn(Set.of("published_bridge"));

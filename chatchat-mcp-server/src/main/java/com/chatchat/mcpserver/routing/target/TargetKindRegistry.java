@@ -262,6 +262,30 @@ public class TargetKindRegistry {
         return definition == null ? Set.of() : allowedFilterFields(definition, "template_query");
     }
 
+    /** Publish the same closed filter vocabulary that provider admission enforces. */
+    public Map<String, Object> filterInputSchema(String targetKind, String toolName) {
+        TargetKindDefinition definition = byKind.get(normalizeTargetKind(targetKind));
+        if (definition == null) throw new IllegalArgumentException("Unknown targetKind: " + targetKind);
+        Map<String, String> names = new LinkedHashMap<>();
+        for (String name : List.of("assetName", "targetType", "databaseType", "dbType", "databaseRole",
+            "tableName", "templateId", "bilingualIntent", "bilingualQuery", "bilingualSearch",
+            "intentZh", "intentEn", "intentAliases", "queryTerms", "searchTerms", "retrievalSignals",
+            "intentCandidates", "expandedQueries", "queryLanguage", "assetIds")) {
+            names.put(normalizeFieldName(name), name);
+        }
+        Map<String, Object> properties = new LinkedHashMap<>();
+        allowedFilterFields(definition, normalizeToolName(toolName)).stream().sorted().forEach(field -> {
+            String name = names.getOrDefault(normalizeFieldName(field), field);
+            properties.putIfAbsent(name, "assetIds".equals(name)
+                ? Map.of("type", "array", "items", Map.of("type", "string"), "description",
+                    "Exact authorized asset IDs from the completed asset stage; template stage only.")
+                : Map.of());
+        });
+        return Map.of("type", "object", "additionalProperties", false, "properties", properties,
+            "description", "Only the declared logical filters are accepted. Use intent/goal for task context "
+                + "and queryTerms/keywords for independent search units. Concrete endpoints and credentials are forbidden.");
+    }
+
     public Map<String, Object> protocolMetadata(String toolName) {
         String normalizedTool = normalizeToolName(toolName);
         Map<String, Object> mapping = new LinkedHashMap<>();

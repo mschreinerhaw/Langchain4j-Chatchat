@@ -47,6 +47,12 @@ public final class ToolArgumentCompiler {
         List<ValidationError> errors = new ArrayList<>();
         List<Repair> repairs = new ArrayList<>();
         promoteArgumentEnvelopes(source, rawProperties, repairs);
+        // Nested filters constrain scope: never silently discard an unknown field or its parent.
+        for (Map.Entry<?, ?> entry : rawProperties.entrySet()) {
+            String name = String.valueOf(entry.getKey());
+            Map<String, Object> property = objectMap(entry.getValue());
+            validateNestedScope(name, sourceValue(source, name, property).value(), property, errors);
+        }
         Set<String> consumed = new LinkedHashSet<>();
         Set<String> requiredFields = new LinkedHashSet<>(stringList(schema.get("required")));
         for (Map.Entry<?, ?> entry : rawProperties.entrySet()) {
@@ -116,6 +122,34 @@ public final class ToolArgumentCompiler {
         }
         return new CompilationResult(errors.isEmpty() ? "READY" : "INVALID_TOOL_ARGUMENTS",
             compiled, List.copyOf(errors), List.copyOf(repairs));
+    }
+
+    private void validateNestedScope(String path, Object value, Map<String, Object> schema,
+                                     List<ValidationError> errors) {
+        if (value instanceof Map<?, ?> raw && "object".equals(schema.get("type"))) {
+            Map<String, Object> source = objectMap(raw);
+            Map<String, Object> properties = objectMap(schema.get("properties"));
+            Set<String> consumed = new LinkedHashSet<>();
+            properties.forEach((name, child) -> {
+                Map<String, Object> childSchema = objectMap(child);
+                SourceValue selected = sourceValue(source, name, childSchema);
+                consumed.addAll(selected.matchedNames());
+                validateNestedScope(path + "." + name, selected.value(), childSchema, errors);
+            });
+            if (Boolean.FALSE.equals(schema.get("additionalProperties"))) {
+                source.forEach((name, item) -> {
+                    if (!consumed.contains(name) && properties.keySet().stream()
+                        .noneMatch(field -> canonical(field).equals(canonical(name)))) {
+                        errors.add(new ValidationError(path + "." + name, "UNKNOWN_NESTED_PARAMETER",
+                            "Undeclared scope field; allowed fields: " + properties.keySet(), item, "declared property"));
+                    }
+                });
+            }
+        } else if (value instanceof List<?> items && "array".equals(schema.get("type"))) {
+            for (int i = 0; i < items.size(); i++) {
+                validateNestedScope(path + "[" + i + "]", items.get(i), objectMap(schema.get("items")), errors);
+            }
+        }
     }
 
     private void promoteArgumentEnvelopes(Map<String, Object> source,

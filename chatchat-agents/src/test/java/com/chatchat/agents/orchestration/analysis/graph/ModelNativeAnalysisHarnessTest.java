@@ -13,6 +13,34 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class ModelNativeAnalysisHarnessTest {
+    @Test void modelReceivesRuntimeAdmissionStateAndExactMissingParameterReason() {
+        var model = mock(ChatModel.class);
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("recordAnalysisExcludedDatasets", List.of(Map.of(
+            "datasetReference", "blocked-check", "toolName", "authorized_tool",
+            "accountingStatus", "EXCLUDED", "executionStatus", "BLOCKED", "invoked", false,
+            "reason", "SOURCE_EXECUTION_BLOCKED", "error", Map.of(
+                "code", "TEMPLATE_REQUIRED_PARAMETERS_MISSING", "message", "container missing"))));
+        when(model.chat(any(dev.langchain4j.model.chat.request.ChatRequest.class))).thenAnswer(call -> {
+            dev.langchain4j.model.chat.request.ChatRequest request = call.getArgument(0);
+            String prompt = ((dev.langchain4j.data.message.SystemMessage) request.messages().get(0)).text()
+                + ((dev.langchain4j.data.message.UserMessage) request.messages().get(1)).singleText();
+            assertThat(prompt).contains("\"executionStatus\":\"BLOCKED\"", "\"invoked\":false",
+                "TEMPLATE_REQUIRED_PARAMETERS_MISSING", "container missing", "SOURCE_EXECUTION_BLOCKED",
+                "accountingStatus is dataset bookkeeping", "not a transport failure");
+            assertThat(prompt).doesNotContain("SOURCE_TRANSPORT_ONLY_NOT_ANALYTICAL_SUFFICIENCY");
+            String response = ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v2",
+                "decision", Map.of("action", "PARTIAL_COMPLETE"), "output_type", "final",
+                "plan", Map.of("version", "1.0", "intent", Map.of("type", "analysis", "goal", "Explain returned evidence"),
+                    "context", Map.of("key_facts", List.of(), "assumptions", List.of(), "missing_info", List.of(),
+                        "constraints", List.of()), "plan", Map.of("steps", List.of(Map.of(
+                            "id", 1, "action_type", "reasoning", "input", Map.of(), "depends_on", List.of())))),
+                "content", "One check was blocked before invocation because container was missing."));
+            return dev.langchain4j.model.chat.response.ChatResponse.builder()
+                .aiMessage(dev.langchain4j.data.message.AiMessage.from(response)).build();
+        });
+        assertThat(execute(1, sources(), model, metadata).markdown()).contains("blocked before invocation");
+    }
     @Test void omittedStringPreviewHasAnExecutableOriginalValueLocator() {
         var access = new BoundedAnalysisEvidence();
         var sources = new LinkedHashMap<String, Dataset>();
@@ -187,7 +215,7 @@ class ModelNativeAnalysisHarnessTest {
                 "references", List.of(Map.of("datasetReference", "source", "record", 1, "fieldPath", List.of("unknown"))))));
         when(model.chat(any(String.class))).thenAnswer(call -> {
             assertThat((String)call.getArgument(0)).contains("cumulative counters from interval deltas",
-                "report quality", "SOURCE_TRANSPORT_ONLY_NOT_ANALYTICAL_SUFFICIENCY", "failed-source");
+                "report quality", "SOURCE_EXECUTION_ONLY_NOT_ANALYTICAL_SUFFICIENCY", "failed-source");
             return ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v1", "completed", true,
                 "reportMarkdown", "The observed window has low activity; another chunk is missing.", "evidenceAssessment", assessment));
         });

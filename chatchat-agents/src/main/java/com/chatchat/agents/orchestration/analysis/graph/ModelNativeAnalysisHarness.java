@@ -417,9 +417,13 @@ public final class ModelNativeAnalysisHarness {
         if (metadata.get("recordAnalysisExcludedDatasets") instanceof List<?> excluded) {
             for (Object raw : excluded.stream().limit(100).toList()) {
                 if (!(raw instanceof Map<?, ?> source)) continue;
-                observations.add(Map.of("datasetReference", String.valueOf(source.get("datasetReference")),
-                    "accountingStatus", String.valueOf(source.get("accountingStatus")),
-                    "observationScope", "SOURCE_TRANSPORT_ONLY_NOT_ANALYTICAL_SUFFICIENCY"));
+                Map<String, Object> observation = new LinkedHashMap<>();
+                for (String key : List.of("datasetReference", "toolName", "accountingStatus", "executionStatus",
+                    "invoked", "reason", "error")) {
+                    if (source.get(key) != null) observation.put(key, source.get(key));
+                }
+                observation.put("observationScope", "SOURCE_EXECUTION_ONLY_NOT_ANALYTICAL_SUFFICIENCY");
+                observations.add(Map.copyOf(observation));
             }
         }
         return List.copyOf(observations);

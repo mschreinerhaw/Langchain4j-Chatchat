@@ -98,7 +98,9 @@ public final class AnalysisEvidenceCoordinator {
             if ("final_answer".equalsIgnoreCase(step.actionType())) continue;
             String stepReference = firstNonBlank(step.toolName(),
                 "plan-step-" + (step.stepId() == null ? "unknown" : step.stepId()));
-            if (!step.success()) {
+            Object resolved = isRoutingDiscovery(step.toolName()) ? step.output() : resolveEvidenceData(step);
+            // A failed parent batch still owns authoritative child outcomes (including blocks).
+            if (!step.success() && !(resolved instanceof ToolCallBatchResult)) {
                 if (step.toolName() != null && !step.toolName().isBlank()
                     && !isRoutingDiscovery(step.toolName())) {
                     excluded.add(metadataOf("datasetReference", stepReference,
@@ -109,7 +111,6 @@ public final class AnalysisEvidenceCoordinator {
                 continue;
             }
             if (isRoutingDiscovery(step.toolName())) continue;
-            Object resolved = resolveEvidenceData(step);
             if (resolved instanceof ToolCallBatchResult batch) {
                 for (ToolCallResult child : batch.results()) {
                     if (isRoutingDiscovery(child.toolName())) continue;
@@ -122,9 +123,17 @@ public final class AnalysisEvidenceCoordinator {
                     String reference = child.callId() == null || child.callId().isBlank()
                         ? templateReference : templateReference + "#" + child.callId();
                     if (!"SUCCESS".equalsIgnoreCase(child.status())) {
+                        String reason = switch (firstNonBlank(child.status(), "").toUpperCase(Locale.ROOT)) {
+                            case "BLOCKED" -> "SOURCE_EXECUTION_BLOCKED";
+                            case "NOT_EXECUTED", "SKIPPED" -> "SOURCE_NOT_EXECUTED";
+                            case "CANCELLED" -> "SOURCE_EXECUTION_CANCELLED";
+                            default -> "SOURCE_EXECUTION_FAILED";
+                        };
                         excluded.add(metadataOf("datasetReference", reference,
-                            "toolName", child.toolName(), "reason", "SOURCE_EXECUTION_FAILED",
-                            "accountingStatus", "FAILED", "executionStatus", child.status(),
+                            "toolName", child.toolName(), "reason", reason,
+                            "accountingStatus", "SOURCE_EXECUTION_FAILED".equals(reason) ? "FAILED" : "EXCLUDED",
+                            "executionStatus", child.status(),
+                            "invoked", child.invoked(),
                             "error", child.error()));
                         continue;
                     }

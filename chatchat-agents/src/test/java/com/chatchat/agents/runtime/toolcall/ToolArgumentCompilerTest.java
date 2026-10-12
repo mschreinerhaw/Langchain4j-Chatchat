@@ -14,6 +14,38 @@ class ToolArgumentCompilerTest {
     private final ToolArgumentCompiler compiler = new ToolArgumentCompiler();
 
     @Test
+    void rejectsUnknownNestedScopeWithoutSilentlyBroadeningOptionalFilters() {
+        var schema = Map.<String, Object>of("properties", Map.of("filters", Map.of(
+            "type", "object", "additionalProperties", false, "properties", Map.of(
+                "env", Map.of("type", "string"), "queryTerms", Map.of("type", "array")))));
+        var result = compiler.compile(Map.of("filters", Map.of("env", "DEV",
+            "queryTerms", List.of("target"), "description", "logical target")), schema);
+        assertThat(result.valid()).isFalse();
+        assertThat(result.validationErrors()).anySatisfy(error -> {
+            assertThat(error.field()).isEqualTo("filters.description");
+            assertThat(error.errorCode()).isEqualTo("UNKNOWN_NESTED_PARAMETER");
+            assertThat(error.message()).contains("env", "queryTerms");
+        });
+        assertThat(compiler.compile(Map.of("filters", Map.of("env", "DEV",
+            "query_terms", List.of("target"))), schema).parameters())
+            .containsEntry("filters", Map.of("env", "DEV", "queryTerms", List.of("target")));
+    }
+
+    @Test
+    void recursivelyRejectsUnknownFieldsInArrayItemsButPreservesOpenObjects() {
+        var closed = Map.of("type", "object", "additionalProperties", false,
+            "properties", Map.of("name", Map.of("type", "string")));
+        var schema = Map.<String, Object>of("properties", Map.of("calls",
+            Map.of("type", "array", "items", closed)));
+        assertThat(compiler.compile(Map.of("calls", List.of(Map.of("name", "a", "scope", "other"))), schema)
+            .validationErrors()).anySatisfy(error -> assertThat(error.field()).isEqualTo("calls[0].scope"));
+        var open = Map.<String, Object>of("properties", Map.of("filters",
+            Map.of("type", "object", "additionalProperties", true, "properties", Map.of())));
+        assertThat(compiler.compile(Map.of("filters", Map.of("extension", "value")), open).parameters())
+            .containsEntry("filters", Map.of("extension", "value"));
+    }
+
+    @Test
     void deterministicallyNormalizesAliasesTypesDatesEnumsAndDefaults() {
         Map<String, Object> schema = Map.of(
             "type", "object",
@@ -187,8 +219,7 @@ class ToolArgumentCompilerTest {
             "filters", Map.of(
                 "date", "20260814",
                 "limit", "10",
-                "queryTerms", List.of(100, "行情数据"),
-                "unknown", "discard"
+                "queryTerms", List.of(100, "行情数据")
             )
         ), schema);
 

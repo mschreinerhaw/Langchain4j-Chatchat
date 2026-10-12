@@ -25,6 +25,46 @@ import static org.mockito.Mockito.when;
 class AnalysisEvidenceCoordinatorTest {
 
     @Test
+    void failedParentBatchCannotEraseItsBlockedChildOutcome() {
+        var blocked = new ToolCallResult("blocked", "tool", "template", "asset", "BLOCKED", 0,
+            null, null, Map.of("code", "TEMPLATE_REQUIRED_PARAMETERS_MISSING"));
+        var batch = new ToolCallBatchResult("batch", "SEQUENTIAL", "start", "end", "FAILED",
+            new ToolCallBatchResult.Summary(1, 0, 0, 1, 0, 0), List.of(blocked));
+        var failed = new InterpretationPlanRuntime.StepExecution(1, "mcp_tool", "tool", false,
+            batch, "all children unavailable", null, null, 1);
+        assertThat(coordinator().project(result(failed)).excludedDatasets()).singleElement().satisfies(item ->
+            assertThat(item).containsEntry("executionStatus", "BLOCKED").containsEntry("invoked", false)
+                .containsEntry("reason", "SOURCE_EXECUTION_BLOCKED").containsEntry("error", blocked.error()));
+    }
+
+    @Test
+    void preservesBlockedAndUninvokedChildrenSeparatelyFromExecutionFailures() {
+        var blocked = new ToolCallResult("blocked", "tool", "blocked-template", "asset", "BLOCKED", 0,
+            null, null, Map.of("code", "TEMPLATE_REQUIRED_PARAMETERS_MISSING", "message", "container missing"));
+        var failed = new ToolCallResult(null, "batch", "failed", "failed", "tool", "tool", "failed-template",
+            "failed-template", "asset", null, null, 2, false, "FAILED", true, 10, null, null,
+            Map.of("code", "TRANSPORT_ERROR", "message", "connection refused"));
+        var skipped = new ToolCallResult("skipped", "tool", "skipped-template", "asset", "SKIPPED", 0,
+            null, null, Map.of("code", "DEPENDENCY_BLOCKED"));
+        var success = new ToolCallResult("success", "tool", "success-template", "asset", "SUCCESS", 1,
+            "evidence", Map.of("records", List.of(Map.of("observed", 1))), Map.of());
+        var batch = new ToolCallBatchResult("batch", "SEQUENTIAL", "start", "end", "PARTIAL_SUCCESS",
+            new ToolCallBatchResult.Summary(4, 1, 1, 1, 1, 2), List.of(blocked, failed, skipped, success));
+        var projection = coordinator().project(stepResult(batch));
+        assertThat(projection.datasets()).hasSize(1);
+        assertThat(projection.excludedDatasets()).hasSize(3).anySatisfy(item -> assertThat(item)
+            .containsEntry("executionStatus", "BLOCKED").containsEntry("invoked", false)
+            .containsEntry("accountingStatus", "EXCLUDED").containsEntry("reason", "SOURCE_EXECUTION_BLOCKED")
+            .containsEntry("error", blocked.error()));
+        assertThat(projection.excludedDatasets()).anySatisfy(item -> assertThat(item)
+            .containsEntry("executionStatus", "FAILED").containsEntry("invoked", true)
+            .containsEntry("accountingStatus", "FAILED").containsEntry("reason", "SOURCE_EXECUTION_FAILED"));
+        assertThat(projection.excludedDatasets()).anySatisfy(item -> assertThat(item)
+            .containsEntry("executionStatus", "SKIPPED").containsEntry("invoked", false)
+            .containsEntry("accountingStatus", "EXCLUDED").containsEntry("reason", "SOURCE_NOT_EXECUTED"));
+    }
+
+    @Test
     void neverProjectsFinalAnswerBackIntoBusinessEvidence() {
         InterpretationPlanRuntime.StepExecution finalAnswer = new InterpretationPlanRuntime.StepExecution(
             2, "final_answer", "final_answer", true,

@@ -170,7 +170,7 @@ public final class ModelNativeAnalysisHarness {
             }
             report = candidateReport;
             if (v2) for (String key : List.of("modelDecision", "modelEvidenceSnapshotRef", "analysisEvidenceSnapshotFingerprint",
-                "publicationState", "modelOutput", "modelPublicationRequest")) {
+                "publicationState", "modelOutput", "modelPublicationRequest", "modelPublicationReferenceAudit")) {
                 if (acceptedIntent.containsKey(key)) metadata.put(key, acceptedIntent.get(key)); else metadata.remove(key);
             }
             var assessmentAudit = new LinkedHashMap<String, Object>(new ModelEvidenceAssessmentAudit()
@@ -279,6 +279,13 @@ public final class ModelNativeAnalysisHarness {
             if (progress.containsKey("summary")) span.put("summary", progress.get("summary"));
             span.put("publicationState", metadata.getOrDefault("publicationState", "NOT_REQUESTED"));
             span.put("modelOutput", metadata.getOrDefault("modelOutput", Map.of()));
+            if (metadata.get("modelPublicationRequest") instanceof Map<?,?> binding) {
+                span.put("reportSha256", binding.get("reportSha256"));
+                span.put("evidenceSnapshotRef", binding.get("evidenceSnapshotRef"));
+                span.put("target", "CURRENT_SESSION");
+                if (metadata.containsKey("modelPublicationReferenceAudit"))
+                    span.put("reason", "Runtime bound accepted final content; legacy model publication references have no delivery authority");
+            }
             span.put("eventState", "COMPLETED");
             trace.add(span); observe.accept(span);
             metadata.put("harnessTrace", List.copyOf(trace));
@@ -373,14 +380,24 @@ public final class ModelNativeAnalysisHarness {
             "declaration", product.containsKey("output_type") ? "output_type" : action == ModelAnalysisIntent.Action.PUBLISH ? "legacy_PUBLISH" : "NONE",
             "reportSha256", ModelProtocolJson.sha256Hex(report), "evidenceSnapshotRef", snapshot, "target", "CURRENT_SESSION"));
         metadata.remove("modelPublicationRequest");
+        metadata.remove("modelPublicationReferenceAudit");
         if (ModelAnalysisIntent.finalDeclared(metadata)) {
             String hash = ModelProtocolJson.sha256Hex(report);
             if (report.isBlank()) throw new IllegalArgumentException("A model-declared final requires non-empty content");
-            if (product.get("publication") instanceof Map<?,?> publication
-                && (!hash.equals(publication.getOrDefault("reportSha256", null))
-                    || !snapshot.equals(publication.getOrDefault("evidenceSnapshotRef", null))))
-                throw new IllegalArgumentException("Publication report or evidence snapshot does not match");
-            metadata.put("modelPublicationRequest", Map.of("reportSha256", hash, "evidenceSnapshotRef", snapshot));
+            // The model declares final content, not the Runtime's version identifiers.
+            // Bind exactly the accepted content and run-scoped evidence here. Consumers
+            // still verify this Runtime-owned binding after persistence/transport.
+            if (product.containsKey("publication")) {
+                var legacy = product.get("publication");
+                boolean matches = legacy instanceof Map<?,?> reference
+                    && hash.equals(reference.get("reportSha256"))
+                    && snapshot.equals(reference.get("evidenceSnapshotRef"));
+                metadata.put("modelPublicationReferenceAudit", Map.of("authority", "RUNTIME",
+                    "status", "LEGACY_REFERENCE_IGNORED", "matchedActualOutput", matches,
+                    "deliveryEffect", "NONE"));
+            }
+            metadata.put("modelPublicationRequest", Map.of("authority", "RUNTIME", "target", "CURRENT_SESSION",
+                "reportSha256", hash, "evidenceSnapshotRef", snapshot));
             metadata.put("publicationState", "REQUESTED");
         }
         return ModelAnalysisIntent.finalDeclared(metadata) || action != ModelAnalysisIntent.Action.CONTINUE;

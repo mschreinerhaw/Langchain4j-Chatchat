@@ -248,7 +248,7 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
     ) {
         List<InterpretationPlan.Step> steps = new ArrayList<>(sourceSteps);
         List<InterpretationPlan.DependencyContract> dependencies = new ArrayList<>(sourceDependencies);
-        boolean changed = false;
+        boolean changed = materializePublishedAssetStages(steps, dependencies);
         int nextId = steps.stream().filter(Objects::nonNull).map(InterpretationPlan.Step::id)
             .filter(Objects::nonNull).max(Integer::compareTo).orElse(0) + 1;
         for (InterpretationPlan.Step originalExecutor : List.copyOf(steps)) {
@@ -340,6 +340,27 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
             declared = mapValue(metadataMap(extra.get("mcpToolMeta")),
                 "templateDiscoveryTool", "template_discovery_tool");
         }
+        if (declared == null) {
+            // Publishers may declare the relation on the discovery side. Only a unique,
+            // protocol-compatible relation is authoritative; never guess from a name.
+            String remoteExecutor = mapValue(extra, "remoteToolName", "remote_tool_name");
+            TemplateWorkflowTool executor = workflowTool(executorName);
+            TemplateWorkflowPlugin plugin = templateWorkflowPlugins.resolve(executor).orElse(null);
+            List<String> candidates = workflowTools.values().stream()
+                .filter(tool -> tool.role() == ToolWorkflowRole.TEMPLATE_DISCOVERY)
+                .filter(tool -> !tool.groupedTemplateDiscovery())
+                .filter(tool -> plugin != null && plugin.accepts(tool, executor))
+                .filter(tool -> {
+                    ToolMetadata candidate = toolRegistry.getToolMetadata(tool.toolName());
+                    Map<String, Object> attributes = candidate == null || candidate.getMetadata() == null
+                        ? Map.of() : candidate.getMetadata();
+                    String target = mapValue(attributes, "executionTool", "execution_tool");
+                    if (target == null) target = mapValue(metadataMap(attributes.get("mcpToolMeta")),
+                        "executionTool", "execution_tool");
+                    return target != null && (target.equals(executorName) || target.equals(remoteExecutor));
+                }).map(TemplateWorkflowTool::toolName).toList();
+            return candidates.size() == 1 ? candidates.get(0) : null;
+        }
         if (declared == null || workflowTools.containsKey(declared)) return declared;
         String requested = declared;
         List<String> matches = workflowTools.values().stream()
@@ -353,6 +374,62 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
             })
             .toList();
         return matches.size() == 1 ? matches.get(0) : declared;
+    }
+
+    /** Expand the publisher's staged bridge into the fixed asset -> template workflow. */
+    private boolean materializePublishedAssetStages(List<InterpretationPlan.Step> steps,
+                                                     List<InterpretationPlan.DependencyContract> dependencies) {
+        boolean changed = false;
+        int nextId = steps.stream().map(InterpretationPlan.Step::id).filter(Objects::nonNull)
+            .max(Integer::compareTo).orElse(0) + 1;
+        for (int index = 0; index < steps.size(); index++) {
+            InterpretationPlan.Step asset = steps.get(index);
+            if (isAssetDiscoveryStep(asset) && publishesAssetAndTemplateStages(asset.toolName())
+                && "asset_selection".equals(asset.input().get("stage"))) {
+                Map<String, Object> input = new LinkedHashMap<>(asset.input());
+                input.put("stage", "asset");
+                steps.set(index, new InterpretationPlan.Step(asset.id(), asset.actionType(), asset.toolName(),
+                    input, asset.dependsOn(), asset.outputContract(), asset.validation()));
+                changed = true;
+            }
+        }
+        for (InterpretationPlan.Step template : List.copyOf(steps)) {
+            if (!isTemplateDiscoveryStep(template) || !publishesAssetAndTemplateStages(template.toolName())) continue;
+            boolean hasAssetPredecessor = steps.stream().filter(this::isAssetDiscoveryStep)
+                .filter(asset -> sameProtocolTool(asset.toolName(), template.toolName()))
+                .anyMatch(asset -> dependsOnTransitively(template.id(), asset.id(), steps, new LinkedHashSet<>()));
+            if (hasAssetPredecessor) continue;
+            Map<String, Object> assetInput = new LinkedHashMap<>(template.input() == null ? Map.of() : template.input());
+            assetInput.put("stage", "asset");
+            // Template identifiers cannot narrow or authorize an asset discovery request.
+            assetInput.remove("templateIds");
+            assetInput.remove("template_ids");
+            assetInput.remove("cursor");
+            int assetId = nextId++;
+            int index = indexOfStep(steps, template.id());
+            steps.add(index, new InterpretationPlan.Step(assetId, "mcp_tool", template.toolName(),
+                assetInput, template.dependsOn(), null, null));
+            Map<String, Object> templateInput = new LinkedHashMap<>(template.input() == null ? Map.of() : template.input());
+            templateInput.put("stage", "template");
+            int templateIndex = indexOfStep(steps, template.id());
+            steps.set(templateIndex, new InterpretationPlan.Step(template.id(), template.actionType(),
+                template.toolName(), templateInput, template.dependsOn(), template.outputContract(), template.validation()));
+            addDependency(steps, template.id(), assetId);
+            addRequiredDependencyContract(dependencies, assetId, template.id(),
+                "Required by the publisher's staged asset/template discovery contract.");
+            changed = true;
+        }
+        return changed;
+    }
+
+    private boolean publishesAssetAndTemplateStages(String toolName) {
+        ToolMetadata metadata = toolRegistry == null ? null : toolRegistry.getToolMetadata(toolName);
+        Map<String, Object> attributes = metadata == null || metadata.getMetadata() == null
+            ? Map.of() : metadata.getMetadata();
+        Map<String, Object> schema = metadataMap(attributes.get("inputSchema"));
+        Map<String, Object> properties = metadataMap(schema.get("properties"));
+        Object stages = metadataMap(properties.get("stage")).get("enum");
+        return stages instanceof Collection<?> values && values.contains("asset") && values.contains("template");
     }
 
     private InterpretationPlan.ExecutionPolicy expandPolicyForMaterializedSteps(

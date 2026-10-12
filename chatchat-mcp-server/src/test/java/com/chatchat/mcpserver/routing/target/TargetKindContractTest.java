@@ -13,6 +13,23 @@ class TargetKindContractTest {
     private final TargetKindRegistry registry = new TargetKindRegistry();
 
     @Test
+    void assetSetBindingIsDeclaredForTemplatesButCannotChangeAssetDiscoveryContract() {
+        var filters = Map.<String, Object>of("assetIds", List.of("asset-A", "asset-B"), "env", "SCOPE");
+        for (String kind : List.of("host", "database", "http")) {
+            assertThat(registry.resolveForTool("template_query", null, request(kind, 1.0, filters), filters)
+                .definition().targetKind()).isEqualTo(kind);
+            assertThat(registry.allowedTemplateFilterFieldsForTargetKind(kind)).contains("assetids");
+            assertThat(registry.allowedFilterFieldsForTargetKind(kind)).doesNotContain("assetids");
+            assertThatThrownBy(() -> registry.resolveForTool("asset_query", null, request(kind, 1.0, filters), filters))
+                .hasMessageContaining("Filter field is not allowed");
+        }
+        assertThat(registry.protocolMetadata("template_query").get("allowedFilterFieldsByTargetKind").toString())
+            .contains("assetids");
+        assertThat(registry.protocolMetadata("asset_query").get("allowedFilterFieldsByTargetKind").toString())
+            .doesNotContain("assetids");
+    }
+
+    @Test
     void acceptsValidDatabaseRoutingRequest() {
         TargetKindRegistry.Resolution resolution = registry.resolveForTool(
             "template_query",

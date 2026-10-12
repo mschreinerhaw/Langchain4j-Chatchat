@@ -381,14 +381,19 @@ class ModelNativeAnalysisHarnessTest {
             assertThat(((Map<?,?>)meta.get("modelDecision")).get("action")).isEqualTo("CONTINUE");
         }
     }
-    @Test void v2RejectsWrongPublicationVersion() {
+    @Test void v2BindsActualContentInsteadOfModelSuppliedPublicationVersion() {
         var model = mock(ChatModel.class); var meta = new LinkedHashMap<String,Object>();
         when(model.chat(anyString())).thenReturn(ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v2",
             "decision", Map.of("action", "PUBLISH"), "reportMarkdown", "Report",
             "publication", Map.of("reportSha256", "wrong", "evidenceSnapshotRef", "wrong"))));
-        assertThatThrownBy(() -> execute(3, sources(), model, meta)).isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("does not match");
-        assertThat(meta).containsEntry("publicationState", "REJECTED").containsEntry("executionStopReason", "GOVERNANCE_REJECTION");
+        var result = execute(3, sources(), model, meta);
+        assertThat(result.markdown()).isEqualTo("Report");
+        assertThat(meta).containsEntry("publicationState", "REQUESTED");
+        var binding = (Map<?,?>)meta.get("modelPublicationRequest");
+        assertThat(binding.get("authority")).isEqualTo("RUNTIME");
+        assertThat(binding.get("reportSha256")).isEqualTo(ModelProtocolJson.sha256Hex("Report"));
+        assertThat(binding.get("evidenceSnapshotRef")).isEqualTo(meta.get("modelEvidenceSnapshotRef"));
+        assertThat(meta.get("modelPublicationReferenceAudit").toString()).contains("LEGACY_REFERENCE_IGNORED");
     }
 
     @Test void modelDeclaresContentTypeIndependentlyOfCompletionAndPublicationActions() {

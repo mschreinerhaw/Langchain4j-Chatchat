@@ -801,6 +801,79 @@ class InterpretationPlanOptimizerTest {
         assertThat(repaired.plan().edgeContracts()).noneSatisfy(edge -> assertThat(edge.from()).isEqualTo(1));
     }
 
+    @Test
+    void compilesPublisherStagedDiscoveryBeforeTemplateBindingIncludingRetryAndDefaultStage() {
+        for (String stage : List.of("template", "asset", "asset_selection", "default")) {
+            String discovery = "arbitrary_bridge";
+            String execute = "arbitrary_executor";
+            ToolRegistry registry = mock(ToolRegistry.class);
+            when(registry.getAllToolNames()).thenReturn(Set.of(discovery, execute));
+            when(registry.getWorkflowRole(discovery)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+            when(registry.getWorkflowRole(execute)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+            when(registry.getToolMetadata(discovery)).thenReturn(workflowMetadata(
+                discovery, "remote_bridge", ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.ssh-template.v1",
+                Map.of("assetType", "ssh_host", "executionTool", "remote_executor", "inputSchema",
+                    Map.of("properties", Map.of("stage", Map.of("enum", List.of("asset", "template")))))));
+            var policy = new LinkedHashMap<>(apiExecutionBindingPolicy());
+            policy.put("executionProtocolBindings", Map.of("mcp.ssh-template.v1", "SHELL_EXECUTION"));
+            policy.put("executionValidationFields", Map.of("SHELL_EXECUTION", List.of("command")));
+            when(registry.getToolMetadata(execute)).thenReturn(workflowMetadata(
+                execute, "remote_executor", ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.ssh-template.v1",
+                Map.of("argumentBindingPolicy", policy)));
+            Map<String, Object> input = new LinkedHashMap<>(Map.of("filters", Map.of("env", "SCOPE_A"),
+                "query", "authorized diagnostics"));
+            if (!stage.equals("default")) input.put("stage", stage);
+            var plan = new InterpretationPlan("1.0", new InterpretationPlan.Intent("data_query", "inspect", "low"),
+                new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+                new InterpretationPlan.Plan(List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", discovery, input, List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", execute, Map.of(), List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "final_answer", "", Map.of(), List.of(2), null, null))),
+                new InterpretationPlan.ExecutionPolicy(3, false, List.of(discovery, execute), List.of(), 30_000),
+                new InterpretationPlan.Review(new InterpretationPlan.SelfCheck(0.8, 0.1, true, List.of()), List.of()));
+            var dag = List.of(Map.of("tool", discovery, "dependsOnTools", List.of()),
+                Map.of("tool", execute, "dependsOnTools", List.of(discovery)));
+            var optimizer = new InterpretationPlanOptimizer(registry);
+            var compiled = optimizer.optimize(plan, dag).plan();
+            assertThat(compiled.steps()).as("stage=%s", stage).hasSize(4);
+            var asset = compiled.steps().stream().filter(s -> List.of("asset", "asset_selection")
+                .contains(s.input().getOrDefault("stage", ""))).findFirst().orElseThrow();
+            var template = compiled.steps().stream().filter(s -> "template".equals(s.input().get("stage")))
+                .findFirst().orElseThrow();
+            assertThat(template.dependsOn()).contains(asset.id());
+            assertThat(asset.input()).containsEntry("filters", Map.of("env", "SCOPE_A"));
+            assertThat(template.input()).containsEntry("filters", Map.of("env", "SCOPE_A"));
+            assertThat(stepByTool(compiled, execute).dependsOn()).contains(template.id());
+            assertThat(compiled.plan().bindings()).anySatisfy(b -> {
+                assertThat(b.from()).isEqualTo(template.id());
+                assertThat(b.to()).isEqualTo(stepByTool(compiled, execute).id());
+            });
+            assertThat(compiled.plan().bindings()).noneSatisfy(b -> assertThat(b.from()).isEqualTo(asset.id()));
+            assertThat(optimizer.optimize(compiled, dag).plan().steps()).hasSize(4);
+            assertThat(optimizer.runtimeCompanionTools(compiled)).containsExactly(discovery);
+            var validation = new InterpretationPlanValidator().validate(compiled, registry,
+                Set.of(discovery, execute), dag, "inspection");
+            assertThat(validation.valid()).as("stage=%s %s", stage, validation.issues()).isTrue();
+        }
+    }
+
+    @Test
+    void doesNotGuessDiscoveryRelationWhenPublisherDeclaresMultipleParents() {
+        var registry = mock(ToolRegistry.class);
+        when(registry.getAllToolNames()).thenReturn(Set.of("bridge_a", "bridge_b", "executor"));
+        for (String bridge : List.of("bridge_a", "bridge_b")) {
+            when(registry.getWorkflowRole(bridge)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+            when(registry.getToolMetadata(bridge)).thenReturn(workflowMetadata(bridge, bridge,
+                ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.ssh-template.v1", Map.of("executionTool", "executor")));
+        }
+        when(registry.getWorkflowRole("executor")).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        when(registry.getToolMetadata("executor")).thenReturn(workflowMetadata("executor", "executor",
+            ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.ssh-template.v1", Map.of()));
+        var plan = new InterpretationPlan("1.0", null, null, new InterpretationPlan.Plan(List.of(
+            new InterpretationPlan.Step(1, "mcp_tool", "executor", Map.of(), List.of(), null, null))), null, null);
+        assertThat(new InterpretationPlanOptimizer(registry).optimize(plan).plan().steps()).hasSize(1);
+    }
+
     private ToolMetadata workflowMetadata(String localName, String remoteName,
                                           ToolWorkflowRole role, String protocolFamily,
                                           Map<String, Object> additions) {

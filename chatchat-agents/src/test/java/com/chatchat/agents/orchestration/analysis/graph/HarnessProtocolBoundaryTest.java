@@ -81,4 +81,17 @@ class HarnessProtocolBoundaryTest {
         assertThat(((Map<?,?>)run.metadata().get("modelOutput")).get("type")).isEqualTo("INTERMEDIATE");
         assertThat(run.metadata().get("modelDecision").toString()).contains("CONTINUE");
     }
+    @Test void runtimeBindsNewFinalContentDespiteStaleModelPublicationReferences() {
+        var finalResponse=turn("COMPLETE",false,List.of());
+        finalResponse.put("publication",Map.of("reportSha256",ModelProtocolJson.sha256Hex("Progress"),
+            "evidenceSnapshotRef","previous-snapshot"));
+        var run=run(turn("CONTINUE",true,List.of(read())),finalResponse);
+        assertThat(run.result().markdown()).isEqualTo("Final answer");
+        assertThat(run.metadata()).containsEntry("publicationState","REQUESTED");
+        var binding=(Map<?,?>)run.metadata().get("modelPublicationRequest");
+        assertThat(binding.get("authority")).isEqualTo("RUNTIME");
+        assertThat(binding.get("reportSha256")).isEqualTo(ModelProtocolJson.sha256Hex("Final answer"));
+        assertThat(binding.get("evidenceSnapshotRef")).isEqualTo(run.metadata().get("modelEvidenceSnapshotRef"));
+        assertThat(run.metadata().get("modelPublicationReferenceAudit").toString()).contains("LEGACY_REFERENCE_IGNORED");
+    }
 }

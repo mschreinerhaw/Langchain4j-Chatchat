@@ -196,7 +196,7 @@ public class TargetKindRegistry {
                 definition
             );
         }
-        validateFilters(definition, filters);
+        validateFilters(definition, filters, normalizedTool);
         if (candidates.isEmpty()) {
             candidates = List.of(candidateForDefinition(normalizedTool, definition, confidence, filters));
         }
@@ -257,6 +257,11 @@ public class TargetKindRegistry {
         return definition == null ? Set.of() : Set.copyOf(definition.allowedFilterFields());
     }
 
+    public Set<String> allowedTemplateFilterFieldsForTargetKind(String targetKind) {
+        TargetKindDefinition definition = byKind.get(normalizeTargetKind(targetKind));
+        return definition == null ? Set.of() : allowedFilterFields(definition, "template_query");
+    }
+
     public Map<String, Object> protocolMetadata(String toolName) {
         String normalizedTool = normalizeToolName(toolName);
         Map<String, Object> mapping = new LinkedHashMap<>();
@@ -264,7 +269,7 @@ public class TargetKindRegistry {
         byKind.values().forEach(definition -> {
             if (definition.allowedTools().contains(normalizedTool) || "document".equals(definition.targetKind())) {
                 mapping.put(definition.targetKind(), definition.assetType());
-                allowedFilterFields.put(definition.targetKind(), List.copyOf(definition.allowedFilterFields()));
+                allowedFilterFields.put(definition.targetKind(), List.copyOf(allowedFilterFields(definition, normalizedTool)));
             }
         });
         return mapOf(
@@ -330,7 +335,7 @@ public class TargetKindRegistry {
             TargetKindDefinition definition = byKind.get(targetKind);
             boolean known = definition != null;
             boolean permission = known && definition.allowedTools().contains(toolName);
-            boolean schema = known && filtersAllowed(definition, filters);
+            boolean schema = known && filtersAllowed(definition, filters, toolName);
             boolean feasible = known && permission && schema;
             String assetType = known ? definition.assetType() : null;
             long latencyEstimateMs = latencyEstimateMs(targetKind);
@@ -356,7 +361,7 @@ public class TargetKindRegistry {
                                                     double confidence,
                                                     Map<String, Object> filters) {
         boolean permission = definition.allowedTools().contains(toolName);
-        boolean schema = filtersAllowed(definition, filters);
+        boolean schema = filtersAllowed(definition, filters, toolName);
         boolean feasible = permission && schema;
         long latencyEstimateMs = latencyEstimateMs(definition.targetKind());
         double historicalSuccessRate = historicalSuccessRate(definition.targetKind());
@@ -387,11 +392,11 @@ public class TargetKindRegistry {
         return null;
     }
 
-    private boolean filtersAllowed(TargetKindDefinition definition, Map<String, Object> filters) {
+    private boolean filtersAllowed(TargetKindDefinition definition, Map<String, Object> filters, String toolName) {
         if (filters == null || filters.isEmpty()) {
             return true;
         }
-        Set<String> allowed = definition.allowedFilterFields();
+        Set<String> allowed = allowedFilterFields(definition, toolName);
         for (String key : filters.keySet()) {
             if (isProtocolField(key)) {
                 continue;
@@ -446,16 +451,27 @@ public class TargetKindRegistry {
             + latencyScore * 0.05) * 10000.0) / 10000.0;
     }
 
-    private void validateFilters(TargetKindDefinition definition, Map<String, Object> filters) {
+    private void validateFilters(TargetKindDefinition definition, Map<String, Object> filters, String toolName) {
         if (filters == null || filters.isEmpty()) {
             return;
         }
-        Set<String> allowed = definition.allowedFilterFields();
+        Set<String> allowed = allowedFilterFields(definition, toolName);
         for (String key : filters.keySet()) {
             if (isProtocolField(key)) {
                 continue;
             }
             String normalizedKey = normalizeFieldName(key);
+            // A completed asset stage may bind a set of identities into template discovery.
+            // Asset discovery itself has no set-binding contract and must keep rejecting it.
+            if ("assetids".equals(normalizedKey) && allowed.contains(normalizedKey)) {
+                Object ids = filters.get(key);
+                if (!"assetIds".equals(key) || !(ids instanceof java.util.Collection<?> collection)
+                    || collection.stream().anyMatch(id -> !(id instanceof String value) || value.isBlank())) {
+                    throw error("FILTER_VALUE_INVALID", "assetIds must be an array of nonblank asset IDs",
+                        key, List.of("filters.assetIds"), List.of("array of strings"), definition);
+                }
+                continue;
+            }
             if (!allowed.contains(normalizedKey)) {
                 throw error(
                     "FILTER_FIELD_NOT_ALLOWED",
@@ -467,6 +483,15 @@ public class TargetKindRegistry {
                 );
             }
         }
+    }
+
+    private Set<String> allowedFilterFields(TargetKindDefinition definition, String toolName) {
+        if (!"template_query".equals(toolName)
+            || !Set.of("ssh_host", "sql_datasource", "http_endpoint").contains(definition.assetType()))
+            return definition.allowedFilterFields();
+        Set<String> fields = new java.util.LinkedHashSet<>(definition.allowedFilterFields());
+        fields.add("assetids");
+        return Set.copyOf(fields);
     }
 
     private static Map<String, TargetKindDefinition> definitionsByKind() {

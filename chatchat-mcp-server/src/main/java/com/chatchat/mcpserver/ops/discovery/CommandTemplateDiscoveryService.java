@@ -2696,6 +2696,7 @@ public class CommandTemplateDiscoveryService {
         String env = text(firstValue(filters, "env", "environment"));
         List<String> tokens = contextTokens(filters);
         return hostConfigService.listEnabled().stream()
+            .filter(host -> matchesAssetIdScope(filters, host.getId()))
             .filter(host -> assetName == null || assetNameMatches(host, assetName))
             .filter(host -> env == null || equalsNormalized(env, host.getEnvironment()))
             .filter(host -> tokens.isEmpty() || hostLabels(host).containsAll(tokens))
@@ -2713,6 +2714,7 @@ public class CommandTemplateDiscoveryService {
         String env = text(firstValue(filters, "env", "environment"));
         List<String> tokens = contextTokens(filters);
         return datasourceConfigService.listEnabled().stream()
+            .filter(datasource -> matchesAssetIdScope(filters, datasource.getId()))
             .filter(datasource -> assetName == null || datasourceNameMatches(datasource, assetName))
             .filter(datasource -> env == null || equalsNormalized(env, datasource.getEnvironment()))
             .filter(datasource -> matchesRequestedDatabaseType(datasource, filters))
@@ -2730,7 +2732,8 @@ public class CommandTemplateDiscoveryService {
         String assetName = text(firstValue(filters, "assetName", "asset_name", "name", "template", "templateId", "template_id"));
         String env = text(firstValue(filters, "env", "environment"));
         List<String> tokens = contextTokens(filters);
-        return (assetName == null || endpointNameMatches(endpoint, assetName))
+        return matchesAssetIdScope(filters, endpoint.getId())
+            && (assetName == null || endpointNameMatches(endpoint, assetName))
             && (env == null || equalsNormalized(env, endpoint.getEnvironment()))
             && (tokens.isEmpty() || endpointLabels(endpoint).containsAll(tokens));
     }
@@ -2845,9 +2848,16 @@ public class CommandTemplateDiscoveryService {
     }
 
     private boolean hasAssetScope(Map<String, Object> filters) {
-        return firstValue(filters, "assetName", "asset_name", "name", "env", "environment", "cluster", "service", "target",
+        return firstValue(filters, "assetIds", "assetId", "asset_id", "assetName", "asset_name", "name", "env", "environment", "cluster", "service", "target",
             "database", "databaseType", "dbType", "dialect", "databaseRole", "database_role",
             "technicalType", "technical_type", "template", "templateId", "template_id", "labels") != null;
+    }
+
+    private boolean matchesAssetIdScope(Map<String, Object> filters, String id) {
+        Object scope = firstValue(filters, "assetIds", "assetId", "asset_id");
+        if (scope == null) return true;
+        if (scope instanceof java.util.Collection<?> ids) return ids.stream().anyMatch(value -> java.util.Objects.equals(id, text(value)));
+        return java.util.Objects.equals(id, text(scope));
     }
 
     private List<String> contextTokens(Map<String, Object> filters) {
@@ -3547,7 +3557,8 @@ public class CommandTemplateDiscoveryService {
      * never derived from business keywords, and an ambiguous longest match is left unresolved.
      */
     private void inferAssetScopeFromRegisteredMetadata(Map<String, Object> filters, String assetType) {
-        if (filters == null || text(firstValue(filters, "assetName", "asset_name", "name")) != null) {
+        if (filters == null || firstValue(filters, "assetIds", "assetId", "asset_id") != null
+            || text(firstValue(filters, "assetName", "asset_name", "name")) != null) {
             return;
         }
         List<LogicalAssetIdentity> assets = switch (assetType == null ? "" : assetType) {

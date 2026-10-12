@@ -55,6 +55,26 @@ class AnalysisRefinementCoordinatorTest {
     }
 
     @Test
+    void continuationUsesExecutedScopeAndQueryInsteadOfPreBindingPlanInput() {
+        var coordinator = new AnalysisRefinementCoordinator(mock(AgentToolNameResolver.class), 3);
+        var resolved = Map.<String, Object>of("query", "normalized keywords", "stage", "template",
+            "filters", Map.of("assetName", "authorized-asset", "env", "SCOPE_A"), "limit", 20);
+        var discovery = new InterpretationPlanRuntime.StepExecution(2, "mcp_tool", "published_bridge", true,
+            Map.of(), null, null, null, 1L, Map.of("resolvedInput", resolved));
+        var result = new InterpretationPlanRuntime.ExecutionResult("DAG_REWRITE_REQUESTED", false, false,
+            "next page", null, List.of(discovery), Map.of("failedStepId", 2,
+                "templateDiscoveryContinuationRequired", true,
+                "templateDiscoveryRetryInputChanges", Map.of("cursor", "opaque-next")), 1L);
+        var original = plan(List.of(new InterpretationPlan.Step(2, "mcp_tool", "published_bridge",
+            Map.of("query", "before normalization"), List.of(1), null, null)));
+        var rewritten = plan(List.of(new InterpretationPlan.Step(2, "mcp_tool", "published_bridge",
+            Map.of("query", "model changed query", "filters", Map.of("env", "SCOPE_B")), List.of(1), null, null)));
+        var enforced = coordinator.enforceTemplateDiscoveryContinuation(original, rewritten, result);
+        assertThat(enforced.steps().get(0).input()).containsAllEntriesOf(resolved).containsEntry("cursor", "opaque-next");
+        assertThat(coordinator.templateDiscoveryContinuationSatisfied(enforced, result)).isTrue();
+    }
+
+    @Test
     void executionFailuresAndGenericGapTextDoNotAuthorizeGraphRewriting() {
         var coordinator = new AnalysisRefinementCoordinator(mock(AgentToolNameResolver.class), 3);
         for (String status : List.of("STEP_FAILED", "NODE_ATTEMPT_PERSISTENCE_FAILED",

@@ -528,7 +528,7 @@ public class TemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
             "forcedTargetKind", targetKind,
             "forcedAssetType", assetType,
             "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION,
-            "allowedFilterFields", List.copyOf(targetKindRegistry.allowedFilterFieldsForTargetKind(targetKind))
+            "allowedFilterFields", List.copyOf(targetKindRegistry.allowedTemplateFilterFieldsForTargetKind(targetKind))
         ));
         if ("database_query".equals(assetType)) {
             protocol.put("categoryFirst", false);

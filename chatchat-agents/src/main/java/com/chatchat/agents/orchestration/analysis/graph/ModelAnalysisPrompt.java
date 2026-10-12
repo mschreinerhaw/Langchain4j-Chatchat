@@ -34,8 +34,8 @@ final class ModelAnalysisPrompt {
             For delivery use COMPLETE (or PARTIAL_COMPLETE for limited scope), output_type:"final"
             and content containing your answer. A final response delivers to the current user;
             external actions require an independently authorized tool. No separate publication action.
-            Optional publication.reportSha256 and publication.evidenceSnapshotRef must match the
-            authored content (or L1.reportSha256 when retained) and L1.evidenceSnapshotRef.
+            Runtime generates the report fingerprint and evidence-version binding from accepted
+            content and scoped evidence. Do not compute hashes or submit a publication object.
             Omitted/empty content retains the last accepted authored content. Budget exhaustion retains
             its declaration, never inventing completion or final output. Keep this schema every turn.
             """ : """

@@ -142,6 +142,18 @@ public final class AnalysisRefinementCoordinator {
             .filter(step -> Objects.equals(step.id(), stepId))
             .findFirst().orElse(null);
         if (originalStep == null || originalStep.input() == null) return rewritten;
+        // Paging belongs to the exact executed query, which may have received authorized
+        // identity binding and retrieval normalization after the original plan was saved.
+        Map<String, Object> executedInput = originalStep.input();
+        if (result.steps() != null) {
+            for (var execution : result.steps()) {
+                if (execution != null && execution.success() && Objects.equals(execution.stepId(), stepId)
+                    && Objects.equals(execution.toolName(), originalStep.toolName()) && execution.metadata() != null
+                    && execution.metadata().get("resolvedInput") instanceof Map<?, ?> resolved) {
+                    executedInput = asStringMap(resolved);
+                }
+            }
+        }
 
         boolean changed = false;
         List<InterpretationPlan.Step> steps = new ArrayList<>();
@@ -150,7 +162,7 @@ public final class AnalysisRefinementCoordinator {
                 steps.add(step);
                 continue;
             }
-            Map<String, Object> input = new LinkedHashMap<>(originalStep.input());
+            Map<String, Object> input = new LinkedHashMap<>(executedInput);
             input.putAll(inputChanges);
             steps.add(new InterpretationPlan.Step(
                 step.id(), step.actionType(), originalStep.toolName(), input,

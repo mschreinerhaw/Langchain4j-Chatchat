@@ -57,6 +57,89 @@ import static org.mockito.Mockito.when;
 
 class InterpretationPlanRuntimeTest {
 
+    @Test
+    void validatedAssetSelectionIsHandedOffWithoutOptionalNextActions() throws Exception {
+        var registry = mock(ToolRegistry.class);
+        when(registry.getAllToolNames()).thenReturn(Set.of("published_bridge"));
+        when(registry.getWorkflowRole("published_bridge")).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        var runtime = new InterpretationPlanRuntime(mock(ToolRuntimeService.class), new InterpretationPlanValidator(),
+            new InterpretationPlanOptimizer(registry), (InterpretationPlanRuntime.DagExecutionController) null);
+        var source = new InterpretationPlanRuntime.StepExecution(1, "mcp_tool", "published_bridge", true,
+            Map.of("stage", "asset", "assets", List.of(
+                Map.of("asset", Map.of("id", "asset-A", "name", "name-A", "environment", "SCOPE")),
+                Map.of("asset", Map.of("id", "asset-B", "name", "name-B", "environment", "SCOPE")))),
+            null, null, null, 1L, Map.of("runtimeSelectedAssetIds", List.of("asset-A", "asset-B")));
+        var method = InterpretationPlanRuntime.class.getDeclaredMethod("applyReviewedAssetSelectionToTemplateDiscovery",
+            InterpretationPlan.Step.class, Map.class, Map.class);
+        method.setAccessible(true);
+        var step = new InterpretationPlan.Step(2, "mcp_tool", "published_bridge", Map.of(), List.of(1), null, null);
+        Map<String, Object> input = new LinkedHashMap<>(Map.of("filters", Map.of("env", "SCOPE", "assetName", "stale")));
+        method.invoke(runtime, step, Map.of(1, source), input);
+        assertThat(((Map<?, ?>) input.get("filters")).containsKey("assetName")).isFalse();
+        assertThat(((Map<?, ?>) input.get("filters")).get("assetIds")).isEqualTo(List.of("asset-A", "asset-B"));
+        var emptySelection = new InterpretationPlanRuntime.StepExecution(1, "mcp_tool", "published_bridge", true,
+            Map.of("stage", "asset", "assets", List.of()), null, null, null, 1L,
+            Map.of("runtimeAssetSelectionApplied", true, "runtimeSelectedAssetIds", List.of()));
+        assertThatThrownBy(() -> method.invoke(runtime, step, Map.of(1, emptySelection), new LinkedHashMap<>()))
+            .hasRootCauseMessage("ASSET_SELECTION_EMPTY: template binding cannot rediscover or widen an empty authorized asset selection");
+        var binding = InterpretationPlanRuntime.class.getDeclaredMethod("bindReviewedTemplatesToSelectedAssets",
+            List.class, List.class, InterpretationPlanRuntime.StepExecution.class);
+        binding.setAccessible(true);
+        var contexts = List.of(Map.<String, Object>of("assetId", "asset-A"), Map.<String, Object>of("assetId", "asset-B"));
+        var discovery = new InterpretationPlanRuntime.StepExecution(2, "mcp_tool", "published_bridge", true,
+            Map.of("queryIr", Map.of("asset", Map.of("candidates", List.of(Map.of("id", "asset-A"), Map.of("id", "asset-B"))))),
+            null, null, null, 1L);
+        assertThat((List<?>) binding.invoke(runtime, List.of(Map.of("templateId", "T")), contexts, discovery)).hasSize(2);
+        assertThatThrownBy(() -> binding.invoke(runtime, List.of(Map.of("templateId", "T")),
+            List.of(Map.of("assetId", "outside"), Map.of("assetId", "asset-A")), discovery))
+            .hasRootCauseMessage("ASSET_TEMPLATE_SCOPE_MISMATCH: selected asset is absent from the authorized template result");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void oneAuthorizedTemplateBindsToBothSelectedAssetsWithoutBorrowingSiblingScope() throws Exception {
+        String bridge = "published_bridge", executor = "controlled_executor";
+        var registry = mock(ToolRegistry.class);
+        when(registry.getAllToolNames()).thenReturn(Set.of(bridge, executor));
+        when(registry.getWorkflowRole(bridge)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(executor)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        when(registry.getToolMetadata(executor)).thenReturn(batchCapableTemplateMetadata(executor));
+        var runtime = new InterpretationPlanRuntime(mock(ToolRuntimeService.class), new InterpretationPlanValidator(),
+            new InterpretationPlanOptimizer(registry), (InterpretationPlanRuntime.DagExecutionController) null);
+        var assets = new InterpretationPlan.Step(1, "mcp_tool", bridge, Map.of("stage", "asset"), List.of(), null, null);
+        var templates = new InterpretationPlan.Step(2, "mcp_tool", bridge, Map.of("stage", "template"), List.of(1), null, null);
+        var execute = new InterpretationPlan.Step(3, "mcp_tool", executor, Map.of(), List.of(2), null, null);
+        var sibling = new InterpretationPlan.Step(4, "mcp_tool", bridge, Map.of("stage", "asset"), List.of(), null, null);
+        var plan = new InterpretationPlan("1.0", new InterpretationPlan.Intent("analysis", "read selected scope", "low"),
+            context(), new InterpretationPlan.Plan(List.of(assets, templates, execute, sibling)),
+            new InterpretationPlan.ExecutionPolicy(4, false, List.of(bridge, executor), List.of(), 30000), review());
+        var selected = List.of(Map.of("asset", Map.of("id", "A", "name", "name-A", "environment", "SCOPE")),
+            Map.of("asset", Map.of("id", "B", "name", "name-B", "environment", "SCOPE")));
+        var completed = new LinkedHashMap<Integer, InterpretationPlanRuntime.StepExecution>();
+        completed.put(1, new InterpretationPlanRuntime.StepExecution(1, "mcp_tool", bridge, true,
+            Map.of("stage", "asset", "assets", selected), null, null, null, 1L,
+            Map.of("runtimeSelectedAssetIds", List.of("A", "B"))));
+        completed.put(2, new InterpretationPlanRuntime.StepExecution(2, "mcp_tool", bridge, true,
+            Map.of("stage", "template", "templates", List.of(Map.of("templateId", "T", "executionBinding", Map.of("toolName", executor, "templateId", "T"))),
+                "queryIr", Map.of("asset", Map.of("scoped", true, "candidates", List.of(Map.of("id", "A"), Map.of("id", "B"))))),
+            null, null, null, 1L, Map.of("semanticCandidateReviewSatisfied", true)));
+        completed.put(4, new InterpretationPlanRuntime.StepExecution(4, "mcp_tool", bridge, true,
+            Map.of("stage", "asset", "assets", List.of(Map.of("asset", Map.of("id", "outside", "name", "outside")))),
+            null, null, null, 1L, Map.of("runtimeSelectedAssetIds", List.of("outside"))));
+        var method = InterpretationPlanRuntime.class.getDeclaredMethod("reviewedTemplateBatchInvocation",
+            InterpretationPlan.Step.class, InterpretationPlan.class, Map.class, Map.class, List.class, ToolRegistry.class);
+        method.setAccessible(true);
+        var invocation = method.invoke(runtime, execute, plan, completed, Map.of(), List.of(executor), registry);
+        assertThat(invocation).isNotNull();
+        var accessor = invocation.getClass().getDeclaredMethod("arguments");
+        accessor.setAccessible(true);
+        var calls = (List<Map<String, Object>>) ((Map<?, ?>) accessor.invoke(invocation)).get("calls");
+        assertThat(calls).hasSize(2);
+        assertThat(calls).extracting(call -> String.valueOf(((Map<?, ?>) ((Map<?, ?>) call.get("arguments")).get("executionContext")).get("assetId")))
+            .containsExactly("A", "B");
+        assertThat(calls).allSatisfy(call -> assertThat(((Map<?, ?>) call.get("arguments")).get("templateId")).isEqualTo("T"));
+    }
+
     private static ToolMetadata batchCapableTemplateMetadata(String toolName) {
         return ToolMetadata.builder().id(toolName).riskLevel("low")
             .metadata(Map.of("batchCapable", true, "templateExecution", true)).build();
@@ -143,6 +226,32 @@ class InterpretationPlanRuntimeTest {
         assertThat(method.invoke(runtime, hostExecution, plan, completed)).isEqualTo(false);
         assertThatThrownBy(() -> branchGuard.invoke(runtime, hostExecution, plan, completed))
             .hasRootCauseMessage("TEMPLATE_DISCOVERY_BRANCH_UNAVAILABLE: discovery step 3 failed for execution step 4");
+    }
+
+    @Test
+    void cursorBoundTemplatePagesDoNotRewriteSearchTermsAgain() throws Exception {
+        var registry = mock(ToolRegistry.class);
+        when(registry.getAllToolNames()).thenReturn(Set.of("published_bridge", "ordinary_read"));
+        when(registry.getWorkflowRole("published_bridge")).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole("ordinary_read")).thenReturn(ToolWorkflowRole.DIRECT);
+        var calls = new AtomicInteger();
+        var runtime = new InterpretationPlanRuntime(mock(ToolRuntimeService.class), new InterpretationPlanValidator(),
+            new InterpretationPlanOptimizer(registry), null, null, null, request -> {
+                calls.incrementAndGet();
+                return new LinkedHashMap<>(Map.of("query", "changed keywords"));
+            });
+        var method = InterpretationPlanRuntime.class.getDeclaredMethod("applyStepInputEnricher",
+            InterpretationPlan.Step.class, InterpretationPlanRuntime.ExecutionRequest.class, Map.class, Map.class);
+        method.setAccessible(true);
+        var input = new LinkedHashMap<String, Object>(Map.of("query", "executed keywords", "cursor", "opaque-next",
+            "filters", Map.of("assetName", "authorized-asset")));
+        var step = new InterpretationPlan.Step(2, "mcp_tool", "published_bridge", input, List.of(1), null, null);
+        assertThat(method.invoke(runtime, step, null, Map.of(), input)).isEqualTo(Map.of());
+        assertThat(calls.get()).isZero();
+        assertThat(input).containsEntry("query", "executed keywords").containsEntry("cursor", "opaque-next");
+        var ordinary = new InterpretationPlan.Step(3, "mcp_tool", "ordinary_read", input, List.of(), null, null);
+        method.invoke(runtime, ordinary, null, Map.of(), input);
+        assertThat(calls.get()).isEqualTo(1);
     }
 
     @Test

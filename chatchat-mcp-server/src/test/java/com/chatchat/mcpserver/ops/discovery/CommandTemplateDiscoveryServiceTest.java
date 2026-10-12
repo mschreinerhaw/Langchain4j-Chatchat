@@ -35,6 +35,25 @@ import static org.mockito.Mockito.when;
 class CommandTemplateDiscoveryServiceTest {
 
     @Test
+    void selectedAssetIdsNarrowTemplateScopeAndDoNotFallBackToOtherAssets() {
+        var hosts = mock(SshHostConfigService.class);
+        when(hosts.listEnabled()).thenReturn(List.of(host("A", "name-A", "SCOPE", "[]"),
+            host("B", "name-B", "SCOPE", "[]"), host("C", "name-C", "SCOPE", "[]")));
+        var service = service(mock(CommandTemplateService.class), hosts);
+        for (var filters : List.of(Map.of("assetIds", List.of("A", "B"), "env", "SCOPE"),
+            Map.of("assetIds", List.of("missing"), "env", "SCOPE"),
+            Map.of("assetIds", List.of("A"), "env", "OTHER"),
+            Map.of("assetIds", List.of(), "env", "SCOPE"))) {
+            var result = service.query(Map.of("targetKind", "host", "confidence", 1.0, "trace", trace(), "filters", filters));
+            var candidates = (List<?>) ((Map<?, ?>) ((Map<?, ?>) result.get("queryIr")).get("asset")).get("candidates");
+            assertThat(candidates).hasSize(filters.get("assetIds").equals(List.of("A", "B")) ? 2 : 0);
+            assertThat(candidates.toString()).doesNotContain("name-C");
+        }
+        assertThatThrownBy(() -> service.query(Map.of("targetKind", "host", "confidence", 1.0, "trace", trace(),
+            "filters", Map.of("assetIds", "A")))).hasMessageContaining("assetIds must be an array");
+    }
+
+    @Test
     void genericDiscoveryUsesCallerRbacAndIgnoresArgumentAuthorizationClaims() {
         var sql = mock(SqlTemplateService.class);
         when(sql.listEnabled()).thenReturn(List.of(sqlTemplate("METRICS_ALLOWED", "SELECT 1"),

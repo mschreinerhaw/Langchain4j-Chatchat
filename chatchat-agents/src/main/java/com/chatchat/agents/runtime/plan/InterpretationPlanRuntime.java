@@ -4373,6 +4373,13 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         if (stepInputEnricher == null || step == null || input == null) {
             return Map.of();
         }
+        if (TOOL_PAYLOAD_NAVIGATOR.discoveryRole(input, workflowRole(step.toolName(), request))
+            == ToolWorkflowRole.TEMPLATE_DISCOVERY && input.get("cursor") instanceof String cursor
+            && !cursor.isBlank()) {
+            // A publisher cursor binds an already executed query. Rewriting its search
+            // terms here invalidates that binding and cannot improve this page request.
+            return Map.of();
+        }
         Map<String, Object> enriched = stepInputEnricher.enrich(new StepInputEnrichmentRequest(
             step,
             Map.copyOf(input),
@@ -4505,6 +4512,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         }
         StepExecution selection = reviewedTemplateSelectionExecution(step, plan, completed);
         return reviewedSelectedTemplateIds(selection).size() >= 2
+            || (!reviewedSelectedTemplateIds(selection).isEmpty()
+                && runtimeSelectedAssetContexts(workflowAncestorExecutions(step, plan, completed)).size() > 1)
             || reviewedInvocationCount(selection == null ? null : selection.output(), 0) >= 2;
     }
 
@@ -5653,7 +5662,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         StepExecution reviewedSelection = reviewedTemplateSelectionExecution(step, plan, completed);
         List<String> selectedIds = reviewedSelectedTemplateIds(reviewedSelection);
         List<Map<String, Object>> selectedTemplates = selectedIds.stream()
-            .map(templateId -> completedTemplateMetadata(completed, templateId))
+            .map(templateId -> completedTemplateMetadata(Map.of(reviewedSelection.stepId(), reviewedSelection), templateId))
             .toList();
         List<Map<String, Object>> reviewedBindings = reviewedTemplateInvocations(
             reviewedSelection == null ? null : reviewedSelection.output());
@@ -5667,6 +5676,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             ? reviewedBindings
             : selectedIds.stream().map(templateId -> Map.<String, Object>of(
                 "templateId", templateId)).toList();
+        compilationBindings = bindReviewedTemplatesToSelectedAssets(compilationBindings,
+            runtimeSelectedAssetContexts(workflowAncestorExecutions(step, plan, completed)), reviewedSelection);
         List<InterpretationPlan.DiagnosticCheck> checks = requiredChecksForStep(step, plan);
         Map<Integer, Integer> assignments = checks.isEmpty()
             ? Map.of()
@@ -5687,7 +5698,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         // the same canonical asset hydration as the ordinary diagnostic path. Without this,
         // templates that publish an executor but omit a per-template executionContext lose
         // the asset selected by discovery (for example the innodb_status child call).
-        hydrateDiagnosticBatchAssetContext(completed, batchInput);
+        hydrateDiagnosticBatchAssetContext(workflowAncestorExecutions(step, plan, completed), batchInput);
         List<Map<String, Object>> calls = new ArrayList<>();
         Set<String> compiledInvocationFingerprints = new LinkedHashSet<>();
         String outerTool = null;
@@ -5704,6 +5715,17 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             String declaredExecutor = firstText(templateExecutorTool(template), step.toolName());
             String childTool = resolveExecutionToolName(declaredExecutor, allowedTools);
             Map<String, Object> arguments = diagnosticBatchArguments(batchInput, template, templateId);
+            Object selectedAssetContext = reviewedBinding.get("runtimeSelectedAssetContext");
+            if (selectedAssetContext instanceof Map<?, ?> boundContext) {
+                Map<String, Object> context = new LinkedHashMap<>(asStringMap(arguments.get("executionContext")));
+                String templateAsset = stringValue(firstValueAtAnyPath(template,
+                    "$.executionBinding.executionContext.assetId", "$.sqlExecutionBinding.executionContext.assetId",
+                    "$.execution.executionContext.assetId", "$.executionContext.assetId"));
+                if (templateAsset != null && !Objects.equals(templateAsset, boundContext.get("assetId"))) continue;
+                for (String key : List.of("assetId", "assetName", "assetDisplayName", "assetToolName", "env", "databaseRole")) context.remove(key);
+                context.putAll(asStringMap(boundContext));
+                arguments.put("executionContext", context);
+            }
             Object reviewedArguments = firstMapValue(reviewedBinding,
                 "arguments", "input", "inputChanges", "input_changes");
             if (reviewedArguments instanceof Map<?, ?> rawReviewedArguments) {
@@ -6032,7 +6054,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 .filter(Objects::nonNull)
                 .distinct()
                 .limit(2)
-                .count() < 2) {
+                .count() == 0) {
                 continue;
             }
             latest = execution;
@@ -6099,7 +6121,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                     .filter(Objects::nonNull)
                     .distinct()
                     .limit(2)
-                    .count() >= 2) {
+                    .count() >= 1) {
                 latest = execution;
                 if (isBoundTemplateScope(execution.output())) {
                     fixedBinding = execution;
@@ -7410,6 +7432,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         if (completed == null || completed.isEmpty()) {
             return Map.of();
         }
+        if (runtimeSelectedAssetContexts(completed).size() > 1) return Map.of();
         Map<String, Object> reviewed = reviewSelectedAssetExecutionContext(completed);
         if (!reviewed.isEmpty()) {
             return reviewed;
@@ -7429,9 +7452,52 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         return Map.of();
     }
 
+    private Map<Integer, StepExecution> workflowAncestorExecutions(InterpretationPlan.Step step,
+                                                                  InterpretationPlan plan,
+                                                                  Map<Integer, StepExecution> completed) {
+        if (plan == null || completed == null) return Map.of();
+        Map<Integer, InterpretationPlan.Step> steps = new LinkedHashMap<>();
+        plan.steps().forEach(candidate -> steps.put(candidate.id(), candidate));
+        LinkedHashSet<Integer> ids = new LinkedHashSet<>();
+        collectAncestorStepIds(step, steps, ids);
+        Map<Integer, StepExecution> scoped = new LinkedHashMap<>();
+        ids.forEach(id -> { if (completed.containsKey(id)) scoped.put(id, completed.get(id)); });
+        return scoped;
+    }
+
+    private List<Map<String, Object>> bindReviewedTemplatesToSelectedAssets(
+        List<Map<String, Object>> bindings, List<Map<String, Object>> assets, StepExecution discovery) {
+        if (assets.size() < 2) return bindings;
+        Object rawCandidates = firstValueAtAnyPath(discovery == null ? null : discovery.output(),
+            "$.queryIr.asset.candidates");
+        Set<String> admitted = new LinkedHashSet<>();
+        if (rawCandidates instanceof Iterable<?> candidates) {
+            for (Object candidate : candidates) {
+                String id = stringValue(firstValueAtAnyPath(candidate, "$.id", "$.assetId"));
+                if (id != null) admitted.add(id);
+            }
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> asset : assets) {
+            if (!admitted.contains(String.valueOf(asset.get("assetId")))) throw new IllegalStateException(
+                "ASSET_TEMPLATE_SCOPE_MISMATCH: selected asset is absent from the authorized template result");
+            for (Map<String, Object> binding : bindings) {
+                Map<String, Object> bound = new LinkedHashMap<>(binding);
+                bound.put("runtimeSelectedAssetContext", asset);
+                bound.put("bindingId", String.valueOf(asset.get("assetId")) + ":" + binding.get("templateId"));
+                result.add(bound);
+            }
+        }
+        if (result.size() > ToolCallBatchSchema.DEFAULT_MAX_CALLS) throw new IllegalStateException(
+            "ASSET_TEMPLATE_BATCH_LIMIT: authorized bindings exceed the published batch limit");
+        return List.copyOf(result);
+    }
+
     private Map<String, Object> reviewSelectedAssetExecutionContext(
         Map<Integer, StepExecution> completed
     ) {
+        List<Map<String, Object>> contexts = runtimeSelectedAssetContexts(completed);
+        if (!contexts.isEmpty()) return contexts.size() == 1 ? contexts.get(0) : Map.of();
         if (completed == null || completed.isEmpty()) {
             return Map.of();
         }
@@ -7467,6 +7533,25 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         return Map.of();
     }
 
+    /** Consume the validated selection, never a model-supplied identity without returned evidence. */
+    private List<Map<String, Object>> runtimeSelectedAssetContexts(Map<Integer, StepExecution> completed) {
+        if (completed == null) return List.of();
+        Map<String, Map<String, Object>> contexts = new LinkedHashMap<>();
+        for (StepExecution execution : completed.values()) {
+            if (execution == null || !execution.success() || !isAssetDiscoveryExecution(execution)
+                || execution.metadata() == null) continue;
+            Object ids = execution.metadata().get("runtimeSelectedAssetIds");
+            if (!(ids instanceof Iterable<?> selected)) continue;
+            for (Object id : selected) {
+                Map<String, Object> verified = assetExecutionContextForId(execution.output(), stringValue(id));
+                if (verified.isEmpty()) throw new IllegalStateException(
+                    "ASSET_SELECTION_EVIDENCE_MISSING: selected asset is absent from the authorized discovery result");
+                contexts.put(String.valueOf(id), verified);
+            }
+        }
+        return List.copyOf(contexts.values());
+    }
+
     private Map<String, Object> assetExecutionContextForId(Object output, String expectedAssetId) {
         Object assetsValue = firstValueAtAnyPath(routingCapableOutput(output), "$.assets");
         if (!(assetsValue instanceof Iterable<?> assets) || expectedAssetId == null) {
@@ -7475,7 +7560,9 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         for (Object item : assets) {
             String assetId = stringValue(firstValueAtAnyPath(item,
                 "$.asset.id", "$.asset.assetId", "$.assetId", "$.id"));
-            if (!expectedAssetId.equals(assetId)) {
+            String selectionIdentity = assetId == null ? stringValue(firstValueAtAnyPath(item,
+                "$.asset.name", "$.asset.assetName", "$.name", "$.assetName", "$.asset.toolName", "$.toolName")) : assetId;
+            if (!expectedAssetId.equals(selectionIdentity)) {
                 continue;
             }
             Map<String, Object> context = new LinkedHashMap<>();
@@ -7593,7 +7680,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             filters = input.get("filters");
         }
         promoteLooseDiscoveryFilters(input);
-        applyReviewedAssetSelectionToTemplateDiscovery(step, completed, input);
+        applyReviewedAssetSelectionToTemplateDiscovery(step,
+            workflowAncestorExecutions(step, request.plan(), completed), input);
         sanitizeDiscoveryFilters(step, request, input);
         sanitizeDiscoveryEnvironment(step, request, completed, input);
         filters = firstMapValue(input, "filters", "executionContext", "mcpExecutionContext");
@@ -7656,7 +7744,26 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     private void applyReviewedAssetSelectionToTemplateDiscovery(InterpretationPlan.Step step,
                                                                  Map<Integer, StepExecution> completed,
                                                                  Map<String, Object> input) {
-        if (step == null || input == null || !isTemplateDiscoveryTool(step.toolName())) {
+        if (step == null || input == null || !isTemplateDiscoveryTool(step.toolName())
+            || "asset".equalsIgnoreCase(stringValue(input.get("stage")))) {
+            return;
+        }
+        List<Map<String, Object>> selectedContexts = runtimeSelectedAssetContexts(completed);
+        if (selectedContexts.isEmpty() && completed != null && completed.values().stream().anyMatch(execution ->
+            execution != null && execution.success() && isAssetDiscoveryExecution(execution)
+                && execution.metadata() != null
+                && Boolean.TRUE.equals(execution.metadata().get("runtimeAssetSelectionApplied")))) {
+            throw new IllegalStateException("ASSET_SELECTION_EMPTY: template binding cannot rediscover or widen an empty authorized asset selection");
+        }
+        if (selectedContexts.size() > 1) {
+            if (selectedContexts.stream().anyMatch(context -> context.get("assetId") == null))
+                throw new IllegalStateException("ASSET_SELECTION_ID_REQUIRED: multi-asset binding requires canonical returned asset IDs");
+            Map<String, Object> filters = new LinkedHashMap<>(asStringMap(input.get("filters")));
+            for (String key : List.of("assetName", "asset_name", "name", "assetId", "asset_id")) filters.remove(key);
+            filters.put("assetIds", selectedContexts.stream().map(context -> context.get("assetId")).toList());
+            input.put("filters", filters);
+            log.info("InterpretationPlan handed off authorized asset selection: stepId={}, tool={}, assetIds={}",
+                step.id(), step.toolName(), filters.get("assetIds"));
             return;
         }
         Map<String, Object> selected = reviewSelectedAssetExecutionContext(completed);

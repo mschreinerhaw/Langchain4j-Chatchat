@@ -95,11 +95,15 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
             "description", "template by default" + (domain.assetDiscoverySupported()
                 ? "; use asset only to disambiguate a logical target" : "")));
         properties.put("filters", Map.of("type", "object", "additionalProperties", true,
+            "properties", domain.assetDiscoverySupported() ? Map.of("assetIds", Map.of("type", "array", "items", Map.of("type", "string"),
+                "description", "Exact asset ID set handed off by the completed system asset stage; template stage only, intersected with existing filters and authorization.")) : Map.of(),
             "description", "Logical domain filters; queryTerms/keywords are concise independent search units. "
                 + "Task context in goal/intent is not searched when explicit units are provided. "
                 + "Concrete endpoints and credentials are forbidden"));
         properties.put("templateIds", Map.of("type", "array", "items", Map.of("type", "string")));
         properties.put("limit", Map.of("type", "integer", "minimum", 1, "maximum", 20));
+        properties.put("cursor", Map.of("type", "string", "description",
+            "Opaque nextCursor from the immediately preceding template page of the identical query; preserve its filters and scope."));
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(domain.toolName())
             .title(domain.title())
@@ -298,6 +302,7 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
 
     private boolean hasExplicitAssetIdentity(Map<String, Object> filters) {
         if (filters == null) return false;
+        if (filters.get("assetIds") instanceof java.util.Collection<?> ids && !ids.isEmpty()) return true;
         return text(first(filters, "assetName", "asset_name", "assetId", "asset_id", "name")) != null;
     }
 

@@ -20,6 +20,20 @@ import static org.mockito.Mockito.when;
 class OpsCapabilityBridgePublisherTest {
 
     @Test
+    void explicitAssetSelectionContinuesTemplateStageWithoutRediscovery() {
+        var assets = mock(AssetDiscoveryService.class);
+        var templates = mock(CommandTemplateDiscoveryService.class);
+        when(templates.query(org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of("templates", java.util.List.of()));
+        var publisher = new OpsCapabilityBridgePublisher(mock(McpSyncServer.class), assets, templates);
+        var ids = java.util.List.of("asset-A", "asset-B");
+        assertThat(publisher.query(OpsCapabilityBridgePublisher.SERVER_QUERY_TOOL,
+            Map.of("stage", "template", "query", "inspect", "filters", Map.of("assetIds", ids, "env", "SCOPE"))))
+            .containsEntry("stage", "template");
+        verifyNoInteractions(assets);
+        verify(templates).query(argThat(query -> ids.equals(((Map<?, ?>) query.get("filters")).get("assetIds"))));
+    }
+
+    @Test
     void serverQueryCannotBeRedirectedToAnotherBusinessDomain() {
         CommandTemplateDiscoveryService discovery = mock(CommandTemplateDiscoveryService.class);
         when(discovery.query(argThat(query -> "host".equals(query.get("finalDecision"))
@@ -47,6 +61,25 @@ class OpsCapabilityBridgePublisherTest {
             .containsEntry("businessDomain", "java").containsEntry("executionTool", "jmx_monitor_execute");
         assertThat(publisher.query(OpsCapabilityBridgePublisher.DATABASE_QUERY_TOOL, Map.of()))
             .containsEntry("businessDomain", "database").containsEntry("executionTool", "sql_query_execute");
+    }
+
+    @Test
+    void allDomainBridgesPublishAndForwardTheirTemplateContinuationCursor() {
+        var discovery = mock(CommandTemplateDiscoveryService.class);
+        when(discovery.query(org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of("templates", java.util.List.of()));
+        var publisher = publisher(discovery);
+        for (var publication : publisher.contribute()) {
+            assertThat(((Map<?, ?>) publication.specification().tool().inputSchema().get("properties"))
+                .containsKey("cursor")).isTrue();
+            var properties = (Map<?, ?>) publication.specification().tool().inputSchema().get("properties");
+            var filters = (Map<?, ?>) properties.get("filters");
+            assertThat(((Map<?, ?>) filters.get("properties")).containsKey("assetIds"))
+                .isEqualTo(!OpsCapabilityBridgePublisher.JMX_QUERY_TOOL.equals(publication.specification().tool().name()));
+        }
+        publisher.query(OpsCapabilityBridgePublisher.SERVER_QUERY_TOOL, Map.of("stage", "template",
+            "cursor", "opaque-next", "filters", Map.of("assetName", "authorized-host", "env", "SCOPE_A")));
+        verify(discovery).query(argThat(input -> "opaque-next".equals(input.get("cursor"))
+            && "authorized-host".equals(((Map<?, ?>) input.get("filters")).get("assetName"))));
     }
 
     @Test

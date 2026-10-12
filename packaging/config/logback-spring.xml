@@ -8,6 +8,13 @@
     <property name="LOG_PATTERN"
               value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{40} - %msg%n"/>
 
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <charset>UTF-8</charset>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
     <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_DIR}/${APP_NAME}.log</file>
         <append>true</append>
@@ -24,10 +31,33 @@
         </rollingPolicy>
     </appender>
 
+    <appender name="RUNTIME_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/runtime.log</file>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <charset>UTF-8</charset>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archive/runtime.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>${LOG_MAX_FILE_SIZE}</maxFileSize>
+            <maxHistory>${LOG_MAX_HISTORY}</maxHistory>
+            <totalSizeCap>${LOG_TOTAL_SIZE_CAP}</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+    <logger name="com.chatchat.common.runtime.event.RuntimeEventLog" level="INFO">
+        <appender-ref ref="RUNTIME_FILE"/>
+    </logger>
+    <logger name="com.chatchat.agents.orchestration.model.MeteredChatModel" level="INFO">
+        <appender-ref ref="RUNTIME_FILE"/>
+    </logger>
+    <logger name="com.chatchat.chat.task.event.AgentRuntimeTaskEventPublisher" level="INFO">
+        <appender-ref ref="RUNTIME_FILE"/>
+    </logger>
     <logger name="com.chatchat" level="INFO"/>
     <logger name="org.springframework.security" level="WARN"/>
     <logger name="org.hibernate" level="WARN"/>
     <root level="INFO">
         <appender-ref ref="ROLLING_FILE"/>
+        <appender-ref ref="CONSOLE"/>
     </root>
 </configuration>

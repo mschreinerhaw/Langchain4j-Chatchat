@@ -58,6 +58,19 @@ class HarnessToolRecoveryTest {
     private Map<String,Object> request(String id, Map<String,Object> arguments) {
         return Map.of("requestId", id, "toolName", "read_tool", "arguments", arguments);
     }
+    @Test void uncertainInvocationPreservesSafeErrorAndNeverAutomaticallyRedispatches() {
+        var access = access(AnalysisEvidenceSpillStore.disabled(), new LinkedHashMap<>(), (name,args) -> {
+            executions.incrementAndGet(); throw new IllegalStateException("Transport failed password=private-value");
+        });
+        var intent = request("uncertain", Map.of());
+        var first = access.call(intent, new LinkedHashMap<>(), "coordinate");
+        assertThat(first).containsEntry("status", "EXECUTION_OUTCOME_UNKNOWN")
+            .containsEntry("exceptionType", "IllegalStateException")
+            .containsEntry("errorMessage", "Transport failed password=[REDACTED]");
+        assertThat(access.call(intent, new LinkedHashMap<>(), "coordinate"))
+            .containsEntry("status", "EXECUTION_OUTCOME_UNKNOWN");
+        assertThat(executions).hasValue(1);
+    }
     @Test void committedResultSurvivesStoreReopenAndRechecksAuthorizationWithoutReexecution() {
         var store = store(); var request = request("intent-1", Map.of("sample", 1));
         var firstSources = new LinkedHashMap<String,AnalysisEvidenceCoordinator.Dataset>();

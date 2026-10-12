@@ -63,7 +63,7 @@ public class PreauthorizedStructuredDataOperator implements AnalysisCapabilityOp
         try {
             JsonNode payload = mapper.readTree(content);
             JsonNode data = payload.path("data");
-            if (!payload.path("success").asBoolean(false) || !data.path("complete").asBoolean(false)
+            if (!payload.path("success").asBoolean(false)
                 || !data.path("rowCount").canConvertToLong() || !data.path("rows").isArray())
                 return failed("SQL template returned no verifiable structured result");
             long rows = data.path("rowCount").asLong();
@@ -73,9 +73,17 @@ public class PreauthorizedStructuredDataOperator implements AnalysisCapabilityOp
             attributes.put("sourceTool", TOOL_NAME);
             attributes.put("tenantId", scope.tenantId());
             attributes.put("remoteProjection", Map.of("assetName", asset, "templateId", template, "rowCount", rows));
+            boolean complete = data.path("complete").asBoolean(false);
+            attributes.put("sourceComplete", complete);
+            attributes.put("truncated", !complete);
             var evidence = new StructuredDataEvidence(result.evidence().get(0).evidenceId(), asset, template,
                 rows, Instant.now().toString(), content, attributes);
-            return new WorkflowExecutionResult(List.of(evidence), Map.of(), List.of());
+            Map<String, Object> facts = new java.util.LinkedHashMap<>(result.outputs());
+            facts.put("complete", complete);
+            facts.put("truncated", !complete);
+            facts.put("status", rows == 0 ? "EMPTY" : complete ? "SUCCESS" : "PARTIAL");
+            return new WorkflowExecutionResult(List.of(evidence), facts,
+                complete ? result.observations() : List.of("Returned rows are partial; source declares complete=false"));
         } catch (Exception invalid) {
             return failed("SQL template result cannot be verified");
         }

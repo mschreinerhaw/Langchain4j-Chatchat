@@ -46,6 +46,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -142,6 +143,41 @@ class InterpretationPlanRuntimeTest {
         assertThat(method.invoke(runtime, hostExecution, plan, completed)).isEqualTo(false);
         assertThatThrownBy(() -> branchGuard.invoke(runtime, hostExecution, plan, completed))
             .hasRootCauseMessage("TEMPLATE_DISCOVERY_BRANCH_UNAVAILABLE: discovery step 3 failed for execution step 4");
+    }
+
+    @Test
+    void assetBindingFromStagedDiscoveryDoesNotBecomeAnEmptyTemplateBranch() throws Exception {
+        String discoveryTool = "staged_discovery";
+        String executorTool = "controlled_executor";
+        var registry = mock(ToolRegistry.class);
+        when(registry.getAllToolNames()).thenReturn(new java.util.LinkedHashSet<>(List.of(discoveryTool, executorTool)));
+        when(registry.getWorkflowRole(discoveryTool)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(executorTool)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        var runtime = new InterpretationPlanRuntime(mock(ToolRuntimeService.class), new InterpretationPlanValidator(),
+            new InterpretationPlanOptimizer(registry), (InterpretationPlanRuntime.DagExecutionController) null);
+        var completed = new LinkedHashMap<Integer, InterpretationPlanRuntime.StepExecution>();
+        completed.put(1, new InterpretationPlanRuntime.StepExecution(1, "mcp_tool", discoveryTool, true,
+            Map.of("stage", "asset", "assets", List.of(Map.of("id", "asset-A")), "templates", List.of()),
+            null, null, null, 1L, Map.of("semanticCandidateReviewSatisfied", true)));
+        completed.put(2, new InterpretationPlanRuntime.StepExecution(2, "mcp_tool", discoveryTool, true,
+            Map.of("stage", "template", "templates", List.of(Map.of("templateId", "authorized-template"))),
+            null, null, null, 1L, Map.of("semanticCandidateReviewSatisfied", true)));
+        var execution = new InterpretationPlan.Step(3, "mcp_tool", executorTool, Map.of(), List.of(2), null, null);
+        var plan = mock(InterpretationPlan.class);
+        var body = mock(InterpretationPlan.Plan.class);
+        when(plan.plan()).thenReturn(body);
+        when(body.bindings()).thenReturn(List.of(
+            new InterpretationPlan.Binding(1, "$.assets[0].id", 3, "$.assetId", "jsonpath", true),
+            new InterpretationPlan.Binding(2, "$.templates[0].templateId", 3, "$.templateId", "jsonpath", true)));
+        var guard = InterpretationPlanRuntime.class.getDeclaredMethod("assertReviewedTemplateBranchMayExecute",
+            InterpretationPlan.Step.class, InterpretationPlan.class, Map.class);
+        guard.setAccessible(true);
+        assertThatCode(() -> guard.invoke(runtime, execution, plan, completed)).doesNotThrowAnyException();
+        completed.put(2, new InterpretationPlanRuntime.StepExecution(2, "mcp_tool", discoveryTool, true,
+            Map.of("stage", "template", "templates", List.of()), null, null, null, 1L,
+            Map.of("semanticCandidateReviewSatisfied", true)));
+        assertThatThrownBy(() -> guard.invoke(runtime, execution, plan, completed))
+            .hasRootCauseMessage("TEMPLATE_SELECTION_EMPTY: reviewed discovery step 2 authorized no template for execution step 3");
     }
 
     @Test
@@ -2364,6 +2400,23 @@ class InterpretationPlanRuntimeTest {
         assertThat(review).isNotNull();
         assertThat(review.satisfied()).isTrue();
         assertThat(review.metadata()).containsEntry("templateDiscoveryReturnedCount", 1);
+    }
+
+    @Test
+    void assetSelectionStageIsNotRejectedAsEmptyTemplateDiscovery() {
+        String discovery = "mcp_chatchat_mcp_server_data_query_query";
+        var runtime = new InterpretationPlanRuntime(mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(), mock(InterpretationPlanRuntime.DagExecutionController.class));
+        var output = Map.of("data", Map.of("stage", "asset_selection", "assetSelectionRequired", true,
+            "assets", List.of(Map.of("asset", Map.of("id", "asset-A"))), "templates", List.of()));
+        var execution = new InterpretationPlanRuntime.StepExecution(1, "mcp_tool", discovery,
+            true, output, null, null, null, 10L);
+        var review = runtime.localToolResultReview(new InterpretationPlan.Step(1, "mcp_tool", discovery,
+            Map.of(), List.of(), null, null), execution);
+        assertThat(review).isNotNull();
+        assertThat(review.satisfied()).isTrue();
+        assertThat(review.metadata()).containsEntry("localFactCheckEvidenceType", "asset_discovery")
+            .containsEntry("assetDiscoveryReturnedCount", 1).doesNotContainKey("resultCode");
     }
 
     @Test

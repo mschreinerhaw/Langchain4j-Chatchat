@@ -13,6 +13,17 @@ import java.util.concurrent.CancellationException;
 
 /** Runtime-owned full-scan statistics and bounded views. Profiles are not semantic authorizations. */
 final class BoundedAnalysisEvidence {
+    static Map<String, String> capabilities() {
+        var operations = new LinkedHashMap<String, String>();
+        operations.put("READ_RECORDS", "{operation,datasetReference,fromRecord:1,limit:1..100,fields:[]}; one-based records; fields projects exact original row keys, not context wrapper keys; omit fields to read all keys. fieldAvailability identifies absent keys, not empty source data. readHints locate omitted original values; repeating an identical record preview does not expand it. Omitted rows include nextRecord");
+        operations.put("READ_TEXT", "{operation,datasetReference,record:1,field,fromChar:0,maxChars:1..3000}; original string field; follow nextChar while hasMore");
+        operations.put("READ_NESTED_RECORDS", "{operation,datasetReference,record:1,path:[key,index],fromItem:0,limit:1..100,fields:[]}; path depth 1..8, zero-based items; follow nextItem while hasMore. fields selects direct keys; fieldAvailability.absentInReturnedItems means absent original keys, not truncation. partial objects are previews; READ_VALUE reads omitted values");
+        operations.put("READ_VALUE", "{operation,datasetReference,record:1,path:[],fields:[],fromChar:0,maxChars:1..3000}; path depth 0..16 with keys/zero-based indices; object, scalar or string. Follow nextChar or narrower path/fields for omitted values");
+        operations.put("READ_CONTEXT", "{operation,datasetReference,path:[key],fromItem:0,limit:1..20}; path depth 1..8, string keys in source analysisContext; default limit 5; totalItems identifies list coverage; value may be bounded");
+        operations.put("CALCULATE", "{operation,datasetReference,expression,inputs:{variable:calculationFindingId}}; 1..16 unambiguous existing runtime calculation findings; safe numeric arithmetic only, no inferred business semantics");
+        operations.put("EXECUTE_OPERATION", "{operation,datasetReference,analysisOperation,specification:{}}; only operations/specifications supported by the source handle; unsupported pushdown is rejected");
+        return Collections.unmodifiableMap(operations);
+    }
     static final int INPUT_BUDGET = 48_000;
     static final int DIRECT_RECORD_BUDGET = 42_000;
     static final int REQUEST_RESULT_BUDGET = 4_000;
@@ -287,14 +298,16 @@ final class BoundedAnalysisEvidence {
                 if (end < text.length()) fragment.put("nextChar", end);
                 results.add(fragment); continue;
             }
-            if ("READ_NESTED_RECORDS".equals(request.get("operation"))) {
+            if (Set.of("READ_NESTED_RECORDS", "READ_VALUE").contains(String.valueOf(request.get("operation")))) {
                 int record = integer(request.get("record"));
                 if (record < 1 || record > dataset.recordCount())
                     throw new IllegalArgumentException("Invalid nested record locator");
                 Map<String, Object> parent = dataset.handle().readPage(record - 1L, 1).rows().get(0);
                 results.add(Map.of("datasetReference", ref,
                     "parentRecordRef", ref + ".records[" + request.get("record") + "]",
-                    "nestedPage", fit(NestedRecordReader.readRecord(parent, record, request), REQUEST_RESULT_BUDGET)));
+                    "nestedPage", "READ_VALUE".equals(request.get("operation"))
+                        ? NestedRecordReader.readValue(parent, record, request)
+                        : NestedRecordReader.readRecord(parent, record, request)));
                 continue;
             }
             if ("CALCULATE".equals(request.get("operation"))) {
@@ -398,9 +411,19 @@ final class BoundedAnalysisEvidence {
             List<Map<String, Object>> page = dataset.handle().readPage(index - 1L, 1).rows();
             if (page.isEmpty()) break;
             Map<String, Object> record = new LinkedHashMap<>(page.get(0));
+            var availableFields = new ArrayList<>(record.keySet());
             if (!fields.isEmpty()) record.keySet().retainAll(fields);
-            Map<String, Object> row = Map.of("recordRef", ref + ".records[" + index + "]",
-                "record", fit(record, Math.min(2_000, budget / 2)));
+            Object preview = fit(record, Math.min(2_000, budget / 2));
+            Map<String, Object> row = new LinkedHashMap<>(Map.of("recordRef", ref + ".records[" + index + "]",
+                "record", preview));
+            var hints = valueReadHints(ref, index, record, preview);
+            if (!hints.isEmpty()) row.put("readHints", hints);
+            if (!fields.isEmpty()) {
+                var absent = fields.stream().filter(field -> !availableFields.contains(field)).toList();
+                row.put("fieldAvailability", Map.of("availableFields", availableFields.stream().limit(32).toList(),
+                    "availableFieldsTruncated", availableFields.size() > 32,
+                    "absentInReturnedItems", absent.stream().limit(32).toList(), "absentFieldCount", absent.size()));
+            }
             int chars = ModelProtocolJson.compact(row).length() + 1;
             if (used + chars > budget) {
                 result.add(Map.of("remainingRecordsOmitted", true, "nextRecord", index)); break;
@@ -408,6 +431,29 @@ final class BoundedAnalysisEvidence {
             result.add(row); used += chars;
         }
         return result;
+    }
+
+    /** Exact locators for bounded projections, without selecting fields for their business meaning. */
+    private List<Map<String, Object>> valueReadHints(String ref, int record, Map<String, Object> original, Object preview) {
+        if (!(preview instanceof Map<?, ?> projected)) return List.of();
+        var hints = new ArrayList<Map<String, Object>>();
+        for (var entry : original.entrySet()) {
+            Object value = entry.getValue();
+            if (Objects.equals(value, projected.get(entry.getKey()))) continue;
+            var request = new LinkedHashMap<String, Object>();
+            request.put("datasetReference", ref); request.put("record", record);
+            if (value instanceof String text) {
+                request.put("operation", "READ_TEXT"); request.put("field", entry.getKey());
+                request.put("fromChar", 0); request.put("maxChars", 3000);
+                hints.add(Map.of("valuePath", List.of(entry.getKey()), "totalChars", text.length(), "request", request));
+            } else if (value instanceof Map<?, ?> || value instanceof List<?>) {
+                request.put("operation", value instanceof List<?> ? "READ_NESTED_RECORDS" : "READ_VALUE");
+                request.put("path", List.of(entry.getKey()));
+                hints.add(Map.of("valuePath", List.of(entry.getKey()), "request", request));
+            }
+            if (hints.size() == 4) break;
+        }
+        return List.copyOf(hints);
     }
 
     /**

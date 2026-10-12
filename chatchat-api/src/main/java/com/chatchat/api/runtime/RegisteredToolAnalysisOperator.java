@@ -9,6 +9,7 @@ import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import com.chatchat.common.runtime.analysis.evidence.ToolAnalysisEvidence;
 import com.chatchat.common.runtime.analysis.execution.WorkflowExecutionResult;
+import com.chatchat.common.runtime.analysis.execution.RuntimeToolReceipt;
 import com.chatchat.common.runtime.analysis.model.AnalysisCapability;
 import com.chatchat.common.runtime.analysis.model.AnalysisContext;
 import com.chatchat.common.runtime.analysis.model.AnalysisSkillSelection;
@@ -62,6 +63,13 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
         if (context.attributes().get(TOOL_CALLS) instanceof List<?> calls) {
             if (calls.isEmpty() || calls.size() > 4) return denied("Select 1..4 governed MCP tools");
             List<com.chatchat.common.runtime.analysis.evidence.AnalysisEvidence> evidence = new java.util.ArrayList<>();
+            List<Map<String, Object>> receipts = new java.util.ArrayList<>();
+            List<String> observations = new java.util.ArrayList<>();
+            // Validate the batch before dispatching any member.
+            if (calls.stream().anyMatch(raw -> !(raw instanceof Map<?, ?> call)
+                || !(call.get("toolName") instanceof String name) || name.isBlank()
+                || !(call.get("arguments") instanceof Map<?, ?>)))
+                return denied("Each tool call requires a name and JSON object arguments");
             for (Object raw : calls) {
                 if (!(raw instanceof Map<?, ?> call) || !(call.get("toolName") instanceof String name)
                     || name.isBlank() || !(call.get("arguments") instanceof Map<?, ?> arguments))
@@ -71,17 +79,26 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
                 if (context.attributes().get(AnalysisContext.SKILL_SELECTIONS_ATTRIBUTE) instanceof List<?> selections
                     && selections.stream().noneMatch(item -> item instanceof AnalysisSkillSelection selected
                         && selected.skillId().equals(skillId)))
-                    return denied("Tool Skill is not selected and authorized");
+                    {
+                        receipts.add(Map.of("toolName", name, "status", "DENIED",
+                            "errorMessage", "Tool Skill is not selected and authorized"));
+                        observations.add("Tool Skill is not selected and authorized: " + name);
+                        continue;
+                    }
                 AnalysisContext single = context.withAttribute(TOOL_NAME, name)
                     .withAttribute(TOOL_ARGUMENTS, arguments).withAttribute(TOOL_CALLS, null);
                 if (!skillId.equals(context.skillId()))
                     single = new AnalysisContext(single.query(), single.kernelScope(), skillId,
                         List.of(), List.of(), single.roles(), single.intent(), single.attributes());
                 WorkflowExecutionResult result = executeSingle(single, scope, plan);
-                if (result.evidence().isEmpty()) return result;
                 evidence.addAll(result.evidence());
+                observations.addAll(result.observations());
+                Map<String, Object> receipt = new LinkedHashMap<>(result.outputs());
+                receipt.put("toolName", name);
+                receipts.add(Map.copyOf(receipt));
             }
-            return new WorkflowExecutionResult(evidence, Map.of("toolCallCount", calls.size()), List.of());
+            return new WorkflowExecutionResult(evidence,
+                Map.of("toolCallCount", calls.size(), "toolReceipts", receipts), observations);
         }
         return executeSingle(context, scope, plan);
     }
@@ -132,14 +149,19 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
         } catch (RuntimeException failure) {
             if (failure instanceof java.util.concurrent.CancellationException
                 || Thread.currentThread().isInterrupted()) throw failure;
-            return denied("Governed tool execution failed");
+            return new WorkflowExecutionResult(List.of(), Map.of("status", "FAILED",
+                "exceptionType", failure.getClass().getSimpleName()),
+                List.of(RuntimeToolReceipt.safeError(String.valueOf(failure.getMessage()))));
         }
+        Map<String, Object> receipt = RuntimeToolReceipt.from(
+            execution == null ? null : execution.output(), execution == null ? null : execution.outcome());
         if (execution == null || execution.output() == null || !execution.output().isSuccess())
-            return denied("Governed tool execution failed or was denied");
+            return new WorkflowExecutionResult(List.of(), receipt,
+                List.of(String.valueOf(receipt.getOrDefault("errorMessage", receipt.get("status")))));
         if (registry.getToolRevision(name) != invocationRevision)
             return denied("Published tool contract changed during evidence acquisition");
         if (execution.output().getData() == null)
-            return denied("Governed tool produced no evidence data");
+            return new WorkflowExecutionResult(List.of(), receipt, List.of("Tool succeeded with no data"));
         String content;
         try { content = mapper.writeValueAsString(execution.output().getData()); }
         catch (JsonProcessingException invalid) { return denied("Tool output cannot be represented as evidence"); }
@@ -151,7 +173,10 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
                 "toolContractIdentityVersion", AnalysisToolContractIdentity.SCHEMA_VERSION,
                 "authorizationParameters", authorizationScope(arguments),
                 "runtimeOutcome", execution.outcome() == null ? "unknown" : execution.outcome()));
-        return new WorkflowExecutionResult(List.of(evidence), Map.of(), List.of());
+        Map<String, Object> facts = new LinkedHashMap<>(receipt);
+        facts.put("evidenceReference", evidence.evidenceId());
+        facts.put("executionScope", authorizationScope(arguments));
+        return new WorkflowExecutionResult(List.of(evidence), facts, List.of());
     }
 
     private Map<String, Object> authorizationScope(Map<String, Object> arguments) {
@@ -163,6 +188,6 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
     }
 
     private WorkflowExecutionResult denied(String reason) {
-        return new WorkflowExecutionResult(List.of(), Map.of(), List.of(reason));
+        return new WorkflowExecutionResult(List.of(), Map.of("status", "DENIED", "errorMessage", reason), List.of(reason));
     }
 }

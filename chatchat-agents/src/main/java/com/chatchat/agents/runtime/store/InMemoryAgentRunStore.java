@@ -588,6 +588,7 @@ public class InMemoryAgentRunStore extends AbstractAgentRunStore implements Inte
             saveVersion(record);
             saveDag(record);
             savePlanIndex(record);
+            logPlanSnapshotSaved(record, plan);
             return record;
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to serialize interpretation plan", ex);

@@ -46,6 +46,34 @@ public class InterpretationPlanValidator {
             ? TemplateWorkflowPluginRegistry.load() : templateWorkflowPlugins;
     }
 
+    /** Analysis outlines use the existing plan value type, but never grant or execute tool authority. */
+    public ValidationResult validateAnalysisPlan(InterpretationPlan plan) {
+        ValidationState state = new ValidationState();
+        if (plan == null) { state.error("plan", "InterpretationPlan is required"); return state.result(List.of()); }
+        if (blank(plan.version())) state.error("version", "Plan version is required");
+        if (plan.intent() == null || blank(plan.intent().type()) || blank(plan.intent().goal()))
+            state.error("intent", "Intent type and goal are required");
+        if (plan.context() == null) state.error("context", "Known facts, unknowns and constraints belong in context");
+        if (plan.steps().isEmpty()) state.error("plan.steps", "At least one step is required");
+        if (plan.executionPolicy() != null) state.error("execution_policy", "Analysis updates cannot amend execution policy");
+        if (plan.plan() != null && (plan.plan().diagnosticProfile() != null
+            || java.util.stream.Stream.of(plan.plan().bindings(), plan.plan().edgeContracts(),
+                plan.plan().dependencyContracts(), plan.plan().conditionalEdges(), plan.plan().branchGroups())
+                .anyMatch(items -> items != null && !items.isEmpty())))
+            state.error("plan", "Analysis outlines cannot redefine acquisition bindings or execution control contracts");
+        Map<Integer, InterpretationPlan.Step> steps = new LinkedHashMap<>();
+        for (InterpretationPlan.Step step : plan.steps()) {
+            if (step == null || step.id() == null || step.id() < 1) { state.error("plan.steps.id", "Positive step id required"); continue; }
+            if (steps.putIfAbsent(step.id(), step) != null) state.error("plan.steps.id", "Duplicate step id");
+            if (step.actionType() == null || !ACTION_TYPES.contains(step.actionType()) || step.mcpToolAction())
+                state.error("plan.steps.action_type", "Use analysis actions only; external workflow tools are unavailable");
+        }
+        for (InterpretationPlan.Step step : steps.values()) for (Integer dependency : step.dependsOn() == null ? List.<Integer>of() : step.dependsOn())
+            if (dependency == null || !steps.containsKey(dependency)) state.error("plan.steps.depends_on", "Unknown dependency");
+        var ordered = validateDag(steps, state);
+        return state.result(ordered);
+    }
+
     private static final String HIGH = "high";
     private static final Set<String> ACTION_TYPES = Set.of(
         "mcp_tool", "reasoning", "retrieval", "aggregation", "validation", "final_answer"
@@ -1185,10 +1213,10 @@ public class InterpretationPlanValidator {
                                                          ToolRegistry toolRegistry,
                                                          ValidationState state) {
         List<InterpretationPlan.Step> assetSteps = stepsById.values().stream()
-            .filter(step -> isAssetDiscoveryTool(step.toolName(), toolRegistry))
+            .filter(step -> discoveryRole(step, toolRegistry) == ToolWorkflowRole.ASSET_DISCOVERY)
             .toList();
         List<InterpretationPlan.Step> templateSteps = stepsById.values().stream()
-            .filter(step -> templateDiscoveryTool(step.toolName(), toolRegistry))
+            .filter(step -> discoveryRole(step, toolRegistry) == ToolWorkflowRole.TEMPLATE_DISCOVERY)
             .toList();
         List<InterpretationPlan.Step> executeSteps = stepsById.values().stream()
             .filter(step -> templateExecutionTool(step.toolName(), toolRegistry))
@@ -1338,6 +1366,11 @@ public class InterpretationPlanValidator {
 
     private boolean isAssetDiscoveryTool(String toolName, ToolRegistry registry) {
         return workflowRole(toolName, registry) == ToolWorkflowRole.ASSET_DISCOVERY;
+    }
+
+    private ToolWorkflowRole discoveryRole(InterpretationPlan.Step step, ToolRegistry registry) {
+        return new com.chatchat.agents.runtime.plan.protocol.ToolProtocolPayloadNavigator()
+            .discoveryRole(step.input(), workflowRole(step.toolName(), registry));
     }
 
     private boolean targetsExecutionParameters(String inputField) {

@@ -15,6 +15,7 @@ import java.util.function.BiFunction;
 
 /** Read-only continuation through the existing authorized execution boundary, not another planner. */
 public final class HarnessToolAccess {
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(HarnessToolAccess.class);
     private final ToolRegistry registry;
     private final List<String> allowed;
     private final BiFunction<String, Map<String,Object>, ToolRuntimeExecution> execute;
@@ -55,22 +56,27 @@ public final class HarnessToolAccess {
         GovernanceIsolationScope scope, AnalysisEvidenceSpillStore store, int priorSteps) {
         this.registry = registry; this.execute = execute; this.evidence = evidence;
         this.attributes = attributes; this.metadata = metadata; this.scope = scope; this.store = store;
-        this.allowed = authorizedTools.stream().filter(name -> {
-            var tool = registry.getToolMetadata(name);
-            return tool != null && tool.isAgentCompatible() && "read".equalsIgnoreCase(tool.getOperationType());
-        }).distinct().toList();
+        this.allowed = authorizedTools.stream().filter(this::analysisCapability).distinct().toList();
         var caps = AgentPlanBudgetPolicy.fromRuntimeAttributes(attributes);
         this.maximumCalls = caps.maxSteps() == null ? 4 : Math.max(0, caps.maxSteps() - priorSteps);
     }
 
     public String capabilities() {
-        if (maximumCalls == 0 || allowed.isEmpty()) return "No external continuation tools authorized.";
+        var current = allowed.stream().filter(this::analysisCapability).toList();
+        if (maximumCalls <= calls || current.isEmpty()) return "No external continuation tools authorized.";
         var prompt = new StringBuilder("Optional CALL_TOOL request: {operation:'CALL_TOOL',toolName:'exact authorized name',arguments:{...},requestId:'optional stable retry identity'}. ");
         prompt.append("In v2 repeat a receipt's requestId to recover that execution; omit it for a new exploration intent. Unknown outcomes are never automatically re-executed. ");
         prompt.append("You may obtain additional evidence when useful; no call is required. Remaining call budget: ")
             .append(maximumCalls - calls).append(". Existing Runtime authorization, schema, timeout and confirmation gates apply.\n");
-        for (String name : allowed) CapabilityManifestInjector.append(prompt, name, registry.getToolMetadata(name), new ObjectMapper());
+        for (String name : current) CapabilityManifestInjector.append(prompt, name, registry.getToolMetadata(name), new ObjectMapper());
         return prompt.toString();
+    }
+
+    private boolean analysisCapability(String name) {
+        var tool = registry.getToolMetadata(name);
+        return tool != null && tool.isAgentCompatible() && "read".equalsIgnoreCase(tool.getOperationType())
+            && com.chatchat.common.tool.ToolWorkflowContract.resolveRole(name, tool)
+                == com.chatchat.common.tool.ToolWorkflowRole.DIRECT;
     }
 
     /** One model intent has one immutable scoped identity, independent of argument map ordering. */
@@ -78,9 +84,8 @@ public final class HarnessToolAccess {
             Map<String,AnalysisEvidenceCoordinator.Dataset> sources, String runtimeIdentity) {
         String name = String.valueOf(request.get("toolName"));
         var currentTool = registry.getToolMetadata(name);
-        if (!allowed.contains(name) || currentTool == null || !currentTool.isAgentCompatible()
-            || !"read".equalsIgnoreCase(currentTool.getOperationType()))
-            throw new IllegalArgumentException("Tool is not authorized for read-only continuation");
+        if (!allowed.contains(name) || !analysisCapability(name))
+            throw new IllegalArgumentException("Tool is not authorized for this execution context");
         if (!(request.get("arguments") instanceof Map<?,?> values)) throw new IllegalArgumentException("Tool arguments must be an object");
         Map<String,Object> args = new LinkedHashMap<>();
         for (var value : values.entrySet()) args.put(String.valueOf(value.getKey()), value.getValue());
@@ -143,7 +148,16 @@ public final class HarnessToolAccess {
             catch (java.util.concurrent.CancellationException cancelled) { throw cancelled; }
             catch (RuntimeException uncertain) {
                 if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
-                return recoveryReceipt(identity, name, "EXECUTION_OUTCOME_UNKNOWN", "Invocation did not produce a committed execution receipt");
+                String error = com.chatchat.common.runtime.analysis.execution.RuntimeToolReceipt.safeError(
+                    String.valueOf(uncertain.getMessage()));
+                LOG.warn("Tool boundary returned no receipt: tool={}, requestId={}, errorType={}, error={}, location={}",
+                    name, identity, uncertain.getClass().getSimpleName(), error,
+                    uncertain.getStackTrace().length == 0 ? "unknown" : uncertain.getStackTrace()[0]);
+                var failure = new LinkedHashMap<>(recoveryReceipt(identity, name, "EXECUTION_OUTCOME_UNKNOWN",
+                    "Invocation did not produce a committed execution receipt; remote outcome cannot be inferred"));
+                failure.put("exceptionType", uncertain.getClass().getSimpleName());
+                failure.put("errorMessage", error);
+                return failure;
             } finally { metadata.remove("harnessActiveToolRequestId"); }
             if (execution == null || execution.output() == null)
                 return recoveryReceipt(identity, name, "EXECUTION_OUTCOME_UNKNOWN", "Invocation returned no execution receipt");
@@ -253,7 +267,8 @@ public final class HarnessToolAccess {
     @SuppressWarnings("unchecked")
     public Map<String,Object> call(Map<String,Object> request, Map<String, AnalysisEvidenceCoordinator.Dataset> sources) {
         String name = String.valueOf(request.get("toolName"));
-        if (!allowed.contains(name)) throw new IllegalArgumentException("Tool is not authorized for read-only continuation");
+        if (!allowed.contains(name) || !analysisCapability(name))
+            throw new IllegalArgumentException("Tool is not authorized for read-only continuation");
         if (calls >= maximumCalls) throw new IllegalArgumentException("Agent tool-call budget exhausted");
         if (!(request.get("arguments") instanceof Map<?,?> values)) throw new IllegalArgumentException("Tool arguments must be an object");
         Map<String,Object> args = new LinkedHashMap<>();
@@ -277,8 +292,14 @@ public final class HarnessToolAccess {
             if (!traces.contains(trace)) traces.add(trace);
         }
         metadata.put("harnessToolTraces", List.copyOf(traces));
-        if (!output.isSuccess()) return Map.of("status", "TOOL_FAILED", "toolName", name,
-            "reason", String.valueOf(output.getErrorMessage()), "outcome", String.valueOf(execution.outcome()));
+        var facts = new LinkedHashMap<String,Object>(
+            com.chatchat.common.runtime.analysis.execution.RuntimeToolReceipt.from(output, execution.outcome()));
+        facts.put("toolName", name);
+        facts.put("rawResultReference", reference);
+        if (output == null || !output.isSuccess()) {
+            facts.put("reason", facts.getOrDefault("errorMessage", "Execution failed"));
+            return facts;
+        }
         var step = new InterpretationPlanRuntime.StepExecution(calls, "mcp_tool", name, true, output, null,
             execution, null, 0, Map.of());
         var projection = evidence.project(new InterpretationPlanRuntime.ExecutionResult("success", true, false,
@@ -292,15 +313,29 @@ public final class HarnessToolAccess {
                 "sourceReference", dataset.reference(), "contentSha256", dataset.handle().contentSha256(),
                 "preview", dataset.handle().readPage(0, 2).rows()));
         }
+        // Discovery and other control-plane results are intentionally excluded from
+        // business analysis projections. They still belong in the model's scoped
+        // workspace; an empty projection is not evidence that the tool returned nothing.
+        if (handles.isEmpty() && output.getData() != null) {
+            String ref = reference + ":raw";
+            var dataset = new AnalysisEvidenceCoordinator.Dataset(ref,
+                Map.of("sourceTool", name, "contentRole", "TOOL_RESULT", "semanticsAuthority", "SOURCE"),
+                List.of(Map.of("data", output.getData(), "rawResultText", ModelProtocolJson.compact(output.getData()))));
+            sources.put(ref, dataset);
+            handles.add(Map.of("datasetReference", ref, "recordCount", dataset.recordCount(),
+                "sourceReference", reference, "contentSha256", dataset.handle().contentSha256(),
+                "preview", dataset.handle().readPage(0, 1).rows()));
+        }
         metadata.put("harnessAvailableDatasetReferences", List.copyOf(sources.keySet()));
-        var receipt = new LinkedHashMap<String,Object>(Map.of("status", "SUCCESS", "toolName", name, "datasets", handles,
+        var receipt = new LinkedHashMap<String,Object>(facts);
+        receipt.putAll(Map.of("toolName", name, "datasets", handles,
             "rawResultReference", reference, "remainingCalls", maximumCalls - calls));
         if (ModelProtocolJson.compact(receipt).length() > 4000) {
             receipt.put("datasets", handles.stream().map(handle -> {
                 Map<String,Object> compact = new LinkedHashMap<>(handle); compact.remove("preview"); return compact;
             }).toList());
             receipt.put("previewOmitted", true);
-            receipt.put("readHint", "Use READ_RECORDS or CATALOG to access complete scoped results");
+            receipt.put("readHint", "Use READ_VALUE for an object or field and READ_NESTED_RECORDS with fields and nextItem for collections; raw handles also expose rawResultText through READ_TEXT, record:1. Projection omission is not an empty result.");
         }
         return receipt;
     }

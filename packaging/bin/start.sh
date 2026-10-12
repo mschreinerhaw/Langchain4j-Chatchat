@@ -63,6 +63,7 @@ done
 
 nohup "$JAVA_CMD" ${JAVA_OPTIONS:-} "-Dloader.path=$LOADER_PATH" -cp "$APP_JAR" "$LAUNCHER_CLASS" \
   --debug=false \
+  --logging.config="${LOGGING_CONFIG:-file:$APP_HOME/config/logback-spring.xml}" \
   --spring.config.additional-location="optional:file:$CONFIG_DIR" \
   ${REMAINING_ARGS:-} >> "$STDOUT_LOG" 2>&1 &
 

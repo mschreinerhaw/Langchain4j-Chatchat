@@ -107,7 +107,8 @@ class RegisteredToolAnalysisOperatorTest {
         var result = operator.execute(context(), scope(), null);
 
         assertThat(result.evidence()).isEmpty();
-        assertThat(result.observations()).containsExactly("Governed tool execution failed or was denied");
+        assertThat(result.outputs()).containsEntry("status", "DENIED");
+        assertThat(result.observations()).containsExactly("permission denied");
     }
 
     @Test void governedRuntimeFailureNeverBecomesEvidence() {
@@ -119,7 +120,25 @@ class RegisteredToolAnalysisOperatorTest {
         var result = operator.execute(context(), scope(), null);
 
         assertThat(result.evidence()).isEmpty();
-        assertThat(result.observations()).containsExactly("Governed tool execution failed");
+        assertThat(result.outputs()).containsEntry("status", "FAILED");
+        assertThat(result.observations()).containsExactly("transport unavailable");
+    }
+
+    @Test void preservesSuccessfulEvidenceAndContinuesAfterOneBatchMemberIsDenied() {
+        boundSkill();
+        when(registry.getToolMetadata("read_tool")).thenReturn(ToolMetadata.builder().operationType("read").build());
+        when(runtime.execute(any())).thenReturn(
+            new ToolRuntimeExecution(ToolOutput.success(Map.of("value", 1)), null, null, "SUCCESS", Map.of()),
+            new ToolRuntimeExecution(ToolOutput.failure("scope denied"), null, null, "DENIED", Map.of()),
+            new ToolRuntimeExecution(ToolOutput.success(Map.of("value", 3)), null, null, "SUCCESS", Map.of()));
+        var calls = List.of(Map.of("toolName", "read_tool", "arguments", Map.of("sample", 1)),
+            Map.of("toolName", "read_tool", "arguments", Map.of("sample", 2)),
+            Map.of("toolName", "read_tool", "arguments", Map.of("sample", 3)));
+        var result = operator.execute(context().withAttribute(RegisteredToolAnalysisOperator.TOOL_CALLS, calls), scope(), null);
+        assertThat(result.evidence()).hasSize(2);
+        assertThat((List<?>) result.outputs().get("toolReceipts")).hasSize(3);
+        assertThat(result.observations()).containsExactly("scope denied");
+        verify(runtime, org.mockito.Mockito.times(3)).execute(any());
     }
 
     private void boundSkill() {

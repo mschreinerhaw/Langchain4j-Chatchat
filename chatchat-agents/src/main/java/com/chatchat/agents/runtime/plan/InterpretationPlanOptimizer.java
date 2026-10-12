@@ -607,7 +607,22 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
             return new TemplateDagRepairResult(steps, edges, dependencies, bindings, false);
         }
 
-        boolean changed = false;
+        // Rewritten plans can retain the old bridge-role misbinding. An asset-stage
+        // result is never template-id provenance, even when both stages share a tool.
+        boolean changed = bindings.removeIf(binding -> binding != null
+            && assets.stream().anyMatch(asset -> Objects.equals(asset.id(), binding.from()))
+            && executors.stream().anyMatch(executor -> {
+                var plugin = templateWorkflowPlugins.resolve(workflowTool(executor.toolName())).orElse(null);
+                return Objects.equals(executor.id(), binding.to()) && plugin != null
+                    && plugin.acceptsTemplateIdBinding(binding.outputPath(), binding.inputField());
+            }));
+        changed |= edges.removeIf(edge -> edge != null
+            && assets.stream().anyMatch(asset -> Objects.equals(asset.id(), edge.from()))
+            && executors.stream().anyMatch(executor -> {
+                var plugin = templateWorkflowPlugins.resolve(workflowTool(executor.toolName())).orElse(null);
+                return Objects.equals(executor.id(), edge.to()) && plugin != null
+                    && Objects.equals(plugin.templateIdOutputPath(), edge.field());
+            }));
         for (InterpretationPlan.Step template : templates) {
             int templateIndex = indexOfStep(steps, template.id());
             if (templateIndex >= 0) {
@@ -851,12 +866,19 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
 
     private boolean isAssetDiscoveryStep(InterpretationPlan.Step step) {
         return step != null && step.mcpToolAction()
-            && workflowRole(step.toolName()) == ToolWorkflowRole.ASSET_DISCOVERY;
+            && discoveryRole(step) == ToolWorkflowRole.ASSET_DISCOVERY;
     }
 
     private boolean isTemplateDiscoveryStep(InterpretationPlan.Step step) {
         return step != null && step.mcpToolAction()
-            && workflowRole(step.toolName()) == ToolWorkflowRole.TEMPLATE_DISCOVERY;
+            && discoveryRole(step) == ToolWorkflowRole.TEMPLATE_DISCOVERY;
+    }
+
+    private ToolWorkflowRole discoveryRole(InterpretationPlan.Step step) {
+        // A published discovery bridge may serve both stages. Its invocation stage,
+        // rather than its single registry role, determines the workflow edge.
+        return new com.chatchat.agents.runtime.plan.protocol.ToolProtocolPayloadNavigator()
+            .discoveryRole(step.input(), workflowRole(step.toolName()));
     }
 
     private boolean isTemplateExecutionStep(InterpretationPlan.Step step) {

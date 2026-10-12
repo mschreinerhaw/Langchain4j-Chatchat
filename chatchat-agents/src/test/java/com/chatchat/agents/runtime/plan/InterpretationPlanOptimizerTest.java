@@ -737,6 +737,70 @@ class InterpretationPlanOptimizerTest {
         assertThat(validation.valid()).as("%s", validation.issues()).isTrue();
     }
 
+    @Test
+    void separatesAssetAndTemplateInvocationsOfTheSamePublishedDiscoveryBridge() {
+        assertThat(new com.chatchat.agents.runtime.plan.template.SshTemplateWorkflowPlugin()
+            .templateDiscoveryInput(Map.of("query", "single-stage asset lookup"))).isEmpty();
+        String discovery = "published_discovery_bridge";
+        String execute = "published_template_executor";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getAllToolNames()).thenReturn(Set.of(discovery, execute));
+        when(registry.getWorkflowRole(discovery)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(execute)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        when(registry.getToolMetadata(discovery)).thenReturn(workflowMetadata(
+            discovery, "remote_discovery", ToolWorkflowRole.TEMPLATE_DISCOVERY,
+            "mcp.ssh-template.v1", Map.of("assetType", "host")));
+        var executionPolicy = new LinkedHashMap<>(apiExecutionBindingPolicy());
+        executionPolicy.put("executionProtocolBindings", Map.of("mcp.ssh-template.v1", "SHELL_EXECUTION"));
+        executionPolicy.put("executionValidationFields", Map.of("SHELL_EXECUTION", List.of("command")));
+        when(registry.getToolMetadata(execute)).thenReturn(workflowMetadata(
+            execute, "remote_executor", ToolWorkflowRole.TEMPLATE_EXECUTION,
+            "mcp.ssh-template.v1", Map.of("assetType", "host", "templateDiscoveryTool", discovery,
+                "argumentBindingPolicy", executionPolicy)));
+        InterpretationPlan source = new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("data_query", "inspect authorized hosts", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", discovery,
+                    Map.of("stage", "asset", "filters", Map.of("env", "DEV")), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", execute, Map.of(), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "final_answer", "", Map.of(), List.of(2), null, null))),
+            new InterpretationPlan.ExecutionPolicy(3, false, List.of(discovery, execute), List.of(), 30_000),
+            new InterpretationPlan.Review(new InterpretationPlan.SelfCheck(0.8, 0.1, true, List.of()), List.of()));
+        var optimizer = new InterpretationPlanOptimizer(registry);
+        var dag = List.of(Map.of("tool", discovery, "dependsOnTools", List.of()),
+            Map.of("tool", execute, "dependsOnTools", List.of(discovery)));
+        var result = optimizer.optimize(source, dag).plan();
+        var template = result.steps().stream().filter(step -> step.input() != null
+            && "template".equals(step.input().get("stage"))).findFirst().orElseThrow();
+        assertThat(template.toolName()).isEqualTo(discovery);
+        assertThat(template.dependsOn()).containsExactly(1);
+        assertThat(template.input()).containsEntry("filters", Map.of("env", "DEV"));
+        var execution = stepByTool(result, execute);
+        assertThat(execution.dependsOn())
+            .contains(template.id());
+        assertThat(result.plan().bindings()).anySatisfy(binding -> {
+            assertThat(binding.from()).isEqualTo(template.id());
+            assertThat(binding.to()).isEqualTo(execution.id());
+            assertThat(binding.outputPath()).isEqualTo("$.templates[0].templateId");
+        });
+        assertThat(result.plan().bindings()).noneSatisfy(binding ->
+            assertThat(binding.from()).isEqualTo(1));
+        var validation = new InterpretationPlanValidator().validate(result, registry,
+            Set.of(discovery, execute), dag, "authorized-inspection");
+        assertThat(validation.valid()).as("%s", validation.issues()).isTrue();
+        var repeated = optimizer.optimize(result, dag).plan();
+        assertThat(repeated.steps()).hasSameSizeAs(result.steps());
+        var oldMisbound = new InterpretationPlan(source.version(), source.intent(), source.context(),
+            new InterpretationPlan.Plan(source.steps(),
+                List.of(new InterpretationPlan.EdgeContract(1, 2, "$.templates[0].templateId", "string", true)),
+                List.of(new InterpretationPlan.Binding(1, "$.templates[0].templateId", 2, "$.template", "jsonpath", true)), null),
+            source.executionPolicy(), source.review());
+        var repaired = optimizer.optimize(oldMisbound, dag).plan();
+        assertThat(repaired.plan().bindings()).noneSatisfy(binding -> assertThat(binding.from()).isEqualTo(1));
+        assertThat(repaired.plan().edgeContracts()).noneSatisfy(edge -> assertThat(edge.from()).isEqualTo(1));
+    }
+
     private ToolMetadata workflowMetadata(String localName, String remoteName,
                                           ToolWorkflowRole role, String protocolFamily,
                                           Map<String, Object> additions) {

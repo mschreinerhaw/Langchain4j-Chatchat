@@ -1198,6 +1198,13 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             || discoveryTool.equals(executionTool)) {
             return null;
         }
+        // A bridge exposing asset discovery needs the original model plan and asset
+        // selection flow; its first response is not guaranteed to contain templates.
+        ToolMetadata discoveryMetadata = toolMetadataOrNull(discoveryTool);
+        if (discoveryMetadata != null && discoveryMetadata.getParameters() != null
+            && discoveryMetadata.getParameters().stream().anyMatch(parameter -> parameter != null
+                && "stage".equals(parameter.getName()) && parameter.getEnumValues() != null
+                && java.util.Arrays.asList(parameter.getEnumValues()).contains("asset"))) return null;
         List<InterpretationPlan.Step> steps = List.of(
             new InterpretationPlan.Step(
                 1, "mcp_tool", discoveryTool,
@@ -3646,7 +3653,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 )
             );
         }
-        if (toolNames.isTemplateDiscoveryToolName(request.execution().toolName())) {
+        if (discoveryResultRole(request.execution().toolName(), request.execution().output()) == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
             payload = normalizeTemplateCandidateDispositions(request.execution().output(), payload);
             // Relevance selection and coverage verification are distinct model decisions. A first-pass
             // self-declaration of completeness can be internally consistent while still overlooking a
@@ -4162,10 +4169,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         String roleContext = AgentRoleAnalysisContext.promptSectionFromRuntime(
             runtimeAttributes, "TOOL_RESULT_REVIEW_AND_TEMPLATE_SELECTION");
         if (!roleContext.isEmpty()) prompt.append(roleContext).append('\n');
-        appendToolResultReviewOutputContract(prompt, request.execution().toolName());
+        appendToolResultReviewOutputContract(prompt, request.execution().toolName(), request.execution().output());
         prompt.append("Rules:\n");
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
-        appendToolResultReviewRules(prompt, request.execution().toolName());
+        appendToolResultReviewRules(prompt, request.execution().toolName(), request.execution().output());
         prompt.append("Attempt: ").append(request.attempt()).append('/').append(request.maxAttempts()).append("\n");
         prompt.append("Current-turn user query:\n").append(query == null ? "" : query).append("\n\n");
         InterpretationPlan plan = request.plan();
@@ -4221,7 +4228,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return prompt.toString();
     }
 
-    private void appendToolResultReviewRules(StringBuilder prompt, String toolName) {
+    private void appendToolResultReviewRules(StringBuilder prompt, String toolName, Object output) {
         prompt.append("- Decide whether the returned evidence is useful for this plan step and the current-turn user question.\n");
         prompt.append("- Keep execution success, evidence usefulness, completeness, and cumulative answerability separate. Successful partial rows remain usable evidence; record limits instead of changing success to failure.\n");
         prompt.append("- iteration_sufficient evaluates the cumulative request. Set it false when material evidence is missing, but do not invent gaps from a conventional industry checklist.\n");
@@ -4230,7 +4237,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         prompt.append("- If an exact successful lookup is empty, distinguish execution success from answerability. Propose one bounded revised retrieval only when its values and capability are evidenced. Never bind an index into an empty collection.\n");
         prompt.append("- If the user required an official source, reject evidence outside that source constraint.\n");
         prompt.append("- Do not answer the user and never emit final_answer/finalAnswer.\n");
-        if (toolNames.isTemplateDiscoveryToolName(toolName)) {
+        if (discoveryResultRole(toolName, output) == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
             prompt.append("- Treat the literal current-turn user query as the immutable coverage contract. Before looking at candidates, copy every explicitly requested object, activity, measure, comparison and requested characterization into analysis_intent.analysis_focus. A skill name, role perspective, plan summary or the first clause of a multi-clause query must never narrow or replace those facets.\n");
             prompt.append("- Semantically evaluate every returned template identity from title, description, capability, output schema, dependencies, and required parameters. Select only IDs present in the result and materially needed by the question.\n");
             prompt.append("- Treat every template ID as opaque. Never infer capability from ID letters, abbreviations or suffixes; the declared title, description and parameter contract are authoritative.\n");
@@ -4244,7 +4251,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             prompt.append("- Return at least one parameter_protocols entry for every selected template. When the user supplies a collection of entities, repeat the template_id with one binding_id and one scalar argument set per distinct entity; the Runtime will compile the bounded entity-by-template batch. Include only schema-declared overrides proven by an exact user-query quote or completed tool-result path. Keep arguments={} when defaults are sufficient; do not copy defaults as model values.\n");
             prompt.append("- Preserve the original question scope. Candidate grouping and rank do not authorize execution or prove relevance.\n");
             prompt.append("- ").append(CROSS_ASSET_RELATIONSHIP_REVIEW_RULE).append('\n');
-        } else if (toolNames.isAssetDiscoveryToolName(toolName)) {
+        } else if (discoveryResultRole(toolName, output) == ToolWorkflowRole.ASSET_DISCOVERY) {
             prompt.append("- Evaluate every returned asset identity from authoritative routing metadata. Select only returned IDs; discovery proves routing eligibility, not business health.\n");
             prompt.append("- ").append(CROSS_ASSET_RELATIONSHIP_REVIEW_RULE).append('\n');
         } else if (isWebDiscoveryTool(toolName)) {
@@ -4260,16 +4267,16 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
     }
 
-    private void appendToolResultReviewOutputContract(StringBuilder prompt, String toolName) {
+    private void appendToolResultReviewOutputContract(StringBuilder prompt, String toolName, Object output) {
         prompt.append("Return compact JSON without Markdown or duplicate narrative. Keep each reason/missing-item concise and cap reasons/relationship_hints at 3 entries. Never cap requested or matched question aspects; preserve every explicit user facet, required candidate evaluation and parameter protocol.\n");
         prompt.append("Return strict JSON only. Required common fields:\n")
             .append("{\"satisfied\":true,\"iteration_sufficient\":false,\"reason\":\"short evidence-based reason\",\"evidence_used\":[],\"missing_evidence\":[],\"conflicts\":[],\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[],\"missingAspects\":[],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":false,\"confidence\":0.0}\n");
-        if (toolNames.isTemplateDiscoveryToolName(toolName)) {
+        if (discoveryResultRole(toolName, output) == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
             prompt.append("Template-discovery fields:\n")
                 .append("{\"selected_template_ids\":[],\"deferred_template_ids\":[],\"rejected_template_ids\":[],\"parameter_protocols\":[{\"protocol_version\":\"")
                 .append(InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION)
                 .append("\",\"template_id\":\"returned-id\",\"binding_id\":\"stable-binding-id\",\"arguments\":{\"declared_field\":{\"value\":\"evidence-backed scalar value\",\"source\":\"user_query\",\"evidence\":{\"quote\":\"exact query excerpt\"}}},\"unresolved_parameters\":[]}],\"coverage_decision\":\"SUFFICIENT|NEED_NEXT_PAGE|SCOPE_INSUFFICIENT\",\"evidence_gaps\":[],\"analysis_intent\":{\"business_goal\":\"\",\"analysis_subject\":\"\",\"core_entities\":[],\"metrics\":[],\"dimensions\":[],\"analysis_focus\":[],\"time_scope\":\"\",\"expected_relationships\":[]},\"template_relationships\":[],\"template_evaluations\":[{\"template_id\":\"returned-id\",\"business_group\":\"\",\"relevance\":0.0,\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|defer|reject\",\"analysis_role\":\"TARGET|CAUSE|CONTEXT|DIMENSION|VALIDATION|EXPLANATION|IRRELEVANT\",\"reasons\":[],\"missing_parameters\":[],\"matched_question_aspects\":[],\"relationship_hints\":[]}],\"refined_intent\":\"\"}\n");
-        } else if (toolNames.isAssetDiscoveryToolName(toolName)) {
+        } else if (discoveryResultRole(toolName, output) == ToolWorkflowRole.ASSET_DISCOVERY) {
             prompt.append("Asset-discovery fields: {\"selected_asset_ids\":[],\"rejected_asset_ids\":[],\"asset_evaluations\":[{\"asset_id\":\"returned-id\",\"relevance\":0.0,\"decision\":\"accept|reject\",\"reasons\":[]}]}\n");
         } else if (isWebDiscoveryTool(toolName)) {
             prompt.append("Web-discovery fields: {\"selected_urls\":[],\"next_actions\":[]}\n");
@@ -4286,9 +4293,16 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
      * transport bindings, full schemas and invocation examples into the model request. Runtime
      * retains those fields and validates the selected id against the complete returned object.
      */
+    private ToolWorkflowRole discoveryResultRole(String toolName, Object output) {
+        return new com.chatchat.agents.runtime.plan.protocol.ToolProtocolPayloadNavigator().discoveryRole(
+            output, toolNames.isAssetDiscoveryToolName(toolName) ? ToolWorkflowRole.ASSET_DISCOVERY
+                : toolNames.isTemplateDiscoveryToolName(toolName) ? ToolWorkflowRole.TEMPLATE_DISCOVERY
+                : ToolWorkflowContract.resolveRole(toolName, toolMetadataOrNull(toolName)));
+    }
+
     private Object candidateSelectionEvidence(String toolName, Object output) {
-        boolean templates = toolNames.isTemplateDiscoveryToolName(toolName);
-        boolean assets = toolNames.isAssetDiscoveryToolName(toolName);
+        boolean templates = discoveryResultRole(toolName, output) == ToolWorkflowRole.TEMPLATE_DISCOVERY;
+        boolean assets = discoveryResultRole(toolName, output) == ToolWorkflowRole.ASSET_DISCOVERY;
         if (!templates && !assets) {
             return null;
         }
@@ -5472,8 +5486,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         ToolOutput output,
         Map<String, Object> runtimeAttributes
     ) {
-        boolean assetDiscovery = toolNames.isAssetDiscoveryToolName(toolName);
-        boolean templateDiscovery = toolNames.isTemplateDiscoveryToolName(toolName);
+        boolean assetDiscovery = discoveryResultRole(toolName, output) == ToolWorkflowRole.ASSET_DISCOVERY;
+        boolean templateDiscovery = discoveryResultRole(toolName, output) == ToolWorkflowRole.TEMPLATE_DISCOVERY;
         if (!assetDiscovery && !templateDiscovery) {
             return MandatoryCandidateReview.notRequired();
         }

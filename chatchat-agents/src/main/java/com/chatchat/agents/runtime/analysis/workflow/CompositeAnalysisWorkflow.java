@@ -69,16 +69,13 @@ public class CompositeAnalysisWorkflow extends AbstractAnalysisWorkflow {
         List<AnalysisEvidence> evidence = new ArrayList<>();
         List<String> observations = new ArrayList<>();
         Map<String, Object> childResults = new LinkedHashMap<>();
-        boolean upstreamRejected = false;
         for (AnalysisCapability capability : orderedCapabilities(context.intent())) {
-            if (capability == AnalysisCapability.DOMAIN_INTELLIGENCE && upstreamRejected) {
-                observations.add("Domain Agent skipped because upstream evidence was not verified");
-                continue;
-            }
             AnalysisIntent childIntent = new AnalysisIntent(context.intent().intent(), context.intent().entities(),
                 Set.of(capability), context.intent().freshness(), context.intent().evidenceRequired());
             EvidenceBundle accumulated = new EvidenceBundle(EvidenceBundle.SCHEMA_VERSION, evidence,
-                observations, Map.of("source", "composite-analysis"));
+                observations, Map.of("source", "composite-analysis", "executionFacts", childResults.entrySet().stream()
+                    .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, entry ->
+                        ((AnalysisExecutionOutcome) entry.getValue()).metadata()))));
             AnalysisContext childContext = context.withIntent(childIntent)
                 .withAttribute(AnalysisContext.EVIDENCE_BUNDLE_ATTRIBUTE, accumulated);
             if (capability == AnalysisCapability.DOCUMENT_SEARCH
@@ -90,7 +87,6 @@ public class CompositeAnalysisWorkflow extends AbstractAnalysisWorkflow {
                     AnalysisWorkflow selected = findChild(selectedContext, childIntent);
                     if (selected == null) {
                         observations.add("No document workflow for Skill " + selection.skillId());
-                        upstreamRejected = true;
                         continue;
                     }
                     AnalysisExecutionOutcome result = selected.execute(selectedContext, context.kernelScope());
@@ -101,17 +97,14 @@ public class CompositeAnalysisWorkflow extends AbstractAnalysisWorkflow {
                         acceptedSelections++;
                     } else {
                         observations.add("Document workflow rejected Skill " + selection.skillId());
-                        upstreamRejected = true;
                     }
                     if (result.verification() != null) observations.addAll(result.verification().findings());
                 }
-                if (acceptedSelections == 0) upstreamRejected = true;
                 continue;
             }
             AnalysisWorkflow child = findChild(childContext, childIntent);
             if (child == null) {
                 observations.add("No child workflow for " + capability);
-                upstreamRejected = true;
                 continue;
             }
             AnalysisExecutionOutcome result = child.execute(childContext, context.kernelScope());
@@ -122,7 +115,6 @@ public class CompositeAnalysisWorkflow extends AbstractAnalysisWorkflow {
                     .forEach(evidence::add);
             } else {
                 observations.add("Child workflow rejected " + capability);
-                upstreamRejected = true;
             }
             if (result.verification() != null) observations.addAll(result.verification().findings());
         }
@@ -154,7 +146,9 @@ public class CompositeAnalysisWorkflow extends AbstractAnalysisWorkflow {
             .map(capability -> "Missing verified evidence for " + capability).toList();
         List<String> findings = new ArrayList<>(execution.observations());
         findings.addAll(missing);
-        return new VerificationResult(missing.isEmpty(), missing.isEmpty() ? execution.evidence() : List.of(), findings);
+        // Validate acquired evidence independently. Missing branches are execution facts,
+        // not authority to discard successful branches or veto model analysis.
+        return new VerificationResult(!execution.evidence().isEmpty(), execution.evidence(), findings);
     }
 
     @Override
@@ -175,6 +169,8 @@ public class CompositeAnalysisWorkflow extends AbstractAnalysisWorkflow {
         Map<String, Object> metadata = new java.util.LinkedHashMap<>();
         metadata.put("workflowId", workflowId());
         metadata.put("childCount", context.intent().requiredCapabilities().size());
+        metadata.put("executionLimitations", verification.findings());
+        metadata.put("executionFacts", execution.outputs().getOrDefault("childResults", Map.of()));
         if (execution.outputs().get("childResults") instanceof Map<?, ?> children
             && children.get(AnalysisCapability.DOMAIN_INTELLIGENCE.name()) instanceof AnalysisExecutionOutcome child) {
             for (String key : List.of("collaboration", "collaborationStatus", "taskStates", "completedTaskCount",

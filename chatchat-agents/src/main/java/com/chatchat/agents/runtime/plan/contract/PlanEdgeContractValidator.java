@@ -182,7 +182,8 @@ public final class PlanEdgeContractValidator {
                                            InterpretationPlanRuntime.ExecutionRequest request,
                                            Integer sourceStepId,
                                            RuntimeSemantics semantics) {
-        if (source == null || !semantics.isAssetDiscoveryTool(source.toolName())) {
+        if (source == null || (!semantics.isAssetDiscoveryTool(source.toolName())
+            && !semantics.isTemplateDiscoveryTool(source.toolName()))) {
             return null;
         }
         Object value = payloads.firstValue(source.metadata(),

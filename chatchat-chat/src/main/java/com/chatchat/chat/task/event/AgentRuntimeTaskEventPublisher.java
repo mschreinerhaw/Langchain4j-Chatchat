@@ -67,6 +67,10 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             return;
         }
         AgentTaskLatestEntity latest = task.get();
+        if (event.type() == AgentRunEventType.RUN_SUBMITTED || event.type() == AgentRunEventType.RUN_STARTED) {
+            log.info("Runtime OS task link taskId={} executionId={} attemptId={} runId={} eventId={}",
+                latest.getTaskId(), latest.getExecutionId(), latest.getExecutionAttemptId(), event.runId(), event.eventId());
+        }
         AgentEvent taskEvent = AgentEvent.builder()
             .eventId(event.eventId())
             .taskId(latest.getTaskId())

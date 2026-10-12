@@ -16,6 +16,10 @@ final class ReportPublicationGraph {
         var result = new java.util.concurrent.atomic.AtomicReference<FinalSynthesisResult>();
         var execution = new AnalysisExecutionGraph().execute(List.of(
             new AnalysisExecutionGraph.Step("preflight", () -> {
+                // A denied/pending external operation cannot become a quality/approval gate
+                // for a model-declared answer delivered only to this user.
+                if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.publishRequested(request.metadata()))
+                    return AnalysisExecutionGraph.Status.READY;
                 String status = String.valueOf(request.metadata().get("executionStatus"));
                 if ("NEEDS_CLARIFICATION".equals(status)
                     && !com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata()))

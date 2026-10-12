@@ -53,6 +53,6 @@ public abstract class AbstractAnalysisWorkflow extends AbstractRuntimeWorkflow<A
                                         WorkflowExecutionResult execution, VerificationResult verification,
                                         EvidenceBundle bundle) {
         return new AnalysisExecutionOutcome(AnalysisExecutionOutcome.SCHEMA_VERSION, type(), plan, verification, bundle,
-            "", Map.of("workflowId", workflowId()));
+            "", Map.of("workflowId", workflowId(), "executionFacts", execution.outputs()));
     }
 }

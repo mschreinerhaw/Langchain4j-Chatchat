@@ -18,6 +18,42 @@ public final class ToolProtocolPayloadNavigator {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
+    /** A discovery bridge can return an asset-selection stage before its template stage. */
+    public com.chatchat.common.tool.ToolWorkflowRole discoveryRole(
+        Object output, com.chatchat.common.tool.ToolWorkflowRole declaredRole) {
+        var asset = com.chatchat.common.tool.ToolWorkflowRole.ASSET_DISCOVERY;
+        var template = com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY;
+        if (declaredRole != asset && declaredRole != template) return declaredRole;
+        String stage = discoveryStage(output, 0);
+        if ("asset".equals(stage) || "asset_selection".equals(stage)) return asset;
+        if ("template".equals(stage) || "templates".equals(stage)) return template;
+        return declaredRole;
+    }
+
+    private String discoveryStage(Object output, int depth) {
+        if (output == null || depth > 8) return null;
+        if (output instanceof com.chatchat.common.tool.ToolOutput receipt)
+            return discoveryStage(receipt.getData(), depth + 1);
+        Object normalized = normalize(output);
+        if (normalized != output) return discoveryStage(normalized, depth + 1);
+        if (!(output instanceof Map<?, ?> map)) return null;
+        Object stage = map.get("stage");
+        if (stage instanceof String value && List.of("asset", "asset_selection", "template", "templates").contains(value))
+            return value;
+        // Governed discovery responses also identify their stage by result schema.
+        // Asset results can legitimately omit `stage`, including empty authorized sets.
+        Object schema = map.get("schemaVersion");
+        if (schema instanceof String value) {
+            if (value.startsWith("asset_query_result.")) return "asset";
+            if (value.startsWith("template_query_result.")) return "template";
+        }
+        for (String key : List.of("structuredContent", "structured_content", "data", "result", "payload", "body", "output")) {
+            String nested = discoveryStage(map.get(key), depth + 1);
+            if (nested != null) return nested;
+        }
+        return null;
+    }
+
     public Object firstPresent(Map<String, Object> values, String... keys) {
         if (values == null || keys == null) {
             return null;

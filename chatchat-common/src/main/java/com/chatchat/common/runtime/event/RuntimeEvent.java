@@ -8,5 +8,7 @@ public interface RuntimeEvent {
     String streamId();
     String eventType();
     long occurredAt();
+    /** Stream-local ordering when supported by the event journal; zero means unspecified. */
+    default long sequence() { return 0L; }
     Map<String, Object> payload();
 }

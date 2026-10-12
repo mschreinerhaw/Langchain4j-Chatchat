@@ -282,6 +282,7 @@ public class DatabaseAgentRunStore extends InMemoryAgentRunStore {
             existing == null || existing.createdAt() == null ? now : existing.createdAt(),
             now);
         saveVersion(record);
+        logPlanSnapshotSaved(record, plan);
         return record;
     }
 

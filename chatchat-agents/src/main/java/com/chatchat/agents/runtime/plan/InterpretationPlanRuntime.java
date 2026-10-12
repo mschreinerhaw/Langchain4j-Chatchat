@@ -2864,7 +2864,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         }
         boolean governedDiscoveryAvailable = completed.values().stream()
             .anyMatch(execution -> execution != null && execution.success()
-                && isTemplateDiscoveryTool(execution.toolName()));
+                && isTemplateDiscoveryExecution(execution));
         if (!governedDiscoveryAvailable) {
             return;
         }
@@ -3104,11 +3104,11 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             log.info("InterpretationPlan preserved successful tool execution with partial evidence: "
                     + "traceId={} stepId={} tool={} evidenceSufficiency=INSUFFICIENT reason={}",
                 executionTraceId(request), execution.stepId(), execution.toolName(), reason);
-            if (isTemplateDiscoveryTool(execution.toolName()) && lastReview != null) {
+            if (isTemplateDiscoveryExecution(execution) && lastReview != null) {
                 execution = applyRuntimeTemplateSelection(
                     execution, lastReview, metadata, startedAt, request, completed);
             }
-            if (isAssetDiscoveryTool(execution.toolName()) && lastReview != null) {
+            if (isAssetDiscoveryExecution(execution) && lastReview != null) {
                 execution = applyRuntimeAssetSelection(execution, lastReview, metadata, startedAt);
             }
             return execution.withMetadata(metadata, elapsed(startedAt));
@@ -3213,7 +3213,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                                                         long startedAt,
                                                         ExecutionRequest request,
                                                         Map<Integer, StepExecution> completed) {
-        if (execution == null || review == null || !isTemplateDiscoveryTool(execution.toolName())) {
+        if (execution == null || review == null || !isTemplateDiscoveryExecution(execution)) {
             return execution;
         }
         Map<String, Object> reviewMetadata = new LinkedHashMap<>(review.metadata());
@@ -3350,6 +3350,20 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         return Map.copyOf(context);
     }
 
+    private boolean isAssetDiscoveryExecution(StepExecution execution) {
+        return execution != null && TOOL_PAYLOAD_NAVIGATOR.discoveryRole(execution.output(),
+            isAssetDiscoveryTool(execution.toolName()) ? ToolWorkflowRole.ASSET_DISCOVERY
+                : isTemplateDiscoveryTool(execution.toolName()) ? ToolWorkflowRole.TEMPLATE_DISCOVERY : null)
+            == ToolWorkflowRole.ASSET_DISCOVERY;
+    }
+
+    private boolean isTemplateDiscoveryExecution(StepExecution execution) {
+        return execution != null && TOOL_PAYLOAD_NAVIGATOR.discoveryRole(execution.output(),
+            isAssetDiscoveryTool(execution.toolName()) ? ToolWorkflowRole.ASSET_DISCOVERY
+                : isTemplateDiscoveryTool(execution.toolName()) ? ToolWorkflowRole.TEMPLATE_DISCOVERY : null)
+            == ToolWorkflowRole.TEMPLATE_DISCOVERY;
+    }
+
     private boolean isSemanticCandidateDiscovery(String toolName) {
         return isAssetDiscoveryTool(toolName) || isTemplateDiscoveryTool(toolName);
     }
@@ -3365,7 +3379,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         if (execution == null || metadata == null) {
             return null;
         }
-        if (isAssetDiscoveryTool(execution.toolName())) {
+        if (isAssetDiscoveryExecution(execution)) {
             if (!Boolean.TRUE.equals(metadata.get("runtimeAssetSelectionApplied"))) {
                 return "the model did not select an asset id from the returned candidate set";
             }
@@ -3374,7 +3388,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 return "the model selected no usable asset candidate";
             }
         }
-        if (isTemplateDiscoveryTool(execution.toolName())) {
+        if (isTemplateDiscoveryExecution(execution)) {
             if (!Boolean.TRUE.equals(metadata.get("runtimeTemplateSelectionApplied"))) {
                 return "the model did not select a template id from the returned candidate set";
             }
@@ -3413,7 +3427,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     private String uniqueCompletedTemplateId(Map<Integer, StepExecution> completed) {
         Set<String> templateIds = new LinkedHashSet<>();
         for (StepExecution execution : completed.values()) {
-            if (execution == null || !execution.success() || !isTemplateDiscoveryTool(execution.toolName())) {
+            if (execution == null || !execution.success() || !isTemplateDiscoveryExecution(execution)) {
                 continue;
             }
             for (Object item : templateCandidates(execution.output())) {
@@ -3642,16 +3656,16 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
 
     StepReview localToolResultReview(InterpretationPlan.Step step, StepExecution execution) {
         LocalToolResultReviewer.Review review = LOCAL_TOOL_RESULT_REVIEWER.review(
-            step, execution, localToolRoles());
+            step, execution, localToolRoles(execution));
         return review == null ? null : new StepReview(
             review.satisfied(), review.reason(), review.metadata());
     }
 
-    private LocalToolResultReviewer.ToolRoles localToolRoles() {
+    private LocalToolResultReviewer.ToolRoles localToolRoles(StepExecution execution) {
         return new LocalToolResultReviewer.ToolRoles() {
             public boolean isWebSearch(String name) { return isWebSearchTool(name); }
-            public boolean isAssetDiscovery(String name) { return isAssetDiscoveryTool(name); }
-            public boolean isTemplateDiscovery(String name) { return isTemplateDiscoveryTool(name); }
+            public boolean isAssetDiscovery(String name) { return isAssetDiscoveryExecution(execution); }
+            public boolean isTemplateDiscovery(String name) { return isTemplateDiscoveryExecution(execution); }
             public boolean isEnterpriseMetadataSearch(String name) { return isEnterpriseMetadataSearchTool(name); }
             public boolean isSqlMetadataSearch(String name) { return isSqlMetadataSearchTool(name); }
             public boolean isSqlQueryExecute(String name) { return isSqlQueryExecuteTool(name); }
@@ -4574,7 +4588,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                                                 Map<String, Object> input) {
         boolean governedDiscoveryAvailable = completed != null && completed.values().stream()
             .anyMatch(execution -> execution != null && execution.success()
-                && isTemplateDiscoveryTool(execution.toolName()));
+                && isTemplateDiscoveryExecution(execution));
         if (!governedDiscoveryAvailable) {
             return;
         }
@@ -5411,7 +5425,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
 
         List<Map<String, Object>> templates = new ArrayList<>();
         for (StepExecution execution : completed.values()) {
-            if (execution == null || !execution.success() || !isTemplateDiscoveryTool(execution.toolName())) {
+            if (execution == null || !execution.success() || !isTemplateDiscoveryExecution(execution)) {
                 continue;
             }
             for (Object item : templateCandidates(execution.output())) {
@@ -5993,7 +6007,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             .map(completed::get)
             .filter(Objects::nonNull)
             .filter(StepExecution::success)
-            .filter(execution -> isTemplateDiscoveryTool(execution.toolName()))
+            .filter(execution -> isTemplateDiscoveryExecution(execution))
             .toList();
         if (directDiscoveries.isEmpty()) {
             boolean directlyDependsOnDiscovery = branchSources.stream()
@@ -6040,7 +6054,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         if (step == null || !isTemplateExecutionTool(step.toolName()) || completed == null) return;
         for (Integer sourceId : directTemplateDiscoverySourceIds(step, plan)) {
             StepExecution discovery = completed.get(sourceId);
-            if (discovery == null || !isTemplateDiscoveryTool(discovery.toolName())) {
+            if (discovery == null || !isTemplateDiscoveryExecution(discovery)) {
                 continue;
             }
             if (!discovery.success()) {
@@ -6077,7 +6091,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         StepExecution latest = null;
         StepExecution fixedBinding = null;
         for (StepExecution execution : completed.values()) {
-            if (execution != null && execution.success() && isTemplateDiscoveryTool(execution.toolName())
+            if (execution != null && execution.success() && isTemplateDiscoveryExecution(execution)
                 && templateCandidates(execution.output()).stream()
                     .filter(Map.class::isInstance)
                     .map(Map.class::cast)
@@ -6187,7 +6201,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         Map<Integer, StepExecution> completed
     ) {
         for (StepExecution execution : completed.values()) {
-            if (execution == null || !execution.success() || !isTemplateDiscoveryTool(execution.toolName())) {
+            if (execution == null || !execution.success() || !isTemplateDiscoveryExecution(execution)) {
                 continue;
             }
             Map<String, Object> context = templateDiscoveryAssetExecutionContext(execution.output());
@@ -6367,7 +6381,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             return Map.of();
         }
         for (StepExecution execution : completed.values()) {
-            if (execution == null || !execution.success() || !isTemplateDiscoveryTool(execution.toolName())) {
+            if (execution == null || !execution.success() || !isTemplateDiscoveryExecution(execution)) {
                 continue;
             }
             Map<String, Object> template = templateMetadataByToolName(execution.output(), toolName);
@@ -6612,7 +6626,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             return null;
         }
         for (StepExecution execution : completed.values()) {
-            if (execution == null || !execution.success() || !isTemplateDiscoveryTool(execution.toolName())) {
+            if (execution == null || !execution.success() || !isTemplateDiscoveryExecution(execution)) {
                 continue;
             }
             Object templates = firstValueAtAnyPath(execution.output(), "$.templates", "$.data.templates");
@@ -6779,7 +6793,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         }
         Set<String> templateIds = new LinkedHashSet<>();
         for (StepExecution execution : completed.values()) {
-            if (execution == null || !execution.success() || !isTemplateDiscoveryTool(execution.toolName())) {
+            if (execution == null || !execution.success() || !isTemplateDiscoveryExecution(execution)) {
                 continue;
             }
             boolean discoveryExecutorMatches = templateDiscoveryExecutorMatches(execution.output(), toolName);
@@ -7031,7 +7045,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         return safeIntegerList(step.dependsOn()).stream()
             .map(completed::get)
             .filter(java.util.Objects::nonNull)
-            .anyMatch(execution -> isTemplateDiscoveryTool(execution.toolName()));
+            .anyMatch(execution -> isTemplateDiscoveryExecution(execution));
     }
 
     private Map<String, Object> completedTemplateMetadata(Map<Integer, StepExecution> completed, String templateId) {
@@ -7039,7 +7053,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             return Map.of();
         }
         for (StepExecution execution : completed.values()) {
-            if (execution == null || !execution.success() || !isTemplateDiscoveryTool(execution.toolName())) {
+            if (execution == null || !execution.success() || !isTemplateDiscoveryExecution(execution)) {
                 continue;
             }
             Map<String, Object> template = templateMetadataById(execution.output(), templateId);
@@ -7263,7 +7277,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             return false;
         }
         for (StepExecution execution : completed.values()) {
-            if (execution == null || !execution.success() || !isAssetDiscoveryTool(execution.toolName())
+            if (execution == null || !execution.success() || !isAssetDiscoveryExecution(execution)
                 || discoveredAssetCount(execution.output(), "assets") != 1) {
                 continue;
             }
@@ -7305,7 +7319,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         }
         Map<String, Object> unique = Map.of();
         for (StepExecution execution : completed.values()) {
-            if (execution == null || !execution.success() || !isAssetDiscoveryTool(execution.toolName())
+            if (execution == null || !execution.success() || !isAssetDiscoveryExecution(execution)
                 || discoveredAssetCount(execution.output(), "assets") != 1) {
                 continue;
             }
@@ -7402,7 +7416,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         }
         for (StepExecution execution : completed.values()) {
             if (execution == null || !execution.success()
-                || (!isAssetDiscoveryTool(execution.toolName())
+                || (!isAssetDiscoveryExecution(execution)
                     && !Boolean.TRUE.equals(firstValueAtAnyPath(
                         execution.output(), "$.queryIr.asset.scoped")))) {
                 continue;
@@ -7422,7 +7436,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             return Map.of();
         }
         for (StepExecution execution : completed.values()) {
-            if (execution == null || !execution.success() || !isAssetDiscoveryTool(execution.toolName())
+            if (execution == null || !execution.success() || !isAssetDiscoveryExecution(execution)
                 || execution.metadata() == null) {
                 continue;
             }
@@ -8722,7 +8736,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                                                      StepReview review,
                                                      Map<String, Object> metadata,
                                                      long startedAt) {
-        if (execution == null || review == null || !isAssetDiscoveryTool(execution.toolName())) {
+        if (execution == null || review == null || !isAssetDiscoveryExecution(execution)) {
             return execution;
         }
         EvidenceBasedAssetCandidateEvaluator.Evaluation evaluation =
@@ -8789,7 +8803,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         return completed.values().stream()
             .filter(Objects::nonNull)
             .filter(StepExecution::success)
-            .filter(execution -> isTemplateDiscoveryTool(execution.toolName()))
+            .filter(execution -> isTemplateDiscoveryExecution(execution))
             .mapToInt(execution -> templateCandidates(execution.output()).size())
             .sum() >= 2;
     }

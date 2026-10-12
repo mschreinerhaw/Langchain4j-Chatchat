@@ -103,6 +103,8 @@ public final class MeteredChatModel implements ChatModel {
             call.put("status", "RUNNING");
             calls.add(call);
             publish();
+            log.info("Runtime model call runId={} node={} callId={} status=STARTED inputEstimated={}",
+                usage.get("runId"), call.get("nodeName"), call.get("callId"), promptTokens);
         }
         CallTiming timing = new CallTiming();
         CallTiming previous = CURRENT_TIMING.get();
@@ -116,6 +118,9 @@ public final class MeteredChatModel implements ChatModel {
             actual = actualUsage.apply(response);
             success = true;
             return response;
+        } catch (RuntimeException failure) {
+            call.put("errorType", failure.getClass().getName());
+            throw failure;
         } finally {
             if (previous == null) CURRENT_TIMING.remove(); else CURRENT_TIMING.set(previous);
             long elapsed = Math.max(0, (System.nanoTime() - timing.submittedNanos) / 1_000_000);
@@ -141,9 +146,9 @@ public final class MeteredChatModel implements ChatModel {
                     actualOutputTokens += actual.outputTokenCount();
                 }
                 publish();
-                log.info("Runtime model call runId={} node={} callId={} status={} elapsedMs={} queueMs={} inputEstimated={} outputEstimated={}",
+                log.info("Runtime model call runId={} node={} callId={} status={} elapsedMs={} queueMs={} inputEstimated={} outputEstimated={} errorType={}",
                     usage.get("runId"), call.get("nodeName"), call.get("callId"), call.get("status"),
-                    elapsed, queue, promptTokens, call.get("outputTokensEstimated"));
+                    elapsed, queue, promptTokens, call.get("outputTokensEstimated"), call.get("errorType"));
                 // Preserve the original transport failure when accounting for failed attempts.
                 if (success) enforce(inputTokens + outputTokens, estimatedCost);
             }

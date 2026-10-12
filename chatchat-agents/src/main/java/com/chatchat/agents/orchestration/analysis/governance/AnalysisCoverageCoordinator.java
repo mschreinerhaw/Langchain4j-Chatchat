@@ -185,7 +185,6 @@ public final class AnalysisCoverageCoordinator {
         request.metadata().put("recordAnalysisSummaryDispatchMode", "MODEL_NATIVE_HARNESS");
         request.metadata().put("analysisSemanticReviewPolicy", "NONE_USER_JUDGES");
         var result = new com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarness(configuration.harnessMaxModelTurns())
-            .withToolAccess(toolAccessFactory == null ? null : toolAccessFactory.apply(request))
             .execute(request.query(), datasets, request.model(), request.isolationScope(), spillStore,
                 request.metadata(), request.cancellationGuard(), trace -> {
                     String stage = String.valueOf(trace.getOrDefault("stage", "MODEL_NATIVE_ANALYSIS"));
@@ -203,7 +202,13 @@ public final class AnalysisCoverageCoordinator {
                         trace.getOrDefault("completedRequestCount", 0), trace.getOrDefault("requestCount", 0));
                     observe(request, message, "model_native_harness", trace);
                 });
-        long rows = datasets.stream().mapToLong(AnalysisEvidenceCoordinator.Dataset::recordCount).sum();
+        // The model can acquire new datasets during this loop; account for those too.
+        var returned = request.metadata().get("runtimeReturnedReportDatasets");
+        long rows = returned instanceof List<?> items ? items.stream()
+            .filter(com.chatchat.agents.orchestration.analysis.report.ReturnedReportDataset.class::isInstance)
+            .map(com.chatchat.agents.orchestration.analysis.report.ReturnedReportDataset.class::cast)
+            .mapToLong(com.chatchat.agents.orchestration.analysis.report.ReturnedReportDataset::returnedRowCount).sum()
+            : datasets.stream().mapToLong(AnalysisEvidenceCoordinator.Dataset::recordCount).sum();
         int count = Math.toIntExact(rows);
         var intentMetadata = new LinkedHashMap<String,Object>();
         for (String key : List.of("modelAnalysisProtocol", "modelDecision", "executionState", "executionStopReason",
@@ -220,8 +225,8 @@ public final class AnalysisCoverageCoordinator {
         request.metadata().put(com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata()) ? "modelAnalysisOutput" : "modelNativeReportDraft", result.markdown());
         request.metadata().put("analysisSynthesisBarrierReady", true);
         request.metadata().put("analysisSynthesisBarrierStatus", "READY");
-        request.metadata().put("recordAnalysisDatasetCount", datasets.size());
-        request.metadata().put("recordAnalysisSuccessfulDatasetCount", datasets.size());
+        request.metadata().put("recordAnalysisDatasetCount", result.datasetReferences().size());
+        request.metadata().put("recordAnalysisSuccessfulDatasetCount", result.datasetReferences().size());
         var failures = sourceFailureDatasets(request.metadata());
         boolean[] sourceCompleteness = {true};
         datasets.forEach(dataset -> dataset.handle().scan(1000, page -> {

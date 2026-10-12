@@ -150,11 +150,6 @@ public final class FinalSynthesisNode {
     private void recordCompletedOutcome(FinalModelSynthesisRequest request) {
         boolean complete = request.coverageComplete() && request.evidenceTraceComplete()
             && request.sourceContentComplete();
-        if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata())) {
-            Object audit = request.metadata().get("modelEvidenceAssessmentAudit");
-            if (audit instanceof Map<?,?> entry && entry.get("assessment") instanceof Map<?,?> assessment
-                && "PARTIAL".equals(assessment.get("evidenceStatus"))) complete = false;
-        }
         AnalysisExecutionOutcome outcome = new AnalysisExecutionOutcome(
             AnalysisExecutionOutcome.SCHEMA_VERSION,
             complete ? AnalysisExecutionOutcome.ExecutionStatus.COMPLETED

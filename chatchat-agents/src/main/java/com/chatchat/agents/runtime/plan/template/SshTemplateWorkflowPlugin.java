@@ -13,4 +13,13 @@ public final class SshTemplateWorkflowPlugin extends ProtocolFamilyTemplateWorkf
     public String templateIdInputPath() {
         return "$.template";
     }
+
+    @Override
+    public java.util.Map<String, Object> templateDiscoveryInput(java.util.Map<String, Object> assetInput) {
+        if (!java.util.List.of("asset", "asset_selection").contains(assetInput.getOrDefault("stage", "")))
+            return java.util.Map.of();
+        var input = new java.util.LinkedHashMap<String, Object>(assetInput);
+        input.put("stage", "template");
+        return input;
+    }
 }

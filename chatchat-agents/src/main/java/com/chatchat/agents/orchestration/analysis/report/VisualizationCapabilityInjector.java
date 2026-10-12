@@ -38,6 +38,14 @@ public final class VisualizationCapabilityInjector {
             """;
     }
     public String injectReportDraft(String prompt, VerifiedReportDataCatalog catalog) {
-        return inject(prompt, catalog) + "\nPreserve this call's outer analysis JSON schema. Put the narrative and optional json:report-block fences inside the reportMarkdown string, never outside the outer response object.";
+        return injectReportDraft(prompt, catalog, "reportMarkdown");
+    }
+
+    public String injectReportDraft(String prompt, VerifiedReportDataCatalog catalog, String contentField) {
+        if (!Set.of("content", "reportMarkdown").contains(contentField)) {
+            throw new IllegalArgumentException("Unsupported report content field");
+        }
+        return inject(prompt, catalog) + "\nPreserve this call's outer analysis JSON schema. Put the narrative and optional json:report-block fences inside the "
+            + contentField + " string, never outside the outer response object.";
     }
 }

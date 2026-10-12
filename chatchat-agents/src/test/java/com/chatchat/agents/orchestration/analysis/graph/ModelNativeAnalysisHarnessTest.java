@@ -13,6 +13,96 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class ModelNativeAnalysisHarnessTest {
+    @Test void omittedStringPreviewHasAnExecutableOriginalValueLocator() {
+        var access = new BoundedAnalysisEvidence();
+        var sources = new LinkedHashMap<String, Dataset>();
+        String original = "start-" + "x".repeat(7000) + "-end";
+        sources.put("source", new Dataset("source", Map.of(), List.of(Map.of("opaqueField", original))));
+        var prepared = new BoundedAnalysisEvidence.Prepared(List.of(), "fingerprint", sources, false);
+        var request = Map.of("operation", "READ_RECORDS", "datasetReference", "source", "fromRecord", 1, "limit", 1);
+        var receipt = access.read(prepared, List.of(request), () -> {}, null, scope,
+            AnalysisEvidenceSpillStore.disabled(), "Analyze", new LinkedHashMap<>());
+        var row = (Map<?, ?>) ((List<?>) receipt.get(0).get("rows")).get(0);
+        var hint = (Map<?, ?>) ((List<?>) row.get("readHints")).get(0);
+        assertThat(hint.get("totalChars")).isEqualTo(original.length());
+        var next = access.read(prepared, List.of(hint.get("request")), () -> {}, null, scope,
+            AnalysisEvidenceSpillStore.disabled(), "Analyze", new LinkedHashMap<>());
+        assertThat(next.get(0)).containsEntry("text", original.substring(0, 3000))
+            .containsEntry("hasMore", true).containsEntry("nextChar", 3000);
+    }
+    @Test void absentProjectionFieldIsNotReportedAsMissingSourceData() {
+        var model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenAnswer(new org.mockito.stubbing.Answer<String>() {
+            int turn;
+            public String answer(org.mockito.invocation.InvocationOnMock call) {
+                if (++turn == 1) return ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v2",
+                    "decision", Map.of("action", "CONTINUE"), "evidenceRequests", List.of(Map.of(
+                        "operation", "READ_RECORDS", "datasetReference", "source", "fromRecord", 1,
+                        "limit", 1, "fields", List.of("content")))));
+                assertThat((String) call.getArgument(0)).contains("\"availableFields\":[\"value\"]",
+                    "\"absentInReturnedItems\":[\"content\"]", "\"absentFieldCount\":1");
+                return ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v2",
+                    "decision", Map.of("action", "COMPLETE"), "output_type", "final", "content", "Limited report"));
+            }
+        });
+        assertThat(execute(3, sources(), model, new LinkedHashMap<>()).markdown()).isEqualTo("Limited report");
+    }
+    @Test void plannedTaskUsesOnlyV2AndMeasuresWholePrompt() {
+        var model = mock(ChatModel.class);
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("analysisInterpretationPlan", Map.of("version", "original-plan", "steps", List.of()));
+        when(model.chat(anyString())).thenAnswer(call -> {
+            String prompt = call.getArgument(0);
+            assertThat(prompt).startsWith("Plan before execution.")
+                .contains("L1.submittedPlan", "original-plan", "workspace.changeReason",
+                    "inside the content string", "\"READ_CONTEXT\"", "limit:1..20")
+                .doesNotContain("model_native_analysis.v1", "WAIT", "PUBLISH", "reportMarkdown",
+                    "You may finish immediately", "plain Markdown", "plan.plan.change_reason");
+            assertThat(ModelAnalysisPrompt.CORE.length() + ModelAnalysisPrompt.protocol(true).length())
+                .isLessThan(4000);
+            var sizes = (Map<?, ?>) metadata.get("harnessPromptSize");
+            assertThat(sizes.get("fullChars")).isEqualTo(prompt.length());
+            assertThat(((Number) sizes.get("layersChars")).intValue()).isPositive();
+            return ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v2",
+                "decision", Map.of("action", "COMPLETE"), "output_type", "final", "content", "Final"));
+        });
+        assertThat(execute(3, sources(), model, metadata).markdown()).isEqualTo("Final");
+        assertThat(metadata).containsEntry("publicationState", "REQUESTED");
+    }
+
+    @Test void legacyPromptHasOneProtocolWhileAdapterStillAcceptsPlainReports() {
+        var model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenAnswer(call -> {
+            assertThat((String) call.getArgument(0)).contains("model_native_analysis.v1",
+                "inside the reportMarkdown string").doesNotContain("model_native_analysis.v2", "WAIT", "PUBLISH");
+            return "Legacy report";
+        });
+        assertThat(execute(3, sources(), model, new LinkedHashMap<>()).markdown()).isEqualTo("Legacy report");
+    }
+    @Test void protocolCorrectionPreservesThePreviousExecutionReceipt() {
+        var model = mock(ChatModel.class); var turn = new AtomicInteger();
+        when(model.chat(anyString())).thenAnswer(call -> {
+            int number = turn.incrementAndGet();
+            if (number == 1) return v2("CONTINUE", "", List.of(Map.of("operation", "READ_TEXT",
+                "datasetReference", "source", "record", 1, "field", "text")));
+            if (number == 2) return "{\"schemaVersion\":null}";
+            assertThat((String) call.getArgument(0)).contains("INVALID_TURN_PROTOCOL",
+                "\"receipts\":[{\"datasetReference\":\"source\",\"recordRef\":\"source.records[1]\",\"field\":\"text\"");
+            return v2("COMPLETE", "Supported result", List.of());
+        });
+        execute(4, List.of(new Dataset("source", Map.of(), List.of(Map.of("text", "EXACT FACT")))), model,
+            new LinkedHashMap<>(Map.of("modelAnalysisProtocol", "model_native_analysis.v2")));
+    }
+    @Test void missingSchemaVersionIsFeedbackInsteadOfAnUnhandledException() {
+        var model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn("{\"plan\":{\"objective\":\"Discover facts\"}}",
+            "{\"schemaVersion\":null}", "Model corrected report");
+        var meta = new LinkedHashMap<String,Object>();
+        assertThat(execute(4, sources(), model, meta).markdown()).isEqualTo("Model corrected report");
+        var prompts = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(model, times(3)).chat(prompts.capture());
+        assertThat(prompts.getAllValues().get(1)).contains("INVALID_TURN_PROTOCOL", "Missing or unsupported schemaVersion");
+    }
     @Test void freeReportPromptOffersOptionalVisualizationProtocolAndPreservesRequestedJson() {
         var model = mock(ChatModel.class);
         String authored = "# Example\n```json\n{\"example\":42}\n```\n\n| Value |\n| --- |\n| 42 |";
@@ -97,7 +187,7 @@ class ModelNativeAnalysisHarnessTest {
                 "references", List.of(Map.of("datasetReference", "source", "record", 1, "fieldPath", List.of("unknown"))))));
         when(model.chat(any(String.class))).thenAnswer(call -> {
             assertThat((String)call.getArgument(0)).contains("cumulative counters from interval deltas",
-                "publication", "SOURCE_TRANSPORT_ONLY_NOT_ANALYTICAL_SUFFICIENCY", "failed-source");
+                "report quality", "SOURCE_TRANSPORT_ONLY_NOT_ANALYTICAL_SUFFICIENCY", "failed-source");
             return ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v1", "completed", true,
                 "reportMarkdown", "The observed window has low activity; another chunk is missing.", "evidenceAssessment", assessment));
         });

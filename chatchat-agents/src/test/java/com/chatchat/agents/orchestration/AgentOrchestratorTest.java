@@ -80,6 +80,27 @@ import static org.mockito.Mockito.when;
 class AgentOrchestratorTest {
 
     @Test
+    void stagedDiscoveryKeepsOriginalPlanningAndAssetSelectionFlow() {
+        String discovery = "mcp_chatchat_mcp_server_server_capability_query";
+        String executor = "mcp_chatchat_mcp_server_linux_command_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(discovery)).thenReturn(ToolMetadata.builder()
+            .parameters(List.of(ToolParameter.builder().name("stage").type("string")
+                .enumValues(new String[]{"asset", "template"}).build()))
+            .metadata(Map.of(com.chatchat.common.tool.ToolWorkflowContract.METADATA_KEY,
+                com.chatchat.common.tool.ToolWorkflowContract.declaration(
+                    com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY, "published.discovery.v1", "filters")))
+            .build());
+        when(registry.getToolMetadata(executor)).thenReturn(ToolMetadata.builder()
+            .metadata(Map.of(com.chatchat.common.tool.ToolWorkflowContract.METADATA_KEY,
+                com.chatchat.common.tool.ToolWorkflowContract.declaration(
+                    com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_EXECUTION, "published.execution.v1", "context")))
+            .build());
+        assertThat(newOrchestrator(mock(ChatModel.class), registry).deterministicBoundTemplatePlan(
+            "Inspect authorized assets", List.of(discovery, executor))).isNull();
+    }
+
+    @Test
     void deterministicBoundTemplatePlanPassesPublishedWorkflowValidation() {
         String discovery = "mcp_chatchat_mcp_server_server_capability_query";
         String executor = "mcp_chatchat_mcp_server_linux_command_execute";

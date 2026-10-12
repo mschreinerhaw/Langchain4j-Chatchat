@@ -45,6 +45,17 @@ class PreauthorizedStructuredDataOperatorTest {
         assertThat(operator.execute(context(), scope(), null).evidence()).isEmpty();
     }
 
+    @Test void retainsValidPartialRowsAndReportsTheirCoverage() {
+        when(tools.execute(any(), any(), any())).thenReturn(new WorkflowExecutionResult(List.of(
+            new ToolAnalysisEvidence("e-1", PreauthorizedStructuredDataOperator.TOOL_NAME, "call-1",
+                "{\"success\":true,\"data\":{\"complete\":false,\"rowCount\":1,\"rows\":[{\"total\":42}]}}", Map.of())),
+            Map.of(), List.of()));
+        var result = operator.execute(context(), scope(), null);
+        assertThat(result.evidence()).hasSize(1);
+        assertThat(result.outputs()).containsEntry("status", "PARTIAL").containsEntry("complete", false);
+        assertThat(result.evidence().get(0).attributes()).containsEntry("sourceComplete", false);
+    }
+
     private AnalysisContext context() {
         return new AnalysisContext("analyze sales", new KernelDataScope("tenant", "user", "request",
             null, "run", null, Map.of()), "sales-skill", List.of(), List.of(), List.of(), null,

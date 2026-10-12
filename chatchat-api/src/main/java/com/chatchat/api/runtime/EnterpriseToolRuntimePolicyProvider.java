@@ -187,10 +187,7 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
         if (configuredScope == null) {
             return toolMatched;
         }
-        if (toolMatched && (requestedScope == null || requestedScope.domain() == null)) {
-            return true;
-        }
-        return scopeMatches(configuredScope, requestedScope);
+        return toolMatched && scopeMatches(configuredScope, requestedScope);
     }
 
     /**
@@ -268,7 +265,8 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
         Map<String, Object> attributes = request.getAttributes();
         Map<String, Object> context = request.getToolInput() == null ? null : request.getToolInput().getContext();
         Map<String, Object> parameters = request.getToolInput() == null ? null : request.getToolInput().getParameters();
-        String explicit = firstValue("scopeExpression", attributes, context, parameters);
+        // An authorization expression is a Runtime claim, never a model argument.
+        String explicit = firstValue("scopeExpression", attributes, context);
         if (explicit != null) {
             RequestScope parsed = RequestScope.parse(explicit);
             if (parsed != null) {

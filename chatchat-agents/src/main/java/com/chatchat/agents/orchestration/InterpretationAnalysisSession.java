@@ -115,6 +115,18 @@ final class InterpretationAnalysisSession {
     private boolean augmentationOverrideAvailable;
     private EvidenceAugmentationPolicy.Outcome latestAugmentationDecision;
     private InterpretationPlanRewriter rewriter;
+    // Reuse the accepted plan; credentials/tool inputs are not part of analysis context.
+    private void recordAnalysisPlan(InterpretationPlan plan) {
+        metadata.put("analysisInterpretationPlan", Map.of(
+            "version", String.valueOf(plan.version()),
+            "intent", plan.intent() == null ? Map.of() : plan.intent(),
+            "context", plan.context() == null ? Map.of() : plan.context(),
+            "steps", plan.steps().stream().map(step -> Map.of(
+                "id", String.valueOf(step.id()), "actionType", String.valueOf(step.actionType()),
+                "toolName", String.valueOf(step.toolName()), "dependsOn", step.dependsOn())).toList()));
+        metadata.put("analysisInterpretationPlanValidated", true);
+    }
+
     private InterpretationPlan currentPlan;
     private InterpretationPlanRuntime.ExecutionResult currentResult;
     private Map<Integer, InterpretationPlanRuntime.ReusableStep> reusablePlanSteps;
@@ -246,6 +258,7 @@ final class InterpretationAnalysisSession {
                         authoritativeWorkflowTaskId);
         host.recordInterpretationPlanEvaluation(
                 "initial", initialEvaluation, runtimeAttributes, metadata);
+        if (initialEvaluation.valid()) recordAnalysisPlan(plan);
 
         return INITIAL_DATA;
     }
@@ -669,6 +682,7 @@ final class InterpretationAnalysisSession {
         completion = host.rejectPlanExceedingRequestBudget(rewrittenPlan, runtimeAttributes, traces, metadata, observations);
         if (completion != null) return END;
         currentPlan = rewrittenPlan;
+        recordAnalysisPlan(currentPlan);
         host.planSnapshotService.saveGenerated(
                 rewriteStage, currentPlan, tenantId, requestId, runtimeAttributes, metadata);
         host.recordInterpretationPlanExecutionStarted(

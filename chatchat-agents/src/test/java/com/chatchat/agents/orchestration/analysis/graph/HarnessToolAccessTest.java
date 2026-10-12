@@ -15,10 +15,78 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class HarnessToolAccessTest {
+    @Test void workflowToolsAreNeitherAdvertisedNorExecutedByAnalysisHarness() {
+        var invocations = new AtomicInteger();
+        for (var role : List.of(com.chatchat.common.tool.ToolWorkflowRole.ASSET_DISCOVERY,
+                com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_EXECUTION)) {
+            when(registry.getToolMetadata("arbitrary_name")).thenReturn(ToolMetadata.builder()
+                .agentCompatible(true).operationType("read").metadata(Map.of("workflowContract",
+                    com.chatchat.common.tool.ToolWorkflowContract.declaration(role, "configured", "typed"))).build());
+            var access = new HarnessToolAccess(registry, List.of("arbitrary_name"), (name,args) -> {
+                invocations.incrementAndGet(); return null;
+            }, evidence, Map.of(), metadata, scope, AnalysisEvidenceSpillStore.disabled(), 0);
+            assertThat(access.capabilities()).doesNotContain("arbitrary_name");
+            assertThatThrownBy(() -> access.call(Map.of("toolName", "arbitrary_name", "arguments", Map.of()),
+                new LinkedHashMap<>())).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("not authorized");
+        }
+        assertThat(invocations).hasValue(0);
+    }
+
+    @Test void workflowRoleChangesRevokePreviouslyAdvertisedCapability() {
+        when(registry.getToolMetadata("reader")).thenReturn(ToolMetadata.builder()
+            .agentCompatible(true).operationType("read").metadata(Map.of("inputSchema", Map.of("type", "object"))).build());
+        var access = new HarnessToolAccess(registry, List.of("reader"), (name,args) -> {
+            throw new AssertionError("Revoked tool must not execute");
+        }, evidence, Map.of(), metadata, scope, AnalysisEvidenceSpillStore.disabled(), 0);
+        assertThat(access.capabilities()).contains("reader");
+        when(registry.getToolMetadata("reader")).thenReturn(ToolMetadata.builder()
+            .agentCompatible(true).operationType("read").metadata(Map.of("workflowContract",
+                com.chatchat.common.tool.ToolWorkflowContract.declaration(
+                    com.chatchat.common.tool.ToolWorkflowRole.ASSET_DISCOVERY, "configured", "typed"))).build());
+        assertThat(access.capabilities()).doesNotContain("reader");
+        assertThatThrownBy(() -> access.call(Map.of("toolName", "reader", "arguments", Map.of()),
+            new LinkedHashMap<>())).isInstanceOf(IllegalArgumentException.class);
+    }
     private final ToolRegistry registry = mock(ToolRegistry.class);
     private final AnalysisEvidenceCoordinator evidence = mock(AnalysisEvidenceCoordinator.class);
     private final GovernanceIsolationScope scope = GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation");
     private final Map<String,Object> metadata = new LinkedHashMap<>();
+
+    @Test void taskMarkerCannotOpenExecutionToolsInAnalysisContinuation() {
+        when(registry.getToolMetadata("registered_executor")).thenReturn(ToolMetadata.builder()
+            .agentCompatible(true).operationType("execute").build());
+        var invocations = new java.util.concurrent.atomic.AtomicInteger();
+        var access = new HarnessToolAccess(registry, List.of("registered_executor"), (name,args) -> {
+            invocations.incrementAndGet();
+            return new ToolRuntimeExecution(ToolOutput.success(Map.of()), null, null, "success", Map.of());
+        }, evidence, Map.of("modelNativeTask", true), metadata, scope, AnalysisEvidenceSpillStore.disabled(), 0);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> access.call(
+            Map.of("toolName", "registered_executor", "arguments", Map.of()), new LinkedHashMap<>()))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("not authorized");
+        assertThat(invocations).hasValue(0);
+    }
+
+    @Test void acquiredEvidenceStaysInContextAfterAnInvalidModelResponse() {
+        when(registry.getToolMetadata("discovery")).thenReturn(ToolMetadata.builder()
+            .agentCompatible(true).operationType("read").build());
+        when(evidence.project(any(), anyMap())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(), List.of()));
+        var access = new HarnessToolAccess(registry, List.of("discovery"), (name,args) ->
+            new ToolRuntimeExecution(ToolOutput.success(Map.of("asset", "authorized-asset-A")), null, null, "success", Map.of()),
+            evidence, Map.of(), metadata, scope, AnalysisEvidenceSpillStore.disabled(), 0);
+        var model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn(
+            "{\"schemaVersion\":\"model_native_analysis.v2\",\"decision\":{\"action\":\"CONTINUE\"},"
+                + "\"evidenceRequests\":[{\"operation\":\"CALL_TOOL\",\"toolName\":\"discovery\",\"arguments\":{}}]}",
+            "{\"schemaVersion\":null}",
+            "{\"schemaVersion\":\"model_native_analysis.v2\",\"decision\":{\"action\":\"COMPLETE\"},\"output_type\":\"final\",\"content\":\"Report\"}");
+        new ModelNativeAnalysisHarness(4).withToolAccess(access).execute("Discover", List.of(), model,
+            scope, AnalysisEvidenceSpillStore.disabled(), metadata, () -> {}, event -> {});
+        var prompts = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(model, times(3)).chat(prompts.capture());
+        assertThat(prompts.getAllValues().get(2)).contains("INVALID_TURN_PROTOCOL", "authorized-asset-A", "datasetReference");
+        assertThat(metadata).containsEntry("harnessToolCalls", 1);
+    }
 
     @Test void modelMayContinueWithAuthorizedToolAndReceiveQueryableResultHandles() {
         when(registry.getToolMetadata("read_tool")).thenReturn(ToolMetadata.builder().agentCompatible(true).operationType("read")

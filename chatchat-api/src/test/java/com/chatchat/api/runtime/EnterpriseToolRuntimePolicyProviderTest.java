@@ -179,6 +179,31 @@ class EnterpriseToolRuntimePolicyProviderTest {
         assertThat(policy.allowed()).isTrue();
     }
 
+    @Test void omittedScopeCannotBypassAnAssetRestrictedGrant() {
+        when(permissionRepository.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
+            "tenant-a", "TENANT", "tenant-a")).thenReturn(List.of(permission("tenant-a", "tenant-a",
+                "sql_asset_query", "mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-1;level=read")));
+        assertThat(provider.resolve(request("tenant-a", "user-a", Map.of()), null).allowed()).isFalse();
+    }
+
+    @Test void matchingScopeCannotAuthorizeAnotherTool() {
+        when(permissionRepository.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
+            "tenant-a", "TENANT", "tenant-a")).thenReturn(List.of(permission("tenant-a", "tenant-a",
+                "other_tool", "mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-1;level=read")));
+        assertThat(provider.resolve(request("tenant-a", "user-a", Map.of("scopeExpression",
+            "mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-1;level=read")), null).allowed()).isFalse();
+    }
+
+    @Test void modelSuppliedAuthorizationExpressionIsNotATrustedScope() {
+        when(permissionRepository.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
+            "tenant-a", "TENANT", "tenant-a")).thenReturn(List.of(permission("tenant-a", "tenant-a",
+                "sql_asset_query", "mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-1;level=read")));
+        var call = request("tenant-a", "user-a", Map.of());
+        call.getToolInput().setParameters(Map.of("scopeExpression",
+            "mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-1;level=read"));
+        assertThat(provider.resolve(call, null).allowed()).isFalse();
+    }
+
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings = {"disabled-user", "disabled-role", "foreign-role"})
     void invalidAdministratorIdentityCannotBypassGrants(String scenario) {

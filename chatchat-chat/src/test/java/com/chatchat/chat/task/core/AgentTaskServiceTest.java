@@ -69,6 +69,27 @@ import static org.mockito.Mockito.when;
 class AgentTaskServiceTest {
 
     @Test
+    void workspaceBindingFailurePreventsPersistenceAndDispatch() throws Exception {
+        var eventBus = mock(AgentEventBus.class);
+        var eventStore = mock(AgentEventStore.class);
+        var repository = mock(AgentTaskLatestRepository.class);
+        var resources = mock(com.chatchat.enterprise.workspace.WorkspaceResourceService.class);
+        var service = taskService(eventBus, eventStore, repository, mock(TaskConfirmRepository.class), new ObjectMapper());
+        Field field = AgentTaskService.class.getDeclaredField("workspaceResources"); field.setAccessible(true); field.set(service, resources);
+        var scope = new com.chatchat.enterprise.workspace.WorkspaceRequestContext.Scope("tenant-1", "user-1", "data-science");
+        org.mockito.Mockito.doThrow(new com.chatchat.enterprise.workspace.WorkspaceService.AccessDenied())
+            .when(resources).bind(org.mockito.ArgumentMatchers.eq("tenant-1"), org.mockito.ArgumentMatchers.eq("task"), any(), org.mockito.ArgumentMatchers.eq(scope));
+        com.chatchat.enterprise.workspace.WorkspaceRequestContext.set(scope);
+        try {
+            assertThatThrownBy(() -> service.submit(idempotentRequest("binding-failure", "query")))
+                .isInstanceOf(com.chatchat.enterprise.workspace.WorkspaceService.AccessDenied.class);
+            verify(repository, never()).save(any());
+            verify(eventBus, never()).publish(any());
+            verify(eventStore, never()).save(any());
+        } finally { com.chatchat.enterprise.workspace.WorkspaceRequestContext.clear(); }
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void emitsRoleChatSkillExtractionAndApplicationObservations() throws Exception {
         AgentEventStore eventStore = mock(AgentEventStore.class);

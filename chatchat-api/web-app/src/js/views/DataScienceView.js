@@ -63,6 +63,7 @@ const defaultInputSchema = `{
   "additionalProperties": false
 }`;
 
+import { workspaceStorageKey } from "../workspace/workspaceContext";
 const workspaceLayoutDefaults = { explorer: 238, ai: 330, bottom: 250 };
 const workspaceLayoutStorageKey = "chatchat.python-studio.layout.v1";
 
@@ -70,6 +71,7 @@ export default {
   name: "DataScienceView",
   components: { PythonCodeDiff },
   props: {
+    workspaceId: { type: String, default: "zhice" },
     initialTab: {
       type: String,
       default: "environment"
@@ -77,6 +79,10 @@ export default {
   },
   emits: ["navigate"],
   data: () => ({
+    workspaceDraftKey: "",
+    workspaceLayoutKey: "",
+    workspaceDraftTimer: null,
+    workspaceUnloadHandler: null,
     tab: "environment",
     loading: true,
     busy: false,
@@ -392,6 +398,7 @@ export default {
     initialTab: {
       immediate: true,
       handler(value) {
+        this.scheduleWorkspaceDraft?.();
         if (["environment", "develop", "data", "scripts"].includes(value)) this.tab = value;
       }
     },
@@ -426,9 +433,14 @@ export default {
     }
   },
   mounted() {
+    this.workspaceDraftKey = workspaceStorageKey("chatchat.python-studio.draft.v1", this.workspaceId);
+    this.workspaceLayoutKey = workspaceStorageKey(workspaceLayoutStorageKey, this.workspaceId);
+    this.workspaceUnloadHandler = () => this.persistWorkspaceDraft();
+    globalThis.addEventListener?.("beforeunload", this.workspaceUnloadHandler);
     this.restoreWorkspaceLayout();
-    this.load();
+    this.load().then(() => this.restoreWorkspaceDraft());
   },
+  deactivated() { this.persistWorkspaceDraft(); },
   activated() {
     if (this.tab === "develop")
       nextTick(() => {
@@ -437,6 +449,9 @@ export default {
       });
   },
   beforeUnmount() {
+    this.persistWorkspaceDraft();
+    clearTimeout(this.workspaceDraftTimer);
+    globalThis.removeEventListener?.("beforeunload", this.workspaceUnloadHandler);
     this.stopAiProgress();
     this.stopPaneResize();
     this.clearErrorTimer();
@@ -445,6 +460,36 @@ export default {
     this.finishIdeDialog(false);
   },
   methods: {
+    scheduleWorkspaceDraft() {
+      clearTimeout(this.workspaceDraftTimer);
+      this.workspaceDraftTimer = setTimeout(() => this.persistWorkspaceDraft(), 250);
+    },
+    persistWorkspaceDraft() {
+      this.captureActiveEditorTab();
+      try { sessionStorage.setItem(this.workspaceDraftKey || workspaceStorageKey("chatchat.python-studio.draft.v1", this.workspaceId), JSON.stringify({
+        version: 1, updatedAt: Date.now(), activeEditorTabKey: this.activeEditorTabKey,
+        editorTabs: this.editorTabs.map(item => ({ key: item.key, form: item.form, savedSource: item.savedSource,
+          savedFileName: item.savedFileName, savedFolderId: item.savedFolderId, viewState: item.viewState,
+          consoleText: item.consoleText, parametersText: item.parametersText, inputSchemaText: item.inputSchemaText, runState: "idle" })),
+        selectedDataFileId: this.selectedDataFileId, aiPrompt: this.aiPrompt
+      })); } catch { /* KeepAlive remains available when storage is unavailable. */ }
+    },
+    restoreWorkspaceDraft() {
+      try {
+        const draft = JSON.parse(sessionStorage.getItem(this.workspaceDraftKey || workspaceStorageKey("chatchat.python-studio.draft.v1", this.workspaceId)) || "null");
+        if (draft?.version !== 1 || Date.now() - draft.updatedAt > 24 * 60 * 60 * 1000) return;
+        const tabs = (draft.editorTabs || []).filter(item => item.form && this.assets.some(asset => asset.id === item.form.assetId)
+          && (!item.form.id || this.scripts.some(script => script.id === item.form.id)));
+        if (tabs.length) {
+          this.disposeEditor(); this.editorTabs = tabs;
+          const selected = tabs.find(item => item.key === draft.activeEditorTabKey) || tabs[0];
+          this.activeEditorTabKey = selected.key; this.form = { ...selected.form };
+          nextTick(() => this.initializeEditor());
+        }
+        if (this.dataFiles.some(file => file.id === draft.selectedDataFileId)) this.selectedDataFileId = draft.selectedDataFileId;
+        this.aiPrompt = draft.aiPrompt || "";
+      } catch { /* Ignore invalid/stale drafts; durable assets are unchanged. */ }
+    },
     navigateToSection(section) {
       const routes = {
         environment: "dataScienceEnvironment",
@@ -1307,7 +1352,7 @@ export default {
     },
     restoreWorkspaceLayout() {
       try {
-        const stored = JSON.parse(globalThis.localStorage?.getItem(workspaceLayoutStorageKey) || "{}");
+        const stored = JSON.parse(globalThis.localStorage?.getItem(this.workspaceLayoutKey || workspaceStorageKey(workspaceLayoutStorageKey, this.workspaceId)) || "{}");
         this.explorerWidth = this.clamp(Number(stored.explorer), 180, 480, workspaceLayoutDefaults.explorer);
         this.aiWidth = this.clamp(Number(stored.ai), 260, 620, workspaceLayoutDefaults.ai);
         this.bottomHeight = this.clamp(Number(stored.bottom), 100, 520, workspaceLayoutDefaults.bottom);
@@ -1319,7 +1364,7 @@ export default {
     },
     persistWorkspaceLayout() {
       try {
-        globalThis.localStorage?.setItem(workspaceLayoutStorageKey, JSON.stringify({
+        globalThis.localStorage?.setItem(this.workspaceLayoutKey || workspaceStorageKey(workspaceLayoutStorageKey, this.workspaceId), JSON.stringify({
           explorer: this.explorerWidth,
           ai: this.aiWidth,
           bottom: this.bottomHeight

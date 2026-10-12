@@ -1,5 +1,7 @@
 const CHAT_RUNTIME_STATE_KEY = "chatchat.chatRuntime.state";
 const CHAT_RUNTIME_STATE_VERSION = 1;
+import { workspaceStorageKey, resourceWorkspace } from "../workspace/workspaceContext";
+function stateWorkspace(entry = {}) { return entry.workspaceId || resourceWorkspace(entry.taskId ? "task" : "session", entry.taskId || entry.conversationId || entry.id || entry.historyId); }
 const CHAT_RUNTIME_STATE_TTL_MS = 30 * 60 * 1000;
 const ACTIVE_STATUSES = new Set(["running", "streaming", "pending", "waiting"]);
 const TERMINAL_STATUSES = new Set(["completed", "success", "partial", "empty", "failed", "cancelled", "killed", "rejected"]);
@@ -19,6 +21,7 @@ function canUseLocalStorage() {
 function normalizeEntry(entry = {}) {
   const status = normalizeStatus(entry.status || "running");
   return {
+    workspaceId: entry.workspaceId,
     conversationId: String(entry.conversationId || entry.historyId || "").trim(),
     messageId: String(entry.messageId || "").trim(),
     taskId: String(entry.taskId || "").trim(),
@@ -50,12 +53,12 @@ export function isRuntimeStateTerminalStatus(status = "") {
   return TERMINAL_STATUSES.has(normalizeStatus(status));
 }
 
-export function readChatRuntimeState() {
+export function readChatRuntimeState(workspaceId) {
   if (!canUseLocalStorage()) {
     return { version: CHAT_RUNTIME_STATE_VERSION, updatedAt: now(), entries: {} };
   }
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(CHAT_RUNTIME_STATE_KEY) || "null");
+    const parsed = JSON.parse(window.localStorage.getItem(workspaceStorageKey(CHAT_RUNTIME_STATE_KEY, workspaceId)) || "null");
     const entries = parsed && typeof parsed === "object" && parsed.entries && typeof parsed.entries === "object"
       ? parsed.entries
       : {};
@@ -74,12 +77,12 @@ export function readChatRuntimeState() {
   }
 }
 
-function writeChatRuntimeState(state) {
+function writeChatRuntimeState(state, workspaceId) {
   if (!canUseLocalStorage()) {
     return;
   }
   try {
-    window.localStorage.setItem(CHAT_RUNTIME_STATE_KEY, JSON.stringify({
+    window.localStorage.setItem(workspaceStorageKey(CHAT_RUNTIME_STATE_KEY, workspaceId), JSON.stringify({
       version: CHAT_RUNTIME_STATE_VERSION,
       updatedAt: now(),
       entries: state.entries || {}
@@ -102,16 +105,18 @@ export function upsertChatRuntimeState(entry = {}) {
     clearChatRuntimeState(normalized);
     return;
   }
-  const state = readChatRuntimeState();
+  const workspace = stateWorkspace(entry);
+  const state = readChatRuntimeState(workspace);
   state.entries[key] = normalized;
-  writeChatRuntimeState(state);
+  writeChatRuntimeState(state, workspace);
 }
 
 export function clearChatRuntimeState(match = {}) {
   const conversationId = String(match.conversationId || match.historyId || "").trim();
   const taskId = String(match.taskId || "").trim();
   const messageId = String(match.messageId || "").trim();
-  const state = readChatRuntimeState();
+  const workspace = stateWorkspace(match);
+  const state = readChatRuntimeState(workspace);
   const entries = Object.fromEntries(
     Object.entries(state.entries || {}).filter(([, entry]) => {
       if (conversationId && entry.conversationId === conversationId) {
@@ -126,7 +131,7 @@ export function clearChatRuntimeState(match = {}) {
       return true;
     })
   );
-  writeChatRuntimeState({ ...state, entries });
+  writeChatRuntimeState({ ...state, entries }, workspace);
 }
 
 export function runtimeStateForConversation(conversation = {}) {
@@ -134,7 +139,7 @@ export function runtimeStateForConversation(conversation = {}) {
   const messages = Array.isArray(conversation.messages) ? conversation.messages : [];
   const messageIds = new Set(messages.map((message) => message?.id).filter(Boolean).map(String));
   const taskIds = new Set(messages.map((message) => message?.taskId).filter(Boolean).map(String));
-  return Object.values(readChatRuntimeState().entries || {}).find((entry) =>
+  return Object.values(readChatRuntimeState(stateWorkspace(conversation)).entries || {}).find((entry) =>
     isFresh(entry)
     && isRuntimeStateActiveStatus(entry.status)
     && (

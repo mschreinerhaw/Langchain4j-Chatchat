@@ -18,6 +18,19 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class UiArtifactServiceTest {
+    @Test void privateArtifactReadAndDeleteAreDeniedAtServiceBoundary() throws Exception {
+        var fixture = fixture(64);
+        var resources = mock(com.chatchat.enterprise.workspace.WorkspaceResourceService.class);
+        var field = UiArtifactService.class.getDeclaredField("workspaceResources"); field.setAccessible(true); field.set(fixture.service(), resources);
+        var scope = new com.chatchat.enterprise.workspace.WorkspaceRequestContext.Scope("tenant-a", "user", "zhice");
+        org.mockito.Mockito.doThrow(new com.chatchat.enterprise.workspace.WorkspaceService.AccessDenied()).when(resources).assertAccess(scope, "artifact", "private-id");
+        com.chatchat.enterprise.workspace.WorkspaceRequestContext.set(scope);
+        try {
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> fixture.service().manifest("tenant-a", "private-id")).isInstanceOf(com.chatchat.enterprise.workspace.WorkspaceService.AccessDenied.class);
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> fixture.service().resource("tenant-a", "private-id", "answer")).isInstanceOf(com.chatchat.enterprise.workspace.WorkspaceService.AccessDenied.class);
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> fixture.service().delete("tenant-a", "private-id")).isInstanceOf(com.chatchat.enterprise.workspace.WorkspaceService.AccessDenied.class);
+        } finally { com.chatchat.enterprise.workspace.WorkspaceRequestContext.clear(); }
+    }
     @Test void preservesModelCitationsAcrossExternalizationAndAuthorizedResourceRetrieval() {
         Fixture fixture=fixture(64);
         String answer="Model final: `mcp_server_tool` [SQL-1], #chunk-2.\n".repeat(4);

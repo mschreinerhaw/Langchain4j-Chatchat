@@ -1550,6 +1550,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         boolean systemMenuOrderMigrationRequired = permissionRepository
             .findByPermissionCode("system:menu-order:v3").isEmpty();
         List<SysPermission> permissions = ensureDefaultPermissions();
+        ensureWorkspaceAccountPermissions(permissions);
         ensureDefaultMenus();
         migrateSystemSkillRoleMenuLabel();
         if (systemMenuOrderMigrationRequired) {
@@ -1837,6 +1838,21 @@ public class EnterpriseAdminService implements ApplicationRunner {
      *
      * @return the operation result
      */
+    private void ensureWorkspaceAccountPermissions(List<SysPermission> permissions) {
+        Map<String, String> ids = permissions.stream().collect(Collectors.toMap(SysPermission::getPermissionCode, SysPermission::getId));
+        for (SysRole role : roleRepository.findAll()) {
+            Set<String> existing = rolePermissionRepository.findByRoleId(role.getId()).stream()
+                .map(SysRolePermission::getPermissionId).collect(Collectors.toSet());
+            for (String code : List.of("account:workspaces:use", "system:workspaces:manage")) {
+                String prerequisite = code.startsWith("account:") ? "account:menus:read" : "system:admin:operate";
+                if (existing.contains(ids.get(prerequisite)) && !existing.contains(ids.get(code))) {
+                    SysRolePermission relation = new SysRolePermission(); relation.setTenantId(role.getTenantId());
+                    relation.setRoleId(role.getId()); relation.setPermissionId(ids.get(code)); rolePermissionRepository.save(relation);
+                }
+            }
+        }
+    }
+
     private List<SysPermission> ensureDefaultPermissions() {
         final String catalogMigrationCode = "system:permission-catalog:zh:v1";
         boolean migrateCatalog = permissionRepository.findByPermissionCode(catalogMigrationCode).isEmpty();
@@ -1848,6 +1864,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new PermissionSeed(null, "system:menu-order:v3", "系统菜单排序 V3", "internal", null, null, null, 1),
             new PermissionSeed(null, "account:self:read", "当前账户", "api", "/api/v1/enterprise/auth/me", "GET", "user", 2),
             new PermissionSeed(null, "account:menus:read", "当前账户菜单", "api", "/api/v1/enterprise/menus", "GET", "menu", 3),
+            new PermissionSeed(null, "account:workspaces:use", "当前账户工作空间", "api", "/api/v1/workspaces/**", "*", "layout-dashboard", 4),
+            new PermissionSeed(null, "system:workspaces:manage", "工作空间管理", "api", "/api/v1/enterprise/workspaces/**", "*", "settings", 5),
             new PermissionSeed(null, "system:health:read", "系统健康检查", "api", "/api/v1/health/**", "GET", "activity", 4),
             new PermissionSeed(null, "workspace", "工作台", "menu", "/index.html", null, "layout-dashboard", 10),
             new PermissionSeed("workspace", "workspace:chat", "智能对话", "menu", "/index.html#chat", null, "message-circle", 11),
@@ -2088,7 +2106,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         Map<String, SysPermission> permissionsById = permissions.stream()
             .collect(Collectors.toMap(SysPermission::getId, permission -> permission));
         Set<String> accountPermissionIds = permissions.stream()
-            .filter(permission -> Set.of("account:self:read", "account:menus:read")
+            .filter(permission -> Set.of("account:self:read", "account:menus:read", "account:workspaces:use")
                 .contains(permission.getPermissionCode()))
             .map(SysPermission::getId)
             .collect(Collectors.toSet());

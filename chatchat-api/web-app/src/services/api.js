@@ -1,5 +1,6 @@
-﻿const API_BASE = "/api/v1";
+const API_BASE = "/api/v1";
 const AUTH_SESSION_KEY = "chatchat.auth.session";
+import { workspaceHeaders, rememberResponseOrigins, workspaceStorageKey, resetWorkspaceContext, workspaceIdentity } from "../js/workspace/workspaceContext";
 export const AUTH_REQUIRED_EVENT = "chatchat:auth-required";
 let lastAuthRequiredEventAt = 0;
 const BATCH_UPLOAD_MAX_FILES = 5;
@@ -20,15 +21,20 @@ export function storeAuthSession(session) {
 }
 
 export function clearAuthSession() {
+  workbenchRequests.clear();
+  resetWorkspaceContext();
   localStorage.removeItem(AUTH_SESSION_KEY);
 }
 
 export async function apiRequest(path, options = {}) {
   const session = getStoredAuthSession();
+  const workspace = workspaceHeaders(path, options.workspaceId);
+  const requestIdentity = workspaceIdentity();
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json; charset=UTF-8",
+      ...workspace,
       ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
       ...(options.headers || {})
     }
@@ -44,18 +50,24 @@ export async function apiRequest(path, options = {}) {
   notifyAuthRequiredIfNeeded(response, payload, path);
 
   if (!response.ok) {
-    const userMessage = userFacingApiErrorMessage(response, payload);
-    if (userMessage) {
-      throw new Error(userMessage);
-    }
-    throw new Error(payload?.message || `请求失败：${response.status}`);
+    const error = new Error(userFacingApiErrorMessage(response, payload) || payload?.message || `请求失败：${response.status}`);
+    error.status = response.status;
+    throw error;
   }
 
-  return unwrapApiPayload(payload, path);
+  const data = unwrapApiPayload(payload, path);
+  rememberResponseOrigins(data, path, workspace["X-Workspace-Id"], 0, requestIdentity);
+  return data;
 }
 
-export function sendInteractionMessage(payload) {
+export const fetchWorkspaces = () => apiRequest("/workspaces");
+export const fetchWorkspaceManifest = (id) => apiRequest(`/workspaces/${encodeURIComponent(id)}/manifest`);
+export const fetchWorkspacePreferences = () => apiRequest("/workspaces/preferences");
+export const saveWorkspacePreferences = (preferences) => apiRequest("/workspaces/preferences", { method: "PUT", body: JSON.stringify(preferences) });
+
+export function sendInteractionMessage(payload, workspaceId) {
   return apiRequest("/interactions/chat", {
+    workspaceId,
     method: "POST",
     body: JSON.stringify(payload)
   });
@@ -107,14 +119,14 @@ export function requestPythonCodeAssist(payload) { return apiRequest("/data-scie
 export async function uploadPythonDataFile(formData) {
   const session = getStoredAuthSession();
   const path = "/data-science/python/data-files";
-  const response = await fetch(`${API_BASE}${path}`, { method: "POST", headers: { ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}) }, body: formData });
+  const response = await fetch(`${API_BASE}${path}`, { method: "POST", headers: { ...workspaceHeaders(path), ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}) }, body: formData });
   const payload = await readJsonSafely(response); notifyAuthRequiredIfNeeded(response, payload, path);
   if (!response.ok) throw new Error(payload?.message || `上传失败：${response.status}`);
   return unwrapApiPayload(payload, path);
 }
 export async function downloadPythonDataFile(id, fileName) {
   const session = getStoredAuthSession(); const path = `/data-science/python/data-files/${encodeURIComponent(id)}/download`;
-  const response = await fetch(`${API_BASE}${path}`, { headers: { ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}) } });
+  const response = await fetch(`${API_BASE}${path}`, { headers: { ...workspaceHeaders(path), ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}) } });
   if (!response.ok) { const payload = await readJsonSafely(response); throw new Error(payload?.message || `下载失败：${response.status}`); }
   const url = URL.createObjectURL(await response.blob()); const link = document.createElement("a"); link.href = url; link.download = fileName || "data-file"; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
 }
@@ -196,7 +208,7 @@ export async function importDomainSkill(file, name = "", category = "") {
   formData.append("category", category);
   const response = await fetch(`${API_BASE}${path}`, {
     method: "POST",
-    headers: { ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}) },
+    headers: { ...workspaceHeaders(path), ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}) },
     body: formData
   });
   const payload = await readJsonSafely(response);
@@ -835,8 +847,9 @@ export function fetchConversationDetail(conversationId, tenantId = "") {
   return apiRequest(`/conversations/${encodeURIComponent(conversationId)}${query ? `?${query}` : ""}`);
 }
 
-export function saveConversationHistory(payload) {
+export function saveConversationHistory(payload, workspaceId) {
   return apiRequest("/data/history", {
+    workspaceId,
     method: "POST",
     body: JSON.stringify(payload)
   });
@@ -888,15 +901,16 @@ export function fetchWorkbenchShortcuts(filters = {}) {
   const query = params.toString();
   const path = `/data/workbench${query ? `?${query}` : ""}`;
   const now = Date.now();
-  const cached = workbenchRequests.get(path);
+  const cacheKey = workspaceStorageKey(path);
+  const cached = workbenchRequests.get(cacheKey);
   if (cached && now < cached.expiresAt) {
     return cached.promise;
   }
   const promise = apiRequest(path).catch((error) => {
-    workbenchRequests.delete(path);
+    workbenchRequests.delete(cacheKey);
     throw error;
   });
-  workbenchRequests.set(path, { promise, expiresAt: now + WORKBENCH_REQUEST_REUSE_MS });
+  workbenchRequests.set(cacheKey, { promise, expiresAt: now + WORKBENCH_REQUEST_REUSE_MS });
   return promise;
 }
 
@@ -1801,6 +1815,7 @@ export async function uploadSearchDocument(formData, options = {}) {
     method: "POST",
     headers: {
       ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
+      ...workspaceHeaders(typeof path === "string" ? path : "", options.workspaceId),
       ...(options.uploadRequestId ? { "X-Upload-Request-Id": options.uploadRequestId } : {})
     },
     body: formData,
@@ -1822,6 +1837,7 @@ export async function importSearchDocumentFromUrl(document, options = {}) {
     headers: {
       "Content-Type": "application/json",
       ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
+      ...workspaceHeaders(typeof path === "string" ? path : "", options.workspaceId),
       ...(options.uploadRequestId ? { "X-Upload-Request-Id": options.uploadRequestId } : {})
     },
     body: JSON.stringify(document),
@@ -1839,6 +1855,7 @@ export async function uploadSearchDocuments(formData, options = {}) {
     method: "POST",
     headers: {
       ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
+      ...workspaceHeaders(typeof path === "string" ? path : "", options.workspaceId),
       ...(options.uploadRequestId ? { "X-Upload-Request-Id": options.uploadRequestId } : {})
     },
     body: formData,
@@ -1952,6 +1969,7 @@ async function fetchEventStream(path, payload, handlers) {
   const response = await fetch(`${API_BASE}${path}`, {
     method: "POST",
     headers: {
+      ...workspaceHeaders(path, handlers.workspaceId),
       "Content-Type": "application/json; charset=UTF-8",
       ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {})
     },
@@ -2006,6 +2024,7 @@ async function fetchEventStreamGet(path, handlers = {}) {
     method: "GET",
     signal: handlers.signal,
     headers: {
+      ...workspaceHeaders(path, handlers.workspaceId),
       Accept: "text/event-stream",
       ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {})
     }

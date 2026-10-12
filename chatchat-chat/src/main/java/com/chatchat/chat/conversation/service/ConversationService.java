@@ -41,6 +41,25 @@ import java.util.UUID;
 
 @Service
 public class ConversationService {
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.chatchat.enterprise.workspace.WorkspaceResourceService workspaceResources;
+
+    private void bindWorkspace(ChatSessionEntity session) {
+        if (workspaceResources != null) workspaceResources.bind(session.getTenantId(), "session", session.getSessionId(),
+            com.chatchat.enterprise.workspace.WorkspaceRequestContext.current());
+    }
+
+    private boolean workspaceScoped() {
+        return workspaceResources != null && com.chatchat.enterprise.workspace.WorkspaceRequestContext.current() != null;
+    }
+    private Page<ChatSessionEntity> workspaceSessionPage(String tenant, String user, String keyword, int page, int size) {
+        var scope = com.chatchat.enterprise.workspace.WorkspaceRequestContext.current();
+        var visibility = com.chatchat.chat.workspace.WorkspaceVisibility.<ChatSessionEntity>of("session", "sessionId", scope, workspaceResources.isOperator(scope));
+        return sessionRepository.findAll(visibility.and((root, query, cb) -> cb.and(cb.equal(root.get("tenantId"), tenant),
+            cb.equal(root.get("userId"), user), cb.equal(cb.coalesce(root.<String>get("sourceChannel"), "PLATFORM_UI"), "PLATFORM_UI"),
+            keyword == null || keyword.isBlank() ? cb.conjunction() : cb.like(cb.lower(root.get("title")), "%" + keyword.toLowerCase(java.util.Locale.ROOT).trim() + "%"))),
+            PageRequest.of(page, size, org.springframework.data.domain.Sort.by("updatedAt").descending()));
+    }
 
     private static final String DEFAULT_TENANT_ID = "default";
     private static final String DEFAULT_USER_ID = "anonymous";
@@ -89,7 +108,9 @@ public class ConversationService {
         session.setUserId(normalize(userId, DEFAULT_USER_ID));
         session.setTitle(normalizeTitle(title));
         session.setStatus("active");
-        return toConversation(sessionRepository.save(session), List.of());
+        var saved = sessionRepository.save(session);
+        bindWorkspace(saved);
+        return toConversation(saved, List.of());
     }
 
     /**
@@ -121,11 +142,15 @@ public class ConversationService {
             session.setTitle("New Conversation");
             session.setStatus("active");
             session.setSourceChannel(sourceChannel);
-            return sessionRepository.save(session).getSessionId();
+            var saved = sessionRepository.save(session);
+            bindWorkspace(saved);
+            return saved.getSessionId();
         }
         String normalizedConversationId = conversationId.trim();
         Optional<ChatSessionEntity> existing = sessionRepository.findById(normalizedConversationId);
         if (existing.isPresent()) {
+            if (workspaceResources != null) workspaceResources.assertAccess(
+                com.chatchat.enterprise.workspace.WorkspaceRequestContext.current(), "session", normalizedConversationId);
             ensureTenant(existing.get(), normalizedTenantId);
             return normalizedConversationId;
         }
@@ -137,6 +162,7 @@ public class ConversationService {
         session.setStatus("active");
         session.setSourceChannel(sourceChannel);
         sessionRepository.save(session);
+        bindWorkspace(session);
         return normalizedConversationId;
     }
 
@@ -154,6 +180,8 @@ public class ConversationService {
 
     @Transactional(readOnly = true)
     public Optional<Conversation> getConversation(String tenantId, String conversationId) {
+        if (workspaceResources != null) workspaceResources.assertAccess(
+            com.chatchat.enterprise.workspace.WorkspaceRequestContext.current(), "session", conversationId);
         String normalizedTenantId = normalizeTenantId(tenantId);
         return sessionRepository.findBySessionIdAndTenantId(conversationId, normalizedTenantId)
             .map(session -> toConversation(session, listMessageDetails(normalizedTenantId, conversationId)));
@@ -174,6 +202,8 @@ public class ConversationService {
 
     @Transactional(readOnly = true)
     public List<Conversation> listUserConversations(String tenantId, String userId) {
+        if (workspaceScoped()) return workspaceSessionPage(normalizeTenantId(tenantId), normalize(userId, DEFAULT_USER_ID), null, 0, Integer.MAX_VALUE)
+            .stream().map(session -> toConversation(session, List.of())).toList();
         return sessionRepository.findPlatformByTenantIdAndUserIdOrderByUpdatedAtDesc(
                 normalizeTenantId(tenantId), normalize(userId, DEFAULT_USER_ID)).stream()
             .map(session -> toConversation(session, List.of()))
@@ -193,6 +223,8 @@ public class ConversationService {
     public List<Conversation> listUserConversationSummaries(String tenantId, String userId, int page, int limit) {
         int normalizedLimit = Math.max(1, Math.min(limit, 100));
         int normalizedPage = Math.max(0, page);
+        if (workspaceScoped()) return workspaceSessionPage(normalizeTenantId(tenantId), normalize(userId, DEFAULT_USER_ID), null, normalizedPage, normalizedLimit)
+            .stream().map(session -> toConversation(session, List.of())).toList();
         return sessionRepository.findPlatformByTenantIdAndUserIdOrderByUpdatedAtDesc(
                 normalizeTenantId(tenantId),
                 normalize(userId, DEFAULT_USER_ID),
@@ -217,7 +249,9 @@ public class ConversationService {
         String normalizedUserId = normalize(userId, DEFAULT_USER_ID);
         String normalizedKeyword = keyword == null ? "" : keyword.trim();
         PageRequest pageable = PageRequest.of(normalizedPage - 1, normalizedPageSize);
-        Page<ChatSessionEntity> result = normalizedKeyword.isBlank()
+        Page<ChatSessionEntity> result = workspaceScoped()
+            ? workspaceSessionPage(normalizedTenantId, normalizedUserId, normalizedKeyword, normalizedPage - 1, normalizedPageSize)
+            : normalizedKeyword.isBlank()
             ? sessionRepository.findPlatformPageByTenantIdAndUserIdOrderByUpdatedAtDesc(
                 normalizedTenantId, normalizedUserId, pageable
             )
@@ -1278,6 +1312,8 @@ public class ConversationService {
         if (!expected.equals(actual)) {
             throw new IllegalArgumentException("Conversation belongs to a different tenant");
         }
+        if (workspaceResources != null) workspaceResources.assertAccess(
+            com.chatchat.enterprise.workspace.WorkspaceRequestContext.current(), "session", session.getSessionId());
     }
 
     private String blankToNull(String value) {

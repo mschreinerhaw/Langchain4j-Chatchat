@@ -14,7 +14,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
-public interface AgentTaskLatestRepository extends JpaRepository<AgentTaskLatestEntity, String> {
+public interface AgentTaskLatestRepository extends JpaRepository<AgentTaskLatestEntity, String>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<AgentTaskLatestEntity> {
 
     Optional<AgentTaskLatestEntity> findByTenantIdAndIdempotencyKey(String tenantId, String idempotencyKey);
 

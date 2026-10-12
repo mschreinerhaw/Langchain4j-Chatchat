@@ -33,11 +33,20 @@
     @select-conversation="selectConversation"
     @logout="handleLogout"
   >
-    <KeepAlive>
+    <template #workspace-switcher>
+      <WorkspaceSwitcher v-if="workspaceEnabled" :spaces="workspaces" :active-id="activeWorkspaceId" :busy="workspaceBusy"
+        @switch="switchWorkspace" @select="openWorkspaceSelection" @default="setDefaultWorkspace" />
+    </template>
+    <WorkspaceSelection v-if="workspaceSelection" :spaces="workspaces" :busy="workspaceBusy" :error="workspaceError"
+      @switch="switchWorkspace" @retry="initializeWorkspaces" />
+    <p v-else-if="workspaceError" role="alert">{{ workspaceError }}</p>
+    <KeepAlive :max="12">
       <component
-        ref="activeViewComponent"
+        v-if="!workspaceSelection"
+        :key="activeViewKey"
+        :ref="activeViewRef"
         :is="activeComponent"
-        v-bind="activeComponentProps"
+        v-bind="{ ...activeComponentProps, workspaceId: activeWorkspaceId }"
         @conversation-active="handleConversationActive"
         @history-saved="handleHistorySaved"
         @ask-ai="handleAskAiFromSearch"

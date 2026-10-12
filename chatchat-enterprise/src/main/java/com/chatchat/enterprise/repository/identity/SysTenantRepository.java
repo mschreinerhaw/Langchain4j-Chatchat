@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface SysTenantRepository extends JpaRepository<SysTenant, String> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select t from SysTenant t where t.id = :id")
+    Optional<SysTenant> lockById(@org.springframework.data.repository.query.Param("id") String id);
     /**
      * Finds the by tenant code.
      *

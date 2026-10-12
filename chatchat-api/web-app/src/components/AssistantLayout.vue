@@ -36,7 +36,9 @@
       @select-conversation="$emit('select-conversation', $event)"
       @toggle-sidebar="sidebarCollapsed = !sidebarCollapsed"
       @logout="$emit('logout')"
-    />
+    >
+      <template #workspace-switcher><slot name="workspace-switcher" /></template>
+    </AssistantSidebar>
 
     <main class="assistant-main">
       <section class="assistant-content">

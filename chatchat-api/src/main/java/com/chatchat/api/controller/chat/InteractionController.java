@@ -101,7 +101,9 @@ public class InteractionController {
                 return emitter;
             }
         }
+        var workspaceScope = com.chatchat.enterprise.workspace.WorkspaceRequestContext.current();
         streamExecutor.execute(() -> {
+            com.chatchat.enterprise.workspace.WorkspaceRequestContext.set(workspaceScope);
             try {
                 emitter.send(SseEmitter.event()
                     .name("start")
@@ -135,6 +137,8 @@ public class InteractionController {
                 sendErrorEvent(emitter, e.getMessage());
             } catch (Exception e) {
                 sendErrorEvent(emitter, "Interaction failed: " + e.getMessage());
+            } finally {
+                com.chatchat.enterprise.workspace.WorkspaceRequestContext.clear();
             }
         });
         return emitter;

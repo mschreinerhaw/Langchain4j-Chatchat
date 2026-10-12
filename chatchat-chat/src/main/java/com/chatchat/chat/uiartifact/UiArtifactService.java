@@ -24,6 +24,8 @@ import java.util.UUID;
 
 @Service
 public class UiArtifactService {
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.chatchat.enterprise.workspace.WorkspaceResourceService workspaceResources;
 
     public static final String ARTIFACT_SCHEMA_VERSION = "enterprise_ui_artifact_v1";
     public static final String REFERENCE_SCHEMA_VERSION = "ui_artifact_ref_v1";
@@ -143,6 +145,11 @@ public class UiArtifactService {
         UiArtifactEntity metadataEntity = metadataEntity(
             tenantId, taskId, artifactId, resources.size(), properties.getTtlSeconds());
         metadataEntity = repository.save(metadataEntity);
+        if (workspaceResources != null) {
+            if (taskId != null && !taskId.isBlank() && workspaceResources.origin(tenantId, "task", taskId).isPresent())
+                workspaceResources.inherit(tenantId, "task", taskId, "artifact", artifactId);
+            else workspaceResources.bind(tenantId, "artifact", artifactId, com.chatchat.enterprise.workspace.WorkspaceRequestContext.current());
+        }
         try {
             long totalBytes = 0;
             for (Map.Entry<String, StoredResource> resource : resources.entrySet()) {
@@ -241,6 +248,7 @@ public class UiArtifactService {
 
     @Transactional
     public boolean delete(String tenantId, String artifactId) {
+        assertWorkspaceAccess(artifactId);
         String normalizedTenant = normalizedTenant(tenantId);
         Optional<UiArtifactEntity> found = repository.findByArtifactIdAndTenantId(artifactId, normalizedTenant);
         if (found.isEmpty() || "DELETED".equals(found.get().getStatus())) {
@@ -346,7 +354,13 @@ public class UiArtifactService {
         });
     }
 
+    private void assertWorkspaceAccess(String artifactId) {
+        if (workspaceResources != null) workspaceResources.assertAccess(
+            com.chatchat.enterprise.workspace.WorkspaceRequestContext.current(), "artifact", artifactId);
+    }
+
     private boolean isReadable(String tenantId, String artifactId) {
+        assertWorkspaceAccess(artifactId);
         String normalizedTenant = normalizedTenant(tenantId);
         Optional<UiArtifactEntity> existing = repository
             .findByArtifactIdAndTenantId(artifactId, normalizedTenant);

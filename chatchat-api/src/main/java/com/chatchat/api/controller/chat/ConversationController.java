@@ -34,7 +34,8 @@ public class ConversationController {
                                                         HttpServletRequest servletRequest) {
         Conversation conversation = conversationService.createConversation(
             resolveTenantId(servletRequest, request.tenantId()),
-            request.userId(),
+            servletRequest.getAttribute(com.chatchat.api.security.ApiAuthenticationFilter.CURRENT_USERNAME) == null
+                ? request.userId() : String.valueOf(servletRequest.getAttribute(com.chatchat.api.security.ApiAuthenticationFilter.CURRENT_USERNAME)),
             request.title()
         );
         return ApiResponse.success(conversation, "Conversation created successfully");

@@ -97,6 +97,10 @@ public class AgentTaskService {
     private final ToolRuntimeService toolRuntimeService;
     private final AgentRuntime agentRuntime;
     private final AgentTaskCancellationRegistry cancellationRegistry;
+    @Autowired(required = false)
+    private com.chatchat.enterprise.workspace.WorkspaceResourceService workspaceResources;
+    @Autowired(required = false)
+    private com.chatchat.chat.conversation.persistence.ChatSessionRepository workspaceSessions;
     private final AgentLearningService learningService;
     private final TaskConfirmRepository taskConfirmRepository;
     private final InterpretationPlanStore interpretationPlanStore;
@@ -152,6 +156,7 @@ public class AgentTaskService {
             Optional<AgentTaskLatestEntity> existing = latestRepository
                 .findByTenantIdAndIdempotencyKey(normalized.getTenantId(), idempotencyKey);
             if (existing.isPresent()) {
+                checkWorkspaceReplay(existing.get());
                 assertSameIdempotentRequest(existing.get(), normalized);
                 return AgentTaskResponse.from(existing.get());
             }
@@ -181,6 +186,7 @@ public class AgentTaskService {
         latest.setAttemptCount(0);
         latest.setMaxAttempts(Math.max(1, properties.getTaskMaxAttempts()));
         applyWorkerRequirements(latest, normalized);
+        bindWorkspaceSource(latest);
         try {
             latest = saveTask(latest);
         } catch (DataIntegrityViolationException duplicate) {
@@ -188,11 +194,29 @@ public class AgentTaskService {
                 .findByTenantIdAndIdempotencyKey(normalized.getTenantId(), idempotencyKey)
                 .orElseThrow(() -> duplicate);
             assertSameIdempotentRequest(existing, normalized);
+            checkWorkspaceReplay(existing);
             return AgentTaskResponse.from(existing);
         }
 
         AgentTaskLatestEntity queued = queueQuestion(latest, normalized);
         return AgentTaskResponse.from(queued);
+    }
+
+    private void checkWorkspaceReplay(AgentTaskLatestEntity task) {
+        if (workspaceResources != null) workspaceResources.assertAccess(
+            com.chatchat.enterprise.workspace.WorkspaceRequestContext.current(), "task", task.getTaskId());
+    }
+
+    /** Record presentation provenance before the existing SUBMITTING -> queue transition. */
+    private void bindWorkspaceSource(AgentTaskLatestEntity task) {
+        if (workspaceResources == null) return;
+        var scope = com.chatchat.enterprise.workspace.WorkspaceRequestContext.current();
+        if (scope != null) {
+            workspaceResources.bind(task.getTenantId(), "task", task.getTaskId(), scope);
+            if (workspaceSessions != null && workspaceSessions.existsById(task.getSessionId()))
+                workspaceResources.assertAccess(scope, "session", task.getSessionId());
+            else workspaceResources.bind(task.getTenantId(), "session", task.getSessionId(), scope);
+        } else workspaceResources.inherit(task.getTenantId(), "session", task.getSessionId(), "task", task.getTaskId());
     }
 
     /** Freezes the user-defined MCP workflow against the task id before the task is persisted. */
@@ -418,6 +442,9 @@ public class AgentTaskService {
      */
     public List<AgentTaskResponse> list(String tenantId, String sessionId, int page, int pageSize) {
         String normalizedTenant = requireTenant(tenantId);
+        if (workspaceResources != null && com.chatchat.enterprise.workspace.WorkspaceRequestContext.current() != null)
+            return workspaceTaskPage(normalizedTenant, sessionId, null, null, Math.max(0, page - 1), Math.max(1, Math.min(100, pageSize)))
+                .stream().map(AgentTaskResponse::from).toList();
         int normalizedPage = Math.max(0, page - 1);
         int normalizedSize = Math.max(1, Math.min(100, pageSize));
         PageRequest pageable = PageRequest.of(normalizedPage, normalizedSize);
@@ -434,7 +461,10 @@ public class AgentTaskService {
         String normalizedTenant = requireTenant(tenantId);
         int normalizedPage = Math.max(1, page);
         int normalizedSize = Math.max(1, Math.min(100, pageSize));
-        Page<AgentTaskLatestEntity> result = latestRepository.searchPage(
+        var scope = com.chatchat.enterprise.workspace.WorkspaceRequestContext.current();
+        Page<AgentTaskLatestEntity> result = scope != null && workspaceResources != null
+            ? workspaceTaskPage(normalizedTenant, null, keyword, status, normalizedPage - 1, normalizedSize)
+            : latestRepository.searchPage(
             normalizedTenant,
             keyword == null ? "" : keyword.trim(),
             status == null ? "" : status.trim(),
@@ -456,6 +486,19 @@ public class AgentTaskService {
         int pageSize,
         int totalPages
     ) {
+    }
+
+    private Page<AgentTaskLatestEntity> workspaceTaskPage(String tenant, String session, String keyword, String status, int page, int size) {
+        var scope = com.chatchat.enterprise.workspace.WorkspaceRequestContext.current();
+        var spec = com.chatchat.chat.workspace.WorkspaceVisibility.<AgentTaskLatestEntity>of("task", "taskId", scope, workspaceResources.isOperator(scope));
+        return latestRepository.findAll(spec.and((root, query, cb) -> cb.and(cb.equal(root.get("tenantId"), tenant),
+            session == null || session.isBlank() ? cb.conjunction() : cb.equal(root.get("sessionId"), session),
+            status == null || status.isBlank() ? cb.conjunction() : cb.equal(cb.upper(root.get("status")), status.trim().toUpperCase(java.util.Locale.ROOT)),
+            keyword == null || keyword.isBlank() ? cb.conjunction() : cb.or(cb.like(cb.lower(root.get("question")), "%" + keyword.toLowerCase(java.util.Locale.ROOT).trim() + "%"),
+                cb.like(cb.lower(root.get("taskId")), "%" + keyword.toLowerCase(java.util.Locale.ROOT).trim() + "%"),
+                cb.like(cb.lower(root.get("agentId")), "%" + keyword.toLowerCase(java.util.Locale.ROOT).trim() + "%"),
+                cb.like(cb.lower(root.get("sessionId")), "%" + keyword.toLowerCase(java.util.Locale.ROOT).trim() + "%")))),
+            PageRequest.of(page, size, org.springframework.data.domain.Sort.by("createTime").descending()));
     }
 
     /**
@@ -571,8 +614,14 @@ public class AgentTaskService {
                 percentage(row.getTotal(), feedbackTasks)
             ))
             .toList();
-        List<AgentTaskResponse> lowScoreTasks = latestRepository
-            .findLowScoreFeedbackTasks(normalizedTenant, PageRequest.of(0, normalizedLimit))
+        var scope = com.chatchat.enterprise.workspace.WorkspaceRequestContext.current();
+        List<AgentTaskLatestEntity> feedbackRows = scope == null || workspaceResources == null
+            ? latestRepository.findLowScoreFeedbackTasks(normalizedTenant, PageRequest.of(0, normalizedLimit))
+            : latestRepository.findAll(com.chatchat.chat.workspace.WorkspaceVisibility.<AgentTaskLatestEntity>of("task", "taskId", scope, workspaceResources.isOperator(scope))
+                .and((root, query, cb) -> cb.and(cb.equal(root.get("tenantId"), normalizedTenant), cb.isNotNull(root.get("feedbackTime")),
+                    cb.or(cb.isFalse(root.get("feedbackUseful")), cb.isFalse(root.get("feedbackAdopted")), cb.isFalse(root.get("feedbackResolved"))))),
+                PageRequest.of(0, normalizedLimit, org.springframework.data.domain.Sort.by("feedbackTime").descending())).getContent();
+        List<AgentTaskResponse> lowScoreTasks = feedbackRows
             .stream()
             .map(AgentTaskResponse::from)
             .toList();
@@ -2276,6 +2325,8 @@ public class AgentTaskService {
         if (!normalizedTenant.equals(task.getTenantId())) {
             throw new IllegalArgumentException("Task not found for tenant: " + taskId);
         }
+        if (workspaceResources != null) workspaceResources.assertAccess(
+            com.chatchat.enterprise.workspace.WorkspaceRequestContext.current(), "task", taskId);
         return task;
     }
 

@@ -1,5 +1,6 @@
 <template>
   <aside class="assistant-sidebar">
+    <slot name="workspace-switcher" />
     <div class="brand-block">
       <img class="brand-logo" :src="agentRuntimeLogo" alt="灵动智策 LingDong Insight">
       <button

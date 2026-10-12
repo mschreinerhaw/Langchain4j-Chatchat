@@ -29,6 +29,10 @@ import { clearChatRuntimeState, mergeChatRuntimeState } from "./utils/chatRuntim
 import { configureTrendSemantics } from "./utils/trendSemantics";
 import { errorMessage } from "./utils/uiFormatters";
 import floatingDrag from "./directives/floatingDrag";
+import WorkspaceSwitcher from "../components/WorkspaceSwitcher.vue";
+import WorkspaceSelection from "../components/WorkspaceSelection.vue";
+import { fetchWorkspaces, fetchWorkspaceManifest, fetchWorkspacePreferences, saveWorkspacePreferences } from "../services/api";
+import { setActiveWorkspace, resetWorkspaceContext, parseWorkspaceRoute, workspaceFamily, workspaceStorageKey, workspaceIdentity } from "./workspace/workspaceContext";
 import "../styles/app.css";
 import "../styles/components/dialog-close.css";
 
@@ -110,10 +114,8 @@ const views = {
 };
 
 function currentHashRoute() {
-  return decodeURIComponent(window.location.hash || "")
-    .replace(/^#\/?/, "")
-    .split("?")[0]
-    .trim();
+  try { return decodeURIComponent(globalThis.window?.location?.hash || "").replace(/^#\/?/, "").split("?")[0].trim(); }
+  catch { return ""; }
 }
 
 function viewFromHash() {
@@ -139,6 +141,7 @@ export default {
     LoginView,
     Plus,
     RightPanel
+    , WorkspaceSwitcher, WorkspaceSelection
   },
   directives: {
     floatingDrag
@@ -149,6 +152,17 @@ export default {
     const sessionUser = authSession?.user || {};
     return {
       authSession,
+      activeWorkspaceId: "zhice",
+      workspaceManifest: null,
+      workspaces: [],
+      workspaceEnabled: false,
+      workspaceSelection: false,
+      workspaceBusy: false,
+      workspaceError: "",
+      workspacePreferences: null,
+      workspaceStates: {},
+      workspaceSwitchSerial: 0,
+      activeViewInstance: null,
       activeView: authSession ? (viewFromHash() || DEFAULT_VIEW) : DEFAULT_VIEW,
       userId: sessionUser.username || sessionUser.id || USER_ID,
       tenantId: resolveSessionTenantId(authSession, sessionUser.username || sessionUser.id || USER_ID),
@@ -190,11 +204,22 @@ export default {
     };
   },
   computed: {
+    activeViewRef() {
+      const key = this.activeViewKey;
+      return instance => { if (key === this.activeViewKey) this.activeViewInstance = instance; };
+    },
+    activeViewKey() {
+      const family = !this.menuAuthorizationReady ? "loading" : !this.canAccessView(this.activeView) ? "denied" : workspaceFamily(this.activeView);
+      return workspaceStorageKey(family, this.activeWorkspaceId);
+    },
     visibleNavItems() {
+      const allowed = this.workspaceManifest ? new Set(this.workspaceManifest.pages.map(p => p.viewId)) : null;
+      const filter = (items) => (items || []).map(item => ({ ...item, children: filter(item.children) }))
+        .filter(item => !allowed || allowed.has(item.id) || item.children.length);
       return this.navItems.map((group) => ({
         ...group,
         items: Array.isArray(group.items)
-          ? group.items
+          ? filter(group.items)
               .filter((item) => item.id !== "debugger")
               .map((item) => ({
                 ...item,
@@ -250,10 +275,7 @@ export default {
     this.stopAgentTaskCancelledListener = onAgentTaskCancelled(this.handleAgentTaskCancelled);
     if (isAuthenticatedSession(this.authSession)) {
       this.loadTrendSemanticConfig();
-      this.loadEnterpriseMenus();
-      this.refreshAuthSession();
-      this.ensureAuthenticatedRoute();
-      this.loadConversationHistory({ suppressError: true });
+      this.loadEnterpriseMenus({ reconcileRoute: false }).then(() => this.initializeWorkspaces());
       this.loadFavoriteConversationIds();
       this.loadRuntimeTodos({ silent: true, suppressError: true });
       this.startTodoRefresh();
@@ -277,10 +299,74 @@ export default {
     this.stopTodoTimeoutKill();
   },
   methods: {
+    async initializeWorkspaces() {
+      if (!isAuthenticatedSession(this.authSession)) return;
+      const token = this.authSession.token;
+      this.workspaceBusy = true;
+      try {
+        const [spaces, preference] = await Promise.all([fetchWorkspaces(), fetchWorkspacePreferences()]);
+        if (!isAuthenticatedSession(this.authSession) || this.authSession.token !== token) return;
+        this.workspaces = spaces || []; this.workspacePreferences = preference; this.workspaceEnabled = true;
+        const target = parseWorkspaceRoute(window.location.hash);
+        if (target.selection) { this.workspaceSelection = true; return; }
+        if (target.invalid) throw new Error("工作空间地址无效");
+        const explicit = target.route || target.viewId;
+        const id = explicit ? target.workspaceId : preference?.effectiveWorkspaceId;
+        if (!id) { this.workspaceSelection = true; return; }
+        await this.switchWorkspace(id, explicit ? target : null);
+      } catch (error) {
+        if (this.authSession?.token !== token) return;
+        if (error.status === 404 || String(error.message || "").includes("404")) {
+          this.workspaceEnabled = false; this.workspaceManifest = null; setActiveWorkspace("zhice");
+          this.ensureAuthenticatedRoute(); this.loadConversationHistory({ suppressError:true });
+        }
+        else { this.workspaceError = error.message || "工作空间加载失败"; this.workspaceSelection = true; }
+      } finally { this.workspaceBusy = false; }
+    },
+    async switchWorkspace(id, requested = null) {
+      const serial = ++this.workspaceSwitchSerial;
+      this.workspaceBusy = true; this.workspaceError = "";
+      try {
+        const manifest = await fetchWorkspaceManifest(id);
+        if (serial !== this.workspaceSwitchSerial || !isAuthenticatedSession(this.authSession)) return;
+        const requestedPage = requested?.route ? manifest.pages.find(p => p.route === requested.route)
+          : requested?.viewId ? manifest.pages.find(p => p.viewId === requested.viewId) : null;
+        if (requested && !requestedPage) throw new Error("无权访问该空间页面");
+        const fields = ["selectedConversation", "activeHistoryId", "pendingChatDraft", "pendingDocumentShortcut", "pendingAnalysisProvider", "conversationHistory", "historyNextPage", "historyHasMore"];
+        this.workspaceStates[this.activeWorkspaceId] = { activeView: this.activeView, ...Object.fromEntries(fields.map(key => [key, this[key]])) };
+        ++this.historyManagerRequestSerial;
+        this.historyManagerItems = []; this.historyManagerTotal = 0;
+        const previous = this.workspaceStates[id] || {};
+        for (const key of fields) this[key] = previous[key] ?? ({ conversationHistory: [], historyNextPage: 0, historyHasMore: true, activeHistoryId: "" }[key] ?? null);
+        this.activeWorkspaceId = id; this.workspaceManifest = manifest; setActiveWorkspace(id); this.workspaceSelection = false;
+        const entry = manifest.pages.find(p => `#/w/${id}/${p.route}` === manifest.entryRoute) || manifest.pages[0];
+        const restoredPage = manifest.pages.find(p => p.viewId === previous.activeView);
+        this.activeView = (requestedPage || restoredPage || entry)?.viewId || "";
+        if (requested?.legacy) window.location.hash = `#/${this.activeView}`;
+        else this.setHashRoute(this.activeView);
+        this.loadConversationHistory({ suppressError: true });
+        const preference = this.workspacePreferences;
+        const savedPreference = await saveWorkspacePreferences({ defaultWorkspaceId: preference?.defaultWorkspaceId || null,
+          lastWorkspaceId: id, expectedRevision: preference?.revision || 0 });
+        if (serial === this.workspaceSwitchSerial) this.workspacePreferences = savedPreference;
+      } catch (error) {
+        if (serial !== this.workspaceSwitchSerial) return;
+        this.workspaceError = error.message || "空间切换失败";
+        if (requested) this.workspaceSelection = true;
+      } finally { if (serial === this.workspaceSwitchSerial) this.workspaceBusy = false; }
+    },
+    async setDefaultWorkspace() {
+      try { this.workspacePreferences = await saveWorkspacePreferences({ defaultWorkspaceId: this.activeWorkspaceId,
+        lastWorkspaceId: this.activeWorkspaceId, expectedRevision: this.workspacePreferences?.revision || 0 }); }
+      catch (error) { this.workspaceError = error.message || "默认空间保存失败"; }
+    },
+    openWorkspaceSelection() { this.workspaceSelection = true; window.location.hash = "#/workspaces"; },
     async loadEnterpriseMenus({ reconcileRoute = true } = {}) {
       if (!isAuthenticatedSession(this.authSession)) return;
+      const token = this.authSession.token;
       try {
         const groups = await fetchEnterpriseMenus();
+        if (this.authSession?.token !== token) return;
         const toNavItem = (node) => {
           if (!node?.id || !views[node.id]) return null;
           const children = (Array.isArray(node.children) ? node.children : [])
@@ -307,9 +393,9 @@ export default {
           }
         }
       } catch (_) {
-        this.navItems = [];
+        if (this.authSession?.token === token) this.navItems = [];
       } finally {
-        this.menuAuthorizationReady = true;
+        if (this.authSession?.token === token) this.menuAuthorizationReady = true;
       }
     },
     loadTrendSemanticConfig() {
@@ -327,6 +413,7 @@ export default {
       return user.permissionCodes.includes(permissionCode);
     },
     canAccessView(view) {
+      if (this.workspaceManifest && !this.workspaceManifest.pages.some(p => p.viewId === view)) return false;
       const contains = (items) => (Array.isArray(items) ? items : []).some((item) =>
         item?.id === view || contains(item?.children));
       return this.navItems.some((group) => contains(group?.items));
@@ -334,7 +421,7 @@ export default {
     firstAccessibleView() {
       const firstView = (items) => {
         for (const item of Array.isArray(items) ? items : []) {
-          if (item?.id && views[item.id]) return item.id;
+          if (item?.id && views[item.id] && this.canAccessView(item.id)) return item.id;
           const child = firstView(item?.children);
           if (child) return child;
         }
@@ -348,15 +435,27 @@ export default {
     },
     async refreshAuthSession() {
       if (!isAuthenticatedSession(this.authSession)) return;
+      const token = this.authSession.token;
       try {
         const user = await fetchCurrentEnterpriseUser();
-        if (!user?.id) return;
+        if (!user?.id || this.authSession?.token !== token) return;
         const session = { ...this.authSession, user };
         this.authSession = session;
         this.tenantId = resolveSessionTenantId(session, this.userId);
         this.tenantName = user.tenantName || user.tenant_name || "";
         storeAuthSession(session);
         await this.loadEnterpriseMenus();
+        if (this.workspaceEnabled) {
+          const spaces = await fetchWorkspaces();
+          if (this.authSession?.token !== token) return;
+          this.workspaces = spaces || [];
+          if (!this.workspaces.some(s => s.manifest.workspaceId === this.activeWorkspaceId)) {
+            this.workspaceError = "当前工作空间已停用或无权访问"; this.workspaceSelection = true; return;
+          }
+          const manifest = await fetchWorkspaceManifest(this.activeWorkspaceId);
+          if (this.authSession?.token !== token) return;
+          this.workspaceManifest = manifest;
+        }
         if (!this.canAccessView(this.activeView)) {
           const fallback = this.firstAccessibleView();
           if (fallback) this.navigateToView(fallback);
@@ -377,9 +476,14 @@ export default {
       this.tenantId = resolveSessionTenantId(session, this.userId);
       this.tenantName = sessionUser.tenantName || sessionUser.tenant_name || "";
       this.loadTrendSemanticConfig();
-      const requestedView = this.consumeRedirectView() || viewFromHash() || DEFAULT_VIEW;
+      const redirectView = this.consumeRedirectView();
+      const requestedView = redirectView || viewFromHash() || DEFAULT_VIEW;
+      const workspaceRedirect = globalThis.sessionStorage?.getItem("chatchat.auth.workspaceRedirect");
+      globalThis.sessionStorage?.removeItem("chatchat.auth.workspaceRedirect");
       await this.loadEnterpriseMenus({ reconcileRoute: false });
-      this.reconcileAuthorizedRoute(requestedView);
+      if (workspaceRedirect) window.location.hash = workspaceRedirect;
+      else if (currentHashRoute() === LOGIN_ROUTE) window.location.hash = redirectView ? `#/${redirectView}` : "#/";
+      await this.initializeWorkspaces();
       if (session?.embedded) {
         this.stopIdleLogoutWatcher();
       } else {
@@ -397,6 +501,9 @@ export default {
       this.handleUnauthenticated();
     },
     handleUnauthenticated() {
+      ++this.workspaceSwitchSerial;
+      this.workspaceStates = {}; this.workspaces = []; this.workspaceManifest = null; this.workspaceEnabled = false;
+      this.activeWorkspaceId = "zhice"; this.workspaceSelection = false; resetWorkspaceContext();
       this.stopIdleLogoutWatcher();
       this.stopTodoRefresh();
       this.stopTodoTimeoutKill();
@@ -422,6 +529,16 @@ export default {
         return;
       }
       const route = currentHashRoute();
+      if (this.workspaceEnabled) {
+        const target = parseWorkspaceRoute(window.location.hash);
+        if (target.selection) { this.workspaceSelection = true; return; }
+        if (target.invalid) { this.workspaceError = "工作空间地址无效"; this.workspaceSelection = true; return; }
+        if (target.route || target.viewId) {
+          const page = this.workspaceManifest?.pages.find(p => target.route ? p.route === target.route : p.viewId === target.viewId);
+          if (target.workspaceId === this.activeWorkspaceId && page) { this.activeView = page.viewId; this.workspaceSelection = false; return; }
+          this.switchWorkspace(target.workspaceId, target); return;
+        }
+      }
       if (route === LOGIN_ROUTE) {
         this.navigateToView(DEFAULT_VIEW);
         return;
@@ -443,6 +560,9 @@ export default {
       }
     },
     redirectToLogin() {
+      const workspaceRoute = parseWorkspaceRoute(window.location.hash);
+      if (workspaceRoute.route || workspaceRoute.selection || (workspaceRoute.viewId && workspaceRoute.viewId !== "login"))
+        sessionStorage.setItem("chatchat.auth.workspaceRedirect", window.location.hash);
       const targetView = viewFromHash();
       if (targetView) {
         sessionStorage.setItem(REDIRECT_VIEW_KEY, targetView);
@@ -465,6 +585,10 @@ export default {
       this.setHashRoute(nextView);
     },
     setHashRoute(route) {
+      if (this.workspaceEnabled && this.workspaceManifest && route !== LOGIN_ROUTE) {
+        const page = this.workspaceManifest.pages.find(p => p.viewId === route);
+        if (page) { const hash = `#/w/${this.activeWorkspaceId}/${page.route}`; if (window.location.hash !== hash) window.location.hash = hash; return; }
+      }
       const nextHash = `#/${route}`;
       if (window.location.hash !== nextHash) {
         window.location.hash = nextHash;
@@ -569,6 +693,7 @@ export default {
       }, IDLE_LOGOUT_MS);
     },
     async loadConversationHistory(filters = {}) {
+      const requestedWorkspace = this.activeWorkspaceId;
       const { suppressError = false, append = false, ...historyFilters } = filters || {};
       if (append && (!this.historyHasMore || this.historyLoading)) {
         return;
@@ -583,6 +708,7 @@ export default {
           page: append ? this.historyNextPage : 0,
           ...historyFilters
         });
+        if (requestedWorkspace !== this.activeWorkspaceId) return;
         const page = (Array.isArray(history) ? history : [])
           .map((conversation) => mergeChatRuntimeState(conversation));
         const nextHistory = append
@@ -598,6 +724,7 @@ export default {
           this.resetActiveConversationWhenRemoved(previousHistory, nextHistory);
         }
       } catch (error) {
+        if (requestedWorkspace !== this.activeWorkspaceId) return;
         if (!append) {
           this.conversationHistory = [];
           this.historyNextPage = 0;
@@ -608,7 +735,7 @@ export default {
         }
         this.historyError = error.message || "历史会话加载失败";
       } finally {
-        this.historyLoading = false;
+        if (requestedWorkspace === this.activeWorkspaceId) this.historyLoading = false;
       }
     },
     reconcileAuthorizedRoute(preferredView = "") {
@@ -751,10 +878,15 @@ export default {
       this.pendingChatDraft = null;
       this.navigateToView("chat");
       this.$nextTick(() => {
-        this.$refs.activeViewComponent?.clearChat?.();
+        (this.activeViewInstance || this.$refs.activeViewComponent)?.clearChat?.();
       });
     },
     handleAskAiFromSearch(payload) {
+      if (this.workspaceEnabled && !this.canAccessView("chat")) {
+        this.switchWorkspace("zhice", { viewId: "chat" }).then(() => {
+          if (this.activeWorkspaceId === "zhice" && this.canAccessView("chat")) this.handleAskAiFromSearch(payload);
+        }); return;
+      }
       if (!payload?.prompt) {
         return;
       }
@@ -844,6 +976,7 @@ export default {
       this.navigateToView("chat");
     },
     async selectConversation(conversation) {
+      const requestedWorkspace = this.activeWorkspaceId;
       if (!conversation) {
         return;
       }
@@ -864,7 +997,7 @@ export default {
       }
       try {
         const detail = await fetchConversationDetail(conversationId, this.tenantId);
-        if (!detail || this.activeHistoryId !== conversationId) {
+        if (!detail || this.activeHistoryId !== conversationId || requestedWorkspace !== this.activeWorkspaceId) {
           return;
         }
         const toTimestamp = (value, fallback = Date.now()) => {
@@ -901,7 +1034,7 @@ export default {
             : item
         );
       } catch (error) {
-        if (this.activeHistoryId === conversationId) {
+        if (this.activeHistoryId === conversationId && requestedWorkspace === this.activeWorkspaceId) {
           const message = error.message || "会话详情加载失败";
           this.historyError = message;
           this.selectedConversation = {
@@ -1058,6 +1191,8 @@ export default {
       }
     },
     handleConversationActive(conversation) {
+      if (conversation?.originIdentity && conversation.originIdentity !== workspaceIdentity()) return;
+      if (conversation?.workspaceId && conversation.workspaceId !== this.activeWorkspaceId) return;
       if (conversation?.active !== false) {
         this.activeHistoryId = conversation?.id || "";
       }
@@ -1066,6 +1201,8 @@ export default {
       }
     },
     handleHistorySaved(payload) {
+      if (payload?.originIdentity && payload.originIdentity !== workspaceIdentity()) return;
+      if (payload?.workspaceId && payload.workspaceId !== this.activeWorkspaceId) return;
       const previousHistory = this.conversationHistory;
       const history = Array.isArray(payload?.history) ? payload.history : payload;
       if (Array.isArray(history)) {
@@ -1097,7 +1234,7 @@ export default {
       this.pendingChatDraft = null;
       this.navigateToView("chat");
       this.$nextTick(() => {
-        this.$refs.activeViewComponent?.clearChat?.();
+        (this.activeViewInstance || this.$refs.activeViewComponent)?.clearChat?.();
       });
     },
     isActiveConversationId(...ids) {

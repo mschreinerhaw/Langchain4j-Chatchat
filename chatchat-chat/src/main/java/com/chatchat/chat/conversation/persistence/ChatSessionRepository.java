@@ -13,7 +13,7 @@ import jakarta.persistence.LockModeType;
 
 import java.util.List;
 
-public interface ChatSessionRepository extends JpaRepository<ChatSessionEntity, String> {
+public interface ChatSessionRepository extends JpaRepository<ChatSessionEntity, String>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<ChatSessionEntity> {
 
     /**
      * Finds the by user id order by updated at desc.

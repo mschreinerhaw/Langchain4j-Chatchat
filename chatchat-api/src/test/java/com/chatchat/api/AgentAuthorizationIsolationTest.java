@@ -30,12 +30,42 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @ActiveProfiles("test")
-@TestPropertySource(properties = "chatchat.test.context=agent-authorization-isolation")
+@TestPropertySource(properties = {
+    "chatchat.test.context=agent-authorization-isolation",
+    "spring.jpa.defer-datasource-initialization=true",
+    "spring.sql.init.mode=always",
+    "spring.sql.init.data-locations=file:../database/migration/h2/V20261009_01__agent_runtime_semantic_policy.sql,file:../database/migration/h2/V20261009_03__version_runtime_semantic_policy.sql,file:../database/migration/h2/V20261009_04__capture_legacy_tool_semantics.sql"
+})
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class AgentAuthorizationIsolationTest {
 
     @Autowired
     private EnterpriseAdminService adminService;
+    @Autowired
+    private com.chatchat.enterprise.workspace.WorkspaceService workspaceService;
+    @Autowired
+    private org.springframework.context.ApplicationContext applicationContext;
+    @Autowired
+    private com.chatchat.enterprise.repository.identity.SysUserRepository workspaceUsers;
+
+    @Test
+    void workspaceRegistrationReusesExistingRuntimeAndMenus() {
+        var runtime = applicationContext.getBean(com.chatchat.agents.runtime.AgentRuntime.class);
+        int count = applicationContext.getBeansOfType(com.chatchat.agents.runtime.AgentRuntime.class).size();
+        String adminId = workspaceUsers.findByUsername("admin").orElseThrow().getId();
+        var spaces = workspaceService.available(adminId);
+        assertThat(spaces).extracting(v -> v.manifest().workspaceId()).contains("zhice", "data-science");
+        assertThat(workspaceService.accessible(adminId, "zhice").pages()).extracting(p -> p.viewId()).contains("chat", "dataScienceDevelop");
+        var preference = workspaceService.preference(adminId);
+        assertThat(preference.revision()).isZero();
+        var saved = workspaceService.setPreference(adminId, "zhice", "data-science", preference.revision());
+        assertThat(saved.revision()).isEqualTo(1);
+        assertThat(saved.effectiveWorkspaceId()).isEqualTo("data-science");
+        assertThatThrownBy(() -> workspaceService.setPreference(adminId, "zhice", "zhice", 0))
+            .isInstanceOf(com.chatchat.enterprise.workspace.WorkspaceService.Conflict.class);
+        assertThat(applicationContext.getBean(com.chatchat.agents.runtime.AgentRuntime.class)).isSameAs(runtime);
+        assertThat(applicationContext.getBeansOfType(com.chatchat.agents.runtime.AgentRuntime.class)).hasSize(count);
+    }
 
     @MockBean
     private ChatModel chatModel;

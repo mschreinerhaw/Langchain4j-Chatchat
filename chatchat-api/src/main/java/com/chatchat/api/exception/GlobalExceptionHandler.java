@@ -38,6 +38,10 @@ import java.util.stream.Collectors;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    @ExceptionHandler(com.chatchat.enterprise.workspace.WorkspaceService.AccessDenied.class)
+    public ResponseEntity<ApiResponse<Void>> workspaceAccessDenied() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(403, "Workspace or resource access denied"));
+    }
 
     private static final HttpStatusCode CLIENT_CLOSED_REQUEST = HttpStatusCode.valueOf(499);
 

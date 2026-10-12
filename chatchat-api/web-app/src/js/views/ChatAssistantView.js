@@ -1,7 +1,8 @@
-﻿import ChatMessageList from "../../components/ChatMessageList.vue";
+import ChatMessageList from "../../components/ChatMessageList.vue";
 import PromptComposer from "../../components/PromptComposer.vue";
 import { visualizationCapabilities } from '../utils/visualizationCapabilities.js';
 import { Trash2 } from "@lucide/vue";
+import { workspaceIdentity } from "../workspace/workspaceContext";
 import {
   analyzeChatImage,
   apiRequest,
@@ -1575,8 +1576,9 @@ function normalizeResponsePayload(response = {}) {
   };
 }
 
-function submitAgentTask(payload) {
+function submitAgentTask(payload, workspaceId) {
   return apiRequest("/agent/tasks", {
+    workspaceId,
     method: "POST",
     body: JSON.stringify(payload)
   });
@@ -1628,6 +1630,7 @@ export default {
     Trash2
   },
   props: {
+    workspaceId: { type: String, default: "zhice" },
     selectedConversation: {
       type: Object,
       default: null
@@ -1648,6 +1651,7 @@ export default {
   emits: ["conversation-active", "history-saved"],
   data() {
     return {
+      workspaceOriginIdentity: workspaceIdentity(),
       question: "",
       loading: false,
       errorMessage: "",
@@ -2174,6 +2178,7 @@ export default {
 
       try {
         const result = await sendInteractionMessageStream(requestPayload, {
+          workspaceId: runContext.workspaceId,
           start: () => {
             ensureStreamingMessage();
           },
@@ -2224,7 +2229,7 @@ export default {
         const response = await sendInteractionMessage({
           ...requestPayload,
           stream: false
-        });
+        }, runContext.workspaceId);
         this.appendDirectAssistantMessage(response, runContext);
       }
     },
@@ -2265,7 +2270,7 @@ export default {
         availableTools: requestPayload.availableTools || [],
         imageAnalysisIds: requestPayload.imageAnalysisIds || [],
         toolInput: requestPayload.toolInput || {}
-      });
+      }, runContext.workspaceId);
       runContext.taskId = task?.taskId || "";
       assistantMessage.taskId = runContext.taskId;
       assistantMessage.steps = initialExecutionSteps(runContext.agentName);
@@ -2465,6 +2470,7 @@ export default {
           pollIntervalMs: 250,
           timeoutMs: 1_800_000
         }, {
+          workspaceId: runContext.workspaceId,
           signal: controller.signal,
           event: (event) => {
             const eventSequence = Number(event?.sequence || 0);
@@ -2650,6 +2656,7 @@ export default {
     },
     createRunContext(question, analysisNode = null) {
       return {
+        workspaceId: this.workspaceId || "zhice",
         runId: uid(),
         historyId: this.historyId,
         question,
@@ -3293,7 +3300,7 @@ export default {
       const active = !runContext || this.isActiveRun(runContext);
       const messages = this.serializeMessages(context.messages);
       this.syncChatRuntimeState(context, question, status, messages);
-      this.$emit("conversation-active", {
+      this.$emit("conversation-active", { ...(this.workspaceId ? { workspaceId: this.workspaceId } : {}), ...(this.workspaceOriginIdentity ? { originIdentity: this.workspaceOriginIdentity } : {}),
         id: context.historyId,
         question,
         conversationId: context.conversationId,
@@ -3318,6 +3325,7 @@ export default {
       }
       const entry = {
         conversationId,
+        workspaceId: context.workspaceId || this.workspaceId,
         messageId: assistantMessage?.id || "",
         taskId,
         question,
@@ -3357,14 +3365,14 @@ export default {
           status,
           analysisTree: compactAnalysisTreeForPersistence(this.analysisTree),
           messages
-        });
-        this.$emit("history-saved", {
+        }, context.workspaceId);
+        this.$emit("history-saved", { ...(this.workspaceId ? { workspaceId: this.workspaceId } : {}), ...(this.workspaceOriginIdentity ? { originIdentity: this.workspaceOriginIdentity } : {}),
           history,
           activeHistoryId: active ? context.conversationId || context.historyId : "",
           activeStatus: active ? status : ""
         });
       } catch (error) {
-        this.$emit("history-saved", {
+        this.$emit("history-saved", { ...(this.workspaceId ? { workspaceId: this.workspaceId } : {}), ...(this.workspaceOriginIdentity ? { originIdentity: this.workspaceOriginIdentity } : {}),
           history: null,
           activeHistoryId: active ? context.conversationId || context.historyId : "",
           activeStatus: active ? status : ""
@@ -3455,7 +3463,7 @@ export default {
       if (this.loading && conversation.id === this.historyId) {
         const lastUserMessage = [...this.messages].reverse().find((message) => message.role === "user");
         this.emitActiveConversationSnapshot(lastUserMessage?.content || conversation.question || "", "running");
-        this.$emit("conversation-active", { id: this.historyId });
+        this.$emit("conversation-active", { ...(this.workspaceId ? { workspaceId: this.workspaceId } : {}), ...(this.workspaceOriginIdentity ? { originIdentity: this.workspaceOriginIdentity } : {}), id: this.historyId });
         this.scrollMessages();
         return;
       }
@@ -3495,7 +3503,7 @@ export default {
         toolTraces: Array.isArray(lastAssistantMessage?.traces) ? lastAssistantMessage.traces : []
       };
       const restoredQuestion = conversation.question || this.lastUserQuestion(messages);
-      this.$emit("conversation-active", {
+      this.$emit("conversation-active", { ...(this.workspaceId ? { workspaceId: this.workspaceId } : {}), ...(this.workspaceOriginIdentity ? { originIdentity: this.workspaceOriginIdentity } : {}),
         id: this.historyId,
         question: restoredQuestion,
         conversationId: this.conversationId,

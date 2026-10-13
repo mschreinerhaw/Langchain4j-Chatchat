@@ -27,6 +27,7 @@ try {
     else if (url.pathname.endsWith("/workspaces/catalog")) data = Object.values(manifests).map(manifest => ({ ...manifest, defaultWorkspace: manifest.workspaceId === "zhice" }));
     else if (url.pathname.endsWith("/workspaces")) data = Object.values(manifests).map(manifest => ({ ...manifest, defaultWorkspace: manifest.workspaceId === "zhice" }));
     else if (url.pathname.endsWith("/workspaces/preferences")) data = { lastWorkspaceId: "zhice" };
+    else if (url.pathname.endsWith('/data-science/python/workbench')) data = { assets:[{id:'fixture-asset',name:'Fixture Python',status:'READY',tenantId:user.tenantId,ownerId:user.id}], folders:[],scripts:[],executions:[],dataFiles:[],systemExamples:[] };
     else if (url.pathname.endsWith("/manifest")) {
       const id = url.pathname.split("/").at(-2);
       if (!manifests[id]) { await route.fulfill({ status: 403, json: { code: 403, message: "Access denied" } }); return; }
@@ -58,11 +59,23 @@ try {
   assert.equal(await page.locator(".assistant-app.workspace-changing").count(), 1);
   await page.waitForURL("**/#/w/data-science/dataScienceEnvironment");
   await page.locator(".assistant-app.workspace-changing").waitFor({ state: "detached" });
-  assert.equal(await page.locator(".assistant-content").evaluate(element => getComputedStyle(element).opacity), "1");
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('.assistant-content')).opacity === '1');
   assert.equal(await page.locator('.recent-block').count(),0);
   assert.equal(await page.locator(".workspace-extensions").count(), 0);
   await page.evaluate(() => { location.hash = "/w/data-science/dataScienceDevelop"; });
   await page.locator(".ds-page.develop-mode").waitFor({ state: "visible" });
+  const pythonInput = page.locator('.monaco-host textarea.inputarea');
+  await pythonInput.waitFor({ state: 'visible' });
+  await pythonInput.focus(); await pythonInput.press('Control+A'); await pythonInput.pressSequentially('def foo():'); await pythonInput.press('Enter');
+  await pythonInput.pressSequentially('if True:'); await pythonInput.press('Escape'); await pythonInput.press('Enter'); await pythonInput.pressSequentially('pass');
+  const pythonSource = await page.locator('.ds-page').evaluate(element => element.__vueParentComponent?.proxy?.form?.sourceCode || '');
+  assert.match(pythonSource, /def foo\(\):\n {4}if True:\n {8}pass/);
+  await pythonInput.press('Home'); await pythonInput.press('Shift+Tab');
+  assert.match(await page.locator('.ds-page').evaluate(element => element.__vueParentComponent.proxy.form.sourceCode), /if True:\n {4}pass/);
+  await pythonInput.press('Home'); await pythonInput.press('Tab');
+  assert.match(await page.locator('.ds-page').evaluate(element => element.__vueParentComponent.proxy.form.sourceCode), /if True:\n {8}pass/);
+  await page.locator('.editor-tools').getByRole('button',{name:'格式化'}).click();
+  await page.waitForFunction(() => document.querySelector('.ds-page').__vueParentComponent.proxy.form.sourceCode.endsWith('pass\n'));
   assert.equal(await page.locator(".ds-header").count(), 0);
   assert.equal(await page.getByText("SQL Studio", { exact: false }).count(), 0);
   await page.locator("#workspace-switch").selectOption("zhice");
@@ -77,5 +90,5 @@ try {
   assert.deepEqual(errors, []);
   await mkdir("../../target/workspace-audit", { recursive: true });
   await page.screenshot({ path: "../../target/workspace-audit/workspace-shell.png", fullPage: true });
-  console.log("PASS: login selection layout, account switch, editor draft, no reserved extension, denied space, one login identity");
+  console.log("PASS: login selection, one identity, workspace switch, Python Enter/Tab/Shift+Tab/format, draft recovery, denied space");
 } finally { await browser?.close(); await server.close(); }

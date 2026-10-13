@@ -21,6 +21,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class PythonTemplatePublicationLifecycleTest {
@@ -36,6 +37,7 @@ class PythonTemplatePublicationLifecycleTest {
     @Mock PythonDataFileRepository dataFileRepository;
     @Mock PythonDataScienceProperties properties;
     @Mock PythonSystemExampleCatalog exampleCatalog;
+    @Mock PythonRuntimeService runtime;
 
     private PythonDataScienceService service;
 
@@ -43,7 +45,41 @@ class PythonTemplatePublicationLifecycleTest {
     void setUp() {
         service = new PythonDataScienceService(assetRepository, scriptRepository, folderRepository,
                 versionRepository, templateRepository, executionRepository, mcp, indexService, registry,
-                new ObjectMapper(), dataFileRepository, properties, exampleCatalog);
+                new ObjectMapper(), dataFileRepository, properties, exampleCatalog, runtime);
+    }
+
+    @Test
+    void codeToolRequiresOwnedAssetBeforeInvokingRuntime() {
+        when(assetRepository.findByIdAndTenantIdAndOwnerId("asset-1", "tenant-1", "bob"))
+                .thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.codeTool("tenant-1", "bob", "asset-1", "print(1)", true))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(runtime, never()).ruff(any(), any(), eq(true));
+    }
+
+    @Test
+    void codeToolRunsOnlyForOwnedReadyAsset() {
+        PythonAssetEntity asset = asset();
+        when(assetRepository.findByIdAndTenantIdAndOwnerId("asset-1", "tenant-1", "alice"))
+                .thenReturn(Optional.of(asset));
+        PythonRuntimeService.ExecResult output = new PythonRuntimeService.ExecResult(0, "print(1)\n", "", 1, false);
+        when(runtime.ruff(asset, "print(1)", true)).thenReturn(output);
+        assertThat(service.codeTool("tenant-1", "alice", "asset-1", "print(1)", true)).isSameAs(output);
+        verify(runtime).ruff(asset, "print(1)", true);
+    }
+
+    @Test
+    void scriptSaveRejectsStaleVersionBeforeWriting() {
+        PythonAssetEntity asset = asset();
+        PythonScriptEntity script = script("print('newer')", 3);
+        when(assetRepository.findByIdAndTenantIdAndOwnerId("asset-1", "tenant-1", "alice"))
+                .thenReturn(Optional.of(asset));
+        when(scriptRepository.findLockedByIdAndTenantIdAndOwnerId("script-1", "tenant-1", "alice"))
+                .thenReturn(Optional.of(script));
+        assertThatThrownBy(() -> service.saveScript("tenant-1", "alice",
+                new PythonDataScienceService.ScriptRequest("script-1", "asset-1", null, "log_analysis.py", null, "print('stale')", 2)))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("version conflict");
+        verify(scriptRepository, never()).saveAndFlush(any());
     }
 
     @Test

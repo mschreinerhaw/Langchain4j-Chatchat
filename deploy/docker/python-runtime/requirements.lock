@@ -69,3 +69,6 @@ pure-sasl
 python-dateutil
 pytz
 tenacity
+
+# Editor tooling (invoked through the authenticated Python API, never from the browser)
+ruff

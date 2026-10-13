@@ -12,13 +12,4 @@
     <footer>{{ files.length }} 个文件 · {{ mappingIds.length }} 个 Mapping 已关联</footer>
   </aside>
 </template>
-<script setup>
-import { computed, ref } from 'vue';
-import SqlFileTreeNode from './SqlFileTreeNode.vue';
-import { sqlFileTree } from '../../js/utils/sqlStudioState';
-const props = defineProps({ files: Array, activeId: String, mappingIds: Array, busy: Boolean });
-const emit = defineEmits(['open', 'mapping', 'upload', 'create', 'refresh']);
-const path = ref(''); const tree = computed(() => sqlFileTree(props.files));
-function create() { emit('create', path.value.trim()); path.value = ''; }
-function upload(event, kind) { emit('upload', { files: [...event.target.files], kind }); event.target.value = ''; }
-</script>
+<script src="../../js/components/sql-studio/SqlProjectTree.js"></script>

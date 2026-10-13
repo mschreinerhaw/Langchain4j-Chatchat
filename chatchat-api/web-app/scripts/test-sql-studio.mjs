@@ -53,6 +53,11 @@ try {
   await page.locator('.sql-studio').waitFor();
   const open=path=>page.locator(`.sql-tree-file button[title="${path}"]`).click();
   await open('sql/a.sql');const input=page.locator('.sql-monaco-host textarea.inputarea');await input.waitFor();
+  await input.focus();await input.press('Control+A');await input.pressSequentially('select a,b from t');
+  await page.getByRole('button',{name:'格式化',exact:true}).click();
+  assert.match(await page.locator('.sql-monaco-host .view-lines').innerText(),/SELECT\s+a/);
+  await page.getByLabel('编辑器缩进空格').selectOption('4');
+  assert.equal(await page.getByLabel('编辑器缩进空格').inputValue(),'4');
   await input.focus();await input.press('Control+A');await input.press('Backspace');await input.pressSequentially('SELECT 42;');await input.press('Escape');
   await open('sql/b.sql');assert.match(await page.locator('.sql-monaco-host .view-lines').innerText(),/SELECT\s+2/);
   await open('sql/a.sql');assert.match(await page.locator('.sql-monaco-host .view-lines').innerText(),/SELECT\s+42/);

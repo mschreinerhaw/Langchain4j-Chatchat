@@ -102,6 +102,10 @@ export const deletePlatformModel = (type, name) => apiRequest(
 );
 
 export function fetchPythonWorkbench() { return apiRequest("/data-science/python/workbench"); }
+export function runPythonCodeTool(tool, assetId, source) {
+  if (!['ruff-format', 'ruff-check'].includes(tool)) throw new Error('Unsupported Python code tool');
+  return apiRequest(`/data-science/python/code-tools/${tool}`, { method: 'POST', body: JSON.stringify({ assetId, source }) });
+}
 export function fetchMcpPythonEnvironments() { return apiRequest("/data-science/python/environments"); }
 export function fetchPythonCodeModels() { return apiRequest("/data-science/python/models"); }
 export function fetchPythonAssistSkills() { return apiRequest("/data-science/python/assist/skills"); }

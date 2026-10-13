@@ -1,6 +1,8 @@
 package com.chatchat.api.datascience.python;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 
 import java.util.List;
 import java.util.Optional;
@@ -17,6 +19,9 @@ interface PythonScriptRepository extends JpaRepository<PythonScriptEntity, Strin
     List<PythonScriptEntity> findByTenantIdAndOwnerIdOrderByUpdatedAtDesc(String tenantId, String ownerId);
 
     Optional<PythonScriptEntity> findByIdAndTenantIdAndOwnerId(String id, String tenantId, String ownerId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<PythonScriptEntity> findLockedByIdAndTenantIdAndOwnerId(String id, String tenantId, String ownerId);
 
     Optional<PythonScriptEntity> findByAssetIdAndFileName(String assetId, String fileName);
 

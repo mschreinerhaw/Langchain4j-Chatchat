@@ -12,7 +12,4 @@
     </li>
   </ul>
 </template>
-<script setup>
-defineProps({ nodes: Array, activeId: String, mappingIds: Array });
-defineEmits(['open', 'mapping']);
-</script>
+<script src="../../js/components/sql-studio/SqlFileTreeNode.js"></script>

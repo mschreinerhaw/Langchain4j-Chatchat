@@ -27,6 +27,24 @@ public class PythonDataScienceController {
         return ApiResponse.success(service.workbench(s.tenant(), s.user()));
     }
 
+    public record CodeToolRequest(String assetId, String source) { }
+
+    @PostMapping("/code-tools/ruff-format")
+    public ApiResponse<?> ruffFormat(@RequestBody CodeToolRequest body, HttpServletRequest request) {
+        return call(() -> {
+            Scope s = scope(request);
+            return service.codeTool(s.tenant(), s.user(), body.assetId(), body.source(), true);
+        });
+    }
+
+    @PostMapping("/code-tools/ruff-check")
+    public ApiResponse<?> ruffCheck(@RequestBody CodeToolRequest body, HttpServletRequest request) {
+        return call(() -> {
+            Scope s = scope(request);
+            return service.codeTool(s.tenant(), s.user(), body.assetId(), body.source(), false);
+        });
+    }
+
     @PostMapping("/assets")
     public ApiResponse<?> createAsset(@RequestBody PythonDataScienceService.AssetRequest body, HttpServletRequest request) {
         return call(() -> {

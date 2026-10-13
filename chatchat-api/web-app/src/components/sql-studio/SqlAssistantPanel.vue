@@ -25,11 +25,4 @@
     </div>
   </aside>
 </template>
-<script setup>
-import { computed } from 'vue';
-import { terminalSqlTask } from '../../js/utils/sqlStudioState';
-const props = defineProps({ mappingCount: Number, references: Array, referenceIds: Array, models: Array, agents: Array,
-  agentId: String, modelName: String, prompt: String, busy: Boolean, generations: Array, generationId: String, result: Object });
-defineEmits(['reference','agent','model','prompt','generate','generation','resume','cancel','preview','apply']);
-const terminal = computed(() => terminalSqlTask(props.result?.task?.status));
-</script>
+<script src="../../js/components/sql-studio/SqlAssistantPanel.js"></script>

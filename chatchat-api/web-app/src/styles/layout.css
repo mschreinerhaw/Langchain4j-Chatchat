@@ -1485,5 +1485,5 @@
   }
 }
 
-.workspace-studio .assistant-main { grid-template-columns: minmax(0, 1fr); }
+.workspace-studio .assistant-main { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0; }
 .workspace-studio .assistant-right { display: none; }

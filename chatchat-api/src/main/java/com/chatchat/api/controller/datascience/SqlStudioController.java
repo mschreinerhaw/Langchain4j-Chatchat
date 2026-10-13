@@ -19,15 +19,21 @@ public class SqlStudioController {
     private final WorkspaceService workspaces;
     private void gate(HttpServletRequest request) { workspaces.requireAvailable(request, "data-science"); }
     public record CreateProject(String name, String dialect) { }
+    public record RenameFile(String path, Integer expectedVersion) { }
     public record BindTask(String taskId) { }
     public record ApplyFiles(List<String> paths) { }
+    @GetMapping("/library-files") public ApiResponse<?> libraryFiles(@RequestParam("kind") String kind, HttpServletRequest request) { gate(request); return ApiResponse.success(service.libraryFiles(request, kind)); }
     @GetMapping("/projects") public ApiResponse<?> projects(HttpServletRequest request) { gate(request); return ApiResponse.success(service.projects(request)); }
     @GetMapping("/reference-files") public ApiResponse<?> references(HttpServletRequest request) { gate(request); return ApiResponse.success(service.references(request)); }
     @PostMapping("/projects") public ApiResponse<?> create(@RequestBody CreateProject body, HttpServletRequest request) { gate(request); return ApiResponse.success(service.create(request, body.name(), body.dialect())); }
+    @DeleteMapping("/projects/{projectId}") public ApiResponse<?> deleteProject(@PathVariable("projectId") String projectId, HttpServletRequest request) { gate(request); service.deleteProject(request, projectId); return ApiResponse.success(true); }
     @GetMapping("/projects/{projectId}") public ApiResponse<?> project(@PathVariable("projectId") String projectId, HttpServletRequest request) { gate(request); return ApiResponse.success(service.project(request, projectId)); }
     @GetMapping("/projects/{projectId}/files") public ApiResponse<?> files(@PathVariable("projectId") String projectId, HttpServletRequest request) { gate(request); return ApiResponse.success(service.files(request, projectId)); }
     @GetMapping("/projects/{projectId}/files/{fileId}") public ApiResponse<?> file(@PathVariable("projectId") String projectId, @PathVariable("fileId") String fileId, HttpServletRequest request) { gate(request); return ApiResponse.success(service.file(request, projectId, fileId)); }
     @PutMapping("/projects/{projectId}/files") public ApiResponse<?> save(@PathVariable("projectId") String projectId, @RequestBody SqlStudioService.FileWrite body, HttpServletRequest request) { gate(request); return ApiResponse.success(service.save(request, projectId, body)); }
+    @DeleteMapping("/projects/{projectId}/files/{fileId}") public ApiResponse<?> deleteFile(@PathVariable("projectId") String projectId, @PathVariable("fileId") String fileId, @RequestParam("expectedVersion") Integer expectedVersion, HttpServletRequest request) { gate(request); service.deleteFile(request, projectId, fileId, expectedVersion); return ApiResponse.success(true); }
+    @PostMapping("/projects/{projectId}/library-files") public ApiResponse<?> importLibrary(@PathVariable("projectId") String projectId, @RequestBody SqlStudioService.LibraryImport body, HttpServletRequest request) { gate(request); return ApiResponse.success(service.importLibrary(request, projectId, body)); }
+    @PutMapping("/projects/{projectId}/files/{fileId}/path") public ApiResponse<?> rename(@PathVariable("projectId") String projectId, @PathVariable("fileId") String fileId, @RequestBody RenameFile body, HttpServletRequest request) { gate(request); return ApiResponse.success(service.rename(request, projectId, fileId, body.path(), body.expectedVersion())); }
     @PostMapping(value="/projects/{projectId}/uploads", consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<?> upload(@PathVariable("projectId") String projectId, @RequestParam("kind") String kind, @RequestParam("expectedVersion") int expectedVersion,
         @RequestPart("file") MultipartFile file, HttpServletRequest request) { gate(request); return ApiResponse.success(service.upload(request, projectId, kind, expectedVersion, file)); }

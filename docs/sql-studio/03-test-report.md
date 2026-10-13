@@ -1,5 +1,7 @@
 # SQL Studio MVP 实际测试报告
 
+> 本文记录开发阶段的本地测试状态。2026-10-13 的实际部署与线上验证见 [生产部署记录](05-production-deployment.md)。
+
 日期：2026-10-13。基线 `b88d8dd9`；分支 `feature/sql-studio-mvp`。仅本地开发、H2 测试数据库及 HTTP/模型夹具，未连接生产数据库、未部署、未合并 main。
 
 ## 最终结果

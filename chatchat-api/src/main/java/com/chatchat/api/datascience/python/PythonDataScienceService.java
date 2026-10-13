@@ -36,6 +36,12 @@ public class PythonDataScienceService {
     private final PythonDataFileRepository dataFileRepository;
     private final PythonDataScienceProperties properties;
     private final PythonSystemExampleCatalog exampleCatalog;
+    private final PythonRuntimeService runtime;
+
+    public PythonRuntimeService.ExecResult codeTool(String tenant, String owner, String assetId, String source, boolean format) {
+        PythonAssetEntity asset = ownedReadyAsset(assetId, tenant, owner);
+        return runtime.ruff(asset, source, format);
+    }
 
     public Workbench workbench(String tenant, String owner) {
         List<PythonAssetEntity> assets = assetRepository.findByTenantIdAndOwnerIdOrderByCreatedAtDesc(tenant, owner);
@@ -92,7 +98,10 @@ public class PythonDataScienceService {
             throw new IllegalArgumentException("脚本文件名必须是安全的 .py 文件名");
         String folderId = trim(request.folderId());
         if (!folderId.isBlank()) ownedFolder(folderId, tenant, owner);
-        PythonScriptEntity script = request.id() == null || request.id().isBlank() ? scriptRepository.findByAssetIdAndFileName(asset.getId(), file).orElseGet(PythonScriptEntity::new) : ownedScript(request.id(), tenant, owner);
+        PythonScriptEntity script = request.id() == null || request.id().isBlank() ? scriptRepository.findByAssetIdAndFileName(asset.getId(), file).orElseGet(PythonScriptEntity::new) : scriptRepository.findLockedByIdAndTenantIdAndOwnerId(request.id(), tenant, owner)
+                .orElseThrow(() -> new IllegalArgumentException("Python Script does not exist or is not owned by the current user"));
+        if (request.expectedVersion() != null && request.expectedVersion() != script.getCurrentVersion())
+            throw new IllegalStateException("Python Script version conflict; reload before saving");
         if (script.getId() != null) {
             String currentScriptId = script.getId();
             scriptRepository.findByAssetIdAndFileName(asset.getId(), file).filter(existing -> !existing.getId().equals(currentScriptId)).ifPresent(existing -> {
@@ -670,7 +679,7 @@ public class PythonDataScienceService {
     }
 
     public record ScriptRequest(String id, String assetId, String folderId, String fileName, String title,
-                                String sourceCode) {
+                                String sourceCode, Integer expectedVersion) {
     }
 
     public record FolderRequest(String id, String parentId, String name, Integer sortOrder) {

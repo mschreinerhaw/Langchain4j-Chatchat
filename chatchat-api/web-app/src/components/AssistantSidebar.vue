@@ -184,11 +184,19 @@
     </div>
 
     <div class="user-card">
-      <div class="user-avatar">{{ userAvatarLabel }}</div>
-      <div class="user-copy">
-        <strong>{{ displayUserId }}</strong>
-        <span>用户ID</span>
-      </div>
+      <details class="user-account">
+        <summary class="user-account-trigger" :aria-label="'账户与工作空间：' + displayUserId">
+          <div class="user-avatar">{{ userAvatarLabel }}</div>
+          <div class="user-copy">
+            <strong>{{ displayUserId }}</strong>
+            <span>用户ID</span>
+          </div>
+          <ChevronDown class="user-account-chevron" :size="15" aria-hidden="true" />
+        </summary>
+        <div class="user-account-menu">
+          <slot name="workspace-switcher" />
+        </div>
+      </details>
       <button v-if="showConversationHistory"
         type="button"
         aria-label="管理历史记录"
@@ -202,7 +210,6 @@
       <button type="button" aria-label="退出登录" title="退出登录" class="user-more" @click="$emit('logout')">
         <LogOut :size="17" stroke-width="2" />
       </button>
-      <slot name="workspace-switcher" />
     </div>
 
     <Teleport to="body">

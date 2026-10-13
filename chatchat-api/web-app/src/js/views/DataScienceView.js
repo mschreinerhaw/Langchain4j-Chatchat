@@ -11,6 +11,7 @@ import {
   fetchPythonCodeModels,
   fetchPythonAssistSkills,
   fetchPythonWorkbench,
+  runPythonCodeTool,
   uploadPythonDataFile,
   downloadPythonDataFile,
   deletePythonDataFile,
@@ -24,10 +25,12 @@ import {
   importPythonSystemExampleData
 } from "../../services/api";
 import { errorMessage, formatDateTime } from "../utils/uiFormatters";
-import { calculateBottomPanelMaximum, formatPythonSource, parsePythonExecutionParameters } from "../utils/pythonWorkbench";
+import { calculateBottomPanelMaximum, parsePythonExecutionParameters } from "../utils/pythonWorkbench";
 import { pythonCompletionItems } from "../utils/pythonCompletions";
+import { getLanguageAdapter, editorPreferences, editorLanguageOptions, applyFormatIfUnchanged, pythonBlockIndent } from "../editor/codeIntelligence";
 import { buildPythonLineDiff } from "../utils/pythonCodeDiff";
 import PythonCodeDiff from "../../components/PythonCodeDiff.vue";
+import EditorPreferences from "../../components/editor/EditorPreferences.vue";
 
 globalThis.MonacoEnvironment = { getWorker: () => new EditorWorker() };
 
@@ -70,7 +73,7 @@ const workspaceLayoutStorageKey = "chatchat.python-studio.layout.v1";
 
 export default {
   name: "DataScienceView",
-  components: { PythonCodeDiff },
+  components: { PythonCodeDiff, EditorPreferences },
   props: {
     workspaceContext: { type: Object, default: null },
     initialTab: {
@@ -653,29 +656,80 @@ export default {
             snippetsPreventQuickSuggestions: false
           },
           suggestOnTriggerCharacters: true,
-          acceptSuggestionOnEnter: "on",
+          acceptSuggestionOnEnter: "off",
           tabCompletion: "on",
           wordBasedSuggestions: "currentDocument",
           quickSuggestions: { other: true, comments: false, strings: false },
-          tabSize: 4,
+          ...editorLanguageOptions("python", editorPreferences(this.workspaceContext, "python")),
           scrollBeyondLastLine: false,
           stickyScroll: { enabled: true }
         })
       );
       this.editor.onDidChangeModelContent(() => {
         this.form.sourceCode = this.editor.getValue();
+        this.scheduleRuffDiagnostics();
       });
       this.editor.onDidChangeCursorPosition((event) => {
         this.cursorPosition = event.position;
       });
+      this.pythonEnterListener = this.editor.onKeyDown(event => {
+        if (event.keyCode !== monaco.KeyCode.Enter || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+        const model = this.editor?.getModel(), selection = this.editor?.getSelection();
+        if (!model || !selection || !selection.isEmpty()) return;
+        const line = model.getLineContent(selection.startLineNumber).slice(0, selection.startColumn - 1);
+        const indent = pythonBlockIndent(line, editorPreferences(this.workspaceContext, 'python').tabSize);
+        if (indent == null) return;
+        event.preventDefault(); event.stopPropagation();
+        this.editor.executeEdits('python-smart-enter', [{ range: selection, text: `\n${indent}`, forceMoveMarkers: true }], () => {
+          const nextLine = selection.startLineNumber + 1, column = indent.length + 1;
+          return [new monaco.Selection(nextLine, column, nextLine, column)];
+        });
+      });
       this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => this.save());
+      this.editor.addAction({ id: 'code-intelligence.format-python', label: 'Format Python', keybindings: [monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF], run: () => this.formatDocument() });
       this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => this.run());
       this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, () => {
         this.aiOpen = true;
         nextTick(() => this.$refs.aiPrompt?.focus());
       });
+      this.scheduleRuffDiagnostics();
+    },
+    scheduleRuffDiagnostics() {
+      clearTimeout(this._ruffTimer);
+      const model = this.editor?.getModel();
+      const assetId = this.form.assetId;
+      const version = model?.getVersionId();
+      const serial = this._ruffSerial = (this._ruffSerial || 0) + 1;
+      if (!model || !assetId || model.getValue().length > 200_000) {
+        if (model) monaco.editor.setModelMarkers(model, 'ruff', []);
+        return;
+      }
+      this._ruffTimer = setTimeout(async () => {
+        try {
+          const result = await runPythonCodeTool('ruff-check', assetId, model.getValue());
+          if (serial !== this._ruffSerial || model !== this.editor?.getModel() || version !== model.getVersionId()) return;
+          if (![0, 1].includes(result.exitCode)) return;
+          const problems = JSON.parse(result.stdout || '[]');
+          monaco.editor.setModelMarkers(model, 'ruff', problems.map(problem => ({
+            startLineNumber: problem.location.row,
+            startColumn: problem.location.column,
+            endLineNumber: problem.end_location?.row || problem.location.row,
+            endColumn: problem.end_location?.column || problem.location.column + 1,
+            message: `${problem.code}: ${problem.message}`,
+            severity: monaco.MarkerSeverity.Warning
+          })));
+        } catch { /* Editing remains available when the runtime tool is offline. */ }
+      }, 650);
+    },
+    applyEditorPreferences(preferences) {
+      this.editor?.updateOptions(editorLanguageOptions('python', preferences));
+      this.editor?.getModel()?.updateOptions({ tabSize: preferences.tabSize, insertSpaces: true });
     },
     disposeEditor() {
+      this.pythonEnterListener?.dispose();
+      this.pythonEnterListener = null;
+      clearTimeout(this._ruffTimer);
+      this._ruffSerial = (this._ruffSerial || 0) + 1;
       this.aiDecoration?.clear();
       this.aiDecoration = null;
       this.completionProvider?.dispose();
@@ -791,6 +845,7 @@ export default {
           fileName: script.fileName,
           title: script.title,
           sourceCode: script.sourceCode,
+          currentVersion: script.currentVersion,
           status: script.status
         },
         savedSource: script.sourceCode || "",
@@ -881,12 +936,20 @@ export default {
       }
       this.form.fileName = fileName;
       await this.action(async () => {
-        const saved = await savePythonScript(this.form);
-        this.form = { ...this.form, ...saved };
-        this.savedSource = saved.sourceCode || this.form.sourceCode;
+        const submitted = { ...this.form, expectedVersion: this.form.currentVersion ?? 0 };
+        const tabKey = this.activeEditorTabKey;
+        const saved = await savePythonScript(submitted);
+        if (tabKey !== this.activeEditorTabKey) {
+          const tab = this.editorTabs.find(item => item.key === tabKey);
+          if (tab) { tab.form.id = saved.id; tab.form.currentVersion = saved.currentVersion; tab.savedSource = saved.sourceCode; }
+        } else {
+          const changedWhileSaving = this.form.sourceCode !== submitted.sourceCode;
+          this.form = { ...this.form, ...saved, sourceCode: changedWhileSaving ? this.form.sourceCode : saved.sourceCode };
+          this.savedSource = saved.sourceCode || submitted.sourceCode;
+        }
         this.savedFileName = saved.fileName || this.form.fileName;
         this.savedFolderId = saved.folderId || "";
-        this.captureActiveEditorTab();
+        if (tabKey === this.activeEditorTabKey) this.captureActiveEditorTab();
         this.showTransientMessage("脚本已保存为新版本");
         await this.load(true);
       });
@@ -1309,13 +1372,16 @@ export default {
       const model = this.editor?.getModel();
       if (!model) return;
       const before = model.getValue();
-      const normalized = formatPythonSource(before);
-      this.editor.pushUndoStop();
-      this.editor.executeEdits("python-format", [
-        { range: model.getFullModelRange(), text: normalized, forceMoveMarkers: true }
-      ]);
-      await this.editor.getAction("editor.action.reindentlines")?.run();
-      this.editor.pushUndoStop();
+      const version = model.getVersionId();
+      let normalized = getLanguageAdapter('python').format(before);
+      if (this.form.assetId) {
+        try {
+          const result = await runPythonCodeTool('ruff-format', this.form.assetId, before);
+          if (result.exitCode === 0) normalized = result.stdout;
+          else this.showTransientError(result.stderr || 'Ruff 格式化暂不可用，已使用本地缩进整理');
+        } catch { this.showTransientError('Ruff 格式化暂不可用，已使用本地缩进整理'); }
+      }
+      if (!applyFormatIfUnchanged(this.editor, model, version, before, normalized)) return;
       this.form.sourceCode = model.getValue();
       this.showTransientMessage(this.form.sourceCode === before ? "代码格式已符合规范" : "代码格式化完成");
       this.editor.focus();

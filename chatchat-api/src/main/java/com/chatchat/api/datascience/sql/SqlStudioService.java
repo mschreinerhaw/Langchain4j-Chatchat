@@ -1,7 +1,11 @@
 package com.chatchat.api.datascience.sql;
 
 import com.chatchat.api.security.ObjectAccessService;
+import com.chatchat.api.controller.agent.DocumentLibraryReadPort;
 import com.chatchat.api.workspace.WorkspaceOriginService;
+import com.chatchat.enterprise.service.EnterpriseAdminService;
+import com.chatchat.knowledgebase.search.document.api.library.LibraryDocumentItem;
+import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 import com.chatchat.chat.task.core.*;
 import com.chatchat.chat.task.event.*;
 import com.chatchat.knowledgebase.search.document.infrastructure.extract.DocumentTextExtractor;
@@ -32,6 +36,8 @@ public class SqlStudioService {
     private final AgentEventStore events;
     private final DocumentTextExtractor extractor;
     private final ObjectMapper mapper;
+    private final DocumentLibraryReadPort library;
+    private final EnterpriseAdminService identities;
 
     public record Project(String id, String name, String dialect, String sessionId, String tenantId, String ownerId) { }
     public record File(String id, String projectId, String path, String kind, String content, int version,
@@ -45,6 +51,57 @@ public class SqlStudioService {
     public record GenerationView(Generation generation, AgentTaskResponse task, List<AgentEvent> events,
                                  List<SqlOutputBundle.Candidate> files, String rawAnswer, String outputError, String validation) { }
     public record Download(String name, byte[] content) { }
+    public record LibraryImport(String kind, List<String> documentIds) { }
+
+    private SearchPermissionContext documentContext(HttpServletRequest request) {
+        identity(request);
+        return SearchPermissionContext.of(access.tenant(request), access.user(request),
+            identities.authorizationRoleKeys(access.user(request)));
+    }
+    public List<LibraryDocumentItem> libraryFiles(HttpServletRequest request, String kind) {
+        kind = kind(kind);
+        require(!"SQL".equals(kind), "Choose Mapping or SQL case");
+        String selectedKind = kind;
+        return library.list(documentContext(request)).stream()
+            .filter(item -> item.latestVersion() && !"DELETED".equalsIgnoreCase(item.lifecycleStatus()))
+            .filter(item -> allowedDocumentName(item.fileName(), selectedKind))
+            .toList();
+    }
+    @Transactional
+    public List<File> importLibrary(HttpServletRequest request, String projectId, LibraryImport body) {
+        project(request, projectId);
+        require(body != null && body.documentIds() != null, "Choose library documents");
+        String kind = kind(body.kind());
+        require(!"SQL".equals(kind), "Choose Mapping or SQL case");
+        List<String> ids = body.documentIds().stream().distinct().toList();
+        require(!ids.isEmpty() && ids.size() <= 32 && ids.size() == body.documentIds().size(), "Choose 1 to 32 unique documents");
+        SearchPermissionContext context = documentContext(request);
+        List<File> imported = new ArrayList<>();
+        for (String id : ids) {
+            var document = library.get(id, context).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Library document not found"));
+            require(!"DELETED".equalsIgnoreCase(document.getLifecycleStatus()), "Library document is unavailable");
+            String name = document.getFileName();
+            require(allowedDocumentName(name, kind), "Document type does not match the selected input");
+            require(document.getContent() != null && !document.getContent().isBlank(), "Document has no readable text");
+            String safeName = SqlOutputBundle.path(name);
+            require(!safeName.contains("/"), "Library document requires a file name");
+            String path = ("MAPPING".equals(kind) ? "mapping/" : "references/") + safeName;
+            require(jdbc.queryForList("select id from ds_sql_file where project_id=? and path_key=?", projectId,
+                path.toLowerCase(Locale.ROOT)).isEmpty(), "A project file already has this name");
+            byte[] original = Optional.ofNullable(library.original(id, context)).orElse(Optional.empty()).orElse(null);
+            if (original != null && original.length > 2 * 1024 * 1024)
+                throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "Library file exceeds 2MiB");
+            imported.add(write(projectId, path, kind, document.getContent(), 0,
+                original == null ? null : Base64.getEncoder().encodeToString(original), null));
+        }
+        return imported;
+    }
+    private static boolean allowedDocumentName(String name, String kind) {
+        if (name == null || name.isBlank()) return false;
+        String lower = name.toLowerCase(Locale.ROOT);
+        return "REFERENCE".equals(kind) ? lower.endsWith(".sql") :
+            lower.matches(".*\\.(json|csv|md|txt|xlsx|xls|docx|doc|pdf)$");
+    }
 
     public List<Project> projects(HttpServletRequest request) {
         identity(request);
@@ -67,6 +124,20 @@ public class SqlStudioService {
         Project project = rows.get(0); access.requireOwner(request, project.tenantId(), project.ownerId(), false);
         return project;
     }
+    @Transactional
+    public void deleteProject(HttpServletRequest request, String id) {
+        Project current = project(request, id);
+        var pending = jdbc.queryForList("select task_id from ds_sql_generation where project_id=? and task_id is not null", String.class, id);
+        for (String taskId : pending) {
+            var task = tasks.get(current.tenantId(), taskId).orElse(null);
+            if (task != null && !Set.of("SUCCESS", "PARTIAL", "PARTIAL_SUCCESS", "FAILED", "CANCELLED", "KILLED", "REJECTED", "EMPTY", "NO_PRESENTABLE_RESULT", "TIME_BUDGET_EXHAUSTED", "MODEL_BUDGET_EXHAUSTED", "TIMEOUT_CANCELLED", "DLQ").contains(task.status()))
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Wait for the running task before deleting its project");
+        }
+        jdbc.update("delete from ds_sql_file_version where file_id in (select id from ds_sql_file where project_id=?)", id);
+        jdbc.update("delete from ds_sql_file where project_id=?", id);
+        jdbc.update("delete from ds_sql_generation where project_id=?", id);
+        if (jdbc.update("delete from ds_sql_project where id=? and tenant_id=? and owner_id=?", id, current.tenantId(), current.ownerId()) != 1) conflict();
+    }
     public List<File> files(HttpServletRequest request, String projectId) {
         project(request, projectId);
         return jdbc.query("select * from ds_sql_file where project_id=? order by path", this::fileRow, projectId);
@@ -82,6 +153,14 @@ public class SqlStudioService {
         if (rows.isEmpty()) missing(); return rows.get(0);
     }
     @Transactional
+    public void deleteFile(HttpServletRequest request, String projectId, String id, Integer expectedVersion) {
+        File current = file(request, projectId, id);
+        require(expectedVersion != null && expectedVersion > 0, "expectedVersion is required");
+        if (current.version() != expectedVersion) conflict();
+        jdbc.update("delete from ds_sql_file_version where file_id=?", id);
+        if (jdbc.update("delete from ds_sql_file where id=? and project_id=? and version=?", id, projectId, expectedVersion) != 1) conflict();
+    }
+    @Transactional
     public File save(HttpServletRequest request, String projectId, FileWrite body) {
         project(request, projectId);
         require(body != null && body.expectedVersion() != null && body.expectedVersion() >= 0, "expectedVersion is required");
@@ -89,6 +168,27 @@ public class SqlStudioService {
         require(editable(path), "Binary Mapping cannot be edited as text; upload a new file");
         validateExtension(path, kind);
         return write(projectId, path, kind, body.content(), body.expectedVersion(), null, null);
+    }
+    @Transactional
+    public File rename(HttpServletRequest request, String projectId, String fileId, String path, Integer expectedVersion) {
+        File current = file(request, projectId, fileId);
+        require(expectedVersion != null && expectedVersion > 0, "expectedVersion is required");
+        path = SqlOutputBundle.path(path);
+        require(current.path().substring(0, current.path().lastIndexOf('/') + 1).equals(path.substring(0, path.lastIndexOf('/') + 1)),
+            "Rename must stay in the same folder");
+        validateExtension(path, current.kind());
+        require(current.path().substring(current.path().lastIndexOf('.')).equalsIgnoreCase(path.substring(path.lastIndexOf('.'))),
+            "Rename must preserve the file extension");
+        require(!current.path().equals(path), "Choose a different file name");
+        String original = jdbc.queryForObject("select original_base64 from ds_sql_file where id=?", String.class, fileId);
+        try {
+            int changed = jdbc.update("update ds_sql_file set path=?,path_key=?,version=version+1,updated_at=CURRENT_TIMESTAMP where id=? and project_id=? and version=?",
+                path, path.toLowerCase(Locale.ROOT), fileId, projectId, expectedVersion);
+            if (changed != 1) conflict();
+            jdbc.update("insert into ds_sql_file_version (id,file_id,version,content,original_base64,source_task_id,created_at) values (?,?,?,?,?,?,CURRENT_TIMESTAMP)",
+                UUID.randomUUID().toString(), fileId, expectedVersion + 1, current.content(), original, current.sourceTaskId());
+        } catch (DataIntegrityViolationException ex) { conflict(); }
+        return file(request, projectId, fileId);
     }
     @Transactional
     public File upload(HttpServletRequest request, String projectId, String kind, int expectedVersion, MultipartFile upload) {
@@ -144,6 +244,8 @@ public class SqlStudioService {
         Project project = project(request, projectId);
         require(body != null && body.prompt() != null && !body.prompt().isBlank() && body.prompt().length() <= 4000, "Describe the SQL generation requirement (max 4000)");
         String dialect = dialect(body.dialect());
+        require(body.agentId() == null || body.agentId().isBlank() || body.modelName() == null || body.modelName().isBlank(),
+            "Choose either Agent or model");
         List<File> mappings = selected(request, projectId, body.mappingIds(), "MAPPING");
         require(!mappings.isEmpty(), "Choose at least one Mapping");
         List<File> references = selected(request, projectId, body.referenceIds(), "REFERENCE");

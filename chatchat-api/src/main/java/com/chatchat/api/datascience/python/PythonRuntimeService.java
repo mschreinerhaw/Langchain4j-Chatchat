@@ -58,6 +58,22 @@ public class PythonRuntimeService {
         }
     }
 
+    /** A fixed, non-shell tool invocation. Source is streamed over stdin, never written as a script. */
+    public ExecResult ruff(PythonAssetEntity asset, String source, boolean format) {
+        if (source == null || source.getBytes(StandardCharsets.UTF_8).length > 200_000)
+            throw new IllegalArgumentException("Python source exceeds the editor tool limit");
+        try {
+            ProvisionResult ready = provision(asset);
+            if (!ready.ready()) return new ExecResult(-1, "", ready.message(), 0, false);
+            List<String> command = new ArrayList<>(List.of(properties.getDockerCommand(), "exec", "-i", ready.containerName(), "ruff"));
+            command.addAll(format ? List.of("format", "--stdin-filename", "editor.py", "-")
+                    : List.of("check", "--output-format", "json", "--stdin-filename", "editor.py", "-"));
+            return run(command, Duration.ofSeconds(15), source);
+        } catch (Exception ex) {
+            return new ExecResult(-1, "", ex.getMessage(), 0, false);
+        }
+    }
+
     private Path workspace(PythonAssetEntity asset) throws IOException {
         Path root = Paths.get(properties.getWorkspaceRoot()).toAbsolutePath().normalize();
         Files.createDirectories(root);
@@ -80,17 +96,27 @@ public class PythonRuntimeService {
     }
 
     private ExecResult run(List<String> command, Duration timeout) throws IOException, InterruptedException {
+        return run(command, timeout, null);
+    }
+
+    private ExecResult run(List<String> command, Duration timeout, String stdin) throws IOException, InterruptedException {
         long started = System.nanoTime();
         Process process = new ProcessBuilder(command).redirectErrorStream(false).start();
-        ExecutorService readers = Executors.newFixedThreadPool(2);
+        ExecutorService readers = Executors.newFixedThreadPool(3);
         try {
             Future<String> out = readers.submit(() -> readLimited(process.getInputStream()));
             Future<String> err = readers.submit(() -> readLimited(process.getErrorStream()));
+            Future<?> input = readers.submit(() -> {
+                try (OutputStream stream = process.getOutputStream()) {
+                    if (stdin != null) stream.write(stdin.getBytes(StandardCharsets.UTF_8));
+                } catch (IOException ignored) { /* The tool may exit before consuming stdin. */ }
+            });
             boolean finished = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
             if (!finished) {
                 process.destroyForcibly();
                 process.waitFor(5, TimeUnit.SECONDS);
             }
+            input.cancel(true);
             return new ExecResult(finished ? process.exitValue() : 124, get(out), get(err), elapsed(started), !finished);
         } finally {
             readers.shutdownNow();

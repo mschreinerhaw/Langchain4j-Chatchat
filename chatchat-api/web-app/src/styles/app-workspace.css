@@ -1,0 +1,141 @@
+.workspace-switcher {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.workspace-switcher-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.workspace-switcher-title {
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.workspace-switcher .workspace-switcher-state {
+  margin: 0;
+  color: #7890ae;
+  font-size: 10px;
+}
+
+.workspace-switcher.is-switching .workspace-switcher-state {
+  color: #1d64d8;
+}
+
+.workspace-switcher-options {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.workspace-switcher-option {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 6px 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.workspace-switcher-option:hover {
+  background: #f3f7ff;
+}
+
+.workspace-switcher-option:focus-visible {
+  outline: 2px solid #4084eb;
+  outline-offset: 1px;
+}
+
+.workspace-switcher-option.is-active {
+  border-color: #d6e5ff;
+  background: #edf4ff;
+  color: #1753b5;
+}
+
+.workspace-switcher-option:disabled {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+.workspace-switcher-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: #eaf0fb;
+  color: #42618d;
+}
+
+.workspace-switcher-option.is-active .workspace-switcher-icon {
+  background: #dbe9ff;
+  color: #1b5ac3;
+}
+
+.workspace-switcher-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-switcher-option {
+    transition: none;
+  }
+}
+
+.workspace-selection {
+  padding: 30px;
+}
+
+.workspace-selection h1 {
+  font-size: 24px;
+}
+
+.workspace-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.workspace-card {
+  padding: 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.workspace-card button {
+  margin-right: 8px;
+  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.workspace-error {
+  padding: 12px;
+  background: #fef2f2;
+  color: #b91c1c;
+}

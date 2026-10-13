@@ -384,6 +384,11 @@ export default {
         }
       } finally { if (serial === this.workspaceNavigationSerial) this.workspaceLoading = false; }
     },
+    async switchWorkspaceFromAccount(event) {
+      const account = event.currentTarget.closest('.user-account');
+      await this.switchWorkspace(event.currentTarget.value);
+      if (account?.isConnected) account.open = false;
+    },
     openWorkspaceSelection() { this.showWorkspaceSelection = true; this.setHashRoute("workspaces"); },
     async useDefaultWorkspace(id) {
       try { await saveWorkspacePreferences({ defaultWorkspaceId: id }); await this.switchWorkspace(id); }

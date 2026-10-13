@@ -48,6 +48,11 @@ try {
   await page.locator('input[maxlength="4"]').fill(captcha);
   await page.locator('.login-submit').click();
   await page.waitForURL("**/#/w/zhice/chat");
+  assert.equal(await page.locator('.user-account[open]').count(), 0);
+  await page.locator('.user-account-trigger').click();
+  assert.equal(await page.locator('.user-account[open]').count(), 1);
+  assert.equal(await page.locator('.user-account-menu').evaluate(element => getComputedStyle(element).position), 'absolute');
+  assert.equal(await page.locator('.workspace-switcher').evaluate(element => getComputedStyle(element).borderTopWidth), '0px');
   assert.equal(await page.locator('.user-card #workspace-switch').count(),1);
   assert.equal(await page.locator('.workspace-switcher-control').count(), 1);
   assert.equal(await page.locator('.workspace-switcher-control').evaluate(element => getComputedStyle(element).display), 'grid');
@@ -58,6 +63,7 @@ try {
   assert.equal(await page.locator(".workspace-switcher-state").textContent(), "切换中…");
   assert.equal(await page.locator(".assistant-app.workspace-changing").count(), 1);
   await page.waitForURL("**/#/w/data-science/dataScienceEnvironment");
+  await page.locator('.user-account[open]').waitFor({ state: 'detached' });
   await page.locator(".assistant-app.workspace-changing").waitFor({ state: "detached" });
   await page.waitForFunction(() => getComputedStyle(document.querySelector('.assistant-content')).opacity === '1');
   assert.equal(await page.locator('.recent-block').count(),0);
@@ -78,6 +84,7 @@ try {
   await page.waitForFunction(() => document.querySelector('.ds-page').__vueParentComponent.proxy.form.sourceCode.endsWith('pass\n'));
   assert.equal(await page.locator(".ds-header").count(), 0);
   assert.equal(await page.getByText("SQL Studio", { exact: false }).count(), 0);
+  if (await page.locator('.user-account:not([open])').count()) await page.locator('.user-account-trigger').click();
   await page.locator("#workspace-switch").selectOption("zhice");
   await page.waitForURL("**/#/w/zhice/chat");
   assert.equal(await composer.inputValue(), "unsaved workspace draft");

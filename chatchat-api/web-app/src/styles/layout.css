@@ -836,16 +836,74 @@
 
 .user-card {
   margin-top: auto;
+  position: relative;
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) 28px 20px;
+  grid-template-columns: minmax(0, 1fr) 28px 20px;
   align-items: center;
   gap: 9px;
+}
+
+.user-account {
+  min-width: 0;
+}
+
+.user-account-trigger {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 15px;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 8px;
+}
+
+.user-account-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.user-account-trigger:hover,
+.user-account-trigger:focus-visible,
+.user-account[open] .user-account-trigger {
+  background: #f2f5fb;
+  outline: none;
+}
+
+.user-account-chevron {
+  color: #667892;
+  transition: transform 0.18s ease;
+}
+
+.user-account[open] .user-account-chevron {
+  transform: rotate(180deg);
+}
+
+.user-account-menu {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  z-index: 12;
+  padding: 12px;
+  border: 1px solid #dbe6f8;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(30, 56, 96, 0.14);
 }
 
 .assistant-app.sidebar-collapsed .user-card {
   grid-template-columns: 1fr;
   justify-items: center;
   gap: 8px;
+}
+
+.assistant-app.sidebar-collapsed .user-account-trigger {
+  grid-template-columns: 36px;
+}
+
+.assistant-app.sidebar-collapsed .user-account-chevron,
+.assistant-app.sidebar-collapsed .user-account-menu {
+  display: none;
 }
 
 .assistant-app.sidebar-collapsed .user-copy,

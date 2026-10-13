@@ -61,7 +61,9 @@ try {
   await input.focus();await input.press('Control+A');await input.press('Backspace');await input.pressSequentially('SELECT 42;');await input.press('Escape');
   await open('sql/b.sql');assert.match(await page.locator('.sql-monaco-host .view-lines').innerText(),/SELECT\s+2/);
   await open('sql/a.sql');assert.match(await page.locator('.sql-monaco-host .view-lines').innerText(),/SELECT\s+42/);
+  await page.locator('.user-account-trigger').click();
   await page.locator('#workspace-switch').selectOption('zhice');await page.waitForURL('**/#/w/zhice/chat');
+  if (await page.locator('.user-account:not([open])').count()) await page.locator('.user-account-trigger').click();
   await page.locator('#workspace-switch').selectOption('data-science');await page.waitForURL('**/#/w/data-science/sqlStudio');
   await page.evaluate(()=>location.hash='/w/data-science/sqlStudio');await page.locator('.sql-studio').waitFor();
   assert.match(await page.locator('.sql-monaco-host .view-lines').innerText(),/SELECT\s+42/);

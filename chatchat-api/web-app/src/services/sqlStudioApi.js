@@ -8,6 +8,7 @@ export const createSqlProject = value => apiRequest(`${root}/projects`, { method
 export const sqlFiles = id => apiRequest(`${project(id)}/files`);
 export const sqlReferences = () => apiRequest(`${root}/reference-files`);
 export const saveSqlFile = (id, value) => apiRequest(`${project(id)}/files`, { method: 'PUT', body: body(value) });
+export const renameSqlFile = (id, fileId, path, expectedVersion) => apiRequest(`${project(id)}/files/${encodeURIComponent(fileId)}/path`, { method: 'PUT', body: body({ path, expectedVersion }) });
 export const sqlVersions = (id, fileId) => apiRequest(`${project(id)}/files/${encodeURIComponent(fileId)}/versions`);
 export const sqlGenerations = id => apiRequest(`${project(id)}/generations`);
 export const prepareSqlGeneration = (id, value) => apiRequest(`${project(id)}/generations`, { method: 'POST', body: body(value) });
@@ -25,12 +26,16 @@ export async function submitSqlGeneration(id, prepared) {
   return task;
 }
 export async function downloadSqlFile(projectId, file) {
+  const blob = await readSqlFileBlob(projectId, file);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a'); link.href = url; link.download = file.path.split('/').at(-1); link.click();
+  URL.revokeObjectURL(url);
+}
+export async function readSqlFileBlob(projectId, file) {
   const session = getStoredAuthSession();
   const response = await fetch(`/api/v1${project(projectId)}/files/${encodeURIComponent(file.id)}/download`, {
     headers: { ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}), ...workspaceHeaders() }
   });
   if (!response.ok) throw new Error('文件下载失败或无权访问');
-  const url = URL.createObjectURL(await response.blob());
-  const link = document.createElement('a'); link.href = url; link.download = file.path.split('/').at(-1); link.click();
-  URL.revokeObjectURL(url);
+  return response.blob();
 }

@@ -1,19 +1,40 @@
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import SqlFileTreeNode from '../../../components/sql-studio/SqlFileTreeNode.vue';
 import { sqlFileTree } from '../../utils/sqlStudioState';
 
 export default {
   components: { SqlFileTreeNode },
-  props: { files: Array, activeId: String, mappingIds: Array, busy: Boolean },
-  emits: ['open', 'mapping', 'upload', 'create', 'refresh'],
-  setup(props, { emit: emitEvent }) {
-const emit = emitEvent;
-
-
-const path = ref(''); const tree = computed(() => sqlFileTree(props.files));
-function create() { emit('create', path.value.trim()); path.value = ''; }
-function upload(event, kind) { emit('upload', { files: [...event.target.files], kind }); event.target.value = ''; }
-  return { path, tree, create, upload };
-
+  props: { files: Array, references: Array, referenceIds: Array, projectName: String, activeId: String, mappingIds: Array, busy: Boolean },
+  emits: ['open', 'mapping', 'reference', 'reference-open', 'upload', 'create', 'refresh', 'versions', 'download', 'rename'],
+  setup(props, { emit }) {
+    const path = ref(''), dragging = ref(false), contextFile = ref(null), contextX = ref(0), contextY = ref(0);
+    const renaming = ref(false), renameName = ref('');
+    const tree = computed(() => sqlFileTree(props.files || []));
+    function create() { if (path.value.trim()) emit('create', path.value.trim()); path.value = ''; }
+    function upload(event, kind) { emit('upload', { files: [...event.target.files], kind }); event.target.value = ''; }
+    function dragLeave(event) { if (!event.currentTarget.contains(event.relatedTarget)) dragging.value = false; }
+    function dropFiles(event) {
+      dragging.value = false;
+      const incoming = [...(event.dataTransfer?.files || [])];
+      if (incoming.length) emit('upload', { files: incoming, kind: 'AUTO' });
+    }
+    function openContext({ event, file }) {
+      contextFile.value = file; renaming.value = false;
+      contextX.value = Math.min(event.clientX, window.innerWidth - 190);
+      contextY.value = Math.min(event.clientY, window.innerHeight - 240);
+      window.addEventListener('pointerdown', outsideContext, { once: true });
+    }
+    function outsideContext(event) { if (!event.target.closest('.sql-explorer-context')) closeContext(); }
+    function closeContext() { contextFile.value = null; renaming.value = false; }
+    async function copyPath() { if (contextFile.value) await navigator.clipboard?.writeText(contextFile.value.path); closeContext(); }
+    function beginRename() { renameName.value = contextFile.value.path.split('/').at(-1); renaming.value = true; }
+    function commitRename() {
+      if (!contextFile.value || !renameName.value.trim()) return;
+      const file = contextFile.value;
+      emit('rename', { file, path: file.path.slice(0, file.path.lastIndexOf('/') + 1) + renameName.value.trim() });
+      closeContext();
+    }
+    onBeforeUnmount(() => window.removeEventListener('pointerdown', outsideContext));
+    return { path, tree, dragging, contextFile, contextX, contextY, renaming, renameName, create, upload, dragLeave, dropFiles, openContext, closeContext, copyPath, beginRename, commitRename };
   }
 };

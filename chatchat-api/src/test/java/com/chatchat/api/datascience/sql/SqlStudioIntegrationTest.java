@@ -118,6 +118,22 @@ class SqlStudioIntegrationTest {
         for(String path:List.of("../a.sql","/root/a.sql","sql/../a.sql","C:/a.sql","sql\\a.sql","sql/%2e.sql","sql/CON.sql"))
             mvc.perform(put(ROOT+"/"+p+"/files").header("Authorization","Bearer "+token).contentType("application/json").content(json(Map.of("path",path,"kind","SQL","content","bad","expectedVersion",0)))).andExpect(status().isBadRequest());
     }
+    @Test void renameKeepsFileIdentityAndRequiresOwnershipAndCurrentVersion() throws Exception {
+        String p=project(); var file=save(p,"sql/original.sql","SQL","SELECT 1;",0);
+        String url=ROOT+"/"+p+"/files/"+file.path("id").asText()+"/path";
+        String other=otherUser(true);
+        mvc.perform(put(url).header("Authorization","Bearer "+other).contentType("application/json")
+            .content(json(Map.of("path","sql/renamed.sql","expectedVersion",1)))).andExpect(status().isForbidden());
+        mvc.perform(put(url).header("Authorization","Bearer "+token).contentType("application/json")
+            .content(json(Map.of("path","sql/renamed.sql","expectedVersion",1)))).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(file.path("id").asText()))
+            .andExpect(jsonPath("$.data.version").value(2));
+        mvc.perform(put(url).header("Authorization","Bearer "+token).contentType("application/json")
+            .content(json(Map.of("path","sql/stale.sql","expectedVersion",1)))).andExpect(status().isConflict());
+        mvc.perform(put(url).header("Authorization","Bearer "+token).contentType("application/json")
+            .content(json(Map.of("path","mapping/wrong.sql","expectedVersion",2)))).andExpect(status().isBadRequest());
+        assertThat(jdbc.queryForObject("select content from ds_sql_file where id=?",String.class,file.path("id").asText())).isEqualTo("SELECT 1;");
+    }
     @Test void uploadPreviewOriginalDownloadAndVersionedReplacement() throws Exception {
         String p=project(); byte[] raw="source,target\nstg_customer,dim_customer".getBytes(StandardCharsets.UTF_8);
         var file=new MockMultipartFile("file","customer.csv","text/csv",raw);
@@ -141,6 +157,7 @@ class SqlStudioIntegrationTest {
         for(String suffix:List.of("","/files","/files/"+file.path("id").asText(),"/files/"+file.path("id").asText()+"/versions","/files/"+file.path("id").asText()+"/download","/generations"))
             mvc.perform(get(ROOT+"/"+p+suffix).header("Authorization","Bearer "+other).header("X-Workspace-Id","zhice")).andExpect(status().isForbidden());
         mvc.perform(put(ROOT+"/"+p+"/files").header("Authorization","Bearer "+other).header("X-Workspace-Id","data-science").contentType("application/json").content(json(Map.of("path","sql/private.sql","kind","SQL","content","attacker","expectedVersion",1)))).andExpect(status().isForbidden());
+        mvc.perform(put(ROOT+"/"+p+"/files/"+file.path("id").asText()+"/path").header("Authorization","Bearer "+other).header("X-Workspace-Id","data-science").contentType("application/json").content(json(Map.of("path","sql/stolen.sql","expectedVersion",1)))).andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/data-science/sql/reference-files").header("Authorization","Bearer "+other)).andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(0));
         String attackerProject=data(mvc.perform(post(ROOT).header("Authorization","Bearer "+other).contentType("application/json").content("{\"name\":\"other\",\"dialect\":\"spark\"}")).andExpect(status().isOk()).andReturn()).path("id").asText();
         var ownMapping=data(mvc.perform(put(ROOT+"/"+attackerProject+"/files").header("Authorization","Bearer "+other).contentType("application/json").content("{\"path\":\"mapping/a.txt\",\"kind\":\"MAPPING\",\"content\":\"a to b\",\"expectedVersion\":0}")).andExpect(status().isOk()).andReturn());

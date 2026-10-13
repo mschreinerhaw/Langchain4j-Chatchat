@@ -91,6 +91,27 @@ public class SqlStudioService {
         return write(projectId, path, kind, body.content(), body.expectedVersion(), null, null);
     }
     @Transactional
+    public File rename(HttpServletRequest request, String projectId, String fileId, String path, Integer expectedVersion) {
+        File current = file(request, projectId, fileId);
+        require(expectedVersion != null && expectedVersion > 0, "expectedVersion is required");
+        path = SqlOutputBundle.path(path);
+        require(current.path().substring(0, current.path().lastIndexOf('/') + 1).equals(path.substring(0, path.lastIndexOf('/') + 1)),
+            "Rename must stay in the same folder");
+        validateExtension(path, current.kind());
+        require(current.path().substring(current.path().lastIndexOf('.')).equalsIgnoreCase(path.substring(path.lastIndexOf('.'))),
+            "Rename must preserve the file extension");
+        require(!current.path().equals(path), "Choose a different file name");
+        String original = jdbc.queryForObject("select original_base64 from ds_sql_file where id=?", String.class, fileId);
+        try {
+            int changed = jdbc.update("update ds_sql_file set path=?,path_key=?,version=version+1,updated_at=CURRENT_TIMESTAMP where id=? and project_id=? and version=?",
+                path, path.toLowerCase(Locale.ROOT), fileId, projectId, expectedVersion);
+            if (changed != 1) conflict();
+            jdbc.update("insert into ds_sql_file_version (id,file_id,version,content,original_base64,source_task_id,created_at) values (?,?,?,?,?,?,CURRENT_TIMESTAMP)",
+                UUID.randomUUID().toString(), fileId, expectedVersion + 1, current.content(), original, current.sourceTaskId());
+        } catch (DataIntegrityViolationException ex) { conflict(); }
+        return file(request, projectId, fileId);
+    }
+    @Transactional
     public File upload(HttpServletRequest request, String projectId, String kind, int expectedVersion, MultipartFile upload) {
         project(request, projectId); kind = kind(kind);
         require(!"SQL".equals(kind), "Use the source editor for SQL output");

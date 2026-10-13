@@ -1,5 +1,6 @@
 import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
+import * as XLSX from 'xlsx';
 import { readFile, mkdir, access } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 // Real Vue/Monaco in Chromium, HTTP fixtures only. No model or production access.
@@ -15,7 +16,9 @@ try {
   const project={id:'project',name:'Spark customer ETL',dialect:'spark',sessionId:'session',tenantId:user.tenantId,ownerId:user.id};
   let files=[{id:'a',projectId:'project',path:'sql/a.sql',kind:'SQL',content:'SELECT 1;',version:1,editable:true},{id:'b',projectId:'project',path:'sql/b.sql',kind:'SQL',content:'SELECT 2;',version:1,editable:true}];
   let generation=null,task=null,applied=false,submitted=0,uploadBoundary=false;
-  const proposed=[{path:'sql/generated.sql',content:'INSERT OVERWRITE TABLE dim_customer SELECT customer_id FROM stg_customer;'}];
+  const workbook=XLSX.utils.book_new();XLSX.utils.book_append_sheet(workbook,XLSX.utils.aoa_to_sheet([['source','target'],['ods.id','dwd.id']]),'Fields');XLSX.utils.book_append_sheet(workbook,XLSX.utils.aoa_to_sheet([['rule'],['deduplicate by id']]),'Rules');
+  const workbookBytes=XLSX.write(workbook,{type:'buffer',bookType:'xlsx'});
+  const proposed=[{path:'sql/generated.sql',content:'INSERT OVERWRITE TABLE dim_customer SELECT customer_id FROM stg_customer;'},{path:'sql/a.sql',content:'SELECT 99;'}];
   await page.route('**/api/v1/**',async route=>{
     const request=route.request(),url=new URL(request.url()),p=url.pathname,method=request.method();let data=[];
     if(p.endsWith('/auth/me'))data=user;
@@ -32,8 +35,11 @@ try {
     }
     else if(p.endsWith('/project/uploads')){
       uploadBoundary=request.headers()['content-type'].includes('multipart/form-data; boundary=');
-      data={id:'mapping',projectId:'project',path:'mapping/customer.csv',kind:'MAPPING',content:'source,target\nstg_customer.customer_id,dim_customer.customer_id',version:1,editable:true};files.push(data);
+      const excel=request.postData().includes('mapping.xlsx');
+      data=excel?{id:'mapping-xlsx',projectId:'project',path:'mapping/mapping.xlsx',kind:'MAPPING',content:'source,target\nods.id,dwd.id',version:1,editable:false}:{id:'mapping',projectId:'project',path:'mapping/customer.csv',kind:'MAPPING',content:'source,target\nstg_customer.customer_id,dim_customer.customer_id',version:1,editable:true};files.push(data);
     }
+    else if(p.endsWith('/project/files/mapping/download')){await route.fulfill({status:200,contentType:'text/csv',body:'source,target\nstg_customer.customer_id,dim_customer.customer_id'});return;}
+    else if(p.endsWith('/project/files/mapping-xlsx/download')){await route.fulfill({status:200,contentType:'application/octet-stream',body:workbookBytes});return;}
     else if(p.endsWith('/project/generations')){
       if(method==='POST'){
         const body=request.postDataJSON();assert.equal(body.dialect,'spark');assert.deepEqual(body.mappingIds,['mapping']);assert.ok(body.referenceIds.includes('a'));
@@ -43,8 +49,9 @@ try {
     else if(p==='/api/v1/agent/tasks'&&method==='POST'){submitted++;assert.equal(request.postDataJSON().sessionId,'session');task={taskId:'task',sessionId:'session',status:'SUCCESS'};data=task;}
     else if(p.endsWith('/generation/task')){generation.taskId=request.postDataJSON().taskId;data=generation;}
     else if(p.endsWith('/generation/apply')){
-      assert.deepEqual(request.postDataJSON().paths,['sql/generated.sql']);assert.equal(applied,false);applied=true;generation.applied=true;
-      data=proposed.map((f,index)=>({...f,id:'generated-'+index,projectId:'project',kind:'SQL',version:1,editable:true,sourceTaskId:'task'}));files.push(...data);
+      assert.deepEqual(request.postDataJSON().paths,['sql/generated.sql','sql/a.sql']);assert.equal(applied,false);applied=true;generation.applied=true;
+      data=proposed.map((f,index)=>({...f,id:index ? 'a' : 'generated-'+index,projectId:'project',kind:'SQL',version:index ? 3 : 1,editable:true,sourceTaskId:'task'}));
+      for(const item of data){const index=files.findIndex(file=>file.id===item.id);if(index<0)files.push(item);else files[index]=item;}
     }
     else if(p.endsWith('/generation'))data={generation,task,events:task?[{sequence:1,type:'ANSWER',status:'SUCCESS'}]:[],files:task?proposed:[],rawAnswer:JSON.stringify({schemaVersion:'sql-studio.output.v1',files:proposed}),outputError:'',validation:'NOT_RUN'};
     await route.fulfill({json:{code:200,message:'Success',data}});
@@ -68,17 +75,32 @@ try {
   await page.evaluate(()=>location.hash='/w/data-science/sqlStudio');await page.locator('.sql-studio').waitFor();
   assert.match(await page.locator('.sql-monaco-host .view-lines').innerText(),/SELECT\s+42/);
   await page.getByRole('button',{name:'保存文件',exact:true}).click();await page.getByRole('status').filter({hasText:'文件已保存'}).waitFor();assert.equal(files.find(f=>f.id==='a').content,'SELECT 42;');
-  await page.locator('.sql-upload-actions input[type=file]').first().setInputFiles({name:'customer.csv',mimeType:'text/csv',buffer:Buffer.from('source,target\na,b')});
+  await page.locator('.sql-explorer-actions input[type=file]').first().setInputFiles({name:'customer.csv',mimeType:'text/csv',buffer:Buffer.from('source,target\na,b')});
   await page.locator('input[aria-label="关联 Mapping mapping/customer.csv"]').waitFor();assert.equal(uploadBoundary,true);
-  assert.match(await page.locator('.sql-monaco-host .view-lines').innerText(),/stg_customer/);
-  await page.locator('.sql-reference-picker label').filter({hasText:'sql/a.sql'}).locator('input').check();
-  await page.locator('.sql-assistant-prompt textarea').fill('Generate customer ETL using Mapping and historical style.');await page.getByRole('button',{name:'生成 SQL 工程',exact:true}).click();
-  await page.locator('.sql-proposed-file button').waitFor();assert.equal(submitted,1);assert.equal(files.some(f=>f.path==='sql/generated.sql'),false);
-  await page.locator('.sql-proposed-file button').click();assert.match(await page.locator('.sql-monaco-host .view-lines').innerText(),/INSERT\s+OVERWRITE/);
-  await page.getByRole('button',{name:'确认保存生成文件',exact:true}).click();await page.locator('.sql-tree-file button[title="sql/generated.sql"]').waitFor();assert.equal(applied,true);
+  await page.locator('.sql-mapping-grid table').waitFor();assert.match(await page.locator('.sql-mapping-grid table').innerText(),/stg_customer/);
+  await page.locator('.sql-mapping-grid tbody td').first().click();await page.getByRole('button',{name:'引用所选映射到 AI'}).click();
+  assert.match(await page.getByLabel('发送给 AI 工程助手').inputValue(),/Field: source.*Row: 2|Row: 2.*Field: source/);
+  await page.locator('.sql-explorer-actions input[type=file]').first().setInputFiles({name:'mapping.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:workbookBytes});
+  await page.getByRole('button',{name:'Rules',exact:true}).click();assert.match(await page.locator('.sql-mapping-grid table').innerText(),/deduplicate by id/);
+  await page.locator('input[aria-label="关联 Mapping mapping/mapping.xlsx"]').uncheck();
+  await page.locator('.sql-explorer-reference').filter({hasText:'a.sql'}).locator('input').check();
+  await page.getByLabel('发送给 AI 工程助手').fill('Generate customer ETL using Mapping and historical style.');await page.getByRole('button',{name:'发送 ↗'}).click();
+  await page.locator('.sql-proposed-file button').first().waitFor();assert.equal(submitted,1);assert.equal(files.some(f=>f.path==='sql/generated.sql'),false);
+  await page.locator('.sql-proposed-file button').first().click();assert.match(await page.locator('.sql-monaco-host .view-lines').innerText(),/INSERT\s+OVERWRITE/);
+  await page.locator('.sql-proposed-file button').last().click();await page.locator('.sql-diff-host .monaco-diff-editor').waitFor();
+  await page.locator('.sql-proposed-file button').first().click();
+  await page.getByRole('button',{name:/确认并保存 2 个文件/}).click();await page.locator('.sql-tree-file button[title="sql/generated.sql"]').waitFor();assert.equal(applied,true);
   await page.reload({waitUntil:'networkidle'});await page.locator('.sql-task-status').waitFor();assert.match(await page.locator('.sql-task-status').innerText(),/SUCCESS/);
   assert.match(await page.locator('.sql-monaco-host .view-lines').innerText(),/INSERT\s+OVERWRITE/);
-  const columns=await page.locator('.sql-studio-grid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length);assert.equal(columns,3);
-  await mkdir('../../target/sql-studio-audit',{recursive:true});await page.screenshot({path:'../../target/sql-studio-audit/sql-studio.png',fullPage:true});
-  assert.deepEqual(errors,[]);console.log('PASS: three columns, Monaco multi-tabs, draft recovery, Spark save, multipart Mapping preview, historical context, original task API, reviewed apply, persisted task recovery (HTTP/model fixtures only).');
+  const columns=await page.locator('.sql-ide-shell').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length);assert.equal(columns,6);
+  await page.getByRole('button',{name:'切换底部面板'}).click();await page.locator('.sql-bottom-panel').waitFor();
+  await input.focus();await input.press('Control+A');await page.getByRole('button',{name:'选中代码发给 AI'}).click();await page.locator('.sql-selection-chip').waitFor();
+  const explorer=page.getByRole('separator',{name:'调整工程文件宽度'});const box=await explorer.boundingBox();
+  await page.mouse.move(box.x+2,box.y+40);await page.mouse.down();await page.mouse.move(box.x+42,box.y+40);await page.mouse.up();
+  const resized=await page.locator('.sql-ide-shell').evaluate(el=>getComputedStyle(el).getPropertyValue('--sql-explorer-width').trim());assert.equal(resized,'292px');
+  await page.reload({waitUntil:'networkidle'});await page.locator('.sql-studio').waitFor();
+  assert.equal(await page.locator('.sql-ide-shell').evaluate(el=>getComputedStyle(el).getPropertyValue('--sql-explorer-width').trim()),'292px');
+  assert.equal(await page.locator('.sql-bottom-panel').count(),1);
+  await mkdir('../../target/sql-studio-ide-audit',{recursive:true});await page.screenshot({path:'../../target/sql-studio-ide-audit/sql-studio-ide.png',fullPage:true});
+  assert.deepEqual(errors,[]);console.log('PASS: IDE shell, persistent resizable panels, selection to assistant, Monaco tabs/drafts, Mapping table and field reference, historical context, two proposed files with Diff, reviewed apply, task recovery (HTTP/model fixtures only).');
 } finally {await browser?.close();await server.close();}

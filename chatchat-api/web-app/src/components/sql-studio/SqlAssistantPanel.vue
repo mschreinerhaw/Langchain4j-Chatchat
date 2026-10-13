@@ -1,28 +1,29 @@
 <template>
-  <aside class="sql-assistant-panel">
-    <header><strong>AI 工程助手</strong><span>关联工程上下文</span></header>
-    <div class="sql-assistant-scroll">
-      <section class="sql-context-summary"><b>{{ mappingCount }} 个 Mapping</b><span> · {{ referenceIds.length }} 个 SQL 风格参考</span></section>
-      <details class="sql-reference-picker" open><summary>历史 SQL 案例（已授权）</summary>
-        <label v-for="file in references" :key="file.id"><input type="checkbox" :checked="referenceIds.includes(file.id)" @change="$emit('reference', file.id)" /><span :title="file.path">{{ file.path }}</span><small>v{{ file.version }}</small></label>
-        <p v-if="!references.length">可在左侧上传参考 SQL，或选择已有工程源码。</p>
-      </details>
-      <label class="sql-agent-choice">Agent / Skills<select :value="agentId" @change="$emit('agent', $event.target.value)"><option value="">系统默认 Agent</option><option v-for="agent in agents" :key="agent.id" :value="agent.id">{{ agent.name }}</option></select></label>
-      <label class="sql-agent-choice">模型<select :value="modelName" @change="$emit('model', $event.target.value)"><option value="">系统默认模型</option><option v-for="model in models" :key="model.value" :value="model.value">{{ model.label || model.value }}</option></select></label>
-      <form class="sql-assistant-prompt" @submit.prevent="$emit('generate')"><textarea :value="prompt" @input="$emit('prompt', $event.target.value)" maxlength="4000" placeholder="描述目标 SQL 工程、ETL 要求和需要参考的风格…"></textarea><button class="sql-primary" :disabled="busy || !mappingCount || !prompt.trim()">生成 SQL 工程</button></form>
-      <section class="sql-generation-history" v-if="generations.length"><label>生成任务<select :value="generationId" @change="$emit('generation', $event.target.value)"><option v-for="(generation, index) in generations" :key="generation.id" :value="generation.id">{{ index === 0 ? '最近任务' : '历史任务 ' + (index + 1) }} · {{ generation.applied ? '已应用' : '待查看' }}</option></select></label></section>
-      <section v-if="result" class="sql-generation-result">
-        <div class="sql-task-status"><b>{{ result.task?.status || '待提交' }}</b><button v-if="!result.task" :disabled="busy" @click="$emit('resume')">继续提交</button><button v-else-if="!terminal" :disabled="busy" @click="$emit('cancel')">取消任务</button></div>
-        <p v-if="result.task?.errorMessage" class="sql-inline-error">{{ result.task.errorMessage }}</p>
-        <p v-if="result.outputError" class="sql-inline-error">{{ result.outputError }}</p>
-        <p v-if="result.task?.status?.startsWith('WAIT_CONFIRM')">任务等待确认，可在现有任务管理中查看并处理。</p>
-        <div v-for="file in result.files" :key="file.path" class="sql-proposed-file"><button @click="$emit('preview', file)">▤ {{ file.path }}</button><small>{{ file.content.length }} 字符</small></div>
-        <button v-if="result.files.length && !result.generation.applied" class="sql-primary sql-apply" :disabled="busy" @click="$emit('apply')">确认保存生成文件</button>
-        <p v-if="result.files.length" class="sql-validation-note">尚未执行 SQL 方言或数据库校验，请审核 Mapping 与生成脚本。</p>
+  <aside class="sql-assistant-panel sql-ide-assistant">
+    <header><strong>AI 工程助手</strong><span>基于当前工程持续协作</span></header>
+    <div ref="scroll" class="sql-assistant-scroll" role="log" aria-label="工程协作对话">
+      <div v-if="!messages.length" class="sql-chat-empty"><strong>一起完成 SQL 工程</strong><p>引用 Mapping、SQL 案例或选中的代码，描述你要生成或修改的脚本。</p><small>任务由现有 Agent Runtime 执行，生成文件需确认后写入工程。</small></div>
+      <article v-for="turn in messages" :key="turn.id" class="sql-chat-turn" :class="turn.role"><b>{{ turn.role === 'user' ? '我' : 'AI 工程助手' }}</b><p>{{ turn.text }}</p></article>
+      <section v-if="result" class="sql-chat-result">
+        <div class="sql-task-status"><b>{{ result.task?.status || '待提交' }}</b><button v-if="!result.task" :disabled="busy" @click="$emit('resume')">继续提交</button><button v-else-if="!terminal" :disabled="busy" @click="$emit('cancel')">取消</button></div>
+        <p v-if="result.task?.errorMessage || result.outputError" class="sql-inline-error">{{ result.task?.errorMessage || result.outputError }}</p>
+        <div v-for="file in result.files" :key="file.path" class="sql-proposed-file"><button @click="$emit('preview', file)">↔ {{ file.path }}</button><small>{{ file.content.length }} 字符</small></div>
+        <button v-if="result.files.length && !result.generation.applied" class="sql-primary sql-apply" :disabled="busy" @click="$emit('apply')">确认并保存 {{ result.files.length }} 个文件</button>
+        <p v-if="result.files.length" class="sql-validation-note">生成结果尚未执行 SQL 或数据库校验。</p>
+        <details v-if="result.events.length" class="sql-task-events"><summary>Agent 执行轨迹 · {{ result.events.length }} 条</summary><ol><li v-for="event in result.events.slice(-30)" :key="event.eventId || event.sequence"><b>{{ event.type }}</b><span>{{ event.toolName || event.status }}</span><small>#{{ event.sequence }}</small></li></ol></details>
         <details v-if="result.rawAnswer" class="sql-raw-answer"><summary>模型原始结果</summary><pre>{{ result.rawAnswer }}</pre></details>
-        <details v-if="result.events.length" class="sql-task-events" open><summary>执行轨迹 · {{ result.events.length }} 条事件</summary><ol><li v-for="event in result.events.slice(-30)" :key="event.eventId || event.sequence"><b>{{ event.type }}</b><span>{{ event.toolName || event.status }}</span><small>#{{ event.sequence }}</small></li></ol></details>
       </section>
     </div>
+    <div class="sql-chat-context"><span>{{ mappingCount }} Mapping · {{ referenceIds.length }} 案例</span><span v-if="!mappingCount" class="sql-inline-error">生成任务需要至少一个 Mapping</span>
+      <div v-if="selectedCode" class="sql-selection-chip">已选代码：{{ selectedCode.path }} · {{ selectedCode.text.length }} 字<button aria-label="移除代码引用" @click="$emit('clear-selection')">×</button></div>
+      <details class="sql-chat-settings"><summary>工程上下文与模型设置</summary>
+        <div class="sql-chat-file-picks"><button v-for="file in projectFiles" :key="file.id" type="button" @click="$emit('reference-file', file)">@{{ file.path }}</button><button v-for="file in references.filter(item => !projectFiles.some(projectFile => projectFile.id === item.id))" :key="file.id" type="button" @click="$emit('reference-file', file)">@{{ file.path }}</button></div>
+        <label class="sql-agent-choice">Agent / Skills<select :value="agentId" @change="$emit('agent', $event.target.value)"><option value="">系统默认 Agent</option><option v-for="agent in agents" :key="agent.id" :value="agent.id">{{ agent.name }}</option></select></label>
+        <label class="sql-agent-choice">模型<select :value="modelName" @change="$emit('model', $event.target.value)"><option value="">系统默认模型</option><option v-for="model in models" :key="model.value" :value="model.value">{{ model.label || model.value }}</option></select></label>
+        <label v-if="generations.length" class="sql-agent-choice">任务历史<select :value="generationId" @change="$emit('generation', $event.target.value)"><option v-for="(generation, index) in generations" :key="generation.id" :value="generation.id">{{ index === 0 ? '最近任务' : '历史任务 ' + (index + 1) }} · {{ generation.applied ? '已应用' : '待查看' }}</option></select></label>
+      </details>
+    </div>
+    <form class="sql-chat-composer" @submit.prevent="send"><textarea :value="prompt" maxlength="4000" aria-label="发送给 AI 工程助手" placeholder="描述 SQL 工程需求，使用 @ 引用文件…" @input="$emit('prompt', $event.target.value)" @keydown.enter.exact.prevent="send"></textarea><div v-if="mentionOptions.length" class="sql-chat-mention-list"><button v-for="file in mentionOptions" :key="file.id" type="button" @click="chooseMention(file)">@{{ file.path }}</button></div><div><small>Enter 发送 · Shift+Enter 换行</small><button class="sql-primary" :disabled="busy || !mappingCount || !prompt.trim()">发送 ↗</button></div></form>
   </aside>
 </template>
 <script src="../../js/components/sql-studio/SqlAssistantPanel.js"></script>

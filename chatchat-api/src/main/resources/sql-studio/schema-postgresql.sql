@@ -19,3 +19,9 @@ CREATE TABLE IF NOT EXISTS ds_sql_generation (
     context_json TEXT NOT NULL, base_versions_json TEXT NOT NULL, task_id VARCHAR(64),
     applied BOOLEAN NOT NULL, created_at TIMESTAMP NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS ds_sql_folder (
+    id VARCHAR(64) PRIMARY KEY, project_id VARCHAR(64) NOT NULL,
+    path VARCHAR(240) NOT NULL, path_key VARCHAR(240) NOT NULL, created_at TIMESTAMP NOT NULL,
+    CONSTRAINT uk_sql_folder_path UNIQUE(project_id, path_key)
+);

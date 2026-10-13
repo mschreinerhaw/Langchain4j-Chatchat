@@ -1,4 +1,6 @@
 import { computed, ref, watch, onMounted, onActivated, onDeactivated, onBeforeUnmount } from 'vue';
+import AppNotice from '../../components/AppNotice.vue';
+import AppConfirmDialog from '../../components/AppConfirmDialog.vue';
 import SqlProjectTree from '../../components/sql-studio/SqlProjectTree.vue';
 import SqlEditorPane from '../../components/sql-studio/SqlEditorPane.vue';
 import SqlAssistantPanel from '../../components/sql-studio/SqlAssistantPanel.vue';
@@ -11,12 +13,17 @@ import { dirtySqlFile, mergeSqlFiles, restoreSqlDrafts, assertSqlApplySafe, merg
 import { mappingSchemaColumns } from '../editor/codeIntelligence';
 import { clampSqlPanel, sqlAssistantAnswer, sqlConversationPrompt } from '../utils/sqlIdeState';
 export default {
-  components: { SqlProjectTree, SqlEditorPane, SqlAssistantPanel, SqlBottomPanel, FolderTree, PanelBottom, Sparkles, Plus, Save, WandSparkles, FileCode2, CircleCheck },
+  components: { AppNotice, AppConfirmDialog, SqlProjectTree, SqlEditorPane, SqlAssistantPanel, SqlBottomPanel, FolderTree, PanelBottom, Sparkles, Plus, Save, WandSparkles, FileCode2, CircleCheck },
   props: { workspaceContext: Object, tenantId: String, userId: String },
   emits: [],
   setup(props, { emit: emitEvent }) {
 
 const dialects = [{ value:'spark',label:'Spark SQL' },{ value:'hive',label:'Hive' },{ value:'postgresql',label:'PostgreSQL' },{ value:'mysql',label:'MySQL' },{ value:'oracle',label:'Oracle' },{ value:'tsql',label:'T-SQL' },{ value:'trino',label:'Trino' },{ value:'ansi',label:'ANSI SQL' }];
+const folders = ref([]), folderOpen = ref(false), folderPath = ref(''), newFileFolder = ref('');
+const confirmation = ref(null);
+let confirmResolve;
+function confirmDelete(title, message) { if (confirmation.value) return Promise.resolve(false); return new Promise(resolve => { confirmation.value = {title,message}; confirmResolve = resolve; }); }
+function resolveConfirm(value) { confirmation.value = null; confirmResolve?.(value); confirmResolve = null; }
 const projects = ref([]), projectId = ref(''), files = ref([]), references = ref([]), models = ref([]), agents = ref([]);
 const dialect = ref('spark'), agentId = ref(''), modelName = ref(''), prompt = ref('');
 const executionMode = ref('model');
@@ -101,9 +108,10 @@ async function selectProject(id) {
   clearTimeout(pollTimer); const serial = ++loadSerial;
   busy.value = true; error.value = '';
   try {
-    const [loaded, history, referenceFiles] = await Promise.all([sql.sqlFiles(id), sql.sqlGenerations(id), sql.sqlReferences()]);
+    const [loaded, history, referenceFiles, loadedFolders] = await Promise.all([sql.sqlFiles(id), sql.sqlGenerations(id), sql.sqlReferences(), sql.sqlFolders(id)]);
     if (serial !== loadSerial) return;
     const stored = readWorkspaceDraft(namespace(id), props.workspaceContext);
+    folders.value = loadedFolders; newFileFolder.value = '';
     projectId.value = id; files.value = restoreSqlDrafts(mergeSqlFiles(loaded, []), stored);
     references.value = referenceFiles; dialect.value = projects.value.find(project => project.id === id)?.dialect || 'spark';
     openIds.value = (stored?.openIds || []).filter(fileId => files.value.some(file => file.id === fileId));
@@ -119,18 +127,17 @@ async function selectProject(id) {
 }
 async function refreshFiles() {
   const id = projectId.value; const loaded = await sql.sqlFiles(id);
-  const referenceFiles = await sql.sqlReferences();
-  if (id === projectId.value) { files.value = mergeSqlFiles(loaded, files.value); references.value = referenceFiles; }
+  const [referenceFiles, loadedFolders] = await Promise.all([sql.sqlReferences(), sql.sqlFolders(id)]);
+  if (id === projectId.value) { folders.value = loadedFolders; files.value = mergeSqlFiles(loaded, files.value); references.value = referenceFiles; }
 }
 async function createProject() { await action(async () => { const project = await sql.createSqlProject({ name:projectName.value.trim(), dialect:dialect.value }); projects.value.unshift(project); newProjectOpen.value = false; projectName.value = ''; await selectProject(project.id); }); }
 async function deleteProject() {
   const current = projects.value.find(item => item.id === projectId.value);
-  if (!current || !window.confirm(`删除工程「${current.name}」及其中全部文件和生成记录？此操作无法撤销。`)) return;
-  if (files.value.some(dirtySqlFile) && !window.confirm('工程中有未保存的编辑内容。确定仍要删除？')) return;
+  if (!current || !await confirmDelete('删除工程', `删除工程「${current.name}」及其中全部文件夹、文件和生成记录？此操作无法撤销。${files.value.some(dirtySqlFile) ? '\n工程包含未保存的编辑内容。' : ''}`)) return;
   await action(async () => {
     await sql.deleteSqlProject(current.id);
     projects.value = projects.value.filter(item => item.id !== current.id);
-    projectId.value = ''; files.value = []; references.value = []; generations.value = [];
+    projectId.value = ''; folders.value = []; files.value = []; references.value = []; generations.value = [];
     openIds.value = []; activeId.value = ''; mappingDocuments.value = []; mappingIds.value = []; referenceIds.value = []; preview.value = null;
     const next = projects.value[0]; if (next) await selectProject(next.id);
     message.value = '工程已删除';
@@ -138,8 +145,7 @@ async function deleteProject() {
 }
 async function deleteFile(file) {
   const current = files.value.find(item => item.id === file.id);
-  if (!current || !window.confirm(`删除文件「${current.path}」及其版本历史？`)) return;
-  if (dirtySqlFile(current) && !window.confirm('该文件有未保存的编辑内容。确定仍要删除？')) return;
+  if (!current || !await confirmDelete('删除文件', `删除文件「${current.path}」及其版本历史？${dirtySqlFile(current) ? '\n该文件包含未保存的编辑内容。' : ''}`)) return;
   await action(async () => {
     await sql.deleteSqlFile(projectId.value, current.id, current.version);
     files.value = files.value.filter(item => item.id !== current.id);
@@ -151,8 +157,20 @@ async function deleteFile(file) {
     message.value = '文件已删除';
   });
 }
-async function createFile(path) { await action(async () => { const saved = await sql.saveSqlFile(projectId.value, { path, kind:'SQL', content:'', expectedVersion:0 }); files.value.push({ ...saved, draft:saved.content, draftBaseVersion:saved.version }); openFile(saved.id); newFileOpen.value = false; }); }
-function openNewFile() { newFilePath.value = 'sql/query.sql'; newFileOpen.value = true; }
+async function createFolder() { await action(async () => { await sql.createSqlFolder(projectId.value, folderPath.value.trim()); folders.value = await sql.sqlFolders(projectId.value); folderOpen.value = false; message.value = '文件夹已创建，可以在其中新建文件'; }); }
+function openNewFolder(parent = '') { folderPath.value = parent ? parent + '/' : ''; folderOpen.value = true; }
+async function createFile() { await action(async () => {
+  if (!folders.value.includes(newFileFolder.value)) throw new Error('请先创建并选择目标文件夹');
+  const name = newFilePath.value.trim();
+  if (!name || name.includes('/') || name.includes('\\') || !name.toLowerCase().endsWith('.sql')) throw new Error('请输入以 .sql 结尾的文件名');
+  const saved = await sql.saveSqlFile(projectId.value, {path:newFileFolder.value + '/' + name,kind:'SQL',content:'',expectedVersion:0});
+  files.value.push({...saved,draft:saved.content,draftBaseVersion:saved.version}); openFile(saved.id); newFileOpen.value=false; message.value='文件已创建';
+}); }
+function openNewFile(folder) {
+  if (!folders.value.length) { message.value='请先新建文件夹，再在文件夹中创建文件'; openNewFolder(); return; }
+  newFileFolder.value = typeof folder === 'string' && folders.value.includes(folder) ? folder : (folders.value.includes(newFileFolder.value) ? newFileFolder.value : folders.value[0]);
+  newFilePath.value='query.sql'; newFileOpen.value=true;
+}
 function formatActive() { editorPane.value?.formatDocument(); }
 async function saveActive() {
   const file = activeFile.value; if (!file?.editable || preview.value) return;
@@ -234,8 +252,8 @@ onMounted(async () => {
 });
 onActivated(() => { active = true; if (initialized) refreshGeneration(); });
 onDeactivated(() => { active = false; clearTimeout(pollTimer); persist(); });
-onBeforeUnmount(() => { active = false; resizeCleanup?.(); clearTimeout(pollTimer); clearTimeout(draftTimer); persist(); window.removeEventListener('beforeunload', beforeUnload); });
-  return { mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
+onBeforeUnmount(() => { resolveConfirm(false); active = false; resizeCleanup?.(); clearTimeout(pollTimer); clearTimeout(draftTimer); persist(); window.removeEventListener('beforeunload', beforeUnload); });
+  return { confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
 
   }
 };

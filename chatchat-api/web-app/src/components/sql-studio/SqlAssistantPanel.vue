@@ -9,10 +9,10 @@
       <article v-for="turn in messages" :key="turn.id" class="sql-chat-turn" :class="turn.role"><b>{{ turn.role === 'user' ? '我' : 'AI 工程助手' }}</b><p>{{ turn.text }}</p></article>
       <section v-if="result" class="sql-chat-result">
         <div class="sql-task-status"><b>{{ result.task?.status || '待提交' }}</b><button v-if="!result.task" :disabled="busy" @click="$emit('resume')">继续提交</button><button v-else-if="!terminal" :disabled="busy" @click="$emit('cancel')">取消</button></div>
-        <p v-if="result.task?.errorMessage || result.outputError" class="sql-inline-error">{{ result.task?.errorMessage || result.outputError }}</p>
+        <AppNotice v-if="result.task?.errorMessage || result.outputError" kind="error">{{ result.task?.errorMessage || result.outputError }}</AppNotice>
         <div v-for="file in result.files" :key="file.path" class="sql-proposed-file"><button @click="$emit('preview', file)">↗ {{ file.path }}</button><small>{{ file.content.length }} 字符</small></div>
         <button v-if="result.files.length && !result.generation.applied" class="sql-primary sql-apply" :disabled="busy" @click="$emit('apply')">确认并保存 {{ result.files.length }} 个文件</button>
-        <p v-if="result.files.length" class="sql-validation-note">生成结果尚未执行 SQL 或数据库校验。</p>
+        <AppNotice v-if="result.files.length">生成结果尚未执行 SQL 或数据库校验。</AppNotice>
         <details v-if="result.events.length" class="sql-task-events"><summary>Agent 执行轨迹 · {{ result.events.length }} 条</summary><ol><li v-for="event in result.events.slice(-30)" :key="event.eventId || event.sequence"><b>{{ event.type }}</b><span>{{ event.toolName || event.status }}</span><small>#{{ event.sequence }}</small></li></ol></details>
         <details v-if="result.rawAnswer" class="sql-raw-answer"><summary>模型原始结果</summary><pre>{{ result.rawAnswer }}</pre></details>
       </section>

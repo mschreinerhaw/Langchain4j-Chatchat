@@ -24,6 +24,7 @@ try {
   await page.addInitScript(value => localStorage.setItem('chatchat.auth.session', JSON.stringify({ token: 'fixture-token', user: value })), user);
   let projects = [{ id: 'project', name: 'Spark customer ETL', dialect: 'spark', sessionId: 'session', tenantId: user.tenantId, ownerId: user.id }];
   const filesByProject = { project: [{ id: 'a', projectId: 'project', path: 'sql/a.sql', kind: 'SQL', content: 'SELECT 1;', version: 1, editable: true }] };
+  const foldersByProject = {project:['sql']};
   const library = [{ docId: 'mapping-1', fileName: 'customer.csv', title: 'Customer Mapping', version: 1, latestVersion: true }];
   let taskStatus = 'RUNNING', submissionCount = 0;
   const generation = { id: 'generation-1', taskId: 'task-1', applied: false };
@@ -35,12 +36,16 @@ try {
     else if (path.endsWith('/workspaces/preferences')) data = { lastWorkspaceId: 'data-science' };
     else if (path.endsWith('/manifest')) { const manifest = manifests[path.split('/').at(-2)]; data = { manifest, menus: [{ id: 'work', title: 'Workspace', type: 'directory', children: manifest.pages.map(item => ({ id: item.menuCode, title: item.id, type: 'menu', children: [] })) }] }; }
     else if (path === '/api/v1/data-science/sql/projects') {
-      if (method === 'POST') { const body = request.postDataJSON(); data = { id: 'new-project', name: body.name, dialect: body.dialect, sessionId: 'new-session', tenantId: user.tenantId, ownerId: user.id }; projects.unshift(data); filesByProject[data.id] = []; }
+      if (method === 'POST') { const body = request.postDataJSON(); data = { id: 'new-project', name: body.name, dialect: body.dialect, sessionId: 'new-session', tenantId: user.tenantId, ownerId: user.id }; projects.unshift(data); filesByProject[data.id] = []; foldersByProject[data.id]=[]; }
       else data = projects;
     }
     else if (path.endsWith('/sql/reference-files')) data = Object.values(filesByProject).flat().filter(file => ['SQL', 'REFERENCE'].includes(file.kind));
     else if (path.endsWith('/sql/library-files')) data = library.filter(item => url.searchParams.get('kind') === 'MAPPING' || item.fileName.endsWith('.sql'));
     else if (/\/sql\/projects\/[^/]+$/.test(path) && method === 'DELETE') { const id = path.split('/').at(-1); projects = projects.filter(item => item.id !== id); delete filesByProject[id]; data = true; }
+    else if (/\/sql\/projects\/[^/]+\/folders$/.test(path)) {
+      const id=path.split('/').at(-2);
+      if(method==='POST'){data=request.postDataJSON().path;foldersByProject[id].push(data);}else data=foldersByProject[id];
+    }
     else if (/\/sql\/projects\/[^/]+\/files$/.test(path)) {
       const id = path.split('/').at(-2), files = filesByProject[id];
       if (method === 'PUT') {
@@ -83,9 +88,13 @@ try {
   await page.setViewportSize({ width: 1560, height: 980 });
   await page.locator('.sql-tree-scroll').click({ button: 'right', position: { x: 180, y: 120 } });
   await page.getByRole('menuitem', { name: '新建 SQL 文件…' }).click();
-  await page.getByLabel('新文件路径').fill('sql/new.sql');
-  await page.getByRole('button', { name: '创建并保存' }).click();
+  await page.getByLabel('SQL 文件名').fill('new.sql');
+  assert.equal(await page.getByLabel('目标文件夹').inputValue(),'sql');
+  await page.getByRole('button', { name: '创建并打开' }).click();
   await page.locator('.sql-tree-file button[title="sql/new.sql"]').waitFor();
+  await page.locator('.app-notice-success').filter({hasText:'文件已创建'}).waitFor();
+  const indent=await page.getByLabel('编辑器缩进空格').boundingBox();
+  assert.ok(indent.width<=44 && indent.height<=24,`Compact indent selector ${JSON.stringify(indent)}`);
   await page.getByLabel('搜索工程文件').fill('new.sql');
   assert.equal(await page.locator('.sql-tree-file button[title="sql/a.sql"]').count(), 0);
   await page.getByLabel('搜索工程文件').fill('missing');
@@ -123,12 +132,33 @@ try {
   assert.equal(await page.locator('.sql-chat-composer .sql-primary').isDisabled(), false, 'Runtime terminal state unlocks submission');
   await page.locator('.sql-tree-file button[title="sql/new.sql"]').click({ button: 'right' });
   await page.getByRole('menuitem', { name: '删除文件…' }).click();
+  await page.getByRole('dialog',{name:'删除文件',exact:true}).waitFor();
+  await page.getByRole('button',{name:'取消',exact:true}).click();
+  assert.equal(await page.locator('.sql-tree-file button[title="sql/new.sql"]').count(),1);
+  await page.locator('.sql-tree-file button[title="sql/new.sql"]').click({button:'right'});
+  await page.getByRole('menuitem',{name:'删除文件…'}).click();
+  await page.getByRole('button',{name:'确认删除'}).click();
   await page.locator('.sql-tree-file button[title="sql/new.sql"]').waitFor({ state: 'detached' });
   await page.getByRole('button', { name: /新建工程/ }).first().click();
   await page.locator('.sql-dialog input').fill('Delete me');
   await page.getByRole('button', { name: '创建工程' }).click();
   await page.locator('.sql-studio-bar select[aria-label="SQL 工程"]').selectOption('new-project');
+  assert.equal(await page.getByLabel('新建项目文件').isDisabled(),true,'Empty project needs a folder first');
+  await page.getByRole('button',{name:'新建文件夹',exact:true}).click();
+  await page.getByLabel('文件夹路径').fill('scripts');
+  await page.getByRole('button',{name:'创建文件夹',exact:true}).click();
+  await page.locator('summary[data-folder="scripts"]').waitFor();
+  assert.equal(filesByProject['new-project'].length,0,'Empty folder is not an editor file');
+  await page.getByLabel('刷新工程文件').click();
+  await page.locator('summary[data-folder="scripts"]').waitFor();
+  await page.locator('summary[data-folder="scripts"]').click({button:'right'});
+  await page.getByRole('menuitem',{name:'新建 SQL 文件…'}).click();
+  assert.equal(await page.getByLabel('目标文件夹').inputValue(),'scripts');
+  await page.getByLabel('SQL 文件名').fill('job.sql');
+  await page.getByRole('button',{name:'创建并打开'}).click();
+  await page.locator('.sql-tree-file button[title="scripts/job.sql"]').waitFor();
   await page.getByRole('button', { name: '删除工程' }).click();
+  await page.getByRole('button',{name:'确认删除'}).click();
   await page.waitForFunction(() => !document.querySelector('.sql-studio-bar select[aria-label="SQL 工程"] option[value="new-project"]'));
   assert.equal(projects.length, 1);
   const login = await browser.newPage();

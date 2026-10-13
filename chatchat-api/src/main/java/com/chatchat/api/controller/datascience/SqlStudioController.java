@@ -19,6 +19,7 @@ public class SqlStudioController {
     private final WorkspaceService workspaces;
     private void gate(HttpServletRequest request) { workspaces.requireAvailable(request, "data-science"); }
     public record CreateProject(String name, String dialect) { }
+    public record CreateFolder(String path) { }
     public record RenameFile(String path, Integer expectedVersion) { }
     public record BindTask(String taskId) { }
     public record ApplyFiles(List<String> paths) { }
@@ -29,6 +30,8 @@ public class SqlStudioController {
     @DeleteMapping("/projects/{projectId}") public ApiResponse<?> deleteProject(@PathVariable("projectId") String projectId, HttpServletRequest request) { gate(request); service.deleteProject(request, projectId); return ApiResponse.success(true); }
     @GetMapping("/projects/{projectId}") public ApiResponse<?> project(@PathVariable("projectId") String projectId, HttpServletRequest request) { gate(request); return ApiResponse.success(service.project(request, projectId)); }
     @GetMapping("/projects/{projectId}/files") public ApiResponse<?> files(@PathVariable("projectId") String projectId, HttpServletRequest request) { gate(request); return ApiResponse.success(service.files(request, projectId)); }
+    @GetMapping("/projects/{projectId}/folders") public ApiResponse<?> folders(@PathVariable("projectId") String projectId, HttpServletRequest request) { gate(request); return ApiResponse.success(service.folders(request, projectId)); }
+    @PostMapping("/projects/{projectId}/folders") public ApiResponse<?> createFolder(@PathVariable("projectId") String projectId, @RequestBody CreateFolder body, HttpServletRequest request) { gate(request); return ApiResponse.success(service.createFolder(request, projectId, body.path())); }
     @GetMapping("/projects/{projectId}/files/{fileId}") public ApiResponse<?> file(@PathVariable("projectId") String projectId, @PathVariable("fileId") String fileId, HttpServletRequest request) { gate(request); return ApiResponse.success(service.file(request, projectId, fileId)); }
     @PutMapping("/projects/{projectId}/files") public ApiResponse<?> save(@PathVariable("projectId") String projectId, @RequestBody SqlStudioService.FileWrite body, HttpServletRequest request) { gate(request); return ApiResponse.success(service.save(request, projectId, body)); }
     @DeleteMapping("/projects/{projectId}/files/{fileId}") public ApiResponse<?> deleteFile(@PathVariable("projectId") String projectId, @PathVariable("fileId") String fileId, @RequestParam("expectedVersion") Integer expectedVersion, HttpServletRequest request) { gate(request); service.deleteFile(request, projectId, fileId, expectedVersion); return ApiResponse.success(true); }

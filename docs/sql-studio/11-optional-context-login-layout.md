@@ -41,3 +41,13 @@
 - 发布清单：`/opt/chatchat-deploy-staging/sql-context-layout-20261013/deployment.json`
 
 回滚使用既有 stop/start 脚本及精确备份，恢复前先核对当前包哈希，避免覆盖后续发布。本次未进行回滚演练。
+
+## 后续修复：统一提示、紧凑缩进和先建文件夹
+
+同日后续发布将 SQL Studio 的页面提示、任务错误和底部反馈改为共用 `AppNotice` / `app-feedback.css`，删除确认采用 `AppConfirmDialog`，支持取消、Escape 和原生模态焦点管理。缩进选择框为 44×24 像素，共用编辑器偏好组件采用紧凑尺寸。
+
+项目资源区支持先创建文件夹，再选择文件夹创建 SQL 文件；文件夹右键可创建子文件夹及文件。空工程的新建文件入口会先引导创建文件夹。空文件夹独立保存于新增的 `ds_sql_folder` 应用表，刷新后仍显示，已有文件路径形成的旧目录继续可用。文件夹接口复用工程所有权及工作区校验；校验父目录、重复名称、安全路径和文件/文件夹冲突。文件与文件夹写入采用工程行锁，项目删除事务同时清理文件夹。文件保存 API 保留旧客户端及生成结果的路径兼容性，交互界面按文件夹先于文件的顺序创建。
+
+本轮 SQL 集成 21、输出契约 2、Runtime OS 架构 24，共 47 项后端测试通过；10 项前端状态测试、Chromium 交互回归及最终生产构建通过。线上实际验证空文件夹刷新保留、指定目录创建文件、删除弹窗取消/确认、缩进尺寸、统一提示及五种登录页视口。SQL Studio、Python 与智策页面无浏览器异常；无 Mapping/样例的真实任务 `ddcb4797-364f-3c53-94ef-94f34bf63309` 为 SUCCESS，产物通过保存接口应用，SQL 未执行。临时工程已清理，原有 1 个工程保留，API UP、MCP 认证 HTTP 200，任务活动及队列均为 0。
+
+本轮只替换 SQL Studio 服务/控制器及嵌套类、三个数据库方言的增量建表资源和静态资源，其余非静态条目逐项字节一致。新增表回滚时保留，不删除数据。最新运行包 SHA-256 为 `77e6b8157900ddfccc373b190a08cefd4058a70ed5067f8b141a975a237e7725`；发布前备份位于 `/opt/chatchat-deploy-backup/sql-folders-feedback-20261013/chatchat.jar`，备份哈希为上一轮 `6a7cdd265b33a636a513ad5d8bdd5017912bbb3d98fe5ec5499376ecec7daf30`。发布清单位于 `/opt/chatchat-deploy-staging/sql-folders-feedback-20261013/deployment.json`，本地验证产物位于 `target/sql-folders-feedback-20261013/`。

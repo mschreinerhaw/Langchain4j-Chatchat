@@ -135,12 +135,51 @@ public class SqlStudioService {
         }
         jdbc.update("delete from ds_sql_file_version where file_id in (select id from ds_sql_file where project_id=?)", id);
         jdbc.update("delete from ds_sql_file where project_id=?", id);
+        jdbc.update("delete from ds_sql_folder where project_id=?", id);
         jdbc.update("delete from ds_sql_generation where project_id=?", id);
         if (jdbc.update("delete from ds_sql_project where id=? and tenant_id=? and owner_id=?", id, current.tenantId(), current.ownerId()) != 1) conflict();
     }
     public List<File> files(HttpServletRequest request, String projectId) {
         project(request, projectId);
         return jdbc.query("select * from ds_sql_file where project_id=? order by path", this::fileRow, projectId);
+    }
+    public List<String> folders(HttpServletRequest request, String projectId) {
+        project(request, projectId);
+        Map<String, String> paths = new TreeMap<>();
+        jdbc.queryForList("select path from ds_sql_folder where project_id=? order by path", String.class, projectId)
+            .forEach(path -> paths.put(path.toLowerCase(Locale.ROOT), path));
+        for (File file : files(request, projectId)) {
+            String path = file.path();
+            for (int index = path.indexOf('/'); index >= 0; index = path.indexOf('/', index + 1)) {
+                String parent = path.substring(0, index);
+                paths.putIfAbsent(parent.toLowerCase(Locale.ROOT), parent);
+            }
+        }
+        return List.copyOf(paths.values());
+    }
+    @Transactional
+    public String createFolder(HttpServletRequest request, String projectId, String path) {
+        project(request, projectId);
+        path = SqlOutputBundle.path(path);
+        jdbc.queryForObject("select id from ds_sql_project where id=? for update", String.class, projectId);
+        String key = path.toLowerCase(Locale.ROOT);
+        List<String> directories = folders(request, projectId);
+        require(directories.stream().noneMatch(item -> item.equalsIgnoreCase(key)), "Folder already exists");
+        int slash = path.lastIndexOf('/');
+        require(slash < 0 || directories.stream().anyMatch(path.substring(0, slash)::equalsIgnoreCase), "Create the parent folder first");
+        require(jdbc.queryForList("select id from ds_sql_file where project_id=? and path_key=?", projectId, key).isEmpty(), "A file already has this name");
+        try {
+            jdbc.update("insert into ds_sql_folder (id,project_id,path,path_key,created_at) values (?,?,?,?,CURRENT_TIMESTAMP)",
+                UUID.randomUUID().toString(), projectId, path, key);
+        } catch (DataIntegrityViolationException ex) { conflict(); }
+        return path;
+    }
+    private void requireFilePath(String projectId, String path) {
+        jdbc.queryForObject("select id from ds_sql_project where id=? for update", String.class, projectId);
+        String key = path.toLowerCase(Locale.ROOT);
+        require(jdbc.queryForList("select id from ds_sql_folder where project_id=? and path_key=?", projectId, key).isEmpty(), "A folder already has this name");
+        for (String existing : jdbc.queryForList("select path_key from ds_sql_file where project_id=?", String.class, projectId))
+            require(!existing.startsWith(key + "/") && !key.startsWith(existing + "/"), "File and folder paths conflict");
     }
     public List<File> references(HttpServletRequest request) {
         identity(request);
@@ -174,6 +213,7 @@ public class SqlStudioService {
         File current = file(request, projectId, fileId);
         require(expectedVersion != null && expectedVersion > 0, "expectedVersion is required");
         path = SqlOutputBundle.path(path);
+        requireFilePath(projectId, path);
         require(current.path().substring(0, current.path().lastIndexOf('/') + 1).equals(path.substring(0, path.lastIndexOf('/') + 1)),
             "Rename must stay in the same folder");
         validateExtension(path, current.kind());
@@ -209,6 +249,7 @@ public class SqlStudioService {
         } catch (java.io.IOException | IllegalStateException ex) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot extract readable text from uploaded file"); }
     }
     private File write(String projectId, String path, String kind, String content, int expected, String original, String task) {
+        requireFilePath(projectId, path);
         require(content != null && content.length() <= 200_000, "File content exceeds 200000 characters");
         var existing = jdbc.query("select * from ds_sql_file where project_id=? and path_key=?", this::fileRow, projectId, path.toLowerCase(Locale.ROOT));
         String id; int version;

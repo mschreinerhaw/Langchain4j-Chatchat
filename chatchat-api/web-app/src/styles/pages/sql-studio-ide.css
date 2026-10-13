@@ -1030,3 +1030,7 @@
     transition: none;
   }
 }
+
+.sql-page-notice { flex-shrink: 0; margin: 8px 14px; }
+.sql-dialog select { width: 100%; padding: 9px 12px; border: 1px solid #dbe5f3; border-radius: 8px; background: white; color: #192b46; font: inherit; }
+.sql-dialog .app-notice { margin-top: 12px; }

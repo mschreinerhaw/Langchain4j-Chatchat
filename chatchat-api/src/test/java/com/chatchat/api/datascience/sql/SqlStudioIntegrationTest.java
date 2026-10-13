@@ -231,6 +231,31 @@ class SqlStudioIntegrationTest {
         assertThat(jdbc.queryForObject("select count(*) from ds_sql_project where id=?",Integer.class,p)).isZero();
         assertThat(jdbc.queryForObject("select count(*) from ds_sql_file where project_id=?",Integer.class,p)).isZero();
     }
+    @Test void emptyFoldersPersistAndRequireParentWithoutBecomingFiles() throws Exception {
+        String p=project();
+        String url=ROOT+"/"+p+"/folders";
+        mvc.perform(post(url).header("Authorization","Bearer "+token).contentType("application/json").content("{\"path\":\"scripts/daily\"}")).andExpect(status().isBadRequest());
+        mvc.perform(post(url).header("Authorization","Bearer "+token).contentType("application/json").content("{\"path\":\"scripts\"}")).andExpect(status().isOk());
+        mvc.perform(post(url).header("Authorization","Bearer "+token).contentType("application/json").content("{\"path\":\"scripts/daily\"}")).andExpect(status().isOk());
+        mvc.perform(get(url).header("Authorization","Bearer "+token)).andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(2));
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_file where project_id=?",Integer.class,p)).isZero();
+        mvc.perform(post(url).header("Authorization","Bearer "+token).contentType("application/json").content("{\"path\":\"SCRIPTS\"}")).andExpect(status().isBadRequest());
+        mvc.perform(post(url).header("Authorization","Bearer "+token).contentType("application/json").content("{\"path\":\"../escape\"}")).andExpect(status().isBadRequest());
+        String other=otherUser(true);
+        mvc.perform(get(url).header("Authorization","Bearer "+other)).andExpect(status().isForbidden());
+        mvc.perform(post(url).header("Authorization","Bearer "+other).contentType("application/json").content("{\"path\":\"unauthorized\"}")).andExpect(status().isForbidden());
+        save(p,"scripts/daily/job.sql","SQL","SELECT 1;",0);
+        mvc.perform(delete(ROOT+"/"+p).header("Authorization","Bearer "+token)).andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_folder where project_id=?",Integer.class,p)).isZero();
+    }
+    @Test void folderAndFileNamesCannotCollideAndLegacyFoldersRemainUsable() throws Exception {
+        String p=project();
+        save(p,"legacy/query.sql","SQL","SELECT 1;",0);
+        mvc.perform(get(ROOT+"/"+p+"/folders").header("Authorization","Bearer "+token)).andExpect(status().isOk()).andExpect(jsonPath("$.data[0]").value("legacy"));
+        mvc.perform(post(ROOT+"/"+p+"/folders").header("Authorization","Bearer "+token).contentType("application/json").content("{\"path\":\"legacy/query.sql\"}")).andExpect(status().isBadRequest());
+        mvc.perform(post(ROOT+"/"+p+"/folders").header("Authorization","Bearer "+token).contentType("application/json").content("{\"path\":\"folder.sql\"}")).andExpect(status().isOk());
+        mvc.perform(put(ROOT+"/"+p+"/files").header("Authorization","Bearer "+token).contentType("application/json").content(json(Map.of("path","folder.sql","kind","SQL","content","SELECT 1;","expectedVersion",0)))).andExpect(status().isBadRequest());
+    }
     @Test void generationAcceptsNoMappingOrExample() throws Exception {
         String p=project();
         var prepared=prepare(p,List.of(),List.of());

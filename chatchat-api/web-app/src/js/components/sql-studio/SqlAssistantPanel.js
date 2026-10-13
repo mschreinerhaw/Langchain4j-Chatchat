@@ -1,9 +1,10 @@
+import AppNotice from '../../../components/AppNotice.vue';
 import { computed, nextTick, ref, watch } from 'vue';
 import { terminalSqlTask } from '../../utils/sqlStudioState';
 import { Sparkles, FileCode2, BookOpen, Send, AtSign, TrendingUp, CircleHelp } from '@lucide/vue';
 
 export default {
-  components: { Sparkles, FileCode2, BookOpen, Send, AtSign, TrendingUp, CircleHelp },
+  components: { AppNotice, Sparkles, FileCode2, BookOpen, Send, AtSign, TrendingUp, CircleHelp },
   props: { mappingDocuments: { type:Array, default:() => [] }, mappingCount: Number, projectFiles: Array, references: Array, referenceIds: Array, models: Array, agents: Array,
     agentId: String, modelName: String, executionMode: String, prompt: String, messages: Array, busy: Boolean, generations: Array,
     generationId: String, result: Object, selectedCode: Object, currentFile: Object, dialectLabel: String, taskRunning: Boolean },

@@ -1,8 +1,8 @@
 <template>
   <ul class="sql-file-nodes">
     <li v-for="node in nodes" :key="node.id">
-      <details v-if="node.children" open><summary><Folder :size="16" />{{ node.name }}</summary>
-        <SqlFileTreeNode :nodes="node.children" :active-id="activeId" :mapping-ids="mappingIds" @open="$emit('open', $event)" @mapping="$emit('mapping', $event)" @context="$emit('context', $event)" />
+      <details v-if="node.children" open><summary :data-folder="node.id" @click="$emit('folder-select', node.id)" @contextmenu.stop.prevent="$emit('context', {folder:node.id,event:$event})"><Folder :size="16" />{{ node.name }}</summary>
+        <SqlFileTreeNode :nodes="node.children" :active-id="activeId" :mapping-ids="mappingIds" @folder-select="$emit('folder-select', $event)" @open="$emit('open', $event)" @mapping="$emit('mapping', $event)" @context="$emit('context', $event)" />
       </details>
       <div v-else class="sql-tree-file" :class="{ active: activeId === node.id }" @contextmenu.stop.prevent="$emit('context', { file: node.file, event: $event })">
         <input v-if="node.file.kind === 'MAPPING'" type="checkbox" :aria-label="'关联 Mapping ' + node.file.path"

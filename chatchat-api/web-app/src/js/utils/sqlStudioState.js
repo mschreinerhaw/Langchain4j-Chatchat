@@ -17,14 +17,22 @@ export function restoreSqlDrafts(files, stored) {
   }
   return files;
 }
-export function sqlFileTree(files) {
+export function sqlFileTree(files, folders = []) {
   const root = { children: [] };
+  for (const folder of folders) {
+    let node = root;
+    folder.split('/').forEach((name, index, parts) => {
+      let directory = node.children.find(child => child.children && child.name.toLowerCase() === name.toLowerCase());
+      if (!directory) { directory = { name, id: parts.slice(0, index + 1).join('/'), children: [] }; node.children.push(directory); }
+      node = directory;
+    });
+  }
   for (const file of files) {
     const parts = file.path.split('/'); let node = root;
     parts.forEach((name, index) => {
       if (index === parts.length - 1) node.children.push({ id: file.id, name, file });
       else {
-        let directory = node.children.find(child => child.name === name && child.children);
+        let directory = node.children.find(child => child.name.toLowerCase() === name.toLowerCase() && child.children);
         if (!directory) { directory = { name, id: parts.slice(0, index + 1).join('/'), children: [] }; node.children.push(directory); }
         node = directory;
       }

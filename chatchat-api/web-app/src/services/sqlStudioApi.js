@@ -8,6 +8,8 @@ export const createSqlProject = value => apiRequest(`${root}/projects`, { method
 export const deleteSqlProject = id => apiRequest(project(id), { method: 'DELETE' });
 export const sqlLibraryFiles = kind => apiRequest(`${root}/library-files?kind=${encodeURIComponent(kind)}`);
 export const importSqlLibraryFiles = (id, kind, documentIds) => apiRequest(`${project(id)}/library-files`, { method: 'POST', body: body({ kind, documentIds }) });
+export const sqlFolders = id => apiRequest(`${project(id)}/folders`);
+export const createSqlFolder = (id, path) => apiRequest(`${project(id)}/folders`, {method:'POST',body:body({path})});
 export const sqlFiles = id => apiRequest(`${project(id)}/files`);
 export const sqlReferences = () => apiRequest(`${root}/reference-files`);
 export const saveSqlFile = (id, value) => apiRequest(`${project(id)}/files`, { method: 'PUT', body: body(value) });

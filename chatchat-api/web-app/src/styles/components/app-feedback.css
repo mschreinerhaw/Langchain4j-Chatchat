@@ -1,0 +1,26 @@
+.app-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #dbe7fb;
+  border-radius: 8px;
+  background: var(--primary-soft, #e9f0ff);
+  color: #285fa8;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.app-notice > svg { flex-shrink: 0; margin-top: 2px; }
+.app-notice > span { flex: 1; min-width: 0; }
+.app-notice > button, .sql-studio .app-notice > button { display: grid; place-items: center; padding: 2px; background: transparent; color: inherit; border: 0; border-radius: 4px; cursor: pointer; }
+.app-notice-error { color: #b42318; background: #fff3f2; border-color: #fecdca; }
+.app-notice-success { color: #067647; background: #ecfdf3; border-color: #abefc6; }
+.app-confirm-dialog { width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 24px; border: 1px solid var(--line, #e7ebf3); border-radius: 14px; background: var(--surface, #fff); color: var(--text, #121826); box-shadow: var(--shadow); font-family: inherit; }
+.app-confirm-dialog::backdrop { background: rgba(15, 23, 42, .35); }
+.app-confirm-dialog h2 { margin: 0 0 12px; font-size: 18px; }
+.app-confirm-dialog p { margin: 0; color: var(--muted, #667085); font-size: 13px; line-height: 1.8; white-space: pre-line; overflow-wrap: anywhere; }
+.app-confirm-dialog footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.app-confirm-dialog button { padding: 8px 16px; border: 1px solid var(--line, #e7ebf3); border-radius: 8px; background: var(--surface, #fff); color: var(--text, #121826); font: inherit; font-size: 13px; cursor: pointer; }
+.app-confirm-dialog .app-confirm-danger { color: #fff; background: var(--red, #ef4f5f); border-color: var(--red, #ef4f5f); }
+.app-confirm-dialog button:focus-visible, .app-notice button:focus-visible { outline: 2px solid var(--primary, #2f7cf6); outline-offset: 2px; }

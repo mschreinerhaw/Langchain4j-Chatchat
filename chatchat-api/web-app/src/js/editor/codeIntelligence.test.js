@@ -46,5 +46,5 @@ describe('shared code intelligence', () => {
     const markers = await sqlDiagnostics('select from', dialect);
     expect(markers.length).toBeGreaterThan(0);
     expect(markers[0].severity).toBe(8);
-  });
+  }, 30000); // The first dialect includes the grammar's cold dynamic import on Windows.
 });

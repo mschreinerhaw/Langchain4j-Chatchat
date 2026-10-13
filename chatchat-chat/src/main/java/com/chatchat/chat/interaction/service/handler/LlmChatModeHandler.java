@@ -1,11 +1,13 @@
 package com.chatchat.chat.interaction.service.handler;
 
+import com.chatchat.agents.model.ConfigurableChatModelFactory;
 import com.chatchat.chat.interaction.model.InteractionContext;
 import com.chatchat.chat.interaction.model.InteractionMode;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.ConversationMemoryService;
 import com.chatchat.chat.interaction.service.InteractionModeHandler;
+import com.chatchat.chat.interaction.service.InteractionExecution;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +24,7 @@ import java.util.stream.Collectors;
 public class LlmChatModeHandler implements InteractionModeHandler {
 
     private final ChatModel chatLanguageModel;
+    private final ConfigurableChatModelFactory chatModelFactory;
 
     /**
      * Performs the mode operation.
@@ -49,7 +52,11 @@ public class LlmChatModeHandler implements InteractionModeHandler {
             context.conversationId(),
             prompt.length(),
             context.history().size());
-        String answer = chatLanguageModel.chat(prompt);
+        InteractionExecution.checkCancellation(request);
+        ChatModel selected = request.getModelName() == null || request.getModelName().isBlank()
+            ? chatLanguageModel : chatModelFactory.create(request.getModelName());
+        String answer = selected.chat(prompt);
+        InteractionExecution.checkCancellation(request);
         log.info("llmChatModelOutput requestId={} conversationId={} durationMs={} answerChars={} answer=\n{}",
             context.requestId(),
             context.conversationId(),

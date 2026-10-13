@@ -3,7 +3,7 @@ import SqlProjectTree from '../../components/sql-studio/SqlProjectTree.vue';
 import SqlEditorPane from '../../components/sql-studio/SqlEditorPane.vue';
 import SqlAssistantPanel from '../../components/sql-studio/SqlAssistantPanel.vue';
 import SqlBottomPanel from '../../components/sql-studio/SqlBottomPanel.vue';
-import { FolderTree, PanelBottom, Sparkles } from '@lucide/vue';
+import { FolderTree, PanelBottom, Sparkles, Plus, Save, WandSparkles, FileCode2, CircleCheck } from '@lucide/vue';
 import * as sql from '../../services/sqlStudioApi';
 import { fetchPythonCodeModels, fetchAgentOptions, cancelAgentTask } from '../../services/api';
 import { saveWorkspaceDraft, readWorkspaceDraft } from '../utils/workspaceDrafts';
@@ -11,7 +11,7 @@ import { dirtySqlFile, mergeSqlFiles, restoreSqlDrafts, assertSqlApplySafe, merg
 import { mappingSchemaColumns } from '../editor/codeIntelligence';
 import { clampSqlPanel, sqlAssistantAnswer, sqlConversationPrompt } from '../utils/sqlIdeState';
 export default {
-  components: { SqlProjectTree, SqlEditorPane, SqlAssistantPanel, SqlBottomPanel, FolderTree, PanelBottom, Sparkles },
+  components: { SqlProjectTree, SqlEditorPane, SqlAssistantPanel, SqlBottomPanel, FolderTree, PanelBottom, Sparkles, Plus, Save, WandSparkles, FileCode2, CircleCheck },
   props: { workspaceContext: Object, tenantId: String, userId: String },
   emits: [],
   setup(props, { emit: emitEvent }) {
@@ -19,13 +19,16 @@ export default {
 const dialects = [{ value:'spark',label:'Spark SQL' },{ value:'hive',label:'Hive' },{ value:'postgresql',label:'PostgreSQL' },{ value:'mysql',label:'MySQL' },{ value:'oracle',label:'Oracle' },{ value:'tsql',label:'T-SQL' },{ value:'trino',label:'Trino' },{ value:'ansi',label:'ANSI SQL' }];
 const projects = ref([]), projectId = ref(''), files = ref([]), references = ref([]), models = ref([]), agents = ref([]);
 const dialect = ref('spark'), agentId = ref(''), modelName = ref(''), prompt = ref('');
-const executionMode = ref('agent');
+const executionMode = ref('model');
 const libraryOpen = ref(false), libraryKind = ref('MAPPING'), libraryItems = ref([]), librarySelected = ref([]);
 const mappingIds = ref([]), referenceIds = ref([]), openIds = ref([]), activeId = ref(''), preview = ref(null);
 const generations = ref([]), generationId = ref(''), result = ref(null);
 const busy = ref(false), error = ref(''), message = ref(''), newProjectOpen = ref(false), projectName = ref('');
 const versions = ref([]), versionFile = ref(null);
+const editorPane = ref(null), newFileOpen = ref(false), newFilePath = ref('sql/query.sql');
 const activeFile = computed(() => files.value.find(file => file.id === activeId.value));
+const taskRunning = computed(() => Boolean(result.value?.task && !terminalSqlTask(result.value.task.status)));
+const dirtyCount = computed(() => files.value.filter(dirtySqlFile).length);
 const schemaColumns = computed(() => mappingSchemaColumns(files.value, mappingIds.value));
 const selectedMappings = computed(() => files.value.filter(file => mappingIds.value.includes(file.id)));
 const chatTurns = ref([]), selectedCode = ref(null), problemCount = ref(0), cursor = ref(null);
@@ -107,6 +110,7 @@ async function selectProject(id) {
     activeId.value = openIds.value.includes(stored?.activeId) ? stored.activeId : openIds.value.at(-1) || '';
     mappingIds.value = (stored?.mappingIds || []).filter(fileId => files.value.some(file => file.id === fileId && file.kind === 'MAPPING'));
     referenceIds.value = (stored?.referenceIds || []).filter(fileId => references.value.some(file => file.id === fileId));
+    if (!stored) { const first = files.value.find(file => file.kind === 'SQL') || files.value[0]; if (first) openFile(first.id); }
     prompt.value = stored?.prompt || ''; chatTurns.value = Array.isArray(stored?.chatTurns) ? stored.chatTurns.slice(-30) : [];
     selectedCode.value = null; preview.value = null; generations.value = history; generationId.value = history[0]?.id || ''; result.value = null;
     await refreshGeneration();
@@ -114,7 +118,8 @@ async function selectProject(id) {
 }
 async function refreshFiles() {
   const id = projectId.value; const loaded = await sql.sqlFiles(id);
-  if (id === projectId.value) { files.value = mergeSqlFiles(loaded, files.value); references.value = await sql.sqlReferences(); }
+  const referenceFiles = await sql.sqlReferences();
+  if (id === projectId.value) { files.value = mergeSqlFiles(loaded, files.value); references.value = referenceFiles; }
 }
 async function createProject() { await action(async () => { const project = await sql.createSqlProject({ name:projectName.value.trim(), dialect:dialect.value }); projects.value.unshift(project); newProjectOpen.value = false; projectName.value = ''; await selectProject(project.id); }); }
 async function deleteProject() {
@@ -145,7 +150,9 @@ async function deleteFile(file) {
     message.value = '文件已删除';
   });
 }
-async function createFile(path) { await action(async () => { const saved = await sql.saveSqlFile(projectId.value, { path, kind:'SQL', content:'', expectedVersion:0 }); files.value.push({ ...saved, draft:saved.content, draftBaseVersion:saved.version }); openFile(saved.id); }); }
+async function createFile(path) { await action(async () => { const saved = await sql.saveSqlFile(projectId.value, { path, kind:'SQL', content:'', expectedVersion:0 }); files.value.push({ ...saved, draft:saved.content, draftBaseVersion:saved.version }); openFile(saved.id); newFileOpen.value = false; }); }
+function openNewFile() { newFilePath.value = 'sql/query.sql'; newFileOpen.value = true; }
+function formatActive() { editorPane.value?.formatDocument(); }
 async function saveActive() {
   const file = activeFile.value; if (!file?.editable || preview.value) return;
   await action(async () => {
@@ -158,6 +165,7 @@ async function saveActive() {
 }
 async function upload({ files:uploads, kind }) { await action(async () => { for (const file of uploads) { const fileKind = kind === 'AUTO' ? file.name.toLowerCase().endsWith('.sql') ? 'REFERENCE' : 'MAPPING' : kind; const saved = await sql.uploadSqlInput(projectId.value, file, fileKind); files.value.push({ ...saved, draft:saved.content, draftBaseVersion:saved.version }); if (fileKind === 'MAPPING') mappingIds.value.push(saved.id); openFile(saved.id); } references.value = await sql.sqlReferences(); }); }
 async function generate() { await action(async () => {
+  if (taskRunning.value) throw new Error('当前任务仍在运行，请等待结果或取消后再发送。');
   if (files.value.some(dirtySqlFile)) throw new Error('请先保存工程中的编辑内容，让生成任务读取一致的文件版本。');
   const id = projectId.value, text = prompt.value.trim();
   if (!text) return;
@@ -184,7 +192,7 @@ async function refreshGeneration() {
     if (turn) turn.text = sqlAssistantAnswer(loaded);
     if ((loaded.files?.length || loaded.outputError) && !layout.value.bottom) layout.value.bottomTab = loaded.outputError ? 'problems' : 'output';
     if (loaded.task && !terminalSqlTask(loaded.task.status)) pollTimer = setTimeout(refreshGeneration, 1500);
-  } catch (ex) { error.value = ex.message; }
+  } catch (ex) { if (active && id === projectId.value && generation === generationId.value) error.value = ex.message; }
 }
 async function apply() { await action(async () => {
   const candidates = result.value.files; assertSqlApplySafe(candidates, files.value);
@@ -226,7 +234,7 @@ onMounted(async () => {
 onActivated(() => { active = true; if (initialized) refreshGeneration(); });
 onDeactivated(() => { active = false; clearTimeout(pollTimer); persist(); });
 onBeforeUnmount(() => { active = false; resizeCleanup?.(); clearTimeout(pollTimer); clearTimeout(draftTimer); persist(); window.removeEventListener('beforeunload', beforeUnload); });
-  return { dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary };
+  return { dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
 
   }
 };

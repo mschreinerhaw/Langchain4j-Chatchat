@@ -10,7 +10,7 @@ export interface MappingDocument {
   joins?: string[]; filters?: string[]; writeMode?: string; notes?: string;
 }
 export interface SqlGenerationInput { prompt: string; dialect: SqlDialect; mappingIds: string[]; referenceIds: string[]; agentId?: string | null; modelName?: string | null; }
-export interface ExistingAgentTaskRequest { tenantId: string; userId: string; sessionId: string; idempotencyKey: string; query: string; mode: 'agent_chat'; agentId?: string | null; modelName?: string | null; }
+export interface ExistingAgentTaskRequest { tenantId: string; userId: string; sessionId: string; idempotencyKey: string; query: string; mode: 'agent_chat' | 'llm_chat'; systemPrompt?: string; agentId?: string | null; modelName?: string | null; }
 export interface PreparedSqlGeneration { generationId: string; taskRequest: ExistingAgentTaskRequest; }
 export interface SqlGeneration { id: string; taskId: string | null; applied: boolean; prepared: PreparedSqlGeneration; }
 export interface SqlOutputBundle { schemaVersion: 'sql-studio.output.v1'; files: Array<{ path: string; content: string }>; notes?: string; }

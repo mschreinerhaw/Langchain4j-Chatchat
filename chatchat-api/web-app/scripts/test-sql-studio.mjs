@@ -25,6 +25,8 @@ try {
   let projects = [{ id: 'project', name: 'Spark customer ETL', dialect: 'spark', sessionId: 'session', tenantId: user.tenantId, ownerId: user.id }];
   const filesByProject = { project: [{ id: 'a', projectId: 'project', path: 'sql/a.sql', kind: 'SQL', content: 'SELECT 1;', version: 1, editable: true }] };
   const library = [{ docId: 'mapping-1', fileName: 'customer.csv', title: 'Customer Mapping', version: 1, latestVersion: true }];
+  let taskStatus = 'RUNNING', submissionCount = 0;
+  const generation = { id: 'generation-1', taskId: 'task-1', applied: false };
   await page.route('**/api/v1/**', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname, method = request.method();
     let data = [];
@@ -58,17 +60,44 @@ try {
       const file = files.find(item => item.id === fileId); assert.equal(Number(url.searchParams.get('expectedVersion')), file.version);
       filesByProject[id] = files.filter(item => item.id !== fileId); data = true;
     }
+    else if (path.endsWith('/project/generations') && method === 'POST') {
+      const body = request.postDataJSON();
+      assert.deepEqual(body.mappingIds, ['mapped']);
+      assert.ok(body.prompt.includes('sql/new.sql'));
+      data = { generationId: generation.id, taskRequest: { query: body.prompt, sessionId: 'session' } };
+    }
+    else if (path === '/api/v1/agent/tasks' && method === 'POST') { submissionCount++; data = { taskId: 'task-1', status: taskStatus }; }
+    else if (path.endsWith('/task-1/cancel')) { taskStatus = 'CANCELLED'; data = true; }
+    else if (path.endsWith('/generations/generation-1/task')) data = generation;
+    else if (path.endsWith('/generations/generation-1')) data = { generation, task: { taskId: 'task-1', status: taskStatus }, events: [], files: [], rawAnswer: '', outputError: '' };
     else if (path.endsWith('/project/generations') || path.endsWith('/new-project/generations')) data = [];
     await route.fulfill({ json: { code: 200, message: 'Success', data } });
   });
-  await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/#/w/data-science/sqlStudio`, { waitUntil: 'networkidle' });
-  await page.locator('.sql-ide-shell').waitFor();
+  await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/#/w/data-science/sqlStudio`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.sql-ide-shell').waitFor({ timeout: 90000 });
   assert.equal(await page.locator('.sql-ide-titlebar .sql-activity-bar').count(), 1, 'panel buttons belong in top bar');
+  await page.setViewportSize({ width: 1024, height: 900 });
+  const saveBounds = await page.getByRole('button', { name: '保存文件', exact: true }).boundingBox();
+  assert.ok(saveBounds.x + saveBounds.width <= 1024, 'Save remains visible on smaller desktop screens');
+  await page.setViewportSize({ width: 1560, height: 980 });
   await page.locator('.sql-tree-scroll').click({ button: 'right', position: { x: 180, y: 120 } });
   await page.getByRole('menuitem', { name: '新建 SQL 文件…' }).click();
   await page.getByLabel('新文件路径').fill('sql/new.sql');
   await page.getByRole('button', { name: '创建并保存' }).click();
   await page.locator('.sql-tree-file button[title="sql/new.sql"]').waitFor();
+  await page.getByLabel('搜索工程文件').fill('new.sql');
+  assert.equal(await page.locator('.sql-tree-file button[title="sql/a.sql"]').count(), 0);
+  await page.getByLabel('搜索工程文件').fill('missing');
+  await page.getByText('没有匹配的工程文件。').waitFor();
+  await page.getByLabel('搜索工程文件').fill('');
+  await page.locator('.sql-current-context').filter({ hasText: 'new.sql' }).waitFor();
+  await page.getByRole('button', { name: '解释这段 SQL 的作用', exact: true }).click();
+  assert.equal(await page.getByLabel('发送给 AI 工程助手').inputValue(), '@sql/new.sql 解释这段 SQL 的作用');
+  await page.getByRole('button', { name: '智能生成', exact: true }).click();
+  await page.getByRole('button', { name: '基于 Mapping 生成目标表建表与 ETL SQL', exact: true }).waitFor();
+  await page.getByRole('button', { name: '对话', exact: true }).click();
+  await page.getByLabel('发送给 AI 工程助手').press('Enter');
+  assert.equal(submissionCount, 0, 'Enter must insert a newline without submitting a task');
   await page.getByRole('button', { name: '从文档库选 Mapping' }).click();
   await page.locator('.sql-library-list input').check();
   await page.getByRole('button', { name: '关联所选文件' }).click();
@@ -79,6 +108,14 @@ try {
   assert.equal(await page.locator('.sql-chat-settings .sql-agent-choice').filter({ hasText: '模型' }).count(), 1);
   await page.getByRole('button', { name: 'Agent', exact: true }).click();
   assert.equal(await page.locator('.sql-chat-settings .sql-agent-choice').filter({ hasText: 'Agent / Skills' }).count(), 1);
+  await page.getByLabel('发送给 AI 工程助手').press('Control+Enter');
+  await page.locator('.sql-task-status').filter({ hasText: 'RUNNING' }).waitFor();
+  assert.equal(submissionCount, 1);
+  assert.equal(await page.locator('.sql-chat-composer .sql-primary').isDisabled(), true, 'Running Runtime task blocks duplicate submission');
+  await page.getByRole('button', { name: '取消', exact: true }).click();
+  await page.locator('.sql-task-status').filter({ hasText: 'CANCELLED' }).waitFor();
+  await page.getByLabel('发送给 AI 工程助手').fill('继续修改');
+  assert.equal(await page.locator('.sql-chat-composer .sql-primary').isDisabled(), false, 'Runtime terminal state unlocks submission');
   await page.locator('.sql-tree-file button[title="sql/new.sql"]').click({ button: 'right' });
   await page.getByRole('menuitem', { name: '删除文件…' }).click();
   await page.locator('.sql-tree-file button[title="sql/new.sql"]').waitFor({ state: 'detached' });
@@ -92,5 +129,5 @@ try {
   await mkdir('../../target/sql-studio-ide-audit', { recursive: true });
   await page.screenshot({ path: '../../target/sql-studio-ide-audit/sql-studio-ide.png', fullPage: true });
   assert.deepEqual(errors, []);
-  console.log('PASS: top panel buttons, context-menu file creation/deletion, authorized library selection, Agent/model exclusivity, project deletion (HTTP fixtures only).');
+  console.log('PASS: responsive toolbar, file search, current-file context, quick actions, Ctrl+Enter submission, Runtime running/cancelled states, file creation/deletion, authorized library selection, Agent/model exclusivity, project deletion (HTTP fixtures only).');
 } finally { await browser?.close(); await server.close(); }

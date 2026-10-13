@@ -1,11 +1,42 @@
 .sql-ide {
-  background: #eef2f8;
+  background: #f8faff;
+  font-size: 13px;
 }
 
 .sql-ide-titlebar {
   min-height: 54px;
   padding: 8px 14px;
   gap: 10px;
+}
+
+.sql-ide-titlebar > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
+  color: #2563eb;
+  background: #f8faff;
+  border-color: #dce7fc;
+}
+
+.sql-ide-titlebar .sql-studio-brand {
+  min-width: 110px;
+  margin-right: 0;
+  color: #2563eb;
+}
+
+.sql-ide-titlebar .sql-dialect {
+  font-size: 0;
+}
+
+.sql-ide-titlebar .sql-dialect select {
+  font-size: 13px;
+}
+
+.sql-ide-titlebar .sql-primary {
+  color: white;
+  background: #3478f6;
 }
 
 .sql-ide-titlebar-spacer {
@@ -66,7 +97,7 @@
 .sql-ide-shell > .sql-project-tree {
   grid-column: 1;
   grid-row: 1;
-  background: #f8fafd;
+  background: linear-gradient(180deg, #fbfcff, #fff 240px);
 }
 
 .sql-panel-resizer {
@@ -140,6 +171,272 @@
   grid-column: 5;
   grid-row: 1;
   border-left: 1px solid #dbe4f0;
+  max-height: none;
+}
+
+.sql-ide-explorer > header {
+  padding: 17px 14px 11px;
+}
+
+.sql-ide-explorer > header strong {
+  font-size: 15px;
+}
+
+.sql-project-tree > header > .sql-explorer-header-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.sql-explorer-header-actions button {
+  display: grid;
+  place-items: center;
+  padding: 5px;
+  width: 28px;
+  height: 28px;
+}
+
+.sql-explorer-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 12px 10px;
+  padding: 0 9px;
+  border: 1px solid #dbe5f6;
+  border-radius: 6px;
+  color: #8da3c5;
+  background: #fff;
+}
+
+.sql-explorer-search input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 8px 0;
+  font-size: 12px;
+}
+
+.sql-explorer-project {
+  align-items: center;
+}
+
+.sql-explorer-project span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sql-ide .sql-file-nodes summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 0;
+}
+
+.sql-file-nodes summary svg {
+  color: #edb04d;
+  fill: #ffdc8b;
+}
+
+.sql-tree-file button svg {
+  flex-shrink: 0;
+  color: #397aff;
+}
+
+.sql-ide .sql-tree-file > button {
+  padding: 6px 7px;
+  font-size: 12px;
+}
+
+.sql-tree-file button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sql-ide .sql-tree-file.active {
+  background: #e6eeff;
+  box-shadow: none;
+}
+
+.sql-ide .sql-editor-tabs > .active {
+  color: #2163ed;
+  background: #fff;
+  box-shadow: inset 0 -2px #3478ff;
+}
+
+.sql-ide-assistant > header {
+  border-bottom: 0;
+  padding: 17px 18px 8px;
+}
+
+.sql-ide-assistant > header strong {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 19px;
+}
+
+.sql-ide-assistant > header strong svg {
+  color: #3478ff;
+}
+
+.sql-ide-assistant > header span {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.sql-assistant-tabs {
+  display: flex;
+  gap: 16px;
+  margin: 0 16px;
+  border-bottom: 1px solid #e5ecf8;
+}
+
+.sql-assistant-tabs button {
+  padding: 11px 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.sql-assistant-tabs button.active {
+  color: #2163ed;
+  box-shadow: inset 0 -2px #3478ff;
+}
+
+.sql-current-context {
+  padding: 12px;
+  border: 1px solid #e1eafa;
+  border-radius: 8px;
+  background: #fbfcff;
+}
+
+.sql-current-context > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: #3b5277;
+}
+
+.sql-current-context span, .sql-related-resources button span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sql-current-context svg, .sql-related-resources svg {
+  color: #397aff;
+  flex-shrink: 0;
+}
+
+.sql-current-context small, .sql-related-resources small {
+  border-radius: 5px;
+  padding: 3px 6px;
+  background: #edf3ff;
+  color: #627da9;
+  font-size: 10px;
+}
+
+.sql-current-context p {
+  margin: 8px 0 0;
+  color: #7d91ae;
+  font-size: 12px;
+}
+
+.sql-assistant-suggestions h3, .sql-related-resources h3 {
+  margin: 8px 0 10px;
+  font-size: 14px;
+}
+
+.sql-assistant-suggestions > button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 9px 10px;
+  border-color: #e0e9fa;
+  text-align: left;
+  font-size: 12px;
+}
+
+.sql-assistant-suggestions svg {
+  flex-shrink: 0;
+  color: #397aff;
+}
+
+.sql-related-resources > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sql-related-resources > header button {
+  border: 0;
+  font-size: 11px;
+  color: #8095b7;
+  padding: 3px;
+}
+
+.sql-related-resources > button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  padding: 7px 0;
+  text-align: left;
+  font-size: 12px;
+}
+
+.sql-ide .sql-chat-composer {
+  margin: 8px 14px 4px;
+  border-color: #a8c5ff;
+}
+
+.sql-chat-composer .sql-composer-tools {
+  display: flex;
+  gap: 7px;
+}
+
+.sql-composer-tools button, .sql-chat-composer .sql-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.sql-composer-tools button {
+  padding: 7px;
+  background: #f8faff;
+  border-color: #edf2fb;
+  color: #627ba4;
+}
+
+.sql-composer-hint {
+  margin: 0 14px 9px;
+  color: #8a9ebc;
+  font-size: 10px;
+}
+
+.sql-ide .sql-ide-status {
+  background: #f8faff;
+  color: #7d93b4;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: auto;
+}
+
+.sql-ide-status > svg {
+  flex-shrink: 0;
+  color: #16a05b;
+}
+
+.sql-status-running {
+  color: #2563eb;
 }
 
 .sql-ide-status {
@@ -687,6 +984,10 @@
 }
 
 @media (max-width: 1150px) {
+  .sql-ide-titlebar {
+    flex-wrap: wrap;
+  }
+
   .sql-ide-shell {
     grid-template-columns:
       minmax(0, var(--sql-explorer-width)) var(--sql-explorer-grip)

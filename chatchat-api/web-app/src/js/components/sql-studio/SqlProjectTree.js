@@ -1,15 +1,20 @@
 import { computed, onBeforeUnmount, ref } from 'vue';
 import SqlFileTreeNode from '../../../components/sql-studio/SqlFileTreeNode.vue';
 import { sqlFileTree } from '../../utils/sqlStudioState';
+import { Plus, RotateCw, Search, Folder } from '@lucide/vue';
 
 export default {
-  components: { SqlFileTreeNode },
+  components: { SqlFileTreeNode, Plus, RotateCw, Search, Folder },
   props: { files: Array, references: Array, referenceIds: Array, projectName: String, activeId: String, mappingIds: Array, busy: Boolean },
   emits: ['open', 'mapping', 'reference', 'reference-open', 'choose-library', 'create', 'refresh', 'versions', 'download', 'rename', 'delete'],
   setup(props, { emit }) {
     const path = ref(''), dragging = ref(false), contextFile = ref(null), contextX = ref(0), contextY = ref(0), contextOpen = ref(false);
     const renaming = ref(false), creating = ref(false), renameName = ref('');
-    const tree = computed(() => sqlFileTree(props.files || []));
+    const query = ref('');
+    const filteredFiles = computed(() => (props.files || []).filter(file => file.path.toLowerCase().includes(query.value.trim().toLowerCase())));
+    const tree = computed(() => sqlFileTree(filteredFiles.value));
+    const filteredReferences = computed(() => (props.references || []).filter(file => file.path.toLowerCase().includes(query.value.trim().toLowerCase())));
+    function newFile(event) { openContext({ event, file: null }); beginCreate(); }
     function create() { if (path.value.trim()) emit('create', path.value.trim()); path.value = ''; }
     function upload(event, kind) { emit('upload', { files: [...event.target.files], kind }); event.target.value = ''; }
     function dragLeave(event) { if (!event.currentTarget.contains(event.relatedTarget)) dragging.value = false; }
@@ -41,6 +46,6 @@ export default {
       closeContext();
     }
     onBeforeUnmount(() => window.removeEventListener('pointerdown', outsideContext));
-    return { path, tree, dragging, contextFile, contextOpen, contextX, contextY, renaming, creating, renameName, create, upload, dragLeave, dropFiles, openContext, closeContext, copyPath, beginRename, commitRename, beginCreate, commitCreate, deleteCurrent };
+    return { path, tree, query, filteredFiles, filteredReferences, newFile, dragging, contextFile, contextOpen, contextX, contextY, renaming, creating, renameName, create, upload, dragLeave, dropFiles, openContext, closeContext, copyPath, beginRename, commitRename, beginCreate, commitCreate, deleteCurrent };
   }
 };

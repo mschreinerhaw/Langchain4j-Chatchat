@@ -267,4 +267,17 @@ class SqlStudioIntegrationTest {
             .content(json(Map.of("prompt","Generate","dialect","spark","mappingIds",List.of(mapping.path("id").asText()),
                 "referenceIds",List.of(),"agentId","agent-x","modelName","model-y")))).andExpect(status().isBadRequest());
     }
+    @Test void modelOnlyGenerationsUseNativeToolFreeRuntimeEntry() throws Exception {
+        String p=project(); var mapping=save(p,"mapping/a.txt","MAPPING","source target",0);
+        var defaultRequest=prepare(p,List.of(mapping.path("id").asText()),List.of()).path("taskRequest");
+        assertThat(defaultRequest.path("mode").asText()).isEqualTo("llm_chat");
+        assertThat(defaultRequest.path("systemPrompt").asText()).contains("sql-studio.output.v1", "untrusted");
+        for (String selected : List.of("modelName", "agentId")) {
+            var prepared=data(mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token).contentType("application/json")
+                .content(json(Map.of("prompt","Generate", "dialect","spark", "mappingIds",List.of(mapping.path("id").asText()),
+                    "referenceIds",List.of(),selected,"chosen")))).andExpect(status().isOk()).andReturn());
+            assertThat(prepared.path("taskRequest").path("mode").asText()).isEqualTo(selected.equals("modelName") ? "llm_chat" : "agent_chat");
+            assertThat(prepared.path("taskRequest").path(selected).asText()).isEqualTo("chosen");
+        }
+    }
 }

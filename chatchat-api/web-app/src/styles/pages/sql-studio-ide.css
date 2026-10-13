@@ -19,7 +19,7 @@
   --sql-assistant-grip: 5px;
   display: grid;
   grid-template-columns:
-    44px var(--sql-explorer-width) var(--sql-explorer-grip)
+    var(--sql-explorer-width) var(--sql-explorer-grip)
     minmax(220px, 1fr) var(--sql-assistant-grip) var(--sql-assistant-width);
   grid-template-rows: minmax(0, 1fr) 26px;
   flex: 1;
@@ -30,44 +30,41 @@
 }
 
 .sql-activity-bar {
-  grid-column: 1;
-  grid-row: 1;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 2px;
-  padding-top: 8px;
-  background: #213452;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid #dce5f2;
+  border-radius: 8px;
+  background: #f6f8fc;
 }
 
 .sql-studio .sql-activity-bar button {
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 44px;
-  padding: 0;
+  width: 32px;
+  height: 30px;
+  min-height: 30px;
+  padding: 5px;
   border: 0;
-  border-radius: 0;
+  border-radius: 6px;
   background: transparent;
-  color: #aebed4;
+  color: #687e9d;
 }
 
 .sql-studio .sql-activity-bar button:hover,
 .sql-studio .sql-activity-bar button.active {
-  background: #31476a;
-  color: #fff;
+  background: #e5edfb;
+  color: #1756b1;
 }
 
-.sql-activity-bar button.active::before {
-  position: absolute;
-  inset: 7px auto 7px 0;
-  width: 3px;
-  background: #70adff;
-  content: "";
+.sql-studio .sql-delete-project {
+  color: #b44343;
 }
 
 .sql-ide-shell > .sql-project-tree {
-  grid-column: 2;
+  grid-column: 1;
   grid-row: 1;
   background: #f8fafd;
 }
@@ -85,13 +82,13 @@
 }
 
 .sql-ide-shell > .sql-project-tree + .sql-panel-resizer {
-  grid-column: 3;
+  grid-column: 2;
   grid-row: 1;
 }
 
 .sql-ide-main {
   position: relative;
-  grid-column: 4;
+  grid-column: 3;
   grid-row: 1;
   display: flex;
   flex-direction: column;
@@ -135,12 +132,12 @@
 }
 
 .sql-ide-main + .sql-panel-resizer {
-  grid-column: 5;
+  grid-column: 4;
   grid-row: 1;
 }
 
 .sql-ide-shell > .sql-assistant-panel {
-  grid-column: 6;
+  grid-column: 5;
   grid-row: 1;
   border-left: 1px solid #dbe4f0;
 }
@@ -323,25 +320,15 @@
   padding: 10px;
 }
 
-.sql-explorer-actions label {
+.sql-explorer-actions button {
   flex: 1;
   padding: 7px 3px;
   border: 1px solid #cfddf1;
   border-radius: 6px;
   background: white;
   color: #38659c;
-  cursor: pointer;
   text-align: center;
   font-size: 10px;
-}
-
-.sql-explorer-actions label.disabled {
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-.sql-explorer-actions input {
-  display: none;
 }
 
 .sql-ide-explorer {
@@ -421,6 +408,57 @@
 
 .sql-explorer-context input {
   width: 100%;
+}
+
+.sql-studio .sql-danger-action {
+  color: #b44343;
+}
+
+.sql-execution-modes {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0;
+}
+
+.sql-execution-modes button {
+  flex: 1;
+}
+
+.sql-execution-modes button.active {
+  border-color: #77a7ed;
+  background: #eaf2ff;
+  color: #1756b1;
+}
+
+.sql-library-dialog {
+  width: min(520px, calc(100vw - 32px));
+}
+
+.sql-library-list {
+  max-height: 340px;
+  overflow: auto;
+  border: 1px solid #dce5f2;
+  border-radius: 8px;
+}
+
+.sql-library-list label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #e9eef6;
+  cursor: pointer;
+}
+
+.sql-library-list label span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sql-library-list label small {
+  color: #788ba4;
 }
 
 .sql-ide-assistant .sql-assistant-scroll {
@@ -651,7 +689,7 @@
 @media (max-width: 1150px) {
   .sql-ide-shell {
     grid-template-columns:
-      40px minmax(0, var(--sql-explorer-width)) var(--sql-explorer-grip)
+      minmax(0, var(--sql-explorer-width)) var(--sql-explorer-grip)
       minmax(200px, 1fr) var(--sql-assistant-grip) minmax(
         0,
         var(--sql-assistant-width)

@@ -1,6 +1,8 @@
 package com.chatchat.api.datascience.sql;
 
 import com.chatchat.chat.interaction.model.InteractionResponse;
+import com.chatchat.api.controller.agent.DocumentLibraryReadPort;
+import com.chatchat.knowledgebase.search.model.SearchDocument;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
 import com.chatchat.chat.task.core.AgentTaskLatestRepository;
 import com.chatchat.common.security.PasswordHashCodec;
@@ -45,6 +47,7 @@ class SqlStudioIntegrationTest {
     @MockBean com.chatchat.chat.interaction.service.DatabaseRuntimeSemanticPolicySource policy;
     @MockBean com.chatchat.chat.skills.catalog.SkillCatalogService catalog;
     @MockBean com.chatchat.common.mcp.license.McpLicenseEntitlementPort license;
+    @MockBean DocumentLibraryReadPort documentLibrary;
     String token, tenant;
     @BeforeEach void setup() {
         when(license.workspaceEntitlement()).thenReturn(new com.chatchat.common.mcp.license.McpLicenseEntitlementPort.WorkspaceEntitlement(true,Set.of("zhice","data-science"),"VALID"));
@@ -213,5 +216,55 @@ class SqlStudioIntegrationTest {
         var project=data(mvc.perform(post(ROOT).header("Authorization","Bearer "+token).header("X-Workspace-Id","zhice").contentType("application/json").content("{\"name\":\"Server source\",\"dialect\":\"spark\"}")).andExpect(status().isOk()).andReturn());
         mvc.perform(get("/api/v1/workspaces/context/CONVERSATION/"+project.path("sessionId").asText()).header("Authorization","Bearer "+token).header("X-Workspace-Id","zhice"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.workspaceId").value("data-science"));
+    }
+    @Test void projectAndFileDeletionAreAuthorizedAndVersionChecked() throws Exception {
+        String p=project(); var file=save(p,"sql/delete.sql","SQL","SELECT 1",0);
+        String id=file.path("id").asText(), other=otherUser(true);
+        mvc.perform(delete(ROOT+"/"+p+"/files/"+id).param("expectedVersion","1").header("Authorization","Bearer "+other)).andExpect(status().isForbidden());
+        mvc.perform(delete(ROOT+"/"+p).header("Authorization","Bearer "+other)).andExpect(status().isForbidden());
+        mvc.perform(delete(ROOT+"/"+p+"/files/"+id).param("expectedVersion","2").header("Authorization","Bearer "+token)).andExpect(status().isConflict());
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_file where id=?",Integer.class,id)).isEqualTo(1);
+        mvc.perform(delete(ROOT+"/"+p+"/files/"+id).param("expectedVersion","1").header("Authorization","Bearer "+token)).andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_file_version where file_id=?",Integer.class,id)).isZero();
+        save(p,"sql/another.sql","SQL","SELECT 2",0);
+        mvc.perform(delete(ROOT+"/"+p).header("Authorization","Bearer "+token)).andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_project where id=?",Integer.class,p)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_file where project_id=?",Integer.class,p)).isZero();
+    }
+    @Test void libraryImportIsAtomicAndRechecksDocumentAuthorization() throws Exception {
+        String p=project();
+        String owner=identities.login("admin","123456").user().id();
+        var document=SearchDocument.builder().docId("allowed").fileName("mapping.csv")
+            .content("source,target\na,b").lifecycleStatus("ACTIVE").build();
+        when(documentLibrary.get(eq("allowed"),any())).thenAnswer(call ->
+            owner.equals(call.getArgument(1,com.chatchat.knowledgebase.search.security.SearchPermissionContext.class).userId())
+                ? Optional.of(document) : Optional.empty());
+        when(documentLibrary.original(eq("allowed"),any())).thenReturn(Optional.of("source,target\na,b".getBytes(StandardCharsets.UTF_8)));
+        mvc.perform(post(ROOT+"/"+p+"/library-files").header("Authorization","Bearer "+token).contentType("application/json")
+            .content(json(Map.of("kind","MAPPING","documentIds",List.of("allowed","denied"))))).andExpect(status().isNotFound());
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_file where project_id=?",Integer.class,p)).isZero();
+        var imported=data(mvc.perform(post(ROOT+"/"+p+"/library-files").header("Authorization","Bearer "+token).contentType("application/json")
+            .content(json(Map.of("kind","MAPPING","documentIds",List.of("allowed"))))).andExpect(status().isOk()).andReturn());
+        assertThat(imported.size()).isEqualTo(1);
+        assertThat(imported.get(0).path("content").asText()).contains("source,target");
+        mvc.perform(get(ROOT+"/"+p+"/files/"+imported.get(0).path("id").asText()+"/download")
+            .header("Authorization","Bearer "+token)).andExpect(status().isOk())
+            .andExpect(content().bytes("source,target\na,b".getBytes(StandardCharsets.UTF_8)));
+        mvc.perform(post(ROOT+"/"+p+"/library-files").header("Authorization","Bearer "+token).contentType("application/json")
+            .content(json(Map.of("kind","MAPPING","documentIds",List.of("allowed"))))).andExpect(status().isBadRequest());
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_file where project_id=?",Integer.class,p)).isEqualTo(1);
+        String other=otherUser(true);
+        String otherProject=data(mvc.perform(post(ROOT).header("Authorization","Bearer "+other).contentType("application/json")
+            .content("{\"name\":\"other library\",\"dialect\":\"spark\"}")).andExpect(status().isOk()).andReturn()).path("id").asText();
+        mvc.perform(post(ROOT+"/"+otherProject+"/library-files").header("Authorization","Bearer "+other)
+            .contentType("application/json").content(json(Map.of("kind","MAPPING","documentIds",List.of("allowed")))))
+            .andExpect(status().isNotFound());
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_file where project_id=?",Integer.class,otherProject)).isZero();
+    }
+    @Test void generationRejectsSimultaneousAgentAndModelOverride() throws Exception {
+        String p=project(); var mapping=save(p,"mapping/a.txt","MAPPING","source target",0);
+        mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token).contentType("application/json")
+            .content(json(Map.of("prompt","Generate","dialect","spark","mappingIds",List.of(mapping.path("id").asText()),
+                "referenceIds",List.of(),"agentId","agent-x","modelName","model-y")))).andExpect(status().isBadRequest());
     }
 }

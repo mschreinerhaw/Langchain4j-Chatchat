@@ -38,6 +38,7 @@ function scheduleDiagnostics() {
   if (!model || model.getLanguageId() !== 'sql') { emit('diagnostics', 0); return; }
   const version = model.getVersionId();
   diagnosticTimer = setTimeout(async () => {
+    if (serial !== diagnosticSerial || model.isDisposed()) return;
     const markers = await sqlDiagnostics(model.getValue(), props.dialect || 'spark');
     if (serial === diagnosticSerial && !model.isDisposed() && model.getVersionId() === version) {
       monaco.editor.setModelMarkers(model, 'code-intelligence', markers);

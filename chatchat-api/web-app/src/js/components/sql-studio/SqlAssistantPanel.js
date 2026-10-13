@@ -3,9 +3,9 @@ import { terminalSqlTask } from '../../utils/sqlStudioState';
 
 export default {
   props: { mappingCount: Number, projectFiles: Array, references: Array, referenceIds: Array, models: Array, agents: Array,
-    agentId: String, modelName: String, prompt: String, messages: Array, busy: Boolean, generations: Array,
+    agentId: String, modelName: String, executionMode: String, prompt: String, messages: Array, busy: Boolean, generations: Array,
     generationId: String, result: Object, selectedCode: Object },
-  emits: ['reference-file', 'agent', 'model', 'prompt', 'send', 'generation', 'resume', 'cancel', 'preview', 'apply', 'clear-selection'],
+  emits: ['reference-file', 'agent', 'model', 'execution-mode', 'prompt', 'send', 'generation', 'resume', 'cancel', 'preview', 'apply', 'clear-selection'],
   setup(props, { emit }) {
     const terminal = computed(() => terminalSqlTask(props.result?.task?.status));
     const scroll = ref(null);

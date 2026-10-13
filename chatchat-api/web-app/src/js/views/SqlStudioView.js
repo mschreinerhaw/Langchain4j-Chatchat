@@ -19,6 +19,8 @@ export default {
 const dialects = [{ value:'spark',label:'Spark SQL' },{ value:'hive',label:'Hive' },{ value:'postgresql',label:'PostgreSQL' },{ value:'mysql',label:'MySQL' },{ value:'oracle',label:'Oracle' },{ value:'tsql',label:'T-SQL' },{ value:'trino',label:'Trino' },{ value:'ansi',label:'ANSI SQL' }];
 const projects = ref([]), projectId = ref(''), files = ref([]), references = ref([]), models = ref([]), agents = ref([]);
 const dialect = ref('spark'), agentId = ref(''), modelName = ref(''), prompt = ref('');
+const executionMode = ref('agent');
+const libraryOpen = ref(false), libraryKind = ref('MAPPING'), libraryItems = ref([]), librarySelected = ref([]);
 const mappingIds = ref([]), referenceIds = ref([]), openIds = ref([]), activeId = ref(''), preview = ref(null);
 const generations = ref([]), generationId = ref(''), result = ref(null);
 const busy = ref(false), error = ref(''), message = ref(''), newProjectOpen = ref(false), projectName = ref('');
@@ -62,6 +64,16 @@ function startResize(panel, event) {
 }
 async function action(fn) { if (busy.value) return; busy.value = true; error.value = ''; try { return await fn(); } catch (ex) { error.value = ex.message || '操作失败'; } finally { busy.value = false; } }
 function toggle(list, id) { const index = list.indexOf(id); index < 0 ? list.push(id) : list.splice(index, 1); }
+function chooseExecutionMode(mode) { executionMode.value = mode; agentId.value = ''; modelName.value = ''; }
+async function chooseLibrary(kind) { await action(async () => { libraryKind.value = kind; libraryItems.value = await sql.sqlLibraryFiles(kind); librarySelected.value = []; libraryOpen.value = true; }); }
+async function importLibrary() { await action(async () => {
+  const imported = await sql.importSqlLibraryFiles(projectId.value, libraryKind.value, librarySelected.value);
+  await refreshFiles();
+  if (libraryKind.value === 'MAPPING') mappingIds.value.push(...imported.map(file => file.id));
+  else referenceIds.value.push(...imported.map(file => file.id));
+  libraryOpen.value = false;
+  message.value = `已从文档库关联 ${imported.length} 个文件`;
+}); }
 function openFile(id) { if (!openIds.value.includes(id)) openIds.value.push(id); activeId.value = id; preview.value = null; }
 function openReference(file) { if (files.value.some(item => item.id === file.id)) openFile(file.id); else preview.value = { path:file.path, content:file.content, reference:true }; }
 function closeFile(id) { openIds.value = openIds.value.filter(item => item !== id); if (activeId.value === id) activeId.value = openIds.value.at(-1) || ''; }
@@ -105,6 +117,34 @@ async function refreshFiles() {
   if (id === projectId.value) { files.value = mergeSqlFiles(loaded, files.value); references.value = await sql.sqlReferences(); }
 }
 async function createProject() { await action(async () => { const project = await sql.createSqlProject({ name:projectName.value.trim(), dialect:dialect.value }); projects.value.unshift(project); newProjectOpen.value = false; projectName.value = ''; await selectProject(project.id); }); }
+async function deleteProject() {
+  const current = projects.value.find(item => item.id === projectId.value);
+  if (!current || !window.confirm(`删除工程「${current.name}」及其中全部文件和生成记录？此操作无法撤销。`)) return;
+  if (files.value.some(dirtySqlFile) && !window.confirm('工程中有未保存的编辑内容。确定仍要删除？')) return;
+  await action(async () => {
+    await sql.deleteSqlProject(current.id);
+    projects.value = projects.value.filter(item => item.id !== current.id);
+    projectId.value = ''; files.value = []; references.value = []; generations.value = [];
+    openIds.value = []; activeId.value = ''; mappingIds.value = []; referenceIds.value = []; preview.value = null;
+    const next = projects.value[0]; if (next) await selectProject(next.id);
+    message.value = '工程已删除';
+  });
+}
+async function deleteFile(file) {
+  const current = files.value.find(item => item.id === file.id);
+  if (!current || !window.confirm(`删除文件「${current.path}」及其版本历史？`)) return;
+  if (dirtySqlFile(current) && !window.confirm('该文件有未保存的编辑内容。确定仍要删除？')) return;
+  await action(async () => {
+    await sql.deleteSqlFile(projectId.value, current.id, current.version);
+    files.value = files.value.filter(item => item.id !== current.id);
+    openIds.value = openIds.value.filter(id => id !== current.id);
+    if (activeId.value === current.id) activeId.value = openIds.value.at(-1) || '';
+    mappingIds.value = mappingIds.value.filter(id => id !== current.id);
+    referenceIds.value = referenceIds.value.filter(id => id !== current.id);
+    references.value = await sql.sqlReferences();
+    message.value = '文件已删除';
+  });
+}
 async function createFile(path) { await action(async () => { const saved = await sql.saveSqlFile(projectId.value, { path, kind:'SQL', content:'', expectedVersion:0 }); files.value.push({ ...saved, draft:saved.content, draftBaseVersion:saved.version }); openFile(saved.id); }); }
 async function saveActive() {
   const file = activeFile.value; if (!file?.editable || preview.value) return;
@@ -122,7 +162,7 @@ async function generate() { await action(async () => {
   const id = projectId.value, text = prompt.value.trim();
   if (!text) return;
   const request = sqlConversationPrompt(text, chatTurns.value, selectedCode.value);
-  const prepared = await sql.prepareSqlGeneration(id, { prompt:request, dialect:dialect.value, mappingIds:mappingIds.value, referenceIds:referenceIds.value, agentId:agentId.value || null, modelName:modelName.value || null });
+  const prepared = await sql.prepareSqlGeneration(id, { prompt:request, dialect:dialect.value, mappingIds:mappingIds.value, referenceIds:referenceIds.value, agentId:executionMode.value === 'agent' ? agentId.value || null : null, modelName:executionMode.value === 'model' ? modelName.value || null : null });
   chatTurns.value.push({ id:`user:${prepared.generationId}`, role:'user', text, generationId:prepared.generationId });
   chatTurns.value.push({ id:`assistant:${prepared.generationId}`, role:'assistant', text:'正在由 Agent 分析工程上下文…', generationId:prepared.generationId });
   prompt.value = ''; selectedCode.value = null;
@@ -186,7 +226,7 @@ onMounted(async () => {
 onActivated(() => { active = true; if (initialized) refreshGeneration(); });
 onDeactivated(() => { active = false; clearTimeout(pollTimer); persist(); });
 onBeforeUnmount(() => { active = false; resizeCleanup?.(); clearTimeout(pollTimer); clearTimeout(draftTimer); persist(); window.removeEventListener('beforeunload', beforeUnload); });
-  return { dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, createFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile };
+  return { dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary };
 
   }
 };

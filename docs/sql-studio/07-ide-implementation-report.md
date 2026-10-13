@@ -1,6 +1,6 @@
 # SQL Studio IDE 化实施与回归记录
 
-日期：2026-10-13。分支：`feature/sql-studio-mvp`。本轮实施基于 [复用审查](06-ide-reuse-review.md)，未修改 Agent Runtime Core、认证或数据库结构，未连接生产数据库。本轮未发布到服务器；截图由本地真实 Chromium + HTTP fixture 生成，不能作为线上真实模型生成证明。
+日期：2026-10-13。分支：`feature/sql-studio-mvp`。本轮实施基于 [复用审查](06-ide-reuse-review.md)，未修改 Agent Runtime Core、认证或数据库结构，未连接生产数据库。本文先记录本地验收；随后实际部署与线上验证见 [生产发布记录](08-ide-production-deployment.md)。本地截图由真实 Chromium + HTTP fixture 生成，不能作为线上真实模型生成证明。
 
 ## 已实现的交互
 

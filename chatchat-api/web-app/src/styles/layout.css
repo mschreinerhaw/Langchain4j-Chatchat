@@ -1474,3 +1474,6 @@
     width: 100%;
   }
 }
+
+.workspace-studio .assistant-main { grid-template-columns: minmax(0, 1fr); }
+.workspace-studio .assistant-right { display: none; }

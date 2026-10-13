@@ -2049,3 +2049,25 @@ CREATE TABLE IF NOT EXISTS runtime_evidence_entry (
  lineage_json longtext
 );
 CREATE INDEX idx_runtime_evidence_partition ON runtime_evidence_entry(partition_id,entry_kind,stored_at);
+
+-- Workspace additive schema (seeds run after enterprise identity initialization).
+-- Additive migration; do not delete legacy sessions, tasks, files, grants or menus.
+CREATE TABLE IF NOT EXISTS workspace_registry (
+ id VARCHAR(64) PRIMARY KEY, status VARCHAR(32) NOT NULL,
+ access_permission_code VARCHAR(128) NOT NULL, manifest_json LONGTEXT NOT NULL,
+ default_workspace BOOLEAN NOT NULL DEFAULT false, version BIGINT DEFAULT 0,
+ created_at DATETIME(6) NOT NULL, updated_at DATETIME(6) NOT NULL
+);
+CREATE TABLE IF NOT EXISTS workspace_user_preference (
+ id VARCHAR(64) PRIMARY KEY, tenant_id VARCHAR(64) NOT NULL, user_id VARCHAR(64) NOT NULL,
+ default_workspace_id VARCHAR(64), last_workspace_id VARCHAR(64), version BIGINT DEFAULT 0,
+ created_at DATETIME(6) NOT NULL, updated_at DATETIME(6) NOT NULL,
+ CONSTRAINT uk_workspace_preference_user UNIQUE (tenant_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS workspace_resource_origin (
+ id VARCHAR(64) PRIMARY KEY, tenant_id VARCHAR(64) NOT NULL,
+ resource_type VARCHAR(32) NOT NULL, resource_id VARCHAR(128) NOT NULL,
+ workspace_id VARCHAR(64) NOT NULL, creator_user_id VARCHAR(64) NOT NULL,
+ created_at DATETIME(6) NOT NULL, updated_at DATETIME(6) NOT NULL,
+ CONSTRAINT uk_workspace_origin_resource UNIQUE (tenant_id, resource_type, resource_id)
+);

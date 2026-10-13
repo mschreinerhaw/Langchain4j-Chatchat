@@ -77,9 +77,9 @@ class RuntimeOsArchitectureBoundaryTest {
             .doesNotContain("import org.springframework.", "import dev.langchain4j.",
                 "import com.google.adk.", "import com.openai.", "import jakarta.persistence.");
         assertThat(source(
-            "chatchat-runtime-skill/src/main/java/com/chatchat/runtime/skill/spi/AgentRuntimeAdapter.java"))
+            "chatchat-runtime-skill/src/main/java/com/chatchat/runtime/skill/port/outbound/AgentRuntimeAdapter.java"))
             .contains("interface AgentRuntimeAdapter", "boolean supports(String engine)",
-                "ExecutionResult execute(ExecutionRequest request)");
+                "RuntimeAgentExecutionResult execute(RuntimeAgentExecutionRequest request)");
     }
 
     @Test
@@ -177,7 +177,7 @@ class RuntimeOsArchitectureBoundaryTest {
 
     @Test
     void publicMcpRuntimeApiDependsOnlyOnProtocolAndApplicationPort() {
-        String controller = source("chatchat-api/src/main/java/com/chatchat/api/controller/McpRuntimeBridgeController.java");
+        String controller = source("chatchat-api/src/main/java/com/chatchat/api/controller/mcp/McpRuntimeBridgeController.java");
         assertThat(controller).doesNotContain("com.chatchat.integration", "McpToolRegistryBridge", "McpGatewayClient");
         assertThat(source("chatchat-api/src/main/java/com/chatchat/api/service/McpRuntimeAccessService.java"))
             .contains("McpRuntimeTransportPort", "@Qualifier(\"mcpRuntimeTransportPort\")")
@@ -212,7 +212,7 @@ class RuntimeOsArchitectureBoundaryTest {
         assertThat(port).contains("interface McpAdministrationPort extends RuntimeProtocolPort",
             "runtime_os.mcp.administration.v1");
 
-        String controller = source("chatchat-api/src/main/java/com/chatchat/api/controller/McpServiceController.java");
+        String controller = source("chatchat-api/src/main/java/com/chatchat/api/controller/mcp/McpServiceController.java");
         assertThat(controller).contains("private final McpAdministrationPort administrationPort");
         assertThat(controller).doesNotContain("com.chatchat.integration", "com.chatchat.agents",
             "McpToolRegistryBridge", "McpServiceConfigService", "McpStdioProxyService");

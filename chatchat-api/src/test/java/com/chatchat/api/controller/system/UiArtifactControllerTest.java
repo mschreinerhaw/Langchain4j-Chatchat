@@ -33,6 +33,7 @@ class UiArtifactControllerTest {
             .thenReturn(Optional.of(Map.of("artifactId", "ui-1")));
 
         mockMvc.perform(get("/api/v1/ui-artifacts/ui-1")
+                .accept(org.springframework.http.MediaType.APPLICATION_JSON)
                 .requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-a"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.artifactId").value("ui-1"));
@@ -44,6 +45,7 @@ class UiArtifactControllerTest {
             .thenReturn(Optional.of("report"));
 
         mockMvc.perform(get("/api/v1/ui-artifacts/ui-1/resources/answer")
+                .accept(org.springframework.http.MediaType.APPLICATION_JSON)
                 .requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-a"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data").value("report"));

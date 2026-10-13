@@ -24,6 +24,10 @@
         <!-- Internal -->
         <dependency>
             <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-platform-spring</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.chatchat</groupId>
             <artifactId>chatchat-common</artifactId>
         </dependency>
         <dependency>

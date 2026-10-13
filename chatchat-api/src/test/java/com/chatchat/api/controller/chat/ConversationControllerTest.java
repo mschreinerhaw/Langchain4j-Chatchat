@@ -40,6 +40,10 @@ public class ConversationControllerTest {
     @MockBean
     private ChatModel chatModel;
 
+    // Storage/HTTP tests do not start Agent execution; publication has its own integration suite.
+    @MockBean
+    private com.chatchat.chat.interaction.service.DatabaseRuntimeSemanticPolicySource semanticPolicySource;
+
     @Test
     public void testCreateConversation() throws Exception {
         String requestBody = objectMapper.writeValueAsString(

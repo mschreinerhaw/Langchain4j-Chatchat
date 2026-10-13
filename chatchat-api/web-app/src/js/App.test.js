@@ -193,7 +193,7 @@ describe("document Ask AI conversation isolation", () => {
       tenantName: "",
       loadTrendSemanticConfig: vi.fn(),
       consumeRedirectView: vi.fn(() => "library"),
-      loadEnterpriseMenus: vi.fn(async () => sequence.push("menus")),
+      loadWorkspaces: vi.fn(async () => sequence.push("authorized-workspace")),
       reconcileAuthorizedRoute: vi.fn((view) => sequence.push(`route:${view}`)),
       stopIdleLogoutWatcher: vi.fn(),
       startIdleLogoutWatcher: vi.fn(),
@@ -209,8 +209,8 @@ describe("document Ask AI conversation isolation", () => {
       user: { id: "user-1", username: "admin", tenantId: "tenant-1" }
     });
 
-    expect(context.loadEnterpriseMenus).toHaveBeenCalledWith({ reconcileRoute: false });
-    expect(sequence).toEqual(["menus", "route:library"]);
+    expect(context.loadWorkspaces).toHaveBeenCalledWith({ choose: true, requestedView: "library" });
+    expect(sequence).toEqual(["authorized-workspace"]);
   });
 
   it("shows the matching title for each system management page", () => {

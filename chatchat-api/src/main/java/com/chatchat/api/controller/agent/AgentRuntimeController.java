@@ -109,7 +109,7 @@ public class AgentRuntimeController {
             return ApiResponse.success(agentRuntime.list(new AgentRunQuery(
                 parseStatus(status),
                 scopedTenantId,
-                userId,
+                firstText(userId, requestAttribute(request, ApiAuthenticationFilter.CURRENT_USER_ID)),
                 conversationId,
                 valueOrDefault(limit, 50),
                 valueOrDefault(offset, 0)

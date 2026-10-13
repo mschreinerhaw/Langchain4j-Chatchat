@@ -449,6 +449,17 @@ public class AgentTaskService {
         );
     }
 
+    public AgentTaskPage listOwned(String tenantId, java.util.Set<String> owners, String sessionId,
+                                   String keyword, String status, int page, int pageSize) {
+        int size = Math.max(1, Math.min(100, pageSize));
+        int number = Math.max(1, page);
+        Page<AgentTaskLatestEntity> result = latestRepository.searchOwned(requireTenant(tenantId), owners,
+            sessionId == null ? "" : sessionId.trim(), keyword == null ? "" : keyword.trim(),
+            status == null ? "" : status.trim(), PageRequest.of(number - 1, size));
+        return new AgentTaskPage(result.stream().map(AgentTaskResponse::from).toList(),
+            result.getTotalElements(), number, size, result.getTotalPages());
+    }
+
     public record AgentTaskPage(
         List<AgentTaskResponse> items,
         long total,

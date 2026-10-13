@@ -1,5 +1,6 @@
 const CHAT_RUNTIME_STATE_KEY = "chatchat.chatRuntime.state";
 const CHAT_RUNTIME_STATE_VERSION = 1;
+import { workspaceStorageKey, getWorkspaceContext } from "./workspaceContext";
 const CHAT_RUNTIME_STATE_TTL_MS = 30 * 60 * 1000;
 const ACTIVE_STATUSES = new Set(["running", "streaming", "pending", "waiting"]);
 const TERMINAL_STATUSES = new Set(["completed", "success", "partial", "empty", "failed", "cancelled", "killed", "rejected"]);
@@ -20,6 +21,7 @@ function normalizeEntry(entry = {}) {
   const status = normalizeStatus(entry.status || "running");
   return {
     conversationId: String(entry.conversationId || entry.historyId || "").trim(),
+    workspaceContext: entry.workspaceContext || getWorkspaceContext(),
     messageId: String(entry.messageId || "").trim(),
     taskId: String(entry.taskId || "").trim(),
     question: String(entry.question || "").trim(),
@@ -50,12 +52,13 @@ export function isRuntimeStateTerminalStatus(status = "") {
   return TERMINAL_STATUSES.has(normalizeStatus(status));
 }
 
-export function readChatRuntimeState() {
-  if (!canUseLocalStorage()) {
+export function readChatRuntimeState(context = getWorkspaceContext()) {
+  const storageKey = workspaceStorageKey(CHAT_RUNTIME_STATE_KEY, context);
+  if (!canUseLocalStorage() || !storageKey) {
     return { version: CHAT_RUNTIME_STATE_VERSION, updatedAt: now(), entries: {} };
   }
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(CHAT_RUNTIME_STATE_KEY) || "null");
+    const parsed = JSON.parse(window.localStorage.getItem(storageKey) || "null");
     const entries = parsed && typeof parsed === "object" && parsed.entries && typeof parsed.entries === "object"
       ? parsed.entries
       : {};
@@ -74,12 +77,13 @@ export function readChatRuntimeState() {
   }
 }
 
-function writeChatRuntimeState(state) {
-  if (!canUseLocalStorage()) {
+function writeChatRuntimeState(state, context = getWorkspaceContext()) {
+  const storageKey = workspaceStorageKey(CHAT_RUNTIME_STATE_KEY, context);
+  if (!canUseLocalStorage() || !storageKey) {
     return;
   }
   try {
-    window.localStorage.setItem(CHAT_RUNTIME_STATE_KEY, JSON.stringify({
+    window.localStorage.setItem(storageKey, JSON.stringify({
       version: CHAT_RUNTIME_STATE_VERSION,
       updatedAt: now(),
       entries: state.entries || {}
@@ -102,16 +106,17 @@ export function upsertChatRuntimeState(entry = {}) {
     clearChatRuntimeState(normalized);
     return;
   }
-  const state = readChatRuntimeState();
+  const state = readChatRuntimeState(normalized.workspaceContext);
   state.entries[key] = normalized;
-  writeChatRuntimeState(state);
+  writeChatRuntimeState(state, normalized.workspaceContext);
 }
 
 export function clearChatRuntimeState(match = {}) {
   const conversationId = String(match.conversationId || match.historyId || "").trim();
   const taskId = String(match.taskId || "").trim();
   const messageId = String(match.messageId || "").trim();
-  const state = readChatRuntimeState();
+  const context = match.workspaceContext || getWorkspaceContext();
+  const state = readChatRuntimeState(context);
   const entries = Object.fromEntries(
     Object.entries(state.entries || {}).filter(([, entry]) => {
       if (conversationId && entry.conversationId === conversationId) {
@@ -126,15 +131,15 @@ export function clearChatRuntimeState(match = {}) {
       return true;
     })
   );
-  writeChatRuntimeState({ ...state, entries });
+  writeChatRuntimeState({ ...state, entries }, context);
 }
 
-export function runtimeStateForConversation(conversation = {}) {
+export function runtimeStateForConversation(conversation = {}, context = getWorkspaceContext()) {
   const ids = new Set([conversation.id, conversation.conversationId].filter(Boolean).map(String));
   const messages = Array.isArray(conversation.messages) ? conversation.messages : [];
   const messageIds = new Set(messages.map((message) => message?.id).filter(Boolean).map(String));
   const taskIds = new Set(messages.map((message) => message?.taskId).filter(Boolean).map(String));
-  return Object.values(readChatRuntimeState().entries || {}).find((entry) =>
+  return Object.values(readChatRuntimeState(context).entries || {}).find((entry) =>
     isFresh(entry)
     && isRuntimeStateActiveStatus(entry.status)
     && (
@@ -145,12 +150,12 @@ export function runtimeStateForConversation(conversation = {}) {
   ) || null;
 }
 
-export function mergeChatRuntimeState(conversation = {}) {
+export function mergeChatRuntimeState(conversation = {}, context = getWorkspaceContext()) {
   const backendStatus = normalizeStatus(conversation.status);
   if (isRuntimeStateTerminalStatus(backendStatus)) {
     return conversation;
   }
-  const entry = runtimeStateForConversation(conversation);
+  const entry = runtimeStateForConversation(conversation, context);
   if (!entry) {
     return conversation;
   }

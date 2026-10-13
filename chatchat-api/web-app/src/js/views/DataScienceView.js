@@ -64,12 +64,15 @@ const defaultInputSchema = `{
 }`;
 
 const workspaceLayoutDefaults = { explorer: 238, ai: 330, bottom: 250 };
+import { workspaceStorageKey } from "../utils/workspaceContext";
+import { saveWorkspaceDraft, readWorkspaceDraft, ownedPythonDraftTabs } from "../utils/workspaceDrafts";
 const workspaceLayoutStorageKey = "chatchat.python-studio.layout.v1";
 
 export default {
   name: "DataScienceView",
   components: { PythonCodeDiff },
   props: {
+    workspaceContext: { type: Object, default: null },
     initialTab: {
       type: String,
       default: "environment"
@@ -84,6 +87,8 @@ export default {
     errorTimer: null,
     message: "",
     messageTimer: null,
+    draftSaveTimer: null,
+    draftRestored: false,
     assets: [],
     scripts: [],
     folders: [],
@@ -418,6 +423,7 @@ export default {
       handler(value) {
         const activeTab = this.editorTabs.find((item) => item.key === this.activeEditorTabKey);
         if (activeTab) activeTab.form = { ...value };
+        this.scheduleWorkspaceDraft();
       }
     },
     "form.sourceCode"(value) {
@@ -428,7 +434,9 @@ export default {
   mounted() {
     this.restoreWorkspaceLayout();
     this.load();
+    window.addEventListener("beforeunload", this.persistWorkspaceDraft);
   },
+  deactivated() { this.persistWorkspaceDraft(); },
   activated() {
     if (this.tab === "develop")
       nextTick(() => {
@@ -437,6 +445,9 @@ export default {
       });
   },
   beforeUnmount() {
+    this.persistWorkspaceDraft();
+    clearTimeout(this.draftSaveTimer);
+    window.removeEventListener("beforeunload", this.persistWorkspaceDraft);
     this.stopAiProgress();
     this.stopPaneResize();
     this.clearErrorTimer();
@@ -445,6 +456,31 @@ export default {
     this.finishIdeDialog(false);
   },
   methods: {
+    scheduleWorkspaceDraft() {
+      clearTimeout(this.draftSaveTimer);
+      this.draftSaveTimer = setTimeout(() => this.persistWorkspaceDraft(), 300);
+    },
+    persistWorkspaceDraft() {
+      if (!this.draftRestored) return;
+      this.captureActiveEditorTab();
+      saveWorkspaceDraft("chatchat.pythonDraft.v1", this.workspaceContext, {
+        tabs: this.editorTabs.map(({ key, form, parametersText, inputSchemaText }) =>
+          ({ key, form, parametersText, inputSchemaText })), activeKey: this.activeEditorTabKey, tab: this.tab,
+        selectedDataFileId: this.selectedDataFileId
+      });
+    },
+    restoreWorkspaceDraft() {
+      if (this.draftRestored) return;
+      this.draftRestored = true;
+      const stored = readWorkspaceDraft("chatchat.pythonDraft.v1", this.workspaceContext);
+      const tabs = ownedPythonDraftTabs(stored?.tabs, this.scripts, this.assets);
+      if (tabs.length) {
+        this.editorTabs = tabs;
+        const active = tabs.find((tab) => tab.key === stored.activeKey) || tabs[0];
+        this.activateEditorTab(active, { navigate: false });
+      }
+      if (this.dataFiles.some((file) => file.id === stored?.selectedDataFileId)) this.selectedDataFileId = stored.selectedDataFileId;
+    },
     navigateToSection(section) {
       const routes = {
         environment: "dataScienceEnvironment",
@@ -493,6 +529,7 @@ export default {
           if (this.scripts[0]) this.selectScript(this.scripts[0], false);
           else this.newScript(false);
         }
+        this.restoreWorkspaceDraft();
       } catch (error) {
         this.showTransientError(errorMessage(error, "工作台加载失败"));
       } finally {
@@ -1307,7 +1344,8 @@ export default {
     },
     restoreWorkspaceLayout() {
       try {
-        const stored = JSON.parse(globalThis.localStorage?.getItem(workspaceLayoutStorageKey) || "{}");
+        const key = workspaceStorageKey(workspaceLayoutStorageKey, this.workspaceContext);
+        const stored = JSON.parse((key ? globalThis.localStorage?.getItem(key) : null) || "{}");
         this.explorerWidth = this.clamp(Number(stored.explorer), 180, 480, workspaceLayoutDefaults.explorer);
         this.aiWidth = this.clamp(Number(stored.ai), 260, 620, workspaceLayoutDefaults.ai);
         this.bottomHeight = this.clamp(Number(stored.bottom), 100, 520, workspaceLayoutDefaults.bottom);
@@ -1319,7 +1357,9 @@ export default {
     },
     persistWorkspaceLayout() {
       try {
-        globalThis.localStorage?.setItem(workspaceLayoutStorageKey, JSON.stringify({
+        const key = workspaceStorageKey(workspaceLayoutStorageKey, this.workspaceContext);
+        if (!key) return;
+        globalThis.localStorage?.setItem(key, JSON.stringify({
           explorer: this.explorerWidth,
           ai: this.aiWidth,
           bottom: this.bottomHeight

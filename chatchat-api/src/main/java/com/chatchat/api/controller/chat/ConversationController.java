@@ -24,6 +24,7 @@ import java.util.Map;
 public class ConversationController {
 
     private final ConversationService conversationService;
+    private final com.chatchat.api.workspace.WorkspaceOriginService workspaceOrigins;
 
     /**
      * Create a new conversation
@@ -32,7 +33,7 @@ public class ConversationController {
     @Operation(summary = "Create a new conversation")
     public ApiResponse<Conversation> createConversation(@RequestBody CreateConversationRequest request,
                                                         HttpServletRequest servletRequest) {
-        Conversation conversation = conversationService.createConversation(
+        Conversation conversation = workspaceOrigins.create(servletRequest,
             resolveTenantId(servletRequest, request.tenantId()),
             request.userId(),
             request.title()

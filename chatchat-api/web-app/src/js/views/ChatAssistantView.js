@@ -2,6 +2,7 @@
 import PromptComposer from "../../components/PromptComposer.vue";
 import { visualizationCapabilities } from '../utils/visualizationCapabilities.js';
 import { Trash2 } from "@lucide/vue";
+import { saveWorkspaceDraft, readWorkspaceDraft } from "../utils/workspaceDrafts";
 import {
   analyzeChatImage,
   apiRequest,
@@ -1628,6 +1629,7 @@ export default {
     Trash2
   },
   props: {
+    workspaceContext: { type: Object, default: null },
     selectedConversation: {
       type: Object,
       default: null
@@ -1843,6 +1845,8 @@ export default {
     }
   },
   mounted() {
+    const draft = readWorkspaceDraft("chatchat.composerDraft.v1", this.workspaceContext);
+    if (!this.question && typeof draft?.question === "string") this.question = draft.question.slice(0, 200000);
     this.loadAgents();
     this.stopAgentTaskCancelledListener = onAgentTaskCancelled(this.handleAgentTaskCancelled);
   },
@@ -1857,6 +1861,9 @@ export default {
     });
   },
   watch: {
+    question(value) {
+      saveWorkspaceDraft("chatchat.composerDraft.v1", this.workspaceContext, { question: String(value || "").slice(0, 200000) });
+    },
     selectedConversation(conversation) {
       if (conversation) {
         this.restoreConversation(conversation);
@@ -2650,6 +2657,7 @@ export default {
     },
     createRunContext(question, analysisNode = null) {
       return {
+        workspaceContext: this.workspaceContext ? { ...this.workspaceContext } : null,
         runId: uid(),
         historyId: this.historyId,
         question,
@@ -3295,6 +3303,7 @@ export default {
       this.syncChatRuntimeState(context, question, status, messages);
       this.$emit("conversation-active", {
         id: context.historyId,
+        workspaceId: context.workspaceContext?.workspaceId,
         question,
         conversationId: context.conversationId,
         mode: context.mode,
@@ -3318,6 +3327,7 @@ export default {
       }
       const entry = {
         conversationId,
+        workspaceContext: context.workspaceContext || this.workspaceContext,
         messageId: assistantMessage?.id || "",
         taskId,
         question,
@@ -3346,6 +3356,7 @@ export default {
       try {
         const history = await saveConversationHistory({
           historyId: context.conversationId || context.historyId,
+          workspaceContext: context.workspaceContext || this.workspaceContext,
           tenantId: this.effectiveTenantId(),
           userId: this.userId,
           question: boundQuestionForPersistence(question),
@@ -3360,12 +3371,14 @@ export default {
         });
         this.$emit("history-saved", {
           history,
+          workspaceId: context.workspaceContext?.workspaceId,
           activeHistoryId: active ? context.conversationId || context.historyId : "",
           activeStatus: active ? status : ""
         });
       } catch (error) {
         this.$emit("history-saved", {
           history: null,
+          workspaceId: context.workspaceContext?.workspaceId,
           activeHistoryId: active ? context.conversationId || context.historyId : "",
           activeStatus: active ? status : ""
         });
@@ -3432,7 +3445,7 @@ export default {
       }
     },
     restoreConversation(conversation) {
-      conversation = mergeChatRuntimeState(conversation || {});
+      conversation = mergeChatRuntimeState(conversation || {}, this.workspaceContext);
       const runningContext = conversation?.id ? this.runningContexts[conversation.id] : null;
       if (runningContext) {
         this.question = "";
@@ -3455,7 +3468,7 @@ export default {
       if (this.loading && conversation.id === this.historyId) {
         const lastUserMessage = [...this.messages].reverse().find((message) => message.role === "user");
         this.emitActiveConversationSnapshot(lastUserMessage?.content || conversation.question || "", "running");
-        this.$emit("conversation-active", { id: this.historyId });
+        this.$emit("conversation-active", { id: this.historyId, workspaceId: this.workspaceContext?.workspaceId });
         this.scrollMessages();
         return;
       }
@@ -3498,6 +3511,7 @@ export default {
       this.$emit("conversation-active", {
         id: this.historyId,
         question: restoredQuestion,
+        workspaceId: this.workspaceContext?.workspaceId,
         conversationId: this.conversationId,
         mode: this.selectedAgentId ? this.agentInteractionMode() : "llm_chat",
         skillId: this.selectedAgentId || "",

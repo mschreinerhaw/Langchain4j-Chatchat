@@ -29,6 +29,8 @@ import { clearChatRuntimeState, mergeChatRuntimeState } from "./utils/chatRuntim
 import { configureTrendSemantics } from "./utils/trendSemantics";
 import { errorMessage } from "./utils/uiFormatters";
 import floatingDrag from "./directives/floatingDrag";
+import { fetchWorkspaces, fetchWorkspaceManifest, fetchWorkspacePreferences, saveWorkspacePreferences } from "../services/api";
+import { parseWorkspaceRoute, chooseWorkspace, setWorkspaceContext } from "./utils/workspaceContext";
 import "../styles/app.css";
 import "../styles/components/dialog-close.css";
 
@@ -110,13 +112,17 @@ const views = {
 };
 
 function currentHashRoute() {
-  return decodeURIComponent(window.location.hash || "")
+  let decoded;
+  try { decoded = decodeURIComponent(window.location.hash || ""); } catch (_) { return ""; }
+  return decoded
     .replace(/^#\/?/, "")
     .split("?")[0]
     .trim();
 }
 
 function viewFromHash() {
+  const workspaceRoute = parseWorkspaceRoute(window.location.hash || "");
+  if (workspaceRoute.workspaceId) return workspaceRoute.pageId;
   const route = currentHashRoute();
   if (route === "dataScience") return "dataScienceEnvironment";
   if (route === "system") return "systemUsers";
@@ -187,9 +193,22 @@ export default {
       lastActivityAt: Date.now(),
       navItems: [],
       menuAuthorizationReady: false
+      , workspaceItems: [], currentWorkspace: null, workspacePages: [], workspaceContexts: {},
+      workspaceNavigationSerial: 0, workspaceBootstrapSerial: 0, workspaceLoading: false, workspaceError: "", workspaceReady: false,
+      showWorkspaceSelection: false
     };
   },
   computed: {
+    workspaceContext() {
+      return this.currentWorkspace ? { tenantId: this.tenantId, userId: this.authSession?.user?.id,
+        workspaceId: this.currentWorkspace.workspaceId, configVersion: this.currentWorkspace.configVersion } : null;
+    },
+    workspaceComponentKey() {
+      const page = this.workspacePages.find((candidate) => candidate.id === this.activeView);
+      const component = views[page?.componentKey || this.activeView];
+      const stateDomain = Object.keys(views).find((key) => views[key] === component) || this.activeView;
+      return `${this.tenantId}:${this.authSession?.user?.id}:${this.currentWorkspace?.workspaceId}:${stateDomain}`;
+    },
     visibleNavItems() {
       return this.navItems.map((group) => ({
         ...group,
@@ -207,19 +226,25 @@ export default {
       if (!this.menuAuthorizationReady) {
         return AsyncViewState;
       }
-      return this.canAccessView(this.activeView) ? (views[this.activeView] || ChatAssistantView) : AccessDeniedView;
+      const page = this.workspacePages?.find((candidate) => candidate.id === this.activeView);
+      return this.canAccessView(this.activeView) ? (views[page?.componentKey || this.activeView] || AccessDeniedView) : AccessDeniedView;
     },
     activeComponentProps() {
+      const pageProps = this.workspacePages?.find((page) => page.id === this.activeView)?.props || {};
       return this.activeView === "chat"
         ? {
+            ...pageProps,
             userId: this.userId,
             tenantId: this.tenantId,
             selectedConversation: this.selectedConversation,
             pendingDraft: this.pendingChatDraft
+            , workspaceContext: this.workspaceContext
           }
         : {
+            ...pageProps,
             userId: this.userId,
             tenantId: this.tenantId,
+            workspaceContext: this.workspaceContext,
             ...(DATA_SCIENCE_TABS[this.activeView]
               ? { initialTab: DATA_SCIENCE_TABS[this.activeView] }
               : {}),
@@ -250,9 +275,7 @@ export default {
     this.stopAgentTaskCancelledListener = onAgentTaskCancelled(this.handleAgentTaskCancelled);
     if (isAuthenticatedSession(this.authSession)) {
       this.loadTrendSemanticConfig();
-      this.loadEnterpriseMenus();
       this.refreshAuthSession();
-      this.ensureAuthenticatedRoute();
       this.loadConversationHistory({ suppressError: true });
       this.loadFavoriteConversationIds();
       this.loadRuntimeTodos({ silent: true, suppressError: true });
@@ -277,8 +300,91 @@ export default {
     this.stopTodoTimeoutKill();
   },
   methods: {
+    async loadWorkspaces({ choose = false, requestedView = "" } = {}) {
+      if (!isAuthenticatedSession(this.authSession)) return;
+      const bootstrap = this.workspaceBootstrapSerial = (this.workspaceBootstrapSerial || 0) + 1;
+      const identity = this.authSession.user.id;
+      this.workspaceLoading = true;
+      this.workspaceError = "";
+      try {
+        const [items, preference] = await Promise.all([fetchWorkspaces(), fetchWorkspacePreferences()]);
+        if (!isAuthenticatedSession(this.authSession) || bootstrap !== this.workspaceBootstrapSerial
+            || identity !== this.authSession.user.id) return;
+        this.workspaceItems = items;
+        const route = parseWorkspaceRoute(window.location.hash || "");
+        const target = chooseWorkspace(items, route, preference);
+        if (!target || route.invalid) {
+          this.workspaceError = route.workspaceId || route.invalid ? "无权访问此工作空间或地址无效" : "当前账户没有可用工作空间";
+          this.showWorkspaceSelection = true; this.navItems = []; this.workspaceReady = false;
+          return;
+        }
+        await this.switchWorkspace(target.workspaceId, route.pageId || requestedView || route.legacyView);
+        if (route.selection || (choose && items.length > 1 && !route.workspaceId && !route.legacyView))
+          this.openWorkspaceSelection();
+      } catch (error) {
+        if (bootstrap !== this.workspaceBootstrapSerial || identity !== this.authSession?.user?.id) return;
+        this.workspaceError = errorMessage(error, "工作空间加载失败");
+        this.navItems = []; this.workspaceReady = false; this.showWorkspaceSelection = true;
+      } finally { if (bootstrap === this.workspaceBootstrapSerial) this.workspaceLoading = false; }
+    },
+    async switchWorkspace(id, requestedPage = "") {
+      const serial = ++this.workspaceNavigationSerial;
+      const identity = this.authSession?.user?.id;
+      this.workspaceLoading = true; this.workspaceError = "";
+      try {
+        const loaded = await fetchWorkspaceManifest(id);
+        if (serial !== this.workspaceNavigationSerial || identity !== this.authSession?.user?.id || !this.authSession) return;
+        const manifest = loaded.manifest;
+        const pages = manifest.pages.filter((page) => views[page.componentKey]);
+        if (pages.length === 0) throw new Error("当前工作空间没有授权页面");
+        if (parseWorkspaceRoute(window.location.hash || "").workspaceId && requestedPage
+            && !pages.some((page) => page.id === requestedPage)) throw new Error("无权访问该工作空间页面");
+        const from = this.currentWorkspace?.workspaceId;
+        if (from && from !== id) this.workspaceContexts[from] = {
+          activeView: this.activeView, selectedConversation: this.selectedConversation, activeHistoryId: this.activeHistoryId,
+          pendingChatDraft: this.pendingChatDraft, pendingDocumentShortcut: this.pendingDocumentShortcut,
+          pendingAnalysisProvider: this.pendingAnalysisProvider
+        };
+        const saved = this.workspaceContexts[id] || {};
+        const pageIds = new Set(pages.map((page) => page.id));
+        const selected = [requestedPage, saved.activeView, manifest.entryPage, pages[0].id].find((page) => pageIds.has(page));
+        const convert = (node) => {
+          const children = node.children.map(convert).filter(Boolean);
+          const page = pages.find((candidate) => candidate.menuCode === node.id);
+          if (!page && !children.length) return null;
+          return { id: page?.id || node.id, label: node.title, icon: node.icon, ...(children.length ? { children } : {}) };
+        };
+        this.currentWorkspace = manifest; this.workspacePages = pages;
+        this.navItems = loaded.menus.map((group) => ({ id: group.id, label: group.title,
+          items: (pages.some((page) => page.menuCode === group.id) ? [group] : group.children).map(convert).filter(Boolean) })).filter((group) => group.items.length);
+        if (from !== id) {
+          this.selectedConversation = saved.selectedConversation || null; this.activeHistoryId = saved.activeHistoryId || "";
+          this.pendingChatDraft = saved.pendingChatDraft || null; this.pendingDocumentShortcut = saved.pendingDocumentShortcut || null;
+          this.pendingAnalysisProvider = saved.pendingAnalysisProvider || null;
+        }
+        this.activeView = selected; this.workspaceReady = true; this.menuAuthorizationReady = true;
+        this.showWorkspaceSelection = false;
+        setWorkspaceContext({ tenantId: this.tenantId, userId: identity, workspaceId: id, configVersion: manifest.configVersion });
+        this.setHashRoute(`w/${id}/${selected}`);
+        saveWorkspacePreferences({ lastWorkspaceId: id }).catch(() => {});
+      } catch (error) {
+        if (serial === this.workspaceNavigationSerial) {
+          this.workspaceError = errorMessage(error, "工作空间切换失败");
+          if (!this.workspaceReady) this.showWorkspaceSelection = true;
+        }
+      } finally { if (serial === this.workspaceNavigationSerial) this.workspaceLoading = false; }
+    },
+    openWorkspaceSelection() { this.showWorkspaceSelection = true; this.setHashRoute("workspaces"); },
+    async useDefaultWorkspace(id) {
+      try { await saveWorkspacePreferences({ defaultWorkspaceId: id }); await this.switchWorkspace(id); }
+      catch (error) { this.workspaceError = errorMessage(error, "默认工作空间保存失败"); }
+    },
     async loadEnterpriseMenus({ reconcileRoute = true } = {}) {
       if (!isAuthenticatedSession(this.authSession)) return;
+      if (this.workspaceReady && this.currentWorkspace) {
+        await this.switchWorkspace(this.currentWorkspace.workspaceId, this.activeView);
+        return;
+      }
       try {
         const groups = await fetchEnterpriseMenus();
         const toNavItem = (node) => {
@@ -327,6 +433,7 @@ export default {
       return user.permissionCodes.includes(permissionCode);
     },
     canAccessView(view) {
+      if (this.workspaceReady && !this.workspacePages.some((page) => page.id === view)) return false;
       const contains = (items) => (Array.isArray(items) ? items : []).some((item) =>
         item?.id === view || contains(item?.children));
       return this.navItems.some((group) => contains(group?.items));
@@ -356,7 +463,7 @@ export default {
         this.tenantId = resolveSessionTenantId(session, this.userId);
         this.tenantName = user.tenantName || user.tenant_name || "";
         storeAuthSession(session);
-        await this.loadEnterpriseMenus();
+        await this.loadWorkspaces();
         if (!this.canAccessView(this.activeView)) {
           const fallback = this.firstAccessibleView();
           if (fallback) this.navigateToView(fallback);
@@ -378,8 +485,7 @@ export default {
       this.tenantName = sessionUser.tenantName || sessionUser.tenant_name || "";
       this.loadTrendSemanticConfig();
       const requestedView = this.consumeRedirectView() || viewFromHash() || DEFAULT_VIEW;
-      await this.loadEnterpriseMenus({ reconcileRoute: false });
-      this.reconcileAuthorizedRoute(requestedView);
+      await this.loadWorkspaces({ choose: true, requestedView });
       if (session?.embedded) {
         this.stopIdleLogoutWatcher();
       } else {
@@ -397,6 +503,11 @@ export default {
       this.handleUnauthenticated();
     },
     handleUnauthenticated() {
+      ++this.workspaceNavigationSerial;
+      this.workspaceBootstrapSerial = (this.workspaceBootstrapSerial || 0) + 1;
+      setWorkspaceContext(null);
+      this.currentWorkspace = null; this.workspacePages = []; this.workspaceItems = [];
+      this.workspaceContexts = {}; this.workspaceReady = false; this.showWorkspaceSelection = false;
       this.stopIdleLogoutWatcher();
       this.stopTodoRefresh();
       this.stopTodoTimeoutKill();
@@ -421,7 +532,22 @@ export default {
         this.handleUnauthenticated();
         return;
       }
+      const workspaceRoute = parseWorkspaceRoute(window.location.hash || "");
+      if (workspaceRoute.invalid) { this.workspaceError = "Workspace address is invalid"; this.showWorkspaceSelection = true; return; }
       const route = currentHashRoute();
+      if (workspaceRoute.selection) { this.showWorkspaceSelection = true; return; }
+      if (workspaceRoute.workspaceId && workspaceRoute.workspaceId !== this.currentWorkspace?.workspaceId) {
+        this.switchWorkspace(workspaceRoute.workspaceId, workspaceRoute.pageId); return;
+      }
+      if (workspaceRoute.invalid) { this.workspaceError = "工作空间地址无效"; this.showWorkspaceSelection = true; return; }
+      this.showWorkspaceSelection = false;
+      if (workspaceRoute.workspaceId) {
+        if (!this.canAccessView(workspaceRoute.pageId)) {
+          this.workspaceError = "Access to this workspace page is denied";
+          this.showWorkspaceSelection = true; return;
+        }
+        this.activeView = workspaceRoute.pageId; return;
+      }
       if (route === LOGIN_ROUTE) {
         this.navigateToView(DEFAULT_VIEW);
         return;
@@ -462,7 +588,7 @@ export default {
         return;
       }
       this.activeView = nextView;
-      this.setHashRoute(nextView);
+      this.setHashRoute(this.currentWorkspace ? `w/${this.currentWorkspace.workspaceId}/${nextView}` : nextView);
     },
     setHashRoute(route) {
       const nextHash = `#/${route}`;
@@ -1058,6 +1184,7 @@ export default {
       }
     },
     handleConversationActive(conversation) {
+      if (conversation?.workspaceId && conversation.workspaceId !== this.currentWorkspace?.workspaceId) return;
       if (conversation?.active !== false) {
         this.activeHistoryId = conversation?.id || "";
       }
@@ -1066,6 +1193,7 @@ export default {
       }
     },
     handleHistorySaved(payload) {
+      if (payload?.workspaceId && payload.workspaceId !== this.currentWorkspace?.workspaceId) return;
       const previousHistory = this.conversationHistory;
       const history = Array.isArray(payload?.history) ? payload.history : payload;
       if (Array.isArray(history)) {

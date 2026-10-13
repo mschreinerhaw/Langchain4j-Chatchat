@@ -21,6 +21,7 @@
     :favorite-saving-ids="favoriteSavingIds"
     :nav-items="visibleNavItems"
     :recent-conversations="recentConversations"
+    :layout-type="currentWorkspace?.layoutType || 'assistant'"
     :user-id="userId"
     @navigate="handleNavigate"
     @delete-conversation="deleteConversation"
@@ -33,8 +34,39 @@
     @select-conversation="selectConversation"
     @logout="handleLogout"
   >
+    <template #workspace-switcher>
+      <div class="workspace-switcher">
+        <label for="workspace-switch">工作空间</label>
+        <select id="workspace-switch" :value="currentWorkspace?.workspaceId || ''" :disabled="workspaceLoading"
+          @change="switchWorkspace($event.target.value)">
+          <option v-if="!currentWorkspace" value="" disabled>选择工作空间</option>
+          <option v-for="workspace in workspaceItems" :key="workspace.workspaceId" :value="workspace.workspaceId">{{ workspace.name }}</option>
+        </select>
+        <button type="button" @click="openWorkspaceSelection">选择</button>
+      </div>
+    </template>
+    <p v-if="workspaceError" class="workspace-error" role="alert">{{ workspaceError }}</p>
+    <div v-if="workspaceReady && !showWorkspaceSelection" class="workspace-extensions">
+      <button v-for="capability in currentWorkspace?.optionalCapabilities?.filter(item => item.state === 'reserved')"
+        :key="capability.id" type="button" disabled>{{ capability.name || '扩展能力' }}（规划中）</button>
+    </div>
+    <section v-if="showWorkspaceSelection || !workspaceReady" class="workspace-selection" aria-label="选择工作空间">
+      <h1>选择工作空间</h1>
+      <p>使用当前登录身份进入已授权的应用环境。</p>
+      <p v-if="workspaceLoading" role="status">正在加载工作空间…</p>
+      <div class="workspace-cards">
+        <article v-for="workspace in workspaceItems" :key="workspace.workspaceId" class="workspace-card">
+          <h2>{{ workspace.name }}</h2><p>{{ workspace.description }}</p>
+          <button type="button" :disabled="workspaceLoading" @click="switchWorkspace(workspace.workspaceId)">进入空间</button>
+          <button type="button" :disabled="workspaceLoading" @click="useDefaultWorkspace(workspace.workspaceId)">设为我的默认空间</button>
+        </article>
+      </div>
+      <button v-if="workspaceError" type="button" @click="loadWorkspaces()">重新加载</button>
+    </section>
     <KeepAlive>
       <component
+        v-if="workspaceReady && !showWorkspaceSelection"
+        :key="workspaceComponentKey"
         ref="activeViewComponent"
         :is="activeComponent"
         v-bind="activeComponentProps"
@@ -78,3 +110,15 @@
 </template>
 
 <script src="./js/App.js"></script>
+
+<style scoped>
+.workspace-switcher { display: flex; align-items: center; gap: 6px; padding: 8px; flex-wrap: wrap; }
+.workspace-switcher label { font-size: 12px; color: #64748b; }
+.workspace-switcher select { flex: 1; min-width: 100px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px; }
+.workspace-selection { padding: 30px; }
+.workspace-selection h1 { font-size: 24px; }
+.workspace-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; margin-top: 24px; }
+.workspace-card { padding: 22px; border: 1px solid #e2e8f0; border-radius: 12px; background: white; }
+.workspace-card button, .workspace-switcher button { cursor: pointer; margin-right: 8px; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; }
+.workspace-error { padding: 12px; color: #b91c1c; background: #fef2f2; }
+</style>

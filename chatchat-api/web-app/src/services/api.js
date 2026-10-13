@@ -1,11 +1,21 @@
 ﻿const API_BASE = "/api/v1";
 const AUTH_SESSION_KEY = "chatchat.auth.session";
+import { workspaceHeaders } from "../js/utils/workspaceContext";
 export const AUTH_REQUIRED_EVENT = "chatchat:auth-required";
 let lastAuthRequiredEventAt = 0;
 const BATCH_UPLOAD_MAX_FILES = 5;
 const BATCH_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
 const WORKBENCH_REQUEST_REUSE_MS = 5000;
 const workbenchRequests = new Map();
+
+export const fetchWorkspaces = () => apiRequest("/workspaces");
+export const fetchWorkspaceManifest = (id) => apiRequest(`/workspaces/${encodeURIComponent(id)}/manifest`);
+export const fetchWorkspacePreferences = () => apiRequest("/workspaces/preferences");
+export const saveWorkspacePreferences = (payload) => apiRequest("/workspaces/preferences", { method: "PUT", body: JSON.stringify(payload) });
+export const fetchWorkspaceResourceContext = (type, id) => apiRequest(`/workspaces/context/${encodeURIComponent(type)}/${encodeURIComponent(id)}`);
+export const fetchWorkspaceRegistrations = () => apiRequest("/enterprise/workspaces");
+export const saveWorkspaceRegistration = (id, payload) => apiRequest(`/enterprise/workspaces/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(payload) });
+export const setDefaultWorkspace = (workspaceId) => apiRequest("/enterprise/workspaces/default", { method: "PUT", body: JSON.stringify({ workspaceId }) });
 
 export function getStoredAuthSession() {
   try {
@@ -30,6 +40,7 @@ export async function apiRequest(path, options = {}) {
     headers: {
       "Content-Type": "application/json; charset=UTF-8",
       ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
+      ...workspaceHeaders(options.workspaceContext),
       ...(options.headers || {})
     }
   });
@@ -838,6 +849,7 @@ export function fetchConversationDetail(conversationId, tenantId = "") {
 export function saveConversationHistory(payload) {
   return apiRequest("/data/history", {
     method: "POST",
+    headers: workspaceHeaders(payload.workspaceContext),
     body: JSON.stringify(payload)
   });
 }
@@ -1953,6 +1965,7 @@ async function fetchEventStream(path, payload, handlers) {
     method: "POST",
     headers: {
       "Content-Type": "application/json; charset=UTF-8",
+      ...workspaceHeaders(payload.workspaceContext),
       ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {})
     },
     body: JSON.stringify(payload)

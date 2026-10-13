@@ -72,6 +72,7 @@ public class AgentTaskController {
     private final InterpretationPlanStore interpretationPlanStore;
     private final AgentTaskFeedbackQueueService feedbackQueueService;
     private final AgentTaskEventStreamService taskEventStreamService;
+    private final com.chatchat.api.security.ObjectAccessService objectAccess;
 
     /**
      * Performs the submit operation.
@@ -148,6 +149,9 @@ public class AgentTaskController {
                                                      @RequestParam(value = "pageSize", defaultValue = "20") int pageSize,
                                                      HttpServletRequest servletRequest) {
         try {
+            if (objectAccess.user(servletRequest) != null && !objectAccess.canManageTasks(servletRequest))
+                return ApiResponse.success(taskService.listOwned(scopedTenantId(servletRequest, tenantId),
+                    objectAccess.ownerAliases(servletRequest), sessionId, null, null, page, pageSize).items());
             return ApiResponse.success(taskService.list(scopedTenantId(servletRequest, tenantId), sessionId, page, pageSize));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
@@ -165,6 +169,9 @@ public class AgentTaskController {
         HttpServletRequest servletRequest
     ) {
         try {
+            if (objectAccess.user(servletRequest) != null && !objectAccess.canManageTasks(servletRequest))
+                return ApiResponse.success(taskService.listOwned(scopedTenantId(servletRequest, tenantId),
+                    objectAccess.ownerAliases(servletRequest), null, keyword, status, page, pageSize));
             return ApiResponse.success(taskService.listPage(
                 scopedTenantId(servletRequest, tenantId), keyword, status, page, pageSize
             ));

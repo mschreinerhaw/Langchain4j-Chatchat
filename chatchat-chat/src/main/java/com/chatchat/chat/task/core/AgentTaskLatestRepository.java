@@ -15,6 +15,16 @@ import java.util.List;
 import java.util.Optional;
 
 public interface AgentTaskLatestRepository extends JpaRepository<AgentTaskLatestEntity, String> {
+    @Query("""
+        select t from AgentTaskLatestEntity t where t.tenantId = :tenant
+        and t.userId in :owners and (:session = '' or t.sessionId = :session)
+        and (:status = '' or upper(t.status) = upper(:status))
+        and (:keyword = '' or lower(t.question) like lower(concat('%', :keyword, '%'))
+            or lower(t.taskId) like lower(concat('%', :keyword, '%')))
+        order by t.createTime desc
+        """)
+    Page<AgentTaskLatestEntity> searchOwned(@Param("tenant") String tenant, @Param("owners") java.util.Set<String> owners,
+        @Param("session") String session, @Param("keyword") String keyword, @Param("status") String status, Pageable pageable);
 
     Optional<AgentTaskLatestEntity> findByTenantIdAndIdempotencyKey(String tenantId, String idempotencyKey);
 

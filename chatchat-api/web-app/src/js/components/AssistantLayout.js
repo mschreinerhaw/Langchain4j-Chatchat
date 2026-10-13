@@ -13,6 +13,7 @@ export default {
     };
   },
   props: {
+    layoutType: { type: String, default: "assistant" },
     activeView: {
       type: String,
       required: true

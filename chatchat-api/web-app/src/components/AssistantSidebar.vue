@@ -14,6 +14,7 @@
       </button>
     </div>
 
+    <slot name="workspace-switcher" />
     <div class="sidebar-scroll">
       <nav class="sidebar-nav" aria-label="主导航">
         <section v-for="group in navGroups" :key="group.id" class="nav-group">

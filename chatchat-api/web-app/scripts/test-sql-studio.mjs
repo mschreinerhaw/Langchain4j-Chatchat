@@ -168,6 +168,7 @@ try {
   await login.route('**/api/v1/**', route => route.fulfill({ json:{code:200,data:Object.values(manifests)} }));
   await login.goto(`http://127.0.0.1:${server.httpServer.address().port}/#/login`,{waitUntil:'domcontentloaded'});
   await login.locator('.login-submit').waitFor();
+  assert.equal(await login.locator('.login-form select').count(),0,'Login must not contain a workspace dropdown');
   for (const viewport of [{width:1920,height:1080},{width:1366,height:768},{width:1280,height:720},{width:1024,height:768},{width:390,height:844}]) {
     await login.setViewportSize(viewport);
     await login.locator('.login-submit').scrollIntoViewIfNeeded();

@@ -1,6 +1,6 @@
 import { BadgeCheck, LockKeyhole, LogIn, ShieldCheck, UserRound } from "@lucide/vue";
 import "../../styles/pages/login.css";
-import { loginEnterprise, fetchWorkspaceCatalog } from "../../services/api";
+import { loginEnterprise } from "../../services/api";
 
 const REMEMBER_KEY = "chatchat.login.remember";
 const CYCLE_FEATURE_INTERVAL = 30 * 1000;
@@ -41,8 +41,6 @@ export default {
     return {
       loading: false,
       error: "",
-      workspaceCatalog: [],
-      workspaceCatalogLoading: false,
       captchaCode: "",
       cycleFeatureIndex: 1,
       cycleFeatureTimer: null,
@@ -51,7 +49,6 @@ export default {
         username: "",
         password: "",
         captcha: "",
-        workspaceId: "",
         rememberAccount: false
       }
     };
@@ -63,7 +60,6 @@ export default {
   },
   mounted() {
     this.restoreRememberedLogin();
-    this.loadWorkspaceCatalog();
     this.refreshCaptcha();
     this.startCycleFeatureTimer();
   },
@@ -71,20 +67,6 @@ export default {
     this.stopCycleFeatureTimer();
   },
   methods: {
-    async loadWorkspaceCatalog() {
-      this.workspaceCatalogLoading = true;
-      try {
-        this.workspaceCatalog = await fetchWorkspaceCatalog();
-        const legacyDataScience = /^#\/?(?:dataScience(?!Skills)|sqlStudio(?:\?|$))/.test(window.location.hash || "");
-        this.form.workspaceId = (legacyDataScience ? this.workspaceCatalog.find(item => item.workspaceId === "data-science")?.workspaceId : "")
-          || this.workspaceCatalog.find(item => item.defaultWorkspace)?.workspaceId
-          || this.workspaceCatalog[0]?.workspaceId || "";
-      } catch (error) {
-        this.error = error.message || "工作空间目录暂不可用";
-      } finally {
-        this.workspaceCatalogLoading = false;
-      }
-    },
     startCycleFeatureTimer() {
       this.stopCycleFeatureTimer();
       this.cycleFeatureTimer = window.setInterval(() => {
@@ -183,10 +165,6 @@ export default {
         this.error = "请输入账号和密码";
         return;
       }
-      if (!this.form.workspaceId || !this.workspaceCatalog.some(item => item.workspaceId === this.form.workspaceId)) {
-        this.error = "请选择可用的工作空间";
-        return;
-      }
       if (!this.form.captcha || this.form.captcha.trim().toUpperCase() !== this.captchaCode) {
         this.error = "验证码不正确";
         this.refreshCaptcha();
@@ -200,7 +178,7 @@ export default {
           password: this.form.password
         });
         this.syncRememberedLogin();
-        this.$emit("login-success", session, this.form.workspaceId);
+        this.$emit("login-success", session);
       } catch (error) {
         this.error = error.message || "登录失败";
         this.refreshCaptcha();

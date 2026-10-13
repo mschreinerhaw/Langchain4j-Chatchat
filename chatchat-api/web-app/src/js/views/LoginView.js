@@ -75,7 +75,7 @@ export default {
       this.workspaceCatalogLoading = true;
       try {
         this.workspaceCatalog = await fetchWorkspaceCatalog();
-        const legacyDataScience = /^#\/?dataScience(?!Skills)/.test(window.location.hash || "");
+        const legacyDataScience = /^#\/?(?:dataScience(?!Skills)|sqlStudio(?:\?|$))/.test(window.location.hash || "");
         this.form.workspaceId = (legacyDataScience ? this.workspaceCatalog.find(item => item.workspaceId === "data-science")?.workspaceId : "")
           || this.workspaceCatalog.find(item => item.defaultWorkspace)?.workspaceId
           || this.workspaceCatalog[0]?.workspaceId || "";

@@ -59,6 +59,7 @@ const LibraryView = asyncView(() => import("../views/LibraryView.vue"));
 const FavoritesView = asyncView(() => import("../views/FavoritesView.vue"));
 const McpCenterView = asyncView(() => import("../views/McpCenterView.vue"));
 const DataScienceView = asyncView(() => import("../views/DataScienceView.vue"));
+const SqlStudioView = asyncView(() => import("../views/SqlStudioView.vue"));
 const DomainSkillsView = asyncView(() => import("../views/DomainSkillsView.vue"));
 const AgentWorkshopView = asyncView(() => import("../views/AgentWorkshopView.vue"));
 const AgentScheduleView = asyncView(() => import("../views/AgentScheduleView.vue"));
@@ -95,6 +96,7 @@ const views = {
   dataScienceData: DataScienceView,
   dataScienceScripts: DataScienceView,
   dataScienceSkills: DomainSkillsView,
+  sqlStudio: SqlStudioView,
   agents: AgentWorkshopView,
   schedules: AgentScheduleView,
   runtime: AgentRuntimeView,
@@ -548,7 +550,7 @@ export default {
       if (workspaceRoute.workspaceId && workspaceRoute.workspaceId !== this.currentWorkspace?.workspaceId) {
         this.switchWorkspace(workspaceRoute.workspaceId, workspaceRoute.pageId); return;
       }
-      if (workspaceRoute.legacyView?.startsWith("dataScience") && workspaceRoute.legacyView !== "dataScienceSkills"
+      if (((workspaceRoute.legacyView?.startsWith("dataScience") && workspaceRoute.legacyView !== "dataScienceSkills") || workspaceRoute.legacyView === "sqlStudio")
           && this.currentWorkspace?.workspaceId !== "data-science") {
         this.switchWorkspace("data-science", workspaceRoute.legacyView); return;
       }

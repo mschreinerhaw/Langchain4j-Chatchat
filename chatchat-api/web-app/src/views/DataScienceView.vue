@@ -1,6 +1,6 @@
 <template>
   <section class="ds-page" :class="{'develop-mode':tab==='develop'}">
-    <header class="ds-header">
+    <header v-if="tab!=='develop'" class="ds-header">
       <div><span>数据科学 / {{ currentSectionLabel }}</span></div>
       <button v-if="tab==='environment'" class="ds-primary ds-header-action" @click="openAssetDialog">＋ 添加 Python 环境</button>
     </header>

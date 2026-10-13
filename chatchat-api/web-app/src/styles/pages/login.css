@@ -384,6 +384,10 @@
   box-shadow: 0 0 0 4px rgba(47, 124, 246, 0.12);
 }
 
+.field-control-select {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .field-control input {
   min-width: 0;
   width: 100%;
@@ -401,6 +405,7 @@
 }
 
 .field-control select {
+  min-width: 0;
   width: 100%;
   height: 46px;
   border: 0;

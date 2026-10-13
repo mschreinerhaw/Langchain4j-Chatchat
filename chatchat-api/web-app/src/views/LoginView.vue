@@ -73,7 +73,7 @@
         <form class="login-form" @submit.prevent="submitLogin">
           <label class="login-field">
             <span class="field-label">工作空间</span>
-            <span class="field-control">
+            <span class="field-control field-control-select">
               <select v-model="form.workspaceId" aria-label="选择工作空间" :disabled="workspaceCatalogLoading || loading">
                 <option value="" disabled>{{ workspaceCatalogLoading ? '正在加载工作空间…' : '请选择工作空间' }}</option>
                 <option v-for="workspace in workspaceCatalog" :key="workspace.workspaceId" :value="workspace.workspaceId">{{ workspace.name }}</option>

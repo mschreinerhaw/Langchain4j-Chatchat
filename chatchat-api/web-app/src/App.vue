@@ -45,10 +45,6 @@
       </div>
     </template>
     <p v-if="workspaceError" class="workspace-error" role="alert">{{ workspaceError }}</p>
-    <div v-if="workspaceReady && !showWorkspaceSelection" class="workspace-extensions">
-      <button v-for="capability in currentWorkspace?.optionalCapabilities?.filter(item => item.state === 'reserved')"
-        :key="capability.id" type="button" disabled>{{ capability.name || '扩展能力' }}（规划中）</button>
-    </div>
     <section v-if="showWorkspaceSelection || !workspaceReady" class="workspace-selection" aria-label="选择工作空间">
       <h1>选择工作空间</h1>
       <p>使用当前登录身份进入已授权的应用环境。</p>

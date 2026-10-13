@@ -39,6 +39,7 @@ try {
   await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" });
   await page.waitForFunction(() => document.querySelector('select[aria-label="选择工作空间"]')?.options.length === 3);
   assert.equal(await page.locator('select[aria-label="选择工作空间"]').inputValue(),"zhice");
+  assert.equal(await page.locator('select[aria-label="选择工作空间"]').evaluate(select => getComputedStyle(select.parentElement).gridTemplateColumns.split(' ').length), 1);
   await page.locator('input[autocomplete="username"]').fill('browser-user');
   await page.locator('input[type="password"]').fill('fixture-password');
   const captcha=await page.evaluate(()=>document.querySelector('#app').__vue_app__._container._vnode.component.subTree.component.proxy.captchaCode);
@@ -51,8 +52,11 @@ try {
   await page.locator("#workspace-switch").selectOption("data-science");
   await page.waitForURL("**/#/w/data-science/dataScienceEnvironment");
   assert.equal(await page.locator('.recent-block').count(),0);
-  assert.equal(await page.locator(".workspace-extensions button").isDisabled(), true);
-  assert.match(await page.locator(".workspace-extensions").textContent(), /SQL Studio/);
+  assert.equal(await page.locator(".workspace-extensions").count(), 0);
+  await page.evaluate(() => { location.hash = "/w/data-science/dataScienceDevelop"; });
+  await page.locator(".ds-page.develop-mode").waitFor({ state: "visible" });
+  assert.equal(await page.locator(".ds-header").count(), 0);
+  assert.equal(await page.getByText("SQL Studio", { exact: false }).count(), 0);
   await page.locator("#workspace-switch").selectOption("zhice");
   await page.waitForURL("**/#/w/zhice/chat");
   assert.equal(await composer.inputValue(), "unsaved workspace draft");
@@ -65,5 +69,5 @@ try {
   assert.deepEqual(errors, []);
   await mkdir("../../target/workspace-audit", { recursive: true });
   await page.screenshot({ path: "../../target/workspace-audit/workspace-shell.png", fullPage: true });
-  console.log("PASS: login selection, account switch, editor draft, reserved extension, denied space, one login identity");
+  console.log("PASS: login selection layout, account switch, editor draft, no reserved extension, denied space, one login identity");
 } finally { await browser?.close(); await server.close(); }

@@ -62,9 +62,9 @@ try {
   await open('sql/b.sql');assert.match(await page.locator('.sql-monaco-host .view-lines').innerText(),/SELECT\s+2/);
   await open('sql/a.sql');assert.match(await page.locator('.sql-monaco-host .view-lines').innerText(),/SELECT\s+42/);
   await page.locator('.user-account-trigger').click();
-  await page.locator('#workspace-switch').selectOption('zhice');await page.waitForURL('**/#/w/zhice/chat');
+  await page.locator('.workspace-switcher-option[data-workspace-id="zhice"]').click();await page.waitForURL('**/#/w/zhice/chat');
   if (await page.locator('.user-account:not([open])').count()) await page.locator('.user-account-trigger').click();
-  await page.locator('#workspace-switch').selectOption('data-science');await page.waitForURL('**/#/w/data-science/sqlStudio');
+  await page.locator('.workspace-switcher-option[data-workspace-id="data-science"]').click();await page.waitForURL('**/#/w/data-science/sqlStudio');
   await page.evaluate(()=>location.hash='/w/data-science/sqlStudio');await page.locator('.sql-studio').waitFor();
   assert.match(await page.locator('.sql-monaco-host .view-lines').innerText(),/SELECT\s+42/);
   await page.getByRole('button',{name:'保存文件',exact:true}).click();await page.getByRole('status').filter({hasText:'文件已保存'}).waitFor();assert.equal(files.find(f=>f.id==='a').content,'SELECT 42;');

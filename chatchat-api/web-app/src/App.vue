@@ -38,17 +38,18 @@
     <template #workspace-switcher>
       <div class="workspace-switcher" :class="{ 'is-switching': workspaceLoading }">
         <div class="workspace-switcher-heading">
-          <label for="workspace-switch">工作空间</label>
+          <span class="workspace-switcher-title">切换工作空间</span>
           <span class="workspace-switcher-state" role="status">{{ workspaceLoading ? '切换中…' : '当前环境' }}</span>
         </div>
-        <div class="workspace-switcher-control">
-          <Layers3 :size="17" stroke-width="2" aria-hidden="true" />
-          <select id="workspace-switch" :value="currentWorkspace?.workspaceId || ''" :disabled="workspaceLoading"
-            aria-label="切换工作空间" @change="switchWorkspaceFromAccount($event)">
-            <option v-if="!currentWorkspace" value="" disabled>选择工作空间</option>
-            <option v-for="workspace in workspaceItems" :key="workspace.workspaceId" :value="workspace.workspaceId">{{ workspace.name }}</option>
-          </select>
-          <ChevronDown class="workspace-switcher-chevron" :size="16" stroke-width="2" aria-hidden="true" />
+        <div class="workspace-switcher-options" role="group" aria-label="可用工作空间">
+          <button v-for="workspace in workspaceItems" :key="workspace.workspaceId" type="button"
+            class="workspace-switcher-option" :class="{ 'is-active': workspace.workspaceId === currentWorkspace?.workspaceId }"
+            :data-workspace-id="workspace.workspaceId" :aria-pressed="workspace.workspaceId === currentWorkspace?.workspaceId"
+            :disabled="workspaceLoading" @click="switchWorkspaceFromAccount(workspace.workspaceId, $event)">
+            <span class="workspace-switcher-icon"><Layers3 :size="16" stroke-width="2" aria-hidden="true" /></span>
+            <span class="workspace-switcher-name">{{ workspace.name }}</span>
+            <Check v-if="workspace.workspaceId === currentWorkspace?.workspaceId" :size="16" stroke-width="2.2" aria-hidden="true" />
+          </button>
         </div>
       </div>
     </template>

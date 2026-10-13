@@ -11,7 +11,7 @@
   gap: 6px;
 }
 
-.workspace-switcher label {
+.workspace-switcher-title {
   color: #475569;
   font-size: 11px;
   font-weight: 700;
@@ -27,77 +27,80 @@
   color: #1d64d8;
 }
 
-.workspace-switcher-control {
+.workspace-switcher-options {
   display: grid;
-  grid-template-columns: 17px minmax(0, 1fr) 16px;
-  align-items: center;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
-  height: 38px;
-  padding: 0 10px;
-  border: 1px solid #cbdcf6;
-  border-radius: 8px;
-  background: #fff;
-  color: #2868ca;
-  transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease;
 }
 
-.workspace-switcher-control:focus-within {
-  border-color: #4084eb;
-  box-shadow: 0 0 0 3px rgba(64, 132, 235, 0.14);
-}
-
-.workspace-switcher select {
+.workspace-switcher-option {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 9px;
   width: 100%;
   min-width: 0;
-  height: 100%;
-  padding: 0;
-  appearance: none;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: #183b72;
+  min-height: 40px;
+  padding: 6px 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
   font-family: inherit;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  text-align: left;
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
 }
 
-.workspace-switcher select:disabled {
+.workspace-switcher-option:hover {
+  background: #f3f7ff;
+}
+
+.workspace-switcher-option:focus-visible {
+  outline: 2px solid #4084eb;
+  outline-offset: 1px;
+}
+
+.workspace-switcher-option.is-active {
+  border-color: #d6e5ff;
+  background: #edf4ff;
+  color: #1753b5;
+}
+
+.workspace-switcher-option:disabled {
   cursor: progress;
+  opacity: 0.65;
 }
 
-.workspace-switcher-chevron {
-  pointer-events: none;
-  transition: transform 0.18s ease;
+.workspace-switcher-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: #eaf0fb;
+  color: #42618d;
 }
 
-.workspace-switcher-control:hover .workspace-switcher-chevron,
-.workspace-switcher-control:focus-within .workspace-switcher-chevron {
-  transform: translateY(2px);
+.workspace-switcher-option.is-active .workspace-switcher-icon {
+  background: #dbe9ff;
+  color: #1b5ac3;
 }
 
-.workspace-switcher.is-switching .workspace-switcher-chevron {
-  animation: workspace-chevron-pulse 0.8s ease-in-out infinite alternate;
-}
-
-@keyframes workspace-chevron-pulse {
-  to {
-    opacity: 0.35;
-    transform: translateY(2px);
-  }
+.workspace-switcher-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .workspace-switcher-control,
-  .workspace-switcher-chevron {
+  .workspace-switcher-option {
     transition: none;
-  }
-
-  .workspace-switcher.is-switching .workspace-switcher-chevron {
-    animation: none;
   }
 }
 

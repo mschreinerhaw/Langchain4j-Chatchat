@@ -3,7 +3,7 @@ import RightPanel from "../components/RightPanel.vue";
 import LoginView from "../views/LoginView.vue";
 import AsyncViewState from "../components/AsyncViewState.vue";
 import { defineAsyncComponent } from "vue";
-import { ChevronDown, Layers3, Plus } from "@lucide/vue";
+import { Check, Layers3, Plus } from "@lucide/vue";
 import {
   actAgentTodo,
   addUserFavorite,
@@ -144,7 +144,7 @@ export default {
   name: "App",
   components: {
     AssistantLayout,
-    ChevronDown,
+    Check,
     Layers3,
     LoginView,
     Plus,
@@ -384,9 +384,9 @@ export default {
         }
       } finally { if (serial === this.workspaceNavigationSerial) this.workspaceLoading = false; }
     },
-    async switchWorkspaceFromAccount(event) {
+    async switchWorkspaceFromAccount(id, event) {
       const account = event.currentTarget.closest('.user-account');
-      await this.switchWorkspace(event.currentTarget.value);
+      if (id !== this.currentWorkspace?.workspaceId) await this.switchWorkspace(id);
       if (account?.isConnected) account.open = false;
     },
     openWorkspaceSelection() { this.showWorkspaceSelection = true; this.setHashRoute("workspaces"); },

@@ -30,6 +30,7 @@ try {
     else if (url.pathname.endsWith("/manifest")) {
       const id = url.pathname.split("/").at(-2);
       if (!manifests[id]) { await route.fulfill({ status: 403, json: { code: 403, message: "Access denied" } }); return; }
+      if (id === "data-science") await new Promise(resolve => setTimeout(resolve, 700));
       data = { manifest: manifests[id], menus: [{ id: "workspace", title: "Workspace", type: "directory", children:
         manifests[id].pages.map(item => ({ id: item.menuCode, title: item.id, type: "menu", children: [] })) }] };
     }
@@ -47,10 +48,17 @@ try {
   await page.locator('.login-submit').click();
   await page.waitForURL("**/#/w/zhice/chat");
   assert.equal(await page.locator('.user-card #workspace-switch').count(),1);
+  assert.equal(await page.locator('.workspace-switcher-control').count(), 1);
+  assert.equal(await page.locator('.workspace-switcher-control').evaluate(element => getComputedStyle(element).display), 'grid');
   const composer = page.locator("textarea").first();
   await composer.waitFor({ state: "visible" }); await composer.fill("unsaved workspace draft");
   await page.locator("#workspace-switch").selectOption("data-science");
+  await page.locator(".workspace-switcher.is-switching").waitFor({ state: "visible" });
+  assert.equal(await page.locator(".workspace-switcher-state").textContent(), "切换中…");
+  assert.equal(await page.locator(".assistant-app.workspace-changing").count(), 1);
   await page.waitForURL("**/#/w/data-science/dataScienceEnvironment");
+  await page.locator(".assistant-app.workspace-changing").waitFor({ state: "detached" });
+  assert.equal(await page.locator(".assistant-content").evaluate(element => getComputedStyle(element).opacity), "1");
   assert.equal(await page.locator('.recent-block').count(),0);
   assert.equal(await page.locator(".workspace-extensions").count(), 0);
   await page.evaluate(() => { location.hash = "/w/data-science/dataScienceDevelop"; });

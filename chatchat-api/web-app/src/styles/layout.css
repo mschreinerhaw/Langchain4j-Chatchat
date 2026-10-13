@@ -1398,6 +1398,16 @@
   height: 100%;
   min-height: 0;
   overflow: hidden;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.assistant-app.workspace-changing .assistant-content {
+  opacity: 0.68;
+  transform: translateY(3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-content { transition: none; }
 }
 
 .assistant-right {

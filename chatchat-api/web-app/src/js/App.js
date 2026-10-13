@@ -3,7 +3,7 @@ import RightPanel from "../components/RightPanel.vue";
 import LoginView from "../views/LoginView.vue";
 import AsyncViewState from "../components/AsyncViewState.vue";
 import { defineAsyncComponent } from "vue";
-import { Plus } from "@lucide/vue";
+import { ChevronDown, Layers3, Plus } from "@lucide/vue";
 import {
   actAgentTodo,
   addUserFavorite,
@@ -142,6 +142,8 @@ export default {
   name: "App",
   components: {
     AssistantLayout,
+    ChevronDown,
+    Layers3,
     LoginView,
     Plus,
     RightPanel

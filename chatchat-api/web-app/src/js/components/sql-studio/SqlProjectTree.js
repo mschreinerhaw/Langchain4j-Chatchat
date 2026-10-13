@@ -1,10 +1,10 @@
 import { computed, onBeforeUnmount, ref } from 'vue';
 import SqlFileTreeNode from '../../../components/sql-studio/SqlFileTreeNode.vue';
 import { sqlFileTree } from '../../utils/sqlStudioState';
-import { Plus, RotateCw, Search, Folder, FolderPlus } from '@lucide/vue';
+import { Search, Folder } from '@lucide/vue';
 
 export default {
-  components: { SqlFileTreeNode, Plus, RotateCw, Search, Folder, FolderPlus },
+  components: { SqlFileTreeNode, Search, Folder },
   props: { folders: {type:Array,default:()=>[]}, selectedFolder:String, files: Array, references: Array, referenceIds: Array, projectName: String, activeId: String, mappingIds: Array, busy: Boolean },
   emits: ['create-folder', 'folder-select', 'open', 'mapping', 'reference', 'reference-open', 'choose-library', 'create', 'refresh', 'versions', 'download', 'rename', 'delete'],
   setup(props, { emit }) {

@@ -1,6 +1,6 @@
 <template>
   <aside class="sql-project-tree sql-ide-explorer" @contextmenu.prevent="openContext({ event: $event, file: null })">
-    <header><strong>项目资源</strong><div class="sql-explorer-header-actions"><button type="button" title="新建文件夹" aria-label="新建文件夹" :disabled="busy" @click="$emit('create-folder', '')"><FolderPlus :size="16" /></button><button type="button" title="在文件夹中新建 SQL 文件" aria-label="新建项目文件" :disabled="busy || !folders.length" @click="$emit('create', selectedFolder)"><Plus :size="16" /></button><button type="button" title="刷新工程文件" aria-label="刷新工程文件" :disabled="busy" @click="$emit('refresh')"><RotateCw :size="15" /></button></div></header>
+    <header><strong>项目资源</strong></header>
     <label class="sql-explorer-search"><Search :size="15" /><input v-model="query" type="search" aria-label="搜索工程文件" placeholder="搜索文件或文件夹…" /></label>
     <div class="sql-explorer-project"><Folder :size="16" /><span>{{ projectName || '当前工程' }}</span><small>{{ files.length }}</small></div>
     <div class="sql-tree-scroll">

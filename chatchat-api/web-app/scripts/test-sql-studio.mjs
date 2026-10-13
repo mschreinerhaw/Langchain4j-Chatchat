@@ -110,7 +110,9 @@ try {
   assert.equal(submissionCount, 0, 'Enter must insert a newline without submitting a task');
   assert.equal(await page.locator('.sql-chat-composer .sql-primary').isDisabled(), false, 'Mapping is optional');
   assert.equal(await page.getByRole('button', { name: '从文档库选 SQL 案例' }).count(), 0);
-  await page.getByRole('button', { name: '选择 Mapping（可选）' }).click();
+  assert.equal(await page.locator('.sql-project-tree > header button').count(),0);
+  assert.equal(await page.getByRole('button', { name: '选择 Mapping（可选）' }).count(),0);
+  await page.getByRole('button', { name: '关联 Mapping 文档', exact:true }).click();
   await page.locator('.sql-library-list input').check();
   await page.getByRole('button', { name: '确认上下文' }).click();
   await page.locator('.sql-selection-chip').filter({ hasText:'customer.csv' }).waitFor();
@@ -143,13 +145,14 @@ try {
   await page.locator('.sql-dialog input').fill('Delete me');
   await page.getByRole('button', { name: '创建工程' }).click();
   await page.locator('.sql-studio-bar select[aria-label="SQL 工程"]').selectOption('new-project');
-  assert.equal(await page.getByLabel('新建项目文件').isDisabled(),true,'Empty project needs a folder first');
-  await page.getByRole('button',{name:'新建文件夹',exact:true}).click();
+  await page.locator('.sql-tree-scroll').click({button:'right'});
+  assert.equal(await page.getByRole('menuitem',{name:'新建 SQL 文件…'}).isDisabled(),true,'Empty project needs a folder first');
+  await page.getByRole('menuitem',{name:'新建文件夹…',exact:true}).click();
   await page.getByLabel('文件夹路径').fill('scripts');
   await page.getByRole('button',{name:'创建文件夹',exact:true}).click();
   await page.locator('summary[data-folder="scripts"]').waitFor();
   assert.equal(filesByProject['new-project'].length,0,'Empty folder is not an editor file');
-  await page.getByLabel('刷新工程文件').click();
+  await page.reload({waitUntil:'domcontentloaded'});
   await page.locator('summary[data-folder="scripts"]').waitFor();
   await page.locator('summary[data-folder="scripts"]').click({button:'right'});
   await page.getByRole('menuitem',{name:'新建 SQL 文件…'}).click();

@@ -48,7 +48,10 @@ try {
   },{session,projectId:project.id});
   await page.goto(`${base}/#/w/data-science/sqlStudio`,{waitUntil:'domcontentloaded'});
   await page.locator('.sql-current-context').filter({hasText:'customer_asset_profile.sql'}).waitFor({timeout:60000});
-  await page.getByRole('button',{name:'新建文件夹',exact:true}).click();
+  assert.equal(await page.locator('.sql-project-tree > header button').count(),0);
+  assert.equal(await page.getByRole('button',{name:'选择 Mapping（可选）'}).count(),0);
+  await page.locator('.sql-tree-scroll').click({button:'right'});
+  await page.getByRole('menuitem',{name:'新建文件夹…',exact:true}).click();
   await page.getByLabel('文件夹路径').fill('daily');
   await page.getByRole('button',{name:'创建文件夹',exact:true}).click();
   await page.locator('summary[data-folder="daily"]').waitFor();

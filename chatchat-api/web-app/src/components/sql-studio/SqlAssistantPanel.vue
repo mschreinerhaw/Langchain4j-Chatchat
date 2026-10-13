@@ -18,7 +18,6 @@
       </section>
     </div>
     <div class="sql-chat-context"><span>{{ mappingCount }} Mapping · {{ referenceIds.length }} 案例</span><span>Mapping 与案例均可选</span>
-      <button class="sql-context-import" type="button" :disabled="busy" @click="$emit('choose-library', 'MAPPING')">选择 Mapping（可选）</button>
       <div v-for="item in mappingDocuments" :key="item.docId" class="sql-selection-chip">{{ item.fileName }}<button type="button" :aria-label="'移除 Mapping ' + item.fileName" @click="$emit('remove-mapping-document', item.docId)">×</button></div>
       <div v-if="selectedCode" class="sql-selection-chip">已选代码：{{ selectedCode.path }} · {{ selectedCode.text.length }} 字<button aria-label="移除代码引用" @click="$emit('clear-selection')">×</button></div>
       <details class="sql-chat-settings"><summary>工程上下文与执行设置</summary>

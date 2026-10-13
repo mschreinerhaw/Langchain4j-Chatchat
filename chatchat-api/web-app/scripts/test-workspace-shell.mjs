@@ -24,6 +24,7 @@ try {
     const url = new URL(route.request().url()); let data = [];
     if (url.pathname.endsWith("/auth/me")) data = user;
     else if (url.pathname.endsWith("/auth/login")) { logins++; data = { token: "fixture-token", user }; }
+    else if (url.pathname.endsWith("/workspaces/catalog")) data = Object.values(manifests).map(manifest => ({ ...manifest, defaultWorkspace: manifest.workspaceId === "zhice" }));
     else if (url.pathname.endsWith("/workspaces")) data = Object.values(manifests).map(manifest => ({ ...manifest, defaultWorkspace: manifest.workspaceId === "zhice" }));
     else if (url.pathname.endsWith("/workspaces/preferences")) data = { lastWorkspaceId: "zhice" };
     else if (url.pathname.endsWith("/manifest")) {
@@ -34,30 +35,35 @@ try {
     }
     await route.fulfill({ json: { code: 200, data, message: "Success" } });
   });
-  await page.addInitScript(({ user }) => localStorage.setItem("chatchat.auth.session", JSON.stringify({ token: "fixture-token", user })), { user });
   const port = server.httpServer.address().port;
   await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" });
+  await page.waitForFunction(() => document.querySelector('select[aria-label="选择工作空间"]')?.options.length === 3);
+  assert.equal(await page.locator('select[aria-label="选择工作空间"]').inputValue(),"zhice");
+  await page.locator('input[autocomplete="username"]').fill('browser-user');
+  await page.locator('input[type="password"]').fill('fixture-password');
+  const captcha=await page.evaluate(()=>document.querySelector('#app').__vue_app__._container._vnode.component.subTree.component.proxy.captchaCode);
+  await page.locator('input[maxlength="4"]').fill(captcha);
+  await page.locator('.login-submit').click();
   await page.waitForURL("**/#/w/zhice/chat");
+  assert.equal(await page.locator('.user-card #workspace-switch').count(),1);
   const composer = page.locator("textarea").first();
   await composer.waitFor({ state: "visible" }); await composer.fill("unsaved workspace draft");
   await page.locator("#workspace-switch").selectOption("data-science");
   await page.waitForURL("**/#/w/data-science/dataScienceEnvironment");
+  assert.equal(await page.locator('.recent-block').count(),0);
   assert.equal(await page.locator(".workspace-extensions button").isDisabled(), true);
   assert.match(await page.locator(".workspace-extensions").textContent(), /SQL Studio/);
   await page.locator("#workspace-switch").selectOption("zhice");
   await page.waitForURL("**/#/w/zhice/chat");
   assert.equal(await composer.inputValue(), "unsaved workspace draft");
-  await page.locator(".workspace-switcher button").click();
-  assert.equal(await page.locator(".workspace-card").count(), 2);
-  await page.locator(".workspace-card button").first().click();
-  await page.waitForURL("**/#/w/zhice/chat");
+  assert.equal(await page.locator(".workspace-card").count(),0);
   await page.evaluate(() => { location.hash = "/w/forbidden/chat"; });
   await page.locator(".workspace-error").waitFor({ state: "visible" });
   assert.equal(await page.locator("#workspace-switch").inputValue(), "zhice");
-  assert.equal(logins, 0);
+  assert.equal(logins, 1);
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("chatchat.auth.session")).token), "fixture-token");
   assert.deepEqual(errors, []);
   await mkdir("../../target/workspace-audit", { recursive: true });
   await page.screenshot({ path: "../../target/workspace-audit/workspace-shell.png", fullPage: true });
-  console.log("PASS: default entry, menus, switch, editor draft, reserved extension, chooser, denied space, one login identity");
+  console.log("PASS: login selection, account switch, editor draft, reserved extension, denied space, one login identity");
 } finally { await browser?.close(); await server.close(); }

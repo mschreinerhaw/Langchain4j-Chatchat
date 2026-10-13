@@ -1,11 +1,11 @@
 {
   "schemaVersion": "workspace-manifest.v1",
-  "configVersion": 1,
+  "configVersion": 2,
   "workspaceId": "data-science",
   "appVersion": "1.0.0",
   "name": "数据科学",
   "icon": "flask",
-  "description": "Python 环境、开发、数据、脚本与领域 Skills",
+  "description": "Python 环境、开发、数据与脚本",
   "entryPage": "dataScienceEnvironment",
   "layoutType": "studio",
   "pages": [
@@ -37,12 +37,6 @@
       "id": "dataScienceScripts",
       "menuCode": "dataScienceScripts",
       "componentKey": "dataScienceScripts",
-      "props": {}
-    },
-    {
-      "id": "dataScienceSkills",
-      "menuCode": "dataScienceSkills",
-      "componentKey": "dataScienceSkills",
       "props": {}
     }
   ],

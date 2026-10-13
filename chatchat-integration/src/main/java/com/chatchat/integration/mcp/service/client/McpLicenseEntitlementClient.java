@@ -5,6 +5,7 @@ import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.common.security.InternalRequestSigner;
 import com.chatchat.integration.mcp.config.McpCenterProperties;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -16,15 +17,30 @@ import java.util.UUID;
 /** Reads signed runtime entitlements from the MCP server without exposing the installed license to the API. */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class McpLicenseEntitlementClient implements McpLicenseEntitlementPort {
 
     static final String AGENT_LIMIT_PATH = "/internal/v1/license/agent-publication-limit";
     static final String SKILL_LIMIT_PATH = "/internal/v1/license/skill-publication-limit";
     static final String SKILL_FEDERATION_PATH = "/internal/v1/license/skill-federation-entitlement";
+    static final String WORKSPACE_PATH = "/internal/v1/license/workspace-entitlement";
 
     private final McpCenterProperties properties;
     private final InternalCredentialProperties credentials;
     private final WebClient webClient = WebClient.builder().build();
+
+    @Override
+    public WorkspaceEntitlement workspaceEntitlement() {
+        try {
+            Map<?, ?> data = request(WORKSPACE_PATH);
+            if (!(data.get("workspaceIds") instanceof java.util.Collection<?> ids)) return McpLicenseEntitlementPort.super.workspaceEntitlement();
+            java.util.Set<String> allowed = ids.stream().map(String::valueOf).collect(java.util.stream.Collectors.toUnmodifiableSet());
+            return new WorkspaceEntitlement(booleanValue(data.get("licenseValid")), allowed, text(data.get("licenseStatus")));
+        } catch (RuntimeException unavailable) {
+            log.warn("MCP Workspace entitlement query failed: {}", unavailable.toString());
+            return McpLicenseEntitlementPort.super.workspaceEntitlement();
+        }
+    }
 
     @Override
     public AgentPublicationLimit agentPublicationLimit() {

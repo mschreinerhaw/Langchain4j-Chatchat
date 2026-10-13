@@ -211,6 +211,10 @@ describe("document Ask AI conversation isolation", () => {
 
     expect(context.loadWorkspaces).toHaveBeenCalledWith({ choose: true, requestedView: "library" });
     expect(sequence).toEqual(["authorized-workspace"]);
+    await App.methods.handleLoginSuccess.call(context, {
+      token: "token-2", user: { id: "user-1", username: "admin", tenantId: "tenant-1" }
+    }, "data-science");
+    expect(context.loadWorkspaces).toHaveBeenLastCalledWith({ selectedWorkspaceId: "data-science", requestedView: "library" });
   });
 
   it("shows the matching title for each system management page", () => {

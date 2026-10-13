@@ -1,7 +1,7 @@
 <template>
   <section class="feature-view domain-skills-page">
     <header class="feature-page-header domain-skills-header">
-      <span class="feature-breadcrumb">能力管理 / 数据科学 / 领域技能</span>
+      <span class="feature-breadcrumb">能力管理 / 领域技能</span>
       <div v-if="isAdmin" class="feature-page-actions">
         <button type="button" class="feature-button secondary" @click="openMcpSources">MCP Skill 源</button>
         <button type="button" class="feature-button secondary domain-skill-header-import" @click="openImport">

@@ -1,6 +1,7 @@
 package com.chatchat.common.mcp.license;
 
 import com.chatchat.common.runtime.protocol.RuntimeProtocolPort;
+import java.util.Set;
 
 /** License entitlement boundary owned by Runtime OS rather than an HTTP client implementation. */
 public interface McpLicenseEntitlementPort extends RuntimeProtocolPort {
@@ -25,6 +26,15 @@ public interface McpLicenseEntitlementPort extends RuntimeProtocolPort {
     default SkillFederationEntitlement skillFederationEntitlement() {
         return new SkillFederationEntitlement(false, "UNAVAILABLE",
             "MCP Skills federation entitlement is unavailable", "DEFAULT");
+    }
+
+    /** Workspace visibility is licensed centrally by MCP; unavailable entitlement denies access. */
+    default WorkspaceEntitlement workspaceEntitlement() {
+        return new WorkspaceEntitlement(false, Set.of(), "UNAVAILABLE");
+    }
+
+    record WorkspaceEntitlement(boolean licenseValid, Set<String> workspaceIds, String licenseStatus) {
+        public boolean allows(String id) { return licenseValid && workspaceIds != null && workspaceIds.contains(id); }
     }
 
     record AgentPublicationLimit(boolean licenseValid, String licenseStatus, String message,

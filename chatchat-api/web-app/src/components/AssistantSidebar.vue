@@ -14,7 +14,6 @@
       </button>
     </div>
 
-    <slot name="workspace-switcher" />
     <div class="sidebar-scroll">
       <nav class="sidebar-nav" aria-label="主导航">
         <section v-for="group in navGroups" :key="group.id" class="nav-group">
@@ -81,7 +80,7 @@
         </section>
       </nav>
 
-      <section class="recent-block">
+      <section v-if="showConversationHistory" class="recent-block">
         <div class="recent-head">
           <span>最近对话</span>
           <span>{{ historyLoading ? "加载中" : `${filteredConversations.length}/${recentConversations.length}${historyHasMore ? '+' : ''}` }}</span>
@@ -190,7 +189,7 @@
         <strong>{{ displayUserId }}</strong>
         <span>用户ID</span>
       </div>
-      <button
+      <button v-if="showConversationHistory"
         type="button"
         aria-label="管理历史记录"
         title="管理历史记录"
@@ -203,11 +202,12 @@
       <button type="button" aria-label="退出登录" title="退出登录" class="user-more" @click="$emit('logout')">
         <LogOut :size="17" stroke-width="2" />
       </button>
+      <slot name="workspace-switcher" />
     </div>
 
     <Teleport to="body">
       <div
-        v-if="historyManagerOpen"
+        v-if="showConversationHistory && historyManagerOpen"
         class="history-manager-backdrop"
         role="presentation"
         @mousedown.self="closeHistoryManager"

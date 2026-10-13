@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
@@ -13,6 +15,29 @@ import org.springframework.web.bind.annotation.RestController;
 public class LicenseInternalController {
 
     private final McpLicenseService licenseService;
+
+    @GetMapping("/workspace-entitlement")
+    public ApiResponse<WorkspaceEntitlement> workspaceEntitlement() {
+        LicenseStatus status = licenseService.status();
+        if (status == null || !status.valid() || status.license() == null || status.license().modules() == null) {
+            return ApiResponse.success(new WorkspaceEntitlement(false, Set.of(), status == null ? "INVALID" : status.status()));
+        }
+        Set<String> modules = status.license().modules().stream().map(value -> value.toLowerCase(java.util.Locale.ROOT))
+            .collect(Collectors.toSet());
+        boolean explicit = modules.stream().anyMatch(value -> value.startsWith("workspace:"))
+            || modules.contains("workspacezhice") || modules.contains("workspacedatascience");
+        Set<String> ids = new java.util.HashSet<>();
+        modules.stream().filter(value -> value.startsWith("workspace:"))
+            .map(value -> value.substring("workspace:".length()))
+            .filter(value -> value.matches("[a-z][a-z0-9-]{0,63}"))
+            .forEach(ids::add);
+        if (modules.contains("workspacezhice")) ids.add("zhice");
+        if (modules.contains("workspacedatascience")) ids.add("data-science");
+        if (!explicit) { ids.add("zhice"); ids.add("data-science"); }
+        return ApiResponse.success(new WorkspaceEntitlement(true, Set.copyOf(ids), status.status()));
+    }
+
+    public record WorkspaceEntitlement(boolean licenseValid, Set<String> workspaceIds, String licenseStatus) { }
 
     @GetMapping("/agent-publication-limit")
     public ApiResponse<AgentPublicationLimit> agentPublicationLimit() {

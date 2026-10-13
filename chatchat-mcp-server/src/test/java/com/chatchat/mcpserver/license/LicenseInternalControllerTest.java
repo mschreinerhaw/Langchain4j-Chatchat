@@ -15,6 +15,27 @@ import static org.mockito.Mockito.when;
 class LicenseInternalControllerTest {
 
     @Test
+    void workspaceEntitlementRespectsExplicitModulesAndLegacyPythonLicense() {
+        McpLicenseService service = mock(McpLicenseService.class);
+        var legacy = new LicensePayload("LIC", "Customer", "C", "LiveMCP", "enterprise",
+            List.of("pythonManagement"), 100, 7, "*", LocalDate.now().plusYears(1), Map.of(), LocalDate.now());
+        when(service.status()).thenReturn(LicenseStatus.valid("server", legacy));
+        var controller = new LicenseInternalController(service);
+        assertThat(controller.workspaceEntitlement().getData().workspaceIds()).containsExactlyInAnyOrder("zhice", "data-science");
+        var explicit = new LicensePayload("LIC", "Customer", "C", "LiveMCP", "enterprise",
+            List.of("workspaceZhice", "pythonManagement"), 100, 7, "*", LocalDate.now().plusYears(1), Map.of(), LocalDate.now());
+        when(service.status()).thenReturn(LicenseStatus.valid("server", explicit));
+        assertThat(controller.workspaceEntitlement().getData().workspaceIds()).containsExactly("zhice");
+        var extension = new LicensePayload("LIC", "Customer", "C", "LiveMCP", "enterprise",
+            List.of("workspace:research", "workspace:INVALID/ID"), 100, 7, "*",
+            LocalDate.now().plusYears(1), Map.of(), LocalDate.now());
+        when(service.status()).thenReturn(LicenseStatus.valid("server", extension));
+        assertThat(controller.workspaceEntitlement().getData().workspaceIds()).containsExactly("research");
+        when(service.status()).thenReturn(LicenseStatus.invalid("INVALID", "expired", "server", explicit));
+        assertThat(controller.workspaceEntitlement().getData().workspaceIds()).isEmpty();
+    }
+
+    @Test
     void exposesOnlyAgentPublicationEntitlementFromValidLicense() {
         McpLicenseService service = mock(McpLicenseService.class);
         LicensePayload payload = new LicensePayload("LIC", "Customer", "C", "LiveMCP", "enterprise",

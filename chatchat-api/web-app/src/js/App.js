@@ -300,7 +300,7 @@ export default {
     this.stopTodoTimeoutKill();
   },
   methods: {
-    async loadWorkspaces({ choose = false, requestedView = "" } = {}) {
+    async loadWorkspaces({ choose = false, requestedView = "", selectedWorkspaceId = "" } = {}) {
       if (!isAuthenticatedSession(this.authSession)) return;
       const bootstrap = this.workspaceBootstrapSerial = (this.workspaceBootstrapSerial || 0) + 1;
       const identity = this.authSession.user.id;
@@ -312,14 +312,15 @@ export default {
             || identity !== this.authSession.user.id) return;
         this.workspaceItems = items;
         const route = parseWorkspaceRoute(window.location.hash || "");
-        const target = chooseWorkspace(items, route, preference);
+        const target = selectedWorkspaceId ? items.find(item => item.workspaceId === selectedWorkspaceId)
+          : chooseWorkspace(items, route, preference);
         if (!target || route.invalid) {
-          this.workspaceError = route.workspaceId || route.invalid ? "无权访问此工作空间或地址无效" : "当前账户没有可用工作空间";
+          this.workspaceError = selectedWorkspaceId || route.workspaceId || route.invalid ? "无权访问此工作空间或地址无效" : "当前账户没有可用工作空间";
           this.showWorkspaceSelection = true; this.navItems = []; this.workspaceReady = false;
           return;
         }
-        await this.switchWorkspace(target.workspaceId, route.pageId || requestedView || route.legacyView);
-        if (route.selection || (choose && items.length > 1 && !route.workspaceId && !route.legacyView))
+        await this.switchWorkspace(target.workspaceId, selectedWorkspaceId ? "" : route.pageId || requestedView || route.legacyView);
+        if (!selectedWorkspaceId && (route.selection || (choose && items.length > 1 && !route.workspaceId && !route.legacyView)))
           this.openWorkspaceSelection();
       } catch (error) {
         if (bootstrap !== this.workspaceBootstrapSerial || identity !== this.authSession?.user?.id) return;
@@ -355,8 +356,13 @@ export default {
           return { id: page?.id || node.id, label: node.title, icon: node.icon, ...(children.length ? { children } : {}) };
         };
         this.currentWorkspace = manifest; this.workspacePages = pages;
-        this.navItems = loaded.menus.map((group) => ({ id: group.id, label: group.title,
-          items: (pages.some((page) => page.menuCode === group.id) ? [group] : group.children).map(convert).filter(Boolean) })).filter((group) => group.items.length);
+        this.navItems = loaded.menus.map((group) => {
+          const direct = pages.some((page) => page.menuCode === group.id) ? [group] : group.children;
+          const studioRoot = manifest.layoutType === "studio" && direct.length === 1 && direct[0].children?.length
+            ? direct[0] : null;
+          return { id: group.id, label: studioRoot ? manifest.name : group.title,
+            items: (studioRoot ? studioRoot.children : direct).map(convert).filter(Boolean) };
+        }).filter((group) => group.items.length);
         if (from !== id) {
           this.selectedConversation = saved.selectedConversation || null; this.activeHistoryId = saved.activeHistoryId || "";
           this.pendingChatDraft = saved.pendingChatDraft || null; this.pendingDocumentShortcut = saved.pendingDocumentShortcut || null;
@@ -472,7 +478,7 @@ export default {
         // 认证失效由统一的 AUTH_REQUIRED_EVENT 处理；临时网络错误保留当前会话。
       }
     },
-    async handleLoginSuccess(session) {
+    async handleLoginSuccess(session, selectedWorkspaceId = "") {
       if (!isAuthenticatedSession(session)) {
         this.handleUnauthenticated();
         return;
@@ -485,7 +491,8 @@ export default {
       this.tenantName = sessionUser.tenantName || sessionUser.tenant_name || "";
       this.loadTrendSemanticConfig();
       const requestedView = this.consumeRedirectView() || viewFromHash() || DEFAULT_VIEW;
-      await this.loadWorkspaces({ choose: true, requestedView });
+      await this.loadWorkspaces(selectedWorkspaceId ? { selectedWorkspaceId, requestedView }
+        : { choose: true, requestedView });
       if (session?.embedded) {
         this.stopIdleLogoutWatcher();
       } else {
@@ -538,6 +545,14 @@ export default {
       if (workspaceRoute.selection) { this.showWorkspaceSelection = true; return; }
       if (workspaceRoute.workspaceId && workspaceRoute.workspaceId !== this.currentWorkspace?.workspaceId) {
         this.switchWorkspace(workspaceRoute.workspaceId, workspaceRoute.pageId); return;
+      }
+      if (workspaceRoute.legacyView?.startsWith("dataScience") && workspaceRoute.legacyView !== "dataScienceSkills"
+          && this.currentWorkspace?.workspaceId !== "data-science") {
+        this.switchWorkspace("data-science", workspaceRoute.legacyView); return;
+      }
+      if (workspaceRoute.legacyView && this.currentWorkspace?.workspaceId === "data-science"
+          && !this.canAccessView(workspaceRoute.legacyView)) {
+        this.switchWorkspace("zhice", workspaceRoute.legacyView); return;
       }
       if (workspaceRoute.invalid) { this.workspaceError = "工作空间地址无效"; this.showWorkspaceSelection = true; return; }
       this.showWorkspaceSelection = false;

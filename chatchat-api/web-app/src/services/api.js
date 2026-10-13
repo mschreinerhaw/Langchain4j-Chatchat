@@ -9,6 +9,7 @@ const WORKBENCH_REQUEST_REUSE_MS = 5000;
 const workbenchRequests = new Map();
 
 export const fetchWorkspaces = () => apiRequest("/workspaces");
+export const fetchWorkspaceCatalog = () => apiRequest("/workspaces/catalog");
 export const fetchWorkspaceManifest = (id) => apiRequest(`/workspaces/${encodeURIComponent(id)}/manifest`);
 export const fetchWorkspacePreferences = () => apiRequest("/workspaces/preferences");
 export const saveWorkspacePreferences = (payload) => apiRequest("/workspaces/preferences", { method: "PUT", body: JSON.stringify(payload) });

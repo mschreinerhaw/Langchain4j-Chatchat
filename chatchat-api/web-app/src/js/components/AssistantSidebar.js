@@ -117,6 +117,10 @@ export default {
     userId: {
       type: String,
       default: ""
+    },
+    showConversationHistory: {
+      type: Boolean,
+      default: true
     }
   },
   emits: [

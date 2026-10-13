@@ -5,6 +5,7 @@ import com.chatchat.enterprise.entity.workspace.*;
 import com.chatchat.enterprise.repository.workspace.*;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
+import com.chatchat.common.mcp.license.McpLicenseEntitlementPort;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ public class WorkspaceService {
     private final EnterpriseAdminService identities;
     private final ObjectAccessService access;
     private final DomainSkillRuntimePort skills;
+    private final McpLicenseEntitlementPort license;
     private final ObjectMapper mapper;
     private final com.chatchat.enterprise.repository.audit.SysAuditLogRepository audits;
 
@@ -33,10 +35,23 @@ public class WorkspaceService {
     public record Update(WorkspaceManifest manifest, String status, String accessPermissionCode, Long expectedVersion) {}
 
     @Transactional(readOnly = true)
+    public List<Available> licensedCatalog() {
+        var entitlement = license.workspaceEntitlement();
+        return registry.findAll().stream().sorted(Comparator.comparing(WorkspaceRegistration::getId))
+            .filter(row -> "enabled".equals(row.getStatus()) && entitlement.allows(row.getId()))
+            .map(row -> {
+                var manifest = read(row);
+                return new Available(row.getId(), manifest.name(), manifest.icon(), manifest.description(),
+                    manifest.entryPage(), manifest.layoutType(), row.isDefaultWorkspace(), manifest.configVersion());
+            }).toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<Available> available(HttpServletRequest request) {
         var permissions = permissions(request);
+        var entitlement = license.workspaceEntitlement();
         return registry.findAll().stream().sorted(Comparator.comparing(WorkspaceRegistration::getId))
-            .filter(row -> allowed(row, permissions)).map(row -> {
+            .filter(row -> allowed(row, permissions) && entitlement.allows(row.getId())).map(row -> {
                 var manifest = read(row);
                 return new Available(row.getId(), manifest.name(), manifest.icon(), manifest.description(),
                     manifest.entryPage(), manifest.layoutType(), row.isDefaultWorkspace(), manifest.configVersion());
@@ -64,7 +79,8 @@ public class WorkspaceService {
     }
     public WorkspaceRegistration requireAvailable(HttpServletRequest request, String id) {
         var row = registry.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workspace not found"));
-        if (!allowed(row, permissions(request))) throw new SecurityException("Workspace access denied");
+        if (!allowed(row, permissions(request)) || !license.workspaceEntitlement().allows(id))
+            throw new SecurityException("Workspace access denied");
         return row;
     }
     private Set<String> permissions(HttpServletRequest request) {

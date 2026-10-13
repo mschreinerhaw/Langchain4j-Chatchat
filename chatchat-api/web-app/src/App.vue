@@ -42,7 +42,6 @@
           <option v-if="!currentWorkspace" value="" disabled>选择工作空间</option>
           <option v-for="workspace in workspaceItems" :key="workspace.workspaceId" :value="workspace.workspaceId">{{ workspace.name }}</option>
         </select>
-        <button type="button" @click="openWorkspaceSelection">选择</button>
       </div>
     </template>
     <p v-if="workspaceError" class="workspace-error" role="alert">{{ workspaceError }}</p>
@@ -112,7 +111,7 @@
 <script src="./js/App.js"></script>
 
 <style scoped>
-.workspace-switcher { display: flex; align-items: center; gap: 6px; padding: 8px; flex-wrap: wrap; }
+.workspace-switcher { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; padding-top: 8px; border-top: 1px solid #e2e8f0; }
 .workspace-switcher label { font-size: 12px; color: #64748b; }
 .workspace-switcher select { flex: 1; min-width: 100px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px; }
 .workspace-selection { padding: 30px; }

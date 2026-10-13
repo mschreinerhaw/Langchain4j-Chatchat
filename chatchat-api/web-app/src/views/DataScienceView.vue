@@ -1,7 +1,7 @@
 <template>
   <section class="ds-page" :class="{'develop-mode':tab==='develop'}">
     <header class="ds-header">
-      <div><span>能力管理 / 数据科学 / {{ currentSectionLabel }}</span></div>
+      <div><span>数据科学 / {{ currentSectionLabel }}</span></div>
       <button v-if="tab==='environment'" class="ds-primary ds-header-action" @click="openAssetDialog">＋ 添加 Python 环境</button>
     </header>
     <p v-if="error" class="ds-alert error">{{ error }}</p><p v-if="message&&tab!=='develop'" class="ds-alert success">{{ message }}</p>

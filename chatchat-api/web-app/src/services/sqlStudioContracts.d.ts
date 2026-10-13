@@ -9,7 +9,7 @@ export interface MappingDocument {
   fields: Array<{ source?: string; target: string; expression?: string; type?: string; nullable?: boolean; description?: string }>;
   joins?: string[]; filters?: string[]; writeMode?: string; notes?: string;
 }
-export interface SqlGenerationInput { prompt: string; dialect: SqlDialect; mappingIds: string[]; referenceIds: string[]; agentId?: string | null; modelName?: string | null; }
+export interface SqlGenerationInput { prompt: string; dialect: SqlDialect; mappingIds?: string[]; mappingDocumentIds?: string[]; referenceIds?: string[]; agentId?: string | null; modelName?: string | null; }
 export interface ExistingAgentTaskRequest { tenantId: string; userId: string; sessionId: string; idempotencyKey: string; query: string; mode: 'agent_chat' | 'llm_chat'; systemPrompt?: string; agentId?: string | null; modelName?: string | null; }
 export interface PreparedSqlGeneration { generationId: string; taskRequest: ExistingAgentTaskRequest; }
 export interface SqlGeneration { id: string; taskId: string | null; applied: boolean; prepared: PreparedSqlGeneration; }

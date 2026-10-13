@@ -765,6 +765,23 @@
   padding: 15px;
 }
 
+.sql-ide-assistant .sql-assistant-scroll > * {
+  flex-shrink: 0;
+}
+
+.sql-ide-assistant .sql-chat-context {
+  flex-shrink: 0;
+  max-height: 30dvh;
+  overflow: auto;
+}
+
+.sql-ide-assistant .sql-chat-composer,
+.sql-ide-assistant .sql-composer-hint,
+.sql-ide-assistant > header,
+.sql-ide-assistant .sql-assistant-tabs {
+  flex-shrink: 0;
+}
+
 .sql-chat-empty {
   margin: auto 4px;
   color: #8091aa;

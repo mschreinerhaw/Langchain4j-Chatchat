@@ -3,13 +3,9 @@
     <header><strong>项目资源</strong><div class="sql-explorer-header-actions"><button type="button" title="新建 SQL 文件" aria-label="新建项目文件" :disabled="busy" @click="newFile"><Plus :size="16" /></button><button type="button" title="刷新工程文件" aria-label="刷新工程文件" :disabled="busy" @click="$emit('refresh')"><RotateCw :size="15" /></button></div></header>
     <label class="sql-explorer-search"><Search :size="15" /><input v-model="query" type="search" aria-label="搜索工程文件" placeholder="搜索文件或文件夹…" /></label>
     <div class="sql-explorer-project"><Folder :size="16" /><span>{{ projectName || '当前工程' }}</span><small>{{ files.length }}</small></div>
-    <div class="sql-explorer-actions">
-      <button type="button" :disabled="busy" @click="$emit('choose-library', 'MAPPING')">从文档库选 Mapping</button>
-      <button type="button" :disabled="busy" @click="$emit('choose-library', 'REFERENCE')">从文档库选 SQL 案例</button>
-    </div>
     <div class="sql-tree-scroll">
       <SqlFileTreeNode :nodes="tree" :active-id="activeId" :mapping-ids="mappingIds" @open="$emit('open', $event)" @mapping="$emit('mapping', $event)" @context="openContext" />
-      <p v-if="!files.length" class="sql-empty-copy">右键新建 SQL 文件，或从文档库关联 Mapping 与案例。</p>
+      <p v-if="!files.length" class="sql-empty-copy">点击 + 或右键新建 SQL 文件，也可以直接描述需求生成脚本。</p>
       <p v-else-if="!filteredFiles.length" class="sql-empty-copy">没有匹配的工程文件。</p>
       <details class="sql-explorer-references"><summary>已关联 SQL 案例 <small>{{ references.length }}</small></summary>
         <div v-for="file in filteredReferences" :key="file.id" class="sql-explorer-reference"><input type="checkbox" :aria-label="'关联 SQL 案例 ' + file.path" :checked="referenceIds.includes(file.id)" @change="$emit('reference', file.id)" /><button :title="file.path" @click="$emit('reference-open', file)">{{ file.path.split('/').at(-1) }}</button><small>v{{ file.version }}</small></div>

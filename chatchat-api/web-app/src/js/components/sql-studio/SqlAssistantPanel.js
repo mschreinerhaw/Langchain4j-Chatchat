@@ -4,10 +4,10 @@ import { Sparkles, FileCode2, BookOpen, Send, AtSign, TrendingUp, CircleHelp } f
 
 export default {
   components: { Sparkles, FileCode2, BookOpen, Send, AtSign, TrendingUp, CircleHelp },
-  props: { mappingCount: Number, projectFiles: Array, references: Array, referenceIds: Array, models: Array, agents: Array,
+  props: { mappingDocuments: { type:Array, default:() => [] }, mappingCount: Number, projectFiles: Array, references: Array, referenceIds: Array, models: Array, agents: Array,
     agentId: String, modelName: String, executionMode: String, prompt: String, messages: Array, busy: Boolean, generations: Array,
     generationId: String, result: Object, selectedCode: Object, currentFile: Object, dialectLabel: String, taskRunning: Boolean },
-  emits: ['reference-file', 'open-resource', 'choose-library', 'agent', 'model', 'execution-mode', 'prompt', 'send', 'generation', 'resume', 'cancel', 'preview', 'apply', 'clear-selection'],
+  emits: ['reference-file', 'open-resource', 'remove-mapping-document', 'choose-library', 'agent', 'model', 'execution-mode', 'prompt', 'send', 'generation', 'resume', 'cancel', 'preview', 'apply', 'clear-selection'],
   setup(props, { emit }) {
     const terminal = computed(() => terminalSqlTask(props.result?.task?.status));
     const scroll = ref(null);
@@ -31,7 +31,7 @@ export default {
         .filter(file => file.path.toLowerCase().includes(query.toLowerCase())).slice(0, 6);
     });
     function chooseMention(file) { emit('reference-file', file); }
-    function send(event) { if (event?.isComposing) return; if (!props.busy && !props.taskRunning && props.mappingCount && props.prompt.trim()) emit('send'); }
+    function send(event) { if (event?.isComposing) return; if (!props.busy && !props.taskRunning && props.prompt.trim()) emit('send'); }
     return { terminal, mentionOptions, chooseMention, send, scroll, assistantTab, allResources, composer, quickActions, shownResources, resources, useQuickAction, insertMention };
   }
 };

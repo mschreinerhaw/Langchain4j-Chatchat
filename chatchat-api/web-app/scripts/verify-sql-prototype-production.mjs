@@ -2,7 +2,7 @@ import { chromium, request } from 'playwright-core';
 import assert from 'node:assert/strict';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-const artifactUrl = new URL('../../../target/sql-prototype-20261013/', import.meta.url);
+const artifactUrl = new URL('../../../target/sql-context-layout-20261013/', import.meta.url);
 await mkdir(artifactUrl, { recursive: true });
 const base = process.env.SQL_STUDIO_DEPLOY_BASE;
 assert.ok(base && process.env.SQL_STUDIO_DEPLOY_USER && process.env.SQL_STUDIO_DEPLOY_PASSWORD, 'Supply deployment URL and credentials through environment variables');
@@ -23,11 +23,16 @@ try {
   project = await api('/data-science/sql/projects', {name:`__prototype_verification_${Date.now()}`,dialect:'spark'});
   report.projectId = project.id;
   const prefix = `/data-science/sql/projects/${project.id}`;
-  const mapping = await api(`${prefix}/files`,{path:'mappings/customer.csv',kind:'MAPPING',content:'source_table,source_column,target_table,target_column,type\ndim_customer,customer_id,dws_customer_profile,customer_id,BIGINT\ndim_customer,customer_name,dws_customer_profile,customer_name,STRING',expectedVersion:0},'PUT');
   const file = await api(`${prefix}/files`,{path:'scripts/customer_asset_profile.sql',kind:'SQL',content:'-- SQL Studio verification sample\n-- Temporary project; no database execution\nSELECT\n  customer_id,\n  customer_name\nFROM dim_customer;\n',expectedVersion:0},'PUT');
   const stale = await client.delete(`/api/v1${prefix}/files/${file.id}?expectedVersion=99`,{headers:{Authorization:`Bearer ${session.token}`}});
   assert.equal(stale.status(),409); check('File version conflict',409);
   const library = await api('/data-science/sql/library-files?kind=MAPPING'); check('Authorized library', {choices:library.length});
+  if (library.length) {
+    const context=await api(`${prefix}/generations`,{prompt:'Prepare SQL context only',dialect:'spark',mappingDocumentIds:[library[0].docId]});
+    assert.ok(context.taskRequest.query.includes(library[0].fileName));
+    assert.equal((await api(`${prefix}/files`)).length,1);
+    check('Library Mapping is task context only',{editorFiles:1});
+  }
   browser = await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
   const page = await browser.newPage({viewport:{width:1665,height:928}});
   page.on('pageerror', error => report.browserErrors.push(error.message));
@@ -63,7 +68,27 @@ try {
   await page.locator('.chat-view').waitFor({timeout:30000});
   assert.deepEqual(report.browserErrors,[]); check('SQL / Python / Zhice browser', 'no page errors');
 
-  const prepared = await api(`${prefix}/generations`,{prompt:'Generate exactly one Spark SQL file scripts/generated_customer.sql that selects customer_id and customer_name from dim_customer according to the supplied Mapping. Return the required sql-studio.output.v1 JSON contract. Do not call tools or execute SQL.',dialect:'spark',mappingIds:[mapping.id],referenceIds:[]});
+  const login=await browser.newPage();
+  await login.goto(`${base}/#/login`,{waitUntil:'domcontentloaded'});
+  await login.locator('.login-submit').waitFor();
+  for (const viewport of [{width:1920,height:1080},{width:1366,height:768},{width:1280,height:720},{width:1024,height:768},{width:390,height:844}]) {
+    await login.setViewportSize(viewport);
+    await login.locator('.login-submit').scrollIntoViewIfNeeded();
+    const box=await login.locator('.login-submit').boundingBox();
+    assert.ok(box.y>=0 && box.y+box.height<=viewport.height && box.x>=0 && box.x+box.width<=viewport.width);
+    const sizes=await login.locator('.login-view').evaluate(el=>({width:el.clientWidth,scroll:el.scrollWidth,height:el.clientHeight}));
+    assert.ok(sizes.scroll<=sizes.width+1);assert.equal(sizes.height,viewport.height);
+    if(viewport.width>1080) {
+      const card=await login.locator('.login-card').boundingBox();
+      assert.ok(card.y>=0 && card.y+card.height<=viewport.height);
+    }
+    check('Login viewport',viewport);
+  }
+  await login.setViewportSize({width:1366,height:768});
+  await login.screenshot({path:fileURLToPath(new URL('deployed-login-1366.png',artifactUrl))});
+  await login.close();
+
+  const prepared = await api(`${prefix}/generations`,{prompt:'Generate exactly one Spark SQL file scripts/generated_customer.sql that selects customer_id and customer_name from dim_customer. Return the required sql-studio.output.v1 JSON contract. Do not call tools or execute SQL.',dialect:'spark',mappingIds:[],mappingDocumentIds:[],referenceIds:[]});
   assert.equal(prepared.taskRequest.mode,'llm_chat');
   assert.ok(prepared.taskRequest.systemPrompt.includes('sql-studio.output.v1'));
   generationId = prepared.generationId;
@@ -84,7 +109,7 @@ try {
   assert.equal(result.events.filter(event => ['TOOL_CALL','TOOL_RESULT'].includes(event.type)).length,0,'Model-only generation must not execute tools');
   const applied = await api(`${prefix}/generations/${generationId}/apply`,{paths:result.files.map(file=>file.path)});
   assert.equal(applied.length,result.files.length);
-  check('Real model generation and confirmed application',{status:result.task.status,files:applied.map(file=>file.path),eventCount:result.events.length,validation:result.validation});
+  check('Real model generation without Mapping or examples',{status:result.task.status,files:applied.map(file=>file.path),eventCount:result.events.length,validation:result.validation});
 } finally {
   await browser?.close();
   if (taskId && project) {

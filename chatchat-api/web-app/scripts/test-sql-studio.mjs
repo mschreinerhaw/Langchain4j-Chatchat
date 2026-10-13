@@ -62,7 +62,8 @@ try {
     }
     else if (path.endsWith('/project/generations') && method === 'POST') {
       const body = request.postDataJSON();
-      assert.deepEqual(body.mappingIds, ['mapped']);
+      assert.deepEqual(body.mappingIds, []);
+      assert.deepEqual(body.mappingDocumentIds, ['mapping-1']);
       assert.ok(body.prompt.includes('sql/new.sql'));
       data = { generationId: generation.id, taskRequest: { query: body.prompt, sessionId: 'session' } };
     }
@@ -98,10 +99,14 @@ try {
   await page.getByRole('button', { name: '对话', exact: true }).click();
   await page.getByLabel('发送给 AI 工程助手').press('Enter');
   assert.equal(submissionCount, 0, 'Enter must insert a newline without submitting a task');
-  await page.getByRole('button', { name: '从文档库选 Mapping' }).click();
+  assert.equal(await page.locator('.sql-chat-composer .sql-primary').isDisabled(), false, 'Mapping is optional');
+  assert.equal(await page.getByRole('button', { name: '从文档库选 SQL 案例' }).count(), 0);
+  await page.getByRole('button', { name: '选择 Mapping（可选）' }).click();
   await page.locator('.sql-library-list input').check();
-  await page.getByRole('button', { name: '关联所选文件' }).click();
-  await page.locator('.sql-tree-file button[title="mapping/customer.csv"]').waitFor();
+  await page.getByRole('button', { name: '确认上下文' }).click();
+  await page.locator('.sql-selection-chip').filter({ hasText:'customer.csv' }).waitFor();
+  assert.equal(await page.locator('.sql-tree-file button[title="mapping/customer.csv"]').count(), 0);
+  assert.equal(filesByProject.project.length, 2, 'Document selection must not import editor files');
   await page.locator('.sql-chat-settings summary').click();
   await page.getByRole('button', { name: '模型', exact: true }).click();
   assert.equal(await page.locator('.sql-chat-settings .sql-agent-choice').filter({ hasText: 'Agent / Skills' }).count(), 0);
@@ -126,6 +131,24 @@ try {
   await page.getByRole('button', { name: '删除工程' }).click();
   await page.waitForFunction(() => !document.querySelector('.sql-studio-bar select[aria-label="SQL 工程"] option[value="new-project"]'));
   assert.equal(projects.length, 1);
+  const login = await browser.newPage();
+  await login.route('**/api/v1/**', route => route.fulfill({ json:{code:200,data:Object.values(manifests)} }));
+  await login.goto(`http://127.0.0.1:${server.httpServer.address().port}/#/login`,{waitUntil:'domcontentloaded'});
+  await login.locator('.login-submit').waitFor();
+  for (const viewport of [{width:1920,height:1080},{width:1366,height:768},{width:1280,height:720},{width:1024,height:768},{width:390,height:844}]) {
+    await login.setViewportSize(viewport);
+    await login.locator('.login-submit').scrollIntoViewIfNeeded();
+    const bounds=await login.locator('.login-submit').boundingBox();
+    assert.ok(bounds.x>=0 && bounds.x+bounds.width<=viewport.width && bounds.y>=0 && bounds.y+bounds.height<=viewport.height,`Login button reachable ${JSON.stringify(viewport)}`);
+    const size=await login.locator('.login-view').evaluate(el=>({width:el.clientWidth,scroll:el.scrollWidth,height:el.clientHeight}));
+    assert.ok(size.scroll<=size.width+1,`Login has no horizontal clipping: ${JSON.stringify({viewport,size})}`);
+    assert.equal(size.height,viewport.height,'Login owns a scrollable viewport');
+    if(viewport.width>1080) {
+      const card=await login.locator('.login-card').boundingBox();
+      assert.ok(card.y>=0 && card.y+card.height<=viewport.height,`Full login form fits ${JSON.stringify(viewport)}: ${JSON.stringify(card)}`);
+    }
+  }
+  await login.close();
   await mkdir('../../target/sql-studio-ide-audit', { recursive: true });
   await page.screenshot({ path: '../../target/sql-studio-ide-audit/sql-studio-ide.png', fullPage: true });
   assert.deepEqual(errors, []);

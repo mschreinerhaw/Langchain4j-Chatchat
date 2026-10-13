@@ -231,6 +231,29 @@ class SqlStudioIntegrationTest {
         assertThat(jdbc.queryForObject("select count(*) from ds_sql_project where id=?",Integer.class,p)).isZero();
         assertThat(jdbc.queryForObject("select count(*) from ds_sql_file where project_id=?",Integer.class,p)).isZero();
     }
+    @Test void generationAcceptsNoMappingOrExample() throws Exception {
+        String p=project();
+        var prepared=prepare(p,List.of(),List.of());
+        assertThat(prepared.path("taskRequest").path("query").asText()).contains("Mapping documents and SQL examples are optional");
+        run(p,prepared,List.of(Map.of("path","sql/simple.sql","content","SELECT 1;")));
+        assertThat(result(p,prepared).path("files").size()).isEqualTo(1);
+    }
+    @Test void libraryMappingIsAuthorizedFrozenContextWithoutEditorFiles() throws Exception {
+        String p=project();
+        var document=SearchDocument.builder().docId("context-doc").fileName("mapping.csv")
+            .content("source,target\na,b").lifecycleStatus("ACTIVE").build();
+        when(documentLibrary.get(eq("context-doc"),any())).thenReturn(Optional.of(document));
+        String body=json(Map.of("prompt","Generate SQL","dialect","spark","mappingDocumentIds",List.of("context-doc")));
+        var prepared=data(mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token)
+            .contentType("application/json").content(body)).andExpect(status().isOk()).andReturn());
+        assertThat(prepared.path("taskRequest").path("query").asText()).contains("mapping.csv","source,target");
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_file where project_id=?",Integer.class,p)).isZero();
+        when(documentLibrary.get(eq("context-doc"),any())).thenReturn(Optional.empty());
+        assertThat(result(p,prepared).path("generation").path("prepared").path("taskRequest").path("query").asText()).contains("source,target");
+        mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token)
+            .contentType("application/json").content(body)).andExpect(status().isNotFound());
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_generation where project_id=?",Integer.class,p)).isEqualTo(1);
+    }
     @Test void libraryImportIsAtomicAndRechecksDocumentAuthorization() throws Exception {
         String p=project();
         String owner=identities.login("admin","123456").user().id();

@@ -1,5 +1,7 @@
 # Code Intelligence 实施与验证报告
 
+> 本文记录开发阶段的本地测试状态。2026-10-13 的实际部署与线上验证见 [SQL Studio 与 Code Intelligence 生产部署记录](../sql-studio/05-production-deployment.md)。
+
 ## 实际变更
 
 - 通用前端：`src/js/editor/{codeIntelligence,sqlDiagnostics}.js`、`src/components/editor/EditorPreferences.vue`、对应外部 JS/CSS；`package.json` 和 lockfile 增加 `dt-sql-parser`、`sql-formatter`。

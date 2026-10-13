@@ -30,6 +30,15 @@ public class WorkspaceOriginService {
         record(request, conversation.getId(), source);
         return conversation;
     }
+    /** Application-owned creation provenance; the caller declares its registered workspace,
+     * while server identity and policy still decide authorization. Existing clients keep create(). */
+    @Transactional
+    public Conversation createForWorkspace(HttpServletRequest request, String workspaceId, String title) {
+        workspaces.requireAvailable(request, workspaceId);
+        var conversation = conversations.createConversation(access.tenant(request), access.user(request), title);
+        record(request, conversation.getId(), workspaceId);
+        return conversation;
+    }
     @Transactional
     public String prepare(HttpServletRequest request, String sessionId) {
         boolean existing = access.conversationExists(sessionId);

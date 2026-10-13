@@ -54,6 +54,10 @@ describe("Workspace identity and state isolation", () => {
     expect(chooseWorkspace(items, {}, { lastWorkspaceId: "revoked" }).workspaceId).toBe("zhice");
     expect(chooseWorkspace([...items, { workspaceId: "data-science" }], { legacyView: "library" },
       { lastWorkspaceId: "data-science" }).workspaceId).toBe("zhice");
+    expect(chooseWorkspace([...items, { workspaceId: "data-science" }],
+      { legacyView: "dataScienceDevelop" }).workspaceId).toBe("data-science");
+    expect(chooseWorkspace([...items, { workspaceId: "data-science" }],
+      { legacyView: "dataScienceSkills" }).workspaceId).toBe("zhice");
   });
 });
 describe("Workspace Shell", () => {
@@ -81,6 +85,22 @@ describe("Workspace Shell", () => {
     vi.spyOn(api, "fetchWorkspaceManifest").mockRejectedValue(new Error("403"));
     await App.methods.switchWorkspace.call(state, "forbidden");
     expect(state.currentWorkspace.workspaceId).toBe("zhice"); expect(state.activeView).toBe("chat"); expect(state.workspaceError).toBe("403");
+  });
+  it("shows studio pages directly under the workspace name", async () => {
+    const state = shell();
+    const studio = loaded("data-science", "dataScienceDevelop");
+    studio.manifest.layoutType = "studio";
+    studio.manifest.name = "数据科学";
+    studio.menus = [{ id: "capability", title: "能力管理", children: [
+      { id: "dataScience", title: "数据科学", children: [
+        { id: "dataScienceDevelop", title: "Python 开发", children: [] }
+      ] }
+    ] }];
+    vi.spyOn(api, "fetchWorkspaceManifest").mockResolvedValue(studio);
+    vi.spyOn(api, "saveWorkspacePreferences").mockResolvedValue({});
+    await App.methods.switchWorkspace.call(state, "data-science");
+    expect(state.navItems[0].label).toBe("数据科学");
+    expect(state.navItems[0].items.map(item => item.id)).toEqual(["dataScienceDevelop"]);
   });
   it("shares one Python editor cache inside a workspace and isolates caches across spaces", () => {
     const state = { tenantId: "t1", authSession: { user: { id: "u1" } }, currentWorkspace: { workspaceId: "zhice" }, workspacePages: [] };

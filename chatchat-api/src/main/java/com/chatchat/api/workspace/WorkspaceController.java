@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 public class WorkspaceController {
     private final WorkspaceService service;
     private final WorkspaceOriginService origins;
+    @GetMapping("/workspaces/catalog") public ApiResponse<?> catalog() { return ApiResponse.success(service.licensedCatalog()); }
     @GetMapping("/workspaces/context/{type}/{id}") public ApiResponse<?> context(HttpServletRequest request, @PathVariable("type") String type, @PathVariable("id") String id) { return ApiResponse.success(origins.context(request, type, id).orElse(null)); }
     @GetMapping("/workspaces") public ApiResponse<?> available(HttpServletRequest request) { return ApiResponse.success(service.available(request)); }
     @GetMapping("/workspaces/{id}/manifest") public ApiResponse<?> manifest(HttpServletRequest request, @PathVariable("id") String id) { return ApiResponse.success(service.load(request, id)); }

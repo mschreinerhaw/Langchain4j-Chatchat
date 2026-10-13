@@ -9,6 +9,7 @@ const WORKBENCH_REQUEST_REUSE_MS = 5000;
 const workbenchRequests = new Map();
 
 export const fetchWorkspaces = () => apiRequest("/workspaces");
+export const fetchWorkspaceCatalog = () => apiRequest("/workspaces/catalog");
 export const fetchWorkspaceManifest = (id) => apiRequest(`/workspaces/${encodeURIComponent(id)}/manifest`);
 export const fetchWorkspacePreferences = () => apiRequest("/workspaces/preferences");
 export const saveWorkspacePreferences = (payload) => apiRequest("/workspaces/preferences", { method: "PUT", body: JSON.stringify(payload) });
@@ -38,7 +39,7 @@ export async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json; charset=UTF-8",
+      ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json; charset=UTF-8" }),
       ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
       ...workspaceHeaders(options.workspaceContext),
       ...(options.headers || {})

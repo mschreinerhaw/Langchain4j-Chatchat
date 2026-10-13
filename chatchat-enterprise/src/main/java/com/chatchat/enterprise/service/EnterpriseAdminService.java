@@ -1958,7 +1958,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new MenuSeed("dataScience", "dataScienceDevelop", "Python 开发", "menu", "/index.html#dataScienceDevelop", "capability:data-science", 26),
             new MenuSeed("dataScience", "dataScienceData", "我的数据", "menu", "/index.html#dataScienceData", "capability:data-science", 27),
             new MenuSeed("dataScience", "dataScienceScripts", "我的脚本", "menu", "/index.html#dataScienceScripts", "capability:data-science", 28),
-            new MenuSeed("dataScience", "dataScienceSkills", "领域技能", "menu", "/index.html#dataScienceSkills", "capability:data-science", 29),
+            new MenuSeed("capability", "dataScienceSkills", "领域技能", "menu", "/index.html#dataScienceSkills", "capability:data-science", 29),
             new MenuSeed(null, "platform", "平台管理", "directory", null, null, 30),
             new MenuSeed("platform", "mcp", "MCP能力", "menu", "/index.html#mcp", "mcp", 31),
             new MenuSeed("platform", "agents", "Agent管理", "menu", "/index.html#agents", "platform:agents", 32),

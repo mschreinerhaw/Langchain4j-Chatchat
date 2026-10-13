@@ -1,6 +1,8 @@
 # Workspace 附加迁移说明
 
-本轮仅交付脚本，没有生产执行授权。只选择实际数据库对应的 `V20261013_01__workspace_apps.sql`；不要依次执行三个方言。
+生产 PostgreSQL 已依用户后续授权执行 `V20261013_01__workspace_apps.sql` 和 `V20261013_02__workspace_navigation.sql`，先事务演练，再正式执行。详细结果与备份位置见 [生产报告](../../docs/workspace/06-production-validation.md)。以下步骤保留为其他环境的部署说明；只选择实际数据库对应方言，不依次执行三个方言。
+
+V2 仅调整两条默认 Manifest 与“领域技能”菜单父级，只有原始 V1 Manifest 完全匹配时才升级，以免覆盖管理员自定义配置。应用启动也会幂等执行同义导航配置脚本。MySQL/H2 V2 脚本已交付；本次未在对应生产库执行。
 
 1. 先备份既有数据库及任务/会话详情文件，记录原版本和已发布静态包。只读检查 `sys_permission`、`sys_role`、`sys_role_permission`、`sys_menu`、`sys_menu_permission` 的既有结构与状态，排查固定种子 ID `ws-api/ws-zhice/ws-manage/ws-marker` 与现有配置冲突。
 2. 审查三张附加表及一次性入口角色映射。脚本不授予 Skill、MCP、Python 环境、文件或任务管理权限。只有既有权限角色取得等效 Workspace 入口；新注册管理权限限定已具角色授权能力的 `SUPER_ADMIN`。

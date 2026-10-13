@@ -26,6 +26,7 @@
       :nav-items="navItems"
       :recent-conversations="recentConversations"
       :user-id="userId"
+      :show-conversation-history="layoutType === 'assistant'"
       @delete-conversation="$emit('delete-conversation', $event)"
       @delete-conversations="$emit('delete-conversations', $event)"
       @favorite-conversation="$emit('favorite-conversation', $event)"

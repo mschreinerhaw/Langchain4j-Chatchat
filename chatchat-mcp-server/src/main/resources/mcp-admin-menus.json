@@ -1,4 +1,6 @@
 [
+  {"key":"workspaceZhice","label":"灵动智策工作空间","icon":"Monitor","navigation":false,"description":"允许使用灵动智策工作空间"},
+  {"key":"workspaceDataScience","label":"数据科学工作空间","icon":"Code","navigation":false,"description":"允许使用数据科学工作空间"},
   {"key":"apiServices","label":"API 服务","icon":"Connection","navigation":true,"description":"API 服务资产、模板发现与执行","apiPrefixes":["/api/v1/api-services","/api/v1/livedata-apis"],"toolPatterns":["api_*","livedata_*"]},
   {"key":"mcpServices","label":"MCP 服务","icon":"Cpu","navigation":true,"description":"MCP 服务注册、发布与运行管理","apiPrefixes":["/api/v1/mcp-services","/api/v1/external-mcp-services","/api/v1/search"],"toolPatterns":["*"]},
   {"key":"mcpSkillFederation","label":"MCP Skills 联邦","icon":"Collection","navigation":false,"description":"远端 MCP Skills 发现、同步、审核和 Runtime 激活","apiPrefixes":["/api/v1/data-science/domain-skills/mcp-sources"]},

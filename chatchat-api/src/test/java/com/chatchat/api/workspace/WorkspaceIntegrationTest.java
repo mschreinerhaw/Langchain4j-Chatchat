@@ -45,8 +45,11 @@ class WorkspaceIntegrationTest {
     @MockBean com.chatchat.chat.interaction.service.DatabaseRuntimeSemanticPolicySource semanticPolicy;
     @MockBean InteractionOrchestrationService orchestration;
     @MockBean com.chatchat.chat.skills.catalog.SkillCatalogService catalog;
+    @MockBean com.chatchat.common.mcp.license.McpLicenseEntitlementPort workspaceLicense;
     String adminToken, tenant;
     @BeforeEach void setup() {
+        when(workspaceLicense.workspaceEntitlement()).thenReturn(new com.chatchat.common.mcp.license.McpLicenseEntitlementPort.WorkspaceEntitlement(
+            true, Set.of("zhice", "data-science"), "VALID"));
         var auth = identities.login("admin", "123456"); adminToken = auth.token(); tenant = auth.user().tenantId();
     }
     private String userToken(boolean science) {
@@ -68,6 +71,8 @@ class WorkspaceIntegrationTest {
     }
     private JsonNode data(MvcResult result) throws Exception { return mapper.readTree(result.getResponse().getContentAsString()).path("data"); }
     @Test void loginAndDefaultLegacyMenusRemainAvailable() throws Exception {
+        mvc.perform(get("/api/v1/workspaces/catalog")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.length()").value(2));
         mvc.perform(post("/api/v1/enterprise/auth/login").contentType("application/json")
             .content("{\"username\":\"admin\",\"password\":\"123456\"}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.token").exists());
@@ -78,6 +83,12 @@ class WorkspaceIntegrationTest {
         mvc.perform(get("/api/v1/workspaces/zhice/manifest").header("Authorization", "Bearer "+adminToken))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.manifest.entryPage").value("chat"))
             .andExpect(jsonPath("$.data.menus").isNotEmpty());
+        var zhice = data(mvc.perform(get("/api/v1/workspaces/zhice/manifest").header("Authorization", "Bearer "+adminToken))
+            .andExpect(status().isOk()).andReturn()).path("manifest");
+        assertThat(zhice.path("pages").toString()).contains("dataScienceSkills").doesNotContain("dataScienceEnvironment");
+        var science = data(mvc.perform(get("/api/v1/workspaces/data-science/manifest").header("Authorization", "Bearer "+adminToken))
+            .andExpect(status().isOk()).andReturn()).path("manifest");
+        assertThat(science.path("pages").toString()).doesNotContain("dataScienceSkills");
     }
     @Test void normalUserCanOnlySeeAndSelectAuthorizedWorkspace() throws Exception {
         String token = userToken(false);
@@ -88,6 +99,16 @@ class WorkspaceIntegrationTest {
         mvc.perform(put("/api/v1/workspaces/preferences").header("Authorization", "Bearer "+token).contentType("application/json")
             .content("{\"lastWorkspaceId\":\"data-science\"}")) .andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/enterprise/workspaces").header("Authorization", "Bearer "+token)).andExpect(status().isForbidden());
+    }
+    @Test void licenseDenialRemovesWorkspaceEvenForAnRbacAuthorizedAdministrator() throws Exception {
+        when(workspaceLicense.workspaceEntitlement()).thenReturn(new com.chatchat.common.mcp.license.McpLicenseEntitlementPort.WorkspaceEntitlement(
+            true, Set.of("zhice"), "VALID"));
+        mvc.perform(get("/api/v1/workspaces/catalog")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.length()").value(1));
+        mvc.perform(get("/api/v1/workspaces").header("Authorization", "Bearer "+adminToken))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1));
+        mvc.perform(get("/api/v1/workspaces/data-science/manifest").header("Authorization", "Bearer "+adminToken))
+            .andExpect(status().isForbidden());
     }
     @Test void authorizedUserSwitchesAndRestoresPreferencesUsingOneToken() throws Exception {
         String token = userToken(true);

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "workspace-manifest.v1",
-  "configVersion": 1,
+  "configVersion": 2,
   "workspaceId": "zhice",
   "appVersion": "1.0.0",
   "name": "灵动智策",
@@ -49,36 +49,6 @@
       "id": "mcp",
       "menuCode": "mcp",
       "componentKey": "mcp",
-      "props": {}
-    },
-    {
-      "id": "dataScience",
-      "menuCode": "dataScience",
-      "componentKey": "dataScience",
-      "props": {}
-    },
-    {
-      "id": "dataScienceEnvironment",
-      "menuCode": "dataScienceEnvironment",
-      "componentKey": "dataScienceEnvironment",
-      "props": {}
-    },
-    {
-      "id": "dataScienceDevelop",
-      "menuCode": "dataScienceDevelop",
-      "componentKey": "dataScienceDevelop",
-      "props": {}
-    },
-    {
-      "id": "dataScienceData",
-      "menuCode": "dataScienceData",
-      "componentKey": "dataScienceData",
-      "props": {}
-    },
-    {
-      "id": "dataScienceScripts",
-      "menuCode": "dataScienceScripts",
-      "componentKey": "dataScienceScripts",
       "props": {}
     },
     {

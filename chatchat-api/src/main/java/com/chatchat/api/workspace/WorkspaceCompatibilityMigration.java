@@ -23,6 +23,8 @@ public class WorkspaceCompatibilityMigration {
     public void seed() {
         var populator = new ResourceDatabasePopulator(new ClassPathResource("workspace/workspace-seed.sql"));
         populator.setSqlScriptEncoding("UTF-8"); populator.execute(dataSource);
+        var navigation = new ResourceDatabasePopulator(new ClassPathResource("workspace/workspace-navigation.sql"));
+        navigation.setSqlScriptEncoding("UTF-8"); navigation.execute(dataSource);
         if (!jdbc.queryForList("select id from sys_permission where permission_code = 'system:workspace-compatibility:v1'").isEmpty()) return;
         bindEquivalent("workspace:api:access", "p.permission_code = 'account:menus:read'");
         bindEquivalent("system:workspaces:manage", "r.role_code = 'SUPER_ADMIN' and p.permission_code = 'system:role:authorize'");

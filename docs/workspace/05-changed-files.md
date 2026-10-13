@@ -1,6 +1,6 @@
 # 实际文件清单
 
-基线 `c876b184`；以下由 Git 工作区差异与未跟踪源文件生成。未提交、未部署。编译产物和本地日志不计入源码清单。
+基线 `c876b184`；首张清单记录第二轮本地实施时的源码差异。该阶段后来已获生产部署授权；本次增量见文末清单，部署结果见 [生产报告](06-production-validation.md)。编译产物和本地日志不计入源码清单。
 
 | 状态 | 文件 |
 | --- | --- |
@@ -66,3 +66,50 @@
 共 25 个修改文件，33 个新增文件。新文档包括第一轮保留的审查/设计/基线与本轮更新；不代表第一轮修改过业务代码。
 
 本地发布包：`chatchat-api/target/chatchat-api-1.0.0-SNAPSHOT-release.zip`。生成 assets 被仓库忽略；源码发布需先 `npm.cmd run build`。此清单不包含账号、密码、Token 或服务器配置变更。
+
+## 2026-10-13 登录入口、菜单与 License 生产迭代
+
+
+以下为本次增量的实际源码与文档文件（39 项）；前端生成 assets 和本地验证日志位于忽略目录，不计入源码。生产发布包已由前端构建打入这些 assets。
+
+| 状态 | 文件 |
+| --- | --- |
+| 修改 | [chatchat-api/src/main/java/com/chatchat/api/security/ApiAuthenticationFilter.java](../../chatchat-api/src/main/java/com/chatchat/api/security/ApiAuthenticationFilter.java) |
+| 修改 | [chatchat-api/src/main/java/com/chatchat/api/workspace/WorkspaceCompatibilityMigration.java](../../chatchat-api/src/main/java/com/chatchat/api/workspace/WorkspaceCompatibilityMigration.java) |
+| 修改 | [chatchat-api/src/main/java/com/chatchat/api/workspace/WorkspaceController.java](../../chatchat-api/src/main/java/com/chatchat/api/workspace/WorkspaceController.java) |
+| 修改 | [chatchat-api/src/main/java/com/chatchat/api/workspace/WorkspaceService.java](../../chatchat-api/src/main/java/com/chatchat/api/workspace/WorkspaceService.java) |
+| 修改 | [chatchat-api/src/main/resources/workspace/data-science.json](../../chatchat-api/src/main/resources/workspace/data-science.json) |
+| 新增 | [chatchat-api/src/main/resources/workspace/workspace-navigation.sql](../../chatchat-api/src/main/resources/workspace/workspace-navigation.sql) |
+| 修改 | [chatchat-api/src/main/resources/workspace/zhice.json](../../chatchat-api/src/main/resources/workspace/zhice.json) |
+| 修改 | [chatchat-api/src/test/java/com/chatchat/api/workspace/WorkspaceIntegrationTest.java](../../chatchat-api/src/test/java/com/chatchat/api/workspace/WorkspaceIntegrationTest.java) |
+| 修改 | [chatchat-api/web-app/scripts/test-workspace-shell.mjs](../../chatchat-api/web-app/scripts/test-workspace-shell.mjs) |
+| 修改 | [chatchat-api/web-app/src/App.vue](../../chatchat-api/web-app/src/App.vue) |
+| 修改 | [chatchat-api/web-app/src/components/AssistantLayout.vue](../../chatchat-api/web-app/src/components/AssistantLayout.vue) |
+| 修改 | [chatchat-api/web-app/src/components/AssistantSidebar.vue](../../chatchat-api/web-app/src/components/AssistantSidebar.vue) |
+| 修改 | [chatchat-api/web-app/src/js/App.js](../../chatchat-api/web-app/src/js/App.js) |
+| 修改 | [chatchat-api/web-app/src/js/App.test.js](../../chatchat-api/web-app/src/js/App.test.js) |
+| 修改 | [chatchat-api/web-app/src/js/components/AssistantSidebar.js](../../chatchat-api/web-app/src/js/components/AssistantSidebar.js) |
+| 修改 | [chatchat-api/web-app/src/js/utils/workspace.test.js](../../chatchat-api/web-app/src/js/utils/workspace.test.js) |
+| 修改 | [chatchat-api/web-app/src/js/utils/workspaceContext.js](../../chatchat-api/web-app/src/js/utils/workspaceContext.js) |
+| 修改 | [chatchat-api/web-app/src/js/views/LoginView.js](../../chatchat-api/web-app/src/js/views/LoginView.js) |
+| 修改 | [chatchat-api/web-app/src/services/api.js](../../chatchat-api/web-app/src/services/api.js) |
+| 修改 | [chatchat-api/web-app/src/styles/pages/login.css](../../chatchat-api/web-app/src/styles/pages/login.css) |
+| 修改 | [chatchat-api/web-app/src/views/DataScienceView.vue](../../chatchat-api/web-app/src/views/DataScienceView.vue) |
+| 修改 | [chatchat-api/web-app/src/views/DomainSkillsView.vue](../../chatchat-api/web-app/src/views/DomainSkillsView.vue) |
+| 修改 | [chatchat-api/web-app/src/views/LoginView.vue](../../chatchat-api/web-app/src/views/LoginView.vue) |
+| 修改 | [chatchat-common/src/main/java/com/chatchat/common/mcp/license/McpLicenseEntitlementPort.java](../../chatchat-common/src/main/java/com/chatchat/common/mcp/license/McpLicenseEntitlementPort.java) |
+| 修改 | [chatchat-enterprise/src/main/java/com/chatchat/enterprise/service/EnterpriseAdminService.java](../../chatchat-enterprise/src/main/java/com/chatchat/enterprise/service/EnterpriseAdminService.java) |
+| 修改 | [chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/client/McpLicenseEntitlementClient.java](../../chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/client/McpLicenseEntitlementClient.java) |
+| 修改 | [chatchat-license/src/main/resources/license-module-catalog.json](../../chatchat-license/src/main/resources/license-module-catalog.json) |
+| 修改 | [chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/license/LicenseInternalController.java](../../chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/license/LicenseInternalController.java) |
+| 修改 | [chatchat-mcp-server/src/main/resources/mcp-admin-menus.json](../../chatchat-mcp-server/src/main/resources/mcp-admin-menus.json) |
+| 修改 | [chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/license/LicenseInternalControllerTest.java](../../chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/license/LicenseInternalControllerTest.java) |
+| 修改 | [database/migration/README-workspace.md](../../database/migration/README-workspace.md) |
+| 新增 | [database/migration/h2/V20261013_02__workspace_navigation.sql](../../database/migration/h2/V20261013_02__workspace_navigation.sql) |
+| 新增 | [database/migration/mysql/V20261013_02__workspace_navigation.sql](../../database/migration/mysql/V20261013_02__workspace_navigation.sql) |
+| 新增 | [database/migration/postgresql/V20261013_02__workspace_navigation.sql](../../database/migration/postgresql/V20261013_02__workspace_navigation.sql) |
+| 修改 | [docs/workspace/02-workspace-architecture.md](../../docs/workspace/02-workspace-architecture.md) |
+| 修改 | [docs/workspace/03-test-report.md](../../docs/workspace/03-test-report.md) |
+| 修改 | [docs/workspace/04-implementation-review.md](../../docs/workspace/04-implementation-review.md) |
+| 修改 | [docs/workspace/05-changed-files.md](../../docs/workspace/05-changed-files.md) |
+| 新增 | [docs/workspace/06-production-validation.md](../../docs/workspace/06-production-validation.md) |

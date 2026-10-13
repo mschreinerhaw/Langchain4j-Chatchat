@@ -1,11 +1,11 @@
 {
   "schemaVersion": "workspace-manifest.v1",
-  "configVersion": 1,
+  "configVersion": 3,
   "workspaceId": "data-science",
   "appVersion": "1.0.0",
   "name": "数据科学",
   "icon": "flask",
-  "description": "Python 环境、开发、数据、脚本与领域 Skills",
+  "description": "Python 开发、SQL 工程、数据与脚本",
   "entryPage": "dataScienceEnvironment",
   "layoutType": "studio",
   "pages": [
@@ -40,21 +40,15 @@
       "props": {}
     },
     {
-      "id": "dataScienceSkills",
-      "menuCode": "dataScienceSkills",
-      "componentKey": "dataScienceSkills",
+      "id": "sqlStudio",
+      "menuCode": "sqlStudio",
+      "componentKey": "sqlStudio",
       "props": {}
     }
   ],
   "requiredCapabilities": [
     "capability:data-science"
   ],
-  "optionalCapabilities": [
-    {
-      "id": "sql.generation",
-      "state": "reserved",
-      "name": "SQL Studio"
-    }
-  ],
+  "optionalCapabilities": [],
   "defaultSkillIds": []
 }

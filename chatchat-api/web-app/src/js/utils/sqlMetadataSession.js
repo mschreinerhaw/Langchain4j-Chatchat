@@ -4,6 +4,9 @@ export class StaleMetadataRequest extends Error { constructor(){super('数据源
 export class SqlMetadataSession {
   constructor(invoke,onInvalidate=()=>{}) {this.invoke=invoke;this.onInvalidate=onInvalidate;this.epoch=0;this.scope=null;this.cache=new Map();this.pending=new Map();this.snapshot=null;}
   bind(scope) {this.epoch++;this.scope=scope?structuredClone(scope):null;this.cache.clear();this.pending.clear();this.snapshot=null;}
+  // Cancel in-flight work without discarding the displayed snapshot. Resuming
+  // requires authorize(), which still clears projections on revocation/change.
+  suspend() {this.epoch++;this.cache.clear();this.pending.clear();}
   invalidate() {this.epoch++;this.cache.clear();this.pending.clear();this.snapshot=null;this.onInvalidate();}
   assert(epoch) {if(epoch!==this.epoch || !this.scope)throw new StaleMetadataRequest();}
   async raw(args,epoch) {

@@ -51,4 +51,53 @@ describe('Schema Explorer API integration',()=>{
     expect(api.sqlMetadataProviders).toHaveBeenCalledTimes(calls);
     expect(host.querySelectorAll('[role=treeitem]')).toHaveLength(1);
   });
+  it('paginates the server results and keeps the page, fields and scroll position across focus changes',async()=>{
+    const second={...table,tableName:'invoices',tableRef:'public-invoices'};
+    api.sqlMetadataOperation.mockImplementation(async(_p,_d,_b,args)=>{
+      if(args.operation==='LIST_NAMESPACES')return result([{database:'catalog',schema:'public'}]);
+      if(args.operation==='DESCRIBE')return result([{...second,columns:[{name:'invoice_id',dataType:'bigint'}]}]);
+      return {metadata:{...result(args.page===2?[second]:[table]).metadata,totalMatched:51,hasMore:args.page===1}};
+    });
+    await mount();await select(1,'a');
+    const pagination=()=>host.querySelector('[aria-label="元数据分页"]');
+    expect(pagination().textContent).toContain('1 / 2 页');
+    expect([...pagination().querySelectorAll('button')].find(b=>b.textContent==='上一页').disabled).toBe(true);
+    [...pagination().querySelectorAll('button')].find(b=>b.textContent==='下一页').click();await tick();
+    expect(host.querySelector('[aria-label="展开 invoices"]')).not.toBeNull();
+    expect(pagination().textContent).toContain('2 / 2 页');
+    expect([...pagination().querySelectorAll('button')].find(b=>b.textContent==='下一页').disabled).toBe(true);
+    host.querySelector('[aria-label="展开 invoices"]').click();await tick();
+    const list=host.querySelector('[role=tree]');list.scrollTop=80;
+    const contexts=api.createSqlMetadataContext.mock.calls.length;
+    const pageReads=()=>api.sqlMetadataOperation.mock.calls.filter(([, , ,a])=>a.operation==='SEARCH'&&a.pageSize===50).length;
+    const reads=pageReads();
+    window.dispatchEvent(new Event('blur'));await tick();
+    expect(host.querySelector('[role=group]').textContent).toContain('invoice_id');
+    window.dispatchEvent(new Event('focus'));await tick();
+    expect(pagination().textContent).toContain('2 / 2 页');
+    expect(host.querySelector('[role=group]').textContent).toContain('invoice_id');expect(list.scrollTop).toBe(80);
+    expect(api.createSqlMetadataContext).toHaveBeenCalledTimes(contexts);expect(pageReads()).toBe(reads);
+  });
+  it('clears retained rows if authorization is revoked while the window is away',async()=>{
+    await mount();await select(1,'a');window.dispatchEvent(new Event('blur'));await tick();
+    expect(host.querySelectorAll('[role=treeitem]')).toHaveLength(1);
+    api.sqlMetadataOperation.mockRejectedValue(new Error('Forbidden'));
+    window.dispatchEvent(new Event('focus'));await tick();
+    expect(host.querySelector('[role=alert]').textContent).toBe('Forbidden');
+    expect(host.querySelectorAll('[role=treeitem]')).toHaveLength(0);
+  });
+  it('uses the submitted search when paging and returns to page one after a page-size change',async()=>{
+    api.sqlMetadataOperation.mockImplementation(async(_p,_d,_b,args)=>args.operation==='LIST_NAMESPACES'?result([]):{metadata:{...result([table]).metadata,totalMatched:125,hasMore:true}});
+    await mount();await select(1,'a');
+    const input=host.querySelector('[aria-label="搜索授权表"]');
+    input.value='orders';input.dispatchEvent(new Event('input',{bubbles:true}));
+    host.querySelector('form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await tick();
+    input.value='unsubmitted';input.dispatchEvent(new Event('input',{bubbles:true}));
+    [...host.querySelectorAll('footer button')].find(b=>b.textContent==='下一页').click();await tick();
+    const reads=()=>api.sqlMetadataOperation.mock.calls.filter(([, , ,a])=>a.operation==='SEARCH'&&a.expectedSnapshotId);
+    expect(reads().at(-1)[3]).toMatchObject({query:'orders',page:2,pageSize:50});
+    const size=host.querySelector('[aria-label="每页表数量"]');size.value='20';size.dispatchEvent(new Event('change',{bubbles:true}));await tick();
+    expect(reads().at(-1)[3]).toMatchObject({query:'orders',page:1,pageSize:20});
+    expect(host.querySelector('footer').textContent).toContain('1 / 7 页');
+  });
 });

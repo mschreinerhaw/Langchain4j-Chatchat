@@ -36,4 +36,14 @@ describe('metadata authorization and request isolation',()=>{
     const {session}=setup(vi.fn(async()=>({metadata:{status:'NEEDS_REFRESH'}})));
     await expect(session.read(args)).rejects.toThrow();expect(session.cache.size).toBe(0);
   });
+  it('suspends pending requests without clearing displayed projections and rechecks the snapshot on return',async()=>{
+    const {session,invoke,invalidated}=setup();await session.read(args);
+    let release;invoke.mockImplementationOnce(()=>new Promise(resolve=>{release=resolve;}));
+    const pending=session.read(args);session.suspend();release(response());
+    await expect(pending).rejects.toBeInstanceOf(StaleMetadataRequest);
+    expect(invalidated).not.toHaveBeenCalled();expect(session.cache.size).toBe(0);expect(session.snapshot).toBe('v1');
+    invoke.mockResolvedValue(response('v2'));
+    await expect(session.authorize()).rejects.toThrow('已变化');
+    expect(invalidated).toHaveBeenCalled();expect(session.snapshot).toBeNull();
+  });
 });

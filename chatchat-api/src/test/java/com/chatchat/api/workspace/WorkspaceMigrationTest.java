@@ -8,6 +8,38 @@ import org.springframework.core.io.FileSystemResource;
 import static org.assertj.core.api.Assertions.*;
 
 class WorkspaceMigrationTest {
+    @Test void workshopBrandingUpgradesOnceAndPreservesCustomWorkspace() throws Exception {
+        var source = new DriverManagerDataSource("jdbc:h2:mem:ws_branding;MODE=MySQL;DB_CLOSE_DELAY=-1", "sa", "");
+        var jdbc = new JdbcTemplate(source);
+        jdbc.execute("create table workspace_registry(id varchar(64) primary key, manifest_json clob, version bigint, updated_at timestamp)");
+        jdbc.execute("create table sys_menu(menu_code varchar(128), menu_name varchar(128), updated_at timestamp)");
+        jdbc.execute("create table sys_permission(permission_code varchar(128), permission_name varchar(128), updated_at timestamp)");
+        var upgrade = new org.springframework.core.io.ClassPathResource("sql-studio/workspace-upgrade.sql");
+        String sql;
+        try (var input = upgrade.getInputStream()) { sql = new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8); }
+        var matcher = java.util.regex.Pattern.compile("SET manifest_json='([^']+)'").matcher(sql);
+        assertThat(matcher.find()).isTrue();
+        String original = matcher.group(1);
+        jdbc.update("insert into workspace_registry values('data-science', ?, 7, CURRENT_TIMESTAMP)", original);
+        jdbc.update("insert into sys_menu values('dataScience', '数据科学', CURRENT_TIMESTAMP)");
+        jdbc.update("insert into sys_permission values('capability:data-science', '数据科学', CURRENT_TIMESTAMP)");
+        var script = new ResourceDatabasePopulator(new org.springframework.core.io.ClassPathResource("workspace/workspace-branding.sql"));
+        script.setSqlScriptEncoding("UTF-8"); script.execute(source); script.execute(source);
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var manifest = mapper.readTree(jdbc.queryForObject("select manifest_json from workspace_registry", String.class));
+        assertThat(manifest.path("name").asText()).isEqualTo("数据车间");
+        assertThat(manifest.path("configVersion").asInt()).isEqualTo(4);
+        assertThat(manifest.path("pages")).isEqualTo(mapper.readTree(original).path("pages"));
+        assertThat(jdbc.queryForObject("select version from workspace_registry", Long.class)).isEqualTo(8L);
+        assertThat(jdbc.queryForObject("select menu_name from sys_menu", String.class)).isEqualTo("数据车间");
+        assertThat(jdbc.queryForObject("select permission_name from sys_permission", String.class)).isEqualTo("数据车间");
+        var customized = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(original);
+        customized.put("name", "自定义工作台");
+        jdbc.update("update workspace_registry set manifest_json=?", mapper.writeValueAsString(customized));
+        script.execute(source);
+        assertThat(mapper.readTree(jdbc.queryForObject("select manifest_json from workspace_registry", String.class))).isEqualTo(customized);
+        assertThat(jdbc.queryForObject("select version from workspace_registry", Long.class)).isEqualTo(8L);
+    }
     @Test void managementMenuAndLoginDefaultUpgradeOnceAndPreserveLaterConfiguration() throws Exception {
         var source = new DriverManagerDataSource("jdbc:h2:mem:ws_management;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "");
         var jdbc = new JdbcTemplate(source);

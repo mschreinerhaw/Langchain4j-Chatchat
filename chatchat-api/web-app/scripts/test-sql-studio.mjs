@@ -34,7 +34,8 @@ try {
   let taskStatus = 'WAIT_MODEL', submissionCount = 0, failNextPoll = false;
   const generation = { id: 'generation-1', taskId: 'task-1', applied: false, prepared:{taskRequest:{toolInput:{sqlStudioAction:'generate'}}} };
   const metadataTable={database:'analytics',schema:'public',tableName:'orders',tableRef:'orders-ref'};
-  let metadataDenied=false,descriptions=0;
+  let metadataDenied=false,descriptions=0,metadataPaged=false;
+  const pagedTables=Array.from({length:125},(_,i)=>({...metadataTable,tableName:i?'table_'+i:'orders',tableRef:'table-ref-'+i}));
   const metadata=items=>({serviceId:'registered',metadata:{contractVersion:'sql-studio.metadata.v2',status:'SUCCEEDED',snapshotId:'schema-v1',doesNotExecuteSql:true,items,totalMatched:items.length,hasMore:false}});
   await page.route('**/api/v1/**', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname, method = request.method();
@@ -54,7 +55,10 @@ try {
       if(metadataDenied){await route.fulfill({status:403,json:{code:403,message:'Metadata permission revoked'}});return;}
       const args=request.postDataJSON().arguments;
       if(args.operation==='DESCRIBE')descriptions++;
-      data=metadata(args.operation==='LIST_NAMESPACES'?[{database:'analytics',schema:'public'}]:args.operation==='DESCRIBE'?[{...metadataTable,columns:[{name:'order_id',dataType:'bigint'}]}]:[metadataTable]);
+      if(metadataPaged && args.operation==='SEARCH'){
+        const offset=(args.page-1)*args.pageSize;
+        data=metadata(pagedTables.slice(offset,offset+args.pageSize));data.metadata.totalMatched=pagedTables.length;data.metadata.hasMore=offset+args.pageSize<pagedTables.length;
+      }else data=metadata(args.operation==='LIST_NAMESPACES'?[{database:'analytics',schema:'public'}]:args.operation==='DESCRIBE'?[{...metadataTable,columns:[{name:'order_id',dataType:'bigint'}]}]:[metadataTable]);
     }
     else if (path.endsWith('/sql/reference-files')) data = Object.values(filesByProject).flat().filter(file => ['SQL', 'REFERENCE'].includes(file.kind));
     else if (path.endsWith('/sql/library-files')) data = library.filter(item => url.searchParams.get('kind') === 'MAPPING' || item.fileName.endsWith('.sql'));
@@ -146,7 +150,45 @@ try {
   assert.equal(filesByProject.project[0].content,'SELECT o. FROM analytics.public.orders o');
   await mkdir('../../target/sql-studio-ide-audit',{recursive:true});
   await page.screenshot({path:'../../target/sql-studio-ide-audit/sql-schema-explorer.png',fullPage:true});
-  metadataDenied=true;await page.locator('.sql-schema-explorer header button').click();
+  metadataPaged=true;
+  const explorer=page.locator('.sql-schema-explorer');
+  await explorer.locator('header button').click();
+  await page.waitForFunction(()=>document.querySelectorAll('.sql-schema-explorer [role=treeitem]').length===50);
+  const pager=explorer.getByLabel('元数据分页');
+  await page.setViewportSize({width:1280,height:720});
+  const listBounds=await explorer.getByRole('tree').boundingBox(),footerBounds=await pager.boundingBox();
+  assert.ok(listBounds.height>0 && listBounds.y+listBounds.height<=footerBounds.y,'Table rows scroll above the fixed pager');
+  assert.ok(footerBounds.y+footerBounds.height<=720,'Pager stays inside a short viewport');
+  assert.ok(await explorer.getByRole('tree').evaluate(el=>el.scrollHeight>el.clientHeight),'Large metadata lists have their own scrollbar');
+  await pager.getByRole('button',{name:'下一页',exact:true}).click();
+  await page.getByLabel('展开 table_50',{exact:true}).waitFor();
+  assert.ok((await pager.textContent()).includes('2 / 3 页'));
+  await page.getByLabel('展开 table_50',{exact:true}).click();
+  await explorer.getByRole('group').waitFor();
+  await explorer.getByRole('tree').evaluate(el=>{el.scrollTop=160;});
+  await page.locator('.monaco-editor').first().click({position:{x:180,y:80}});
+  assert.equal(await explorer.getByRole('treeitem').count(),50,'Editor clicks preserve loaded metadata');
+  await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+  assert.equal(await explorer.getByRole('treeitem').count(),50,'Window blur preserves displayed metadata');
+  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+  await page.waitForFunction(()=>document.querySelector('.sql-schema-tables')?.getAttribute('aria-busy')==='false');
+  assert.ok((await pager.textContent()).includes('2 / 3 页'),'Focus does not reset the current page');
+  assert.ok((await explorer.getByRole('group').textContent()).includes('order_id'),'Focus preserves expanded fields');
+  assert.equal(await explorer.getByRole('tree').evaluate(el=>el.scrollTop),160,'Focus preserves scroll position');
+  await page.screenshot({path:'../../target/sql-studio-ide-audit/sql-schema-pagination.png',fullPage:true});
+  await pager.getByRole('button',{name:'下一页',exact:true}).click();
+  await page.getByLabel('展开 table_100',{exact:true}).waitFor();
+  assert.equal(await explorer.getByRole('treeitem').count(),25);
+  assert.ok(await pager.getByRole('button',{name:'下一页',exact:true}).isDisabled(),'Final page has no next page');
+  await pager.getByRole('button',{name:'上一页',exact:true}).click();
+  await page.getByLabel('展开 table_50',{exact:true}).waitFor();
+  await explorer.getByLabel('每页表数量').selectOption('20');
+  await page.getByLabel('展开 orders',{exact:true}).waitFor();
+  assert.equal(await explorer.getByRole('treeitem').count(),20);
+  assert.ok((await pager.textContent()).includes('1 / 7 页'));
+  await page.setViewportSize({width:1560,height:980});
+  metadataDenied=true;
+  await page.evaluate(()=>{window.dispatchEvent(new Event('blur'));window.dispatchEvent(new Event('focus'));});
   await page.locator('.sql-schema-explorer [role=alert]').waitFor();
   assert.equal(await page.locator('.sql-schema-explorer [role=treeitem]').count(),0,'Revocation removes cached visible fields');
   metadataDenied=false;
@@ -313,5 +355,5 @@ try {
   await mkdir('../../target/sql-studio-ide-audit', { recursive: true });
   await page.screenshot({ path: '../../target/sql-studio-ide-audit/sql-studio-ide.png', fullPage: true });
   assert.deepEqual(errors, []);
-  console.log('PASS: authorized Schema Explorer, lazy fields, actual Monaco alias completion, revocation cache clearing, responsive toolbar, file search, current-file context, quick actions, Ctrl+Enter submission, Runtime running/cancelled states, Diff accept/reject, file creation/deletion, authorized library selection, Agent/model exclusivity, project deletion (HTTP fixtures only).');
+  console.log('PASS: authorized Schema Explorer, scrollable 125-table pagination, page sizes, focus/page/field/scroll retention, lazy fields, actual Monaco alias completion, revocation cache clearing, responsive toolbar, file search, current-file context, quick actions, Ctrl+Enter submission, Runtime running/cancelled states, Diff accept/reject, file creation/deletion, authorized library selection, Agent/model exclusivity, project deletion (HTTP fixtures only).');
 } finally { await browser?.close(); await server.close(); }

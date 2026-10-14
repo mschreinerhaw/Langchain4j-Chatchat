@@ -1,11 +1,11 @@
 {
   "schemaVersion": "workspace-manifest.v1",
-  "configVersion": 3,
+  "configVersion": 4,
   "workspaceId": "data-science",
   "appVersion": "1.0.0",
-  "name": "数据科学",
+  "name": "数据车间",
   "icon": "flask",
-  "description": "Python 开发、SQL 工程、数据与脚本",
+  "description": "一站式完成数据接入、Python 开发、SQL / ETL 加工与脚本发布。",
   "entryPage": "dataScienceEnvironment",
   "layoutType": "studio",
   "pages": [

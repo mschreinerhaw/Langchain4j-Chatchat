@@ -18,6 +18,11 @@ import java.nio.charset.StandardCharsets;
 public class WorkspaceCompatibilityMigration {
     private final DataSource dataSource;
     private final JdbcTemplate jdbc;
+    @EventListener(ApplicationReadyEvent.class) @Order(120)
+    public void updateBranding() {
+        var branding = new ResourceDatabasePopulator(new ClassPathResource("workspace/workspace-branding.sql"));
+        branding.setSqlScriptEncoding("UTF-8"); branding.execute(dataSource);
+    }
     @EventListener(ApplicationReadyEvent.class) @Order(100)
     @Transactional
     public void seed() {

@@ -523,6 +523,20 @@ export default {
       this.editor?.setPosition({lineNumber:row,column:1}); this.editor?.revealLineInCenter(row); this.editor?.focus();
     },
     updateStudioEditor() { this.editor?.updateOptions({fontSize:this.editorFontSize,minimap:{enabled:this.editorMinimap}}); },
+    activateStudioModel(editorTab) {
+      if (!this.editor || !this.activeEditorTabKey) return;
+      this._studioModels ||= new Map();
+      this._studioModelNonce ||= `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      let model = this._studioModels.get(this.activeEditorTabKey);
+      if (!model) {
+        model = monaco.editor.createModel(this.form.sourceCode || '', 'python', monaco.Uri.parse(`inmemory://python-studio/${this._studioModelNonce}/${encodeURIComponent(this.activeEditorTabKey)}.py`));
+        this._studioModels.set(this.activeEditorTabKey,model);
+      }
+      if (this.editor.getModel() !== model) {
+        this.editor.setModel(model);
+        if (editorTab?.viewState) this.editor.restoreViewState(editorTab.viewState);
+      }
+    },
     chooseAiMode(action) { if (!this.aiBusy) this.aiAction = action; },
     scheduleWorkspaceDraft() {
       clearTimeout(this.draftSaveTimer);
@@ -698,6 +712,7 @@ export default {
           language: "python",
           theme: "chatchat-python",
           automaticLayout: true,
+          occurrencesHighlight: 'off',
           fontSize: 14,
           readOnly: false,
           domReadOnly: false,
@@ -734,6 +749,9 @@ export default {
         this.form.sourceCode = this.editor.getValue();
         this.scheduleRuffDiagnostics();
       });
+      const initialModel = this.editor.getModel();
+      this.activateStudioModel(this.editorTabs.find(item => item.key === this.activeEditorTabKey));
+      if (initialModel !== this.editor.getModel()) initialModel?.dispose();
       this.editor.onDidChangeCursorPosition((event) => {
         this.cursorPosition = event.position;
       });
@@ -801,6 +819,7 @@ export default {
       this.completionProvider?.dispose();
       this.completionProvider = null;
       this.editor?.dispose();
+      this._studioModels?.forEach(model => model.dispose()); this._studioModels?.clear();
       this.editor = null;
     },
     openAssetDialog() {
@@ -935,6 +954,8 @@ export default {
       if (options.capture !== false) this.captureActiveEditorTab();
       this.activeEditorTabKey = editorTab.key;
       this.form = { ...editorTab.form };
+      this.activateStudioModel(editorTab);
+      this.aiMessages = editorTab.aiMessages || [];
       this.savedSource = editorTab.savedSource || "";
       this.savedFileName = editorTab.savedFileName || editorTab.form.fileName || "";
       this.savedFolderId = editorTab.savedFolderId || "";
@@ -953,6 +974,8 @@ export default {
     captureActiveEditorTab() {
       const activeTab = this.editorTabs.find((item) => item.key === this.activeEditorTabKey);
       if (!activeTab) return;
+      activeTab.viewState = this.editor?.saveViewState();
+      activeTab.aiMessages = this.aiMessages;
       activeTab.form = { ...this.form };
       activeTab.savedSource = this.savedSource;
       activeTab.savedFileName = this.savedFileName;
@@ -980,6 +1003,9 @@ export default {
       const index = this.editorTabs.findIndex((item) => item.key === editorTab.key);
       if (index < 0) return;
       this.editorTabs.splice(index, 1);
+      const model = this._studioModels?.get(editorTab.key);
+      if (model && this.editor?.getModel() === model) this.editor.setModel(null);
+      model?.dispose(); this._studioModels?.delete(editorTab.key);
       if (!wasActive) return;
       this.activeEditorTabKey = "";
       const nextTab = this.editorTabs[index] || this.editorTabs[index - 1];
@@ -1328,8 +1354,9 @@ export default {
       const sourceContext = {key:this.activeEditorTabKey,source:this.form.sourceCode,fileName:this.form.fileName};
       this.aiSourceContext = sourceContext;
       const userText = this.aiPrompt;
+      const requestMessages = this.aiMessages;
       const history = this.aiMessages.slice(-4).map(item => `${item.role}: ${item.text.slice(0,500)}`).join('\n');
-      const requestPrompt = [history && `之前的工程协作：\n${history}`, userText].filter(Boolean).join('\n\n').slice(-4000);
+      const requestPrompt = [`当前文件：${sourceContext.fileName}`,history && `之前的工程协作：\n${history}`, userText].filter(Boolean).join('\n\n').slice(-4000);
       this.aiMessages.push({role:'user',text:userText});
       this.startAiProgress();
       try {
@@ -1348,8 +1375,10 @@ export default {
         this.aiDiff = buildPythonLineDiff(originalCode, suggestion.code);
         this.aiElapsedMs = Date.now() - startedAt;
         this.aiStage = "ready";
-        this.aiMessages.push({role:'assistant',text:['explain','ask'].includes(suggestion.action) ? suggestion.code : `为 ${sourceContext.fileName} 生成了代码建议。`});
-        this.aiMessages = this.aiMessages.slice(-16);
+        requestMessages.push({role:'assistant',text:['explain','ask'].includes(suggestion.action) ? suggestion.code : `为 ${sourceContext.fileName} 生成了代码建议。`});
+        const originTab = this.editorTabs.find(tab => tab.key === sourceContext.key);
+        if (originTab) originTab.aiMessages = requestMessages.slice(-16);
+        if (this.activeEditorTabKey === sourceContext.key) this.aiMessages = requestMessages.slice(-16);
         this.aiProgressStep = 4;
       } catch (error) {
         this.aiStage = "failed";
@@ -1365,7 +1394,8 @@ export default {
       if (this.aiSuggestion.action === 'test') {
         const code = this.aiSuggestion.code;
         const name = this.form.fileName.replace(/\.py$/i,'');
-        this.newScript(); this.form.fileName = `test_${name}.py`; this.form.sourceCode = code;
+        const assetId = this.form.assetId;
+        this.newScript(); this.form.assetId = assetId; this.form.fileName = `test_${name}.py`; this.form.sourceCode = code;
         this.aiAppliedInfo = {verb:'新建',mode:'测试文件',lines:code.split('\n').length}; this.aiStage = 'applied';
         return;
       }

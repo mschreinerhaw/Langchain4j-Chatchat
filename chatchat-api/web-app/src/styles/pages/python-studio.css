@@ -1,0 +1,179 @@
+.ds-ide.python-studio {
+  --studio-line: #e1e8f5;
+  --studio-muted: #8290aa;
+  display: grid;
+  grid-template-columns: var(--explorer-width,238px) minmax(200px,1fr) var(--ai-width,330px);
+  grid-template-rows: 46px minmax(0,1fr) 25px;
+  grid-template-areas: "bar bar bar" "explorer main ai" "status status status";
+  background: #fff;
+  color: #263652;
+  font: 12px/1.5 Inter,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  transition: none;
+}
+.python-studio *, .studio-palette * { box-sizing: border-box; }
+.python-studio button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-family: inherit; cursor: pointer; }
+.python-studio button:disabled { cursor: not-allowed; opacity: .45; }
+.python-studio button:focus-visible, .studio-palette button:focus-visible { outline: 2px solid #8aaefa; outline-offset: -2px; }
+.python-studio .ide-commandbar { position: relative; gap: 12px; padding: 0 14px; border-bottom: 1px solid var(--studio-line); background: linear-gradient(105deg,#f9fbff,#f1f4fc 65%,#f8faff); }
+.python-studio .ide-brand { flex-shrink: 0; gap: 7px; color: #172740; }
+.python-studio .ide-brand svg { color: #3f72ef; }
+.python-studio .ide-brand strong { font-size: 15px; letter-spacing: -.4px; white-space: nowrap; }
+.python-studio .studio-workspace-select { flex-shrink: 0; max-width: 170px; height: 29px; padding: 0 24px 0 9px; border: 1px solid #dbe4f4; border-radius: 6px; background: #eaf0fb; color: #536480; font-size: 11px; }
+.python-studio .studio-global-search { flex: 1; max-width: 430px; min-width: 150px; height: 30px; margin: 0 auto; padding: 0 10px; border: 1px solid #dce5f6; border-radius: 6px; background: #f8faff; color: #8797b4; text-align: left; font-size: 11px; }
+.studio-global-search span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.studio-global-search kbd { white-space: nowrap; color: #99a7be; font: 10px inherit; }
+.python-studio .ide-actions { flex-shrink: 0; margin: 0 0 0 auto; gap: 7px; }
+.python-studio .ide-actions button { height: 29px; min-width: 0; padding: 0 9px; border: 1px solid #dbe5f4; border-radius: 5px; background: #fff; color: #63738f; font-size: 11px; }
+.python-studio .ide-actions .run { border-color: #0eb78b; background: linear-gradient(135deg,#19c8a0,#09af87); color: #fff; box-shadow: 0 2px 5px #11b89124; }
+.python-studio .ide-actions .studio-icon-button { width: 28px; padding: 0; border-color: transparent; background: transparent; color: #6b7d9d; }
+.python-studio .studio-icon-button[aria-pressed="true"] { background: #e6edff; color: #3c6fe1; }
+.studio-version { padding: 4px 8px; color: #63738f; font-size: 11px; white-space: nowrap; }
+.python-studio .ide-explorer { min-height: 0; border-right: 1px solid var(--studio-line); background: linear-gradient(120deg,#f9fbff,#f3f6fd); transition: none; }
+.python-studio .panel-heading { height: 42px; padding: 8px 11px; border-bottom: 1px solid var(--studio-line); }
+.python-studio .panel-heading strong { color: #354460; font-size: 11px; font-weight: 600; }
+.python-studio .panel-heading button { width: 22px; height: 24px; padding: 0; color: #7d8eaa; }
+.python-studio .explorer-search { height: 28px; margin: 10px 9px 7px; padding: 0 7px; gap: 5px; border: 1px solid #e0e7f4; border-radius: 5px; color: #94a3bb; background: #fff; }
+.python-studio .explorer-search input { font-size: 10px; }
+.studio-tree-root { display: flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 10px; color: #455775; font-size: 10px; font-weight: 600; letter-spacing: .4px; }
+.studio-tree-root span { margin-left: auto; max-width: 85px; overflow: hidden; color: #9ca9c0; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; font-weight: 400; letter-spacing: 0; }
+.python-studio .explorer-files { flex: 1; min-height: 50px; overflow: auto; scrollbar-width: thin; scrollbar-gutter: stable; }
+.python-studio .script-folder > header { min-height: 28px; padding: 2px 8px; background: transparent; border: 0; color: #526582; }
+.python-studio .script-folder header strong { font-size: 11px; font-weight: 500; }
+.python-studio .folder-icon { color: #7992b6; font-size: 13px; }
+.python-studio .script-entry { margin: 1px 7px; border-radius: 4px; }
+.python-studio .script-entry.active { background: #dfe8ff; }
+.python-studio .script-open { height: 29px; min-height: 29px; padding: 4px 24px; gap: 7px; }
+.python-studio .script-open strong { font-size: 11px; font-weight: 400; }
+.python-studio .script-open small { display: none; }
+.python-studio .py-file { display: inline-grid; place-items: center; width: 17px; height: 18px; border: 0; border-radius: 3px; background: transparent; color: #5481ee; font-size: 9px; font-weight: 600; }
+.python-studio .script-actions { opacity: 0; }
+.python-studio .script-entry:hover .script-actions, .python-studio .script-entry:focus-within .script-actions { opacity: 1; }
+.python-studio .system-examples { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--studio-line); }
+.python-studio .system-examples .system-example .example-open { height: 36px; }
+.python-studio .system-example strong { font-size: 10px; }
+.python-studio .system-example small { font-size: 9px; }
+.python-studio .ide-explorer > footer { min-height: 25px; padding: 4px 10px; border-top: 1px solid var(--studio-line); color: #98a4bb; font-size: 9px; }
+.studio-outline { flex-shrink: 0; max-height: 200px; border-top: 1px solid var(--studio-line); }
+.studio-outline > header { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; color: #94a2ba; font-size: 10px; }
+.python-studio .studio-outline > header button { padding: 0; border: 0; background: transparent; color: #4e607e; font-size: 10px; }
+.studio-outline-list { max-height: 165px; overflow: auto; padding-bottom: 7px; scrollbar-width: thin; }
+.python-studio .studio-outline-list button { justify-content: flex-start; width: 100%; height: 25px; padding: 0 11px; border: 0; border-radius: 0; background: transparent; color: #61728d; font-size: 11px; }
+.studio-outline-list svg { color: #a16cf1; }
+.studio-outline-list svg.class { color: #dfa34d; }
+.studio-outline-list span { flex: 1; text-align: left; }
+.studio-outline-list small { color: #a5b1c5; font-size: 9px; }
+.studio-outline-list p { padding: 4px 13px; color: #9ba8be; font-size: 10px; }
+.python-studio .ide-main { min-width: 0; min-height: 0; grid-template-columns: minmax(0,1fr); grid-template-rows: 36px 27px minmax(100px,1fr) var(--bottom-resizer-size,9px) var(--bottom-height,250px); }
+.python-studio .ide-main.bottom-collapsed { grid-template-rows: 36px 27px minmax(100px,1fr) 0 34px; }
+.python-studio .editor-tabs { min-width: 0; align-items: stretch; border-bottom: 1px solid var(--studio-line); background: #f7f9ff; }
+.python-studio .editor-tab { min-width: 130px; max-width: 220px; min-height: 36px; height: 36px; gap: 6px; padding: 0 10px; border-right: 1px solid #e7ecf7; border-top: 0; border-bottom: 2px solid transparent; background: transparent; }
+.python-studio .editor-tab.active { border-bottom-color: #5883ff; background: #fff; color: #324a7a; }
+.python-studio .editor-tab .tab-name { font-size: 11px; font-weight: 500; }
+.python-studio .editor-tab .tab-close { width: 16px; height: 20px; }
+.python-studio .editor-tools { display: flex; align-items: center; padding: 0 7px; gap: 4px; }
+.python-studio .editor-tools button { width: 24px; min-width: 0; padding: 3px; border: 0; color: #7d8ca8; }
+.python-studio .editor-tabs .new-tab { height: 35px; width: 29px; flex-basis: 29px; }
+.python-studio .editor-breadcrumb { height: 27px; padding: 0 12px; gap: 7px; border-bottom: 1px solid #f0f3f9; color: #8a9bb9; font-size: 10px; }
+.python-studio .editor-breadcrumb select { max-width: 160px; font-size: 10px; }
+.python-studio .monaco-host { min-height: 0; min-width: 0; contain: size layout; overflow: hidden; }
+.python-studio .pane-resizer-vertical { top: 46px; bottom: 25px; }
+.python-studio .pane-resizer-horizontal { height: var(--bottom-resizer-size); background: #f8faff; }
+.python-studio .ide-bottom { border-top: 1px solid var(--studio-line); background: #fbfcff; }
+.python-studio .ide-bottom > nav { min-height: 34px; height: 34px; padding: 0 7px; gap: 7px; border-bottom: 1px solid #e9eefa; background: #f8faff; }
+.python-studio .ide-bottom > nav button { height: 34px; min-width: 0; padding: 0 8px; border: 0; border-radius: 0; border-bottom: 2px solid transparent; background: transparent; color: #8291ac; font-size: 10px; }
+.python-studio .ide-bottom > nav button.active { border-bottom-color: #688cff; color: #334c7c; }
+.studio-problem-count { padding: 0 4px; border-radius: 4px; background: #eaf0fb; font-size: 9px; }
+.studio-runtime-label { flex-shrink: 0; color: #9aa9c1; font-size: 9px; }
+.python-studio .terminal { height: calc(100% - 34px); padding: 8px 12px; overflow: auto; background: #fcfdff; color: #263b60; scrollbar-width: thin; }
+.python-studio .terminal > div { padding-bottom: 4px; font-size: 10px; }
+.python-studio .terminal pre { font: 11px/1.65 "Cascadia Code",Consolas,monospace; color: #485c7c; }
+.studio-output, .studio-problems { height: calc(100% - 34px); overflow: auto; padding: 12px; background: #fcfdff; }
+.studio-output header { display: flex; justify-content: space-between; color: #8292ae; font-size: 10px; }
+.studio-output pre { color: #33496d; font: 11px/1.65 Consolas,monospace; white-space: pre-wrap; }
+.studio-output .failed { color: #c86868; }
+.studio-problems > p { display: flex; gap: 7px; align-items: center; color: #8999b3; font-size: 11px; }
+.python-studio .studio-problems button { display: flex; justify-content: flex-start; width: 100%; gap: 7px; padding: 7px 3px; border: 0; background: transparent; color: #607492; font-size: 11px; text-align: left; }
+.studio-problems button span { flex: 1; }
+.studio-problems svg { color: #dbad63; }
+.studio-problems button small { color: #a0aec3; }
+.python-studio > .ide-statusbar { grid-area: status; display: flex; align-items: center; gap: 14px; min-width: 0; height: 25px; padding: 0 11px; border-top: 1px solid var(--studio-line); background: linear-gradient(100deg,#f7f9ff,#eff3fc); color: #8a9bb8; font-size: 9px; white-space: nowrap; overflow: hidden; }
+.python-studio .ide-statusbar span, .python-studio .ide-statusbar button { display: inline-flex; align-items: center; gap: 5px; }
+.python-studio .ide-statusbar button { padding: 0; border: 0; background: transparent; color: #7288ae; font-size: 9px; }
+.python-studio .ide-statusbar i { flex: 1; }
+.python-studio .ide-statusbar .studio-save-state { color: #658b80; }
+.python-studio .ai-panel { display: grid; grid-template-rows: 42px 35px minmax(0,1fr) auto; min-height: 0; background: linear-gradient(140deg,#fafcff,#f7f9ff); border-left: 1px solid var(--studio-line); transition: none; }
+.python-studio .ai-panel > header { padding: 0 14px; border-bottom: 0; }
+.python-studio .ai-panel > header > div { gap: 7px; color: #3b6bd1; }
+.python-studio .ai-panel > header strong { color: #273751; font-size: 13px; }
+.python-studio .ai-panel > header button { padding: 3px; }
+.studio-ai-modes { display: flex; align-items: stretch; gap: 8px; margin: 0 12px; border-bottom: 1px solid #e5ebf7; }
+.python-studio .studio-ai-modes button { flex: 1; padding: 0 1px; border: 0; border-radius: 0; border-bottom: 2px solid transparent; background: transparent; color: #8a9ab6; font-size: 10px; white-space: nowrap; }
+.python-studio .studio-ai-modes button.active { border-bottom-color: #6587fb; color: #3b537e; font-weight: 600; }
+.python-studio .ai-body { min-height: 0; padding: 14px; overflow: auto; scrollbar-width: thin; scrollbar-gutter: stable; overscroll-behavior: contain; }
+.python-studio .ai-intro { padding: 42px 10px 20px; text-align: left; }
+.python-studio .ai-intro .studio-ai-avatar { display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 16px; border-radius: 14px; background: linear-gradient(140deg,#e4e8ff,#f7f4df); color: #5c80f0; }
+.python-studio .ai-intro strong { margin-bottom: 8px; color: #2b3e61; font-size: 14px; }
+.python-studio .ai-intro p { font-size: 11px; }
+.ai-intro ul { margin: 14px 0 0; padding-left: 17px; color: #8494b1; font-size: 11px; line-height: 2.2; }
+.python-studio .ai-examples { gap: 8px; margin: 2px 5px; }
+.python-studio .ai-examples button { justify-content: flex-start; padding: 8px 10px; border: 1px solid #e0e7f7; border-radius: 6px; background: #fcfdff; color: #7a8daf; font-size: 10px; }
+.python-studio .ai-examples button span { color: #9ba9c0; padding-right: 5px; }
+.studio-ai-turn { margin: 0 0 12px; padding: 10px 12px; border: 1px solid #e1e8f7; border-radius: 9px; background: #fff; color: #627898; }
+.studio-ai-turn.user { margin-left: 15px; background: #eff4ff; }
+.studio-ai-turn small { color: #94a4bd; font-size: 9px; }
+.studio-ai-turn p { margin: 5px 0 0; font-size: 11px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.python-studio .ai-progress { padding: 14px; margin: 10px 0; border: 1px solid #dae5ff; background: #f0f5ff; color: #577bcc; text-align: left; box-shadow: none; }
+.python-studio .ai-progress > svg { display: inline-block; margin-right: 8px; vertical-align: middle; }
+.python-studio .ai-progress p { margin: 7px 0; font-size: 10px; }
+.python-studio .ai-progress small { color: #92a2bc; font-size: 10px; }
+.studio-ai-error { padding: 9px; border-radius: 6px; background: #fff5f1; color: #be8270; font-size: 11px; line-height: 1.7; }
+.python-studio .ai-result { margin: 8px 0; border-color: #dae4f5; border-radius: 8px; }
+.python-studio .ai-result-head { display: flex; align-items: center; gap: 8px; padding: 9px 11px; background: #f2f6ff; font-size: 10px; }
+.python-studio .ai-result-head span { color: #99a9c2; font-size: 9px; }
+.python-studio .ai-result pre { max-height: 400px; padding: 12px; color: #547194; font-size: 11px; }
+.studio-text-answer { margin: 0; padding: 12px; color: #5f7598; font-size: 11px; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; }
+.python-studio .ai-composer { padding: 8px 11px 5px; border-top: 0; background: #f9fbff; }
+.studio-ai-context { display: flex; align-items: center; gap: 5px; margin-bottom: 7px; color: #98a7c0; font-size: 9px; }
+.studio-ai-context span:first-of-type { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.studio-ai-context span:last-child { margin-left: auto; }
+.python-studio .ai-composer textarea { width: 100%; min-height: 75px; max-height: 150px; margin: 0; padding: 10px; border: 1px solid #dde5f5; border-bottom: 0; border-radius: 7px 7px 0 0; background: #fff; color: #5a7196; font: 11px/1.7 inherit; resize: vertical; box-sizing: border-box; }
+.python-studio .ai-composer textarea::placeholder { color: #a0aec5; }
+.python-studio .ai-composer .studio-ai-send { display: flex; align-items: center; justify-content: space-between; margin-top: -4px; padding: 5px 7px 7px; border: 1px solid #dde5f5; border-top: 0; border-radius: 0 0 7px 7px; background: #fff; }
+.studio-ai-send small { color: #a2afc5; font-size: 9px; }
+.python-studio .studio-ai-send button { width: 28px; height: 27px; padding: 0; border: 0; border-radius: 6px; background: linear-gradient(135deg,#6393ff,#4771f3); color: #fff; }
+.python-studio .ai-composer-options { display: flex; gap: 7px; margin-top: 8px; padding: 0; }
+.python-studio .ai-composer-options select { min-width: 0; height: 27px; padding: 0 5px; border: 1px solid #e0e7f6; border-radius: 5px; background: #f2f6ff; color: #7489ae; font-size: 10px; }
+.python-studio .ai-composer-options .ai-model-select { flex: 1; }
+.python-studio .ai-composer .ai-skill-text-button { width: 100%; min-height: 25px; margin: 5px 0 0; padding: 3px 0; border-top: 0; color: #879bbd; font-size: 10px; }
+.python-studio .ai-skill-text-button small { font-size: 9px; }
+.python-studio.fullscreen { inset: 0; height: 100dvh; width: 100vw; border: 0; border-radius: 0; }
+.studio-settings { position: absolute; z-index: 75; top: 42px; right: 13px; display: grid; gap: 14px; width: 280px; padding: 16px; border: 1px solid #dce6f6; border-radius: 10px; background: #fff; box-shadow: 0 12px 38px #284c8122; }
+.studio-settings header { display: flex; align-items: center; justify-content: space-between; }
+.studio-settings header button { padding: 0; border: 0; background: transparent; }
+.studio-settings label { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #7487a6; font-size: 11px; }
+.studio-settings small { color: #9aa9c1; font-size: 10px; line-height: 2; }
+.studio-settings select { height: 27px; border: 1px solid #dce6f6; border-radius: 5px; color: #657c9f; }
+.studio-settings .editor-preferences { display: grid; gap: 9px; }
+.studio-palette-backdrop { position: fixed; z-index: 2500; inset: 0; display: flex; justify-content: center; align-items: flex-start; padding: 12vh 20px 20px; background: #213a602c; backdrop-filter: blur(3px); }
+.studio-palette { width: min(620px,100%); max-height: 72vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #d5e1f4; border-radius: 12px; background: #fff; box-shadow: 0 25px 90px #19385f33; font-family: "Segoe UI","Microsoft YaHei",sans-serif; }
+.studio-palette header { display: flex; align-items: center; gap: 11px; padding: 15px; border-bottom: 1px solid #e6ecf7; color: #82a0d3; }
+.studio-palette header input { flex: 1; min-width: 0; padding: 0; border: 0; outline: 0; color: #4e678d; font: 12px inherit; }
+.studio-palette header button { padding: 3px 6px; border: 1px solid #e2e9f7; border-radius: 4px; background: #f7faff; color: #99abc8; font-size: 9px; }
+.studio-palette-results { min-height: 100px; overflow: auto; padding: 7px; }
+.studio-palette-results > button { display: flex; align-items: center; gap: 11px; width: 100%; padding: 10px; border: 0; border-radius: 6px; background: transparent; color: #6885b2; text-align: left; cursor: pointer; }
+.studio-palette-results > button.active { background: #edf3ff; }
+.studio-palette-results > button span { display: grid; flex: 1; min-width: 0; gap: 3px; }
+.studio-palette-results strong { overflow: hidden; color: #50698e; font-size: 12px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.studio-palette-results small, .studio-palette-results kbd { color: #9aabc7; font-size: 10px; }
+.studio-palette-results p { padding: 20px; color: #96a7c3; font-size: 12px; text-align: center; }
+.studio-palette footer { display: flex; justify-content: space-between; padding: 9px 15px; border-top: 1px solid #e9eef8; color: #a0aec5; font-size: 10px; }
+.develop-mode > .ds-alert { position: absolute; z-index: 80; top: 52px; left: 25%; right: 25%; margin: 0; box-shadow: 0 5px 16px #21396315; }
+.studio-spinner { animation: python-studio-spin 1.1s linear infinite; }
+@keyframes python-studio-spin { to { transform: rotate(360deg); } }
+@media (max-width: 1400px) { .python-studio .studio-version, .python-studio .ide-actions .publish { display: none; } .python-studio .studio-global-search { max-width: 250px; } }
+@media (max-width: 1150px) { .python-studio .studio-global-search span, .python-studio .studio-global-search kbd { display: none; } .python-studio .studio-global-search { flex: 0 0 30px; min-width: 30px; padding: 0; } .python-studio .ide-commandbar { gap: 7px; } .python-studio .studio-workspace-select { max-width: 130px; } .python-studio .ide-actions { gap: 3px; } }
+@media (max-width: 800px) { .ds-ide.python-studio { grid-template-columns: 0 minmax(180px,1fr) minmax(260px,var(--ai-width)); } .python-studio .ide-explorer { visibility: hidden; } .python-studio .explorer-resizer { display: none; } .python-studio .ide-brand strong { font-size: 13px; } .python-studio .ide-actions > button > span { display: none; } .python-studio .studio-lint-status, .python-studio .studio-runtime-label { display: none; } }
+@media (max-width: 560px) { .ds-ide.python-studio { grid-template-columns: 0 minmax(180px,1fr) 0; } .python-studio .ai-panel { visibility: hidden; } .python-studio .ai-resizer { display: none; } .python-studio .studio-workspace-select { max-width: 90px; } .python-studio .ide-actions .studio-icon-button:nth-last-child(4) { display: none; } .python-studio .ide-brand > svg { display: none; } .python-studio > .ide-statusbar { gap: 8px; } }
+@media (prefers-reduced-motion: reduce) { .studio-spinner { animation: none; } }
+@media (max-width: 800px) { .python-studio:not(.explorer-collapsed) .ide-explorer { position: absolute; z-index: 65; top: 46px; bottom: 25px; left: 0; width: var(--explorer-width); visibility: visible; box-shadow: 8px 0 25px #273d621a; } }
+@media (max-width: 560px) { .python-studio:not(.ai-collapsed) .ai-panel { position: absolute; z-index: 70; top: 46px; bottom: 25px; right: 0; width: min(350px,100%); visibility: visible; box-shadow: -8px 0 25px #273d621a; } }

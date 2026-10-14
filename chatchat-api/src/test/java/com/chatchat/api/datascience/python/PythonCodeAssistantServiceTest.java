@@ -55,6 +55,26 @@ class PythonCodeAssistantServiceTest {
     }
 
     @Test
+    void explanationsAndContextAnswersAreReadOnlyAndKeepTheirFormatting() {
+        when(defaultModel.chat(anyString())).thenReturn("说明：\n```python\nprint(1)\n```\n未执行代码。");
+        for (String action : List.of("explain", "ask")) {
+            var response = service.assist(new PythonCodeAssistantService.AssistRequest(action,"请解释当前代码","print(1)","print(1)","general-model"));
+            assertThat(response.action()).isEqualTo(action);
+            assertThat(response.replaceSelection()).isFalse();
+            assertThat(response.code()).contains("说明：", "```python", "未执行代码");
+        }
+    }
+
+    @Test
+    void generatedTestsAreSeparateFromTheSelectedBusinessCode() {
+        when(defaultModel.chat(anyString())).thenReturn("import unittest\nclass TestReport(unittest.TestCase):\n    pass");
+        var response = service.assist(new PythonCodeAssistantService.AssistRequest("test","为 analysis.py 生成测试","def total(x): return sum(x)","return sum(x)","general-model"));
+        assertThat(response.action()).isEqualTo("test");
+        assertThat(response.replaceSelection()).isFalse();
+        assertThat(response.code()).contains("unittest");
+    }
+
+    @Test
     void supportsEveryAdvertisedAssistantAction() {
         when(defaultModel.chat(anyString())).thenReturn("print('suggestion')");
 

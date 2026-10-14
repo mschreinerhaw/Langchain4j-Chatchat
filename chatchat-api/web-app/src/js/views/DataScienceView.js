@@ -17,7 +17,6 @@ import {
   deletePythonDataFile,
   publishPythonScript,
   fetchPythonScriptTemplate,
-  requestPythonCodeAssist,
   savePythonScript,
   deletePythonScript,
   savePythonScriptFolder,
@@ -31,6 +30,8 @@ import { getLanguageAdapter, editorPreferences, editorLanguageOptions, applyForm
 import { buildPythonLineDiff } from "../utils/pythonCodeDiff";
 import PythonCodeDiff from "../../components/PythonCodeDiff.vue";
 import CodeChangeReview from "../../components/editor/CodeChangeReview.vue";
+import StudioCodePlan from "../../components/editor/StudioCodePlan.vue";
+import { requestPlannedPythonAssist } from '../../services/studioCodePlanning';
 import { studioAiLabels, studioAiProgress, pythonProposalSource } from '../utils/studioAi';
 import EditorPreferences from "../../components/editor/EditorPreferences.vue";
 import { Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X, Play, Save, Settings2, PanelLeft,
@@ -79,7 +80,7 @@ const workspaceLayoutStorageKey = "chatchat.python-studio.layout.v1";
 
 export default {
   name: "DataScienceView",
-  components: { CodeChangeReview, PythonCodeDiff, EditorPreferences, Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X,
+  components: { StudioCodePlan, CodeChangeReview, PythonCodeDiff, EditorPreferences, Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X,
     Play, Save, Settings2, PanelLeft, PanelRight, PanelBottom, Maximize2, Minimize2, Sparkles, Send,
     RefreshCw, ListTree, Box, Terminal, CircleCheck, CircleAlert, LoaderCircle, Trash2, Code2, BookOpen, FlaskConical, WandSparkles },
   props: {
@@ -186,6 +187,7 @@ export default {
     aiChangeRequest: "",
     aiSelection: null,
     aiStage: "idle",
+    aiCodePlan: null,
     aiProgressStep: 0,
     aiElapsedMs: 0,
     aiAppliedInfo: null,
@@ -232,7 +234,7 @@ export default {
     pythonVersionLabel() { return this.activePythonAsset?.pythonVersion || '版本未报告'; },
     aiIsTextAnswer() { return ['explain','ask'].includes(this.aiSuggestion?.action); },
     aiOperationLabel() { return studioAiLabels[this.aiSuggestion?.action || (this.aiBusy ? this.aiRequestAction : this.aiAction)] || '代码生成'; },
-    aiProgressLabel() { return studioAiProgress[this.aiRequestAction] || '正在处理请求'; },
+    aiProgressLabel() { return this.aiStage==='planning' ? '正在制定代码协作计划' : studioAiProgress[this.aiRequestAction] || '正在处理请求'; },
     aiReviewFiles() {
       if(!this.aiSuggestion || this.aiIsTextAnswer)return [];
       const isNew=this.aiSuggestion.action==='test';
@@ -1361,7 +1363,8 @@ export default {
       this.aiDiff = null;
       this.aiChangeRequest = this.aiPrompt;
       this.aiAppliedInfo = null;
-      this.aiStage = "generating";
+      this.aiStage = "planning";
+      this.aiCodePlan = null;
       this.aiRequestAction = this.aiAction;
       this.error = "";
       const startedAt = Date.now();
@@ -1376,20 +1379,25 @@ export default {
       this.aiMessages.push({role:'user',text:userText,action:this.aiRequestAction});
       this.startAiProgress();
       try {
-        const suggestion = await requestPythonCodeAssist({
+        const assistRequest = {
           action: this.aiRequestAction,
           prompt: requestPrompt,
           sourceCode: sourceContext.source,
           selectedCode,
           modelName: this.aiModel,
-          skillIds: this.aiSkillIds
+          skillIds: [...this.aiSkillIds]
+        };
+        const suggestion = await requestPlannedPythonAssist(assistRequest, async plan => {
+          this.aiCodePlan = plan;
+          this.aiStage = 'exploring';
+          await nextTick();
         });
         const originalCode = suggestion.action==='test' ? '' : sourceContext.source;
         this.aiSuggestion = suggestion;
         this.aiDiff = ['explain','ask'].includes(suggestion.action) ? null : buildPythonLineDiff(originalCode, pythonProposalSource(sourceContext,suggestion));
         this.aiElapsedMs = Date.now() - startedAt;
         this.aiStage = "ready";
-        requestMessages.push({role:'assistant',action:suggestion.action,text:['explain','ask'].includes(suggestion.action) ? suggestion.code : `为 ${sourceContext.fileName} 生成了${studioAiLabels[suggestion.action] || '代码'}建议，等待审查。`});
+        requestMessages.push({role:'assistant',action:suggestion.action,plan:suggestion.plan,text:['explain','ask'].includes(suggestion.action) ? suggestion.code : `为 ${sourceContext.fileName} 生成了${studioAiLabels[suggestion.action] || '代码'}建议，等待审查。`});
         const originTab = this.editorTabs.find(tab => tab.key === sourceContext.key);
         if (originTab) originTab.aiMessages = requestMessages.slice(-16);
         if (this.activeEditorTabKey === sourceContext.key) this.aiMessages = requestMessages.slice(-16);
@@ -1496,6 +1504,7 @@ export default {
       this.aiChangeRequest = "";
       this.aiAppliedInfo = null;
       this.aiStage = "idle";
+      this.aiCodePlan = null;
       this.aiProgressStep = 0;
     },
     async formatDocument() {

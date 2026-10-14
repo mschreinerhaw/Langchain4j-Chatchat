@@ -140,6 +140,14 @@ public class PythonDataScienceController {
             .toList());
     }
 
+    @PostMapping("/assist/plan")
+    public ApiResponse<?> assistPlan(@RequestBody PythonCodeAssistantService.AssistRequest body, HttpServletRequest request) {
+        return call(() -> {
+            Scope s = scope(request);
+            return codeAssistant.plan(s.tenant(), s.user(), body);
+        });
+    }
+
     @PostMapping("/assist")
     public ApiResponse<?> assist(@RequestBody PythonCodeAssistantService.AssistRequest body, HttpServletRequest request) {
         return call(() -> {

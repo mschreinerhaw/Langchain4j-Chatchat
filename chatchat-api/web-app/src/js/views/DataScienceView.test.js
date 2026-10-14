@@ -62,7 +62,7 @@ describe("Python workbench helpers", () => {
     const view = readFileSync(new URL("../../views/DataScienceView.vue", import.meta.url), "utf8");
 
     expect(script).toContain("fetchPythonAssistSkills()");
-    expect(script).toContain("skillIds: this.aiSkillIds");
+    expect(script).toContain("skillIds: [...this.aiSkillIds]");
     expect(script).toContain("filteredAiSkills()");
     expect(script).toContain("applyAiSkillSelection()");
     expect(view).toContain('class="ai-skill-text-button"');

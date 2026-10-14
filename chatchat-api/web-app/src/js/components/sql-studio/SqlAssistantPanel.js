@@ -1,4 +1,5 @@
 import AppNotice from '../../../components/AppNotice.vue';
+import StudioCodePlan from '../../../components/editor/StudioCodePlan.vue';
 import { computed, nextTick, ref, watch, onMounted, onBeforeUnmount, onActivated, onDeactivated } from 'vue';
 import { sqlTaskPresentation } from '../../utils/sqlTaskPresentation';
 import { terminalSqlTask } from '../../utils/sqlStudioState';
@@ -7,7 +8,7 @@ import { buildPythonLineDiff } from '../../utils/pythonCodeDiff';
 import { Sparkles, FileCode2, BookOpen, Send, AtSign, TrendingUp, CircleHelp, LoaderCircle, CircleCheck, Clock3, Plus } from '@lucide/vue';
 
 export default {
-  components: { AppNotice, Sparkles, FileCode2, BookOpen, Send, AtSign, TrendingUp, CircleHelp, LoaderCircle, CircleCheck, Clock3, Plus },
+  components: { StudioCodePlan, AppNotice, Sparkles, FileCode2, BookOpen, Send, AtSign, TrendingUp, CircleHelp, LoaderCircle, CircleCheck, Clock3, Plus },
   props: { mappingDocuments: { type:Array, default:() => [] }, mappingCount: Number, projectFiles: Array, references: Array, referenceIds: Array, models: Array, agents: Array,
     agentId: String, modelName: String, executionMode: String, prompt: String, messages: Array, busy: Boolean, generations: Array,
     generationId: String, result: Object, selectedCode: Object, currentFile: Object, dialectLabel: String, taskRunning: Boolean,
@@ -18,6 +19,10 @@ export default {
     const scroll = ref(null);
     const allResources = ref(false), composer = ref(null), followOutput = ref(true), now = ref(Date.now());
     const resultAction = computed(() => sqlGenerationAction(props.result));
+    const codePlan = computed(() => props.result?.generation?.prepared?.taskRequest?.toolInput?.studioCodePlan?.interpretationPlan);
+    const codePlanState = computed(() => props.pendingPhase==='PREPARING' ? 'planning' : terminal.value
+      ? ['SUCCESS','PARTIAL','PARTIAL_SUCCESS'].includes(props.result?.task?.status) ? 'complete' : 'failed'
+      : ['RUNNING','WAIT_TOOL','WAIT_MODEL'].includes(props.result?.task?.status) ? 'exploring' : 'ready');
     const operationLabel = computed(() => studioAiLabels[props.pendingPhase ? props.aiAction : props.result ? resultAction.value : props.aiAction] || '代码生成');
     const resultNotes = computed(() => { try{return JSON.parse(props.result?.rawAnswer || '{}').notes || '';}catch{return '';} });
     const progress = computed(() => {
@@ -58,6 +63,6 @@ export default {
     });
     function chooseMention(file) { emit('reference-file', file); }
     function send(event) { if (event?.isComposing) return; if (!props.busy && !props.taskRunning && props.prompt.trim()) emit('send'); }
-    return { studioAiLabels, resultAction, resultNotes, operationLabel, fileDiff, newConversation, terminal, progress, trackScroll, mentionOptions, chooseMention, send, scroll, allResources, composer, quickActions, shownResources, resources, useQuickAction, insertMention };
+    return { codePlan, codePlanState, studioAiLabels, resultAction, resultNotes, operationLabel, fileDiff, newConversation, terminal, progress, trackScroll, mentionOptions, chooseMention, send, scroll, allResources, composer, quickActions, shownResources, resources, useQuickAction, insertMention };
   }
 };

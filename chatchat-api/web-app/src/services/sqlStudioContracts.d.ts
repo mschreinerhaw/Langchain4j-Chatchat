@@ -10,7 +10,8 @@ export interface MappingDocument {
   joins?: string[]; filters?: string[]; writeMode?: string; notes?: string;
 }
 export interface SqlGenerationInput { prompt: string; dialect: SqlDialect; mappingIds?: string[]; mappingDocumentIds?: string[]; referenceIds?: string[]; agentId?: string | null; modelName?: string | null; }
-export interface ExistingAgentTaskRequest { tenantId: string; userId: string; sessionId: string; idempotencyKey: string; query: string; mode: 'agent_chat' | 'llm_chat'; systemPrompt?: string; agentId?: string | null; modelName?: string | null; }
+export interface StudioCodePlan { planId:string; status:'READY'; interpretationPlan:{version:string; intent:{type:string; goal:string}; context:{key_facts:string[]; assumptions:string[]; missing_info:string[]; constraints:string[]}; plan:{steps:Array<{id:number; action_type:string; input:{description:string}; depends_on:number[]}>}}; }
+export interface ExistingAgentTaskRequest { tenantId: string; userId: string; sessionId: string; idempotencyKey: string; query: string; mode: 'agent_chat' | 'llm_chat'; systemPrompt?: string; agentId?: string | null; modelName?: string | null; toolInput?:{sqlStudioAction?:string; studioCodePlan?:StudioCodePlan}; }
 export interface PreparedSqlGeneration { generationId: string; taskRequest: ExistingAgentTaskRequest; }
 export interface SqlGeneration { id: string; taskId: string | null; applied: boolean; prepared: PreparedSqlGeneration; }
 export interface SqlOutputBundle { schemaVersion: 'sql-studio.output.v1'; files: Array<{ path: string; content: string }>; notes?: string; }

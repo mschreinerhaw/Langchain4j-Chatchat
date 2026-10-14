@@ -24,6 +24,7 @@ public class PythonCodeAssistantService {
     private final ModelResourceRegistry modelResources;
     private final ConfigurableChatModelFactory chatModelFactory;
     private final DomainSkillRuntimePort domainSkillRuntime;
+    private final com.chatchat.api.datascience.StudioCodePlanService codePlans;
 
     public List<ModelOption> models() {
         String defaultModel = text(modelResources.defaultChatModel()).trim();
@@ -41,6 +42,25 @@ public class PythonCodeAssistantService {
     }
 
     public AssistResponse assist(String tenantId, String userId, AssistRequest request) {
+        Prepared prepared = prepare(tenantId, userId, request);
+        var plan = blank(request.planId())
+            ? codePlans.create(tenantId, userId, "python", prepared.action(), prepared.prompt(), prepared.modelName(), prepared.model())
+            : codePlans.require(tenantId, userId, "python", prepared.action(), prepared.prompt(), prepared.modelName(), request.planId());
+        boolean textAnswer = "explain".equals(prepared.action()) || "ask".equals(prepared.action());
+        String output = prepared.model().chat(prepared.prompt() + codePlans.context(plan));
+        String generated = textAnswer ? text(output).trim() : stripCodeFence(output);
+        if (generated.isBlank()) throw new IllegalStateException("模型未生成可用的 Python 代码");
+        boolean replaceSelection = !textAnswer && !"test".equals(prepared.action()) && !"continue".equals(prepared.action()) && !prepared.selection().isBlank();
+        return new AssistResponse(generated, prepared.action(), replaceSelection, prepared.modelName(),
+            prepared.skills().stream().map(skill -> new AppliedSkill(skill.id(), skill.name(), skill.category())).toList(), plan);
+    }
+
+    public com.chatchat.api.datascience.StudioCodePlanService.Ticket plan(String tenantId, String userId, AssistRequest request) {
+        Prepared prepared = prepare(tenantId, userId, request);
+        return codePlans.create(tenantId, userId, "python", prepared.action(), prepared.prompt(), prepared.modelName(), prepared.model());
+    }
+
+    private Prepared prepare(String tenantId, String userId, AssistRequest request) {
         if (request == null || blank(request.prompt())) {
             throw new IllegalArgumentException("请先描述希望 AI 完成的 Python 开发任务");
         }
@@ -91,15 +111,11 @@ public class PythonCodeAssistantService {
                 """.formatted(skillContext, instruction, prompt, source, selection);
         ChatModel selectedModel = modelName.equalsIgnoreCase(text(modelResources.defaultChatModel()).trim())
                 ? chatModel : chatModelFactory.create(modelName);
-        boolean textAnswer = "explain".equals(action) || "ask".equals(action);
-        String generated = textAnswer ? text(selectedModel.chat(modelPrompt)).trim() : stripCodeFence(selectedModel.chat(modelPrompt));
-        if (generated.isBlank()) {
-            throw new IllegalStateException("模型未生成可用的 Python 代码");
-        }
-        boolean replaceSelection = !textAnswer && !"test".equals(action) && !"continue".equals(action) && !selection.isBlank();
-        return new AssistResponse(generated, action, replaceSelection, modelName,
-            appliedSkills.stream().map(skill -> new AppliedSkill(skill.id(), skill.name(), skill.category())).toList());
+        return new Prepared(action, modelName, selectedModel, modelPrompt, selection, appliedSkills);
     }
+
+    private record Prepared(String action, String modelName, ChatModel model, String prompt, String selection,
+                            List<DomainSkillRuntimePort.DomainSkillContent> skills) { }
 
     private List<DomainSkillRuntimePort.DomainSkillContent> resolveSkills(String tenantId, String userId,
                                                                           String query, List<String> requestedIds) {
@@ -172,19 +188,22 @@ public class PythonCodeAssistantService {
     }
 
     public record AssistRequest(String action, String prompt, String sourceCode, String selectedCode,
-                                String modelName, List<String> skillIds) {
+                                String modelName, List<String> skillIds, String planId) {
         public AssistRequest {
             skillIds = skillIds == null ? List.of() : List.copyOf(skillIds);
         }
 
         public AssistRequest(String action, String prompt, String sourceCode, String selectedCode, String modelName) {
-            this(action, prompt, sourceCode, selectedCode, modelName, List.of());
+            this(action, prompt, sourceCode, selectedCode, modelName, List.of(), null);
+        }
+        public AssistRequest(String action, String prompt, String sourceCode, String selectedCode, String modelName, List<String> skillIds) {
+            this(action, prompt, sourceCode, selectedCode, modelName, skillIds, null);
         }
     }
 
     public record AppliedSkill(String id, String name, String category) { }
 
     public record AssistResponse(String code, String action, boolean replaceSelection, String modelName,
-                                 List<AppliedSkill> appliedSkills) {
+                                 List<AppliedSkill> appliedSkills, com.chatchat.api.datascience.StudioCodePlanService.Ticket plan) {
     }
 }

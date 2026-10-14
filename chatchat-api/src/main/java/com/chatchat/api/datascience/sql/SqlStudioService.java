@@ -39,6 +39,7 @@ public class SqlStudioService {
     private final DocumentLibraryReadPort library;
     private final EnterpriseAdminService identities;
     private final SqlStudioGenerationScopeStore generationScopes;
+    private final com.chatchat.api.datascience.StudioCodePlanService codePlans;
 
     public record Project(String id, String name, String dialect, String sessionId, String tenantId, String ownerId) { }
     public record File(String id, String projectId, String path, String kind, String content, int version,
@@ -330,6 +331,8 @@ public class SqlStudioService {
             Current project SQL source snapshots: %s
             """.formatted(dialect, operationInstruction, body.prompt(), json(mappings), json(documentMappings), json(references), json(files(request, projectId).stream().filter(f -> "SQL".equals(f.kind())).toList()));
         require(query.length() <= 250_000, "Project context exceeds 250000 characters; select smaller inputs");
+        var codePlan = codePlans.create(project.tenantId(), project.ownerId(), "sql", operation, query, body.modelName());
+        query += codePlans.context(codePlan);
         String id = UUID.randomUUID().toString();
         var taskRequest = new AgentTaskSubmitRequest();
         // Studio supplies its conversation explicitly in the query. Isolate each run's
@@ -337,7 +340,7 @@ public class SqlStudioService {
         var runSession = origins.createForWorkspace(request, "data-science", "SQL Studio: " + project.name());
         taskRequest.setTenantId(project.tenantId()); taskRequest.setUserId(project.ownerId()); taskRequest.setSessionId(runSession.getId());
         taskRequest.setHistoryWindow(0);
-        taskRequest.setToolInput(Map.of("sqlStudioAction", operation));
+        taskRequest.setToolInput(Map.of("sqlStudioAction", operation, "studioCodePlan", codePlan));
         taskRequest.setIdempotencyKey("sql-generation:" + id); taskRequest.setQuery(query);
         // A model-only engineering request has no maintained Agent capabilities. Route it
         // through the existing tool-free Runtime entry rather than discovering a default Agent.

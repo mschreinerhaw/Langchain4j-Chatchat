@@ -25,6 +25,7 @@ class PythonCodeAssistantServiceTest {
     private final ConfigurableChatModelFactory factory = mock(ConfigurableChatModelFactory.class);
     private final DomainSkillRuntimePort domainSkillRuntime = mock(DomainSkillRuntimePort.class);
     private final ModelsConfig modelsConfig = new ModelsConfig();
+    private final com.chatchat.api.datascience.StudioCodePlanService plans = mock(com.chatchat.api.datascience.StudioCodePlanService.class);
     private PythonCodeAssistantService service;
 
     @BeforeEach
@@ -38,7 +39,10 @@ class PythonCodeAssistantServiceTest {
         code.setBaseUrl("http://code.example/v1");
         modelsConfig.getChatModels().put("code-model", code);
         service = new PythonCodeAssistantService(defaultModel, new ModelResourceRegistry(modelsConfig), factory,
-            domainSkillRuntime);
+            domainSkillRuntime, plans);
+        when(plans.create(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), eq("python"), anyString(), anyString(), anyString(), org.mockito.ArgumentMatchers.any()))
+            .thenReturn(new com.chatchat.api.datascience.StudioCodePlanService.Ticket("plan", null, "READY"));
+        when(plans.context(org.mockito.ArgumentMatchers.any())).thenReturn("\nAccepted code InterpretationPlan");
     }
 
     @Test
@@ -95,6 +99,37 @@ class PythonCodeAssistantServiceTest {
             new PythonCodeAssistantService.AssistRequest("generate", "生成测试代码", "", "", "unknown-model")))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("所选模型不可用");
+    }
+
+    @Test void planningFailureStopsBeforeCodeGeneration() {
+        when(plans.create(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), eq("python"), anyString(), anyString(), anyString(), org.mockito.ArgumentMatchers.any()))
+            .thenThrow(new IllegalStateException("PLAN_REQUIRED"));
+        assertThatThrownBy(() -> service.assist(new PythonCodeAssistantService.AssistRequest("fix", "repair", "broken()", "", "general-model")))
+            .isInstanceOf(IllegalStateException.class);
+        org.mockito.Mockito.verifyNoInteractions(defaultModel);
+    }
+
+    @Test void publishesRealInterpretationPlanBeforeGenerationAndReusesOnlyTheBoundPlan() {
+        var resources = new ModelResourceRegistry(modelsConfig);
+        var realPlans = new com.chatchat.api.datascience.StudioCodePlanService(defaultModel, factory, resources,
+            new com.chatchat.agents.runtime.store.InMemoryAgentRunStore(), new com.fasterxml.jackson.databind.ObjectMapper());
+        service = new PythonCodeAssistantService(defaultModel, resources, factory, domainSkillRuntime, realPlans);
+        String planJson = """
+            {"version":"1.0","intent":{"type":"code_development","goal":"解释当前脚本","risk_level":"low"},
+             "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
+             "plan":{"steps":[{"id":1,"action_type":"reasoning","input":{"description":"阅读已提供源码的输入输出"},"depends_on":[]}]}}
+            """;
+        when(defaultModel.chat(anyString())).thenReturn(planJson, "当前脚本输出 1；未执行代码。");
+        var request = new PythonCodeAssistantService.AssistRequest("explain", "解释", "print(1)", "", "general-model");
+        var plan = service.plan("tenant", "owner", request);
+        assertThat(plan.interpretationPlan().steps()).hasSize(1);
+        org.mockito.Mockito.verify(defaultModel,org.mockito.Mockito.times(1)).chat(anyString());
+        var result = service.assist("tenant", "owner", new PythonCodeAssistantService.AssistRequest("explain", "解释", "print(1)", "", "general-model", List.of(), plan.planId()));
+        assertThat(result.code()).contains("未执行代码");assertThat(result.replaceSelection()).isFalse();assertThat(result.plan()).isEqualTo(plan);
+        org.mockito.Mockito.verify(defaultModel,org.mockito.Mockito.times(2)).chat(anyString());
+        assertThatThrownBy(() -> service.assist("tenant", "owner", new PythonCodeAssistantService.AssistRequest("explain", "解释", "print(2)", "", "general-model", List.of(), plan.planId())))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("已变化");
+        org.mockito.Mockito.verify(defaultModel,org.mockito.Mockito.times(2)).chat(anyString());
     }
 
     @Test

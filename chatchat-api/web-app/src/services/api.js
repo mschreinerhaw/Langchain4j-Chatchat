@@ -120,6 +120,7 @@ export function publishPythonScript(scriptId, payload) { return apiRequest(`/dat
 export function fetchPythonScriptTemplate(scriptId) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(scriptId)}/template`); }
 export function fetchPythonScriptVersions(scriptId) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(scriptId)}/versions`); }
 export function requestPythonCodeAssist(payload) { return apiRequest("/data-science/python/assist", { method: "POST", body: JSON.stringify(payload) }); }
+export function requestPythonCodePlan(payload) { return apiRequest("/data-science/python/assist/plan", { method: "POST", body: JSON.stringify(payload) }); }
 export async function uploadPythonDataFile(formData) {
   const session = getStoredAuthSession();
   const path = "/data-science/python/data-files";

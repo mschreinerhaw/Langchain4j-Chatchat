@@ -51,8 +51,11 @@ class SqlStudioIntegrationTest {
     @MockBean com.chatchat.common.mcp.license.McpLicenseEntitlementPort license;
     @MockBean DocumentLibraryReadPort documentLibrary;
     @MockBean SqlStudioMetadataGateway metadataGateway;
+    @MockBean com.chatchat.api.datascience.StudioCodePlanService codePlans;
     String token, tenant;
     @BeforeEach void setup() {
+        when(codePlans.create(any(),any(),eq("sql"),any(),any(),any())).thenReturn(new com.chatchat.api.datascience.StudioCodePlanService.Ticket("studio-code-test",null,"READY"));
+        when(codePlans.context(any())).thenReturn("\nAccepted code InterpretationPlan before exploration");
         when(license.workspaceEntitlement()).thenReturn(new com.chatchat.common.mcp.license.McpLicenseEntitlementPort.WorkspaceEntitlement(true,Set.of("zhice","data-science"),"VALID"));
         var auth=identities.login("admin","123456"); token=auth.token(); tenant=auth.user().tenantId();
     }
@@ -346,6 +349,8 @@ class SqlStudioIntegrationTest {
     }
     @Test void generationScopeIsPersistedAndDenyBoundaryFollowsEnterpriseAuthorization() throws Exception {
         String p=project();var prepared=prepare(p,List.of(),List.of());
+        assertThat(prepared.path("taskRequest").path("toolInput").path("studioCodePlan").path("planId").asText()).isEqualTo("studio-code-test");
+        assertThat(prepared.path("taskRequest").path("query").asText()).contains("Accepted code InterpretationPlan before exploration");
         assertThat(generationScopes.find(prepared.path("taskRequest").path("sessionId").asText())).hasSize(1);
         int enterprise=-1,boundary=-1;
         for(int i=0;i<toolPolicies.size();i++) {
@@ -389,6 +394,17 @@ class SqlStudioIntegrationTest {
                 "bindingId",context.path("bindings").get(0).path("bindingId").asText(),"arguments",args)))).andExpect(status().isBadRequest());
         }
         verifyNoInteractions(metadataGateway);
+    }
+    @Test void codePlanFailureDoesNotCreateGenerationOrRuntimeSession() throws Exception {
+        String p=project();
+        int generationsBefore=jdbc.queryForObject("select count(*) from ds_sql_generation where project_id=?",Integer.class,p);
+        int scopesBefore=jdbc.queryForObject("select count(*) from ds_sql_generation_scope where project_id=?",Integer.class,p);
+        when(codePlans.create(any(),any(),eq("sql"),any(),any(),any())).thenThrow(new IllegalStateException("代码解释计划无效，尚未开始探索"));
+        mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token).contentType("application/json")
+            .content(json(Map.of("prompt","Explain current code","action","explain","dialect","spark")))).andExpect(status().is5xxServerError());
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_generation where project_id=?",Integer.class,p)).isEqualTo(generationsBefore);
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_generation_scope where project_id=?",Integer.class,p)).isEqualTo(scopesBefore);
+        verifyNoInteractions(orchestration);
     }
     @Test void studioRunsIsolateRuntimeMemoryAndRetainHistoricalResults() throws Exception {
         String p=project();

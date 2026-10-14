@@ -1,0 +1,8 @@
+# Limits apply to the existing registered model connection. No extra model call,
+# tool workflow or Agent runtime is introduced; interpretation remains mandatory.
+chatchat:
+  studio:
+    plan:
+      timeout-ms: 120000
+      max-output-tokens: 4096
+      progress-log-interval-ms: 15000

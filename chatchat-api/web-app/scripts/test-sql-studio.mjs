@@ -31,7 +31,7 @@ try {
   const filesByProject = { project: [{ id: 'a', projectId: 'project', path: 'sql/a.sql', kind: 'SQL', content: 'SELECT 1;', version: 1, editable: true }] };
   const foldersByProject = {project:['sql']};
   const library = [{ docId: 'mapping-1', fileName: 'customer.csv', title: 'Customer Mapping', version: 1, latestVersion: true }];
-  let taskStatus = 'WAIT_MODEL', submissionCount = 0, failNextPoll = false;
+  let taskStatus = 'WAIT_MODEL', submissionCount = 0, failNextPoll = false, prepareCount=0,failNextPrepare=false;
   const generation = { id: 'generation-1', taskId: 'task-1', applied: false, prepared:{taskRequest:{toolInput:{sqlStudioAction:'generate'}}} };
   const metadataTable={database:'analytics',schema:'public',tableName:'orders',tableRef:'orders-ref'};
   let metadataDenied=false,descriptions=0,metadataPaged=false;
@@ -88,25 +88,27 @@ try {
     }
     else if (path.endsWith('/project/generations') && method === 'POST') {
       await new Promise(resolve => setTimeout(resolve, 450));
+      if(failNextPrepare){failNextPrepare=false;await route.fulfill({status:504,json:{code:504,message:'代码计划等待超时。请求编号：studio-code-fixture-timeout'}});return;}
       const body = request.postDataJSON();
       assert.deepEqual(body.mappingIds, []);
       assert.deepEqual(body.mappingDocumentIds, ['mapping-1']);
       assert.ok(body.prompt.includes('sql/new.sql'));
-      generation.applied=false;generation.prepared.taskRequest.toolInput.sqlStudioAction=body.action;
+      generation.id='generation-'+(++prepareCount);generation.applied=false;generation.prepared.taskRequest.toolInput.sqlStudioAction=body.action;
+      generation.prepared.taskRequest.toolInput.studioCodePlan={planId:'sql-plan-'+prepareCount,interpretationPlan:{intent:{goal:'结合当前工程形成可审查的 SQL 建议'},context:{missing_info:[]},plan:{steps:[{id:1,input:{description:'分析已授权工程上下文'}},{id:2,input:{description:'生成结果并声明未执行的验证'}}]}}};
       generation.baseVersions=Object.fromEntries(filesByProject.project.map(file=>[file.path.toLowerCase(),file.version]));
-      data = { generationId: generation.id, taskRequest: { query: body.prompt, sessionId: 'session' } };
+      data = { generationId: generation.id, taskRequest: { query: body.prompt, sessionId: 'session',toolInput:{...generation.prepared.taskRequest.toolInput} } };
     }
     else if (path === '/api/v1/agent/tasks' && method === 'POST') { assert.equal(request.postDataJSON().historyWindow, 0); await new Promise(resolve => setTimeout(resolve, 350)); submissionCount++; data = { taskId: 'task-1', status: taskStatus }; }
     else if (path.endsWith('/task-1/cancel')) { taskStatus = 'CANCELLED'; data = true; }
-    else if (path.endsWith('/generations/generation-1/task')) data = generation;
-    else if (path.endsWith('/generations/generation-1')) {
+    else if (path.endsWith('/generations/'+generation.id+'/task')) data = generation;
+    else if (path.endsWith('/generations/'+generation.id)) {
       if (failNextPoll) { failNextPoll = false; await route.fulfill({ status: 503, json: {code:503,message:'Temporary interruption'} }); return; }
       data = { generation, task: { taskId: 'task-1', status: taskStatus, createTime: new Date(Date.now() - 3000).toISOString() },
         events: [{ eventId: 'model-event', sequence: 1, type: 'RUNTIME_OBSERVATION', payload: JSON.stringify({payload:{metadata:{eventKind:'MODEL_INFERENCE',eventState:'STARTED'}}}) }],
         files: taskStatus==='SUCCESS' && generation.prepared.taskRequest.toolInput.sqlStudioAction!=='explain' ? [{path:'sql/new.sql',content:'SELECT 42 AS repaired;'}, {path:'sql/added.sql',content:'SELECT 7 AS added;'}] : [],
         rawAnswer:taskStatus==='SUCCESS' ? JSON.stringify({notes:'解释完成，SELECT 返回常量。'}) : '', outputError: '' };
     }
-    else if(path.endsWith('/generations/generation-1/apply')) {
+    else if(path.endsWith('/generations/'+generation.id+'/apply')) {
       assert.deepEqual(request.postDataJSON().paths,['sql/new.sql','sql/added.sql']);generation.applied=true;
       data=[{path:'sql/new.sql',content:'SELECT 42 AS repaired;'}, {path:'sql/added.sql',content:'SELECT 7 AS added;'}].map(candidate=>{
         let file=filesByProject.project.find(item=>item.path===candidate.path);
@@ -236,6 +238,8 @@ try {
   assert.equal(await page.locator('.sql-chat-settings .sql-agent-choice').filter({ hasText: 'Agent / Skills' }).count(), 1);
   await page.getByLabel('发送给 AI 工程助手').press('Control+Enter');
   await page.locator('.sql-assistant-progress').filter({ hasText: '正在制定代码协作计划' }).waitFor();
+  assert.equal(await page.locator('.sql-assistant-panel > .sql-assistant-progress').count(),0,'Progress never overlays chat messages');
+  assert.equal(await page.locator('.sql-chat-turn.assistant .sql-assistant-progress').count(),1,'Progress belongs to the active reply');
   await page.locator('.sql-task-status').filter({ hasText: '模型分析中' }).waitFor();
   assert.equal(await page.getByRole('button', { name: '查看任务与输出', exact: true }).count(), 0);
   const progressBounds = await page.locator('.sql-assistant-progress').boundingBox();
@@ -265,12 +269,13 @@ try {
   await page.locator('.sql-task-status').filter({ hasText: '任务已取消' }).waitFor();
   await page.getByLabel('发送给 AI 工程助手').fill('继续修改');
   assert.equal(await page.locator('.sql-chat-composer .sql-primary').isDisabled(), false, 'Runtime terminal state unlocks submission');
-  await page.getByRole('button', {name:'新建会话',exact:true}).click();
   taskStatus='SUCCESS';
   await page.getByRole('button',{name:'代码修复',exact:true}).click();
   await page.getByLabel('发送给 AI 工程助手').fill('@sql/new.sql 修复当前文件');
   await page.getByRole('button',{name:'发送',exact:true}).click();
   await page.getByRole('button',{name:'审查 2 个文件变更',exact:true}).waitFor();
+  assert.ok(await page.locator('.sql-chat-turn.assistant').count()>=2,'Previous replies remain in the conversation');
+  assert.equal(await page.locator('.sql-chat-turn.assistant .sql-chat-result').count(),1,'Only the current reply has active review controls');
   const beforeReview=filesByProject.project.find(file=>file.path==='sql/new.sql').content;
   await page.getByRole('button',{name:'审查 2 个文件变更',exact:true}).click();
   await page.getByRole('dialog',{name:'审查代码变更'}).waitFor();
@@ -293,12 +298,19 @@ try {
   assert.equal(await page.getByLabel('发送给 AI 工程助手').inputValue(), '');
   assert.equal(await page.getByLabel('发送给 AI 工程助手').evaluate(el=>el===document.activeElement), true);
   await page.locator('.sql-current-context').filter({hasText:'new.sql'}).waitFor();
+  const submittedBeforeFailure=submissionCount;failNextPrepare=true;
+  await page.getByLabel('发送给 AI 工程助手').fill('验证计划失败反馈');
+  await page.getByRole('button',{name:'发送',exact:true}).click();
+  await page.locator('.sql-chat-turn.assistant').filter({hasText:'studio-code-fixture-timeout'}).waitFor();
+  assert.equal(submissionCount,submittedBeforeFailure,'A failed plan never submits a Runtime task');
+  await page.screenshot({path:'../../target/sql-studio-ide-audit/sql-chat-error.png',fullPage:true});
+  await page.getByRole('button',{name:'新建会话',exact:true}).click();
   await page.reload({waitUntil:'domcontentloaded'});
   await page.locator('.sql-current-context').filter({hasText:'new.sql'}).waitFor();
   assert.equal(await page.locator('.sql-chat-turn,.sql-chat-result').count(), 0, 'Reload must retain the fresh conversation despite existing history');
   await page.locator('.sql-chat-settings summary').click();
   const history=page.locator('.sql-chat-settings label').filter({hasText:'任务历史'}).locator('select');
-  await history.selectOption('generation-1');
+  await history.selectOption(generation.id);
   await page.locator('.sql-chat-result').waitFor();
   await page.getByRole('button', {name:'新建会话',exact:true}).click();
   await page.locator('.sql-tree-file button[title="sql/new.sql"]').click({ button: 'right' });

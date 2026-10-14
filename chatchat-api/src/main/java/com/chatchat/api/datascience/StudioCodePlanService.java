@@ -10,13 +10,17 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import java.time.Duration;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.*;
 
 /** Code-development extension of the existing analysis InterpretationPlan, validator and plan store. */
-@Service @RequiredArgsConstructor
+@Service @RequiredArgsConstructor @Slf4j
 public class StudioCodePlanService {
     private static final String ORIGIN = "studio-code-request-sha256:";
     private final ChatModel chatModel;
@@ -24,17 +28,34 @@ public class StudioCodePlanService {
     private final ModelResourceRegistry resources;
     private final AgentRunStore runStore;
     private final ObjectMapper mapper;
+    @Value("${chatchat.studio.plan.timeout-ms:120000}")
+    private long timeoutMs = 120_000;
+    @Value("${chatchat.studio.plan.max-output-tokens:4096}")
+    private int maxOutputTokens = 4096;
+    private final Map<String,Long> pendingModelCalls = new java.util.concurrent.ConcurrentHashMap<>();
+
+    @Scheduled(fixedDelayString="${chatchat.studio.plan.progress-log-interval-ms:15000}")
+    public void logPendingPlans() {
+        pendingModelCalls.forEach((id, started) -> log.info("studio_code_plan phase=WAITING_MODEL planId={} elapsedMs={}", id, elapsed(started)));
+    }
 
     public record Ticket(String planId, InterpretationPlan interpretationPlan, String status) { }
 
     public Ticket create(String tenant, String user, String language, String action, String input, String modelName) {
         String selected = modelName == null || modelName.isBlank() ? resources.defaultChatModel() : modelName;
         if (!resources.selectableChatModels().contains(selected)) throw new IllegalArgumentException("所选计划模型不可用");
-        ChatModel model = Objects.equals(selected, resources.defaultChatModel()) ? chatModel : models.create(selected);
+        if (timeoutMs <= 0 || maxOutputTokens <= 0) throw new IllegalStateException("代码计划等待预算配置无效");
+        // Use the registered connection with a bounded timeout and no hidden retries,
+        // including the default model. No additional model invocation is introduced.
+        ChatModel model = models.create(selected, Duration.ofMillis(timeoutMs), maxOutputTokens);
         return create(tenant, user, language, action, input, selected, model);
     }
 
     public Ticket create(String tenant, String user, String language, String action, String input, String modelName, ChatModel model) {
+        String id = "studio-code-" + UUID.randomUUID();
+        long started = System.nanoTime();
+        log.info("studio_code_plan phase=START planId={} tenant={} user={} language={} action={} model={} inputChars={} timeoutMs={}",
+            id, tenant, user, language, action, modelName, input == null ? 0 : input.length(), timeoutMs);
         String fingerprint = fingerprint(tenant, user, language, action, input, modelName);
         String prompt = """
             First create a concise, public work plan for Studio code collaboration. Plan only in this call:
@@ -64,8 +85,18 @@ public class StudioCodePlanService {
             %s
             </development-request>
             """.formatted(language, action, input);
-        String raw = model.chat(prompt);
-        if (raw == null || raw.length() > 64_000) throw new IllegalStateException("代码解释计划生成失败，尚未开始探索");
+        String raw;
+        pendingModelCalls.put(id, started);
+        try {
+            raw = model.chat(prompt);
+            if (raw == null || raw.length() > 64_000) throw new IllegalStateException("Invalid plan response size");
+            log.info("studio_code_plan phase=MODEL_RETURNED planId={} elapsedMs={} outputChars={}", id, elapsed(started), raw.length());
+        } catch (RuntimeException failure) {
+            log.warn("studio_code_plan phase=FAILED stage=MODEL planId={} elapsedMs={} cause={}", id, elapsed(started), failure.getClass().getSimpleName());
+            throw new IllegalStateException("代码计划生成失败或等待超时，尚未开始探索，请重试。请求编号：" + id, failure);
+        } finally {
+            pendingModelCalls.remove(id);
+        }
         try {
             String json = raw.trim();
             if (json.startsWith("```")) {
@@ -81,11 +112,12 @@ public class StudioCodePlanService {
             constraints.add(ORIGIN + fingerprint);
             plan = new InterpretationPlan(plan.version(), plan.intent(), new InterpretationPlan.Context(plan.context().keyFacts(),
                 plan.context().assumptions(), plan.context().missingInfo(), constraints), plan.plan(), null, plan.review());
-            String id = "studio-code-" + UUID.randomUUID();
             store().savePlan(tenant, id, id, plan, "ANALYSIS_READY");
+            log.info("studio_code_plan phase=READY planId={} elapsedMs={} steps={}", id, elapsed(started), plan.steps().size());
             return new Ticket(id, plan, "READY");
         } catch (Exception invalid) {
-            throw new IllegalStateException("代码解释计划无效，尚未开始探索，请重试", invalid);
+            log.warn("studio_code_plan phase=FAILED stage=VALIDATE_OR_STORE planId={} elapsedMs={} cause={}", id, elapsed(started), invalid.getClass().getSimpleName());
+            throw new IllegalStateException("代码解释计划无效，尚未开始探索，请重试。请求编号：" + id, invalid);
         }
     }
 
@@ -123,6 +155,7 @@ public class StudioCodePlanService {
         if (runStore instanceof InterpretationPlanStore store) return store;
         throw new IllegalStateException("当前 Runtime 未配置解释计划存储，尚未开始探索");
     }
+    private long elapsed(long started) { return (System.nanoTime() - started) / 1_000_000; }
     private String fingerprint(String tenant, String user, String language, String action, String input, String modelName) {
         try {
             String value = mapper.writeValueAsString(Arrays.asList(tenant, user, language, action, input, modelName));

@@ -5,6 +5,7 @@ import { sqlTaskPresentation } from '../../utils/sqlTaskPresentation';
 import { terminalSqlTask } from '../../utils/sqlStudioState';
 import { studioAiLabels, sqlGenerationAction } from '../../utils/studioAi';
 import { buildPythonLineDiff } from '../../utils/pythonCodeDiff';
+import { sqlAssistantAnswer } from '../../utils/sqlIdeState';
 import { Sparkles, FileCode2, BookOpen, Send, AtSign, TrendingUp, CircleHelp, LoaderCircle, CircleCheck, Clock3, Plus } from '@lucide/vue';
 
 export default {
@@ -30,6 +31,17 @@ export default {
       return {...state,title:state.status==='IDLE' ? `${operationLabel.value} · 准备就绪` : `${operationLabel.value} · ${state.title}`,
         detail:resultAction.value==='explain' && state.status==='SUCCESS' && !props.result?.outputError ? '解释完成，工程代码保持原样。' : state.detail};
     });
+    const displayMessages = computed(() => {
+      const messages = props.messages || [];
+      const id = props.result?.generation?.id;
+      if (!id || messages.some(turn => turn.role === 'assistant' && turn.generationId === id)) return messages;
+      return [...messages, { id:`assistant:${id}`, generationId:id, role:'assistant', action:resultAction.value,
+        text:sqlAssistantAnswer(props.result), plan:codePlan.value }];
+    });
+    const currentTurnId = computed(() => props.result?.generation?.id
+      ? displayMessages.value.find(turn => turn.role === 'assistant' && turn.generationId === props.result.generation.id)?.id
+      : props.pendingPhase ? displayMessages.value.at(-1)?.id : null);
+    const isCurrentTurn = turn => turn.role === 'assistant' && turn.id === currentTurnId.value;
     function fileDiff(file) { return buildPythonLineDiff((props.projectFiles || []).find(item=>item.path.toLowerCase()===file.path.toLowerCase())?.content || '',file.content); }
     let clock;
     const startClock = () => { clearInterval(clock); now.value = Date.now(); clock = setInterval(() => { now.value = Date.now(); }, 1000); };
@@ -51,7 +63,7 @@ export default {
       nextTick(() => { if (scroll.value) scroll.value.scrollTop = 0; composer.value?.focus(); });
     }
     function trackScroll() { if (scroll.value) followOutput.value = scroll.value.scrollHeight - scroll.value.scrollTop - scroll.value.clientHeight < 64; }
-    watch(() => [props.messages?.length, props.messages?.at(-1)?.text, props.result?.files?.length], () => nextTick(() => {
+    watch(() => [props.messages?.length, props.messages?.at(-1)?.text, props.result?.files?.length, props.pendingPhase, progress.value.steps.length], () => nextTick(() => {
       if (scroll.value && followOutput.value) scroll.value.scrollTop = scroll.value.scrollHeight;
     }));
     const mentionOptions = computed(() => {
@@ -62,7 +74,7 @@ export default {
         .filter(file => file.path.toLowerCase().includes(query.toLowerCase())).slice(0, 6);
     });
     function chooseMention(file) { emit('reference-file', file); }
-    function send(event) { if (event?.isComposing) return; if (!props.busy && !props.taskRunning && props.prompt.trim()) emit('send'); }
-    return { codePlan, codePlanState, studioAiLabels, resultAction, resultNotes, operationLabel, fileDiff, newConversation, terminal, progress, trackScroll, mentionOptions, chooseMention, send, scroll, allResources, composer, quickActions, shownResources, resources, useQuickAction, insertMention };
+    function send(event) { if (event?.isComposing) return; if (!props.busy && !props.taskRunning && props.prompt.trim()) { followOutput.value=true;emit('send'); } }
+    return { displayMessages, isCurrentTurn, codePlan, codePlanState, studioAiLabels, resultAction, resultNotes, operationLabel, fileDiff, newConversation, terminal, progress, trackScroll, mentionOptions, chooseMention, send, scroll, allResources, composer, quickActions, shownResources, resources, useQuickAction, insertMention };
   }
 };

@@ -12,6 +12,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
+@org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
 class StudioCodePlanServiceTest {
     static final String PLAN = """
         {"version":"1.0","intent":{"type":"code_development","goal":"检查函数的输入边界并解释异常路径","risk_level":"low"},
@@ -67,5 +68,26 @@ class StudioCodePlanServiceTest {
     }
     @Test void separateNewConversationsAlwaysReceiveNewPlanIds() {
         assertThat(plan(PLAN).planId()).isNotEqualTo(plan(PLAN).planId());
+    }
+    @Test void boundsDefaultModelAndLogsLifecycleWithoutPromptOrSource(org.springframework.boot.test.system.CapturedOutput output) {
+        var config = new ModelsConfig();config.setDefaultChatModel("plan-model");config.setAvailableChatModels(List.of("plan-model"));
+        var connection = new ModelsConfig.ModelConnectionConfig();connection.setBaseUrl("http://localhost/v1");config.getChatModels().put("plan-model",connection);
+        var factory = mock(ConfigurableChatModelFactory.class);
+        when(factory.create("plan-model", java.time.Duration.ofMillis(120_000), 4096)).thenReturn(model);
+        var bounded = new StudioCodePlanService(model,factory,new ModelResourceRegistry(config),store,new ObjectMapper());
+        when(model.chat(anyString())).thenAnswer(call -> { bounded.logPendingPlans(); return PLAN; });
+        var ticket=bounded.create("tenant","owner","sql","generate","private-source-must-not-be-logged",null);
+        bounded.logPendingPlans();
+        verify(factory).create("plan-model",java.time.Duration.ofMillis(120_000),4096);
+        assertThat(output.getOut()).contains("phase=START", "phase=MODEL_RETURNED", "phase=READY", ticket.planId())
+            .doesNotContain("private-source-must-not-be-logged", "\"key_facts\"");
+        assertThat(output.getOut().split("phase=WAITING_MODEL",-1)).hasSize(2);
+    }
+    @Test void recordsModelFailureBeforeAnyRuntimeTaskExists(org.springframework.boot.test.system.CapturedOutput output) {
+        when(model.chat(anyString())).thenThrow(new RuntimeException("sensitive-provider-response"));
+        assertThatThrownBy(()->service.create("tenant","owner","sql","generate","private-source","model",model))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("尚未开始探索").hasMessageContaining("studio-code-");
+        assertThat(output.getOut()).contains("phase=START", "phase=FAILED stage=MODEL", "elapsedMs=")
+            .doesNotContain("sensitive-provider-response", "private-source");
     }
 }

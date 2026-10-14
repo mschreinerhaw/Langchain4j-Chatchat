@@ -22,7 +22,8 @@ try {
   const errors=[]; page.on('pageerror',error=>{ errors.push(error.message); console.error(error.stack); });
   const user={id:'python-user',username:'admin',tenantId:'python-tenant',permissionCodes:[]};
   await page.addInitScript(user=>localStorage.setItem('chatchat.auth.session',JSON.stringify({token:'fixture',user})),user);
-  const aiActions=[];
+  const aiActions=[];let planCalls=0,failNextPlan=false;
+  const codePlan={intent:{goal:'结合当前文件理解需求并生成可审查的建议'},context:{missing_info:[]},plan:{steps:[{id:1,input:{description:'分析当前代码与请求范围'}},{id:2,input:{description:'形成结果并标注未执行的验证'}}]}};
   await page.route('**/api/v1/**',async route=>{
     const request=route.request(),path=new URL(request.url()).pathname;
     let data=[];
@@ -42,8 +43,14 @@ try {
       if(index>=0)scripts[index]=data;else scripts.push(data);
     }
     else if(path.endsWith('/execute')) { await new Promise(resolve=>setTimeout(resolve,400));data={status:'SUCCEEDED',stdout:'{"total":23,"error_count":5}',stderr:'',exitCode:0,durationMs:72}; }
+    else if(path.endsWith('/python/assist/plan')) {
+      planCalls++;await new Promise(resolve=>setTimeout(resolve,450));
+      if(failNextPlan){failNextPlan=false;await route.fulfill({status:504,json:{code:504,message:'代码计划等待超时。请求编号：studio-code-fixture-timeout'}});return;}
+      data={planId:'python-plan-'+planCalls,status:'READY',interpretationPlan:codePlan};
+    }
     else if(path.endsWith('/python/assist')) {
       const body=request.postDataJSON();aiActions.push(body.action);await new Promise(resolve=>setTimeout(resolve,600));
+      assert.equal(body.planId,'python-plan-'+planCalls,'Generation requires the accepted plan');
       data={action:body.action,code:['explain','ask'].includes(body.action)?'这个脚本逐行分析日志，汇总错误信息。未执行代码。':body.action==='test'?'import unittest\nclass TestLogs(unittest.TestCase):\n    def test_empty(self):\n        self.assertEqual(0, 0)\n':'print("AI suggestion")\n',replaceSelection:false,modelName:'code-model',appliedSkills:[]};
     }
     await route.fulfill({json:{code:200,message:'OK',data}});
@@ -79,12 +86,15 @@ try {
   await page.getByRole('button',{name:'发送 Python AI 请求'}).hover();
   assert.notEqual(await page.getByRole('button',{name:'发送 Python AI 请求'}).evaluate(el=>getComputedStyle(el).backgroundImage),'none','Send keeps a colored hover background');
   await page.getByRole('button',{name:'发送 Python AI 请求'}).click();
+  await page.locator('.studio-ai-turn.assistant .ai-progress').waitFor();
+  assert.equal(await page.locator('.ai-body > .ai-progress').count(),0,'Planning belongs inside the assistant reply');
   await page.locator('.studio-text-answer').filter({hasText:'逐行分析日志'}).waitFor();
   assert.equal(await page.locator('.ai-result .apply').count(),0,'Explanations cannot replace source');
   await page.getByRole('button',{name:'生成测试',exact:true}).click();
   await page.getByLabel('Python AI 提示词').fill('生成单元测试');
   await page.getByRole('button',{name:'发送 Python AI 请求'}).click();
   await page.getByRole('button',{name:'审查代码变更',exact:true}).click();
+  assert.equal(await page.locator('.studio-ai-turn.assistant').count(),2,'Earlier explanations remain visible in the conversation');
   await page.getByRole('dialog',{name:'审查代码变更'}).waitFor();
   assert.ok(parseInt((await page.locator('.review-added').textContent()).replace('+',''))>0);
   assert.equal(await page.locator('.review-deleted').textContent(),'−0 行删除');
@@ -115,6 +125,15 @@ try {
   assert.equal(await page.locator('.ai-result .apply').isDisabled(),true);
   await page.locator('.script-open').filter({hasText:'log_analysis.py'}).click();
   await page.locator('.ide-bottom nav button').filter({hasText:'console'}).count();
+  await page.getByRole('button',{name:'新建 Python 会话',exact:true}).click();
+  assert.equal(await page.locator('.studio-ai-turn').count(),0);
+  failNextPlan=true;
+  await page.getByLabel('Python AI 提示词').fill('验证失败反馈');
+  await page.getByRole('button',{name:'发送 Python AI 请求'}).click();
+  await page.locator('.studio-ai-turn.assistant [role=alert]').filter({hasText:'studio-code-fixture-timeout'}).waitFor();
+  assert.equal(aiActions.length,4,'A failed plan cannot enter generation');
+  await page.screenshot({path:'../../target/python-studio-editor/python-chat-error.png',fullPage:true});
+  await page.getByRole('button',{name:'新建 Python 会话',exact:true}).click();
   await page.locator('.ide-bottom nav button').filter({hasText:'运行日志'}).click();
   await mkdir('../../target/python-studio-editor',{recursive:true});
   await page.screenshot({path:'../../target/python-studio-editor/python-studio.png',fullPage:true});
@@ -122,5 +141,5 @@ try {
   await page.screenshot({path:'../../target/python-studio-editor/python-studio-immersive.png',fullPage:true});
   assert.deepEqual(errors,[]);
   assert.deepEqual(aiActions,['explain','test','fix','generate']);
-  console.log('PASS: outline, authorized search, per-file draft and undo, execution/output, read-only explanations, separate test file and stale suggestion protection.');
+  console.log('PASS: Python chat messages, per-reply planning, retained explanations, visible failure diagnostics, new conversations, outline, authorized search, per-file draft and undo, execution/output, read-only explanations, separate test file and stale suggestion protection.');
 } finally { await browser?.close(); await server.close(); }

@@ -62,22 +62,26 @@
         <div v-if="aiOpen" class="pane-resizer pane-resizer-vertical ai-resizer" role="separator" aria-orientation="vertical" title="拖动调整 AI 助手宽度，双击恢复默认" @pointerdown="startPaneResize('ai',$event)" @dblclick="resetPaneSize('ai')"></div>
 
         <aside class="ai-panel">
-          <header><div><Sparkles :size="17" /><strong>AI 助手</strong></div><button aria-label="收起 AI 助手" @click="toggleAi"><X :size="15" /></button></header>
+          <header><div><Sparkles :size="17" /><strong>AI 工程助手</strong></div><div class="studio-ai-header-actions"><button type="button" aria-label="新建 Python 会话" title="新建会话" :disabled="aiBusy" @click="newPythonConversation"><Plus :size="17" /></button><button aria-label="收起 AI 助手" @click="toggleAi"><X :size="15" /></button></div></header>
           <nav class="studio-ai-modes" aria-label="Python AI 工作模式">
             <button v-for="mode in [{id:'explain',label:'代码解释'},{id:'generate',label:'代码生成'},{id:'fix',label:'代码修复'},{id:'ask',label:'上下文问答'},{id:'test',label:'生成测试'}]" :key="mode.id" :class="{active:aiAction===mode.id}" :aria-pressed="aiAction===mode.id" :disabled="aiBusy" @click="chooseAiMode(mode.id)">{{ mode.label }}</button>
           </nav>
-          <section class="ai-body" aria-label="Python AI 协作记录">
+          <section ref="aiMessagesScroll" class="ai-body" role="log" aria-label="Python AI 协作记录" @scroll="trackAiScroll">
             <template v-if="!aiMessages.length&&!aiSuggestion&&!aiBusy"><div class="ai-intro"><span class="studio-ai-avatar"><FileCode2 :size="28" /></span><strong>你好，我是 AI 编程助手</strong><p>围绕当前文件，协助你完成开发。</p><ul><li>理解代码逻辑与输入输出</li><li>优化代码、定位潜在问题</li><li>生成 Python 脚本与单元测试</li><li>结合已选领域 Skills 回答问题</li></ul></div><div class="ai-examples"><button v-for="example in ['解释当前代码的逻辑','优化当前代码的异常处理','为当前脚本生成 unittest 测试','根据需求生成一个数据分析脚本']" :key="example" @click="useAiExample(example)"><span>/</span>{{ example }}</button></div></template>
-            <article v-for="(turn,index) in aiMessages.filter((turn,index)=>!aiSuggestion||index<aiMessages.length-1||turn.role==='user')" :key="index" class="studio-ai-turn" :class="turn.role"><small>{{ turn.role==='user'?'我':'AI 助手' }}{{ turn.action ? ' · '+({generate:'代码生成',explain:'代码解释',fix:'代码修复',ask:'上下文问答',test:'生成测试',optimize:'代码优化',continue:'代码续写'})[turn.action] : '' }}</small><StudioCodePlan v-if="turn.plan" :plan="turn.plan.interpretationPlan" state="complete" /><p>{{ turn.text }}</p></article>
-            <StudioCodePlan :plan="aiCodePlan?.interpretationPlan" :state="aiStage==='planning'?'planning':aiStage==='failed'?'failed':aiBusy?'exploring':'complete'" />
-            <div v-if="aiBusy" class="ai-progress" role="status"><LoaderCircle :size="18" class="studio-spinner" /><strong>{{ aiProgressLabel }}</strong><p>{{ selectedAiModelLabel }} · {{ Math.floor(aiElapsedMs/1000) }} 秒</p><small>当前文件 {{ aiSourceContext?.fileName }}{{ aiSelection?' · 已选中代码':'' }}{{ aiSkillIds.length?' · '+aiSkillIds.length+' 个领域 Skill':'' }}</small></div>
-            <p v-if="aiStage==='failed'" class="studio-ai-error" role="alert">请求未完成，请检查提示信息后重试。</p>
-            <div v-if="aiSuggestion&&!aiBusy" class="ai-result" :class="{applied:aiStage==='applied','is-answer':aiIsTextAnswer}">
+            <article v-for="(turn,index) in aiConversationMessages" :key="turn.id||index" class="studio-ai-turn" :class="turn.role" :aria-label="turn.role==='user'?'用户消息':'AI 助手消息'">
+              <small>{{ turn.role==='user'?'我':'AI 工程助手' }}{{ turn.action ? ' · '+({generate:'代码生成',explain:'代码解释',fix:'代码修复',ask:'上下文问答',test:'生成测试',optimize:'代码优化',continue:'代码续写'})[turn.action] : '' }}{{ turn.fileName ? ' · '+turn.fileName : '' }}</small>
+              <p v-if="turn.id!==aiCurrentTurn?.id||(!aiBusy&&!aiSuggestion)" :class="{'studio-ai-error':turn.status==='failed'}" :role="turn.status==='failed'?'alert':undefined">{{ turn.text }}</p>
+              <div v-if="turn.id===aiCurrentTurn?.id&&aiBusy" class="ai-progress" role="status"><LoaderCircle :size="18" class="studio-spinner" /><strong>{{ turn.status==='planning'?'正在制定代码协作计划':aiProgressLabel }}</strong><p>{{ selectedAiModelLabel }} · {{ Math.floor(aiElapsedMs/1000) }} 秒</p><small v-if="aiElapsedMs>=30000">当前阶段仍在等待模型返回结果。</small></div>
+              <StudioCodePlan v-if="turn.plan" :plan="turn.plan.interpretationPlan||turn.plan" :state="turn.status==='failed'?'failed':turn.id===aiCurrentTurn?.id&&aiBusy?'exploring':'complete'" />
+              <ol v-if="turn.activity?.length" class="studio-message-activity" aria-label="请求处理记录"><li v-for="entry in turn.activity" :key="entry.id" :data-status="entry.status">{{ entry.title }}</li></ol>
+              <small v-if="turn.planId" class="studio-message-id">计划编号：{{ turn.planId }}</small>
+            <div v-if="turn.id===aiCurrentTurn?.id&&aiSuggestion&&!aiBusy" class="ai-result" :class="{applied:aiStage==='applied','is-answer':aiIsTextAnswer}">
               <div class="ai-result-head"><strong>{{ aiOperationLabel }} · {{ aiIsTextAnswer?'回答完成':aiStage==='applied'?'已应用修改':'待审查' }}</strong><span :title="aiSuggestion.modelName">{{ aiSuggestion.modelName || selectedAiModelLabel }} · {{ (aiElapsedMs/1000).toFixed(1) }}s</span></div>
               <p v-if="aiSuggestion.appliedSkills?.length" class="ai-skill-applied">专业增强：{{ aiSuggestion.appliedSkills.map(skill=>skill.name).join('、') }}</p>
               <p v-if="aiIsTextAnswer" class="studio-text-answer">{{ aiSuggestion.code }}</p>
               <template v-else><p v-if="aiAppliedInfo" class="ai-applied-notice"><b>已{{ aiAppliedInfo.verb }}{{ aiAppliedInfo.mode }}</b><span>{{ aiAppliedInfo.lines }} 行代码已写入，当前修改尚未保存。</span></p><p v-if="aiSuggestionStale" class="studio-ai-error" role="alert">文件或内容已变化，请基于当前版本重新生成，避免覆盖已有编辑。</p><PythonCodeDiff v-if="aiShowsDiff" :diff="aiDiff" :action="aiSuggestion.action" :request="aiChangeRequest" :scope="aiChangeScope" /><footer><button @click="resetAiSuggestion">{{ aiStage==='applied'?'继续生成':'放弃' }}</button><button class="apply" :disabled="aiStage==='applied'||aiSuggestionStale||!aiDiff?.changed" @click="aiReviewOpen=true">{{ aiStage==='applied'?'已应用':'审查代码变更' }}</button></footer></template>
             </div>
+            </article>
           </section>
           <footer class="ai-composer">
             <div class="studio-ai-context"><FileCode2 :size="12" /><span :title="form.fileName">{{ form.fileName }}</span><span>{{ aiSkillIds.length }} 个 Skill</span></div>

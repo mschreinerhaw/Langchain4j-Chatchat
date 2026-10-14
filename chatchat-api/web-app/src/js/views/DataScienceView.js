@@ -33,6 +33,7 @@ import CodeChangeReview from "../../components/editor/CodeChangeReview.vue";
 import StudioCodePlan from "../../components/editor/StudioCodePlan.vue";
 import { requestPlannedPythonAssist } from '../../services/studioCodePlanning';
 import { studioAiLabels, studioAiProgress, pythonProposalSource } from '../utils/studioAi';
+import { beginStudioExchange, studioAssistantTurn, updateStudioTurn } from '../utils/studioConversation';
 import EditorPreferences from "../../components/editor/EditorPreferences.vue";
 import { Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X, Play, Save, Settings2, PanelLeft,
   PanelRight, PanelBottom, Maximize2, Minimize2, Sparkles, Send, RefreshCw, ListTree, Box, Terminal,
@@ -148,6 +149,8 @@ export default {
     pythonProblems: [],
     lintState: 'idle',
     aiMessages: [],
+    aiCurrentTurn: null,
+    aiFollowOutput: true,
     aiSourceContext: null,
     editorTabs: [],
     activeEditorTabKey: "",
@@ -229,6 +232,10 @@ export default {
     }
   }),
   computed: {
+    aiConversationMessages() {
+      if (this.aiCurrentTurn && (this.aiBusy || this.aiSuggestion) && !this.aiMessages.some(turn=>turn.id===this.aiCurrentTurn.id)) return [...this.aiMessages,this.aiCurrentTurn];
+      return this.aiMessages;
+    },
     scriptOutline() { return pythonOutline(this.form.sourceCode); },
     activePythonAsset() { return this.assets.find(asset => asset.id === this.form.assetId); },
     pythonVersionLabel() { return this.activePythonAsset?.pythonVersion || '版本未报告'; },
@@ -448,6 +455,8 @@ export default {
     }
   },
   watch: {
+    aiMessages: { deep:true, handler() { this.scrollAiMessages(); } },
+    aiBusy() { this.scrollAiMessages(); },
     initialTab: {
       immediate: true,
       handler(value) {
@@ -1376,7 +1385,10 @@ export default {
       const requestMessages = this.aiMessages;
       const history = this.aiMessages.slice(-4).map(item => `${item.role}: ${item.text.slice(0,500)}`).join('\n');
       const requestPrompt = [`当前文件：${sourceContext.fileName}`,history && `之前的工程协作：\n${history}`, userText].filter(Boolean).join('\n\n').slice(-4000);
-      this.aiMessages.push({role:'user',text:userText,action:this.aiRequestAction});
+      const requestId = beginStudioExchange(requestMessages,userText,this.aiRequestAction,sourceContext.fileName);
+      this.aiCurrentTurn = studioAssistantTurn(requestMessages,requestId);
+      this.aiFollowOutput = true;
+      this.aiPrompt = '';
       this.startAiProgress();
       try {
         const assistRequest = {
@@ -1390,6 +1402,7 @@ export default {
         const suggestion = await requestPlannedPythonAssist(assistRequest, async plan => {
           this.aiCodePlan = plan;
           this.aiStage = 'exploring';
+          updateStudioTurn(studioAssistantTurn(requestMessages,requestId),'generating','计划已通过校验，正在根据当前代码和已选上下文生成结果。',{plan:plan.interpretationPlan,planId:plan.planId});
           await nextTick();
         });
         const originalCode = suggestion.action==='test' ? '' : sourceContext.source;
@@ -1397,14 +1410,18 @@ export default {
         this.aiDiff = ['explain','ask'].includes(suggestion.action) ? null : buildPythonLineDiff(originalCode, pythonProposalSource(sourceContext,suggestion));
         this.aiElapsedMs = Date.now() - startedAt;
         this.aiStage = "ready";
-        requestMessages.push({role:'assistant',action:suggestion.action,plan:suggestion.plan,text:['explain','ask'].includes(suggestion.action) ? suggestion.code : `为 ${sourceContext.fileName} 生成了${studioAiLabels[suggestion.action] || '代码'}建议，等待审查。`});
+        updateStudioTurn(studioAssistantTurn(requestMessages,requestId),'ready',['explain','ask'].includes(suggestion.action) ? suggestion.code : `为 ${sourceContext.fileName} 生成了${studioAiLabels[suggestion.action] || '代码'}建议，等待审查。`,{plan:suggestion.plan?.interpretationPlan || this.aiCodePlan?.interpretationPlan,planId:suggestion.plan?.planId || this.aiCodePlan?.planId});
         const originTab = this.editorTabs.find(tab => tab.key === sourceContext.key);
         if (originTab) originTab.aiMessages = requestMessages.slice(-16);
         if (this.activeEditorTabKey === sourceContext.key) this.aiMessages = requestMessages.slice(-16);
         this.aiProgressStep = 4;
       } catch (error) {
         this.aiStage = "failed";
-        this.showTransientError(errorMessage(error, "AI 代码补全失败"));
+        const detail = errorMessage(error, "AI 助手请求失败");
+        updateStudioTurn(studioAssistantTurn(requestMessages,requestId),'failed',detail);
+        const originTab = this.editorTabs.find(tab=>tab.key===sourceContext.key);
+        if(originTab)originTab.aiMessages=requestMessages.slice(-16);
+        this.showTransientError(detail);
       } finally {
         this.aiBusy = false;
         this.stopAiProgress();
@@ -1417,6 +1434,7 @@ export default {
         const code = this.aiSuggestion.code;
         const name = this.form.fileName.replace(/\.py$/i,'');
         const assetId = this.form.assetId;
+        updateStudioTurn(this.aiCurrentTurn,'applied',`已将建议应用为 test_${name}.py，等待保存。`);
         this.newScript(); this.form.assetId = assetId; this.form.fileName = `test_${name}.py`; this.form.sourceCode = code;
         this.aiAppliedInfo = {verb:'新建',mode:'测试文件',lines:code.split('\n').length}; this.aiStage = 'applied';
         return;
@@ -1482,6 +1500,7 @@ export default {
         at: new Date().toLocaleTimeString()
       };
       this.aiStage = "applied";
+      updateStudioTurn(this.aiCurrentTurn,'applied',`代码建议已应用到 ${this.form.fileName}，当前修改尚未保存。`);
       this.editor.focus();
     },
     startAiProgress() {
@@ -1492,6 +1511,19 @@ export default {
       this.aiProgressTimer = setInterval(() => {
         this.aiElapsedMs = Date.now() - startedAt;
       }, 1000);
+    },
+    scrollAiMessages() {
+      nextTick(()=>{const box=this.$refs.aiMessagesScroll;if(box&&this.aiFollowOutput)box.scrollTop=box.scrollHeight;});
+    },
+    trackAiScroll() {
+      const box=this.$refs.aiMessagesScroll;
+      if(box)this.aiFollowOutput=box.scrollHeight-box.scrollTop-box.clientHeight<64;
+    },
+    newPythonConversation() {
+      if(this.aiBusy)return;
+      this.resetAiSuggestion();this.aiCurrentTurn=null;this.aiMessages=[];this.aiPrompt='';this.aiFollowOutput=true;
+      const tab=this.editorTabs.find(item=>item.key===this.activeEditorTabKey);
+      if(tab)tab.aiMessages=[];
     },
     stopAiProgress() {
       if (this.aiProgressTimer) clearInterval(this.aiProgressTimer);

@@ -122,6 +122,19 @@
 .python-studio .ai-examples button span { color: #9ba9c0; padding-right: 5px; }
 .studio-ai-turn { margin: 0 0 12px; padding: 10px 12px; border: 1px solid #e1e8f7; border-radius: 9px; background: #fff; color: #627898; }
 .studio-ai-turn.user { margin-left: 15px; background: #eff4ff; }
+.python-studio .studio-ai-turn.assistant{display:flex;flex-direction:column;margin-right:8px;background:#f6f8fc;color:#334764}
+.python-studio .studio-ai-turn.assistant>.studio-code-plan{order:1}
+.python-studio .studio-ai-turn.assistant>.studio-message-activity{order:2}
+.python-studio .studio-ai-turn.assistant>.studio-message-id{order:3}
+.python-studio .studio-ai-turn.assistant>.ai-progress,.python-studio .studio-ai-turn.assistant>p{order:4}
+.python-studio .studio-ai-turn.assistant>.ai-result{order:5}
+.python-studio .studio-ai-turn .ai-progress{margin:6px 0;padding:8px 0;border:0;background:transparent}
+.python-studio .studio-message-activity{margin:10px 0;padding-left:18px;font-size:11px;line-height:1.8;color:#6a7e99}
+.python-studio .studio-message-activity [data-status=active]{color:#2563eb}
+.python-studio .studio-message-activity [data-status=error]{color:#b42318}
+.python-studio .studio-message-id{display:block;margin-top:6px;overflow-wrap:anywhere}
+.python-studio .ai-body{overflow-anchor:none}
+.python-studio .studio-ai-header-actions{gap:6px}
 .studio-ai-turn small { color: #94a4bd; font-size: 9px; }
 .studio-ai-turn p { margin: 5px 0 0; font-size: 11px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
 .python-studio .ai-progress { padding: 14px; margin: 10px 0; border: 1px solid #dae5ff; background: #f0f5ff; color: #577bcc; text-align: left; box-shadow: none; }

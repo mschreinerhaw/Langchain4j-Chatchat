@@ -14,6 +14,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -40,7 +42,9 @@ class PythonCodeAssistantServiceTest {
         modelsConfig.getChatModels().put("code-model", code);
         service = new PythonCodeAssistantService(defaultModel, new ModelResourceRegistry(modelsConfig), factory,
             domainSkillRuntime, plans);
-        when(plans.create(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), eq("python"), anyString(), anyString(), anyString(), org.mockito.ArgumentMatchers.any()))
+        when(factory.create(eq("general-model"), any(java.time.Duration.class), anyInt())).thenReturn(defaultModel);
+        when(factory.create(eq("code-model"), any(java.time.Duration.class), anyInt())).thenReturn(codeModel);
+        when(plans.create(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), eq("python"), anyString(), anyString(), anyString()))
             .thenReturn(new com.chatchat.api.datascience.StudioCodePlanService.Ticket("plan", null, "READY"));
         when(plans.context(org.mockito.ArgumentMatchers.any())).thenReturn("\nAccepted code InterpretationPlan");
     }
@@ -102,7 +106,7 @@ class PythonCodeAssistantServiceTest {
     }
 
     @Test void planningFailureStopsBeforeCodeGeneration() {
-        when(plans.create(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), eq("python"), anyString(), anyString(), anyString(), org.mockito.ArgumentMatchers.any()))
+        when(plans.create(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), eq("python"), anyString(), anyString(), anyString()))
             .thenThrow(new IllegalStateException("PLAN_REQUIRED"));
         assertThatThrownBy(() -> service.assist(new PythonCodeAssistantService.AssistRequest("fix", "repair", "broken()", "", "general-model")))
             .isInstanceOf(IllegalStateException.class);

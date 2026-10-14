@@ -1046,6 +1046,19 @@
   color: #5d728f;
 }
 .sql-assistant-progress.is-running { background: #f2f7ff; }
+.sql-chat-turn .sql-assistant-progress{min-height:0;margin:8px 0;padding:8px 0;border:0;background:transparent}
+.sql-chat-turn.assistant{display:flex;flex-direction:column}
+.sql-chat-turn.assistant>.studio-code-plan{order:1}
+.sql-chat-turn.assistant>.studio-message-activity{order:2}
+.sql-chat-turn.assistant>.studio-message-id{order:3}
+.sql-chat-turn.assistant>.sql-assistant-progress,.sql-chat-turn.assistant>p{order:4}
+.sql-chat-turn.assistant>.sql-chat-result{order:5}
+.sql-chat-turn .sql-task-status{flex-wrap:wrap}
+.sql-chat-turn .sql-progress-detail{white-space:normal;overflow-wrap:anywhere}
+.sql-chat-turn .studio-message-activity{padding-left:18px;margin:10px 0;color:#6a7e99;font-size:11px;line-height:1.8}
+.sql-chat-turn .studio-message-activity [data-status=active]{color:#2563eb}
+.sql-chat-turn .studio-message-activity [data-status=error],.sql-chat-error{color:#b42318}
+.sql-chat-turn .studio-message-id{display:block;margin-top:6px;color:#7d8ca4;font-size:10px;overflow-wrap:anywhere}
 .sql-assistant-progress .sql-task-status { gap: 8px; margin: 0; min-height: 26px; }
 .sql-task-status > div { display: flex; align-items: center; gap: 7px; min-width: 0; color: #47678c; }
 .is-running .sql-task-status > div { color: #2563db; }

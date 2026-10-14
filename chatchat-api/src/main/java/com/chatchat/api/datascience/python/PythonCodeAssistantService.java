@@ -5,6 +5,7 @@ import com.chatchat.common.config.ModelResourceRegistry;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashSet;
@@ -13,6 +14,7 @@ import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PythonCodeAssistantService {
     private static final int MAX_PROMPT_LENGTH = 4_000;
     private static final int MAX_SOURCE_LENGTH = 200_000;
@@ -42,22 +44,33 @@ public class PythonCodeAssistantService {
     }
 
     public AssistResponse assist(String tenantId, String userId, AssistRequest request) {
+        log.info("studio_code_assist phase=REQUEST language=python tenant={} user={}", tenantId, userId);
         Prepared prepared = prepare(tenantId, userId, request);
         var plan = blank(request.planId())
-            ? codePlans.create(tenantId, userId, "python", prepared.action(), prepared.prompt(), prepared.modelName(), prepared.model())
+            ? codePlans.create(tenantId, userId, "python", prepared.action(), prepared.prompt(), prepared.modelName())
             : codePlans.require(tenantId, userId, "python", prepared.action(), prepared.prompt(), prepared.modelName(), request.planId());
         boolean textAnswer = "explain".equals(prepared.action()) || "ask".equals(prepared.action());
-        String output = prepared.model().chat(prepared.prompt() + codePlans.context(plan));
+        long started = System.nanoTime();
+        log.info("studio_code_assist phase=MODEL_START language=python planId={} tenant={} user={} action={} model={}", plan.planId(), tenantId, userId, prepared.action(), prepared.modelName());
+        String output;
+        try {
+            output = prepared.model().chat(prepared.prompt() + codePlans.context(plan));
+        } catch (RuntimeException failure) {
+            log.warn("studio_code_assist phase=FAILED language=python planId={} elapsedMs={} cause={}", plan.planId(), (System.nanoTime()-started)/1_000_000, failure.getClass().getSimpleName());
+            throw new IllegalStateException("Python 助手处理失败，请重试。请求编号：" + plan.planId(), failure);
+        }
         String generated = textAnswer ? text(output).trim() : stripCodeFence(output);
         if (generated.isBlank()) throw new IllegalStateException("模型未生成可用的 Python 代码");
+        log.info("studio_code_assist phase=READY language=python planId={} elapsedMs={} outputChars={}", plan.planId(), (System.nanoTime()-started)/1_000_000, generated.length());
         boolean replaceSelection = !textAnswer && !"test".equals(prepared.action()) && !"continue".equals(prepared.action()) && !prepared.selection().isBlank();
         return new AssistResponse(generated, prepared.action(), replaceSelection, prepared.modelName(),
             prepared.skills().stream().map(skill -> new AppliedSkill(skill.id(), skill.name(), skill.category())).toList(), plan);
     }
 
     public com.chatchat.api.datascience.StudioCodePlanService.Ticket plan(String tenantId, String userId, AssistRequest request) {
+        log.info("studio_code_assist phase=PLAN_REQUEST language=python tenant={} user={}", tenantId, userId);
         Prepared prepared = prepare(tenantId, userId, request);
-        return codePlans.create(tenantId, userId, "python", prepared.action(), prepared.prompt(), prepared.modelName(), prepared.model());
+        return codePlans.create(tenantId, userId, "python", prepared.action(), prepared.prompt(), prepared.modelName());
     }
 
     private Prepared prepare(String tenantId, String userId, AssistRequest request) {

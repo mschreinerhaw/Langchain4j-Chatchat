@@ -11,7 +11,7 @@ export function sqlAssistantAnswer(result) {
   if (!result) return '';
   if (result.outputError) return result.outputError;
   const progress = sqlTaskPresentation(result);
-  if (progress.running) return `${progress.title}，进展将在上方持续更新。`;
+    if (progress.running) return `${progress.title}，进展将在本条消息中持续更新。`;
   const paths = (result.files || []).map(file => file.path);
   let notes = '';
   try { notes = JSON.parse(result.rawAnswer || '{}').notes || ''; } catch { notes = result.rawAnswer || ''; }

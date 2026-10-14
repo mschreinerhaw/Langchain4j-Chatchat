@@ -16,6 +16,7 @@ import { dirtySqlFile, mergeSqlFiles, restoreSqlDrafts, assertSqlApplySafe, merg
 import { mappingSchemaColumns } from '../editor/codeIntelligence';
 import { clampSqlPanel, restoreSqlLayout, sqlAssistantAnswer, sqlConversationPrompt } from '../utils/sqlIdeState';
 import { sqlTaskPresentation } from '../utils/sqlTaskPresentation';
+import { beginStudioExchange, studioAssistantTurn, updateStudioTurn } from '../utils/studioConversation';
 export default {
   components: { SqlSchemaExplorer, CodeChangeReview, AppNotice, AppConfirmDialog, SqlProjectTree, SqlEditorPane, SqlAssistantPanel, SqlBottomPanel, FolderTree, PanelBottom, Sparkles, Plus, Save, WandSparkles, FileCode2, CircleCheck },
   props: { workspaceContext: Object, tenantId: String, userId: String },
@@ -220,10 +221,9 @@ async function generate() { await action(async () => {
   const id = projectId.value, text = prompt.value.trim();
   if (!text) return;
   const request = sqlConversationPrompt(`${activeFile.value ? 'Target file: '+activeFile.value.path+'\n' : ''}${text}`, chatTurns.value, selectedCode.value);
-  const localId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const userTurn = { id:`user:${localId}`, role:'user', text, action:aiAction.value };
-  const assistantTurn = { id:`assistant:${localId}`, role:'assistant', text:'正在制定代码协作计划…', action:aiAction.value };
-  chatTurns.value.push(userTurn, assistantTurn);
+  const localId = beginStudioExchange(chatTurns.value, text, aiAction.value, activeFile.value?.path || '');
+  const assistantTurn = () => studioAssistantTurn(chatTurns.value, localId);
+  prompt.value = '';
   pendingPhase.value = 'PREPARING'; pendingStartedAt.value = Date.now(); pollError.value = ''; result.value = null;
   try {
     const prepared = await sql.prepareSqlGeneration(id, { action:aiAction.value, prompt:request, dialect:dialect.value, mappingDocumentIds:mappingDocumentIds.value, mappingIds:mappingIds.value, referenceIds:referenceIds.value, agentId:executionMode.value === 'agent' ? agentId.value || null : null, modelName:executionMode.value === 'model' ? modelName.value || null : null });
@@ -231,7 +231,11 @@ async function generate() { await action(async () => {
     for (const turn of chatTurns.value.filter(turn => turn.id.endsWith(localId))) {
       turn.id = `${turn.role}:${prepared.generationId}`; turn.generationId = prepared.generationId;
     }
-    prompt.value = ''; selectedCode.value = null;
+    updateStudioTurn(assistantTurn(), 'submitting', '计划已通过校验，正在提交分析任务。', {
+      plan: prepared.taskRequest?.toolInput?.studioCodePlan?.interpretationPlan,
+      planId: prepared.taskRequest?.toolInput?.studioCodePlan?.planId
+    });
+    selectedCode.value = null;
     const generation = { id:prepared.generationId, taskId:null, applied:false, prepared };
     generations.value.unshift(generation); generationId.value = prepared.generationId;
     result.value = { generation, task:null, files:[], events:[], rawAnswer:'', outputError:'' };
@@ -243,8 +247,8 @@ async function generate() { await action(async () => {
       if (id === projectId.value && generationId.value === prepared.generationId) result.value.task = task;
     } finally { await refreshGeneration(); }
   } catch (ex) {
-    const turn = chatTurns.value.find(turn => turn.id === `assistant:${localId}`);
-    if (turn) turn.text = `请求未提交：${ex.message || '请稍后重试'}`;
+    updateStudioTurn(assistantTurn(), 'failed', `请求未完成：${ex.message || '请稍后重试'}`);
+    if (id === projectId.value && !prompt.value) prompt.value = text;
     throw ex;
   } finally { if (id === projectId.value) pendingPhase.value = ''; }
 }); }
@@ -274,7 +278,13 @@ async function refreshGeneration() {
     result.value = loaded;
     pollError.value = '';
     const turn = chatTurns.value.find(item => item.id === `assistant:${generation}`);
-    if (turn) turn.text = sqlAssistantAnswer(loaded);
+    if (turn) {
+      const state = sqlTaskPresentation(loaded);
+      const status = loaded.outputError ? 'failed' : loaded.generation?.applied ? 'applied' : state.terminal ? ['SUCCESS','PARTIAL','PARTIAL_SUCCESS'].includes(loaded.task.status) ? 'ready'
+        : ['CANCELLED','KILLED','TIMEOUT_CANCELLED'].includes(loaded.task.status) ? 'cancelled' : 'failed' : loaded.task ? 'running' : 'submitting';
+      updateStudioTurn(turn, status, (loaded.generation?.applied ? '代码变更已保存到工程，未执行 SQL。\n' : '')+sqlAssistantAnswer(loaded), { steps: state.steps, taskId: loaded.task?.taskId,
+        plan: loaded.generation?.prepared?.taskRequest?.toolInput?.studioCodePlan?.interpretationPlan || turn.plan });
+    }
     if ((loaded.files?.length || loaded.outputError) && !layout.value.bottom) layout.value.bottomTab = loaded.outputError ? 'problems' : 'output';
     if (loaded.task && !terminalSqlTask(loaded.task.status)) pollTimer = setTimeout(refreshGeneration, 1500);
   } catch (ex) {

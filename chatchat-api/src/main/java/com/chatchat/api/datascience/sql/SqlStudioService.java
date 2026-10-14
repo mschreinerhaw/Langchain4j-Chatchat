@@ -13,6 +13,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -26,7 +27,7 @@ import java.sql.SQLException;
 import java.util.*;
 
 /** SQL application persistence and context adapter. Execution belongs to the existing Agent API. */
-@Service @RequiredArgsConstructor
+@Service @RequiredArgsConstructor @Slf4j
 public class SqlStudioService {
     public static final Set<String> DIALECTS = Set.of("spark", "hive", "postgresql", "mysql", "oracle", "tsql", "trino", "ansi");
     private final JdbcTemplate jdbc;
@@ -285,6 +286,9 @@ public class SqlStudioService {
     @Transactional
     public Prepared prepare(HttpServletRequest request, String projectId, Generate body) {
         Project project = project(request, projectId);
+        String id = UUID.randomUUID().toString();
+        long started = System.nanoTime();
+        log.info("studio_code_assist phase=PREPARE_START language=sql generationId={} projectId={} tenant={} user={}", id, projectId, project.tenantId(), project.ownerId());
         require(body != null && body.prompt() != null && !body.prompt().isBlank() && body.prompt().length() <= 4000, "Describe the SQL generation requirement (max 4000)");
         String dialect = dialect(body.dialect());
         require(body.agentId() == null || body.agentId().isBlank() || body.modelName() == null || body.modelName().isBlank(),
@@ -339,7 +343,6 @@ public class SqlStudioService {
         var codePlan = codePlans.create(project.tenantId(), project.ownerId(), "sql", operation, query, body.modelName());
         query += codePlans.context(codePlan);
         applicationContext.put("studioCodePlan", codePlan);
-        String id = UUID.randomUUID().toString();
         var taskRequest = new AgentTaskSubmitRequest();
         // Studio supplies its conversation explicitly in the query. Isolate each run's
         // Runtime memory so a new Studio conversation cannot inherit an old summary.
@@ -359,6 +362,7 @@ public class SqlStudioService {
             id, projectId, json(taskRequest), json(base));
         generationScopes.register(new SqlStudioGenerationScopeStore.Scope(runSession.getId(),projectId,project.tenantId(),project.ownerId()));
         jdbc.update("update ds_sql_project set dialect=? where id=?", dialect, projectId);
+        log.info("studio_code_assist phase=PREPARED language=sql generationId={} planId={} elapsedMs={}", id, codePlan.planId(), (System.nanoTime()-started)/1_000_000);
         return new Prepared(id, taskRequest);
     }
     private List<File> selected(HttpServletRequest request, String projectId, List<String> ids, String expectedKind) {

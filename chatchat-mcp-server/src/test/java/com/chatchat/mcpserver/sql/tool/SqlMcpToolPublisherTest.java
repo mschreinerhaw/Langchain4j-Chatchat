@@ -47,6 +47,7 @@ class SqlMcpToolPublisherTest {
     void v2DiscoveryUsesAuthenticatedWorkflowWithoutLegacyTopFiveClampOrSqlExecutor() throws Exception {
         var execute = mock(SqlQueryExecuteService.class);
         var discovery = mock(com.chatchat.mcpserver.sql.metadata.SqlMetadataDiscoveryService.class);
+        org.mockito.Mockito.doCallRealMethod().when(discovery).validate(org.mockito.ArgumentMatchers.anyMap());
         when(discovery.discover(org.mockito.ArgumentMatchers.anyMap(), org.mockito.ArgumentMatchers.any())).thenReturn(
             Map.of("contractVersion", "sql-studio.metadata.v2", "status", "SUCCEEDED", "doesNotExecuteSql", true,
                 "totalMatched", 503, "hasMore", true, "pageSize", 100));
@@ -62,9 +63,18 @@ class SqlMcpToolPublisherTest {
         var envelope = new com.chatchat.common.mcp.service.McpServiceCall(null, "request", "service", "sql_schema_context_query", args,
             Map.of("tenantId", "tenant", "userId", "user"), 0);
         try (var context = com.chatchat.mcpserver.mcp.McpInvocationContext.openCall(envelope)) {
-            var result = (McpSchema.CallToolResult) method.invoke(publisher, args, SqlMcpToolPublisher.SQL_METADATA_BRIDGE_TOOL, true);
+            var enriched = new java.util.LinkedHashMap<>(args);
+            enriched.put("requestId", envelope.requestId()); // Dynamic registry mirror transport envelope.
+            com.chatchat.mcpserver.mcp.McpInvocationArguments.enrich(SqlMcpToolPublisher.SQL_METADATA_BRIDGE_TOOL, enriched, Map.of());
+            var result = (McpSchema.CallToolResult) method.invoke(publisher, enriched, SqlMcpToolPublisher.SQL_METADATA_BRIDGE_TOOL, true);
             assertThat((Map<String, Object>) result.structuredContent()).containsEntry("totalMatched", 503).containsEntry("pageSize", 100);
             assertThat(result.structuredContent().toString()).contains("SQL_METADATA_DISCOVERY", "requestId=request");
+            var forged = new java.util.LinkedHashMap<>(enriched); forged.put("userId", "another-user");
+            assertThatThrownBy(() -> method.invoke(publisher, forged, SqlMcpToolPublisher.SQL_METADATA_BRIDGE_TOOL, true))
+                .hasRootCauseMessage("Unsupported metadata argument");
+            var execution = new java.util.LinkedHashMap<>(enriched); execution.put("sql", "SELECT 1");
+            assertThatThrownBy(() -> method.invoke(publisher, execution, SqlMcpToolPublisher.SQL_METADATA_BRIDGE_TOOL, true))
+                .hasRootCauseMessage("Unsupported metadata argument");
         }
         verify(discovery).discover(org.mockito.ArgumentMatchers.eq(args), org.mockito.ArgumentMatchers.any());
         verifyNoInteractions(execute, scriptExecuteService, metadataSearchService, executionTargetRouter);

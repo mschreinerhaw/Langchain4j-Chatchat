@@ -632,8 +632,18 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
             if (caller == null) throw new SecurityException("Authenticated metadata caller is required");
             var scope = new com.chatchat.common.kernel.KernelDataScope(caller.tenantId(), caller.userId(),
                 caller.requestId(), null, null, caller.environment(), Map.of());
+            // Publication/registry adapters enrich arguments for rollout and auditing. The v2 domain
+            // contract accepts business fields only; strip transport values only when they exactly
+            // match the authenticated envelope. Forged or unknown fields remain subject to rejection.
+            Map<String, Object> discoveryArguments = new LinkedHashMap<>(rawArguments);
+            Map<String, Object> transportArguments = new LinkedHashMap<>();
+            com.chatchat.mcpserver.mcp.McpInvocationArguments.enrich(invokedTool, transportArguments, Map.of());
+            if (caller.requestId() != null && !caller.requestId().isBlank()) transportArguments.put("requestId", caller.requestId());
+            transportArguments.forEach((key, value) -> {
+                if (java.util.Objects.equals(discoveryArguments.get(key), value)) discoveryArguments.remove(key);
+            });
             var request = new com.chatchat.mcpserver.sql.metadata.SqlMetadataDiscoveryWorkflow.Request(
-                rawArguments, metadataAuthorization.authorizedAssetDomains(invokedTool));
+                discoveryArguments, metadataAuthorization.authorizedAssetDomains(invokedTool));
             Map<String, Object> result = metadataDiscoveryWorkflow.execute(request, scope);
             return McpSchema.CallToolResult.builder()
                 .addTextContent("SQL metadata discovery: " + result.get("status") + "; matched=" + result.get("totalMatched")

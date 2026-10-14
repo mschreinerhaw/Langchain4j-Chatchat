@@ -222,7 +222,7 @@ async function generate() { await action(async () => {
   const request = sqlConversationPrompt(`${activeFile.value ? 'Target file: '+activeFile.value.path+'\n' : ''}${text}`, chatTurns.value, selectedCode.value);
   const localId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const userTurn = { id:`user:${localId}`, role:'user', text, action:aiAction.value };
-  const assistantTurn = { id:`assistant:${localId}`, role:'assistant', text:'正在准备工程上下文…', action:aiAction.value };
+  const assistantTurn = { id:`assistant:${localId}`, role:'assistant', text:'正在制定代码协作计划…', action:aiAction.value };
   chatTurns.value.push(userTurn, assistantTurn);
   pendingPhase.value = 'PREPARING'; pendingStartedAt.value = Date.now(); pollError.value = ''; result.value = null;
   try {

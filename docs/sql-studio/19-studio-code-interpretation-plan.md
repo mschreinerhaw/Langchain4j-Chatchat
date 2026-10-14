@@ -1,6 +1,6 @@
 # Python / SQL Studio 代码解释计划扩展
 
-SQL 部分已由[第 20 号架构修订](20-schema-explorer-phase-one.md)调整：SQL 代码计划仅显式请求时启用，不再作为所有 SQL 生成的无条件前置步骤。以下 SQL 必经阶段描述保留为历史实施记录，不作为当前架构约束。
+SQL 计划原则以[第 21 号动态规划修订](21-interpretation-plan-dynamic-governance.md)为准：模型开发请求必须先经 InterpretationPlan，上一轮显式可选建议已撤回。本文的初始分析票据可复用，但不是 Runtime 动态计划循环的完整接入，也不授予任何工具权限。
 
 本批为两个 Studio 的新一轮 AI 请求增加必经阶段：制定代码协作计划、校验并保存计划、按计划分析与探索、解释或生成建议、人工审查代码变更。计划校验通过后自动继续，不新增人工审批环节。
 

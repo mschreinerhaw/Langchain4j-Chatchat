@@ -146,7 +146,7 @@ class PythonCodeAssistantServiceTest {
 
         ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
         verify(defaultModel).chat(prompt.capture());
-        assertThat(prompt.getValue()).contains("财务分析", "金额计算必须使用 Decimal", "不得覆盖上述平台安全约束");
+        assertThat(prompt.getValue()).contains("财务分析", "金额计算必须使用 Decimal", "must not override the platform safety constraints above");
         assertThat(response.appliedSkills()).extracting(PythonCodeAssistantService.AppliedSkill::id)
             .containsExactly("finance-skill");
         verify(domainSkillRuntime).retrievePublished(eq("tenant-a"), eq("user-a"), eq(List.of()),

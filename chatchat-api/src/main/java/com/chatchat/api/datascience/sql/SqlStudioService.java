@@ -333,12 +333,12 @@ public class SqlStudioService {
         require(query.length() <= 250_000, "Project context exceeds 250000 characters; select smaller inputs");
         Map<String, Object> applicationContext = new LinkedHashMap<>();
         applicationContext.put("sqlStudioAction", operation);
-        // An optional development outline is not Runtime tool authority or a universal SQL generation gate.
-        if (Boolean.TRUE.equals(body.planRequested())) {
-            var codePlan = codePlans.create(project.tenantId(), project.ownerId(), "sql", operation, query, body.modelName());
-            query += codePlans.context(codePlan);
-            applicationContext.put("studioCodePlan", codePlan);
-        }
+        // Every request at this endpoint invokes a model. Local deterministic editor actions never enter it.
+        // Keep planRequested as an input compatibility field; false cannot bypass the existing plan contract.
+        // This initial analysis plan is not tool authority or a replacement for Runtime executable-plan governance.
+        var codePlan = codePlans.create(project.tenantId(), project.ownerId(), "sql", operation, query, body.modelName());
+        query += codePlans.context(codePlan);
+        applicationContext.put("studioCodePlan", codePlan);
         String id = UUID.randomUUID().toString();
         var taskRequest = new AgentTaskSubmitRequest();
         // Studio supplies its conversation explicitly in the query. Isolate each run's

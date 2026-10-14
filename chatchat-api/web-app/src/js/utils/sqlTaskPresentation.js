@@ -2,7 +2,7 @@ import { terminalSqlTask } from './sqlStudioState';
 import { runtimeObservationPresentation } from './runtimeObservationPresentation';
 
 const labels = {
-  IDLE: '准备就绪', PREPARING: '正在准备工程上下文', SUBMITTING: '正在提交分析任务', PREPARED: '任务尚未提交',
+  IDLE: '准备就绪', PREPARING: '正在制定代码协作计划', SUBMITTING: '正在提交分析任务', PREPARED: '任务尚未提交',
   PENDING: '排队等待', QUEUED: '排队等待', SUBMITTING_TASK: '正在提交任务', RUNNING: '正在分析工程',
   WAIT_MODEL: '模型分析中', WAIT_TOOL: '正在执行工具', RETRYING: '正在重试',
   SUCCESS: '分析已完成', PARTIAL: '分析部分完成', PARTIAL_SUCCESS: '分析部分完成',
@@ -34,7 +34,7 @@ export function sqlTaskPresentation(result, pendingPhase = '', pendingStartedAt 
       ? { ...step, status: ['SUCCESS', 'PARTIAL', 'PARTIAL_SUCCESS'].includes(task.status) ? 'done' : 'cancelled' } : step);
   const files = result?.files || [];
   const title = result?.outputError && !pendingPhase ? '生成结果需要检查' : labels[status] || '任务处理中';
-  const detail = pendingPhase === 'PREPARING' ? '正在整理问题、文件引用与工程上下文。'
+  const detail = pendingPhase === 'PREPARING' ? '模型制定任务目标与探索计划，校验通过后继续。'
     : pendingPhase === 'SUBMITTING' ? '正在交给执行服务，请稍候。'
     : status === 'WAIT_MODEL' ? '正在等待模型返回分析结果。'
     : status === 'WAIT_TOOL' ? '正在等待工具执行结果。'

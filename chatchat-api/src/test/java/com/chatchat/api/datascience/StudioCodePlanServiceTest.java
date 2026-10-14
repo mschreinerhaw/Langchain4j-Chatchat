@@ -59,6 +59,12 @@ class StudioCodePlanServiceTest {
         assertThat(ticket.interpretationPlan().context().constraints()).noneMatch(value -> value.contains("forged"));
         assertThat(service.require("tenant","owner","python","explain","source","model",ticket.planId())).isEqualTo(ticket);
     }
+    @Test void initialOutlineDeclaresGoalsAndAllowsGovernedEvidenceDrivenRevisions() {
+        var ticket=plan(PLAN);
+        verify(model).chat(argThat((String prompt)->prompt.contains("data requirements") && prompt.contains("exploration direction")
+            && prompt.contains("expected artifacts") && prompt.contains("acceptance criteria") && prompt.contains("the existing Runtime")));
+        assertThat(service.context(ticket)).contains("initial analysis scope only", "validated revisions", "does not prescribe a fixed tool order");
+    }
     @Test void separateNewConversationsAlwaysReceiveNewPlanIds() {
         assertThat(plan(PLAN).planId()).isNotEqualTo(plan(PLAN).planId());
     }

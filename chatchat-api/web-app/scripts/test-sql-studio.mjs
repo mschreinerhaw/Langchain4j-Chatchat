@@ -193,7 +193,7 @@ try {
   assert.equal(await page.getByRole('button',{name:'发送',exact:true}).evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(29, 78, 216)','SQL send retains blue on hover');
   assert.equal(await page.locator('.sql-chat-settings .sql-agent-choice').filter({ hasText: 'Agent / Skills' }).count(), 1);
   await page.getByLabel('发送给 AI 工程助手').press('Control+Enter');
-  await page.locator('.sql-assistant-progress').filter({ hasText: '正在准备工程上下文' }).waitFor();
+  await page.locator('.sql-assistant-progress').filter({ hasText: '正在制定代码协作计划' }).waitFor();
   await page.locator('.sql-task-status').filter({ hasText: '模型分析中' }).waitFor();
   assert.equal(await page.getByRole('button', { name: '查看任务与输出', exact: true }).count(), 0);
   const progressBounds = await page.locator('.sql-assistant-progress').boundingBox();

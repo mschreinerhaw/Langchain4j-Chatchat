@@ -1,10 +1,10 @@
 # SQL Studio 架构修订与 Schema Explorer 第一阶段
 
-本方案取代第 19 号记录中 SQL 请求无条件执行代码解释计划的设计。仅调整 SQL Studio 应用层，不修改 Runtime OS 通用规划、授权和执行协议。
+本方案的计划门槛以 [InterpretationPlan 动态规划修订](21-interpretation-plan-dynamic-governance.md) 为准：模型自主生成、修改与 ETL 开发必须先有有效计划；本地确定性补全和格式化无需进入完整规划工作流。上一轮“默认跳过计划”的建议已撤回。不修改 Runtime OS 通用自治原则。
 
 ## 实际集成点与计划门槛
 
-SqlStudioService.prepare 当前在创建每个 Generation 前调用 StudioCodePlanService。这是应用添加的固定模型调用，并非生成 SQL 的必需业务契约，改为 planRequested=true 时显式启用；默认不调用该计划服务。既有 Agent 对可执行工具计划的合法性校验、权限治理、确认和证据要求保持原实现。工程归属、逻辑绑定、当前授权、快照一致性、文件版本和接受后保存属于必须保留的业务边界。
+SqlStudioService.prepare 在创建每个模型 Generation 前复用 StudioCodePlanService 创建、校验并保存初始 InterpretationPlan。planRequested 不再是绕过开关，旧客户端的 false 也不能跳过计划。初始分析票据与 Runtime 可执行计划必须明确区分：前者不能单凭提示词接通动态循环，后者继续使用原有模型规划、修订、授权、执行与证据治理。具体复用与缺口见第 21 号审查。工程归属、逻辑绑定、当前授权、快照一致性、文件版本和接受后保存均为必需业务边界。
 
 人工 Schema 浏览直接复用现有 SqlStudioMetadataController -> SqlStudioMetadataService -> SqlStudioMetadataGateway -> McpRuntimeKernel -> sql_schema_context_query -> SQL_METADATA_DISCOVERY。人工点击的操作由界面选择；未来模型探索由模型选择，不将人工浏览过程编译成固定模型工具顺序。
 
@@ -12,7 +12,7 @@ SqlStudioService.prepare 当前在创建每个 Generation 前调用 StudioCodePl
 
 | 位置 | 最小调整 |
 | --- | --- |
-| SqlStudioService / SQL 集成测试 | SQL 计划改为显式可选；回归默认生成及失败阻断 |
+| SqlStudioService / SQL 集成测试 | 所有模型开发请求先经初始计划；回归默认门槛、禁止 false 绕过及失败阻断 |
 | Metadata Gateway / Controller | 提供已注册、支持 v2 的 MCP 服务安全投影，不暴露连接凭据 |
 | SqlStudioMetadataService / SqlMetadataDiscoveryService | 接受 includeColumns；目录可省略字段；明确证据类别，按完整物理身份过滤字段 |
 | sqlStudioApi.js | 复用现有 API，增加元数据客户端 |
@@ -41,7 +41,7 @@ POST /contexts/{id}/operations 继续接收 bindingId/arguments。arguments.oper
 
 ## 验收
 
-覆盖分页目录、按需字段、同名表隔离、别名与不同方言、重复请求、切换后迟到结果、撤权后缓存拒绝、快照变更、平台注册证据标记、可选计划和原编辑/保存/Diff 回归。模拟 MCP/索引测试与真实服务器验收分别记录，不将夹具测试声称为实库通过。
+覆盖分页目录、按需字段、同名表隔离、别名与不同方言、重复请求、切换后迟到结果、撤权后缓存拒绝、快照变更、平台注册证据标记、模型任务计划门槛和原编辑/保存/Diff 回归。模拟 MCP/索引测试与真实服务器验收分别记录，不将夹具测试声称为实库通过。
 
 ## 本阶段具体接口示例
 
@@ -73,7 +73,7 @@ DESCRIBE 必须提交 tableName；跨命名空间同名时补全拒绝猜测，�
 ## 影响与限制
 
 - 修改只涉及 SQL Studio 应用、元数据安全投影和前端提供器；Runtime 通用核心、Python 计划行为、现有模型入口与数据库驱动均未修改。
-- InterpretationPlanValidator.validateAnalysisPlan 校验用户显式请求的代码分析计划；validate 等现有工具/DAG/执行策略校验仍服务其原有 Runtime 契约，未被删除或绕过。SqlStudioService 默认不再额外调用模型制定代码计划。
+- InterpretationPlanValidator.validateAnalysisPlan 校验模型开发请求的初始代码分析计划；validate 等现有工具/DAG/执行策略校验仍服务其原有 Runtime 契约，未被删除或绕过。SqlStudioService 已恢复默认先计划；动态 Runtime 计划及版本展示的接入缺口在第 21 号文档单独列出，不能将初始计划卡片当作全部完成。
 - Explorer 与文件树共用左栏；Monaco 继续使用原 Model 和版本、编辑事件、保存 API、只读 Diff 与用户确认应用。插入标识符使用 executeEdits 与 undo stop，保留撤销能力。
 - 现有采集索引存在采集数量和刷新策略限制，本阶段不扩大采集范围；页面只展示已有授权快照，采集失败提示使用现有管理能力刷新。缓存命中前内容哈希校验依赖服务端遍历授权投影，大型目录后续可用既有权限修订号与索引版本优化，不能省略授权边界。
 - Oracle/T-SQL 仅使用 GenericSQL 的有限语法及对应引用规则，不能声称具备完整方言语义。CTE/派生表的推导字段、复杂大小写折叠与业务关联推断不作为本轮已完成能力；未明确匹配的物理对象不提供猜测字段。
@@ -91,7 +91,7 @@ DESCRIBE 必须提交 tableName；跨命名空间同名时补全拒绝猜测，�
 
 第一阶段先完成浏览与补全及本地回归；第二阶段接入模型自主发现和证据引用；第三阶段独立实现 Schema 校验与错误反馈，再分别实现有授权确认的 EXPLAIN/查询；第四阶段完善 ETL Mapping/案例、多文件与业务假设。每阶段保留生成和执行隔离，并用普通用户和拒绝用户进行真实环境验证。
 
-## 本轮测试结果（2026-10-14）
+## Schema Explorer 批次历史测试结果（2026-10-14，计划策略已被后续修订取代）
 
 | 范围 | 结果 | 证据边界 |
 | --- | --- | --- |

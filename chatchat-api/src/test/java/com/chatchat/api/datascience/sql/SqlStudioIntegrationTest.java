@@ -349,8 +349,8 @@ class SqlStudioIntegrationTest {
     }
     @Test void generationScopeIsPersistedAndDenyBoundaryFollowsEnterpriseAuthorization() throws Exception {
         String p=project();var prepared=prepare(p,List.of(),List.of());
-        assertThat(prepared.path("taskRequest").path("toolInput").has("studioCodePlan")).isFalse();
-        verify(codePlans, never()).create(any(),any(),eq("sql"),any(),any(),any());
+        assertThat(prepared.path("taskRequest").path("toolInput").path("studioCodePlan").path("planId").asText()).isEqualTo("studio-code-test");
+        verify(codePlans).create(any(),any(),eq("sql"),any(),any(),any());
         assertThat(generationScopes.find(prepared.path("taskRequest").path("sessionId").asText())).hasSize(1);
         int enterprise=-1,boundary=-1;
         for(int i=0;i<toolPolicies.size();i++) {
@@ -401,15 +401,15 @@ class SqlStudioIntegrationTest {
         int scopesBefore=jdbc.queryForObject("select count(*) from ds_sql_generation_scope where project_id=?",Integer.class,p);
         when(codePlans.create(any(),any(),eq("sql"),any(),any(),any())).thenThrow(new IllegalStateException("代码解释计划无效，尚未开始探索"));
         mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token).contentType("application/json")
-            .content(json(Map.of("prompt","Explain current code","action","explain","dialect","spark","planRequested",true)))).andExpect(status().is5xxServerError());
+            .content(json(Map.of("prompt","Explain current code","action","explain","dialect","spark")))).andExpect(status().is5xxServerError());
         assertThat(jdbc.queryForObject("select count(*) from ds_sql_generation where project_id=?",Integer.class,p)).isEqualTo(generationsBefore);
         assertThat(jdbc.queryForObject("select count(*) from ds_sql_generation_scope where project_id=?",Integer.class,p)).isEqualTo(scopesBefore);
         verifyNoInteractions(orchestration);
     }
-    @Test void explicitCodePlanRetainsExistingPlanContract() throws Exception {
+    @Test void planOptOutCannotBypassExistingPlanContract() throws Exception {
         String p=project();
         var prepared=data(mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token).contentType("application/json")
-            .content(json(Map.of("prompt","Plan this change","dialect","spark","planRequested",true)))).andExpect(status().isOk()).andReturn());
+            .content(json(Map.of("prompt","Plan this change","dialect","spark","planRequested",false)))).andExpect(status().isOk()).andReturn());
         assertThat(prepared.path("taskRequest").path("toolInput").path("studioCodePlan").path("planId").asText()).isEqualTo("studio-code-test");
         assertThat(prepared.path("taskRequest").path("query").asText()).contains("Accepted code InterpretationPlan before exploration");
     }

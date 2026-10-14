@@ -19,6 +19,9 @@ public final class SqlOutputBundle {
         return value;
     }
     public static List<Candidate> parse(String answer, ObjectMapper mapper) {
+        return parse(answer, mapper, false);
+    }
+    public static List<Candidate> parse(String answer, ObjectMapper mapper, boolean explanation) {
         String json = answer == null ? "" : answer.trim();
         if (json.startsWith("```json") && json.endsWith("```")) json = json.substring(7, json.length() - 3).trim();
         try {
@@ -26,6 +29,11 @@ public final class SqlOutputBundle {
             if (root == null || !"sql-studio.output.v1".equals(root.path("schemaVersion").asText()) || !root.path("files").isArray())
                 bad("Model result is not a sql-studio.output.v1 file bundle");
             List<Candidate> result = new ArrayList<>(); Set<String> names = new HashSet<>();
+            if (explanation) {
+                if (!root.path("files").isEmpty() || !root.path("notes").isTextual() || root.path("notes").asText().isBlank())
+                    bad("An explanation must contain notes and no proposed SQL files");
+                return List.of();
+            }
             for (var file : root.path("files")) {
                 if (!file.path("path").isTextual() || !file.path("content").isTextual()) bad("SQL path and content must be strings");
                 String name = path(file.path("path").asText());

@@ -25,6 +25,8 @@
 .python-studio .ide-actions { flex-shrink: 0; margin: 0 0 0 auto; gap: 7px; }
 .python-studio .ide-actions button { height: 29px; min-width: 0; padding: 0 9px; border: 1px solid #dbe5f4; border-radius: 5px; background: #fff; color: #63738f; font-size: 11px; }
 .python-studio .ide-actions .run { border-color: #0eb78b; background: linear-gradient(135deg,#19c8a0,#09af87); color: #fff; box-shadow: 0 2px 5px #11b89124; }
+.python-studio .ide-actions .run:hover:not(:disabled),.python-studio .ide-actions .run:focus-visible { background: linear-gradient(135deg,#10b58d,#089d77); border-color:#089d77; color:#fff; }
+.python-studio .ide-actions .run:disabled,.python-studio .ide-actions .run:disabled:hover { background:#c7dfd8; border-color:#c7dfd8; color:#426a5f; box-shadow:none; }
 .python-studio .ide-actions .studio-icon-button { width: 28px; padding: 0; border-color: transparent; background: transparent; color: #6b7d9d; }
 .python-studio .studio-icon-button[aria-pressed="true"] { background: #e6edff; color: #3c6fe1; }
 .studio-version { padding: 4px 8px; color: #63738f; font-size: 11px; white-space: nowrap; }
@@ -141,6 +143,10 @@
 .python-studio .ai-composer .studio-ai-send { display: flex; align-items: center; justify-content: space-between; margin-top: -4px; padding: 5px 7px 7px; border: 1px solid #dde5f5; border-top: 0; border-radius: 0 0 7px 7px; background: #fff; }
 .studio-ai-send small { color: #a2afc5; font-size: 9px; }
 .python-studio .studio-ai-send button { width: 28px; height: 27px; padding: 0; border: 0; border-radius: 6px; background: linear-gradient(135deg,#6393ff,#4771f3); color: #fff; }
+.python-studio .studio-ai-send button:hover:not(:disabled),.python-studio .studio-ai-send button:focus-visible { background:linear-gradient(135deg,#4778ed,#315bd9); color:#fff; }
+.python-studio .studio-ai-send button:disabled,.python-studio .studio-ai-send button:disabled:hover { background:#dbe5f7; color:#667eab; }
+.python-studio .ai-result footer .apply:hover:not(:disabled){background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+.python-studio .studio-ai-modes{flex-wrap:wrap;gap:2px}.python-studio .studio-ai-modes button{flex:0 1 auto;font-size:11px}
 .python-studio .ai-composer-options { display: flex; gap: 7px; margin-top: 8px; padding: 0; }
 .python-studio .ai-composer-options select { min-width: 0; height: 27px; padding: 0 5px; border: 1px solid #e0e7f6; border-radius: 5px; background: #f2f6ff; color: #7489ae; font-size: 10px; }
 .python-studio .ai-composer-options .ai-model-select { flex: 1; }

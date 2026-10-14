@@ -66,9 +66,9 @@ class SqlStudioIntegrationTest {
             .andExpect(status().isOk()).andReturn());
     }
     String run(String id,JsonNode prepared,List<Map<String,String>> files) throws Exception {
-        String answer=json(Map.of("schemaVersion","sql-studio.output.v1","files",files));
-        when(orchestration.chat(any())).thenAnswer(call -> InteractionResponse.builder()
-            .conversationId(call.getArgument(0,com.chatchat.chat.interaction.model.InteractionRequest.class).getConversationId()).answer(answer).mode("agent_chat").build());
+        String answer=json(Map.of("schemaVersion","sql-studio.output.v1","files",files,"notes","SQL analysis and assumptions"));
+        doAnswer(call -> InteractionResponse.builder()
+            .conversationId(call.getArgument(0,com.chatchat.chat.interaction.model.InteractionRequest.class).getConversationId()).answer(answer).mode("agent_chat").build()).when(orchestration).chat(any());
         String taskId=data(mvc.perform(post("/api/v1/agent/tasks").header("Authorization","Bearer "+token).header("X-Workspace-Id","data-science")
             .contentType("application/json").content(json(prepared.path("taskRequest")))).andExpect(status().isOk()).andReturn()).path("taskId").asText();
         mvc.perform(put(ROOT+"/"+id+"/generations/"+prepared.path("generationId").asText()+"/task").header("Authorization","Bearer "+token)
@@ -314,6 +314,32 @@ class SqlStudioIntegrationTest {
         mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token).contentType("application/json")
             .content(json(Map.of("prompt","Generate","dialect","spark","mappingIds",List.of(mapping.path("id").asText()),
                 "referenceIds",List.of(),"agentId","agent-x","modelName","model-y")))).andExpect(status().isBadRequest());
+    }
+    @Test void explanationProducesReadOnlyNotesAndRejectsFileChanges() throws Exception {
+        String p=project();save(p,"sql/source.sql","SQL","SELECT 1;",0);
+        var prepared=data(mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token).contentType("application/json")
+            .content(json(Map.of("action","explain","prompt","Explain SELECT 1", "dialect","spark")))).andExpect(status().isOk()).andReturn());
+        assertThat(prepared.path("taskRequest").path("query").asText()).contains("Return files: [] only");
+        run(p,prepared,List.of());
+        var view=result(p,prepared);
+        assertThat(view.path("files").size()).isZero();assertThat(view.path("outputError").asText()).isEmpty();
+        assertThat(view.path("rawAnswer").asText()).contains("SQL analysis");
+        mvc.perform(post(applyUrl(p,prepared)).header("Authorization","Bearer "+token).contentType("application/json").content("{\"paths\":[]}")).andExpect(status().isBadRequest());
+        var wrong=data(mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token).contentType("application/json")
+            .content(json(Map.of("action","explain","prompt","Explain", "dialect","spark")))).andExpect(status().isOk()).andReturn());
+        run(p,wrong,List.of(Map.of("path","sql/source.sql","content","SELECT 2;")));
+        assertThat(result(p,wrong).path("outputError").asText()).contains("explanation");
+        assertThat(result(p,wrong).path("files").size()).isZero();
+    }
+    @Test void repairModePersistsIntentAndReviewBaseVersions() throws Exception {
+        String p=project();save(p,"sql/source.sql","SQL","SELECT broken;",0);
+        var prepared=data(mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token).contentType("application/json")
+            .content(json(Map.of("action","fix","prompt","Repair", "dialect","spark")))).andExpect(status().isOk()).andReturn());
+        assertThat(prepared.path("taskRequest").path("toolInput").path("sqlStudioAction").asText()).isEqualTo("fix");
+        assertThat(prepared.path("taskRequest").path("query").asText()).contains("retaining unrelated code");
+        assertThat(result(p,prepared).path("generation").path("baseVersions").path("sql/source.sql").asInt()).isEqualTo(1);
+        mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token).contentType("application/json")
+            .content(json(Map.of("action","unknown","prompt","Repair", "dialect","spark")))).andExpect(status().isBadRequest());
     }
     @Test void studioRunsIsolateRuntimeMemoryAndRetainHistoricalResults() throws Exception {
         String p=project();

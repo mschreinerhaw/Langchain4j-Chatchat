@@ -277,6 +277,10 @@
 }
 
 .sql-assistant-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sql-studio .sql-primary:hover:not(:disabled),.sql-studio .sql-primary:focus-visible{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+.sql-studio .sql-primary:disabled,.sql-studio .sql-primary:disabled:hover{background:#dbe5f7;border-color:#dbe5f7;color:#667eab;opacity:1}
+.sql-ai-modes{display:flex;flex-wrap:wrap;gap:4px;padding:4px 16px 10px}.sql-studio .sql-ai-modes button{flex:1;padding:6px 4px;border:0;border-radius:5px;background:transparent;color:#657b9b;font-size:11px;white-space:nowrap}.sql-studio .sql-ai-modes button.active{background:#eaf1ff;color:#2563eb;font-weight:600}
+.sql-result-kind{display:block;font-size:12px;margin-bottom:10px;color:#345982}.sql-result-notes{white-space:pre-wrap;line-height:1.7}.sql-added-count{color:#16804c}.sql-deleted-count{color:#b42318}
 .sql-ide-assistant .sql-new-conversation { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 28px; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #7184a2; cursor: pointer; }
 .sql-ide-assistant .sql-new-conversation svg { flex: 0 0 18px; width: 18px; height: 18px; }
 .sql-ide-assistant .sql-new-conversation:hover:not(:disabled) { background: #edf3ff; color: #2563eb; }

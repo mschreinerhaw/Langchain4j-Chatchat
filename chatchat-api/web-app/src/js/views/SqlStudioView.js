@@ -5,6 +5,8 @@ import SqlProjectTree from '../../components/sql-studio/SqlProjectTree.vue';
 import SqlEditorPane from '../../components/sql-studio/SqlEditorPane.vue';
 import SqlAssistantPanel from '../../components/sql-studio/SqlAssistantPanel.vue';
 import SqlBottomPanel from '../../components/sql-studio/SqlBottomPanel.vue';
+import CodeChangeReview from '../../components/editor/CodeChangeReview.vue';
+import { studioAiLabels, sqlGenerationAction } from '../utils/studioAi';
 import { FolderTree, PanelBottom, Sparkles, Plus, Save, WandSparkles, FileCode2, CircleCheck } from '@lucide/vue';
 import * as sql from '../../services/sqlStudioApi';
 import { fetchPythonCodeModels, fetchAgentOptions, cancelAgentTask } from '../../services/api';
@@ -14,7 +16,7 @@ import { mappingSchemaColumns } from '../editor/codeIntelligence';
 import { clampSqlPanel, restoreSqlLayout, sqlAssistantAnswer, sqlConversationPrompt } from '../utils/sqlIdeState';
 import { sqlTaskPresentation } from '../utils/sqlTaskPresentation';
 export default {
-  components: { AppNotice, AppConfirmDialog, SqlProjectTree, SqlEditorPane, SqlAssistantPanel, SqlBottomPanel, FolderTree, PanelBottom, Sparkles, Plus, Save, WandSparkles, FileCode2, CircleCheck },
+  components: { CodeChangeReview, AppNotice, AppConfirmDialog, SqlProjectTree, SqlEditorPane, SqlAssistantPanel, SqlBottomPanel, FolderTree, PanelBottom, Sparkles, Plus, Save, WandSparkles, FileCode2, CircleCheck },
   props: { workspaceContext: Object, tenantId: String, userId: String },
   emits: [],
   setup(props, { emit: emitEvent }) {
@@ -28,6 +30,23 @@ function resolveConfirm(value) { confirmation.value = null; confirmResolve?.(val
 const projects = ref([]), projectId = ref(''), files = ref([]), references = ref([]), models = ref([]), agents = ref([]);
 const dialect = ref('spark'), agentId = ref(''), modelName = ref(''), prompt = ref('');
 const executionMode = ref('model');
+const aiAction = ref('generate'), reviewOpen = ref(false), reviewPath = ref('');
+const reviewTitle = computed(() => studioAiLabels[sqlGenerationAction(result.value)] || '代码变更');
+const reviewFiles = computed(() => (result.value?.files || []).map(candidate => {
+  const existing=files.value.find(file=>file.path.toLowerCase()===candidate.path.toLowerCase());
+  return {path:candidate.path,before:existing?.content || '',after:candidate.content,isNew:!existing};
+}));
+const reviewBlockedReason = computed(() => {
+  const base=result.value?.generation?.baseVersions;
+  for(const candidate of result.value?.files || []) {
+    const existing=files.value.find(file=>file.path.toLowerCase()===candidate.path.toLowerCase());
+    if(existing && dirtySqlFile(existing))return '目标文件有未保存的编辑，请先保存并重新生成建议。';
+    if(base && (existing?.version || 0)!==(base[candidate.path.toLowerCase()] || 0))return '目标文件版本已变化，请基于最新内容重新生成建议。';
+  }
+  return '';
+});
+function reviewGeneration(file) { if(!result.value?.files?.length)return; reviewPath.value=file?.path || result.value.files[0].path;reviewOpen.value=true; }
+function chooseAiAction(value) { if(!busy.value && !taskRunning.value && !pendingPhase.value)aiAction.value=value; }
 const libraryOpen = ref(false), libraryKind = ref('MAPPING'), libraryItems = ref([]), librarySelected = ref([]);
 const mappingDocuments = ref([]);
 const mappingDocumentIds = computed(() => mappingDocuments.value.map(item => item.docId));
@@ -52,7 +71,7 @@ function persist() {
   if (!projectId.value) return true;
   const saved = saveWorkspaceDraft(namespace(projectId.value), props.workspaceContext, {
     openIds: openIds.value, activeId: activeId.value, prompt: prompt.value, mappingDocuments: mappingDocuments.value, mappingIds: mappingIds.value, referenceIds: referenceIds.value,
-    chatTurns: chatTurns.value.slice(-30), conversationGenerationId: generationId.value,
+    chatTurns: chatTurns.value.slice(-30), conversationGenerationId: generationId.value, aiAction:aiAction.value,
     drafts: files.value.filter(dirtySqlFile).map(file => ({ id:file.id, content:file.draft, baseVersion:file.draftBaseVersion }))
   });
   if (!saved) { error.value = '本地草稿存储已满或不可用，请保存文件后再离开工程。'; return false; }
@@ -60,7 +79,7 @@ function persist() {
   return true;
 }
 function beforeUnload(event) { persist(); if (files.value.some(dirtySqlFile)) { event.preventDefault(); event.returnValue = ''; } }
-watch([files, openIds, activeId, prompt, mappingIds, mappingDocuments, referenceIds, chatTurns, generationId], () => { clearTimeout(draftTimer); draftTimer = setTimeout(persist, 200); }, { deep:true });
+watch([files, openIds, activeId, prompt, mappingIds, mappingDocuments, referenceIds, chatTurns, generationId, aiAction], () => { clearTimeout(draftTimer); draftTimer = setTimeout(persist, 200); }, { deep:true });
 watch(layout, value => saveWorkspaceDraft('sql-studio-ide-layout', props.workspaceContext, value), { deep:true });
 function togglePanel(panel) { layout.value[panel] = !layout.value[panel]; }
 function resetSize(panel) { if (panel === 'bottom') layout.value.bottomHeight = 180; else layout.value[`${panel}Width`] = panel === 'explorer' ? 252 : 336; }
@@ -124,6 +143,7 @@ async function selectProject(id) {
     referenceIds.value = (stored?.referenceIds || []).filter(fileId => references.value.some(file => file.id === fileId));
     if (!stored) { const first = files.value.find(file => file.kind === 'SQL') || files.value[0]; if (first) openFile(first.id); }
     prompt.value = stored?.prompt || ''; chatTurns.value = Array.isArray(stored?.chatTurns) ? stored.chatTurns.slice(-30) : [];
+    aiAction.value = ['generate','explain','fix','optimize'].includes(stored?.aiAction) ? stored.aiAction : 'generate'; reviewOpen.value=false;
     selectedCode.value = null; preview.value = null; generations.value = history;
     generationId.value = stored && Object.hasOwn(stored, 'conversationGenerationId')
       ? history.find(item => item.id === stored.conversationGenerationId)?.id || '' : history[0]?.id || '';
@@ -195,14 +215,14 @@ async function generate() { await action(async () => {
   if (files.value.some(dirtySqlFile)) throw new Error('请先保存工程中的编辑内容，让生成任务读取一致的文件版本。');
   const id = projectId.value, text = prompt.value.trim();
   if (!text) return;
-  const request = sqlConversationPrompt(text, chatTurns.value, selectedCode.value);
+  const request = sqlConversationPrompt(`${activeFile.value ? 'Target file: '+activeFile.value.path+'\n' : ''}${text}`, chatTurns.value, selectedCode.value);
   const localId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const userTurn = { id:`user:${localId}`, role:'user', text };
-  const assistantTurn = { id:`assistant:${localId}`, role:'assistant', text:'正在准备工程上下文…' };
+  const userTurn = { id:`user:${localId}`, role:'user', text, action:aiAction.value };
+  const assistantTurn = { id:`assistant:${localId}`, role:'assistant', text:'正在准备工程上下文…', action:aiAction.value };
   chatTurns.value.push(userTurn, assistantTurn);
   pendingPhase.value = 'PREPARING'; pendingStartedAt.value = Date.now(); pollError.value = ''; result.value = null;
   try {
-    const prepared = await sql.prepareSqlGeneration(id, { prompt:request, dialect:dialect.value, mappingDocumentIds:mappingDocumentIds.value, mappingIds:mappingIds.value, referenceIds:referenceIds.value, agentId:executionMode.value === 'agent' ? agentId.value || null : null, modelName:executionMode.value === 'model' ? modelName.value || null : null });
+    const prepared = await sql.prepareSqlGeneration(id, { action:aiAction.value, prompt:request, dialect:dialect.value, mappingDocumentIds:mappingDocumentIds.value, mappingIds:mappingIds.value, referenceIds:referenceIds.value, agentId:executionMode.value === 'agent' ? agentId.value || null : null, modelName:executionMode.value === 'model' ? modelName.value || null : null });
     if (id !== projectId.value || !active) return;
     for (const turn of chatTurns.value.filter(turn => turn.id.endsWith(localId))) {
       turn.id = `${turn.role}:${prepared.generationId}`; turn.generationId = prepared.generationId;
@@ -232,6 +252,7 @@ async function resume() { await action(async () => {
 function newConversation() {
   if (busy.value || taskRunning.value || pendingPhase.value || !projectId.value) return;
   clearTimeout(pollTimer); clearTimeout(draftTimer);
+  reviewOpen.value=false;
   chatTurns.value = []; prompt.value = ''; selectedCode.value = null;
   generationId.value = ''; result.value = null; pendingStartedAt.value = 0; pollError.value = '';
   if (preview.value && !preview.value.reference) preview.value = null;
@@ -259,10 +280,11 @@ async function refreshGeneration() {
   }
 }
 async function apply() { await action(async () => {
+  if (!reviewOpen.value || reviewBlockedReason.value) throw new Error(reviewBlockedReason.value || '请先审查代码变更。');
   const candidates = result.value.files; assertSqlApplySafe(candidates, files.value);
   const saved = await sql.applySqlGeneration(projectId.value, generationId.value, candidates.map(file => file.path));
   for (const file of saved) { const index = files.value.findIndex(current => current.id === file.id); const clean = mergeAppliedSqlFile(file, files.value[index]); index < 0 ? files.value.push(clean) : files.value.splice(index,1,clean); }
-  preview.value = null; if (saved[0]) openFile(saved[0].id); await refreshGeneration(); references.value = await sql.sqlReferences(); persist(); message.value = `已保存 ${saved.length} 个生成文件`;
+  preview.value = null; reviewOpen.value=false; if (saved[0]) openFile(saved[0].id); await refreshGeneration(); references.value = await sql.sqlReferences(); persist(); message.value = `已保存 ${saved.length} 个生成文件`;
 }); }
 async function cancel() { await action(async () => { await cancelAgentTask(result.value.task.taskId, props.tenantId); await refreshGeneration(); }); }
 async function showVersions(file) { await action(async () => { versions.value = await sql.sqlVersions(projectId.value, file.id); versionFile.value = file; }); }
@@ -291,7 +313,7 @@ onMounted(async () => {
 onActivated(() => { active = true; if (initialized) refreshGeneration(); });
 onDeactivated(() => { active = false; clearTimeout(pollTimer); persist(); });
 onBeforeUnmount(() => { resolveConfirm(false); active = false; resizeCleanup?.(); clearTimeout(pollTimer); clearTimeout(draftTimer); persist(); window.removeEventListener('beforeunload', beforeUnload); });
-  return { newConversation, taskStatusLabel, pendingPhase, pendingStartedAt, pollError, confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
+  return { reviewTitle, reviewBlockedReason, reviewOpen, reviewPath, reviewFiles, reviewGeneration, chooseAiAction, aiAction, newConversation, taskStatusLabel, pendingPhase, pendingStartedAt, pollError, confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
 
   }
 };

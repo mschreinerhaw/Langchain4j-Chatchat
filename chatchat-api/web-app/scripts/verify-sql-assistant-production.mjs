@@ -58,7 +58,7 @@ try {
     const progress=document.querySelector('.sql-assistant-progress');
     return progress && !progress.classList.contains('is-running') && !progress.textContent.includes('准备就绪') && !progress.textContent.includes('任务尚未提交');
   }, null, {timeout:150000});
-  await page.getByRole('button',{name:'确认并保存 1 个文件',exact:true}).waitFor({timeout:15000});
+  await page.getByRole('button',{name:'审查 1 个文件变更',exact:true}).waitFor({timeout:15000});
   assert.ok(states.some(state => !['SUCCESS','PARTIAL','PARTIAL_SUCCESS','FAILED','CANCELLED'].includes(state.status)), 'Observed real in-flight task');
   assert.ok(states.some(state => state.status === 'SUCCESS' && state.files === 1), 'Real model returned one valid SQL file');
   const stable = await page.evaluate(async () => {
@@ -71,6 +71,31 @@ try {
   assert.equal(stable,1,'Page and editor keep stable bounds');
   assert.deepEqual(errors,[]);
   await page.screenshot({path:`${output}/production-completed.png`,fullPage:true});
+  await page.getByRole('button',{name:'审查 1 个文件变更',exact:true}).click();
+  await page.getByRole('dialog',{name:'审查代码变更'}).waitFor();
+  assert.equal(await page.locator('.review-deleted').textContent(),'−0 行删除');
+  await page.screenshot({path:`${output}/production-generate-review.png`,fullPage:true});
+  await page.getByRole('button',{name:'确认并保存 1 个文件',exact:true}).click();
+  await page.getByRole('dialog',{name:'审查代码变更'}).waitFor({state:'detached'});
+  assert.ok((await api(`/data-science/sql/projects/${projectId}/files`)).some(file=>file.path==='sql/smoke_result.sql'));
+  await page.getByRole('button',{name:'新建会话',exact:true}).click();
+  await page.getByRole('button',{name:'代码修复',exact:true}).click();
+  await page.getByLabel('发送给 AI 工程助手').fill('仅修改 sql/smoke.sql：将 SELECT 1 AS smoke_test; 修复为 SELECT 2 AS smoke_test;，保留路径，只返回这一个完整文件。不要执行SQL。');
+  await page.getByRole('button',{name:'发送',exact:true}).click();
+  await page.getByRole('button',{name:'审查 1 个文件变更',exact:true}).waitFor({timeout:150000});
+  await page.getByRole('button',{name:'审查 1 个文件变更',exact:true}).click();
+  assert.ok(parseInt((await page.locator('.review-deleted').textContent()).replace('−',''))>0);
+  await page.screenshot({path:`${output}/production-repair-review.png`,fullPage:true});
+  await page.getByRole('button',{name:'确认并保存 1 个文件',exact:true}).click();
+  await page.getByRole('dialog',{name:'审查代码变更'}).waitFor({state:'detached'});
+  assert.ok((await api(`/data-science/sql/projects/${projectId}/files`)).find(file=>file.path==='sql/smoke.sql').content.includes('2'));
+  await page.getByRole('button',{name:'新建会话',exact:true}).click();
+  await page.getByRole('button',{name:'代码解释',exact:true}).click();
+  await page.getByLabel('发送给 AI 工程助手').fill('用中文简要解释 sql/smoke.sql 的含义，只做解释，不生成文件。');
+  await page.getByRole('button',{name:'发送',exact:true}).click();
+  await page.getByText('代码解释 · 回答完成',{exact:true}).waitFor({timeout:150000});
+  assert.equal(await page.locator('.sql-apply').count(),0);
+  assert.deepEqual(errors,[]);
   await page.getByRole('button',{name:'新建会话',exact:true}).click();
   assert.equal(await page.locator('.sql-chat-turn,.sql-chat-result').count(),0);
   assert.equal(await page.getByLabel('发送给 AI 工程助手').inputValue(),'');
@@ -83,7 +108,7 @@ try {
   assert.equal(fresh.taskRequest.historyWindow,0);
   assert.ok(!fresh.taskRequest.query.includes('Previous project conversation:'),'New request has no previous dialogue');
   await page.screenshot({path:`${output}/production-new-conversation.png`,fullPage:true});
-  const result={realTaskId:taskId,states,layoutStableFrames:90,browserErrors:errors,existingProjects:existing.length,temporaryProject:projectId};
+  const result={realTaskId:taskId,states,generationDiff:true,repairDiffAndSave:true,explanationReadOnly:true,layoutStableFrames:90,browserErrors:errors,existingProjects:existing.length,temporaryProject:projectId};
   await writeFile(`${output}/verification.json`,JSON.stringify(result,null,2));
   console.log(JSON.stringify(result,null,2));
 } finally {

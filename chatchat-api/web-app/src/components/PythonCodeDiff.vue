@@ -2,7 +2,7 @@
   <section class="python-code-diff" aria-label="AI 代码变更预览">
     <header>
       <div>
-        <strong>{{ action === "optimize" ? "优化变更" : "修复变更" }}</strong>
+        <strong>{{ ({generate:'生成变更',fix:'修复变更',optimize:'优化变更',continue:'续写变更',test:'新增测试文件'})[action] || '代码变更' }}</strong>
         <span>{{ scope }}</span>
       </div>
       <p><b>+{{ diff.additions }}</b><i>-{{ diff.deletions }}</i></p>

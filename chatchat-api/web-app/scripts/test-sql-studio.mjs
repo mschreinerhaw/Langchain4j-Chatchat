@@ -32,7 +32,7 @@ try {
   const foldersByProject = {project:['sql']};
   const library = [{ docId: 'mapping-1', fileName: 'customer.csv', title: 'Customer Mapping', version: 1, latestVersion: true }];
   let taskStatus = 'WAIT_MODEL', submissionCount = 0, failNextPoll = false;
-  const generation = { id: 'generation-1', taskId: 'task-1', applied: false };
+  const generation = { id: 'generation-1', taskId: 'task-1', applied: false, prepared:{taskRequest:{toolInput:{sqlStudioAction:'generate'}}} };
   await page.route('**/api/v1/**', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname, method = request.method();
     let data = [];
@@ -56,7 +56,7 @@ try {
       if (method === 'PUT') {
         const body = request.postDataJSON(); const current = files.find(file => file.path === body.path);
         if (current) { assert.equal(body.expectedVersion, current.version); Object.assign(current, { content: body.content, version: current.version + 1 }); data = current; }
-        else { assert.equal(body.expectedVersion, 0); data = { id: `file-${files.length}`, projectId: id, path: body.path, kind: body.kind, content: body.content, version: 1, editable: true }; files.push(data); }
+        else { assert.equal(body.expectedVersion, 0); data = { id: `file-${files.length}`, projectId: id, path: body.path, kind: body.kind, content: body.path==='sql/new.sql' ? 'SELECT broken;' : body.content, version: 1, editable: true }; files.push(data); }
       } else data = files;
     }
     else if (/\/sql\/projects\/[^/]+\/library-files$/.test(path) && method === 'POST') {
@@ -76,6 +76,8 @@ try {
       assert.deepEqual(body.mappingIds, []);
       assert.deepEqual(body.mappingDocumentIds, ['mapping-1']);
       assert.ok(body.prompt.includes('sql/new.sql'));
+      generation.applied=false;generation.prepared.taskRequest.toolInput.sqlStudioAction=body.action;
+      generation.baseVersions=Object.fromEntries(filesByProject.project.map(file=>[file.path.toLowerCase(),file.version]));
       data = { generationId: generation.id, taskRequest: { query: body.prompt, sessionId: 'session' } };
     }
     else if (path === '/api/v1/agent/tasks' && method === 'POST') { assert.equal(request.postDataJSON().historyWindow, 0); await new Promise(resolve => setTimeout(resolve, 350)); submissionCount++; data = { taskId: 'task-1', status: taskStatus }; }
@@ -84,7 +86,17 @@ try {
     else if (path.endsWith('/generations/generation-1')) {
       if (failNextPoll) { failNextPoll = false; await route.fulfill({ status: 503, json: {code:503,message:'Temporary interruption'} }); return; }
       data = { generation, task: { taskId: 'task-1', status: taskStatus, createTime: new Date(Date.now() - 3000).toISOString() },
-        events: [{ eventId: 'model-event', sequence: 1, type: 'RUNTIME_OBSERVATION', payload: JSON.stringify({payload:{metadata:{eventKind:'MODEL_INFERENCE',eventState:'STARTED'}}}) }], files: [], rawAnswer: '', outputError: '' };
+        events: [{ eventId: 'model-event', sequence: 1, type: 'RUNTIME_OBSERVATION', payload: JSON.stringify({payload:{metadata:{eventKind:'MODEL_INFERENCE',eventState:'STARTED'}}}) }],
+        files: taskStatus==='SUCCESS' && generation.prepared.taskRequest.toolInput.sqlStudioAction!=='explain' ? [{path:'sql/new.sql',content:'SELECT 42 AS repaired;'}, {path:'sql/added.sql',content:'SELECT 7 AS added;'}] : [],
+        rawAnswer:taskStatus==='SUCCESS' ? JSON.stringify({notes:'解释完成，SELECT 返回常量。'}) : '', outputError: '' };
+    }
+    else if(path.endsWith('/generations/generation-1/apply')) {
+      assert.deepEqual(request.postDataJSON().paths,['sql/new.sql','sql/added.sql']);generation.applied=true;
+      data=[{path:'sql/new.sql',content:'SELECT 42 AS repaired;'}, {path:'sql/added.sql',content:'SELECT 7 AS added;'}].map(candidate=>{
+        let file=filesByProject.project.find(item=>item.path===candidate.path);
+        if(file){file.content=candidate.content;file.version++;}else {file={...candidate,id:'added',projectId:'project',kind:'SQL',version:1,editable:true};filesByProject.project.push(file);}
+        return file;
+      });
     }
     else if (path.endsWith('/project/generations')) data = submissionCount ? [generation] : [];
     else if (path.endsWith('/new-project/generations')) data = [];
@@ -136,6 +148,9 @@ try {
   assert.equal(await page.locator('.sql-chat-settings .sql-agent-choice').filter({ hasText: 'Agent / Skills' }).count(), 0);
   assert.equal(await page.locator('.sql-chat-settings .sql-agent-choice').filter({ hasText: '模型' }).count(), 1);
   await page.getByRole('button', { name: 'Agent', exact: true }).click();
+  await page.getByRole('button',{name:'代码生成',exact:true}).click();
+  await page.getByRole('button',{name:'发送',exact:true}).hover();
+  assert.equal(await page.getByRole('button',{name:'发送',exact:true}).evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(29, 78, 216)','SQL send retains blue on hover');
   assert.equal(await page.locator('.sql-chat-settings .sql-agent-choice').filter({ hasText: 'Agent / Skills' }).count(), 1);
   await page.getByLabel('发送给 AI 工程助手').press('Control+Enter');
   await page.locator('.sql-assistant-progress').filter({ hasText: '正在准备工程上下文' }).waitFor();
@@ -169,6 +184,29 @@ try {
   await page.getByLabel('发送给 AI 工程助手').fill('继续修改');
   assert.equal(await page.locator('.sql-chat-composer .sql-primary').isDisabled(), false, 'Runtime terminal state unlocks submission');
   await page.getByRole('button', {name:'新建会话',exact:true}).click();
+  taskStatus='SUCCESS';
+  await page.getByRole('button',{name:'代码修复',exact:true}).click();
+  await page.getByLabel('发送给 AI 工程助手').fill('@sql/new.sql 修复当前文件');
+  await page.getByRole('button',{name:'发送',exact:true}).click();
+  await page.getByRole('button',{name:'审查 2 个文件变更',exact:true}).waitFor();
+  const beforeReview=filesByProject.project.find(file=>file.path==='sql/new.sql').content;
+  await page.getByRole('button',{name:'审查 2 个文件变更',exact:true}).click();
+  await page.getByRole('dialog',{name:'审查代码变更'}).waitFor();
+  assert.ok(parseInt((await page.locator('.review-deleted').textContent()).replace('−',''))>0);
+  await page.getByRole('dialog',{name:'审查代码变更'}).getByRole('button',{name:'新增 · sql/added.sql',exact:true}).click();
+  assert.equal(await page.locator('.review-deleted').textContent(),'−0 行删除');
+  assert.equal(filesByProject.project.find(file=>file.path==='sql/new.sql').content,beforeReview,'Review does not write files');
+  await page.screenshot({path:'../../target/sql-studio-ide-audit/sql-review.png',fullPage:true});
+  await page.getByRole('button',{name:'确认并保存 2 个文件',exact:true}).click();
+  await page.getByRole('dialog',{name:'审查代码变更'}).waitFor({state:'detached'});
+  assert.equal(filesByProject.project.find(file=>file.path==='sql/new.sql').content,'SELECT 42 AS repaired;');
+  await page.getByRole('button',{name:'新建会话',exact:true}).click();
+  await page.getByRole('button',{name:'代码解释',exact:true}).click();
+  await page.getByLabel('发送给 AI 工程助手').fill('@sql/new.sql 解释当前 SQL');
+  await page.getByRole('button',{name:'发送',exact:true}).click();
+  await page.getByText('代码解释 · 回答完成',{exact:true}).waitFor();
+  assert.equal(await page.locator('.sql-apply').count(),0,'Explanations cannot apply code');
+  await page.getByRole('button',{name:'新建会话',exact:true}).click();
   assert.equal(await page.locator('.sql-chat-turn,.sql-chat-result').count(), 0);
   assert.equal(await page.getByLabel('发送给 AI 工程助手').inputValue(), '');
   assert.equal(await page.getByLabel('发送给 AI 工程助手').evaluate(el=>el===document.activeElement), true);

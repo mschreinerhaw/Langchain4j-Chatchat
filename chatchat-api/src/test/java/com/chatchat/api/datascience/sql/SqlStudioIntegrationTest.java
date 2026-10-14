@@ -42,12 +42,15 @@ class SqlStudioIntegrationTest {
     @Autowired SysUserRoleRepository userRoles; @Autowired SysRolePermissionRepository rolePermissions;
     @Autowired SysPermissionRepository permissions;
     @Autowired SqlStudioMigration migration;
+    @Autowired List<com.chatchat.agents.runtime.tool.ToolRuntimePolicyProvider> toolPolicies;
+    @Autowired SqlStudioGenerationScopeStore generationScopes;
     @MockBean ChatModel model;
     @MockBean InteractionOrchestrationService orchestration;
     @MockBean com.chatchat.chat.interaction.service.DatabaseRuntimeSemanticPolicySource policy;
     @MockBean com.chatchat.chat.skills.catalog.SkillCatalogService catalog;
     @MockBean com.chatchat.common.mcp.license.McpLicenseEntitlementPort license;
     @MockBean DocumentLibraryReadPort documentLibrary;
+    @MockBean SqlStudioMetadataGateway metadataGateway;
     String token, tenant;
     @BeforeEach void setup() {
         when(license.workspaceEntitlement()).thenReturn(new com.chatchat.common.mcp.license.McpLicenseEntitlementPort.WorkspaceEntitlement(true,Set.of("zhice","data-science"),"VALID"));
@@ -340,6 +343,52 @@ class SqlStudioIntegrationTest {
         assertThat(result(p,prepared).path("generation").path("baseVersions").path("sql/source.sql").asInt()).isEqualTo(1);
         mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token).contentType("application/json")
             .content(json(Map.of("action","unknown","prompt","Repair", "dialect","spark")))).andExpect(status().isBadRequest());
+    }
+    @Test void generationScopeIsPersistedAndDenyBoundaryFollowsEnterpriseAuthorization() throws Exception {
+        String p=project();var prepared=prepare(p,List.of(),List.of());
+        assertThat(generationScopes.find(prepared.path("taskRequest").path("sessionId").asText())).hasSize(1);
+        int enterprise=-1,boundary=-1;
+        for(int i=0;i<toolPolicies.size();i++) {
+            if(toolPolicies.get(i) instanceof com.chatchat.api.runtime.EnterpriseToolRuntimePolicyProvider)enterprise=i;
+            if(toolPolicies.get(i) instanceof SqlStudioGenerationToolPolicy)boundary=i;
+        }
+        assertThat(enterprise).isGreaterThanOrEqualTo(0);assertThat(boundary).isGreaterThan(enterprise);
+        migration.migrate();assertThat(generationScopes.find(prepared.path("taskRequest").path("sessionId").asText())).hasSize(1);
+    }
+    @Test void metadataContextHttpPersistsAndEnforcesRealProjectOwnership() throws Exception {
+        String p=project();
+        when(metadataGateway.invoke(any(),any(),anyMap())).thenReturn(new SqlStudioMetadataGateway.Result("registered", Map.of(
+            "items",List.of(Map.of("assetRef","authorized-asset","sourceDialect","mysql")))));
+        var context=data(mvc.perform(post(ROOT+"/"+p+"/metadata/contexts").header("Authorization","Bearer "+token)
+            .contentType("application/json").content(json(Map.of("purpose","ETL","targetDialect","spark","bindings",
+                List.of(Map.of("assetRef","authorized-asset","role","SOURCE","database","db")))))).andExpect(status().isOk()).andReturn());
+        String d=context.path("discoveryId").asText();assertThat(d).isNotBlank();
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_metadata_context where id=?",Integer.class,d)).isEqualTo(1);
+        mvc.perform(get(ROOT+"/"+p+"/metadata/contexts/"+d).header("Authorization","Bearer "+token)).andExpect(status().isOk());
+        clearInvocations(metadataGateway);
+        String other=otherUser(true);
+        mvc.perform(get(ROOT+"/"+p+"/metadata/contexts/"+d).header("Authorization","Bearer "+other)).andExpect(status().isForbidden());
+        mvc.perform(post(ROOT+"/"+p+"/metadata/contexts/"+d+"/operations").header("Authorization","Bearer "+other)
+            .contentType("application/json").content(json(Map.of("bindingId",context.path("bindings").get(0).path("bindingId").asText(),"arguments",Map.of("operation","SEARCH")))))
+            .andExpect(status().isForbidden());
+        verifyNoInteractions(metadataGateway);
+        migration.migrate();
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_metadata_context where id=?",Integer.class,d)).isEqualTo(1);
+    }
+    @Test void metadataOperationHttpRejectsExecutionAndContextSubstitution() throws Exception {
+        String p=project();
+        when(metadataGateway.invoke(any(),any(),anyMap())).thenReturn(new SqlStudioMetadataGateway.Result("registered", Map.of(
+            "items",List.of(Map.of("assetRef","authorized-asset","sourceDialect","mysql")))));
+        var context=data(mvc.perform(post(ROOT+"/"+p+"/metadata/contexts").header("Authorization","Bearer "+token)
+            .contentType("application/json").content(json(Map.of("purpose","QUERY","targetDialect","mysql","bindings",
+                List.of(Map.of("assetRef","authorized-asset","role","SOURCE")))))).andExpect(status().isOk()).andReturn());
+        String url=ROOT+"/"+p+"/metadata/contexts/"+context.path("discoveryId").asText()+"/operations";
+        clearInvocations(metadataGateway);
+        for(var args:List.of(Map.of("operation","EXECUTE","sql","SELECT 1"),Map.of("operation","SEARCH","assetId","other-asset"))) {
+            mvc.perform(post(url).header("Authorization","Bearer "+token).contentType("application/json").content(json(Map.of(
+                "bindingId",context.path("bindings").get(0).path("bindingId").asText(),"arguments",args)))).andExpect(status().isBadRequest());
+        }
+        verifyNoInteractions(metadataGateway);
     }
     @Test void studioRunsIsolateRuntimeMemoryAndRetainHistoricalResults() throws Exception {
         String p=project();

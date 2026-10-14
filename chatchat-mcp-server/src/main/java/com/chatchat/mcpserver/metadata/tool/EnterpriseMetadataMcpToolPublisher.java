@@ -266,6 +266,7 @@ public class EnterpriseMetadataMcpToolPublisher implements com.chatchat.mcpserve
     private Map<String, Object> meta() {
         return mapOf(
             "schemaVersion", EnterpriseMetadataSearchService.CARDINALITY_SCHEMA_VERSION,
+            "sqlStudioGenerationBoundary", mapOf("operation", "METADATA_READ", "executesBusinessSql", false),
             "kind", "enterprise_metadata_capability",
             "capabilityType", "metadata",
             "provider", "configured_catalog",

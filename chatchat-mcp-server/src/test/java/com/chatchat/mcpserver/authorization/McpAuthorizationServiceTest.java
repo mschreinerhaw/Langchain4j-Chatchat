@@ -34,6 +34,44 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class McpAuthorizationServiceTest {
+    @Test void eachMetadataInvocationObservesPermissionRevocation() throws Exception {
+        var database=new AtomicReference<JsonNode>(databaseSnapshot(snapshot("""
+            [{"tenantId":"tenant-1","targetType":"role","targetId":"role-1",
+              "localToolName":"metadata","effect":"allow","enabled":true}]
+            """)));
+        var properties=new McpAuthorizationProperties();properties.setEnabled(true);
+        var authority=new McpAuthorizationService(properties,mock(InternalCredentialProperties.class),objectMapper,mock(McpSynchronizedRoleRepository.class)) {
+            @Override protected JsonNode fetchExecutionSnapshot() { return database.get(); }
+        };
+        var call=new com.chatchat.common.mcp.service.McpServiceCall(null,"revoke-check","client","metadata",Map.of(),
+            Map.of("tenantId","tenant-1","userId","user-1"),0);
+        try(var ignored=McpInvocationContext.openCall(call)) {
+            assertThat(authority.authorizedAssetDomains("metadata").test("db-1")).isTrue();
+            database.set(databaseSnapshot(snapshot("[]")));
+            assertThat(authority.authorizedAssetDomains("metadata").test("db-1")).isFalse();
+            database.set(null);
+            assertThat(authority.authorizedAssetDomains("metadata").test("db-1")).isFalse();
+        }
+    }
+    @Test void executionDomainProjectionUsesTrustedCallerAndFreshScope() throws Exception {
+        var service = service(snapshot("""
+            [{"tenantId":"tenant-1","targetType":"role","targetId":"role-1",
+              "localToolName":"metrics","scopeExpression":"mcp:sql_datasource:metadata:read@tenant=tenant-1;domain=db-1;level=read",
+              "effect":"allow","enabled":true}]
+            """));
+        var registry = mock(com.chatchat.agents.tool.ToolRegistry.class);
+        when(registry.getToolMetadata("metrics")).thenReturn(com.chatchat.common.tool.ToolMetadata.builder()
+            .metadata(Map.of("authorizationScope",Map.of("assetType","sql_datasource","capability","metadata","action","read"))).build());
+        service.setToolRegistry(registry);
+        assertThat(service.authorizedAssetDomains("metrics").test("db-1")).isFalse();
+        var call = new com.chatchat.common.mcp.service.McpServiceCall(null,"domain-check","client","metrics",Map.of(),
+            Map.of("tenantId","tenant-1","userId","user-1"),0);
+        try (var ignored=McpInvocationContext.openCall(call)) {
+            var allowed=service.authorizedAssetDomains("metrics");
+            assertThat(allowed.test("db-1")).isTrue();assertThat(allowed.test("db-2")).isFalse();
+            assertThat(allowed.test(null)).isFalse();
+        }
+    }
     @Test
     void discoveryUsesTheSameDenyAndAssetScopeRulesAsExecution() throws Exception {
         var service = service(snapshot("""

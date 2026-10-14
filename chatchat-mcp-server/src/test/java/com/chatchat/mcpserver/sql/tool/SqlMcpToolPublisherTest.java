@@ -42,6 +42,38 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class SqlMcpToolPublisherTest {
+    @Test
+    @SuppressWarnings("unchecked")
+    void v2DiscoveryUsesAuthenticatedWorkflowWithoutLegacyTopFiveClampOrSqlExecutor() throws Exception {
+        var execute = mock(SqlQueryExecuteService.class);
+        var discovery = mock(com.chatchat.mcpserver.sql.metadata.SqlMetadataDiscoveryService.class);
+        when(discovery.discover(org.mockito.ArgumentMatchers.anyMap(), org.mockito.ArgumentMatchers.any())).thenReturn(
+            Map.of("contractVersion", "sql-studio.metadata.v2", "status", "SUCCEEDED", "doesNotExecuteSql", true,
+                "totalMatched", 503, "hasMore", true, "pageSize", 100));
+        var publisher = new SqlMcpToolPublisher(mcpSyncServer, datasourceConfigService, sqlTemplateService, execute,
+            scriptExecuteService, metadataSearchService, databaseQueryConfigService, databaseQueryInvokeService,
+            executionTargetRouter, assetMetadataFactory, governanceFactory, concurrencyManager,
+            new StandardToolExecutionResultFactory(new DatabaseToolProperties()), new ChatChatMcpServerProperties(), new ObjectMapper());
+        authorizeMetadata(publisher);
+        publisher.configureMetadataDiscoveryWorkflow(new com.chatchat.mcpserver.sql.metadata.SqlMetadataDiscoveryWorkflow(discovery));
+        Method method = SqlMcpToolPublisher.class.getDeclaredMethod("executeMetadataSearch", Map.class, String.class, boolean.class);
+        method.setAccessible(true);
+        Map<String, Object> args = Map.of("contractVersion", "sql-studio.metadata.v2", "operation", "SEARCH", "assetId", "asset", "pageSize", 100);
+        var envelope = new com.chatchat.common.mcp.service.McpServiceCall(null, "request", "service", "sql_schema_context_query", args,
+            Map.of("tenantId", "tenant", "userId", "user"), 0);
+        try (var context = com.chatchat.mcpserver.mcp.McpInvocationContext.openCall(envelope)) {
+            var result = (McpSchema.CallToolResult) method.invoke(publisher, args, SqlMcpToolPublisher.SQL_METADATA_BRIDGE_TOOL, true);
+            assertThat((Map<String, Object>) result.structuredContent()).containsEntry("totalMatched", 503).containsEntry("pageSize", 100);
+            assertThat(result.structuredContent().toString()).contains("SQL_METADATA_DISCOVERY", "requestId=request");
+        }
+        verify(discovery).discover(org.mockito.ArgumentMatchers.eq(args), org.mockito.ArgumentMatchers.any());
+        verifyNoInteractions(execute, scriptExecuteService, metadataSearchService, executionTargetRouter);
+    }
+    private void authorizeMetadata(SqlMcpToolPublisher publisher) {
+        var authorization = mock(com.chatchat.mcpserver.authorization.McpAuthorizationService.class);
+        when(authorization.authorizedAssetDomains(org.mockito.ArgumentMatchers.anyString())).thenReturn(domain -> true);
+        publisher.configureMetadataAuthorization(authorization);
+    }
 
     private final McpSyncServer mcpSyncServer = mock(McpSyncServer.class);
     private final SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
@@ -99,7 +131,7 @@ class SqlMcpToolPublisherTest {
     @Test
     @SuppressWarnings("unchecked")
     void schemaContextBridgeNormalizesIntentAndPreservesMetadataResultContract() throws Exception {
-        when(metadataSearchService.search(org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of(
+        when(metadataSearchService.searchAuthorized(org.mockito.ArgumentMatchers.anyMap(), org.mockito.ArgumentMatchers.any())).thenReturn(Map.of(
             "schemaVersion", SqlMetadataSearchService.RESULT_SCHEMA_VERSION,
             "count", 0,
             "totalMatched", 0,
@@ -117,13 +149,14 @@ class SqlMcpToolPublisherTest {
             "executeMetadataSearch", Map.class, String.class, boolean.class);
         method.setAccessible(true);
 
+        authorizeMetadata(publisher);
         McpSchema.CallToolResult result = (McpSchema.CallToolResult) method.invoke(publisher,
             Map.of("intent", "find customer order tables", "useCase", "sql_generation"),
             SqlMcpToolPublisher.SQL_METADATA_BRIDGE_TOOL,
             true);
 
         ArgumentCaptor<Map<String, Object>> arguments = ArgumentCaptor.forClass(Map.class);
-        verify(metadataSearchService).search(arguments.capture());
+        verify(metadataSearchService).searchAuthorized(arguments.capture(), org.mockito.ArgumentMatchers.any());
         assertThat(arguments.getValue())
             .containsEntry("query", "find customer order tables")
             .containsEntry("catalogLimit", SqlMcpToolPublisher.SQL_METADATA_BRIDGE_MAX_TABLES)
@@ -140,7 +173,7 @@ class SqlMcpToolPublisherTest {
 
     @Test
     void schemaContextBridgeCapsCallerRequestedTableCountsAtTopFive() throws Exception {
-        when(metadataSearchService.search(org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of(
+        when(metadataSearchService.searchAuthorized(org.mockito.ArgumentMatchers.anyMap(), org.mockito.ArgumentMatchers.any())).thenReturn(Map.of(
             "schemaVersion", SqlMetadataSearchService.RESULT_SCHEMA_VERSION,
             "count", 0,
             "totalMatched", 0,
@@ -158,13 +191,14 @@ class SqlMcpToolPublisherTest {
             "executeMetadataSearch", Map.class, String.class, boolean.class);
         method.setAccessible(true);
 
+        authorizeMetadata(publisher);
         method.invoke(publisher,
             Map.of("query", "orders", "catalogLimit", 200, "detailLimit", 100, "limit", 500),
             SqlMcpToolPublisher.SQL_METADATA_BRIDGE_TOOL,
             true);
 
         ArgumentCaptor<Map<String, Object>> arguments = ArgumentCaptor.forClass(Map.class);
-        verify(metadataSearchService).search(arguments.capture());
+        verify(metadataSearchService).searchAuthorized(arguments.capture(), org.mockito.ArgumentMatchers.any());
         assertThat(arguments.getValue())
             .containsEntry("catalogLimit", 5)
             .containsEntry("detailLimit", 5)

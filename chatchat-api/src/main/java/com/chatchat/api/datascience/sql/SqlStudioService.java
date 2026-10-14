@@ -38,6 +38,7 @@ public class SqlStudioService {
     private final ObjectMapper mapper;
     private final DocumentLibraryReadPort library;
     private final EnterpriseAdminService identities;
+    private final SqlStudioGenerationScopeStore generationScopes;
 
     public record Project(String id, String name, String dialect, String sessionId, String tenantId, String ownerId) { }
     public record File(String id, String projectId, String path, String kind, String content, int version,
@@ -347,6 +348,7 @@ public class SqlStudioService {
         taskRequest.setAgentId(body.agentId()); taskRequest.setModelName(body.modelName());
         jdbc.update("insert into ds_sql_generation (id,project_id,context_json,base_versions_json,applied,created_at) values (?,?,?,?,false,CURRENT_TIMESTAMP)",
             id, projectId, json(taskRequest), json(base));
+        generationScopes.register(new SqlStudioGenerationScopeStore.Scope(runSession.getId(),projectId,project.tenantId(),project.ownerId()));
         jdbc.update("update ds_sql_project set dialect=? where id=?", dialect, projectId);
         return new Prepared(id, taskRequest);
     }

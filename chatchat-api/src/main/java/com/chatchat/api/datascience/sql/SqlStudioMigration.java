@@ -13,6 +13,7 @@ import javax.sql.DataSource;
 @Component @RequiredArgsConstructor
 public class SqlStudioMigration {
     private final DataSource dataSource;
+    private final SqlStudioGenerationScopeStore generationScopes;
     @EventListener(ApplicationReadyEvent.class) @Order(110)
     public void migrate() throws java.sql.SQLException {
         String dialect;
@@ -26,5 +27,6 @@ public class SqlStudioMigration {
         var populator = new ResourceDatabasePopulator(new ClassPathResource("sql-studio/schema-" + dialect + ".sql"),
             new ClassPathResource("sql-studio/workspace-upgrade.sql"));
         populator.setSqlScriptEncoding("UTF-8"); populator.execute(dataSource);
+        generationScopes.backfill();
     }
 }

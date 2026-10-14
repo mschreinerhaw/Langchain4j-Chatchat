@@ -79,6 +79,18 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
     private TargetKindRegistry targetKindRegistry;
     private TemplateQueryMcpToolPublisher dynamicTemplateQueries;
     private SqlQueryExecutionWorkflow sqlQueryExecutionWorkflow;
+    private com.chatchat.mcpserver.authorization.McpAuthorizationService metadataAuthorization;
+    private com.chatchat.mcpserver.sql.metadata.SqlMetadataDiscoveryWorkflow metadataDiscoveryWorkflow;
+
+    @Autowired
+    void configureMetadataDiscoveryWorkflow(com.chatchat.mcpserver.sql.metadata.SqlMetadataDiscoveryWorkflow workflow) {
+        this.metadataDiscoveryWorkflow = workflow;
+    }
+
+    @Autowired
+    void configureMetadataAuthorization(com.chatchat.mcpserver.authorization.McpAuthorizationService authorization) {
+        this.metadataAuthorization = authorization;
+    }
 
     @Autowired
     void configureDataQueryBridge(CommandTemplateDiscoveryService templateDiscoveryService,
@@ -126,7 +138,9 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
             .description("Dedicated read-only bridge for retrieving indexed metadata from existing databases. "
                 + "Use it to obtain authoritative database, schema, table, column, type, key and comment context "
                 + "before designing a table or generating/reviewing SQL. It never executes SQL, reads business rows, "
-                + "or exposes connection details. It returns at most the five highest-scoring tables. "
+                + "or exposes connection details. Legacy search returns at most five tables. "
+                + "For paginated discovery use contractVersion=sql-studio.metadata.v2 and select one operation: "
+                + "LIST_ASSETS, LIST_NAMESPACES, SEARCH or DESCRIBE. No fixed exploration order is required. "
                 + "Physical identifiers must come from its result and must not be guessed.")
             .inputSchema(sqlMetadataBridgeInputSchema())
             .meta(sqlMetadataBridgeMeta())
@@ -611,6 +625,21 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
     private McpSchema.CallToolResult executeMetadataSearch(Map<String, Object> rawArguments,
                                                             String invokedTool,
                                                             boolean bridgeManaged) {
+        if (rawArguments != null && (rawArguments.containsKey("contractVersion") || rawArguments.containsKey("operation"))) {
+            if (metadataAuthorization == null || metadataDiscoveryWorkflow == null)
+                throw new SecurityException("SQL metadata discovery is unavailable");
+            var caller = com.chatchat.mcpserver.mcp.McpInvocationContext.current();
+            if (caller == null) throw new SecurityException("Authenticated metadata caller is required");
+            var scope = new com.chatchat.common.kernel.KernelDataScope(caller.tenantId(), caller.userId(),
+                caller.requestId(), null, null, caller.environment(), Map.of());
+            var request = new com.chatchat.mcpserver.sql.metadata.SqlMetadataDiscoveryWorkflow.Request(
+                rawArguments, metadataAuthorization.authorizedAssetDomains(invokedTool));
+            Map<String, Object> result = metadataDiscoveryWorkflow.execute(request, scope);
+            return McpSchema.CallToolResult.builder()
+                .addTextContent("SQL metadata discovery: " + result.get("status") + "; matched=" + result.get("totalMatched")
+                    + "; hasMore=" + result.get("hasMore") + ". Generation does not authorize SQL execution.")
+                .structuredContent(result).isError(false).build();
+        }
         Map<String, Object> arguments = rawArguments == null
             ? new LinkedHashMap<>()
             : new LinkedHashMap<>(rawArguments);
@@ -627,7 +656,8 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
         arguments.remove("intent");
 
         long startedAt = System.currentTimeMillis();
-        Map<String, Object> result = metadataSearchService.search(arguments);
+        if (metadataAuthorization == null) throw new SecurityException("SQL metadata authorization is unavailable");
+        Map<String, Object> result = metadataSearchService.searchAuthorized(arguments, metadataAuthorization.authorizedAssetDomains(invokedTool));
         long searchDurationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
         Map<String, Object> structured = new LinkedHashMap<>(result == null ? Map.of() : result);
         structured.put("invokedCapability", SQL_METADATA_SEARCH_TOOL);
@@ -699,6 +729,11 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
 
     private McpSchema.JsonSchema sqlMetadataBridgeInputSchema() {
         Map<String, Object> properties = new LinkedHashMap<>();
+        properties.put("contractVersion", Map.of("type", "string", "enum", List.of("sql-studio.metadata.v2")));
+        properties.put("operation", Map.of("type", "string", "enum", List.of("LIST_ASSETS", "LIST_NAMESPACES", "SEARCH", "DESCRIBE")));
+        properties.put("page", Map.of("type", "integer", "minimum", 1, "maximum", 1000000));
+        properties.put("pageSize", Map.of("type", "integer", "minimum", 1, "maximum", 100, "default", 25));
+        properties.put("expectedSnapshotId", Map.of("type", "string", "description", "Required after page 1; copy snapshotId from page 1. Restart pagination if the authorized schema changes."));
         properties.put("query", Map.of("type", "string", "description",
             "Natural-language or physical-name search for existing database/table/column metadata."));
         properties.put("intent", Map.of("type", "string", "description", "Alias of query."));
@@ -836,6 +871,8 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
         governance.put("audit", mutableMap("enabled", true, "log_params", true, "log_result_summary", true));
         Map<String, Object> meta = new LinkedHashMap<>(
             governanceFactory.toMeta("sql_gateway", toolName, governance, null));
+        meta.put("authorizationScope", Map.of("assetType", "sql_datasource", "capability", "metadata", "action", "read"));
+        meta.put("sqlStudioGenerationBoundary", Map.of("operation", "METADATA_READ", "executesBusinessSql", false));
         meta.put("runtime_action", "allow");
         meta.put("runtimeAction", "allow");
         meta.put("readOnly", true);
@@ -852,6 +889,10 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
         ));
         meta.put("outputSchema", SqlMetadataSearchService.RESULT_SCHEMA_VERSION);
         meta.put("toolResultInstruction", String.join("\n",
+            "For contractVersion=sql-studio.metadata.v2, use items, page/pageSize, totalMatched, hasMore, snapshotId and provenance.",
+            "For v2, copy snapshotId into expectedSnapshotId for page > 1. A snapshot conflict requires restarting pagination.",
+            "NEEDS_REFRESH means schema facts are unavailable; do not invent them or claim validation passed.",
+            "v2 operations are independent model choices. The legacy top-five policy and paths below apply only when no v2 contract is requested.",
             "SQL metadata search result contract:",
             "- totalMatched is the actual matched table count.",
             "- tableCatalog is the lightweight matched table catalog; use it to understand the candidate table range.",
@@ -872,9 +913,13 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
             "results", "Backward-compatible alias of topTables."
         ));
         meta.put("doesNotExecuteSql", true);
+        meta.put("metadataDiscovery", Map.of("contractVersion", "sql-studio.metadata.v2",
+            "workflowId", "SQL_METADATA_DISCOVERY", "supportedOperations", List.of("LIST_ASSETS", "LIST_NAMESPACES", "SEARCH", "DESCRIBE"),
+            "maximumPageSize", 100, "snapshotPolicy", "AUTHORIZED_CONTENT_HASH"));
         meta.put("supportedUseCases", List.of(
             "schema_lookup", "table_design", "sql_generation", "sql_review", "schema_comparison"));
         meta.put("tableReturnPolicy", mutableMap(
+            "contract", "legacy_only",
             "ranking", "SCORE_DESC",
             "defaultTables", SQL_METADATA_BRIDGE_MAX_TABLES,
             "maximumTables", SQL_METADATA_BRIDGE_MAX_TABLES,

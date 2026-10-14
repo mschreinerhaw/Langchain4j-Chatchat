@@ -40,6 +40,19 @@ public class SqlMetadataSearchService {
     private final MetadataIndexService metadataIndexService;
 
     public Map<String, Object> search(Map<String, Object> arguments) {
+        return search(arguments, null);
+    }
+
+    public Map<String, Object> searchAuthorized(Map<String, Object> arguments, java.util.function.Predicate<String> domains) {
+        if (domains == null) throw new IllegalArgumentException("Metadata authorization is required");
+        if (datasourceConfigService.listEnabled().stream().noneMatch(asset -> domains.test(asset.getId())))
+            throw new SecurityException("No authorized SQL metadata asset");
+        Object explicit = arguments == null ? null : arguments.get("assetId");
+        if (explicit != null && !domains.test(String.valueOf(explicit))) throw new SecurityException("SQL metadata asset is not authorized");
+        return search(arguments, domains);
+    }
+
+    private Map<String, Object> search(Map<String, Object> arguments, java.util.function.Predicate<String> domains) {
         long startedAt = System.nanoTime();
         Map<String, Object> input = arguments == null ? Map.of() : new LinkedHashMap<>(arguments);
         Map<String, Object> executionContext = objectMap(input.get("executionContext"));
@@ -143,23 +156,28 @@ public class SqlMetadataSearchService {
             searchRequestId, query, retrievalQuery, assetId, assetName, env, databaseType, lookupNamespace, tableName, includeColumns, detailLimit, catalogLimit, legacyLimit,
             compactMap(defaultDataAsset));
 
+        if (domains != null && (assetId != null || assetName != null)
+            && matchingDatasources(assetId, assetName, env, databaseType).stream().noneMatch(asset -> domains.test(asset.getId())))
+            throw new SecurityException("SQL metadata asset is not authorized");
         LazyIndexInitialization lazyIndexInitialization = ensureMissingIndexesForExactLookup(
             requestedTableName,
             assetId,
             assetName,
             env,
-            databaseType
+            databaseType, domains
         );
         List<Candidate> candidates = new ArrayList<>();
         long stageStartedAt = System.nanoTime();
-        candidates.addAll(luceneCandidates(searchRequestId, retrievalQuery, tableLabelFilter, lookupNamespace, assetId, assetName, env, databaseType, null));
+        if (domains == null) candidates.addAll(luceneCandidates(searchRequestId, retrievalQuery, tableLabelFilter, lookupNamespace, assetId, assetName, env, databaseType, null));
+        else candidates.addAll(authorizedCandidates(retrievalQuery, lookupNamespace, assetId, assetName, env, databaseType, domains));
         stageTimings.put("luceneMs", elapsedMs(stageStartedAt));
         stageStartedAt = System.nanoTime();
-        candidates.addAll(cacheCandidates(retrievalQuery, lookupNamespace, assetId, assetName, env, databaseType));
+        if (domains == null) candidates.addAll(cacheCandidates(retrievalQuery, lookupNamespace, assetId, assetName, env, databaseType));
         stageTimings.put("cacheLookupMs", elapsedMs(stageStartedAt));
 
         stageStartedAt = System.nanoTime();
         List<Candidate> uniqueCandidates = candidates.stream()
+            .filter(candidate -> MetadataVisibility.tableVisible(candidate.datasource(), candidate.table()))
             .filter(candidate -> matchesDatabase(candidate.table(), lookupNamespace))
             .filter(candidate -> !"trino".equalsIgnoreCase(candidate.datasource().getDatabaseType()) || requestedCatalog == null
                 || equalsNormalized(requestedCatalog, candidate.table().database()))
@@ -257,11 +275,13 @@ public class SqlMetadataSearchService {
                 "detailRule", "topTables/results contain detailed metadata only for the highest ranked tables.",
                 "answerRule", "Use totalMatched, catalogReturnedCount, catalogTruncated, and returnedDetailCount when describing completeness. Do not say tool response limits hid results unless catalogTruncated is true.",
                 "evidenceRule", "Always cite exact database/schema/tableName identifiers from tableCatalog or topTables[].location. When topTables[].columns is present, list those exact physical column names with the corresponding table. Keep business descriptions separate and never invent or translate identifiers.",
-                "nextStep", "Use topTables[].sqlExecutionBinding or a tableCatalog row when calling sql_query_execute. Do not invent schemaName/databaseName.",
-                "templateStep", "Call database_ops_template_search for the same assetName/env, then use the returned templateId and parameterSchema."
+                "nextStep", domains == null ? "Use topTables[].sqlExecutionBinding or a tableCatalog row when calling sql_query_execute. Do not invent schemaName/databaseName."
+                    : "Use the visible schema evidence to generate SQL or continue metadata discovery as needed. Generating SQL does not authorize execution.",
+                "templateStep", domains == null ? "Call database_ops_template_search for the same assetName/env, then use the returned templateId and parameterSchema."
+                    : "No fixed tool sequence is required. Query execution belongs to a separate authorized operation."
             ),
             "diagnostics", mapOf(
-                "source", luceneSearchService != null && luceneSearchService.enabled() ? "lucene_metadata_table_index" : "metadata_cache",
+                "source", domains != null ? "authorized_metadata_index" : luceneSearchService != null && luceneSearchService.enabled() ? "lucene_metadata_table_index" : "metadata_cache",
                 "candidateCountBeforeTableFilter", uniqueCandidates.size(),
                 "candidateCountRaw", candidates.size(),
                 "retrievalQueryExpanded", retrievalQuery != null && !retrievalQuery.equals(query),
@@ -287,7 +307,7 @@ public class SqlMetadataSearchService {
                                                                         String assetId,
                                                                         String assetName,
                                                                         String env,
-                                                                        String databaseType) {
+                                                                        String databaseType, java.util.function.Predicate<String> domains) {
         if (!looksLikeTableIdentifier(requestedTableName)) {
             return LazyIndexInitialization.empty();
         }
@@ -295,6 +315,7 @@ public class SqlMetadataSearchService {
         List<String> succeeded = new ArrayList<>();
         Map<String, String> errors = new LinkedHashMap<>();
         for (SqlDatasourceConfig datasource : matchingDatasources(assetId, assetName, env, databaseType)) {
+            if (domains != null && !domains.test(datasource.getId())) continue;
             MetadataIndex current = metadataIndexService.indexFor(datasource);
             if (current == null || !"metadata_index_not_refreshed".equals(current.error())) {
                 continue;
@@ -458,6 +479,35 @@ public class SqlMetadataSearchService {
             .toList();
     }
 
+    private List<MetadataColumn> visibleColumns(SqlDatasourceConfig asset, TableLocation table) {
+        return metadataIndexService.columns(asset, table).stream()
+            .filter(column -> MetadataVisibility.fieldVisible(asset, table, column.name())).toList();
+    }
+
+    private List<Candidate> authorizedCandidates(String query, String database, String assetId, String assetName,
+                                                String env, String databaseType, java.util.function.Predicate<String> domains) {
+        Map<String, Candidate> visible = new LinkedHashMap<>();
+        List<LuceneMcpSearchService.AssetDoc> docs = new ArrayList<>();
+        for (SqlDatasourceConfig asset : matchingDatasources(assetId, assetName, env, databaseType)) {
+            if (!domains.test(asset.getId())) continue;
+            for (TableLocation table : metadataIndexService.allTables(asset)) {
+                if (!matchesDatabase(table, database) || !MetadataVisibility.tableVisible(asset, table)) continue;
+                String id = asset.getId() + ":" + MetadataIndex.tableKey(table.database() == null ? "" : table.database(), table.schema() == null ? "" : table.schema(), table.table());
+                String fields = visibleColumns(asset, table).stream().map(column -> column.name() + " "
+                    + (column.comment() == null ? "" : column.comment())).collect(java.util.stream.Collectors.joining(" "));
+                docs.add(new LuceneMcpSearchService.AssetDoc(id, "sql_datasource", table.table(), table.table(), asset.getToolName(),
+                    asset.getEnvironment(), asset.getDatabaseType(), List.of(), "metadata_table", asset.getId(),
+                    table.database(), table.table(), table.table(), fields, table.tableComment(), table.databaseComment()));
+                visible.put(id, new Candidate(asset, table, 0, "authorized_metadata_index", null));
+            }
+        }
+        Map<String, Float> scores = luceneSearchService.rankScopedMetadata(docs, query);
+        return scores.entrySet().stream().filter(entry -> visible.containsKey(entry.getKey())).map(entry -> {
+            Candidate candidate = visible.get(entry.getKey());
+            return new Candidate(candidate.datasource(), candidate.table(), entry.getValue(), candidate.source(), null);
+        }).toList();
+    }
+
     private Map<String, Object> toResult(Candidate candidate, boolean includeColumns, String requestedDatabase) {
         SqlDatasourceConfig datasource = candidate.datasource();
         TableLocation table = candidate.table();
@@ -505,7 +555,7 @@ public class SqlMetadataSearchService {
                 ))
             ))
         );
-        List<MetadataColumn> columns = metadataIndexService.columns(datasource, table);
+        List<MetadataColumn> columns = visibleColumns(datasource, table);
         value.put("columnCount", columns.size());
         if (includeColumns) {
             value.put("columns", columns.stream()

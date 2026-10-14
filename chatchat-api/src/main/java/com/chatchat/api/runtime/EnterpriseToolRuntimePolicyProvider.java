@@ -31,6 +31,7 @@ import java.time.Instant;
 
 @Component
 @RequiredArgsConstructor
+@org.springframework.core.annotation.Order(0)
 public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyProvider {
 
     private final McpToolPermissionRepository toolPermissionRepository;

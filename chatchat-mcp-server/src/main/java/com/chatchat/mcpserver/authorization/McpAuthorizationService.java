@@ -189,6 +189,21 @@ public class McpAuthorizationService {
         return evaluateAuthorization("chatchat-mcp-server", toolName, Map.of(), snapshot, candidateScope).allowed();
     }
 
+    /** Fresh request snapshot; registry domains are evaluated before candidate ranking. */
+    public java.util.function.Predicate<String> authorizedAssetDomains(String toolName) {
+        if (McpInvocationContext.current() == null || !properties.isEnabled()) return domain -> false;
+        final Snapshot snapshot;
+        try { snapshot = Snapshot.from(fetchExecutionSnapshot()); }
+        catch (Exception ex) {
+            if (ex instanceof InterruptedException) Thread.currentThread().interrupt();
+            return domain -> false;
+        }
+        Principal caller = principal(Map.of(), snapshot);
+        ToolScope declared = toolScope(toolName);
+        return domain -> domain != null && evaluateAuthorization("chatchat-mcp-server", toolName, Map.of(), snapshot,
+            McpScopeExpression.of(declared.assetType(), declared.capability(), declared.action(), caller.tenantId(), domain, "read")).allowed();
+    }
+
     private AuthorizationDecision evaluateAuthorization(String serviceId, String toolName,
                                                          Map<String, Object> arguments, Snapshot snapshot,
                                                          McpScopeExpression discoveryScope) {

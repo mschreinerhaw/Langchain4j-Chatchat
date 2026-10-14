@@ -7,7 +7,10 @@
   min-height: 54px;
   padding: 8px 14px;
   gap: 10px;
+  flex-shrink: 0;
 }
+
+.sql-ide-titlebar > select[aria-label="SQL 工程"] { width: 180px; flex-shrink: 0; }
 
 .sql-ide-titlebar > button {
   display: inline-flex;
@@ -136,6 +139,8 @@
 
 .sql-ide .sql-editor-pane {
   grid-template-rows: 39px 32px minmax(0, 1fr) 24px;
+  grid-template-columns: minmax(0, 1fr);
+  overflow: hidden;
 }
 
 .sql-ide .sql-monaco-host,
@@ -145,6 +150,8 @@
   grid-row: 3;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
+  contain: size layout;
 }
 
 .sql-ide .sql-editor-hidden {
@@ -285,24 +292,7 @@
   line-height: 1.6;
 }
 
-.sql-assistant-tabs {
-  display: flex;
-  gap: 16px;
-  margin: 0 16px;
-  border-bottom: 1px solid #e5ecf8;
-}
 
-.sql-assistant-tabs button {
-  padding: 11px 8px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.sql-assistant-tabs button.active {
-  color: #2163ed;
-  box-shadow: inset 0 -2px #3478ff;
-}
 
 .sql-current-context {
   padding: 12px;
@@ -586,15 +576,7 @@
   text-align: left;
 }
 
-.sql-studio .sql-bottom-hint {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  padding: 4px 8px;
-  border-color: #d9e5f8;
-  background: #f3f7ff;
-  font-size: 10px;
-}
+
 
 .sql-explorer-project {
   display: flex;
@@ -763,6 +745,9 @@
   flex-direction: column;
   gap: 12px;
   padding: 15px;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
 }
 
 .sql-ide-assistant .sql-assistant-scroll > * {
@@ -778,7 +763,7 @@
 .sql-ide-assistant .sql-chat-composer,
 .sql-ide-assistant .sql-composer-hint,
 .sql-ide-assistant > header,
-.sql-ide-assistant .sql-assistant-tabs {
+.sql-ide-assistant .sql-assistant-progress {
   flex-shrink: 0;
 }
 
@@ -891,6 +876,7 @@
 .sql-chat-composer textarea {
   width: 100%;
   min-height: 72px;
+  max-height: 180px;
   padding: 10px;
   border: 0;
   resize: vertical;
@@ -1034,3 +1020,28 @@
 .sql-page-notice { flex-shrink: 0; margin: 8px 14px; }
 .sql-dialog select { width: 100%; padding: 9px 12px; border: 1px solid #dbe5f3; border-radius: 8px; background: white; color: #192b46; font: inherit; }
 .sql-dialog .app-notice { margin-top: 12px; }
+
+.sql-assistant-progress {
+  flex-shrink: 0;
+  min-height: 96px;
+  padding: 11px 15px;
+  border-bottom: 1px solid #e1e9f5;
+  background: #f8fafd;
+  color: #5d728f;
+}
+.sql-assistant-progress.is-running { background: #f2f7ff; }
+.sql-assistant-progress .sql-task-status { gap: 8px; margin: 0; min-height: 26px; }
+.sql-task-status > div { display: flex; align-items: center; gap: 7px; min-width: 0; color: #47678c; }
+.is-running .sql-task-status > div { color: #2563db; }
+.sql-task-status b { font-size: 12px; font-weight: 600; }
+.sql-progress-time { display: inline-flex; align-items: center; flex-shrink: 0; gap: 4px; margin-left: auto; color: #8395ad; font-size: 10px; font-variant-numeric: tabular-nums; }
+.sql-progress-detail { margin: 5px 0 0; color: #7086a3; font-size: 11px; line-height: 1.6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sql-assistant-progress > small { display: block; margin-top: 3px; color: #90a0b6; font-size: 10px; }
+.sql-assistant-progress .sql-task-status button { flex-shrink: 0; padding: 4px 7px; font-size: 10px; }
+.sql-progress-spinner { animation: sql-progress-spin 1.2s linear infinite; }
+@keyframes sql-progress-spin { to { transform: rotate(360deg); } }
+/* Studio keeps its viewport grid at narrow desktop widths; the legacy stacked
+   layout must not impose a 500px minimum editor height or an assistant row span. */
+.sql-ide .sql-editor-pane { min-height: 0; }
+.sql-ide-shell > .sql-ide-assistant { grid-column: 5; grid-row: 1; min-height: 0; overflow: hidden; }
+@media (prefers-reduced-motion: reduce) { .sql-progress-spinner { animation: none; } }

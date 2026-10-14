@@ -21,12 +21,17 @@ try {
   page.on('pageerror', error => { errors.push(error.message); console.error(error.stack); });
   page.on('dialog', dialog => dialog.accept());
   const user = { id: 'sql-browser-user', username: 'admin', tenantId: 'sql-browser-tenant', permissionCodes: [] };
-  await page.addInitScript(value => localStorage.setItem('chatchat.auth.session', JSON.stringify({ token: 'fixture-token', user: value })), user);
+  await page.addInitScript(value => {
+    Object.defineProperty(globalThis.crypto, 'randomUUID', { configurable:true, value:undefined });
+    localStorage.setItem('chatchat.auth.session', JSON.stringify({ token: 'fixture-token', user: value }));
+    const key = `sql-studio-ide-layout:${value.tenantId}:${value.id}:data-science`;
+    if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({version:1,value:{explorerWidth:260,assistantWidth:380,bottom:false}}));
+  }, user);
   let projects = [{ id: 'project', name: 'Spark customer ETL', dialect: 'spark', sessionId: 'session', tenantId: user.tenantId, ownerId: user.id }];
   const filesByProject = { project: [{ id: 'a', projectId: 'project', path: 'sql/a.sql', kind: 'SQL', content: 'SELECT 1;', version: 1, editable: true }] };
   const foldersByProject = {project:['sql']};
   const library = [{ docId: 'mapping-1', fileName: 'customer.csv', title: 'Customer Mapping', version: 1, latestVersion: true }];
-  let taskStatus = 'RUNNING', submissionCount = 0;
+  let taskStatus = 'WAIT_MODEL', submissionCount = 0, failNextPoll = false;
   const generation = { id: 'generation-1', taskId: 'task-1', applied: false };
   await page.route('**/api/v1/**', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname, method = request.method();
@@ -66,21 +71,27 @@ try {
       filesByProject[id] = files.filter(item => item.id !== fileId); data = true;
     }
     else if (path.endsWith('/project/generations') && method === 'POST') {
+      await new Promise(resolve => setTimeout(resolve, 450));
       const body = request.postDataJSON();
       assert.deepEqual(body.mappingIds, []);
       assert.deepEqual(body.mappingDocumentIds, ['mapping-1']);
       assert.ok(body.prompt.includes('sql/new.sql'));
       data = { generationId: generation.id, taskRequest: { query: body.prompt, sessionId: 'session' } };
     }
-    else if (path === '/api/v1/agent/tasks' && method === 'POST') { submissionCount++; data = { taskId: 'task-1', status: taskStatus }; }
+    else if (path === '/api/v1/agent/tasks' && method === 'POST') { await new Promise(resolve => setTimeout(resolve, 350)); submissionCount++; data = { taskId: 'task-1', status: taskStatus }; }
     else if (path.endsWith('/task-1/cancel')) { taskStatus = 'CANCELLED'; data = true; }
     else if (path.endsWith('/generations/generation-1/task')) data = generation;
-    else if (path.endsWith('/generations/generation-1')) data = { generation, task: { taskId: 'task-1', status: taskStatus }, events: [], files: [], rawAnswer: '', outputError: '' };
+    else if (path.endsWith('/generations/generation-1')) {
+      if (failNextPoll) { failNextPoll = false; await route.fulfill({ status: 503, json: {code:503,message:'Temporary interruption'} }); return; }
+      data = { generation, task: { taskId: 'task-1', status: taskStatus, createTime: new Date(Date.now() - 3000).toISOString() },
+        events: [{ eventId: 'model-event', sequence: 1, type: 'RUNTIME_OBSERVATION', payload: JSON.stringify({payload:{metadata:{eventKind:'MODEL_INFERENCE',eventState:'STARTED'}}}) }], files: [], rawAnswer: '', outputError: '' };
+    }
     else if (path.endsWith('/project/generations') || path.endsWith('/new-project/generations')) data = [];
     await route.fulfill({ json: { code: 200, message: 'Success', data } });
   });
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/#/w/data-science/sqlStudio`, { waitUntil: 'domcontentloaded' });
   await page.locator('.sql-ide-shell').waitFor({ timeout: 90000 });
+  assert.equal(await page.locator('.sql-ide-shell').evaluate(el => el.style.getPropertyValue('--sql-assistant-width')), '380px', 'Saved panel widths are present on initial render');
   assert.equal(await page.locator('.sql-ide-titlebar .sql-activity-bar').count(), 1, 'panel buttons belong in top bar');
   await page.setViewportSize({ width: 1024, height: 900 });
   const saveBounds = await page.getByRole('button', { name: '保存文件', exact: true }).boundingBox();
@@ -103,9 +114,9 @@ try {
   await page.locator('.sql-current-context').filter({ hasText: 'new.sql' }).waitFor();
   await page.getByRole('button', { name: '解释这段 SQL 的作用', exact: true }).click();
   assert.equal(await page.getByLabel('发送给 AI 工程助手').inputValue(), '@sql/new.sql 解释这段 SQL 的作用');
-  await page.getByRole('button', { name: '智能生成', exact: true }).click();
+  assert.equal(await page.getByRole('button', { name: '智能生成', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: '对话', exact: true }).count(), 0);
   await page.getByRole('button', { name: '基于 Mapping 生成目标表建表与 ETL SQL', exact: true }).waitFor();
-  await page.getByRole('button', { name: '对话', exact: true }).click();
   await page.getByLabel('发送给 AI 工程助手').press('Enter');
   assert.equal(submissionCount, 0, 'Enter must insert a newline without submitting a task');
   assert.equal(await page.locator('.sql-chat-composer .sql-primary').isDisabled(), false, 'Mapping is optional');
@@ -125,11 +136,33 @@ try {
   await page.getByRole('button', { name: 'Agent', exact: true }).click();
   assert.equal(await page.locator('.sql-chat-settings .sql-agent-choice').filter({ hasText: 'Agent / Skills' }).count(), 1);
   await page.getByLabel('发送给 AI 工程助手').press('Control+Enter');
-  await page.locator('.sql-task-status').filter({ hasText: 'RUNNING' }).waitFor();
+  await page.locator('.sql-assistant-progress').filter({ hasText: '正在准备工程上下文' }).waitFor();
+  await page.locator('.sql-task-status').filter({ hasText: '模型分析中' }).waitFor();
+  assert.equal(await page.getByRole('button', { name: '查看任务与输出', exact: true }).count(), 0);
+  const progressBounds = await page.locator('.sql-assistant-progress').boundingBox();
+  const panelBounds = await page.locator('.sql-assistant-panel').boundingBox();
+  assert.ok(progressBounds.y >= panelBounds.y && progressBounds.y + progressBounds.height < panelBounds.y + panelBounds.height, 'Progress stays inside the visible assistant');
+  failNextPoll = true;
+  await page.getByText('进度更新暂时中断，正在重试；任务可能仍在运行。').waitFor();
+  await page.getByText('进度更新暂时中断，正在重试；任务可能仍在运行。').waitFor({ state: 'detached' });
+  taskStatus = 'WAIT_TOOL';
+  await page.locator('.sql-task-status').filter({ hasText: '正在执行工具' }).waitFor();
+  const stable = await page.evaluate(async () => {
+    const values = [];
+    for (let i = 0; i < 90; i++) { await new Promise(requestAnimationFrame);
+      values.push([...document.querySelectorAll('.sql-studio,.sql-ide-shell,.sql-editor-pane,.sql-monaco-host')].map(el => {
+        const r = el.getBoundingClientRect(); return [r.x, r.y, r.width, r.height];
+      }));
+    }
+    return new Set(values.map(JSON.stringify)).size;
+  });
+  assert.equal(stable, 1, 'Studio and Monaco keep identical bounds across polling and elapsed-time updates');
+  await mkdir('../../target/sql-studio-ide-audit', { recursive: true });
+  await page.screenshot({ path: '../../target/sql-studio-ide-audit/sql-assistant-running.png', fullPage: true });
   assert.equal(submissionCount, 1);
   assert.equal(await page.locator('.sql-chat-composer .sql-primary').isDisabled(), true, 'Running Runtime task blocks duplicate submission');
   await page.getByRole('button', { name: '取消', exact: true }).click();
-  await page.locator('.sql-task-status').filter({ hasText: 'CANCELLED' }).waitFor();
+  await page.locator('.sql-task-status').filter({ hasText: '任务已取消' }).waitFor();
   await page.getByLabel('发送给 AI 工程助手').fill('继续修改');
   assert.equal(await page.locator('.sql-chat-composer .sql-primary').isDisabled(), false, 'Runtime terminal state unlocks submission');
   await page.locator('.sql-tree-file button[title="sql/new.sql"]').click({ button: 'right' });

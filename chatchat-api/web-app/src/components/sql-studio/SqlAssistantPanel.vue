@@ -1,19 +1,27 @@
 <template>
   <aside class="sql-assistant-panel sql-ide-assistant">
     <header><strong><Sparkles :size="22" />AI 工程助手</strong><span>基于当前工程，协助你完成 SQL 开发</span></header>
-    <nav class="sql-assistant-tabs" aria-label="AI 助手工作模式"><button type="button" :class="{active: assistantTab === 'conversation'}" :aria-pressed="assistantTab === 'conversation'" @click="assistantTab = 'conversation'">对话</button><button type="button" :class="{active: assistantTab === 'generation'}" :aria-pressed="assistantTab === 'generation'" @click="assistantTab = 'generation'">智能生成</button></nav>
-    <div ref="scroll" class="sql-assistant-scroll" role="log" aria-label="工程协作对话">
+    <section class="sql-assistant-progress" :class="{ 'is-running': progress.running }" aria-label="AI 分析进度">
+      <div class="sql-task-status"><div role="status" aria-live="polite"><LoaderCircle v-if="progress.running" :size="16" class="sql-progress-spinner" /><CircleCheck v-else-if="progress.status === 'SUCCESS'" :size="16" /><Sparkles v-else-if="progress.status === 'IDLE'" :size="16" /><CircleHelp v-else :size="16" /><b>{{ progress.title }}</b></div>
+        <span v-if="progress.running || progress.terminal" class="sql-progress-time" aria-label="任务耗时"><Clock3 :size="12" />{{ progress.elapsedLabel }}</span>
+        <button v-if="result && !result.task && !pendingPhase" :disabled="busy" @click="$emit('resume')">继续提交</button>
+        <button v-else-if="result?.task && !terminal && !pendingPhase" :disabled="busy" @click="$emit('cancel')">取消</button>
+      </div>
+      <p class="sql-progress-detail" :title="progress.detail" role="status">{{ progress.detail }}</p>
+      <small v-if="pollError" role="alert">进度更新暂时中断，正在重试；任务可能仍在运行。</small>
+      <small v-else-if="progress.steps.length">已记录 {{ progress.steps.length }} 条执行进展</small>
+    </section>
+    <div ref="scroll" class="sql-assistant-scroll" role="log" aria-label="工程协作对话" @scroll="trackScroll">
       <section class="sql-current-context"><strong>基于当前文件</strong><div v-if="currentFile"><FileCode2 :size="18" /><span :title="currentFile.path">{{ currentFile.path.split('/').at(-1) }}</span><small>{{ currentFile.kind === 'MAPPING' ? 'Mapping' : dialectLabel }}</small></div><p v-else>打开工程文件，将其作为协作上下文。</p></section>
-      <section v-if="!messages.length" class="sql-assistant-suggestions"><h3>{{ assistantTab === 'generation' ? '从工程上下文开始生成' : '你可以这样问我' }}</h3><button v-for="text in quickActions" :key="text" type="button" :disabled="busy || taskRunning" @click="useQuickAction(text)"><TrendingUp :size="15" /><span>{{ text }}</span></button></section>
+      <section v-if="!messages.length" class="sql-assistant-suggestions"><h3>从一个开发需求开始</h3><button v-for="text in quickActions" :key="text" type="button" :disabled="busy || taskRunning" @click="useQuickAction(text)"><TrendingUp :size="15" /><span>{{ text }}</span></button></section>
       <section v-if="!messages.length && resources.length" class="sql-related-resources"><header><h3>相关资源</h3><button type="button" @click="allResources = !allResources">{{ allResources ? '收起' : '查看全部' }}</button></header><button v-for="file in shownResources" :key="file.id" type="button" @click="$emit('open-resource', file)"><FileCode2 :size="16" /><span :title="file.path">{{ file.path.split('/').at(-1) }}</span><small>{{ file.kind === 'MAPPING' ? 'Mapping' : file.kind === 'REFERENCE' ? '案例' : 'SQL' }}</small></button></section>
       <article v-for="turn in messages" :key="turn.id" class="sql-chat-turn" :class="turn.role"><b>{{ turn.role === 'user' ? '我' : 'AI 工程助手' }}</b><p>{{ turn.text }}</p></article>
       <section v-if="result" class="sql-chat-result">
-        <div class="sql-task-status"><b>{{ result.task?.status || '待提交' }}</b><button v-if="!result.task" :disabled="busy" @click="$emit('resume')">继续提交</button><button v-else-if="!terminal" :disabled="busy" @click="$emit('cancel')">取消</button></div>
         <AppNotice v-if="result.task?.errorMessage || result.outputError" kind="error">{{ result.task?.errorMessage || result.outputError }}</AppNotice>
         <div v-for="file in result.files" :key="file.path" class="sql-proposed-file"><button @click="$emit('preview', file)">↗ {{ file.path }}</button><small>{{ file.content.length }} 字符</small></div>
         <button v-if="result.files.length && !result.generation.applied" class="sql-primary sql-apply" :disabled="busy" @click="$emit('apply')">确认并保存 {{ result.files.length }} 个文件</button>
         <AppNotice v-if="result.files.length">生成结果尚未执行 SQL 或数据库校验。</AppNotice>
-        <details v-if="result.events.length" class="sql-task-events"><summary>Agent 执行轨迹 · {{ result.events.length }} 条</summary><ol><li v-for="event in result.events.slice(-30)" :key="event.eventId || event.sequence"><b>{{ event.type }}</b><span>{{ event.toolName || event.status }}</span><small>#{{ event.sequence }}</small></li></ol></details>
+        <details v-if="progress.steps.length" class="sql-task-events"><summary>执行进展 · {{ progress.steps.length }} 条</summary><ol><li v-for="step in progress.steps.slice(-30)" :key="step.id"><b>{{ step.title }}</b><span>{{ step.toolName }}</span></li></ol></details>
         <details v-if="result.rawAnswer" class="sql-raw-answer"><summary>模型原始结果</summary><pre>{{ result.rawAnswer }}</pre></details>
       </section>
     </div>

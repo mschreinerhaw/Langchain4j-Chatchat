@@ -11,7 +11,8 @@ import { fetchPythonCodeModels, fetchAgentOptions, cancelAgentTask } from '../..
 import { saveWorkspaceDraft, readWorkspaceDraft } from '../utils/workspaceDrafts';
 import { dirtySqlFile, mergeSqlFiles, restoreSqlDrafts, assertSqlApplySafe, mergeAppliedSqlFile, terminalSqlTask } from '../utils/sqlStudioState';
 import { mappingSchemaColumns } from '../editor/codeIntelligence';
-import { clampSqlPanel, sqlAssistantAnswer, sqlConversationPrompt } from '../utils/sqlIdeState';
+import { clampSqlPanel, restoreSqlLayout, sqlAssistantAnswer, sqlConversationPrompt } from '../utils/sqlIdeState';
+import { sqlTaskPresentation } from '../utils/sqlTaskPresentation';
 export default {
   components: { AppNotice, AppConfirmDialog, SqlProjectTree, SqlEditorPane, SqlAssistantPanel, SqlBottomPanel, FolderTree, PanelBottom, Sparkles, Plus, Save, WandSparkles, FileCode2, CircleCheck },
   props: { workspaceContext: Object, tenantId: String, userId: String },
@@ -32,16 +33,18 @@ const mappingDocuments = ref([]);
 const mappingDocumentIds = computed(() => mappingDocuments.value.map(item => item.docId));
 const mappingIds = ref([]), referenceIds = ref([]), openIds = ref([]), activeId = ref(''), preview = ref(null);
 const generations = ref([]), generationId = ref(''), result = ref(null);
+const pendingPhase = ref(''), pendingStartedAt = ref(0), pollError = ref('');
 const busy = ref(false), error = ref(''), message = ref(''), newProjectOpen = ref(false), projectName = ref('');
 const versions = ref([]), versionFile = ref(null);
 const editorPane = ref(null), newFileOpen = ref(false), newFilePath = ref('sql/query.sql');
 const activeFile = computed(() => files.value.find(file => file.id === activeId.value));
 const taskRunning = computed(() => Boolean(result.value?.task && !terminalSqlTask(result.value.task.status)));
+const taskStatusLabel = computed(() => sqlTaskPresentation(result.value, pendingPhase.value).title);
 const dirtyCount = computed(() => files.value.filter(dirtySqlFile).length);
 const schemaColumns = computed(() => mappingSchemaColumns(files.value, mappingIds.value));
 const selectedMappings = computed(() => files.value.filter(file => mappingIds.value.includes(file.id)));
 const chatTurns = ref([]), selectedCode = ref(null), problemCount = ref(0), cursor = ref(null);
-const layout = ref({ explorer: true, assistant: true, bottom: false, bottomTab: 'problems', explorerWidth: 252, assistantWidth: 336, bottomHeight: 180 });
+const layout = ref(restoreSqlLayout(readWorkspaceDraft('sql-studio-ide-layout', props.workspaceContext)));
 const ideStyle = computed(() => ({ '--sql-explorer-width': layout.value.explorer ? `${layout.value.explorerWidth}px` : '0px', '--sql-assistant-width': layout.value.assistant ? `${layout.value.assistantWidth}px` : '0px', '--sql-explorer-grip': layout.value.explorer ? '5px' : '0px', '--sql-assistant-grip': layout.value.assistant ? '5px' : '0px' }));
 let active = true, pollTimer, draftTimer, loadSerial = 0, initialized = false, resizeCleanup;
 const namespace = id => `sql-studio-project-${id}`;
@@ -122,6 +125,7 @@ async function selectProject(id) {
     if (!stored) { const first = files.value.find(file => file.kind === 'SQL') || files.value[0]; if (first) openFile(first.id); }
     prompt.value = stored?.prompt || ''; chatTurns.value = Array.isArray(stored?.chatTurns) ? stored.chatTurns.slice(-30) : [];
     selectedCode.value = null; preview.value = null; generations.value = history; generationId.value = history[0]?.id || ''; result.value = null;
+    pendingPhase.value = ''; pendingStartedAt.value = 0; pollError.value = '';
     await refreshGeneration();
   } catch (ex) { error.value = ex.message; } finally { if (serial === loadSerial) busy.value = false; }
 }
@@ -189,16 +193,40 @@ async function generate() { await action(async () => {
   const id = projectId.value, text = prompt.value.trim();
   if (!text) return;
   const request = sqlConversationPrompt(text, chatTurns.value, selectedCode.value);
-  const prepared = await sql.prepareSqlGeneration(id, { prompt:request, dialect:dialect.value, mappingDocumentIds:mappingDocumentIds.value, mappingIds:mappingIds.value, referenceIds:referenceIds.value, agentId:executionMode.value === 'agent' ? agentId.value || null : null, modelName:executionMode.value === 'model' ? modelName.value || null : null });
-  chatTurns.value.push({ id:`user:${prepared.generationId}`, role:'user', text, generationId:prepared.generationId });
-  chatTurns.value.push({ id:`assistant:${prepared.generationId}`, role:'assistant', text:'正在由 Agent 分析工程上下文…', generationId:prepared.generationId });
-  prompt.value = ''; selectedCode.value = null;
-  // Persist the context before submission, so a network interruption can be retried idempotently.
-  generations.value.unshift({ id:prepared.generationId, taskId:null, applied:false, prepared }); generationId.value = prepared.generationId;
-  try { await sql.submitSqlGeneration(id, prepared); } finally { await refreshGeneration(); }
+  const localId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const userTurn = { id:`user:${localId}`, role:'user', text };
+  const assistantTurn = { id:`assistant:${localId}`, role:'assistant', text:'正在准备工程上下文…' };
+  chatTurns.value.push(userTurn, assistantTurn);
+  pendingPhase.value = 'PREPARING'; pendingStartedAt.value = Date.now(); pollError.value = ''; result.value = null;
+  try {
+    const prepared = await sql.prepareSqlGeneration(id, { prompt:request, dialect:dialect.value, mappingDocumentIds:mappingDocumentIds.value, mappingIds:mappingIds.value, referenceIds:referenceIds.value, agentId:executionMode.value === 'agent' ? agentId.value || null : null, modelName:executionMode.value === 'model' ? modelName.value || null : null });
+    if (id !== projectId.value || !active) return;
+    for (const turn of chatTurns.value.filter(turn => turn.id.endsWith(localId))) {
+      turn.id = `${turn.role}:${prepared.generationId}`; turn.generationId = prepared.generationId;
+    }
+    prompt.value = ''; selectedCode.value = null;
+    const generation = { id:prepared.generationId, taskId:null, applied:false, prepared };
+    generations.value.unshift(generation); generationId.value = prepared.generationId;
+    result.value = { generation, task:null, files:[], events:[], rawAnswer:'', outputError:'' };
+    pendingPhase.value = 'SUBMITTING';
+    // Save the prepared request before submission so an interrupted request can be resumed idempotently.
+    try {
+      const task = await sql.submitSqlGeneration(id, prepared);
+      if (id === projectId.value && generationId.value === prepared.generationId) result.value.task = task;
+    } finally { await refreshGeneration(); }
+  } catch (ex) {
+    const turn = chatTurns.value.find(turn => turn.id === `assistant:${localId}`);
+    if (turn) turn.text = `请求未提交：${ex.message || '请稍后重试'}`;
+    throw ex;
+  } finally { if (id === projectId.value) pendingPhase.value = ''; }
 }); }
-async function resume() { await action(async () => { const prepared = result.value?.generation.prepared; if (!prepared) return; await sql.submitSqlGeneration(projectId.value, prepared); await refreshGeneration(); }); }
-async function selectGeneration(id) { generationId.value = id; preview.value = null; await refreshGeneration(); }
+async function resume() { await action(async () => {
+  const prepared = result.value?.generation.prepared; if (!prepared) return;
+  pendingPhase.value = 'SUBMITTING'; pendingStartedAt.value = Date.now();
+  try { const task = await sql.submitSqlGeneration(projectId.value, prepared); result.value.task = task; }
+  finally { await refreshGeneration(); pendingPhase.value = ''; }
+}); }
+async function selectGeneration(id) { generationId.value = id; pendingStartedAt.value = 0; preview.value = null; await refreshGeneration(); }
 async function refreshGeneration() {
   clearTimeout(pollTimer);
   const id = projectId.value, generation = generationId.value;
@@ -207,11 +235,17 @@ async function refreshGeneration() {
     const loaded = await sql.sqlGeneration(id, generation);
     if (id !== projectId.value || generation !== generationId.value || !active) return;
     result.value = loaded;
+    pollError.value = '';
     const turn = chatTurns.value.find(item => item.id === `assistant:${generation}`);
     if (turn) turn.text = sqlAssistantAnswer(loaded);
     if ((loaded.files?.length || loaded.outputError) && !layout.value.bottom) layout.value.bottomTab = loaded.outputError ? 'problems' : 'output';
     if (loaded.task && !terminalSqlTask(loaded.task.status)) pollTimer = setTimeout(refreshGeneration, 1500);
-  } catch (ex) { if (active && id === projectId.value && generation === generationId.value) error.value = ex.message; }
+  } catch (ex) {
+    if (active && id === projectId.value && generation === generationId.value) {
+      pollError.value = ex.message || '进度更新失败';
+      pollTimer = setTimeout(refreshGeneration, 3000);
+    }
+  }
 }
 async function apply() { await action(async () => {
   const candidates = result.value.files; assertSqlApplySafe(candidates, files.value);
@@ -233,13 +267,6 @@ async function renameFile({ file, path }) { await action(async () => {
 }); }
 onMounted(async () => {
   window.addEventListener('beforeunload', beforeUnload);
-  const savedLayout = readWorkspaceDraft('sql-studio-ide-layout', props.workspaceContext);
-  if (savedLayout && typeof savedLayout === 'object') {
-    Object.assign(layout.value, savedLayout);
-    layout.value.explorerWidth = clampSqlPanel(Number(layout.value.explorerWidth) || 252, 180, 520);
-    layout.value.assistantWidth = clampSqlPanel(Number(layout.value.assistantWidth) || 336, 180, 520);
-    layout.value.bottomHeight = clampSqlPanel(Number(layout.value.bottomHeight) || 180, 100, 420);
-  }
   await action(async () => {
     const loaded = await Promise.allSettled([sql.sqlProjects(), fetchPythonCodeModels(), fetchAgentOptions()]);
     if (loaded[0].status !== 'fulfilled') throw loaded[0].reason;
@@ -253,7 +280,7 @@ onMounted(async () => {
 onActivated(() => { active = true; if (initialized) refreshGeneration(); });
 onDeactivated(() => { active = false; clearTimeout(pollTimer); persist(); });
 onBeforeUnmount(() => { resolveConfirm(false); active = false; resizeCleanup?.(); clearTimeout(pollTimer); clearTimeout(draftTimer); persist(); window.removeEventListener('beforeunload', beforeUnload); });
-  return { confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
+  return { taskStatusLabel, pendingPhase, pendingStartedAt, pollError, confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
 
   }
 };

@@ -31,6 +31,10 @@ import { getLanguageAdapter, editorPreferences, editorLanguageOptions, applyForm
 import { buildPythonLineDiff } from "../utils/pythonCodeDiff";
 import PythonCodeDiff from "../../components/PythonCodeDiff.vue";
 import EditorPreferences from "../../components/editor/EditorPreferences.vue";
+import { Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X, Play, Save, Settings2, PanelLeft,
+  PanelRight, PanelBottom, Maximize2, Minimize2, Sparkles, Send, RefreshCw, ListTree, Box, Terminal,
+  CircleCheck, CircleAlert, LoaderCircle, Trash2, Code2, BookOpen, FlaskConical, WandSparkles } from '@lucide/vue';
+import { pythonOutline, searchPythonWorkspace, pythonSuggestionIsCurrent } from '../utils/pythonStudio';
 
 globalThis.MonacoEnvironment = { getWorker: () => new EditorWorker() };
 
@@ -73,7 +77,9 @@ const workspaceLayoutStorageKey = "chatchat.python-studio.layout.v1";
 
 export default {
   name: "DataScienceView",
-  components: { PythonCodeDiff, EditorPreferences },
+  components: { PythonCodeDiff, EditorPreferences, Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X,
+    Play, Save, Settings2, PanelLeft, PanelRight, PanelBottom, Maximize2, Minimize2, Sparkles, Send,
+    RefreshCw, ListTree, Box, Terminal, CircleCheck, CircleAlert, LoaderCircle, Trash2, Code2, BookOpen, FlaskConical, WandSparkles },
   props: {
     workspaceContext: { type: Object, default: null },
     initialTab: {
@@ -127,7 +133,19 @@ export default {
     parametersText: "{}",
     inputSchemaText: defaultInputSchema,
     bottomTab: "console",
-    bottomOpen: false,
+    bottomOpen: true,
+    outlineOpen: true,
+    studioSearchOpen: false,
+    studioSearchQuery: '',
+    studioSearchMode: 'all',
+    studioSearchIndex: 0,
+    studioSettingsOpen: false,
+    editorFontSize: 14,
+    editorMinimap: true,
+    pythonProblems: [],
+    lintState: 'idle',
+    aiMessages: [],
+    aiSourceContext: null,
     editorTabs: [],
     activeEditorTabKey: "",
     draftSequence: 0,
@@ -155,7 +173,7 @@ export default {
     savedFileName: "analysis.py",
     savedFolderId: "",
     cursorPosition: { lineNumber: 1, column: 1 },
-    aiOpen: false,
+    aiOpen: true,
     aiPrompt: "",
     aiAction: "generate",
     aiBusy: false,
@@ -205,6 +223,24 @@ export default {
     }
   }),
   computed: {
+    scriptOutline() { return pythonOutline(this.form.sourceCode); },
+    activePythonAsset() { return this.assets.find(asset => asset.id === this.form.assetId); },
+    pythonVersionLabel() { return this.activePythonAsset?.pythonVersion || '版本未报告'; },
+    aiIsTextAnswer() { return ['explain','ask'].includes(this.aiSuggestion?.action); },
+    aiSuggestionStale() { return Boolean(this.aiSuggestion && !this.aiIsTextAnswer && !pythonSuggestionIsCurrent(this.aiSourceContext, this.activeEditorTabKey, this.form.sourceCode) && this.aiStage !== 'applied'); },
+    studioCommands() { return [
+      {id:'save',label:'保存当前文件',shortcut:'Ctrl S',keywords:'save'},
+      {id:'run',label:'运行当前脚本',shortcut:'Ctrl Enter',keywords:'run'},
+      {id:'newScript',label:'新建 Python 文件',keywords:'new'},
+      {id:'formatDocument',label:'格式化当前文件',shortcut:'Shift Alt F',keywords:'format'},
+      {id:'toggleAi',label:'切换 AI 助手',keywords:'assistant'},
+      {id:'toggleExplorer',label:'切换资源管理器',keywords:'explorer'},
+      {id:'toggleBottom',label:'切换运行面板',keywords:'output'}
+    ]; },
+    studioSearchResults() {
+      const scripts = this.scripts.map(script => script.id === this.form.id ? {...script,sourceCode:this.form.sourceCode} : script);
+      return searchPythonWorkspace(scripts,this.studioSearchQuery,this.studioCommands,this.studioSearchMode);
+    },
     currentSectionLabel() {
       return {
         environment: "Python 环境",
@@ -348,6 +384,7 @@ export default {
       return start === end ? `选中代码 · 第 ${start} 行` : `选中代码 · 第 ${start}-${end} 行`;
     },
     aiApplyLabel() {
+      if (this.aiSuggestion?.action === 'test') return '新建测试文件';
       if (this.aiSuggestion?.replaceSelection && this.aiSelection) return "替换选中代码";
       if (this.aiSuggestion?.action === "continue") return "插入到光标";
       return "替换当前脚本";
@@ -438,6 +475,7 @@ export default {
     this.restoreWorkspaceLayout();
     this.load();
     window.addEventListener("beforeunload", this.persistWorkspaceDraft);
+    window.addEventListener('keydown', this.studioHandleKeydown);
   },
   deactivated() { this.persistWorkspaceDraft(); },
   activated() {
@@ -451,6 +489,7 @@ export default {
     this.persistWorkspaceDraft();
     clearTimeout(this.draftSaveTimer);
     window.removeEventListener("beforeunload", this.persistWorkspaceDraft);
+    window.removeEventListener('keydown', this.studioHandleKeydown);
     this.stopAiProgress();
     this.stopPaneResize();
     this.clearErrorTimer();
@@ -459,6 +498,32 @@ export default {
     this.finishIdeDialog(false);
   },
   methods: {
+    openStudioSearch(mode = 'all') {
+      this.studioSearchMode = mode; this.studioSearchQuery = mode === 'commands' ? '> ' : '';
+      this.studioSearchIndex = 0; this.studioSearchOpen = true;
+      nextTick(() => this.$refs.studioSearch?.focus());
+    },
+    studioHandleKeydown(event) {
+      if (this.tab !== 'develop' || this.ideDialog.open || this.publishOpen || this.assetOpen) return;
+      if (event.key === 'Escape') { this.studioSearchOpen = false; this.studioSettingsOpen = false; return; }
+      if ((event.ctrlKey || event.metaKey) && ['p','k'].includes(event.key.toLowerCase())) {
+        event.preventDefault(); this.openStudioSearch(event.shiftKey ? 'commands' : event.key.toLowerCase() === 'p' ? 'files' : 'all');
+      }
+    },
+    async chooseStudioResult(item) {
+      if (!item || this.busy) return;
+      this.studioSearchOpen = false;
+      if (item.kind === 'command') { await this[item.id]?.(); return; }
+      this.selectScript(item.script);
+      nextTick(() => this.jumpToPythonLine(item.line));
+    },
+    moveStudioSearch(delta) { this.studioSearchIndex = Math.min(Math.max(0,this.studioSearchIndex + delta),this.studioSearchResults.length - 1); },
+    jumpToPythonLine(line) {
+      const row = Math.max(1,Number(line) || 1);
+      this.editor?.setPosition({lineNumber:row,column:1}); this.editor?.revealLineInCenter(row); this.editor?.focus();
+    },
+    updateStudioEditor() { this.editor?.updateOptions({fontSize:this.editorFontSize,minimap:{enabled:this.editorMinimap}}); },
+    chooseAiMode(action) { if (!this.aiBusy) this.aiAction = action; },
     scheduleWorkspaceDraft() {
       clearTimeout(this.draftSaveTimer);
       this.draftSaveTimer = setTimeout(() => this.persistWorkspaceDraft(), 300);
@@ -689,8 +754,7 @@ export default {
       this.editor.addAction({ id: 'code-intelligence.format-python', label: 'Format Python', keybindings: [monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF], run: () => this.formatDocument() });
       this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => this.run());
       this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, () => {
-        this.aiOpen = true;
-        nextTick(() => this.$refs.aiPrompt?.focus());
+        this.openStudioSearch();
       });
       this.scheduleRuffDiagnostics();
     },
@@ -700,16 +764,18 @@ export default {
       const assetId = this.form.assetId;
       const version = model?.getVersionId();
       const serial = this._ruffSerial = (this._ruffSerial || 0) + 1;
+      this.pythonProblems = []; this.lintState = 'checking';
       if (!model || !assetId || model.getValue().length > 200_000) {
         if (model) monaco.editor.setModelMarkers(model, 'ruff', []);
-        return;
+        this.lintState = 'unavailable'; return;
       }
       this._ruffTimer = setTimeout(async () => {
         try {
           const result = await runPythonCodeTool('ruff-check', assetId, model.getValue());
           if (serial !== this._ruffSerial || model !== this.editor?.getModel() || version !== model.getVersionId()) return;
-          if (![0, 1].includes(result.exitCode)) return;
+          if (![0, 1].includes(result.exitCode)) { this.lintState = 'unavailable'; return; }
           const problems = JSON.parse(result.stdout || '[]');
+          this.pythonProblems = problems; this.lintState = 'ready';
           monaco.editor.setModelMarkers(model, 'ruff', problems.map(problem => ({
             startLineNumber: problem.location.row,
             startColumn: problem.location.column,
@@ -718,7 +784,7 @@ export default {
             message: `${problem.code}: ${problem.message}`,
             severity: monaco.MarkerSeverity.Warning
           })));
-        } catch { /* Editing remains available when the runtime tool is offline. */ }
+        } catch { if (serial === this._ruffSerial) this.lintState = 'unavailable'; }
       }, 650);
     },
     applyEditorPreferences(preferences) {
@@ -1235,6 +1301,7 @@ export default {
       this.aiSkillDraftIds = [];
     },
     async askAi() {
+      if (this.aiBusy) return;
       if (!this.aiPrompt.trim()) {
         this.showTransientError("请先输入代码生成提示词");
         return;
@@ -1258,23 +1325,31 @@ export default {
       this.aiStage = "generating";
       this.error = "";
       const startedAt = Date.now();
+      const sourceContext = {key:this.activeEditorTabKey,source:this.form.sourceCode,fileName:this.form.fileName};
+      this.aiSourceContext = sourceContext;
+      const userText = this.aiPrompt;
+      const history = this.aiMessages.slice(-4).map(item => `${item.role}: ${item.text.slice(0,500)}`).join('\n');
+      const requestPrompt = [history && `之前的工程协作：\n${history}`, userText].filter(Boolean).join('\n\n').slice(-4000);
+      this.aiMessages.push({role:'user',text:userText});
       this.startAiProgress();
       try {
         const suggestion = await requestPythonCodeAssist({
           action: this.aiAction,
-          prompt: this.aiPrompt,
-          sourceCode: this.form.sourceCode,
+          prompt: requestPrompt,
+          sourceCode: sourceContext.source,
           selectedCode,
           modelName: this.aiModel,
           skillIds: this.aiSkillIds
         });
         const originalCode = hasSelection && suggestion.action !== "continue"
           ? selectedCode
-          : suggestion.action === "continue" ? "" : this.form.sourceCode;
+          : suggestion.action === "continue" ? "" : sourceContext.source;
         this.aiSuggestion = suggestion;
         this.aiDiff = buildPythonLineDiff(originalCode, suggestion.code);
         this.aiElapsedMs = Date.now() - startedAt;
         this.aiStage = "ready";
+        this.aiMessages.push({role:'assistant',text:['explain','ask'].includes(suggestion.action) ? suggestion.code : `为 ${sourceContext.fileName} 生成了代码建议。`});
+        this.aiMessages = this.aiMessages.slice(-16);
         this.aiProgressStep = 4;
       } catch (error) {
         this.aiStage = "failed";
@@ -1286,6 +1361,14 @@ export default {
     },
     applyAiSuggestion() {
       if (!this.aiSuggestion?.code || !this.editor) return;
+      if (this.aiIsTextAnswer || this.aiSuggestionStale) { this.showTransientError('当前文件或代码已变化，请基于最新内容重新生成建议。'); return; }
+      if (this.aiSuggestion.action === 'test') {
+        const code = this.aiSuggestion.code;
+        const name = this.form.fileName.replace(/\.py$/i,'');
+        this.newScript(); this.form.fileName = `test_${name}.py`; this.form.sourceCode = code;
+        this.aiAppliedInfo = {verb:'新建',mode:'测试文件',lines:code.split('\n').length}; this.aiStage = 'applied';
+        return;
+      }
       const model = this.editor.getModel();
       if (!model) return;
       const code = String(this.aiSuggestion.code).replace(/\r\n/g, "\n");
@@ -1351,10 +1434,12 @@ export default {
     },
     startAiProgress() {
       this.stopAiProgress();
-      this.aiProgressStep = 1;
+      this.aiProgressStep = 3;
+      const startedAt = Date.now();
+      this.aiElapsedMs = 0;
       this.aiProgressTimer = setInterval(() => {
-        if (this.aiProgressStep < 3) this.aiProgressStep += 1;
-      }, 900);
+        this.aiElapsedMs = Date.now() - startedAt;
+      }, 1000);
     },
     stopAiProgress() {
       if (this.aiProgressTimer) clearInterval(this.aiProgressTimer);
@@ -1415,6 +1500,8 @@ export default {
         this.explorerWidth = this.clamp(Number(stored.explorer), 180, 480, workspaceLayoutDefaults.explorer);
         this.aiWidth = this.clamp(Number(stored.ai), 260, 620, workspaceLayoutDefaults.ai);
         this.bottomHeight = this.clamp(Number(stored.bottom), 100, 520, workspaceLayoutDefaults.bottom);
+        this.explorerOpen = stored.explorerOpen !== false; this.aiOpen = stored.aiOpen !== false;
+        this.bottomOpen = stored.bottomOpen !== false;
       } catch {
         this.explorerWidth = workspaceLayoutDefaults.explorer;
         this.aiWidth = workspaceLayoutDefaults.ai;
@@ -1429,6 +1516,7 @@ export default {
           explorer: this.explorerWidth,
           ai: this.aiWidth,
           bottom: this.bottomHeight
+          , explorerOpen:this.explorerOpen, aiOpen:this.aiOpen, bottomOpen:this.bottomOpen
         }));
       } catch {
         // 浏览器禁用本地存储时仍保留当前会话中的拖拽结果。
@@ -1549,14 +1637,17 @@ export default {
     },
     toggleBottom() {
       this.bottomOpen = !this.bottomOpen;
+      this.persistWorkspaceLayout();
       nextTick(() => this.editor?.layout());
     },
     toggleExplorer() {
       this.explorerOpen = !this.explorerOpen;
+      this.persistWorkspaceLayout();
       nextTick(() => this.editor?.layout());
     },
     toggleAi() {
       this.aiOpen = !this.aiOpen;
+      this.persistWorkspaceLayout();
       nextTick(() => this.editor?.layout());
     },
     toggleFullscreen() {

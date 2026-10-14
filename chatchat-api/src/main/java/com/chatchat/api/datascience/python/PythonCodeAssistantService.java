@@ -53,6 +53,9 @@ public class PythonCodeAssistantService {
             tenantId, userId, prompt, request.skillIds());
         String skillContext = skillContext(appliedSkills);
         String instruction = switch (action) {
+            case "explain" -> "用中文解释选中代码或当前脚本，说明输入、输出、逻辑、边界和潜在问题。返回解释文本，不返回替换代码，不声称已运行或验证。";
+            case "ask" -> "用中文回答当前脚本和已选择领域 Skills 相关的问题。缺少上下文时明确说明，不声称读取过未提供的文档，不声称已运行代码。返回回答文本。";
+            case "test" -> "为选中代码或当前脚本生成独立的 unittest 测试文件。通过实际模块名导入被测代码；提供边界和异常测试，不复制被测实现，不执行测试，不声称测试已通过。";
             case "continue" ->
                     "在保持已有实现和代码风格的前提下续写代码。只返回适合插入光标位置的新代码，不要重复上下文。";
             case "fix" -> "定位并修复选中代码或完整脚本中的问题。返回修复后的选中代码；没有选区时返回完整脚本。";
@@ -63,8 +66,8 @@ public class PythonCodeAssistantService {
         String modelPrompt = """
                 你是企业数据科学平台中的 Python 编程助手。代码将在受限 Docker 容器中执行。
                 必须遵守：
-                1. 只输出 Python 源码，不要 Markdown 代码围栏，不要解释文字。
-                2. 输入参数来自环境变量 CHATCHAT_INPUT_JSON，必须解析为 JSON 对象；完整脚本必须包含可实际执行的入口调用，最终结果输出为 JSON。
+                1. 代码生成、续写、修复、优化和生成测试时只输出 Python 源码，不要 Markdown 围栏；解释或问答时仅输出中文说明，不输出用于替换的完整脚本。
+                2. 生成业务脚本时输入参数来自环境变量 CHATCHAT_INPUT_JSON，必须解析为 JSON 对象；完整业务脚本必须包含入口调用，最终结果输出为 JSON。生成测试时使用 unittest 标准库。
                 3. 不得建议安装依赖、调用 shell、访问宿主机或绕过容器限制。
                 4. 未明确要求联网时，不生成网络访问代码。
                 5. 优先使用当前脚本已有依赖和编码风格。
@@ -88,11 +91,12 @@ public class PythonCodeAssistantService {
                 """.formatted(skillContext, instruction, prompt, source, selection);
         ChatModel selectedModel = modelName.equalsIgnoreCase(text(modelResources.defaultChatModel()).trim())
                 ? chatModel : chatModelFactory.create(modelName);
-        String generated = stripCodeFence(selectedModel.chat(modelPrompt));
+        boolean textAnswer = "explain".equals(action) || "ask".equals(action);
+        String generated = textAnswer ? text(selectedModel.chat(modelPrompt)).trim() : stripCodeFence(selectedModel.chat(modelPrompt));
         if (generated.isBlank()) {
             throw new IllegalStateException("模型未生成可用的 Python 代码");
         }
-        boolean replaceSelection = !"continue".equals(action) && !selection.isBlank();
+        boolean replaceSelection = !textAnswer && !"test".equals(action) && !"continue".equals(action) && !selection.isBlank();
         return new AssistResponse(generated, action, replaceSelection, modelName,
             appliedSkills.stream().map(skill -> new AppliedSkill(skill.id(), skill.name(), skill.category())).toList());
     }
@@ -137,7 +141,7 @@ public class PythonCodeAssistantService {
     private String normalizeAction(String value) {
         String action = text(value).toLowerCase(Locale.ROOT);
         return switch (action) {
-            case "continue", "fix", "optimize" -> action;
+            case "continue", "fix", "optimize", "explain", "ask", "test" -> action;
             default -> "generate";
         };
     }

@@ -26,11 +26,12 @@ try {
     if (location.protocol === 'http:') localStorage.setItem('chatchat.auth.session', JSON.stringify({ token: 'fixture-token', user }));
   }, user);
   let preference = { defaultWorkspaceId: 'zhice', lastWorkspaceId: 'data-science' };
+  let extraWorkspaces = [];
   await page.route('**/api/v1/**', async route => {
     const path = new URL(route.request().url()).pathname;
     let data = [];
     if (path.endsWith('/auth/me')) data = user;
-    else if (path.endsWith('/workspaces')) data = Object.values(manifests).map(m => ({ ...m, defaultWorkspace: m.workspaceId === 'zhice' }));
+    else if (path.endsWith('/workspaces')) data = [...Object.values(manifests).map(m => ({ ...m, defaultWorkspace: m.workspaceId === 'zhice' })), ...extraWorkspaces];
     else if (path.endsWith('/workspaces/preferences')) {
       if (route.request().method() === 'PUT') preference = { ...preference, ...route.request().postDataJSON() };
       data = preference;
@@ -69,8 +70,38 @@ try {
   await zhice.getByText('默认登录空间', { exact: true }).waitFor();
   assert.equal(preference.defaultWorkspaceId, 'zhice');
   await page.screenshot({ path: '../../target/workspace-management-audit/workspaces.png', fullPage: true });
+  // A larger authorized catalog exercises real pagination without seeding production data.
+  extraWorkspaces = Array.from({ length: 13 }, (_, i) => ({ workspaceId: `future-${i}`, name: `业务空间 ${i + 1}`,
+    description: i % 2 ? 'SQL 分析、数据开发与应用工具' : '知识整理、智能协作与业务探索', layoutType: i % 2 ? 'studio' : 'assistant' }));
+  await page.getByRole('button', { name: '刷新', exact: true }).click();
+  await page.getByText('15 个可用空间', { exact: true }).waitFor();
+  assert.equal(await page.locator('.workspace-card').count(), 6);
+  const firstNames = await page.locator('.workspace-card h2').allTextContents();
+  await page.getByRole('button', { name: '下一页', exact: true }).click();
+  await page.getByText('第 2 / 3 页', { exact: true }).waitFor();
+  const secondNames = await page.locator('.workspace-card h2').allTextContents();
+  assert.ok(secondNames.every(name => !firstNames.includes(name)));
+  await page.getByRole('button', { name: '下一页', exact: true }).click();
+  assert.equal(await page.locator('.workspace-card').count(), 3);
+  assert.equal(await page.getByRole('button', { name: '下一页', exact: true }).isDisabled(), true);
+  await page.getByRole('searchbox', { name: '搜索工作空间' }).fill('sql');
+  await page.getByText('第 1 / 2 页', { exact: true }).waitFor();
+  assert.equal(await page.locator('.workspace-card').count(), 6);
+  await page.getByRole('button', { name: /^智能协作/ }).click();
+  await page.getByText('没有找到匹配的空间', { exact: true }).waitFor();
+  await page.getByRole('button', { name: '清除筛选', exact: true }).click();
+  await page.getByRole('button', { name: /^数据开发/ }).click();
+  assert.equal(await page.locator('.workspace-card').count(), 6);
+  await page.getByRole('combobox', { name: '每页显示空间数' }).selectOption('12');
+  assert.equal(await page.locator('.workspace-card').count(), 7);
+  await page.getByRole('button', { name: /^全部空间/ }).click();
+  await page.getByRole('combobox', { name: '每页显示空间数' }).selectOption('6');
+  await page.screenshot({ path: '../../target/workspace-management-audit/workspaces-directory.png', fullPage: true });
+  await page.setViewportSize({ width: 760, height: 1100 });
+  assert.ok(await page.locator('.workspace-selection').evaluate(el => el.scrollWidth <= el.clientWidth + 1), 'Workspace page has no horizontal overflow');
+  await page.screenshot({ path: '../../target/workspace-management-audit/workspaces-narrow.png', fullPage: true });
   assert.deepEqual(errors, []);
-  console.log('PASS: default login, platform menu, saved preference, new login and legacy link.');
+  console.log('PASS: login, saved default, search, category combinations, pagination, page size, empty state and narrow layout.');
 } finally {
   await browser?.close();
   await server.close();

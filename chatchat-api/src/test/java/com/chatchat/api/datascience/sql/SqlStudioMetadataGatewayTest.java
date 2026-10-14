@@ -44,6 +44,14 @@ class SqlStudioMetadataGatewayTest {
         assertThatThrownBy(() -> gateway.invoke(new MockHttpServletRequest(), null, Map.of())).isInstanceOf(ResponseStatusException.class);
         verifyNoInteractions(kernel);
     }
+    @Test void providerDirectoryProjectsOnlyEnabledV2ServicesWithoutConnectionsOrExecution() {
+        when(kernel.tools(any())).thenReturn(List.of(tool()));
+        when(kernel.services()).thenReturn(List.of(
+            new McpServiceDescriptor("registered","Metadata","provider","http",true,Map.of("internal","not-public")),
+            new McpServiceDescriptor("unrelated","Other","provider","http",true,Map.of())));
+        assertThat(gateway.providers()).containsExactly(new SqlStudioMetadataGateway.Provider("registered","Metadata"));
+        verify(kernel,never()).execute(any(McpServiceCall.class));
+    }
     private McpToolDescriptor tool() {
         return new McpToolDescriptor("registered", "local-schema", "sql_schema_context_query", "", "metadata",
             Map.of("properties", Map.of("contractVersion", Map.of("enum", List.of(SqlStudioMetadataGateway.CONTRACT)))), Map.of(), Map.of(), Map.of());

@@ -26,8 +26,14 @@ public class SqlStudioMetadataService {
     public record Context(String discoveryId, String projectId, String purpose, String targetDialect, List<Binding> bindings, String state) { }
     public record Operation(String bindingId, Map<String, Object> arguments) { }
 
+    public List<SqlStudioMetadataGateway.Provider> providers(HttpServletRequest request, String projectId) {
+        studio.project(request, projectId);
+        return gateway.providers();
+    }
+
     public SqlStudioMetadataGateway.Result assets(HttpServletRequest request, String projectId, String serviceId, int page, int pageSize, String snapshot) {
         studio.project(request, projectId);
+        require(page >= 1 && page <= 1_000_000 && pageSize >= 1 && pageSize <= 100, "Invalid metadata pagination");
         Map<String, Object> args = new LinkedHashMap<>(Map.of("contractVersion", SqlStudioMetadataGateway.CONTRACT,
             "operation", "LIST_ASSETS", "page", page, "pageSize", pageSize));
         if (snapshot != null) args.put("expectedSnapshotId", snapshot);
@@ -71,7 +77,7 @@ public class SqlStudioMetadataService {
         require(input != null && input.arguments() != null, "Metadata operation arguments are required");
         Binding binding = context.bindings().stream().filter(value -> value.bindingId().equals(input.bindingId())).findFirst()
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Metadata binding not found"));
-        Set<String> allowed = Set.of("operation", "query", "tableName", "database", "schema", "page", "pageSize", "expectedSnapshotId");
+        Set<String> allowed = Set.of("operation", "query", "tableName", "database", "schema", "page", "pageSize", "expectedSnapshotId", "includeColumns");
         require(allowed.containsAll(input.arguments().keySet()), "Unsupported metadata operation argument");
         require(Set.of("LIST_NAMESPACES", "SEARCH", "DESCRIBE").contains(Objects.toString(input.arguments().get("operation"), "")), "Unsupported metadata operation");
         Map<String, Object> args = new LinkedHashMap<>(input.arguments());

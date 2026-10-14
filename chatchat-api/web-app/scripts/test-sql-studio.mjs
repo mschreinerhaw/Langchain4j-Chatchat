@@ -33,6 +33,9 @@ try {
   const library = [{ docId: 'mapping-1', fileName: 'customer.csv', title: 'Customer Mapping', version: 1, latestVersion: true }];
   let taskStatus = 'WAIT_MODEL', submissionCount = 0, failNextPoll = false;
   const generation = { id: 'generation-1', taskId: 'task-1', applied: false, prepared:{taskRequest:{toolInput:{sqlStudioAction:'generate'}}} };
+  const metadataTable={database:'analytics',schema:'public',tableName:'orders',tableRef:'orders-ref'};
+  let metadataDenied=false,descriptions=0;
+  const metadata=items=>({serviceId:'registered',metadata:{contractVersion:'sql-studio.metadata.v2',status:'SUCCEEDED',snapshotId:'schema-v1',doesNotExecuteSql:true,items,totalMatched:items.length,hasMore:false}});
   await page.route('**/api/v1/**', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname, method = request.method();
     let data = [];
@@ -43,6 +46,15 @@ try {
     else if (path === '/api/v1/data-science/sql/projects') {
       if (method === 'POST') { const body = request.postDataJSON(); data = { id: 'new-project', name: body.name, dialect: body.dialect, sessionId: 'new-session', tenantId: user.tenantId, ownerId: user.id }; projects.unshift(data); filesByProject[data.id] = []; foldersByProject[data.id]=[]; }
       else data = projects;
+    }
+    else if(path.endsWith('/metadata/providers'))data=[{serviceId:'registered',name:'Registered MCP'}];
+    else if(path.endsWith('/metadata/assets'))data=metadata([{assetRef:'source',name:'Authorized source',sourceDialect:'trino'}]);
+    else if(path.endsWith('/metadata/contexts'))data={discoveryId:'discovery',bindings:[{...request.postDataJSON().bindings[0],bindingId:'binding',sourceDialect:'trino'}]};
+    else if(path.endsWith('/metadata/contexts/discovery/operations')){
+      if(metadataDenied){await route.fulfill({status:403,json:{code:403,message:'Metadata permission revoked'}});return;}
+      const args=request.postDataJSON().arguments;
+      if(args.operation==='DESCRIBE')descriptions++;
+      data=metadata(args.operation==='LIST_NAMESPACES'?[{database:'analytics',schema:'public'}]:args.operation==='DESCRIBE'?[{...metadataTable,columns:[{name:'order_id',dataType:'bigint'}]}]:[metadataTable]);
     }
     else if (path.endsWith('/sql/reference-files')) data = Object.values(filesByProject).flat().filter(file => ['SQL', 'REFERENCE'].includes(file.kind));
     else if (path.endsWith('/sql/library-files')) data = library.filter(item => url.searchParams.get('kind') === 'MAPPING' || item.fileName.endsWith('.sql'));
@@ -111,6 +123,34 @@ try {
   const saveBounds = await page.getByRole('button', { name: '保存文件', exact: true }).boundingBox();
   assert.ok(saveBounds.x + saveBounds.width <= 1024, 'Save remains visible on smaller desktop screens');
   await page.setViewportSize({ width: 1560, height: 980 });
+  await page.locator('.sql-tree-file button[title="sql/a.sql"]').click();
+  await page.getByRole('button',{name:'数据库',exact:true}).click();
+  await page.locator('.sql-schema-explorer select').nth(1).selectOption('source');
+  await page.getByLabel('展开 orders',{exact:true}).waitFor();
+  assert.equal(descriptions,0,'Table listing never requests field descriptions');
+  await page.getByLabel('展开 orders',{exact:true}).click();
+  await page.locator('.sql-schema-explorer [role=group]').filter({hasText:'order_id'}).waitFor();
+  await page.getByRole('button',{name:'用于编辑器',exact:true}).click();
+  await page.evaluate(async()=>{
+    const source=await (await fetch('/src/js/components/sql-studio/SqlEditorPane.js')).text();
+    const modulePath=/import \* as monaco from "([^"]+)"/.exec(source)[1];
+    const monaco=await import(modulePath);
+    const model=monaco.editor.getModels().find(m=>m.uri.toString().includes('/sql-studio/') && m.uri.toString().endsWith('a'));
+    if(!model)throw new Error('SQL Monaco Model missing: '+monaco.editor.getModels().map(m=>m.uri.toString()).join(','));
+    model.setValue('SELECT o. FROM analytics.public.orders o');
+    const editor=monaco.editor.getEditors().find(e=>e.getModel()===model);editor.setPosition({lineNumber:1,column:10});editor.focus();editor.trigger('audit','editor.action.triggerSuggest',{});
+  });
+  await page.locator('.suggest-widget.visible').filter({hasText:'order_id'}).waitFor({timeout:30000});
+  await page.keyboard.press('Escape');
+  await page.getByRole('button',{name:'保存文件',exact:true}).click();
+  assert.equal(filesByProject.project[0].content,'SELECT o. FROM analytics.public.orders o');
+  await mkdir('../../target/sql-studio-ide-audit',{recursive:true});
+  await page.screenshot({path:'../../target/sql-studio-ide-audit/sql-schema-explorer.png',fullPage:true});
+  metadataDenied=true;await page.locator('.sql-schema-explorer header button').click();
+  await page.locator('.sql-schema-explorer [role=alert]').waitFor();
+  assert.equal(await page.locator('.sql-schema-explorer [role=treeitem]').count(),0,'Revocation removes cached visible fields');
+  metadataDenied=false;
+  await page.getByRole('button',{name:'工程文件',exact:true}).click();
   await page.locator('.sql-tree-scroll').click({ button: 'right', position: { x: 180, y: 120 } });
   await page.getByRole('menuitem', { name: '新建 SQL 文件…' }).click();
   await page.getByLabel('SQL 文件名').fill('new.sql');
@@ -273,5 +313,5 @@ try {
   await mkdir('../../target/sql-studio-ide-audit', { recursive: true });
   await page.screenshot({ path: '../../target/sql-studio-ide-audit/sql-studio-ide.png', fullPage: true });
   assert.deepEqual(errors, []);
-  console.log('PASS: responsive toolbar, file search, current-file context, quick actions, Ctrl+Enter submission, Runtime running/cancelled states, file creation/deletion, authorized library selection, Agent/model exclusivity, project deletion (HTTP fixtures only).');
+  console.log('PASS: authorized Schema Explorer, lazy fields, actual Monaco alias completion, revocation cache clearing, responsive toolbar, file search, current-file context, quick actions, Ctrl+Enter submission, Runtime running/cancelled states, Diff accept/reject, file creation/deletion, authorized library selection, Agent/model exclusivity, project deletion (HTTP fixtures only).');
 } finally { await browser?.close(); await server.close(); }

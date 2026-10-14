@@ -1,4 +1,5 @@
-import { computed, ref, watch, onMounted, onActivated, onDeactivated, onBeforeUnmount } from 'vue';
+import { computed, ref, watch, onMounted, onActivated, onDeactivated, onBeforeUnmount, nextTick } from 'vue';
+import SqlSchemaExplorer from '../../components/sql-studio/SqlSchemaExplorer.vue';
 import AppNotice from '../../components/AppNotice.vue';
 import AppConfirmDialog from '../../components/AppConfirmDialog.vue';
 import SqlProjectTree from '../../components/sql-studio/SqlProjectTree.vue';
@@ -16,7 +17,7 @@ import { mappingSchemaColumns } from '../editor/codeIntelligence';
 import { clampSqlPanel, restoreSqlLayout, sqlAssistantAnswer, sqlConversationPrompt } from '../utils/sqlIdeState';
 import { sqlTaskPresentation } from '../utils/sqlTaskPresentation';
 export default {
-  components: { CodeChangeReview, AppNotice, AppConfirmDialog, SqlProjectTree, SqlEditorPane, SqlAssistantPanel, SqlBottomPanel, FolderTree, PanelBottom, Sparkles, Plus, Save, WandSparkles, FileCode2, CircleCheck },
+  components: { SqlSchemaExplorer, CodeChangeReview, AppNotice, AppConfirmDialog, SqlProjectTree, SqlEditorPane, SqlAssistantPanel, SqlBottomPanel, FolderTree, PanelBottom, Sparkles, Plus, Save, WandSparkles, FileCode2, CircleCheck },
   props: { workspaceContext: Object, tenantId: String, userId: String },
   emits: [],
   setup(props, { emit: emitEvent }) {
@@ -56,6 +57,9 @@ const pendingPhase = ref(''), pendingStartedAt = ref(0), pollError = ref('');
 const busy = ref(false), error = ref(''), message = ref(''), newProjectOpen = ref(false), projectName = ref('');
 const versions = ref([]), versionFile = ref(null);
 const editorPane = ref(null), newFileOpen = ref(false), newFilePath = ref('sql/query.sql');
+const schemaExplorer = ref(null), explorerTab = ref('files');
+const completeSchema = (...args) => schemaExplorer.value?.complete(...args) || Promise.resolve([]);
+function useSourceDialect(value) {const target=({postgres:'postgresql',sqlserver:'tsql'})[value]||value;if(dialects.some(item=>item.value===target))dialect.value=target;}
 const activeFile = computed(() => files.value.find(file => file.id === activeId.value));
 const taskRunning = computed(() => Boolean(result.value?.task && !terminalSqlTask(result.value.task.status)));
 const taskStatusLabel = computed(() => sqlTaskPresentation(result.value, pendingPhase.value).title);
@@ -218,7 +222,7 @@ async function generate() { await action(async () => {
   const request = sqlConversationPrompt(`${activeFile.value ? 'Target file: '+activeFile.value.path+'\n' : ''}${text}`, chatTurns.value, selectedCode.value);
   const localId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const userTurn = { id:`user:${localId}`, role:'user', text, action:aiAction.value };
-  const assistantTurn = { id:`assistant:${localId}`, role:'assistant', text:'正在制定代码协作计划…', action:aiAction.value };
+  const assistantTurn = { id:`assistant:${localId}`, role:'assistant', text:'正在准备工程上下文…', action:aiAction.value };
   chatTurns.value.push(userTurn, assistantTurn);
   pendingPhase.value = 'PREPARING'; pendingStartedAt.value = Date.now(); pollError.value = ''; result.value = null;
   try {
@@ -314,7 +318,7 @@ onMounted(async () => {
 onActivated(() => { active = true; if (initialized) refreshGeneration(); });
 onDeactivated(() => { active = false; clearTimeout(pollTimer); persist(); });
 onBeforeUnmount(() => { resolveConfirm(false); active = false; resizeCleanup?.(); clearTimeout(pollTimer); clearTimeout(draftTimer); persist(); window.removeEventListener('beforeunload', beforeUnload); });
-  return { reviewTitle, reviewBlockedReason, reviewOpen, reviewPath, reviewFiles, reviewGeneration, chooseAiAction, aiAction, newConversation, taskStatusLabel, pendingPhase, pendingStartedAt, pollError, confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
+  return { schemaExplorer, explorerTab, completeSchema, useSourceDialect, reviewTitle, reviewBlockedReason, reviewOpen, reviewPath, reviewFiles, reviewGeneration, chooseAiAction, aiAction, newConversation, taskStatusLabel, pendingPhase, pendingStartedAt, pollError, confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
 
   }
 };

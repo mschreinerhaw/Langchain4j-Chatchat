@@ -56,6 +56,16 @@ class SqlStudioMetadataServiceTest {
         }
         verifyNoMoreInteractions(gateway);
     }
+    @Test void lightweightOperationsForwardFlagAndKeepPersistedBinding() {
+        var context=service.create(request,"project",input());clearInvocations(gateway);
+        service.operate(request,"project",context.discoveryId(),new SqlStudioMetadataService.Operation(context.bindings().get(0).bindingId(),Map.of("operation","SEARCH","includeColumns",false)));
+        verify(gateway).invoke(eq(request),eq("registered-mcp"),argThat(args->Boolean.FALSE.equals(args.get("includeColumns")) && "db".equals(args.get("database")) && "public".equals(args.get("schema"))));
+    }
+    @Test void providerDirectoryStillRequiresProjectOwnership() {
+        when(studio.project(request,"project")).thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN));
+        assertThatThrownBy(()->service.providers(request,"project")).isInstanceOf(ResponseStatusException.class);
+        verifyNoInteractions(gateway);
+    }
     @Test void rejectsContextAfterProjectOwnerOrTenantChangesBeforeAnyGatewayCall() {
         var context = service.create(request, "project", input()); clearInvocations(gateway);
         when(studio.project(request, "project")).thenReturn(new SqlStudioService.Project("project", "SQL", "spark", "session", "other-tenant", "owner"));

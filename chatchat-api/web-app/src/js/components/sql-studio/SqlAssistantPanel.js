@@ -20,7 +20,7 @@ export default {
     const allResources = ref(false), composer = ref(null), followOutput = ref(true), now = ref(Date.now());
     const resultAction = computed(() => sqlGenerationAction(props.result));
     const codePlan = computed(() => props.result?.generation?.prepared?.taskRequest?.toolInput?.studioCodePlan?.interpretationPlan);
-    const codePlanState = computed(() => props.pendingPhase==='PREPARING' ? 'planning' : terminal.value
+    const codePlanState = computed(() => props.pendingPhase==='PREPARING' ? 'preparing' : terminal.value
       ? ['SUCCESS','PARTIAL','PARTIAL_SUCCESS'].includes(props.result?.task?.status) ? 'complete' : 'failed'
       : ['RUNNING','WAIT_TOOL','WAIT_MODEL'].includes(props.result?.task?.status) ? 'exploring' : 'ready');
     const operationLabel = computed(() => studioAiLabels[props.pendingPhase ? props.aiAction : props.result ? resultAction.value : props.aiAction] || '代码生成');

@@ -13,6 +13,11 @@ import org.springframework.web.bind.annotation.*;
 public class SqlStudioMetadataController {
     private final SqlStudioMetadataService metadata;
     private final WorkspaceService workspaces;
+    @GetMapping("/providers")
+    public ApiResponse<?> providers(@PathVariable("projectId") String projectId, HttpServletRequest request) {
+        workspaces.requireAvailable(request, "data-science");
+        return ApiResponse.success(metadata.providers(request, projectId));
+    }
     @GetMapping("/assets")
     public ApiResponse<?> assets(@PathVariable("projectId") String projectId,
         @RequestParam(value="serviceId", required=false) String serviceId,

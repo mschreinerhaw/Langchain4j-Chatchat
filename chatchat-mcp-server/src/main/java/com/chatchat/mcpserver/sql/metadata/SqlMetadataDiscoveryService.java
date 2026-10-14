@@ -21,7 +21,7 @@ public class SqlMetadataDiscoveryService {
     public static final String CONTRACT = "sql-studio.metadata.v2";
     public static final Set<String> OPERATIONS = Set.of("LIST_ASSETS", "LIST_NAMESPACES", "SEARCH", "DESCRIBE");
     private static final Set<String> FIELDS = Set.of("contractVersion", "operation", "assetId", "database", "schema",
-        "tableName", "query", "page", "pageSize", "expectedSnapshotId");
+        "tableName", "query", "page", "pageSize", "expectedSnapshotId", "includeColumns");
     private static final ObjectMapper JSON = new ObjectMapper();
     private final SqlDatasourceConfigService sources;
     private final MetadataIndexService indexes;
@@ -84,6 +84,9 @@ public class SqlMetadataDiscoveryService {
             if (text(arguments, "tableName") == null) throw new IllegalArgumentException("tableName is required for DESCRIBE");
             if (matches.size() > 1) throw new IllegalArgumentException("Ambiguous table; specify database and schema");
         }
+        if (Boolean.FALSE.equals(arguments.get("includeColumns"))) matches = matches.stream().map(item -> {
+            Map<String, Object> lightweight = new LinkedHashMap<>(item); lightweight.remove("columns"); return lightweight;
+        }).toList();
         return result(arguments, matches, snapshot, List.of(provenance), page, size, "SUCCEEDED");
     }
 
@@ -91,6 +94,8 @@ public class SqlMetadataDiscoveryService {
         if (args == null || !CONTRACT.equals(args.get("contractVersion")))
             throw new IllegalArgumentException("contractVersion must be " + CONTRACT);
         if (!FIELDS.containsAll(args.keySet())) throw new IllegalArgumentException("Unsupported metadata argument");
+        if (args.containsKey("includeColumns") && !(args.get("includeColumns") instanceof Boolean))
+            throw new IllegalArgumentException("includeColumns must be boolean");
         if (text(args, "operation") == null || !OPERATIONS.contains(text(args, "operation"))) throw new IllegalArgumentException("Unsupported metadata operation");
         for (String key : List.of("operation", "assetId", "database", "schema", "tableName", "query", "expectedSnapshotId")) {
             Object value = args.get(key);
@@ -117,6 +122,10 @@ public class SqlMetadataDiscoveryService {
             ? MetadataIndex.tableKey(Objects.toString(table.database(), ""), Objects.toString(table.schema(), ""), table.table())
             : (Objects.toString(table.database(), "") + "." + table.table()).toLowerCase(Locale.ROOT);
         List<MetadataColumn> columns = index.tableColumns().getOrDefault(key, List.of()).stream()
+            // Legacy index keys may merge namespaces/case variants. Never attach another physical object's fields.
+            .filter(column -> Objects.equals(column.datasourceId(), asset.getId())
+                && Objects.equals(column.database(), table.database()) && Objects.equals(column.schema(), table.schema())
+                && Objects.equals(column.table(), table.table()))
             .filter(column -> MetadataVisibility.fieldVisible(asset, table, column.name()))
             .sorted(Comparator.comparing(MetadataColumn::name)).toList();
         Map<String, Object> value = new LinkedHashMap<>();
@@ -126,6 +135,8 @@ public class SqlMetadataDiscoveryService {
         value.put("columns", columns.stream().map(MetadataColumn::toDiagnostic).toList());
         value.put("columnCount", columns.size());
         value.put("relationsStatus", "NOT_COLLECTED"); // Column keys do not prove a foreign-key/business relationship.
+        value.put("evidenceClass", "REGISTERED_METADATA");
+        value.put("verificationStatus", "NOT_VERIFIED_LIVE");
         return value;
     }
 
@@ -150,6 +161,8 @@ public class SqlMetadataDiscoveryService {
         result.put("page", page); result.put("pageSize", size); result.put("totalMatched", items.size());
         result.put("hasMore", to < items.size()); result.put("items", items.subList(from, to)); result.put("doesNotExecuteSql", true);
         result.put("supportedOperations", OPERATIONS.stream().sorted().toList());
+        result.put("evidenceClass", "REGISTERED_METADATA");
+        result.put("verificationStatus", "NOT_VERIFIED_LIVE");
         return result;
     }
 

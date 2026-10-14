@@ -11,7 +11,7 @@ import SqlMappingPreview from '../../../components/sql-studio/SqlMappingPreview.
 
 export default {
   components: { EditorPreferences, SqlMappingPreview },
-  props: { projectId: String, files: Array, openIds: Array, activeId: String, preview: Object, dialect: String, schemaColumns: Array, workspaceContext: Object },
+  props: { projectId: String, files: Array, openIds: Array, activeId: String, preview: Object, dialect: String, schemaColumns: Array, schemaCompletion: Function, workspaceContext: Object },
   emits: ['open', 'close', 'edit', 'save', 'versions', 'download', 'preview-close', 'selection', 'mapping-reference', 'diagnostics', 'cursor'],
   setup(props, { emit: emitEvent }) {
 const emit = emitEvent;
@@ -85,6 +85,10 @@ function sendSelection() {
   const text = selection && editor.getModel()?.getValueInRange(selection);
   if (text?.trim() && current.value) emit('selection', { path: current.value.path, text: text.slice(0, 4000) });
 }
+function insertIdentifier(text) {
+  if(!editor || !current.value?.editable || props.preview || current.value.kind!=='SQL')return;
+  editor.pushUndoStop();editor.executeEdits('schema-identifier',[{range:editor.getSelection(),text,forceMoveMarkers:true}]);editor.pushUndoStop();editor.focus();
+}
 onMounted(() => {
   globalThis.MonacoEnvironment = { ...(globalThis.MonacoEnvironment || {}), getWorker: () => new EditorWorker() };
   // Monaco 0.52's occurrence highlighter can reject a pending Delayer on a fast model switch.
@@ -93,13 +97,19 @@ onMounted(() => {
     fontFamily: 'Cascadia Code, Consolas, monospace', ...editorLanguageOptions('sql', preferences), scrollBeyondLastLine: false, minimap: { enabled: true }, padding: { top: 14, bottom: 14 } });
   diffEditor = monaco.editor.createDiffEditor(diffHost.value, { automaticLayout: true, readOnly: true, renderSideBySide: true, theme: 'vs', fontSize: 13, minimap: { enabled: false } });
   completionProvider = monaco.languages.registerCompletionItemProvider('sql', {
-    provideCompletionItems(model, position) {
+    triggerCharacters: ['.', ' '],
+    async provideCompletionItems(model, position, context, token) {
       if (!model.uri.toString().includes(`/sql-studio/${instance}/`)) return { suggestions: [] };
+      const version=model.getVersionId(),source=model.getValue();
+      const cancelled=()=>token.isCancellationRequested || model.isDisposed() || editor.getModel()!==model || model.getVersionId()!==version;
+      const metadata=await props.schemaCompletion?.(source,position,props.dialect,cancelled)||[];
+      if(cancelled())return {suggestions:[]};
       const word = model.getWordUntilPosition(position);
       const range = new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn);
-      return { suggestions: sqlAdapter.complete(props.schemaColumns || []).map(item => ({
-        label: item.label, insertText: item.label, range,
-        kind: item.category === 'field' ? monaco.languages.CompletionItemKind.Field : monaco.languages.CompletionItemKind.Keyword
+      return { incomplete:true,suggestions: (metadata.length?metadata:sqlAdapter.complete(props.schemaColumns || [])).map(item => ({
+          label: item.label, insertText: item.insertText||item.label, detail:item.detail || (item.category==='field'?'Mapping 参考字段 · 未核验':''), range:item.replaceLength?new monaco.Range(position.lineNumber,position.column-item.replaceLength,position.lineNumber,word.endColumn):range,
+          sortText:(item.category==='keyword'?'2:':'1:')+item.label,
+          kind: ({field:monaco.languages.CompletionItemKind.Field,table:monaco.languages.CompletionItemKind.Class,alias:monaco.languages.CompletionItemKind.Variable})[item.category] || monaco.languages.CompletionItemKind.Keyword
       })) };
     }
   });
@@ -114,7 +124,7 @@ watch(() => props.projectId, () => { editor?.setModel(null); diffEditor?.setMode
 watch(() => props.dialect, scheduleDiagnostics);
 onActivated(() => nextTick(() => editor?.layout()));
 onBeforeUnmount(() => { clearTimeout(diagnosticTimer); diagnosticSerial++; completionProvider?.dispose(); listener?.dispose(); cursorListener?.dispose(); diffEditor?.dispose(); editor?.dispose(); models.forEach(model => model.dispose()); });
-  return { host, diffHost, diffVisible, current, openFiles, formatDocument, applyPreferences, sendSelection };
+  return { host, diffHost, diffVisible, current, openFiles, formatDocument, applyPreferences, sendSelection, insertIdentifier };
 
   }
 };

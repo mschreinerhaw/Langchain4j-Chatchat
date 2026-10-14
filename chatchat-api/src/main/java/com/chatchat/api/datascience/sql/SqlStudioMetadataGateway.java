@@ -20,6 +20,21 @@ public class SqlStudioMetadataGateway {
     private final ApiKernelScopeResolver scopes;
 
     public record Result(String serviceId, Map<String, Object> metadata) { }
+    public record Provider(String serviceId, String name) { }
+
+    public List<Provider> providers() {
+        Set<String> supported = kernel.tools(new McpToolQuery(null, null, Set.of(TOOL))).stream()
+            .filter(tool -> TOOL.equals(tool.remoteToolName()) && supportsV2(tool)).map(McpToolDescriptor::serviceId)
+            .collect(java.util.stream.Collectors.toSet());
+        return kernel.services().stream().filter(service -> service.enabled() && supported.contains(service.serviceId()))
+            .map(service -> new Provider(service.serviceId(), service.name())).sorted(Comparator.comparing(Provider::serviceId)).toList();
+    }
+    private boolean supportsV2(McpToolDescriptor tool) {
+        Object properties = tool.inputSchema().get("properties");
+        Object version = properties instanceof Map<?, ?> props ? props.get("contractVersion") : null;
+        Object versions = version instanceof Map<?, ?> field ? field.get("enum") : null;
+        return versions instanceof Collection<?> values && values.contains(CONTRACT);
+    }
 
     public Result invoke(HttpServletRequest request, String serviceId, Map<String, Object> arguments) {
         var authenticated = scopes.resolve(Map.of(), UUID.randomUUID().toString(), request);

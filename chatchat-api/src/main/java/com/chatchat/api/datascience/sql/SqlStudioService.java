@@ -47,7 +47,7 @@ public class SqlStudioService {
     public record FileWrite(String path, String kind, String content, Integer expectedVersion) { }
     public record Version(int version, String content, String sourceTaskId) { }
     public record Generate(String prompt, String dialect, List<String> mappingIds, List<String> referenceIds,
-                           String agentId, String modelName, List<String> mappingDocumentIds, String action) { }
+                           String agentId, String modelName, List<String> mappingDocumentIds, String action, Boolean planRequested) { }
     public record Prepared(String generationId, AgentTaskSubmitRequest taskRequest) { }
     public record Generation(String id, String taskId, boolean applied, Prepared prepared, Map<String,Integer> baseVersions) { }
     public record GenerationView(Generation generation, AgentTaskResponse task, List<AgentEvent> events,
@@ -331,8 +331,14 @@ public class SqlStudioService {
             Current project SQL source snapshots: %s
             """.formatted(dialect, operationInstruction, body.prompt(), json(mappings), json(documentMappings), json(references), json(files(request, projectId).stream().filter(f -> "SQL".equals(f.kind())).toList()));
         require(query.length() <= 250_000, "Project context exceeds 250000 characters; select smaller inputs");
-        var codePlan = codePlans.create(project.tenantId(), project.ownerId(), "sql", operation, query, body.modelName());
-        query += codePlans.context(codePlan);
+        Map<String, Object> applicationContext = new LinkedHashMap<>();
+        applicationContext.put("sqlStudioAction", operation);
+        // An optional development outline is not Runtime tool authority or a universal SQL generation gate.
+        if (Boolean.TRUE.equals(body.planRequested())) {
+            var codePlan = codePlans.create(project.tenantId(), project.ownerId(), "sql", operation, query, body.modelName());
+            query += codePlans.context(codePlan);
+            applicationContext.put("studioCodePlan", codePlan);
+        }
         String id = UUID.randomUUID().toString();
         var taskRequest = new AgentTaskSubmitRequest();
         // Studio supplies its conversation explicitly in the query. Isolate each run's
@@ -340,7 +346,7 @@ public class SqlStudioService {
         var runSession = origins.createForWorkspace(request, "data-science", "SQL Studio: " + project.name());
         taskRequest.setTenantId(project.tenantId()); taskRequest.setUserId(project.ownerId()); taskRequest.setSessionId(runSession.getId());
         taskRequest.setHistoryWindow(0);
-        taskRequest.setToolInput(Map.of("sqlStudioAction", operation, "studioCodePlan", codePlan));
+        taskRequest.setToolInput(applicationContext);
         taskRequest.setIdempotencyKey("sql-generation:" + id); taskRequest.setQuery(query);
         // A model-only engineering request has no maintained Agent capabilities. Route it
         // through the existing tool-free Runtime entry rather than discovering a default Agent.

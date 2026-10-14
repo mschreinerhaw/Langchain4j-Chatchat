@@ -12,6 +12,15 @@ export const sqlFolders = id => apiRequest(`${project(id)}/folders`);
 export const createSqlFolder = (id, path) => apiRequest(`${project(id)}/folders`, {method:'POST',body:body({path})});
 export const sqlFiles = id => apiRequest(`${project(id)}/files`);
 export const sqlReferences = () => apiRequest(`${root}/reference-files`);
+export const sqlMetadataProviders = id => apiRequest(`${project(id)}/metadata/providers`);
+export const sqlMetadataAssets = (id, serviceId, page=1, snapshot) => {
+  const params=new URLSearchParams({serviceId,page:String(page),pageSize:'50'});
+  if(snapshot)params.set('expectedSnapshotId',snapshot);
+  return apiRequest(`${project(id)}/metadata/assets?${params}`);
+};
+export const createSqlMetadataContext = (id, value) => apiRequest(`${project(id)}/metadata/contexts`,{method:'POST',body:body(value)});
+export const sqlMetadataContext = (id, discoveryId) => apiRequest(`${project(id)}/metadata/contexts/${encodeURIComponent(discoveryId)}`);
+export const sqlMetadataOperation = (id, discoveryId, bindingId, args) => apiRequest(`${project(id)}/metadata/contexts/${encodeURIComponent(discoveryId)}/operations`,{method:'POST',body:body({bindingId,arguments:args})});
 export const saveSqlFile = (id, value) => apiRequest(`${project(id)}/files`, { method: 'PUT', body: body(value) });
 export const deleteSqlFile = (id, fileId, expectedVersion) => apiRequest(`${project(id)}/files/${encodeURIComponent(fileId)}?expectedVersion=${encodeURIComponent(expectedVersion)}`, { method: 'DELETE' });
 export const renameSqlFile = (id, fileId, path, expectedVersion) => apiRequest(`${project(id)}/files/${encodeURIComponent(fileId)}/path`, { method: 'PUT', body: body({ path, expectedVersion }) });

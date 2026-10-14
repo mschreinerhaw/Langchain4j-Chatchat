@@ -1,5 +1,7 @@
 # SQL Studio 联机元数据技术方案
 
+2026-10-14 修订：第一阶段实际实现与计划门槛以 [Schema Explorer 实施方案](20-schema-explorer-phase-one.md) 为准。SQL 请求不强制预先生成 InterpretationPlan；元数据浏览和补全提前实施，模型自主探索、验证和执行隔离原则延续本文。
+
 本方案在 SQL Studio 应用层绑定授权逻辑资产和元数据证据，继续使用已有 Agent 模型规划、Runtime 执行与 MCP Gateway。新增的 `SQL_METADATA_DISCOVERY` 是元数据领域执行工作流，不承担生成推理，也不引入一个新的通用 SQL Agent。
 
 现状和复用依据见[架构审查](12-online-metadata-architecture-review.md)。本文描述拟实施行为，不代表当前接口已经支持。

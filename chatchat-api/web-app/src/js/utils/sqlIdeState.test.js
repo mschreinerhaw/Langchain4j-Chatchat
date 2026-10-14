@@ -27,8 +27,8 @@ describe('SQL IDE state', () => {
 
   it('shows preparation before a task exists without inventing completion percentages', () => {
     const progress = sqlTaskPresentation(null, 'PREPARING', 10000, 14000);
-    expect(progress).toMatchObject({title:'正在制定代码协作计划',running:true,terminal:false,elapsed:4,elapsedLabel:'00:04'});
-    expect(progress.detail).toContain('计划通过前不会开始探索');
+    expect(progress).toMatchObject({title:'正在准备工程上下文',running:true,terminal:false,elapsed:4,elapsedLabel:'00:04'});
+    expect(progress.detail).not.toContain('计划通过前不会开始探索');
     expect(progress).not.toHaveProperty('percentage');
     expect(sqlTaskPresentation(null).title).toBe('准备就绪');
     expect(sqlTaskPresentation({generation:{id:'prepared'}}).title).toBe('任务尚未提交');

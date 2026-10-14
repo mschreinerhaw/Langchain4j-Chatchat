@@ -125,6 +125,27 @@ class SqlMetadataDiscoveryWorkflowTest {
         verifyNoMoreInteractions(indexes);
     }
 
+    @Test void lightweightDirectoryKeepsFullSnapshotButLoadsNoColumnPayload() {
+        when(indexes.indexFor(asset)).thenReturn(index(List.of(table("orders")), Map.of("db.orders", List.of(column("id"))), 100));
+        var full=run(args("DESCRIBE","assetId","a","tableName","orders"));
+        var lean=run(args("SEARCH","assetId","a","includeColumns",false));
+        assertThat(lean.get("snapshotId")).isEqualTo(full.get("snapshotId"));
+        assertThat(lean.get("evidenceClass")).isEqualTo("REGISTERED_METADATA");
+        assertThat(lean.get("verificationStatus")).isEqualTo("NOT_VERIFIED_LIVE");
+        assertThat(lean.toString()).doesNotContain("columns=");
+        assertThat(full.toString()).contains("columns=", "name=id");
+        assertThatThrownBy(()->run(args("SEARCH","assetId","a","includeColumns","false"))).isInstanceOf(IllegalArgumentException.class);
+    }
+    @Test void legacyIndexCollisionCannotAttachFieldsFromAnotherPhysicalTable() {
+        var other=new TableLocation("a","db","private","orders","TABLE",null,0);
+        var privateColumn=new MetadataColumn("a","db","private","orders","private_id","int",null,null,null,true,1);
+        var foreignColumn=new MetadataColumn("other-asset","db","public","orders","foreign_id","int",null,null,null,true,1);
+        when(indexes.indexFor(asset)).thenReturn(index(List.of(table("orders"),other),Map.of("db.orders",List.of(column("id"),privateColumn,foreignColumn)),100));
+        var publicResult=run(args("DESCRIBE","assetId","a","schema","public","tableName","orders"));
+        var privateResult=run(args("DESCRIBE","assetId","a","schema","private","tableName","orders"));
+        assertThat(publicResult.toString()).contains("name=id").doesNotContain("private_id","foreign_id");
+        assertThat(privateResult.toString()).contains("name=private_id").doesNotContain("name=id","foreign_id");
+    }
     private Map<String, Object> run(Map<String, Object> args) { return run(args, id -> id.equals("a")); }
     private Map<String, Object> run(Map<String, Object> args, Predicate<String> allowed) {
         return workflow.execute(new SqlMetadataDiscoveryWorkflow.Request(args, allowed), caller);

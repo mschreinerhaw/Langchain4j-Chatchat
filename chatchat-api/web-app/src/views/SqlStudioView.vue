@@ -19,12 +19,16 @@
     <AppNotice v-if="error" class="sql-page-notice" kind="error" dismissible @close="error = ''">{{ error }}</AppNotice>
     <AppNotice v-if="message" class="sql-page-notice" kind="success" dismissible @close="message = ''">{{ message }}</AppNotice>
     <div class="sql-ide-shell" :style="ideStyle">
-      <SqlProjectTree v-if="layout.explorer && projectId" :folders="folders" :selected-folder="newFileFolder" :files="files" :references="references" :reference-ids="referenceIds" :project-name="projects.find(item => item.id === projectId)?.name" :active-id="activeId" :mapping-ids="mappingIds" :busy="busy"
+      <aside v-if="projectId" v-show="layout.explorer" class="sql-project-tree sql-resource-sidebar">
+      <nav class="sql-resource-tabs" aria-label="资源浏览"><button type="button" :aria-pressed="explorerTab==='files'" @click="explorerTab='files'">工程文件</button><button type="button" :aria-pressed="explorerTab==='schema'" @click="explorerTab='schema'">数据库</button></nav>
+      <SqlProjectTree v-show="explorerTab==='files'" :folders="folders" :selected-folder="newFileFolder" :files="files" :references="references" :reference-ids="referenceIds" :project-name="projects.find(item => item.id === projectId)?.name" :active-id="activeId" :mapping-ids="mappingIds" :busy="busy"
         @open="openFile" @mapping="toggle(mappingIds, $event)" @reference="toggle(referenceIds, $event)" @reference-open="openReference" @choose-library="chooseLibrary" @folder-select="newFileFolder = $event" @create-folder="openNewFolder" @create="openNewFile" @delete="deleteFile" @refresh="action(refreshFiles)" @versions="showVersions" @download="download" @rename="renameFile" />
+      <SqlSchemaExplorer v-show="explorerTab==='schema'" ref="schemaExplorer" :project-id="projectId" :identity="{...workspaceContext,tenantId,userId}" :dialect="dialect" @insert="editorPane?.insertIdentifier($event)" @dialect="useSourceDialect" />
+      </aside>
       <aside v-else-if="layout.explorer" class="sql-project-tree sql-ide-no-project"><strong>工程资源</strong><p>新建或选择工程后查看文件。</p></aside>
       <div v-if="layout.explorer" class="sql-panel-resizer" role="separator" aria-orientation="vertical" aria-label="调整工程文件宽度" @pointerdown="startResize('explorer', $event)" @dblclick="resetSize('explorer')"></div>
       <main class="sql-ide-main">
-        <SqlEditorPane v-if="projectId" ref="editorPane" :project-id="projectId" :files="files" :open-ids="openIds" :active-id="activeId" :preview="preview" :dialect="dialect" :schema-columns="schemaColumns" :workspace-context="workspaceContext"
+        <SqlEditorPane v-if="projectId" ref="editorPane" :project-id="projectId" :files="files" :open-ids="openIds" :active-id="activeId" :preview="preview" :dialect="dialect" :schema-columns="schemaColumns" :schema-completion="completeSchema" :workspace-context="workspaceContext"
           @open="openFile" @close="closeFile" @edit="editFile" @save="saveActive" @versions="showVersions" @download="download" @preview-close="preview = null" @selection="useSelection" @mapping-reference="useMappingReference" @diagnostics="problemCount = $event" @cursor="cursor = $event" />
         <div v-else class="sql-ide-welcome"><div class="sql-ide-welcome-mark">SQL</div><h1>开始一个 SQL 工程</h1><p>将 Mapping、参考 SQL 与生成文件放在同一工程中，由现有 Agent Runtime 协助开发。</p><button class="sql-primary" @click="newProjectOpen = true">新建工程</button></div>
         <div v-if="layout.bottom" class="sql-bottom-resizer" role="separator" aria-orientation="horizontal" aria-label="调整底部面板高度" @pointerdown="startResize('bottom', $event)" @dblclick="resetSize('bottom')"></div>

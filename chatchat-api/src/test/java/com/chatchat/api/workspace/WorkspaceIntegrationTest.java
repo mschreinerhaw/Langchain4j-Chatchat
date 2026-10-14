@@ -39,6 +39,7 @@ class WorkspaceIntegrationTest {
     @Autowired SysUserRoleRepository userRoles; @Autowired SysRolePermissionRepository rolePermissions;
     @Autowired SysPermissionRepository permissions; @Autowired ConversationService conversations;
     @Autowired WorkspaceRegistrationRepository registry; @Autowired WorkspaceResourceOriginRepository origins;
+    @Autowired WorkspacePreferenceRepository preferences;
     @Autowired WorkspaceOriginService originService;
     @Autowired AgentTaskLatestRepository tasks; @Autowired ApplicationContext context;
     @MockBean ChatModel model;
@@ -86,6 +87,12 @@ class WorkspaceIntegrationTest {
         var zhice = data(mvc.perform(get("/api/v1/workspaces/zhice/manifest").header("Authorization", "Bearer "+adminToken))
             .andExpect(status().isOk()).andReturn()).path("manifest");
         assertThat(zhice.path("pages").toString()).contains("dataScienceSkills").doesNotContain("dataScienceEnvironment");
+        assertThat(zhice.path("pages").toString()).contains("workspaces");
+        var workspaceMenus = data(mvc.perform(get("/api/v1/workspaces/zhice/manifest").header("Authorization", "Bearer "+adminToken))
+            .andExpect(status().isOk()).andReturn()).path("menus");
+        var platform = java.util.stream.StreamSupport.stream(workspaceMenus.spliterator(), false)
+            .filter(menu -> "platform".equals(menu.path("id").asText())).findFirst().orElseThrow();
+        assertThat(platform.path("children").toString()).contains("workspaces");
         var science = data(mvc.perform(get("/api/v1/workspaces/data-science/manifest").header("Authorization", "Bearer "+adminToken))
             .andExpect(status().isOk()).andReturn()).path("manifest");
         assertThat(science.path("pages").toString()).doesNotContain("dataScienceSkills");
@@ -120,6 +127,27 @@ class WorkspaceIntegrationTest {
         mvc.perform(get("/api/v1/workspaces/preferences").header("Authorization", "Bearer "+token))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.lastWorkspaceId").value("zhice"));
         mvc.perform(get("/api/v1/enterprise/auth/me").header("Authorization", "Bearer "+token)).andExpect(status().isOk());
+    }
+    @Test void loginDefaultAndPersonalChoiceArePersistedAndIsolated() throws Exception {
+        String token = userToken(true);
+        String owner = data(mvc.perform(get("/api/v1/enterprise/auth/me").header("Authorization", "Bearer "+token))
+            .andExpect(status().isOk()).andReturn()).path("id").asText();
+        mvc.perform(get("/api/v1/workspaces/preferences").header("Authorization", "Bearer "+token))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.defaultWorkspaceId").value("zhice"));
+        mvc.perform(put("/api/v1/workspaces/preferences").header("Authorization", "Bearer "+token).contentType("application/json")
+            .content("{\"lastWorkspaceId\":\"data-science\"}")).andExpect(status().isOk());
+        var stored = preferences.findByTenantIdAndUserId(tenant, owner).orElseThrow();
+        assertThat(stored.getDefaultWorkspaceId()).isEqualTo("zhice");
+        assertThat(stored.getLastWorkspaceId()).isEqualTo("data-science");
+        mvc.perform(put("/api/v1/workspaces/preferences").header("Authorization", "Bearer "+token).contentType("application/json")
+            .content("{\"defaultWorkspaceId\":\"data-science\"}")).andExpect(status().isOk());
+        var user = users.findById(owner).orElseThrow();
+        String newToken = identities.login(user.getUsername(), "workspace-test-password").token();
+        mvc.perform(get("/api/v1/workspaces/preferences").header("Authorization", "Bearer "+newToken))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.defaultWorkspaceId").value("data-science"));
+        assertThat(preferences.findByTenantIdAndUserId(tenant, owner).orElseThrow().getDefaultWorkspaceId()).isEqualTo("data-science");
+        mvc.perform(get("/api/v1/workspaces/preferences").header("Authorization", "Bearer "+userToken(true)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.defaultWorkspaceId").value("zhice"));
     }
     @Test void registryUpdatesAreVersionedAndDisablingNeverDeletesHistory() throws Exception {
         var manifest = mapper.readValue(getClass().getResourceAsStream("/workspace/zhice.json"), WorkspaceManifest.class);

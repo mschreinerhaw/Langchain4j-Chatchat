@@ -1,6 +1,7 @@
 import AssistantLayout from "../components/AssistantLayout.vue";
 import RightPanel from "../components/RightPanel.vue";
 import LoginView from "../views/LoginView.vue";
+import WorkspacesView from "../views/WorkspacesView.vue";
 import AsyncViewState from "../components/AsyncViewState.vue";
 import { defineAsyncComponent } from "vue";
 import { Check, Layers3, Plus } from "@lucide/vue";
@@ -83,6 +84,7 @@ const DATA_SCIENCE_TABS = {
   dataScienceScripts: "scripts"
 };
 const views = {
+  workspaces: WorkspacesView,
   chat: ChatAssistantView,
   search: AiSearchView,
   domainAnalysis: DomainIntelligenceView,
@@ -148,7 +150,8 @@ export default {
     Layers3,
     LoginView,
     Plus,
-    RightPanel
+    RightPanel,
+    WorkspacesView
   },
   directives: {
     floatingDrag
@@ -199,7 +202,7 @@ export default {
       menuAuthorizationReady: false
       , workspaceItems: [], currentWorkspace: null, workspacePages: [], workspaceContexts: {},
       workspaceNavigationSerial: 0, workspaceBootstrapSerial: 0, workspaceLoading: false, workspaceError: "", workspaceReady: false,
-      showWorkspaceSelection: false
+      showWorkspaceSelection: false, workspacePreference: {}, workspaceNotice: "", workspaceSaving: false
     };
   },
   computed: {
@@ -235,6 +238,9 @@ export default {
     },
     activeComponentProps() {
       const pageProps = this.workspacePages?.find((page) => page.id === this.activeView)?.props || {};
+      if (this.activeView === "workspaces") return { workspaces: this.workspaceItems,
+        defaultWorkspaceId: this.workspacePreference?.defaultWorkspaceId || this.workspaceItems.find(w => w.defaultWorkspace)?.workspaceId || "",
+        loading: this.workspaceLoading || this.workspaceSaving, notice: this.workspaceNotice };
       return this.activeView === "chat"
         ? {
             ...pageProps,
@@ -304,7 +310,7 @@ export default {
     this.stopTodoTimeoutKill();
   },
   methods: {
-    async loadWorkspaces({ choose = false, requestedView = "", selectedWorkspaceId = "" } = {}) {
+    async loadWorkspaces({ requestedView = "", selectedWorkspaceId = "" } = {}) {
       if (!isAuthenticatedSession(this.authSession)) return;
       const bootstrap = this.workspaceBootstrapSerial = (this.workspaceBootstrapSerial || 0) + 1;
       const identity = this.authSession.user.id;
@@ -314,7 +320,7 @@ export default {
         const [items, preference] = await Promise.all([fetchWorkspaces(), fetchWorkspacePreferences()]);
         if (!isAuthenticatedSession(this.authSession) || bootstrap !== this.workspaceBootstrapSerial
             || identity !== this.authSession.user.id) return;
-        this.workspaceItems = items;
+        this.workspaceItems = items; this.workspacePreference = preference;
         const route = parseWorkspaceRoute(window.location.hash || "");
         const target = selectedWorkspaceId ? items.find(item => item.workspaceId === selectedWorkspaceId)
           : chooseWorkspace(items, route, preference);
@@ -324,8 +330,6 @@ export default {
           return;
         }
         await this.switchWorkspace(target.workspaceId, selectedWorkspaceId ? "" : route.pageId || requestedView || route.legacyView);
-        if (!selectedWorkspaceId && (route.selection || (choose && items.length > 1 && !route.workspaceId && !route.legacyView)))
-          this.openWorkspaceSelection();
       } catch (error) {
         if (bootstrap !== this.workspaceBootstrapSerial || identity !== this.authSession?.user?.id) return;
         this.workspaceError = errorMessage(error, "工作空间加载失败");
@@ -389,10 +393,19 @@ export default {
       if (id !== this.currentWorkspace?.workspaceId) await this.switchWorkspace(id);
       if (account?.isConnected) account.open = false;
     },
-    openWorkspaceSelection() { this.showWorkspaceSelection = true; this.setHashRoute("workspaces"); },
+    openWorkspaceSelection() { return this.switchWorkspace("zhice", "workspaces"); },
     async useDefaultWorkspace(id) {
-      try { await saveWorkspacePreferences({ defaultWorkspaceId: id }); await this.switchWorkspace(id); }
-      catch (error) { this.workspaceError = errorMessage(error, "默认工作空间保存失败"); }
+      if (this.workspaceSaving) return;
+      this.workspaceSaving = true; this.workspaceError = ""; this.workspaceNotice = "";
+      const identity = this.authSession?.user?.id;
+      try {
+        const preference = await saveWorkspacePreferences({ defaultWorkspaceId: id });
+        if (identity !== this.authSession?.user?.id) return;
+        this.workspacePreference = preference;
+        this.workspaceNotice = "默认登录空间已保存，下次登录生效。";
+      } catch (error) {
+        if (identity === this.authSession?.user?.id) this.workspaceError = errorMessage(error, "默认工作空间保存失败");
+      } finally { if (identity === this.authSession?.user?.id) this.workspaceSaving = false; }
     },
     async loadEnterpriseMenus({ reconcileRoute = true } = {}) {
       if (!isAuthenticatedSession(this.authSession)) return;
@@ -501,7 +514,7 @@ export default {
       this.loadTrendSemanticConfig();
       const requestedView = this.consumeRedirectView() || viewFromHash() || DEFAULT_VIEW;
       await this.loadWorkspaces(selectedWorkspaceId ? { selectedWorkspaceId, requestedView }
-        : { choose: true, requestedView });
+        : { requestedView });
       if (session?.embedded) {
         this.stopIdleLogoutWatcher();
       } else {
@@ -523,6 +536,7 @@ export default {
       this.workspaceBootstrapSerial = (this.workspaceBootstrapSerial || 0) + 1;
       setWorkspaceContext(null);
       this.currentWorkspace = null; this.workspacePages = []; this.workspaceItems = [];
+      this.workspacePreference = {}; this.workspaceNotice = ""; this.workspaceSaving = false;
       this.workspaceContexts = {}; this.workspaceReady = false; this.showWorkspaceSelection = false;
       this.stopIdleLogoutWatcher();
       this.stopTodoRefresh();

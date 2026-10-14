@@ -98,8 +98,10 @@ public class WorkspaceService {
     public Preference preference(HttpServletRequest request) {
         permissions(request);
         var row = preferences.findByTenantIdAndUserId(access.tenant(request), access.user(request));
-        Set<String> available = new HashSet<>(); available(request).forEach(w -> available.add(w.workspaceId()));
-        return new Preference(row.map(WorkspacePreference::getDefaultWorkspaceId).filter(available::contains).orElse(null),
+        var workspaces = available(request);
+        Set<String> available = new HashSet<>(); workspaces.forEach(w -> available.add(w.workspaceId()));
+        String defaultId = workspaces.stream().filter(Available::defaultWorkspace).map(Available::workspaceId).findFirst().orElse(null);
+        return new Preference(row.map(WorkspacePreference::getDefaultWorkspaceId).filter(available::contains).orElse(defaultId),
             row.map(WorkspacePreference::getLastWorkspaceId).filter(available::contains).orElse(null));
     }
     @Transactional
@@ -112,6 +114,7 @@ public class WorkspaceService {
             created.setId(UUID.nameUUIDFromBytes((access.tenant(request) + ":" + access.user(request)).getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString());
             created.setTenantId(access.tenant(request)); created.setUserId(access.user(request)); return created;
         });
+        if (row.getDefaultWorkspaceId() == null) row.setDefaultWorkspaceId(preference(request).defaultWorkspaceId());
         if (update.defaultWorkspaceId() != null) row.setDefaultWorkspaceId(update.defaultWorkspaceId());
         if (update.lastWorkspaceId() != null) row.setLastWorkspaceId(update.lastWorkspaceId());
         preferences.saveAndFlush(row); return new Preference(row.getDefaultWorkspaceId(), row.getLastWorkspaceId());

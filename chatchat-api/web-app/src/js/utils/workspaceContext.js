@@ -13,7 +13,7 @@ export function parseWorkspaceRoute(hash = "") {
   let route;
   try { route = decodeURIComponent(hash.replace(/^#\/?/, "").split("?")[0]); }
   catch (_) { return { invalid: true }; }
-  if (route === "workspaces") return { selection: true };
+  if (route === "workspaces") return { workspaceId: "zhice", pageId: "workspaces" };
   if (route.startsWith("w/")) {
     const parts = route.split("/");
     if (parts.length !== 3 || !/^[a-z][a-z0-9-]{0,63}$/.test(parts[1])
@@ -28,6 +28,6 @@ export function chooseWorkspace(items, route, preference = {}) {
   if ((route.legacyView?.startsWith("dataScience") && route.legacyView !== "dataScienceSkills") || route.legacyView === "sqlStudio")
     return valid("data-science") || null;
   if (route.legacyView) return items.find((item) => item.defaultWorkspace) || items[0] || null;
-  return valid(preference.lastWorkspaceId) || valid(preference.defaultWorkspaceId)
+  return valid(preference.defaultWorkspaceId)
     || items.find((item) => item.defaultWorkspace) || items[0] || null;
 }

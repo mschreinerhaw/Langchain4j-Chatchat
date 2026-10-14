@@ -59,8 +59,41 @@ describe("Workspace identity and state isolation", () => {
     expect(chooseWorkspace([...items, { workspaceId: "data-science" }],
       { legacyView: "dataScienceSkills" }).workspaceId).toBe("zhice");
   });
+  it("opens the platform default at login instead of the last visited workspace", () => {
+    const items = [{ workspaceId: "zhice", defaultWorkspace: true }, { workspaceId: "data-science" }];
+    expect(chooseWorkspace(items, {}, { lastWorkspaceId: "data-science" }).workspaceId).toBe("zhice");
+    expect(chooseWorkspace(items, {}, { defaultWorkspaceId: "zhice", lastWorkspaceId: "data-science" }).workspaceId).toBe("zhice");
+    expect(chooseWorkspace(items, {}, { defaultWorkspaceId: "data-science", lastWorkspaceId: "zhice" }).workspaceId).toBe("data-science");
+    expect(parseWorkspaceRoute("#/workspaces")).toEqual({ workspaceId: "zhice", pageId: "workspaces" });
+  });
 });
 describe("Workspace Shell", () => {
+  it("logs in directly without opening a separate selection screen", async () => {
+    const state = { authSession: { token: "token", user: { id: "u1" } }, workspaceBootstrapSerial: 0,
+      switchWorkspace: vi.fn(), openWorkspaceSelection: vi.fn(), showWorkspaceSelection: false };
+    vi.spyOn(api, "fetchWorkspaces").mockResolvedValue([
+      { workspaceId: "zhice", defaultWorkspace: true }, { workspaceId: "data-science" }
+    ]);
+    vi.spyOn(api, "fetchWorkspacePreferences").mockResolvedValue({ lastWorkspaceId: "data-science", defaultWorkspaceId: "zhice" });
+    await App.methods.loadWorkspaces.call(state);
+    expect(state.switchWorkspace).toHaveBeenCalledWith("zhice", "");
+    expect(state.openWorkspaceSelection).not.toHaveBeenCalled();
+    expect(state.showWorkspaceSelection).toBe(false);
+  });
+  it("saves the personal default without leaving the management page and reports failures", async () => {
+    const state = { authSession: { user: { id: "u1" } }, workspacePreference: { defaultWorkspaceId: "zhice" },
+      switchWorkspace: vi.fn() };
+    const save = vi.spyOn(api, "saveWorkspacePreferences").mockResolvedValue({ defaultWorkspaceId: "data-science" });
+    await App.methods.useDefaultWorkspace.call(state, "data-science");
+    expect(save).toHaveBeenCalledWith({ defaultWorkspaceId: "data-science" });
+    expect(state.workspacePreference.defaultWorkspaceId).toBe("data-science");
+    expect(state.switchWorkspace).not.toHaveBeenCalled();
+    save.mockRejectedValueOnce(new Error("offline"));
+    await App.methods.useDefaultWorkspace.call(state, "zhice");
+    expect(state.workspacePreference.defaultWorkspaceId).toBe("data-science");
+    expect(state.workspaceError).toBe("offline");
+    expect(state.workspaceSaving).toBe(false);
+  });
   function shell() {
     return { authSession: { token: "same-token", user: { id: "u1" } }, tenantId: "t1", workspaceNavigationSerial: 0,
       workspaceContexts: {}, currentWorkspace: null, workspacePages: [], activeView: "", workspaceReady: false,

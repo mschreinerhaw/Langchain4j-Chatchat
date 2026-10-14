@@ -209,7 +209,7 @@ describe("document Ask AI conversation isolation", () => {
       user: { id: "user-1", username: "admin", tenantId: "tenant-1" }
     });
 
-    expect(context.loadWorkspaces).toHaveBeenCalledWith({ choose: true, requestedView: "library" });
+    expect(context.loadWorkspaces).toHaveBeenCalledWith({ requestedView: "library" });
     expect(sequence).toEqual(["authorized-workspace"]);
     await App.methods.handleLoginSuccess.call(context, {
       token: "token-2", user: { id: "user-1", username: "admin", tenantId: "tenant-1" }

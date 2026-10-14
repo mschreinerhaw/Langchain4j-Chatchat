@@ -1,6 +1,6 @@
 {
   "schemaVersion": "workspace-manifest.v1",
-  "configVersion": 2,
+  "configVersion": 3,
   "workspaceId": "zhice",
   "appVersion": "1.0.0",
   "name": "灵动智策",
@@ -139,6 +139,12 @@
       "id": "models",
       "menuCode": "models",
       "componentKey": "models",
+      "props": {}
+    },
+    {
+      "id": "workspaces",
+      "menuCode": "workspaces",
+      "componentKey": "workspaces",
       "props": {}
     }
   ],

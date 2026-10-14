@@ -54,19 +54,10 @@
       </div>
     </template>
     <p v-if="workspaceError" class="workspace-error" role="alert">{{ workspaceError }}</p>
-    <section v-if="showWorkspaceSelection || !workspaceReady" class="workspace-selection" aria-label="选择工作空间">
-      <h1>选择工作空间</h1>
-      <p>使用当前登录身份进入已授权的应用环境。</p>
-      <p v-if="workspaceLoading" role="status">正在加载工作空间…</p>
-      <div class="workspace-cards">
-        <article v-for="workspace in workspaceItems" :key="workspace.workspaceId" class="workspace-card">
-          <h2>{{ workspace.name }}</h2><p>{{ workspace.description }}</p>
-          <button type="button" :disabled="workspaceLoading" @click="switchWorkspace(workspace.workspaceId)">进入空间</button>
-          <button type="button" :disabled="workspaceLoading" @click="useDefaultWorkspace(workspace.workspaceId)">设为我的默认空间</button>
-        </article>
-      </div>
-      <button v-if="workspaceError" type="button" @click="loadWorkspaces()">重新加载</button>
-    </section>
+    <WorkspacesView v-if="showWorkspaceSelection || !workspaceReady"
+      :workspaces="workspaceItems" :loading="workspaceLoading || workspaceSaving"
+      :default-workspace-id="workspacePreference.defaultWorkspaceId || ''" :notice="workspaceNotice"
+      @switch-workspace="switchWorkspace" @default-workspace="useDefaultWorkspace" @reload-workspaces="loadWorkspaces()" />
     <KeepAlive>
       <component
         v-if="workspaceReady && !showWorkspaceSelection"
@@ -74,6 +65,9 @@
         ref="activeViewComponent"
         :is="activeComponent"
         v-bind="activeComponentProps"
+        @switch-workspace="switchWorkspace"
+        @default-workspace="useDefaultWorkspace"
+        @reload-workspaces="loadWorkspaces()"
         @conversation-active="handleConversationActive"
         @history-saved="handleHistorySaved"
         @ask-ai="handleAskAiFromSearch"

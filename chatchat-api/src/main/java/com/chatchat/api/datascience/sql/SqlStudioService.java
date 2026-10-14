@@ -322,7 +322,11 @@ public class SqlStudioService {
         require(query.length() <= 250_000, "Project context exceeds 250000 characters; select smaller inputs");
         String id = UUID.randomUUID().toString();
         var taskRequest = new AgentTaskSubmitRequest();
-        taskRequest.setTenantId(project.tenantId()); taskRequest.setUserId(project.ownerId()); taskRequest.setSessionId(project.sessionId());
+        // Studio supplies its conversation explicitly in the query. Isolate each run's
+        // Runtime memory so a new Studio conversation cannot inherit an old summary.
+        var runSession = origins.createForWorkspace(request, "data-science", "SQL Studio: " + project.name());
+        taskRequest.setTenantId(project.tenantId()); taskRequest.setUserId(project.ownerId()); taskRequest.setSessionId(runSession.getId());
+        taskRequest.setHistoryWindow(0);
         taskRequest.setIdempotencyKey("sql-generation:" + id); taskRequest.setQuery(query);
         // A model-only engineering request has no maintained Agent capabilities. Route it
         // through the existing tool-free Runtime entry rather than discovering a default Agent.
@@ -358,7 +362,7 @@ public class SqlStudioService {
     public Generation bind(HttpServletRequest request, String projectId, String id, String taskId) {
         Generation generation = generation(request, projectId, id); access.requireTask(request, taskId);
         Project project = project(request, projectId); AgentTaskResponse task = tasks.get(project.tenantId(), taskId).orElseThrow();
-        require(project.sessionId().equals(task.sessionId()) && generation.prepared().taskRequest().getQuery().equals(task.question()), "Task does not belong to this generation context");
+        require(generation.prepared().taskRequest().getSessionId().equals(task.sessionId()) && generation.prepared().taskRequest().getQuery().equals(task.question()), "Task does not belong to this generation context");
         if (generation.taskId() != null && !generation.taskId().equals(taskId)) conflict();
         int count = jdbc.update("update ds_sql_generation set task_id=? where id=? and (task_id is null or task_id=?)", taskId, id, taskId);
         if (count != 1) conflict(); return generation(request, projectId, id);
@@ -368,7 +372,7 @@ public class SqlStudioService {
         if (generation.taskId() == null) return new GenerationView(generation, null, List.of(), List.of(), "", "", "NOT_RUN");
         access.requireTask(request, generation.taskId());
         AgentTaskResponse task = tasks.get(project.tenantId(), generation.taskId()).orElseThrow();
-        List<AgentEvent> trace = events.listByTask(project.tenantId(), project.sessionId(), task.taskId(), 2000);
+        List<AgentEvent> trace = events.listByTask(project.tenantId(), task.sessionId(), task.taskId(), 2000);
         // Reuse Runtime's final answer extraction, including nested responses and persisted notifications.
         String answer = tasks.finalAnswer(project.tenantId(), task.taskId()).orElse(Objects.toString(task.answerSummary(), ""));
         List<SqlOutputBundle.Candidate> output = List.of(); String error = "";

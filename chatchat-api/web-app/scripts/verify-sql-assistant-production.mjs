@@ -71,6 +71,18 @@ try {
   assert.equal(stable,1,'Page and editor keep stable bounds');
   assert.deepEqual(errors,[]);
   await page.screenshot({path:`${output}/production-completed.png`,fullPage:true});
+  await page.getByRole('button',{name:'新建会话',exact:true}).click();
+  assert.equal(await page.locator('.sql-chat-turn,.sql-chat-result').count(),0);
+  assert.equal(await page.getByLabel('发送给 AI 工程助手').inputValue(),'');
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.locator('.sql-current-context').filter({hasText:'smoke.sql'}).waitFor({timeout:45000});
+  assert.equal(await page.locator('.sql-chat-turn,.sql-chat-result').count(),0,'Fresh conversation survives reload');
+  const previous=await api(`/data-science/sql/projects/${projectId}/generations`);
+  const fresh=await api(`/data-science/sql/projects/${projectId}/generations`,{method:'POST',data:{prompt:'Fresh conversation isolation check',dialect:'spark',mappingIds:[],referenceIds:[]}});
+  assert.notEqual(fresh.taskRequest.sessionId,previous[0].prepared.taskRequest.sessionId,'New request uses isolated Runtime memory');
+  assert.equal(fresh.taskRequest.historyWindow,0);
+  assert.ok(!fresh.taskRequest.query.includes('Previous project conversation:'),'New request has no previous dialogue');
+  await page.screenshot({path:`${output}/production-new-conversation.png`,fullPage:true});
   const result={realTaskId:taskId,states,layoutStableFrames:90,browserErrors:errors,existingProjects:existing.length,temporaryProject:projectId};
   await writeFile(`${output}/verification.json`,JSON.stringify(result,null,2));
   console.log(JSON.stringify(result,null,2));

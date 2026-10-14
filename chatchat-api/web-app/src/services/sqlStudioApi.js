@@ -27,7 +27,9 @@ export async function uploadSqlInput(id, file, kind) {
 }
 export async function submitSqlGeneration(id, prepared) {
   // Same authentication, RBAC, session advice, idempotency and runtime as all other Agent tasks.
-  const task = await submitAgentTask(prepared.taskRequest);
+  // The Studio explicitly supplies the current conversation in query. Runtime session
+  // history would duplicate those turns and leak previous conversations after a reset.
+  const task = await submitAgentTask({ ...prepared.taskRequest, historyWindow: 0 });
   await bindSqlTask(id, prepared.generationId, task.taskId);
   return task;
 }

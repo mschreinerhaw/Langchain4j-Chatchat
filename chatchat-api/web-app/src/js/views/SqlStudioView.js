@@ -52,7 +52,7 @@ function persist() {
   if (!projectId.value) return true;
   const saved = saveWorkspaceDraft(namespace(projectId.value), props.workspaceContext, {
     openIds: openIds.value, activeId: activeId.value, prompt: prompt.value, mappingDocuments: mappingDocuments.value, mappingIds: mappingIds.value, referenceIds: referenceIds.value,
-    chatTurns: chatTurns.value.slice(-30),
+    chatTurns: chatTurns.value.slice(-30), conversationGenerationId: generationId.value,
     drafts: files.value.filter(dirtySqlFile).map(file => ({ id:file.id, content:file.draft, baseVersion:file.draftBaseVersion }))
   });
   if (!saved) { error.value = '本地草稿存储已满或不可用，请保存文件后再离开工程。'; return false; }
@@ -60,7 +60,7 @@ function persist() {
   return true;
 }
 function beforeUnload(event) { persist(); if (files.value.some(dirtySqlFile)) { event.preventDefault(); event.returnValue = ''; } }
-watch([files, openIds, activeId, prompt, mappingIds, mappingDocuments, referenceIds, chatTurns], () => { clearTimeout(draftTimer); draftTimer = setTimeout(persist, 200); }, { deep:true });
+watch([files, openIds, activeId, prompt, mappingIds, mappingDocuments, referenceIds, chatTurns, generationId], () => { clearTimeout(draftTimer); draftTimer = setTimeout(persist, 200); }, { deep:true });
 watch(layout, value => saveWorkspaceDraft('sql-studio-ide-layout', props.workspaceContext, value), { deep:true });
 function togglePanel(panel) { layout.value[panel] = !layout.value[panel]; }
 function resetSize(panel) { if (panel === 'bottom') layout.value.bottomHeight = 180; else layout.value[`${panel}Width`] = panel === 'explorer' ? 252 : 336; }
@@ -124,7 +124,10 @@ async function selectProject(id) {
     referenceIds.value = (stored?.referenceIds || []).filter(fileId => references.value.some(file => file.id === fileId));
     if (!stored) { const first = files.value.find(file => file.kind === 'SQL') || files.value[0]; if (first) openFile(first.id); }
     prompt.value = stored?.prompt || ''; chatTurns.value = Array.isArray(stored?.chatTurns) ? stored.chatTurns.slice(-30) : [];
-    selectedCode.value = null; preview.value = null; generations.value = history; generationId.value = history[0]?.id || ''; result.value = null;
+    selectedCode.value = null; preview.value = null; generations.value = history;
+    generationId.value = stored && Object.hasOwn(stored, 'conversationGenerationId')
+      ? history.find(item => item.id === stored.conversationGenerationId)?.id || '' : history[0]?.id || '';
+    result.value = null;
     pendingPhase.value = ''; pendingStartedAt.value = 0; pollError.value = '';
     await refreshGeneration();
   } catch (ex) { error.value = ex.message; } finally { if (serial === loadSerial) busy.value = false; }
@@ -226,6 +229,14 @@ async function resume() { await action(async () => {
   try { const task = await sql.submitSqlGeneration(projectId.value, prepared); result.value.task = task; }
   finally { await refreshGeneration(); pendingPhase.value = ''; }
 }); }
+function newConversation() {
+  if (busy.value || taskRunning.value || pendingPhase.value || !projectId.value) return;
+  clearTimeout(pollTimer); clearTimeout(draftTimer);
+  chatTurns.value = []; prompt.value = ''; selectedCode.value = null;
+  generationId.value = ''; result.value = null; pendingStartedAt.value = 0; pollError.value = '';
+  if (preview.value && !preview.value.reference) preview.value = null;
+  error.value = ''; message.value = ''; persist();
+}
 async function selectGeneration(id) { generationId.value = id; pendingStartedAt.value = 0; preview.value = null; await refreshGeneration(); }
 async function refreshGeneration() {
   clearTimeout(pollTimer);
@@ -280,7 +291,7 @@ onMounted(async () => {
 onActivated(() => { active = true; if (initialized) refreshGeneration(); });
 onDeactivated(() => { active = false; clearTimeout(pollTimer); persist(); });
 onBeforeUnmount(() => { resolveConfirm(false); active = false; resizeCleanup?.(); clearTimeout(pollTimer); clearTimeout(draftTimer); persist(); window.removeEventListener('beforeunload', beforeUnload); });
-  return { taskStatusLabel, pendingPhase, pendingStartedAt, pollError, confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
+  return { newConversation, taskStatusLabel, pendingPhase, pendingStartedAt, pollError, confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
 
   }
 };

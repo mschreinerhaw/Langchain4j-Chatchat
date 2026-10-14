@@ -78,7 +78,7 @@ try {
       assert.ok(body.prompt.includes('sql/new.sql'));
       data = { generationId: generation.id, taskRequest: { query: body.prompt, sessionId: 'session' } };
     }
-    else if (path === '/api/v1/agent/tasks' && method === 'POST') { await new Promise(resolve => setTimeout(resolve, 350)); submissionCount++; data = { taskId: 'task-1', status: taskStatus }; }
+    else if (path === '/api/v1/agent/tasks' && method === 'POST') { assert.equal(request.postDataJSON().historyWindow, 0); await new Promise(resolve => setTimeout(resolve, 350)); submissionCount++; data = { taskId: 'task-1', status: taskStatus }; }
     else if (path.endsWith('/task-1/cancel')) { taskStatus = 'CANCELLED'; data = true; }
     else if (path.endsWith('/generations/generation-1/task')) data = generation;
     else if (path.endsWith('/generations/generation-1')) {
@@ -86,11 +86,13 @@ try {
       data = { generation, task: { taskId: 'task-1', status: taskStatus, createTime: new Date(Date.now() - 3000).toISOString() },
         events: [{ eventId: 'model-event', sequence: 1, type: 'RUNTIME_OBSERVATION', payload: JSON.stringify({payload:{metadata:{eventKind:'MODEL_INFERENCE',eventState:'STARTED'}}}) }], files: [], rawAnswer: '', outputError: '' };
     }
-    else if (path.endsWith('/project/generations') || path.endsWith('/new-project/generations')) data = [];
+    else if (path.endsWith('/project/generations')) data = submissionCount ? [generation] : [];
+    else if (path.endsWith('/new-project/generations')) data = [];
     await route.fulfill({ json: { code: 200, message: 'Success', data } });
   });
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/#/w/data-science/sqlStudio`, { waitUntil: 'domcontentloaded' });
   await page.locator('.sql-ide-shell').waitFor({ timeout: 90000 });
+  assert.ok((await page.getByRole('button',{name:'新建会话',exact:true}).locator('svg').boundingBox()).width >= 18,'New conversation icon is not squeezed by global button padding');
   assert.equal(await page.locator('.sql-ide-shell').evaluate(el => el.style.getPropertyValue('--sql-assistant-width')), '380px', 'Saved panel widths are present on initial render');
   assert.equal(await page.locator('.sql-ide-titlebar .sql-activity-bar').count(), 1, 'panel buttons belong in top bar');
   await page.setViewportSize({ width: 1024, height: 900 });
@@ -161,10 +163,24 @@ try {
   await page.screenshot({ path: '../../target/sql-studio-ide-audit/sql-assistant-running.png', fullPage: true });
   assert.equal(submissionCount, 1);
   assert.equal(await page.locator('.sql-chat-composer .sql-primary').isDisabled(), true, 'Running Runtime task blocks duplicate submission');
+  assert.equal(await page.getByRole('button', {name:'新建会话',exact:true}).isDisabled(), true);
   await page.getByRole('button', { name: '取消', exact: true }).click();
   await page.locator('.sql-task-status').filter({ hasText: '任务已取消' }).waitFor();
   await page.getByLabel('发送给 AI 工程助手').fill('继续修改');
   assert.equal(await page.locator('.sql-chat-composer .sql-primary').isDisabled(), false, 'Runtime terminal state unlocks submission');
+  await page.getByRole('button', {name:'新建会话',exact:true}).click();
+  assert.equal(await page.locator('.sql-chat-turn,.sql-chat-result').count(), 0);
+  assert.equal(await page.getByLabel('发送给 AI 工程助手').inputValue(), '');
+  assert.equal(await page.getByLabel('发送给 AI 工程助手').evaluate(el=>el===document.activeElement), true);
+  await page.locator('.sql-current-context').filter({hasText:'new.sql'}).waitFor();
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.locator('.sql-current-context').filter({hasText:'new.sql'}).waitFor();
+  assert.equal(await page.locator('.sql-chat-turn,.sql-chat-result').count(), 0, 'Reload must retain the fresh conversation despite existing history');
+  await page.locator('.sql-chat-settings summary').click();
+  const history=page.locator('.sql-chat-settings label').filter({hasText:'任务历史'}).locator('select');
+  await history.selectOption('generation-1');
+  await page.locator('.sql-chat-result').waitFor();
+  await page.getByRole('button', {name:'新建会话',exact:true}).click();
   await page.locator('.sql-tree-file button[title="sql/new.sql"]').click({ button: 'right' });
   await page.getByRole('menuitem', { name: '删除文件…' }).click();
   await page.getByRole('dialog',{name:'删除文件',exact:true}).waitFor();

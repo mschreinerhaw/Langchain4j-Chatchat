@@ -315,6 +315,17 @@ class SqlStudioIntegrationTest {
             .content(json(Map.of("prompt","Generate","dialect","spark","mappingIds",List.of(mapping.path("id").asText()),
                 "referenceIds",List.of(),"agentId","agent-x","modelName","model-y")))).andExpect(status().isBadRequest());
     }
+    @Test void studioRunsIsolateRuntimeMemoryAndRetainHistoricalResults() throws Exception {
+        String p=project();
+        var first=prepare(p,List.of(),List.of());
+        var second=prepare(p,List.of(),List.of());
+        assertThat(first.path("taskRequest").path("sessionId").asText()).isNotBlank()
+            .isNotEqualTo(second.path("taskRequest").path("sessionId").asText());
+        assertThat(first.path("taskRequest").path("historyWindow").asInt(-1)).isZero();
+        String task=run(p,first,List.of(Map.of("path","sql/first.sql","content","SELECT 1;")));
+        assertThat(result(p,first).path("task").path("taskId").asText()).isEqualTo(task);
+        assertThat(result(p,first).path("files").get(0).path("path").asText()).isEqualTo("sql/first.sql");
+    }
     @Test void modelOnlyGenerationsUseNativeToolFreeRuntimeEntry() throws Exception {
         String p=project(); var mapping=save(p,"mapping/a.txt","MAPPING","source target",0);
         var defaultRequest=prepare(p,List.of(mapping.path("id").asText()),List.of()).path("taskRequest");

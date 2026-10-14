@@ -276,6 +276,13 @@
   padding: 17px 18px 8px;
 }
 
+.sql-assistant-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sql-ide-assistant .sql-new-conversation { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 28px; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #7184a2; cursor: pointer; }
+.sql-ide-assistant .sql-new-conversation svg { flex: 0 0 18px; width: 18px; height: 18px; }
+.sql-ide-assistant .sql-new-conversation:hover:not(:disabled) { background: #edf3ff; color: #2563eb; }
+.sql-new-conversation:focus-visible { outline: 2px solid #3478ff; outline-offset: 2px; }
+.sql-new-conversation:disabled { opacity: .4; cursor: not-allowed; }
+
 .sql-ide-assistant > header strong {
   display: flex;
   align-items: center;

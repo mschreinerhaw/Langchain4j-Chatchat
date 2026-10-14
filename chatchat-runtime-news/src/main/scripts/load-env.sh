@@ -11,6 +11,7 @@ load_jvm_options() {
     LINE=${LINE%"$CR"}
     case "$LINE" in
       ''|\#*) continue ;;
+      JAVA_HOME=*) export JAVA_HOME="${LINE#JAVA_HOME=}" ;;
       JAVA_OPTS=*) export JAVA_OPTS="${LINE#JAVA_OPTS=}" ;;
     esac
   done < "$ENV_FILE"

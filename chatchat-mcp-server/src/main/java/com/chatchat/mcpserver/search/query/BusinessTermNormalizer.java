@@ -1,5 +1,9 @@
 package com.chatchat.mcpserver.search.query;
 
+import com.chatchat.common.retrieval.query.QueryTermProtector;
+
+import com.chatchat.common.retrieval.query.QueryOptimizationException;
+
 import com.chatchat.mcpserver.search.engine.LuceneSearchProperties;
 import org.springframework.stereotype.Component;
 
@@ -15,7 +19,7 @@ import java.util.Set;
  * The implementation intentionally contains no business terms.
  */
 @Component
-public class BusinessTermNormalizer {
+public class BusinessTermNormalizer implements QueryTermProtector {
 
     private final boolean enabled;
     private final int maxExpansionsPerQuery;
@@ -37,6 +41,14 @@ public class BusinessTermNormalizer {
                 .forEach(result::add));
         }
         return List.copyOf(result);
+    }
+
+    @Override public List<String> protectedPhrases(String source, int maximumPhrases) {
+        if (!enabled || source == null) return List.of();
+        var result = groups.stream().flatMap(List::stream).distinct().filter(source::contains).toList();
+        if (result.size() > maximumPhrases) throw new QueryOptimizationException(
+            "PROTECTED_TERMS_EXCEED_BUDGET", "Published business phrases exceed the extraction budget");
+        return result;
     }
 
     public List<String> expansions(String value) {

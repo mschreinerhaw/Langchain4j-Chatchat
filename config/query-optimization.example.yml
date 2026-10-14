@@ -1,0 +1,34 @@
+# Merge into the existing application configuration. No connection settings are introduced.
+# These are application defaults, not measured cluster limits. Tune using a representative corpus.
+chatchat:
+  search:
+    query-optimization:
+      long-text-threshold: 256
+      max-input-bytes: 262144
+      max-keywords: 24
+      max-keyword-code-points: 64
+      max-batches: 16
+      max-candidates: 500
+      max-total-candidates: 4000
+      max-concurrent: 2
+      request-timeout-ms: 8000
+      total-timeout-ms: 20000
+      max-dsl-depth: 24
+      max-dsl-nodes: 4096
+      max-terms-values: 20000
+      max-estimated-clauses: 512
+      clause-headroom: 32
+      analyzer-expansion-factor: 4
+      max-fields: 32
+      max-request-bytes: 1048576
+      max-aggregation-buckets: 10000
+      max-offset: 10000
+      rrf-rank-constant: 60
+      protected-terms: [] # Add published domain phrases; do not put tenant credentials here.
+      # API and MCP reuse ConfigurableChatModelFactory/ModelResourceRegistry when explicitly enabled.
+      # News runtime retains deterministic extraction without adding an Agent/model framework.
+      model-refinement-enabled: false
+      max-refinement-calls: 1
+      refinement-model: "" # Empty selects the existing default registered chat model.
+      refinement-timeout-ms: 3000
+      refinement-max-output-tokens: 512

@@ -27,6 +27,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class FinancialDataStoreTest {
     @Test
+    void protectsSecurityNamesUsingExistingMasterWithoutInventingEntities() throws Exception {
+        var dataSource = new DriverManagerDataSource(
+            "jdbc:h2:mem:query_security_protection;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "");
+        var store = new FinancialDataStore(new JdbcTemplate(dataSource), dataSource, new ObjectMapper(), new MarketModuleProperties());
+        store.initialize();
+        store.replaceSecurityMaster("SSE", List.of(new FinancialDataStore.SecurityMasterRecord(
+            "600519", "贵州茅台", "贵州茅台股份有限公司", "stock", "main", null, "beverages", "https://example.test/registry")));
+        assertThat(store.protectedSecurityPhrases("分析 贵州茅台 的现金流", 4)).containsExactly("贵州茅台");
+        assertThat(store.protectedSecurityPhrases("分析另一家公司", 4)).isEmpty();
+    }
+    @Test
     void writesDynamicQuoteColumnsIntoPreinitializedNewsDeploymentSchema() throws Exception {
         var dataSource = new DriverManagerDataSource(
             "jdbc:h2:mem:financial_news_schema;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "");

@@ -1,5 +1,9 @@
 package com.chatchat.runtime.news.store.opensearch;
 
+import com.chatchat.common.retrieval.query.SearchQueryOptimizer;
+
+import com.chatchat.common.retrieval.query.QueryOptimizationException;
+
 import com.chatchat.runtime.news.config.NewsRuntimeProperties;
 import com.chatchat.runtime.news.model.NewsDocument;
 import com.chatchat.runtime.news.model.NewsSearchQuery;
@@ -41,6 +45,10 @@ import java.security.GeneralSecurityException;
 @Component
 @ConditionalOnProperty(prefix = "chatchat.runtime.news.open-search", name = "enabled", havingValue = "true")
 public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
+    private SearchQueryOptimizer queryOptimizer = new SearchQueryOptimizer();
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setQueryOptimizer(SearchQueryOptimizer optimizer) { queryOptimizer.close(); queryOptimizer = optimizer; }
+
     private static final Logger log = LoggerFactory.getLogger(OpenSearchNewsDocumentStore.class);
 
     private final NewsRuntimeProperties.OpenSearch properties;
@@ -138,63 +146,67 @@ public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
 
     @Override
     public List<NewsDocument> search(NewsSearchQuery query) throws Exception {
-        int requested = Math.max(1, Math.min(query.size(), 50));
-        String lexicalQuery = NewsQueryDateParser.lexicalText(query.query());
-        boolean semantic = !lexicalQuery.isBlank() && embeddingClient.enabled();
-        int lexicalCandidateLimit = Math.max(24, requested * 5);
-        int candidateLimit = Math.min(200, semantic
-            ? Math.max(lexicalCandidateLimit, properties.getEmbedding().getVectorCandidateLimit())
-            : lexicalCandidateLimit);
-        ObjectNode root = objectMapper.createObjectNode();
-        root.put("size", candidateLimit);
-        ObjectNode bool = root.putObject("query").putObject("bool");
-        if (!lexicalQuery.isBlank()) {
-            ArrayNode should = bool.putArray("should");
-            ObjectNode primary = should.addObject().putObject("multi_match");
-            primary.put("query", lexicalQuery).put("type", "best_fields");
-            primary.putArray("fields").add("title^8").add("tags^6").add("categories^5")
-                .add("summary^4").add("sourceName^2");
-            ObjectNode phrase = should.addObject().putObject("match_phrase").putObject("title");
-            phrase.put("query", lexicalQuery).put("boost", 3.0D);
-            ObjectNode content = should.addObject().putObject("match").putObject("content");
-            content.put("query", lexicalQuery).put("boost", 0.6D);
-            bool.put("minimum_should_match", 1);
-        } else {
-            bool.putArray("must").addObject().putObject("match_all");
+        try (var budgetScope = queryOptimizer.openScope()) {
+            int requested = Math.max(1, Math.min(query.size(), 50));
+            String lexicalQuery = queryOptimizer.text(NewsQueryDateParser.lexicalText(query.query()), 7);
+            boolean semantic = !lexicalQuery.isBlank() && embeddingClient.enabled();
+            int lexicalCandidateLimit = Math.max(24, requested * 5);
+            int candidateLimit = Math.min(200, semantic
+                ? Math.max(lexicalCandidateLimit, properties.getEmbedding().getVectorCandidateLimit())
+                : lexicalCandidateLimit);
+            ObjectNode root = objectMapper.createObjectNode();
+            root.put("size", candidateLimit);
+            ObjectNode bool = root.putObject("query").putObject("bool");
+            if (!lexicalQuery.isBlank()) {
+                ArrayNode should = bool.putArray("should");
+                ObjectNode primary = should.addObject().putObject("multi_match");
+                primary.put("query", lexicalQuery).put("type", "best_fields");
+                primary.putArray("fields").add("title^8").add("tags^6").add("categories^5")
+                    .add("summary^4").add("sourceName^2");
+                ObjectNode phrase = should.addObject().putObject("match_phrase").putObject("title");
+                phrase.put("query", lexicalQuery).put("boost", 3.0D);
+                ObjectNode content = should.addObject().putObject("match").putObject("content");
+                content.put("query", lexicalQuery).put("boost", 0.6D);
+                bool.put("minimum_should_match", 1);
+            } else {
+                bool.putArray("must").addObject().putObject("match_all");
+            }
+            ArrayNode filters = bool.putArray("filter");
+            appendFilters(filters, query);
+            if (lexicalQuery.isBlank()) root.putArray("sort").addObject().put("publishTime", "desc");
+            String targets = String.join(",", indexNaming.readableIndices());
+            List<SearchHit> lexical;
+            try {
+                lexical = hits(searchRequest(targets, root));
+            } catch (ResponseException ex) {
+                if (ex.getResponse() != null && ex.getResponse().getStatusLine().getStatusCode() == 404) return List.of();
+                throw ex;
+            }
+            if (!semantic) return rankedDocuments(query.query(), lexical, requested);
+            List<Float> queryVector = queryOptimizer.withinBudget(() -> embeddingClient.embed(lexicalQuery));
+            if (queryVector.isEmpty()) return rankedDocuments(query.query(), lexical, requested);
+            List<SearchHit> vector = List.of();
+            try {
+                String vectorTargets = indexNaming.readableIndices().stream().filter(this::hasVectorIndex)
+                    .collect(java.util.stream.Collectors.joining(","));
+                if (vectorTargets.isBlank()) return rankedDocuments(query.query(), lexical, requested);
+                ObjectNode vectorRoot = objectMapper.createObjectNode();
+                vectorRoot.put("size", candidateLimit);
+                ObjectNode field = vectorRoot.putObject("query").putObject("knn").putObject(vectorField());
+                field.set("vector", objectMapper.valueToTree(queryVector));
+                field.put("k", candidateLimit);
+                ObjectNode filter = objectMapper.createObjectNode();
+                ArrayNode vectorFilters = filter.putObject("bool").putArray("filter");
+                appendFilters(vectorFilters, query);
+                if (!vectorFilters.isEmpty()) field.set("filter", filter);
+                vector = hits(searchRequest(vectorTargets, vectorRoot));
+            } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
+                // Older daily indices may not have a vector mapping; lexical recall must remain available.
+            }
+            return rankedDocuments(query.query(), rrf(lexical, vector), requested);
+
         }
-        ArrayNode filters = bool.putArray("filter");
-        appendFilters(filters, query);
-        if (lexicalQuery.isBlank()) root.putArray("sort").addObject().put("publishTime", "desc");
-        String targets = String.join(",", indexNaming.readableIndices());
-        List<SearchHit> lexical;
-        try {
-            lexical = hits(searchRequest(targets, root));
-        } catch (ResponseException ex) {
-            if (ex.getResponse() != null && ex.getResponse().getStatusLine().getStatusCode() == 404) return List.of();
-            throw ex;
-        }
-        if (!semantic) return rankedDocuments(query.query(), lexical, requested);
-        List<Float> queryVector = embeddingClient.embed(lexicalQuery);
-        if (queryVector.isEmpty()) return rankedDocuments(query.query(), lexical, requested);
-        List<SearchHit> vector = List.of();
-        try {
-            String vectorTargets = indexNaming.readableIndices().stream().filter(this::hasVectorIndex)
-                .collect(java.util.stream.Collectors.joining(","));
-            if (vectorTargets.isBlank()) return rankedDocuments(query.query(), lexical, requested);
-            ObjectNode vectorRoot = objectMapper.createObjectNode();
-            vectorRoot.put("size", candidateLimit);
-            ObjectNode field = vectorRoot.putObject("query").putObject("knn").putObject(vectorField());
-            field.set("vector", objectMapper.valueToTree(queryVector));
-            field.put("k", candidateLimit);
-            ObjectNode filter = objectMapper.createObjectNode();
-            ArrayNode vectorFilters = filter.putObject("bool").putArray("filter");
-            appendFilters(vectorFilters, query);
-            if (!vectorFilters.isEmpty()) field.set("filter", filter);
-            vector = hits(searchRequest(vectorTargets, vectorRoot));
-        } catch (Exception ex) {
-            // Older daily indices may not have a vector mapping; lexical recall must remain available.
-        }
-        return rankedDocuments(query.query(), rrf(lexical, vector), requested);
     }
 
     @Override
@@ -220,7 +232,9 @@ public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
         request.addParameter("ignore_unavailable", "true");
         request.addParameter("allow_no_indices", "true");
         request.setJsonEntity(objectMapper.writeValueAsString(body));
-        return read(client.performRequest(request));
+        @SuppressWarnings("unchecked") Map<String,Object> queryBody = objectMapper.convertValue(body, Map.class);
+        return objectMapper.valueToTree(NewsBudgetedOpenSearchRequests.search(queryOptimizer, client, objectMapper,
+            "/" + targets + "/_search?ignore_unavailable=true&allow_no_indices=true", queryBody));
     }
 
     private void appendFilters(ArrayNode filters, NewsSearchQuery query) {
@@ -320,6 +334,7 @@ public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
             checkedVectorIndices.add(index);
             return true;
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("news_opensearch_vector_index_prepare_failed index={} endpoint={} error={}",
                 index, properties.getEndpoint(), ex.getMessage());
             return false;
@@ -351,7 +366,8 @@ public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
                 vectorReadyIndices.add(index);
                 return true;
             }
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) {
+            if (ignored instanceof QueryOptimizationException diagnosed) throw diagnosed; }
         return false;
     }
 

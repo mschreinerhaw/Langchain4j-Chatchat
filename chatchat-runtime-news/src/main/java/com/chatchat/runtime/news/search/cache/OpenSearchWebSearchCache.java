@@ -1,5 +1,7 @@
 package com.chatchat.runtime.news.search.cache;
 
+import com.chatchat.common.retrieval.query.SearchQueryOptimizer;
+
 import com.chatchat.runtime.news.config.NewsRuntimeProperties;
 import com.chatchat.runtime.news.search.provider.TencentWebSearchClient;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -41,6 +43,10 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 @ConditionalOnProperty(prefix = "chatchat.runtime.news.open-search", name = "enabled", havingValue = "true")
 public class OpenSearchWebSearchCache implements WebSearchCache {
+    private SearchQueryOptimizer queryOptimizer = new SearchQueryOptimizer();
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setQueryOptimizer(SearchQueryOptimizer optimizer) { queryOptimizer.close(); queryOptimizer = optimizer; }
+
     private static final DateTimeFormatter INDEX_DATE = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 
     private final NewsRuntimeProperties.Cache properties;
@@ -87,39 +93,44 @@ public class OpenSearchWebSearchCache implements WebSearchCache {
 
     @Override
     public Optional<CachedSearch> findHighlyRelated(String query) throws Exception {
-        if (!enabled() || query == null || query.isBlank()) return Optional.empty();
-        ObjectNode body = objectMapper.createObjectNode();
-        body.put("size", Math.max(1, properties.getMaxCandidates()));
-        ObjectNode bool = body.putObject("query").putObject("bool");
-        bool.putArray("must").addObject().putObject("match").putObject("query")
-            .put("query", query).put("operator", "or");
-        bool.putArray("filter").addObject().putObject("range").putObject("fetchedAt")
-            .put("gte", "now-" + Math.max(1, properties.getRetentionDays()) + "d");
-        Request request = new Request("POST", "/" + indexPattern() + "/_search");
-        request.addParameter("ignore_unavailable", "true");
-        request.addParameter("allow_no_indices", "true");
-        request.setJsonEntity(objectMapper.writeValueAsString(body));
-        JsonNode response;
-        try {
-            response = read(client.performRequest(request));
-        } catch (ResponseException ex) {
-            if (status(ex) == 404) return Optional.empty();
-            throw ex;
-        }
-        CachedSearch best = null;
-        for (JsonNode hit : response.path("hits").path("hits")) {
-            JsonNode source = hit.path("_source");
-            String cachedQuery = source.path("query").asText();
-            double similarity = similarity(query, cachedQuery);
-            if (similarity + 1.0e-9D < boundedSimilarity()) continue;
-            TencentWebSearchClient.SearchResponse cached =
-                objectMapper.treeToValue(source.path("response"), TencentWebSearchClient.SearchResponse.class);
-            if (cached.pages() == null || cached.pages().isEmpty()) continue;
-            if (best == null || similarity > best.similarity()) {
-                best = new CachedSearch(cachedQuery, similarity, cached);
+        try (var budgetScope = queryOptimizer.openScope()) {
+            if (!enabled() || query == null || query.isBlank()) return Optional.empty();
+            ObjectNode body = objectMapper.createObjectNode();
+            body.put("size", Math.max(1, properties.getMaxCandidates()));
+            ObjectNode bool = body.putObject("query").putObject("bool");
+            bool.putArray("must").addObject().putObject("match").putObject("query")
+                .put("query", query).put("operator", "or");
+            bool.putArray("filter").addObject().putObject("range").putObject("fetchedAt")
+                .put("gte", "now-" + Math.max(1, properties.getRetentionDays()) + "d");
+            Request request = new Request("POST", "/" + indexPattern() + "/_search");
+            request.addParameter("ignore_unavailable", "true");
+            request.addParameter("allow_no_indices", "true");
+            request.setJsonEntity(objectMapper.writeValueAsString(body));
+            JsonNode response;
+            try {
+                @SuppressWarnings("unchecked") java.util.Map<String,Object> queryBody = objectMapper.convertValue(body, java.util.Map.class);
+                response = objectMapper.valueToTree(com.chatchat.runtime.news.store.opensearch.NewsBudgetedOpenSearchRequests.search(
+                    queryOptimizer, client, objectMapper, "/" + indexPattern() + "/_search?ignore_unavailable=true&allow_no_indices=true", queryBody));
+            } catch (ResponseException ex) {
+                if (status(ex) == 404) return Optional.empty();
+                throw ex;
             }
+            CachedSearch best = null;
+            for (JsonNode hit : response.path("hits").path("hits")) {
+                JsonNode source = hit.path("_source");
+                String cachedQuery = source.path("query").asText();
+                double similarity = similarity(query, cachedQuery);
+                if (similarity + 1.0e-9D < boundedSimilarity()) continue;
+                TencentWebSearchClient.SearchResponse cached =
+                    objectMapper.treeToValue(source.path("response"), TencentWebSearchClient.SearchResponse.class);
+                if (cached.pages() == null || cached.pages().isEmpty()) continue;
+                if (best == null || similarity > best.similarity()) {
+                    best = new CachedSearch(cachedQuery, similarity, cached);
+                }
+            }
+            return Optional.ofNullable(best);
+
         }
-        return Optional.ofNullable(best);
     }
 
     @Override

@@ -31,6 +31,9 @@ import java.util.Set;
 /** Public bridge: local news first, internal external_web_search only when evidence is insufficient. */
 @Component
 public class WebSearchToolExecutor implements NewsToolExecutor {
+    private com.chatchat.common.retrieval.query.SearchQueryOptimizer queryOptimizer = new com.chatchat.common.retrieval.query.SearchQueryOptimizer();
+    @Autowired
+    public void setQueryOptimizer(com.chatchat.common.retrieval.query.SearchQueryOptimizer optimizer) { queryOptimizer.close(); queryOptimizer = optimizer; }
     private static final Logger log = LoggerFactory.getLogger(WebSearchToolExecutor.class);
     private final NewsDocumentStore store;
     private final NewsRuntimeProperties properties;
@@ -56,6 +59,11 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
 
     @Override
     public ToolOutput execute(ToolInput input) {
+        try (var budgetScope = queryOptimizer.openScope()) { return executeWithinQueryBudget(input); }
+        catch (com.chatchat.common.retrieval.query.QueryOptimizationException diagnosed) { return ToolOutput.failure(diagnosed); }
+    }
+
+    private ToolOutput executeWithinQueryBudget(ToolInput input) {
         CancellationSupport.throwIfCancelled(NewsToolNames.WEB_SEARCH);
         String query = input.getParameterAsString("query", "").trim();
         if (query.isBlank()) return ToolOutput.failure("query parameter is required");
@@ -69,10 +77,12 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         List<Map<String, Object>> external = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
         boolean localSucceeded = false;
+        boolean localHadFailures = false;
         NewsLocalQueryPlanner.QueryPlan localQueryPlan = NewsLocalQueryPlanner.plan(
             query, firstPresent(input, "queryTerms", "query_terms", "keywords", "searchTerms"),
             properties.getWebSearch().getMaximumLocalQueryTerms());
         if (localEnabled) {
+            queryOptimizer.checkIndependentCount(localQueryPlan.queries().size());
             Map<String, NewsDocument> mergedCandidates = new LinkedHashMap<>();
             Map<String, NewsDocument> qualifiedCandidates = new LinkedHashMap<>();
             Map<String, NewsRelevanceRanker.RankedNews> perQueryRankings = new LinkedHashMap<>();
@@ -96,6 +106,9 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
                     }
                 } catch (Exception ex) {
                     CancellationSupport.rethrowIfCancelled(ex, "web_search local retrieval");
+                    if (ex instanceof com.chatchat.common.retrieval.query.QueryOptimizationException diagnosed
+                        && !List.of("QUERY_EXECUTION_FAILED", "QUERY_PARTIAL_SHARDS").contains(diagnosed.code())) throw diagnosed;
+                    localHadFailures = true;
                     warnings.add("news_index[" + auditQuery(localQuery) + "]: " + safe(ex));
                 }
             }
@@ -168,6 +181,8 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         data.put("localSearchStrategy", NewsLocalQueryPlanner.STRATEGY);
         data.put("localSearchTerms", localQueryPlan.keywords());
         data.put("localSearchQueryCount", localEnabled ? localQueryPlan.queries().size() : 0);
+        data.put("localSearchStatus", !localEnabled ? "DISABLED" : localHadFailures
+            ? (localSucceeded ? "PARTIAL" : "FAILED") : "SUCCEEDED");
         data.put("externalWebCount", external.size());
         data.put("webSearchCacheEnabled", externalData.getOrDefault("webSearchCacheEnabled", false));
         data.put("webSearchCacheHit", externalData.getOrDefault("webSearchCacheHit", false));

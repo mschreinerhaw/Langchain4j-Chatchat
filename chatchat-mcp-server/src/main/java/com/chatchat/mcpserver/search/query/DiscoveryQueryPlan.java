@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.search.query;
 
+import com.chatchat.common.retrieval.query.QueryOptimizationException;
+
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -18,14 +20,13 @@ import java.util.Map;
 public final class DiscoveryQueryPlan {
 
     public static final String SCHEMA_VERSION = "discovery_query_plan.v1";
-    public static final int MAX_QUERY_UNITS = 96;
     private static final List<String> FILTER_KEYS = List.of(
         "assetName", "asset_name", "toolName", "name", "template", "templateId", "template_id",
         "businessGroup", "business_group", "group", "groupName", "group_name", "labels",
         "groupDescription", "group_description", "service", "target", "category",
         "intent", "goal", "query", "q", "bilingualQuery", "bilingualSearch", "intentZh", "intentEn",
         "queryTerms", "searchTerms", "bilingualIntent", "intentAliases", "keywords",
-        "retrievalSignals", "intentCandidates", "intent_candidates"
+        "retrievalSignals", "intentCandidates", "intent_candidates", "queryExpression"
     );
     private static final List<String> NESTED_KEYS = List.of(
         "intent", "query", "queries", "term", "text", "label", "name", "goal",
@@ -35,7 +36,7 @@ public final class DiscoveryQueryPlan {
     private static final List<String> CONTEXT_KEYS = List.of("intent", "goal", "query", "q");
     private static final List<String> SEARCH_KEYS = List.of("queryTerms", "searchTerms", "keywords", "retrievalSignals",
         "bilingualQuery", "bilingualSearch", "bilingualIntent", "intentAliases", "intentZh", "intentEn",
-        "intentCandidates", "intent_candidates");
+        "intentCandidates", "intent_candidates", "queryExpression");
 
     private final List<QueryUnit> units;
 
@@ -71,7 +72,7 @@ public final class DiscoveryQueryPlan {
         List<QueryUnit> units = new ArrayList<>();
         int ordinal = 1;
         for (QueryUnitDraft draft : drafts.values()) {
-            units.add(new QueryUnit("q" + ordinal, ordinal, draft.query(), draft.sourcePaths()));
+            units.add(new QueryUnit("q" + ordinal, ordinal, draft.query(), draft.sourcePaths(), draft.originalQuery()));
             ordinal++;
         }
         return new DiscoveryQueryPlan(units);
@@ -83,6 +84,12 @@ public final class DiscoveryQueryPlan {
 
     public List<String> queries() {
         return units.stream().map(QueryUnit::query).toList();
+    }
+
+    /** Short compatibility queries stay unchanged; long extraction must see punctuation and identifiers. */
+    public List<String> queriesForExecution(int longTextThreshold) {
+        return units.stream().map(unit -> unit.originalQuery().codePointCount(0, unit.originalQuery().length()) > longTextThreshold
+            ? unit.originalQuery() : unit.query()).toList();
     }
 
     public Map<String, Object> metadata() {
@@ -99,10 +106,21 @@ public final class DiscoveryQueryPlan {
     private static void add(LinkedHashMap<String, QueryUnitDraft> drafts,
                             Object value,
                             String sourcePath) {
-        if (value == null || drafts.size() >= MAX_QUERY_UNITS) {
+        // Preserve every declared unit. The execution budget rejects oversized plans explicitly.
+        if (value == null) {
             return;
         }
         if (value instanceof Map<?, ?> map) {
+            if (map.containsKey("operator")) {
+                if (!"OR".equalsIgnoreCase(String.valueOf(map.get("operator"))) || !(map.get("terms") instanceof Collection<?>)
+                    || map.keySet().stream().anyMatch(key -> !List.of("operator", "terms").contains(String.valueOf(key))))
+                    throw new QueryOptimizationException("QUERY_REQUIRES_STRUCTURED_DSL",
+                        "AND/NOT/nested cardinality expressions must retain their predicates in an authorized DSL; they cannot be flattened into discovery units");
+                add(drafts, map.get("terms"), sourcePath + ".terms");
+                return;
+            }
+            if (map.keySet().stream().map(String::valueOf).anyMatch(key -> List.of("bool", "and", "or", "not", "filter", "must", "must_not", "should", "minimum_should_match").contains(key)))
+                throw new QueryOptimizationException("QUERY_REQUIRES_STRUCTURED_DSL", "Boolean predicates must not be silently discarded");
             for (String key : NESTED_KEYS) {
                 if (map.containsKey(key)) {
                     add(drafts, map.get(key), sourcePath + "." + key);
@@ -129,13 +147,14 @@ public final class DiscoveryQueryPlan {
         }
         QueryUnitDraft existing = drafts.get(query);
         if (existing == null) {
-            drafts.put(query, new QueryUnitDraft(query, new ArrayList<>(List.of(sourcePath))));
+            drafts.put(query, new QueryUnitDraft(query, new ArrayList<>(List.of(sourcePath)), String.valueOf(value)));
         } else if (!existing.sourcePaths().contains(sourcePath)) {
             existing.sourcePaths().add(sourcePath);
         }
     }
 
-    public record QueryUnit(String id, int ordinal, String query, List<String> sourcePaths) {
+    public record QueryUnit(String id, int ordinal, String query, List<String> sourcePaths, String originalQuery) {
+        public QueryUnit(String id, int ordinal, String query, List<String> sourcePaths) { this(id, ordinal, query, sourcePaths, query); }
         public QueryUnit {
             sourcePaths = List.copyOf(sourcePaths);
         }
@@ -145,11 +164,12 @@ public final class DiscoveryQueryPlan {
                 "id", id,
                 "ordinal", ordinal,
                 "query", query,
-                "sourcePaths", sourcePaths
+                "sourcePaths", sourcePaths,
+                "originalQuery", originalQuery
             );
         }
     }
 
-    private record QueryUnitDraft(String query, List<String> sourcePaths) {
+    private record QueryUnitDraft(String query, List<String> sourcePaths, String originalQuery) {
     }
 }

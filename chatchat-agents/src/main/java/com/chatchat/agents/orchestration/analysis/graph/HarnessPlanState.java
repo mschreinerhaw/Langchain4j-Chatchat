@@ -82,7 +82,9 @@ final class HarnessPlanState {
     }
 
     Map<String,Object> view() {
-        if (current.isEmpty()) return Map.of("status", "PLAN_REQUIRED");
+        if (current.isEmpty()) return Map.of("status", "PLAN_REQUIRED",
+            "requiredResponseField", "plan",
+            "instruction", "Submit your InterpretationPlan at response.plan before evidence exploration or final delivery; acquisition plans do not satisfy this contract.");
         // Do not repeat history or tool inputs; the original plan remains available by controlled read.
         Map<String,Object> result = new LinkedHashMap<>();
         result.put("status", "ACCEPTED"); result.put("revision", versions.size());

@@ -1,5 +1,7 @@
 package com.chatchat.knowledgebase.search.index.infrastructure.opensearch;
 
+import com.chatchat.common.retrieval.query.SearchQueryOptimizer;
+
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.chatchat.knowledgebase.search.index.api.DocumentSearchIndex;
 import com.chatchat.knowledgebase.search.index.model.LuceneSearchHit;
@@ -58,6 +60,10 @@ import javax.net.ssl.SSLContext;
 @Component
 @RequiredArgsConstructor
 public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
+    private SearchQueryOptimizer queryOptimizer = new SearchQueryOptimizer();
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setQueryOptimizer(SearchQueryOptimizer optimizer) { queryOptimizer.close(); queryOptimizer = optimizer; }
+
 
     private static final String FILE_ID = "fileId";
     private static final String FILE_NAME = "fileName";
@@ -231,43 +237,58 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
     public synchronized List<LuceneSearchHit> search(String keyword, int maxHits,
                                                       SearchPermissionContext permissionContext,
                                                       List<String> allowedDocumentIds) {
-        if (!isAvailable() || keyword == null || keyword.isBlank()) {
-            return List.of();
+        try (var budgetScope = queryOptimizer.openScope()) {
+            if (!isAvailable() || keyword == null || keyword.isBlank()) {
+                return List.of();
+            }
+            String safeQuery = queryOptimizer.text(keyword, TEXT_SEARCH_FIELDS.size());
+            boolean compactQuery = !safeQuery.equals(keyword);
+            String focusedKeyword = queryExpander.focusQuery(safeQuery);
+            String normalizedKeyword = queryExpander.normalizeQuery(safeQuery);
+            List<String> terms = queryExpander.expandTokens(
+                tokenizer.searchTokens(normalizedKeyword),
+                queryExpander.classifyIntentName(normalizedKeyword),
+                normalizedKeyword
+            ).stream()
+                .filter(term -> term != null && !term.isBlank())
+                .distinct()
+                .limit(Math.max(1, properties.getLuceneMaxQueryTerms()))
+                .toList();
+            terms = limitTerms(
+                mergeTerms(terms, cjkTitleAwareQueryTerms(normalizedKeyword)),
+                Math.min(properties.getLuceneMaxQueryTerms(), Math.max(1, config().getMaxQueryTerms()))
+            );
+            if (terms.isEmpty()) {
+                return List.of();
+            }
+            boolean localVectorRerank = vectorRerankAvailable && !vectorAvailable;
+            int candidateLimit = Math.min(
+                Math.max(1, properties.getLuceneMaxHits()),
+                Math.max(Math.max(1, maxHits), embeddingConfig().getVectorCandidateLimit())
+            );
+            List<LuceneSearchHit> lexicalHits = compactQuery
+                ? compactLexicalSearch(safeQuery, candidateLimit, permissionContext, allowedDocumentIds)
+                : lexicalSearch(focusedKeyword, terms, candidateLimit, permissionContext, allowedDocumentIds);
+            List<LuceneSearchHit> vectorHits = vectorSearch(normalizedKeyword, candidateLimit,
+                permissionContext, allowedDocumentIds);
+            if (vectorHits.isEmpty() && localVectorRerank) {
+                vectorHits = vectorRerankHits(normalizedKeyword, lexicalHits, candidateLimit);
+            }
+            if (vectorHits.isEmpty()) {
+                return lexicalHits.stream().limit(Math.max(1, maxHits)).toList();
+            }
+            return hybridMerge(lexicalHits, vectorHits, normalizedKeyword, Math.max(1, maxHits));
+
         }
-        String focusedKeyword = queryExpander.focusQuery(keyword);
-        String normalizedKeyword = queryExpander.normalizeQuery(keyword);
-        List<String> terms = queryExpander.expandTokens(
-            tokenizer.searchTokens(normalizedKeyword),
-            queryExpander.classifyIntentName(normalizedKeyword),
-            normalizedKeyword
-        ).stream()
-            .filter(term -> term != null && !term.isBlank())
-            .distinct()
-            .limit(Math.max(1, properties.getLuceneMaxQueryTerms()))
-            .toList();
-        terms = limitTerms(
-            mergeTerms(terms, cjkTitleAwareQueryTerms(normalizedKeyword)),
-            Math.min(properties.getLuceneMaxQueryTerms(), Math.max(1, config().getMaxQueryTerms()))
-        );
-        if (terms.isEmpty()) {
-            return List.of();
-        }
-        boolean localVectorRerank = vectorRerankAvailable && !vectorAvailable;
-        int candidateLimit = Math.min(
-            Math.max(1, properties.getLuceneMaxHits()),
-            Math.max(Math.max(1, maxHits), embeddingConfig().getVectorCandidateLimit())
-        );
-        List<LuceneSearchHit> lexicalHits = lexicalSearch(focusedKeyword, terms, candidateLimit,
-            permissionContext, allowedDocumentIds);
-        List<LuceneSearchHit> vectorHits = vectorSearch(normalizedKeyword, candidateLimit,
-            permissionContext, allowedDocumentIds);
-        if (vectorHits.isEmpty() && localVectorRerank) {
-            vectorHits = vectorRerankHits(normalizedKeyword, lexicalHits, candidateLimit);
-        }
-        if (vectorHits.isEmpty()) {
-            return lexicalHits.stream().limit(Math.max(1, maxHits)).toList();
-        }
-        return hybridMerge(lexicalHits, vectorHits, normalizedKeyword, Math.max(1, maxHits));
+    }
+
+    private List<LuceneSearchHit> compactLexicalSearch(String text, int limit,
+        SearchPermissionContext permissions, List<String> allowedDocumentIds) {
+        Map<String,Object> body = Map.of("size", limit, "_source", resultSourceFilter(false),
+            "query", Map.of("bool", Map.of("must", List.of(Map.of("multi_match", Map.of(
+                "query", text, "analyzer", "standard", "fields", TEXT_SEARCH_FIELDS))),
+                "filter", searchFilters(permissions, allowedDocumentIds))));
+        return parseHits(request("POST", "/" + indexName() + "/_search", body, false));
     }
 
     private List<LuceneSearchHit> lexicalSearch(
@@ -310,7 +331,7 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         if (!vectorSearchAvailable()) {
             return List.of();
         }
-        List<Float> vector = embeddingClient.embed(normalizedKeyword);
+        List<Float> vector = queryOptimizer.withinBudget(() -> embeddingClient.embed(normalizedKeyword));
         if (vector.isEmpty()) {
             return List.of();
         }
@@ -344,7 +365,7 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         if (!vectorRerankAvailable || !embeddingClient.enabled() || lexicalHits.isEmpty()) {
             return List.of();
         }
-        List<Float> queryVector = embeddingClient.embed(normalizedKeyword);
+        List<Float> queryVector = queryOptimizer.withinBudget(() -> embeddingClient.embed(normalizedKeyword));
         if (queryVector.isEmpty()) {
             return List.of();
         }
@@ -629,7 +650,7 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         }
         String normalized = query.trim();
         int limit = Math.max(1, maxChars);
-        return normalized.length() <= limit ? normalized : normalized.substring(0, limit);
+        return queryOptimizer.text(normalized, TEXT_SEARCH_FIELDS.size() + TOKEN_SEARCH_FIELDS.size() + PINYIN_SEARCH_FIELDS.size());
     }
 
     private String pinyinQueryText(String boundedKeyword, List<String> boundedTerms) {
@@ -996,6 +1017,10 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
     }
 
     private JsonNode request(String method, String path, Object body, boolean allowNotFound) {
+        if (path.contains("/_search")) {
+            @SuppressWarnings("unchecked") var queryBody = (Map<String,Object>) body;
+            return objectMapper.valueToTree(BudgetedOpenSearchRequests.search(queryOptimizer, restClient, objectMapper, path, queryBody));
+        }
         String raw = body == null ? "" : json(body);
         return requestRaw(method, path, raw, allowNotFound, "application/json");
     }

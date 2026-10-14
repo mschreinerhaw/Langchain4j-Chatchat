@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.datacapability.unstructured;
 
+import com.chatchat.common.retrieval.query.SearchQueryOptimizer;
+
 import com.chatchat.mcpserver.datacapability.connection.*;
 import com.chatchat.mcpserver.datacapability.definition.*;
 import com.chatchat.mcpserver.datacapability.execution.*;
@@ -11,6 +13,10 @@ import java.util.*;
 
 @Component @RequiredArgsConstructor
 public class OpenSearchQueryAdapter implements CapabilityAdapter {
+    private SearchQueryOptimizer queryOptimizer = new SearchQueryOptimizer();
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setQueryOptimizer(SearchQueryOptimizer optimizer) { queryOptimizer.close(); queryOptimizer = optimizer; }
+
     private final QueryConnectionService connections;
     private final NativeDatabaseClient client;
     private final ObjectMapper json;
@@ -31,8 +37,14 @@ public class OpenSearchQueryAdapter implements CapabilityAdapter {
     @Override public QueryResult execute(CapabilityDefinition d, Map<String, Object> parameters) throws Exception {
         ObjectNode body = (ObjectNode) QueryTemplates.json(json.readTree(d.query()), parameters, json);
         body.put("size", d.maxRows()); body.put("timeout", d.timeoutSeconds() + "s");
-        JsonNode response = client.post(connections.get(d.connectionId(), type(), true),
-            "/" + index(d) + "/_search", body, d.timeoutSeconds(), Map.of());
+        @SuppressWarnings("unchecked") Map<String,Object> query = json.convertValue(body, Map.class);
+        // A published DSL is validated, never rewritten into a different query.
+        JsonNode response = json.valueToTree(queryOptimizer.search(query,
+            SearchQueryOptimizer.Mode.DSL, (prepared, timeout) -> {
+                JsonNode returned = client.post(connections.get(d.connectionId(), type(), true),
+                    "/" + index(d) + "/_search", json.valueToTree(prepared), Math.max(1, (timeout + 999) / 1000), Map.of());
+                return json.convertValue(returned, Map.class);
+            }));
         if (response.has("error") || response.path("timed_out").asBoolean() || response.path("_shards").path("failed").asInt() > 0)
             throw new IllegalStateException("OpenSearch query failed, timed out or returned partial shard results");
         if (!response.path("hits").path("hits").isArray()) throw new IllegalStateException("Invalid OpenSearch response");

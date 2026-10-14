@@ -34,6 +34,11 @@ public class ConfigurableChatModelFactory {
     }
 
     public ChatModel create(String modelName) {
+        return create(modelName, null, null);
+    }
+
+    /** A caller may impose stricter execution limits without changing the registered connection. */
+    public ChatModel create(String modelName, Duration maximumTimeout, Integer maximumOutputTokens) {
         if (modelName == null || modelName.isBlank()) {
             throw new IllegalArgumentException("Chat model name must not be blank");
         }
@@ -43,24 +48,28 @@ public class ConfigurableChatModelFactory {
         String providerModelName = resolved.providerModelName();
         ModelEndpoint endpoint = ModelEndpoint.resolve(config.getBaseUrl(), config.getProtocol());
         Duration timeout = resolveTimeout(config.getTimeout());
+        if (maximumTimeout != null && (timeout.isZero() || timeout.compareTo(maximumTimeout) > 0)) timeout = maximumTimeout;
+        int outputTokens = maximumOutputTokens == null ? config.getMaxTokens()
+            : config.getMaxTokens() > 0 ? Math.min(config.getMaxTokens(), maximumOutputTokens) : maximumOutputTokens;
+        int retries = maximumTimeout == null ? config.getMaxRetries() : 0;
         if (endpoint.protocol() == ModelEndpoint.Protocol.DASHSCOPE_NATIVE) {
             return new DashScopeNativeChatModel(
                 endpoint.url(), endpoint.multimodal(), config.getApiKey(), providerModelName,
-                timeout, config.getMaxTokens(), config.getMaxRetries(), httpClient(config.getProxy()), objectMapper);
+                timeout, outputTokens, retries, httpClient(config.getProxy()), objectMapper);
         }
 
         OpenAiChatModel.OpenAiChatModelBuilder builder = OpenAiChatModel.builder()
             .apiKey(config.getApiKey())
             .baseUrl(endpoint.url())
             .modelName(providerModelName)
-            .maxRetries(config.getMaxRetries())
+            .maxRetries(retries)
             .logRequests(false)
             .logResponses(false);
         if (!timeout.isZero() && !timeout.isNegative()) {
             builder.timeout(timeout);
         }
-        if (config.getMaxTokens() > 0) {
-            builder.maxTokens(config.getMaxTokens());
+        if (outputTokens > 0) {
+            builder.maxTokens(outputTokens);
         }
         HttpClientBuilder httpClientBuilder = openAiHttpClientBuilder(config.getProxy());
         if (httpClientBuilder != null) {

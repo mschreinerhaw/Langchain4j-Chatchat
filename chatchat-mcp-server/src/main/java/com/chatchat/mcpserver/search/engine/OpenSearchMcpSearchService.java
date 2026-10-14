@@ -1,5 +1,9 @@
 package com.chatchat.mcpserver.search.engine;
 
+import com.chatchat.common.retrieval.query.SearchQueryOptimizer;
+
+import com.chatchat.common.retrieval.query.QueryOptimizationException;
+
 import com.chatchat.mcpserver.search.query.FeatureHashVectorizer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -58,6 +62,10 @@ import javax.net.ssl.SSLContext;
 @Service
 @Slf4j
 public class OpenSearchMcpSearchService {
+    private SearchQueryOptimizer queryOptimizer = new SearchQueryOptimizer();
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setQueryOptimizer(SearchQueryOptimizer optimizer) { queryOptimizer.close(); queryOptimizer = optimizer; }
+
 
     private static final String TEMPLATE_INDEX = "templates";
     private static final String ASSET_INDEX_PREFIX = "assets-";
@@ -92,7 +100,6 @@ public class OpenSearchMcpSearchService {
     private static final String MCP_PINYIN_ANALYZER = "chatchat_mcp_pinyin";
     private static final String CAPABILITY_VECTOR = "capabilityVector";
     private static final int BULK_BATCH_SIZE = 10;
-    private static final int MAX_TEMPLATE_QUERY_CHARS = 512;
 
     private final LuceneSearchProperties properties;
     private final McpEmbeddingClient embeddingClient;
@@ -126,6 +133,61 @@ public class OpenSearchMcpSearchService {
             && properties.isOpenSearchEngine()
             && properties.getOpenSearch() != null
             && properties.getOpenSearch().isEnabled();
+    }
+
+    /** Existing discovery query units are independent; keep each unit's original filters and ranking. */
+    public List<List<LuceneMcpSearchService.SearchHit>> searchAssetBatches(
+        List<LuceneMcpSearchService.AssetSearchRequest> requests, java.util.Collection<String> allowedAssetIds) {
+        if (requests.isEmpty()) return List.of();
+        if (allowedAssetIds == null || allowedAssetIds.isEmpty())
+            throw new QueryOptimizationException("QUERY_AUTHORIZATION_SCOPE_REQUIRED", "Independent discovery requires an authorized registry snapshot");
+        try (var scope = queryOptimizer.openScope()) {
+            String type = normalizeAssetType(requests.get(0).assetType());
+            if (type == null || requests.stream().anyMatch(r -> !type.equals(normalizeAssetType(r.assetType()))))
+                throw new QueryOptimizationException("QUERY_BATCH_SCOPE_MISMATCH", "Batch requests must use one asset index");
+            String index = openSearchIndexName(assetIndexName(type));
+            var bodies = requests.stream().map(r -> Map.<String,Object>of("size", Math.max(1, Math.min(maxResults(), r.limit())),
+                "query", withAssetScope(assetQueryBody(r), allowedAssetIds), "_source", sourceWithoutVectors())).toList();
+            var result = queryOptimizer.searchIndependent(bodies,
+                SearchQueryOptimizer.Mode.TEXT, (prepared, timeout, concurrency) -> {
+                    var ndjson = new StringBuilder();
+                    for (var body : prepared) ndjson.append(json(Map.of("index", index))).append('\n').append(json(body)).append('\n');
+                    return lexicalSearchBulkhead.execute(() -> {
+                        try {
+                            return com.chatchat.knowledgebase.search.index.infrastructure.opensearch.BudgetedOpenSearchRequests.request(
+                                queryOptimizer, restClient(), objectMapper, "/_msearch?max_concurrent_searches=" + concurrency,
+                                ndjson.toString(), "application/x-ndjson", timeout);
+                        } catch (QueryOptimizationException diagnosed) { throw diagnosed; }
+                        catch (Exception failed) {
+            if (failed instanceof QueryOptimizationException diagnosed) throw diagnosed; throw new IllegalStateException("MCP multi-search failed", failed); }
+                    });
+                });
+            if (result.status() != SearchQueryOptimizer.Status.SUCCEEDED)
+                throw new QueryOptimizationException("QUERY_PARTIAL_BATCHES", "Some independent discovery queries failed",
+                    Map.of("status", result.status().name(), "batches", result.batches(), "partialHitCount", result.hits().size()));
+            var batches = new ArrayList<List<LuceneMcpSearchService.SearchHit>>();
+            for (int i=0; i<requests.size(); i++) {
+                String batchId = "q" + (i+1); var rows = new ArrayList<Map<String,Object>>();
+                for (var hit : result.hits()) if (hit.get("batchEvidence") instanceof List<?> evidence)
+                    for (Object item : evidence) if (item instanceof Map<?,?> receipt && batchId.equals(receipt.get("batchId"))) {
+                        var copy = new LinkedHashMap<>(hit); copy.put("_score", receipt.get("rawScore")); copy.put("batchRank", receipt.get("rank")); rows.add(copy);
+                    }
+                rows.sort(Comparator.comparingInt(row -> ((Number)row.get("batchRank")).intValue()));
+                var lexical = parseHits(objectMapper.valueToTree(Map.of("hits", Map.of("hits", rows))), "opensearch_bm25:" + batchId)
+                    .stream().filter(hit -> allowedAssetIds.contains(hit.id())).toList();
+                var request = requests.get(i);
+                var vector = searchVector(index, request.queryText(), request.limit(), withAssetScope(assetFilterBody(request), allowedAssetIds), generatedSearchRequestId())
+                    .stream().filter(hit -> allowedAssetIds.contains(hit.id())).toList();
+                batches.add(vector.isEmpty() ? lexical : mergeHits(lexical, vector, request.limit()));
+            }
+            return List.copyOf(batches);
+        }
+    }
+
+    private Map<String,Object> withAssetScope(Map<String,Object> query, java.util.Collection<String> allowedAssetIds) {
+        return Map.of("bool", Map.of("must", List.of(query), "filter", List.of(Map.of("bool", Map.of(
+            "should", List.of(Map.of("terms", Map.of(FIELD_ID, allowedAssetIds)),
+                Map.of("terms", Map.of(FIELD_RESULT_ID, allowedAssetIds))), "minimum_should_match", 1)))));
     }
 
     public void indexTemplates(List<LuceneMcpSearchService.TemplateDoc> docs) {
@@ -245,6 +307,7 @@ public class OpenSearchMcpSearchService {
         try {
             return physicalIndexExists(openSearchIndexName(indexName));
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("MCP OpenSearch index existence check failed index={} error={}", indexName, ex.getMessage());
             return false;
         }
@@ -434,42 +497,45 @@ public class OpenSearchMcpSearchService {
     private List<LuceneMcpSearchService.SearchHit> search(String indexName, Map<String, Object> query, int limit,
                                                           String semanticText, Map<String, Object> vectorFilter,
                                                           String searchRequestId) {
-        String index = openSearchIndexName(indexName);
-        if (!physicalIndexExists(index)) {
-            return List.of();
+        try (var budgetScope = queryOptimizer.openScope()) {
+            String index = openSearchIndexName(indexName);
+            if (!physicalIndexExists(index)) {
+                return List.of();
+            }
+            int resultLimit = Math.max(1, Math.min(maxResults(), limit));
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("size", resultLimit);
+            body.put("query", query == null ? Map.of("match_all", Map.of()) : query);
+            body.put("_source", sourceWithoutVectors());
+            long startedAt = System.nanoTime();
+            JsonNode lexicalRoot;
+            try {
+                lexicalRoot = lexicalSearchBulkhead.execute(
+                    () -> searchRequest("POST", "/" + index + "/_search", body));
+            } catch (OpenSearchSearchBulkhead.SearchRejectedException ex) {
+                log.warn("MCP OpenSearch search busy searchRequestId={} phase={} index={} waiting={} reason={}",
+                    searchRequestId, ex.bulkhead(), index, lexicalSearchBulkhead.waitingCount(), ex.getMessage());
+                return List.of();
+            }
+            debugSearch(searchRequestId, "lexical", index, body, lexicalRoot, elapsedMs(startedAt));
+            List<LuceneMcpSearchService.SearchHit> lexicalHits = parseHits(lexicalRoot, "opensearch_bm25");
+            List<LuceneMcpSearchService.SearchHit> vectorHits = searchVector(index, semanticText, resultLimit, vectorFilter,
+                searchRequestId);
+            return vectorHits.isEmpty() ? lexicalHits : mergeHits(lexicalHits, vectorHits, resultLimit);
+
         }
-        int resultLimit = Math.max(1, Math.min(maxResults(), limit));
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("size", resultLimit);
-        body.put("query", query == null ? Map.of("match_all", Map.of()) : query);
-        body.put("_source", sourceWithoutVectors());
-        long startedAt = System.nanoTime();
-        JsonNode lexicalRoot;
-        try {
-            lexicalRoot = lexicalSearchBulkhead.execute(
-                () -> searchRequest("POST", "/" + index + "/_search", body));
-        } catch (OpenSearchSearchBulkhead.SearchRejectedException ex) {
-            log.warn("MCP OpenSearch search busy searchRequestId={} phase={} index={} waiting={} reason={}",
-                searchRequestId, ex.bulkhead(), index, lexicalSearchBulkhead.waitingCount(), ex.getMessage());
-            return List.of();
-        }
-        debugSearch(searchRequestId, "lexical", index, body, lexicalRoot, elapsedMs(startedAt));
-        List<LuceneMcpSearchService.SearchHit> lexicalHits = parseHits(lexicalRoot, "opensearch_bm25");
-        List<LuceneMcpSearchService.SearchHit> vectorHits = searchVector(index, semanticText, resultLimit, vectorFilter,
-            searchRequestId);
-        return vectorHits.isEmpty() ? lexicalHits : mergeHits(lexicalHits, vectorHits, resultLimit);
     }
 
     private List<LuceneMcpSearchService.SearchHit> searchVector(String index, String semanticText, int limit,
                                                                 Map<String, Object> vectorFilter,
                                                                 String searchRequestId) {
-        String text = normalizeText(semanticText);
+        String text = queryOptimizer.semanticText(normalizeText(semanticText));
         if (!embeddingClient.enabled() || text == null || !vectorSearchAvailable(index)) {
             return List.of();
         }
         try {
             return vectorSearchBulkhead.execute(() -> {
-                List<Float> vector = embeddingClient.embed(text);
+                List<Float> vector = queryOptimizer.withinBudget(() -> embeddingClient.embed(text));
                 if (vector.isEmpty()) {
                     return List.of();
                 }
@@ -495,6 +561,7 @@ public class OpenSearchMcpSearchService {
                 searchRequestId, index, vectorSearchBulkhead.waitingCount(), ex.getMessage());
             return List.of();
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("MCP OpenSearch vector search failed searchRequestId={} index={} error={}",
                 searchRequestId, index, ex.getMessage());
             return List.of();
@@ -658,6 +725,7 @@ public class OpenSearchMcpSearchService {
             log.info("MCP OpenSearch index created index={} vectorEnabled={} vectorField={} dimension={}",
                 index, embeddingClient.configured(), vectorField(), embeddingConfig().getDimension());
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             if (!embeddingClient.configured()) {
                 throw ex;
             }
@@ -767,12 +835,7 @@ public class OpenSearchMcpSearchService {
     }
 
     private String boundedTemplateQueryText(String value) {
-        String normalized = normalizeText(value);
-        if (normalized == null || normalized.length() <= MAX_TEMPLATE_QUERY_CHARS) {
-            return normalized;
-        }
-        int boundary = normalized.lastIndexOf(' ', MAX_TEMPLATE_QUERY_CHARS);
-        return normalized.substring(0, boundary > 0 ? boundary : MAX_TEMPLATE_QUERY_CHARS).trim();
+        return normalizeText(value);
     }
 
     private boolean isCompactPinyinQuery(String value) {
@@ -935,38 +998,42 @@ public class OpenSearchMcpSearchService {
 
     private List<LuceneMcpSearchService.SearchHit> searchDatabaseQueryCapabilities(
         LuceneMcpSearchService.TemplateSearchRequest request) {
-        String index = openSearchIndexName(DATABASE_QUERY_TEMPLATE_INDEX);
-        if (!physicalIndexExists(index)) return List.of();
-        int limit = Math.max(1, Math.min(maxResults(), request.limit()));
-        Map<String, Object> lexicalBody = Map.of(
-            "size", Math.max(limit, 50),
-            "_source", sourceWithoutVectors(),
-            "query", templateQueryBody(request)
-        );
-        JsonNode lexical = searchRequest("POST", "/" + index + "/_search", lexicalBody);
-        List<LuceneMcpSearchService.SearchHit> lexicalHits = parseHits(lexical, "opensearch_bm25");
-        String query = normalizeText(request.intentText());
-        if (query == null) return lexicalHits.stream().limit(limit).toList();
-        int dimension = databaseQueryVectorDimension(index);
-        List<Float> vector = FeatureHashVectorizer.vectorize(query, dimension);
-        if (vector.isEmpty()) return lexicalHits.stream().limit(limit).toList();
-        try {
-            Map<String, Object> options = new LinkedHashMap<>();
-            options.put("vector", vector);
-            options.put("k", Math.max(limit, 100));
-            Map<String, Object> filter = templateFilterBody(request);
-            if (!filter.containsKey("match_all")) options.put("filter", filter);
-            JsonNode knn = searchRequest("POST", "/" + index + "/_search", Map.of(
-                "size", Math.max(limit, 100),
+        try (var budgetScope = queryOptimizer.openScope()) {
+            String index = openSearchIndexName(DATABASE_QUERY_TEMPLATE_INDEX);
+            if (!physicalIndexExists(index)) return List.of();
+            int limit = Math.max(1, Math.min(maxResults(), request.limit()));
+            Map<String, Object> lexicalBody = Map.of(
+                "size", Math.max(limit, 50),
                 "_source", sourceWithoutVectors(),
-                "query", Map.of("knn", Map.of(CAPABILITY_VECTOR, options))
-            ));
-            List<LuceneMcpSearchService.SearchHit> vectorHits = parseHits(knn, "opensearch_vector");
-            return mergeHits(lexicalHits, vectorHits, limit);
-        } catch (Exception ex) {
-            log.warn("Database query capability KNN search degraded to BM25 index={} error={}",
-                index, ex.getMessage());
-            return lexicalHits.stream().limit(limit).toList();
+                "query", templateQueryBody(request)
+            );
+            JsonNode lexical = searchRequest("POST", "/" + index + "/_search", lexicalBody);
+            List<LuceneMcpSearchService.SearchHit> lexicalHits = parseHits(lexical, "opensearch_bm25");
+            String query = normalizeText(request.intentText());
+            if (query == null) return lexicalHits.stream().limit(limit).toList();
+            int dimension = databaseQueryVectorDimension(index);
+            List<Float> vector = FeatureHashVectorizer.vectorize(query, dimension);
+            if (vector.isEmpty()) return lexicalHits.stream().limit(limit).toList();
+            try {
+                Map<String, Object> options = new LinkedHashMap<>();
+                options.put("vector", vector);
+                options.put("k", Math.max(limit, 100));
+                Map<String, Object> filter = templateFilterBody(request);
+                if (!filter.containsKey("match_all")) options.put("filter", filter);
+                JsonNode knn = searchRequest("POST", "/" + index + "/_search", Map.of(
+                    "size", Math.max(limit, 100),
+                    "_source", sourceWithoutVectors(),
+                    "query", Map.of("knn", Map.of(CAPABILITY_VECTOR, options))
+                ));
+                List<LuceneMcpSearchService.SearchHit> vectorHits = parseHits(knn, "opensearch_vector");
+                return mergeHits(lexicalHits, vectorHits, limit);
+            } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
+                log.warn("Database query capability KNN search degraded to BM25 index={} error={}",
+                    index, ex.getMessage());
+                return lexicalHits.stream().limit(limit).toList();
+            }
+
         }
     }
 
@@ -1035,6 +1102,7 @@ public class OpenSearchMcpSearchService {
                 && "knn_vector".equalsIgnoreCase(vector.path("type").asText())
                 && vector.path("dimension").asInt() == Math.max(8, dimension);
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             return false;
         }
     }
@@ -1048,6 +1116,7 @@ public class OpenSearchMcpSearchService {
             }
             return Math.max(8, properties.path(CAPABILITY_VECTOR).path("dimension").asInt(256));
         } catch (Exception ignored) {
+            if (ignored instanceof QueryOptimizationException diagnosed) throw diagnosed;
             return 256;
         }
     }
@@ -1172,6 +1241,7 @@ public class OpenSearchMcpSearchService {
             }
             return available;
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             if (vectorCompatibilityWarnings.add(index)) {
                 log.warn("MCP OpenSearch vector compatibility check failed index={} error={}", index, ex.getMessage());
             }
@@ -1224,35 +1294,38 @@ public class OpenSearchMcpSearchService {
 
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> searchMarketCatalog(String rawIndexName, String query, int limit) {
-        if (!enabled() || query == null || query.isBlank()) return List.of();
-        String index = rawIndexName(rawIndexName);
-        Map<String, Object> body = Map.of(
-            "size", Math.max(1, Math.min(limit, 50)),
-            "query", Map.of("bool", Map.of(
-                "should", List.of(
-                    Map.of("multi_match", Map.of(
-                        "query", query,
-                        "type", "best_fields",
-                        "fields", List.of("title^7", "business_tags_json^6", "description^4",
-                            "business_description^4", "dataset_code^3", "table_name^2"))),
-                    Map.of("multi_match", Map.of(
-                        "query", query,
-                        "type", "best_fields",
-                        "fields", List.of("fields.business_description^2", "fields.field_name",
-                            "fields.source_field"))),
-                    Map.of("match", Map.of("search_text", Map.of("query", query, "boost", 0.25D)))
-                ),
-                "minimum_should_match", 1)));
-        JsonNode response = searchRequest("POST", "/" + index + "/_search", body);
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (JsonNode hit : response.path("hits").path("hits")) {
-            Map<String, Object> item = new LinkedHashMap<>(
-                objectMapper.convertValue(hit.path("_source"), Map.class));
-            item.put("relevance_score", hit.path("_score").asDouble(0.0D));
-            item.put("physical_index", hit.path("_index").asText(index));
-            result.add(Map.copyOf(item));
+        try (var budgetScope = queryOptimizer.openScope()) {
+            if (!enabled() || query == null || query.isBlank()) return List.of();
+            String index = rawIndexName(rawIndexName);
+            Map<String, Object> body = Map.of(
+                "size", Math.max(1, Math.min(limit, 50)),
+                "query", Map.of("bool", Map.of(
+                    "should", List.of(
+                        Map.of("multi_match", Map.of(
+                            "query", query,
+                            "type", "best_fields",
+                            "fields", List.of("title^7", "business_tags_json^6", "description^4",
+                                "business_description^4", "dataset_code^3", "table_name^2"))),
+                        Map.of("multi_match", Map.of(
+                            "query", query,
+                            "type", "best_fields",
+                            "fields", List.of("fields.business_description^2", "fields.field_name",
+                                "fields.source_field"))),
+                        Map.of("match", Map.of("search_text", Map.of("query", query, "boost", 0.25D)))
+                    ),
+                    "minimum_should_match", 1)));
+            JsonNode response = searchRequest("POST", "/" + index + "/_search", body);
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (JsonNode hit : response.path("hits").path("hits")) {
+                Map<String, Object> item = new LinkedHashMap<>(
+                    objectMapper.convertValue(hit.path("_source"), Map.class));
+                item.put("relevance_score", hit.path("_score").asDouble(0.0D));
+                item.put("physical_index", hit.path("_index").asText(index));
+                result.add(Map.copyOf(item));
+            }
+            return List.copyOf(result);
+
         }
-        return List.copyOf(result);
     }
 
     /**
@@ -1302,59 +1375,63 @@ public class OpenSearchMcpSearchService {
                                                               double bm25Weight,
                                                               double vectorWeight,
                                                               int limit) {
-        if (!enabled() || query == null || query.isBlank()) return List.of();
-        String index = rawIndexName(rawIndexName);
-        if (!physicalIndexExists(index)) return List.of();
-        List<Map<String, Object>> filters = new ArrayList<>();
-        if (metadataTypes != null && !metadataTypes.isEmpty()) {
-            filters.add(Map.of("terms", Map.of("metadataType", metadataTypes)));
-        }
-        if (statuses != null && !statuses.isEmpty()) {
-            filters.add(Map.of("terms", Map.of("status", statuses)));
-        }
-        if (scenarios != null && !scenarios.isEmpty()) {
-            filters.add(Map.of("terms", Map.of("scenarioCodes", scenarios)));
-        }
-        Map<String, Object> lexical = Map.of("multi_match", Map.of(
-            "query", query,
-            "fields", List.of("name^6", "technicalName^5", "description^4", "searchText^3",
-                "scenarioNames^4", "scenarioDescription^3", "semanticText^2",
-                "attributes.englishName^3", "attributes.abbreviation^4",
-                "attributes.codeDescription^3", "attributes.fullPinyin^2")
-        ));
-        Map<String, Object> effectiveQuery = filters.isEmpty()
-            ? lexical
-            : Map.of("bool", Map.of("must", List.of(lexical), "filter", filters));
-        if (limit < 1) {
-            throw new IllegalArgumentException("limit must be greater than 0");
-        }
-        int resultLimit = limit;
-        int candidateLimit = Math.max(resultLimit, Math.min(vectorCandidateLimit, 500));
-        JsonNode lexicalResponse = searchRequest("POST", "/" + index + "/_search", Map.of(
-            "size", candidateLimit,
-            "_source", sourceWithoutVectors(),
-            "query", effectiveQuery
-        ));
-        JsonNode vectorResponse = null;
-        if (queryVector != null && !queryVector.isEmpty()) {
-            try {
-                Map<String, Object> knnOptions = new LinkedHashMap<>();
-                knnOptions.put("vector", queryVector);
-                knnOptions.put("k", candidateLimit);
-                if (!filters.isEmpty()) {
-                    knnOptions.put("filter", Map.of("bool", Map.of("filter", filters)));
-                }
-                vectorResponse = searchRequest("POST", "/" + index + "/_search", Map.of(
-                    "size", candidateLimit,
-                    "_source", sourceWithoutVectors(),
-                    "query", Map.of("knn", Map.of(vectorField, knnOptions))
-                ));
-            } catch (Exception ex) {
-                log.warn("Enterprise metadata KNN search degraded to BM25 index={} error={}", index, ex.getMessage());
+        try (var budgetScope = queryOptimizer.openScope()) {
+            if (!enabled() || query == null || query.isBlank()) return List.of();
+            String index = rawIndexName(rawIndexName);
+            if (!physicalIndexExists(index)) return List.of();
+            List<Map<String, Object>> filters = new ArrayList<>();
+            if (metadataTypes != null && !metadataTypes.isEmpty()) {
+                filters.add(Map.of("terms", Map.of("metadataType", metadataTypes)));
             }
+            if (statuses != null && !statuses.isEmpty()) {
+                filters.add(Map.of("terms", Map.of("status", statuses)));
+            }
+            if (scenarios != null && !scenarios.isEmpty()) {
+                filters.add(Map.of("terms", Map.of("scenarioCodes", scenarios)));
+            }
+            Map<String, Object> lexical = Map.of("multi_match", Map.of(
+                "query", query,
+                "fields", List.of("name^6", "technicalName^5", "description^4", "searchText^3",
+                    "scenarioNames^4", "scenarioDescription^3", "semanticText^2",
+                    "attributes.englishName^3", "attributes.abbreviation^4",
+                    "attributes.codeDescription^3", "attributes.fullPinyin^2")
+            ));
+            Map<String, Object> effectiveQuery = filters.isEmpty()
+                ? lexical
+                : Map.of("bool", Map.of("must", List.of(lexical), "filter", filters));
+            if (limit < 1) {
+                throw new IllegalArgumentException("limit must be greater than 0");
+            }
+            int resultLimit = limit;
+            int candidateLimit = Math.max(resultLimit, Math.min(vectorCandidateLimit, 500));
+            JsonNode lexicalResponse = searchRequest("POST", "/" + index + "/_search", Map.of(
+                "size", candidateLimit,
+                "_source", sourceWithoutVectors(),
+                "query", effectiveQuery
+            ));
+            JsonNode vectorResponse = null;
+            if (queryVector != null && !queryVector.isEmpty()) {
+                try {
+                    Map<String, Object> knnOptions = new LinkedHashMap<>();
+                    knnOptions.put("vector", queryVector);
+                    knnOptions.put("k", candidateLimit);
+                    if (!filters.isEmpty()) {
+                        knnOptions.put("filter", Map.of("bool", Map.of("filter", filters)));
+                    }
+                    vectorResponse = searchRequest("POST", "/" + index + "/_search", Map.of(
+                        "size", candidateLimit,
+                        "_source", sourceWithoutVectors(),
+                        "query", Map.of("knn", Map.of(vectorField, knnOptions))
+                    ));
+                } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
+                    log.warn("Enterprise metadata KNN search degraded to BM25 index={} error={}", index, ex.getMessage());
+                }
+            }
+            return mergeEnterpriseMetadataHits(
+                index, lexicalResponse, vectorResponse, bm25Weight, vectorWeight, resultLimit);
+
         }
-        return mergeEnterpriseMetadataHits(
-            index, lexicalResponse, vectorResponse, bm25Weight, vectorWeight, resultLimit);
     }
 
     private synchronized void ensureEnterpriseMetadataIndex(String index,
@@ -1447,6 +1524,7 @@ public class OpenSearchMcpSearchService {
                 && "knn_vector".equalsIgnoreCase(vector.path("type").asText())
                 && vector.path("dimension").asInt() == Math.max(8, vectorDimension);
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             return false;
         }
     }
@@ -1643,13 +1721,22 @@ public class OpenSearchMcpSearchService {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private JsonNode searchRequest(String method, String path, Object body) {
+        return objectMapper.valueToTree(queryOptimizer.search((Map<String,Object>) body,
+            SearchQueryOptimizer.Mode.TEXT, (prepared, timeout) -> {
+                JsonNode result = searchRequestWithinBudget(method, path, prepared, timeout);
+                return objectMapper.convertValue(result, Map.class);
+            }));
+    }
+
+    private JsonNode searchRequestWithinBudget(String method, String path, Object body, int remainingMillis) {
         LuceneSearchProperties.OpenSearch.SearchConcurrency concurrency = searchConcurrencyConfig();
         int retryAttempts = Math.max(0, concurrency.getRetry429Attempts());
         for (int attempt = 0; ; attempt++) {
             try {
                 return requestRaw(method, path, body == null ? "" : json(body), false, "application/json",
-                    Math.max(1, concurrency.getRequestTimeoutMs()));
+                    Math.max(1, Math.min(remainingMillis, concurrency.getRequestTimeoutMs())));
             } catch (IllegalStateException ex) {
                 if (attempt >= retryAttempts || !isTooManyRequests(ex)) {
                     throw ex;

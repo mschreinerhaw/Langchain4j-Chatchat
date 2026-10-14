@@ -93,7 +93,7 @@ class OpenSearchDocumentIndexServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void lexicalQueryTruncatesLongModelGeneratedText() {
+    void lexicalQueryExtractsFullInputIncludingTrailingEntities() {
         SearchProperties properties = new SearchProperties();
         OpenSearchDocumentIndexService service = new OpenSearchDocumentIndexService(
             properties,
@@ -107,7 +107,7 @@ class OpenSearchDocumentIndexServiceTest {
         );
 
         Map<String, Object> query = service.searchQuery(
-            "x".repeat(2_000),
+            "please analyze revenue and cashflow ".repeat(100) + " 600519",
             List.of("asset", "revenue"),
             SearchPermissionContext.system()
         );
@@ -116,7 +116,7 @@ class OpenSearchDocumentIndexServiceTest {
         List<Object> should = (List<Object>) bool.get("should");
         Map<String, Object> analyzedMultiMatch =
             (Map<String, Object>) ((Map<String, Object>) should.get(4)).get("multi_match");
-        assertThat(String.valueOf(analyzedMultiMatch.get("query"))).hasSize(500);
+        assertThat(String.valueOf(analyzedMultiMatch.get("query"))).contains("600519").doesNotContain("please analyze revenue and cashflow ".repeat(100));
     }
 
     @Test

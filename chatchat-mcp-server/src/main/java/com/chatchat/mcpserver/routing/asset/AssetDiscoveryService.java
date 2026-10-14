@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.routing.asset;
 
+import com.chatchat.common.retrieval.query.SearchQueryOptimizer;
+
 import com.chatchat.mcpserver.routing.target.TargetKindRegistry;
 
 import com.chatchat.mcpserver.ops.http.HttpEndpointConfig;
@@ -28,6 +30,10 @@ import java.util.regex.Pattern;
 @Service
 @Slf4j
 public class AssetDiscoveryService {
+    private SearchQueryOptimizer queryOptimizer = new SearchQueryOptimizer();
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setQueryOptimizer(SearchQueryOptimizer optimizer) { queryOptimizer.close(); queryOptimizer = optimizer; }
+
 
     public static final String QUERY_SCHEMA_VERSION = "asset_query.v1";
     public static final String RESULT_SCHEMA_VERSION = "asset_query_result.v1";
@@ -135,6 +141,10 @@ public class AssetDiscoveryService {
     }
 
     public Map<String, Object> query(Map<String, Object> arguments) {
+        return queryOptimizer.withAudit(() -> queryWithinQueryBudget(arguments));
+    }
+
+    private Map<String, Object> queryWithinQueryBudget(Map<String, Object> arguments) {
         long startedAt = System.nanoTime();
         Map<String, Object> filters = filters(arguments);
         rejectConcreteTargetFields(filters);
@@ -302,81 +312,98 @@ public class AssetDiscoveryService {
                                                                Map<String, Object> filters,
                                                                DiscoveryQueryPlan retrievalPlan,
                                                                int limit) {
-        // The registry is the source of truth for an explicitly named logical asset. Searching the
-        // shared asset/metadata index first can let a high-volume table document from another
-        // datasource occupy the result window before the named asset document is considered.
-        if (hasExplicitAssetName(filters)) {
-            AssetFallback named = registryFallbackAssets(assets, filters, limit);
-            if (!named.assets().isEmpty()) {
-                log.info("asset_query registry identity match assetType={} filters={} registryCandidates={} returned={} fuzzyFallbackUsed={}",
-                    assetType, compactFilters(filters), assets.size(), named.assets().size(), named.fuzzyUsed());
-                return named.assets();
+        try (var budgetScope = queryOptimizer.openScope()) {
+            // The registry is the source of truth for an explicitly named logical asset. Searching the
+            // shared asset/metadata index first can let a high-volume table document from another
+            // datasource occupy the result window before the named asset document is considered.
+            if (hasExplicitAssetName(filters)) {
+                AssetFallback named = registryFallbackAssets(assets, filters, limit);
+                if (!named.assets().isEmpty()) {
+                    log.info("asset_query registry identity match assetType={} filters={} registryCandidates={} returned={} fuzzyFallbackUsed={}",
+                        assetType, compactFilters(filters), assets.size(), named.assets().size(), named.fuzzyUsed());
+                    return named.assets();
+                }
             }
-        }
-        if (luceneSearchService == null || !luceneSearchService.enabled()) {
-            AssetFallback fallback = registryFallbackAssets(assets, filters, limit);
-            log.info("asset_query registry search assetType={} filters={} registryCandidates={} returned={} reason=lucene_disabled fuzzyFallbackUsed={}",
-                assetType, compactFilters(filters), assets.size(), fallback.assets().size(), fallback.fuzzyUsed());
-            return fallback.assets();
-        }
-        Map<String, Map<String, Object>> byId = new LinkedHashMap<>();
-        assets.forEach(asset -> {
-            String id = assetId(asset);
-            if (id != null) {
-                byId.put(id, asset);
+            if (luceneSearchService == null || !luceneSearchService.enabled()) {
+                AssetFallback fallback = registryFallbackAssets(assets, filters, limit);
+                log.info("asset_query registry search assetType={} filters={} registryCandidates={} returned={} reason=lucene_disabled fuzzyFallbackUsed={}",
+                    assetType, compactFilters(filters), assets.size(), fallback.assets().size(), fallback.fuzzyUsed());
+                return fallback.assets();
             }
-        });
-        List<String> retrievalVariants = retrievalPlan == null ? List.of() : retrievalPlan.queries();
-        List<String> searchQueries = retrievalVariants.isEmpty() ? java.util.Collections.singletonList(null) : retrievalVariants;
-        Map<String, RankedAssetHit> bestByAssetId = new LinkedHashMap<>();
-        int hitCount = 0;
-        for (String semanticQuery : searchQueries) {
-            LuceneMcpSearchService.AssetSearchRequest request = assetSearchRequest(
-                assetType, technicalType, filters, semanticQuery, limit);
-            List<LuceneMcpSearchService.SearchHit> variantHits = luceneSearchService.searchAssets(request);
-            hitCount += variantHits.size();
-            Map<String, LuceneMcpSearchService.SearchHit> bestVariantHitByAssetId = new LinkedHashMap<>();
-            variantHits.stream()
-                .filter(hit -> hit != null && hit.id() != null && byId.containsKey(hit.id()))
-                .forEach(hit -> bestVariantHitByAssetId.merge(hit.id(), hit,
-                    (current, candidate) -> candidate.score() > current.score() ? candidate : current));
-            List<AssetRelevanceRanker.Candidate<AssetHitCandidate>> qualityCandidates = bestVariantHitByAssetId.values().stream()
-                .map(hit -> new AssetHitCandidate(byId.get(hit.id()), hit))
-                .map(candidate -> new AssetRelevanceRanker.Candidate<>(
-                    candidate,
-                    assetIdentityTexts(candidate.metadata()),
-                    assetContentTexts(candidate.metadata(), candidate.hit()),
-                    candidate.hit().score()
-                ))
-                .toList();
-            AssetRelevanceRanker.rank(semanticQuery, qualityCandidates).forEach(ranked -> {
-                String id = ranked.value().hit().id();
-                RankedAssetHit candidate = new RankedAssetHit(ranked, semanticQuery);
-                bestByAssetId.merge(id, candidate,
-                    (current, replacement) -> replacement.ranked().score() > current.ranked().score()
-                        ? replacement : current);
+            Map<String, Map<String, Object>> byId = new LinkedHashMap<>();
+            assets.forEach(asset -> {
+                String id = assetId(asset);
+                if (id != null) {
+                    byId.put(id, asset);
+                }
             });
+            List<String> retrievalVariants = retrievalPlan == null ? List.of() : retrievalPlan.queriesForExecution(queryOptimizer.budget().getLongTextThreshold());
+            List<String> searchQueries = retrievalVariants.isEmpty() ? java.util.Collections.singletonList(null) : retrievalVariants;
+            Map<String, RankedAssetHit> bestByAssetId = new LinkedHashMap<>();
+            Map<String, List<Map<String,Object>>> batchEvidence = new LinkedHashMap<>();
+            int hitCount = 0;
+            List<List<LuceneMcpSearchService.SearchHit>> batches = searchQueries.size() > 1 && luceneSearchService.supportsIndependentBatches()
+                ? luceneSearchService.searchAssetBatches(searchQueries.stream()
+                    .map(query -> assetSearchRequest(assetType, technicalType, filters, query, limit)).toList(), byId.keySet()) : null;
+            int batchIndex = 0;
+            for (String semanticQuery : searchQueries) {
+                LuceneMcpSearchService.AssetSearchRequest request = assetSearchRequest(
+                    assetType, technicalType, filters, semanticQuery, limit);
+                List<LuceneMcpSearchService.SearchHit> variantHits = batches == null
+                    ? luceneSearchService.searchAssets(request) : batches.get(batchIndex++);
+                String queryUnit = "q" + (searchQueries.indexOf(semanticQuery) + 1);
+                for (var hit : variantHits) if (hit != null && hit.id() != null && byId.containsKey(hit.id()))
+                    batchEvidence.computeIfAbsent(hit.id(), ignored -> new ArrayList<>()).add(Map.of(
+                        "queryUnitId", queryUnit, "providerScore", hit.score(), "reasons", hit.reasons()));
+                hitCount += variantHits.size();
+                Map<String, LuceneMcpSearchService.SearchHit> bestVariantHitByAssetId = new LinkedHashMap<>();
+                variantHits.stream()
+                    .filter(hit -> hit != null && hit.id() != null && byId.containsKey(hit.id()))
+                    .forEach(hit -> bestVariantHitByAssetId.merge(hit.id(), hit,
+                        (current, candidate) -> candidate.score() > current.score() ? candidate : current));
+                List<AssetRelevanceRanker.Candidate<AssetHitCandidate>> qualityCandidates = bestVariantHitByAssetId.values().stream()
+                    .map(hit -> new AssetHitCandidate(byId.get(hit.id()), hit))
+                    .map(candidate -> new AssetRelevanceRanker.Candidate<>(
+                        candidate,
+                        assetIdentityTexts(candidate.metadata()),
+                        assetContentTexts(candidate.metadata(), candidate.hit()),
+                        candidate.hit().score()
+                    ))
+                    .toList();
+                AssetRelevanceRanker.rank(semanticQuery, qualityCandidates).forEach(ranked -> {
+                    String id = ranked.value().hit().id();
+                    RankedAssetHit candidate = new RankedAssetHit(ranked, semanticQuery);
+                    bestByAssetId.merge(id, candidate,
+                        (current, replacement) -> replacement.ranked().score() > current.ranked().score()
+                            ? replacement : current);
+                });
+            }
+            List<RankedAssetHit> rankedAll = bestByAssetId.values().stream()
+                .sorted(Comparator.comparingDouble((RankedAssetHit item) -> item.ranked().score()).reversed())
+                .toList();
+            List<RankedAssetHit> ranked = highestScored(rankedAll,
+                item -> item.ranked().score());
+            List<Map<String, Object>> luceneMatchedAll = ranked.stream()
+                .map(item -> {
+                    Map<String,Object> result = new LinkedHashMap<>(annotateSearchHit(item.ranked().value().metadata(), item.ranked().value().hit(),
+                        item.ranked(), item.retrievalVariant()));
+                    result.put("retrievalBatches", batchEvidence.getOrDefault(item.ranked().value().hit().id(), List.of()));
+                    return result;
+                })
+                .toList();
+            List<Map<String, Object>> luceneMatched = applyLimit(luceneMatchedAll, limit);
+            if (!luceneMatched.isEmpty()) {
+                log.info("asset_query lucene search assetType={} filters={} registryCandidates={} luceneHits={} qualifiedAssetHits={} returned={} hitIds={}",
+                    assetType, compactFilters(filters), assets.size(), hitCount, ranked.size(), luceneMatched.size(),
+                    applyLimit(ranked.stream().map(item -> item.ranked().value().hit().id()).toList(), limit));
+                return luceneMatched;
+            }
+            AssetFallback fallback = registryFallbackAssets(assets, filters, limit);
+            log.info("asset_query lucene empty fallback assetType={} filters={} registryCandidates={} luceneHits={} qualifiedAssetHits=0 fallbackReturned={} fuzzyFallbackUsed={}",
+                assetType, compactFilters(filters), assets.size(), hitCount, fallback.assets().size(), fallback.fuzzyUsed());
+            return fallback.assets();
+
         }
-        List<RankedAssetHit> rankedAll = bestByAssetId.values().stream()
-            .sorted(Comparator.comparingDouble((RankedAssetHit item) -> item.ranked().score()).reversed())
-            .toList();
-        List<RankedAssetHit> ranked = highestScored(rankedAll,
-            item -> item.ranked().score());
-        List<Map<String, Object>> luceneMatchedAll = ranked.stream()
-            .map(item -> annotateSearchHit(item.ranked().value().metadata(), item.ranked().value().hit(),
-                item.ranked(), item.retrievalVariant()))
-            .toList();
-        List<Map<String, Object>> luceneMatched = applyLimit(luceneMatchedAll, limit);
-        if (!luceneMatched.isEmpty()) {
-            log.info("asset_query lucene search assetType={} filters={} registryCandidates={} luceneHits={} qualifiedAssetHits={} returned={} hitIds={}",
-                assetType, compactFilters(filters), assets.size(), hitCount, ranked.size(), luceneMatched.size(),
-                applyLimit(ranked.stream().map(item -> item.ranked().value().hit().id()).toList(), limit));
-            return luceneMatched;
-        }
-        AssetFallback fallback = registryFallbackAssets(assets, filters, limit);
-        log.info("asset_query lucene empty fallback assetType={} filters={} registryCandidates={} luceneHits={} qualifiedAssetHits=0 fallbackReturned={} fuzzyFallbackUsed={}",
-            assetType, compactFilters(filters), assets.size(), hitCount, fallback.assets().size(), fallback.fuzzyUsed());
-        return fallback.assets();
     }
 
     private boolean hasExplicitAssetName(Map<String, Object> filters) {

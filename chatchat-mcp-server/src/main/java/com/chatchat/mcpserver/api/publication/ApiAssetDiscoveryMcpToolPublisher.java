@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.api.publication;
 
+import com.chatchat.common.retrieval.query.SearchQueryOptimizer;
+
 import com.chatchat.mcpserver.api.registry.ApiServiceConfig;
 import com.chatchat.mcpserver.api.registry.ApiServiceConfigService;
 
@@ -31,6 +33,10 @@ import java.util.Set;
 @Slf4j
 @Component
 public class ApiAssetDiscoveryMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolContributor {
+    private SearchQueryOptimizer queryOptimizer = new SearchQueryOptimizer();
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setQueryOptimizer(SearchQueryOptimizer optimizer) { queryOptimizer.close(); queryOptimizer = optimizer; }
+
 
     public static final String TOOL_NAME = "api_asset_query";
     private static final int DEFAULT_LIMIT = 10;
@@ -97,11 +103,15 @@ public class ApiAssetDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
     }
 
     Map<String, Object> query(Map<String, Object> arguments) {
+        return queryOptimizer.withAudit(() -> queryWithinQueryBudget(arguments));
+    }
+
+    private Map<String, Object> queryWithinQueryBudget(Map<String, Object> arguments) {
         Map<String, Object> filters = filters(arguments);
         int limit = limit(arguments);
         List<String> terms = terms(filters);
         DiscoveryQueryPlan retrievalPlan = DiscoveryQueryPlan.from(filters);
-        List<String> retrievalVariants = retrievalPlan.queries();
+        List<String> retrievalVariants = retrievalPlan.queriesForExecution(queryOptimizer.budget().getLongTextThreshold());
         List<ApiServiceConfig> enabledConfigs = configService.listEnabled();
         List<ScoredApiAsset> matched = luceneMatched(enabledConfigs, retrievalVariants, limit);
         boolean luceneUsed = !matched.isEmpty()
@@ -238,38 +248,42 @@ public class ApiAssetDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
     private List<ScoredApiAsset> luceneMatched(List<ApiServiceConfig> configs,
                                                List<String> retrievalVariants,
                                                int limit) {
-        if (luceneSearchService == null || !luceneSearchService.enabled()) {
-            return List.of();
-        }
-        Map<String, ApiServiceConfig> byId = new LinkedHashMap<>();
-        for (ApiServiceConfig config : configs) {
-            if (!text(config.getId()).isBlank()) {
-                byId.put(config.getId(), config);
+        try (var budgetScope = queryOptimizer.openScope()) {
+            if (luceneSearchService == null || !luceneSearchService.enabled()) {
+                return List.of();
             }
+            Map<String, ApiServiceConfig> byId = new LinkedHashMap<>();
+            for (ApiServiceConfig config : configs) {
+                if (!text(config.getId()).isBlank()) {
+                    byId.put(config.getId(), config);
+                }
+            }
+            List<String> variants = retrievalVariants.isEmpty() ? List.of("") : retrievalVariants;
+            Map<String, ScoredApiAsset> merged = new LinkedHashMap<>();
+            queryOptimizer.checkIndependentCount(variants.size());
+            for (String variant : variants) {
+                List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchAssets(
+                    configs.stream().map(this::apiAssetDoc).toList(),
+                    new LuceneMcpSearchService.AssetSearchRequest(
+                        "api_service", variant, null, null, List.of(),
+                        AssetRelevanceRanker.expandedLimit(limit, configs.size())
+                    )
+                );
+                List<AssetRelevanceRanker.Candidate<ScoredApiAsset>> candidates = hits.stream()
+                    .map(hit -> {
+                        ApiServiceConfig config = byId.get(hit.id());
+                        return config == null ? null : new AssetRelevanceRanker.Candidate<>(
+                            new ScoredApiAsset(config, hit.score()), identityTexts(config),
+                            contentTexts(config), hit.score());
+                    })
+                    .filter(item -> item != null)
+                    .toList();
+                AssetRelevanceRanker.rank(variant, candidates).forEach(item -> mergeBest(
+                    merged, item.value().config(), item.score()));
+            }
+            return sortedAssets(merged);
+
         }
-        List<String> variants = retrievalVariants.isEmpty() ? List.of("") : retrievalVariants;
-        Map<String, ScoredApiAsset> merged = new LinkedHashMap<>();
-        for (String variant : variants) {
-            List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchAssets(
-                configs.stream().map(this::apiAssetDoc).toList(),
-                new LuceneMcpSearchService.AssetSearchRequest(
-                    "api_service", variant, null, null, List.of(),
-                    AssetRelevanceRanker.expandedLimit(limit, configs.size())
-                )
-            );
-            List<AssetRelevanceRanker.Candidate<ScoredApiAsset>> candidates = hits.stream()
-                .map(hit -> {
-                    ApiServiceConfig config = byId.get(hit.id());
-                    return config == null ? null : new AssetRelevanceRanker.Candidate<>(
-                        new ScoredApiAsset(config, hit.score()), identityTexts(config),
-                        contentTexts(config), hit.score());
-                })
-                .filter(item -> item != null)
-                .toList();
-            AssetRelevanceRanker.rank(variant, candidates).forEach(item -> mergeBest(
-                merged, item.value().config(), item.score()));
-        }
-        return sortedAssets(merged);
     }
 
     private List<ScoredApiAsset> fallbackMatched(List<ApiServiceConfig> configs,
@@ -280,7 +294,8 @@ public class ApiAssetDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
             .toList();
         List<String> variants = retrievalVariants.isEmpty() ? List.of("") : retrievalVariants;
         Map<String, ScoredApiAsset> merged = new LinkedHashMap<>();
-        for (String variant : variants) {
+        queryOptimizer.checkIndependentCount(variants.size());
+            for (String variant : variants) {
             AssetRelevanceRanker.rank(variant, candidates).forEach(item -> mergeBest(
                 merged, item.value(), variant.isBlank() ? 1.0D : item.score()));
         }

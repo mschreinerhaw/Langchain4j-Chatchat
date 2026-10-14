@@ -8,6 +8,26 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DiscoveryQueryPlanTest {
+    @Test void longExecutionUsesOriginalPunctuationAndKeepsShortCompatibility() {
+        String original = "background ".repeat(100) + " schema.table_name 2026-01-01 10%";
+        var plan = DiscoveryQueryPlan.from(Map.of("keywords", List.of(original, "InnoDB")));
+        assertThat(plan.queriesForExecution(256)).containsExactly(original, "innodb");
+        assertThat(plan.units().get(0).originalQuery()).isEqualTo(original);
+    }
+    @Test void orWithExtraCardinalityCannotBeFlattened() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> DiscoveryQueryPlan.from(Map.of("queryExpression",
+            Map.of("operator", "OR", "terms", List.of("a", "b"), "minimum_should_match", 2))))
+            .hasMessageContaining("QUERY_REQUIRES_STRUCTURED_DSL");
+    }
+    @Test void explicitOrExpressionBecomesIndependentUnits() {
+        var plan = DiscoveryQueryPlan.from(Map.of("queryExpression", Map.of("operator", "OR", "terms", List.of("orders", "customers"))));
+        assertThat(plan.queries()).containsExactly("orders", "customers");
+    }
+    @Test void conjunctionAndExclusionCannotBeSilentlyFlattened() {
+        for (String operator : List.of("AND", "NOT"))
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> DiscoveryQueryPlan.from(Map.of("queryExpression", Map.of("operator", operator, "terms", List.of("a", "b")))))
+                .hasMessageContaining("QUERY_REQUIRES_STRUCTURED_DSL");
+    }
     @Test void explicitKeywordsExcludeTaskInstructionsFromEveryQueryUnit() {
         String task = "Read only; read all available chunks; output evidenceAssessment with field references.";
         var plan = DiscoveryQueryPlan.from(Map.of("goal", task, "intent", task, "query", task,

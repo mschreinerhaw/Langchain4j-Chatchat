@@ -1,5 +1,9 @@
 package com.chatchat.chat.skills.domain.indexing;
 
+import com.chatchat.common.retrieval.query.SearchQueryOptimizer;
+
+import com.chatchat.common.retrieval.query.QueryOptimizationException;
+
 import com.chatchat.chat.skills.domain.catalog.DomainSkillEntity;
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchEmbeddingClient;
@@ -32,6 +36,11 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class DomainSkillIndexService {
+    private SearchQueryOptimizer queryOptimizer = new SearchQueryOptimizer();
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setQueryOptimizer(SearchQueryOptimizer optimizer) {
+        queryOptimizer.close(); queryOptimizer = optimizer;
+    }
     private final DomainSkillProperties properties;
     private final SearchProperties searchProperties;
     private final OpenSearchEmbeddingClient embeddingClient;
@@ -43,7 +52,7 @@ public class DomainSkillIndexService {
     public List<String> searchIds(String query, List<String> allowedIds, int limit) {
         if (!openSearchEnabled() || query == null || query.isBlank()
             || allowedIds == null || allowedIds.isEmpty() || limit <= 0) return List.of();
-        try (RestClient client = client()) {
+        try (var budgetScope = queryOptimizer.openScope(); RestClient client = client()) {
             ensureIndex(client);
             int size = Math.min(Math.max(limit * 3, limit), allowedIds.size());
             List<Object> filters = List.of(
@@ -51,12 +60,14 @@ public class DomainSkillIndexService {
                 Map.of("term", Map.of("status", "PUBLISHED")));
             Map<String, Object> lexical = Map.of("size", size, "_source", List.of("skillId"),
                 "query", Map.of("bool", Map.of("must", List.of(Map.of("multi_match", Map.of(
-                    "query", query, "fields", List.of("name^5", "category^3", "description^2", "searchText")))),
+                    "query", query,
+                    "fields", List.of("name^5", "category^3", "description^2", "searchText")))),
                     "filter", filters)));
             List<String> lexicalIds = queryIds(client, lexical);
             List<String> vectorIds = List.of();
             try {
-                List<Float> vector = embeddingClient.embed(query);
+                String semanticQuery = queryOptimizer.semanticText(query);
+                List<Float> vector = queryOptimizer.withinBudget(() -> embeddingClient.embed(semanticQuery));
                 if (!vector.isEmpty()) {
                     Map<String, Object> semantic = Map.of("size", size, "_source", List.of("skillId"),
                         "query", Map.of("knn", Map.of("embedding", Map.of(
@@ -65,6 +76,7 @@ public class DomainSkillIndexService {
                     vectorIds = queryIds(client, semantic);
                 }
             } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
                 log.debug("Domain skill vector recall unavailable: {}", ex.getMessage());
             }
             Map<String, Double> scores = new HashMap<>();
@@ -74,16 +86,18 @@ public class DomainSkillIndexService {
                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed()
                     .thenComparing(Map.Entry::getKey))
                 .map(Map.Entry::getKey).limit(limit).toList();
+        } catch (QueryOptimizationException diagnosed) {
+            throw diagnosed;
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("Domain skill OpenSearch recall unavailable: {}", ex.getMessage());
             return List.of();
         }
     }
 
     private List<String> queryIds(RestClient client, Map<String, Object> body) throws Exception {
-        Request request = new Request("POST", "/" + indexName() + "/_search");
-        request.setJsonEntity(objectMapper.writeValueAsString(body));
-        JsonNode hits = objectMapper.readTree(client.performRequest(request).getEntity().getContent())
+        JsonNode hits = objectMapper.valueToTree(com.chatchat.knowledgebase.search.index.infrastructure.opensearch.BudgetedOpenSearchRequests
+            .search(queryOptimizer, client, objectMapper, "/" + indexName() + "/_search", body))
             .path("hits").path("hits");
         List<String> ids = new ArrayList<>();
         for (JsonNode hit : hits) {
@@ -126,6 +140,7 @@ public class DomainSkillIndexService {
             int status = client.performRequest(request).getStatusLine().getStatusCode();
             return new IndexResult(status < 300, vector.isEmpty() ? "BM25" : "BM25_KNN", status < 300 ? "" : "index write failed");
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("Domain skill indexing failed id={}: {}", skill.getId(), ex.getMessage());
             return new IndexResult(false, "FAILED", ex.getMessage());
         }
@@ -150,6 +165,7 @@ public class DomainSkillIndexService {
             log.warn("Domain skill index removal failed id={}: {}", skillId, ex.getMessage());
             return new IndexResult(false, "FAILED", ex.getMessage());
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("Domain skill index removal failed id={}: {}", skillId, ex.getMessage());
             return new IndexResult(false, "FAILED", ex.getMessage());
         }

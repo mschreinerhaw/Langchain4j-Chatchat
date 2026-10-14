@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.search.engine;
 
+import com.chatchat.common.retrieval.query.QueryOptimizationException;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.lucene.analysis.Analyzer;
@@ -49,6 +51,12 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class LuceneMcpSearchService {
+    public boolean supportsIndependentBatches() { return enabled() && openSearchSelected(); }
+    public List<List<SearchHit>> searchAssetBatches(List<AssetSearchRequest> requests, java.util.Collection<String> allowedAssetIds) {
+        if (!enabled()) return requests.stream().map(r -> List.<SearchHit>of()).toList();
+        if (openSearchSelected()) return openSearchSearchService.searchAssetBatches(requests, allowedAssetIds);
+        return requests.stream().map(this::searchAssets).toList();
+    }
 
     private static final int MAX_QUERY_TEXT_LENGTH = 512;
     private static final int MAX_LOGGED_QUERY_TEXT_LENGTH = 160;
@@ -128,6 +136,7 @@ public class LuceneMcpSearchService {
             }
             return searchAssets(effectiveRequest);
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("MCP Lucene asset search failed assetType={} queryText={} env={} dbType={} limit={}: {}",
                 effectiveRequest.assetType(), queryPreview(effectiveRequest.queryText()), effectiveRequest.env(),
                 effectiveRequest.dbType(), effectiveRequest.limit(), ex.getMessage());
@@ -145,6 +154,7 @@ public class LuceneMcpSearchService {
             }
             return searchTemplates(request);
         } catch (Exception ignored) {
+            if (ignored instanceof QueryOptimizationException diagnosed) throw diagnosed;
             return List.of();
         }
     }
@@ -156,6 +166,7 @@ public class LuceneMcpSearchService {
         try {
             rebuildTemplateIndex(TEMPLATE_INDEX, docs);
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             // Lucene is an acceleration index. Callers keep using the source registry as truth.
             log.warn("MCP Lucene template index rebuild failed docs={}: {}", docs == null ? 0 : docs.size(), ex.getMessage());
         }
@@ -168,6 +179,7 @@ public class LuceneMcpSearchService {
         try {
             upsertTemplateIndex(TEMPLATE_INDEX, docs);
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             // Lucene is an acceleration index. Callers keep using the source registry as truth.
             log.warn("MCP Lucene template upsert failed docs={}: {}", docs.size(), ex.getMessage());
         }
@@ -180,6 +192,7 @@ public class LuceneMcpSearchService {
         try {
             return searchTemplateIndex(TEMPLATE_INDEX, request);
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("MCP Lucene template search failed assetType={} dbType={} intentText={} limit={}: {}",
                 request.assetType(), request.dbType(), queryPreview(request.intentText()), request.limit(), ex.getMessage());
             return List.of();
@@ -205,6 +218,7 @@ public class LuceneMcpSearchService {
             }
             return searchDatabaseQueryTemplates(request);
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("MCP Lucene database query template search failed assetType={} dbType={} intentText={} limit={}: {}",
                 request.assetType(), request.dbType(), queryPreview(request.intentText()), request.limit(), ex.getMessage());
             return List.of();
@@ -247,6 +261,7 @@ public class LuceneMcpSearchService {
                 rebuild(assetIndexPath(entry.getKey()), entry.getValue().stream().map(this::assetDocument).toList());
             }
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             // The search engine is an acceleration index. Callers keep using the source registry as truth.
             log.warn("MCP search asset index rebuild failed engine={} docs={}: {}",
                 searchEngineName(), docs == null ? 0 : docs.size(), ex.getMessage());
@@ -272,6 +287,7 @@ public class LuceneMcpSearchService {
                 .map(this::assetDocument)
                 .toList());
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             // The search engine is an acceleration index. Callers keep using the source registry as truth.
             log.warn("MCP search {} asset index rebuild failed engine={} docs={}: {}",
                 normalizedAssetType, searchEngineName(), docs == null ? 0 : docs.size(), ex.getMessage());
@@ -298,6 +314,7 @@ public class LuceneMcpSearchService {
                 upsert(assetIndexPath(entry.getKey()), entry.getValue().stream().map(this::assetDocument).toList());
             }
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             // The search engine is an acceleration index. Callers keep using the source registry as truth.
             log.warn("MCP search asset upsert failed engine={} docs={}: {}",
                 searchEngineName(), docs.size(), ex.getMessage());
@@ -323,6 +340,7 @@ public class LuceneMcpSearchService {
                 .map(this::assetDocument)
                 .toList());
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             // The search engine is an acceleration index. Callers keep using the source registry as truth.
             log.warn("MCP search {} asset upsert failed engine={} docs={}: {}",
                 normalizedAssetType, searchEngineName(), docs.size(), ex.getMessage());
@@ -352,6 +370,7 @@ public class LuceneMcpSearchService {
                 writer.commit();
             }
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("MCP Lucene SQL datasource asset replacement failed datasourceId={}: {}", datasourceId, ex.getMessage());
         }
     }
@@ -362,6 +381,7 @@ public class LuceneMcpSearchService {
             try {
                 openSearchSearchService.replaceAssetAcrossIndexes(assetId, assetTypes, doc);
             } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
                 // OpenSearch is an acceleration index. Asset registry/database remains the source of truth.
                 log.warn("MCP OpenSearch cross-index asset replacement failed assetId={} assetTypes={}: {}",
                     assetId, assetTypes, ex.getMessage());
@@ -383,6 +403,7 @@ public class LuceneMcpSearchService {
                     writer.commit();
                 }
             } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
                 log.warn("MCP Lucene cross-index asset replacement failed assetId={} assetType={}: {}",
                     assetId, assetType, ex.getMessage());
             }
@@ -404,6 +425,7 @@ public class LuceneMcpSearchService {
             }
             return searchKnownAssetIndexes(effectiveRequest);
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("MCP Lucene asset search failed assetType={} queryText={} env={} dbType={} limit={}: {}",
                 effectiveRequest.assetType(), queryPreview(effectiveRequest.queryText()), effectiveRequest.env(),
                 effectiveRequest.dbType(), effectiveRequest.limit(), ex.getMessage());
@@ -429,6 +451,7 @@ public class LuceneMcpSearchService {
                 return scores;
             }
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             throw new IllegalStateException("Scoped metadata ranking failed", ex);
         }
     }
@@ -440,6 +463,7 @@ public class LuceneMcpSearchService {
         try {
             rebuildTemplateIndex(indexName, docs);
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("MCP Lucene {} index rebuild failed docs={}: {}", label, docs == null ? 0 : docs.size(), ex.getMessage());
         }
     }
@@ -451,6 +475,7 @@ public class LuceneMcpSearchService {
         try {
             upsertTemplateIndex(indexName, docs);
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("MCP Lucene {} upsert failed docs={}: {}", label, docs.size(), ex.getMessage());
         }
     }
@@ -462,6 +487,7 @@ public class LuceneMcpSearchService {
         try {
             return searchTemplateIndex(indexName, request);
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             lastSearchDiagnostic.set(searchDiagnostic(ex));
             log.warn("MCP Lucene {} search failed assetType={} dbType={} intentText={} limit={}: {}",
                 label, request.assetType(), request.dbType(), queryPreview(request.intentText()), request.limit(), ex.getMessage());
@@ -589,6 +615,7 @@ public class LuceneMcpSearchService {
         } catch (IndexNotFoundException ignored) {
             return false;
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("MCP Lucene index existence check failed path={}: {}", path, ex.getMessage());
             return false;
         }

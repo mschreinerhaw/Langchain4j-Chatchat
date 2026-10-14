@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.metadata.search;
 
+import com.chatchat.common.retrieval.query.SearchQueryOptimizer;
+
 import com.chatchat.mcpserver.metadata.catalog.EnterpriseMetadataCatalog;
 import com.chatchat.mcpserver.metadata.config.EnterpriseMetadataProperties;
 import com.chatchat.mcpserver.metadata.catalog.EnterpriseMetadataRecord;
@@ -28,6 +30,10 @@ import java.util.concurrent.TimeUnit;
 @Service
 @Slf4j
 public class EnterpriseMetadataSearchService {
+    private SearchQueryOptimizer queryOptimizer = new SearchQueryOptimizer();
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setQueryOptimizer(SearchQueryOptimizer optimizer) { queryOptimizer.close(); queryOptimizer = optimizer; }
+
 
     public static final String RESULT_SCHEMA_VERSION = "enterprise_metadata_search_result.v2";
     public static final String REQUIRED_BUNDLE_SCHEMA_VERSION = "enterprise_metadata_search_result.v3";
@@ -56,7 +62,7 @@ public class EnterpriseMetadataSearchService {
     }
 
     public Map<String, Object> search(SearchRequest request) {
-        return search(request, false);
+        return queryOptimizer.withAudit(() -> search(request, false));
     }
 
     /**
@@ -64,7 +70,7 @@ public class EnterpriseMetadataSearchService {
      * enterprise metadata categories while preserving the caller's total limit.
      */
     public Map<String, Object> searchRequiredBundle(SearchRequest request) {
-        return search(request, true);
+        return queryOptimizer.withAudit(() -> search(request, true));
     }
 
     /**
@@ -73,217 +79,226 @@ public class EnterpriseMetadataSearchService {
      * caller's requirement cardinality; unmatched or ambiguous requirements are
      * retained as explicit slots instead of being filled with noisy candidates.
      */
-    public Map<String, Object> searchRequirements(SearchRequest request,
-                                                   List<String> requirements) {
-        SearchRequest effective = request == null
-            ? new SearchRequest(null, List.of(), List.of(), List.of(), null)
-            : request;
-        List<String> demand = requirementTerms(requirements, effective.query());
-        if (demand.isEmpty()) {
-            throw new IllegalArgumentException("query or queryTerms is required");
-        }
-        if (effective.limit() != null && effective.limit() < 1) {
-            throw new IllegalArgumentException("limit must be greater than 0");
-        }
-        // queryTerms is the public demand contract.  A legacy limit controls how
-        // many candidates are inspected for each term, but must never silently
-        // discard terms supplied by the caller.
-        int requested = demand.size();
-        int candidateHint = effective.limit() == null ? requested
-            : Math.max(requested, effective.limit());
-        int candidateLimit = expandedCandidateLimit(Math.max(1, candidateHint));
-        List<Map<String, Object>> selected = new ArrayList<>();
-        List<Map<String, Object>> slots = new ArrayList<>();
-        Set<String> backends = new LinkedHashSet<>();
+    public Map<String, Object> searchRequirements(SearchRequest request, List<String> requirements) {
+        return queryOptimizer.withAudit(() -> searchRequirementsWithinBudget(request, requirements));
+    }
 
-        for (int index = 0; index < demand.size(); index++) {
-            String requirement = demand.get(index);
-            Map<String, Object> retrieval = search(new SearchRequest(
-                requirement,
-                effective.types(),
-                effective.statuses(),
-                effective.scenarios(),
-                candidateLimit
-            ), true);
-            backends.add(String.valueOf(retrieval.getOrDefault("backend", "none")));
-            List<Map<String, Object>> retrievedCandidates = maps(retrieval.get("results"));
-            // Requirements are independent slots.  Two synonymous query terms
-            // may legitimately resolve to the same governed record; collapsing
-            // that record here makes the returned row count unrelated to the
-            // caller's keyword count.
-            List<Map<String, Object>> candidates = retrievedCandidates;
-            Selection selection = selectCandidate(candidates);
-            Map<String, Object> retrievalCoverage = objectMap(retrieval.get("requiredRetrieval"));
-            Map<String, Object> slot = new LinkedHashMap<>();
-            slot.put("requirementIndex", index);
-            slot.put("requirement", requirement);
-            slot.put("retrievedCandidateCount", retrievedCandidates.size());
-            slot.put("eligibleCandidateCount", candidates.size());
-            slot.put("duplicateCandidateCount", 0);
-            slot.put("allMetadataTypesAttempted",
-                Boolean.TRUE.equals(retrievalCoverage.get("allTypesAttempted")));
-            slot.put("retrievedCountsByType",
-                objectMap(retrievalCoverage.get("retrievedCountsByType")));
-            slot.put("matched", selection.selected() != null);
-            slot.put("selectionStatus", selection.status());
-            slot.put("qualityThreshold", searchPolicy().getMinimumQualityScore());
-            slot.put("selectionMargin", selection.margin());
-            if (selection.selected() != null) {
-                Map<String, Object> result = requirementResult(
-                    selection.selected(), index, requirement);
-                selected.add(result);
-                slot.put("selectedResult", selectionReference(result));
+    private Map<String, Object> searchRequirementsWithinBudget(SearchRequest request, List<String> requirements) {
+        try (var budgetScope = queryOptimizer.openScope()) {
+            SearchRequest effective = request == null
+                ? new SearchRequest(null, List.of(), List.of(), List.of(), null)
+                : request;
+            List<String> demand = requirementTerms(requirements, effective.query());
+            if (demand.isEmpty()) {
+                throw new IllegalArgumentException("query or queryTerms is required");
             }
-            slots.add(Map.copyOf(slot));
-        }
+            if (effective.limit() != null && effective.limit() < 1) {
+                throw new IllegalArgumentException("limit must be greater than 0");
+            }
+            // queryTerms is the public demand contract.  A legacy limit controls how
+            // many candidates are inspected for each term, but must never silently
+            // discard terms supplied by the caller.
+            int requested = demand.size();
+            int candidateHint = effective.limit() == null ? requested
+                : Math.max(requested, effective.limit());
+            int candidateLimit = expandedCandidateLimit(Math.max(1, candidateHint));
+            List<Map<String, Object>> selected = new ArrayList<>();
+            List<Map<String, Object>> slots = new ArrayList<>();
+            Set<String> backends = new LinkedHashSet<>();
 
-        List<Map<String, Object>> evidence = selected.stream().map(this::evidenceObject).toList();
-        List<String> requiredTypes = requiredTypes();
-        Map<String, Object> countsByType = countsByType(selected, requiredTypes);
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("schemaVersion", CARDINALITY_SCHEMA_VERSION);
-        response.put("success", true);
-        response.put("query", effective.query());
-        response.put("inputTerms", List.copyOf(demand));
-        response.put("requestedRequirementCount", demand.size());
-        response.put("returnedMetadataCount", selected.size());
-        response.put("matchedRequirementCount", selected.size());
-        response.put("unmatchedRequirementCount", demand.size() - selected.size());
-        response.put("cardinalityPreserved", selected.size() <= demand.size());
-        response.put("keywordCardinalitySatisfied", selected.size() == demand.size());
-        response.put("candidateExpansionInternalOnly", true);
-        response.put("candidateReturnPolicy", "ONE_OR_ZERO_PER_REQUIREMENT");
-        response.put("backend", aggregateValues(backends));
-        response.put("count", selected.size());
-        response.put("countsByType", countsByType);
-        response.put("requirementMatches", List.copyOf(slots));
-        response.put("results", List.copyOf(selected));
-        response.put("evidenceObjects", evidence);
-        response.put("evidenceBundle", evidenceBundle(
-            String.join(" ", demand), scenarioClassifier.classifyQuery(String.join(" ", demand)),
-            evidence, countsByType, Map.of(
-                "cardinalityPreserved", true,
-                "requestedRequirementCount", demand.size(),
-                "returnedMetadataCount", selected.size()
-            ), true));
-        response.put("evidencePolicy", Map.of(
-            "factBoundary", "Only selected enterprise metadata records may be used as factual field or term definitions",
-            "sampleValuesIncluded", false,
-            "sourceAuthority", "configured_enterprise_metadata_catalog"
-        ));
-        response.put("evidenceCoverage", policyService.evidenceCoverage());
-        return Map.copyOf(response);
+            for (int index = 0; index < demand.size(); index++) {
+                String requirement = demand.get(index);
+                Map<String, Object> retrieval = search(new SearchRequest(
+                    requirement,
+                    effective.types(),
+                    effective.statuses(),
+                    effective.scenarios(),
+                    candidateLimit
+                ), true);
+                backends.add(String.valueOf(retrieval.getOrDefault("backend", "none")));
+                List<Map<String, Object>> retrievedCandidates = maps(retrieval.get("results"));
+                // Requirements are independent slots.  Two synonymous query terms
+                // may legitimately resolve to the same governed record; collapsing
+                // that record here makes the returned row count unrelated to the
+                // caller's keyword count.
+                List<Map<String, Object>> candidates = retrievedCandidates;
+                Selection selection = selectCandidate(candidates);
+                Map<String, Object> retrievalCoverage = objectMap(retrieval.get("requiredRetrieval"));
+                Map<String, Object> slot = new LinkedHashMap<>();
+                slot.put("requirementIndex", index);
+                slot.put("requirement", requirement);
+                slot.put("retrievedCandidateCount", retrievedCandidates.size());
+                slot.put("eligibleCandidateCount", candidates.size());
+                slot.put("duplicateCandidateCount", 0);
+                slot.put("allMetadataTypesAttempted",
+                    Boolean.TRUE.equals(retrievalCoverage.get("allTypesAttempted")));
+                slot.put("retrievedCountsByType",
+                    objectMap(retrievalCoverage.get("retrievedCountsByType")));
+                slot.put("matched", selection.selected() != null);
+                slot.put("selectionStatus", selection.status());
+                slot.put("qualityThreshold", searchPolicy().getMinimumQualityScore());
+                slot.put("selectionMargin", selection.margin());
+                if (selection.selected() != null) {
+                    Map<String, Object> result = requirementResult(
+                        selection.selected(), index, requirement);
+                    selected.add(result);
+                    slot.put("selectedResult", selectionReference(result));
+                }
+                slots.add(Map.copyOf(slot));
+            }
+
+            List<Map<String, Object>> evidence = selected.stream().map(this::evidenceObject).toList();
+            List<String> requiredTypes = requiredTypes();
+            Map<String, Object> countsByType = countsByType(selected, requiredTypes);
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("schemaVersion", CARDINALITY_SCHEMA_VERSION);
+            response.put("success", true);
+            response.put("query", effective.query());
+            response.put("inputTerms", List.copyOf(demand));
+            response.put("requestedRequirementCount", demand.size());
+            response.put("returnedMetadataCount", selected.size());
+            response.put("matchedRequirementCount", selected.size());
+            response.put("unmatchedRequirementCount", demand.size() - selected.size());
+            response.put("cardinalityPreserved", selected.size() <= demand.size());
+            response.put("keywordCardinalitySatisfied", selected.size() == demand.size());
+            response.put("candidateExpansionInternalOnly", true);
+            response.put("candidateReturnPolicy", "ONE_OR_ZERO_PER_REQUIREMENT");
+            response.put("backend", aggregateValues(backends));
+            response.put("count", selected.size());
+            response.put("countsByType", countsByType);
+            response.put("requirementMatches", List.copyOf(slots));
+            response.put("results", List.copyOf(selected));
+            response.put("evidenceObjects", evidence);
+            response.put("evidenceBundle", evidenceBundle(
+                String.join(" ", demand), scenarioClassifier.classifyQuery(String.join(" ", demand)),
+                evidence, countsByType, Map.of(
+                    "cardinalityPreserved", true,
+                    "requestedRequirementCount", demand.size(),
+                    "returnedMetadataCount", selected.size()
+                ), true));
+            response.put("evidencePolicy", Map.of(
+                "factBoundary", "Only selected enterprise metadata records may be used as factual field or term definitions",
+                "sampleValuesIncluded", false,
+                "sourceAuthority", "configured_enterprise_metadata_catalog"
+            ));
+            response.put("evidenceCoverage", policyService.evidenceCoverage());
+            return Map.copyOf(response);
+
+        }
     }
 
     private Map<String, Object> search(SearchRequest request, boolean requiredBundle) {
-        if (!properties.isEnabled()) {
-            throw new IllegalStateException("Enterprise metadata capability is disabled");
-        }
-        SearchRequest effective = request == null
-            ? new SearchRequest(null, List.of(), List.of(), List.of(), null)
-            : request;
-        String query = text(effective.query());
-        if (query == null) {
-            throw new IllegalArgumentException("query is required");
-        }
-        List<String> requestedTypes = normalizeTypes(effective.types());
-        List<String> statuses = normalizeValues(effective.statuses());
-        List<String> scenarios = normalizeValues(effective.scenarios());
-        int limit = requestedLimit(effective.limit());
-        int candidateLimit = expandedCandidateLimit(limit);
-        String expandedQuery = expandedQuery(query);
-
-        String semanticQuery = scenarioClassifier.enrichQuery(expandedQuery);
-        List<Float> queryVector = properties.getKnn().isEnabled()
-            ? vectorizer.vectorize(semanticQuery)
-            : List.of();
-        List<Map<String, Object>> results;
-        String backend;
-        List<SearchBucket> buckets = List.of();
-        List<String> requiredTypes = requiredTypes();
-        if (requiredBundle) {
-            buckets = new ArrayList<>();
-            for (String type : requiredTypes) {
-                buckets.add(searchRequiredType(
-                    query, expandedQuery, type, statuses, scenarios, queryVector, candidateLimit));
+        try (var budgetScope = queryOptimizer.openScope()) {
+            if (!properties.isEnabled()) {
+                throw new IllegalStateException("Enterprise metadata capability is disabled");
             }
-            results = rerankAndFilter(query,
-                mergeBucketsWithinTotalLimit(buckets, candidateLimit), limit);
-            backend = aggregateBackend(buckets);
-        } else {
-            results = searchOpenSearch(
-                expandedQuery, requestedTypes, statuses, scenarios, queryVector, candidateLimit);
-            backend = "opensearch";
-            if (results.isEmpty()) {
-                results = searchMemory(
-                    query, expandedQuery, requestedTypes, statuses, scenarios, candidateLimit);
-                backend = "memory";
+            SearchRequest effective = request == null
+                ? new SearchRequest(null, List.of(), List.of(), List.of(), null)
+                : request;
+            String query = text(effective.query());
+            if (query == null) {
+                throw new IllegalArgumentException("query is required");
             }
-            results = rerankAndFilter(query, results, limit);
-        }
-        Map<String, Object> countsByType = countsByType(results, requiredTypes);
-        Map<String, Object> retrievedCountsByType = requiredBundle
-            ? bucketCountsByType(buckets, requiredTypes)
-            : countsByType;
+            List<String> requestedTypes = normalizeTypes(effective.types());
+            List<String> statuses = normalizeValues(effective.statuses());
+            List<String> scenarios = normalizeValues(effective.scenarios());
+            int limit = requestedLimit(effective.limit());
+            int candidateLimit = expandedCandidateLimit(limit);
+            String expandedQuery = expandedQuery(query);
 
-        List<String> detectedScenarios = scenarioClassifier.classifyQuery(query);
-        List<Map<String, Object>> evidence = results.stream()
-            .map(this::evidenceObject)
-            .toList();
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("schemaVersion",
-            requiredBundle ? REQUIRED_BUNDLE_SCHEMA_VERSION : RESULT_SCHEMA_VERSION);
-        response.put("success", true);
-        response.put("query", query);
-        response.put("expandedQuery", expandedQuery);
-        response.put("semanticQuery", semanticQuery);
-        response.put("requestedTypes", requestedTypes);
-        if (requiredBundle) {
-            response.put("requiredTypes", requiredTypes);
-        }
-        response.put("detectedScenarios", detectedScenarios);
-        response.put("backend", backend);
-        response.put("retrievalMode", aggregateRetrievalMode(results, backend));
-        response.put("vectorRepresentation", vectorizer.representationKind());
-        response.put("semanticEmbedding", false);
-        response.put("count", results.size());
-        response.put("countsByType", countsByType);
-        if (requiredBundle) {
-            List<String> emptyTypes = requiredTypes.stream()
-                .filter(type -> ((Number) retrievedCountsByType.getOrDefault(type, 0)).intValue() == 0)
+            String semanticQuery = scenarioClassifier.enrichQuery(expandedQuery);
+            List<Float> queryVector = properties.getKnn().isEnabled()
+                ? vectorizer.vectorize(semanticQuery)
+                : List.of();
+            List<Map<String, Object>> results;
+            String backend;
+            List<SearchBucket> buckets = List.of();
+            List<String> requiredTypes = requiredTypes();
+            if (requiredBundle) {
+                buckets = new ArrayList<>();
+                for (String type : requiredTypes) {
+                    buckets.add(searchRequiredType(
+                        query, expandedQuery, type, statuses, scenarios, queryVector, candidateLimit));
+                }
+                results = rerankAndFilter(query,
+                    mergeBucketsWithinTotalLimit(buckets, candidateLimit), limit);
+                backend = aggregateBackend(buckets);
+            } else {
+                results = searchOpenSearch(
+                    expandedQuery, requestedTypes, statuses, scenarios, queryVector, candidateLimit);
+                backend = "opensearch";
+                if (results.isEmpty()) {
+                    results = searchMemory(
+                        query, expandedQuery, requestedTypes, statuses, scenarios, candidateLimit);
+                    backend = "memory";
+                }
+                results = rerankAndFilter(query, results, limit);
+            }
+            Map<String, Object> countsByType = countsByType(results, requiredTypes);
+            Map<String, Object> retrievedCountsByType = requiredBundle
+                ? bucketCountsByType(buckets, requiredTypes)
+                : countsByType;
+
+            List<String> detectedScenarios = scenarioClassifier.classifyQuery(query);
+            List<Map<String, Object>> evidence = results.stream()
+                .map(this::evidenceObject)
                 .toList();
-            List<String> omittedTypes = requiredTypes.stream()
-                .filter(type -> ((Number) retrievedCountsByType.getOrDefault(type, 0)).intValue() > 0)
-                .filter(type -> ((Number) countsByType.getOrDefault(type, 0)).intValue() == 0)
-                .toList();
-            response.put("requiredRetrieval", Map.of(
-                "allTypesAttempted", true,
-                "evidenceComplete", emptyTypes.isEmpty() && omittedTypes.isEmpty(),
-                "policy", "enterprise_metadata_search_always_queries_standard_fields_terms_and_dictionaries",
-                "types", requiredTypes,
-                "attemptedTypes", requiredTypes,
-                "emptyTypes", emptyTypes,
-                "omittedTypes", omittedTypes,
-                "retrievedCountsByType", retrievedCountsByType,
-                "returnedCountsByType", countsByType
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("schemaVersion",
+                requiredBundle ? REQUIRED_BUNDLE_SCHEMA_VERSION : RESULT_SCHEMA_VERSION);
+            response.put("success", true);
+            response.put("query", query);
+            response.put("expandedQuery", expandedQuery);
+            response.put("semanticQuery", semanticQuery);
+            response.put("requestedTypes", requestedTypes);
+            if (requiredBundle) {
+                response.put("requiredTypes", requiredTypes);
+            }
+            response.put("detectedScenarios", detectedScenarios);
+            response.put("backend", backend);
+            response.put("retrievalMode", aggregateRetrievalMode(results, backend));
+            response.put("vectorRepresentation", vectorizer.representationKind());
+            response.put("semanticEmbedding", false);
+            response.put("count", results.size());
+            response.put("countsByType", countsByType);
+            if (requiredBundle) {
+                List<String> emptyTypes = requiredTypes.stream()
+                    .filter(type -> ((Number) retrievedCountsByType.getOrDefault(type, 0)).intValue() == 0)
+                    .toList();
+                List<String> omittedTypes = requiredTypes.stream()
+                    .filter(type -> ((Number) retrievedCountsByType.getOrDefault(type, 0)).intValue() > 0)
+                    .filter(type -> ((Number) countsByType.getOrDefault(type, 0)).intValue() == 0)
+                    .toList();
+                response.put("requiredRetrieval", Map.of(
+                    "allTypesAttempted", true,
+                    "evidenceComplete", emptyTypes.isEmpty() && omittedTypes.isEmpty(),
+                    "policy", "enterprise_metadata_search_always_queries_standard_fields_terms_and_dictionaries",
+                    "types", requiredTypes,
+                    "attemptedTypes", requiredTypes,
+                    "emptyTypes", emptyTypes,
+                    "omittedTypes", omittedTypes,
+                    "retrievedCountsByType", retrievedCountsByType,
+                    "returnedCountsByType", countsByType
+                ));
+            }
+            response.put("results", results);
+            response.put("evidenceObjects", evidence);
+            response.put("evidenceBundle", evidenceBundle(
+                query,
+                detectedScenarios,
+                evidence,
+                countsByType,
+                response.get("requiredRetrieval")
             ));
+            response.put("evidencePolicy", Map.of(
+                "factBoundary", "Only returned enterprise metadata records may be used as factual field or term definitions",
+                "sampleValuesIncluded", false,
+                "sourceAuthority", "configured_enterprise_metadata_catalog"
+            ));
+            response.put("evidenceCoverage", policyService.evidenceCoverage());
+            return response;
+
         }
-        response.put("results", results);
-        response.put("evidenceObjects", evidence);
-        response.put("evidenceBundle", evidenceBundle(
-            query,
-            detectedScenarios,
-            evidence,
-            countsByType,
-            response.get("requiredRetrieval")
-        ));
-        response.put("evidencePolicy", Map.of(
-            "factBoundary", "Only returned enterprise metadata records may be used as factual field or term definitions",
-            "sampleValuesIncluded", false,
-            "sourceAuthority", "configured_enterprise_metadata_catalog"
-        ));
-        response.put("evidenceCoverage", policyService.evidenceCoverage());
-        return response;
     }
 
     private SearchBucket searchRequiredType(String originalQuery,
@@ -424,6 +439,7 @@ public class EnterpriseMetadataSearchService {
             openSearchRetryAfterNanos = 0L;
             return results;
         } catch (Exception ex) {
+            if (ex instanceof com.chatchat.common.retrieval.query.QueryOptimizationException diagnosed) throw diagnosed;
             openSearchRetryAfterNanos = System.nanoTime() + OPENSEARCH_FAILURE_COOLDOWN_NANOS;
             log.warn("Enterprise metadata OpenSearch unavailable; using memory fallback for cooldown window error={}",
                 ex.getMessage());
@@ -928,6 +944,7 @@ public class EnterpriseMetadataSearchService {
                 .digest(value.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(bytes, 0, 8).toUpperCase(Locale.ROOT);
         } catch (Exception ex) {
+            if (ex instanceof com.chatchat.common.retrieval.query.QueryOptimizationException diagnosed) throw diagnosed;
             return Integer.toHexString(value.hashCode()).toUpperCase(Locale.ROOT);
         }
     }

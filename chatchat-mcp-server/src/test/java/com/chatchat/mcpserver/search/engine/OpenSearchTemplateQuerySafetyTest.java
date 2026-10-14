@@ -20,8 +20,14 @@ class OpenSearchTemplateQuerySafetyTest {
         Map<String, Object> body = templateQueryBody(service,
             new LuceneMcpSearchService.TemplateSearchRequest(
                 "database_query", null, intent, 20));
+        try (var optimizer = new com.chatchat.common.retrieval.query.SearchQueryOptimizer()) {
+            @SuppressWarnings("unchecked") Map<String,Object> optimized = (Map<String,Object>)optimizer.prepare(Map.of("query", body),
+                com.chatchat.common.retrieval.query.SearchQueryOptimizer.Mode.TEXT).body().get("query");
+            body = optimized;
+        }
         String json = new ObjectMapper().writeValueAsString(body);
 
+        assertThat(json).contains("query_margin_trade_latest");
         assertThat(json).doesNotContain(".pinyin");
         assertThat(json).contains("融资融券数据观察", "database_query");
         assertThat(extractedQuery(json).length()).isLessThanOrEqualTo(512);

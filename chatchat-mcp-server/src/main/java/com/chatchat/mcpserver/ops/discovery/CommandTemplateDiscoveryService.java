@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.ops.discovery;
 
+import com.chatchat.common.retrieval.query.SearchQueryOptimizer;
+
 import com.chatchat.mcpserver.ops.command.CommandTemplateConfig;
 import com.chatchat.mcpserver.ops.command.CommandTemplateService;
 import com.chatchat.mcpserver.ops.http.HttpEndpointConfig;
@@ -50,6 +52,10 @@ import java.util.regex.Pattern;
 @Service
 @Slf4j
 public class CommandTemplateDiscoveryService {
+    private SearchQueryOptimizer queryOptimizer = new SearchQueryOptimizer();
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setQueryOptimizer(SearchQueryOptimizer optimizer) { queryOptimizer.close(); queryOptimizer = optimizer; }
+
 
     private static final Set<String> RETIRED_SQL_METADATA_TEMPLATE_CODES = Set.of(
         "MYSQL_SCHEMA_TABLE_OVERVIEW",
@@ -214,6 +220,10 @@ public class CommandTemplateDiscoveryService {
     }
 
     public Map<String, Object> query(Map<String, Object> arguments) {
+        return queryOptimizer.withAudit(() -> queryWithinQueryBudget(arguments));
+    }
+
+    private Map<String, Object> queryWithinQueryBudget(Map<String, Object> arguments) {
         long startedAt = System.nanoTime();
         Map<String, Object> filters = filters(arguments);
         rejectUnresolvedBindingPlaceholders(filters, "filters");
@@ -953,37 +963,41 @@ public class CommandTemplateDiscoveryService {
                                                                              Map<String, Object> filters,
                                                                              NormalizedIntent intent,
                                                                              int limit) {
-        if (!luceneActive()) {
-            return Map.of();
+        try (var budgetScope = queryOptimizer.openScope()) {
+            if (!luceneActive()) {
+                return Map.of();
+            }
+            boolean databaseQueryIndex = "database_query".equalsIgnoreCase(assetType == null ? "" : assetType);
+            List<String> retrievalVariants = DiscoveryQueryPlan.from(filters).queriesForExecution(queryOptimizer.budget().getLongTextThreshold());
+            List<String> queries = retrievalVariants.isEmpty()
+                ? java.util.Collections.singletonList(null) : retrievalVariants;
+            queryOptimizer.checkIndependentCount(queries.size());
+            List<LuceneMcpSearchService.SearchHit> hits = new ArrayList<>();
+            for (String query : queries) {
+                LuceneMcpSearchService.TemplateSearchRequest request = new LuceneMcpSearchService.TemplateSearchRequest(
+                    assetType, dbType, query, expandedTemplateRetrievalLimit(limit, docs.size()));
+                hits.addAll(databaseQueryIndex
+                    ? luceneSearchService.searchDatabaseQueryTemplates(docs, request)
+                    : luceneSearchService.searchTemplates(docs, request));
+            }
+            boolean strictTemplateIndex = "sql_datasource".equalsIgnoreCase(assetType == null ? "" : assetType)
+                || databaseQueryIndex;
+            if (!strictTemplateIndex && hits.isEmpty() && intent != null && !"unknown".equals(intent.type())) {
+                LuceneMcpSearchService.TemplateSearchRequest fallbackRequest =
+                    new LuceneMcpSearchService.TemplateSearchRequest(
+                        assetType, dbType, null, expandedTemplateRetrievalLimit(limit, docs.size()));
+                hits = databaseQueryIndex
+                    ? luceneSearchService.searchDatabaseQueryTemplates(docs, fallbackRequest)
+                    : luceneSearchService.searchTemplates(docs, fallbackRequest);
+            }
+            Map<String, LuceneMcpSearchService.SearchHit> byId = new LinkedHashMap<>();
+            hits.stream()
+                .filter(hit -> !isRetiredSqlMetadataTemplateId(hit.id()))
+                .forEach(hit -> byId.merge(hit.id(), hit,
+                    (current, candidate) -> candidate.score() > current.score() ? candidate : current));
+            return byId;
+
         }
-        boolean databaseQueryIndex = "database_query".equalsIgnoreCase(assetType == null ? "" : assetType);
-        List<String> retrievalVariants = DiscoveryQueryVariants.from(filters);
-        List<String> queries = retrievalVariants.isEmpty()
-            ? java.util.Collections.singletonList(null) : retrievalVariants;
-        List<LuceneMcpSearchService.SearchHit> hits = new ArrayList<>();
-        for (String query : queries) {
-            LuceneMcpSearchService.TemplateSearchRequest request = new LuceneMcpSearchService.TemplateSearchRequest(
-                assetType, dbType, query, expandedTemplateRetrievalLimit(limit, docs.size()));
-            hits.addAll(databaseQueryIndex
-                ? luceneSearchService.searchDatabaseQueryTemplates(docs, request)
-                : luceneSearchService.searchTemplates(docs, request));
-        }
-        boolean strictTemplateIndex = "sql_datasource".equalsIgnoreCase(assetType == null ? "" : assetType)
-            || databaseQueryIndex;
-        if (!strictTemplateIndex && hits.isEmpty() && intent != null && !"unknown".equals(intent.type())) {
-            LuceneMcpSearchService.TemplateSearchRequest fallbackRequest =
-                new LuceneMcpSearchService.TemplateSearchRequest(
-                    assetType, dbType, null, expandedTemplateRetrievalLimit(limit, docs.size()));
-            hits = databaseQueryIndex
-                ? luceneSearchService.searchDatabaseQueryTemplates(docs, fallbackRequest)
-                : luceneSearchService.searchTemplates(docs, fallbackRequest);
-        }
-        Map<String, LuceneMcpSearchService.SearchHit> byId = new LinkedHashMap<>();
-        hits.stream()
-            .filter(hit -> !isRetiredSqlMetadataTemplateId(hit.id()))
-            .forEach(hit -> byId.merge(hit.id(), hit,
-                (current, candidate) -> candidate.score() > current.score() ? candidate : current));
-        return byId;
     }
 
     private String luceneIntentText(Map<String, Object> filters, NormalizedIntent intent) {

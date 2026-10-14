@@ -1,5 +1,9 @@
 package com.chatchat.chat.interaction.service;
 
+import com.chatchat.common.retrieval.query.SearchQueryOptimizer;
+
+import com.chatchat.common.retrieval.query.QueryOptimizationException;
+
 import com.chatchat.enterprise.entity.mcp.McpToolAsset;
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchEmbeddingClient;
@@ -45,6 +49,9 @@ import javax.net.ssl.SSLContext;
 @RequiredArgsConstructor
 @Slf4j
 public class McpToolSemanticIndex {
+    private SearchQueryOptimizer queryOptimizer = new SearchQueryOptimizer();
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setQueryOptimizer(SearchQueryOptimizer optimizer) { queryOptimizer.close(); queryOptimizer = optimizer; }
     private final SearchProperties properties;
     private final OpenSearchEmbeddingClient embeddings;
     private final SearchTokenizer tokenizer;
@@ -60,7 +67,7 @@ public class McpToolSemanticIndex {
         int bounded = Math.max(1, Math.min(20, limit));
         List<String> fallback = localRank(query, allowed, bounded);
         if (!enabled() || query == null || query.isBlank()) return fallback;
-        try {
+        try (var budgetScope = queryOptimizer.openScope()) {
             ensureIndex();
             synchronize(allowed);
             List<String> ids = allowed.stream().map(McpToolAsset::getId).toList();
@@ -74,7 +81,8 @@ public class McpToolSemanticIndex {
             List<String> vector = List.of();
             if (embeddings.configured()) {
                 try {
-                    List<Float> queryVector = embeddings.embed(query);
+                    String semanticQuery = queryOptimizer.semanticText(query);
+                    List<Float> queryVector = queryOptimizer.withinBudget(() -> embeddings.embed(semanticQuery));
                     if (!queryVector.isEmpty()) {
                         vector = searchIds(Map.of("size", Math.min(100, ids.size()),
                             "_source", List.of("toolId"), "query", Map.of("knn", Map.of("vector",
@@ -82,6 +90,7 @@ public class McpToolSemanticIndex {
                                     "filter", Map.of("terms", Map.of("toolId", ids)))))), namesById);
                     }
                 } catch (RuntimeException ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
                     log.debug("MCP vector recall unavailable: {}", ex.getMessage());
                 }
             }
@@ -93,7 +102,10 @@ public class McpToolSemanticIndex {
                     .thenComparing(Map.Entry::getKey))
                 .map(Map.Entry::getKey).limit(bounded).toList();
             return ranked.isEmpty() ? fallback : ranked;
+        } catch (QueryOptimizationException diagnosed) {
+            throw diagnosed;
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("MCP OpenSearch recall unavailable; using DB-scoped local ranking: {}", ex.getMessage());
             return fallback;
         }
@@ -168,9 +180,8 @@ public class McpToolSemanticIndex {
     }
 
     private List<String> searchIds(Map<String, Object> body, Map<String, String> namesById) throws Exception {
-        HttpResult response = request("POST", indexPath() + "/_search", mapper.writeValueAsString(body));
-        if (response.statusCode() >= 300) throw new IllegalStateException("MCP index search returned " + response.statusCode());
-        JsonNode hits = mapper.readTree(response.body()).path("hits").path("hits");
+        JsonNode hits = mapper.valueToTree(com.chatchat.knowledgebase.search.index.infrastructure.opensearch.BudgetedOpenSearchRequests
+            .search(queryOptimizer, client(), mapper, indexPath() + "/_search", body)).path("hits").path("hits");
         List<String> names = new ArrayList<>();
         for (JsonNode hit : hits) {
             String name = namesById.get(hit.path("_source").path("toolId").asText());
@@ -225,6 +236,7 @@ public class McpToolSemanticIndex {
                         (chain, authType) -> true).build();
                     http.setSSLContext(ssl).setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE);
                 } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
                     throw new IllegalStateException("Cannot configure MCP OpenSearch TLS", ex);
                 }
             }

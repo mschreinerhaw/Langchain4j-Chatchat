@@ -1,5 +1,7 @@
 package com.chatchat.runtime.market.storage;
 
+import com.chatchat.common.retrieval.query.QueryOptimizationException;
+
 import com.chatchat.common.concurrent.CancellationSupport;
 import com.chatchat.runtime.market.config.MarketModuleProperties;
 import com.chatchat.runtime.market.model.MarketObservation;
@@ -32,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -307,6 +310,24 @@ public class FinancialDataStore {
             term.toLowerCase(Locale.ROOT), like, like, term.toLowerCase(Locale.ROOT),
             term.toLowerCase(Locale.ROOT), term.toLowerCase(Locale.ROOT) + "%", bounded)
             .stream().map(row -> String.valueOf(row.get("security_code"))).toList();
+    }
+
+    /** Preserve mentions from the existing security master; never discover/select a new business datasource. */
+    public List<String> protectedSecurityPhrases(String source, int maximumPhrases) {
+        if (source == null || source.isBlank()) return List.of();
+        var rows = financialReads.queryForList("select security_name,security_full_name from security_master "
+            + "where security_name<>'' and (lower(?) like concat('%',lower(security_name),'%') "
+            + "or (security_full_name is not null and security_full_name<>'' "
+            + "and lower(?) like concat('%',lower(security_full_name),'%'))) limit ?",
+            source.toLowerCase(Locale.ROOT), source.toLowerCase(Locale.ROOT), maximumPhrases + 1);
+        var result = new LinkedHashSet<String>();
+        for (var row : rows) for (String key : List.of("security_name", "security_full_name")) {
+            Object value = row.get(key);
+            if (value != null && !String.valueOf(value).isBlank() && source.contains(String.valueOf(value))) result.add(String.valueOf(value));
+        }
+        if (result.size() > maximumPhrases || rows.size() > maximumPhrases)
+            throw new QueryOptimizationException("PROTECTED_TERMS_EXCEED_BUDGET", "Security mentions exceed extraction budget");
+        return List.copyOf(result);
     }
 
     /**

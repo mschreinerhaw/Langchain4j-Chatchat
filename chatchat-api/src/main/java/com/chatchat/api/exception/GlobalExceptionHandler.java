@@ -38,6 +38,16 @@ import java.util.stream.Collectors;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    @ExceptionHandler(com.chatchat.common.retrieval.query.QueryOptimizationException.class)
+    public ResponseEntity<ApiResponse<Map<String,Object>>> handleQueryOptimizationException(
+        com.chatchat.common.retrieval.query.QueryOptimizationException ex) {
+        int status = ex.code().contains("TIMEOUT") ? 504 : "QUERY_BUSY".equals(ex.code()) ? 429
+            : ex.code().contains("PARTIAL") || "QUERY_EXECUTION_FAILED".equals(ex.code()) ? 502 : 422;
+        var details = new java.util.LinkedHashMap<String,Object>();
+        details.put("errorCode", ex.code()); details.put("diagnostic", ex.diagnostic());
+        return ResponseEntity.status(status).body(ApiResponse.<Map<String,Object>>builder()
+            .code(status).message(ex.getMessage()).data(details).timestamp(System.currentTimeMillis()).build());
+    }
 
     private static final HttpStatusCode CLIENT_CLOSED_REQUEST = HttpStatusCode.valueOf(499);
 

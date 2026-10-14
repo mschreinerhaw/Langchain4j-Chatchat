@@ -1,5 +1,9 @@
 package com.chatchat.api.datascience.python;
 
+import com.chatchat.common.retrieval.query.SearchQueryOptimizer;
+
+import com.chatchat.common.retrieval.query.QueryOptimizationException;
+
 import com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchEmbeddingClient;
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -25,6 +29,9 @@ import javax.net.ssl.SSLContext;
 @Service
 @RequiredArgsConstructor
 public class PythonTemplateIndexService {
+    private SearchQueryOptimizer queryOptimizer = new SearchQueryOptimizer();
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setQueryOptimizer(SearchQueryOptimizer optimizer) { queryOptimizer.close(); queryOptimizer = optimizer; }
     private final PythonDataScienceProperties properties;
     private final SearchProperties searchProperties;
     private final OpenSearchEmbeddingClient embeddingClient;
@@ -44,6 +51,7 @@ public class PythonTemplateIndexService {
             boolean success = response.getStatusLine().getStatusCode() < 300;
             return new IndexResult(success, vector.isEmpty() ? "BM25" : "BM25_KNN", success ? "" : "索引写入失败");
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("Python template indexing failed id={}: {}", template.getId(), ex.getMessage());
             return new IndexResult(false, "FAILED", ex.getMessage());
         }
@@ -54,6 +62,7 @@ public class PythonTemplateIndexService {
         try (RestClient client = client()) {
             client.performRequest(new Request("DELETE", "/" + properties.getIndexName() + "/_doc/" + templateId + "?refresh=true"));
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("Python template index removal failed id={}: {}", templateId, ex.getMessage());
         }
     }
@@ -61,14 +70,18 @@ public class PythonTemplateIndexService {
     public List<SearchHit> search(String tenantId, String query, int limit) {
         if (query == null || query.isBlank()) return List.of();
         if (!openSearchEnabled()) return lexicalFallback(tenantId, query, limit);
-        try (RestClient client = client()) {
+        try (var budgetScope = queryOptimizer.openScope(); RestClient client = client()) {
             Map<String, RankedHit> merged = new LinkedHashMap<>();
             merge(merged, searchBm25(client, tenantId, query, limit), "BM25");
-            List<Float> vector = embeddingClient.embed(query);
+            String semanticQuery = queryOptimizer.semanticText(query);
+            List<Float> vector = queryOptimizer.withinBudget(() -> embeddingClient.embed(semanticQuery));
             if (!vector.isEmpty()) merge(merged, searchKnn(client, tenantId, vector, limit), "KNN");
             return merged.values().stream().sorted(Comparator.comparingDouble(RankedHit::score).reversed()).limit(limit)
                     .map(hit -> new SearchHit(hit.id(), hit.name(), hit.scenario(), hit.score(), String.join("+", hit.channels()))).toList();
+        } catch (QueryOptimizationException diagnosed) {
+            throw diagnosed;
         } catch (Exception ex) {
+            if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("Python template hybrid search failed: {}", ex.getMessage());
             return lexicalFallback(tenantId, query, limit);
         }
@@ -89,9 +102,8 @@ public class PythonTemplateIndexService {
     }
 
     private List<JsonNode> hits(RestClient client, Map<String, Object> body) throws Exception {
-        Request request = new Request("POST", "/" + properties.getIndexName() + "/_search");
-        request.setJsonEntity(objectMapper.writeValueAsString(body));
-        JsonNode root = objectMapper.readTree(client.performRequest(request).getEntity().getContent());
+        JsonNode root = objectMapper.valueToTree(com.chatchat.knowledgebase.search.index.infrastructure.opensearch.BudgetedOpenSearchRequests
+            .search(queryOptimizer, client, objectMapper, "/" + properties.getIndexName() + "/_search", body));
         List<JsonNode> hits = new ArrayList<>();
         root.path("hits").path("hits").forEach(hits::add);
         return hits;
@@ -139,6 +151,7 @@ public class PythonTemplateIndexService {
             client.performRequest(new Request("HEAD", "/" + properties.getIndexName()));
             return;
         } catch (Exception ignored) {
+            if (ignored instanceof QueryOptimizationException diagnosed) throw diagnosed;
         }
         int dimension = searchProperties.getOpenSearch().getEmbedding().getDimension();
         Map<String, Object> fields = new LinkedHashMap<>();

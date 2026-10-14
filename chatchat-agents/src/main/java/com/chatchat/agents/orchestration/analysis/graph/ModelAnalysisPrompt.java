@@ -30,7 +30,7 @@ final class ModelAnalysisPrompt {
         String envelope = v2 ? """
             Return only JSON using this protocol:
             {"schemaVersion":"model_native_analysis.v2","decision":{"action":"CONTINUE"},
-             "output_type":"intermediate","content":"","workspace":{},"evidenceRequests":[]}
+             "output_type":"intermediate","content":"","workspace":{},"evidenceRequests":[],"plan":%s}
             Legal combinations: CONTINUE with output_type intermediate/draft; COMPLETE or
             PARTIAL_COMPLETE with output_type final and no evidenceRequests. Declare output_type every turn.
             For delivery use COMPLETE (or PARTIAL_COMPLETE for limited scope), output_type:"final"
@@ -40,20 +40,22 @@ final class ModelAnalysisPrompt {
             content and scoped evidence. Do not compute hashes or submit a publication object.
             Omitted/empty content retains the last accepted authored content. Budget exhaustion retains
             its declaration, never inventing completion or final output. Keep this schema every turn.
-            """ : """
+            """.formatted(planExample()) : """
             Return only JSON using this protocol:
             {"schemaVersion":"model_native_analysis.v1","completed":false,
-             "reportMarkdown":"","workspace":{},"evidenceRequests":[]}
+             "reportMarkdown":"","workspace":{},"evidenceRequests":[],"plan":%s}
             Use completed:false to request evidence, completed:true with reportMarkdown to deliver
             your answer. The report is separate from saved task state.
-            """;
+            """.formatted(planExample());
         return envelope + """
             At most four evidenceRequests per turn; use the exact L2 operation contracts.
-            Optional response.plan reuses InterpretationPlan:
-            {version:"1.0",intent:{type:"analysis",goal:"..."},
-             context:{key_facts:[],assumptions:[],missing_info:[],constraints:[]},
-             plan:{steps:[{id:1,action_type:"reasoning",input:{objective:"...",required_evidence:[],
-              expected_output:"..."},depends_on:[]}]}}
+            PLAN CONTRACT: when L1.submittedPlan.status is PLAN_REQUIRED, the next response MUST
+            include a root-level "plan" object, even for a final answer or an empty evidenceRequests array.
+            Acquisition workflow completion does not satisfy this analysis-plan contract. Do not
+            repeat a response without a plan after PLAN_REQUIRED feedback. With status ACCEPTED,
+            reuse that plan; omit response.plan unless revising it. Author your own goal, data needs,
+            exploration direction, expected deliverable and acceptance conditions using the InterpretationPlan
+            shape shown above. The example is a structural illustration; choose your own steps and dependencies.
             Steps use reasoning/retrieval/aggregation/validation/final_answer; positive unique
             ids and acyclic existing dependencies. This outline grants no authority or execution policy.
             response.plan.plan.steps is the step path. response.plan_change_reason is beside response.plan,
@@ -66,5 +68,14 @@ final class ModelAnalysisPrompt {
               references:[{datasetReference:"source",record:1,fieldPath:["key",0]}]}]}
             record is one based; fieldPath selects an original value using keys/zero-based indices.
             """;
+    }
+
+    private static String planExample() {
+        return """
+            {"version":"1.0","intent":{"type":"analysis","goal":"your task goal"},
+             "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
+             "plan":{"steps":[{"id":1,"action_type":"reasoning","input":{"objective":"your exploration direction",
+              "required_evidence":[],"expected_output":"your deliverable","acceptance_conditions":[]},"depends_on":[]}]}}
+            """.strip();
     }
 }

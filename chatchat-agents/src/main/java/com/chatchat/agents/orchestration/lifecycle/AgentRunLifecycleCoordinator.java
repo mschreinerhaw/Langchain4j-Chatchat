@@ -63,6 +63,14 @@ public final class AgentRunLifecycleCoordinator {
             // The Temporal parent/child Workflow owns the continuation from this point.
             throw suspension;
         } catch (RuntimeException ex) {
+            // HTTP/model libraries may wrap interruption rather than throw CancellationException.
+            // The durable cancellation decision remains authoritative across those wrappers.
+            AgentRun current = runStore.find(run.runId()).orElse(run);
+            if (current.status() == AgentRunStatus.CANCELLED) {
+                log.info("Agent orchestration stopped after cancellation. runId={} requestId={}",
+                    run.runId(), request.getRequestId());
+                return cancelled(current);
+            }
             log.error("Agent orchestration failed. runId={} requestId={} errorType={} error={}",
                 run.runId(), request.getRequestId(), ex.getClass().getName(), ex.getMessage(), ex);
             return failed(runStore.fail(run.runId(), ex));
@@ -130,6 +138,8 @@ public final class AgentRunLifecycleCoordinator {
     }
 
     private AgentRunResult failed(AgentRun run) {
+        // Cancellation can also win the race between checking state and persisting failure.
+        if (run.status() == AgentRunStatus.CANCELLED) return cancelled(run);
         return AgentRunResult.builder()
             .runId(run.runId())
             .status(AgentRunStatus.FAILED)

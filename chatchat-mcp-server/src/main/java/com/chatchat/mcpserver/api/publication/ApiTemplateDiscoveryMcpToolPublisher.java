@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.api.publication;
 
+import com.chatchat.common.retrieval.query.SearchQueryOptimizer;
+
 import com.chatchat.mcpserver.api.category.ApiServiceCategoryService;
 import com.chatchat.mcpserver.api.registry.ApiServiceConfig;
 import com.chatchat.mcpserver.api.registry.ApiServiceConfigService;
@@ -37,6 +39,10 @@ import java.util.stream.Collectors;
 @Component
 @RequiredArgsConstructor
 public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolContributor {
+    private SearchQueryOptimizer queryOptimizer = new SearchQueryOptimizer();
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setQueryOptimizer(SearchQueryOptimizer optimizer) { queryOptimizer.close(); queryOptimizer = optimizer; }
+
 
     public static final String TOOL_NAME = "api_template_query";
     private static final int DEFAULT_LIMIT = 10;
@@ -98,149 +104,157 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
     }
 
     Map<String, Object> query(Map<String, Object> arguments) {
-        Map<String, Object> filters = filters(arguments);
-        int limit = limit(arguments);
-        List<String> excludedTemplateIds = excludedTemplateIds(arguments);
-        List<String> requestedTemplateIds = requestedTemplateIds(arguments);
-        List<ApiServiceConfig> enabledConfigs = configService.listEnabled();
-        ApiServiceCategoryService.CategoryResolution categoryResolution = categoryService.resolve(
-            categoryFilters(filters), enabledConfigs);
-        List<ApiServiceConfig> scopedConfigs = hasAssetScope(filters)
-            ? scopedApiServices(enabledConfigs, filters)
-            : enabledConfigs;
-        if (!requestedTemplateIds.isEmpty()) {
-            scopedConfigs = scopedConfigs.stream()
-                .filter(config -> requestedTemplateIds.contains(text(config.getToolName())))
-                .toList();
-        }
-        List<String> assetSignals = hasAssetScope(filters)
-            ? apiServiceSignals(scopedConfigs)
-            : List.of();
-        Map<String, Object> retrievalFilters = assetSignals.isEmpty()
-            ? filters
-            : filtersWithApiAssetSignals(filters, assetSignals);
-        List<String> terms = terms(retrievalFilters);
-        DiscoveryQueryPlan retrievalPlan = DiscoveryQueryPlan.from(retrievalFilters);
-        List<String> retrievalVariants = retrievalPlan.queries();
-        List<LuceneMcpSearchService.SearchHit> hits = new ArrayList<>();
-        if (luceneSearchService != null && luceneSearchService.enabled()) {
-            List<String> queries = retrievalVariants.isEmpty()
-                ? java.util.Collections.singletonList(null) : retrievalVariants;
-            for (String query : queries) {
-                hits.addAll(luceneSearchService.searchApiServiceTemplates(
-                    new LuceneMcpSearchService.TemplateSearchRequest(
-                        "api_service", null, query,
-                        Math.max(Math.max(limit, DEFAULT_LIMIT), Math.min(200, enabledConfigs.size() * 4)))));
+        return queryOptimizer.withAudit(() -> queryWithinQueryBudget(arguments));
+    }
+
+    private Map<String, Object> queryWithinQueryBudget(Map<String, Object> arguments) {
+        try (var budgetScope = queryOptimizer.openScope()) {
+            Map<String, Object> filters = filters(arguments);
+            int limit = limit(arguments);
+            List<String> excludedTemplateIds = excludedTemplateIds(arguments);
+            List<String> requestedTemplateIds = requestedTemplateIds(arguments);
+            List<ApiServiceConfig> enabledConfigs = configService.listEnabled();
+            ApiServiceCategoryService.CategoryResolution categoryResolution = categoryService.resolve(
+                categoryFilters(filters), enabledConfigs);
+            List<ApiServiceConfig> scopedConfigs = hasAssetScope(filters)
+                ? scopedApiServices(enabledConfigs, filters)
+                : enabledConfigs;
+            if (!requestedTemplateIds.isEmpty()) {
+                scopedConfigs = scopedConfigs.stream()
+                    .filter(config -> requestedTemplateIds.contains(text(config.getToolName())))
+                    .toList();
             }
-        }
-        Map<String, ApiServiceConfig> configsByToolName = scopedConfigs.stream()
-            .filter(config -> !text(config.getToolName()).isBlank())
-            .collect(Collectors.toMap(
-                config -> text(config.getToolName()),
-                Function.identity(),
-                (first, ignored) -> first,
-                LinkedHashMap::new
-            ));
-        Map<String, RetrievalEvidence> hitEvidence = hits.stream()
-            .map(hit -> apiTemplateHit(configsByToolName, hit))
-            .filter(item -> item != null)
-            .collect(Collectors.toMap(
-                item -> item.config().getToolName(),
-                item -> new RetrievalEvidence(item.score()),
-                (left, right) -> new RetrievalEvidence(Math.max(left.score(), right.score())),
-                LinkedHashMap::new
-            ));
-        boolean providerRanked = !hitEvidence.isEmpty();
-        List<ScoredApiTemplate> matched = scopedConfigs.stream()
-            .filter(config -> !text(config.getToolName()).isBlank())
-            .filter(config -> !excludedTemplateIds.contains(config.getToolName()))
-            .map(config -> scoredTemplate(config, retrievalVariants, hitEvidence))
-            .sorted(java.util.Comparator.comparing(ScoredApiTemplate::providerMatched).reversed()
-                .thenComparing(java.util.Comparator.comparingDouble(ScoredApiTemplate::score).reversed())
-                .thenComparing(item -> item.config().getToolName()))
-            .toList();
-        List<Map<String, Object>> templates = matched.stream()
-            .limit(limit)
-            .map(this::templateMetadata)
-            .toList();
-        return mapOf(
-            "schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION,
-            "resultEntityKind", "template",
-            "querySchemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION,
-            "success", true,
-            "targetKind", "api_service",
-            "assetType", "api_service",
-            "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION,
-            "filters", filters,
-            "limit", limit,
-            "returnedCount", templates.size(),
-            "categoryRequired", false,
-            "selectedCategory", categoryMetadata(categoryResolution.category()),
-            "categoryCandidates", categoryResolution.candidates().stream().map(this::categoryMetadata).toList(),
-            "possiblyTruncated", matched.size() > limit,
-            "requestedTemplateIds", requestedTemplateIds,
-            "excludedTemplateIds", excludedTemplateIds,
-            "selectionProtocol", mapOf(
-                "schemaVersion", "template_selection_protocol.v1",
-                "allowedDecisions", List.of("accept", "refine", "reject"),
-                "selectedTemplateIdSource", "templates[].templateId",
-                "refineWith", List.of("filters.categoryId", "filters.businessGroup", "filters.intent", "filters.goal", "filters.keywords", "excludeTemplateIds"),
-                "mustNotRepeatIdenticalQuery", true
-            ),
-            "templateSelectionPolicy", mapOf(
-                "templateIdSource", "templates[].templateId",
-                "mustUseReturnedTemplateId", true,
-                "doNotInventTemplateNames", true,
-                "runtimeSemanticReviewRequiredWhenMultiple", true,
-                "engine", "api_template_provider_ranking_v3",
-                "mcpRelevanceIsAdmissionFilter", false,
-                "searchProviderHitIsCandidateBoundary", false,
-                "candidateTruthSource", "database registry",
-                "providerScorePolicy", "BM25/vector/hybrid score controls ordering when present; no application lexical coverage or relative-score threshold removes provider hits",
-                "querySegmentation", "NFKC normalization with identifier preservation, script-aware tokenization and Chinese bigrams",
-                "vectorRetrieval", "OpenSearch embedding/KNN evidence improves provider ranking when configured; lexical provider scores remain valid without vectors",
-                "rawExecutionSpecReturned", false,
-                "selectionFields", List.of("templateId", "toolName", "title", "description", "businessGroup", "capabilitySpec", "outputSchema", "dependencySpec", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
-                "onEmptyResult", "No existing API template matched the request. Do not invent an API tool name."
-            ),
-            "queryIr", mapOf(
-                "schemaVersion", "api_template_query_ir.v1",
-                "assetType", "api_service",
+            List<String> assetSignals = hasAssetScope(filters)
+                ? apiServiceSignals(scopedConfigs)
+                : List.of();
+            Map<String, Object> retrievalFilters = assetSignals.isEmpty()
+                ? filters
+                : filtersWithApiAssetSignals(filters, assetSignals);
+            List<String> terms = terms(retrievalFilters);
+            DiscoveryQueryPlan retrievalPlan = DiscoveryQueryPlan.from(retrievalFilters);
+            List<String> retrievalVariants = retrievalPlan.queriesForExecution(queryOptimizer.budget().getLongTextThreshold());
+            List<LuceneMcpSearchService.SearchHit> hits = new ArrayList<>();
+            if (luceneSearchService != null && luceneSearchService.enabled()) {
+                List<String> queries = retrievalVariants.isEmpty()
+                    ? java.util.Collections.singletonList(null) : retrievalVariants;
+                queryOptimizer.checkIndependentCount(queries.size());
+                for (String query : queries) {
+                    hits.addAll(luceneSearchService.searchApiServiceTemplates(
+                        new LuceneMcpSearchService.TemplateSearchRequest(
+                            "api_service", null, query,
+                            Math.max(Math.max(limit, DEFAULT_LIMIT), Math.min(200, enabledConfigs.size() * 4)))));
+                }
+            }
+            Map<String, ApiServiceConfig> configsByToolName = scopedConfigs.stream()
+                .filter(config -> !text(config.getToolName()).isBlank())
+                .collect(Collectors.toMap(
+                    config -> text(config.getToolName()),
+                    Function.identity(),
+                    (first, ignored) -> first,
+                    LinkedHashMap::new
+                ));
+            Map<String, RetrievalEvidence> hitEvidence = hits.stream()
+                .map(hit -> apiTemplateHit(configsByToolName, hit))
+                .filter(item -> item != null)
+                .collect(Collectors.toMap(
+                    item -> item.config().getToolName(),
+                    item -> new RetrievalEvidence(item.score()),
+                    (left, right) -> new RetrievalEvidence(Math.max(left.score(), right.score())),
+                    LinkedHashMap::new
+                ));
+            boolean providerRanked = !hitEvidence.isEmpty();
+            List<ScoredApiTemplate> matched = scopedConfigs.stream()
+                .filter(config -> !text(config.getToolName()).isBlank())
+                .filter(config -> !excludedTemplateIds.contains(config.getToolName()))
+                .map(config -> scoredTemplate(config, retrievalVariants, hitEvidence))
+                .sorted(java.util.Comparator.comparing(ScoredApiTemplate::providerMatched).reversed()
+                    .thenComparing(java.util.Comparator.comparingDouble(ScoredApiTemplate::score).reversed())
+                    .thenComparing(item -> item.config().getToolName()))
+                .toList();
+            List<Map<String, Object>> templates = matched.stream()
+                .limit(limit)
+                .map(this::templateMetadata)
+                .toList();
+            return mapOf(
+                "schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION,
+                "resultEntityKind", "template",
+                "querySchemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION,
+                "success", true,
                 "targetKind", "api_service",
-                "indexType", "api_service_template",
-                "terms", terms
-                , "retrievalVariants", retrievalVariants
-            ),
-            "retrievalPlan", retrievalPlan.metadata(),
-            "diagnostics", mapOf(
-                "source", "lucene_api_service_template_index",
-                "hitCount", hitEvidence.size(),
-                "hitIds", hitEvidence.keySet().stream().limit(limit).toList(),
-                "candidateCount", matched.size(),
-                "candidatePolicy", providerRanked
-                    ? "authorized_database_candidates_with_provider_ranking"
-                    : "authorized_registry_fallback_candidates",
-                "retrievedCandidateCount", hitEvidence.size(),
-                "qualifiedCandidateCount", matched.size(),
-                "categoryScoped", false,
+                "assetType", "api_service",
+                "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION,
+                "filters", filters,
+                "limit", limit,
+                "returnedCount", templates.size(),
                 "categoryRequired", false,
-                "categoryAmbiguous", categoryResolution.categoryRequired(),
-                "categoryUsage", "ranking_signal_and_model_selection_metadata",
-                "assetScoped", hasAssetScope(filters),
-                "scopedAssetCount", scopedConfigs.size(),
-                "retrievalSignals", assetSignals,
-                "fallbackUsed", categoryResolution.fallbackUsed(),
-                "fallbackCategory", categoryResolution.fallbackUsed()
-                    ? BusinessCategoryService.DEFAULT_CODE : ""
-            ),
-            "retrievalFlow", mapOf(
-                "schemaVersion", "classified_template_execution.v1",
-                "steps", List.of("business_category_resolution", "global_template_search_with_category_ranking",
-                    "api_template_execution", "evidence_analysis"),
-                "crossCategoryResultsAllowed", true
-            ),
-            "templates", templates
-        );
+                "selectedCategory", categoryMetadata(categoryResolution.category()),
+                "categoryCandidates", categoryResolution.candidates().stream().map(this::categoryMetadata).toList(),
+                "possiblyTruncated", matched.size() > limit,
+                "requestedTemplateIds", requestedTemplateIds,
+                "excludedTemplateIds", excludedTemplateIds,
+                "selectionProtocol", mapOf(
+                    "schemaVersion", "template_selection_protocol.v1",
+                    "allowedDecisions", List.of("accept", "refine", "reject"),
+                    "selectedTemplateIdSource", "templates[].templateId",
+                    "refineWith", List.of("filters.categoryId", "filters.businessGroup", "filters.intent", "filters.goal", "filters.keywords", "excludeTemplateIds"),
+                    "mustNotRepeatIdenticalQuery", true
+                ),
+                "templateSelectionPolicy", mapOf(
+                    "templateIdSource", "templates[].templateId",
+                    "mustUseReturnedTemplateId", true,
+                    "doNotInventTemplateNames", true,
+                    "runtimeSemanticReviewRequiredWhenMultiple", true,
+                    "engine", "api_template_provider_ranking_v3",
+                    "mcpRelevanceIsAdmissionFilter", false,
+                    "searchProviderHitIsCandidateBoundary", false,
+                    "candidateTruthSource", "database registry",
+                    "providerScorePolicy", "BM25/vector/hybrid score controls ordering when present; no application lexical coverage or relative-score threshold removes provider hits",
+                    "querySegmentation", "NFKC normalization with identifier preservation, script-aware tokenization and Chinese bigrams",
+                    "vectorRetrieval", "OpenSearch embedding/KNN evidence improves provider ranking when configured; lexical provider scores remain valid without vectors",
+                    "rawExecutionSpecReturned", false,
+                    "selectionFields", List.of("templateId", "toolName", "title", "description", "businessGroup", "capabilitySpec", "outputSchema", "dependencySpec", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
+                    "onEmptyResult", "No existing API template matched the request. Do not invent an API tool name."
+                ),
+                "queryIr", mapOf(
+                    "schemaVersion", "api_template_query_ir.v1",
+                    "assetType", "api_service",
+                    "targetKind", "api_service",
+                    "indexType", "api_service_template",
+                    "terms", terms
+                    , "retrievalVariants", retrievalVariants
+                ),
+                "retrievalPlan", retrievalPlan.metadata(),
+                "diagnostics", mapOf(
+                    "source", "lucene_api_service_template_index",
+                    "hitCount", hitEvidence.size(),
+                    "hitIds", hitEvidence.keySet().stream().limit(limit).toList(),
+                    "candidateCount", matched.size(),
+                    "candidatePolicy", providerRanked
+                        ? "authorized_database_candidates_with_provider_ranking"
+                        : "authorized_registry_fallback_candidates",
+                    "retrievedCandidateCount", hitEvidence.size(),
+                    "qualifiedCandidateCount", matched.size(),
+                    "categoryScoped", false,
+                    "categoryRequired", false,
+                    "categoryAmbiguous", categoryResolution.categoryRequired(),
+                    "categoryUsage", "ranking_signal_and_model_selection_metadata",
+                    "assetScoped", hasAssetScope(filters),
+                    "scopedAssetCount", scopedConfigs.size(),
+                    "retrievalSignals", assetSignals,
+                    "fallbackUsed", categoryResolution.fallbackUsed(),
+                    "fallbackCategory", categoryResolution.fallbackUsed()
+                        ? BusinessCategoryService.DEFAULT_CODE : ""
+                ),
+                "retrievalFlow", mapOf(
+                    "schemaVersion", "classified_template_execution.v1",
+                    "steps", List.of("business_category_resolution", "global_template_search_with_category_ranking",
+                        "api_template_execution", "evidence_analysis"),
+                    "crossCategoryResultsAllowed", true
+                ),
+                "templates", templates
+            );
+
+        }
     }
 
     private McpSchema.JsonSchema inputSchema() {

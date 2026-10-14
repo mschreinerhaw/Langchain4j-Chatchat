@@ -20,6 +20,36 @@ import static org.mockito.Mockito.when;
 class AgentRunLifecycleCoordinatorTest {
 
     @Test
+    void wrappedModelInterruptionAfterUserCancellationRemainsCancelled() {
+        var store = new com.chatchat.agents.runtime.store.InMemoryAgentRunStore();
+        var request = AgentRunRequest.builder().runId("cancelled-model-call").build();
+        var result = new AgentRunLifecycleCoordinator(store, mock(AgentRunResultAdapter.class))
+            .execute(request, ignored -> {
+                store.cancel(request.getRunId(), "User cancelled");
+                throw new RuntimeException("Interrupted during action execution",
+                    new RuntimeException(new InterruptedException("HTTP call interrupted")));
+            });
+        org.assertj.core.api.Assertions.assertThat(result.status())
+            .isEqualTo(com.chatchat.agents.runtime.run.AgentRunStatus.CANCELLED);
+        org.assertj.core.api.Assertions.assertThat(result.stopReason()).isEqualTo("cancelled");
+        org.assertj.core.api.Assertions.assertThat(result.events()).extracting(event -> event.type().name())
+            .contains("RUN_CANCELLED").doesNotContain("RUN_FAILED");
+        org.assertj.core.api.Assertions.assertThat(store.find(request.getRunId()).orElseThrow().status())
+            .isEqualTo(result.status());
+    }
+
+    @Test
+    void interruptionWithoutCancellationDecisionIsStillFailure() {
+        var store = new com.chatchat.agents.runtime.store.InMemoryAgentRunStore();
+        var result = new AgentRunLifecycleCoordinator(store, mock(AgentRunResultAdapter.class))
+            .execute(AgentRunRequest.builder().runId("unexpected-interruption").build(), ignored -> {
+                throw new RuntimeException(new InterruptedException("Unexpected interruption"));
+            });
+        org.assertj.core.api.Assertions.assertThat(result.status())
+            .isEqualTo(com.chatchat.agents.runtime.run.AgentRunStatus.FAILED);
+    }
+
+    @Test
     void failedAnswerAuditIsPersistedAsPartialPublicOutcome() {
         var store = new com.chatchat.agents.runtime.store.InMemoryAgentRunStore();
         var adapter = new AgentRunResultAdapter(store, mock(AgentObservationPipeline.class));

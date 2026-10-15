@@ -30,6 +30,46 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineModelCallbackControllerTest {
+    @Test void sdkFailureWithoutStartedOperationBecomesDurableFailedOutcome() {
+        var source = new DriverManagerDataSource("jdbc:h2:mem:model-failed-" + UUID.randomUUID()
+            + ";DB_CLOSE_DELAY=-1", "sa", "");
+        new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);
+        var json = new ObjectMapper().findAndRegisterModules()
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        var evidence = new JdbcRuntimeEvidenceStore(new JdbcTemplate(source), json,
+            new DataSourceTransactionManager(source));
+        var scope = new KernelDataScope("tenant", "owner", null, null, "run", null, Map.of());
+        var input = Map.<String, Object>of("fixture", "authorized");
+        evidence.register(new EvidenceRecord(null, "input", scope, "CODING_INPUT_SNAPSHOT", "test",
+            evidence.contentHash(input), input, null, System.currentTimeMillis(), Map.of()),
+            new EvidenceLineage(null, "input", scope, List.of(), "task", "test", null, Map.of()));
+        var access = new CodingInvocationContext();
+        var timer = Executors.newSingleThreadScheduledExecutor();
+        try {
+            var receipts = new ClineModelReceiptStore(evidence);
+            var tasks = new DurableCodingTaskService(evidence, json, Clock.systemUTC(), access,
+                (owner, ref) -> evidence.find(owner, ref.replace("runtime-evidence:", "")).isPresent(),
+                receipts, Runnable::run, new ConcurrentTaskScheduler(timer));
+            var contract = contract(scope);
+            var lease = access.as(scope, EnumSet.allOf(CodingTaskAccess.Action.class), () -> {
+                var accepted = tasks.submit(contract);
+                return tasks.claim(scope, "task", "cline-adapter:test", Duration.ofSeconds(90), accepted.revision());
+            });
+            var controller = new ClineModelCallbackController(access, tasks,
+                mock(ClineRuntimeModelBridge.class), receipts, mock(CodingInputSnapshotService.class),
+                mock(CodingValidationPlanService.class), mock(CodingEvidenceCollector.class), json);
+            var body = json.createObjectNode();
+            body.set("scope", json.valueToTree(scope)); body.put("taskId", "task");
+            body.put("contractHash", CodingCanonicalHash.sha256(contract));
+            body.put("fencingToken", lease.fencingToken()); body.set("contract", json.valueToTree(contract));
+            body.set("outcome", json.valueToTree(Map.of("status", "failed")));
+            assertThat(controller.finish(body).get("status")).isEqualTo("FAILED");
+            assertThat(controller.finish(body).get("status")).isEqualTo("FAILED");
+            assertThat(access.as(scope, EnumSet.of(CodingTaskAccess.Action.READ), () ->
+                tasks.get(scope, "task").reasonCode())).isEqualTo(CodingErrorCode.EXECUTION_FAILED);
+        } finally { timer.shutdownNow(); }
+    }
+
     @Test void cancellationDuringProviderCallPreventsLateReceipt() {
         var source = new DriverManagerDataSource("jdbc:h2:mem:model-cancel-" + UUID.randomUUID()
             + ";DB_CLOSE_DELAY=-1", "sa", "");
@@ -62,7 +102,9 @@ class ClineModelCallbackControllerTest {
                 return Map.of("text", "late", "toolCalls", List.of(),
                     "usage", Map.of("inputTokens", 4, "outputTokens", 2));
             });
-            var controller = new ClineModelCallbackController(access, tasks, model, receipts, json);
+            var controller = new ClineModelCallbackController(access, tasks, model, receipts,
+                mock(CodingInputSnapshotService.class), mock(CodingValidationPlanService.class),
+                mock(CodingEvidenceCollector.class), json);
             var base = json.createObjectNode();
             base.set("scope", json.valueToTree(scope)); base.put("taskId", "task");
             base.put("contractHash", CodingCanonicalHash.sha256(contract));
@@ -110,7 +152,9 @@ class ClineModelCallbackControllerTest {
             var model = mock(ClineRuntimeModelBridge.class);
             when(model.complete(any(), any())).thenReturn(Map.of("text", "done", "toolCalls", List.of(),
                 "usage", Map.of("inputTokens", 4, "outputTokens", 2), "requestId", "provider-1"));
-            var controller = new ClineModelCallbackController(access, tasks, model, receipts, json);
+            var controller = new ClineModelCallbackController(access, tasks, model, receipts,
+                mock(CodingInputSnapshotService.class), mock(CodingValidationPlanService.class),
+                mock(CodingEvidenceCollector.class), json);
             String hash = CodingCanonicalHash.sha256(contract);
             var base = json.createObjectNode();
             base.set("scope", json.valueToTree(scope)); base.put("taskId", "task");

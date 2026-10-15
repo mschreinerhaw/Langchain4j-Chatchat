@@ -20,6 +20,9 @@ import java.util.UUID;
 public final class ClineCodingAdapter implements CodingAgentSPI {
     private final DurableCodingTaskService tasks;
     private final CodingPythonExecutionBridge python;
+    private final CodingInputSnapshotService inputs;
+    private final CodingValidationPlanService plans;
+    private final ClineModelReceiptStore receipts;
     private final URI node;
     private final String secret;
     private final ObjectMapper mapper;
@@ -27,8 +30,11 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     private final String workerId = "cline-adapter:" + UUID.randomUUID();
 
     public ClineCodingAdapter(DurableCodingTaskService tasks, CodingPythonExecutionBridge python,
-            URI node, String secret, ObjectMapper mapper) {
-        this.tasks = tasks; this.python = python; this.node = node; this.secret = secret; this.mapper = mapper;
+            CodingInputSnapshotService inputs, CodingValidationPlanService plans,
+            ClineModelReceiptStore receipts, URI node, String secret, ObjectMapper mapper) {
+        this.tasks = tasks; this.python = python; this.inputs = inputs; this.plans = plans;
+        this.receipts = receipts;
+        this.node = node; this.secret = secret; this.mapper = mapper;
         if (node == null || !"http".equals(node.getScheme()) || node.getHost() == null
                 || !List.of("localhost", "127.0.0.1").contains(node.getHost()) || node.getUserInfo() != null)
             throw new IllegalArgumentException("D1 Node SDK service must use explicit loopback HTTP");
@@ -38,6 +44,15 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     }
 
     @Override public CodingTaskOutcome submit(CodingTaskContract contract) {
+        if (!java.util.Set.of("python_execute").containsAll(contract.authorization().allowedTools()))
+            throw new IllegalArgumentException("D1 permits only the implemented Runtime Python callback");
+        inputs.requireAuthorized(contract);
+        plans.validator(contract);
+        if (contract.authorization().allowedTools().contains("python_execute")
+                && (contract.outputContract().requiredFiles().size() != 1
+                    || !contract.outputContract().requiredFiles().get(0)
+                        .matches("[A-Za-z0-9_-]+\\.jsonl")))
+            throw new IllegalArgumentException("D1 Python execution requires one JSONL result file");
         if (contract.authorization().networkPolicy() != CodingTaskContract.NetworkPolicy.NONE)
             throw new SecurityException("D1 Coding Sandbox requires a no-network authorization");
         CodingTaskOutcome accepted = tasks.submit(contract); // A2 persists acceptance before any Node dispatch.
@@ -71,16 +86,54 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
 
     @Override public CodingTaskOutcome resume(KernelDataScope scope, String taskId) {
         CodingTaskOutcome current = tasks.resume(scope, taskId);
+        if (current.status().terminal()) return current;
         CodingJournal.Lease lease = tasks.ownership(scope, taskId);
+        if (!lease.leaseUntil().isAfter(Instant.now())) {
+            lease = tasks.claim(scope, taskId, workerId, Duration.ofMinutes(5), current.revision());
+            current = tasks.get(scope, taskId);
+        }
         try { request("/v1/runs/get", Map.of("scope", scope, "taskId", taskId,
             "contractHash", current.contractSha256(), "fencingToken", lease.fencingToken())); }
         catch (RuntimeException unavailable) { /* A2 remains authoritative; unknown Node state cannot be replayed. */ }
-        // Query execution identity first. An unavailable/unknown Node session is never replayed here.
+        // Only Python operations have MCP execution identities. Model starts retain their
+        // reservations until the receipt can be reconciled; they are never dispatched again.
         for (String operationId : tasks.unresolvedOperations(scope, taskId)) {
-            try { python.get(scope, taskId, operationId); }
-            catch (RuntimeException unavailable) { return tasks.get(scope, taskId); }
+            if (operationId.matches("model-[1-9][0-9]{0,5}")) {
+                if (workerId.equals(lease.owner())) reconcileModel(scope, taskId, lease, operationId);
+                continue;
+            }
+            if (!operationId.matches("cline-[0-9a-f]{64}")) continue;
+            try {
+                var operation = python.get(scope, taskId, operationId);
+                if (workerId.equals(lease.owner()) && operation.executorStopped()
+                        && operation.manifestHash() != null)
+                    python.reconcile(scope, taskId, lease, operationId);
+            } catch (RuntimeException unavailable) { return tasks.get(scope, taskId); }
         }
-        return current;
+        return tasks.get(scope, taskId);
+    }
+
+    private void reconcileModel(KernelDataScope scope, String taskId, CodingJournal.Lease lease,
+            String operationId) {
+        var response = receipts.response(scope, taskId, operationId);
+        if (response.isEmpty()) return; // Unknown provider outcome retains the reservation.
+        var current = tasks.get(scope, taskId);
+        if (tasks.verifiedOperation(scope, taskId, operationId).isEmpty())
+            current = tasks.reconcileStopped(scope, taskId, lease, current.revision(),
+                operationId, receipts.proofRef(scope, taskId, operationId));
+        Object raw = response.get().get("usage");
+        if (!(raw instanceof Map<?, ?> usage)) return;
+        Long input = usageCount(usage.get("inputTokens"));
+        Long output = usageCount(usage.get("outputTokens"));
+        if (input == null || output == null) return;
+        tasks.settle(scope, taskId, lease, current.revision(), operationId,
+            new CodingTaskOutcome.Counters(1, Math.addExact(input, output),
+                0, 0, 0, 0, 0, "0"), false);
+    }
+
+    private static Long usageCount(Object value) {
+        if (!(value instanceof Number number) || number.longValue() < 0) return null;
+        return number.longValue();
     }
 
     @Override public Subscription subscribe(KernelDataScope scope, String taskId, long afterSequence, Observer observer) {

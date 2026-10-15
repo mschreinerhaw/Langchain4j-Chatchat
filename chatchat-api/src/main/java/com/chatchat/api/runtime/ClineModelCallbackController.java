@@ -38,12 +38,18 @@ public final class ClineModelCallbackController {
     private final DurableCodingTaskService tasks;
     private final ClineRuntimeModelBridge model;
     private final ClineModelReceiptStore receipts;
+    private final CodingInputSnapshotService inputs;
+    private final CodingValidationPlanService plans;
+    private final CodingEvidenceCollector collector;
     private final ObjectMapper mapper;
     private final Map<String, Instant> freshDispatches = new ConcurrentHashMap<>();
 
     public ClineModelCallbackController(CodingInvocationContext identity, DurableCodingTaskService tasks,
-            ClineRuntimeModelBridge model, ClineModelReceiptStore receipts, ObjectMapper mapper) {
-        this.identity = identity; this.tasks = tasks; this.model = model; this.receipts = receipts; this.mapper = mapper;
+            ClineRuntimeModelBridge model, ClineModelReceiptStore receipts,
+            CodingInputSnapshotService inputs, CodingValidationPlanService plans,
+            CodingEvidenceCollector collector, ObjectMapper mapper) {
+        this.identity = identity; this.tasks = tasks; this.model = model; this.receipts = receipts;
+        this.inputs = inputs; this.plans = plans; this.collector = collector; this.mapper = mapper;
     }
 
     @PostMapping("/reserve-model")
@@ -127,19 +133,92 @@ public final class ClineModelCallbackController {
         return bound(body, call -> Map.of("authoritativeRevision", call.snapshot().revision()));
     }
 
-    /** An SDK summary cannot be published as a verified Coding result. */
+    /** Only the independently verified MCP operation and immutable evidence may become authoritative. */
     @PostMapping("/finish")
     public Map<String, Object> finish(@RequestBody JsonNode body) {
-        return bound(body, call -> {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                "SDK output has no independently verified Coding dataset or terminal evidence");
+        return bound(body, true, call -> {
+            CodingTaskContract contract = contract(body, call);
+            JsonNode outcome = body.path("outcome");
+            String operationId = outcome.path("operationId").asText(null);
+            if ("failed".equals(outcome.path("status").asText()))
+                return failed(call);
+            if (!"completed".equals(outcome.path("status").asText())
+                    || operationId == null || !operationId.matches("cline-[0-9a-f]{64}"))
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "SDK run has no completed, independently verifiable Python operation");
+            var input = inputs.requireAuthorized(contract);
+            var collected = collector.collect(call.scope(), contract, operationId, "main.py",
+                contract.outputContract().requiredFiles().get(0),
+                List.of(new CodingEvidenceCollector.InputFile(input.fileId(), input.fileName(), input.sha256())),
+                plans.validator(contract));
+            CodingTaskOutcome current = tasks.get(call.scope(), call.taskId());
+            if (current.status().terminal()) {
+                if (current.status() != CodingTaskOutcome.Status.COMPLETED
+                        || !collected.evidenceBundleRef().equals(current.evidenceBundleRef()))
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Terminal Coding result differs from the SDK completion");
+                return completion(current);
+            }
+            Instant at = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+            if (at.isBefore(current.updatedAt())) at = current.updatedAt();
+            CodingTaskOutcome proposal = new CodingTaskOutcome(current.schemaVersion(), current.taskId(),
+                current.scope(), current.contractSha256(), CodingTaskOutcome.Status.COMPLETED,
+                current.revision() + 1, current.lastEventSequence() + 1, current.createdAt(), at,
+                current.startedAt(), at, false, null,
+                "Coding execution archived; independent validation "
+                    + (collected.businessValidationPassed() ? "passed" : "failed"),
+                current.limitations(), collected.inputSnapshotRef(), collected.codeArtifactRef(),
+                collected.executionReceiptRef(), collected.resultDatasetRef(),
+                collected.validationRecordRef(), collected.evidenceBundleRef(),
+                collected.businessValidationPassed() ? CodingTaskOutcome.ValidationStatus.PASSED
+                    : CodingTaskOutcome.ValidationStatus.FAILED,
+                current.reproducibility(), current.usage(),
+                new CodingTaskOutcome.ExecutionControl(null, null, true, false),
+                current.parentTaskId(), current.supersedesTaskId(), Map.of());
+            var committed = tasks.commitOutcome(call.scope(), call.taskId(), call.lease(),
+                current.revision(), proposal);
+            return completion(committed);
         });
+    }
+
+    private Map<String, Object> failed(Call call) {
+        CodingTaskOutcome current = tasks.get(call.scope(), call.taskId());
+        if (current.status().terminal())
+            return Map.of("status", current.status().name(), "revision", current.revision());
+        if (!tasks.unresolvedOperations(call.scope(), call.taskId()).isEmpty())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "SDK failure has an unknown execution; reconcile before terminal failure");
+        Instant at = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+        if (at.isBefore(current.updatedAt())) at = current.updatedAt();
+        var proposal = new CodingTaskOutcome(current.schemaVersion(), current.taskId(), current.scope(),
+            current.contractSha256(), CodingTaskOutcome.Status.FAILED, current.revision() + 1,
+            current.lastEventSequence() + 1, current.createdAt(), at, current.startedAt(), at,
+            false, CodingErrorCode.EXECUTION_FAILED, "Coding loop failed without a verified result",
+            List.of("No completed Coding result or independent validation was submitted"),
+            current.inputSnapshotRef(), null, null, null, null, null,
+            CodingTaskOutcome.ValidationStatus.NOT_RUN, current.reproducibility(), current.usage(),
+            new CodingTaskOutcome.ExecutionControl(null, null, true, false),
+            current.parentTaskId(), current.supersedesTaskId(), Map.of());
+        var committed = tasks.commitOutcome(call.scope(), call.taskId(), call.lease(),
+            current.revision(), proposal);
+        return Map.of("status", committed.status().name(), "revision", committed.revision());
+    }
+
+    private static Map<String, Object> completion(CodingTaskOutcome outcome) {
+        return Map.of("status", outcome.status().name(), "revision", outcome.revision(),
+            "resultDatasetRef", outcome.resultDatasetRef(),
+            "validationRecordRef", outcome.validationRecordRef(),
+            "evidenceBundleRef", outcome.evidenceBundleRef());
     }
 
     private record Call(KernelDataScope scope, String taskId, String contractHash,
                         CodingJournal.Lease lease, CodingTaskOutcome snapshot) { }
 
     private <T> T bound(JsonNode body, Function<Call, T> operation) {
+        return bound(body, false, operation);
+    }
+
+    private <T> T bound(JsonNode body, boolean allowTerminal, Function<Call, T> operation) {
         try {
             if (body == null || !body.isObject()) throw new IllegalArgumentException("Callback body is required");
             KernelDataScope scope = mapper.treeToValue(body.path("scope"), KernelDataScope.class);
@@ -155,7 +234,7 @@ public final class ClineModelCallbackController {
                         || lease.fencingToken() != fencingToken || lease.owner() == null
                         || !lease.owner().startsWith("cline-adapter:")
                         || !lease.leaseUntil().isAfter(Instant.now())
-                        || snapshot.status().terminal() || snapshot.cancellationRequested()
+                        || !allowTerminal && snapshot.status().terminal() || snapshot.cancellationRequested()
                         || snapshot.executionControl().stopReason() != null)
                     throw new ResponseStatusException(HttpStatus.CONFLICT,
                         "Callback task, lease, or stop state is no longer current");

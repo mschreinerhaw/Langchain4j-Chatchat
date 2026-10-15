@@ -76,6 +76,17 @@ public class CodingPythonExecutionBridge {
         return python.get(scope.tenantId(), scope.userId(), scope.runId(), taskId, operationId);
     }
 
+    /** B's archived stderr is the only technical diagnostic returned to the Coding loop. */
+    public String stderr(KernelDataScope scope, String taskId, String operationId) {
+        tasks.get(scope, taskId);
+        var stopped = get(scope, taskId, operationId);
+        if (!stopped.executorStopped() || "UNKNOWN".equals(stopped.status()))
+            throw new IllegalStateException("Python diagnostic is not archived");
+        byte[] bytes = python.artifact(scope.tenantId(), scope.userId(), scope.runId(), taskId,
+            operationId, "logs", "stderr.txt");
+        return new String(bytes, 0, Math.min(bytes.length, 8_192), StandardCharsets.UTF_8);
+    }
+
     public McpPythonControlPlanePort.OperationView cancel(KernelDataScope scope, String taskId,
                                                             String operationId, String reason) {
         CodingTaskOutcome stopped = tasks.cancel(scope, taskId, reason);

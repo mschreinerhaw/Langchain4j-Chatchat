@@ -141,7 +141,8 @@ class CodingEvidenceDockerIntegrationTest {
         publish(normal, good);
         try (var dataset = collector.openResult(scope, "normal", good.resultDatasetRef())) {
             assertThat(dataset.recordCount()).isEqualTo(1);
-            assertThat(dataset.readPage(0, 1).rows().get(0).get("amount").toString()).isEqualTo("20.0");
+            assertThat(new java.math.BigDecimal(dataset.readPage(0, 1).rows().get(0).get("amount").toString()))
+                .isEqualByComparingTo("20.0");
         }
         Run empty = run("empty", EMPTY_SCRIPT, "SUCCEEDED");
         var zero = collect(empty, rows -> new CodingEvidenceCollector.Validation(rows.isEmpty(), Map.of("zeroRowsAllowed", true)));
@@ -160,6 +161,8 @@ class CodingEvidenceDockerIntegrationTest {
         assertThat(tasks.get(scope, "mismatch").validationStatus())
             .isEqualTo(CodingTaskOutcome.ValidationStatus.FAILED);
         Run pythonFailure = run("python-failure", "raise ValueError('injected')", "FAILED");
+        assertThat(bridge.stderr(scope, "python-failure", pythonFailure.operationId()))
+            .contains("ValueError: injected");
         assertThatThrownBy(() -> collect(pythonFailure, rows -> new CodingEvidenceCollector.Validation(true, Map.of())))
             .isInstanceOf(IllegalStateException.class);
         assertThat(evidence.snapshot(scope, "coding:" + sha("unused") + ":bundle")).isEmpty();
@@ -173,6 +176,92 @@ class CodingEvidenceDockerIntegrationTest {
         collector = new CodingEvidenceCollector(evidenceStore(), evidenceStore(), tasks, port, json);
         assertThat(collector.openResult(scope, "normal", good.resultDatasetRef()).recordCount()).isEqualTo(1);
         assertThat(collect(normal, CodingEvidenceDockerIntegrationTest::checkFinancialSum)).isEqualTo(good);
+    }
+
+    @Test void clinePythonCallbackUsesAuthorizedSnapshotAndArchivesSixReferences() throws Exception {
+        when(port.uploadDataFile(anyString(), anyString(), anyString(), anyString(), anyString(), any()))
+            .thenAnswer(call -> {
+                String fileId = call.getArgument(2), name = call.getArgument(3), hash = call.getArgument(4);
+                byte[] bytes = call.getArgument(5);
+                var saved = dataFiles.store(call.getArgument(0), call.getArgument(1), fileId,
+                    Base64.getUrlEncoder().withoutPadding().encodeToString(name.getBytes(StandardCharsets.UTF_8)),
+                    hash, InternalSecretCipher.encryptBytes(bytes, SECRET));
+                return new McpPythonControlPlanePort.DataFileResult(saved.id(), saved.storagePath(),
+                    saved.pythonPath(), saved.fileSize(), saved.fileHash(), saved.status());
+            });
+        when(port.downloadDataFile(anyString(), anyString(), anyString())).thenAnswer(call ->
+            InternalSecretCipher.decryptBytes(dataFiles.content(call.getArgument(0),
+                call.getArgument(1), call.getArgument(2)), SECRET));
+        var identity = new CodingInvocationContext();
+        var inputs = new CodingInputSnapshotService(evidence, port, identity, json);
+        var plans = new CodingValidationPlanService(evidence, port, inputs, identity, json);
+        var delivered = new com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Dataset(
+            "template#financial", Map.of(), List.of(Map.of("tradeId", "t1", "amount", "0.10"),
+                Map.of("tradeId", "t2", "amount", "0.20")));
+        var input = identity.as(scope, EnumSet.of(CodingTaskAccess.Action.SUBMIT), () ->
+            inputs.capture(scope, "cline-docker", List.of(delivered), "template#financial",
+                "decision:financial", "workspace:cline-docker", 10, 4096));
+        String validation = identity.as(scope, EnumSet.of(CodingTaskAccess.Action.SUBMIT), () ->
+            plans.register(scope, "cline-docker", input,
+                new CodingValidationPlanService.Plan("amount", "total", "tradeId", false)));
+        var contract = new CodingTaskContract(CodingProtocol.VERSION, "cline-docker", scope,
+            new CodingTaskContract.Objective("Sum authorized amounts", List.of("rows.jsonl"), List.of(validation)),
+            input.reference(), List.of(), "workspace:cline-docker",
+            new CodingTaskContract.Authorization("decision:financial", List.of("python_execute"),
+                List.of(input.fileId()), List.of(), List.of(), CodingTaskContract.NetworkPolicy.NONE,
+                List.of(), List.of(CodingTaskContract.SideEffect.CODE_EXECUTION)),
+            new CodingTaskContract.Budget("budget-cline-docker", Instant.now().plusSeconds(180)
+                .truncatedTo(java.time.temporal.ChronoUnit.MILLIS),
+                0, 0, 2, 1, "1", "USD", 10000, 256 * 1024 * 1024, 100000),
+            "env", validation, new CodingTaskContract.OutputContract(
+                CodingTaskContract.ResultFormat.JSON_LINES, "schema:total", "schema:validation",
+                List.of("rows.jsonl"), List.of("application/x-ndjson"), 100, 100000,
+                List.of(CodingTaskContract.RequiredEvidence.values())));
+        tasks.submit(contract);
+        var lease = tasks.claim(scope, contract.taskId(), "cline-adapter:test", Duration.ofSeconds(90),
+            tasks.get(scope, contract.taskId()).revision());
+        var controller = new ClinePythonCallbackController(identity, tasks, inputs, plans, bridge, collector, json);
+        String toolCall = "tool-1";
+        String operationId = "cline-" + sha(scope.tenantId() + "\0" + scope.userId() + "\0"
+            + scope.runId() + "\0" + contract.taskId() + "\0" + toolCall);
+        var body = json.createObjectNode();
+        body.set("scope", json.valueToTree(scope)); body.put("taskId", contract.taskId());
+        body.put("contractHash", CodingCanonicalHash.sha256(contract));
+        body.put("fencingToken", lease.fencingToken()); body.set("contract", json.valueToTree(contract));
+        String script = "import json,decimal,pathlib\n"
+            + "p=pathlib.Path('/data/input/" + input.fileId() + "/input.jsonl')\n"
+            + "rows=[json.loads(x) for x in p.read_text().splitlines()]\n"
+            + "v=sum((decimal.Decimal(x['amount']) for x in rows),decimal.Decimal('0'))\n"
+            + "pathlib.Path('/workspace/output/results/rows.jsonl').write_text(json.dumps({'total':str(v)})+'\\n')\n";
+        body.set("execution", json.valueToTree(Map.of("operationId", operationId,
+            "toolCallId", toolCall, "fileName", "main.py", "source", script)));
+        assertThat(controller.execute(body).get("operationId")).isEqualTo(operationId);
+        assertThat(controller.execute(body).get("operationId")).isEqualTo(operationId);
+        var query = body.deepCopy(); query.put("operationId", operationId);
+        Map<String, Object> result = Map.of();
+        for (int attempt = 0; attempt < 300; attempt++) {
+            result = controller.get(query);
+            if (Boolean.TRUE.equals(result.get("executorStopped"))) break;
+            Thread.sleep(50);
+        }
+        assertThat(result.get("status")).isEqualTo("SUCCEEDED");
+        assertThat(result.get("businessValidationPassed")).isEqualTo(true);
+        for (String key : List.of("inputSnapshotRef", "codeArtifactRef", "executionReceiptRef",
+                "resultDatasetRef", "validationRecordRef", "evidenceBundleRef"))
+            assertThat(result.get(key)).isInstanceOf(String.class);
+        assertThat(tasks.get(scope, contract.taskId()).usage().consumed().codeExecutions()).isEqualTo(1);
+        var stale = body.deepCopy(); stale.put("fencingToken", lease.fencingToken() + 1);
+        assertThatThrownBy(() -> controller.execute(stale)).isInstanceOf(RuntimeException.class);
+        var finish = new ClineModelCallbackController(identity, tasks,
+            mock(ClineRuntimeModelBridge.class), new ClineModelReceiptStore(evidence),
+            inputs, plans, collector, json);
+        var completion = body.deepCopy();
+        completion.set("outcome", json.valueToTree(Map.of("status", "completed", "operationId", operationId)));
+        assertThat(finish.finish(completion).get("status")).isEqualTo("COMPLETED");
+        assertThat(finish.finish(completion).get("evidenceBundleRef"))
+            .isEqualTo(result.get("evidenceBundleRef"));
+        assertThat(tasks.get(scope, contract.taskId()).validationStatus())
+            .isEqualTo(CodingTaskOutcome.ValidationStatus.PASSED);
     }
 
     @Test void runningCancellationAndArchiveFaultDoNotPublishStructuredEvidence() throws Exception {

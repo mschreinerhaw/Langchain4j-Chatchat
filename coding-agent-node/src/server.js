@@ -67,6 +67,7 @@ export function httpGateway(callbackUrl, secret, binding) {
     model: (contract, request, signal) => callback('model', { contract, request }, signal),
     settleModel: (contract, model) => callback('settle-model', { contract, model }),
     executePython: (contract, execution, signal) => callback('execute-python', { contract, execution }, signal),
+    getPython: (contract, operationId, signal) => callback('get-python', { contract, operationId }, signal),
     cancelPython: (contract, operationId) => callback('cancel-python', { contract, operationId }),
     readMetadata: (contract, reference, signal) => callback('read-metadata', { contract, reference }, signal),
     readArtifact: (contract, reference, signal) => callback('read-artifact', { contract, reference }, signal),

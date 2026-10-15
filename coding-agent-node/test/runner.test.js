@@ -8,7 +8,8 @@ const task = {
   objective: { instruction: 'Compute the authorized financial total' },
   inputSnapshotRef: 'runtime-evidence:input', validationPlanRef: 'validation:fixture',
   authorization: { allowedTools: ['python_execute'], allowedSideEffects: ['CODE_EXECUTION'],
-    networkPolicy: 'NONE' },
+    allowedDataRefs: [`c${'a'.repeat(63)}`], networkPolicy: 'NONE' },
+  outputContract: { requiredFiles: ['rows.jsonl'] },
   budget: { maxModelCalls: 4 },
 };
 
@@ -38,9 +39,13 @@ test('actual Cline Agent loop repairs a technical Python error through one Runti
     async executePython(_task, item) {
       requests.push(['execute', item]);
       return item.source.includes('raise')
-        ? { status: 'FAILED', technicalError: 'ValueError: bad' }
-        : { status: 'SUCCEEDED', resultDatasetRef: 'runtime-evidence:result' };
+        ? { status: 'FAILED', executorStopped: true, technicalError: 'ValueError: bad' }
+        : { status: 'SUCCEEDED', executorStopped: true,
+          resultDatasetRef: 'runtime-evidence:result',
+          validationRecordRef: 'runtime-evidence:validation',
+          evidenceBundleRef: 'runtime-evidence:bundle' };
     },
+    async finish(_task, item) { requests.push(['finish', item]); },
   };
   const run = createCodingRun(task, gateway, { model });
   const result = await run.run();
@@ -52,6 +57,40 @@ test('actual Cline Agent loop repairs a technical Python error through one Runti
   assert.notEqual(executions[0].operationId, executions[1].operationId);
   assert.equal(requests.filter(([type]) => type === 'reserve').length, 3);
   assert.equal(run.events.filter(event => event.type === 'MODEL_USAGE').length, 3);
+  assert.equal(requests.find(([type]) => type === 'finish')[1].operationId,
+    executions[1].operationId);
+});
+
+test('Python operation is polled until Docker confirms stop before a result is accepted', async () => {
+  let polls = 0;
+  let turns = 0;
+  const model = { async *stream() {
+    if (++turns === 1) {
+      yield { type: 'tool-call-delta', toolCallId: 'run-1', toolName: 'python_execute',
+        input: { fileName: 'main.py', source: 'print(1)' } };
+      yield { type: 'finish', reason: 'tool-calls' };
+    } else {
+      yield { type: 'text-delta', text: 'done' };
+      yield { type: 'finish', reason: 'stop' };
+    }
+  } };
+  const gateway = {
+    reserveModel() {}, settleModel() {},
+    executePython() { return { status: 'RUNNING', executorStopped: false }; },
+    getPython() {
+      polls++;
+      return { status: 'SUCCEEDED', executorStopped: true,
+        resultDatasetRef: 'runtime-evidence:result',
+        validationRecordRef: 'runtime-evidence:validation',
+        evidenceBundleRef: 'runtime-evidence:bundle' };
+    },
+    finish(_task, outcome) { assert.match(outcome.operationId, /^cline-[0-9a-f]{64}$/); },
+  };
+  const run = createCodingRun({ ...task,
+    budget: { ...task.budget, deadlineAt: new Date(Date.now() + 10_000).toISOString() },
+  }, gateway, { model });
+  assert.equal((await run.run()).status, 'completed');
+  assert.equal(polls, 1);
 });
 
 test('unrecognized or unauthorized tools fail closed before a model call', () => {

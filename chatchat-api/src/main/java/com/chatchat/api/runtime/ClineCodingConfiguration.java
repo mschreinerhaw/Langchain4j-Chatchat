@@ -13,13 +13,16 @@ import java.net.URI;
 
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(prefix = "chatchat.coding.cline", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "chatchat.coding", name = "enabled", havingValue = "true")
 public class ClineCodingConfiguration {
     @Bean
     @Primary
     CodingAgentSPI clineCodingAgent(DurableCodingTaskService tasks, CodingPythonExecutionBridge python,
-            ObjectMapper mapper,
+            CodingInputSnapshotService inputs, CodingValidationPlanService plans,
+            ClineModelReceiptStore receipts, ObjectMapper mapper,
             @Value("${chatchat.coding.cline.node-url:http://127.0.0.1:8791}") String nodeUrl,
             @Value("${chatchat.coding.cline.shared-secret:}") String secret) {
-        return new ClineCodingAdapter(tasks, python, URI.create(nodeUrl), secret, mapper);
+        return new ClineCodingAdapter(tasks, python, inputs, plans, receipts,
+            URI.create(nodeUrl), secret, mapper);
     }
 }

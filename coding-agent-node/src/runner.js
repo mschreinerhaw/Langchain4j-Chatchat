@@ -27,7 +27,13 @@ export function createCodingRun(contract, gateway, options = {}) {
   for (const name of permitted) if (!TOOL_NAMES.has(name)) throw new TypeError(`Unrecognized Coding tool: ${name}`);
   if (!contract.authorization?.allowedSideEffects?.includes('CODE_EXECUTION')) permitted.delete('python_execute');
   if (!contract.metadataRefs?.length) permitted.delete('metadata_read');
+  if (permitted.has('python_execute') && (contract.authorization?.allowedDataRefs?.length !== 1
+      || !/^c[0-9a-f]{63}$/.test(contract.authorization.allowedDataRefs[0])
+      || contract.outputContract?.requiredFiles?.length !== 1
+      || !/^[A-Za-z0-9_-]+\.jsonl$/.test(contract.outputContract.requiredFiles[0])))
+    throw new TypeError('Python execution requires one bound input snapshot and one JSONL result');
   let activeOperation = null;
+  let lastCollectedOperation = null;
   let modelIndex = 0;
   let lastUsage = { inputTokens: 0, outputTokens: 0, totalCost: 0 };
   let firstRuntimeError = null;
@@ -39,9 +45,9 @@ export function createCodingRun(contract, gateway, options = {}) {
   const tools = [];
   if (permitted.has('python_execute')) tools.push({
     name: 'python_execute',
-    description: 'Run a Python script only in the Runtime-authorized sandbox. Return its execution receipt and verification facts. Repair technical errors by submitting a new script; never claim business validation yourself.',
+    description: `Run main.py only in the Runtime-authorized Python sandbox. The immutable input is /data/input/${contract.authorization.allowedDataRefs[0]}/input.jsonl. Write structured JSONL to /workspace/output/results/${contract.outputContract?.requiredFiles?.[0] ?? 'rows.jsonl'}. Return the Runtime execution receipt; repair technical errors with a new tool call. Never claim business validation yourself.`,
     inputSchema: { type: 'object', properties: {
-      fileName: { type: 'string' }, source: { type: 'string' },
+      fileName: { type: 'string', enum: ['main.py'] }, source: { type: 'string' },
     }, required: ['fileName', 'source'], additionalProperties: false },
     executionMode: 'sequential', retryable: false, maxRetries: 0,
     async execute(input, context) {
@@ -55,9 +61,34 @@ export function createCodingRun(contract, gateway, options = {}) {
       const abort = () => { void gateway.cancelPython?.(contract, id).catch(() => {}); };
       context.signal?.addEventListener('abort', abort, { once: true });
       try {
-        const receipt = await gateway.executePython(contract, {
+        let receipt = await gateway.executePython(contract, {
           operationId: id, fileName: input.fileName, source, toolCallId,
         }, context.signal);
+        while (!receipt.executorStopped) {
+          if (receipt.status === 'UNKNOWN')
+            throw new Error('Python execution identity is unknown; Runtime reconciliation is required');
+          if (typeof gateway.getPython !== 'function')
+            throw new Error('Runtime Python status callback is required for asynchronous execution');
+          if (context.signal?.aborted) throw context.signal.reason ?? new Error('Coding task cancelled');
+          if (Date.now() >= Date.parse(contract.budget.deadlineAt))
+            throw new Error('Coding task deadline reached while awaiting Python execution');
+          await new Promise((resolve, reject) => {
+            const timer = setTimeout(() => {
+              context.signal?.removeEventListener('abort', stop);
+              resolve();
+            }, 250);
+            const stop = () => {
+              clearTimeout(timer);
+              context.signal?.removeEventListener('abort', stop);
+              reject(context.signal.reason ?? new Error('Coding task cancelled'));
+            };
+            context.signal?.addEventListener('abort', stop, { once: true });
+          });
+          receipt = await gateway.getPython(contract, id, context.signal);
+        }
+        if (receipt.status === 'SUCCEEDED' && receipt.resultDatasetRef
+            && receipt.validationRecordRef && receipt.evidenceBundleRef)
+          lastCollectedOperation = id;
         await forward({ type: 'TOOL_FINISHED', tool: 'python_execute', operationId: id,
           status: receipt.status, resultDatasetRef: receipt.resultDatasetRef ?? null });
         return receipt;
@@ -127,7 +158,8 @@ export function createCodingRun(contract, gateway, options = {}) {
       async afterRun({ result }) {
         try {
           await gateway.finish?.(contract, { status: result.status, iterations: result.iterations,
-            summary: result.outputText?.slice(0, 1024) ?? '' });
+            summary: result.outputText?.slice(0, 1024) ?? '',
+            operationId: lastCollectedOperation });
         } catch (error) {
           if (result.status === 'completed') throw error;
           events.push({ type: 'RUNTIME_FINISH_FAILED',

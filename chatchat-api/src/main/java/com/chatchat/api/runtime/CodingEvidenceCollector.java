@@ -51,7 +51,8 @@ public class CodingEvidenceCollector {
     public CodingEvidenceCollector(JdbcRuntimeEvidenceStore evidence, RuntimeExecutionCheckpointPort checkpoints,
             DurableCodingTaskService tasks, McpPythonControlPlanePort python, ObjectMapper mapper) {
         this.evidence = evidence; this.checkpoints = checkpoints; this.tasks = tasks; this.python = python;
-        this.mapper = mapper.copy().enable(com.fasterxml.jackson.databind.SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
+        this.mapper = mapper.copy().enable(com.fasterxml.jackson.databind.SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .enable(com.fasterxml.jackson.databind.DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
     }
 
     /** Retry-safe after a crash at either stage boundary. The executor is never restarted here. */
@@ -120,8 +121,24 @@ public class CodingEvidenceCollector {
             inputFacts.add(Map.of("fileId", input.fileId(), "fileName", input.fileName(),
                 "sha256", input.sha256(), "size", bytes.length));
         }
-        if (inputFacts.isEmpty() && evidence.find(scope, id(contract.inputSnapshotRef())).isEmpty())
+        var existingInput = evidence.find(scope, id(contract.inputSnapshotRef()));
+        if (existingInput.isEmpty() && inputFacts.isEmpty())
             throw new IllegalStateException("No immutable input snapshot is available");
+        if (existingInput.isPresent()) {
+            var stored = existingInput.get();
+            boolean trustedPrecaptured = contract.taskId().equals(stored.payload().get("taskId"));
+            boolean collectorArchived = contract.inputSnapshotRef().equals(stored.payload().get("contractRef"))
+                && inputFacts.equals(stored.payload().get("files"));
+            if (!"CODING_INPUT_SNAPSHOT".equals(stored.evidenceType())
+                    || !evidence.contentHash(stored.payload()).equals(stored.contentSha256())
+                    || !(trustedPrecaptured || collectorArchived))
+                throw new SecurityException("Input snapshot is not bound to this Coding task");
+            if (trustedPrecaptured && !inputFacts.isEmpty() && (inputFacts.size() != 1
+                    || !Objects.equals(inputFacts.get(0).get("fileId"), stored.payload().get("fileId"))
+                    || !Objects.equals(inputFacts.get(0).get("fileName"), stored.payload().get("fileName"))
+                    || !Objects.equals(inputFacts.get(0).get("sha256"), stored.payload().get("sha256"))))
+                throw new SecurityException("Archived input differs from the authorized snapshot");
+        }
         Validation validation = Objects.requireNonNull(validator.validate(List.copyOf(resultRows)), "independent validation");
         String stem = "coding:" + sha((scope.tenantId() + "\0" + scope.userId() + "\0" + scope.runId()
                 + "\0" + contract.taskId() + "\0" + operationId).getBytes(StandardCharsets.UTF_8));
@@ -130,7 +147,9 @@ public class CodingEvidenceCollector {
         String validationId = stem + ":validation", bundleId = stem + ":bundle";
         List<EvidenceRecord> records = new ArrayList<>();
         List<EvidenceLineage> lineages = new ArrayList<>();
-        if (!inputFacts.isEmpty()) add(records, lineages, scope, inputId, "CODING_INPUT_SNAPSHOT",
+        if (!inputFacts.isEmpty() && (existingInput.isEmpty()
+                || !contract.taskId().equals(existingInput.get().payload().get("taskId"))))
+            add(records, lineages, scope, inputId, "CODING_INPUT_SNAPSHOT",
             Map.of("files", inputFacts, "contractRef", contract.inputSnapshotRef()), List.of(), contract.taskId(), occurredAt);
         add(records, lineages, scope, codeId, "CODING_CODE_ARTIFACT",
             location(operationId, "code", codeFile, sha(code), code.length), List.of(inputId), contract.taskId(), occurredAt);

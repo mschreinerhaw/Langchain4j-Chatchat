@@ -145,3 +145,14 @@ test('a failed finish callback preserves the original Runtime admission error', 
   assert.match(result.error, /reserve callback HTTP 404/);
   assert.equal(run.events.at(-1).type, 'RUNTIME_FINISH_FAILED');
 });
+
+test('a failed Runtime model call is visible to Java reconciliation', async () => {
+  const gateway = { executePython() {}, reserveModel() {},
+    model() { throw new Error('provider unavailable'); },
+    finish() {} };
+  const model = { async *stream() { throw new Error('provider unavailable'); } };
+  const run = createCodingRun(task, gateway, { model });
+  const result = await run.run();
+  assert.equal(result.status, 'failed');
+  assert.match(result.error, /provider unavailable/);
+});

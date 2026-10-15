@@ -108,7 +108,7 @@ public class PythonAdminController {
     public ApiResponse<?> getOperation(@PathVariable("id") String id,
                                        @RequestHeader("X-Tenant-Scope") String tenant,
                                        @RequestHeader("X-Owner-Scope") String owner,
-                                       @RequestParam String runId, @RequestParam String taskId) {
+                                       @RequestParam("runId") String runId, @RequestParam("taskId") String taskId) {
         return ApiResponse.success(managed.get(scope(tenant), scope(owner), runId, taskId, id));
     }
 
@@ -116,8 +116,8 @@ public class PythonAdminController {
     public ApiResponse<?> cancelOperation(@PathVariable("id") String id,
                                           @RequestHeader("X-Tenant-Scope") String tenant,
                                           @RequestHeader("X-Owner-Scope") String owner,
-                                          @RequestParam String runId, @RequestParam String taskId,
-                                          @RequestParam long fencingToken) {
+                                          @RequestParam("runId") String runId, @RequestParam("taskId") String taskId,
+                                          @RequestParam("fencingToken") long fencingToken) {
         return ApiResponse.success(managed.cancel(scope(tenant), scope(owner), runId, taskId, id, fencingToken));
     }
 
@@ -126,7 +126,7 @@ public class PythonAdminController {
                                            @PathVariable("file") String file,
                                            @RequestHeader("X-Tenant-Scope") String tenant,
                                            @RequestHeader("X-Owner-Scope") String owner,
-                                           @RequestParam String runId, @RequestParam String taskId) {
+                                           @RequestParam("runId") String runId, @RequestParam("taskId") String taskId) {
         java.nio.file.Path path = managed.artifactPath(scope(tenant), scope(owner), runId, taskId, id, channel, file);
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM).contentLength(path.toFile().length())
                 .body(output -> java.nio.file.Files.copy(path, output));

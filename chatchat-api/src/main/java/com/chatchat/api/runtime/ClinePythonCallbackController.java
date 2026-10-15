@@ -13,6 +13,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -31,6 +33,7 @@ import java.util.function.Function;
 @ConditionalOnProperty(prefix = "chatchat.coding.cline", name = "enabled", havingValue = "true")
 @ConditionalOnProperty(prefix = "chatchat.coding", name = "enabled", havingValue = "true")
 public final class ClinePythonCallbackController {
+    private static final Logger LOG = LoggerFactory.getLogger(ClinePythonCallbackController.class);
     private static final String CODE_FILE = "main.py";
     private final CodingInvocationContext identity;
     private final DurableCodingTaskService tasks;
@@ -70,9 +73,17 @@ public final class ClinePythonCallbackController {
             long output = ceil(contract.budget().maxOutputBytes(), executions);
             var reservation = new CodingTaskOutcome.Counters(0, 0, 1, 1,
                 cpu, 0, output, "0");
-            var view = python.start(call.scope(), contract, call.lease(), operationId,
-                contract.environmentRef(), "coding-task:" + contract.taskId(), CODE_FILE,
-                source, Map.of(), "{}", Map.of(input.fileId(), input.sha256()), reservation);
+            McpPythonControlPlanePort.OperationView view;
+            try {
+                view = python.start(call.scope(), contract, call.lease(), operationId,
+                    contract.environmentRef(), "coding-task:" + contract.taskId(), CODE_FILE,
+                    source, Map.of(), "{}", Map.of(input.fileId(), input.sha256()), reservation);
+            } catch (RuntimeException executionFailure) {
+                LOG.warn("Bound Coding Python operation {} was not acknowledged by the MCP control plane",
+                    operationId, executionFailure);
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                    "Python operation outcome is unknown; reconcile before retry", executionFailure);
+            }
             return view(view);
         });
     }

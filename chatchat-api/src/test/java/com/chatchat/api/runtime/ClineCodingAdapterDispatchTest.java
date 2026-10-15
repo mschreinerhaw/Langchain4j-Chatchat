@@ -66,7 +66,8 @@ class ClineCodingAdapterDispatchTest {
                 (owner, ref) -> false, receipts, Runnable::run, new ConcurrentTaskScheduler(timer));
             var adapter = new ClineCodingAdapter(tasks, mock(CodingPythonExecutionBridge.class),
                 mock(CodingInputSnapshotService.class), mock(CodingValidationPlanService.class),
-                receipts, URI.create("http://127.0.0.1:" + http.getAddress().getPort()),
+                mock(CodingEvidenceCollector.class), receipts,
+                URI.create("http://127.0.0.1:" + http.getAddress().getPort()),
                 "0123456789abcdef0123456789abcdef", json);
             var contract = contract(scope);
             access.as(scope, EnumSet.allOf(CodingTaskAccess.Action.class), () -> {

@@ -11,6 +11,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -32,6 +34,7 @@ import java.util.function.Function;
 @ConditionalOnProperty(prefix = "chatchat.coding.cline", name = "enabled", havingValue = "true")
 @ConditionalOnProperty(prefix = "chatchat.coding", name = "enabled", havingValue = "true")
 public final class ClineModelCallbackController {
+    private static final Logger LOG = LoggerFactory.getLogger(ClineModelCallbackController.class);
     private static final Set<CodingTaskAccess.Action> GRANTS = EnumSet.of(
         CodingTaskAccess.Action.READ, CodingTaskAccess.Action.WORKER, CodingTaskAccess.Action.EVIDENCE);
     private final CodingInvocationContext identity;
@@ -98,7 +101,15 @@ public final class ClineModelCallbackController {
             // The provider call is bounded to 90 seconds; the renewed lease survives callback and settlement.
             tasks.renew(call.scope(), call.taskId(), call.lease(), Duration.ofMinutes(5),
                 call.snapshot().revision());
-            Map<String, Object> response = model.complete(contract, request);
+            Map<String, Object> response;
+            try {
+                response = model.complete(contract, request);
+            } catch (RuntimeException providerFailure) {
+                LOG.warn("Bound Coding model operation {} failed after its durable start intent",
+                    operationId, providerFailure);
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                    "Runtime model request failed; execution outcome must be reconciled", providerFailure);
+            }
             assertStillOwned(call);
             receipts.commit(contract, operationId, "runtime-model:" + operationId, response);
             return response;

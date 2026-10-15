@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.nio.file.attribute.PosixFilePermission;
 import java.security.MessageDigest;
 import java.util.*;
 
@@ -97,6 +98,25 @@ public class PythonOperationWorkspace {
                 throw new IllegalStateException("Input snapshot checksum mismatch");
         }
         return snapshot;
+    }
+
+    /** Give only the configured sandbox UID access to the operation's writable mount. */
+    public static void assignOutputOwner(Path workspace, String runtimeUser) throws IOException {
+        if (runtimeUser == null || !runtimeUser.matches("[0-9]{1,10}(:[0-9]{1,10})?"))
+            throw new IllegalArgumentException("Invalid sandbox user");
+        String[] ids = runtimeUser.split(":", 2);
+        int uid = Math.toIntExact(Long.parseLong(ids[0]));
+        int gid = Math.toIntExact(Long.parseLong(ids.length == 2 ? ids[1] : ids[0]));
+        rejectLinks(workspace);
+        Path output = workspace.resolve("output");
+        for (Path path : List.of(output, output.resolve("results"), output.resolve("validation"), output.resolve("logs"))) {
+            if (Files.isSymbolicLink(path) || !Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS))
+                throw new IllegalArgumentException("Invalid operation output directory");
+            Files.setAttribute(path, "unix:uid", uid, LinkOption.NOFOLLOW_LINKS);
+            Files.setAttribute(path, "unix:gid", gid, LinkOption.NOFOLLOW_LINKS);
+            Files.setPosixFilePermissions(path, EnumSet.of(PosixFilePermission.OWNER_READ,
+                PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE));
+        }
     }
 
     public Manifest archive(Path workspace) throws IOException {
@@ -240,7 +260,7 @@ public class PythonOperationWorkspace {
             throw new IllegalArgumentException("Invalid operation identity");
         return hash(text.getBytes(StandardCharsets.UTF_8));
     }
-    private void rejectLinks(Path path) throws IOException {
+    private static void rejectLinks(Path path) throws IOException {
         for (Path current = path.toAbsolutePath(); current != null; current = current.getParent())
             if (Files.isSymbolicLink(current)) throw new IllegalArgumentException("Symbolic link in operation path");
     }

@@ -49,6 +49,7 @@ public class PythonDockerRuntime {
             if (Files.isSymbolicLink(path) || !Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS))
                 throw new IllegalArgumentException("Invalid managed mount");
         }
+        PythonOperationWorkspace.assignOutputOwner(workspace, env.getRuntimeUser());
         String input = Files.readString(workspace.resolve("parameters.json"));
         List<String> command = new ArrayList<>(List.of(properties.getDockerCommand(), "create", "--name", container,
                 "--label", "chatchat.python.operation=" + container,

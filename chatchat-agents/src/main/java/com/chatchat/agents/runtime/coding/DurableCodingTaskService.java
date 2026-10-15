@@ -345,6 +345,15 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             .filter(entry->entry.getValue().startIntent && entry.getValue().stopProofRef==null)
             .map(Map.Entry::getKey).toList();
     }
+    /** Read-only operation identities for evidence-only recovery; never authorizes a new dispatch. */
+    public List<String> startedCodeOperations(KernelDataScope scope,String taskId) {
+        var task=task(read(scope,READ),taskId);
+        return task.events.stream().map(CodingExecutionEvent::operationId)
+            .filter(Objects::nonNull).distinct()
+            .filter(id->{ var operation=task.operations.get(id);
+                return operation!=null && operation.kind==CodingJournal.OperationKind.CODE
+                    && operation.startIntent; }).toList();
+    }
     public Counters budgetUsage(KernelDataScope scope,String budgetId) { return account(read(scope,READ),budgetId); }
 
     @Override public Subscription subscribe(KernelDataScope scope,String taskId,long afterSequence,Observer observer) {

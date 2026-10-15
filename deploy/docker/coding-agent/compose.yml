@@ -8,15 +8,13 @@ services:
       NODE_ENV: production
       RUNTIME_CODING_HOST: 0.0.0.0
       RUNTIME_CODING_PORT: "3100"
-      RUNTIME_CODING_CALLBACK_URL: http://host.docker.internal:8080
-      RUNTIME_CODING_ALLOWED_CALLBACK_HOSTS: host.docker.internal
+      RUNTIME_CODING_CALLBACK_URL: ${RUNTIME_CODING_CALLBACK_URL:?Set the Java Runtime callback URL}
+      RUNTIME_CODING_ALLOWED_CALLBACK_HOSTS: ${RUNTIME_CODING_ALLOWED_CALLBACK_HOSTS:?Set the Java Runtime callback host}
       RUNTIME_CODING_SHARED_SECRET_FILE: /run/secrets/coding_agent_shared_secret
     secrets:
       - coding_agent_shared_secret
     ports:
       - "127.0.0.1:8791:3100"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
       coding_internal:
         ipv4_address: 172.30.91.10

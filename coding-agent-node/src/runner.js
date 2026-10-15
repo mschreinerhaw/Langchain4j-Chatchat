@@ -175,8 +175,10 @@ export function createCodingRun(contract, gateway, options = {}) {
     events,
     async run() {
       const result = await agent.run(contract.objective?.instruction ?? 'Complete the authorized Coding task');
+      const failure = firstRuntimeError ?? (result.error == null ? null
+        : String(result.error?.message ?? result.error).slice(0, 512));
       return { status: result.status, text: result.outputText, iterations: result.iterations,
-        usage: result.usage, lastUsage, error: firstRuntimeError };
+        usage: result.usage, lastUsage, error: failure };
     },
     abort(reason = 'Runtime cancellation') {
       agent.abort(reason);

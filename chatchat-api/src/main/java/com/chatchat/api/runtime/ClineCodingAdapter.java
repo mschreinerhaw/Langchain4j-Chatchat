@@ -23,6 +23,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     private final CodingPythonExecutionBridge python;
     private final CodingInputSnapshotService inputs;
     private final CodingValidationPlanService plans;
+    private final CodingEvidenceCollector collector;
     private final ClineModelReceiptStore receipts;
     private final URI node;
     private final String secret;
@@ -32,9 +33,10 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
 
     public ClineCodingAdapter(DurableCodingTaskService tasks, CodingPythonExecutionBridge python,
             CodingInputSnapshotService inputs, CodingValidationPlanService plans,
-            ClineModelReceiptStore receipts, URI node, String secret, ObjectMapper mapper) {
+            CodingEvidenceCollector collector, ClineModelReceiptStore receipts,
+            URI node, String secret, ObjectMapper mapper) {
         this.tasks = tasks; this.python = python; this.inputs = inputs; this.plans = plans;
-        this.receipts = receipts;
+        this.collector = collector; this.receipts = receipts;
         this.node = node; this.secret = secret; this.mapper = mapper;
         if (node == null || !"http".equals(node.getScheme()) || node.getHost() == null
                 || !List.of("localhost", "127.0.0.1").contains(node.getHost()) || node.getUserInfo() != null)
@@ -136,6 +138,13 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
                 && tasks.unresolvedOperations(scope, taskId).isEmpty())
             return tasks.finishStoppedAfterReconciliation(scope, taskId, lease, current.revision());
         if (workerId.equals(lease.owner()) && current.executionControl().stopReason() == null
+                && tasks.unresolvedOperations(scope, taskId).isEmpty()
+                && (sessionMissing || remote != null
+                    && List.of("FAILED", "CANCELLED").contains(remote.path("status").asText()))) {
+            CodingTaskOutcome archived = completeVerifiedPython(scope, taskId, lease);
+            if (archived != null) return archived;
+        }
+        if (workerId.equals(lease.owner()) && current.executionControl().stopReason() == null
                 && !tasks.hasStartedOperations(scope, taskId)
                 && (sessionMissing || remote != null && remote.path("fencingToken").asLong() < lease.fencingToken()
                     && List.of("COMPLETED", "FAILED", "CANCELLED").contains(remote.path("status").asText()))) {
@@ -144,6 +153,41 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
                 "fencingToken", lease.fencingToken()));
         }
         return tasks.get(scope, taskId);
+    }
+
+    /** A lost SDK session cannot replay code, but a verified completed operation is sufficient evidence. */
+    private CodingTaskOutcome completeVerifiedPython(KernelDataScope scope, String taskId,
+            CodingJournal.Lease lease) {
+        CodingTaskContract contract = tasks.contract(scope, taskId);
+        List<String> operations = tasks.startedCodeOperations(scope, taskId);
+        if (operations.isEmpty()) return null;
+        String operationId = operations.get(operations.size() - 1);
+        if (tasks.verifiedOperation(scope, taskId, operationId).isEmpty()) return null;
+        var operation = python.get(scope, taskId, operationId);
+        if (!operation.executorStopped() || !"SUCCEEDED".equals(operation.status())
+                || operation.manifestHash() == null) return null;
+        var input = inputs.requireAuthorized(contract);
+        var collected = collector.collect(scope, contract, operationId, "main.py",
+            contract.outputContract().requiredFiles().get(0),
+            List.of(new CodingEvidenceCollector.InputFile(
+                input.fileId(), input.fileName(), input.sha256())), plans.validator(contract));
+        CodingTaskOutcome current = tasks.get(scope, taskId);
+        Instant at = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+        if (at.isBefore(current.updatedAt())) at = current.updatedAt();
+        var proposal = new CodingTaskOutcome(current.schemaVersion(), current.taskId(),
+            current.scope(), current.contractSha256(), CodingTaskOutcome.Status.COMPLETED,
+            current.revision() + 1, current.lastEventSequence() + 1, current.createdAt(), at,
+            current.startedAt(), at, false, null,
+            "Verified Coding execution recovered after worker session loss",
+            current.limitations(), collected.inputSnapshotRef(), collected.codeArtifactRef(),
+            collected.executionReceiptRef(), collected.resultDatasetRef(),
+            collected.validationRecordRef(), collected.evidenceBundleRef(),
+            collected.businessValidationPassed() ? CodingTaskOutcome.ValidationStatus.PASSED
+                : CodingTaskOutcome.ValidationStatus.FAILED,
+            current.reproducibility(), current.usage(),
+            new CodingTaskOutcome.ExecutionControl(null, null, true, false),
+            current.parentTaskId(), current.supersedesTaskId(), Map.of());
+        return tasks.commitOutcome(scope, taskId, lease, current.revision(), proposal);
     }
 
     private void reconcileModel(KernelDataScope scope, String taskId, CodingJournal.Lease lease,

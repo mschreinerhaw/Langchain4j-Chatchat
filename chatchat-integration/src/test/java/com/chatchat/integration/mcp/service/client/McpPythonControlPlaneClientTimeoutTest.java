@@ -20,6 +20,31 @@ import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.*;
 
 class McpPythonControlPlaneClientTimeoutTest {
+    @Test void emptyArchivedArtifactIsARealZeroByteResult() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/api/v1/admin/auth/login", exchange -> {
+            exchange.getRequestBody().readAllBytes();
+            respond(exchange, "{\"code\":200,\"data\":{\"token\":\"internal-token\"}}");
+        });
+        server.createContext("/api/v1/python/runtime/operations/op/artifacts/logs/stderr.txt", exchange -> {
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
+        server.start();
+        try {
+            McpCenterProperties properties = new McpCenterProperties();
+            properties.setBaseUrl("http://127.0.0.1:" + server.getAddress().getPort());
+            InternalCredentialProperties credentials = mock(InternalCredentialProperties.class);
+            when(credentials.resolvedUsername()).thenReturn("internal");
+            when(credentials.resolvedSecret()).thenReturn("0123456789abcdef0123456789abcdef");
+            when(credentials.resolveSecret(nullable(String.class), nullable(String.class))).thenReturn("");
+            var client = new McpPythonControlPlaneClient(properties, credentials,
+                    new ObjectMapper().findAndRegisterModules());
+            assertArrayEquals(new byte[0], client.artifact("tenant", "owner", "run", "task",
+                    "op", "logs", "stderr.txt"));
+        } finally { server.stop(0); }
+    }
+
     @Test void lostStartResponseCanBeQueriedWithoutAnotherStart() throws Exception {
         AtomicInteger accepted = new AtomicInteger();
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);

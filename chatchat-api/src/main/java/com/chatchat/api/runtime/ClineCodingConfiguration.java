@@ -19,10 +19,11 @@ public class ClineCodingConfiguration {
     @Primary
     CodingAgentSPI clineCodingAgent(DurableCodingTaskService tasks, CodingPythonExecutionBridge python,
             CodingInputSnapshotService inputs, CodingValidationPlanService plans,
+            CodingEvidenceCollector collector,
             ClineModelReceiptStore receipts, ObjectMapper mapper,
             @Value("${chatchat.coding.cline.node-url:http://127.0.0.1:8791}") String nodeUrl,
             @Value("${chatchat.coding.cline.shared-secret:}") String secret) {
-        return new ClineCodingAdapter(tasks, python, inputs, plans, receipts,
+        return new ClineCodingAdapter(tasks, python, inputs, plans, collector, receipts,
             URI.create(nodeUrl), secret, mapper);
     }
 }

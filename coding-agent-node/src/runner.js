@@ -48,7 +48,7 @@ export function createCodingRun(contract, gateway, options = {}) {
   const tools = [];
   if (permitted.has('python_execute')) tools.push({
     name: 'python_execute',
-    description: `Run main.py in a NEW isolated Python sandbox for EACH call. Only the immutable input /data/input/${contract.authorization.allowedDataRefs[0]}/input.jsonl is mounted; previous calls' output files do not exist here. Each program must perform the calculation and write structured JSONL to /workspace/output/results/${contract.outputContract?.requiredFiles?.[0] ?? 'rows.jsonl'}. Inspect the returned Runtime receipt; repair technical errors with a complete new program. Never claim business validation yourself.`,
+    description: `Run main.py in a NEW isolated Python sandbox for EACH call. Only the immutable JSONL input /data/input/${contract.authorization.allowedDataRefs[0]}/input.jsonl is mounted; previous calls' output files do not exist here. To produce an analysis result, perform the calculation and write structured JSONL to /workspace/output/results/${contract.outputContract?.requiredFiles?.[0] ?? 'rows.jsonl'}. A diagnostic program without that file may succeed as a process, but produces no analysis result. Inspect the returned Runtime receipt; repair technical errors with a complete new program. Never claim business validation yourself.`,
     inputSchema: { type: 'object', properties: {
       fileName: { type: 'string', enum: ['main.py'] }, source: { type: 'string' },
     }, required: ['fileName', 'source'], additionalProperties: false },
@@ -128,6 +128,7 @@ export function createCodingRun(contract, gateway, options = {}) {
     'Generate Python when useful, inspect execution receipts, fix technical errors, and report verification limits.',
     'When validationStatus is FAILED, inspect and repair the output schema. INCONCLUSIVE structural validation does not certify business correctness.',
     'Each Python call starts a fresh sandbox with the original immutable input, without earlier output files or Python variables. Do not launch a new call just to open a previous output file.',
+    'REQUIRED_OUTPUT_MISSING means a successful process did not write the contracted result, not an authentication failure. Use the supplied input descriptor and write the complete result in a fresh program. Raw stdout is not returned; printing a result alone does not create an analysis dataset.',
     'A SUCCEEDED receipt with resultDatasetRef, validationRecordRef and evidenceBundleRef means Runtime archived the result. INCONCLUSIVE with businessValidationPassed=false means business correctness was not evaluated, not an execution failure. You may finish with that limitation; the main analysis can read the registered result.',
     `Task objective: ${contract.objective?.instruction ?? ''}`,
     `Input snapshot: ${contract.inputSnapshotRef}`,

@@ -76,7 +76,7 @@ class ClinePythonCallbackControllerTest {
     }
     @Test void changedTaskBindingCannotReadPythonOrCollectEvidence(){
         var body=body();body.put("contractHash","different");
-        assertThatThrownBy(()->controller.get(json.valueToTree(body()))).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(()->controller.get(json.valueToTree(body))).isInstanceOf(ResponseStatusException.class);
         verifyNoInteractions(python,collector);
     }
 }

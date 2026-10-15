@@ -7,6 +7,15 @@ import java.util.concurrent.atomic.*;
 import static org.assertj.core.api.Assertions.*;
 
 class SearchQueryOptimizerTest {
+    @Test void independentUnitFailureReportsTheActualConfiguredLimitWithoutRelaxingIt() {
+        var budget=new QueryOptimizationBudget();budget.setMaxBatches(3);
+        try(var optimizer=new SearchQueryOptimizer(budget,null)) {
+            optimizer.checkIndependentCount(3);
+            assertThatThrownBy(()->optimizer.checkIndependentCount(4))
+                .isInstanceOfSatisfying(QueryOptimizationException.class,error->
+                    assertThat(error.diagnostic()).containsEntry("requestedBatches",4).containsEntry("maximumBatches",3));
+        }
+    }
     @Test void existingToolEnvelopesCanPersistTransformationEvidenceWithoutDuplicatingRawInputs() {
         try (var optimizer = new SearchQueryOptimizer()) {
             var result = optimizer.withAudit(() -> {

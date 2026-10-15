@@ -14,6 +14,19 @@ import static org.mockito.Mockito.when;
 
 class AgentPlannerPromptBudgetTest {
 
+    @Test void codingIsAdvertisedAsLaterAnalysisWithoutAddingAcquisitionAuthority() {
+        var builder=new AgentPlannerPromptBuilder(mock(ToolRegistry.class),new ObjectMapper(),Clock.systemUTC());
+        var attributes=Map.<String,Object>of("analysisCodingAvailable",true,"authoritativeWorkflowDag",
+            List.of(Map.of("id","read","tool","authorized_read")));
+        String prompt=builder.build("Compute after acquisition","Role context ".repeat(1000),List.of("authorized_read"),List.of(),List.of(),List.of(),
+            List.of("authorized_read"),true,false,null,null,attributes);
+        assertThat(prompt).contains("later analysis loop decides", "unavailable as an MCP acquisition tool",
+            "source data/capability", "step read: tool=authorized_read");
+        String disabled=builder.build("Compute",null,List.of("authorized_read"),List.of(),List.of(),List.of(),
+            List.of(),false,false,null,null,Map.of());
+        assertThat(disabled).doesNotContain("Runtime analysis capability:");
+    }
+
     @Test void compactWorkflowPreservesAuthorizedPublisherContracts() {
         ToolRegistry registry = mock(ToolRegistry.class);
         var metadata = com.chatchat.common.tool.ToolMetadata.builder().description("short label").metadata(Map.of(

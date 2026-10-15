@@ -104,11 +104,21 @@ public final class ClinePythonCallbackController {
             }
             if ("SUCCEEDED".equals(result.status()) && result.executorStopped()) {
                 var input = inputs.requireAuthorized(call.contract());
-                var collected = collector.collect(call.scope(), call.contract(), operationId, CODE_FILE,
+                CodingEvidenceCollector.Collected collected;
+                try { collected = collector.collect(call.scope(), call.contract(), operationId, CODE_FILE,
                     call.contract().outputContract().requiredFiles().get(0),
                     java.util.List.of(new CodingEvidenceCollector.InputFile(
                         input.fileId(), input.fileName(), input.sha256())),
                     plans.validator(call.contract()));
+                } catch (CodingEvidenceCollector.RequiredOutputMissingException missing) {
+                    response.put("outputStatus","REQUIRED_OUTPUT_MISSING");
+                    response.put("requiredOutput",missing.requiredFile());
+                    response.put("resultAvailable",false);
+                    response.put("diagnostic","The process succeeded but no contracted result was archived. "
+                        +"Use the input descriptor; read JSONL as one JSON object per line. "
+                        +"Each call starts a fresh sandbox: write the required JSONL file under /workspace/output/results/ in the same program.");
+                    return response;
+                }
                 response.put("inputSnapshotRef", collected.inputSnapshotRef());
                 response.put("codeArtifactRef", collected.codeArtifactRef());
                 response.put("executionReceiptRef", collected.executionReceiptRef());
@@ -116,6 +126,7 @@ public final class ClinePythonCallbackController {
                 response.put("validationRecordRef", collected.validationRecordRef());
                 response.put("evidenceBundleRef", collected.evidenceBundleRef());
                 response.put("businessValidationPassed", collected.businessValidationPassed());
+                response.put("validationStatus", collected.validationStatus().name());
             }
             return response;
         });

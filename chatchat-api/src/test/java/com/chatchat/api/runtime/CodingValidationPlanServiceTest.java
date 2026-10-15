@@ -43,7 +43,8 @@ class CodingValidationPlanServiceTest {
             .thenAnswer(call -> content[0]);
         var access = new CodingInvocationContext();
         var snapshots = new CodingInputSnapshotService(evidence, python, access, mapper);
-        var plans = new CodingValidationPlanService(evidence, python, snapshots, access, mapper);
+        var plans = new CodingValidationPlanService(evidence, snapshots, access, mapper,
+            List.of(new FixtureDecimalCodingVerifier(python, mapper), new CodingSchemaResultVerifier()));
         var scope = new KernelDataScope("tenant", "owner", null, null, "run", null, Map.of());
         var delivered = new Dataset("template#call", Map.of(), List.of(
             Map.of("tradeId", "t1", "amount", "0.10"),
@@ -53,16 +54,29 @@ class CodingValidationPlanServiceTest {
                 "workspace:1", 10, 4096));
         var plan = access.as(scope, EnumSet.of(CodingTaskAccess.Action.SUBMIT), () ->
             plans.register(scope, "task", input,
-                new CodingValidationPlanService.Plan("amount", "total", "tradeId", false)));
+                FixtureDecimalCodingVerifier.plan("amount", "total", "tradeId", false)));
         var contract = contract(scope, input, plan);
         var validator = access.as(scope, EnumSet.of(CodingTaskAccess.Action.READ), () ->
             plans.validator(contract));
         assertThat(validator.validate(List.of(Map.of("total", "0.30"))).passed()).isTrue();
         assertThat(validator.validate(List.of(Map.of("total", "0.30000000000000004"))).passed()).isFalse();
         assertThat(validator.validate(List.of()).passed()).isFalse();
+        var structural = access.as(scope, EnumSet.of(CodingTaskAccess.Action.SUBMIT), () ->
+            plans.register(scope, "task", input, new CodingValidationPlanService.Plan("runtime-result-schema", "v1",
+                Map.of("rowSchema", Map.of("type", "object", "properties", Map.of("label", Map.of("type", "string")),
+                    "required", List.of("label"), "additionalProperties", false)))));
+        var shapeCheck = access.as(scope, EnumSet.of(CodingTaskAccess.Action.READ), () -> plans.validator(contract(scope,input,structural)));
+        var checked = shapeCheck.validate(List.of(Map.of("label", "an arbitrary model conclusion")));
+        assertThat(checked.passed()).isTrue();
+        assertThat(checked.businessEvaluated()).isFalse();
+        assertThat(checked.status()).isEqualTo(CodingTaskOutcome.ValidationStatus.INCONCLUSIVE);
+        assertThat(shapeCheck.validate(List.of(Map.of("label", 12))).status()).isEqualTo(CodingTaskOutcome.ValidationStatus.FAILED);
+        assertThatThrownBy(() -> access.as(scope, EnumSet.of(CodingTaskAccess.Action.SUBMIT), () ->
+            plans.register(scope,"task",input,new CodingValidationPlanService.Plan("untrusted-model-verifier","v1",Map.of()))))
+            .isInstanceOf(SecurityException.class);
         assertThatThrownBy(() -> access.as(scope, EnumSet.of(CodingTaskAccess.Action.SUBMIT), () ->
             plans.register(scope, "another-task", input,
-                new CodingValidationPlanService.Plan("amount", "total", null, false))))
+                FixtureDecimalCodingVerifier.plan("amount", "total", null, false))))
             .isInstanceOf(SecurityException.class);
         content[0] = "{\"tradeId\":\"t1\",\"amount\":\"9\"}\n".getBytes();
         assertThatThrownBy(() -> validator.validate(List.of(Map.of("total", "9"))))

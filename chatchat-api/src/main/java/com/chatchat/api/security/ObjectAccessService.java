@@ -53,12 +53,20 @@ public class ObjectAccessService {
         var row = rows.get(0);
         requireOwner(request, text(row, "tenant_id"), text(row, "user_id"), true);
     }
-    public void requireTaskSubmission(HttpServletRequest request, String resumeId, String idempotencyKey) {
-        if (resumeId != null && !resumeId.isBlank()) requireTask(request, resumeId);
-        if (idempotencyKey == null || idempotencyKey.isBlank()) return;
-        for (var row : jdbc.queryForList("select tenant_id, user_id from agent_task_latest where tenant_id = ? and idempotency_key = ?",
-            tenant(request), idempotencyKey.trim()))
+    public Optional<String> requireTaskSubmission(HttpServletRequest request, String resumeId, String idempotencyKey) {
+        Optional<String> session = Optional.empty();
+        if (resumeId != null && !resumeId.isBlank()) {
+            requireTask(request, resumeId);
+            var sessions=jdbc.queryForList("select session_id from agent_task_latest where task_id = ?",resumeId);
+            if(!sessions.isEmpty())session=Optional.ofNullable(text(sessions.get(0),"session_id"));
+        }
+        if (idempotencyKey == null || idempotencyKey.isBlank()) return session;
+        for (var row : jdbc.queryForList("select tenant_id, user_id, session_id from agent_task_latest where tenant_id = ? and idempotency_key = ?",
+            tenant(request), idempotencyKey.trim())) {
             requireOwner(request, text(row, "tenant_id"), text(row, "user_id"), false);
+            if(session.isEmpty())session=Optional.ofNullable(text(row,"session_id"));
+        }
+        return session;
     }
     public void requireTodo(HttpServletRequest request, String id) {
         var rows = jdbc.queryForList("select tenant_id, user_id from todo_task where id = ?", id);

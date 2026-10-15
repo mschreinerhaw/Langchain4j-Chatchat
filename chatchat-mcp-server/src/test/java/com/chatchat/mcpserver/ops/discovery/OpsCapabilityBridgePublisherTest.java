@@ -18,6 +18,18 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 class OpsCapabilityBridgePublisherTest {
+    @Test void discoveryGuidanceUsesTheActualQueryExecutionBudget() {
+        var publisher=publisher(mock(CommandTemplateDiscoveryService.class));
+        var budget=new com.chatchat.common.retrieval.query.QueryOptimizationBudget();budget.setMaxBatches(7);
+        try(var optimizer=new com.chatchat.common.retrieval.query.SearchQueryOptimizer(budget,null)) {
+            publisher.configureQueryBudget(optimizer);
+            for(var publication:publisher.contribute()) {
+                var metadata=publication.specification().tool().meta();
+                assertThat(String.valueOf(metadata.get("modelInputBridgeContract")))
+                    .contains("maximumBatches=7", "every keyword/alias channel");
+            }
+        }
+    }
 
     @Test
     void publishedFilterVocabularyMatchesProviderAdmissionForEveryDomain() {

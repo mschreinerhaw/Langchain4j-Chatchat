@@ -104,6 +104,40 @@ test('container callback host requires an explicit allowlist', () => {
   server.close();
 });
 
+test('session capacity rejects new tasks while retaining active and duplicate identities', async () => {
+  let release;
+  const server = createCodingServer({ secret, callbackUrl: 'http://127.0.0.1:8080', maxSessions: 1,
+    sessionRetentionMs: 0,
+    modelFactory: () => ({ async *stream() {
+      await new Promise(resolve => { release = resolve; });
+      yield { type: 'text-delta', text: 'done' }; yield { type: 'finish', reason: 'stop' };
+    } }),
+    gatewayFactory: () => ({ executePython: async () => {}, reserveModel: async () => {}, settleModel: async () => {}, finish: async () => {} }),
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const post = (path, body) => fetch(`http://127.0.0.1:${server.address().port}${path}`, {
+    method: 'POST', headers: { authorization: `Bearer ${secret}`, 'content-type': 'application/json' }, body: JSON.stringify(body),
+  });
+  const first = { contract, contractHash: 'a'.repeat(64), fencingToken: 1 };
+  const second = { ...first, contract: { ...contract, taskId: 'second-task' } };
+  try {
+    assert.equal((await post('/v1/runs', first)).status, 202);
+    for (let i = 0; i < 100 && !release; i++) await new Promise(resolve => setTimeout(resolve, 10));
+    assert.equal((await post('/v1/runs', second)).status, 503);
+    assert.equal((await post('/v1/runs', first)).status, 202);
+    release();
+    for (let i = 0; i < 100; i++) {
+      const view = await (await post('/v1/runs/get', { ...contract, contractHash: first.contractHash, fencingToken: 1 })).json();
+      if (view.status !== 'RUNNING') break;
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    assert.equal((await post('/v1/runs', second)).status, 202);
+  } finally {
+    release?.();
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
 test('new fencing token cannot start a second loop while the old loop is active', async () => {
   let release;
   const server = createCodingServer({ secret, callbackUrl: 'http://127.0.0.1:8080',

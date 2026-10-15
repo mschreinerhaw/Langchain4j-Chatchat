@@ -6,6 +6,7 @@ import com.chatchat.chat.task.event.AgentEvent;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.http.MediaType;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -62,9 +63,9 @@ public class AgentTaskEventStreamService {
                     if (event.getSequence() != null) cursor = Math.max(cursor, event.getSequence());
                 }
                 AgentTaskResponse current = taskService.get(tenantId, taskId).orElseThrow();
-                AgentEvent terminal = events.stream().filter(this::terminalEvent)
-                    .reduce((previous, value) -> value).orElse(null);
-                if (terminal != null || terminalStatus(current.status())) {
+                // Step observations may be SUCCESS while the task is still running. A terminal
+                // task can also have more than one page of history: drain its authoritative cursor.
+                if (terminalStatus(current.status()) && cursor >= current.lastEventSequence()) {
                     send(emitter, "done", Map.of(
                         "taskId", taskId,
                         "status", current.status() == null ? "" : current.status(),
@@ -72,6 +73,7 @@ public class AgentTaskEventStreamService {
                     emitter.complete();
                     return;
                 }
+                if (!events.isEmpty() && cursor < current.lastEventSequence()) continue;
                 long now = System.currentTimeMillis();
                 if (events.isEmpty() && now >= nextHeartbeat) {
                     send(emitter, "heartbeat", Map.of(
@@ -95,14 +97,6 @@ public class AgentTaskEventStreamService {
                 emitter.completeWithError(ex);
             }
         }
-    }
-
-    private boolean terminalEvent(AgentEvent event) {
-        if (event == null) return false;
-        String type = normalized(event.getType());
-        return "ANSWER".equals(type) || "RESULT".equals(type) || "ERROR".equals(type)
-            || "NEEDS_CONFIRMATION".equals(type) || "COMPLETE".equals(type)
-            || terminalStatus(event.getStatus());
     }
 
     private boolean terminalStatus(String status) {
@@ -133,11 +127,11 @@ public class AgentTaskEventStreamService {
     }
 
     private void send(SseEmitter emitter, String name, Object data) throws IOException {
-        emitter.send(SseEmitter.event().name(name).data(data));
+        emitter.send(SseEmitter.event().name(name).data(data, MediaType.APPLICATION_JSON));
     }
 
     private void sendEvent(SseEmitter emitter, AgentEvent event) throws IOException {
-        SseEmitter.SseEventBuilder builder = SseEmitter.event().name("event").data(event);
+        SseEmitter.SseEventBuilder builder = SseEmitter.event().name("event").data(event, MediaType.APPLICATION_JSON);
         if (event.getSequence() != null) builder.id(String.valueOf(event.getSequence()));
         emitter.send(builder);
     }

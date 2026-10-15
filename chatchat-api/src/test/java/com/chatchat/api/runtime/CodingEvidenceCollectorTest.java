@@ -139,10 +139,24 @@ class CodingEvidenceCollectorTest {
         verify(python, never()).start(any());
     }
 
+    @Test void verifiedArchiveWithoutRequiredOutputHasADistinctNonCommittingOutcome() throws Exception {
+        fixture("", "EMPTY", false);
+        assertThatThrownBy(()->collector(store).collect(scope,contract,"op","main.py","rows.jsonl",
+            List.of(new CodingEvidenceCollector.InputFile("prices","prices.csv",sha("amount\n12.50\n"))),
+            rows->new CodingEvidenceCollector.Validation(true,Map.of())))
+            .isInstanceOf(CodingEvidenceCollector.RequiredOutputMissingException.class);
+        assertThat(new JdbcTemplate(dataSource).queryForObject(
+            "select count(*) from runtime_evidence_entry where entry_kind='EVIDENCE'",Integer.class)).isZero();
+        verify(python,never()).start(any());
+    }
+
     CodingEvidenceCollector collector(JdbcRuntimeEvidenceStore database) {
         return new CodingEvidenceCollector(database, database, tasks, python, json);
     }
     void fixture(String result, String completeness) throws Exception {
+        fixture(result,completeness,true);
+    }
+    void fixture(String result, String completeness, boolean publishResult) throws Exception {
         String code = "print('fixed')\n", input = "amount\n12.50\n";
         String receipt = json.writeValueAsString(Map.of("operationId", "op", "stopConfirmed", true,
             "fencingToken", 1, "startedAt", "2026-10-15T01:00:00Z", "containerName", "container",
@@ -158,7 +172,7 @@ class CodingEvidenceCollectorTest {
         receiptEntry.put("size", receipt.getBytes(StandardCharsets.UTF_8).length);
         receiptEntry.put("sha256", sha(receipt)); receiptEntry.put("rows", -1);
         receiptEntry.put("completeness", "UNVERIFIED"); receiptEntry.put("schemaJson", null);
-        String manifest = json.writeValueAsString(Map.of("artifacts", List.of(resultEntry, receiptEntry),
+        String manifest = json.writeValueAsString(Map.of("artifacts", publishResult?List.of(resultEntry, receiptEntry):List.of(receiptEntry),
             "resultCompleteness", completeness));
         when(python.get("tenant", "owner", "run", "task", "op"))
             .thenReturn(new McpPythonControlPlanePort.OperationView("op", "SUCCEEDED", "container", 1,

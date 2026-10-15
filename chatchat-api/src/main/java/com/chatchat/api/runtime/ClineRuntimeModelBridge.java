@@ -24,6 +24,9 @@ public final class ClineRuntimeModelBridge {
     private final ModelResourceRegistry resources;
     private final ConfigurableChatModelFactory models;
     private final ObjectMapper json;
+    private CodingParentModels parentModels;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setParentModels(CodingParentModels models) { this.parentModels = models; }
 
     public ClineRuntimeModelBridge(ModelResourceRegistry resources, ConfigurableChatModelFactory models, ObjectMapper json) {
         this.resources = resources; this.models = models; this.json = json;
@@ -84,8 +87,12 @@ public final class ClineRuntimeModelBridge {
             spec.set("parameters", tool.path("inputSchema"));
             tools.add(ToolSpecification.fromJson(spec.toString()));
         }
-        ChatResponse answer = models.create(modelName, Duration.ofSeconds(90), 2048)
-            .chat(ChatRequest.builder().messages(messages).toolSpecifications(tools).build());
+        var parent = parentModels == null ? null : parentModels.find(contract.scope(), contract.taskId());
+        if (parent == null && contract.metadataRefs().contains(CodingParentModels.REQUIRED_REF))
+            throw new IllegalStateException("Parent metered model binding is unavailable; reconcile before dispatch");
+        ChatResponse answer = (parent == null ? models.create(modelName, Duration.ofSeconds(90), 2048) : parent)
+            .chat(ChatRequest.builder().messages(messages).toolSpecifications(tools)
+                .parameters(dev.langchain4j.model.chat.request.DefaultChatRequestParameters.builder().maxOutputTokens(2048).build()).build());
         if (answer == null || answer.aiMessage() == null) throw new IllegalStateException("Model returned no assistant message");
         List<Map<String, Object>> toolCalls = new ArrayList<>();
         for (ToolExecutionRequest call : answer.aiMessage().toolExecutionRequests()) {

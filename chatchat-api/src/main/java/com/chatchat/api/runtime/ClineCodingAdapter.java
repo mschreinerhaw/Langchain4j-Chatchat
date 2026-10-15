@@ -182,8 +182,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             current.limitations(), collected.inputSnapshotRef(), collected.codeArtifactRef(),
             collected.executionReceiptRef(), collected.resultDatasetRef(),
             collected.validationRecordRef(), collected.evidenceBundleRef(),
-            collected.businessValidationPassed() ? CodingTaskOutcome.ValidationStatus.PASSED
-                : CodingTaskOutcome.ValidationStatus.FAILED,
+            collected.validationStatus(),
             current.reproducibility(), current.usage(),
             new CodingTaskOutcome.ExecutionControl(null, null, true, false),
             current.parentTaskId(), current.supersedesTaskId(), Map.of());

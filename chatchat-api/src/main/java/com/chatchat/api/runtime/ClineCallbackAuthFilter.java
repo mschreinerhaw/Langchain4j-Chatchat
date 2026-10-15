@@ -42,7 +42,11 @@ public final class ClineCallbackAuthFilter extends OncePerRequestFilter {
     @Autowired
     public ClineCallbackAuthFilter(@Value("${chatchat.coding.cline.shared-secret:}") String secret,
             @Value("${chatchat.coding.cline.allowed-peer-addresses:127.0.0.1,::1,0:0:0:0:0:0:0:1}")
-            String allowedPeerAddresses) {
+            String allowedPeerAddresses, @Value("${chatchat.coding.cline.shared-secret-file:}") String secretFile) {
+        this(CodingSecrets.resolve(secret,secretFile),allowedPeerAddresses);
+    }
+
+    ClineCallbackAuthFilter(String secret, String allowedPeerAddresses) {
         if (secret == null || secret.length() < 32)
             throw new IllegalArgumentException("Cline callback secret must contain at least 32 characters");
         this.allowedPeers = Arrays.stream(allowedPeerAddresses.split(","))

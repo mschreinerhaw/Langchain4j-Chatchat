@@ -22,8 +22,9 @@ public class ClineCodingConfiguration {
             CodingEvidenceCollector collector,
             ClineModelReceiptStore receipts, ObjectMapper mapper,
             @Value("${chatchat.coding.cline.node-url:http://127.0.0.1:8791}") String nodeUrl,
-            @Value("${chatchat.coding.cline.shared-secret:}") String secret) {
+            @Value("${chatchat.coding.cline.shared-secret:}") String secret,
+            @Value("${chatchat.coding.cline.shared-secret-file:}") String secretFile) {
         return new ClineCodingAdapter(tasks, python, inputs, plans, collector, receipts,
-            URI.create(nodeUrl), secret, mapper);
+            URI.create(nodeUrl), CodingSecrets.resolve(secret,secretFile), mapper);
     }
 }

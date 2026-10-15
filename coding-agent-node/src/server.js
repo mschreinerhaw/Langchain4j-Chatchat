@@ -81,7 +81,10 @@ export function httpGateway(callbackUrl, secret, binding) {
 
 /** Node owns only transient SDK state; Runtime's A2 snapshot remains authoritative. */
 export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayFactory = httpGateway,
-  allowedCallbackHosts = ['127.0.0.1', 'localhost'] }) {
+  allowedCallbackHosts = ['127.0.0.1', 'localhost'], maxSessions = 256, sessionRetentionMs = 900000 }) {
+  if (!Number.isSafeInteger(maxSessions) || maxSessions < 1 || maxSessions > 4096
+      || !Number.isSafeInteger(sessionRetentionMs) || sessionRetentionMs < 0)
+    throw new Error('Invalid Coding session resource limits');
   if (typeof secret !== 'string' || secret.length < 32) throw new Error('A 32-character shared secret is required');
   let endpoint;
   try { endpoint = new URL(callbackUrl); }
@@ -105,6 +108,9 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
         if (!value.contract || typeof value.contractHash !== 'string' || !Number.isSafeInteger(value.fencingToken)
             || value.fencingToken < 1) return response(reply, 400, { message: 'Invalid Runtime task binding' });
         const key = taskKey(value.contract);
+        const cutoff = Date.now() - sessionRetentionMs;
+        for (const [identity, session] of runs)
+          if (identity !== key && session.state !== 'RUNNING' && session.finishedAt <= cutoff) runs.delete(identity);
         const old = runs.get(key);
         if (old) {
           if (old.contractHash !== value.contractHash || value.fencingToken < old.fencingToken)
@@ -115,6 +121,8 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
             return response(reply, 409, { message: 'Previous fenced session is stopping; reconcile before dispatch' });
           }
         }
+        if (!old && runs.size >= maxSessions)
+          return response(reply, 503, { code: 'CAPACITY_UNAVAILABLE', message: 'Coding worker session capacity reached' });
         const run = { contractHash: value.contractHash, fencingToken: value.fencingToken,
           contract: value.contract, state: 'RUNNING', result: null, error: null, session: null };
         const binding = { scope: value.contract.scope, taskId: value.contract.taskId,
@@ -126,11 +134,12 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
               modelTokenReservation: value.modelTokenReservation });
         runs.set(key, run);
         void run.session.run().then(result => {
+          run.finishedAt = Date.now();
           run.result = result;
           run.error = result.error ?? null;
           run.state = result.status === 'completed' ? 'COMPLETED'
             : result.status === 'aborted' ? 'CANCELLED' : 'FAILED';
-        }).catch(error => { run.error = String(error?.message ?? error).slice(0, 512); run.state = 'FAILED'; });
+        }).catch(error => { run.finishedAt = Date.now(); run.error = String(error?.message ?? error).slice(0, 512); run.state = 'FAILED'; });
         return response(reply, 202, view(run));
       }
       if (request.method === 'POST' && url.pathname === '/v1/runs/get') {

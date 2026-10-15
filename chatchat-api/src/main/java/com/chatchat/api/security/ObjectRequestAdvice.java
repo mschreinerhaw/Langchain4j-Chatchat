@@ -59,7 +59,12 @@ public class ObjectRequestAdvice extends RequestBodyAdviceAdapter {
             interaction.setTenantId(access.tenant(request)); interaction.setUserId(access.user(request));
         } else {
             var task = (AgentTaskSubmitRequest) body;
-            access.requireTaskSubmission(request, task.getResumeTaskId(), task.getIdempotencyKey());
+            var acceptedSession=access.requireTaskSubmission(request, task.getResumeTaskId(), task.getIdempotencyKey());
+            if (session==null || session.isBlank()) {
+                session=acceptedSession.orElse(null);
+                if ((session==null || session.isBlank()) && task.getIdempotencyKey()!=null && !task.getIdempotencyKey().isBlank())
+                    session=com.chatchat.chat.task.core.AgentTaskIds.sessionId(access.tenant(request),task.getIdempotencyKey());
+            }
             ((AgentTaskSubmitRequest) body).setTenantId(access.tenant(request));
             ((AgentTaskSubmitRequest) body).setUserId(access.user(request));
         }

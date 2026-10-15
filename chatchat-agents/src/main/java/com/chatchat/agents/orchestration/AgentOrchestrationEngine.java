@@ -267,6 +267,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         this.executionCheckpoints = port;
     }
     private AnalysisEvidenceSpillStore analysisEvidenceSpillStore = AnalysisEvidenceSpillStore.disabled();
+    private com.chatchat.agents.orchestration.analysis.graph.AnalysisCodingPort analysisCodingPort;
+    @Autowired(required = false)
+    public void setAnalysisCodingPort(com.chatchat.agents.orchestration.analysis.graph.AnalysisCodingPort port) {
+        this.analysisCodingPort = port;
+        this.analysisCoverageCoordinator.setCodingPort(port);
+    }
     public AgentOrchestrationEngine(ChatModel chatModel,
                              ToolRegistry toolRegistry,
                              ToolRuntimeService toolRuntimeService,
@@ -783,6 +789,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         Map<String, Object> requestRuntimeAttributes = new LinkedHashMap<>(
             runtimeGuard.attributesWithDeadline(deadlineSeed)
         );
+        requestRuntimeAttributes.remove("analysisCodingAvailable");
+        if (analysisCodingPort != null) requestRuntimeAttributes.put("analysisCodingAvailable", true);
         requestRuntimeAttributes.remove("authorizationAgentId");
         if (skillId != null && !skillId.isBlank()) requestRuntimeAttributes.put("authorizationAgentId", skillId);
         if (query != null && !query.isBlank()) {

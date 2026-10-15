@@ -4,7 +4,9 @@ set -euo pipefail
 test "$(id -u)" = 0 || { echo 'Run as root' >&2; exit 1; }
 nginx_bin=${NGINX_BIN:-/opt/bigdata/nginx/sbin/nginx}
 upstream_port=${CODING_JAVA_PORT:-8080}
+stage_port=${CODING_STAGE_JAVA_PORT:-18080}
 [[ "$upstream_port" =~ ^[0-9]+$ ]] && ((upstream_port > 0 && upstream_port < 65536))
+[[ "$stage_port" =~ ^[0-9]+$ ]] && ((stage_port > 0 && stage_port < 65536))
 test -x "$nginx_bin"
 command -v iptables >/dev/null
 gateway_home=/opt/runtime-coding-gateway
@@ -15,6 +17,11 @@ pid $gateway_home/nginx.pid;
 error_log $gateway_home/error.log warn;
 events { worker_connections 128; }
 http {
+    map \$remote_addr \$coding_upstream {
+        172.30.91.10 127.0.0.1:$upstream_port;
+        172.30.91.11 127.0.0.1:$stage_port;
+        default 127.0.0.1:$upstream_port;
+    }
     access_log off;
     client_body_temp_path $gateway_home/body;
     proxy_temp_path $gateway_home/proxy;
@@ -27,7 +34,7 @@ http {
         deny all;
         location ~ ^/internal/coding/cline/(reserve-model|model|settle-model|execute-python|get-python|cancel-python|read-metadata|read-artifact|event|finish)\$ {
             if (\$request_method != POST) { return 405; }
-            proxy_pass http://127.0.0.1:$upstream_port;
+            proxy_pass http://\$coding_upstream;
             proxy_http_version 1.1;
             proxy_set_header Connection "";
             proxy_connect_timeout 3s;

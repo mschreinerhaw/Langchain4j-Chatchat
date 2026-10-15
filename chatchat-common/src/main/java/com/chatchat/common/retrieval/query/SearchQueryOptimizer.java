@@ -58,7 +58,9 @@ public final class SearchQueryOptimizer implements AutoCloseable {
     }
     public void checkIndependentCount(int count) {
         if (count < 0 || count > budget.getMaxBatches())
-            throw new QueryOptimizationException("QUERY_BATCH_BUDGET_EXCEEDED", "Independent intent count exceeds the configured budget");
+            throw new QueryOptimizationException("QUERY_BATCH_BUDGET_EXCEEDED",
+                "Submit fewer independent query units; the execution limit is unchanged",
+                Map.of("requestedBatches", count, "maximumBatches", budget.getMaxBatches()));
     }
     public <T> T withinBudget(Callable<T> operation) {
         try (var scope = openScope()) { return await(operation, scope, Math.min(scope.remainingMillis(), budget.getRequestTimeoutMs())); }

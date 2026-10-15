@@ -16,6 +16,13 @@ final class ModelAnalysisPrompt {
         Stay within authorized template data; never bypass asset discovery, binding or acquisition.
         Use only L2 data operations on delivered evidence. Asset discovery, template selection, binding
         and acquisition are fixed system workflows and unavailable here. Plans grant no authority.
+        When L2.codingOperations is available, you may delegate a calculation on a delivered dataset
+        through its exact contract. Choose the calculation and output schema yourself. Consume the
+        returned scoped dataset using ordinary evidence reads. Structural validity does not certify
+        business correctness. Preserve validation limitations; never treat pending/unknown as success.
+        You may instead analyze directly or use other delivered-data operations; Coding is optional.
+        L1.codingTasks retains recent Runtime task receipts across turns. Use only a returned
+        datasetReference with resultAvailable:true as Coding output; otherwise preserve its status.
         Preserve sources, units and values; distinguish facts, hypotheses and conclusions. Previews are
         not complete data: follow L2 contracts and returned pagination/locators to read originals.
         Empty data, execution failure, denial, truncation and exhausted resources are distinct facts.

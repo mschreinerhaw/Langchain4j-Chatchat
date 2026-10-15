@@ -21,11 +21,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class ObjectAccessPolicyTest {
     JdbcTemplate jdbc; ObjectAccessService access; EnterpriseAdminService identities; MockMvc mvc;
+    WorkspaceOriginService origins;
     @BeforeEach void setup() {
         jdbc = new JdbcTemplate(new DriverManagerDataSource("jdbc:h2:mem:" + java.util.UUID.randomUUID() + ";DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE", "sa", ""));
         jdbc.execute("create table chat_session(session_id varchar primary key, tenant_id varchar, user_id varchar)");
         jdbc.execute("create table sys_user(id varchar primary key)");
-        jdbc.execute("create table agent_task_latest(task_id varchar primary key, tenant_id varchar, user_id varchar, idempotency_key varchar)");
+        jdbc.execute("create table agent_task_latest(task_id varchar primary key, tenant_id varchar, user_id varchar, idempotency_key varchar, session_id varchar)");
         jdbc.execute("create table ui_artifact(artifact_id varchar primary key, task_id varchar, tenant_id varchar)");
         for (String id : new String[]{"owned", "foreign", "other-tenant"}) {
             String tenant = id.equals("other-tenant") ? "t2" : "t1";
@@ -36,9 +37,11 @@ class ObjectAccessPolicyTest {
         }
         identities = mock(EnterpriseAdminService.class);
         access = new ObjectAccessService(jdbc, identities);
+        origins=mock(WorkspaceOriginService.class);
+        when(origins.prepare(any(),anyString())).thenAnswer(call->call.getArgument(1));
         mvc = MockMvcBuilders.standaloneSetup(new Surface())
             .addInterceptors(new ObjectAccessInterceptor(access, mock(AgentRuntime.class)))
-            .setControllerAdvice(new GlobalExceptionHandler(), new ObjectRequestAdvice(access, mock(WorkspaceOriginService.class)))
+            .setControllerAdvice(new GlobalExceptionHandler(), new ObjectRequestAdvice(access, origins))
             .build();
     }
     private MockHttpServletRequest identity(MockHttpServletRequest request) {
@@ -94,14 +97,33 @@ class ObjectAccessPolicyTest {
     @Test void historyPathAndBodyCannotImpersonateOrOverwriteAnotherUser() throws Exception {
         mvc.perform(get("/api/v1/conversations/user/u2").with(this::identity)).andExpect(status().isForbidden());
         mvc.perform(delete("/api/v1/data/history/alice/foreign").with(this::identity)).andExpect(status().isForbidden());
-        mvc.perform(post("/api/v1/data/history").with(this::identity).contentType("application/json")
+        mvc.perform(post("/api/v1/data/history").with(this::identity).accept("application/json").contentType("application/json")
             .content("{\"userId\":\"u2\",\"conversationId\":\"owned\"}")).andExpect(status().isForbidden());
-        mvc.perform(post("/api/v1/data/history").with(this::identity).contentType("application/json")
+        mvc.perform(post("/api/v1/data/history").with(this::identity).accept("application/json").contentType("application/json")
             .content("{\"userId\":\"alice\",\"conversationId\":\"foreign\"}")).andExpect(status().isForbidden());
     }
     @Test void sessionReuseDeniedBeforeModelOrTaskDispatch() throws Exception {
-        mvc.perform(post("/api/v1/interactions/chat").with(this::identity).contentType("application/json")
+        mvc.perform(post("/api/v1/interactions/chat").with(this::identity).accept("application/json").contentType("application/json")
             .content("{\"query\":\"run\",\"conversationId\":\"foreign\"}")).andExpect(status().isForbidden());
+    }
+    @Test void taskIngressUsesStableSessionsBeforeTaskAcceptance() throws Exception {
+        String body="{\"query\":\"calculate\",\"idempotencyKey\":\"same-key\"}";
+        String expected=com.chatchat.chat.task.core.AgentTaskIds.sessionId("t1","same-key");
+        for(int attempt=0;attempt<2;attempt++)
+            mvc.perform(post("/api/v1/agent/tasks").with(this::identity).accept("application/json").contentType("application/json").content(body))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.sessionId").value(expected))
+                .andExpect(jsonPath("$.tenantId").value("t1")).andExpect(jsonPath("$.userId").value("u1"));
+    }
+    @Test void taskIngressReusesAnAuthorizedLegacySessionAndRejectsForeignIdempotencyKeys() throws Exception {
+        jdbc.update("update agent_task_latest set idempotency_key='legacy-key', session_id='owned' where task_id='owned'");
+        mvc.perform(post("/api/v1/agent/tasks").with(this::identity).accept("application/json").contentType("application/json")
+            .content("{\"query\":\"calculate\",\"idempotencyKey\":\"legacy-key\"}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.sessionId").value("owned"));
+        jdbc.update("update agent_task_latest set idempotency_key='foreign-key', session_id='foreign' where task_id='foreign'");
+        mvc.perform(post("/api/v1/agent/tasks").with(this::identity).accept("application/json").contentType("application/json")
+            .content("{\"query\":\"calculate\",\"idempotencyKey\":\"foreign-key\"}"))
+            .andExpect(status().isForbidden());
+        verify(origins,never()).prepare(any(),eq("foreign"));
     }
     @Test void legacyUsernameOwnerIsCompatibleButNoImplicitTenantOrOrgPrivilege() {
         jdbc.update("insert into chat_session values('legacy','t1','alice')");
@@ -121,6 +143,8 @@ class ObjectAccessPolicyTest {
         assertThat(jdbc.queryForObject("select count(*) from ui_artifact where artifact_id='orphan'", Integer.class)).isEqualTo(1);
     }
     @RestController static class Surface {
+        @PostMapping("/api/v1/agent/tasks") com.chatchat.chat.task.core.AgentTaskSubmitRequest task(
+            @RequestBody com.chatchat.chat.task.core.AgentTaskSubmitRequest request) { return request; }
         @GetMapping({"/api/v1/conversations/{conversationId}", "/api/v1/agent/tasks/{taskId}", "/api/v1/agent/tasks/{taskId}/events/stream",
             "/api/v1/agent/runtime/snapshot", "/api/v1/agent/runtime/quality",
             "/api/v1/ui-artifacts/{artifactId}", "/api/v1/ui-artifacts/{artifactId}/resources/{resourceId}", "/api/v1/conversations/user/{userId}"})

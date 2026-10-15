@@ -45,6 +45,24 @@ class ClineRuntimeModelBridgeTest {
         assertThat((List<?>) result.get("toolCalls")).hasSize(1);
         assertThat(((Map<?, ?>) result.get("usage")).get("inputTokens")).isEqualTo(9);
         verify(factory).create("registered-model", Duration.ofSeconds(90), 2048);
+        var captured=org.mockito.ArgumentCaptor.forClass(ChatRequest.class);
+        verify(model).chat(captured.capture());
+        assertThat(captured.getValue().parameters().maxOutputTokens()).isEqualTo(2048);
+        assertThat(captured.getValue().toolSpecifications()).hasSize(1);
+    }
+
+    @Test void boundParentModelReceivesCodingCallsAndFactoryCannotBypassParentMetering() throws Exception {
+        var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
+        var parent=mock(ChatModel.class);when(resources.defaultChatModel()).thenReturn("registered-model");
+        when(parent.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder().aiMessage(AiMessage.from("done"))
+            .tokenUsage(new TokenUsage(2,1,3)).build());
+        var bridge=new ClineRuntimeModelBridge(resources,factory,json);var registry=new CodingParentModels();bridge.setParentModels(registry);
+        var contract=contract();
+        try(var binding=registry.bind(contract.scope(),contract.taskId(),parent)) {
+            bridge.complete(contract,json.readTree("{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"calculate\"}]}],\"tools\":[]}"));
+        }
+        verify(parent).chat(any(ChatRequest.class));verifyNoInteractions(factory);
+        assertThat(registry.find(contract.scope(),contract.taskId())).isNull();
     }
 
     @Test void rejectsUnapprovedToolBeforeCallingModel() throws Exception {
@@ -56,6 +74,20 @@ class ClineRuntimeModelBridgeTest {
             """);
         assertThatThrownBy(() -> new ClineRuntimeModelBridge(resources, factory, json).complete(contract(), request))
             .isInstanceOf(SecurityException.class);
+        verifyNoInteractions(factory);
+    }
+
+    @Test void lostParentBindingCannotDispatchAnUnmeteredReplacementModel() throws Exception {
+        var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
+        when(resources.defaultChatModel()).thenReturn("registered-model");
+        var original=contract();
+        json.findAndRegisterModules();
+        var frozen=json.valueToTree(original);
+        ((com.fasterxml.jackson.databind.node.ObjectNode)frozen).putArray("metadataRefs").add(CodingParentModels.REQUIRED_REF);
+        var required=json.treeToValue(frozen,CodingTaskContract.class);
+        assertThatThrownBy(()->new ClineRuntimeModelBridge(resources,factory,json).complete(required,
+            json.readTree("{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"calculate\"}]}],\"tools\":[]}")))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("reconcile before dispatch");
         verifyNoInteractions(factory);
     }
 

@@ -1901,9 +1901,7 @@ public class CommandTemplateDiscoveryService {
             return filters;
         }
         Map<String, Object> merged = new LinkedHashMap<>(filters);
-        appendRetrievalSignals(merged, "intent", signals);
-        appendRetrievalSignals(merged, "retrievalSignals", signals);
-        appendRetrievalSignals(merged, "queryTerms", signals);
+        merged.put("assetContextSignals", signals);
         return merged;
     }
 
@@ -1931,9 +1929,7 @@ public class CommandTemplateDiscoveryService {
             return filters;
         }
         Map<String, Object> merged = new LinkedHashMap<>(filters);
-        appendRetrievalSignals(merged, "intent", signals);
-        appendRetrievalSignals(merged, "retrievalSignals", signals);
-        appendRetrievalSignals(merged, "queryTerms", signals);
+        merged.put("assetContextSignals", signals);
         return merged;
     }
 
@@ -1963,9 +1959,7 @@ public class CommandTemplateDiscoveryService {
             return filters;
         }
         Map<String, Object> merged = new LinkedHashMap<>(filters);
-        appendRetrievalSignals(merged, "intent", signals);
-        appendRetrievalSignals(merged, "retrievalSignals", signals);
-        appendRetrievalSignals(merged, "queryTerms", signals);
+        merged.put("assetContextSignals", signals);
         return merged;
     }
 
@@ -1996,9 +1990,7 @@ public class CommandTemplateDiscoveryService {
             return filters;
         }
         Map<String, Object> merged = new LinkedHashMap<>(filters);
-        appendRetrievalSignals(merged, "intent", signals);
-        appendRetrievalSignals(merged, "retrievalSignals", signals);
-        appendRetrievalSignals(merged, "queryTerms", signals);
+        merged.put("assetContextSignals", signals);
         return merged;
     }
 
@@ -2022,25 +2014,6 @@ public class CommandTemplateDiscoveryService {
             .distinct()
             .limit(32)
             .toList();
-    }
-
-    private void appendRetrievalSignals(Map<String, Object> filters, String key, List<String> signals) {
-        if (filters == null || key == null || signals == null || signals.isEmpty()) {
-            return;
-        }
-        List<Object> values = new ArrayList<>();
-        Object existing = filters.get(key);
-        if (existing instanceof List<?> list) {
-            values.addAll(list);
-        } else if (existing != null) {
-            values.add(existing);
-        }
-        values.addAll(signals);
-        filters.put(key, values.stream()
-            .filter(value -> value != null && !String.valueOf(value).isBlank())
-            .map(value -> String.valueOf(value).trim())
-            .distinct()
-            .toList());
     }
 
     private boolean containsAnyToken(List<String> tokens, String... probes) {
@@ -2355,7 +2328,7 @@ public class CommandTemplateDiscoveryService {
         LinkedHashSet<String> tokens = new LinkedHashSet<>();
         if (filters != null) {
             for (String key : List.of("intent", "goal", "template", "templateId", "template_id", "service",
-                "bilingualIntent", "bilingualQuery", "intentZh", "intentEn")) {
+                "bilingualIntent", "bilingualQuery", "intentZh", "intentEn", "assetContextSignals")) {
                 Object value = filters.get(key);
                 if (value instanceof Iterable<?> iterable) {
                     for (Object item : iterable) addSegmentedWords(tokens, item);
@@ -2900,13 +2873,21 @@ public class CommandTemplateDiscoveryService {
                 addSegmentedWords(tokens, value);
             }
         }
+        addAssetContextTokens(tokens, filters);
         return tokens.stream().distinct().toList();
     }
 
     private List<String> bilingualIntentTokens(Map<String, Object> filters) {
         List<String> tokens = new ArrayList<>();
         bilingualIntentValues(filters).forEach(value -> addSegmentedWords(tokens, value));
+        addAssetContextTokens(tokens, filters);
         return tokens.stream().distinct().toList();
+    }
+
+    /** Registry metadata can inform ranking; it cannot create independent caller query units. */
+    private void addAssetContextTokens(List<String> tokens, Map<String, Object> filters) {
+        if (filters.get("assetContextSignals") instanceof Iterable<?> signals)
+            signals.forEach(value -> addSegmentedWords(tokens, value));
     }
 
     private List<Object> bilingualIntentValues(Map<String, Object> filters) {
@@ -2951,6 +2932,7 @@ public class CommandTemplateDiscoveryService {
             "retrievalPlan", retrievalPlan.metadata(),
             "modelGenerated", modelGenerated,
             "generatedByEngine", generated.stream().toList(),
+            "assetContextSignals", filters.getOrDefault("assetContextSignals", List.of()),
             "retrievalVariants", retrievalPlan.queries(),
             "variantPolicy", "independent_recall_then_union_deduplicate_preserving_provider_scores_without_application_quality_gate",
             "fields", List.of("bilingualIntent", "bilingualQuery", "intentAliases", "keywords", "retrievalSignals",

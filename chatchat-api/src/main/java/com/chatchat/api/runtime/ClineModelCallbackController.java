@@ -200,13 +200,11 @@ public final class ClineModelCallbackController {
                 current.scope(), current.contractSha256(), CodingTaskOutcome.Status.COMPLETED,
                 current.revision() + 1, current.lastEventSequence() + 1, current.createdAt(), at,
                 current.startedAt(), at, false, null,
-                "Coding execution archived; independent validation "
-                    + (collected.businessValidationPassed() ? "passed" : "failed"),
+                "Coding execution archived; validation " + collected.validationStatus(),
                 current.limitations(), collected.inputSnapshotRef(), collected.codeArtifactRef(),
                 collected.executionReceiptRef(), collected.resultDatasetRef(),
                 collected.validationRecordRef(), collected.evidenceBundleRef(),
-                collected.businessValidationPassed() ? CodingTaskOutcome.ValidationStatus.PASSED
-                    : CodingTaskOutcome.ValidationStatus.FAILED,
+                collected.validationStatus(),
                 current.reproducibility(), current.usage(),
                 new CodingTaskOutcome.ExecutionControl(null, null, true, false),
                 current.parentTaskId(), current.supersedesTaskId(), Map.of());

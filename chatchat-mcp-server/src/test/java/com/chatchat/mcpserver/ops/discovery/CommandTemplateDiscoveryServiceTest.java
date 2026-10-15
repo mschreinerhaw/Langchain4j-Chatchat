@@ -586,8 +586,39 @@ class CommandTemplateDiscoveryServiceTest {
         Map<?, ?> diagnostics = (Map<?, ?>) result.get("templateRegistryDiagnostics");
         assertThat(diagnostics.get("notEnabledOrMissingAllowedTemplates").toString())
             .contains("mysql_analytics_special");
-        verify(lucene, org.mockito.Mockito.atLeastOnce()).searchTemplates(anyList(), argThat(request -> request != null
+        assertThat(result.get("queryIr").toString()).contains("assetContextSignals");
+        verify(lucene, org.mockito.Mockito.never()).searchTemplates(anyList(), argThat(request -> request != null
             && request.intentText() != null && request.intentText().contains("analytics reporting database")));
+    }
+
+    @Test void richAssetMetadataDoesNotConsumeOrChangeTheCallersIndependentQueryBudget() {
+        var templates=mock(SqlTemplateService.class);var datasources=mock(SqlDatasourceConfigService.class);
+        var lucene=mock(LuceneMcpSearchService.class);
+        var service=new CommandTemplateDiscoveryService(mock(CommandTemplateService.class),mock(SshHostConfigService.class),
+            templates,datasources,mock(HttpEndpointConfigService.class),new ObjectMapper(),new TemplateDiscoveryProperties(),lucene);
+        var source=datasource("registered","registered_source","DEV");source.setDatabaseType("mysql");
+        source.setAllowedTemplatesJson("[\"REGISTERED_READ\"]");
+        source.setCapabilitiesJson("["+java.util.stream.IntStream.range(0,30).mapToObj(i->"\"context_"+i+"\"")
+            .collect(java.util.stream.Collectors.joining(","))+"]");
+        when(datasources.listEnabled()).thenReturn(List.of(source));
+        when(templates.listEnabled()).thenReturn(List.of(sqlTemplate("REGISTERED_READ","SELECT 1")));
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchTemplates(anyList(),any())).thenReturn(List.of(new LuceneMcpSearchService.SearchHit("REGISTERED_READ","template",8f,List.of("test"))));
+        var budget=new com.chatchat.common.retrieval.query.QueryOptimizationBudget();budget.setMaxBatches(3);
+        try(var optimizer=new com.chatchat.common.retrieval.query.SearchQueryOptimizer(budget,null)) {
+            service.setQueryOptimizer(optimizer);
+            var request=Map.<String,Object>of("targetKind","database","confidence",0.9,"trace",trace(),
+                "filters",Map.of("assetName","registered_source","env","DEV","queryTerms",List.of("version","release")));
+            var result=service.query(request);
+            assertThat(result).containsEntry("returnedCount",1);
+            var queried=org.mockito.ArgumentCaptor.forClass(LuceneMcpSearchService.TemplateSearchRequest.class);
+            verify(lucene,org.mockito.Mockito.times(3)).searchTemplates(anyList(),queried.capture());
+            assertThat(queried.getAllValues()).extracting(LuceneMcpSearchService.TemplateSearchRequest::intentText)
+                .containsExactlyInAnyOrder("registered source","version","release");
+            var excessive=new java.util.LinkedHashMap<String,Object>(request);
+            excessive.put("filters",Map.of("assetName","registered_source","env","DEV","queryTerms",List.of("a","b","c","d")));
+            assertThatThrownBy(()->service.query(excessive)).hasMessageContaining("QUERY_BATCH_BUDGET_EXCEEDED");
+        }
     }
 
     @Test
@@ -1579,7 +1610,8 @@ class CommandTemplateDiscoveryServiceTest {
         ));
 
         assertThat(result.get("queryIr").toString()).contains("retrievalSignals", "payment", "callback");
-        verify(lucene, org.mockito.Mockito.atLeastOnce()).searchTemplates(anyList(), argThat(request -> request != null
+        assertThat(result.get("queryIr").toString()).contains("assetContextSignals");
+        verify(lucene, org.mockito.Mockito.never()).searchTemplates(anyList(), argThat(request -> request != null
             && request.intentText() != null && request.intentText().contains("payment status endpoint")));
     }
 

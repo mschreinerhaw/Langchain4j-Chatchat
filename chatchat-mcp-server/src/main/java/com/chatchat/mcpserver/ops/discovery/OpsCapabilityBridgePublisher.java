@@ -62,6 +62,13 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
     private final AssetDiscoveryService assetDiscovery;
     private final CommandTemplateDiscoveryService templateDiscovery;
     private TemplateQueryMcpToolPublisher dynamicTemplateQueries;
+    private com.chatchat.common.retrieval.query.QueryOptimizationBudget queryBudget =
+        new com.chatchat.common.retrieval.query.QueryOptimizationBudget();
+
+    @Autowired(required = false)
+    void configureQueryBudget(com.chatchat.common.retrieval.query.SearchQueryOptimizer optimizer) {
+        this.queryBudget = optimizer.budget();
+    }
 
     @Autowired
     void configureDynamicTemplateQueries(TemplateQueryMcpToolPublisher dynamicTemplateQueries) {
@@ -435,6 +442,9 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
             "mergeModes", Map.of("query", "replace", "filters.queryTerms", "replace", "filters.keywords", "replace",
                 "filters.retrievalSignals", "replace", "filters.intent", "replace", "filters.goal", "replace"),
             "guidance", "The model selects concise search units for published asset/template discovery. "
+                + "All distinct independent query units, including exact-target filters and every keyword/alias channel, "
+                + "must fit maximumBatches=" + queryBudget.getMaxBatches() + ". Prefer one filters.queryTerms channel; "
+                + "avoid repeating the same intent across additional alias channels. "
                 + "Return query and filters.queryTerms; replace any task-sized intent, goal, keywords or retrievalSignals "
                 + "with short retrieval phrases. Preserve exact names from evidence without inventing routing identities. "
                 + "Exclude execution constraints, output formats and report/evidence-assessment instructions. "

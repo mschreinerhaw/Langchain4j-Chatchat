@@ -67,6 +67,37 @@ test('actual Cline Agent loop repairs a technical Python error through one Runti
     executions[1].operationId);
 });
 
+test('successful exploration without an output artifact can be corrected without claiming a result', async () => {
+  let calls=0;const executions=[];let completed;
+  const model={async *stream(request){
+    calls++;
+    if(calls===2)assert.match(JSON.stringify(request.messages),/REQUIRED_OUTPUT_MISSING/);
+    if(calls<=2){
+      yield {type:'tool-call-delta',toolCallId:`output-${calls}`,toolName:'python_execute',
+        input:{fileName:'main.py',source:calls===1?'print("schema inspection")':'# complete program writes rows.jsonl'}};
+      yield {type:'finish',reason:'tool-calls'};
+    }else{
+      assert.match(JSON.stringify(request.messages),/runtime-evidence:result/);
+      yield {type:'text-delta',text:'The structured result is archived; business correctness was not evaluated.'};
+      yield {type:'finish',reason:'stop'};
+    }
+  }};
+  const gateway={
+    reserveModel(){},settleModel(){},
+    executePython(_contract,item){
+      executions.push(item);
+      return executions.length===1
+        ?{status:'SUCCEEDED',executorStopped:true,outputStatus:'REQUIRED_OUTPUT_MISSING',requiredOutput:'rows.jsonl',resultAvailable:false}
+        :{status:'SUCCEEDED',executorStopped:true,resultDatasetRef:'runtime-evidence:result',validationRecordRef:'runtime-evidence:validation',evidenceBundleRef:'runtime-evidence:bundle'};
+    },
+    finish(_contract,value){completed=value;},
+  };
+  assert.equal((await createCodingRun(task,gateway,{model}).run()).status,'completed');
+  assert.equal(executions.length,2);
+  assert.equal(completed.operationId,executions[1].operationId);
+  assert.notEqual(completed.operationId,executions[0].operationId);
+});
+
 test('Python operation is polled until Docker confirms stop before a result is accepted', async () => {
   let polls = 0;
   let turns = 0;

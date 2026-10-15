@@ -47,6 +47,9 @@ class CodingInputSnapshotServiceTest {
                 "workspace:1", 10, 4096));
         assertThat(snapshot.rowCount()).isEqualTo(2);
         assertThat(snapshot.reference()).startsWith("runtime-evidence:coding:input:");
+        assertThat(access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->snapshots.describe(scope,"task",snapshot)))
+            .containsEntry("format","JSON_LINES").containsEntry("encoding","UTF-8").containsEntry("rowCount",2L)
+            .doesNotContainKeys("records","rows");
         var contract = contract(scope, snapshot);
         assertThat(access.as(scope, EnumSet.of(CodingTaskAccess.Action.READ), () ->
             snapshots.requireAuthorized(contract))).isEqualTo(snapshot);

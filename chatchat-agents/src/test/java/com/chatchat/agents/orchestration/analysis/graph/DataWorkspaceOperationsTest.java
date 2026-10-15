@@ -109,10 +109,21 @@ class DataWorkspaceOperationsTest {
         assertThatThrownBy(()->disabled.execute(batch())).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("durable");
     }
     @Test void mainBrainChoosesFullComputationAndReceivesDerivedVisualizationCatalog(){
-        records(10_000);var turns=new AtomicInteger();when(model.chat(any(String.class))).thenAnswer(invocation -> {
-            String prompt=invocation.getArgument(0);
-            if(turns.incrementAndGet()==1){assertThat(prompt.length()).isLessThan(100_000);return ModelProtocolJson.compact(Map.of("schemaVersion","model_native_analysis.v1","completed",false,"evidenceRequests",List.of(query())));}
-            assertThat(prompt).contains("50005000","workspace:","5000.5");return "The computed total is 50,005,000 across 10,000 records.";
+        records(10_000);var turns=new AtomicInteger();when(model.chat(any(dev.langchain4j.model.chat.request.ChatRequest.class))).thenAnswer(invocation -> {
+            var request=(dev.langchain4j.model.chat.request.ChatRequest)invocation.getArgument(0);
+            String prompt=request.messages().toString();
+            Map<String,Object> response;
+            if(turns.incrementAndGet()==1){
+                assertThat(prompt.length()).isLessThan(100_000);
+                response=Map.of("schemaVersion","model_native_analysis.v2","decision",Map.of("action","CONTINUE"),
+                    "output_type","intermediate","plan",HarnessCodingIntegrationTest.plan(),"evidenceRequests",List.of(query()));
+            }else{
+                assertThat(prompt).contains("50005000","workspace:","5000.5");
+                response=Map.of("schemaVersion","model_native_analysis.v2","decision",Map.of("action","COMPLETE"),
+                    "output_type","final","content","The computed total is 50,005,000 across 10,000 records.");
+            }
+            return dev.langchain4j.model.chat.response.ChatResponse.builder()
+                .aiMessage(dev.langchain4j.data.message.AiMessage.from(ModelProtocolJson.compact(response))).build();
         });
         var result=new ModelNativeAnalysisHarness(8).execute("Compute the total",List.copyOf(sources.values()),model,scope,store,metadata,()->{},span->{});
         assertThat(result.modelCalls()).isEqualTo(2);assertThat(result.datasetReferences()).anyMatch(ref->ref.startsWith("workspace:"));

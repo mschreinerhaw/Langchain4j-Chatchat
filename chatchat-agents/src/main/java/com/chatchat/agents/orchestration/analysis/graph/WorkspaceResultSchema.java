@@ -4,24 +4,29 @@ import java.math.BigDecimal;
 import java.util.*;
 
 /** Explicit JSON Schema subset for typed batch results. Unsupported contracts fail closed. */
-final class WorkspaceResultSchema {
+public final class WorkspaceResultSchema {
     private static final Set<String> KEYS = Set.of("type", "properties", "required", "items", "enum", "additionalProperties", "description", "title");
-    static void checkContract(Map<String,Object> schema) {
+    public static void checkContract(Map<String,Object> schema) {
+        checkContract(schema, 0);
+    }
+    private static void checkContract(Map<String,Object> schema, int depth) {
+        if (depth > 32 || schema.size() > 128) throw new IllegalArgumentException("Output schema exceeds structural limits");
         if (!KEYS.containsAll(schema.keySet())) throw new IllegalArgumentException("Unsupported outputSchema keyword");
         if (!(schema.get("type") instanceof String type) || !Set.of("object","array","string","number","integer","boolean","null").contains(type))
             throw new IllegalArgumentException("outputSchema requires a supported type");
         if (schema.containsKey("enum") && !(schema.get("enum") instanceof List<?>)) throw new IllegalArgumentException("enum must be an array");
         if ("object".equals(type)) {
             Map<String,Object> properties = object(schema.getOrDefault("properties", Map.of()));
-            properties.values().forEach(value -> checkContract(object(value)));
+            if (properties.size() > 128) throw new IllegalArgumentException("Too many output properties");
+            properties.values().forEach(value -> checkContract(object(value), depth + 1));
             if (schema.containsKey("required") && (!(schema.get("required") instanceof List<?> required) || !properties.keySet().containsAll(required)))
                 throw new IllegalArgumentException("required must name declared properties");
             if (schema.containsKey("additionalProperties") && !(schema.get("additionalProperties") instanceof Boolean))
                 throw new IllegalArgumentException("additionalProperties must be boolean");
         }
-        if ("array".equals(type)) checkContract(object(schema.get("items")));
+        if ("array".equals(type)) checkContract(object(schema.get("items")), depth + 1);
     }
-    static void validate(Object value, Map<String,Object> schema) {
+    public static void validate(Object value, Map<String,Object> schema) {
         String type = String.valueOf(schema.get("type"));
         boolean valid = switch(type) {
             case "object" -> value instanceof Map<?,?>;
@@ -45,7 +50,7 @@ final class WorkspaceResultSchema {
         }
         if (value instanceof List<?> values && "array".equals(type)) values.forEach(item -> validate(item, object(schema.get("items"))));
     }
-    static Map<String,Object> object(Object value) {
+    public static Map<String,Object> object(Object value) {
         if (!(value instanceof Map<?,?> raw)) throw new IllegalArgumentException("Expected an object");
         var result = new LinkedHashMap<String,Object>();
         raw.forEach((key,item) -> result.put(String.valueOf(key),item));

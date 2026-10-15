@@ -22,6 +22,12 @@ public final class ModelNativeAnalysisHarness {
     private static final ObjectMapper JSON = new ObjectMapper();
     private final int maximumTurns;
     private HarnessToolAccess toolAccess;
+    private AnalysisCodingPort coding;
+    private com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinator.Request codingContext;
+    public ModelNativeAnalysisHarness withCoding(AnalysisCodingPort port,
+            com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinator.Request context) {
+        this.coding = port; this.codingContext = context; return this;
+    }
     public ModelNativeAnalysisHarness(int maximumTurns) { this.maximumTurns = Math.max(1, Math.min(64, maximumTurns)); }
     public ModelNativeAnalysisHarness withToolAccess(HarnessToolAccess access) { this.toolAccess = access; return this; }
     public record Result(String markdown, int modelCalls, List<String> datasetReferences) { }
@@ -43,6 +49,9 @@ public final class ModelNativeAnalysisHarness {
     private Result executeInternal(String question, List<Dataset> datasets, ChatModel model, GovernanceIsolationScope scope,
         AnalysisEvidenceSpillStore checkpoints, Map<String,Object> metadata, Runnable guard, Consumer<Map<String,Object>> observe) {
         if (model == null) throw new IllegalStateException("Analysis model unavailable");
+        if (coding != null && (codingContext == null || !Objects.equals(scope, codingContext.isolationScope())
+                || model != codingContext.model() || metadata != codingContext.metadata()))
+            throw new SecurityException("Coding context must belong to the executing analysis scope, model and state");
         var access = new BoundedAnalysisEvidence();
         var prepared = access.prepare(datasets, checkpoints, scope, metadata, guard);
         var operations = new DataWorkspaceOperations(prepared.sources(), checkpoints, scope, model, guard, observe, metadata);
@@ -60,6 +69,7 @@ public final class ModelNativeAnalysisHarness {
         var estimator = new ContextTokenEstimator();
         Map<String,Object> workspace = new LinkedHashMap<>();
         List<Map<String,Object>> receipts = new ArrayList<>(), trace = new ArrayList<>();
+        var codingTasks = new LinkedHashMap<String, Map<String,Object>>(16, 0.75f, true);
         String report = "";
         int calls = 0;
         boolean v2 = !"model_native_analysis.v1".equals(metadata.get("modelAnalysisProtocol"));
@@ -89,9 +99,11 @@ public final class ModelNativeAnalysisHarness {
             layers.put("L1", Map.of("question", question, "turn", turn, "maximumTurns", maximumTurns,
                 "workspace", workspace, "priorReport", report,
                 "submittedPlan", plans.view(),
+                "codingTasks", codingTasks.values().stream().skip(Math.max(0, codingTasks.size() - 8)).toList(),
                 "reportSha256", ModelProtocolJson.sha256Hex(report), "evidenceSnapshotRef", snapshot(prepared.sources())));
             layers.put("L2", Map.of("evidenceOperations", BoundedAnalysisEvidence.capabilities(), "planOperations", plans.capabilities(),
                 "workspaceOperations", operations.capabilities(),
+                "codingOperations", coding == null ? Map.of() : coding.capabilities(),
                 "externalToolCapabilities", "No external tool dispatch: only delivered template data and its declared data operations are available.",
                 "roleContext", metadata.getOrDefault("agentRoleAnalysisContext", Map.of())));
             layers.put("methods", Map.of("skillMethodology", analysisMethods(metadata),
@@ -231,6 +243,16 @@ public final class ModelNativeAnalysisHarness {
                         String operation = String.valueOf(request.get("operation"));
                         if ("CALL_TOOL".equals(operation)) {
                             throw new IllegalArgumentException("TEMPLATE_SCOPE_LIMIT: analysis cannot rediscover assets, rebind templates or dispatch external tools; use delivered data operations only");
+                        } else if (coding != null && coding.capabilities().containsKey(operation)) {
+                            if (!(request.get("datasetReference") instanceof String reference) || !prepared.sources().containsKey(reference))
+                                throw new IllegalArgumentException("CODING_INPUT_NOT_DELIVERED: choose an exact datasetReference from the current data catalog");
+                            var receipt = coding.execute(codingContext, request, prepared.sources());
+                            receipts.add(receipt);
+                            var summary = codingTaskSummary(request, receipt);
+                            codingTasks.put(String.valueOf(receipt.getOrDefault("taskId", request.get("requestId"))), summary);
+                            metadata.put("harnessCodingTasks", List.copyOf(codingTasks.values()));
+                            audit.add(Map.of("status", "ACCEPTED", "request", request,
+                                "receiptFingerprint", ModelProtocolJson.sha256Hex(receipt), "receipt", receipt));
                         } else if (operations.supports(operation)) {
                             var receipt = operations.execute(request);
                             receipts.add(receipt);
@@ -315,6 +337,17 @@ public final class ModelNativeAnalysisHarness {
     private static String snapshot(Map<String,Dataset> sources) {
         return ModelProtocolJson.sha256Hex(sources.entrySet().stream().map(entry -> Map.of(
             "reference", entry.getKey(), "contentSha256", entry.getValue().handle().contentSha256())).toList());
+    }
+    private static Map<String,Object> codingTaskSummary(Map<String,Object> request, Map<String,Object> receipt) {
+        var summary = new LinkedHashMap<String,Object>();
+        summary.put("requestId", request.getOrDefault("requestId", ""));
+        for (String key : List.of("taskId", "status", "resultAvailable", "reconciliationRequired", "reasonCode", "stopReason",
+                "validationStatus", "businessValidation", "datasetReference")) {
+            Object value = receipt.get(key);
+            if (value instanceof String text) summary.put(key, text.substring(0, Math.min(512, text.length())));
+            else if (value instanceof Boolean) summary.put(key, value);
+        }
+        return Collections.unmodifiableMap(summary);
     }
     private static void validateIntent(Map<String,Object> product, boolean v2) {
         var requests = maps(product.get("evidenceRequests"));

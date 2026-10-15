@@ -25,7 +25,11 @@ import java.util.*;
 public class CodingEvidenceCollector {
     public enum Stage { STAGED, VERIFIED, COMMITTED }
     public record InputFile(String fileId, String fileName, String sha256) { }
-    public record Validation(boolean passed, String verifierId, String ruleVersion, Map<String, Object> checks) {
+    public record Validation(boolean passed, String verifierId, String ruleVersion, Map<String, Object> checks,
+                             boolean businessEvaluated) {
+        public Validation(boolean passed, String verifierId, String ruleVersion, Map<String,Object> checks) {
+            this(passed, verifierId, ruleVersion, checks, true);
+        }
         public Validation(boolean passed, Map<String, Object> checks) {
             this(passed, "runtime-deterministic-validator", "v1", checks);
         }
@@ -34,13 +38,19 @@ public class CodingEvidenceCollector {
                 throw new IllegalArgumentException("Independent validation provenance is required");
             checks = checks == null ? Map.of() : Map.copyOf(checks);
         }
+        public com.chatchat.common.runtime.coding.CodingTaskOutcome.ValidationStatus status() {
+            return !passed ? com.chatchat.common.runtime.coding.CodingTaskOutcome.ValidationStatus.FAILED
+                : businessEvaluated ? com.chatchat.common.runtime.coding.CodingTaskOutcome.ValidationStatus.PASSED
+                : com.chatchat.common.runtime.coding.CodingTaskOutcome.ValidationStatus.INCONCLUSIVE;
+        }
     }
     @FunctionalInterface public interface IndependentValidator {
         Validation validate(List<Map<String, Object>> rows);
     }
     public record Collected(String inputSnapshotRef, String codeArtifactRef, String executionReceiptRef,
                             String resultDatasetRef, String validationRecordRef, String evidenceBundleRef,
-                            boolean businessValidationPassed) { }
+                            boolean businessValidationPassed,
+                            com.chatchat.common.runtime.coding.CodingTaskOutcome.ValidationStatus validationStatus) { }
 
     private final JdbcRuntimeEvidenceStore evidence;
     private final RuntimeExecutionCheckpointPort checkpoints;
@@ -84,8 +94,9 @@ public class CodingEvidenceCollector {
         }
         JsonNode resultEntry = entries.get("results/" + resultFile);
         JsonNode receiptEntry = entries.get("logs/receipt.json");
-        if (resultEntry == null || receiptEntry == null || !resultFile.endsWith(".jsonl"))
+        if (receiptEntry == null || !resultFile.endsWith(".jsonl"))
             throw new IllegalStateException("Structured result or execution receipt is missing");
+        if (resultEntry == null) throw new RequiredOutputMissingException(resultFile);
         byte[] resultBytes = artifact(scope, contract.taskId(), operationId, "results", resultFile);
         List<Map<String, Object>> resultRows = rows(resultBytes, resultEntry);
         if (resultBytes.length > contract.outputContract().maxResultBytes()
@@ -161,12 +172,14 @@ public class CodingEvidenceCollector {
         add(records, lineages, scope, resultId, "CODING_STRUCTURED_DATASET", result,
             List.of(inputId, codeId, receiptId), contract.taskId(), occurredAt);
         add(records, lineages, scope, validationId, "CODING_COMPUTATION_VALIDATION",
-            Map.of("status", validation.passed() ? "PASSED" : "FAILED", "checks", validation.checks(),
+            Map.of("status", validation.status().name(), "checks", validation.checks(),
+                "structuralChecksPassed", validation.passed(), "businessEvaluated", validation.businessEvaluated(),
                 "verifierId", validation.verifierId(), "ruleVersion", validation.ruleVersion(),
                 "validationPlanRef", contract.validationPlanRef(), "resultDatasetRef", "runtime-evidence:" + resultId),
             List.of(resultId), contract.taskId(), occurredAt);
         Map<String, Object> bundleMetadata = Map.of("taskId", contract.taskId(), "operationId", operationId,
-            "manifestSha256", sha(manifestBytes), "validationPassed", validation.passed());
+            "manifestSha256", sha(manifestBytes), "validationPassed", validation.passed(),
+            "businessEvaluated", validation.businessEvaluated());
         String key = "coding-evidence:" + stem;
         String stageBase = sha(mapperBytes(Map.of("records", records, "lineages", lineages,
             "bundleId", bundleId, "metadata", bundleMetadata)));
@@ -190,7 +203,18 @@ public class CodingEvidenceCollector {
             bundleId, bundleEvidenceIds, bundleMetadata);
         return new Collected(contract.inputSnapshotRef(), "runtime-evidence:" + codeId,
             "runtime-evidence:" + receiptId, "runtime-evidence:" + resultId,
-            "runtime-evidence:" + validationId, "runtime-evidence:" + bundleId, validation.passed());
+            "runtime-evidence:" + validationId, "runtime-evidence:" + bundleId,
+            validation.passed() && validation.businessEvaluated(), validation.status());
+    }
+
+    /** A verified archive without the contracted result is not a binding/authentication failure. */
+    public static final class RequiredOutputMissingException extends IllegalStateException {
+        private final String requiredFile;
+        public RequiredOutputMissingException(String requiredFile) {
+            super("Successful Python execution did not produce the required structured result");
+            this.requiredFile=requiredFile;
+        }
+        public String requiredFile(){return requiredFile;}
     }
 
     /** Reads the complete archived dataset only through the task's authorized operation scope. */

@@ -48,7 +48,7 @@ export function createCodingRun(contract, gateway, options = {}) {
   const tools = [];
   if (permitted.has('python_execute')) tools.push({
     name: 'python_execute',
-    description: `Run main.py only in the Runtime-authorized Python sandbox. The immutable input is /data/input/${contract.authorization.allowedDataRefs[0]}/input.jsonl. Write structured JSONL to /workspace/output/results/${contract.outputContract?.requiredFiles?.[0] ?? 'rows.jsonl'}. Return the Runtime execution receipt; repair technical errors with a new tool call. Never claim business validation yourself.`,
+    description: `Run main.py in a NEW isolated Python sandbox for EACH call. Only the immutable input /data/input/${contract.authorization.allowedDataRefs[0]}/input.jsonl is mounted; previous calls' output files do not exist here. Each program must perform the calculation and write structured JSONL to /workspace/output/results/${contract.outputContract?.requiredFiles?.[0] ?? 'rows.jsonl'}. Inspect the returned Runtime receipt; repair technical errors with a complete new program. Never claim business validation yourself.`,
     inputSchema: { type: 'object', properties: {
       fileName: { type: 'string', enum: ['main.py'] }, source: { type: 'string' },
     }, required: ['fileName', 'source'], additionalProperties: false },
@@ -126,6 +126,9 @@ export function createCodingRun(contract, gateway, options = {}) {
     'You are a Coding Agent subordinate to Runtime OS. The Runtime owns the analysis goal, data scope, budget and publication.',
     'Use only the listed tools. Do not access a host shell, Docker socket, arbitrary files, databases, or network resources.',
     'Generate Python when useful, inspect execution receipts, fix technical errors, and report verification limits.',
+    'When validationStatus is FAILED, inspect and repair the output schema. INCONCLUSIVE structural validation does not certify business correctness.',
+    'Each Python call starts a fresh sandbox with the original immutable input, without earlier output files or Python variables. Do not launch a new call just to open a previous output file.',
+    'A SUCCEEDED receipt with resultDatasetRef, validationRecordRef and evidenceBundleRef means Runtime archived the result. INCONCLUSIVE with businessValidationPassed=false means business correctness was not evaluated, not an execution failure. You may finish with that limitation; the main analysis can read the registered result.',
     `Task objective: ${contract.objective?.instruction ?? ''}`,
     `Input snapshot: ${contract.inputSnapshotRef}`,
     `Validation plan: ${contract.validationPlanRef}`,

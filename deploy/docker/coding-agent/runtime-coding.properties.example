@@ -1,0 +1,20 @@
+# Import this deployment-owned file from the API's external Spring configuration.
+# Provision the same 32+ character secret file for Java and the Coding container.
+chatchat.coding.enabled=true
+chatchat.coding.cline.enabled=true
+chatchat.coding.cline.node-url=http://127.0.0.1:8791
+chatchat.coding.cline.allowed-peer-addresses=127.0.0.1
+chatchat.coding.cline.shared-secret-file=/opt/runtime-coding/config/shared-secret
+chatchat.coding.analysis.enabled=true
+# Required: select an actual PUBLISHED environment whose networkPolicy is NONE.
+chatchat.coding.analysis.environment-id=${CODING_PYTHON_ENVIRONMENT_ID}
+chatchat.coding.analysis.max-concurrent-tasks=2
+chatchat.coding.analysis.timeout-seconds=300
+chatchat.coding.analysis.max-model-calls=12
+chatchat.coding.analysis.max-model-tokens=65536
+chatchat.coding.analysis.max-code-executions=12
+chatchat.coding.analysis.max-tool-calls=24
+chatchat.coding.analysis.max-input-rows=100000
+chatchat.coding.analysis.max-input-bytes=16777216
+chatchat.coding.analysis.max-result-rows=10000
+chatchat.coding.analysis.max-result-bytes=4194304

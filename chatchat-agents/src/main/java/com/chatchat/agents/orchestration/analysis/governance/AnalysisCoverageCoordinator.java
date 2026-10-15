@@ -19,6 +19,8 @@ public final class AnalysisCoverageCoordinator {
     private final AnalysisEvidenceCoordinator evidenceCoordinator;
     private final Configuration configuration;
     private AnalysisEvidenceSpillStore spillStore;
+    private com.chatchat.agents.orchestration.analysis.graph.AnalysisCodingPort coding;
+    public void setCodingPort(com.chatchat.agents.orchestration.analysis.graph.AnalysisCodingPort port) { this.coding = port; }
     private java.util.function.Function<Request, com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccess> toolAccessFactory;
     public void setToolAccessFactory(java.util.function.Function<Request, com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccess> factory) {
         this.toolAccessFactory = factory;
@@ -185,6 +187,7 @@ public final class AnalysisCoverageCoordinator {
         request.metadata().put("recordAnalysisSummaryDispatchMode", "MODEL_NATIVE_HARNESS");
         request.metadata().put("analysisSemanticReviewPolicy", "NONE_USER_JUDGES");
         var result = new com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarness(configuration.harnessMaxModelTurns())
+            .withCoding(coding, request)
             .execute(request.query(), datasets, request.model(), request.isolationScope(), spillStore,
                 request.metadata(), request.cancellationGuard(), trace -> {
                     String stage = String.valueOf(trace.getOrDefault("stage", "MODEL_NATIVE_ANALYSIS"));

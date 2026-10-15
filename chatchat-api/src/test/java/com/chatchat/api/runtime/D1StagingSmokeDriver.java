@@ -36,7 +36,8 @@ public final class D1StagingSmokeDriver {
     private D1StagingSmokeDriver() { }
 
     public static void main(String[] args) throws Exception {
-        try (ConfigurableApplicationContext app = SpringApplication.run(ChatChatApplication.class, args)) {
+        try (ConfigurableApplicationContext app = SpringApplication.run(new Class<?>[] {
+                ChatChatApplication.class, FixtureDecimalCodingVerifier.Configuration.class }, args)) {
             String recoverTask = System.getenv("D1_SMOKE_RECOVER_TASK_ID");
             if (recoverTask != null && !recoverTask.isBlank()) {
                 recover(app, recoverTask);
@@ -91,7 +92,7 @@ public final class D1StagingSmokeDriver {
             var input = identity.as(scope, grants, () -> inputs.capture(scope, taskId,
                 List.of(dataset), source, decision, workspace, 10, 4096));
             String validation = identity.as(scope, grants, () -> plans.register(scope, taskId,
-                input, new CodingValidationPlanService.Plan("amount", "total", "tradeId", false)));
+                input, FixtureDecimalCodingVerifier.plan("amount", "total", "tradeId", false)));
             Instant deadline = Instant.now().plusSeconds(900).truncatedTo(ChronoUnit.MILLIS);
             var contract = new CodingTaskContract(CodingProtocol.VERSION, taskId, scope,
                 new CodingTaskContract.Objective(

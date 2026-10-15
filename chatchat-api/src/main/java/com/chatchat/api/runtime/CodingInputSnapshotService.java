@@ -41,6 +41,19 @@ public final class CodingInputSnapshotService {
         this.mapper = mapper.copy().enable(com.fasterxml.jackson.databind.SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
     }
 
+    /** Authorized structural projection; no raw records, SQL, endpoint or source credentials. */
+    public Map<String,Object> describe(KernelDataScope scope, String taskId, Snapshot input) {
+        access.require(scope, CodingTaskAccess.Action.READ);
+        String ref=input.reference().substring("runtime-evidence:".length());
+        var record=evidence.find(scope,ref).orElseThrow(()->new SecurityException("Input description is unavailable"));
+        if (!TYPE.equals(record.evidenceType()) || !taskId.equals(record.payload().get("taskId"))
+                || !evidence.contentHash(record.payload()).equals(record.contentSha256())
+                || !input.sha256().equals(record.payload().get("sha256")))
+            throw new SecurityException("Input description is not bound to the task");
+        return Map.of("schemaJson",record.payload().get("schemaJson"),"rowCount",input.rowCount(),
+            "sha256",input.sha256(),"fileId",input.fileId(),"format","JSON_LINES","encoding","UTF-8");
+    }
+
     /** Caller supplies the current run's trusted dataset collection, never a model-supplied handle. */
     public Snapshot capture(KernelDataScope scope, String taskId, List<Dataset> authorizedDatasets,
             String sourceDatasetRef, String decisionRef, String workspaceRef,

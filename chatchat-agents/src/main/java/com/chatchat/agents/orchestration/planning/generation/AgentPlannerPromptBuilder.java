@@ -75,6 +75,19 @@ public final class AgentPlannerPromptBuilder {
                                       String documentSearchTool,
                                       String verificationWebSearchTool,
                                       Map<String, Object> runtimeAttributes) {
+        if (runtimeAttributes != null && Boolean.TRUE.equals(runtimeAttributes.get("analysisCodingAvailable"))) {
+            systemPrompt = """
+                Runtime analysis capability: after authorized data acquisition, the main analysis loop
+                can optionally use RUN_CODING to delegate Python on a delivered dataset and read its
+                registered result. This is an analysis operation, unavailable as an MCP acquisition tool.
+                Keep the user's calculation goal in the plan intent. Build the required authorized
+                acquisition workflow using only available MCP tools; the later analysis loop decides
+                whether to call Coding. Do not invent a RUN_CODING MCP step or an unsupported Python
+                action in the acquisition DAG. Discovery queries describe the source data/capability
+                needed, without downstream output schemas, report formatting or Coding instructions.
+                Coding grants no new source access and cannot certify business correctness.
+                """ + "\n" + (systemPrompt == null ? "" : systemPrompt);
+        }
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction: ").append(systemPrompt).append("\n\n");

@@ -194,7 +194,8 @@ class CodingEvidenceDockerIntegrationTest {
                 call.getArgument(1), call.getArgument(2)), SECRET));
         var identity = new CodingInvocationContext();
         var inputs = new CodingInputSnapshotService(evidence, port, identity, json);
-        var plans = new CodingValidationPlanService(evidence, port, inputs, identity, json);
+        var plans = new CodingValidationPlanService(evidence, inputs, identity, json,
+            List.of(new FixtureDecimalCodingVerifier(port, json)));
         var delivered = new com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Dataset(
             "template#financial", Map.of(), List.of(Map.of("tradeId", "t1", "amount", "0.10"),
                 Map.of("tradeId", "t2", "amount", "0.20")));
@@ -203,7 +204,7 @@ class CodingEvidenceDockerIntegrationTest {
                 "decision:financial", "workspace:cline-docker", 10, 4096));
         String validation = identity.as(scope, EnumSet.of(CodingTaskAccess.Action.SUBMIT), () ->
             plans.register(scope, "cline-docker", input,
-                new CodingValidationPlanService.Plan("amount", "total", "tradeId", false)));
+                FixtureDecimalCodingVerifier.plan("amount", "total", "tradeId", false)));
         var contract = new CodingTaskContract(CodingProtocol.VERSION, "cline-docker", scope,
             new CodingTaskContract.Objective("Sum authorized amounts", List.of("rows.jsonl"), List.of(validation)),
             input.reference(), List.of(), "workspace:cline-docker",

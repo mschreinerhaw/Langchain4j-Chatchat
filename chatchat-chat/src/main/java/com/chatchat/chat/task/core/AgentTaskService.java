@@ -2638,9 +2638,8 @@ public class AgentTaskService {
         request.setTenantId(requireTenant(request.getTenantId()));
         request.setIdempotencyKey(normalizeIdempotencyKey(request.getIdempotencyKey()));
         request.setUserId(firstText(request.getUserId(), "anonymous"));
-        request.setSessionId(firstText(request.getSessionId(), request.getIdempotencyKey() == null
-            ? UUID.randomUUID().toString()
-            : idempotentTaskId(request.getTenantId(), "session:" + request.getIdempotencyKey())));
+        request.setSessionId(firstText(request.getSessionId(), AgentTaskIds.sessionId(
+            request.getTenantId(), request.getIdempotencyKey())));
         request.setRequestSource("AGENT_API".equalsIgnoreCase(request.getRequestSource())
             ? "AGENT_API" : "PLATFORM_UI");
         request.setMode(firstText(request.getMode(), "agent_chat"));
@@ -2662,8 +2661,7 @@ public class AgentTaskService {
     }
 
     private String idempotentTaskId(String tenantId, String idempotencyKey) {
-        String source = "agent-task:" + tenantId + ":" + idempotencyKey;
-        return UUID.nameUUIDFromBytes(source.getBytes(StandardCharsets.UTF_8)).toString();
+        return AgentTaskIds.taskId(tenantId, idempotencyKey);
     }
 
     private void assertSameIdempotentRequest(AgentTaskLatestEntity existing,

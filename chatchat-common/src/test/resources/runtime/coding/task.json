@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "runtime_os.coding.v1",
+  "taskId": "coding-task-001",
+  "scope": {
+    "tenantId": "tenant-a",
+    "userId": "analyst",
+    "runId": "run-001",
+    "requestId": "trace-1",
+    "conversationId": null,
+    "environment": "dev",
+    "attributes": {
+      "notHashed": "private"
+    }
+  },
+  "objective": {
+    "instruction": "验证收益 \"金额\" 🧮\n保留原始数据\\输入\t精度\u000f",
+    "deliverables": [
+      "result.jsonl",
+      "validation.json"
+    ],
+    "acceptanceCriteriaRefs": [
+      "criteria:reconciliation",
+      "criteria:precision"
+    ]
+  },
+  "inputSnapshotRef": "snapshot:financial-v1",
+  "metadataRefs": [
+    "metadata:z",
+    "metadata:a"
+  ],
+  "workspaceRef": "workspace:task-001",
+  "authorization": {
+    "decisionRef": "auth:001",
+    "allowedTools": [
+      "python.run",
+      "files.read"
+    ],
+    "allowedDataRefs": [
+      "dataset:trades"
+    ],
+    "readablePathRefs": [
+      "input:trades"
+    ],
+    "writablePathRefs": [
+      "output:task-001"
+    ],
+    "networkPolicy": "NONE",
+    "networkAllowlist": [],
+    "allowedSideEffects": [
+      "WORKSPACE_WRITE",
+      "CODE_EXECUTION"
+    ]
+  },
+  "budget": {
+    "budgetId": "budget:001",
+    "deadlineAt": "2026-10-15T12:00:00Z",
+    "maxModelCalls": 0,
+    "maxModelTokens": 0,
+    "maxToolCalls": 10,
+    "maxCodeExecutions": 3,
+    "maxCpuMillis": 30000,
+    "maxMemoryBytes": 268435456,
+    "maxOutputBytes": 1048576,
+    "maxCostAmount": "0",
+    "costCurrency": "USD"
+  },
+  "environmentRef": "environment:python-digest",
+  "validationPlanRef": "validation:001",
+  "outputContract": {
+    "resultFormat": "JSON_LINES",
+    "resultSchemaRef": "schema:financial-result",
+    "validationSchemaRef": "schema:checks",
+    "requiredFiles": [
+      "validation.json",
+      "result.jsonl"
+    ],
+    "acceptedMediaTypes": [
+      "application/json",
+      "application/x-ndjson"
+    ],
+    "maxResultRows": 10000,
+    "maxResultBytes": 1048576,
+    "requiredEvidence": [
+      "EVIDENCE_BUNDLE",
+      "VALIDATION_RECORD",
+      "RESULT_DATASET",
+      "EXECUTION_RECEIPT",
+      "CODE_ARTIFACT",
+      "INPUT_SNAPSHOT"
+    ]
+  }
+}

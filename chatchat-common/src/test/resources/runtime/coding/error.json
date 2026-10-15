@@ -1,0 +1,9 @@
+{
+  "code": "EXECUTION_OUTCOME_UNKNOWN",
+  "retryable": false,
+  "taskId": "coding-task-001",
+  "operationId": "operation:001",
+  "correlationId": "trace-1",
+  "knownOutcomeRef": null,
+  "message": "必须先核对执行事实"
+}

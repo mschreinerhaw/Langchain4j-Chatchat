@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "runtime_os.coding.v1",
+  "eventId": "event:001",
+  "taskId": "coding-task-001",
+  "scope": {
+    "tenantId": "tenant-a",
+    "userId": "analyst",
+    "runId": "run-001",
+    "requestId": "trace-1",
+    "conversationId": null,
+    "environment": "dev",
+    "attributes": {
+      "notHashed": "private"
+    }
+  },
+  "sequence": 5,
+  "revision": 2,
+  "occurredAt": "2026-10-15T10:00:01Z",
+  "type": "TASK_FINISHED",
+  "operationId": null,
+  "attempt": null,
+  "status": "COMPLETED",
+  "reasonCode": null,
+  "evidenceRefs": [
+    "bundle:001"
+  ],
+  "usage": {
+    "budgetId": "budget:001",
+    "costCurrency": "USD",
+    "consumed": {
+      "modelCalls": 0,
+      "modelTokens": 0,
+      "toolCalls": 0,
+      "codeExecutions": 0,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 0,
+      "costAmount": "0"
+    },
+    "reserved": {
+      "modelCalls": 0,
+      "modelTokens": 0,
+      "toolCalls": 0,
+      "codeExecutions": 0,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 0,
+      "costAmount": "0"
+    },
+    "meteringComplete": true
+  },
+  "summary": "结果已提交"
+}

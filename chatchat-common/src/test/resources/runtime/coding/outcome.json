@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "runtime_os.coding.v1",
+  "taskId": "coding-task-001",
+  "scope": {
+    "tenantId": "tenant-a",
+    "userId": "analyst",
+    "runId": "run-001",
+    "requestId": "trace-1",
+    "conversationId": null,
+    "environment": "dev",
+    "attributes": {
+      "notHashed": "private"
+    }
+  },
+  "contractSha256": "58f11973b17b455eee2b35d881c640e5d23dd830d3e35e56da5bf92100582899",
+  "status": "COMPLETED",
+  "revision": 2,
+  "lastEventSequence": 5,
+  "createdAt": "2026-10-15T10:00:00Z",
+  "updatedAt": "2026-10-15T10:00:01Z",
+  "startedAt": "2026-10-15T10:00:00Z",
+  "endedAt": "2026-10-15T10:00:01Z",
+  "cancellationRequested": false,
+  "reasonCode": null,
+  "summary": "程序完成并发现预设对账异常",
+  "limitations": [],
+  "inputSnapshotRef": "snapshot:financial-v1",
+  "codeArtifactRef": "code:001",
+  "executionReceiptRef": "receipt:001",
+  "resultDatasetRef": "dataset:result-001",
+  "validationRecordRef": "validation-record:001",
+  "evidenceBundleRef": "bundle:001",
+  "validationStatus": "FAILED",
+  "reproducibility": {
+    "level": "FULL",
+    "limitations": [],
+    "dependencyRefs": [
+      "environment:python-digest",
+      "snapshot:financial-v1"
+    ]
+  },
+  "usage": {
+    "budgetId": "budget:001",
+    "costCurrency": "USD",
+    "consumed": {
+      "modelCalls": 0,
+      "modelTokens": 0,
+      "toolCalls": 0,
+      "codeExecutions": 0,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 0,
+      "costAmount": "0"
+    },
+    "reserved": {
+      "modelCalls": 0,
+      "modelTokens": 0,
+      "toolCalls": 0,
+      "codeExecutions": 0,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 0,
+      "costAmount": "0"
+    },
+    "meteringComplete": true
+  },
+  "executionControl": {
+    "stopReason": null,
+    "stopRequestedAt": null,
+    "executorStopped": true,
+    "reconciliationRequired": false
+  },
+  "parentTaskId": null,
+  "supersedesTaskId": null,
+  "perArtifactCompleteness": {
+    "INPUT_SNAPSHOT": "COMPLETE",
+    "CODE_ARTIFACT": "COMPLETE",
+    "EXECUTION_RECEIPT": "COMPLETE",
+    "RESULT_DATASET": "COMPLETE",
+    "VALIDATION_RECORD": "COMPLETE",
+    "EVIDENCE_BUNDLE": "COMPLETE"
+  }
+}

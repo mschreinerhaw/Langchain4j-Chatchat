@@ -81,16 +81,33 @@ public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProg
         return locked(scope, () -> {
             var current = readExecutionCheckpointLocked(scope, key).orElse(null);
             if (!Objects.equals(current, expectedJson)) return false;
-            String id = entryId(partition(scope), "EXEC_CHECKPOINT", key);
-            long revision = advance(partition(scope));
-            long now = System.currentTimeMillis();
-            String body = executionCheckpointBody(scope, key, nextJson, revision, now);
-            if (current == null) jdbc.update("insert into runtime_evidence_entry (id,partition_id,entry_kind,entry_id,revision,stored_at,occurred_at,sha256,record_json) values (?,?,?,?,?,?,?,?,?)",
-                id, partition(scope), "EXEC_CHECKPOINT", key, revision, now, now, hash(body + "\u0000"), body);
-            else jdbc.update("update runtime_evidence_entry set revision=?,stored_at=?,sha256=?,record_json=? where id=?",
-                revision, now, hash(body + "\u0000"), body, id);
+            writeExecutionCheckpointLocked(scope, key, current, nextJson);
             return true;
         });
+    }
+
+    @Override public String mutateExecutionCheckpoint(KernelDataScope scope, String key,
+                                                       java.util.function.UnaryOperator<String> mutation) {
+        Objects.requireNonNull(mutation, "mutation");
+        return locked(scope, () -> {
+            String current = readExecutionCheckpointLocked(scope, key).orElse(null);
+            String next = Objects.requireNonNull(mutation.apply(current), "checkpoint mutation result");
+            if (!Objects.equals(current, next)) writeExecutionCheckpointLocked(scope, key, current, next);
+            return next;
+        });
+    }
+
+    private void writeExecutionCheckpointLocked(KernelDataScope scope, String key, String current, String next) {
+        String id = entryId(partition(scope), "EXEC_CHECKPOINT", key);
+        Map<String, Object> previous = entry(id);
+        long revision = advance(partition(scope));
+        long now = System.currentTimeMillis();
+        String body = executionCheckpointBody(scope, key, next, revision, now);
+        if (current == null) jdbc.update("insert into runtime_evidence_entry (id,partition_id,entry_kind,entry_id,revision,stored_at,occurred_at,sha256,record_json) values (?,?,?,?,?,?,?,?,?)",
+            id, partition(scope), "EXEC_CHECKPOINT", key, revision, now, now, hash(body + "\u0000"), body);
+        else if (jdbc.update("update runtime_evidence_entry set revision=?,stored_at=?,sha256=?,record_json=? where id=? and revision=?",
+            revision, now, hash(body + "\u0000"), body, id, number(previous, "revision")) != 1)
+            throw new IllegalStateException("Execution checkpoint revision conflict");
     }
 
     /** Chunk payload and manifest commit in the same owner transaction; ordinary evidence limits stay unchanged. */
@@ -158,6 +175,31 @@ public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProg
     @Override public EvidenceRegistration register(EvidenceRecord record, EvidenceLineage lineage) {
         validate(record, lineage);
         return locked(record.scope(), () -> registerLocked(record, lineage));
+    }
+
+    /** Publishes a verified coding batch, its bundle, and the stage transition under one owner lock. */
+    public EvidenceSnapshot commitCodingEvidence(KernelDataScope scope, String checkpointKey,
+            String verifiedJson, String committedJson, List<EvidenceRecord> records,
+            List<EvidenceLineage> lineages, String bundleId, List<String> bundleEvidenceIds,
+            Map<String, Object> bundleMetadata) {
+        if (records == null || lineages == null || records.size() != lineages.size() || records.isEmpty())
+            throw new IllegalArgumentException("A nonempty aligned coding evidence batch is required");
+        for (int i = 0; i < records.size(); i++) {
+            validate(records.get(i), lineages.get(i));
+            if (!partition(scope).equals(partition(records.get(i).scope())))
+                throw new SecurityException("Coding evidence crosses the owner partition");
+        }
+        if (verifiedJson == null || committedJson == null) throw new IllegalArgumentException("Evidence stage is required");
+        return locked(scope, () -> {
+            String current = readExecutionCheckpointLocked(scope, checkpointKey).orElse(null);
+            if (committedJson.equals(current)) return snapshotLocked(scope, bundleId,
+                bundleEvidenceIds, bundleMetadata);
+            if (!verifiedJson.equals(current)) throw new IllegalStateException("Coding evidence is not verified");
+            for (int i = 0; i < records.size(); i++) registerLocked(records.get(i), lineages.get(i));
+            EvidenceSnapshot bundle = snapshotLocked(scope, bundleId, bundleEvidenceIds, bundleMetadata);
+            writeExecutionCheckpointLocked(scope, checkpointKey, current, committedJson);
+            return bundle;
+        });
     }
 
     private EvidenceRegistration registerLocked(EvidenceRecord record, EvidenceLineage lineage) {

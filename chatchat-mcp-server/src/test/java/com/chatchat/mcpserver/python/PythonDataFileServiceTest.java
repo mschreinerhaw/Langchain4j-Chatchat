@@ -34,7 +34,14 @@ class PythonDataFileServiceTest {
             .extracting(PythonDataFileService.DataFileView::fileId).containsExactly("file_1");
         assertThat(service.discover("tenant_1","李四@example.com","交易.csv",20)).isEmpty();
         assertThat(InternalSecretCipher.decryptBytes(service.content("tenant_1","张三@example.com","file_1"),"secret")).isEqualTo(content);
+        Path isolated = temp.resolve("operation-input").resolve("file_1");
+        var snapshot = service.snapshotAuthorized("tenant_1", "张三@example.com", "file_1", isolated);
+        assertThat(snapshot.sha256()).isEqualTo(hash);
+        assertThat(isolated.resolve("交易.csv")).hasContent("name,amount\nA,12\n");
+        assertThatThrownBy(() -> service.snapshotAuthorized("tenant_1", "other-user", "file_1", temp.resolve("wrong-user")))
+                .isInstanceOf(IllegalArgumentException.class);
         service.delete("tenant_1","张三@example.com","file_1");assertThat(Path.of(result.storagePath())).doesNotExist();
+        assertThat(isolated.resolve("交易.csv")).hasContent("name,amount\nA,12\n");
     }
     @Test void discoversStoredFileByFileId() throws Exception {
         PythonRuntimeProperties properties = new PythonRuntimeProperties();

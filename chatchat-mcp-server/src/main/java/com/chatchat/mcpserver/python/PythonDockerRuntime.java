@@ -10,6 +10,7 @@ import java.nio.file.*;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * Asset/workspace 持久化，Docker 容器只在单次执行期间存在。
@@ -20,6 +21,112 @@ public class PythonDockerRuntime {
     private final PythonRuntimeProperties properties;
     private final ObjectMapper objectMapper;
     private final PythonDataFileService dataFiles;
+
+    /** Stable name survives a lost HTTP response and a service restart. */
+    public String managedContainerName(String tenant, String owner, String run, String task, String operation, int attempt) {
+        String identity = String.join("\u0000", tenant, owner, run, task, operation, Integer.toString(attempt));
+        return "chatchat-py-" + PythonOperationWorkspace.hash(identity.getBytes(StandardCharsets.UTF_8)).substring(0, 40);
+    }
+
+    public String resolveImageId(PythonEnvironment env) throws IOException, InterruptedException {
+        validateEnvironment(env);
+        ExecResult result = run(List.of(properties.getDockerCommand(), "image", "inspect", "--format", "{{.Id}}", env.getDockerImage()), Duration.ofSeconds(30));
+        String id = result.stdout().trim();
+        if (result.exitCode() != 0 || !id.matches("sha256:[0-9a-f]{64}"))
+            throw new IllegalStateException("Python image digest cannot be resolved");
+        return id;
+    }
+
+    public void createManaged(PythonEnvironment env, Path workspace, String container, String fileName, String imageId) throws IOException, InterruptedException {
+        validateEnvironment(env);
+        if (!container.matches("chatchat-py-[0-9a-f]{40}") || !fileName.matches("[A-Za-z0-9][A-Za-z0-9_.-]{0,170}\\.py")
+                || imageId == null || !imageId.matches("sha256:[0-9a-f]{64}"))
+            throw new IllegalArgumentException("Invalid managed execution identity");
+        Path scripts = workspace.resolve("scripts");
+        Path inputs = workspace.resolve("input");
+        Path output = workspace.resolve("output");
+        for (Path path : List.of(scripts, inputs, output)) {
+            if (Files.isSymbolicLink(path) || !Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS))
+                throw new IllegalArgumentException("Invalid managed mount");
+        }
+        String input = Files.readString(workspace.resolve("parameters.json"));
+        List<String> command = new ArrayList<>(List.of(properties.getDockerCommand(), "create", "--name", container,
+                "--label", "chatchat.python.operation=" + container,
+                "--cpus", env.getCpuLimit(), "--memory", env.getMemoryLimit(), "--pids-limit", "256",
+                "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
+                "--user", env.getRuntimeUser(), "--tmpfs", "/tmp:rw,noexec,nosuid,size=" + env.getTmpfsLimit(),
+                "-v", scripts.toAbsolutePath() + ":/workspace/scripts:ro",
+                "-v", inputs.toAbsolutePath() + ":/data/input:ro",
+                "-v", output.toAbsolutePath() + ":/workspace/output:rw",
+                "-w", "/workspace", "-e", "CHATCHAT_INPUT_JSON=" + input));
+        if ("NONE".equals(env.getNetworkPolicy())) command.addAll(List.of("--network", "none"));
+        else command.addAll(List.of("--network", env.getNetworkName()));
+        command.addAll(List.of(imageId, "python", "/workspace/scripts/" + fileName));
+        ExecResult created = run(command, Duration.ofSeconds(60));
+        if (created.exitCode() != 0) throw new IllegalStateException("Docker create failed: " + created.stderr());
+    }
+
+    public void startManagedDetached(String container) throws IOException, InterruptedException {
+        ExecResult started = run(List.of(properties.getDockerCommand(), "start", container), Duration.ofSeconds(15));
+        if (started.exitCode() != 0 || started.timedOut()) throw new IllegalStateException("Docker start failed: " + started.stderr());
+    }
+
+    public ExecResult waitManaged(String container, int timeoutSeconds) throws IOException, InterruptedException {
+        ExecResult waited = run(List.of(properties.getDockerCommand(), "wait", container), Duration.ofSeconds(timeoutSeconds));
+        if (waited.timedOut()) {
+            StopCheck stopped = stopManaged(container);
+            if (!stopped.confirmed()) throw new IllegalStateException("Docker timeout; container stop is unconfirmed: " + stopped.message());
+        }
+        ContainerState state = inspectManaged(container);
+        return new ExecResult(container, state.exitCode() == null ? -1 : state.exitCode(), waited.stdout(), waited.stderr(), waited.durationMs(), waited.timedOut());
+    }
+
+    public ContainerState inspectManaged(String container) {
+        try {
+            ExecResult result = run(List.of(properties.getDockerCommand(), "inspect", "--format", "{{json .State}}", container), Duration.ofSeconds(15));
+            if (result.exitCode() != 0) return new ContainerState(false, false, false, null, false, null, null, result.stderr());
+            JsonNode state = objectMapper.readTree(result.stdout().trim());
+            return new ContainerState(true, state.path("Running").asBoolean(), dockerTime(state.path("FinishedAt").asText("")) != null,
+                    state.path("ExitCode").isNumber() ? state.path("ExitCode").asInt() : null, state.path("OOMKilled").asBoolean(),
+                    dockerTime(state.path("StartedAt").asText("")), dockerTime(state.path("FinishedAt").asText("")),
+                    state.path("Error").asText(""));
+        } catch (Exception ex) { return new ContainerState(false, false, false, null, false, null, null, ex.getMessage()); }
+    }
+
+    private java.time.Instant dockerTime(String text) {
+        try { return text == null || text.isBlank() || text.startsWith("0001-") ? null : java.time.Instant.parse(text); }
+        catch (Exception ex) { return null; }
+    }
+
+    public StopCheck stopManaged(String container) {
+        ContainerState before = inspectManaged(container);
+        if (!before.exists()) return new StopCheck(false, "Container identity cannot be inspected: " + before.message());
+        if (before.running()) {
+            try { run(List.of(properties.getDockerCommand(), "stop", "--time", "2", container), Duration.ofSeconds(20)); }
+            catch (Exception ex) { return new StopCheck(false, ex.getMessage()); }
+        }
+        ContainerState after = inspectManaged(container);
+        return new StopCheck(after.exists() && !after.running(), after.message());
+    }
+
+    public boolean removeManaged(String container) {
+        try {
+            ExecResult removed = run(List.of(properties.getDockerCommand(), "rm", container), Duration.ofSeconds(15));
+            return removed.exitCode() == 0;
+        } catch (Exception ex) { return false; }
+    }
+
+    public ExecResult logsManaged(String container) throws IOException, InterruptedException {
+        return run(List.of(properties.getDockerCommand(), "logs", container), Duration.ofSeconds(15));
+    }
+
+    public record ContainerState(boolean exists, boolean running, boolean finished, Integer exitCode,
+                                 boolean oomKilled, java.time.Instant startedAt, java.time.Instant finishedAt, String message) {
+        public ContainerState(boolean exists, boolean running, boolean finished, Integer exitCode, String message) {
+            this(exists, running, finished, exitCode, false, null, null, message);
+        }
+    }
+    public record StopCheck(boolean confirmed, String message) {}
 
     public ProvisionResult provision(PythonEnvironment environment, String tenantId, String ownerId, String assetId) {
         try {

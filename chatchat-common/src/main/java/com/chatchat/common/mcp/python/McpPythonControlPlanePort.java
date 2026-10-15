@@ -8,6 +8,7 @@ import java.util.Map;
 /** Stable Python runtime control-plane protocol independent of its remote client. */
 public interface McpPythonControlPlanePort extends RuntimeProtocolPort {
     String PROTOCOL_VERSION = "runtime_os.mcp.python_control.v1";
+    String MANAGED_PROTOCOL_VERSION = "runtime_os.mcp.python_managed.v1";
 
     List<EnvironmentView> environments();
     /** Returns the MCP-published state of an environment, including non-active states. */
@@ -22,6 +23,43 @@ public interface McpPythonControlPlanePort extends RuntimeProtocolPort {
                                   String fileHash, byte[] content);
     byte[] downloadDataFile(String tenantId, String ownerId, String fileId);
     void deleteDataFile(String tenantId, String ownerId, String fileId);
+
+    /** An accepted operation is durable before this call returns. Source is encrypted by the client. */
+    default OperationView start(StartRequest request) {
+        throw new UnsupportedOperationException("Async Python execution is unavailable");
+    }
+
+    default OperationView get(String tenantId, String ownerId, String runId, String taskId, String operationId) {
+        throw new UnsupportedOperationException("Async Python execution is unavailable");
+    }
+
+    default OperationView cancel(String tenantId, String ownerId, String runId, String taskId,
+                                 String operationId, long fencingToken) {
+        throw new UnsupportedOperationException("Async Python execution is unavailable");
+    }
+
+    default byte[] artifact(String tenantId, String ownerId, String runId, String taskId,
+                            String operationId, String channel, String fileName) {
+        throw new UnsupportedOperationException("Python artifacts are unavailable");
+    }
+
+    default void downloadArtifact(String tenantId, String ownerId, String runId, String taskId,
+                                  String operationId, String channel, String fileName, java.io.OutputStream target)
+            throws java.io.IOException {
+        target.write(artifact(tenantId, ownerId, runId, taskId, operationId, channel, fileName));
+    }
+
+    record StartRequest(String tenantId, String ownerId, String runId, String taskId, String operationId,
+                        int attempt, long fencingToken, String environmentId, String assetId, String fileName,
+                        String source, Map<String, Object> parameters, String inputSchemaJson,
+                        List<String> authorizedFileIds, Map<String, String> authorizedFileHashes,
+                        String sourceSha256, java.time.Instant deadlineAt, String budgetReservationRef) {
+    }
+
+    record OperationView(String operationId, String status, String containerId, long fencingToken,
+                         boolean cancelRequested, boolean executorStopped, Integer exitCode,
+                         String codeHash, String imageDigest, String manifestHash, String failure) {
+    }
 
     record EnvironmentView(String id, String name, String description, String dockerImage, String pythonVersion,
                            String cpuLimit, String memoryLimit, String diskLimit, String tmpfsLimit,

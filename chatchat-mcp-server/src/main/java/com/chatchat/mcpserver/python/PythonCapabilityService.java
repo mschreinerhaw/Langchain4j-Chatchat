@@ -34,6 +34,11 @@ public class PythonCapabilityService {
         return environment(id);
     }
 
+    /** Coding operations may only be admitted against an active, immutable published version. */
+    public PythonEnvironment managedEnvironmentState(String id) {
+        return publishedEnvironment(id);
+    }
+
     @Transactional
     public PythonEnvironment saveEnvironment(EnvironmentRequest r) {
         if (r == null || blank(r.name()) || blank(r.dockerImage()))

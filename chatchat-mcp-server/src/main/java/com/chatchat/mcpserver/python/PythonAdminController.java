@@ -15,6 +15,7 @@ public class PythonAdminController {
     private final PythonCapabilityService service;
     private final McpTemplateLuceneIndexService indexes;
     private final PythonDataFileService dataFiles;
+    private final PythonManagedExecutionService managed;
 
     @GetMapping("/environments")
     public ApiResponse<?> environments(@RequestParam(name = "published", defaultValue = "false") boolean published) {
@@ -94,6 +95,41 @@ public class PythonAdminController {
     @PostMapping("/runtime/preview")
     public ApiResponse<?> preview(@RequestBody PythonCapabilityService.PreviewRequest r) {
         return ApiResponse.success(service.preview(r));
+    }
+
+    @PostMapping("/runtime/operations")
+    public ApiResponse<?> startOperation(@RequestHeader("X-Tenant-Scope") String tenant,
+                                         @RequestHeader("X-Owner-Scope") String owner,
+                                         @RequestBody PythonManagedExecutionService.StartCommand request) {
+        return ApiResponse.success(managed.start(request, scope(tenant), scope(owner)));
+    }
+
+    @GetMapping("/runtime/operations/{id}")
+    public ApiResponse<?> getOperation(@PathVariable("id") String id,
+                                       @RequestHeader("X-Tenant-Scope") String tenant,
+                                       @RequestHeader("X-Owner-Scope") String owner,
+                                       @RequestParam String runId, @RequestParam String taskId) {
+        return ApiResponse.success(managed.get(scope(tenant), scope(owner), runId, taskId, id));
+    }
+
+    @PostMapping("/runtime/operations/{id}/cancel")
+    public ApiResponse<?> cancelOperation(@PathVariable("id") String id,
+                                          @RequestHeader("X-Tenant-Scope") String tenant,
+                                          @RequestHeader("X-Owner-Scope") String owner,
+                                          @RequestParam String runId, @RequestParam String taskId,
+                                          @RequestParam long fencingToken) {
+        return ApiResponse.success(managed.cancel(scope(tenant), scope(owner), runId, taskId, id, fencingToken));
+    }
+
+    @GetMapping(value = "/runtime/operations/{id}/artifacts/{channel}/{file}", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+    public ResponseEntity<org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody> artifact(@PathVariable("id") String id, @PathVariable("channel") String channel,
+                                           @PathVariable("file") String file,
+                                           @RequestHeader("X-Tenant-Scope") String tenant,
+                                           @RequestHeader("X-Owner-Scope") String owner,
+                                           @RequestParam String runId, @RequestParam String taskId) {
+        java.nio.file.Path path = managed.artifactPath(scope(tenant), scope(owner), runId, taskId, id, channel, file);
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM).contentLength(path.toFile().length())
+                .body(output -> java.nio.file.Files.copy(path, output));
     }
 
     @PostMapping(value = "/data-files/{id}", consumes = MediaType.APPLICATION_OCTET_STREAM_VALUE)

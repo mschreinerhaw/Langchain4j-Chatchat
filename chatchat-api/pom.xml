@@ -46,6 +46,12 @@
         </dependency>
         <dependency>
             <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-mcp-server</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.chatchat</groupId>
             <artifactId>chatchat-runtime-skill</artifactId>
         </dependency>
         <dependency>

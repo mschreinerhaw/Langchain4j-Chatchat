@@ -16,6 +16,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.io.IOException;
+import java.nio.file.LinkOption;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -25,6 +27,47 @@ public class PythonDataFileService {
     private final PythonRuntimeProperties properties;
     private final InternalCredentialProperties credentials;
     private final ObjectMapper objectMapper;
+
+    /** Copies only an explicitly authorized file into an isolated operation snapshot. */
+    public SnapshotFile snapshotAuthorized(String tenant, String owner, String fileId, Path destination) throws IOException {
+        Path uploadsRoot = uploads(tenant, owner);
+        Path directory = fileDirectory(tenant, owner, fileId);
+        for (Path current = directory.toAbsolutePath(); current != null; current = current.getParent())
+            if (Files.isSymbolicLink(current)) throw new IllegalArgumentException("Symbolic link in input path");
+        if (Files.isSymbolicLink(uploadsRoot) || Files.isSymbolicLink(directory)
+                || !Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS))
+            throw new IllegalArgumentException("Input directory is not a regular directory");
+        Path source;
+        try (var entries = Files.list(directory)) {
+            List<Path> regular = entries.toList();
+            if (regular.size() != 1 || Files.isSymbolicLink(regular.get(0))
+                    || !Files.isRegularFile(regular.get(0), LinkOption.NOFOLLOW_LINKS))
+                throw new IllegalArgumentException("Authorized input must contain one regular file");
+            source = regular.get(0);
+        }
+        if (Files.size(source) > properties.getMaxDataFileBytes())
+            throw new IllegalArgumentException("Authorized input exceeds file limit");
+        Files.createDirectories(destination);
+        if (Files.isSymbolicLink(destination)) throw new IllegalArgumentException("Snapshot path is a symlink");
+        Path target = destination.resolve(source.getFileName().toString()).normalize();
+        if (!target.getParent().equals(destination) || Files.exists(target, LinkOption.NOFOLLOW_LINKS))
+            throw new IllegalArgumentException("Snapshot destination is invalid");
+        try (var in = Files.newByteChannel(source, Set.of(StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS));
+             var out = Files.newOutputStream(target, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+            java.nio.ByteBuffer buffer = java.nio.ByteBuffer.allocate(8192);
+            long copied = 0;
+            while (in.read(buffer) >= 0) {
+                buffer.flip();
+                copied += buffer.remaining();
+                if (copied > properties.getMaxDataFileBytes()) throw new IllegalArgumentException("Authorized input changed during snapshot");
+                out.write(buffer.array(), 0, buffer.limit());
+                buffer.clear();
+            }
+        }
+        return new SnapshotFile(fileId, target.getFileName().toString(), Files.size(target), sha256(Files.readAllBytes(target)));
+    }
+
+    public record SnapshotFile(String fileId, String fileName, long size, String sha256) {}
 
     public DataFileResult store(String tenant, String owner, String fileId, String encodedName, String expectedHash, byte[] encrypted) {
         component(tenant);

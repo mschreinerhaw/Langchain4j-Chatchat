@@ -46,6 +46,23 @@ public class McpPythonControlPlaneClient implements McpPythonControlPlanePort {
     public void deleteDataFile(String tenantId,String ownerId,String fileId){String token=login();webClient.delete().uri(url("/api/v1/python/data-files/"+encode(fileId)))
         .header(HttpHeaders.AUTHORIZATION,"Bearer "+token).header("X-Tenant-Scope",scopeHeader(tenantId)).header("X-Owner-Scope",scopeHeader(ownerId))
         .retrieve().bodyToMono(Object.class).timeout(timeout()).block();}
+    @Override public OperationView start(StartRequest request){Map<String,Object> body=mapper.convertValue(request,new TypeReference<>(){});body.put("sourceCiphertext",encrypt(request.source()));body.remove("source");return convert(scoped("POST",request.tenantId(),request.ownerId(),"/api/v1/python/runtime/operations",body),OperationView.class);}
+    @Override public OperationView get(String tenantId,String ownerId,String runId,String taskId,String operationId){return convert(scoped("GET",tenantId,ownerId,"/api/v1/python/runtime/operations/"+encode(operationId)+"?runId="+encode(runId)+"&taskId="+encode(taskId),null),OperationView.class);}
+    @Override public OperationView cancel(String tenantId,String ownerId,String runId,String taskId,String operationId,long fencingToken){return convert(scoped("POST",tenantId,ownerId,"/api/v1/python/runtime/operations/"+encode(operationId)+"/cancel?runId="+encode(runId)+"&taskId="+encode(taskId)+"&fencingToken="+fencingToken,Map.of()),OperationView.class);}
+    @Override public byte[] artifact(String tenantId,String ownerId,String runId,String taskId,String operationId,String channel,String fileName){String token=login();return webClient.get().uri(url("/api/v1/python/runtime/operations/"+encode(operationId)+"/artifacts/"+encode(channel)+"/"+encode(fileName)+"?runId="+encode(runId)+"&taskId="+encode(taskId))).header(HttpHeaders.AUTHORIZATION,"Bearer "+token).header("X-Tenant-Scope",scopeHeader(tenantId)).header("X-Owner-Scope",scopeHeader(ownerId)).retrieve().bodyToMono(byte[].class).timeout(timeout()).block();}
+    @Override public void downloadArtifact(String tenantId,String ownerId,String runId,String taskId,String operationId,String channel,String fileName,java.io.OutputStream target) throws java.io.IOException {
+        String token=login();
+        try {
+            webClient.get().uri(url("/api/v1/python/runtime/operations/"+encode(operationId)+"/artifacts/"+encode(channel)+"/"+encode(fileName)+"?runId="+encode(runId)+"&taskId="+encode(taskId)))
+                .header(HttpHeaders.AUTHORIZATION,"Bearer "+token).header("X-Tenant-Scope",scopeHeader(tenantId)).header("X-Owner-Scope",scopeHeader(ownerId))
+                .retrieve().bodyToFlux(org.springframework.core.io.buffer.DataBuffer.class).doOnNext(buffer -> {
+                    try { byte[] chunk=new byte[buffer.readableByteCount()];buffer.read(chunk);target.write(chunk); }
+                    catch(java.io.IOException ex){throw new java.io.UncheckedIOException(ex);}
+                    finally {org.springframework.core.io.buffer.DataBufferUtils.release(buffer);}
+                }).timeout(timeout()).blockLast();
+        } catch(java.io.UncheckedIOException ex) { throw ex.getCause(); }
+    }
+    private Object scoped(String method,String tenantId,String ownerId,String path,Object body){String token=login();WebClient.RequestBodySpec request=webClient.method(org.springframework.http.HttpMethod.valueOf(method)).uri(url(path)).header(HttpHeaders.AUTHORIZATION,"Bearer "+token).header("X-Tenant-Scope",scopeHeader(tenantId)).header("X-Owner-Scope",scopeHeader(ownerId));Object raw=(body==null?request.retrieve():request.contentType(MediaType.APPLICATION_JSON).bodyValue(body).retrieve()).bodyToMono(Object.class).timeout(timeout()).block();return unwrap(raw);}
     private String encrypt(String source){return InternalSecretCipher.encrypt(source,secret());}
     private String secret(){String secret=credentials.resolvedSecret();if(secret.isBlank())throw new IllegalStateException("内部加密凭据未配置，禁止传输数据");return secret;}
     private String scopeHeader(String value){if(value==null||value.isBlank()||value.length()>256)throw new IllegalArgumentException("非法内部数据作用域");return Base64.getUrlEncoder().withoutPadding().encodeToString(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));}

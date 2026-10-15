@@ -101,3 +101,23 @@ sequenceDiagram
 本地已通过 `mvn -pl chatchat-api -am package -DskipTests -Dfrontend.skip=true -Dfrontend.install.skip=true -q` 生成新 API JAR（399273148 字节，SHA-256 `282278779c500066386fb666e028d6f7408645220752c5df4aa2694e7dbbe611`），包内包含 `ClineModelCallbackController.class` 与 `ClineCodingAdapter.class`。该产物尚未部署；直接替换现网 8080 会越过隔离 Java 环境和真实模型验收，不作为此次联机调试步骤。
 
 **D1 仍阻断。** Java 新回调尚未部署到隔离的 Java 暂存服务，真实服务端模型、Java HTTP→Node→Sandbox→Evidence 整链路未测；Node SDK 事件尚未转换为 A2 权威事件；外部操作已启动但 Node 会话丢失时仍只能保留未知状态与预算预留，不能安全重放或伪造停止。生产 Coding 开关继续关闭，D2 不启动编码。
+
+## 2026-10-15 隔离 Java/Node 联机续验
+
+前一段所述“Java 新回调尚未部署”是当时状态。本次已把修复后的 JAR 部署到**独立暂存目录** `/opt/coding-deploy-stage-20261015/java-stage`，并在 `172.30.91.1:18080` 启动独立 Java 实例；生产 API `8080`、MCP `8090` 和原 Node 暂存容器 `8791` 均未替换。暂存 Java 使用独立的 H2 文件库、关闭 MCP 中心和 OpenSearch、以仅供隔离验证的最小 Runtime 语义策略启动；它没有生产模型资源、真实业务数据或完整模板策略，不能代替生产验收。新 JAR 的本地与服务器 SHA-256 均为 `e19a5b5f42f8978b08cf3c539cddd95ab1599feacac037fa988333c4c308e1a7`。
+
+启动暴露了 `ClineCallbackAuthFilter` 双构造器装配错误：Spring 曾尝试无参构造，应用无法启动。现在给生产构造器显式加 `@Autowired`，并新增 `ApplicationContextRunner` 装配回归。`mvn -pl chatchat-api -am test -Dtest=ClineCallbackAuthFilterTest -Dsurefire.failIfNoSpecifiedTests=false -Dfrontend.skip=true -Dfrontend.install.skip=true -q` 通过，重新打包通过，暂存实例完成启动。此前新 H2 无已发布语义策略、默认 OpenSearch 无授权也各自使启动失败；它们通过**仅暂存**的 H2 策略记录及 Lucene 配置解决，没有修改生产服务或数据库。
+
+独立 Node 容器 `coding-agent-d1-stage` 位于 `172.30.91.11`，仅向宿主 `127.0.0.1:8792` 映射 HTTP，使用非 root、只读根目录、无 Docker Socket、无额外能力和 2 GiB 内存限制。最初 `host.docker.internal` 指向默认 Docker 网关 `172.17.0.1`，而 Java 只监听专用网关 `172.30.91.1`，导致 `ECONNREFUSED`。暂存 Node 的回调 URL 改为 `http://172.30.91.1:18080` 且白名单仅含此地址后，联通性恢复。
+
+| 联机检查 | 实测 |
+| --- | --- |
+| 新 Java `/internal/coding/cline/reserve-model` 无签名请求 | 401；此前生产 JAR 对该路由为 404，证明暂存新 JAR 路由已生效。 |
+| 来自白名单 Node 地址的签名回调，空 JSON | 400；请求通过签名/来源过滤，随后因缺任务绑定由控制器拒绝。 |
+| Node `POST /v1/runs` 虚构、无工具、无业务数据的任务 | 202；稍后 Node 状态 `FAILED`，错误 `Coding task state rejected callback: NOT_FOUND`。这符合 Java A2 没有该任务的预期，证明 Node→Java 实际签名调用、路由和 A2 边界均参与。此请求没有触发模型或 Sandbox。 |
+| 暂存 Node 鉴权健康接口 | 200。 |
+| 原生产 API `/`、MCP `/actuator/health` | 分别 200、200；原服务继续运行。 |
+
+**D1 仍阻断，G3 未通过，D2 未编码。** 本次仅完成跨容器回调传输与拒绝路径。由于当前 Java 没有可供隔离验收调用的 Coding 任务入口，且暂存 H2 没有服务端模型配置、授权 Dataset 快照及 Python 控制面配置，尚不能发起真实的 A2 Coding 任务，也不能证明模型→Python→六项证据链。下一步需建立受控的暂存任务驱动/夹具，把既有服务端模型配置安全引入隔离环境，完成真实 MCP Python 操作及证据回流；随后测试取消、预算、重启恢复和事件断线续传。不得把此次虚构任务的 202/FAILED 当作 D1 通过。
+
+联调结束后已停止新增的 `coding-agent-d1-stage` 容器和 `18080` Java 实例，保留隔离暂存文件以供复验；复核生产 API/MCP 仍分别返回 200。原有 `8791` Node 暂存容器未改动。

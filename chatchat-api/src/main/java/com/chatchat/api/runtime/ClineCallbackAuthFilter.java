@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -31,6 +32,7 @@ public final class ClineCallbackAuthFilter extends OncePerRequestFilter {
     private final Set<String> allowedPeers;
     private final Map<String, Long> nonces = new ConcurrentHashMap<>();
 
+    @Autowired
     public ClineCallbackAuthFilter(@Value("${chatchat.coding.cline.shared-secret:}") String secret,
             @Value("${chatchat.coding.cline.allowed-peer-addresses:127.0.0.1,::1,0:0:0:0:0:0:0:1}")
             String allowedPeerAddresses) {

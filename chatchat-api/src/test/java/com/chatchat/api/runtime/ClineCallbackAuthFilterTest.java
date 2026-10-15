@@ -2,6 +2,7 @@ package com.chatchat.api.runtime;
 
 import com.chatchat.common.security.InternalRequestSigner;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
@@ -14,6 +15,15 @@ import static org.assertj.core.api.Assertions.*;
 class ClineCallbackAuthFilterTest {
     private static final String SECRET = "0123456789abcdef0123456789abcdef";
     private static final String PATH = "/internal/coding/cline/model";
+
+    @Test void springCreatesFilterFromItsProductionConstructorWhenCodingIsEnabled() {
+        new ApplicationContextRunner()
+            .withPropertyValues("chatchat.coding.enabled=true", "chatchat.coding.cline.enabled=true",
+                "chatchat.coding.cline.shared-secret=" + SECRET,
+                "chatchat.coding.cline.allowed-peer-addresses=172.30.91.11")
+            .withUserConfiguration(ClineCallbackAuthFilter.class)
+            .run(context -> assertThat(context).hasSingleBean(ClineCallbackAuthFilter.class));
+    }
 
     @Test void acceptsOneSignedLoopbackCallbackAndRejectsReplay() throws Exception {
         var filter = new ClineCallbackAuthFilter(SECRET);

@@ -131,6 +131,8 @@ class CodingTaskPersistenceTest {
         service.submit(contract("task",10)); var old=claim("task","old");
         service.reserve(scope,"task",old,rev("task"),"op",intent,counters(1,"1"));
         service.startIntent(scope,"task",old,rev("task"),"op","execution:unknown");
+        assertThat(service.hasStartedOperations(scope,"task")).isTrue();
+        assertThat(service.contract(scope,"task")).isEqualTo(contract("task",10));
         clock.advance(Duration.ofSeconds(11)); var next=claim("task","next");
         var state=service.resume(scope,"task");
         assertThat(state.executionControl().reconciliationRequired()).isTrue();
@@ -140,6 +142,7 @@ class CodingTaskPersistenceTest {
         code(()->service.reconcileStopped(scope,"task",next,rev("task"),"op","model-claims-stopped"),EXECUTION_OUTCOME_UNKNOWN);
         service.cancel(scope,"task","stop requested");
         code(()->service.finishStoppedWithoutExecution(scope,"task",rev("task")),EXECUTION_OUTCOME_UNKNOWN);
+        code(()->service.finishStoppedAfterReconciliation(scope,"task",next,rev("task")),EXECUTION_OUTCOME_UNKNOWN);
         assertThat(service.get(scope,"task").status()).isEqualTo(Status.RUNNING);
     }
 

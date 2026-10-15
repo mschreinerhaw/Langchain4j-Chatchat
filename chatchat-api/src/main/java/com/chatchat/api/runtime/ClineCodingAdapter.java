@@ -5,6 +5,7 @@ import com.chatchat.agents.runtime.coding.DurableCodingTaskService;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.runtime.coding.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -56,14 +57,14 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         if (contract.authorization().networkPolicy() != CodingTaskContract.NetworkPolicy.NONE)
             throw new SecurityException("D1 Coding Sandbox requires a no-network authorization");
         CodingTaskOutcome accepted = tasks.submit(contract); // A2 persists acceptance before any Node dispatch.
-        if (accepted.status().terminal()) return accepted;
+        if (accepted.status().terminal() || accepted.executionControl().stopReason() != null) return accepted;
         KernelDataScope scope = contract.scope();
         CodingJournal.Lease lease = tasks.ownership(scope, contract.taskId());
         if (lease.leaseUntil().isAfter(Instant.now()) && !workerId.equals(lease.owner())) return accepted;
         if (!lease.leaseUntil().isAfter(Instant.now()))
             lease = tasks.claim(scope, contract.taskId(), workerId, Duration.ofSeconds(90), accepted.revision());
         // Unknown starts belong to recovery; another model request must never be invented by submit.
-        if (!tasks.unresolvedOperations(scope, contract.taskId()).isEmpty()) return tasks.get(scope, contract.taskId());
+        if (tasks.hasStartedOperations(scope, contract.taskId())) return tasks.get(scope, contract.taskId());
         request("/v1/runs", Map.of("contract", contract, "contractHash", CodingCanonicalHash.sha256(contract),
             "fencingToken", lease.fencingToken()));
         return tasks.get(scope, contract.taskId());
@@ -92,9 +93,28 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             lease = tasks.claim(scope, taskId, workerId, Duration.ofMinutes(5), current.revision());
             current = tasks.get(scope, taskId);
         }
-        try { request("/v1/runs/get", Map.of("scope", scope, "taskId", taskId,
+        if (current.executionControl().stopReason() != null) {
+            try { request("/v1/runs/cancel", Map.of("scope", scope, "taskId", taskId,
+                "contractHash", current.contractSha256(), "fencingToken", lease.fencingToken())); }
+            catch (RuntimeException unavailable) { /* Keep the durable stop request for later reconciliation. */ }
+            for (String operationId : tasks.unresolvedOperations(scope, taskId)) {
+                if (!operationId.matches("cline-[0-9a-f]{64}")) continue;
+                try { python.cancel(scope, taskId, operationId, "Runtime stop request"); }
+                catch (RuntimeException unavailable) { /* MCP outcome remains unknown. */ }
+            }
+        }
+        JsonNode remote = null;
+        boolean sessionMissing = false;
+        try { remote = request("/v1/runs/get", Map.of("scope", scope, "taskId", taskId,
             "contractHash", current.contractSha256(), "fencingToken", lease.fencingToken())); }
+        catch (NodeHttpException unavailable) { sessionMissing = unavailable.status == 404; }
         catch (RuntimeException unavailable) { /* A2 remains authoritative; unknown Node state cannot be replayed. */ }
+        if (remote != null && remote.path("fencingToken").asLong() < lease.fencingToken()
+                && "RUNNING".equals(remote.path("status").asText())) {
+            try { request("/v1/runs/cancel", Map.of("scope", scope, "taskId", taskId,
+                "contractHash", current.contractSha256(), "fencingToken", lease.fencingToken())); }
+            catch (RuntimeException unavailable) { /* Old worker remains fenced by A2. */ }
+        }
         // Only Python operations have MCP execution identities. Model starts retain their
         // reservations until the receipt can be reconciled; they are never dispatched again.
         for (String operationId : tasks.unresolvedOperations(scope, taskId)) {
@@ -109,6 +129,19 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
                         && operation.manifestHash() != null)
                     python.reconcile(scope, taskId, lease, operationId);
             } catch (RuntimeException unavailable) { return tasks.get(scope, taskId); }
+        }
+        current = tasks.get(scope, taskId);
+        if (workerId.equals(lease.owner()) && current.executionControl().stopReason() != null
+                && remote != null && List.of("COMPLETED", "FAILED", "CANCELLED").contains(remote.path("status").asText())
+                && tasks.unresolvedOperations(scope, taskId).isEmpty())
+            return tasks.finishStoppedAfterReconciliation(scope, taskId, lease, current.revision());
+        if (workerId.equals(lease.owner()) && current.executionControl().stopReason() == null
+                && !tasks.hasStartedOperations(scope, taskId)
+                && (sessionMissing || remote != null && remote.path("fencingToken").asLong() < lease.fencingToken()
+                    && List.of("COMPLETED", "FAILED", "CANCELLED").contains(remote.path("status").asText()))) {
+            CodingTaskContract contract = tasks.contract(scope, taskId);
+            request("/v1/runs", Map.of("contract", contract, "contractHash", current.contractSha256(),
+                "fencingToken", lease.fencingToken()));
         }
         return tasks.get(scope, taskId);
     }
@@ -140,20 +173,29 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         return tasks.subscribe(scope, taskId, afterSequence, observer);
     }
 
-    private void request(String path, Object value) {
+    private JsonNode request(String path, Object value) {
         try {
             byte[] bytes = mapper.writeValueAsBytes(value);
             HttpRequest call = HttpRequest.newBuilder(node.resolve(path)).timeout(Duration.ofSeconds(5))
                 .header("Authorization", "Bearer " + secret).header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofByteArray(bytes)).build();
-            HttpResponse<Void> response = http.send(call, HttpResponse.BodyHandlers.discarding());
+            HttpResponse<String> response = http.send(call, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300)
-                throw new IllegalStateException("Cline Node service rejected dispatch: HTTP " + response.statusCode());
+                throw new NodeHttpException(response.statusCode());
+            return mapper.readTree(response.body());
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Cline dispatch interrupted; reconcile before retry", interrupted);
         } catch (java.io.IOException failure) {
             throw new IllegalStateException("Cline dispatch outcome unknown; reconcile before retry", failure);
+        }
+    }
+
+    private static final class NodeHttpException extends IllegalStateException {
+        private final int status;
+        private NodeHttpException(int status) {
+            super("Cline Node service rejected request: HTTP " + status);
+            this.status = status;
         }
     }
 }

@@ -75,8 +75,9 @@ test('Node HTTP boundary authenticates, dispatches once, and hides SDK session I
     assert.equal(calls, 1);
     assert.equal('agentId' in view, false);
     assert.equal((await post('/v1/runs/cancel', { ...contract, contractHash: request.contractHash,
-      fencingToken: 2 })).status, 404);
-    assert.equal((await post('/v1/runs', { ...request, fencingToken: 2 })).status, 409);
+      fencingToken: 2 })).status, 202);
+    assert.equal((await post('/v1/runs', { ...request, fencingToken: 2 })).status, 202);
+    assert.equal((await post('/v1/runs', request)).status, 409);
   } finally {
     await new Promise(resolve => server.close(resolve));
   }
@@ -89,4 +90,48 @@ test('container callback host requires an explicit allowlist', () => {
     callbackUrl: 'http://host.docker.internal:8080',
     allowedCallbackHosts: ['host.docker.internal'] });
   server.close();
+});
+
+test('new fencing token cannot start a second loop while the old loop is active', async () => {
+  let release;
+  const server = createCodingServer({ secret, callbackUrl: 'http://127.0.0.1:8080',
+    modelFactory: () => ({ async *stream() {
+      await new Promise(resolve => { release = resolve; });
+      yield { type: 'text-delta', text: 'done' };
+      yield { type: 'finish', reason: 'stop' };
+    } }),
+    gatewayFactory: () => ({ executePython: async () => {}, reserveModel: async () => {}, settleModel: async () => {},
+      finish: async () => {} }),
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const post = (path, value) => fetch(`${url}${path}`, {
+    method: 'POST', headers: { authorization: `Bearer ${secret}`, 'content-type': 'application/json' },
+    body: JSON.stringify(value),
+  });
+  const first = { contract, contractHash: 'a'.repeat(64), fencingToken: 1 };
+  try {
+    assert.equal((await post('/v1/runs', first)).status, 202);
+    for (let i = 0; i < 100 && !release; i++)
+      await new Promise(resolve => setTimeout(resolve, 10));
+    assert.equal(typeof release, 'function');
+    const next = { ...first, fencingToken: 2 };
+    assert.equal((await post('/v1/runs', next)).status, 409);
+    assert.equal((await post('/v1/runs/get', { ...contract, contractHash: first.contractHash,
+      fencingToken: 2 })).status, 200);
+    assert.equal((await post('/v1/runs', first)).status, 202);
+    release();
+    let state;
+    for (let i = 0; i < 100; i++) {
+      state = (await (await post('/v1/runs/get', { ...contract, contractHash: first.contractHash,
+        fencingToken: 2 })).json()).status;
+      if (state !== 'RUNNING') break;
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    assert.notEqual(state, 'RUNNING');
+    assert.equal((await post('/v1/runs', next)).status, 202);
+  } finally {
+    release?.();
+    await new Promise(resolve => server.close(resolve));
+  }
 });

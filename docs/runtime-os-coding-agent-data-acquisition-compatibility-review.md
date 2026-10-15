@@ -1,6 +1,6 @@
 # Runtime OS Coding Agent：原有数据获取体系兼容性审查
 
-日期：2026-10-15。结论：D1/D2 必须保留现有业务取数路径。Coding Agent 只能消费 Runtime 已交付的授权数据快照，不能成为第二个数据获取入口。**当前源码尚未形成 DatasetHandle → Coding 输入快照 → 派生 DatasetHandle 的接线；D1 未验收，因此本次只完成审查，不实施 D2 修改。**
+日期：2026-10-15。结论：D1/D2 必须保留现有业务取数路径。Coding Agent 只能消费 Runtime 已交付的授权数据快照，不能成为第二个数据获取入口。**D1 本地代码已有可信 DatasetHandle 快照导出与归集后的派生 DatasetHandle 登记能力，但尚未接入 Analysis Loop，生产 Java 也未部署回调代码；D1 未验收，因此不实施 D2 修改。**
 
 ## 源码事实与边界
 
@@ -33,7 +33,18 @@
 - 验证原始模板路径的回归测试、模型不调用 Coding 的完成路径、数据不足返回 Analysis Loop 的路径、六项证据与原始/派生血缘、多轮恢复后两个句柄仍可读取。SQL Studio 授权测试独立于 Coding。
 - D1 真实链路与上述快照绑定、证据回流测试通过前，D2 不得编码或宣称通过；D2 不改变 A1 公共契约语义，也不重构原有取数工作流。
 
-当前缺口：可信的 DatasetHandle 快照导出/授权绑定尚未实现；D1 Java 回调和真实模型链路未验收；`HarnessToolAccess` factory/字段虽存在但不在现行 Harness 执行路径。D2 的最小接点应在 `AnalysisCoverageCoordinator` 与 Harness 的受控操作分派处，不在模板执行器或 SQL Studio 中。
+当前缺口：可信快照导出/授权绑定及 Python 执行证据回流已在 D1 本地代码实现并通过定向测试，但没有可信的 Analysis Loop 提交入口，也未经过真实模型和生产跨进程验收；`HarnessToolAccess` factory/字段虽存在但不在现行 Harness 执行路径。D2 的最小接点应在 `AnalysisCoverageCoordinator` 与 Harness 的受控操作分派处，不在模板执行器或 SQL Studio 中。
+
+## Java 控制面与 Node 执行面的职责边界
+
+| 职责 | Java Runtime OS 保留 | Node Coding Agent 承担 |
+| --- | --- | --- |
+| 主分析循环 | `ModelNativeAnalysisHarness` 保存主模型的分析轮次、已交付 Dataset 目录、计划、取证结果和发布意图；模型自主决定是否需要 Coding。 | 只处理受委派的编程子任务，不修改分析目标，不决定报告发布。 |
+| 数据与工具 | 原有 MCP 资产发现、授权模板、参数绑定、执行模板继续取数；Runtime 将选中的 DatasetHandle 固化为受限输入快照，校验工具白名单、身份、预算及 fencing。 | 在下发的工具列表内选择调用顺序和修复方法；不能直接读业务库、执行自由 SQL、访问宿主 Shell 或 Docker Socket。Metadata MCP 的元数据授权不增加数据授权。 |
+| 上下文 | 保存可恢复的任务快照、合同哈希、预算、证据引用和 Analysis Loop 工作区；只交付当前任务必需的数据/口径。 | 管理 Coding Loop 的临时代码、错误诊断、Patch 和模型上下文；本地 SDK 会话不能成为权威任务状态。 |
+| 执行与证据 | A2 管理状态、lease、fencing、累计预算与取消；B 的 Python Sandbox 执行代码；C 的归集器验证哈希、Schema、行数、执行回执和独立业务校验，登记派生 DatasetHandle。 | 生成代码、调用受控 Python 工具、根据技术错误重试；提交候选产物与事件，不自行发布业务 Claim 或更改证据。 |
+
+现有 `CodingAgentSPI` 已覆盖 Coding 任务的提交、查询、取消、恢复和事件订阅，应先完成该适配器的验收。现有通用 `AgentRuntime` 负责 run 生命周期、工作流与观测；此时再引入一套通用 `AgentRuntimeProvider` 会与既有运行时和 A2 任务状态重叠。待第二种独立执行引擎进入时，再从已验证的公共语义提取更宽的 Provider SPI。
 
 ## 定向测试核对
 

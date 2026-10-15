@@ -136,13 +136,21 @@ public final class ClineModelCallbackController {
     /** Only the independently verified MCP operation and immutable evidence may become authoritative. */
     @PostMapping("/finish")
     public Map<String, Object> finish(@RequestBody JsonNode body) {
-        return bound(body, true, call -> {
+        return bound(body, true, true, call -> {
             CodingTaskContract contract = contract(body, call);
             JsonNode outcome = body.path("outcome");
+            String sdkStatus = outcome.path("status").asText();
+            if (!Set.of("completed", "failed", "aborted").contains(sdkStatus))
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Unknown SDK completion status");
+            if (call.snapshot().executionControl().stopReason() != null) {
+                var stopped = tasks.finishStoppedAfterReconciliation(call.scope(), call.taskId(),
+                    call.lease(), call.snapshot().revision());
+                return Map.of("status", stopped.status().name(), "revision", stopped.revision());
+            }
             String operationId = outcome.path("operationId").asText(null);
-            if ("failed".equals(outcome.path("status").asText()))
+            if ("failed".equals(sdkStatus))
                 return failed(call);
-            if (!"completed".equals(outcome.path("status").asText())
+            if (!"completed".equals(sdkStatus)
                     || operationId == null || !operationId.matches("cline-[0-9a-f]{64}"))
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "SDK run has no completed, independently verifiable Python operation");
@@ -219,6 +227,11 @@ public final class ClineModelCallbackController {
     }
 
     private <T> T bound(JsonNode body, boolean allowTerminal, Function<Call, T> operation) {
+        return bound(body, allowTerminal, false, operation);
+    }
+
+    private <T> T bound(JsonNode body, boolean allowTerminal, boolean allowStop,
+                        Function<Call, T> operation) {
         try {
             if (body == null || !body.isObject()) throw new IllegalArgumentException("Callback body is required");
             KernelDataScope scope = mapper.treeToValue(body.path("scope"), KernelDataScope.class);
@@ -234,13 +247,18 @@ public final class ClineModelCallbackController {
                         || lease.fencingToken() != fencingToken || lease.owner() == null
                         || !lease.owner().startsWith("cline-adapter:")
                         || !lease.leaseUntil().isAfter(Instant.now())
-                        || !allowTerminal && snapshot.status().terminal() || snapshot.cancellationRequested()
-                        || snapshot.executionControl().stopReason() != null)
+                        || !allowTerminal && snapshot.status().terminal()
+                        || !allowStop && (snapshot.cancellationRequested()
+                            || snapshot.executionControl().stopReason() != null))
                     throw new ResponseStatusException(HttpStatus.CONFLICT,
                         "Callback task, lease, or stop state is no longer current");
                 return operation.apply(new Call(scope, taskId, contractHash, lease, snapshot));
             });
         } catch (ResponseStatusException known) { throw known; }
+        catch (CodingContractException conflict) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "Coding task state rejected callback: " + conflict.error().code(), conflict);
+        }
         catch (Exception invalid) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid Coding callback binding", invalid);
         }

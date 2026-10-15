@@ -71,6 +71,15 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         return task(read(scope, READ), taskId).outcome;
     }
 
+    public CodingTaskContract contract(KernelDataScope scope, String taskId) {
+        return task(read(scope, READ), taskId).contract;
+    }
+
+    /** A stopped operation is still an external call and must not be replayed by a fresh SDK session. */
+    public boolean hasStartedOperations(KernelDataScope scope, String taskId) {
+        return task(read(scope, READ), taskId).operations.values().stream().anyMatch(op -> op.startIntent);
+    }
+
     @Override public CodingTaskOutcome cancel(KernelDataScope scope, String taskId, String reason) {
         bounded(reason, "cancellation reason");
         return mutateTask(scope, taskId, STOP, task -> {
@@ -256,6 +265,21 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             Status target=task.outcome.executionControl().stopReason()==CANCEL_REQUESTED ? Status.CANCELLED : Status.BUDGET_EXCEEDED;
             advance(task,TASK_FINISHED,task.outcome.executionControl().stopReason(),"Stopped before any external dispatch",null,List.of(),
                 copy(task,target,task.outcome.executionControl().stopReason(),control(task,true,false),null));
+        }).outcome;
+    }
+
+    /** A signed worker completion may close a stop only after every started operation has a verified stop proof. */
+    public CodingTaskOutcome finishStoppedAfterReconciliation(KernelDataScope scope,String taskId,
+        CodingJournal.Lease lease,long expectedRevision) {
+        return mutateTask(scope,taskId,WORKER,task -> {
+            if (task.outcome.status().terminal()) return;
+            revision(task,expectedRevision); fence(task,lease);
+            var stop=task.outcome.executionControl().stopReason();
+            require(stop!=null,INVALID_STATE_TRANSITION,"Stop request is required");
+            require(!unresolved(task),EXECUTION_OUTCOME_UNKNOWN,"Started operation still needs stop proof");
+            Status target=stop==CANCEL_REQUESTED ? Status.CANCELLED : Status.BUDGET_EXCEEDED;
+            advance(task,TASK_FINISHED,stop,"Worker stopped; all started operations reconciled",null,List.of(),
+                copy(task,target,stop,control(task,true,false),null));
         }).outcome;
     }
 

@@ -36,13 +36,14 @@ function taskKey(contract) {
   return [contract.scope.tenantId, contract.scope.userId, contract.scope.runId, contract.taskId].join('\0');
 }
 
-function boundRun(runs, value) {
+function boundRun(runs, value, allowNewerFence = false) {
   if (!value?.scope?.tenantId || !value?.scope?.userId || !value?.scope?.runId
       || !value?.taskId || !value?.contractHash || !Number.isSafeInteger(value?.fencingToken))
     return null;
   const run = runs.get(taskKey(value));
   return run && run.contractHash === value.contractHash
-    && run.fencingToken === value.fencingToken ? run : null;
+    && (run.fencingToken === value.fencingToken
+      || allowNewerFence && value.fencingToken > run.fencingToken) ? run : null;
 }
 
 export function httpGateway(callbackUrl, secret, binding) {
@@ -102,9 +103,13 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
         const key = taskKey(value.contract);
         const old = runs.get(key);
         if (old) {
-          if (old.contractHash !== value.contractHash || old.fencingToken !== value.fencingToken)
+          if (old.contractHash !== value.contractHash || value.fencingToken < old.fencingToken)
             return response(reply, 409, { message: 'Task identity or fencing token conflicts' });
-          return response(reply, 202, view(old));
+          if (old.fencingToken === value.fencingToken) return response(reply, 202, view(old));
+          if (old.state === 'RUNNING') {
+            old.session.abort('Runtime fencing takeover');
+            return response(reply, 409, { message: 'Previous fenced session is stopping; reconcile before dispatch' });
+          }
         }
         const run = { contractHash: value.contractHash, fencingToken: value.fencingToken,
           contract: value.contract, state: 'RUNNING', result: null, error: null, session: null };
@@ -126,15 +131,15 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
       }
       if (request.method === 'POST' && url.pathname === '/v1/runs/get') {
         const value = await body(request);
-        const run = boundRun(runs, value);
+        const run = boundRun(runs, value, true);
         return run ? response(reply, 200, view(run)) : response(reply, 404,
           { message: 'Bound session not found; reconcile Runtime task before dispatch' });
       }
       if (request.method === 'POST' && url.pathname === '/v1/runs/cancel') {
         const value = await body(request);
-        const run = boundRun(runs, value);
+        const run = boundRun(runs, value, true);
         if (!run) return response(reply, 404, { message: 'Bound session not found; reconcile Runtime task and Sandbox' });
-        run.session.abort('Runtime cancellation');
+        if (run.state === 'RUNNING') run.session.abort('Runtime cancellation');
         return response(reply, 202, view(run));
       }
       return response(reply, 404, { message: 'Unknown route' });

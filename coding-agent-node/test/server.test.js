@@ -1,14 +1,40 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createCodingServer } from '../src/server.js';
+import { createCodingServer, httpGateway } from '../src/server.js';
+import { createHmac } from 'node:crypto';
+import { createServer } from 'node:http';
 
 const secret = '0123456789abcdef0123456789abcdef';
 const contract = {
   taskId: 'task', scope: { tenantId: 'tenant', userId: 'owner', runId: 'run' },
   objective: { instruction: 'Compute fixed amount' }, inputSnapshotRef: 'input',
-  validationPlanRef: 'validation', authorization: { allowedTools: [], allowedSideEffects: [] },
+  validationPlanRef: 'validation', authorization: { allowedTools: [], allowedSideEffects: [], networkPolicy: 'NONE' },
   budget: { maxModelCalls: 1 },
 };
+
+test('Runtime callbacks carry a fresh authenticated request signature', async () => {
+  let received;
+  const callback = createServer((request, response) => {
+    received = { path: request.url, method: request.method, headers: request.headers };
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end('{}');
+  });
+  await new Promise(resolve => callback.listen(0, '127.0.0.1', resolve));
+  try {
+    const gateway = httpGateway(`http://127.0.0.1:${callback.address().port}`, secret,
+      { scope: contract.scope, taskId: contract.taskId, contractHash: 'a'.repeat(64), fencingToken: 1 });
+    await gateway.event({ type: 'MODEL_STARTED' });
+    const h = received.headers;
+    const expected = createHmac('sha256', secret)
+      .update(`${received.method}\n${received.path}\n${h['x-chatchat-timestamp']}\n${h['x-chatchat-nonce']}`)
+      .digest('hex');
+    assert.equal(received.path, '/internal/coding/cline/event');
+    assert.equal(h['x-chatchat-signature'], expected);
+    assert.equal(h.authorization, `Bearer ${secret}`);
+  } finally {
+    await new Promise(resolve => callback.close(resolve));
+  }
+});
 
 test('Node HTTP boundary authenticates, dispatches once, and hides SDK session IDs', async () => {
   let calls = 0;
@@ -29,6 +55,10 @@ test('Node HTTP boundary authenticates, dispatches once, and hides SDK session I
     body: JSON.stringify(value),
   });
   try {
+    assert.equal((await fetch(`${url}/healthz`)).status, 401);
+    assert.deepEqual(await (await fetch(`${url}/healthz`, {
+      headers: { authorization: `Bearer ${secret}` },
+    })).json(), { status: 'UP' });
     const request = { contract, contractHash: 'a'.repeat(64), fencingToken: 1 };
     assert.equal((await post('/v1/runs', request, 'wrong')).status, 401);
     const accepted = await post('/v1/runs', request);
@@ -50,4 +80,13 @@ test('Node HTTP boundary authenticates, dispatches once, and hides SDK session I
   } finally {
     await new Promise(resolve => server.close(resolve));
   }
+});
+
+test('container callback host requires an explicit allowlist', () => {
+  assert.throws(() => createCodingServer({ secret,
+    callbackUrl: 'http://host.docker.internal:8080' }), /explicitly allowed/);
+  const server = createCodingServer({ secret,
+    callbackUrl: 'http://host.docker.internal:8080',
+    allowedCallbackHosts: ['host.docker.internal'] });
+  server.close();
 });

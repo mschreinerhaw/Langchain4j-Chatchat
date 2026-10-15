@@ -7,13 +7,14 @@
 - `coding-agent-node` 锁定 `@cline/agents@0.0.93`。使用无默认宿主工具的 `Agent`，只按合同暴露 `python_execute`、`metadata_read`、`artifact_read`；SDK 工具重试关闭。Node HTTP 服务仅监听 loopback，并用共享密钥、合同哈希、任务身份和 fencing token 绑定一次会话。
 - `ClineCodingAdapter` 复用 A2 的 `DurableCodingTaskService`；提交先持久化，再领取租约并尝试分发。取消先持久化 Runtime 停止请求，再向 Node 和已知 Python operation 传递取消。恢复只查询未知身份，不重放代码执行。
 - `ClineRuntimeModelBridge` 通过项目的 `ModelResourceRegistry` 和 `ConfigurableChatModelFactory` 使用服务端默认模型，凭据留在 Java。模型工具调用经合同白名单校验；为 Coding 调用设置输出上限、90 秒超时，并关闭连接层额外重试。Node `AgentModel` 只转发文本、工具调用与用量事件。
+- 数据边界依 `runtime-os-coding-agent-data-acquisition-compatibility-review.md`：D1 Java/Node 提交入口拒绝 Sandbox 的非 `NONE` 网络策略，Node 元数据读取要求精确匹配合同 `metadataRefs`。这不代替 B 节点的实际网络、挂载及凭据隔离。
 - Node 拟调用 Java 的 `/internal/coding/cline/{action}`：`reserve-model`、`model`、`settle-model`、`execute-python`、`cancel-python`、`read-metadata`、`read-artifact`、`event`、`finish`。**这些受保护的 Java 回调路由尚未实现，接口目前不是可运行的端到端链路。**
 
 ## 已运行验证
 
 | 验证 | 结果 | 实际覆盖 |
 | --- | --- | --- |
-| `npm.cmd test`（`coding-agent-node`） | 5 项通过 | 真正的 Cline `Agent` 使用确定性假模型进行生成、Sandbox 工具报错、修复；Node HTTP 幂等与认证；Runtime 模型事件转换与不支持内容拒绝。未使用真实模型。 |
+| `npm.cmd test`（`coding-agent-node`） | 6 项通过 | 真正的 Cline `Agent` 使用确定性假模型进行生成、Sandbox 工具报错、修复；Node HTTP 幂等与认证；Runtime 模型事件转换、未授权元数据引用与不支持内容拒绝。未使用真实模型。 |
 | `mvn -pl chatchat-api -am -Pbackend-only '-Dfrontend.skip=true' '-Dtest=ClineRuntimeModelBridgeTest' '-Dsurefire.failIfNoSpecifiedTests=false' test` | 2 项通过，Reactor 成功 | Java 服务端模型映射和未授权工具拒绝；模型为单元测试替身。 |
 | G2 既有记录 | 6 项通过 | 固定脚本 H2/真实 Docker 证据闭环；不包含 D1。 |
 

@@ -1,6 +1,7 @@
 /** Cline AgentModel backed by the Runtime's configured Java model connection. */
 export function createRuntimeModel(gateway, contract) {
   if (typeof gateway?.model !== 'function') throw new TypeError('Runtime model callback is required');
+  let modelCallIndex = 0;
   return {
     async *stream(request) {
       // Project only portable text/tool parts. The Java side validates the bound
@@ -17,6 +18,7 @@ export function createRuntimeModel(gateway, contract) {
         name: tool.name, description: tool.description, inputSchema: tool.inputSchema,
       }));
       const answer = await gateway.model(contract, {
+        operationId: `model-${++modelCallIndex}`,
         systemPrompt: request.systemPrompt ?? '', messages, tools,
       }, request.signal);
       if (answer.text) yield { type: 'text-delta', text: answer.text };

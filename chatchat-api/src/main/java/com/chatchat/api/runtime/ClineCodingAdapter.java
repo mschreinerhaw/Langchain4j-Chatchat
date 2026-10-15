@@ -38,6 +38,8 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     }
 
     @Override public CodingTaskOutcome submit(CodingTaskContract contract) {
+        if (contract.authorization().networkPolicy() != CodingTaskContract.NetworkPolicy.NONE)
+            throw new SecurityException("D1 Coding Sandbox requires a no-network authorization");
         CodingTaskOutcome accepted = tasks.submit(contract); // A2 persists acceptance before any Node dispatch.
         if (accepted.status().terminal()) return accepted;
         KernelDataScope scope = contract.scope();

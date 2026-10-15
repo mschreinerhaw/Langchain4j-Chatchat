@@ -7,7 +7,8 @@ const task = {
   scope: { tenantId: 'tenant', userId: 'owner', runId: 'run' },
   objective: { instruction: 'Compute the authorized financial total' },
   inputSnapshotRef: 'runtime-evidence:input', validationPlanRef: 'validation:fixture',
-  authorization: { allowedTools: ['python_execute'], allowedSideEffects: ['CODE_EXECUTION'] },
+  authorization: { allowedTools: ['python_execute'], allowedSideEffects: ['CODE_EXECUTION'],
+    networkPolicy: 'NONE' },
   budget: { maxModelCalls: 4 },
 };
 
@@ -55,14 +56,53 @@ test('actual Cline Agent loop repairs a technical Python error through one Runti
 
 test('unrecognized or unauthorized tools fail closed before a model call', () => {
   assert.throws(() => createCodingRun({ ...task, authorization: {
-    allowedTools: ['host_shell'], allowedSideEffects: ['CODE_EXECUTION'],
+    allowedTools: ['host_shell'], allowedSideEffects: ['CODE_EXECUTION'], networkPolicy: 'NONE',
   } }, {}, { model: { stream() {} } }), /Runtime gateway|Unrecognized/);
   const gateway = { executePython() {}, reserveModel() {}, settleModel() {} };
   assert.throws(() => createCodingRun({ ...task, authorization: {
-    allowedTools: ['host_shell'], allowedSideEffects: ['CODE_EXECUTION'],
+    allowedTools: ['host_shell'], allowedSideEffects: ['CODE_EXECUTION'], networkPolicy: 'NONE',
   } }, gateway, { model: { stream() {} } }), /Unrecognized Coding tool/);
   const run = createCodingRun({ ...task, authorization: {
-    allowedTools: ['python_execute'], allowedSideEffects: [],
+    allowedTools: ['python_execute'], allowedSideEffects: [], networkPolicy: 'NONE',
   } }, gateway, { model: { stream() {} } });
   assert.equal(run.snapshot().status, 'idle');
+  assert.throws(() => createCodingRun({ ...task, authorization: {
+    ...task.authorization, networkPolicy: 'ALLOWLIST',
+  } }, gateway, { model: { stream() {} } }), /no-network/);
+});
+
+test('metadata tool rejects a reference outside the frozen contract', async () => {
+  let reads = 0;
+  let turns = 0;
+  const model = { async *stream() {
+    if (++turns === 1) {
+      yield { type: 'tool-call-delta', toolCallId: 'meta-1', toolName: 'metadata_read',
+        input: { reference: 'metadata:other' } };
+      yield { type: 'finish', reason: 'tool-calls' };
+    } else {
+      yield { type: 'text-delta', text: 'Metadata was unavailable.' };
+      yield { type: 'finish', reason: 'stop' };
+    }
+  } };
+  const gateway = { executePython() {}, reserveModel() {}, settleModel() {},
+    readMetadata() { reads++; return {}; } };
+  const run = createCodingRun({ ...task, metadataRefs: ['metadata:authorized'],
+    authorization: { ...task.authorization, allowedTools: ['metadata_read'], allowedSideEffects: [] },
+  }, gateway, { model });
+  await run.run();
+  assert.equal(reads, 0);
+});
+
+test('a failed finish callback preserves the original Runtime admission error', async () => {
+  const gateway = {
+    executePython() { throw new Error('not reached'); },
+    reserveModel() { throw new Error('reserve callback HTTP 404'); },
+    finish() { throw new Error('finish callback HTTP 404'); },
+  };
+  const model = { async *stream() { throw new Error('model must not be called'); } };
+  const run = createCodingRun(task, gateway, { model });
+  const result = await run.run();
+  assert.equal(result.status, 'failed');
+  assert.match(result.error, /reserve callback HTTP 404/);
+  assert.equal(run.events.at(-1).type, 'RUNTIME_FINISH_FAILED');
 });

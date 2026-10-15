@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.TaskScheduler;
 import java.time.Clock;
+import java.util.List;
 import java.util.concurrent.Executor;
 
 /** Opt-in composition only. Enabling without a trusted access adapter fails closed at startup. */
@@ -26,7 +27,10 @@ public class CodingTaskRuntimeConfiguration {
             String id=reference.startsWith("runtime-evidence:") ? reference.substring("runtime-evidence:".length()) : reference;
             return id.length()<=256 && (evidenceStore.find(scope,id).isPresent() || evidenceStore.snapshot(scope,id).isPresent());
         });
+        List<CodingExecutionProofVerifier> proofs = executionProof.orderedStream().toList();
+        CodingExecutionProofVerifier proof = proofs.isEmpty() ? null : (scope, taskId, operationId, handle, ref) ->
+            proofs.stream().anyMatch(candidate -> candidate.confirmsStopped(scope, taskId, operationId, handle, ref));
         return new DurableCodingTaskService(checkpoints,mapper,Clock.systemUTC(),access,verifier,
-            executionProof.getIfAvailable(),executor,scheduler);
+            proof,executor,scheduler);
     }
 }

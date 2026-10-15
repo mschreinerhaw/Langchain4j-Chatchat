@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
-import { timingSafeEqual } from 'node:crypto';
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { createCodingRun } from './runner.js';
 import { createRuntimeModel } from './runtime-model.js';
@@ -44,11 +45,18 @@ function boundRun(runs, value) {
     && run.fencingToken === value.fencingToken ? run : null;
 }
 
-function httpGateway(callbackUrl, secret, binding) {
+export function httpGateway(callbackUrl, secret, binding) {
   const callback = async (action, payload, signal) => {
-    const answer = await fetch(`${callbackUrl}/internal/coding/cline/${action}`, {
-      method: 'POST', headers: { authorization: `Bearer ${secret}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ ...binding, ...payload }), signal,
+    const path = `/internal/coding/cline/${action}`;
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const nonce = randomUUID();
+    const signature = createHmac('sha256', secret)
+      .update(`POST\n${path}\n${timestamp}\n${nonce}`).digest('hex');
+    const answer = await fetch(`${callbackUrl}${path}`, {
+      method: 'POST', headers: { authorization: `Bearer ${secret}`, 'content-type': 'application/json',
+        'x-chatchat-timestamp': timestamp, 'x-chatchat-nonce': nonce,
+        'x-chatchat-signature': signature },
+      body: JSON.stringify({ ...binding, ...payload }), signal, redirect: 'error',
     });
     const data = await answer.json().catch(() => ({}));
     if (!answer.ok) throw new Error(data.message ?? `Runtime callback rejected ${action}: ${answer.status}`);
@@ -68,10 +76,15 @@ function httpGateway(callbackUrl, secret, binding) {
 }
 
 /** Node owns only transient SDK state; Runtime's A2 snapshot remains authoritative. */
-export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayFactory = httpGateway }) {
+export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayFactory = httpGateway,
+  allowedCallbackHosts = ['127.0.0.1', 'localhost'] }) {
   if (typeof secret !== 'string' || secret.length < 32) throw new Error('A 32-character shared secret is required');
-  if (!callbackUrl || !/^https?:\/\/((127\.0\.0\.1)|(localhost))(?:\:\d+)?\/?$/.test(callbackUrl))
-    throw new Error('D1 PoC callback must be an explicit loopback HTTP endpoint');
+  let endpoint;
+  try { endpoint = new URL(callbackUrl); }
+  catch { throw new Error('Runtime callback URL is invalid'); }
+  if (endpoint.protocol !== 'http:' || endpoint.username || endpoint.password || endpoint.pathname !== '/'
+      || endpoint.search || endpoint.hash || !allowedCallbackHosts.includes(endpoint.hostname))
+    throw new Error('Runtime callback URL must use an explicitly allowed internal host');
   const runs = new Map();
   const server = createServer(async (request, reply) => {
     try {
@@ -79,6 +92,8 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
       if (!equalSecret(authorization.startsWith('Bearer ') ? authorization.slice(7) : '', secret))
         return response(reply, 401, { message: 'Unauthorized' });
       const url = new URL(request.url ?? '/', 'http://localhost');
+      if (request.method === 'GET' && url.pathname === '/healthz')
+        return response(reply, 200, { status: 'UP' });
       if (request.method === 'POST' && url.pathname === '/v1/runs') {
         const value = await body(request);
         if (!value.contract || typeof value.contractHash !== 'string' || !Number.isSafeInteger(value.fencingToken)
@@ -102,6 +117,7 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
         runs.set(key, run);
         void run.session.run().then(result => {
           run.result = result;
+          run.error = result.error ?? null;
           run.state = result.status === 'completed' ? 'COMPLETED'
             : result.status === 'aborted' ? 'CANCELLED' : 'FAILED';
         }).catch(error => { run.error = String(error?.message ?? error).slice(0, 512); run.state = 'FAILED'; });
@@ -134,10 +150,15 @@ function view(run) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const secret = process.env.RUNTIME_CODING_SHARED_SECRET;
+  const secret = process.env.RUNTIME_CODING_SHARED_SECRET_FILE
+    ? readFileSync(process.env.RUNTIME_CODING_SHARED_SECRET_FILE, 'utf8').trim()
+    : process.env.RUNTIME_CODING_SHARED_SECRET;
   const callbackUrl = process.env.RUNTIME_CODING_CALLBACK_URL;
   const host = process.env.RUNTIME_CODING_HOST ?? '127.0.0.1';
-  if (!['127.0.0.1', 'localhost'].includes(host)) throw new Error('D1 PoC Node service must bind loopback');
+  if (!['127.0.0.1', 'localhost', '0.0.0.0'].includes(host))
+    throw new Error('Node service bind address is invalid');
   const port = Number(process.env.RUNTIME_CODING_PORT ?? 8791);
-  createCodingServer({ secret, callbackUrl }).listen(port, host);
+  const allowedCallbackHosts = (process.env.RUNTIME_CODING_ALLOWED_CALLBACK_HOSTS ?? '127.0.0.1,localhost')
+    .split(',').map(value => value.trim()).filter(Boolean);
+  createCodingServer({ secret, callbackUrl, allowedCallbackHosts }).listen(port, host);
 }

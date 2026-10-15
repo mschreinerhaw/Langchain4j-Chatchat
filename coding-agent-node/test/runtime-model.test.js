@@ -14,6 +14,7 @@ test('Runtime model forwards only portable parts and emits tool and usage events
     { type: 'text', text: 'analyze' },
   ] }], tools: [{ name: 'python_execute', description: 'Run', inputSchema: { type: 'object' } }] })) events.push(event);
   assert.deepEqual(observed.messages[0].content, [{ type: 'text', text: 'analyze' }]);
+  assert.equal(observed.operationId, 'model-1');
   assert.equal(events[1].toolName, 'python_execute');
   assert.deepEqual(events[2].usage, { inputTokens: 12, outputTokens: 4 });
   assert.equal(events[3].reason, 'tool-calls');

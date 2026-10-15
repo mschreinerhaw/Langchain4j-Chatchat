@@ -21,12 +21,16 @@ export function createCodingRun(contract, gateway, options = {}) {
     throw new TypeError('A complete Runtime coding task identity is required');
   if (!gateway || typeof gateway.executePython !== 'function' || typeof gateway.reserveModel !== 'function')
     throw new TypeError('Runtime gateway is required');
+  if (contract.authorization?.networkPolicy !== 'NONE')
+    throw new TypeError('D1 Coding Sandbox requires a no-network authorization');
   const permitted = new Set(contract.authorization?.allowedTools ?? []);
   for (const name of permitted) if (!TOOL_NAMES.has(name)) throw new TypeError(`Unrecognized Coding tool: ${name}`);
   if (!contract.authorization?.allowedSideEffects?.includes('CODE_EXECUTION')) permitted.delete('python_execute');
+  if (!contract.metadataRefs?.length) permitted.delete('metadata_read');
   let activeOperation = null;
   let modelIndex = 0;
   let lastUsage = { inputTokens: 0, outputTokens: 0, totalCost: 0 };
+  let firstRuntimeError = null;
   const events = [];
   const forward = async (event) => {
     events.push(event);
@@ -69,7 +73,12 @@ export function createCodingRun(contract, gateway, options = {}) {
     inputSchema: { type: 'object', properties: { reference: { type: 'string' } },
       required: ['reference'], additionalProperties: false },
     executionMode: 'sequential', retryable: false, maxRetries: 0,
-    execute(input, context) { return gateway.readMetadata(contract, required(input?.reference, 'reference'), context.signal); },
+    execute(input, context) {
+      const reference = required(input?.reference, 'reference');
+      if (!contract.metadataRefs?.includes(reference))
+        throw new TypeError('Metadata reference is outside the Runtime task authorization');
+      return gateway.readMetadata(contract, reference, context.signal);
+    },
   });
   if (permitted.has('artifact_read')) tools.push({
     name: 'artifact_read',
@@ -95,8 +104,13 @@ export function createCodingRun(contract, gateway, options = {}) {
     hooks: {
       async beforeModel() {
         const index = ++modelIndex;
-        await gateway.reserveModel(contract, { operationId: `model-${index}`, modelCalls: 1,
-          maxTokens: Number(options.modelTokenReservation ?? 2048) });
+        try {
+          await gateway.reserveModel(contract, { operationId: `model-${index}`, modelCalls: 1,
+            maxTokens: Number(options.modelTokenReservation ?? 2048) });
+        } catch (error) {
+          firstRuntimeError ??= String(error?.message ?? error).slice(0, 512);
+          throw error;
+        }
         await forward({ type: 'MODEL_STARTED', modelCall: index });
       },
       async afterModel({ assistantMessage, requestId }) {
@@ -111,8 +125,14 @@ export function createCodingRun(contract, gateway, options = {}) {
         await forward({ type: 'MODEL_USAGE', modelCall: modelIndex, usage });
       },
       async afterRun({ result }) {
-        await gateway.finish?.(contract, { status: result.status, iterations: result.iterations,
-          summary: result.outputText?.slice(0, 1024) ?? '' });
+        try {
+          await gateway.finish?.(contract, { status: result.status, iterations: result.iterations,
+            summary: result.outputText?.slice(0, 1024) ?? '' });
+        } catch (error) {
+          if (result.status === 'completed') throw error;
+          events.push({ type: 'RUNTIME_FINISH_FAILED',
+            message: String(error?.message ?? error).slice(0, 512) });
+        }
       },
     },
   };
@@ -124,7 +144,7 @@ export function createCodingRun(contract, gateway, options = {}) {
     async run() {
       const result = await agent.run(contract.objective?.instruction ?? 'Complete the authorized Coding task');
       return { status: result.status, text: result.outputText, iterations: result.iterations,
-        usage: result.usage, lastUsage };
+        usage: result.usage, lastUsage, error: firstRuntimeError };
     },
     abort(reason = 'Runtime cancellation') {
       agent.abort(reason);

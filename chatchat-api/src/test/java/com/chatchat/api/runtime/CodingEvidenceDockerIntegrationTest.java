@@ -235,6 +235,10 @@ class CodingEvidenceDockerIntegrationTest {
         assertThat(view.status()).isEqualTo(expectedStatus);
         assertThat(view.executorStopped()).isTrue();
         assertThat(view.manifestHash()).isNotBlank();
+        // The terminal receipt is committed before best-effort Docker cleanup.
+        for (int i = 0; i < 100 && docker.inspectManaged(view.containerId()).exists(); i++) {
+            Thread.sleep(50);
+        }
         assertThat(docker.inspectManaged(view.containerId()).exists()).isFalse();
         bridge.reconcile(scope, taskId, lease, operationId);
         return new Run(contract, lease, operationId);

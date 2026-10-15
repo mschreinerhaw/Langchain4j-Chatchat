@@ -17,6 +17,8 @@ function operationId(task, toolCallId) {
 
 /** Only the Runtime-owned callbacks below can touch data or execute code. */
 export function createCodingRun(contract, gateway, options = {}) {
+  if (contract?.schemaVersion !== 'runtime_os.coding.v1')
+    throw new TypeError('VERSION_UNSUPPORTED: Coding worker requires runtime_os.coding.v1');
   if (!contract?.scope?.tenantId || !contract?.scope?.userId || !contract?.scope?.runId || !contract?.taskId)
     throw new TypeError('A complete Runtime coding task identity is required');
   if (!gateway || typeof gateway.executePython !== 'function' || typeof gateway.reserveModel !== 'function')
@@ -39,8 +41,9 @@ export function createCodingRun(contract, gateway, options = {}) {
   let firstRuntimeError = null;
   const events = [];
   const forward = async (event) => {
-    events.push(event);
-    if (typeof gateway.event === 'function') await gateway.event(event);
+    const progress = { ...event, sequence: events.length + 1 };
+    events.push(progress);
+    if (typeof gateway.event === 'function') await gateway.event(progress);
   };
   const tools = [];
   if (permitted.has('python_execute')) tools.push({

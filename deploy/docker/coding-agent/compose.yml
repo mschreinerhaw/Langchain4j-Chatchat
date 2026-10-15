@@ -26,6 +26,10 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    dns:
+      - 127.0.0.1
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: "1"
     pids_limit: 128
     mem_limit: 2g
     cpus: 2

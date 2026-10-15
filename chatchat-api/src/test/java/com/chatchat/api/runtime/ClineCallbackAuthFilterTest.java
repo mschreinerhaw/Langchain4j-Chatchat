@@ -7,6 +7,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 import java.time.Instant;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -62,6 +63,33 @@ class ClineCallbackAuthFilterTest {
         assertThat(denied.getStatus()).isEqualTo(401);
     }
 
+    @Test void authenticatesBodyAndPreservesItForController() throws Exception {
+        var filter = new ClineCallbackAuthFilter(SECRET);
+        var request = signed("127.0.0.1");
+        filter.doFilter(request, new MockHttpServletResponse(), (req, res) ->
+            assertThat(new String(req.getInputStream().readAllBytes(), StandardCharsets.UTF_8))
+                .isEqualTo("{\"taskId\":\"authorized\"}"));
+        var tampered = signed("127.0.0.1");
+        tampered.setContent("{\"taskId\":\"another-task\"}".getBytes(StandardCharsets.UTF_8));
+        var response = new MockHttpServletResponse();
+        filter.doFilter(tampered, response, (req, res) -> fail("changed body reached controller"));
+        assertThat(response.getStatus()).isEqualTo(401);
+    }
+
+    @Test void rejectsLegacySignatureAndOversizedPayload() throws Exception {
+        var filter = new ClineCallbackAuthFilter(SECRET);
+        var legacy = signed("127.0.0.1");
+        legacy.removeHeader("X-Chatchat-Signature-Version");
+        var response = new MockHttpServletResponse();
+        filter.doFilter(legacy, response, (req, res) -> fail("legacy reached controller"));
+        assertThat(response.getStatus()).isEqualTo(401);
+        var oversized = signed("127.0.0.1");
+        oversized.setContent(new byte[1024 * 1024 + 1]);
+        var large = new MockHttpServletResponse();
+        filter.doFilter(oversized, large, (req, res) -> fail("oversized body reached controller"));
+        assertThat(large.getStatus()).isEqualTo(413);
+    }
+
     private static MockHttpServletRequest signed(String address) {
         var request = new MockHttpServletRequest("POST", PATH);
         request.setRemoteAddr(address);
@@ -70,8 +98,11 @@ class ClineCallbackAuthFilterTest {
         request.addHeader("Authorization", "Bearer " + SECRET);
         request.addHeader(InternalRequestSigner.TIMESTAMP_HEADER, timestamp);
         request.addHeader(InternalRequestSigner.NONCE_HEADER, nonce);
+        byte[] body = "{\"taskId\":\"authorized\"}".getBytes(StandardCharsets.UTF_8);
+        request.setContent(body);
+        request.addHeader("X-Chatchat-Signature-Version", "2");
         request.addHeader(InternalRequestSigner.SIGNATURE_HEADER,
-            InternalRequestSigner.sign(SECRET, "POST", PATH, timestamp, nonce));
+            InternalRequestSigner.signBody(SECRET, "POST", PATH, timestamp, nonce, body));
         return request;
     }
 }

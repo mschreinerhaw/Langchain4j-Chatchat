@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCodingServer, httpGateway } from '../src/server.js';
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import { createServer } from 'node:http';
 
 const secret = '0123456789abcdef0123456789abcdef';
 const contract = {
+  schemaVersion: 'runtime_os.coding.v1',
   taskId: 'task', scope: { tenantId: 'tenant', userId: 'owner', runId: 'run' },
   objective: { instruction: 'Compute fixed amount' }, inputSnapshotRef: 'input',
   validationPlanRef: 'validation', authorization: { allowedTools: [], allowedSideEffects: [], networkPolicy: 'NONE' },
@@ -14,8 +15,11 @@ const contract = {
 
 test('Runtime callbacks carry a fresh authenticated request signature', async () => {
   let received;
-  const callback = createServer((request, response) => {
+  const callback = createServer(async (request, response) => {
     received = { path: request.url, method: request.method, headers: request.headers };
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    received.body = Buffer.concat(chunks);
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end('{}');
   });
@@ -25,11 +29,14 @@ test('Runtime callbacks carry a fresh authenticated request signature', async ()
       { scope: contract.scope, taskId: contract.taskId, contractHash: 'a'.repeat(64), fencingToken: 1 });
     await gateway.event({ type: 'MODEL_STARTED' });
     const h = received.headers;
+    const digest = createHash('sha256').update(received.body).digest('hex');
     const expected = createHmac('sha256', secret)
-      .update(`${received.method}\n${received.path}\n${h['x-chatchat-timestamp']}\n${h['x-chatchat-nonce']}`)
+      .update(`v2\n${received.method}\n${received.path}\n${h['x-chatchat-timestamp']}\n${h['x-chatchat-nonce']}\n${digest}`)
       .digest('hex');
     assert.equal(received.path, '/internal/coding/cline/event');
     assert.equal(h['x-chatchat-signature'], expected);
+    assert.equal(h['x-chatchat-signature-version'], '2');
+    assert.equal(JSON.parse(received.body).taskId, contract.taskId);
     assert.equal(h.authorization, `Bearer ${secret}`);
   } finally {
     await new Promise(resolve => callback.close(resolve));
@@ -60,6 +67,11 @@ test('Node HTTP boundary authenticates, dispatches once, and hides SDK session I
       headers: { authorization: `Bearer ${secret}` },
     })).json(), { status: 'UP' });
     const request = { contract, contractHash: 'a'.repeat(64), fencingToken: 1 };
+    const unsupported = await post('/v1/runs', { ...request,
+      contract: { ...contract, schemaVersion: 'runtime_os.coding.v2' } });
+    assert.equal(unsupported.status, 422);
+    assert.equal((await unsupported.json()).code, 'VERSION_UNSUPPORTED');
+    assert.equal(calls, 0);
     assert.equal((await post('/v1/runs', request, 'wrong')).status, 401);
     const accepted = await post('/v1/runs', request);
     assert.equal(accepted.status, 202, await accepted.text());

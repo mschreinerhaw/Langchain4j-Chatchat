@@ -204,6 +204,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
                 requestStop(task,BUDGET_EXCEEDED,"Shared cumulative budget exceeded"); return;
             }
             op.startIntent=true; op.executionHandle=executionHandle; op.startingFencingToken=lease.fencingToken();
+            op.startSequence=task.outcome.lastEventSequence()+1;
             created.set(true);
             // No EXECUTION_STARTED event: A2 has not received execution-node confirmation.
             advance(task,RECOVERY_RECONCILED,null,"Start intent committed; execution result is not yet known",operationId,List.of(),
@@ -319,8 +320,13 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     }
 
     public List<CodingExecutionEvent> events(KernelDataScope scope,String taskId,long afterSequence,int limit) {
+        return events(scope, taskId, afterSequence, limit, access);
+    }
+
+    private List<CodingExecutionEvent> events(KernelDataScope scope,String taskId,long afterSequence,int limit,
+                                              CodingTaskAccess reader) {
         require(afterSequence>=0 && limit>0 && limit<=256,CONTRACT_INVALID,"Invalid event cursor or limit");
-        var task=task(read(scope,READ),taskId);
+        var task=task(read(scope,READ,reader),taskId);
         long first=task.events.isEmpty() ? task.outcome.lastEventSequence()+1 : task.events.get(0).sequence();
         require(afterSequence>=first-1,EVENT_CURSOR_EXPIRED,"Event history was compacted; earliestSequence="+first+"; read authoritative snapshot");
         require(afterSequence<=task.outcome.lastEventSequence(),CONTRACT_INVALID,"Event cursor is ahead of task");
@@ -328,6 +334,34 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     }
 
     public CodingJournal.Lease ownership(KernelDataScope scope,String taskId) { return task(read(scope,READ),taskId).lease; }
+
+    /** Worker reports are durable observations; they never establish execution, usage or validation facts. */
+    public CodingTaskOutcome recordWorkerProgress(KernelDataScope scope, String taskId,
+            CodingJournal.Lease lease, long expectedRevision, long sequence, String type,
+            String operationId, String payloadHash) {
+        require(sequence > 0 && sequence <= 1024, CONTRACT_INVALID, "Worker event sequence is out of bounds");
+        require(Set.of("MODEL_STARTED", "MODEL_USAGE", "TOOL_STARTED", "TOOL_FINISHED").contains(type),
+            CONTRACT_INVALID, "Unknown worker progress type");
+        require(payloadHash != null && payloadHash.matches("[0-9a-f]{64}"), CONTRACT_INVALID,
+            "Worker event content hash is required");
+        return mutateTask(scope, taskId, WORKER, task -> {
+            fence(task, lease);
+            String key = lease.fencingToken() + ":" + sequence;
+            String old = task.workerEvents.get(key);
+            if (old != null) {
+                require(old.equals(payloadHash), TASK_ID_CONFLICT, "Worker event identity conflict");
+                return;
+            }
+            revision(task, expectedRevision); active(task);
+            require(task.workerEvents.size() < 1024, ADAPTER_UNAVAILABLE, "Worker event capacity reached");
+            if (operationId != null) require(task.operations.containsKey(operationId), NOT_FOUND,
+                "Worker progress references an unregistered operation");
+            task.workerEvents.put(key, payloadHash);
+            advance(task, RECOVERY_RECONCILED, null, "Worker observation: " + type,
+                operationId, List.of(), copy(task, task.outcome.status(), task.outcome.reasonCode(),
+                    task.outcome.executionControl(), null));
+        }).outcome;
+    }
 
     /** Read-only A2 binding: C may publish only operations whose stop proof was accepted by A2. */
     public Optional<VerifiedOperation> verifiedOperation(KernelDataScope scope,String taskId,String operationId) {
@@ -348,16 +382,27 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     /** Read-only operation identities for evidence-only recovery; never authorizes a new dispatch. */
     public List<String> startedCodeOperations(KernelDataScope scope,String taskId) {
         var task=task(read(scope,READ),taskId);
-        return task.events.stream().map(CodingExecutionEvent::operationId)
-            .filter(Objects::nonNull).distinct()
-            .filter(id->{ var operation=task.operations.get(id);
-                return operation!=null && operation.kind==CodingJournal.OperationKind.CODE
-                    && operation.startIntent; }).toList();
+        var starts = new HashMap<String, Long>();
+        for (var entry : task.operations.entrySet()) {
+            var operation = entry.getValue();
+            if (operation.kind != CodingJournal.OperationKind.CODE || !operation.startIntent) continue;
+            long sequence = operation.startSequence;
+            if (sequence == 0) sequence = task.events.stream()
+                .filter(event -> entry.getKey().equals(event.operationId())
+                    && "Start intent committed; execution result is not yet known".equals(event.summary()))
+                .mapToLong(CodingExecutionEvent::sequence).findFirst().orElse(0);
+            // A legacy journal with trimmed dispatch history cannot establish the latest execution.
+            if (sequence == 0) return List.of();
+            starts.put(entry.getKey(), sequence);
+        }
+        return starts.entrySet().stream().sorted(Map.Entry.comparingByValue())
+            .map(Map.Entry::getKey).toList();
     }
     public Counters budgetUsage(KernelDataScope scope,String budgetId) { return account(read(scope,READ),budgetId); }
 
     @Override public Subscription subscribe(KernelDataScope scope,String taskId,long afterSequence,Observer observer) {
         Objects.requireNonNull(observer); events(scope,taskId,afterSequence,1);
+        CodingTaskAccess reader = access.subscriptionAccess(scope);
         var closed=new AtomicBoolean(); var busy=new AtomicBoolean(); var cursor=new AtomicLong(afterSequence);
         Object deliveryLock=new Object();
         var handle=new AtomicReference<java.util.concurrent.ScheduledFuture<?>>();
@@ -368,7 +413,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             if (closed.get() || !busy.compareAndSet(false,true)) return;
             try { executor.execute(()->{
                 try {
-                    for(var event:events(scope,taskId,cursor.get(),64)) {
+                    for(var event:events(scope,taskId,cursor.get(),64,reader)) {
                         synchronized(deliveryLock) {
                             if(closed.get())break; observer.onEvent(event); cursor.set(event.sequence());
                         }
@@ -402,7 +447,10 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         return task(mutate(scope,action,journal->mutation.accept(task(journal,taskId))),taskId);
     }
     private CodingJournal read(KernelDataScope scope,CodingTaskAccess.Action action) {
-        access.require(scope,action); stableScope(scope);
+        return read(scope, action, access);
+    }
+    private CodingJournal read(KernelDataScope scope,CodingTaskAccess.Action action,CodingTaskAccess reader) {
+        reader.require(scope,action); stableScope(scope);
         return decode(store.readExecutionCheckpoint(scope,CHECKPOINT_KEY).orElse(null));
     }
     private CodingJournal decode(String value) {

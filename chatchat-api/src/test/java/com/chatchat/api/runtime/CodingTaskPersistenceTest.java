@@ -95,6 +95,54 @@ class CodingTaskPersistenceTest {
         assertThat(service(store(new JdbcTemplate(dataSource))).get(scope,"task")).isEqualTo(accepted);
     }
 
+    @Test void latestCodeExecutionSurvivesProgressHistoryCompaction() {
+        service.submit(contract("task", 10));
+        var lease = claim("task", "worker");
+        for (String id : List.of("z-earlier", "a-later")) {
+            service.reserve(scope, "task", lease, rev("task"), id, intent, counters(1, "1"));
+            service.startIntent(scope, "task", lease, rev("task"), id, "execution:" + id);
+        }
+        for (int sequence = 1; sequence <= 130; sequence++)
+            service.recordWorkerProgress(scope, "task", lease, rev("task"), sequence,
+                "TOOL_STARTED", null, intent);
+        var restarted = service(store(new JdbcTemplate(dataSource)));
+        assertThat(restarted.startedCodeOperations(scope, "task")).containsExactly("z-earlier", "a-later");
+        code(() -> restarted.events(scope, "task", 0, 10), EVENT_CURSOR_EXPIRED);
+    }
+
+    @Test void workerProgressSurvivesReconnectWithoutGrantingExecutionAuthority() throws Exception {
+        service.submit(contract("task", 10));
+        var lease = claim("task", "worker");
+        long cursor = service.get(scope, "task").lastEventSequence();
+        var observed = service.recordWorkerProgress(scope, "task", lease, rev("task"), 1,
+            "TOOL_STARTED", null, intent);
+        var restarted = service(store(new JdbcTemplate(dataSource)));
+        assertThat(restarted.recordWorkerProgress(scope, "task", lease, 0, 1,
+            "TOOL_STARTED", null, intent)).isEqualTo(observed);
+        code(() -> restarted.recordWorkerProgress(scope, "task", lease, rev("task"), 1,
+            "TOOL_STARTED", null, "b".repeat(64)), TASK_ID_CONFLICT);
+        code(() -> restarted.recordWorkerProgress(scope, "task", lease, rev("task"), 2,
+            "TOOL_FINISHED", "unregistered", intent), NOT_FOUND);
+        var received = new CopyOnWriteArrayList<CodingExecutionEvent>();
+        var latch = new CountDownLatch(1);
+        try (var subscription = restarted.subscribe(scope, "task", cursor, new CodingAgentSPI.Observer() {
+            public void onEvent(CodingExecutionEvent event) { received.add(event); latch.countDown(); }
+            public void onError(CodingAgentSPI.Error error) { fail(error.message()); }
+            public void onClosed() { }
+        })) {
+            assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
+        }
+        assertThat(received).hasSize(1);
+        assertThat(received.get(0).summary()).isEqualTo("Worker observation: TOOL_STARTED");
+        assertThat(restarted.hasStartedOperations(scope, "task")).isFalse();
+        assertThat(restarted.get(scope, "task").usage().consumed().codeExecutions()).isZero();
+        clock.advance(Duration.ofSeconds(11));
+        var takeover = restarted.claim(scope, "task", "new-worker", Duration.ofSeconds(10), rev("task"));
+        code(() -> restarted.recordWorkerProgress(scope, "task", lease, rev("task"), 2,
+            "TOOL_STARTED", null, intent), INVALID_STATE_TRANSITION);
+        assertThat(takeover.fencingToken()).isGreaterThan(lease.fencingToken());
+    }
+
     @Test void sameIdWithDifferentContractOrSharedBudgetLimitsIsRejected() {
         var first=contract("task",10); service.submit(first);
         var changed=new CodingTaskContract(first.schemaVersion(),first.taskId(),first.scope(),first.objective(),"input:other",first.metadataRefs(),

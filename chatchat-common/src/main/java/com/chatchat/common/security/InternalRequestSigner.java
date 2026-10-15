@@ -16,8 +16,21 @@ public final class InternalRequestSigner {
     private InternalRequestSigner() { }
 
     public static String sign(String secret, String method, String path, String timestamp, String nonce) {
+        return hmac(secret, method.toUpperCase(java.util.Locale.ROOT) + "\n" + path + "\n" + timestamp + "\n" + nonce);
+    }
+
+    /** Coding callback v2 authenticates the exact transmitted bytes, including task and fence. */
+    public static String signBody(String secret, String method, String path, String timestamp,
+                                  String nonce, byte[] body) {
         try {
-            String canonical = method.toUpperCase() + "\n" + path + "\n" + timestamp + "\n" + nonce;
+            String digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(body));
+            return hmac(secret, "v2\n" + method.toUpperCase(java.util.Locale.ROOT) + "\n" + path
+                + "\n" + timestamp + "\n" + nonce + "\n" + digest);
+        } catch (Exception ex) { throw new IllegalStateException("Cannot hash internal request", ex); }
+    }
+
+    private static String hmac(String secret, String canonical) {
+        try {
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             return HexFormat.of().formatHex(mac.doFinal(canonical.getBytes(StandardCharsets.UTF_8)));

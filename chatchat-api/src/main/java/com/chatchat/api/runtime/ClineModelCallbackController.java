@@ -110,8 +110,10 @@ public final class ClineModelCallbackController {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Runtime model request failed; execution outcome must be reconciled", providerFailure);
             }
-            assertStillOwned(call);
+            // Preserve a genuine late provider receipt even when cancellation/fencing won the race.
+            // Receipt archival cannot publish a result or grant another dispatch.
             receipts.commit(contract, operationId, "runtime-model:" + operationId, response);
+            assertStillOwned(call);
             return response;
         });
     }
@@ -141,7 +143,21 @@ public final class ClineModelCallbackController {
 
     @PostMapping("/event")
     public Map<String, Object> event(@RequestBody JsonNode body) {
-        return bound(body, call -> Map.of("authoritativeRevision", call.snapshot().revision()));
+        return bound(body, false, true, call -> {
+            JsonNode event = body.path("event");
+            if (!event.isObject() || event.toString().length() > 8192
+                    || !event.path("sequence").isIntegralNumber())
+                throw new IllegalArgumentException("Bounded worker event and sequence are required");
+            String type = event.path("type").asText("");
+            // TOOL_STARTED precedes Runtime admission, so its proposed operation is advisory only.
+            String operation = "TOOL_FINISHED".equals(type)
+                ? event.path("operationId").asText(null)
+                : type.startsWith("MODEL_") ? operationId("model-" + event.path("modelCall").asLong(-1)) : null;
+            var snapshot = tasks.recordWorkerProgress(call.scope(), call.taskId(), call.lease(),
+                call.snapshot().revision(), event.path("sequence").asLong(), type, operation,
+                sha(event.toString()));
+            return Map.of("authoritativeRevision", snapshot.revision());
+        });
     }
 
     /** Only the independently verified MCP operation and immutable evidence may become authoritative. */

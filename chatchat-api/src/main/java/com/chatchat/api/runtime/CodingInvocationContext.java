@@ -1,6 +1,7 @@
 package com.chatchat.api.runtime;
 
 import com.chatchat.agents.runtime.coding.CodingTaskAccess;
+import com.chatchat.agents.runtime.coding.BoundCodingTaskAccess;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.runtime.coding.CodingContractException;
 import com.chatchat.common.runtime.coding.CodingErrorCode;
@@ -44,6 +45,12 @@ public final class CodingInvocationContext implements CodingTaskAccess {
                 || !Objects.equals(actor.scope().userId(), scope.userId())
                 || !Objects.equals(actor.scope().runId(), scope.runId()))
             throw denied();
+    }
+
+    @Override public CodingTaskAccess subscriptionAccess(KernelDataScope scope) {
+        require(scope, Action.READ);
+        // Capture only a previously authenticated run and READ; no worker or submission grant escapes.
+        return new BoundCodingTaskAccess(() -> scope, Set.of(Action.READ));
     }
 
     private static CodingContractException denied() {

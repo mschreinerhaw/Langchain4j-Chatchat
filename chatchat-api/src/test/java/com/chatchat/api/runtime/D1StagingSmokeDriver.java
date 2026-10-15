@@ -8,6 +8,7 @@ import com.chatchat.common.config.ModelResourceRegistry;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.mcp.python.McpPythonControlPlanePort;
 import com.chatchat.common.runtime.coding.CodingAgentSPI;
+import com.chatchat.common.runtime.coding.CodingExecutionEvent;
 import com.chatchat.common.runtime.coding.CodingCanonicalHash;
 import com.chatchat.common.runtime.coding.CodingProtocol;
 import com.chatchat.common.runtime.coding.CodingTaskContract;
@@ -22,6 +23,10 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Manually launched, test-classpath-only D1 smoke driver. It uses an isolated fixture
@@ -206,9 +211,38 @@ public final class D1StagingSmokeDriver {
             });
             if (rows != 1 || outcome.validationStatus() != CodingTaskOutcome.ValidationStatus.PASSED)
                 throw new IllegalStateException("D1 smoke result or independent validation failed");
+            var events = replay(identity, agent, scope, taskId, 0, outcome.lastEventSequence());
+            long workerProgress = events.stream().filter(event -> event.summary().startsWith("Worker observation:")).count();
+            if (workerProgress < 4) throw new IllegalStateException("Persisted worker progress is missing");
+            long reconnectCursor = events.get(events.size() / 2).sequence();
+            var replayed = replay(identity, agent, scope, taskId, reconnectCursor, outcome.lastEventSequence());
+            if (!replayed.equals(events.stream().filter(event -> event.sequence() > reconnectCursor).toList()))
+                throw new IllegalStateException("Event reconnect did not replay the exact persisted suffix");
+            System.out.println("D1_SMOKE eventReplay=true workerProgress=" + workerProgress
+                + " reconnectCursor=" + reconnectCursor);
             System.out.println("D1_SMOKE sixRefs=true resultRows=" + rows
                 + " evidenceBundleRef=" + outcome.evidenceBundleRef());
         }
+    }
+
+    private static List<CodingExecutionEvent> replay(CodingInvocationContext identity, CodingAgentSPI agent,
+            KernelDataScope scope, String taskId, long after, long expectedLast) throws Exception {
+        var events = new CopyOnWriteArrayList<CodingExecutionEvent>();
+        var done = new CountDownLatch(1);
+        var failure = new AtomicReference<CodingAgentSPI.Error>();
+        try (var subscription = identity.as(scope, EnumSet.of(CodingTaskAccess.Action.READ), () ->
+            agent.subscribe(scope, taskId, after, new CodingAgentSPI.Observer() {
+                public void onEvent(CodingExecutionEvent event) {
+                    events.add(event);
+                    if (event.sequence() == expectedLast) done.countDown();
+                }
+                public void onError(CodingAgentSPI.Error error) { failure.set(error); done.countDown(); }
+                public void onClosed() { }
+            }))) {
+            if (!done.await(10, TimeUnit.SECONDS) || failure.get() != null)
+                throw new IllegalStateException("D1 asynchronous event replay failed: " + failure.get());
+        }
+        return List.copyOf(events);
     }
 
     private static void recover(ConfigurableApplicationContext app, String taskId) {

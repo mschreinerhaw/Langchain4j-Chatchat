@@ -5,6 +5,9 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequestWrapper;
+import jakarta.servlet.ServletInputStream;
+import jakarta.servlet.ReadListener;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -14,6 +17,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.io.ByteArrayInputStream;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Map;
@@ -54,14 +61,39 @@ public final class ClineCallbackAuthFilter extends OncePerRequestFilter {
 
     @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                                FilterChain chain) throws ServletException, IOException {
-        if (!valid(request)) {
+        if (!allowedPeers.contains(request.getRemoteAddr())
+                || !"2".equals(request.getHeader("X-Chatchat-Signature-Version"))) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
-        chain.doFilter(request, response);
+        byte[] body = request.getInputStream().readNBytes(1024 * 1024 + 1);
+        if (body.length > 1024 * 1024) {
+            response.sendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
+            return;
+        }
+        if (!valid(request, body)) {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        }
+        chain.doFilter(new HttpServletRequestWrapper(request) {
+            @Override public ServletInputStream getInputStream() {
+                var input = new ByteArrayInputStream(body);
+                return new ServletInputStream() {
+                    @Override public int read() { return input.read(); }
+                    @Override public boolean isFinished() { return input.available() == 0; }
+                    @Override public boolean isReady() { return true; }
+                    @Override public void setReadListener(ReadListener listener) {
+                        throw new UnsupportedOperationException("Coding callbacks use blocking JSON reads");
+                    }
+                };
+            }
+            @Override public BufferedReader getReader() {
+                return new BufferedReader(new InputStreamReader(getInputStream(), StandardCharsets.UTF_8));
+            }
+        }, response);
     }
 
-    private boolean valid(HttpServletRequest request) {
+    private boolean valid(HttpServletRequest request, byte[] body) {
         String address = request.getRemoteAddr();
         if (!"POST".equalsIgnoreCase(request.getMethod())
                 || !allowedPeers.contains(address)
@@ -78,8 +110,8 @@ public final class ClineCallbackAuthFilter extends OncePerRequestFilter {
             if (Math.abs(now - seconds) > 60) return false;
             nonces.entrySet().removeIf(entry -> now - entry.getValue() > 60);
             if (nonces.size() >= 100_000 || nonces.putIfAbsent(nonce, seconds) != null) return false;
-            boolean accepted = InternalRequestSigner.matches(signature, InternalRequestSigner.sign(
-                secret, request.getMethod(), request.getRequestURI(), timestamp, nonce));
+            boolean accepted = InternalRequestSigner.matches(signature, InternalRequestSigner.signBody(
+                secret, request.getMethod(), request.getRequestURI(), timestamp, nonce, body));
             if (!accepted) nonces.remove(nonce);
             return accepted;
         } catch (RuntimeException rejected) {

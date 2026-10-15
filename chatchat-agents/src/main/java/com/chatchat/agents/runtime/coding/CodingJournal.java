@@ -16,6 +16,8 @@ public final class CodingJournal {
         public Lease lease = new Lease(null, Instant.EPOCH, 0);
         public Map<String, Operation> operations = new LinkedHashMap<>();
         public List<CodingExecutionEvent> events = new ArrayList<>();
+        /** Idempotent advisory worker progress, keyed by fence and worker-local sequence. */
+        public Map<String, String> workerEvents = new LinkedHashMap<>();
     }
     public record Lease(String owner, Instant leaseUntil, long fencingToken) { }
     public enum OperationKind { MODEL, TOOL, CODE, ACCOUNTING }
@@ -28,6 +30,7 @@ public final class CodingJournal {
         public boolean startIntent;
         public String executionHandle;
         public long startingFencingToken;
+        public long startSequence;
         public String stopProofRef;
     }
 }

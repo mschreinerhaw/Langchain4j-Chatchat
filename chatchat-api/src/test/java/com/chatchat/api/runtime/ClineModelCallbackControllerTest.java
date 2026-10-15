@@ -24,6 +24,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -51,6 +54,25 @@ class ClineModelCallbackControllerTest {
                 var accepted = tasks.submit(contract);
                 return tasks.claim(scope, "task", "cline-adapter:test", Duration.ofSeconds(90), accepted.revision());
             });
+            var received = new CountDownLatch(1);
+            var failure = new AtomicReference<CodingAgentSPI.Error>();
+            try (var subscription = access.as(scope, EnumSet.of(CodingTaskAccess.Action.READ), () ->
+                tasks.subscribe(scope, "task", 0, new CodingAgentSPI.Observer() {
+                    public void onEvent(CodingExecutionEvent event) { received.countDown(); }
+                    public void onError(CodingAgentSPI.Error error) { failure.set(error); received.countDown(); }
+                    public void onClosed() { }
+                }))) {
+                try { assertThat(received.await(5, TimeUnit.SECONDS)).isTrue(); }
+                catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); throw new AssertionError(interrupted); }
+                assertThat(failure.get()).isNull();
+            }
+            var reader = access.as(scope, EnumSet.of(CodingTaskAccess.Action.READ), () -> access.subscriptionAccess(scope));
+            reader.require(scope, CodingTaskAccess.Action.READ);
+            assertThatThrownBy(() -> reader.require(scope, CodingTaskAccess.Action.WORKER))
+                .isInstanceOf(CodingContractException.class);
+            var other = new KernelDataScope("another-tenant", "owner", null, null, "run", null, Map.of());
+            assertThatThrownBy(() -> reader.require(other, CodingTaskAccess.Action.READ))
+                .isInstanceOf(CodingContractException.class);
             var controller = new ClineModelCallbackController(access, tasks,
                 mock(ClineRuntimeModelBridge.class), receipts, mock(CodingInputSnapshotService.class),
                 mock(CodingValidationPlanService.class), mock(CodingEvidenceCollector.class), json);
@@ -159,12 +181,19 @@ class ClineModelCallbackControllerTest {
             assertThatThrownBy(() -> controller.model(execution))
                 .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
                 .hasMessageContaining("Coding ownership or stop state changed");
-            assertThat(receipts.response(scope, "task", "model-1")).isEmpty();
+            assertThat(receipts.response(scope, "task", "model-1")).isPresent();
             var abort = base.deepCopy();
             abort.set("outcome", json.valueToTree(Map.of("status", "aborted")));
             assertThatThrownBy(() -> controller.finish(abort))
                 .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
                 .hasMessageContaining("EXECUTION_OUTCOME_UNKNOWN");
+            access.as(scope, EnumSet.allOf(CodingTaskAccess.Action.class), () -> {
+                var current = tasks.get(scope, "task");
+                return tasks.reconcileStopped(scope, "task", lease, current.revision(), "model-1",
+                    receipts.proofRef(scope, "task", "model-1"));
+            });
+            assertThat(controller.finish(abort).get("status")).isEqualTo("CANCELLED");
+            verify(model, times(1)).complete(any(), any());
         } finally { timer.shutdownNow(); }
     }
 

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createCodingRun } from '../src/runner.js';
 
 const task = {
+  schemaVersion: 'runtime_os.coding.v1',
   taskId: 'task-1',
   scope: { tenantId: 'tenant', userId: 'owner', runId: 'run' },
   objective: { instruction: 'Compute the authorized financial total' },
@@ -12,6 +13,11 @@ const task = {
   outputContract: { requiredFiles: ['rows.jsonl'] },
   budget: { maxModelCalls: 4 },
 };
+
+test('worker rejects unnegotiated v2 and missing protocol versions before touching Runtime', () => {
+  for (const schemaVersion of ['runtime_os.coding.v2', undefined])
+    assert.throws(() => createCodingRun({ ...task, schemaVersion }, {}), /VERSION_UNSUPPORTED/);
+});
 
 test('actual Cline Agent loop repairs a technical Python error through one Runtime tool', async () => {
   const requests = [];

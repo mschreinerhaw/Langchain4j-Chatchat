@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { createCodingRun } from './runner.js';
@@ -51,13 +51,15 @@ export function httpGateway(callbackUrl, secret, binding) {
     const path = `/internal/coding/cline/${action}`;
     const timestamp = String(Math.floor(Date.now() / 1000));
     const nonce = randomUUID();
+    const bytes = JSON.stringify({ ...binding, ...payload });
+    const digest = createHash('sha256').update(bytes).digest('hex');
     const signature = createHmac('sha256', secret)
-      .update(`POST\n${path}\n${timestamp}\n${nonce}`).digest('hex');
+      .update(`v2\nPOST\n${path}\n${timestamp}\n${nonce}\n${digest}`).digest('hex');
     const answer = await fetch(`${callbackUrl}${path}`, {
       method: 'POST', headers: { authorization: `Bearer ${secret}`, 'content-type': 'application/json',
         'x-chatchat-timestamp': timestamp, 'x-chatchat-nonce': nonce,
-        'x-chatchat-signature': signature },
-      body: JSON.stringify({ ...binding, ...payload }), signal, redirect: 'error',
+        'x-chatchat-signature': signature, 'x-chatchat-signature-version': '2' },
+      body: bytes, signal, redirect: 'error',
     });
     const data = await answer.json().catch(() => ({}));
     if (!answer.ok) throw new Error(data.message ?? `Runtime callback rejected ${action}: ${answer.status}`);
@@ -98,6 +100,8 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
         return response(reply, 200, { status: 'UP' });
       if (request.method === 'POST' && url.pathname === '/v1/runs') {
         const value = await body(request);
+        if (value.contract?.schemaVersion !== 'runtime_os.coding.v1')
+          return response(reply, 422, { code: 'VERSION_UNSUPPORTED', message: 'Coding protocol version is unsupported' });
         if (!value.contract || typeof value.contractHash !== 'string' || !Number.isSafeInteger(value.fencingToken)
             || value.fencingToken < 1) return response(reply, 400, { message: 'Invalid Runtime task binding' });
         const key = taskKey(value.contract);

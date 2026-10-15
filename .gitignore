@@ -70,3 +70,4 @@ build/
 .codex-jar-inspect/*
 .codex-tmp/*
 .codex-run/*
+/coding-agent-node/node_modules/

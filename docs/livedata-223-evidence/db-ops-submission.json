@@ -1,0 +1,25 @@
+{
+  "submittedAt": "2026-10-16T16:24:52.406001+08:00",
+  "agentId": "db_ops_assistant",
+  "request": {
+    "question": "请对资产“LiveData测试库_223”执行一次只读的 InnoDB 运行情况综合验证。必须先通过 MCP 资产发现确认实际资产 ID、数据库类型、版本、实例和 DEV 授权范围，不能根据名称推断 IP。仅使用已发布且已授权的只读数据库监控模板，经参数绑定后取数；禁止 Cline 或分析代码直接连接数据库，禁止 DDL、DML、配置修改、重启、高开销监控和压力测试。请分析 Buffer Pool 容量/页/命中与读写、活跃及长事务、连接、锁等待和死锁、InnoDB 表与数据/索引空间、大表、I/O、Redo、刷脏页和 checkpoint。所有指标注明采样时间、来源、单位和口径；累积计数器至少两个时间点计算差值和速率，单次快照不得推断长期趋势。需要程序计算时，通过现有 CodingAgentSPI 提交授权 DatasetHandle、Schema、统计摘要和目标，由共享 Cline Coding Agent 生成 Python，在 Sandbox 执行、诊断、修复和验证，并把代码、执行回执、结果、哈希及 Evidence 回流 Runtime。数据或模板不足时输出结构化缺口，不得绕过授权。最终区分已确认问题、需持续观察风险、待验证假设，并给出数据库状态和 MCP/Cline/Python/Evidence/Analysis Loop 各环节结论；不得自动执行优化。",
+    "sessionId": "livedata-223-innodb-real-20261016",
+    "idempotencyKey": "livedata-223-innodb-real-7b339d2741ca4856a50c3096783650b3",
+    "historyWindow": 0,
+    "imageAnalysisIds": [],
+    "parameters": {}
+  },
+  "responseHttp": 202,
+  "response": {
+    "taskId": "895a4b33-f1dd-30b4-9ceb-7a7131fdd304",
+    "executionId": "895a4b33-f1dd-30b4-9ceb-7a7131fdd304",
+    "attemptId": "att-1-e316fbcb-2165-41bd-9cbd-a80072cd75b3",
+    "sessionId": "livedata-223-innodb-real-20261016",
+    "agentId": "db_ops_assistant",
+    "status": "PENDING",
+    "canonicalState": "SUBMITTED",
+    "statusPath": null,
+    "answerPath": null,
+    "createTime": null
+  }
+}

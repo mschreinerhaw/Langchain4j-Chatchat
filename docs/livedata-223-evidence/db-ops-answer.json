@@ -1,0 +1,24 @@
+{
+  "http": 200,
+  "response": {
+    "code": 200,
+    "message": "Success",
+    "data": {
+      "taskId": "895a4b33-f1dd-30b4-9ceb-7a7131fdd304",
+      "executionId": "895a4b33-f1dd-30b4-9ceb-7a7131fdd304",
+      "attemptId": "att-1-e316fbcb-2165-41bd-9cbd-a80072cd75b3",
+      "sessionId": "livedata-223-innodb-real-20261016",
+      "agentId": "db_ops_assistant",
+      "status": "FAILED",
+      "canonicalState": "FAILED",
+      "terminal": true,
+      "ready": true,
+      "answer": "本次执行失败，但失败信息已被捕获并返回。\n\n失败类型：QueryOptimizationException\n失败原因：QUERY_REQUIRES_STRUCTURED_CONSTRAINTS: Long natural-language negation must be supplied as explicit exclusion filters before compression\n\n已将该失败作为本次任务结果反馈给用户端。请根据工具执行日志、权限配置、参数绑定或模型服务状态继续排查。",
+      "references": [],
+      "error": "QUERY_REQUIRES_STRUCTURED_CONSTRAINTS: Long natural-language negation must be supplied as explicit exclusion filters before compression",
+      "updatedAt": "2026-10-16T08:25:54.857266Z"
+    },
+    "timestamp": 1792139156220,
+    "requestId": "a80f6454-350f-4318-98d1-2744f8ca83a3"
+  }
+}

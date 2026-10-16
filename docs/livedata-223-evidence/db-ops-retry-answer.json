@@ -1,0 +1,24 @@
+{
+  "http": 200,
+  "response": {
+    "code": 200,
+    "message": "Success",
+    "data": {
+      "taskId": "ee453339-2181-3835-8875-5ce9f80a7951",
+      "executionId": "ee453339-2181-3835-8875-5ce9f80a7951",
+      "attemptId": "att-1-7de1af64-0869-4f2e-bc93-9c22167c9ce7",
+      "sessionId": "livedata-223-innodb-real-retry-20261016",
+      "agentId": "db_ops_assistant",
+      "status": "FAILED",
+      "canonicalState": "FAILED",
+      "terminal": true,
+      "ready": true,
+      "answer": "本次执行失败，但失败信息已被捕获并返回。\n\n失败类型：QueryOptimizationException\n失败原因：QUERY_DSL_BUDGET_EXCEEDED: Estimated analyzer/field expansion exceeds budget {estimatedClauses=520}\n\n已将该失败作为本次任务结果反馈给用户端。请根据工具执行日志、权限配置、参数绑定或模型服务状态继续排查。",
+      "references": [],
+      "error": "QUERY_DSL_BUDGET_EXCEEDED: Estimated analyzer/field expansion exceeds budget {estimatedClauses=520}",
+      "updatedAt": "2026-10-16T08:30:00.393896Z"
+    },
+    "timestamp": 1792139408317,
+    "requestId": "297368ae-e753-49b3-8bb6-2a04bce66712"
+  }
+}

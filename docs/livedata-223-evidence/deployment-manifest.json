@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "runtime_os.deployment_evidence.v1",
+  "capturedAt": "2026-10-16T15:59:27+08:00",
+  "source": {
+    "branch": "main",
+    "commit": "bdc7f898"
+  },
+  "target": {
+    "host": "192.168.195.221",
+    "directory": "/opt/coding-deploy-stage-20261016-phase2",
+    "productionServicesChanged": false
+  },
+  "artifacts": [
+    {
+      "name": "chatchat-api-1.0.0-SNAPSHOT.jar",
+      "sha256": "16885c5ff82dc009f2d96e7393a37fb721a625ac5e5c02685198238f0d37ea60"
+    },
+    {
+      "name": "chatchat-mcp-server-1.0.0-SNAPSHOT.jar",
+      "sha256": "b92fd0eb00d6d534211f9266ec9be9f5db2859cc65de7cbc035c4cf54bd24184"
+    },
+    {
+      "name": "coding-agent-phase2-src.tgz",
+      "sha256": "9db8c505198825832c64b6c64a866d9284d2cd84abe2b7abc4b705f221363957"
+    }
+  ],
+  "worker": {
+    "image": "runtime-coding-agent:phase2-staged-20261016",
+    "imageId": "sha256:b3c35a9e5b734182e5e9313d920640e400245eb7916916bb3499fc5374233ba9",
+    "container": "coding-agent-phase2-stage",
+    "status": "running",
+    "restartPolicy": "no",
+    "binding": "127.0.0.1:8793->3100/tcp",
+    "authenticatedHealthHttp": 200,
+    "unauthenticatedHealthHttp": 401,
+    "javaCallbackReady": false
+  },
+  "modelProbe": {
+    "profile": "dev",
+    "model": "hy3",
+    "httpStatus": 200,
+    "choicesPresent": true,
+    "usagePresent": true,
+    "elapsedSeconds": 1.42,
+    "codingAgentInvocation": false
+  }
+}

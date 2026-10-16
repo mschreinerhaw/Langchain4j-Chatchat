@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "runtime_os.gate_rerun.v1",
+  "capturedAt": "2026-10-16T16:05:00+08:00",
+  "sourceCommit": "bdc7f898",
+  "tests": [
+    {
+      "class": "com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccessTest",
+      "tests": 7,
+      "failures": 3,
+      "errors": 0,
+      "skipped": 0,
+      "result": "FAILED"
+    },
+    {
+      "class": "com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryDatabaseQueryTest",
+      "tests": 8,
+      "failures": 3,
+      "errors": 0,
+      "skipped": 0,
+      "result": "FAILED",
+      "observations": [
+        "runtime-managed template environment expected DEV but was null",
+        "fallback/ranking result counts differ from the asserted contract"
+      ]
+    },
+    {
+      "class": "com.chatchat.api.AgentAuthorizationIsolationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 3,
+      "skipped": 0,
+      "result": "ERROR",
+      "rootCause": "ApplicationContext failed because Runtime semantic policy is not published"
+    }
+  ],
+  "realDatabaseTestReleased": false
+}

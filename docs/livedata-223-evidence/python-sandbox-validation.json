@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "runtime_os.environment_validation.v1",
+  "capturedAt": "2026-10-16",
+  "image": "chatchat-python-runtime:3.11-v1.1",
+  "network": "none",
+  "rootFilesystem": "read-only",
+  "memoryLimit": "256 MiB",
+  "cpuLimit": 1,
+  "exitCode": 0,
+  "resultSha256": "0a5a69d372fcdf1f08893ed92293add3075c33c44fa65689f8bb816154bd9ae82",
+  "sandboxApiUsed": false,
+  "clineGenerated": false,
+  "businessDataUsed": false
+}

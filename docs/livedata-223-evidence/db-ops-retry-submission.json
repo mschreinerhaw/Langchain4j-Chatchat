@@ -1,0 +1,49 @@
+{
+  "submittedAt": "2026-10-16T16:28:49.727209+08:00",
+  "agentId": "db_ops_assistant",
+  "request": {
+    "question": "分析 LiveData测试库_223 的 InnoDB 运行情况。先完成 MCP 资产发现和授权模板选择，再采集 Buffer Pool、事务、连接、锁等待、死锁、表与索引空间、I/O、Redo、刷脏页及 checkpoint 指标。累积计数器采用多时间点差值计算速率。需要程序计算时使用现有 CodingAgentSPI、共享 Cline Coding Agent 和 Python Sandbox。输出采样时间、来源、单位、口径、证据引用、确认问题、观察风险、验证假设及各 Runtime 环节结论。",
+    "sessionId": "livedata-223-innodb-real-retry-20261016",
+    "idempotencyKey": "livedata-223-innodb-retry-c470c876218f4bb697648cf24876e5e9",
+    "historyWindow": 0,
+    "imageAnalysisIds": [],
+    "parameters": {
+      "assetName": "LiveData测试库_223",
+      "environment": "DEV",
+      "executionPolicy": {
+        "accessMode": "READ_ONLY",
+        "allowedActions": [
+          "MCP_ASSET_DISCOVERY",
+          "AUTHORIZED_TEMPLATE_DISCOVERY",
+          "AUTHORIZED_TEMPLATE_EXECUTION",
+          "DATASET_HANDLE_READ",
+          "CODING_AGENT_ANALYSIS",
+          "PYTHON_SANDBOX_EXECUTION",
+          "EVIDENCE_REGISTRATION"
+        ],
+        "excludedActions": [
+          "DDL",
+          "DML",
+          "CONFIG_CHANGE",
+          "SERVICE_RESTART",
+          "HIGH_COST_MONITORING",
+          "LOAD_TEST",
+          "DIRECT_DATABASE_CONNECTION_BY_CODING_AGENT"
+        ],
+        "requireVersionDiscovery": true,
+        "requireMultipleSamplesForCounters": true,
+        "requireEvidence": true
+      }
+    }
+  },
+  "responseHttp": 202,
+  "response": {
+    "taskId": "ee453339-2181-3835-8875-5ce9f80a7951",
+    "executionId": "ee453339-2181-3835-8875-5ce9f80a7951",
+    "attemptId": "att-1-7de1af64-0869-4f2e-bc93-9c22167c9ce7",
+    "sessionId": "livedata-223-innodb-real-retry-20261016",
+    "agentId": "db_ops_assistant",
+    "status": "PENDING",
+    "canonicalState": "SUBMITTED"
+  }
+}

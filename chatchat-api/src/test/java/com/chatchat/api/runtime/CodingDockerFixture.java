@@ -104,6 +104,11 @@ abstract class CodingDockerFixture {
         when(port.artifact(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
             .thenAnswer(call -> managed.artifact(call.getArgument(0), call.getArgument(1), call.getArgument(2),
                 call.getArgument(3), call.getArgument(4), call.getArgument(5), call.getArgument(6)));
+        doAnswer(call -> {
+            ((java.io.OutputStream)call.getArgument(7)).write(port.artifact(call.getArgument(0),call.getArgument(1),
+                call.getArgument(2),call.getArgument(3),call.getArgument(4),call.getArgument(5),call.getArgument(6)));
+            return null;
+        }).when(port).downloadArtifact(anyString(),anyString(),anyString(),anyString(),anyString(),anyString(),anyString(),any(java.io.OutputStream.class));
         workers = Executors.newFixedThreadPool(2); timer = Executors.newSingleThreadScheduledExecutor();
         tasks = new DurableCodingTaskService(evidence, json, Clock.systemUTC(),
             new BoundCodingTaskAccess(() -> scope, EnumSet.allOf(CodingTaskAccess.Action.class)),

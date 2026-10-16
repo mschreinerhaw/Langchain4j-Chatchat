@@ -1,7 +1,8 @@
 param(
     [string]$SqlGlotPython,
     [switch]$Offline,
-    [switch]$SkipFrontend
+    [switch]$SkipFrontend,
+    [switch]$SkipFullSuite
 )
 $ErrorActionPreference='Stop'
 $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -9,7 +10,7 @@ if(-not $SqlGlotPython){$SqlGlotPython=Join-Path $repo 'target/sql-toolchain-ven
 $out=Join-Path $repo ('target/coding-gates/'+(Get-Date -Format 'yyyyMMdd-HHmmss'))
 New-Item -ItemType Directory -Path $out -Force | Out-Null
 $report=[ordered]@{scope='Local real SDK + Docker + JDBC; deterministic model and template-source doubles';
-    startedAt=(Get-Date).ToUniversalTime().ToString('o');G1='NOT_RUN';G2='NOT_RUN';G3='NOT_RUN';node='NOT_RUN';frontend='NOT_RUN';logs=$out}
+    startedAt=(Get-Date).ToUniversalTime().ToString('o');G1='NOT_RUN';G2='NOT_RUN';G3='NOT_RUN';node='NOT_RUN';frontend='NOT_RUN';fullBackend='NOT_RUN';logs=$out}
 function Save-Report { $report | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $out 'gates.json') -Encoding UTF8 }
 function Invoke-Check([string]$command,[string[]]$arguments,[string]$directory,[string]$log) {
     Push-Location -LiteralPath $directory
@@ -28,12 +29,12 @@ try {
     $nodeExit=Invoke-Check 'npm.cmd' @('test') (Join-Path $repo 'coding-agent-node') 'node.log'
     if($nodeExit -ne 0){$report.node='FAILED';throw 'Node SDK regression failed'}
     $report.node='PASSED'
-    $names=@('CodingCanonicalHashTest','CodingContractsTest','CodingJsonSchemaTest','CodingBudgetMathTest','HarnessCodingIntegrationTest',
+    $names=@('CodingCanonicalHashTest','CodingContractsTest','CodingJsonSchemaTest','CodingBudgetMathTest','HarnessCodingIntegrationTest','ModelNativeAnalysisHarnessTest','BoundedAnalysisEvidenceTest','DataWorkspaceOperationsTest',
         'CodingTaskPersistenceTest','CodingAnalysisServiceTest','CodingDataSupplyServiceTest','CodingFinancialResultVerifierTest',
-        'CodingAnalysisDockerGateTest','CodingEvidenceDockerIntegrationTest','CodingEvidenceCollectorTest','CodingInputSnapshotServiceTest','CodingInvocationContextTest',
+        'CodingAnalysisDockerGateTest','CodingEvidenceDockerIntegrationTest','CodingEvidenceCollectorTest','CodingInputSnapshotServiceTest','CodingChunkedSnapshotTest','CodingInvocationContextTest',
         'ClineCodingAdapterRecoveryTest','ClineCodingAdapterDispatchTest','ClineModelCallbackControllerTest','ClineRuntimeModelBridgeTest','ClinePythonCallbackControllerTest','ClineCallbackAuthFilterTest',
         'CodingWorkspaceServiceTest','CodingWorkspaceNodeIntegrationTest','SqlGlotToolchainTest','SqlStudioIntegrationTest','SqlStudioMetadataServiceTest','SqlStudioMetadataGatewayTest','SqlStudioGenerationToolPolicyTest','SqlOutputBundleTest',
-        'PythonCodeAssistantServiceTest','RegisteredToolAnalysisOperatorTest','PythonManagedExecutionServiceTest','PythonOperationWorkspaceTest','PythonManagedInternalAuthFilterTest','LivedataSettingsConfigurationTest')
+        'PythonCodeAssistantServiceTest','RegisteredToolAnalysisOperatorTest','PythonManagedExecutionServiceTest','PythonOperationWorkspaceTest','PythonDataFileServiceTest','PythonManagedInternalAuthFilterTest','LivedataSettingsConfigurationTest')
     $started=[DateTime]::UtcNow
     $maven=@('-pl','chatchat-api','-am','-Pbackend-only','-Dfrontend.skip=true','-Dcoding.realDocker=true','-Dcoding.nodeE2e=true',
         "-Dcoding.sqlglotPython=$SqlGlotPython",('-Dtest='+($names -join ',')),'-Dsurefire.failIfNoSpecifiedTests=false','test')
@@ -69,6 +70,28 @@ try {
         $report.frontend=if($webExit -eq 0 -and $pythonExit -eq 0 -and $buildExit -eq 0){'PASSED'}else{'FAILED'}
         if($report.frontend -ne 'PASSED'){throw 'Frontend verification failed'}
     } else {$report.frontend='NOT_RUN_EXPLICITLY_SKIPPED'}
+    if(-not $SkipFullSuite) {
+        $fullStarted=[DateTime]::UtcNow
+        $fullArgs=@('-pl','chatchat-api','-am','-Pbackend-only','-Dfrontend.skip=true','-Dcoding.realDocker=true','-Dcoding.nodeE2e=true',
+            '-Dmaven.test.failure.ignore=true',"-Dcoding.sqlglotPython=$SqlGlotPython",'test')
+        if($Offline){$fullArgs=@('-o')+$fullArgs}
+        $fullExit=Invoke-Check 'mvn.cmd' $fullArgs $repo 'java-full-suite.log'
+        $totals=[ordered]@{suites=0;tests=0;failures=0;errors=0;skipped=0}
+        foreach($module in @('chatchat-common','chatchat-agents','chatchat-tools','chatchat-mcp-server','chatchat-api')) {
+            $folder=Join-Path $repo "$module/target/surefire-reports"
+            if(-not(Test-Path -LiteralPath $folder)){continue}
+            foreach($file in Get-ChildItem -LiteralPath $folder -Filter 'TEST-*.xml') {
+                if($file.LastWriteTimeUtc -lt $fullStarted.AddSeconds(-1)){continue}
+                [xml]$xml=Get-Content -LiteralPath $file.FullName -Raw
+                $totals.suites++;$totals.tests += [int]$xml.testsuite.tests
+                $totals.failures += [int]$xml.testsuite.failures;$totals.errors += [int]$xml.testsuite.errors
+                $totals.skipped += [int]$xml.testsuite.skipped
+            }
+        }
+        $report.fullBackend=if($fullExit -eq 0 -and $totals.suites -gt 0 -and $totals.failures -eq 0 -and $totals.errors -eq 0 -and $totals.skipped -eq 0){'PASSED'}else{'FAILED'}
+        $report.fullBackendTotals=$totals;Save-Report
+        if($report.fullBackend -ne 'PASSED'){throw 'Full backend suite failed; selected G1/G2/G3 passing does not satisfy the complete gate'}
+    } else {$report.fullBackend='NOT_RUN_EXPLICITLY_SKIPPED'}
     $report.finishedAt=(Get-Date).ToUniversalTime().ToString('o');Save-Report
     Write-Output "G1/G2/G3 PASSED within the stated local scope. Evidence: $out"
 } catch {

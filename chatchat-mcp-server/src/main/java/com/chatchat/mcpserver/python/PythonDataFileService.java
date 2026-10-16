@@ -69,7 +69,7 @@ public class PythonDataFileService {
 
     public record SnapshotFile(String fileId, String fileName, long size, String sha256) {}
 
-    public DataFileResult store(String tenant, String owner, String fileId, String encodedName, String expectedHash, byte[] encrypted) {
+    public synchronized DataFileResult store(String tenant, String owner, String fileId, String encodedName, String expectedHash, byte[] encrypted) {
         component(tenant);
         component(owner);
         scope(fileId);
@@ -88,13 +88,23 @@ public class PythonDataFileService {
             makeRuntimeTraversable(directory);
             Path target = directory.resolve(fileName).normalize();
             if (!target.getParent().equals(directory)) throw new IllegalArgumentException("非法数据文件名");
+            boolean codingFile=fileId.matches("c[0-9a-f]{63}");
+            if(codingFile && Files.exists(target,LinkOption.NOFOLLOW_LINKS)) {
+                if(Files.isSymbolicLink(target)||!Files.isRegularFile(target,LinkOption.NOFOLLOW_LINKS)
+                    ||!actualHash.equals(sha256(Files.readAllBytes(target))))
+                    throw new IllegalStateException("Immutable Coding input identity conflicts with stored content");
+                return new DataFileResult(fileId,target.toString(),"/data/input/"+fileId+"/"+fileName,
+                    content.length,actualHash,"AVAILABLE");
+            }
             Path temporary = Files.createTempFile(directory, "upload-", ".part");
             try {
                 Files.write(temporary, content, StandardOpenOption.TRUNCATE_EXISTING);
                 try {
-                    Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                    Files.move(temporary, target, codingFile
+                        ?new CopyOption[]{StandardCopyOption.ATOMIC_MOVE}
+                        :new CopyOption[]{StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING});
                 } catch (AtomicMoveNotSupportedException ex) {
-                    Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+                    Files.move(temporary, target, codingFile?new CopyOption[]{}:new CopyOption[]{StandardCopyOption.REPLACE_EXISTING});
                 }
                 makeRuntimeReadable(target);
             } finally {

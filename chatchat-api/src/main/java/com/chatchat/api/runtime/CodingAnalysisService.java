@@ -51,7 +51,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         this.policy=policy;this.identity=identity;this.inputs=inputs;this.plans=plans;this.agent=agent;
         this.tasks=tasks;this.collector=collector;this.checkpoints=checkpoints;this.models=models;this.python=python;this.json=json;
         if (policy.getMaxConcurrentTasks()<1 || policy.getMaxConcurrentTasks()>32 || policy.getTimeoutSeconds()<1
-                || policy.getTimeoutSeconds()>3600 || policy.getMaxInputBytes()>64L*1024*1024)
+                || policy.getTimeoutSeconds()>3600 || policy.getMaxInputBytes()>256L*1024*1024
+                || policy.getMaxInputRows()>1_000_000)
             throw new IllegalArgumentException("Invalid Coding deployment resource limits");
         capacity=new Semaphore(policy.getMaxConcurrentTasks());
     }
@@ -113,8 +114,11 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             if(env==null || !"PUBLISHED".equals(env.status()) || !"NONE".equals(env.networkPolicy()))
                 throw new SecurityException("Coding requires a published network-disabled deployment environment");
             String decision="runtime-coding-delegation:"+taskId, workspace="runtime-coding-workspace:"+taskId;
-            var input=inputs.capture(scope,taskId,List.of(source),source.reference(),decision,workspace,
-                policy.getMaxInputRows(),policy.getMaxInputBytes());
+            boolean chunked=policy.getMaxInputRows()>100_000||policy.getMaxInputBytes()>16L*1024*1024;
+            var input=chunked?inputs.captureChunked(scope,taskId,List.of(source),source.reference(),decision,workspace,
+                policy.getMaxInputRows(),policy.getMaxInputBytes(),()->ensureActive(context))
+                :inputs.capture(scope,taskId,List.of(source),source.reference(),decision,workspace,
+                    policy.getMaxInputRows(),policy.getMaxInputBytes());
             var plan=plans.register(scope,taskId,input,new CodingValidationPlanService.Plan("runtime-result-schema","v1",Map.of("rowSchema",schema)));
             String goal=instruction+"\nAuthorized immutable input descriptor: "+ModelProtocolJson.compact(inputs.describe(scope,taskId,input))
                 +"\nUse the authorized snapshot. Inspect its columns in Python if necessary. "
@@ -127,15 +131,19 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 +"Schema checks do not establish business correctness. Explain limitations in your summary.";
             boolean dataAvailable=dataSupply!=null&&!dataSupply.describe(scope).isEmpty();
             boolean sqlAvailable=analysisSql!=null&&analysisSql.available();
-            boolean dynamic=dataAvailable||sqlAvailable;
+            boolean dynamic=dataAvailable||sqlAvailable||input.chunked();
             List<String> tools=new ArrayList<>(List.of("python_execute"));
             if(dataAvailable)tools.add("data_request");if(sqlAvailable)tools.add("sql_validate");
             if(sqlAvailable)goal+="\nFor SQL analysis, use sql_validate for static diagnostics; it never executes SQL. You may execute SQLite in-memory SQL over the delivered files inside python_execute. Never connect to external databases.";
+            if(input.chunked())goal+="\nThe original input is a JSON manifest mounted at /data/input/"+input.fileId()
+                +"/manifest.json. Its chunks list is ordered and contains only authorized fileId/fileName/hash/rowCount/size. "
+                +"Read each /data/input/{fileId}/{fileName} sequentially in Python and verify each chunk SHA-256 and total rows; never treat the manifest itself as JSONL data.";
             if(dataAvailable)goal+="\nAuthorized Java data capabilities: "+ModelProtocolJson.compact(dataSupply.describe(scope))
                 +". Use data_request only when delivered data is insufficient; do not query sources yourself. Each response is a new immutable input version mounted in subsequent Python calls.";
             contract=new CodingTaskContract(dynamic?CodingProtocol.ANALYSIS_VERSION:CodingProtocol.VERSION,taskId,scope,
                 new CodingTaskContract.Objective(goal,List.of("rows.jsonl"),List.of(plan)),input.reference(),dataAvailable?List.of(CodingParentModels.REQUIRED_REF,dataSupply.policyRef(scope)):List.of(CodingParentModels.REQUIRED_REF),workspace,
-                new CodingTaskContract.Authorization(decision,tools,List.of(input.fileId()),List.of(),List.of(),
+                new CodingTaskContract.Authorization(decision,tools,CodingInputSnapshotService.mountedFiles(input)
+                    .stream().map(CodingInputSnapshotService.Chunk::fileId).toList(),List.of(),List.of(),
                     CodingTaskContract.NetworkPolicy.NONE,List.of(),List.of(CodingTaskContract.SideEffect.CODE_EXECUTION)),budget,
                 policy.getEnvironmentId(),plan,new CodingTaskContract.OutputContract(CodingTaskContract.ResultFormat.JSON_LINES,
                     "runtime-coding-schema:"+hash(schema),"runtime-coding-structural.v1",List.of("rows.jsonl"),
@@ -209,17 +217,34 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         }
         if(request.containsKey("datasetReference")||!(request.get("datasetReferences") instanceof List<?> refs)
             ||refs.isEmpty()||refs.size()>8||new HashSet<>(refs).size()!=refs.size())throw new IllegalArgumentException("Select 1..8 unique delivered datasets");
-        List<Map<String,Object>> records=new ArrayList<>();List<Map<String,Object>> versions=new ArrayList<>();
+        List<Dataset> selectedSources=new ArrayList<>();List<Map<String,Object>> versions=new ArrayList<>();
+        long total=0;
         for(Object ref:refs) {
             var selected=sources.get(text(ref,512));if(selected==null)throw new SecurityException("Coding input is not delivered in this analysis");
-            if(!selected.handle().recordCountExact()||selected.recordCount()>policy.getMaxInputRows()-records.size())throw new IllegalArgumentException("Combined Coding input row limit");
+            if(!selected.handle().recordCountExact()||selected.recordCount()>policy.getMaxInputRows()-total)throw new IllegalArgumentException("Combined Coding input row limit");
+            total+=selected.recordCount();selectedSources.add(selected);
             versions.add(Map.of("datasetReference",selected.reference(),"contentSha256",selected.handle().contentSha256(),"rowCount",selected.recordCount()));
-            selected.handle().scan(1000,page->{for(var row:page.rows()) {
-                if(records.size()>=policy.getMaxInputRows())throw new IllegalArgumentException("Combined input limit");
-                records.add(Map.of("datasetReference",selected.reference(),"record",row));
-            }});
         }
-        return new Dataset("coding-input-set:"+hash(versions),Map.of("inputVersions",List.copyOf(versions)),records);
+        final long count=total;
+        var handle=new com.chatchat.agents.orchestration.analysis.dataset.PagedDatasetHandle(count,true,(offset,limit)->{
+            if(offset<0||limit<1)throw new IllegalArgumentException("Invalid combined page");
+            var rows=new ArrayList<Map<String,Object>>();long base=0;
+            for(var selected:selectedSources) {
+                long end=base+selected.recordCount();
+                if(offset+rows.size()<end && rows.size()<limit) {
+                    long local=Math.max(0,offset+rows.size()-base);
+                    while(local<selected.recordCount()&&rows.size()<limit) {
+                        var page=selected.handle().readPage(local,Math.min(limit-rows.size(),1000));
+                        if(page.rows().isEmpty())throw new IllegalStateException("Combined source changed during page read");
+                        for(var row:page.rows())rows.add(Map.of("datasetReference",selected.reference(),"record",row));
+                        local+=page.rows().size();
+                    }
+                }
+                base=end;
+            }
+            return new com.chatchat.agents.orchestration.analysis.dataset.DatasetHandle.Page(offset,rows,offset+rows.size()<count);
+        },null,()->{},Map.of("kind","CODING_INPUT_SET","sourceCount",selectedSources.size()));
+        return new Dataset("coding-input-set:"+hash(versions),Map.of("inputVersions",List.copyOf(versions)),handle);
     }
     private static void ensureActive(AnalysisCoverageCoordinator.Request context) {
         context.cancellationGuard().run();

@@ -63,12 +63,16 @@ public final class CodingDataSupplyService {
         }
         return List.of(json.convertValue(saved,CodingInputSnapshotService.Snapshot[].class));
     }
+    public List<CodingInputSnapshotService.Chunk> mountedFiles(CodingTaskContract c,String operation) {
+        return snapshots(c,operation).stream().flatMap(s->CodingInputSnapshotService.mountedFiles(s).stream()).toList();
+    }
     public boolean authorizes(CodingTaskContract c,String operation,Map<String,String> files) {
         if(!CodingProtocol.ANALYSIS_VERSION.equals(c.schemaVersion()))return false;
         var saved=tasks.privateState(c.scope(),c.taskId(),"inputs:"+operation);
         if(saved==null)return false;
         Map<String,String> actual=new TreeMap<>();
-        for(var s:List.of(json.convertValue(saved,CodingInputSnapshotService.Snapshot[].class)))actual.put(s.fileId(),s.sha256());
+        for(var s:List.of(json.convertValue(saved,CodingInputSnapshotService.Snapshot[].class)))
+            for(var file:CodingInputSnapshotService.mountedFiles(s))actual.put(file.fileId(),file.sha256());
         return actual.equals(files);
     }
     public List<String> provenanceIds(CodingTaskContract c,String operation) {

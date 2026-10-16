@@ -35,7 +35,7 @@ class CodingEvidenceCollectorTest {
     ScheduledExecutorService timer;
     CodingTaskContract contract;
 
-    @BeforeEach void setup() {
+    @BeforeEach void setup() throws Exception {
         dataSource = new DriverManagerDataSource("jdbc:h2:mem:c-evidence-" + UUID.randomUUID()
                 + ";DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE", "sa", "");
         new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(dataSource);
@@ -48,6 +48,11 @@ class CodingEvidenceCollectorTest {
             (owner, taskId, operationId, handle, proofRef) -> true,
             workers, new ConcurrentTaskScheduler(timer));
         python = mock(McpPythonControlPlanePort.class);
+        doAnswer(call -> {
+            ((java.io.OutputStream)call.getArgument(7)).write(python.artifact(call.getArgument(0),call.getArgument(1),
+                call.getArgument(2),call.getArgument(3),call.getArgument(4),call.getArgument(5),call.getArgument(6)));
+            return null;
+        }).when(python).downloadArtifact(anyString(),anyString(),anyString(),anyString(),anyString(),anyString(),anyString(),any(java.io.OutputStream.class));
         contract = new CodingTaskContract(CodingProtocol.VERSION, "task", scope,
             new CodingTaskContract.Objective("Reconcile prices", List.of("rows.jsonl"), List.of("criteria:fixed")),
             "runtime-evidence:input-prices", List.of(), "workspace:task",

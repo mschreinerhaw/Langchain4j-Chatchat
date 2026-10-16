@@ -1,7 +1,7 @@
 package com.chatchat.api.runtime;
 
 import com.chatchat.agents.orchestration.analysis.dataset.DatasetHandle;
-import com.chatchat.agents.orchestration.analysis.dataset.InMemoryDatasetHandle;
+import com.chatchat.agents.orchestration.analysis.dataset.PagedDatasetHandle;
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator;
 import com.chatchat.agents.runtime.coding.DurableCodingTaskService;
 import com.chatchat.common.kernel.KernelDataScope;
@@ -82,7 +82,7 @@ public class CodingEvidenceCollector {
             if(dataSupply==null)throw new SecurityException("Dynamic input verification unavailable");
             if(validationPlans==null)throw new SecurityException("Versioned input validation unavailable");
             validator=validationPlans.validator(contract,dataSupply.snapshots(contract,operationId));
-            inputs=dataSupply.snapshots(contract,operationId).stream().map(s->new InputFile(s.fileId(),s.fileName(),s.sha256())).toList();
+            inputs=dataSupply.mountedFiles(contract,operationId).stream().map(s->new InputFile(s.fileId(),s.fileName(),s.sha256())).toList();
         }
         Objects.requireNonNull(contract); Objects.requireNonNull(validator);
         if (!sameOwner(scope, contract.scope())) throw new SecurityException("Coding task owner mismatch");
@@ -236,17 +236,77 @@ public class CodingEvidenceCollector {
         public String requiredFile(){return requiredFile;}
     }
 
-    /** Reads the complete archived dataset only through the task's authorized operation scope. */
+    /** Spools the verified archive to bounded local storage and serves pages without Java heap materialization. */
     public DatasetHandle openResult(KernelDataScope scope, String taskId, String resultRef) {
         EvidenceRecord record = resolve(scope, taskId, resultRef);
         if (!"CODING_STRUCTURED_DATASET".equals(record.evidenceType())) throw new IllegalArgumentException("Not a structured dataset");
         Map<String, Object> p = record.payload();
-        byte[] bytes = artifact(scope, taskId, (String) p.get("operationId"), (String) p.get("channel"), (String) p.get("fileName"));
-        if (!sha(bytes).equals(p.get("artifactSha256")) || bytes.length != ((Number)p.get("size")).longValue())
-            throw new IllegalStateException("Archived dataset changed");
-        List<Map<String, Object>> result = rows(bytes, null);
-        if (result.size() != ((Number)p.get("rowCount")).longValue()) throw new IllegalStateException("Archived dataset row count changed");
-        return new InMemoryDatasetHandle(result);
+        long expectedSize=((Number)p.get("size")).longValue(), expectedRows=((Number)p.get("rowCount")).longValue();
+        if(expectedSize<0||expectedSize>256L*1024*1024||expectedRows<0||expectedRows>1_000_000)
+            throw new IllegalStateException("Archived result exceeds paging ceiling");
+        java.nio.file.Path spool;
+        try {spool=java.nio.file.Files.createTempFile("coding-result-", ".jsonl");}
+        catch(java.io.IOException failure){throw new IllegalStateException("Result spool unavailable",failure);}
+        spool.toFile().deleteOnExit();
+        try {
+            try(var output=java.nio.file.Files.newOutputStream(spool)) {
+                var bounded=new java.io.FilterOutputStream(output) {
+                    long written;
+                    @Override public void write(int value)throws java.io.IOException {
+                        if(written>=expectedSize)throw new java.io.IOException("Archived result exceeds declared size");
+                        out.write(value);written++;
+                    }
+                    @Override public void write(byte[] value,int offset,int length)throws java.io.IOException {
+                        if(length>expectedSize-written)throw new java.io.IOException("Archived result exceeds declared size");
+                        out.write(value,offset,length);written+=length;
+                    }
+                };
+                python.downloadArtifact(scope.tenantId(),scope.userId(),scope.runId(),taskId,
+                    (String)p.get("operationId"),(String)p.get("channel"),(String)p.get("fileName"),bounded);
+            }
+            if(java.nio.file.Files.size(spool)!=expectedSize)throw new IllegalStateException("Archived result size changed");
+            var offsets=new ArrayList<Long>();
+            var digest=MessageDigest.getInstance("SHA-256");
+            long position=0,lineStart=0;boolean content=false;
+            try(var input=java.nio.file.Files.newInputStream(spool)) {
+                int value;
+                while((value=input.read())!=-1) {
+                    digest.update((byte)value);
+                    if(value=='\n') {if(content)offsets.add(lineStart);lineStart=position+1;content=false;}
+                    else if(value!='\r'&&value!=' '&&value!='\t')content=true;
+                    position++;
+                }
+            }
+            if(content)offsets.add(lineStart);
+            if(!HexFormat.of().formatHex(digest.digest()).equals(p.get("artifactSha256"))
+                ||offsets.size()!=expectedRows)throw new IllegalStateException("Archived result hash or row count changed");
+            var index=List.copyOf(offsets);
+            return new PagedDatasetHandle(expectedRows,true,(offset,limit)->{
+                if(offset>=index.size())return new DatasetHandle.Page(offset,List.of(),false);
+                var page=new ArrayList<Map<String,Object>>();
+                try(var file=new java.io.RandomAccessFile(spool.toFile(),"r")) {
+                    file.seek(index.get(Math.toIntExact(offset)));
+                    while(page.size()<limit&&offset+page.size()<index.size()) {
+                        var line=new java.io.ByteArrayOutputStream();int b;
+                        while((b=file.read())!=-1&&b!='\n')line.write(b);
+                        JsonNode row=mapper.readTree(line.toByteArray());
+                        if(!row.isObject())throw new IllegalStateException("Archived result row changed");
+                        page.add(mapper.convertValue(row,new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){}));
+                    }
+                }catch(java.io.IOException failure){throw new IllegalStateException("Result page unavailable",failure);}
+                return new DatasetHandle.Page(offset,page,offset+page.size()<index.size());
+            },null,()->{try{java.nio.file.Files.deleteIfExists(spool);}catch(java.io.IOException ignored){}},
+                Map.of("kind","CODING_ARCHIVED_RESULT","evidenceRef",resultRef,"artifactSha256",p.get("artifactSha256")));
+        } catch(Exception failure) {
+            try {java.nio.file.Files.deleteIfExists(spool);}catch(java.io.IOException ignored){}
+            if(failure instanceof RuntimeException runtime)throw runtime;
+            throw new IllegalStateException("Archived result unavailable",failure);
+        }
+    }
+
+    public DatasetHandle.Page readResultPage(KernelDataScope scope,String taskId,String resultRef,long offset,int limit) {
+        if(limit<1||limit>1000)throw new IllegalArgumentException("Result page limit must be 1..1000");
+        try(var handle=openResult(scope,taskId,resultRef)) {return handle.readPage(offset,limit);}
     }
 
     /** Existing analysis workspace registration shape; callers decide whether to admit it into an Analysis Loop. */

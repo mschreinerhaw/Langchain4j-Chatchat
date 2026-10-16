@@ -16,6 +16,24 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 class PythonDataFileServiceTest {
     @TempDir Path temp;
+    @Test void codingChunkIsImmutableAndIdempotent() throws Exception {
+        PythonRuntimeProperties properties=new PythonRuntimeProperties();properties.setDataRoot(temp.toString());
+        InternalCredentialProperties credentials=mock(InternalCredentialProperties.class);
+        when(credentials.resolvedSecret()).thenReturn("secret");
+        var service=new PythonDataFileService(properties,credentials,new ObjectMapper());
+        String id="c"+"a".repeat(63);
+        String name=Base64.getUrlEncoder().withoutPadding().encodeToString("input.jsonl".getBytes(StandardCharsets.UTF_8));
+        byte[] original="{\"v\":1}\n".getBytes(StandardCharsets.UTF_8);
+        String hash=HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(original));
+        var first=service.store("tenant","owner",id,name,hash,InternalSecretCipher.encryptBytes(original,"secret"));
+        var resumed=service.store("tenant","owner",id,name,hash,InternalSecretCipher.encryptBytes(original,"secret"));
+        assertThat(resumed).isEqualTo(first);
+        byte[] changed="{\"v\":2}\n".getBytes(StandardCharsets.UTF_8);
+        String changedHash=HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(changed));
+        assertThatThrownBy(()->service.store("tenant","owner",id,name,changedHash,
+            InternalSecretCipher.encryptBytes(changed,"secret"))).isInstanceOf(IllegalStateException.class);
+        assertThat(Path.of(first.storagePath())).hasBinaryContent(original);
+    }
     @Test void storesInScopedDirectoryAndReturnsStableContainerPath()throws Exception{
         PythonRuntimeProperties properties=new PythonRuntimeProperties();properties.setDataRoot(temp.toString());
         InternalCredentialProperties credentials=mock(InternalCredentialProperties.class);when(credentials.resolvedSecret()).thenReturn("secret");

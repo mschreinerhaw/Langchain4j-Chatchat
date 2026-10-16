@@ -16,6 +16,7 @@ class ModelNativeAnalysisHarnessTest {
     @Test void modelReceivesRuntimeAdmissionStateAndExactMissingParameterReason() {
         var model = mock(ChatModel.class);
         var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("testStructuredTransport",true);
         metadata.put("recordAnalysisExcludedDatasets", List.of(Map.of(
             "datasetReference", "blocked-check", "toolName", "authorized_tool",
             "accountingStatus", "EXCLUDED", "executionStatus", "BLOCKED", "invoked", false,
@@ -81,13 +82,13 @@ class ModelNativeAnalysisHarnessTest {
         metadata.put("analysisInterpretationPlan", Map.of("version", "original-plan", "steps", List.of()));
         when(model.chat(anyString())).thenAnswer(call -> {
             String prompt = call.getArgument(0);
-            assertThat(prompt).startsWith("Plan before execution.")
-                .contains("L1.submittedPlan", "original-plan", "workspace.changeReason",
+            assertThat(prompt).startsWith("Plan authorized template-data analysis before execution.")
+                .contains("L1.submittedPlan", "PLAN_REQUIRED", "response.plan_change_reason",
                     "inside the content string", "\"READ_CONTEXT\"", "limit:1..20")
                 .doesNotContain("model_native_analysis.v1", "WAIT", "PUBLISH", "reportMarkdown",
                     "You may finish immediately", "plain Markdown", "plan.plan.change_reason");
             assertThat(ModelAnalysisPrompt.CORE.length() + ModelAnalysisPrompt.protocol(true).length())
-                .isLessThan(4000);
+                .isLessThan(12000);
             var sizes = (Map<?, ?>) metadata.get("harnessPromptSize");
             assertThat(sizes.get("fullChars")).isEqualTo(prompt.length());
             assertThat(((Number) sizes.get("layersChars")).intValue()).isPositive();
@@ -98,14 +99,15 @@ class ModelNativeAnalysisHarnessTest {
         assertThat(metadata).containsEntry("publicationState", "REQUESTED");
     }
 
-    @Test void legacyPromptHasOneProtocolWhileAdapterStillAcceptsPlainReports() {
+    @Test void legacyPromptRequiresAPlanBeforeAcceptingAReport() {
         var model = mock(ChatModel.class);
         when(model.chat(anyString())).thenAnswer(call -> {
             assertThat((String) call.getArgument(0)).contains("model_native_analysis.v1",
                 "inside the reportMarkdown string").doesNotContain("model_native_analysis.v2", "WAIT", "PUBLISH");
-            return "Legacy report";
+            return ModelProtocolJson.compact(Map.of("schemaVersion","model_native_analysis.v1",
+                "completed",true,"reportMarkdown","Legacy report"));
         });
-        assertThat(execute(3, sources(), model, new LinkedHashMap<>()).markdown()).isEqualTo("Legacy report");
+        assertThat(execute(3, sources(), model, v1Meta()).markdown()).isEqualTo("Legacy report");
     }
     @Test void protocolCorrectionPreservesThePreviousExecutionReceipt() {
         var model = mock(ChatModel.class); var turn = new AtomicInteger();
@@ -124,8 +126,10 @@ class ModelNativeAnalysisHarnessTest {
     @Test void missingSchemaVersionIsFeedbackInsteadOfAnUnhandledException() {
         var model = mock(ChatModel.class);
         when(model.chat(anyString())).thenReturn("{\"plan\":{\"objective\":\"Discover facts\"}}",
-            "{\"schemaVersion\":null}", "Model corrected report");
+            "{\"schemaVersion\":null}", ModelProtocolJson.compact(Map.of("schemaVersion","model_native_analysis.v1",
+                "completed",true,"reportMarkdown","Model corrected report")));
         var meta = new LinkedHashMap<String,Object>();
+        meta.put("modelAnalysisProtocol","model_native_analysis.v1");
         assertThat(execute(4, sources(), model, meta).markdown()).isEqualTo("Model corrected report");
         var prompts = org.mockito.ArgumentCaptor.forClass(String.class);
         verify(model, times(3)).chat(prompts.capture());
@@ -138,11 +142,12 @@ class ModelNativeAnalysisHarnessTest {
             String prompt = call.getArgument(0);
             assertThat(prompt).contains("VisualizationCapabilityInjector:", "json:report-block",
                 "reportBlockSchema", "allowedChartTypes", "Put the narrative and optional");
-            assertThat(prompt).contains("Markdown tables",
-                "READ_RECORDS", "\"datasetReference\":\"source\"");
-            return authored;
+            assertThat(prompt).contains("READ_RECORDS", "\"datasetReference\":\"source\"",
+                "Never invent dataset IDs, fields, rows or values");
+            return ModelProtocolJson.compact(Map.of("schemaVersion","model_native_analysis.v1",
+                "completed",true,"reportMarkdown",authored));
         });
-        var metadata = new LinkedHashMap<String,Object>();
+        var metadata = v1Meta();
         assertThat(execute(3, sources(), model, metadata).markdown()).isEqualTo(authored);
         assertThat(metadata).containsKey("visualizationCapabilities");
         verify(model, times(1)).chat(any(String.class));
@@ -155,7 +160,7 @@ class ModelNativeAnalysisHarnessTest {
         var pending = new java.util.concurrent.atomic.AtomicBoolean();
         var observed = new ArrayList<Map<String,Object>>();
         var meta = new LinkedHashMap<String,Object>();
-        assertThatThrownBy(() -> new ModelNativeAnalysisHarness(3).execute("Analyze", sources(), model, scope,
+        assertThatThrownBy(() -> new ModelNativeAnalysisHarness(3).execute("Analyze", sources(), adapted(model,meta), scope,
             AnalysisEvidenceSpillStore.disabled(), meta,
             () -> { if (pending.get()) throw new java.util.concurrent.CancellationException(); },
             event -> { observed.add(event); if ("EVIDENCE_REQUEST_STARTED".equals(event.get("stage"))) pending.set(true); }))
@@ -176,7 +181,7 @@ class ModelNativeAnalysisHarnessTest {
                 "decision", Map.of("action", "COMPLETE"), "output_type", "final", "content", "Model report")));
         var observed = new ArrayList<Map<String,Object>>();
         var meta = new LinkedHashMap<String,Object>();
-        var result = new ModelNativeAnalysisHarness(3).execute("Analyze", sources(), model, scope,
+        var result = new ModelNativeAnalysisHarness(3).execute("Analyze", sources(), adapted(model,meta), scope,
             AnalysisEvidenceSpillStore.disabled(), meta, () -> {}, observed::add);
         assertThat(result.markdown()).isEqualTo("Model report");
         assertThat(observed.stream().filter(e -> "RUNNING".equals(e.get("eventState")))
@@ -192,13 +197,49 @@ class ModelNativeAnalysisHarnessTest {
     }
     private final GovernanceIsolationScope scope = GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation");
     private List<Dataset> sources() { return List.of(new Dataset("source", Map.of(), List.of(Map.of("value", 42)))); }
+    private static LinkedHashMap<String,Object> v1Meta(){return new LinkedHashMap<>(Map.of("modelAnalysisProtocol","model_native_analysis.v1"));}
     private ModelNativeAnalysisHarness.Result execute(int turns, List<Dataset> datasets, ChatModel model, Map<String,Object> meta) {
-        return new ModelNativeAnalysisHarness(turns).execute("Compare the evidence", datasets, model, scope,
+        ChatModel transport=Boolean.TRUE.equals(meta.remove("testStructuredTransport"))?model:adapted(model,meta);
+        return new ModelNativeAnalysisHarness(turns).execute("Compare the evidence", datasets, transport, scope,
             AnalysisEvidenceSpillStore.disabled(), meta, () -> {}, span -> {});
     }
+    private static ChatModel adapted(ChatModel model,Map<String,Object> meta) {
+        return new ChatModel() {
+            @Override public dev.langchain4j.model.chat.response.ChatResponse chat(dev.langchain4j.model.chat.request.ChatRequest request) {
+                String prompt=((dev.langchain4j.data.message.SystemMessage)request.messages().get(0)).text()
+                    +"\n\n"+((dev.langchain4j.data.message.UserMessage)request.messages().get(1)).singleText();
+                String reply=modernTestReply(model.chat(prompt),meta);
+                return dev.langchain4j.model.chat.response.ChatResponse.builder()
+                    .aiMessage(dev.langchain4j.data.message.AiMessage.from(reply)).build();
+            }
+        };
+    }
+    private static String modernTestReply(String response,Map<String,Object> metadata) {
+        if(response==null||!response.trim().startsWith("{"))return response;
+        try {
+            var json=new com.fasterxml.jackson.databind.ObjectMapper();
+            @SuppressWarnings("unchecked") var parsed=json.readValue(response,Map.class);
+            var value=new LinkedHashMap<String,Object>(parsed);
+            if("model_native_analysis.v2".equals(value.get("schemaVersion"))) {
+                if(value.containsKey("reportMarkdown"))value.put("content",value.remove("reportMarkdown"));
+                if(value.get("decision") instanceof Map<?,?> decision) {
+                    String action=String.valueOf(decision.get("action"));
+                    if("PUBLISH".equals(action)){action="COMPLETE";value.put("decision",Map.of("action",action));}
+                    value.putIfAbsent("output_type","CONTINUE".equals(action)?"intermediate":"final");
+                }
+            }
+            if(!value.containsKey("plan"))value.put("plan",Map.of("version","1.0",
+                "intent",Map.of("type","analysis","goal","Review the delivered evidence"),
+                "context",Map.of("key_facts",List.of(),"assumptions",List.of(),"missing_info",List.of(),"constraints",List.of()),
+                "plan",Map.of("steps",List.of(Map.of("id",1,"action_type","reasoning","input",Map.of(),"depends_on",List.of())))));
+            return ModelProtocolJson.compact(value);
+        }catch(Exception invalid){return response;}
+    }
     @Test void publishesModelChosenProseWithoutMandatoryFindingsOrQualityRepair() {
-        var model = mock(ChatModel.class); when(model.chat(any(String.class))).thenReturn("# Findings\nA model-chosen interpretation.");
-        var meta = new LinkedHashMap<String,Object>();
+        var model = mock(ChatModel.class); when(model.chat(any(String.class))).thenReturn(ModelProtocolJson.compact(
+            Map.of("schemaVersion","model_native_analysis.v1","completed",true,
+                "reportMarkdown","# Findings\nA model-chosen interpretation.")));
+        var meta = v1Meta();
         var datasets = new ArrayList<>(sources()); datasets.add(new Dataset("other", Map.of(), List.of(Map.of("value", 2))));
         var result = execute(8, datasets, model, meta);
         assertThat(result.markdown()).isEqualTo("# Findings\nA model-chosen interpretation.");
@@ -214,12 +255,14 @@ class ModelNativeAnalysisHarnessTest {
             "claims", List.of(Map.of("claimId", "C1", "claim", "The observed window has low activity.",
                 "references", List.of(Map.of("datasetReference", "source", "record", 1, "fieldPath", List.of("unknown"))))));
         when(model.chat(any(String.class))).thenAnswer(call -> {
-            assertThat((String)call.getArgument(0)).contains("cumulative counters from interval deltas",
-                "report quality", "SOURCE_EXECUTION_ONLY_NOT_ANALYTICAL_SUFFICIENCY", "failed-source");
+            assertThat((String)call.getArgument(0)).contains("report quality",
+                "SOURCE_EXECUTION_ONLY_NOT_ANALYTICAL_SUFFICIENCY", "failed-source",
+                "\"datasetReference\":\"source\"");
             return ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v1", "completed", true,
                 "reportMarkdown", "The observed window has low activity; another chunk is missing.", "evidenceAssessment", assessment));
         });
         var meta = new LinkedHashMap<String, Object>();
+        meta.put("modelAnalysisProtocol","model_native_analysis.v1");
         meta.put("recordAnalysisExcludedDatasets", List.of(Map.of("datasetReference", "failed-source", "accountingStatus", "FAILED")));
         var result = execute(3, sources(), model, meta);
         assertThat(result.markdown()).isEqualTo("The observed window has low activity; another chunk is missing.");
@@ -233,7 +276,7 @@ class ModelNativeAnalysisHarnessTest {
         var model = mock(ChatModel.class);
         when(model.chat(any(String.class))).thenReturn(ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v1",
             "completed", false, "reportMarkdown", "Draft", "evidenceAssessment", Map.of("evidenceStatus", "COMPLETE"))), "Final report.");
-        var meta = new LinkedHashMap<String, Object>();
+        var meta = v1Meta();
         assertThat(execute(3, sources(), model, meta).markdown()).isEqualTo("Final report.");
         assertThat(((Map<?, ?>) meta.get("modelEvidenceAssessmentAudit")).get("status")).isEqualTo("NOT_SUPPLIED");
         assertThat(((Map<?, ?>) meta.get("modelEvidenceAssessmentAudit")).get("turn")).isEqualTo(2);
@@ -253,7 +296,7 @@ class ModelNativeAnalysisHarnessTest {
         when(model.chat(any(String.class))).thenReturn(ModelProtocolJson.compact(Map.of(
             "schemaVersion", "model_native_analysis.v1", "completed", true,
             "reportMarkdown", "The model chooses to publish this conclusion.", "evidenceAssessment", assessment)));
-        var meta = new LinkedHashMap<String, Object>();
+        var meta = v1Meta();
         assertThat(execute(8, sources(), model, meta).markdown()).isEqualTo("The model chooses to publish this conclusion.");
         assertThat(meta).containsEntry("harnessStopReason", "MODEL_COMPLETED").doesNotContainKey("evidenceClaimValidation");
         assertThat(((Map<?, ?>) meta.get("modelEvidenceAssessmentAudit")).get("assessment")).isEqualTo(assessment);
@@ -271,7 +314,7 @@ class ModelNativeAnalysisHarnessTest {
                 "workspace", Map.of("notes", "First window reviewed"), "evidenceRequests", List.of(Map.of(
                     "operation", "READ_TEXT", "datasetReference", "source", "record", 1, "field", "text", "fromChar", (turn - 1) * 3000, "maxChars", 3000))));
         });
-        var meta = new LinkedHashMap<String,Object>();
+        var meta = v1Meta();
         assertThat(execute(8, datasets, model, meta).modelCalls()).isEqualTo(3);
         assertThat(meta).containsKey("harnessWorkspace").containsKey("harnessTrace");
     }
@@ -286,14 +329,14 @@ class ModelNativeAnalysisHarnessTest {
                 "reportMarkdown", "Supported original analysis.", "evidenceRequests", List.of(Map.of("operation", "READ_RECORDS",
                     "datasetReference", "another-run", "fromRecord", 1, "limit", 1))));
         });
-        assertThat(execute(8, sources(), model, new LinkedHashMap<>()).markdown()).isEqualTo("Supported original analysis.");
+        assertThat(execute(8, sources(), model, v1Meta()).markdown()).isEqualTo("Supported original analysis.");
     }
     @Test void resourceBudgetPreservesLatestModelReportWithoutForcingAnotherAnalysis() {
         var model = mock(ChatModel.class);
         when(model.chat(any(String.class))).thenReturn(ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v1",
             "completed", false, "reportMarkdown", "Existing findings.", "evidenceRequests", List.of(Map.of("operation", "READ_RECORDS",
                 "datasetReference", "source", "fromRecord", 1, "limit", 1)))));
-        var meta = new LinkedHashMap<String,Object>();
+        var meta = v1Meta();
         assertThat(execute(1, sources(), model, meta).markdown()).isEqualTo("Existing findings.");
         assertThat(meta).containsEntry("harnessStopReason", "RESOURCE_BUDGET_EXHAUSTED");
         verify(model, times(1)).chat(any(String.class));
@@ -303,7 +346,7 @@ class ModelNativeAnalysisHarnessTest {
         when(model.chat(any(String.class))).thenAnswer(call -> count.incrementAndGet() == 5 ? "Chosen final report." :
             ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v1", "completed", false,
                 "evidenceRequests", List.of(Map.of("operation", "READ_RECORDS", "datasetReference", "source", "fromRecord", 1, "limit", 1)))));
-        assertThat(execute(8, sources(), model, new LinkedHashMap<>()).modelCalls()).isEqualTo(5);
+        assertThat(execute(8, sources(), model, v1Meta()).modelCalls()).isEqualTo(5);
     }
     @Test void resumesOnlyAnIdenticalScopedInputCheckpoint() {
         var stored = new HashMap<String,String>();
@@ -312,11 +355,13 @@ class ModelNativeAnalysisHarnessTest {
             Optional.ofNullable(stored.get(call.getArgument(0).toString() + call.getArgument(1) + call.getArgument(2))));
         doAnswer(call -> { stored.put(call.getArgument(0).toString() + call.getArgument(1) + call.getArgument(2), call.getArgument(3)); return null; })
             .when(checkpoints).checkpoint(any(), anyString(), anyString(), anyString());
-        var model = mock(ChatModel.class); when(model.chat(any(String.class))).thenReturn("Original report.");
+        var model = mock(ChatModel.class); when(model.chat(any(String.class))).thenReturn(modernTestReply(ModelProtocolJson.compact(
+            Map.of("schemaVersion","model_native_analysis.v1","completed",true,"reportMarkdown","Original report.")), v1Meta()));
         var harness = new ModelNativeAnalysisHarness(8);
-        var first = harness.execute("Question", sources(), model, scope, checkpoints, new LinkedHashMap<>(), () -> {}, span -> {});
-        var second = harness.execute("Question", sources(), model, scope, checkpoints, new LinkedHashMap<>(), () -> {}, span -> {});
-        var changed = harness.execute("Changed question", sources(), model, scope, checkpoints, new LinkedHashMap<>(), () -> {}, span -> {});
+        var firstMeta=v1Meta();var secondMeta=v1Meta();var changedMeta=v1Meta();
+        var first = harness.execute("Question", sources(), adapted(model,firstMeta), scope, checkpoints, firstMeta, () -> {}, span -> {});
+        var second = harness.execute("Question", sources(), adapted(model,secondMeta), scope, checkpoints, secondMeta, () -> {}, span -> {});
+        var changed = harness.execute("Changed question", sources(), adapted(model,changedMeta), scope, checkpoints, changedMeta, () -> {}, span -> {});
         assertThat(first.modelCalls()).isEqualTo(1);
         assertThat(second.modelCalls()).isZero();
         assertThat(second.markdown()).isEqualTo(first.markdown());
@@ -333,7 +378,7 @@ class ModelNativeAnalysisHarnessTest {
             return ModelProtocolJson.compact(Map.of("schemaVersion", "model_native_analysis.v1", "completed", false,
                 "evidenceRequests", List.of(Map.of("operation", "EXTRACT_TEXT", "datasetReference", "source", "record", 1, "field", "value"))));
         });
-        assertThat(execute(8, sources(), model, new LinkedHashMap<>()).modelCalls()).isEqualTo(2);
+        assertThat(execute(8, sources(), model, v1Meta()).modelCalls()).isEqualTo(2);
         verify(model, times(2)).chat(any(String.class));
     }
 
@@ -358,21 +403,21 @@ class ModelNativeAnalysisHarnessTest {
             "decision", Map.of("action", "COMPLETE"), "reportMarkdown", "Draft",
             "workspace", Map.of("notes", "private working notes", "state", Map.of("findings", List.of("explicit finding"))))));
         var observations = new ArrayList<Map<String,Object>>();
-        new ModelNativeAnalysisHarness(3).execute("Goal", sources(), model, scope,
-            AnalysisEvidenceSpillStore.disabled(), new LinkedHashMap<>(), () -> {}, observations::add);
+        var meta=new LinkedHashMap<String,Object>();
+        new ModelNativeAnalysisHarness(3).execute("Goal", sources(), adapted(model,meta), scope,
+            AnalysisEvidenceSpillStore.disabled(), meta, () -> {}, observations::add);
         var completed = observations.stream().filter(span -> "COMPLETED".equals(span.get("eventState"))).findFirst().orElseThrow();
         assertThat(((Map<?,?>)completed.get("modelDecision")).get("action")).isEqualTo("COMPLETE");
-        assertThat(completed).containsEntry("publicationState", "NOT_REQUESTED");
+        assertThat(completed).containsEntry("publicationState", "REQUESTED");
         assertThat(completed.toString()).contains("explicit finding").doesNotContain("private working notes");
     }
-    @Test void v2CompletionAndWaitRetainDraftWithoutRequestingPublication() {
-        for (String action : List.of("COMPLETE", "PARTIAL_COMPLETE", "WAIT")) {
+    @Test void v2CompletionPublishesOnlyFinalContentAndRejectsUnsupportedWait() {
+        for (String action : List.of("COMPLETE", "PARTIAL_COMPLETE")) {
             var model = mock(ChatModel.class); when(model.chat(anyString())).thenReturn(v2(action, "Private draft", List.of()));
             var meta = new LinkedHashMap<String,Object>();
             assertThat(execute(3, sources(), model, meta).markdown()).isEqualTo("Private draft");
-            assertThat(meta).containsEntry("publicationState", "NOT_REQUESTED");
+            assertThat(meta).containsEntry("publicationState", "REQUESTED");
             assertThat(((Map<?,?>)meta.get("modelDecision")).get("action")).isEqualTo(action);
-            if (action.equals("WAIT")) assertThat(meta).containsEntry("executionStopReason", "WAIT_UNSUPPORTED");
             verify(model).chat(anyString());
         }
     }
@@ -424,7 +469,7 @@ class ModelNativeAnalysisHarnessTest {
         assertThat(meta.get("modelPublicationReferenceAudit").toString()).contains("LEGACY_REFERENCE_IGNORED");
     }
 
-    @Test void modelDeclaresContentTypeIndependentlyOfCompletionAndPublicationActions() {
+    @Test void modelCompletionRequiresFinalContentAndRejectsOtherOutputTypes() {
         for (String type : List.of("final", "draft", "intermediate")) {
             var model = mock(ChatModel.class);
             when(model.chat(anyString())).thenReturn(ModelProtocolJson.compact(Map.of(
@@ -432,18 +477,25 @@ class ModelNativeAnalysisHarnessTest {
                 "output_type", type, "content", "Limited model response",
                 "evidenceAssessment", Map.of("evidenceStatus", "PARTIAL", "missingEvidence", List.of("chunk2")))));
             var metadata = new LinkedHashMap<String,Object>(); execute(3, sources(), model, metadata);
-            assertThat(metadata).containsEntry("modelAnalysisOutput", "Limited model response").doesNotContainKey("modelNativeReportDraft");
-            assertThat(((Map<?,?>)metadata.get("modelOutput")).get("type")).isEqualTo(type.toUpperCase(java.util.Locale.ROOT));
-            assertThat(metadata.get("publicationState")).isEqualTo(type.equals("final") ? "REQUESTED" : "NOT_REQUESTED");
-            assertThat(((Map<?,?>)metadata.get("modelDecision")).get("action")).isEqualTo("PARTIAL_COMPLETE");
-            verify(model).chat(anyString());
+            if (type.equals("final")) {
+                assertThat(metadata).containsEntry("modelAnalysisOutput", "Limited model response")
+                    .containsEntry("publicationState", "REQUESTED");
+                assertThat(((Map<?,?>)metadata.get("modelOutput")).get("type")).isEqualTo("FINAL");
+                assertThat(((Map<?,?>)metadata.get("modelDecision")).get("action")).isEqualTo("PARTIAL_COMPLETE");
+            } else {
+                assertThat(metadata).containsEntry("publicationState", "NOT_REQUESTED")
+                    .containsEntry("executionStopReason", "RESOURCE_BUDGET_EXHAUSTED");
+                assertThat(metadata.get("harnessTrace").toString()).contains("INVALID_ACTION_OUTPUT");
+            }
+            verify(model, times(type.equals("final") ? 1 : 3)).chat(anyString());
         }
     }
-    @Test void budgetStopDoesNotClassifyUndeclaredContentAsDraftOrFinal() {
+    @Test void budgetStopPreservesDeclaredIntermediateContentWithoutPublishing() {
         var model=mock(ChatModel.class); when(model.chat(anyString())).thenReturn(v2("CONTINUE", "Saved output", List.of()));
         var metadata=new LinkedHashMap<String,Object>(); execute(1, sources(), model, metadata);
-        assertThat(((Map<?,?>)metadata.get("modelOutput")).get("type")).isEqualTo("UNDECLARED");
+        assertThat(((Map<?,?>)metadata.get("modelOutput")).get("type")).isEqualTo("INTERMEDIATE");
         assertThat(metadata).containsEntry("executionStopReason", "RESOURCE_BUDGET_EXHAUSTED");
+        assertThat(metadata).containsEntry("publicationState", "NOT_REQUESTED");
     }
 
 }

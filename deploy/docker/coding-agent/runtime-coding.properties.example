@@ -16,6 +16,11 @@ chatchat.coding.analysis.max-code-executions=12
 chatchat.coding.analysis.max-tool-calls=24
 chatchat.coding.analysis.max-input-rows=100000
 chatchat.coding.analysis.max-input-bytes=16777216
+# Capacity opt-in: values above the two defaults use 4 MiB immutable chunks and a manifest.
+# Hard limits: 1,000,000 rows, 256 MiB total, 64 chunks; each source row must fit one chunk.
+# Size Python workspace storage for the entire mounted input set before enabling this profile.
+# chatchat.coding.analysis.max-input-rows=1000000
+# chatchat.coding.analysis.max-input-bytes=268435456
 chatchat.coding.analysis.max-result-rows=10000
 chatchat.coding.analysis.max-result-bytes=4194304
 

@@ -55,6 +55,9 @@ class CodingEvidenceDockerIntegrationTest extends CodingDockerFixture {
             assertThat(dataset.recordCount()).isEqualTo(1);
             assertThat(new java.math.BigDecimal(dataset.readPage(0, 1).rows().get(0).get("amount").toString()))
                 .isEqualByComparingTo("20.0");
+            assertThat(dataset.descriptor()).containsEntry("kind","CODING_ARCHIVED_RESULT");
+            assertThat(collector.readResultPage(scope,"normal",good.resultDatasetRef(),0,1).rows()).hasSize(1);
+            assertThat(collector.readResultPage(scope,"normal",good.resultDatasetRef(),1,1).rows()).isEmpty();
         }
         Run empty = run("empty", EMPTY_SCRIPT, "SUCCEEDED");
         var zero = collect(empty, rows -> new CodingEvidenceCollector.Validation(rows.isEmpty(), Map.of("zeroRowsAllowed", true)));

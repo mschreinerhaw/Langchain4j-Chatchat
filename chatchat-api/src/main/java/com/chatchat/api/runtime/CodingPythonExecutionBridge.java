@@ -44,8 +44,9 @@ public class CodingPythonExecutionBridge {
         Map<String,String> files = authorizedFiles == null ? Map.of() : Map.copyOf(authorizedFiles);
         if(CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())) {
             if(dataSupply==null)throw new SecurityException("Dynamic inputs unavailable");
-            var bound=dataSupply.bindInputs(contract,lease,operationId);
-            var all=new TreeMap<String,String>();bound.forEach(s->all.put(s.fileId(),s.sha256()));files=Map.copyOf(all);
+            dataSupply.bindInputs(contract,lease,operationId);
+            var all=new TreeMap<String,String>();dataSupply.mountedFiles(contract,operationId)
+                .forEach(s->all.put(s.fileId(),s.sha256()));files=Map.copyOf(all);
         }
         for (String fileId : files.keySet()) {
             if (!contract.authorization().allowedDataRefs().contains(fileId)

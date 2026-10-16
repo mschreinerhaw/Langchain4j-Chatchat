@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -33,8 +34,21 @@ public final class CodingInputSnapshotService {
     private final CodingTaskAccess access;
     private final ObjectMapper mapper;
 
+    public record Chunk(String fileId, String fileName, String sha256, long rowCount, long size) { }
     public record Snapshot(String reference, String fileId, String fileName, String sha256,
-                           long rowCount, long size, String sourceDatasetRef) { }
+                           long rowCount, long size, String sourceDatasetRef, List<Chunk> chunks) {
+        public Snapshot { chunks=chunks==null?List.of():List.copyOf(chunks); }
+        public Snapshot(String reference,String fileId,String fileName,String sha256,long rowCount,long size,String sourceDatasetRef) {
+            this(reference,fileId,fileName,sha256,rowCount,size,sourceDatasetRef,List.of());
+        }
+        public boolean chunked(){return !chunks.isEmpty();}
+    }
+    public static List<Chunk> mountedFiles(Snapshot input) {
+        var files=new ArrayList<Chunk>();
+        files.add(new Chunk(input.fileId(),input.fileName(),input.sha256(),input.rowCount(),input.size()));
+        files.addAll(input.chunks());
+        return List.copyOf(files);
+    }
 
     public CodingInputSnapshotService(JdbcRuntimeEvidenceStore evidence,
             McpPythonControlPlanePort python, CodingTaskAccess access, ObjectMapper mapper) {
@@ -59,6 +73,7 @@ public final class CodingInputSnapshotService {
         description.put("format","JSON_LINES");
         description.put("encoding","UTF-8");
         description.put("qualitySummary",record.payload().getOrDefault("qualitySummary",Map.of()));
+        if(input.chunked())description.put("chunks",input.chunks());
         return Map.copyOf(description);
     }
 
@@ -140,6 +155,106 @@ public final class CodingInputSnapshotService {
             hash, rows[0], bytes.length, sourceDatasetRef);
     }
 
+    /** Bounded-memory opt-in: one immutable MCP file per chunk plus a content-addressed manifest. */
+    public Snapshot captureChunked(KernelDataScope scope,String taskId,List<Dataset> authorizedDatasets,
+            String sourceDatasetRef,String decisionRef,String workspaceRef,long maxRows,long maxBytes,Runnable guard) {
+        access.require(scope,CodingTaskAccess.Action.SUBMIT);
+        if(maxRows<1||maxRows>1_000_000||maxBytes<1||maxBytes>256L*1024*1024)
+            throw new IllegalArgumentException("Chunked snapshot exceeds deployment limits");
+        Dataset selected=Objects.requireNonNull(authorizedDatasets).stream()
+            .filter(item->sourceDatasetRef.equals(item.reference())).findFirst()
+            .orElseThrow(()->new SecurityException("Dataset was not delivered to this Analysis Loop"));
+        if(!selected.handle().recordCountExact()||selected.recordCount()>maxRows)
+            throw new IllegalArgumentException("Dataset exceeds exact row ceiling");
+        final int chunkLimit=4*1024*1024;
+        var chunks=new ArrayList<Chunk>();
+        var buffer=new ByteArrayOutputStream(chunkLimit);
+        var digest=shaDigest();
+        final long[] rows={0},bytes={0},chunkRows={0};
+        TreeMap<String,TreeSet<String>> schema=new TreeMap<>();
+        TreeMap<String,Long> present=new TreeMap<>(),nulls=new TreeMap<>();
+        selected.handle().scan(1000,page->{
+            guard.run();
+            for(var row:page.rows()) {
+                if(++rows[0]>maxRows)throw new IllegalArgumentException("Snapshot row ceiling exceeded");
+                byte[] encoded;
+                try {encoded=mapper.writeValueAsBytes(row);}catch(java.io.IOException invalid){throw new IllegalStateException("Snapshot encoding failed",invalid);}
+                if(encoded.length+1>chunkLimit)throw new IllegalArgumentException("One row exceeds chunk ceiling");
+                if(bytes[0]+encoded.length+1>maxBytes)throw new IllegalArgumentException("Snapshot byte ceiling exceeded");
+                if(buffer.size()+encoded.length+1>chunkLimit) {
+                    chunks.add(uploadChunk(scope,taskId,sourceDatasetRef,chunks.size(),buffer.toByteArray(),chunkRows[0],guard));
+                    buffer.reset();chunkRows[0]=0;
+                }
+                mapper.valueToTree(row).properties().forEach(field->{
+                    schema.computeIfAbsent(field.getKey(),key->new TreeSet<>()).add(field.getValue().getNodeType().name());
+                    present.merge(field.getKey(),1L,Long::sum);
+                    if(field.getValue().isNull())nulls.merge(field.getKey(),1L,Long::sum);
+                });
+                buffer.writeBytes(encoded);buffer.write('\n');digest.update(encoded);digest.update((byte)'\n');
+                bytes[0]+=encoded.length+1;chunkRows[0]++;
+            }
+        });
+        guard.run();
+        if(rows[0]!=selected.recordCount())throw new IllegalStateException("Dataset changed during chunked scan");
+        if(buffer.size()>0||chunks.isEmpty())chunks.add(uploadChunk(scope,taskId,sourceDatasetRef,chunks.size(),buffer.toByteArray(),chunkRows[0],guard));
+        if(chunks.size()>64)throw new IllegalArgumentException("Snapshot exceeds 64 chunk ceiling");
+        String contentHash=HexFormat.of().formatHex(digest.digest());
+        String identity=scope.tenantId()+"\0"+scope.userId()+"\0"+scope.runId()+"\0"+taskId+"\0"
+            +sourceDatasetRef+"\0"+decisionRef+"\0"+workspaceRef+"\0"+contentHash;
+        String id=sha(identity.getBytes(StandardCharsets.UTF_8));
+        String fileId="c"+id.substring(0,63), evidenceId="coding:input:"+id;
+        var manifest=Map.of("format","runtime-coding-jsonl-chunks.v1","contentSha256",contentHash,
+            "rowCount",rows[0],"size",bytes[0],"chunks",List.copyOf(chunks));
+        byte[] manifestBytes;
+        try {manifestBytes=mapper.writeValueAsBytes(manifest);}catch(java.io.IOException invalid){throw new IllegalStateException(invalid);}
+        String manifestHash=sha(manifestBytes);
+        upload(scope,fileId,"manifest.json",manifestHash,manifestBytes,guard);
+        String schemaJson;
+        try {schemaJson=mapper.writeValueAsString(schema);}catch(java.io.IOException invalid){throw new IllegalStateException(invalid);}
+        var fields=new LinkedHashMap<String,Object>();
+        for(var field:schema.entrySet())fields.put(field.getKey(),Map.of("observedTypes",List.copyOf(field.getValue()),
+            "missingCount",rows[0]-present.getOrDefault(field.getKey(),0L),"nullCount",nulls.getOrDefault(field.getKey(),0L)));
+        var quality=Map.of("coverage","FULL_SNAPSHOT_STRUCTURAL_ONLY","rowCount",rows[0],"fields",fields);
+        var payload=new LinkedHashMap<String,Object>();
+        payload.put("taskId",taskId);payload.put("sourceDatasetRef",sourceDatasetRef);
+        payload.put("decisionRef",decisionRef);payload.put("workspaceRef",workspaceRef);
+        payload.put("fileId",fileId);payload.put("fileName","manifest.json");payload.put("sha256",manifestHash);
+        payload.put("rowCount",rows[0]);payload.put("size",manifestBytes.length);payload.put("contentSha256",contentHash);
+        payload.put("dataSize",bytes[0]);payload.put("schemaJson",schemaJson);payload.put("qualitySummary",quality);
+        payload.put("chunks",mapper.convertValue(chunks,new com.fasterxml.jackson.core.type.TypeReference<List<Map<String,Object>>>(){}));
+        evidence.register(new EvidenceRecord(null,evidenceId,scope,TYPE,"CodingInputSnapshotService",
+            evidence.contentHash(payload),payload,null,System.currentTimeMillis(),Map.of()),
+            new EvidenceLineage(null,evidenceId,scope,List.of(),taskId,"CodingInputSnapshotService",null,Map.of()));
+        return new Snapshot("runtime-evidence:"+evidenceId,fileId,"manifest.json",manifestHash,
+            rows[0],manifestBytes.length,sourceDatasetRef,chunks);
+    }
+    private Chunk uploadChunk(KernelDataScope scope,String taskId,String source,int index,byte[] content,long rows,Runnable guard) {
+        if(index>=64)throw new IllegalArgumentException("Snapshot exceeds 64 chunk ceiling");
+        String hash=sha(content);
+        String id=sha((scope.tenantId()+"\0"+scope.userId()+"\0"+scope.runId()+"\0"+taskId+"\0"+source+"\0"+index+"\0"+hash).getBytes(StandardCharsets.UTF_8));
+        String fileId="c"+id.substring(0,63);
+        upload(scope,fileId,FILE_NAME,hash,content,guard);
+        return new Chunk(fileId,FILE_NAME,hash,rows,content.length);
+    }
+    private void upload(KernelDataScope scope,String fileId,String name,String hash,byte[] bytes) {
+        upload(scope,fileId,name,hash,bytes,()->{});
+    }
+    private void upload(KernelDataScope scope,String fileId,String name,String hash,byte[] bytes,Runnable guard) {
+        RuntimeException last=null;
+        for(int attempt=0;attempt<3;attempt++)try {
+            guard.run();
+            var stored=python.uploadDataFile(scope.tenantId(),scope.userId(),fileId,name,hash,bytes);
+            if(stored==null||!"AVAILABLE".equals(stored.status())||!hash.equals(stored.fileHash())
+                ||stored.fileSize()!=bytes.length||!fileId.equals(stored.id()))throw new IllegalStateException("MCP chunk receipt mismatch");
+            return;
+        }catch(java.util.concurrent.CancellationException cancelled){throw cancelled;}
+        catch(RuntimeException failed){last=failed;}
+        throw new IllegalStateException("MCP chunk upload failed after bounded retries",last);
+    }
+    private static MessageDigest shaDigest() {
+        try{return MessageDigest.getInstance("SHA-256");}catch(Exception impossible){throw new IllegalStateException(impossible);}
+    }
+
     /** Resolves the one immutable input that a Coding task may mount. */
     public Snapshot requireAuthorized(CodingTaskContract contract) {
         access.require(contract.scope(), CodingTaskAccess.Action.READ);
@@ -157,11 +272,16 @@ public final class CodingInputSnapshotService {
             throw new SecurityException("Coding contract is not bound to the authorized input snapshot");
         String fileId = text(value, "fileId"), fileName = text(value, "fileName");
         String hash = text(value, "sha256"), source = text(value, "sourceDatasetRef");
-        if (!contract.authorization().allowedDataRefs().equals(List.of(fileId))
-                || !FILE_NAME.equals(fileName) || !hash.matches("[0-9a-f]{64}"))
+        List<Chunk> chunks=List.of();
+        if(value.get("chunks") instanceof List<?> stored)
+            chunks=stored.stream().map(item->mapper.convertValue(item,Chunk.class)).toList();
+        var mounted=new ArrayList<String>();mounted.add(fileId);chunks.forEach(item->mounted.add(item.fileId()));
+        if (!contract.authorization().allowedDataRefs().equals(mounted)
+                || !(FILE_NAME.equals(fileName) && chunks.isEmpty() || "manifest.json".equals(fileName) && !chunks.isEmpty())
+                || !hash.matches("[0-9a-f]{64}"))
             throw new SecurityException("Coding input file authorization differs from its snapshot");
         return new Snapshot(ref, fileId, fileName, hash,
-            ((Number) value.get("rowCount")).longValue(), ((Number) value.get("size")).longValue(), source);
+            ((Number) value.get("rowCount")).longValue(), ((Number) value.get("size")).longValue(), source,chunks);
     }
 
     private static String text(Map<String, Object> value, String key) {

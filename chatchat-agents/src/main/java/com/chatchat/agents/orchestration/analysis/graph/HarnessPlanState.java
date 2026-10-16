@@ -30,21 +30,9 @@ final class HarnessPlanState {
         // Acquisition plans govern the fixed system workflow; they are not model
         // analysis plans and must neither satisfy this gate nor be exposed here.
         initial = current;
-        // Same tenant/user/run/question/accepted-plan identity; restoring state conveys no tool authority.
-        store.readCheckpoint(scope, "harness:plan-state", identity).ifPresent(raw -> {
-            try {
-                Map<?,?> saved = JSON.readValue(raw, Map.class);
-                if (saved.get("versions") instanceof List<?> history) for (Object item : history) {
-                    if (!(item instanceof Map<?,?> version) || !(version.get("plan") instanceof Map<?,?> plan))
-                        throw new IllegalArgumentException("Invalid plan checkpoint");
-                    var parsed = parse(plan);
-                    if (!new InterpretationPlanValidator().validateAnalysisPlan(parsed).valid())
-                        throw new IllegalArgumentException("Invalid restored plan structure");
-                    versions.add(stringMap(version));
-                }
-                if (!versions.isEmpty()) current = stringMap((Map<?,?>) versions.get(versions.size()-1).get("plan"));
-            } catch (Exception invalid) { throw new IllegalStateException("PLAN_CHECKPOINT_INVALID", invalid); }
-        });
+        // Replay scoped model-output checkpoints from turn one to rebuild the plan. Restoring
+        // the last plan here changes turn one's prompt fingerprint, making its saved output
+        // unreachable after a restart. Output checkpoints precede plan commits.
         updateMetadata();
     }
 

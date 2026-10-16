@@ -11,6 +11,22 @@ from sqlglot.schema import MappingSchema
 
 def validate(request):
     dialect = request.get("dialect")
+    if dialect == "python":
+        import ast
+        diagnostics = []
+        files = request.get("files")
+        if not isinstance(files, list) or not 1 <= len(files) <= 32:
+            raise ValueError("Expected 1 to 32 Python files")
+        for file in files:
+            try:
+                # Parse source only. Never import or execute generated Python.
+                ast.parse(file["content"], filename=file["path"])
+                diagnostics.append({"path": file["path"], "status": "PARSED"})
+            except (SyntaxError, ValueError, TypeError) as error:
+                diagnostics.append({"path": file.get("path", ""), "status": "FAILED", "message": str(error)[:2000]})
+        return {"parser": "python-ast", "version": sqlglot.__version__, "sqlExecuted": False,
+                "codeExecuted": False, "valid": all(item["status"] == "PARSED" for item in diagnostics),
+                "fieldValidation": "NOT_EVALUATED", "diagnostics": diagnostics, "normalizedFiles": []}
     dialect = {"postgresql": "postgres", "ansi": ""}.get(dialect, dialect)
     if dialect not in {"spark", "hive", "postgres", "mysql", "oracle", "tsql", "trino", ""}:
         raise ValueError("Unsupported SQL dialect")

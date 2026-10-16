@@ -60,6 +60,21 @@ class ClinePythonCallbackControllerTest {
             .containsEntry("requiredOutput","rows.jsonl").doesNotContainKeys("resultDatasetRef","evidenceBundleRef","stdout","rows");
         assertThat(result.get("diagnostic").toString()).contains("fresh sandbox","JSONL");
     }
+    @Test void archivedDiagnosticsDoNotTurnExplorationIntoAnAdmittedDataset(){
+        when(python.stdout(scope,"task",operation)).thenReturn("columns: assets, date; rows: 3");
+        when(python.stderr(scope,"task",operation)).thenReturn("");
+        when(collector.collect(any(),any(),anyString(),anyString(),anyString(),anyList(),any()))
+            .thenThrow(new CodingEvidenceCollector.RequiredOutputMissingException("rows.jsonl"));
+        assertThat(controller.get(json.valueToTree(body()))).containsEntry("stdout","columns: assets, date; rows: 3")
+            .containsEntry("resultAvailable",false).doesNotContainKeys("resultDatasetRef","evidenceBundleRef");
+    }
+    @Test void invalidStructuredOutputReturnsRepairDiagnosticsWithoutCancellingTheTask(){
+        when(collector.collect(any(),any(),anyString(),anyString(),anyString(),anyList(),any()))
+            .thenThrow(new CodingEvidenceCollector.InvalidStructuredResultException("Column types changed"));
+        assertThat(controller.get(json.valueToTree(body()))).containsEntry("outputStatus","INVALID_RESULT_SCHEMA")
+            .containsEntry("resultAvailable",false).containsEntry("diagnostic","Column types changed");
+        verify(tasks,never()).cancel(any(),anyString(),anyString());
+    }
     @Test void committedResultKeepsTheExistingSixEvidenceResponse(){
         when(collector.collect(any(),any(),anyString(),anyString(),anyString(),anyList(),any()))
             .thenReturn(new CodingEvidenceCollector.Collected("input","code","receipt","result","validation","bundle",false,

@@ -53,7 +53,7 @@ public final class ModelNativeAnalysisHarness {
                 || model != codingContext.model() || metadata != codingContext.metadata()))
             throw new SecurityException("Coding context must belong to the executing analysis scope, model and state");
         var access = new BoundedAnalysisEvidence();
-        var prepared = access.prepare(datasets, checkpoints, scope, metadata, guard);
+        var prepared = access.prepare(datasets, checkpoints, scope, metadata, guard, coding != null);
         var operations = new DataWorkspaceOperations(prepared.sources(), checkpoints, scope, model, guard, observe, metadata);
         var reportDatasets = prepared.sources().entrySet().stream().map(entry -> {
             var source = entry.getValue();
@@ -91,7 +91,7 @@ public final class ModelNativeAnalysisHarness {
             var newlyAcquired = prepared.sources().entrySet().stream()
                 .filter(entry -> !sourceViews.containsKey(entry.getKey())).map(Map.Entry::getValue).toList();
             if (!newlyAcquired.isEmpty()) {
-                var indexed = access.prepare(newlyAcquired, checkpoints, scope, metadata, guard);
+                var indexed = access.prepare(newlyAcquired, checkpoints, scope, metadata, guard, coding != null);
                 for (var view : indexed.views()) sourceViews.put(String.valueOf(view.get("datasetReference")), view);
             }
             catalog = VerifiedReportDataCatalog.fromRuntime(metadata);
@@ -110,7 +110,11 @@ public final class ModelNativeAnalysisHarness {
                 "domainKnowledgeContext", metadata.getOrDefault("domainKnowledgeContext", Map.of())));
             layers.put("L3", Map.of("datasets", access.fitViews(new ArrayList<>(sourceViews.values()), Math.max(4000, budget.inputTokens())), "receipts", receipts,
                 "sourceCoverageObservations", sourceCoverageObservations(metadata)));
-            String instructions = ModelAnalysisPrompt.CORE + ModelAnalysisPrompt.protocol(v2);
+            String instructions = ModelAnalysisPrompt.CORE
+                + (coding == null ? "" : "For multi-record calculations, prefer RUN_CODING over reading all source rows into the model. "
+                    + "Use the dataset catalog, structural profile and at most bounded samples to plan; Python processes the complete authorized snapshot. "
+                    + "Synthesize from admitted result references and validation receipts, not from an unverified model calculation.\n")
+                + ModelAnalysisPrompt.protocol(v2);
             String contracts = ModelProtocolJson.compact(Map.of("L2", layers.remove("L2")));
             String context = ModelProtocolJson.compact(layers);
             String system = injector.injectReportDraft(instructions + contracts, catalog,
@@ -244,7 +248,7 @@ public final class ModelNativeAnalysisHarness {
                         if ("CALL_TOOL".equals(operation)) {
                             throw new IllegalArgumentException("TEMPLATE_SCOPE_LIMIT: analysis cannot rediscover assets, rebind templates or dispatch external tools; use delivered data operations only");
                         } else if (coding != null && coding.capabilities().containsKey(operation)) {
-                            if (!(request.get("datasetReference") instanceof String reference) || !prepared.sources().containsKey(reference))
+                            if (!deliveredCodingInputs(request, prepared.sources()))
                                 throw new IllegalArgumentException("CODING_INPUT_NOT_DELIVERED: choose an exact datasetReference from the current data catalog");
                             var receipt = coding.execute(codingContext, request, prepared.sources());
                             receipts.add(receipt);
@@ -337,6 +341,16 @@ public final class ModelNativeAnalysisHarness {
     private static String snapshot(Map<String,Dataset> sources) {
         return ModelProtocolJson.sha256Hex(sources.entrySet().stream().map(entry -> Map.of(
             "reference", entry.getKey(), "contentSha256", entry.getValue().handle().contentSha256())).toList());
+    }
+    private static boolean deliveredCodingInputs(Map<String,Object> request, Map<String,Dataset> sources) {
+        Object single = request.get("datasetReference"), multiple = request.get("datasetReferences");
+        if (single instanceof String reference && multiple == null) return sources.containsKey(reference);
+        if (single != null || !(multiple instanceof List<?> refs) || refs.isEmpty() || refs.size() > 8)
+            return false;
+        Set<String> unique = new HashSet<>();
+        for (Object ref : refs) if (!(ref instanceof String name) || !sources.containsKey(name) || !unique.add(name))
+            return false;
+        return true;
     }
     private static Map<String,Object> codingTaskSummary(Map<String,Object> request, Map<String,Object> receipt) {
         var summary = new LinkedHashMap<String,Object>();

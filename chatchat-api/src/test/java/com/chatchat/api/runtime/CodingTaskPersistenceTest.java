@@ -95,6 +95,42 @@ class CodingTaskPersistenceTest {
         assertThat(service(store(new JdbcTemplate(dataSource))).get(scope,"task")).isEqualTo(accepted);
     }
 
+    com.fasterxml.jackson.databind.node.ObjectNode sdkBoundary(String id,long ordinal) {
+        var c=service.contract(scope,id);
+        var value=json.createObjectNode();value.put("sdkSessionId","private-sdk-session");
+        value.put("checkpointOrdinal",ordinal);value.put("modelOrdinal",0);value.put("eventOrdinal",0);
+        value.put("inputSnapshotRef",c.inputSnapshotRef());value.put("workspaceRef",c.workspaceRef());
+        value.put("contractHash",CodingCanonicalHash.sha256(c));
+        value.set("messages",json.valueToTree(List.of(Map.of("role","user","content",List.of(Map.of("type","text","text","Continue analysis"))))));
+        return value;
+    }
+
+    @Test void sdkBoundarySurvivesJavaRecreationAndRejectsConflictingConcurrentOrStaleRecovery() throws Exception {
+        service.submit(contract("sdk",10));var lease=claim("sdk","worker");var boundary=sdkBoundary("sdk",1);
+        parallel(8,()->{service.saveSdkCheckpoint(scope,"sdk",lease,boundary);return true;});
+        var restarted=service(store(new JdbcTemplate(dataSource)));
+        assertThat(restarted.sdkCheckpoint(scope,"sdk").path("messages").size()).isEqualTo(1);
+        assertThat(restarted.get(scope,"sdk").usage().consumed().modelCalls()).isZero();
+        var changed=boundary.deepCopy();changed.put("eventOrdinal",1);
+        code(()->restarted.saveSdkCheckpoint(scope,"sdk",lease,changed),TASK_ID_CONFLICT);
+        clock.advance(Duration.ofSeconds(11));var successor=restarted.claim(scope,"sdk","new-worker",Duration.ofSeconds(10),rev("sdk"));
+        code(()->restarted.saveSdkCheckpoint(scope,"sdk",lease,sdkBoundary("sdk",2)),INVALID_STATE_TRANSITION);
+        restarted.cancel(scope,"sdk","User cancelled during restoration");
+        assertThatThrownBy(()->restarted.saveSdkCheckpoint(scope,"sdk",successor,sdkBoundary("sdk",2))).isInstanceOf(CodingContractException.class);
+    }
+
+    @Test void sdkBoundaryCannotReplayWorkBeyondCheckpointOrRestoreUnpairedCalls() {
+        service.submit(contract("sdk",10));var lease=claim("sdk","worker");var boundary=sdkBoundary("sdk",1);
+        var broken=boundary.deepCopy();((com.fasterxml.jackson.databind.node.ArrayNode)broken.path("messages").get(0).path("content"))
+            .addObject().put("type","tool-call").put("toolCallId","pending");
+        code(()->service.saveSdkCheckpoint(scope,"sdk",lease,broken),EXECUTION_OUTCOME_UNKNOWN);
+        service.saveSdkCheckpoint(scope,"sdk",lease,boundary);
+        var reserved=service.reserve(scope,"sdk",lease,rev("sdk"),"unknown",intent,counters(1,"0"));
+        service.startIntent(scope,"sdk",lease,reserved.outcome().revision(),"unknown","sandbox:unknown");
+        assertThat(service.sdkCheckpoint(scope,"sdk")).isNull();
+        code(()->service.saveSdkCheckpoint(scope,"sdk",lease,sdkBoundary("sdk",2)),EXECUTION_OUTCOME_UNKNOWN);
+    }
+
     @Test void latestCodeExecutionSurvivesProgressHistoryCompaction() {
         service.submit(contract("task", 10));
         var lease = claim("task", "worker");

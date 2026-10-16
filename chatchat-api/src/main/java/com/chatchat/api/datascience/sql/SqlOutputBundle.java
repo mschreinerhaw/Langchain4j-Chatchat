@@ -22,11 +22,17 @@ public final class SqlOutputBundle {
         return parse(answer, mapper, false);
     }
     public static List<Candidate> parse(String answer, ObjectMapper mapper, boolean explanation) {
+        return parseLanguage(answer, mapper, explanation, false);
+    }
+    public static List<Candidate> parsePython(String answer, ObjectMapper mapper) {
+        return parseLanguage(answer, mapper, false, true);
+    }
+    private static List<Candidate> parseLanguage(String answer, ObjectMapper mapper, boolean explanation, boolean python) {
         String json = answer == null ? "" : answer.trim();
         if (json.startsWith("```json") && json.endsWith("```")) json = json.substring(7, json.length() - 3).trim();
         try {
             var root = mapper.reader().with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(json);
-            if (root == null || !"sql-studio.output.v1".equals(root.path("schemaVersion").asText()) || !root.path("files").isArray())
+            if (root == null || !(python?"python-studio.output.v1":"sql-studio.output.v1").equals(root.path("schemaVersion").asText()) || !root.path("files").isArray())
                 bad("Model result is not a sql-studio.output.v1 file bundle");
             List<Candidate> result = new ArrayList<>(); Set<String> names = new HashSet<>();
             if (explanation) {
@@ -38,7 +44,7 @@ public final class SqlOutputBundle {
                 if (!file.path("path").isTextual() || !file.path("content").isTextual()) bad("SQL path and content must be strings");
                 String name = path(file.path("path").asText());
                 String content = file.path("content").asText("");
-                if (!name.toLowerCase(Locale.ROOT).endsWith(".sql") || !names.add(name.toLowerCase(Locale.ROOT))
+                if (!name.toLowerCase(Locale.ROOT).endsWith(python?".py":".sql") || !names.add(name.toLowerCase(Locale.ROOT))
                     || content.isBlank() || content.length() > 200_000 || result.size() >= 32) bad("Invalid SQL output file");
                 result.add(new Candidate(name, content));
             }

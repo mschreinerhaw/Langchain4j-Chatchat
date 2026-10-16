@@ -20,7 +20,7 @@ public record CodingTaskContract(String schemaVersion, String taskId, KernelData
         environmentRef = CodingProtocol.ref(environmentRef, "environmentRef");
         validationPlanRef = CodingProtocol.ref(validationPlanRef, "validationPlanRef");
         CodingProtocol.required(outputContract, "outputContract");
-        CodingProtocol.require(CodingProtocol.VERSION.equals(schemaVersion)
+        CodingProtocol.require(!CodingProtocol.WORKSPACE_VERSION.equals(schemaVersion)
                 ? outputContract.resultFormat() == ResultFormat.JSON_LINES
                 : outputContract.resultFormat() == ResultFormat.WORKSPACE_FILES,
             "Task version and output profile do not match");

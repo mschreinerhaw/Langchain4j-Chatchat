@@ -34,6 +34,7 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
     public static final String TOOL_NAME = "runtime.analysis.toolName";
     public static final String TOOL_ARGUMENTS = "runtime.analysis.toolArguments";
     public static final String TOOL_CALLS = "runtime.analysis.toolCalls";
+    public static final String CODING_DATA_OPERATION = "runtime.analysis.codingDataOperation";
     private static final int MAX_EVIDENCE_CHARS = com.chatchat.common.runtime.agent.AgentEvidenceBudget.ITEM_CHARS;
 
     private final SkillCatalogService skills;
@@ -140,12 +141,15 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
         ToolInput input = ToolInput.builder().requestId(requestId).userId(scope.userId())
             .parameters(arguments).build();
         ToolRuntimeExecution execution;
+        Map<String,Object> runtimeAttributes=new LinkedHashMap<>(Map.of("analysisSkillId",skill.id(),
+            "toolRegistryRevisions",Map.of(name,invocationRevision)));
+        if(context.attributes().get(CODING_DATA_OPERATION) instanceof String operation
+                && operation.matches("data-[0-9a-f]{64}"))runtimeAttributes.put("toolRetryAttempts",0);
         try {
             execution = runtime.execute(ToolRuntimeRequest.builder()
                 .toolName(name).runtimeMode("analysis").requestId(requestId)
                 .tenantId(scope.tenantId()).userId(scope.userId()).allowedTools(List.of(name))
-                .toolInput(input).attributes(Map.of("analysisSkillId", skill.id(),
-                    "toolRegistryRevisions", Map.of(name, invocationRevision))).build());
+                .toolInput(input).attributes(runtimeAttributes).build());
         } catch (RuntimeException failure) {
             if (failure instanceof java.util.concurrent.CancellationException
                 || Thread.currentThread().isInterrupted()) throw failure;

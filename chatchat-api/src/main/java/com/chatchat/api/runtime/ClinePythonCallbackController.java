@@ -96,8 +96,10 @@ public final class ClinePythonCallbackController {
             if (result.executorStopped() && result.manifestHash() != null)
                 python.reconcile(call.scope(), call.taskId(), call.lease(), operationId);
             Map<String, Object> response = view(result);
-            if ("FAILED".equals(result.status()) && result.executorStopped()) {
-                try { response.put("stderr", python.stderr(call.scope(), call.taskId(), operationId)); }
+            if (result.executorStopped() && result.manifestHash()!=null) {
+                try { var stderr=python.stderr(call.scope(), call.taskId(), operationId);
+                    var stdout=python.stdout(call.scope(),call.taskId(),operationId);
+                    if(stderr!=null)response.put("stderr",stderr);if(stdout!=null)response.put("stdout",stdout); }
                 catch (RuntimeException unavailable) {
                     response.put("diagnosticUnavailable", true);
                 }
@@ -118,6 +120,9 @@ public final class ClinePythonCallbackController {
                         +"Use the input descriptor; read JSONL as one JSON object per line. "
                         +"Each call starts a fresh sandbox: write the required JSONL file under /workspace/output/results/ in the same program.");
                     return response;
+                } catch(CodingEvidenceCollector.InvalidStructuredResultException invalid) {
+                    response.put("outputStatus","INVALID_RESULT_SCHEMA");response.put("resultAvailable",false);
+                    response.put("diagnostic",invalid.getMessage());return response;
                 }
                 response.put("inputSnapshotRef", collected.inputSnapshotRef());
                 response.put("codeArtifactRef", collected.codeArtifactRef());
@@ -136,7 +141,7 @@ public final class ClinePythonCallbackController {
     public Map<String, Object> cancel(@RequestBody JsonNode body) {
         return bound(body, true, call -> {
             String operationId = operationId(body.path("operationId").asText(null));
-            return view(python.cancel(call.scope(), call.taskId(), operationId, "Runtime Coding cancellation"));
+            return view(python.cancelExecution(call.scope(), call.taskId(), operationId));
         });
     }
 

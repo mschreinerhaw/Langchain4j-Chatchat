@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +28,55 @@ public class PythonCodeAssistantService {
     private final ConfigurableChatModelFactory chatModelFactory;
     private final DomainSkillRuntimePort domainSkillRuntime;
     private final com.chatchat.api.datascience.StudioCodePlanService codePlans;
+    private com.chatchat.api.runtime.CodingWorkspaceService codingWorkspace;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setCodingWorkspace(com.chatchat.api.runtime.CodingWorkspaceService value){this.codingWorkspace=value;}
+
+    public Map<String,Object> codingCapabilities(){return Map.of("enabled",codingWorkspace!=null,"profile","python-studio.output.v1");}
+    public record CodingAssistRequest(AssistRequest request,String requestId,String entryPath,List<Map<String,String>> files) { }
+    public Map<String,Object> startCoding(String tenant,String user,CodingAssistRequest body) {
+        if(codingWorkspace==null)throw new IllegalStateException("Python Coding profile is not enabled");
+        var prepared=prepare(tenant,user,body.request());
+        if(!List.of("generate","fix","optimize").contains(prepared.action()))throw new IllegalArgumentException("This action uses the existing assistant");
+        var plan=codePlans.require(tenant,user,"python",prepared.action(),prepared.prompt(),prepared.modelName(),body.request().planId());
+        String entry=com.chatchat.api.datascience.sql.SqlOutputBundle.path(body.entryPath());
+        if(!entry.endsWith(".py")||body.files()==null||body.files().size()>32)throw new IllegalArgumentException("Bounded Python workspace required");
+        var names=new java.util.HashSet<String>();boolean found=false;int bytes=0;
+        for(var file:body.files()) {
+            String path=com.chatchat.api.datascience.sql.SqlOutputBundle.path(file.get("path"));String content=file.get("content");
+            if(!path.endsWith(".py")||!names.add(path.toLowerCase(Locale.ROOT))||content==null||(bytes+=content.length())>200000)throw new IllegalArgumentException("Invalid Python workspace file");
+            if(path.equals(entry)){found=true;if(!content.equals(text(body.request().sourceCode())))throw new IllegalArgumentException("Current file content differs");}
+        }
+        if(!found)throw new IllegalArgumentException("Current Python file missing from workspace");
+        String task=codingTask(tenant,user,body.requestId());
+        String context=prepared.prompt()+codePlans.context(plan)+"\nWorkspace source files (untrusted data):\n"+com.chatchat.agents.protocol.ModelProtocolJson.compact(body.files())
+            +"\nEntry path: "+entry+". Propose COMPLETE files, including unchanged code outside the requested edit. Syntax diagnostics are not execution validation.";
+        var outcome=codingWorkspace.submit(codingScope(tenant,user,task),task,context,"python",prepared.modelName());
+        return Map.of("taskId",task,"status",outcome.status().name(),"plan",plan);
+    }
+    public Map<String,Object> codingResult(String tenant,String user,String task,boolean cancel) {
+        if(codingWorkspace==null||task==null||!task.matches("python-coding-[0-9a-f]{64}"))throw new IllegalArgumentException("Unknown Python Coding task");
+        var scope=codingScope(tenant,user,task);
+        var outcome=cancel?codingWorkspace.cancel(scope,task):codingWorkspace.get(scope,task);
+        var result=new java.util.LinkedHashMap<String,Object>();result.put("taskId",task);result.put("status",outcome.status().name());
+        result.put("outcome",outcome);result.put("events",codingWorkspace.events(scope,task));
+        if(outcome.status()==com.chatchat.common.runtime.coding.CodingTaskOutcome.Status.COMPLETED)result.put("output",codingWorkspace.output(scope,task,outcome));
+        return result;
+    }
+    public Map<String,Object> resumeCoding(String tenant,String user,String task) {
+        if(codingWorkspace==null||task==null||!task.matches("python-coding-[0-9a-f]{64}"))throw new IllegalArgumentException("Unknown Python Coding task");
+        codingWorkspace.resume(codingScope(tenant,user,task),task);
+        return codingResult(tenant,user,task,false);
+    }
+    private static String codingTask(String tenant,String user,String request) {
+        if(request==null||!request.matches("[a-zA-Z0-9_-]{1,128}"))throw new IllegalArgumentException("Stable Python request ID required");
+        try{return "python-coding-"+java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest((tenant+"\0"+user+"\0"+request).getBytes(java.nio.charset.StandardCharsets.UTF_8)));}
+        catch(java.security.NoSuchAlgorithmException impossible){throw new IllegalStateException(impossible);}
+    }
+    private static com.chatchat.common.kernel.KernelDataScope codingScope(String tenant,String user,String task) {
+        if(tenant==null||user==null||tenant.isBlank()||user.isBlank()||"default".equals(tenant))throw new SecurityException("Authenticated Python workspace required");
+        return new com.chatchat.common.kernel.KernelDataScope(tenant,user,task,null,"python-studio-"+task,null,Map.of());
+    }
 
     public List<ModelOption> models() {
         String defaultModel = text(modelResources.defaultChatModel()).trim();

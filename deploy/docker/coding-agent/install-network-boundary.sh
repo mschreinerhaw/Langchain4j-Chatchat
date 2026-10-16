@@ -32,7 +32,7 @@ http {
         allow 172.30.91.10;
         allow 172.30.91.11;
         deny all;
-        location ~ ^/internal/coding/cline/(reserve-model|model|settle-model|execute-python|get-python|cancel-python|read-metadata|read-artifact|workspace-read|workspace-propose|event|finish)\$ {
+        location ~ ^/internal/coding/cline/(reserve-model|model|settle-model|execute-python|get-python|cancel-python|read-metadata|read-artifact|workspace-read|workspace-propose|event|finish|checkpoint|data-request|validate-sql)\$ {
             if (\$request_method != POST) { return 405; }
             proxy_pass http://\$coding_upstream;
             proxy_http_version 1.1;

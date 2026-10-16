@@ -1,7 +1,7 @@
 /** Cline AgentModel backed by the Runtime's configured Java model connection. */
-export function createRuntimeModel(gateway, contract) {
+export function createRuntimeModel(gateway, contract, initialOrdinal = 0) {
   if (typeof gateway?.model !== 'function') throw new TypeError('Runtime model callback is required');
-  let modelCallIndex = 0;
+  let modelCallIndex = initialOrdinal;
   return {
     async *stream(request) {
       // Project only portable text/tool parts. The Java side validates the bound

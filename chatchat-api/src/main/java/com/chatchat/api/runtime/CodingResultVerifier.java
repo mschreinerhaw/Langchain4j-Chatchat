@@ -11,4 +11,8 @@ public interface CodingResultVerifier {
     void validateRules(Map<String, Object> rules);
     CodingEvidenceCollector.Validation verify(KernelDataScope scope,
         CodingInputSnapshotService.Snapshot input, Map<String, Object> rules, List<Map<String, Object>> rows);
+    default CodingEvidenceCollector.Validation verifyInputs(KernelDataScope scope,
+        List<CodingInputSnapshotService.Snapshot> inputs,Map<String,Object> rules,List<Map<String,Object>> rows) {
+        return verify(scope,inputs.get(0),rules,rows);
+    }
 }

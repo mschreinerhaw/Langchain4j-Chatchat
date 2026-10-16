@@ -14,6 +14,7 @@
             <span v-if="progress.running || progress.terminal" class="sql-progress-time" aria-label="任务耗时"><Clock3 :size="12" />{{ progress.elapsedLabel }}</span>
             <button v-if="result && !result.task && !pendingPhase" :disabled="busy" @click="$emit('resume')">继续提交</button>
             <button v-else-if="result?.task && !terminal && !pendingPhase" :disabled="busy" @click="$emit('cancel')">取消</button>
+            <button v-if="result?.task && !terminal && !pendingPhase && result?.generation?.prepared?.taskRequest?.toolInput?.codingWorkspaceProfile==='SQL_WORKSPACE_V2'" :disabled="busy" @click="$emit('resume')">恢复任务</button>
           </div>
           <p class="sql-progress-detail" role="status">{{ progress.detail }}</p>
           <small v-if="progress.running&&progress.elapsed>=30">仍在等待当前阶段返回结果；已有计划与执行进展会保留在本条消息中。</small>

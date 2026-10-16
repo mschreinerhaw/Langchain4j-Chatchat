@@ -9,6 +9,7 @@ import java.util.Objects;
 public final class CodingProtocol {
     public static final String VERSION = "runtime_os.coding.v1";
     public static final String WORKSPACE_VERSION = "runtime_os.coding.v2";
+    public static final String ANALYSIS_VERSION = "runtime_os.coding.v3";
     public static final long MAX_SAFE_INTEGER = 9_007_199_254_740_991L;
     private CodingProtocol() { }
 
@@ -16,7 +17,7 @@ public final class CodingProtocol {
         if (!condition) throw new CodingContractException(CodingErrorCode.CONTRACT_INVALID, message);
     }
     static void version(String value) {
-        if (!VERSION.equals(value) && !WORKSPACE_VERSION.equals(value)) throw new CodingContractException(
+        if (!VERSION.equals(value) && !WORKSPACE_VERSION.equals(value) && !ANALYSIS_VERSION.equals(value)) throw new CodingContractException(
             CodingErrorCode.VERSION_UNSUPPORTED, "Unsupported coding protocol: " + value);
     }
     static <T> T required(T value, String field) {

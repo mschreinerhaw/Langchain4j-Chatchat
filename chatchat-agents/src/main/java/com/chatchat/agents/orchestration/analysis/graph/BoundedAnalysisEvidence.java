@@ -36,6 +36,12 @@ final class BoundedAnalysisEvidence {
 
     Prepared prepare(List<Dataset> datasets, AnalysisEvidenceSpillStore store,
                      GovernanceIsolationScope scope, Map<String, Object> metadata, Runnable guard) {
+        return prepare(datasets, store, scope, metadata, guard, false);
+    }
+
+    Prepared prepare(List<Dataset> datasets, AnalysisEvidenceSpillStore store,
+                     GovernanceIsolationScope scope, Map<String, Object> metadata, Runnable guard,
+                     boolean codingAvailable) {
         Map<String, Dataset> sources = new LinkedHashMap<>();
         DatasetReferenceSequence references = new DatasetReferenceSequence(
             datasets.stream().map(Dataset::reference).toList());
@@ -48,6 +54,7 @@ final class BoundedAnalysisEvidence {
         int chars = 0;
         boolean directEligible = true;
         for (var source : sources.entrySet()) {
+            if (codingAvailable) { directEligible = false; break; }
             guard.run();
             // A direct view is attempted only for handles that can be read cheaply. Large and
             // cursor-backed handles go straight to the bounded full-scan path.
@@ -101,8 +108,8 @@ final class BoundedAnalysisEvidence {
                 hashes.add(java.util.HexFormat.of().formatHex(chunkDigest.digest()));
                 Map<String, Object> profile = accumulated.finish(dataset.recordCount());
                 LinkedHashSet<Integer> selected = new LinkedHashSet<>();
-                if (dataset.recordCount() > 0) { selected.add(1); selected.add(Math.toIntExact(dataset.recordCount())); }
-                for (Map<String, Object> field : maps(profile.get("fields"))) {
+                if (dataset.recordCount() > 0) { selected.add(1); if (!codingAvailable) selected.add(Math.toIntExact(dataset.recordCount())); }
+                for (Map<String, Object> field : codingAvailable ? List.<Map<String,Object>>of() : maps(profile.get("fields"))) {
                     if (selected.size() >= 24) break;
                     if (field.get("minRecord") instanceof Number n) selected.add(n.intValue());
                     if (field.get("maxRecord") instanceof Number n) selected.add(n.intValue());
@@ -110,11 +117,11 @@ final class BoundedAnalysisEvidence {
                 Map<String, Object> view = new LinkedHashMap<>();
                 view.put("datasetReference", ref);
                 view.put("recordCount", dataset.recordCount());
-                view.put("textAnchors", textAnchors(ref, dataset, selected, perDataset / 6));
+                if (!codingAvailable) view.put("textAnchors", textAnchors(ref, dataset, selected, perDataset / 6));
                 int catalogRows = (int) Math.min(100, dataset.recordCount());
-                view.put("nestedCollections", fit(NestedRecordReader.catalog(
+                if (!codingAvailable) view.put("nestedCollections", fit(NestedRecordReader.catalog(
                     catalogRows == 0 ? List.of() : dataset.handle().readPage(0, catalogRows).rows()), perDataset / 5));
-                view.put("evidenceMode", "FULL_SCAN_PROFILE_WITH_SELECTED_RECORDS");
+                view.put("evidenceMode", codingAvailable ? "CODING_PROFILE_WITH_ONE_SAMPLE" : "FULL_SCAN_PROFILE_WITH_SELECTED_RECORDS");
                 view.put("profile", fit(profile, perDataset / 3));
                 view.put("context", fit(dataset.analysisContext(), perDataset / 3));
                 view.put("selectedRecords", rows(ref, dataset, selected, List.of(), perDataset / 4));

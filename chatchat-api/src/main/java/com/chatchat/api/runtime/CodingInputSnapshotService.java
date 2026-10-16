@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
@@ -50,8 +51,15 @@ public final class CodingInputSnapshotService {
                 || !evidence.contentHash(record.payload()).equals(record.contentSha256())
                 || !input.sha256().equals(record.payload().get("sha256")))
             throw new SecurityException("Input description is not bound to the task");
-        return Map.of("schemaJson",record.payload().get("schemaJson"),"rowCount",input.rowCount(),
-            "sha256",input.sha256(),"fileId",input.fileId(),"format","JSON_LINES","encoding","UTF-8");
+        var description = new LinkedHashMap<String,Object>();
+        description.put("schemaJson",record.payload().get("schemaJson"));
+        description.put("rowCount",input.rowCount());
+        description.put("sha256",input.sha256());
+        description.put("fileId",input.fileId());
+        description.put("format","JSON_LINES");
+        description.put("encoding","UTF-8");
+        description.put("qualitySummary",record.payload().getOrDefault("qualitySummary",Map.of()));
+        return Map.copyOf(description);
     }
 
     /** Caller supplies the current run's trusted dataset collection, never a model-supplied handle. */
@@ -72,13 +80,17 @@ public final class CodingInputSnapshotService {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         final long[] rows = {0};
         TreeMap<String, TreeSet<String>> schema = new TreeMap<>();
+        TreeMap<String, Long> present = new TreeMap<>(), nulls = new TreeMap<>();
         selected.handle().scan(1_000, page -> {
             for (Map<String, Object> row : page.rows()) {
                 if (++rows[0] > maxRows) throw new IllegalArgumentException("Dataset row limit exceeded");
                 try {
-                    mapper.valueToTree(row).properties().forEach(field ->
+                    mapper.valueToTree(row).properties().forEach(field -> {
                         schema.computeIfAbsent(field.getKey(), ignored -> new TreeSet<>())
-                            .add(field.getValue().getNodeType().name()));
+                            .add(field.getValue().getNodeType().name());
+                        present.merge(field.getKey(),1L,Long::sum);
+                        if(field.getValue().isNull())nulls.merge(field.getKey(),1L,Long::sum);
+                    });
                     byte[] encoded = mapper.writeValueAsBytes(row);
                     if ((long) output.size() + encoded.length + 1 > maxBytes)
                         throw new IllegalArgumentException("Dataset byte limit exceeded");
@@ -101,10 +113,20 @@ public final class CodingInputSnapshotService {
         String digest = sha(identity.getBytes(StandardCharsets.UTF_8));
         String fileId = "c" + digest.substring(0, 63);
         String evidenceId = "coding:input:" + digest;
-        Map<String, Object> payload = Map.of("taskId", taskId, "sourceDatasetRef", sourceDatasetRef,
+        Map<String, Object> payload = new java.util.LinkedHashMap<>(Map.of("taskId", taskId, "sourceDatasetRef", sourceDatasetRef,
             "decisionRef", decisionRef, "workspaceRef", workspaceRef, "fileId", fileId,
             "fileName", FILE_NAME, "sha256", hash, "rowCount", rows[0], "size", bytes.length,
-            "schemaJson", schemaJson);
+            "schemaJson", schemaJson));
+        var quality = new LinkedHashMap<String,Object>();
+        quality.put("coverage","FULL_SNAPSHOT_STRUCTURAL_ONLY");
+        quality.put("rowCount",rows[0]);
+        var fields = new LinkedHashMap<String,Object>();
+        for(var field:schema.entrySet()) fields.put(field.getKey(),Map.of(
+            "observedTypes",List.copyOf(field.getValue()),"missingCount",rows[0]-present.getOrDefault(field.getKey(),0L),
+            "nullCount",nulls.getOrDefault(field.getKey(),0L)));
+        quality.put("fields",fields);
+        payload.put("qualitySummary",quality);
+        if(selected.analysisContext().containsKey("inputVersions"))payload.put("inputVersions",selected.analysisContext().get("inputVersions"));
         var stored = python.uploadDataFile(scope.tenantId(), scope.userId(), fileId, FILE_NAME, hash, bytes);
         if (stored == null || !"AVAILABLE".equals(stored.status()) || !hash.equals(stored.fileHash())
                 || stored.fileSize() != bytes.length || !fileId.equals(stored.id()))

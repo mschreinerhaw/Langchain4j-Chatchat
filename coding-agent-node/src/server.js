@@ -78,6 +78,9 @@ export function httpGateway(callbackUrl, secret, binding) {
     proposeWorkspace: (contract, operationId, proposal, signal) => callback('workspace-propose', { contract, operationId, proposal }, signal),
     event: (event) => callback('event', { event }),
     finish: (contract, outcome) => callback('finish', { contract, outcome }),
+    checkpoint: (contract, checkpoint) => callback('checkpoint', { contract, checkpoint }),
+    requestData: (contract, requirement, signal) => callback('data-request', { contract, requirement }, signal),
+    validateSql: (contract, validation, signal) => callback('validate-sql', { contract, validation }, signal),
   };
 }
 
@@ -106,6 +109,8 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
       if (request.method === 'POST' && url.pathname === '/v1/runs') {
         const value = await body(request);
         if (value.contract?.schemaVersion !== 'runtime_os.coding.v1'
+            && !(value.contract?.schemaVersion === 'runtime_os.coding.v3'
+              && value.contract?.outputContract?.resultFormat === 'JSON_LINES')
             && !(value.contract?.schemaVersion === 'runtime_os.coding.v2'
               && value.contract?.outputContract?.resultFormat === 'WORKSPACE_FILES'))
           return response(reply, 422, { code: 'VERSION_UNSUPPORTED', message: 'Coding protocol version is unsupported' });
@@ -132,10 +137,13 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
         const binding = { scope: value.contract.scope, taskId: value.contract.taskId,
           contractHash: value.contractHash, fencingToken: value.fencingToken };
         const gateway = gatewayFactory(callbackUrl, secret, binding);
-        run.session = createCodingRun(value.contract, gateway,
-          modelFactory ? { model: modelFactory(value.contract), modelTokenReservation: value.modelTokenReservation }
-            : { model: createRuntimeModel(gateway, value.contract),
-              modelTokenReservation: value.modelTokenReservation });
+        run.recoveryMode = value.checkpoint ? 'CHECKPOINT_RESTORED_NEW_SDK' : 'NEW_SDK';
+        run.session = createCodingRun(value.contract, gateway, {
+          model: modelFactory ? modelFactory(value.contract)
+            : createRuntimeModel(gateway, value.contract, value.checkpoint?.modelOrdinal ?? 0),
+          modelTokenReservation: value.modelTokenReservation, checkpoint: value.checkpoint,
+          contractHash: value.contractHash,
+        });
         runs.set(key, run);
         void run.session.run().then(result => {
           run.finishedAt = Date.now();
@@ -169,7 +177,7 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
 
 function view(run) {
   return { status: run.state, contractHash: run.contractHash, fencingToken: run.fencingToken,
-    result: run.result, error: run.error };
+    result: run.result, error: run.error, recoveryMode: run.recoveryMode };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

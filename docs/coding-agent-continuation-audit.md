@@ -1,5 +1,7 @@
 # Coding Agent 续建源码审查
 
+> 后续续建以 `6c208aa7` 为基线；最新动态补数、SDK 恢复及真实 Docker 门禁结果见 [升级实施报告](runtime-ai-coding-upgrade-20261016.md)。下文为前轮审查记录。
+
 日期：2026-10-16。基线 commit：`4b641ca6`。启动时已有未提交的 `harness-cline-integration-acceptance-20261016.md` 修改，本轮保留，不将它计作本轮实施或重新验收的事实。
 
 ## 审查方法与历史差异

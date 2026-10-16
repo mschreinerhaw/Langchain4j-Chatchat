@@ -36,7 +36,7 @@ import java.util.function.Function;
 public final class ClineModelCallbackController {
     private static final Logger LOG = LoggerFactory.getLogger(ClineModelCallbackController.class);
     private static final Set<CodingTaskAccess.Action> GRANTS = EnumSet.of(
-        CodingTaskAccess.Action.READ, CodingTaskAccess.Action.WORKER, CodingTaskAccess.Action.EVIDENCE);
+        CodingTaskAccess.Action.READ, CodingTaskAccess.Action.WORKER, CodingTaskAccess.Action.EVIDENCE, CodingTaskAccess.Action.SUBMIT);
     private final CodingInvocationContext identity;
     private final DurableCodingTaskService tasks;
     private final ClineRuntimeModelBridge model;
@@ -47,6 +47,28 @@ public final class ClineModelCallbackController {
     private final ObjectMapper mapper;
     private final Map<String, Instant> freshDispatches = new ConcurrentHashMap<>();
     private CodingWorkspaceService workspace;
+    private CodingDataSupplyService dataSupply;
+    private CodingAnalysisSqlService analysisSql;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setAnalysisSql(CodingAnalysisSqlService value){this.analysisSql=value;}
+    @PostMapping("/validate-sql")
+    public Map<String,Object> validateSql(@RequestBody JsonNode body) {
+        return bound(body,call->{
+            if(analysisSql==null)throw new SecurityException("Analysis SQL validator unavailable");
+            var request=body.path("validation");
+            return analysisSql.validate(contract(body,call),call.lease(),request.path("operationId").asText(),request.path("dialect").asText(),request.path("sql").asText());
+        });
+    }
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setDataSupply(CodingDataSupplyService service) {this.dataSupply=service;}
+    @PostMapping("/data-request")
+    public Map<String,Object> dataRequest(@RequestBody JsonNode body) {
+        return bound(body, call -> {
+            var c=contract(body,call);
+            if(dataSupply==null||!c.authorization().allowedTools().contains("data_request"))throw new SecurityException("Data supply unavailable");
+            return dataSupply.request(c,call.lease(),body.path("requirement"));
+        });
+    }
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setWorkspace(CodingWorkspaceService workspace) { this.workspace=workspace; }
 
@@ -56,6 +78,14 @@ public final class ClineModelCallbackController {
             var contract=contract(body,call);
             if(workspace==null)throw new SecurityException("Workspace Coding profile is not enabled");
             return workspace.read(contract,call.lease(),body.path("operationId").asText());
+        });
+    }
+    @PostMapping("/checkpoint")
+    public Map<String,Object> checkpoint(@RequestBody JsonNode body) {
+        return bound(body, call -> {
+            contract(body, call);
+            tasks.saveSdkCheckpoint(call.scope(), call.taskId(), call.lease(), body.path("checkpoint"));
+            return Map.of("saved", true);
         });
     }
     @PostMapping("/workspace-propose")

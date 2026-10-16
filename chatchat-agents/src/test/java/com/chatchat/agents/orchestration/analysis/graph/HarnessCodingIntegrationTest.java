@@ -73,6 +73,34 @@ class HarnessCodingIntegrationTest {
         verify(port,never()).execute(any(),anyMap(),anyMap());
     }
 
+    @Test void codingUsesProfileFirstAndAcceptsMultipleDeliveredHandles() {
+        var model=mock(ChatModel.class);var port=resultPort();var turns=new AtomicInteger();
+        var scope=GovernanceIsolationScope.runtime("tenant","user","run","request","conversation");
+        var metadata=new LinkedHashMap<String,Object>();
+        var context=new AnalysisCoverageCoordinator.Request(model,"Join delivered sources",null,Map.of(),metadata,
+            ()->false,()->{},scope,null);
+        when(model.chat(any(ChatRequest.class))).thenAnswer(call->{
+            var prompt=((ChatRequest)call.getArgument(0)).messages().toString();
+            if(turns.incrementAndGet()==1){
+                assertThat(prompt).contains("CODING_PROFILE_WITH_ONE_SAMPLE","RUN_CODING","Python processes");
+                assertThat(prompt).doesNotContain("HIDDEN_SECOND_ROW");
+                var request=new LinkedHashMap<>(codingRequest("left"));
+                request.remove("datasetReference");request.put("datasetReferences",List.of("left","right"));
+                return reply("CONTINUE","",List.of(request));
+            }
+            assertThat(prompt).contains("coding-result");
+            return reply("COMPLETE","Joined result from Python evidence.",List.of());
+        });
+        var result=new ModelNativeAnalysisHarness(3).withCoding(port,context).execute(context.query(),
+            List.of(new Dataset("left",Map.of(),List.of(Map.of("value","FIRST_ROW"),Map.of("value","HIDDEN_SECOND_ROW"))),
+                new Dataset("right",Map.of(),List.of(Map.of("key","first"),Map.of("key","second")))),
+            model,scope,AnalysisEvidenceSpillStore.disabled(),metadata,()->{},trace->{});
+        assertThat(result.datasetReferences()).contains("left","right","coding-result");
+        var submitted=org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(port).execute(eq(context),submitted.capture(),anyMap());
+        assertThat(submitted.getValue()).containsEntry("datasetReferences",List.of("left","right"));
+    }
+
     @Test void disabledCodingIsNotAdvertisedAndModelCanContinueAfterAnUnsupportedRequest() {
         var model=mock(ChatModel.class);var turn=new AtomicInteger();
         when(model.chat(any(ChatRequest.class))).thenAnswer(call->{

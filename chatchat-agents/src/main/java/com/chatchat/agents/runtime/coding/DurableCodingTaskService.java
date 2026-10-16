@@ -75,9 +75,89 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         return task(read(scope, READ), taskId).contract;
     }
 
+    public com.fasterxml.jackson.databind.JsonNode privateState(KernelDataScope scope, String taskId, String key) {
+        var value = task(read(scope, READ), taskId).privateState.get(key);
+        return value == null ? null : value.deepCopy();
+    }
+
+    /** Internal extensions use the existing task journal and fencing transaction. No external I/O. */
+    public void privateState(KernelDataScope scope, String taskId, CodingJournal.Lease lease, String key,
+            com.fasterxml.jackson.databind.JsonNode expected, com.fasterxml.jackson.databind.JsonNode next) {
+        require(key != null && key.length() <= 128 && next != null && next.toString().length() <= 262144,
+            CONTRACT_INVALID, "Bounded private state required");
+        mutateTask(scope, taskId, WORKER, task -> {
+            fence(task, lease); active(task); deadline(task);
+            require(task.outcome.executionControl().stopReason() == null, INVALID_STATE_TRANSITION, "Task is stopping");
+            require(task.privateState.size() < 128 || task.privateState.containsKey(key), ADAPTER_UNAVAILABLE, "Private state capacity");
+            require(Objects.equals(task.privateState.get(key), expected), TASK_ID_CONFLICT, "Private state CAS conflict");
+            task.privateState.put(key, next.deepCopy());
+        });
+    }
+
+    public com.fasterxml.jackson.databind.JsonNode sdkCheckpoint(KernelDataScope scope, String taskId) {
+        var task = task(read(scope, READ), taskId);
+        var saved = task.sdkCheckpoint;
+        if (saved == null || unresolved(task) || saved.path("operationCount").asInt(-1) != task.operations.size())
+            return null; // A crash beyond this boundary requires receipt reconciliation, never replay.
+        return saved.deepCopy();
+    }
+
+    /** Same owner lock/transaction as leases, budget reservations and stop requests. */
+    public void saveSdkCheckpoint(KernelDataScope scope, String taskId, CodingJournal.Lease lease,
+            com.fasterxml.jackson.databind.JsonNode checkpoint) {
+        require(checkpoint != null && checkpoint.isObject() && checkpoint.toString().length() <= 262144,
+            CONTRACT_INVALID, "Bounded SDK checkpoint required");
+        var value = checkpoint.deepCopy();
+        mutateTask(scope, taskId, WORKER, task -> {
+            fence(task, lease); active(task); deadline(task);
+            require(task.outcome.executionControl().stopReason() == null && !unresolved(task),
+                EXECUTION_OUTCOME_UNKNOWN, "Checkpoint requires a settled active boundary");
+            require(value.path("inputSnapshotRef").asText().equals(task.contract.inputSnapshotRef())
+                && value.path("workspaceRef").asText().equals(task.contract.workspaceRef())
+                && value.path("contractHash").asText().equals(task.outcome.contractSha256()),
+                CONTRACT_INVALID, "Checkpoint input/workspace binding differs");
+            long ordinal = task.operations.entrySet().stream()
+                .filter(e -> e.getValue().kind == CodingJournal.OperationKind.MODEL && e.getKey().matches("model-[1-9][0-9]{0,5}"))
+                .mapToLong(e -> Long.parseLong(e.getKey().substring(6))).max().orElse(0);
+            require(value.path("modelOrdinal").asLong(-1) == ordinal && value.path("eventOrdinal").asLong(-1) >= 0,
+                CONTRACT_INVALID, "Checkpoint ordinals differ from durable operations");
+            require(value.path("messages").isArray() && value.path("messages").size() > 0
+                && value.path("messages").size() <= 64 && value.path("sdkSessionId").asText().matches("[a-zA-Z0-9-]{1,64}"),
+                CONTRACT_INVALID, "SDK messages/session identity required");
+            // Complete call/result pairs only; restore() cannot resume pending SDK calls.
+            Set<String> pending = new HashSet<>();
+            for (var message : value.path("messages")) {
+                require(message.path("content").isArray(), CONTRACT_INVALID, "SDK content must be an array");
+                for (var part : message.path("content")) {
+                    String type = part.path("type").asText();
+                    require(Set.of("text", "tool-call", "tool-result").contains(type), CONTRACT_INVALID, "Unsupported SDK message part");
+                    if (type.equals("tool-call")) require(pending.add(part.path("toolCallId").asText()), CONTRACT_INVALID, "Duplicate pending call");
+                    if (type.equals("tool-result")) require(pending.remove(part.path("toolCallId").asText()), CONTRACT_INVALID, "Unmatched tool result");
+                }
+            }
+            require(pending.isEmpty(), EXECUTION_OUTCOME_UNKNOWN, "Pending SDK tool calls cannot be restored");
+            long expected = task.sdkCheckpoint == null ? 0 : task.sdkCheckpoint.path("checkpointOrdinal").asLong();
+            if (task.sdkCheckpoint != null && value.path("checkpointOrdinal").asLong() == expected) {
+                var previous = task.sdkCheckpoint.deepCopy();
+                ((com.fasterxml.jackson.databind.node.ObjectNode) previous).remove("operationCount");
+                require(previous.equals((left,right) -> left.isNumber() && right.isNumber()
+                    ? left.decimalValue().compareTo(right.decimalValue()) : left.equals(right) ? 0 : 1, value),
+                    TASK_ID_CONFLICT, "Checkpoint identity conflict");
+                return;
+            }
+            require(value.path("checkpointOrdinal").asLong(-1) == expected + 1, TASK_ID_CONFLICT, "Checkpoint CAS conflict");
+            ((com.fasterxml.jackson.databind.node.ObjectNode) value).put("operationCount", task.operations.size());
+            task.sdkCheckpoint = value;
+        });
+    }
+
     /** A stopped operation is still an external call and must not be replayed by a fresh SDK session. */
     public boolean hasStartedOperations(KernelDataScope scope, String taskId) {
         return task(read(scope, READ), taskId).operations.values().stream().anyMatch(op -> op.startIntent);
+    }
+    public long startedDataRounds(KernelDataScope scope, String taskId) {
+        return task(read(scope, READ), taskId).operations.values().stream().filter(op -> op.startIntent
+            && op.executionHandle != null && op.executionHandle.startsWith("runtime-data:")).count();
     }
 
     @Override public CodingTaskOutcome cancel(KernelDataScope scope, String taskId, String reason) {
@@ -164,6 +244,9 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             }
             revision(task,expectedRevision); active(task); deadline(task);
             if (task.outcome.executionControl().stopReason()!=null) return;
+            require(task.operations.values().stream().noneMatch(op -> op.startIntent && op.stopProofRef == null
+                && op.executionHandle != null && op.executionHandle.startsWith("runtime-data:")),
+                EXECUTION_OUTCOME_UNKNOWN, "WAITING_FOR_DATA: new work is blocked until acquisition is reconciled");
             require(!task.outcome.executionControl().reconciliationRequired(),EXECUTION_OUTCOME_UNKNOWN,"Reconcile previous execution first");
             require(task.operations.size()<MAX_OPERATIONS,ADAPTER_UNAVAILABLE,"Task operation capacity reached");
             Counters total = CodingBudgetMath.add(account(state,task.contract.budget().budgetId()),reservation);

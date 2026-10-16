@@ -19,9 +19,24 @@ chatchat.coding.analysis.max-input-bytes=16777216
 chatchat.coding.analysis.max-result-rows=10000
 chatchat.coding.analysis.max-result-bytes=4194304
 
-# Optional SQL workspace profile, on the SAME CodingAgentSPI/Adapter/Node worker.
+# Optional SQL AND Python workspace profiles, on the SAME CodingAgentSPI/Adapter/Node worker.
 # Install the pinned sql-toolchain/requirements.txt into a deployment-owned Python venv first.
 # No generated Python or SQL is executed by this parser entrypoint.
 chatchat.coding.workspace.enabled=false
 chatchat.coding.workspace.sqlglot-python=/opt/runtime-coding/sql-toolchain/bin/python
 chatchat.coding.workspace.timeout-seconds=300
+
+# Optional Java-authorized dynamic data supply. Empty grants confer no acquisition capability.
+# Grants are deployment policy, never model parameters. Live Skill permissions are rechecked.
+chatchat.coding.analysis.data-supply.enabled=false
+chatchat.coding.analysis.data-supply.max-rounds=4
+# Example only; replace identifiers with authorized existing tenant/user/Skill/template bindings.
+# chatchat.coding.analysis.data-supply.grants[0].tenant-id=tenant-example
+# chatchat.coding.analysis.data-supply.grants[0].user-id=user-example
+# chatchat.coding.analysis.data-supply.grants[0].skill-id=authorized-finance-skill
+# chatchat.coding.analysis.data-supply.grants[0].template-id=published-ledger-template
+# chatchat.coding.analysis.data-supply.grants[0].asset-name=authorized-logical-asset
+# chatchat.coding.analysis.data-supply.grants[0].environment=production
+# chatchat.coding.analysis.data-supply.grants[0].parameter-values[tradeDate][0]=2026-10-13
+# chatchat.coding.analysis.data-supply.grants[0].required-fields[0]=tradeDate
+# chatchat.coding.analysis.data-supply.grants[0].required-fields[1]=amount

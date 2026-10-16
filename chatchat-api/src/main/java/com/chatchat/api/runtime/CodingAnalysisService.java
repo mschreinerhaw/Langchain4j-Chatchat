@@ -36,6 +36,12 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
     private final McpPythonControlPlanePort python;
     private final ObjectMapper json;
     private final Semaphore capacity;
+    private CodingDataSupplyService dataSupply;
+    private CodingAnalysisSqlService analysisSql;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setAnalysisSql(CodingAnalysisSqlService value){this.analysisSql=value;}
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setDataSupply(CodingDataSupplyService value){this.dataSupply=value;}
     private static final Set<CodingTaskAccess.Action> GRANTS=EnumSet.allOf(CodingTaskAccess.Action.class);
 
     public CodingAnalysisService(CodingAnalysisProperties policy, CodingInvocationContext identity,
@@ -52,7 +58,10 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
     public Map<String,String> capabilities() {
         return Map.of("RUN_CODING", "Exact request: {operation:'RUN_CODING',requestId:string,datasetReference:string,"
             + "instruction:string,outputSchema:{type:'object',properties:{FIELD:{type:TYPE}},required:[FIELD],additionalProperties:false}}. "
-            + "Choose your own fields and types. Delegate Python on exactly one delivered immutable dataset. "
+            + "Optional datasetReferences:[string] selects multiple delivered datasets for joins; use it instead of datasetReference. "
+            + "Choose your own fields and types. Delegate an iterative AI Coding analysis: plan, inspect schema/data quality, "
+            + "calculate, inspect real execution receipts, repair technical faults, and produce structured results. "
+            + "Supports cleansing diagnostics, aggregation, time series, portfolio/cash/returns, joins, statistics and chart data. "
             + "instruction describes the calculation and required output; the Coding worker writes rows.jsonl. "
             + "outputSchema validates EACH JSONL ROW, never the containing array/file; its root type MUST be object. "
             + "Supported keywords ONLY: type/properties/required/items/enum/additionalProperties/description/title. "
@@ -67,13 +76,12 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
     public Map<String,Object> execute(AnalysisCoverageCoordinator.Request context, Map<String,Object> request,
                                      Map<String,Dataset> sources) {
         ensureActive(context);
-        if (!request.keySet().stream().allMatch(Set.of("operation","requestId","datasetReference","instruction","outputSchema")::contains))
+        if (!request.keySet().stream().allMatch(Set.of("operation","requestId","datasetReference","datasetReferences","instruction","outputSchema")::contains))
             throw new IllegalArgumentException("Unknown Coding request field");
         if (!"RUN_CODING".equals(request.get("operation"))) throw new IllegalArgumentException("Unknown Coding operation");
         String requestId=text(request.get("requestId"),128), instruction=text(request.get("instruction"),16000);
-        String reference=text(request.get("datasetReference"),512);
-        Dataset source=sources.get(reference);
-        if (source==null) throw new SecurityException("Coding input is not delivered in this analysis");
+        Dataset source=selectSources(request,sources);
+        String reference=source.reference();
         var rowSchema=WorkspaceResultSchema.object(request.get("outputSchema"));
         new CodingSchemaResultVerifier().validateRules(Map.of("rowSchema",rowSchema));
         var owner=context.isolationScope();
@@ -111,10 +119,23 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             String goal=instruction+"\nAuthorized immutable input descriptor: "+ModelProtocolJson.compact(inputs.describe(scope,taskId,input))
                 +"\nUse the authorized snapshot. Inspect its columns in Python if necessary. "
                 +"Write rows.jsonl matching this row schema: "+ModelProtocolJson.compact(schema)
-                +". Schema checks do not establish business correctness. Explain limitations in your summary.";
-            contract=new CodingTaskContract(CodingProtocol.VERSION,taskId,scope,
-                new CodingTaskContract.Objective(goal,List.of("rows.jsonl"),List.of(plan)),input.reference(),List.of(CodingParentModels.REQUIRED_REF),workspace,
-                new CodingTaskContract.Authorization(decision,List.of("python_execute"),List.of(input.fileId()),List.of(),List.of(),
+                +". Plan the analysis, inspect data types, missing dates, duplicate keys and precision before calculating. "
+                +"Never invent missing observations, trading calendars, business formulas, rounding policies or silently repair business data. "
+                +"For multi-dataset input, each JSONL row is {datasetReference,record}; join by explicit keys and report unmatched rows. "
+                +"For charts produce chart-ready columns and explicit chart specification in the contracted row schema; never fabricate plotted values. "
+                +"Use Decimal for exact money calculations when required. Inspect receipts and repair technical failures with a complete program. "
+                +"Schema checks do not establish business correctness. Explain limitations in your summary.";
+            boolean dataAvailable=dataSupply!=null&&!dataSupply.describe(scope).isEmpty();
+            boolean sqlAvailable=analysisSql!=null&&analysisSql.available();
+            boolean dynamic=dataAvailable||sqlAvailable;
+            List<String> tools=new ArrayList<>(List.of("python_execute"));
+            if(dataAvailable)tools.add("data_request");if(sqlAvailable)tools.add("sql_validate");
+            if(sqlAvailable)goal+="\nFor SQL analysis, use sql_validate for static diagnostics; it never executes SQL. You may execute SQLite in-memory SQL over the delivered files inside python_execute. Never connect to external databases.";
+            if(dataAvailable)goal+="\nAuthorized Java data capabilities: "+ModelProtocolJson.compact(dataSupply.describe(scope))
+                +". Use data_request only when delivered data is insufficient; do not query sources yourself. Each response is a new immutable input version mounted in subsequent Python calls.";
+            contract=new CodingTaskContract(dynamic?CodingProtocol.ANALYSIS_VERSION:CodingProtocol.VERSION,taskId,scope,
+                new CodingTaskContract.Objective(goal,List.of("rows.jsonl"),List.of(plan)),input.reference(),dataAvailable?List.of(CodingParentModels.REQUIRED_REF,dataSupply.policyRef(scope)):List.of(CodingParentModels.REQUIRED_REF),workspace,
+                new CodingTaskContract.Authorization(decision,tools,List.of(input.fileId()),List.of(),List.of(),
                     CodingTaskContract.NetworkPolicy.NONE,List.of(),List.of(CodingTaskContract.SideEffect.CODE_EXECUTION)),budget,
                 policy.getEnvironmentId(),plan,new CodingTaskContract.OutputContract(CodingTaskContract.ResultFormat.JSON_LINES,
                     "runtime-coding-schema:"+hash(schema),"runtime-coding-structural.v1",List.of("rows.jsonl"),
@@ -133,6 +154,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         try(var binding=models.bind(scope,taskId,context.model())) {
             bound=true;
             outcome=agent.submit(accepted);
+            if(saved.isPresent()&&!outcome.status().terminal())outcome=agent.resume(scope,taskId);
             while(!outcome.status().terminal() && Instant.now().isBefore(accepted.budget().deadlineAt())) {
                 ensureActive(context);
                 if(outcome.executionControl().reconciliationRequired())break;
@@ -140,9 +162,9 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 outcome=agent.get(scope,taskId);
             }
             if(!outcome.status().terminal()) {
-                // Let A2 record an expired deadline before cancellation can claim the stop reason.
-                if (!Instant.now().isBefore(accepted.budget().deadlineAt())) outcome=agent.resume(scope,taskId);
-                if (!outcome.status().terminal()) {
+                // Unknown work remains recoverable under the original task; a poll is not a cancellation.
+                outcome=agent.resume(scope,taskId);
+                if (!outcome.status().terminal() && !Instant.now().isBefore(accepted.budget().deadlineAt())) {
                     agent.cancel(scope,taskId,"Parent Coding wait ended; outstanding execution must be reconciled");
                     outcome=agent.resume(scope,taskId);
                 }
@@ -178,6 +200,26 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 try{agent.cancel(scope,taskId,"Parent Coding invocation interrupted");}catch(RuntimeException ignored){}
             throw failure;
         } catch(Exception failure){throw new IllegalStateException("Coding model binding failed",failure);}
+    }
+    private Dataset selectSources(Map<String,Object> request,Map<String,Dataset> sources) {
+        if(!request.containsKey("datasetReferences")) {
+            var selected=sources.get(text(request.get("datasetReference"),512));
+            if(selected==null)throw new SecurityException("Coding input is not delivered in this analysis");
+            return selected;
+        }
+        if(request.containsKey("datasetReference")||!(request.get("datasetReferences") instanceof List<?> refs)
+            ||refs.isEmpty()||refs.size()>8||new HashSet<>(refs).size()!=refs.size())throw new IllegalArgumentException("Select 1..8 unique delivered datasets");
+        List<Map<String,Object>> records=new ArrayList<>();List<Map<String,Object>> versions=new ArrayList<>();
+        for(Object ref:refs) {
+            var selected=sources.get(text(ref,512));if(selected==null)throw new SecurityException("Coding input is not delivered in this analysis");
+            if(!selected.handle().recordCountExact()||selected.recordCount()>policy.getMaxInputRows()-records.size())throw new IllegalArgumentException("Combined Coding input row limit");
+            versions.add(Map.of("datasetReference",selected.reference(),"contentSha256",selected.handle().contentSha256(),"rowCount",selected.recordCount()));
+            selected.handle().scan(1000,page->{for(var row:page.rows()) {
+                if(records.size()>=policy.getMaxInputRows())throw new IllegalArgumentException("Combined input limit");
+                records.add(Map.of("datasetReference",selected.reference(),"record",row));
+            }});
+        }
+        return new Dataset("coding-input-set:"+hash(versions),Map.of("inputVersions",List.copyOf(versions)),records);
     }
     private static void ensureActive(AnalysisCoverageCoordinator.Request context) {
         context.cancellationGuard().run();

@@ -45,6 +45,7 @@ export async function submitSqlGeneration(id, prepared) {
   return task;
 }
 export const cancelSqlCodingGeneration = (id,generationId) => apiRequest(`${project(id)}/generations/${encodeURIComponent(generationId)}/coding/cancel`, {method:'POST'});
+export const resumeSqlCodingGeneration = (id,generationId) => apiRequest(`${project(id)}/generations/${encodeURIComponent(generationId)}/coding/resume`, {method:'POST'});
 export async function downloadSqlFile(projectId, file) {
   const blob = await readSqlFileBlob(projectId, file);
   const url = URL.createObjectURL(blob);

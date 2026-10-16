@@ -112,10 +112,23 @@ public class PythonOperationWorkspace {
         for (Path path : List.of(output, output.resolve("results"), output.resolve("validation"), output.resolve("logs"))) {
             if (Files.isSymbolicLink(path) || !Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS))
                 throw new IllegalArgumentException("Invalid operation output directory");
-            Files.setAttribute(path, "unix:uid", uid, LinkOption.NOFOLLOW_LINKS);
-            Files.setAttribute(path, "unix:gid", gid, LinkOption.NOFOLLOW_LINKS);
-            Files.setPosixFilePermissions(path, EnumSet.of(PosixFilePermission.OWNER_READ,
-                PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE));
+            if (Files.getFileStore(path).supportsFileAttributeView("posix")) {
+                Files.setAttribute(path, "unix:uid", uid, LinkOption.NOFOLLOW_LINKS);
+                Files.setAttribute(path, "unix:gid", gid, LinkOption.NOFOLLOW_LINKS);
+                Files.setPosixFilePermissions(path, EnumSet.of(PosixFilePermission.OWNER_READ,
+                    PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE));
+            } else {
+                // Docker Desktop binds NTFS using host ACLs, not persistent Unix ownership.
+                // Keep the host mount private to its service owner; the container still runs
+                // with the fixed non-root UID, no capabilities and no host filesystem access.
+                var acl=Files.getFileAttributeView(path,java.nio.file.attribute.AclFileAttributeView.class,LinkOption.NOFOLLOW_LINKS);
+                if(acl==null)throw new IOException("Sandbox output filesystem provides neither POSIX ownership nor ACLs");
+                var owner=Files.getOwner(path,LinkOption.NOFOLLOW_LINKS);
+                var entry=java.nio.file.attribute.AclEntry.newBuilder().setType(java.nio.file.attribute.AclEntryType.ALLOW)
+                    .setPrincipal(owner).setPermissions(EnumSet.allOf(java.nio.file.attribute.AclEntryPermission.class))
+                    .setFlags(java.nio.file.attribute.AclEntryFlag.DIRECTORY_INHERIT,java.nio.file.attribute.AclEntryFlag.FILE_INHERIT).build();
+                acl.setAcl(List.of(entry));
+            }
         }
     }
 

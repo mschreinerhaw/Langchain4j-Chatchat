@@ -32,6 +32,7 @@ import PythonCodeDiff from "../../components/PythonCodeDiff.vue";
 import CodeChangeReview from "../../components/editor/CodeChangeReview.vue";
 import StudioCodePlan from "../../components/editor/StudioCodePlan.vue";
 import { requestPlannedPythonAssist } from '../../services/studioCodePlanning';
+import { runPythonCoding, cancelPythonCoding, resumePythonCoding } from '../../services/pythonCoding';
 import { studioAiLabels, studioAiProgress, pythonProposalSource } from '../utils/studioAi';
 import { beginStudioExchange, studioAssistantTurn, updateStudioTurn } from '../utils/studioConversation';
 import EditorPreferences from "../../components/editor/EditorPreferences.vue";
@@ -152,6 +153,10 @@ export default {
     aiCurrentTurn: null,
     aiFollowOutput: true,
     aiSourceContext: null,
+    aiCodingTask: null,
+    aiCodingSources: [],
+    aiCodingProgress: null,
+    aiCodingRequest: null,
     editorTabs: [],
     activeEditorTabKey: "",
     draftSequence: 0,
@@ -244,6 +249,9 @@ export default {
     aiProgressLabel() { return this.aiStage==='planning' ? '正在制定代码协作计划' : studioAiProgress[this.aiRequestAction] || '正在处理请求'; },
     aiReviewFiles() {
       if(!this.aiSuggestion || this.aiIsTextAnswer)return [];
+      if(this.aiSuggestion.files)return this.aiSuggestion.files.map(file=>({path:file.path,
+        before:this.aiCodingSources.find(source=>source.path===file.path)?.content || '',after:file.content,
+        isNew:!this.aiCodingSources.some(source=>source.path===file.path)}));
       const isNew=this.aiSuggestion.action==='test';
       return [{path:isNew ? `test_${(this.aiSourceContext?.fileName || 'script.py').replace(/\.py$/i,'')}.py` : this.aiSourceContext?.fileName || this.form.fileName,
         before:isNew ? '' : this.aiSourceContext?.source || '', after:pythonProposalSource(this.aiSourceContext,this.aiSuggestion),isNew}];
@@ -1381,6 +1389,9 @@ export default {
         cursorOffset:this.editor.getModel().getOffsetAt(this.editor.getPosition()),
         selectionOffsets:hasSelection ? {start:this.editor.getModel().getOffsetAt(selection.getStartPosition()),end:this.editor.getModel().getOffsetAt(selection.getEndPosition())} : null};
       this.aiSourceContext = sourceContext;
+      this.aiCodingTask=null;this.aiCodingProgress=null;
+      this.captureActiveEditorTab();
+      this.aiCodingSources=this.editorTabs.map(tab=>({path:tab.form.fileName,content:tab.form.sourceCode,key:tab.key}));
       const userText = this.aiPrompt;
       const requestMessages = this.aiMessages;
       const history = this.aiMessages.slice(-4).map(item => `${item.role}: ${item.text.slice(0,500)}`).join('\n');
@@ -1404,10 +1415,13 @@ export default {
           this.aiStage = 'exploring';
           updateStudioTurn(studioAssistantTurn(requestMessages,requestId),'generating','计划已通过校验，正在根据当前代码和已选上下文生成结果。',{plan:plan.interpretationPlan,planId:plan.planId});
           await nextTick();
-        });
+        }, planned=>{this.aiCodingRequest=planned;return runPythonCoding(planned,{requestId:String(requestId).replace(/[^a-zA-Z0-9_-]/g,'_'),
+          entryPath:sourceContext.fileName,files:this.aiCodingSources.map(({path,content})=>({path,content})),
+          onTask:task=>{this.aiCodingTask=task;},onProgress:state=>{this.aiCodingProgress=state;}});});
         const originalCode = suggestion.action==='test' ? '' : sourceContext.source;
         this.aiSuggestion = suggestion;
         this.aiDiff = ['explain','ask'].includes(suggestion.action) ? null : buildPythonLineDiff(originalCode, pythonProposalSource(sourceContext,suggestion));
+        if(suggestion.files)this.aiDiff.changed=this.aiReviewFiles.some(file=>file.before!==file.after);
         this.aiElapsedMs = Date.now() - startedAt;
         this.aiStage = "ready";
         updateStudioTurn(studioAssistantTurn(requestMessages,requestId),'ready',['explain','ask'].includes(suggestion.action) ? suggestion.code : `为 ${sourceContext.fileName} 生成了${studioAiLabels[suggestion.action] || '代码'}建议，等待审查。`,{plan:suggestion.plan?.interpretationPlan || this.aiCodePlan?.interpretationPlan,planId:suggestion.plan?.planId || this.aiCodePlan?.planId});
@@ -1430,6 +1444,29 @@ export default {
     applyAiSuggestion() {
       if (!this.aiSuggestion?.code || !this.editor) return;
       if (this.aiIsTextAnswer || this.aiSuggestionStale) { this.showTransientError('当前文件或代码已变化，请基于最新内容重新生成建议。'); return; }
+      if(this.aiSuggestion.files) {
+        this.captureActiveEditorTab();
+        for(const file of this.aiSuggestion.files) {
+          const original=this.aiCodingSources.find(source=>source.path===file.path);
+          const tab=original && this.editorTabs.find(item=>item.key===original.key);
+          if(original && (!tab || tab.form.sourceCode!==original.content || tab.form.fileName!==original.path)
+              || !original && this.editorTabs.some(item=>item.form.fileName.toLowerCase()===file.path.toLowerCase())) {
+            this.showTransientError(`文件 ${file.path} 已变化，请重新生成建议。`);return;
+          }
+        }
+        for(const file of this.aiSuggestion.files) {
+          const original=this.aiCodingSources.find(source=>source.path===file.path);
+          const tab=original && this.editorTabs.find(item=>item.key===original.key);
+          if(tab) {
+            tab.form={...tab.form,sourceCode:file.content};
+            this._studioModels?.get(tab.key)?.setValue(file.content);
+            if(tab.key===this.activeEditorTabKey){this.form.sourceCode=file.content;this.editor.getModel()?.setValue(file.content);}
+          } else this.editorTabs.push({key:`coding-${++this.draftSequence}-${Date.now()}`,
+            form:{id:'',assetId:this.form.assetId,folderId:'',fileName:file.path,title:'',sourceCode:file.content,status:'DRAFT'},
+            savedSource:'',savedFileName:file.path,consoleText:'',parametersText:'{}',inputSchemaText:defaultInputSchema,runState:'idle'});
+        }
+        this.aiStage='applied';updateStudioTurn(this.aiCurrentTurn,'applied','已应用审查后的文件变更，等待保存。');return;
+      }
       if (this.aiSuggestion.action === 'test') {
         const code = this.aiSuggestion.code;
         const name = this.form.fileName.replace(/\.py$/i,'');
@@ -1502,6 +1539,18 @@ export default {
       this.aiStage = "applied";
       updateStudioTurn(this.aiCurrentTurn,'applied',`代码建议已应用到 ${this.form.fileName}，当前修改尚未保存。`);
       this.editor.focus();
+    },
+    async cancelAiCoding(){try{if(this.aiCodingTask)await cancelPythonCoding(this.aiCodingTask);}catch(error){this.showTransientError(errorMessage(error,'取消任务失败'));}},
+    async resumeAiCoding(){
+      if(this.aiBusy||!this.aiCodingTask||!this.aiCodingRequest)return;
+      this.aiBusy=true;this.aiStage='exploring';
+      try {
+        this.aiSuggestion=await resumePythonCoding(this.aiCodingTask,this.aiCodingRequest,{entryPath:this.aiSourceContext.fileName,plan:this.aiCodePlan,
+          onProgress:state=>{this.aiCodingProgress=state;}});
+        this.aiDiff=buildPythonLineDiff(this.aiSourceContext.source,this.aiSuggestion.code);
+        this.aiDiff.changed=this.aiReviewFiles.some(file=>file.before!==file.after);this.aiStage='ready';
+      }catch(error){this.aiStage='failed';this.showTransientError(errorMessage(error,'恢复任务失败'));}
+      finally{this.aiBusy=false;}
     },
     startAiProgress() {
       this.stopAiProgress();

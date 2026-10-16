@@ -71,6 +71,9 @@ public final class CodingValidationPlanService {
     }
 
     public CodingEvidenceCollector.IndependentValidator validator(CodingTaskContract contract) {
+        return validator(contract,List.of(inputs.requireAuthorized(contract)));
+    }
+    public CodingEvidenceCollector.IndependentValidator validator(CodingTaskContract contract,List<CodingInputSnapshotService.Snapshot> inputVersions) {
         access.require(contract.scope(), CodingTaskAccess.Action.READ);
         var input = inputs.requireAuthorized(contract);
         var scope = contract.scope();
@@ -91,7 +94,8 @@ public final class CodingValidationPlanService {
         var plan = detached(new Plan(verifierId, version, rules));
         var verifier = verifier(plan);
         verifier.validateRules(plan.rules());
-        return rows -> verifier.verify(scope, input, plan.rules(), rows);
+        if(inputVersions.isEmpty()||!inputVersions.get(0).equals(input))throw new SecurityException("Validation input root differs");
+        return rows -> verifier.verifyInputs(scope, inputVersions, plan.rules(), rows);
     }
 
     private CodingResultVerifier verifier(Plan plan) {

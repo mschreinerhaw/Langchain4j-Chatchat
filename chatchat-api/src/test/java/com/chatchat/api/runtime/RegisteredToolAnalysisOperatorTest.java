@@ -28,6 +28,15 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doThrow;
 
 class RegisteredToolAnalysisOperatorTest {
+    @Test void codingAcquisitionDisablesAutomaticRetryWithoutChangingOrdinaryAnalysisPolicy() {
+        boundSkill();when(registry.getToolMetadata("read_tool")).thenReturn(ToolMetadata.builder().operationType("read").runtimeLevel("readonly").build());
+        when(runtime.execute(any())).thenReturn(new ToolRuntimeExecution(ToolOutput.success(Map.of("value",42)),null,null,"SUCCESS",Map.of()));
+        operator.execute(context().withAttribute(RegisteredToolAnalysisOperator.CODING_DATA_OPERATION,"data-"+"a".repeat(64)),scope(),null);
+        operator.execute(context(),scope(),null);
+        var calls=org.mockito.ArgumentCaptor.forClass(ToolRuntimeRequest.class);verify(runtime,org.mockito.Mockito.times(2)).execute(calls.capture());
+        assertThat(calls.getAllValues().get(0).getAttributes()).containsEntry("toolRetryAttempts",0);
+        assertThat(calls.getAllValues().get(1).getAttributes()).doesNotContainKey("toolRetryAttempts");
+    }
     @Test void discoveryStageUsesDeclaredReadOperationAndStillRejectsRiskyTools() {
         boundSkill();
         var metadata = ToolMetadata.builder().operationType("read").runtimeLevel("discovery").riskLevel("low").build();

@@ -452,6 +452,12 @@ public class SqlStudioService {
         require(isCoding(generation) && generation.taskId()!=null && coding!=null,"No Coding workspace task to cancel");
         coding.cancel(codingScope(project,id),generation.taskId());
     }
+    public AgentTaskResponse resumeCoding(HttpServletRequest request,String projectId,String id) {
+        Project project=project(request,projectId);Generation generation=generation(request,projectId,id);
+        require(isCoding(generation)&&generation.taskId()!=null&&coding!=null,"No Coding workspace task to recover");
+        requireCodingMetadata(request,projectId,generation);
+        return codingTask(project,generation,coding.resume(codingScope(project,id),generation.taskId()),"");
+    }
     private static boolean isCoding(Generation generation){
         return "SQL_WORKSPACE_V2".equals(generation.prepared().taskRequest().getToolInput().get("codingWorkspaceProfile"));
     }

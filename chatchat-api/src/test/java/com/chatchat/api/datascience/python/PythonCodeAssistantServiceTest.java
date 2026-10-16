@@ -49,6 +49,36 @@ class PythonCodeAssistantServiceTest {
         when(plans.context(org.mockito.ArgumentMatchers.any())).thenReturn("\nAccepted code InterpretationPlan");
     }
 
+    @Test void pythonCodingUsesSharedWorkspaceWithServerDerivedOwnerAndAcceptedPlan() {
+        var workspace=mock(com.chatchat.api.runtime.CodingWorkspaceService.class);service.setCodingWorkspace(workspace);
+        when(factory.create("code-model")).thenReturn(codeModel);
+        when(plans.require(anyString(),anyString(),eq("python"),anyString(),anyString(),anyString(),eq("accepted")))
+            .thenReturn(new com.chatchat.api.datascience.StudioCodePlanService.Ticket("accepted",null,"READY"));
+        var running=mock(com.chatchat.common.runtime.coding.CodingTaskOutcome.class);when(running.status()).thenReturn(com.chatchat.common.runtime.coding.CodingTaskOutcome.Status.RUNNING);
+        when(workspace.submit(any(),anyString(),anyString(),eq("python"),eq("code-model"))).thenReturn(running);
+        var request=new PythonCodeAssistantService.AssistRequest("fix","Fix current source","print(1)","","code-model",List.of(),"accepted");
+        var body=new PythonCodeAssistantService.CodingAssistRequest(request,"stable-turn","main.py",List.of(java.util.Map.of("path","main.py","content","print(1)")));
+        var alice=service.startCoding("tenant","alice",body);var bob=service.startCoding("tenant","bob",body);
+        assertThat(alice.get("taskId")).isNotEqualTo(bob.get("taskId"));
+        var scopes=ArgumentCaptor.forClass(com.chatchat.common.kernel.KernelDataScope.class);
+        verify(workspace,org.mockito.Mockito.times(2)).submit(scopes.capture(),anyString(),org.mockito.ArgumentMatchers.contains("main.py"),eq("python"),eq("code-model"));
+        assertThat(scopes.getAllValues()).extracting(com.chatchat.common.kernel.KernelDataScope::userId).containsExactly("alice","bob");
+        verify(codeModel,org.mockito.Mockito.never()).chat(anyString());
+    }
+
+    @Test void pythonCodingRejectsPathTraversalAndChangedSourceBeforeWorkerSubmission() {
+        var workspace=mock(com.chatchat.api.runtime.CodingWorkspaceService.class);service.setCodingWorkspace(workspace);
+        when(factory.create("code-model")).thenReturn(codeModel);
+        when(plans.require(anyString(),anyString(),eq("python"),anyString(),anyString(),anyString(),eq("accepted")))
+            .thenReturn(new com.chatchat.api.datascience.StudioCodePlanService.Ticket("accepted",null,"READY"));
+        var request=new PythonCodeAssistantService.AssistRequest("fix","Fix current source","print(1)","","code-model",List.of(),"accepted");
+        assertThatThrownBy(()->service.startCoding("tenant","alice",new PythonCodeAssistantService.CodingAssistRequest(request,"turn","../secret.py",List.of())))
+            .isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(()->service.startCoding("tenant","alice",new PythonCodeAssistantService.CodingAssistRequest(request,"turn","main.py",List.of(java.util.Map.of("path","main.py","content","print(2)")))))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("content differs");
+        org.mockito.Mockito.verifyNoInteractions(workspace);
+    }
+
     @Test
     void routesCodeGenerationToSelectedConfiguredModel() {
         when(factory.create("code-model")).thenReturn(codeModel);

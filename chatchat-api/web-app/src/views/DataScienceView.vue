@@ -84,6 +84,11 @@
             </article>
           </section>
           <footer class="ai-composer">
+            <div v-if="aiCodingTask" role="status">AI Coding · {{ aiCodingProgress?.status || 'RUNNING' }}
+              <button v-if="aiBusy" type="button" @click="cancelAiCoding">取消任务</button>
+              <button v-else-if="aiStage==='failed'" type="button" @click="resumeAiCoding">恢复任务</button>
+              <span v-if="aiCodingProgress?.outcome?.usage">模型 {{ aiCodingProgress.outcome.usage.consumed.modelCalls }} 轮 · 工具 {{ aiCodingProgress.outcome.usage.consumed.toolCalls }} 次</span>
+            </div>
             <div class="studio-ai-context"><FileCode2 :size="12" /><span :title="form.fileName">{{ form.fileName }}</span><span>{{ aiSkillIds.length }} 个 Skill</span></div>
             <textarea ref="aiPrompt" v-model.trim="aiPrompt" :disabled="aiBusy" maxlength="4000" aria-label="Python AI 提示词" placeholder="描述需求，或针对当前文件提问…" @keydown.ctrl.enter.prevent="askAi" @keydown.meta.enter.prevent="askAi"></textarea>
             <div class="studio-ai-send"><small>Ctrl / ⌘ + Enter 发送</small><button aria-label="发送 Python AI 请求" @click="askAi" :disabled="aiBusy||!aiPrompt||!aiModel"><LoaderCircle v-if="aiBusy" :size="16" class="studio-spinner" /><Send v-else :size="16" /></button></div>

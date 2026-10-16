@@ -18,6 +18,9 @@ public final class CodingJournal {
         public List<CodingExecutionEvent> events = new ArrayList<>();
         /** Idempotent advisory worker progress, keyed by fence and worker-local sequence. */
         public Map<String, String> workerEvents = new LinkedHashMap<>();
+        /** Private SDK continuation at a fully settled model/tool boundary. Never execution proof. */
+        public com.fasterxml.jackson.databind.JsonNode sdkCheckpoint;
+        public Map<String, com.fasterxml.jackson.databind.JsonNode> privateState = new LinkedHashMap<>();
     }
     public record Lease(String owner, Instant leaseUntil, long fencingToken) { }
     public enum OperationKind { MODEL, TOOL, CODE, ACCOUNTING }

@@ -41,15 +41,22 @@ class CodingInputSnapshotServiceTest {
         var scope = new KernelDataScope("tenant", "owner", null, null, "run", null, Map.of());
         var delivered = new Dataset("template#call", Map.of(),
             List.of(Map.of("tradeDate", "2026-10-14", "amount", "1.25"),
-                Map.of("tradeDate", "2026-10-15", "amount", "2.50")));
+                Map.of("tradeDate", "2026-10-15")));
         var snapshot = access.as(scope, EnumSet.of(CodingTaskAccess.Action.SUBMIT), () ->
             snapshots.capture(scope, "task", List.of(delivered), "template#call", "decision:1",
                 "workspace:1", 10, 4096));
         assertThat(snapshot.rowCount()).isEqualTo(2);
         assertThat(snapshot.reference()).startsWith("runtime-evidence:coding:input:");
-        assertThat(access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->snapshots.describe(scope,"task",snapshot)))
+        var descriptor=access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->snapshots.describe(scope,"task",snapshot));
+        assertThat(descriptor)
             .containsEntry("format","JSON_LINES").containsEntry("encoding","UTF-8").containsEntry("rowCount",2L)
             .doesNotContainKeys("records","rows");
+        @SuppressWarnings("unchecked") var quality=(Map<String,Object>)descriptor.get("qualitySummary");
+        assertThat(quality).containsEntry("coverage","FULL_SNAPSHOT_STRUCTURAL_ONLY");
+        @SuppressWarnings("unchecked") var amount=(Map<String,Object>)((Map<?,?>)quality.get("fields")).get("amount");
+        assertThat(((Number)amount.get("missingCount")).longValue()).isEqualTo(1L);
+        assertThat(((Number)amount.get("nullCount")).longValue()).isZero();
+        assertThat(descriptor.toString()).doesNotContain("2026-10-14","1.25");
         var contract = contract(scope, snapshot);
         assertThat(access.as(scope, EnumSet.of(CodingTaskAccess.Action.READ), () ->
             snapshots.requireAuthorized(contract))).isEqualTo(snapshot);

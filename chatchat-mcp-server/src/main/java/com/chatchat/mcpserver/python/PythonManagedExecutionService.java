@@ -119,6 +119,7 @@ public class PythonManagedExecutionService {
         if ("ACCEPTED".equals(row.status)) dispatch(row.id);
         else if (Set.of("STARTING", "RUNNING", "UNKNOWN").contains(row.status)) reconcile(row.id);
         else if (row.cleanupFailed) retryCleanup(row.id);
+        preserveUndispatchedStop(row.id);
         return view(authorized(tenant, owner, run, task, operation));
     }
 
@@ -147,7 +148,26 @@ public class PythonManagedExecutionService {
             PythonDockerRuntime.StopCheck stopped = docker.stopManaged(row.containerName);
             if (stopped.confirmed()) finalizeStopped(id);
         }
+        preserveUndispatchedStop(id);
         return view(authorized(tenant, owner, run, task, operation));
+    }
+
+    /** A durable terminal row prevents startCreated under the task fence lock. Preserve that
+     * non-dispatch proof as well as code/inputs, so Runtime can reconcile cancellation before create. */
+    private void preserveUndispatchedStop(String id) {
+        Operation row=find(id);
+        if(row==null||!row.executorStopped||row.containerStartedAt!=null||row.manifestHash!=null
+                ||!Set.of("CANCELLED","TIMED_OUT").contains(row.status))return;
+        var state=docker.inspectManaged(row.containerName);
+        if(state.running()||state.startedAt()!=null)return;
+        try {
+            Path workspace=Path.of(row.workspacePath);
+            writeOnce(workspace.resolve("output/logs/stdout.txt"),"");writeOnce(workspace.resolve("output/logs/stderr.txt"),"");
+            writeReceipt(row,state,false,true);workspaces.archive(workspace);
+            String hash=PythonOperationWorkspace.hash(Files.readAllBytes(workspace.resolve("manifest.json")));
+            jdbc.update("update mcp_python_managed_operation set manifest_hash=?,revision=revision+1,updated_at=? where id=? and executor_stopped=true and container_started_at is null and manifest_hash is null",hash,Timestamp.from(Instant.now()),id);
+            if(state.exists()&&!docker.removeManaged(row.containerName))jdbc.update("update mcp_python_managed_operation set cleanup_failed=true where id=?",id);
+        } catch(Exception incomplete) { /* Stop is durable; no A2 proof is accepted until archival succeeds. */ }
     }
 
     public byte[] artifact(String tenant, String owner, String run, String task, String operation,
@@ -378,6 +398,9 @@ public class PythonManagedExecutionService {
     }
 
     private void writeReceipt(Operation row, PythonDockerRuntime.ContainerState state, boolean fenceSuperseded) throws java.io.IOException {
+        writeReceipt(row,state,fenceSuperseded,false);
+    }
+    private void writeReceipt(Operation row, PythonDockerRuntime.ContainerState state, boolean fenceSuperseded,boolean dispatchPrevented) throws java.io.IOException {
         Map<String,Object> receipt = new LinkedHashMap<>();
         receipt.put("operationId", row.operation);
         receipt.put("containerName", row.containerName);
@@ -393,7 +416,8 @@ public class PythonManagedExecutionService {
         receipt.put("finishedAt", state.finishedAt() == null ? null : state.finishedAt().toString());
         receipt.put("exitCode", state.exitCode());
         receipt.put("oomKilled", state.oomKilled());
-        receipt.put("stopConfirmed", state.exists() && !state.running());
+        receipt.put("stopConfirmed", (state.exists() || dispatchPrevented) && !state.running());
+        if(dispatchPrevented)receipt.put("dispatchPrevented",true);
         receipt.put("cancelRequested", row.cancelRequested);
         receipt.put("fenceSuperseded", fenceSuperseded);
         receipt.put("cpuMillisMetered", false);

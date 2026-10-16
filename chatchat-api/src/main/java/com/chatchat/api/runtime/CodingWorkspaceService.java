@@ -46,9 +46,11 @@ public final class CodingWorkspaceService {
         return submit(scope,task,context,dialect,modelName,Map.of());
     }
     public CodingTaskOutcome submit(KernelDataScope scope,String task,String context,String dialect,String modelName,Map<String,Object> schema){
+        boolean python="python".equals(dialect);
+        String language=python?"Python":"SQL", profile=python?"python-studio":"sql-studio";
         if(!parser.available())throw new IllegalStateException("SQLGlot must be configured before enabling SQL Coding");
         return identity.as(scope,EnumSet.allOf(CodingTaskAccess.Action.class),()->{
-            if(context==null || context.length()>250000 || !SqlStudioService.DIALECTS.contains(dialect))
+            if(context==null || context.length()>250000 || !python&&!SqlStudioService.DIALECTS.contains(dialect))
                 throw new IllegalArgumentException("Invalid SQL workspace context");
             String key="coding:workspace-contract:"+task;
             var saved=evidence.readExecutionCheckpoint(scope,key);
@@ -69,14 +71,14 @@ public final class CodingWorkspaceService {
                     Instant.now().plusSeconds(timeoutSeconds).truncatedTo(ChronoUnit.MILLIS),8,32768,16,0,
                     "1","USD",0,0,1024*1024);
                 contract=new CodingTaskContract(CodingProtocol.WORKSPACE_VERSION,task,scope,
-                    new CodingTaskContract.Objective("Read the authorized SQL engineering context with workspace_read, then propose SQL source files with workspace_propose. Preserve unrelated code. The Runtime will parse proposals and return errors to repair. Never execute SQL or claim database validation.",
-                        List.of("proposal.jsonl"),List.of("sql-studio:parse-and-review.v1")),
+                    new CodingTaskContract.Objective("Read the authorized "+language+" engineering context with workspace_read, then propose complete source files with workspace_propose. Preserve unrelated code. The Runtime will parse proposals and return errors to repair. Never execute code or claim business validation.",
+                        List.of("proposal.jsonl"),List.of(profile+":parse-and-review.v1")),
                     "runtime-evidence:"+inputId,List.of(),workspace,
                     new CodingTaskContract.Authorization(decision,List.of("workspace_read","workspace_propose"),List.of(),
-                        List.of("context"),List.of("candidate-sql-files"),CodingTaskContract.NetworkPolicy.NONE,List.of(),
-                        List.of(CodingTaskContract.SideEffect.WORKSPACE_WRITE)),budget,"sqlglot:30.23.0",
-                    "sql-studio:parse-and-review.v1",new CodingTaskContract.OutputContract(
-                        CodingTaskContract.ResultFormat.WORKSPACE_FILES,"sql-studio.output.v1","sql-studio.validation.v1",
+                        List.of("context"),List.of(python?"candidate-python-files":"candidate-sql-files"),CodingTaskContract.NetworkPolicy.NONE,List.of(),
+                        List.of(CodingTaskContract.SideEffect.WORKSPACE_WRITE)),budget,python?"python-ast:3":"sqlglot:30.23.0",
+                    profile+":parse-and-review.v1",new CodingTaskContract.OutputContract(
+                        CodingTaskContract.ResultFormat.WORKSPACE_FILES,profile+".output.v1",profile+".validation.v1",
                         List.of("proposal.jsonl"),List.of("application/x-ndjson"),32,512*1024,
                         List.of(CodingTaskContract.RequiredEvidence.values())));
                 String encoded=encode(contract);
@@ -97,6 +99,9 @@ public final class CodingWorkspaceService {
     public CodingTaskOutcome cancel(KernelDataScope scope,String task){
         return identity.as(scope,EnumSet.allOf(CodingTaskAccess.Action.class),()->agents.getObject().cancel(scope,task,"SQL Studio user cancelled"));
     }
+    public CodingTaskOutcome resume(KernelDataScope scope,String task){
+        return identity.as(scope,EnumSet.allOf(CodingTaskAccess.Action.class),()->agents.getObject().resume(scope,task));
+    }
     public List<CodingExecutionEvent> events(KernelDataScope scope,String task){
         return identity.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->{
             var current=tasks.get(scope,task);
@@ -105,19 +110,22 @@ public final class CodingWorkspaceService {
     }
     public Map<String,Object> requireAuthorized(CodingTaskContract contract){
         identity.require(contract.scope(),CodingTaskAccess.Action.READ);
+        boolean python="python-studio.output.v1".equals(contract.outputContract().resultSchemaRef());
+        String profile=python?"python-studio":"sql-studio";
         if(!supports(contract) || !Set.of("workspace_read","workspace_propose").equals(new HashSet<>(contract.authorization().allowedTools()))
                 || !contract.authorization().allowedDataRefs().isEmpty()
                 || !contract.authorization().allowedSideEffects().equals(List.of(CodingTaskContract.SideEffect.WORKSPACE_WRITE))
                 || contract.authorization().networkPolicy()!=CodingTaskContract.NetworkPolicy.NONE
                 || !contract.authorization().readablePathRefs().equals(List.of("context"))
-                || !contract.authorization().writablePathRefs().equals(List.of("candidate-sql-files"))
-                || contract.budget().maxCodeExecutions()!=0 || !contract.environmentRef().equals("sqlglot:30.23.0")
-                || !contract.validationPlanRef().equals("sql-studio:parse-and-review.v1")
-                || !contract.outputContract().resultSchemaRef().equals("sql-studio.output.v1"))
+                || !contract.authorization().writablePathRefs().equals(List.of(python?"candidate-python-files":"candidate-sql-files"))
+                || contract.budget().maxCodeExecutions()!=0 || !contract.environmentRef().equals(python?"python-ast:3":"sqlglot:30.23.0")
+                || !contract.validationPlanRef().equals(profile+":parse-and-review.v1")
+                || !contract.outputContract().resultSchemaRef().equals(profile+".output.v1"))
             throw new SecurityException("Invalid workspace task authorization");
         var record=evidence.find(contract.scope(),id(contract.inputSnapshotRef())).orElseThrow();
         var data=record.payload();
         if(!INPUT_TYPE.equals(record.evidenceType()) || !contract.taskId().equals(data.get("taskId"))
+                || python!="python".equals(data.get("dialect"))
                 || !contract.authorization().decisionRef().equals(data.get("decisionRef"))
                 || !contract.workspaceRef().equals(data.get("workspaceRef"))
                 || !evidence.contentHash(data).equals(record.contentSha256()))
@@ -156,7 +164,7 @@ public final class CodingWorkspaceService {
         evidence.mutateExecutionCheckpoint(contract.scope(),latestKey(contract),ignored->operation);
         Map<String,Object> validation;List<SqlOutputBundle.Candidate> files=List.of();
         try{
-            files=SqlOutputBundle.parse(encode(proposal),json);
+            files="python".equals(input.get("dialect"))?SqlOutputBundle.parsePython(encode(proposal),json):SqlOutputBundle.parse(encode(proposal),json);
             if(encode(files).getBytes(StandardCharsets.UTF_8).length>contract.outputContract().maxResultBytes())
                 throw new IllegalArgumentException("SQL proposal exceeds task output limit");
             validation=parser.validate((String)input.get("dialect"),files,json.convertValue(input.get("schema"),new TypeReference<Map<String,Object>>(){}));
@@ -213,7 +221,7 @@ public final class CodingWorkspaceService {
             if(prior.isEmpty())evidence.compareAndSetExecutionCheckpoint(contract.scope(),key,null,verified);
             evidence.commitCodingEvidence(contract.scope(),key,verified,committed,records,lineages,base+":bundle",
                 List.of(id(contract.inputSnapshotRef()),base+":code",receiptId,base+":result",base+":validation"),
-                Map.of("taskId",contract.taskId(),"profile","SQL_WORKSPACE","sqlExecuted",false));
+                Map.of("taskId",contract.taskId(),"profile",contract.outputContract().resultSchemaRef(),"sqlExecuted",false,"codeExecuted",false));
         }
     }
     /** Only the latest parsed proposal may complete. Reading output never executes SQL. */
@@ -231,7 +239,7 @@ public final class CodingWorkspaceService {
         Instant at=Instant.now().truncatedTo(ChronoUnit.MILLIS);if(at.isBefore(current.updatedAt()))at=current.updatedAt();
         var next=new CodingTaskOutcome(current.schemaVersion(),current.taskId(),current.scope(),current.contractSha256(),
             CodingTaskOutcome.Status.COMPLETED,current.revision()+1,current.lastEventSequence()+1,current.createdAt(),at,current.startedAt(),at,
-            false,null,"SQL candidates parsed and staged for user review; no SQL executed",
+            false,null,"Source candidates parsed and staged for user review; no code executed",
             List.of("Business semantics and database execution were not evaluated; field validation scope is recorded separately"),contract.inputSnapshotRef(),
             (String)response.get("codeArtifactRef"),(String)response.get("executionReceiptRef"),(String)response.get("resultDatasetRef"),
             (String)response.get("validationRecordRef"),bundle,CodingTaskOutcome.ValidationStatus.INCONCLUSIVE,

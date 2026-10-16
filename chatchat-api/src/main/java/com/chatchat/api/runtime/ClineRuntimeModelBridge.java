@@ -125,7 +125,8 @@ public final class ClineRuntimeModelBridge {
 
     private static String allowedTool(CodingTaskContract contract, String name) {
         Set<String> profile = CodingWorkspaceService.supports(contract)
-            ? Set.of("workspace_read", "workspace_propose") : Set.of("python_execute", "metadata_read", "artifact_read");
+            ? Set.of("workspace_read", "workspace_propose") : com.chatchat.common.runtime.coding.CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
+            ? Set.of("python_execute", "data_request", "sql_validate") : Set.of("python_execute", "metadata_read", "artifact_read");
         if (!profile.contains(name)
                 || !contract.authorization().allowedTools().contains(name))
             throw new SecurityException("Model tool is outside the Runtime authorization");

@@ -20,6 +20,9 @@ public class CodingPythonExecutionBridge {
     private final DurableCodingTaskService tasks;
     private final McpPythonControlPlanePort python;
     private final ObjectMapper mapper;
+    private CodingDataSupplyService dataSupply;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setDataSupply(CodingDataSupplyService value){this.dataSupply=value;}
 
     public CodingPythonExecutionBridge(DurableCodingTaskService tasks, McpPythonControlPlanePort python, ObjectMapper mapper) {
         this.tasks = tasks; this.python = python; this.mapper = mapper;
@@ -39,9 +42,15 @@ public class CodingPythonExecutionBridge {
         if (!contract.authorization().allowedSideEffects().contains(CodingTaskContract.SideEffect.CODE_EXECUTION)
                 || !contract.environmentRef().equals(environmentId)) throw new SecurityException("Code execution is not authorized");
         Map<String,String> files = authorizedFiles == null ? Map.of() : Map.copyOf(authorizedFiles);
+        if(CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())) {
+            if(dataSupply==null)throw new SecurityException("Dynamic inputs unavailable");
+            var bound=dataSupply.bindInputs(contract,lease,operationId);
+            var all=new TreeMap<String,String>();bound.forEach(s->all.put(s.fileId(),s.sha256()));files=Map.copyOf(all);
+        }
         for (String fileId : files.keySet()) {
             if (!contract.authorization().allowedDataRefs().contains(fileId)
-                    && !contract.authorization().allowedDataRefs().contains("mcp-python:data-file:" + fileId))
+                    && !contract.authorization().allowedDataRefs().contains("mcp-python:data-file:" + fileId)
+                    && !(dataSupply!=null&&dataSupply.authorizes(contract,operationId,files)))
                 throw new SecurityException("Input file is outside the task authorization");
         }
         McpPythonControlPlanePort.EnvironmentView environment = python.environment(environmentId);
@@ -78,12 +87,18 @@ public class CodingPythonExecutionBridge {
 
     /** B's archived stderr is the only technical diagnostic returned to the Coding loop. */
     public String stderr(KernelDataScope scope, String taskId, String operationId) {
+        return diagnostic(scope,taskId,operationId,"stderr.txt");
+    }
+    public String stdout(KernelDataScope scope,String taskId,String operationId) {
+        return diagnostic(scope,taskId,operationId,"stdout.txt");
+    }
+    private String diagnostic(KernelDataScope scope,String taskId,String operationId,String logName) {
         tasks.get(scope, taskId);
         var stopped = get(scope, taskId, operationId);
         if (!stopped.executorStopped() || "UNKNOWN".equals(stopped.status()))
             throw new IllegalStateException("Python diagnostic is not archived");
         byte[] bytes = python.artifact(scope.tenantId(), scope.userId(), scope.runId(), taskId,
-            operationId, "logs", "stderr.txt");
+            operationId, "logs", logName);
         return new String(bytes, 0, Math.min(bytes.length, 8_192), StandardCharsets.UTF_8);
     }
 
@@ -93,6 +108,11 @@ public class CodingPythonExecutionBridge {
         if (!stopped.cancellationRequested()) return get(scope, taskId, operationId);
         CodingJournal.Lease current = tasks.ownership(scope, taskId);
         return python.cancel(scope.tenantId(), scope.userId(), scope.runId(), taskId, operationId, current.fencingToken());
+    }
+    /** Stop one tool operation after transport/SDK interruption without inventing a user task cancellation. */
+    public McpPythonControlPlanePort.OperationView cancelExecution(KernelDataScope scope,String taskId,String operationId) {
+        tasks.get(scope,taskId);
+        return python.cancel(scope.tenantId(),scope.userId(),scope.runId(),taskId,operationId,tasks.ownership(scope,taskId).fencingToken());
     }
 
     /** Reconciles confirmed stop and known lower-bound usage; unknown CPU/cost keep their A2 reservations. */
@@ -112,7 +132,7 @@ public class CodingPythonExecutionBridge {
                 outputBytes = Math.addExact(outputBytes, item.path("size").asLong());
             boolean actuallyStarted = mapper.readTree(receipt).path("startedAt").isTextual();
             return tasks.settle(scope, taskId, lease, current.revision(), operationId,
-                    new CodingTaskOutcome.Counters(0, 0, 0, actuallyStarted ? 1 : 0,
+                    new CodingTaskOutcome.Counters(0, 0, tasks.contract(scope,taskId).authorization().allowedTools().contains("python_execute") ? 1 : 0, actuallyStarted ? 1 : 0,
                             0, 0, outputBytes, "0"), false);
         } catch (Exception ex) { throw new IllegalStateException("Python usage requires reconciliation", ex); }
     }

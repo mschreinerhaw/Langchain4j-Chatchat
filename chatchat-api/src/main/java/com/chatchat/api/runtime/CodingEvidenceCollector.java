@@ -23,6 +23,15 @@ import java.util.*;
 @Service
 @ConditionalOnProperty(prefix = "chatchat.coding", name = "enabled", havingValue = "true")
 public class CodingEvidenceCollector {
+    public static final class InvalidStructuredResultException extends IllegalStateException {
+        public InvalidStructuredResultException(String message){super(message);}
+    }
+    private CodingDataSupplyService dataSupply;
+    private CodingValidationPlanService validationPlans;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setValidationPlans(CodingValidationPlanService value){this.validationPlans=value;}
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setDataSupply(CodingDataSupplyService value){this.dataSupply=value;}
     public enum Stage { STAGED, VERIFIED, COMMITTED }
     public record InputFile(String fileId, String fileName, String sha256) { }
     public record Validation(boolean passed, String verifierId, String ruleVersion, Map<String, Object> checks,
@@ -68,6 +77,13 @@ public class CodingEvidenceCollector {
     /** Retry-safe after a crash at either stage boundary. The executor is never restarted here. */
     public Collected collect(KernelDataScope scope, CodingTaskContract contract, String operationId,
             String codeFile, String resultFile, List<InputFile> inputs, IndependentValidator validator) {
+        boolean dynamic=com.chatchat.common.runtime.coding.CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion());
+        if(dynamic) {
+            if(dataSupply==null)throw new SecurityException("Dynamic input verification unavailable");
+            if(validationPlans==null)throw new SecurityException("Versioned input validation unavailable");
+            validator=validationPlans.validator(contract,dataSupply.snapshots(contract,operationId));
+            inputs=dataSupply.snapshots(contract,operationId).stream().map(s->new InputFile(s.fileId(),s.fileName(),s.sha256())).toList();
+        }
         Objects.requireNonNull(contract); Objects.requireNonNull(validator);
         if (!sameOwner(scope, contract.scope())) throw new SecurityException("Coding task owner mismatch");
         tasks.get(scope, contract.taskId()).validateAgainst(contract);
@@ -124,7 +140,7 @@ public class CodingEvidenceCollector {
         long occurredAt = java.time.Instant.parse(receiptJson.path("startedAt").asText()).toEpochMilli();
         List<Map<String, Object>> inputFacts = new ArrayList<>();
         for (InputFile input : inputs == null ? List.<InputFile>of() : inputs) {
-            if (!contract.authorization().allowedDataRefs().contains(input.fileId())
+            if (!dynamic && !contract.authorization().allowedDataRefs().contains(input.fileId())
                     && !contract.authorization().allowedDataRefs().contains("mcp-python:data-file:" + input.fileId()))
                 throw new SecurityException("Input file is not authorized");
             byte[] bytes = artifact(scope, contract.taskId(), operationId, "input-" + input.fileId(), input.fileName());
@@ -144,7 +160,7 @@ public class CodingEvidenceCollector {
                     || !evidence.contentHash(stored.payload()).equals(stored.contentSha256())
                     || !(trustedPrecaptured || collectorArchived))
                 throw new SecurityException("Input snapshot is not bound to this Coding task");
-            if (trustedPrecaptured && !inputFacts.isEmpty() && (inputFacts.size() != 1
+            if (!dynamic && trustedPrecaptured && !inputFacts.isEmpty() && (inputFacts.size() != 1
                     || !Objects.equals(inputFacts.get(0).get("fileId"), stored.payload().get("fileId"))
                     || !Objects.equals(inputFacts.get(0).get("fileName"), stored.payload().get("fileName"))
                     || !Objects.equals(inputFacts.get(0).get("sha256"), stored.payload().get("sha256"))))
@@ -154,6 +170,7 @@ public class CodingEvidenceCollector {
         String stem = "coding:" + sha((scope.tenantId() + "\0" + scope.userId() + "\0" + scope.runId()
                 + "\0" + contract.taskId() + "\0" + operationId).getBytes(StandardCharsets.UTF_8));
         String inputId = id(contract.inputSnapshotRef());
+        List<String> inputParents=dynamic?dataSupply.provenanceIds(contract,operationId):List.of(inputId);
         String codeId = stem + ":code", receiptId = stem + ":receipt", resultId = stem + ":result";
         String validationId = stem + ":validation", bundleId = stem + ":bundle";
         List<EvidenceRecord> records = new ArrayList<>();
@@ -163,14 +180,16 @@ public class CodingEvidenceCollector {
             add(records, lineages, scope, inputId, "CODING_INPUT_SNAPSHOT",
             Map.of("files", inputFacts, "contractRef", contract.inputSnapshotRef()), List.of(), contract.taskId(), occurredAt);
         add(records, lineages, scope, codeId, "CODING_CODE_ARTIFACT",
-            location(operationId, "code", codeFile, sha(code), code.length), List.of(inputId), contract.taskId(), occurredAt);
+            location(operationId, "code", codeFile, sha(code), code.length), inputParents, contract.taskId(), occurredAt);
         add(records, lineages, scope, receiptId, "CODING_EXECUTION_RECEIPT",
             location(operationId, "logs", "receipt.json", sha(receipt), receipt.length), List.of(codeId), contract.taskId(), occurredAt);
         Map<String, Object> result = new LinkedHashMap<>(location(operationId, "results", resultFile, sha(resultBytes), resultBytes.length));
         result.put("rowCount", resultRows.size()); result.put("schemaJson", resultEntry.path("schemaJson").asText(""));
         result.put("completeness", expected); result.put("resultSchemaRef", contract.outputContract().resultSchemaRef());
+        if(dynamic)result.put("inputVersions",mapper.convertValue(dataSupply.snapshots(contract,operationId),
+            new com.fasterxml.jackson.core.type.TypeReference<List<Map<String,Object>>>(){}));
         add(records, lineages, scope, resultId, "CODING_STRUCTURED_DATASET", result,
-            List.of(inputId, codeId, receiptId), contract.taskId(), occurredAt);
+            java.util.stream.Stream.concat(inputParents.stream(),java.util.stream.Stream.of(codeId,receiptId)).toList(), contract.taskId(), occurredAt);
         add(records, lineages, scope, validationId, "CODING_COMPUTATION_VALIDATION",
             Map.of("status", validation.status().name(), "checks", validation.checks(),
                 "structuralChecksPassed", validation.passed(), "businessEvaluated", validation.businessEvaluated(),
@@ -183,7 +202,7 @@ public class CodingEvidenceCollector {
         String key = "coding-evidence:" + stem;
         String stageBase = sha(mapperBytes(Map.of("records", records, "lineages", lineages,
             "bundleId", bundleId, "metadata", bundleMetadata)));
-        List<String> bundleEvidenceIds = List.of(inputId, codeId, receiptId, resultId, validationId);
+        List<String> bundleEvidenceIds = java.util.stream.Stream.concat(inputParents.stream(),java.util.stream.Stream.of(codeId,receiptId,resultId,validationId)).toList();
         String staged = stageJson(Stage.STAGED, stageBase), verified = stageJson(Stage.VERIFIED, stageBase);
         String committed = stageJson(Stage.COMMITTED, stageBase);
         Optional<String> current = checkpoints.readExecutionCheckpoint(scope, key);
@@ -288,15 +307,15 @@ public class CodingEvidenceCollector {
             while ((line = reader.readLine()) != null) {
                 if (line.isBlank()) continue;
                 JsonNode row = mapper.readTree(line);
-                if (!row.isObject()) throw new IllegalStateException("JSONL row must be an object");
+                if (!row.isObject()) throw new InvalidStructuredResultException("JSONL row must be an object");
                 TreeMap<String, String> types = new TreeMap<>();
                 row.properties().forEach(e -> types.put(e.getKey(), e.getValue().getNodeType().name()));
                 String nextSchema = mapper.writeValueAsString(types);
-                if (schema != null && !schema.equals(nextSchema)) throw new IllegalStateException("JSONL schema changed");
+                if (schema != null && !schema.equals(nextSchema)) throw new InvalidStructuredResultException("JSONL column types changed between rows; use one explicit output schema");
                 schema = nextSchema;
                 result.add(mapper.convertValue(row, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {}));
             }
-        } catch (java.io.IOException error) { throw new IllegalStateException("JSONL cannot be read", error); }
+        } catch (java.io.IOException error) { throw new InvalidStructuredResultException("Result is not valid JSONL"); }
         if (manifestEntry != null && (manifestEntry.path("rows").asLong(-1) != result.size()
                 || !Objects.equals(schema == null ? "" : schema, manifestEntry.path("schemaJson").asText(""))))
             throw new IllegalStateException("JSONL schema or row count differs from manifest");

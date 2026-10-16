@@ -256,7 +256,9 @@ async function generate() { await action(async () => {
 async function resume() { await action(async () => {
   const prepared = result.value?.generation.prepared; if (!prepared) return;
   pendingPhase.value = 'SUBMITTING'; pendingStartedAt.value = Date.now();
-  try { const task = await sql.submitSqlGeneration(projectId.value, prepared); result.value.task = task; }
+  try { const task = result.value?.task && prepared.taskRequest?.toolInput?.codingWorkspaceProfile==='SQL_WORKSPACE_V2'
+      ? await sql.resumeSqlCodingGeneration(projectId.value,prepared.generationId)
+      : await sql.submitSqlGeneration(projectId.value, prepared); result.value.task = task; }
   finally { await refreshGeneration(); pendingPhase.value = ''; }
 }); }
 function newConversation() {

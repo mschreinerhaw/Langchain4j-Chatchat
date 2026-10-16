@@ -29,17 +29,27 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     private final String secret;
     private final ObjectMapper mapper;
     private final HttpClient http;
+    private final java.time.Clock clock;
     private final String workerId = "cline-adapter:" + UUID.randomUUID();
     private CodingWorkspaceService workspace;
     public void setWorkspace(CodingWorkspaceService workspace) { this.workspace = workspace; }
+    private CodingDataSupplyService dataSupply;
+    public void setDataSupply(CodingDataSupplyService value) {this.dataSupply=value;}
 
     public ClineCodingAdapter(DurableCodingTaskService tasks, CodingPythonExecutionBridge python,
             CodingInputSnapshotService inputs, CodingValidationPlanService plans,
             CodingEvidenceCollector collector, ClineModelReceiptStore receipts,
             URI node, String secret, ObjectMapper mapper) {
+        this(tasks,python,inputs,plans,collector,receipts,node,secret,mapper,java.time.Clock.systemUTC());
+    }
+    ClineCodingAdapter(DurableCodingTaskService tasks, CodingPythonExecutionBridge python,
+            CodingInputSnapshotService inputs, CodingValidationPlanService plans,
+            CodingEvidenceCollector collector, ClineModelReceiptStore receipts,
+            URI node, String secret, ObjectMapper mapper, java.time.Clock clock) {
         this.tasks = tasks; this.python = python; this.inputs = inputs; this.plans = plans;
         this.collector = collector; this.receipts = receipts;
         this.node = node; this.secret = secret; this.mapper = mapper;
+        this.clock=clock;
         if (node == null || !"http".equals(node.getScheme()) || node.getHost() == null
                 || !List.of("localhost", "127.0.0.1").contains(node.getHost()) || node.getUserInfo() != null)
             throw new IllegalArgumentException("D1 Node SDK service must use explicit loopback HTTP");
@@ -53,7 +63,12 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             if (workspace == null) throw new IllegalStateException("Workspace Coding profile is not enabled");
             workspace.requireAuthorized(contract);
         } else {
-        if (!java.util.Set.of("python_execute").containsAll(contract.authorization().allowedTools()))
+        boolean dynamic=CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion());
+        if(dynamic) {
+            if(dataSupply==null)throw new SecurityException("Dynamic analysis is unavailable");
+            if(contract.authorization().allowedTools().contains("data_request"))dataSupply.requireAuthorized(contract);
+        }
+        if (!(dynamic?java.util.Set.of("python_execute","data_request","sql_validate"):java.util.Set.of("python_execute")).containsAll(contract.authorization().allowedTools()))
             throw new IllegalArgumentException("D1 permits only the implemented Runtime Python callback");
         inputs.requireAuthorized(contract);
         plans.validator(contract);
@@ -69,8 +84,8 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         if (accepted.status().terminal() || accepted.executionControl().stopReason() != null) return accepted;
         KernelDataScope scope = contract.scope();
         CodingJournal.Lease lease = tasks.ownership(scope, contract.taskId());
-        if (lease.leaseUntil().isAfter(Instant.now()) && !workerId.equals(lease.owner())) return accepted;
-        if (!lease.leaseUntil().isAfter(Instant.now()))
+        if (lease.leaseUntil().isAfter(clock.instant()) && !workerId.equals(lease.owner())) return accepted;
+        if (!lease.leaseUntil().isAfter(clock.instant()))
             lease = tasks.claim(scope, contract.taskId(), workerId, Duration.ofSeconds(90), accepted.revision());
         accepted = tasks.get(scope, contract.taskId());
         if (accepted.status().terminal() || accepted.executionControl().stopReason() != null) return accepted;
@@ -101,7 +116,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         CodingTaskOutcome current = tasks.resume(scope, taskId);
         if (current.status().terminal()) return current;
         CodingJournal.Lease lease = tasks.ownership(scope, taskId);
-        if (!lease.leaseUntil().isAfter(Instant.now())) {
+        if (!lease.leaseUntil().isAfter(clock.instant())) {
             lease = tasks.claim(scope, taskId, workerId, Duration.ofMinutes(5), current.revision());
             current = tasks.get(scope, taskId);
         }
@@ -130,6 +145,10 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         // Only Python operations have MCP execution identities. Model starts retain their
         // reservations until the receipt can be reconciled; they are never dispatched again.
         for (String operationId : tasks.unresolvedOperations(scope, taskId)) {
+            if(operationId.matches("data-[0-9a-f]{64}")) {
+                if(dataSupply!=null&&workerId.equals(lease.owner()))dataSupply.recover(tasks.contract(scope,taskId),lease,operationId);
+                continue;
+            }
             if (operationId.matches("model-[1-9][0-9]{0,5}")) {
                 if (workerId.equals(lease.owner())) reconcileModel(scope, taskId, lease, operationId);
                 continue;
@@ -143,6 +162,19 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             } catch (RuntimeException unavailable) { return tasks.get(scope, taskId); }
         }
         current = tasks.get(scope, taskId);
+        // A live SDK is reused above. The SDK has no cross-process reconnect API;
+        // only a Java-committed, fully settled boundary can seed a NEW instance.
+        if (sessionMissing && workerId.equals(lease.owner())
+                && current.executionControl().stopReason() == null
+                && tasks.unresolvedOperations(scope, taskId).isEmpty()) {
+            JsonNode checkpoint = tasks.sdkCheckpoint(scope, taskId);
+            if (checkpoint != null) {
+                request("/v1/runs", Map.of("contract", tasks.contract(scope, taskId),
+                    "contractHash", current.contractSha256(), "fencingToken", lease.fencingToken(),
+                    "checkpoint", checkpoint));
+                return tasks.get(scope, taskId);
+            }
+        }
         if (workerId.equals(lease.owner()) && current.executionControl().stopReason() != null
                 && remote != null && List.of("COMPLETED", "FAILED", "CANCELLED").contains(remote.path("status").asText())
                 && tasks.unresolvedOperations(scope, taskId).isEmpty())
@@ -176,6 +208,8 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         List<String> operations = tasks.startedCodeOperations(scope, taskId);
         if (operations.isEmpty()) return null;
         String operationId = operations.get(operations.size() - 1);
+        if(CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion()) && (dataSupply==null
+            || !dataSupply.snapshots(contract,null).equals(dataSupply.snapshots(contract,operationId))))return null;
         if (tasks.verifiedOperation(scope, taskId, operationId).isEmpty()) return null;
         var operation = python.get(scope, taskId, operationId);
         if (!operation.executorStopped() || !"SUCCEEDED".equals(operation.status())
@@ -186,7 +220,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             List.of(new CodingEvidenceCollector.InputFile(
                 input.fileId(), input.fileName(), input.sha256())), plans.validator(contract));
         CodingTaskOutcome current = tasks.get(scope, taskId);
-        Instant at = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+        Instant at = clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
         if (at.isBefore(current.updatedAt())) at = current.updatedAt();
         var proposal = new CodingTaskOutcome(current.schemaVersion(), current.taskId(),
             current.scope(), current.contractSha256(), CodingTaskOutcome.Status.COMPLETED,

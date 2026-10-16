@@ -8,6 +8,8 @@ import com.chatchat.common.security.InternalRequestSigner;
 import com.fasterxml.jackson.databind.*;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.core.io.ClassPathResource;
@@ -31,7 +33,9 @@ import static org.mockito.ArgumentMatchers.*;
 @EnabledIfSystemProperty(named="coding.nodeE2e",matches="true")
 @EnabledIfSystemProperty(named="coding.sqlglotPython",matches=".+")
 class CodingWorkspaceNodeIntegrationTest {
-    @Test void sharedWorkerReadsContextRepairsSqlAndCommitsVersionedCandidatesWithoutDatabaseExecution() throws Exception {
+    @ParameterizedTest @ValueSource(strings={"mysql","python"})
+    void sharedWorkerReadsContextRepairsSourceAndCommitsVersionedCandidatesWithoutExecution(String dialect) throws Exception {
+        boolean pythonProfile="python".equals(dialect);
         String secret="fixture-only-coding-workspace-shared-secret";
         var json=new ObjectMapper().findAndRegisterModules().disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         var source=new DriverManagerDataSource("jdbc:h2:mem:node-workspace-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa","");
@@ -61,8 +65,9 @@ class CodingWorkspaceNodeIntegrationTest {
                     if(turn==2)assertThat(request.toString()).contains("authorized Mapping","historical SQL");
                     if(turn==3)assertThat(request.toString()).contains("FAILED");
                     tools=List.of(Map.of("id","proposal-"+turn,"name","workspace_propose","input",Map.of("files",List.of(
-                        Map.of("path","sql/a.sql","content",turn==2?"SELECT * FROM":"-- preserve original comment\nSELECT 1;"),
-                        Map.of("path","etl/b.sql","content","SELECT 2;")),"notes","Candidate source only; no SQL executed")));
+                        Map.of("path",pythonProfile?"src/a.py":"sql/a.sql","content",pythonProfile
+                            ?turn==2?"def broken(":"# preserve original comment\nprint(1)":turn==2?"SELECT * FROM":"-- preserve original comment\nSELECT 1;"),
+                        Map.of("path",pythonProfile?"src/b.py":"etl/b.sql","content",pythonProfile?"def helper():\n    return 2\n":"SELECT 2;")),"notes","Candidate source only; no code executed")));
                 }else tools=List.of();
                 return Map.of("text",turn>3?"Review the parsed candidates.":"","toolCalls",tools,
                     "usage",Map.of("inputTokens",10,"outputTokens",10));
@@ -85,6 +90,7 @@ class CodingWorkspaceNodeIntegrationTest {
                     reply=switch(action){
                         case "reserve-model"->controller.reserve(body);case "model"->controller.model(body);
                         case "settle-model"->controller.settle(body);case "event"->controller.event(body);
+                        case "checkpoint"->controller.checkpoint(body);
                         case "finish"->controller.finish(body);case "workspace-read"->controller.readWorkspace(body);
                         case "workspace-propose"->controller.proposeWorkspace(body);
                         default->throw new IllegalArgumentException("Unexpected callback "+action);
@@ -114,7 +120,7 @@ class CodingWorkspaceNodeIntegrationTest {
                 mock(CodingEvidenceCollector.class),receipts,URI.create("http://127.0.0.1:"+port),secret,json);
             adapter.setWorkspace(workspace);beans.registerSingleton("codingAgent",adapter);
             var scope=new KernelDataScope("tenant","owner",null,null,"node-run",null,Map.of());
-            var outcome=workspace.submit(scope,"node-task","Use authorized Mapping and historical SQL to produce a two-file SQL project.","mysql","");
+            var outcome=workspace.submit(scope,"node-task","Use authorized Mapping and historical SQL to produce a two-file source project.",dialect,"");
             long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(30);
             while(!outcome.status().terminal() && System.nanoTime()<deadline){Thread.sleep(50);outcome=workspace.get(scope,"node-task");}
             assertThat(outcome.status()).as("%s %s; worker: %s",outcome.reasonCode(),outcome.summary(),workerLog(node))

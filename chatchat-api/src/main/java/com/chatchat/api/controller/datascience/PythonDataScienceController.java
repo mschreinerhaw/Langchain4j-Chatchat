@@ -155,6 +155,26 @@ public class PythonDataScienceController {
             return codeAssistant.assist(s.tenant(), s.user(), body);
         });
     }
+    @GetMapping("/assist/coding/capabilities")
+    public ApiResponse<?> codingCapabilities(HttpServletRequest request) {
+        scope(request);return ApiResponse.success(codeAssistant.codingCapabilities());
+    }
+    @PostMapping("/assist/coding")
+    public ApiResponse<?> startCoding(@RequestBody PythonCodeAssistantService.CodingAssistRequest body,HttpServletRequest request) {
+        return call(()->{Scope s=scope(request);return codeAssistant.startCoding(s.tenant(),s.user(),body);});
+    }
+    @GetMapping("/assist/coding/{task}")
+    public ApiResponse<?> codingResult(@PathVariable("task") String task,HttpServletRequest request) {
+        return call(()->{Scope s=scope(request);return codeAssistant.codingResult(s.tenant(),s.user(),task,false);});
+    }
+    @PostMapping("/assist/coding/{task}/cancel")
+    public ApiResponse<?> cancelCoding(@PathVariable("task") String task,HttpServletRequest request) {
+        return call(()->{Scope s=scope(request);return codeAssistant.codingResult(s.tenant(),s.user(),task,true);});
+    }
+    @PostMapping("/assist/coding/{task}/resume")
+    public ApiResponse<?> resumeCoding(@PathVariable("task") String task,HttpServletRequest request) {
+        return call(()->{Scope s=scope(request);return codeAssistant.resumeCoding(s.tenant(),s.user(),task);});
+    }
 
     private record AssistSkillOption(String id, String name, String category, String description) { }
 

@@ -1,0 +1,2231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:chatchat:runtime-os:coding:v3",
+  "title": "Runtime OS Coding v3 analysis wire contracts",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/task"
+    },
+    {
+      "$ref": "#/$defs/outcome"
+    },
+    {
+      "$ref": "#/$defs/event"
+    },
+    {
+      "$ref": "#/$defs/error"
+    }
+  ],
+  "$defs": {
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "time": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,3})?Z$"
+    },
+    "decimal": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "runId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "requestId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "conversationId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "environment": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attributes": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "tenantId",
+        "userId",
+        "runId"
+      ],
+      "additionalProperties": true
+    },
+    "objective": {
+      "type": "object",
+      "properties": {
+        "instruction": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32768,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "deliverables": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+          },
+          "uniqueItems": true,
+          "minItems": 1,
+          "maxItems": 256
+        },
+        "acceptanceCriteriaRefs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+          },
+          "uniqueItems": true,
+          "minItems": 1,
+          "maxItems": 256
+        }
+      },
+      "required": [
+        "instruction",
+        "deliverables",
+        "acceptanceCriteriaRefs"
+      ],
+      "additionalProperties": true
+    },
+    "authorization": {
+      "type": "object",
+      "properties": {
+        "decisionRef": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "allowedTools": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+          },
+          "uniqueItems": true,
+          "minItems": 0,
+          "maxItems": 256
+        },
+        "allowedDataRefs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+          },
+          "uniqueItems": true,
+          "minItems": 0,
+          "maxItems": 256
+        },
+        "readablePathRefs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+          },
+          "uniqueItems": true,
+          "minItems": 0,
+          "maxItems": 256
+        },
+        "writablePathRefs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+          },
+          "uniqueItems": true,
+          "minItems": 0,
+          "maxItems": 256
+        },
+        "networkPolicy": {
+          "type": "string",
+          "enum": [
+            "NONE",
+            "ALLOWLIST"
+          ]
+        },
+        "networkAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+          },
+          "uniqueItems": true,
+          "minItems": 0,
+          "maxItems": 256
+        },
+        "allowedSideEffects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "WORKSPACE_WRITE",
+              "CODE_EXECUTION",
+              "DEPENDENCY_INSTALL"
+            ]
+          },
+          "uniqueItems": true,
+          "minItems": 0,
+          "maxItems": 3
+        }
+      },
+      "required": [
+        "decisionRef",
+        "allowedTools",
+        "allowedDataRefs",
+        "readablePathRefs",
+        "writablePathRefs",
+        "networkPolicy",
+        "networkAllowlist",
+        "allowedSideEffects"
+      ],
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "networkPolicy": {
+                "const": "NONE"
+              }
+            },
+            "required": [
+              "networkPolicy"
+            ]
+          },
+          "then": {
+            "properties": {
+              "networkAllowlist": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "networkPolicy": {
+                "const": "ALLOWLIST"
+              }
+            },
+            "required": [
+              "networkPolicy"
+            ]
+          },
+          "then": {
+            "properties": {
+              "networkAllowlist": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "budget": {
+      "type": "object",
+      "properties": {
+        "budgetId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "deadlineAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,3})?Z$"
+        },
+        "maxModelCalls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "maxModelTokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "maxToolCalls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "maxCodeExecutions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "maxCpuMillis": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "maxMemoryBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "maxOutputBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "maxCostAmount": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+        },
+        "costCurrency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        }
+      },
+      "required": [
+        "budgetId",
+        "deadlineAt",
+        "maxModelCalls",
+        "maxModelTokens",
+        "maxToolCalls",
+        "maxCodeExecutions",
+        "maxCpuMillis",
+        "maxMemoryBytes",
+        "maxOutputBytes",
+        "maxCostAmount",
+        "costCurrency"
+      ],
+      "additionalProperties": true
+    },
+    "outputContract": {
+      "type": "object",
+      "properties": {
+        "resultFormat": {
+          "type": "string",
+          "enum": [
+            "JSON_LINES"
+          ]
+        },
+        "resultSchemaRef": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "validationSchemaRef": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "requiredFiles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*\\.[A-Za-z0-9]+$"
+          },
+          "uniqueItems": true,
+          "minItems": 1,
+          "maxItems": 256
+        },
+        "acceptedMediaTypes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+          },
+          "uniqueItems": true,
+          "minItems": 1,
+          "maxItems": 256
+        },
+        "maxResultRows": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "maxResultBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "requiredEvidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "INPUT_SNAPSHOT",
+              "CODE_ARTIFACT",
+              "EXECUTION_RECEIPT",
+              "RESULT_DATASET",
+              "VALIDATION_RECORD",
+              "EVIDENCE_BUNDLE"
+            ]
+          },
+          "uniqueItems": true,
+          "minItems": 0,
+          "maxItems": 6
+        }
+      },
+      "required": [
+        "resultFormat",
+        "resultSchemaRef",
+        "validationSchemaRef",
+        "requiredFiles",
+        "acceptedMediaTypes",
+        "maxResultRows",
+        "maxResultBytes",
+        "requiredEvidence"
+      ],
+      "additionalProperties": true
+    },
+    "task": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": "runtime_os.coding.v3"
+        },
+        "taskId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "scope": {
+          "$ref": "#/$defs/scope"
+        },
+        "objective": {
+          "$ref": "#/$defs/objective"
+        },
+        "inputSnapshotRef": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "metadataRefs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+          },
+          "uniqueItems": true,
+          "minItems": 0,
+          "maxItems": 256
+        },
+        "workspaceRef": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "authorization": {
+          "$ref": "#/$defs/authorization"
+        },
+        "budget": {
+          "$ref": "#/$defs/budget"
+        },
+        "environmentRef": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "validationPlanRef": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "outputContract": {
+          "$ref": "#/$defs/outputContract"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "taskId",
+        "scope",
+        "objective",
+        "inputSnapshotRef",
+        "metadataRefs",
+        "workspaceRef",
+        "authorization",
+        "budget",
+        "environmentRef",
+        "validationPlanRef",
+        "outputContract"
+      ],
+      "additionalProperties": true
+    },
+    "counters": {
+      "type": "object",
+      "properties": {
+        "modelCalls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "modelTokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "toolCalls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "codeExecutions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "cpuMillis": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "peakMemoryBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "outputBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "costAmount": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+        }
+      },
+      "required": [
+        "modelCalls",
+        "modelTokens",
+        "toolCalls",
+        "codeExecutions",
+        "cpuMillis",
+        "peakMemoryBytes",
+        "outputBytes",
+        "costAmount"
+      ],
+      "additionalProperties": true
+    },
+    "usage": {
+      "type": "object",
+      "properties": {
+        "budgetId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "costCurrency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "consumed": {
+          "$ref": "#/$defs/counters"
+        },
+        "reserved": {
+          "$ref": "#/$defs/counters"
+        },
+        "meteringComplete": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "budgetId",
+        "costCurrency",
+        "consumed",
+        "reserved",
+        "meteringComplete"
+      ],
+      "additionalProperties": true
+    },
+    "executionControl": {
+      "type": "object",
+      "properties": {
+        "stopReason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "CANCEL_REQUESTED",
+                "BUDGET_EXCEEDED",
+                "DEADLINE_EXCEEDED"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stopRequestedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,3})?Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "executorStopped": {
+          "type": "boolean"
+        },
+        "reconciliationRequired": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "stopReason",
+        "stopRequestedAt",
+        "executorStopped",
+        "reconciliationRequired"
+      ],
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "stopReason": {
+                "const": null
+              }
+            },
+            "required": [
+              "stopReason"
+            ]
+          },
+          "then": {
+            "properties": {
+              "stopRequestedAt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "stopReason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "stopReason"
+            ]
+          },
+          "then": {
+            "properties": {
+              "stopRequestedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,3})?Z$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "reproducibility": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": [
+            "FULL",
+            "CONDITIONAL",
+            "UNAVAILABLE"
+          ]
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+          },
+          "uniqueItems": true,
+          "minItems": 0,
+          "maxItems": 256
+        },
+        "dependencyRefs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+          },
+          "uniqueItems": true,
+          "minItems": 0,
+          "maxItems": 256
+        }
+      },
+      "required": [
+        "level",
+        "limitations",
+        "dependencyRefs"
+      ],
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "level": {
+                "const": "FULL"
+              }
+            },
+            "required": [
+              "level"
+            ]
+          },
+          "then": {
+            "properties": {
+              "limitations": {
+                "maxItems": 0
+              },
+              "dependencyRefs": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "level": {
+                "type": "string",
+                "enum": [
+                  "CONDITIONAL",
+                  "UNAVAILABLE"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "limitations": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "outcome": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": "runtime_os.coding.v3"
+        },
+        "taskId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "scope": {
+          "$ref": "#/$defs/scope"
+        },
+        "contractSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "CREATED",
+            "RUNNING",
+            "COMPLETED",
+            "PARTIAL",
+            "FAILED",
+            "CANCELLED",
+            "BUDGET_EXCEEDED"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "lastEventSequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,3})?Z$"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,3})?Z$"
+        },
+        "startedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,3})?Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "endedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,3})?Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cancellationRequested": {
+          "type": "boolean"
+        },
+        "reasonCode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "CONTRACT_INVALID",
+                "VERSION_UNSUPPORTED",
+                "NOT_FOUND",
+                "AUTHORIZATION_DENIED",
+                "TASK_ID_CONFLICT",
+                "EXECUTION_OUTCOME_UNKNOWN",
+                "EVENT_CURSOR_EXPIRED",
+                "ADAPTER_UNAVAILABLE",
+                "INVALID_STATE_TRANSITION",
+                "EXECUTION_FAILED",
+                "OUTPUT_CONTRACT_VIOLATION",
+                "EVIDENCE_COMMIT_FAILED",
+                "CANCEL_REQUESTED",
+                "BUDGET_EXCEEDED",
+                "DEADLINE_EXCEEDED",
+                "RECONCILIATION_REQUIRED",
+                "SUBSCRIPTION_OVERFLOW"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+          },
+          "uniqueItems": true,
+          "minItems": 0,
+          "maxItems": 256
+        },
+        "inputSnapshotRef": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "codeArtifactRef": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "executionReceiptRef": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "resultDatasetRef": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validationRecordRef": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidenceBundleRef": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validationStatus": {
+          "type": "string",
+          "enum": [
+            "PASSED",
+            "FAILED",
+            "INCONCLUSIVE",
+            "NOT_RUN"
+          ]
+        },
+        "reproducibility": {
+          "$ref": "#/$defs/reproducibility"
+        },
+        "usage": {
+          "$ref": "#/$defs/usage"
+        },
+        "executionControl": {
+          "$ref": "#/$defs/executionControl"
+        },
+        "parentTaskId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "supersedesTaskId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "perArtifactCompleteness": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "enum": [
+              "INPUT_SNAPSHOT",
+              "CODE_ARTIFACT",
+              "EXECUTION_RECEIPT",
+              "RESULT_DATASET",
+              "VALIDATION_RECORD",
+              "EVIDENCE_BUNDLE"
+            ]
+          },
+          "additionalProperties": {
+            "type": "string",
+            "enum": [
+              "COMPLETE",
+              "PARTIAL",
+              "UNKNOWN"
+            ]
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "taskId",
+        "scope",
+        "contractSha256",
+        "status",
+        "revision",
+        "lastEventSequence",
+        "createdAt",
+        "updatedAt",
+        "startedAt",
+        "endedAt",
+        "cancellationRequested",
+        "reasonCode",
+        "summary",
+        "limitations",
+        "inputSnapshotRef",
+        "codeArtifactRef",
+        "executionReceiptRef",
+        "resultDatasetRef",
+        "validationRecordRef",
+        "evidenceBundleRef",
+        "validationStatus",
+        "reproducibility",
+        "usage"
+      ],
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "COMPLETED",
+                  "PARTIAL",
+                  "FAILED",
+                  "CANCELLED",
+                  "BUDGET_EXCEEDED"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "executionControl"
+            ],
+            "properties": {
+              "endedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,3})?Z$"
+              },
+              "executionControl": {
+                "properties": {
+                  "executorStopped": {
+                    "const": true
+                  },
+                  "reconciliationRequired": {
+                    "const": false
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "endedAt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "CREATED"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "startedAt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "RUNNING"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "startedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,3})?Z$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "COMPLETED"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "startedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,3})?Z$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "PARTIAL"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "startedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,3})?Z$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "COMPLETED"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "inputSnapshotRef": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+              },
+              "codeArtifactRef": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+              },
+              "executionReceiptRef": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+              },
+              "resultDatasetRef": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+              },
+              "validationRecordRef": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+              },
+              "evidenceBundleRef": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+              },
+              "reasonCode": {
+                "type": "null"
+              },
+              "cancellationRequested": {
+                "const": false
+              },
+              "validationStatus": {
+                "type": "string",
+                "enum": [
+                  "PASSED",
+                  "FAILED",
+                  "INCONCLUSIVE"
+                ]
+              },
+              "executionControl": {
+                "properties": {
+                  "stopReason": {
+                    "type": "null"
+                  }
+                }
+              },
+              "perArtifactCompleteness": {
+                "additionalProperties": {
+                  "const": "COMPLETE"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "PARTIAL",
+                  "FAILED",
+                  "CANCELLED",
+                  "BUDGET_EXCEEDED"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reasonCode": {
+                "type": "string",
+                "enum": [
+                  "CONTRACT_INVALID",
+                  "VERSION_UNSUPPORTED",
+                  "NOT_FOUND",
+                  "AUTHORIZATION_DENIED",
+                  "TASK_ID_CONFLICT",
+                  "EXECUTION_OUTCOME_UNKNOWN",
+                  "EVENT_CURSOR_EXPIRED",
+                  "ADAPTER_UNAVAILABLE",
+                  "INVALID_STATE_TRANSITION",
+                  "EXECUTION_FAILED",
+                  "OUTPUT_CONTRACT_VIOLATION",
+                  "EVIDENCE_COMMIT_FAILED",
+                  "CANCEL_REQUESTED",
+                  "BUDGET_EXCEEDED",
+                  "DEADLINE_EXCEEDED",
+                  "RECONCILIATION_REQUIRED",
+                  "SUBSCRIPTION_OVERFLOW"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "CANCELLED"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "reasonCode": {
+                "const": "CANCEL_REQUESTED"
+              },
+              "cancellationRequested": {
+                "const": true
+              },
+              "executionControl": {
+                "properties": {
+                  "stopReason": {
+                    "const": "CANCEL_REQUESTED"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "BUDGET_EXCEEDED"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "executionControl": {
+                "properties": {
+                  "stopReason": {
+                    "type": "string",
+                    "enum": [
+                      "BUDGET_EXCEEDED",
+                      "DEADLINE_EXCEEDED"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "BUDGET_EXCEEDED"
+              },
+              "executionControl": {
+                "properties": {
+                  "stopReason": {
+                    "const": "BUDGET_EXCEEDED"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reasonCode": {
+                "const": "BUDGET_EXCEEDED"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "BUDGET_EXCEEDED"
+              },
+              "executionControl": {
+                "properties": {
+                  "stopReason": {
+                    "const": "DEADLINE_EXCEEDED"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reasonCode": {
+                "const": "DEADLINE_EXCEEDED"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "validationStatus": {
+                "type": "string",
+                "enum": [
+                  "PASSED",
+                  "FAILED",
+                  "INCONCLUSIVE"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "validationRecordRef": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "executionControl": {
+                "properties": {
+                  "stopReason": {
+                    "const": "CANCEL_REQUESTED"
+                  }
+                },
+                "required": [
+                  "stopReason"
+                ]
+              }
+            },
+            "required": [
+              "executionControl"
+            ]
+          },
+          "then": {
+            "properties": {
+              "cancellationRequested": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "COMPLETED",
+                  "PARTIAL",
+                  "FAILED",
+                  "CANCELLED",
+                  "BUDGET_EXCEEDED"
+                ]
+              }
+            },
+            "anyOf": [
+              {
+                "properties": {
+                  "codeArtifactRef": {
+                    "type": "null"
+                  }
+                },
+                "required": [
+                  "codeArtifactRef"
+                ]
+              },
+              {
+                "properties": {
+                  "executionReceiptRef": {
+                    "type": "null"
+                  }
+                },
+                "required": [
+                  "executionReceiptRef"
+                ]
+              },
+              {
+                "properties": {
+                  "resultDatasetRef": {
+                    "type": "null"
+                  }
+                },
+                "required": [
+                  "resultDatasetRef"
+                ]
+              },
+              {
+                "properties": {
+                  "validationRecordRef": {
+                    "type": "null"
+                  }
+                },
+                "required": [
+                  "validationRecordRef"
+                ]
+              },
+              {
+                "properties": {
+                  "evidenceBundleRef": {
+                    "type": "null"
+                  }
+                },
+                "required": [
+                  "evidenceBundleRef"
+                ]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "limitations": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "perArtifactCompleteness": {
+                "required": [
+                  "INPUT_SNAPSHOT"
+                ]
+              }
+            },
+            "required": [
+              "perArtifactCompleteness"
+            ]
+          },
+          "then": {
+            "properties": {
+              "inputSnapshotRef": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "perArtifactCompleteness": {
+                "required": [
+                  "CODE_ARTIFACT"
+                ]
+              }
+            },
+            "required": [
+              "perArtifactCompleteness"
+            ]
+          },
+          "then": {
+            "properties": {
+              "codeArtifactRef": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "perArtifactCompleteness": {
+                "required": [
+                  "EXECUTION_RECEIPT"
+                ]
+              }
+            },
+            "required": [
+              "perArtifactCompleteness"
+            ]
+          },
+          "then": {
+            "properties": {
+              "executionReceiptRef": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "perArtifactCompleteness": {
+                "required": [
+                  "RESULT_DATASET"
+                ]
+              }
+            },
+            "required": [
+              "perArtifactCompleteness"
+            ]
+          },
+          "then": {
+            "properties": {
+              "resultDatasetRef": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "perArtifactCompleteness": {
+                "required": [
+                  "VALIDATION_RECORD"
+                ]
+              }
+            },
+            "required": [
+              "perArtifactCompleteness"
+            ]
+          },
+          "then": {
+            "properties": {
+              "validationRecordRef": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "perArtifactCompleteness": {
+                "required": [
+                  "EVIDENCE_BUNDLE"
+                ]
+              }
+            },
+            "required": [
+              "perArtifactCompleteness"
+            ]
+          },
+          "then": {
+            "properties": {
+              "evidenceBundleRef": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "event": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": "runtime_os.coding.v3"
+        },
+        "eventId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "taskId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "scope": {
+          "$ref": "#/$defs/scope"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "occurredAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,3})?Z$"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "TASK_CREATED",
+            "TASK_STARTED",
+            "CODE_COMMITTED",
+            "EXECUTION_STARTED",
+            "EXECUTION_FINISHED",
+            "VALIDATION_RECORDED",
+            "BUDGET_UPDATED",
+            "CANCELLATION_REQUESTED",
+            "RECOVERY_RECONCILED",
+            "TASK_FINISHED"
+          ]
+        },
+        "operationId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attempt": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "CREATED",
+            "RUNNING",
+            "COMPLETED",
+            "PARTIAL",
+            "FAILED",
+            "CANCELLED",
+            "BUDGET_EXCEEDED"
+          ]
+        },
+        "reasonCode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "CONTRACT_INVALID",
+                "VERSION_UNSUPPORTED",
+                "NOT_FOUND",
+                "AUTHORIZATION_DENIED",
+                "TASK_ID_CONFLICT",
+                "EXECUTION_OUTCOME_UNKNOWN",
+                "EVENT_CURSOR_EXPIRED",
+                "ADAPTER_UNAVAILABLE",
+                "INVALID_STATE_TRANSITION",
+                "EXECUTION_FAILED",
+                "OUTPUT_CONTRACT_VIOLATION",
+                "EVIDENCE_COMMIT_FAILED",
+                "CANCEL_REQUESTED",
+                "BUDGET_EXCEEDED",
+                "DEADLINE_EXCEEDED",
+                "RECONCILIATION_REQUIRED",
+                "SUBSCRIPTION_OVERFLOW"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+          },
+          "uniqueItems": true,
+          "minItems": 0,
+          "maxItems": 256
+        },
+        "usage": {
+          "$ref": "#/$defs/usage"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "taskId",
+        "scope",
+        "sequence",
+        "revision",
+        "occurredAt",
+        "type",
+        "operationId",
+        "attempt",
+        "status",
+        "reasonCode",
+        "evidenceRefs",
+        "usage",
+        "summary"
+      ],
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "operationId": {
+                "const": null
+              }
+            },
+            "required": [
+              "operationId"
+            ]
+          },
+          "then": {
+            "properties": {
+              "attempt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operationId": {
+                "type": "string"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "attempt": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "TASK_CREATED"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "CREATED"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "TASK_STARTED"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "RUNNING"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "TASK_FINISHED"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "COMPLETED",
+                  "PARTIAL",
+                  "FAILED",
+                  "CANCELLED",
+                  "BUDGET_EXCEEDED"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "CODE_COMMITTED"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "RUNNING"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "EXECUTION_STARTED"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "RUNNING"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "EXECUTION_FINISHED"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "RUNNING",
+                  "COMPLETED",
+                  "PARTIAL",
+                  "FAILED",
+                  "CANCELLED",
+                  "BUDGET_EXCEEDED"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "VALIDATION_RECORDED"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "RUNNING",
+                  "COMPLETED",
+                  "PARTIAL",
+                  "FAILED",
+                  "CANCELLED",
+                  "BUDGET_EXCEEDED"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "CANCELLATION_REQUESTED"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "CREATED",
+                  "RUNNING"
+                ]
+              },
+              "reasonCode": {
+                "const": "CANCEL_REQUESTED"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "CODE_COMMITTED",
+                  "EXECUTION_STARTED",
+                  "EXECUTION_FINISHED",
+                  "VALIDATION_RECORDED"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "operationId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "CODE_COMMITTED",
+                  "EXECUTION_FINISHED",
+                  "VALIDATION_RECORDED"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "evidenceRefs": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "CONTRACT_INVALID",
+            "VERSION_UNSUPPORTED",
+            "NOT_FOUND",
+            "AUTHORIZATION_DENIED",
+            "TASK_ID_CONFLICT",
+            "EXECUTION_OUTCOME_UNKNOWN",
+            "EVENT_CURSOR_EXPIRED",
+            "ADAPTER_UNAVAILABLE",
+            "INVALID_STATE_TRANSITION",
+            "EXECUTION_FAILED",
+            "OUTPUT_CONTRACT_VIOLATION",
+            "EVIDENCE_COMMIT_FAILED",
+            "CANCEL_REQUESTED",
+            "BUDGET_EXCEEDED",
+            "DEADLINE_EXCEEDED",
+            "RECONCILIATION_REQUIRED",
+            "SUBSCRIPTION_OVERFLOW"
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "taskId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "operationId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "correlationId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "knownOutcomeRef": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        }
+      },
+      "required": [
+        "code",
+        "retryable",
+        "taskId",
+        "operationId",
+        "correlationId",
+        "knownOutcomeRef",
+        "message"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

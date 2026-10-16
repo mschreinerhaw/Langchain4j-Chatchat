@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "runtime_os.business_validation_manifest.v1",
+  "validatedAt": "2026-10-16",
+  "agentId": "db_ops_assistant",
+  "model": "hy3",
+  "asset": {
+    "id": "c5c085c4-067b-4a0f-876c-e1c4f808232f",
+    "name": "LiveData测试库_223",
+    "environment": "DEV",
+    "databaseType": "mysql",
+    "version": "5.7.41",
+    "catalog": "LiveDOP"
+  },
+  "submissions": [
+    {
+      "taskId": "895a4b33-f1dd-30b4-9ceb-7a7131fdd304",
+      "status": "FAILED",
+      "errorCode": "QUERY_REQUIRES_STRUCTURED_CONSTRAINTS",
+      "databaseAccessed": false
+    },
+    {
+      "taskId": "ee453339-2181-3835-8875-5ce9f80a7951",
+      "status": "FAILED",
+      "errorCode": "QUERY_DSL_BUDGET_EXCEEDED",
+      "databaseAccessed": false
+    },
+    {
+      "taskId": "47657bbc-f125-3ca0-8829-a96e5c54660e",
+      "runId": "att-1-eeffec71-070a-4e5c-be48-307296a6903b",
+      "status": "SUCCESS",
+      "runtimeStatus": "COMPLETED",
+      "authorizedTemplatesSucceeded": 3,
+      "modelInvocations": 13,
+      "inputTokensReported": 22163,
+      "outputTokensReported": 12254,
+      "durationSeconds": 611.705
+    },
+    {
+      "taskId": "b0a92e00-9b60-32c8-bb88-b587b76d138b",
+      "runId": "att-1-a16e32fc-9dea-4310-a62c-4ad446dac5f6",
+      "status": "SUCCESS",
+      "runtimeStatus": "COMPLETED",
+      "authorizedTemplatesSucceeded": 5,
+      "modelInvocations": 15,
+      "inputTokensReported": 99161,
+      "outputTokensReported": 38800,
+      "durationSeconds": 746.590
+    }
+  ],
+  "totalsForSuccessfulTasks": {
+    "tasks": 2,
+    "authorizedTemplatesSucceeded": 8,
+    "modelInvocations": 28,
+    "inputTokensReported": 121324,
+    "outputTokensReported": 51054,
+    "durationSeconds": 1358.295
+  },
+  "runtimeEvidenceArchives": [
+    {
+      "file": "db-ops-discovery-runtime-evidence.tgz",
+      "sha256": "9149c8cc9ef2a91823af9ecdc3fa386a99c3515d055d1ce3051841028cf15b31"
+    },
+    {
+      "file": "db-ops-capacity-runtime-evidence.tgz",
+      "sha256": "a0279b67f975a416d71d053beabe96071750fb70b8b31ddbdaffc91d537933c6"
+    }
+  ],
+  "conclusions": {
+    "mcpDataAcquisition": "PASS",
+    "databaseOpsAssistant": "PASS_WITH_RESULT_CORRECTIONS",
+    "clineAutonomousCoding": "NOT_INVOKED",
+    "pythonSandboxBusinessExecution": "NOT_INVOKED",
+    "evidenceReturn": "PARTIAL_PASS",
+    "runtimeAnalysisLoop": "PASS_WITH_DEFECTS",
+    "overallE2E": "PARTIAL_PASS"
+  }
+}

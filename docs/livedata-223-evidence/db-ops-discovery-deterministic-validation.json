@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "runtime_os.business_validation.v1",
+  "taskId": "47657bbc-f125-3ca0-8829-a96e5c54660e",
+  "runId": "att-1-eeffec71-070a-4e5c-be48-307296a6903b",
+  "agentId": "db_ops_assistant",
+  "model": "hy3",
+  "status": "COMPLETED",
+  "publicStatus": "SUCCESS",
+  "durationSeconds": 611.705,
+  "modelUsage": {
+    "invocations": 13,
+    "failedInvocations": 0,
+    "providerUsageCalls": 2,
+    "inputTokensReported": 22163,
+    "outputTokensReported": 12254,
+    "peakConcurrentInvocations": 1
+  },
+  "asset": {
+    "id": "c5c085c4-067b-4a0f-876c-e1c4f808232f",
+    "name": "LiveData测试库_223",
+    "environment": "DEV",
+    "databaseType": "mysql",
+    "version": "5.7.41",
+    "catalog": "LiveDOP",
+    "toolName": "db_query_mysql_223_livedata"
+  },
+  "sampling": {
+    "sampledAt": "2026-10-16T16:40:13+08:00",
+    "windowSeconds": 52,
+    "singleSnapshot": true
+  },
+  "templates": [
+    {
+      "templateId": "MYSQL_INNODB_STATUS",
+      "statementHash": "04f5ab9a0ebdddf28d3be60016fe12610286fdba8c7f3011dc82e261f9b11151",
+      "status": "SUCCESS",
+      "rowCount": 1,
+      "complete": true,
+      "durationMs": 324
+    },
+    {
+      "templateId": "MYSQL_INNODB_TRX",
+      "statementHash": "592d84335dcf8026d5a7c6b23a848532f727348da85b9ca5452956ff144f7060",
+      "status": "SUCCESS",
+      "rowCount": 0,
+      "complete": true,
+      "durationMs": 357
+    },
+    {
+      "templateId": "MYSQL_INSTANCE_VARIABLES",
+      "statementHash": "335adaba518f9f17707bd0871c28fbd26bde20e5a4df4ec7faae0f837ab5cf65",
+      "status": "SUCCESS",
+      "rowCount": 10,
+      "complete": true,
+      "durationMs": 30
+    }
+  ],
+  "innodb": {
+    "bufferPoolBytes": 4294967296,
+    "bufferPoolPages": 262112,
+    "freePages": 8194,
+    "databasePages": 250947,
+    "modifiedPages": 0,
+    "usedPercent": 96.874,
+    "dataPagePercent": 95.740,
+    "freePercent": 3.126,
+    "bufferPoolHitPerThousand": 1000,
+    "pendingReads": 0,
+    "pendingWrites": 0,
+    "physicalReadsPerSecond": 0.0,
+    "physicalWritesPerSecond": 6.56,
+    "fsyncsPerSecond": 3.17,
+    "logIoPerSecond": 2.19,
+    "checkpointAgeBytes": 59,
+    "historyListLength": 19,
+    "activeTransactions": 0,
+    "rowsInsertedPerSecond": 0.96,
+    "rowsUpdatedPerSecond": 7.02,
+    "rowsDeletedPerSecond": 0.04,
+    "rowsReadPerSecond": 15.62
+  },
+  "configuration": {
+    "maxConnections": 550,
+    "innodbFlushLogAtTrxCommit": 2,
+    "syncBinlog": 1,
+    "slowQueryLog": false,
+    "longQueryTimeSeconds": 10.0,
+    "readOnly": false,
+    "superReadOnly": false
+  },
+  "recovery": {
+    "initialExecutionStatus": "FAILED",
+    "initialErrorCode": "SQL_EXECUTION_SOURCE_CONFLICT",
+    "rewritePerformed": true,
+    "secondExecutionStatus": "SUCCESS",
+    "allSecondExecutionResultsUsable": true
+  },
+  "limitations": [
+    "single snapshot cannot establish a long-term trend",
+    "current connection count was not collected by this task",
+    "table and index space were not collected by this task",
+    "absence of active transactions at the sample time does not prove absence outside the sample",
+    "the generated answer retained an obsolete first-attempt failure warning despite successful retry evidence"
+  ]
+}

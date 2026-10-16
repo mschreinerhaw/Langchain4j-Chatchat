@@ -1,0 +1,26 @@
+{
+  "submittedAt": "2026-10-16T16:31:36.167714+08:00",
+  "request": {
+    "question": "通过 MCP 定位数据库资产 LiveData测试库_223，返回资产 ID、数据库类型、版本、运行实例、DEV 授权范围及可用只读 InnoDB 监控模板。",
+    "sessionId": "livedata-223-dbops-discovery-20261016",
+    "idempotencyKey": "livedata-223-discovery-9c5cc1bc7958487ab7678619f07a6346",
+    "historyWindow": 0,
+    "imageAnalysisIds": [],
+    "parameters": {
+      "assetName": "LiveData测试库_223",
+      "environment": "DEV",
+      "accessMode": "READ_ONLY",
+      "intent": "ASSET_AND_TEMPLATE_DISCOVERY"
+    }
+  },
+  "responseHttp": 202,
+  "response": {
+    "taskId": "47657bbc-f125-3ca0-8829-a96e5c54660e",
+    "executionId": "47657bbc-f125-3ca0-8829-a96e5c54660e",
+    "attemptId": "att-1-eeffec71-070a-4e5c-be48-307296a6903b",
+    "sessionId": "livedata-223-dbops-discovery-20261016",
+    "agentId": "db_ops_assistant",
+    "status": "PENDING",
+    "canonicalState": "SUBMITTED"
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "runtime_os.executed_sql_references.v1",
+  "assetId": "c5c085c4-067b-4a0f-876c-e1c4f808232f",
+  "assetName": "LiveData测试库_223",
+  "environment": "DEV",
+  "executionMode": "AUTHORIZED_MCP_TEMPLATE",
+  "statements": [
+    {
+      "templateId": "MYSQL_INNODB_STATUS",
+      "statement": "SHOW ENGINE INNODB STATUS",
+      "statementHash": "04f5ab9a0ebdddf28d3be60016fe12610286fdba8c7f3011dc82e261f9b11151",
+      "generatedAt": "2026-10-16T16:40:13.549955997+08:00",
+      "rowCount": 1,
+      "complete": true
+    },
+    {
+      "templateId": "MYSQL_INNODB_TRX",
+      "statement": "SELECT * FROM information_schema.INNODB_TRX",
+      "statementHash": "592d84335dcf8026d5a7c6b23a848532f727348da85b9ca5452956ff144f7060",
+      "generatedAt": "2026-10-16T16:40:14.043329388+08:00",
+      "rowCount": 0,
+      "complete": true
+    },
+    {
+      "templateId": "MYSQL_INSTANCE_VARIABLES",
+      "statement": "SELECT variable_name, variable_value FROM performance_schema.global_variables WHERE variable_name IN ('version','version_comment','max_connections','innodb_buffer_pool_size','innodb_flush_log_at_trx_commit','sync_binlog','slow_query_log','long_query_time','read_only','super_read_only') ORDER BY variable_name",
+      "statementHash": "335adaba518f9f17707bd0871c28fbd26bde20e5a4df4ec7faae0f837ab5cf65",
+      "generatedAt": "2026-10-16T16:40:14.199594531+08:00",
+      "rowCount": 10,
+      "complete": true
+    },
+    {
+      "templateId": "MYSQL_SHOW_PROCESSLIST",
+      "statement": "SHOW PROCESSLIST",
+      "statementHash": "91ff42313fb4aa4f64204e6473f73355a718fbbed79cfd9c7b0bb86434c02f42",
+      "generatedAt": "2026-10-16T16:57:37.489949177+08:00",
+      "rowCount": 99,
+      "complete": true
+    },
+    {
+      "templateId": "MYSQL_DATABASE_SIZE",
+      "statement": "SELECT table_schema AS db, SUM(data_length + index_length)/1024/1024 AS size_mb FROM information_schema.tables GROUP BY table_schema",
+      "statementHash": "86982a6d93b2ef9a20c19d3b78953a29a25329860fe3cc2ba82d339c16d56551",
+      "generatedAt": "2026-10-16T16:57:41.788851812+08:00",
+      "rowCount": 19,
+      "complete": true
+    },
+    {
+      "templateId": "MYSQL_SHOW_STATUS",
+      "statement": "SHOW STATUS",
+      "statementHash": "37c3656f339098d9a465bfec754fb5cbade6a9e724bdd35417825b62b3e424f1",
+      "generatedAt": "2026-10-16T16:57:42.129078613+08:00",
+      "rowCount": 359,
+      "complete": true
+    },
+    {
+      "templateId": "MYSQL_CONNECTION_STATUS",
+      "statement": "SELECT variable_name, variable_value FROM performance_schema.global_status WHERE variable_name IN ('Threads_connected','Threads_running','Max_used_connections','Connections','Aborted_connects','Connection_errors_max_connections') ORDER BY variable_name",
+      "statementHash": "1c63d01954fd16182376434322cc22c73af3a9d78eaf87f26bdbd2f654b9da90",
+      "generatedAt": "2026-10-16T16:57:42.312418663+08:00",
+      "rowCount": 6,
+      "complete": true
+    },
+    {
+      "templateId": "MYSQL_TOP_TABLES_SIZE",
+      "statement": "SELECT table_schema, table_name, ROUND((data_length + index_length) / 1024 / 1024, 2) AS total_mb, ROUND(data_length / 1024 / 1024, 2) AS data_mb, ROUND(index_length / 1024 / 1024, 2) AS index_mb, table_rows FROM information_schema.tables WHERE table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys') ORDER BY total_mb DESC LIMIT 50",
+      "statementHash": "76f096c0c374b8c33f743c46ac1676b408f1638c8ee95058267812665062417b",
+      "generatedAt": "2026-10-16T16:57:42.543668297+08:00",
+      "rowCount": 50,
+      "complete": true
+    }
+  ]
+}

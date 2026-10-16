@@ -1,0 +1,27 @@
+{
+  "submittedAt": "2026-10-16T16:51:39.526742+08:00",
+  "request": {
+    "question": "采集并分析 LiveData测试库_223 的当前连接、MySQL 全局状态、数据库容量和大表空间。返回采样时间、指标单位、行数、数据与索引空间、连接使用情况及证据引用。",
+    "sessionId": "livedata-223-dbops-capacity-20261016",
+    "idempotencyKey": "livedata-223-capacity-094997dd6cbe4e68ac79bab8bd7dcdd4",
+    "historyWindow": 0,
+    "imageAnalysisIds": [],
+    "parameters": {
+      "assetId": "c5c085c4-067b-4a0f-876c-e1c4f808232f",
+      "assetName": "LiveData测试库_223",
+      "environment": "DEV",
+      "accessMode": "READ_ONLY",
+      "intent": "CONNECTION_STATUS_AND_STORAGE"
+    }
+  },
+  "responseHttp": 202,
+  "response": {
+    "taskId": "b0a92e00-9b60-32c8-bb88-b587b76d138b",
+    "executionId": "b0a92e00-9b60-32c8-bb88-b587b76d138b",
+    "attemptId": "att-1-a16e32fc-9dea-4310-a62c-4ad446dac5f6",
+    "sessionId": "livedata-223-dbops-capacity-20261016",
+    "agentId": "db_ops_assistant",
+    "status": "PENDING",
+    "canonicalState": "SUBMITTED"
+  }
+}

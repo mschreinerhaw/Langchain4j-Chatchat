@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "runtime_os.business_validation.v1",
+  "taskId": "b0a92e00-9b60-32c8-bb88-b587b76d138b",
+  "runId": "att-1-a16e32fc-9dea-4310-a62c-4ad446dac5f6",
+  "agentId": "db_ops_assistant",
+  "model": "hy3",
+  "status": "COMPLETED",
+  "publicStatus": "SUCCESS",
+  "durationSeconds": 746.590,
+  "modelUsage": {
+    "invocations": 15,
+    "failedInvocations": 0,
+    "providerUsageCalls": 8,
+    "inputTokensReported": 99161,
+    "outputTokensReported": 38800
+  },
+  "sampling": {
+    "firstResultAt": "2026-10-16T16:57:37.489949177+08:00",
+    "lastResultAt": "2026-10-16T16:57:42.543668297+08:00",
+    "singleSnapshot": true
+  },
+  "templates": [
+    {"templateId":"MYSQL_SHOW_PROCESSLIST","status":"SUCCESS","rowCount":99,"complete":true,"durationMs":11},
+    {"templateId":"MYSQL_DATABASE_SIZE","status":"SUCCESS","rowCount":19,"complete":true,"durationMs":4184},
+    {"templateId":"MYSQL_SHOW_STATUS","status":"SUCCESS","rowCount":359,"complete":true,"durationMs":196},
+    {"templateId":"MYSQL_CONNECTION_STATUS","status":"SUCCESS","rowCount":6,"complete":true,"durationMs":39},
+    {"templateId":"MYSQL_TOP_TABLES_SIZE","status":"SUCCESS","rowCount":50,"complete":true,"durationMs":119}
+  ],
+  "connections": {
+    "configuredMaximum": 550,
+    "current": 99,
+    "running": 1,
+    "sleeping": 98,
+    "cached": 14,
+    "createdCumulative": 223,
+    "historicalMaximum": 133,
+    "currentUtilizationPercent": 18.0,
+    "historicalMaximumUtilizationPercent": 24.182,
+    "connectionErrorsMaximum": 0,
+    "connectionsCumulative": 854523,
+    "abortedConnectsCumulative": 596,
+    "abortedConnectsPercentOfConnections": 0.070,
+    "abortedClientsCumulative": 2489,
+    "abortedClientsPercentOfConnections": 0.291,
+    "sleepingOverOneHour": 5,
+    "sleepingOverFourHours": 3,
+    "maximumSleepSeconds": 24783,
+    "uptimeSeconds": 18316960,
+    "uptimeDays": 212.002
+  },
+  "status": {
+    "slowQueriesCumulative": 0,
+    "innodbRowLockWaitsCumulative": 55,
+    "innodbRowLockTimeMaximumMs": 51004,
+    "tableLockWaitsCumulative": 0,
+    "innodbLogWaitsCumulative": 0,
+    "innodbBufferPoolWaitFreeCumulative": 0,
+    "cumulativeBufferPoolHitPercent": 99.921
+  },
+  "storage": {
+    "instanceDatabaseTotalMiB": 6611.102644,
+    "liveDopMiB": 4048.21875,
+    "liveDopPercent": 61.234,
+    "top50TotalMiB": 6502.87,
+    "top50DataMiB": 5745.35,
+    "top50IndexMiB": 757.58,
+    "liveDopTablesInTop50": 33,
+    "liveDopTop50TotalMiB": 4000.41,
+    "liveDopTop50IndexMiB": 632.89,
+    "largestTables": [
+      {"schema":"LiveDOP","table":"ld_trino_queries","totalMiB":1219.58,"dataMiB":1219.58,"indexMiB":0.0,"estimatedRows":1477},
+      {"schema":"dolphinscheduler","table":"t_ds_task_instance","totalMiB":1165.14,"dataMiB":1113.0,"indexMiB":52.14,"estimatedRows":592784},
+      {"schema":"LiveDOP","table":"ld_rs_table_column","totalMiB":962.72,"dataMiB":520.0,"indexMiB":442.72,"estimatedRows":5287859}
+    ]
+  },
+  "modelAnswerCorrections": [
+    "The actual sample time is the generatedAt interval on 2026-10-16, not the historical Max_used_connections_time from 2026-07-27.",
+    "PROCESSLIST contains 64 dolphinscheduler and 35 LiveDOP sessions; it does not contain 99 LiveDOP sessions.",
+    "Current connection utilization is 99/550 = 18.0%; 99/133 compares current count with a historical peak and is not capacity utilization.",
+    "SHOW_STATUS delivered all 359 rows including Uptime; it was not truncated at row 354."
+  ],
+  "limitations": [
+    "rates for cumulative status counters require another sample",
+    "information_schema table row counts are estimates",
+    "the snapshot alone cannot establish growth trend or persistent contention",
+    "slow_query_log is disabled, so Slow_queries=0 is weak evidence for query health"
+  ]
+}

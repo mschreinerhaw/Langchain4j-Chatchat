@@ -25,6 +25,9 @@ public final class ClineRuntimeModelBridge {
     private final ConfigurableChatModelFactory models;
     private final ObjectMapper json;
     private CodingParentModels parentModels;
+    private CodingWorkspaceService workspace;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setWorkspace(CodingWorkspaceService workspace) { this.workspace=workspace; }
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setParentModels(CodingParentModels models) { this.parentModels = models; }
 
@@ -36,6 +39,11 @@ public final class ClineRuntimeModelBridge {
         Objects.requireNonNull(contract);
         if (request == null || !request.isObject()) throw new IllegalArgumentException("Model request is required");
         String modelName = resources.defaultChatModel();
+        if(CodingWorkspaceService.supports(contract)) {
+            if(workspace==null)throw new SecurityException("Workspace Coding profile is not enabled");
+            String requested=(String)workspace.requireAuthorized(contract).get("modelName");
+            if(requested!=null && !requested.isBlank())modelName=requested;
+        }
         if (modelName == null || modelName.isBlank()) throw new IllegalStateException("Default server chat model is not configured");
         resources.require(modelName);
         List<ChatMessage> messages = new ArrayList<>();
@@ -116,7 +124,9 @@ public final class ClineRuntimeModelBridge {
     }
 
     private static String allowedTool(CodingTaskContract contract, String name) {
-        if (!Set.of("python_execute", "metadata_read", "artifact_read").contains(name)
+        Set<String> profile = CodingWorkspaceService.supports(contract)
+            ? Set.of("workspace_read", "workspace_propose") : Set.of("python_execute", "metadata_read", "artifact_read");
+        if (!profile.contains(name)
                 || !contract.authorization().allowedTools().contains(name))
             throw new SecurityException("Model tool is outside the Runtime authorization");
         return name;

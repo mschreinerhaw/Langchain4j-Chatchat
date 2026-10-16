@@ -46,6 +46,28 @@ public final class ClineModelCallbackController {
     private final CodingEvidenceCollector collector;
     private final ObjectMapper mapper;
     private final Map<String, Instant> freshDispatches = new ConcurrentHashMap<>();
+    private CodingWorkspaceService workspace;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setWorkspace(CodingWorkspaceService workspace) { this.workspace=workspace; }
+
+    @PostMapping("/workspace-read")
+    public Map<String,Object> readWorkspace(@RequestBody JsonNode body) {
+        return bound(body, call -> {
+            var contract=contract(body,call);
+            if(workspace==null)throw new SecurityException("Workspace Coding profile is not enabled");
+            return workspace.read(contract,call.lease(),body.path("operationId").asText());
+        });
+    }
+    @PostMapping("/workspace-propose")
+    public Map<String,Object> proposeWorkspace(@RequestBody JsonNode body) {
+        return bound(body, call -> {
+            var contract=contract(body,call);
+            if(workspace==null)throw new SecurityException("Workspace Coding profile is not enabled");
+            if(!body.path("proposal").isObject())throw new IllegalArgumentException("SQL file proposal is required");
+            return workspace.propose(contract,call.lease(),body.path("operationId").asText(),
+                mapper.convertValue(body.path("proposal"),new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){}));
+        });
+    }
 
     public ClineModelCallbackController(CodingInvocationContext identity, DurableCodingTaskService tasks,
             ClineRuntimeModelBridge model, ClineModelReceiptStore receipts,
@@ -177,6 +199,12 @@ public final class ClineModelCallbackController {
             String operationId = outcome.path("operationId").asText(null);
             if ("failed".equals(sdkStatus))
                 return failed(call);
+            if(CodingWorkspaceService.supports(contract)) {
+                if(workspace==null || !"completed".equals(sdkStatus))
+                    throw new IllegalStateException("Workspace Coding did not complete");
+                if(operationId==null)return failed(call);
+                return completion(workspace.complete(contract,call.lease(),operationId));
+            }
             if (!"completed".equals(sdkStatus)
                     || operationId == null || !operationId.matches("cline-[0-9a-f]{64}"))
                 throw new ResponseStatusException(HttpStatus.CONFLICT,

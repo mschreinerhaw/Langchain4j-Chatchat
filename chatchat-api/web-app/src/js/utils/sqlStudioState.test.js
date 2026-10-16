@@ -51,4 +51,9 @@ describe('SQL uses the existing authenticated API transport',()=>{
     expect(fetch.mock.calls.map(call=>call[0])).toEqual(['/api/v1/agent/tasks','/api/v1/data-science/sql/projects/p/generations/g/task']);
     expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({taskId:'task'});
   });
+  it('uses the same authenticated transport for the server-selected Coding workspace entry',async()=>{
+    const fetch=transport();await submitSqlGeneration('p',{generationId:'g',taskRequest:{toolInput:{codingWorkspaceProfile:'SQL_WORKSPACE_V2'}}});
+    expect(fetch.mock.calls.map(call=>call[0])).toEqual(['/api/v1/data-science/sql/projects/p/generations/g/coding']);
+    expect(fetch.mock.calls[0][1].headers.Authorization).toBe('Bearer same-identity');
+  });
 });

@@ -94,7 +94,14 @@ window.addEventListener('blur',suspend);window.addEventListener('focus',resume);
 watch([()=>props.projectId,()=>JSON.stringify(props.identity||{})],initialize,{immediate:true});
 onDeactivated(suspend);onActivated(()=>{if(!active)resume();});
 onBeforeUnmount(()=>{serial++;session.bind(null);namespaceSession.bind(null);window.removeEventListener('blur',suspend);window.removeEventListener('focus',resume);document.removeEventListener('visibilitychange',visibility);});
-defineExpose({complete});
+function codingSelection(){
+  const chosen=tables.value.filter(table=>expanded.value[table.tableRef] && fields.value[table.tableRef]?.length);
+  if(!context.value || !session.snapshot || !chosen.length)return null;
+  if(chosen.length>16)throw new Error('单次生成最多使用 16 张已展开的元数据表。');
+  return {discoveryId:context.value.discoveryId,bindingId:context.value.bindings[0].bindingId,expectedSnapshotId:session.snapshot,
+    tables:chosen.map(({tableName,database,schema})=>({tableName,database,schema}))};
+}
+defineExpose({complete,codingSelection});
 </script>
 <style scoped>
 .sql-schema-explorer button{white-space:nowrap;flex-shrink:0}

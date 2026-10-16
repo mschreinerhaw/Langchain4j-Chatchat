@@ -94,7 +94,7 @@ class ClineCodingAdapterDispatchTest {
         }
     }
 
-    private static CodingTaskContract contract(KernelDataScope scope) {
+    static CodingTaskContract contract(KernelDataScope scope) {
         return new CodingTaskContract(CodingProtocol.VERSION, "task", scope,
             new CodingTaskContract.Objective("diagnose fixed fixture", List.of("rows.jsonl"), List.of("check")),
             "input:fixture", List.of(), "workspace:task",

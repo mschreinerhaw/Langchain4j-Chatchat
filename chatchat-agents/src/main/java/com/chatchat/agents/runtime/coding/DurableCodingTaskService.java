@@ -58,7 +58,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             require(priorBudget == null || priorBudget.equals(contract.budget()), TASK_ID_CONFLICT, "Shared budget limits are immutable");
             CodingJournal.Task task = new CodingJournal.Task(); task.contract = contract;
             Instant at = now();
-            task.outcome = new CodingTaskOutcome(CodingProtocol.VERSION, contract.taskId(), contract.scope(), hash,
+            task.outcome = new CodingTaskOutcome(contract.schemaVersion(), contract.taskId(), contract.scope(), hash,
                 Status.CREATED, 0, 1, at, at, null, null, false, null, "Coding task accepted durably", List.of(ENFORCEMENT_LIMITATION),
                 contract.inputSnapshotRef(), null,null,null,null,null, ValidationStatus.NOT_RUN,
                 new Reproducibility(ReproducibilityLevel.CONDITIONAL, List.of("Execution and reproducibility have not been verified"), List.of(contract.environmentRef())),
@@ -512,7 +512,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         var limitations=new ArrayList<>(body.limitations()); if(!limitations.contains(ENFORCEMENT_LIMITATION))limitations.add(ENFORCEMENT_LIMITATION);
         if(status.terminal() && (body.codeArtifactRef()==null || body.executionReceiptRef()==null || body.resultDatasetRef()==null
             || body.validationRecordRef()==null || body.evidenceBundleRef()==null))limitations.add("Required execution evidence was not produced");
-        return new CodingTaskOutcome(CodingProtocol.VERSION,old.taskId(),old.scope(),old.contractSha256(),status,old.revision()+1,old.lastEventSequence()+1,
+        return new CodingTaskOutcome(old.schemaVersion(),old.taskId(),old.scope(),old.contractSha256(),status,old.revision()+1,old.lastEventSequence()+1,
             old.createdAt(),at,old.startedAt()==null && status==Status.RUNNING ? at : old.startedAt(),
             old.status().terminal() ? old.endedAt() : status.terminal() ? at : null,
             old.cancellationRequested() || control.stopReason()==CANCEL_REQUESTED,reason,body.summary(),limitations.stream().distinct().toList(),
@@ -532,7 +532,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     }
     private static CodingExecutionEvent event(CodingJournal.Task task,CodingExecutionEvent.Type type,String operation,List<String> refs) {
         var out=task.outcome;
-        return new CodingExecutionEvent(CodingProtocol.VERSION,"coding:"+UUID.randomUUID(),out.taskId(),out.scope(),out.lastEventSequence(),out.revision(),
+        return new CodingExecutionEvent(out.schemaVersion(),"coding:"+UUID.randomUUID(),out.taskId(),out.scope(),out.lastEventSequence(),out.revision(),
             out.updatedAt(),type,operation,operation==null ? null : 1L,out.status(),out.reasonCode(),refs,out.usage(),out.summary());
     }
     private static Usage usage(CodingJournal.Task task) {

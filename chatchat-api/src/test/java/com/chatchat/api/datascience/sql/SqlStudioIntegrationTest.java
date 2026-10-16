@@ -42,6 +42,7 @@ class SqlStudioIntegrationTest {
     @Autowired SysUserRoleRepository userRoles; @Autowired SysRolePermissionRepository rolePermissions;
     @Autowired SysPermissionRepository permissions;
     @Autowired SqlStudioMigration migration;
+    @Autowired SqlStudioService studio;
     @Autowired List<com.chatchat.agents.runtime.tool.ToolRuntimePolicyProvider> toolPolicies;
     @Autowired SqlStudioGenerationScopeStore generationScopes;
     @MockBean ChatModel model;
@@ -100,6 +101,41 @@ class SqlStudioIntegrationTest {
         var edited=save(p,"sql/customer.sql","SQL","-- reviewed\nSELECT 1;",1); assertThat(edited.path("version").asInt()).isEqualTo(2);
         mvc.perform(get(ROOT+"/"+p+"/files/"+saved.path("id").asText()+"/versions").header("Authorization","Bearer "+token)).andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(2));
         mvc.perform(get(ROOT+"/"+p+"/files/"+saved.path("id").asText()+"/download").header("Authorization","Bearer "+token)).andExpect(status().isOk()).andExpect(content().bytes("-- reviewed\nSELECT 1;".getBytes(StandardCharsets.UTF_8)));
+    }
+    @Test void codingWorkspaceEntryKeepsProjectOwnershipReviewAndVersionedApply() throws Exception {
+        var coding=mock(com.chatchat.api.runtime.CodingWorkspaceService.class);studio.setCoding(coding);
+        try{
+            String p=project();save(p,"sql/existing.sql","SQL","-- preserve\nSELECT 1;",0);
+            var prepared=prepare(p,List.of(),List.of());String generation=prepared.path("generationId").asText();
+            assertThat(prepared.path("taskRequest").path("toolInput").path("codingWorkspaceProfile").asText()).isEqualTo("SQL_WORKSPACE_V2");
+            String task="sql-coding-"+generation;
+            var outcome=mock(com.chatchat.common.runtime.coding.CodingTaskOutcome.class);
+            when(outcome.taskId()).thenReturn(task);when(outcome.status()).thenReturn(com.chatchat.common.runtime.coding.CodingTaskOutcome.Status.COMPLETED);
+            when(outcome.createdAt()).thenReturn(java.time.Instant.now());when(outcome.updatedAt()).thenReturn(java.time.Instant.now());
+            when(outcome.endedAt()).thenReturn(java.time.Instant.now());
+            when(coding.submit(any(),anyString(),anyString(),anyString(),nullable(String.class),anyMap())).thenReturn(outcome);
+            when(coding.get(any(),eq(task))).thenReturn(outcome);when(coding.events(any(),eq(task))).thenReturn(List.of());
+            when(coding.output(any(),eq(task),eq(outcome))).thenReturn(Map.of("files",List.of(
+                Map.of("path","sql/existing.sql","content","-- preserve\nSELECT 2;"),
+                Map.of("path","etl/new.sql","content","SELECT 3;")),"notes","Reviewed proposal; no SQL execution",
+                "validation",Map.of("fieldValidation","NOT_EVALUATED")));
+            String submit=ROOT+"/"+p+"/generations/"+generation+"/coding";
+            mvc.perform(post(submit).header("Authorization","Bearer "+otherUser(true))).andExpect(status().isForbidden());
+            mvc.perform(post(submit).header("Authorization","Bearer "+token)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.taskId").value(task));
+            mvc.perform(put(ROOT+"/"+p+"/generations/"+generation+"/task").header("Authorization","Bearer "+token)
+                .contentType("application/json").content("{\"taskId\":\"unrelated\"}")).andExpect(status().isBadRequest());
+            var view=result(p,prepared);assertThat(view.path("files").size()).isEqualTo(2);
+            assertThat(view.path("validation").asText()).contains("PARSED","FIELDS_NOT_EVALUATED","SQL_NOT_EXECUTED");
+            assertThat(jdbc.queryForObject("select content from ds_sql_file where project_id=? and path='sql/existing.sql'",String.class,p))
+                .isEqualTo("-- preserve\nSELECT 1;");
+            mvc.perform(post(applyUrl(p,prepared)).header("Authorization","Bearer "+token).contentType("application/json")
+                .content("{\"paths\":[\"sql/existing.sql\",\"etl/new.sql\"]}")).andExpect(status().isOk());
+            assertThat(jdbc.queryForObject("select version from ds_sql_file where project_id=? and path='sql/existing.sql'",Integer.class,p)).isEqualTo(2);
+            assertThat(jdbc.queryForObject("select count(*) from ds_sql_file where project_id=?",Integer.class,p)).isEqualTo(2);
+            mvc.perform(post(applyUrl(p,prepared)).header("Authorization","Bearer "+token).contentType("application/json")
+                .content("{\"paths\":[\"sql/existing.sql\"]}")).andExpect(status().isConflict());
+        }finally{studio.setCoding(null);}
     }
     @Test void multipleMappingsAndHistoricalStyleAreFrozenAndMultipleOutputsApplied() throws Exception {
         String p=project(), other=project(); var a=save(p,"mapping/a.csv","MAPPING","source,target\na,b",0); var b=save(p,"mapping/b.md","MAPPING","source c maps to target d",0);

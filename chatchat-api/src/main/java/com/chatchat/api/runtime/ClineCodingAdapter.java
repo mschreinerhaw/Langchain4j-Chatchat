@@ -30,6 +30,8 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     private final ObjectMapper mapper;
     private final HttpClient http;
     private final String workerId = "cline-adapter:" + UUID.randomUUID();
+    private CodingWorkspaceService workspace;
+    public void setWorkspace(CodingWorkspaceService workspace) { this.workspace = workspace; }
 
     public ClineCodingAdapter(DurableCodingTaskService tasks, CodingPythonExecutionBridge python,
             CodingInputSnapshotService inputs, CodingValidationPlanService plans,
@@ -47,6 +49,10 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     }
 
     @Override public CodingTaskOutcome submit(CodingTaskContract contract) {
+        if (CodingWorkspaceService.supports(contract)) {
+            if (workspace == null) throw new IllegalStateException("Workspace Coding profile is not enabled");
+            workspace.requireAuthorized(contract);
+        } else {
         if (!java.util.Set.of("python_execute").containsAll(contract.authorization().allowedTools()))
             throw new IllegalArgumentException("D1 permits only the implemented Runtime Python callback");
         inputs.requireAuthorized(contract);
@@ -58,6 +64,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             throw new IllegalArgumentException("D1 Python execution requires one JSONL result file");
         if (contract.authorization().networkPolicy() != CodingTaskContract.NetworkPolicy.NONE)
             throw new SecurityException("D1 Coding Sandbox requires a no-network authorization");
+        }
         CodingTaskOutcome accepted = tasks.submit(contract); // A2 persists acceptance before any Node dispatch.
         if (accepted.status().terminal() || accepted.executionControl().stopReason() != null) return accepted;
         KernelDataScope scope = contract.scope();
@@ -65,6 +72,8 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         if (lease.leaseUntil().isAfter(Instant.now()) && !workerId.equals(lease.owner())) return accepted;
         if (!lease.leaseUntil().isAfter(Instant.now()))
             lease = tasks.claim(scope, contract.taskId(), workerId, Duration.ofSeconds(90), accepted.revision());
+        accepted = tasks.get(scope, contract.taskId());
+        if (accepted.status().terminal() || accepted.executionControl().stopReason() != null) return accepted;
         // Unknown starts belong to recovery; another model request must never be invented by submit.
         if (tasks.hasStartedOperations(scope, contract.taskId())) return tasks.get(scope, contract.taskId());
         request("/v1/runs", Map.of("contract", contract, "contractHash", CodingCanonicalHash.sha256(contract),
@@ -81,6 +90,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             "contractHash", stopped.contractSha256(), "fencingToken", lease.fencingToken())); }
         catch (RuntimeException unavailable) { /* A2 stop request is durable; still stop any known Python process. */ }
         for (String operationId : tasks.unresolvedOperations(scope, taskId)) {
+            if (!operationId.matches("cline-[0-9a-f]{64}")) continue;
             try { python.cancel(scope, taskId, operationId, reason); }
             catch (RuntimeException unavailable) { /* Leave reconciliationRequired/stop request visible to Runtime. */ }
         }
@@ -140,8 +150,8 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         if (workerId.equals(lease.owner()) && current.executionControl().stopReason() == null
                 && tasks.unresolvedOperations(scope, taskId).isEmpty()
                 && (sessionMissing || remote != null
-                    && List.of("FAILED", "CANCELLED").contains(remote.path("status").asText()))) {
-            CodingTaskOutcome archived = completeVerifiedPython(scope, taskId, lease);
+                    && List.of("COMPLETED", "FAILED", "CANCELLED").contains(remote.path("status").asText()))) {
+            CodingTaskOutcome archived = completeVerifiedOperation(scope, taskId, lease);
             if (archived != null) return archived;
         }
         if (workerId.equals(lease.owner()) && current.executionControl().stopReason() == null
@@ -156,9 +166,13 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     }
 
     /** A lost SDK session cannot replay code, but a verified completed operation is sufficient evidence. */
-    private CodingTaskOutcome completeVerifiedPython(KernelDataScope scope, String taskId,
+    private CodingTaskOutcome completeVerifiedOperation(KernelDataScope scope, String taskId,
             CodingJournal.Lease lease) {
         CodingTaskContract contract = tasks.contract(scope, taskId);
+        if (CodingWorkspaceService.supports(contract)) {
+            if (workspace == null) return null;
+            return workspace.recover(contract, lease);
+        }
         List<String> operations = tasks.startedCodeOperations(scope, taskId);
         if (operations.isEmpty()) return null;
         String operationId = operations.get(operations.size() - 1);

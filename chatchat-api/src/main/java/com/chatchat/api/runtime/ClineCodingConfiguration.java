@@ -21,10 +21,13 @@ public class ClineCodingConfiguration {
             CodingInputSnapshotService inputs, CodingValidationPlanService plans,
             CodingEvidenceCollector collector,
             ClineModelReceiptStore receipts, ObjectMapper mapper,
+            org.springframework.beans.factory.ObjectProvider<CodingWorkspaceService> workspace,
             @Value("${chatchat.coding.cline.node-url:http://127.0.0.1:8791}") String nodeUrl,
             @Value("${chatchat.coding.cline.shared-secret:}") String secret,
             @Value("${chatchat.coding.cline.shared-secret-file:}") String secretFile) {
-        return new ClineCodingAdapter(tasks, python, inputs, plans, collector, receipts,
+        var adapter = new ClineCodingAdapter(tasks, python, inputs, plans, collector, receipts,
             URI.create(nodeUrl), CodingSecrets.resolve(secret,secretFile), mapper);
+        adapter.setWorkspace(workspace.getIfAvailable());
+        return adapter;
     }
 }

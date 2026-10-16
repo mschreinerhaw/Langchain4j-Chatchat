@@ -25,6 +25,39 @@ public class SqlStudioMetadataService {
     public record Binding(String bindingId, String serviceId, String assetRef, String role, String database, String schema, String sourceDialect) { }
     public record Context(String discoveryId, String projectId, String purpose, String targetDialect, List<Binding> bindings, String state) { }
     public record Operation(String bindingId, Map<String, Object> arguments) { }
+    public record CodingSelection(String discoveryId,String bindingId,String expectedSnapshotId,List<CodingTable> tables) { }
+    public record CodingTable(String tableName,String database,String schema) { }
+    /** Re-fetch only explicitly selected table structures using the existing MCP grant checks. */
+    public Map<String,Object> captureCoding(HttpServletRequest request,String project,CodingSelection selection){
+        get(request,project,selection.discoveryId());
+        require(selection.tables()!=null && !selection.tables().isEmpty() && selection.tables().size()<=16,"Choose 1 to 16 metadata tables");
+        require(selection.expectedSnapshotId()!=null && !selection.expectedSnapshotId().isBlank(),"Metadata snapshot identity is required");
+        List<Map<String,Object>> tables=new ArrayList<>();
+        for(var selected:selection.tables()){
+            require(selected!=null && selected.tableName()!=null && !selected.tableName().isBlank(),"Invalid selected metadata table");
+            var args=new LinkedHashMap<String,Object>(Map.of("operation","DESCRIBE","tableName",selected.tableName(),
+                "expectedSnapshotId",selection.expectedSnapshotId(),"page",1,"pageSize",1));
+            if(selected.database()!=null)args.put("database",selected.database());
+            if(selected.schema()!=null)args.put("schema",selected.schema());
+            var result=operate(request,project,selection.discoveryId(),new Operation(selection.bindingId(),args)).metadata();
+            require("SUCCEEDED".equals(result.get("status")) && selection.expectedSnapshotId().equals(result.get("snapshotId"))
+                && Boolean.TRUE.equals(result.get("doesNotExecuteSql")),"Metadata snapshot changed or is unavailable");
+            require(result.get("items") instanceof List<?> items && items.size()==1,"Selected table metadata is unavailable");
+            var table=(Map<?,?>)((List<?>)result.get("items")).get(0);
+            require(selected.tableName().equals(table.get("tableName")),"Metadata table identity changed");
+            require(table.get("columns") instanceof List<?> columns && !columns.isEmpty(),"Selected table has no visible columns");
+            List<Map<String,String>> columns=new ArrayList<>();
+            for(Object raw:(List<?>)table.get("columns")){
+                require(raw instanceof Map<?,?> column && column.get("name") instanceof String name && !name.isBlank(),"Invalid metadata column");
+                var column=(Map<?,?>)raw;columns.add(Map.of("name",column.get("name").toString(),"type",Objects.toString(column.get("columnType"),"UNKNOWN")));
+            }
+            var captured=new LinkedHashMap<String,Object>();captured.put("tableName",selected.tableName());
+            if(table.get("database")!=null)captured.put("database",table.get("database"));
+            if(table.get("schema")!=null)captured.put("schema",table.get("schema"));
+            captured.put("columns",columns);captured.put("snapshotId",selection.expectedSnapshotId());tables.add(captured);
+        }
+        return Map.of("tables",tables);
+    }
 
     public List<SqlStudioMetadataGateway.Provider> providers(HttpServletRequest request, String projectId) {
         studio.project(request, projectId);

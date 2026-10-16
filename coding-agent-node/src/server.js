@@ -74,6 +74,8 @@ export function httpGateway(callbackUrl, secret, binding) {
     cancelPython: (contract, operationId) => callback('cancel-python', { contract, operationId }),
     readMetadata: (contract, reference, signal) => callback('read-metadata', { contract, reference }, signal),
     readArtifact: (contract, reference, signal) => callback('read-artifact', { contract, reference }, signal),
+    readWorkspace: (contract, operationId, signal) => callback('workspace-read', { contract, operationId }, signal),
+    proposeWorkspace: (contract, operationId, proposal, signal) => callback('workspace-propose', { contract, operationId, proposal }, signal),
     event: (event) => callback('event', { event }),
     finish: (contract, outcome) => callback('finish', { contract, outcome }),
   };
@@ -103,7 +105,9 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
         return response(reply, 200, { status: 'UP' });
       if (request.method === 'POST' && url.pathname === '/v1/runs') {
         const value = await body(request);
-        if (value.contract?.schemaVersion !== 'runtime_os.coding.v1')
+        if (value.contract?.schemaVersion !== 'runtime_os.coding.v1'
+            && !(value.contract?.schemaVersion === 'runtime_os.coding.v2'
+              && value.contract?.outputContract?.resultFormat === 'WORKSPACE_FILES'))
           return response(reply, 422, { code: 'VERSION_UNSUPPORTED', message: 'Coding protocol version is unsupported' });
         if (!value.contract || typeof value.contractHash !== 'string' || !Number.isSafeInteger(value.fencingToken)
             || value.fencingToken < 1) return response(reply, 400, { message: 'Invalid Runtime task binding' });

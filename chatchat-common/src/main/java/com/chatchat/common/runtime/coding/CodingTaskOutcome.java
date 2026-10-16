@@ -118,7 +118,7 @@ public record CodingTaskOutcome(String schemaVersion, String taskId, KernelDataS
     /** Pure transition validation; persistence CAS, fencing and budgeting belong to A2. */
     public void validateSuccessor(CodingTaskOutcome next) {
         CodingProtocol.required(next, "next");
-        boolean identity = taskId.equals(next.taskId) && CodingProtocol.sameScope(scope, next.scope)
+        boolean identity = schemaVersion.equals(next.schemaVersion) && taskId.equals(next.taskId) && CodingProtocol.sameScope(scope, next.scope)
             && contractSha256.equals(next.contractSha256) && inputSnapshotRef.equals(next.inputSnapshotRef)
             && createdAt.equals(next.createdAt) && java.util.Objects.equals(parentTaskId, next.parentTaskId)
             && java.util.Objects.equals(supersedesTaskId, next.supersedesTaskId);
@@ -140,7 +140,7 @@ public record CodingTaskOutcome(String schemaVersion, String taskId, KernelDataS
     /** Confirms task binding without resolving resources or authorizing the caller. */
     public void validateAgainst(CodingTaskContract task) {
         CodingProtocol.required(task, "task");
-        CodingProtocol.require(taskId.equals(task.taskId()) && CodingProtocol.sameScope(scope, task.scope())
+        CodingProtocol.require(schemaVersion.equals(task.schemaVersion()) && taskId.equals(task.taskId()) && CodingProtocol.sameScope(scope, task.scope())
             && inputSnapshotRef.equals(task.inputSnapshotRef()) && contractSha256.equals(CodingCanonicalHash.sha256(task))
             && usage.budgetId().equals(task.budget().budgetId())
             && usage.costCurrency().equals(task.budget().costCurrency()), "Outcome is not bound to the supplied contract");

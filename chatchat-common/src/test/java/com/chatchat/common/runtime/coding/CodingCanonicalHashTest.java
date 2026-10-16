@@ -60,4 +60,14 @@ class CodingCanonicalHashTest {
         assertThat(node.get("canonicalJson").asText()).isEqualTo(CodingCanonicalHash.canonicalJson(contract));
         assertThat(node.get("sha256").asText()).isEqualTo(CodingCanonicalHash.sha256(contract));
     }
+    @Test void workspaceV2UsesTheSameCanonicalAlgorithmWithoutChangingV1GoldenBytes() throws Exception {
+        ObjectNode task=fixture("task");task.put("schemaVersion",CodingProtocol.WORKSPACE_VERSION);
+        set(task,"/outputContract/resultFormat","WORKSPACE_FILES");
+        assertBothLanguages(task);
+        assertThat(CodingCanonicalHash.sha256(JSON.treeToValue(task,CodingTaskContract.class)))
+            .isNotEqualTo(fixture("canonical-vector").get("sha256").asText());
+        set(task,"/schemaVersion",CodingProtocol.VERSION);
+        assertThatThrownBy(()->JSON.treeToValue(task,CodingTaskContract.class)).rootCause()
+            .isInstanceOf(CodingContractException.class);
+    }
 }

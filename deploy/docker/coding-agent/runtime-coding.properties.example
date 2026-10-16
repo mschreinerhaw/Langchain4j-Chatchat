@@ -18,3 +18,10 @@ chatchat.coding.analysis.max-input-rows=100000
 chatchat.coding.analysis.max-input-bytes=16777216
 chatchat.coding.analysis.max-result-rows=10000
 chatchat.coding.analysis.max-result-bytes=4194304
+
+# Optional SQL workspace profile, on the SAME CodingAgentSPI/Adapter/Node worker.
+# Install the pinned sql-toolchain/requirements.txt into a deployment-owned Python venv first.
+# No generated Python or SQL is executed by this parser entrypoint.
+chatchat.coding.workspace.enabled=false
+chatchat.coding.workspace.sqlglot-python=/opt/runtime-coding/sql-toolchain/bin/python
+chatchat.coding.workspace.timeout-seconds=300

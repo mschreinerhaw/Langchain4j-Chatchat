@@ -20,6 +20,10 @@ public record CodingTaskContract(String schemaVersion, String taskId, KernelData
         environmentRef = CodingProtocol.ref(environmentRef, "environmentRef");
         validationPlanRef = CodingProtocol.ref(validationPlanRef, "validationPlanRef");
         CodingProtocol.required(outputContract, "outputContract");
+        CodingProtocol.require(CodingProtocol.VERSION.equals(schemaVersion)
+                ? outputContract.resultFormat() == ResultFormat.JSON_LINES
+                : outputContract.resultFormat() == ResultFormat.WORKSPACE_FILES,
+            "Task version and output profile do not match");
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -72,7 +76,7 @@ public record CodingTaskContract(String schemaVersion, String taskId, KernelData
         }
     }
 
-    public enum ResultFormat { JSON_LINES }
+    public enum ResultFormat { JSON_LINES, WORKSPACE_FILES }
     public enum RequiredEvidence { INPUT_SNAPSHOT, CODE_ARTIFACT, EXECUTION_RECEIPT, RESULT_DATASET, VALIDATION_RECORD, EVIDENCE_BUNDLE }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

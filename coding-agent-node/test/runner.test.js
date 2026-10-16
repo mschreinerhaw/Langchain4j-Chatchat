@@ -193,3 +193,135 @@ test('a failed Runtime model call is visible to Java reconciliation', async () =
   assert.equal(result.status, 'failed');
   assert.match(result.error, /provider unavailable/);
 });
+
+test('transient provider errors cannot trigger SDK retries outside Runtime admission', async () => {
+  for (const thrown of [false, true]) {
+    let calls = 0; let reservations = 0;
+    const model = { async *stream() {
+      calls++;
+      if (thrown) throw Object.assign(new Error('HTTP 503 service unavailable'), { status: 503 });
+      yield { type: 'finish', reason: 'error', error: 'HTTP 503 service unavailable', errorRetryable: true };
+    } };
+    const gateway = { executePython() {}, reserveModel() { reservations++; }, settleModel() {}, finish() {} };
+    const result = await createCodingRun(task, gateway, { model }).run();
+    assert.equal(result.status, 'failed');
+    assert.match(result.error, /503/);
+    assert.equal(calls, 1);
+    assert.equal(reservations, 1);
+  }
+});
+
+test('a later unsuccessful program cannot finish using an older successful result', async () => {
+  for (const later of ['FAILED', 'MISSING', 'TRANSPORT_ERROR']) {
+    let calls = 0; let finished; let cancelled = 0;
+    const model = { async *stream() {
+      if (++calls <= 2) {
+        yield { type: 'tool-call-delta', toolCallId: `attempt-${calls}`, toolName: 'python_execute',
+          input: { fileName: 'main.py', source: `# program ${calls}` } };
+        yield { type: 'finish', reason: 'tool-calls' };
+      } else { yield { type: 'text-delta', text: 'Cannot deliver the revised result' }; yield { type: 'finish', reason: 'stop' }; }
+    } };
+    const gateway = { reserveModel() {}, settleModel() {},
+      executePython() {
+        if (calls === 1) return { status: 'SUCCEEDED', executorStopped: true,
+          resultDatasetRef: 'result:old', validationRecordRef: 'validation:old', evidenceBundleRef: 'bundle:old' };
+        if (later === 'TRANSPORT_ERROR') throw new Error('Response lost after dispatch');
+        return { status: later === 'FAILED' ? 'FAILED' : 'SUCCEEDED', executorStopped: true };
+      }, cancelPython: async () => { cancelled++; }, finish(_task, value) { finished = value; },
+    };
+    await createCodingRun(task, gateway, { model }).run();
+    assert.equal(finished.operationId, null);
+    assert.equal(cancelled, later === 'TRANSPORT_ERROR' ? 1 : 0);
+  }
+});
+
+test('Runtime deadline aborts the in-flight model and leaves provider reconciliation to Java', async () => {
+  let aborted = false; let finish;
+  const model = { async *stream(request) {
+    await new Promise((resolve, reject) => {
+      const stop = () => { aborted = true; reject(new Error('aborted')); };
+      if (request.signal.aborted) stop(); else request.signal.addEventListener('abort', stop, { once: true });
+    });
+  } };
+  const gateway = { executePython() {}, reserveModel() {}, settleModel() { assert.fail('No provider receipt'); },
+    finish(_task, value) { finish = value; } };
+  const result = await createCodingRun({ ...task, budget: { ...task.budget,
+    deadlineAt: new Date(Date.now() + 150).toISOString() } }, gateway, { model }).run();
+  assert.equal(aborted, true);
+  assert.equal(result.status, 'aborted');
+  assert.equal(finish.status, 'aborted');
+  assert.equal(finish.operationId, null);
+});
+
+test('expired contracts do not reserve or execute work', async () => {
+  let touched = false;
+  const gateway = { executePython() { touched = true; }, reserveModel() { touched = true; } };
+  const model = { async *stream() { touched = true; } };
+  const run = createCodingRun({ ...task, budget: { ...task.budget,
+    deadlineAt: new Date(Date.now() - 1000).toISOString() } }, gateway, { model });
+  await assert.rejects(run.run(), /deadline reached before dispatch/);
+  assert.equal(touched, false);
+});
+
+test('Runtime deadline requests Sandbox cancellation while an operation remains active', async () => {
+  let operation; const cancelled = []; let finish;
+  const model = { async *stream() {
+    yield { type: 'tool-call-delta', toolCallId: 'long-running', toolName: 'python_execute',
+      input: { fileName: 'main.py', source: '# long running computation' } };
+    yield { type: 'finish', reason: 'tool-calls' };
+  } };
+  const gateway = { reserveModel() {}, settleModel() {},
+    async executePython(_task, value, signal) {
+      operation = value.operationId;
+      return new Promise((resolve, reject) => {
+        const stop = () => reject(new Error('HTTP interrupted; execution unknown'));
+        if (signal.aborted) stop(); else signal.addEventListener('abort', stop, { once: true });
+      });
+    },
+    cancelPython: async (_task, id) => { cancelled.push(id); },
+    finish(_task, value) { finish = value; },
+  };
+  const result = await createCodingRun({ ...task, budget: { ...task.budget,
+    deadlineAt: new Date(Date.now() + 150).toISOString() } }, gateway, { model }).run();
+  assert.equal(result.status, 'aborted');
+  assert.match(operation, /^cline-[0-9a-f]{64}$/);
+  assert.ok(cancelled.includes(operation));
+  assert.equal(finish.operationId, null);
+});
+
+test('the same Cline loop stages multi-file SQL and repairs parser feedback without Python authority', async () => {
+  const sqlTask = { ...task, schemaVersion: 'runtime_os.coding.v2',
+    authorization: { allowedTools: ['workspace_read', 'workspace_propose'],
+      allowedSideEffects: ['WORKSPACE_WRITE'], allowedDataRefs: [], networkPolicy: 'NONE' },
+    outputContract: { resultFormat: 'WORKSPACE_FILES', requiredFiles: ['proposal.jsonl'] } };
+  let calls = 0; let finished; const proposals = [];
+  const model = { async *stream(request) {
+    assert.deepEqual(request.tools.map(tool => tool.name), ['workspace_read', 'workspace_propose']);
+    assert.doesNotMatch(request.systemPrompt, /Generate Python/);
+    calls++;
+    if (calls === 1) yield { type: 'tool-call-delta', toolCallId: 'read', toolName: 'workspace_read', input: {} };
+    else if (calls <= 3) {
+      if (calls === 2) assert.match(JSON.stringify(request.messages), /authorized Mapping/);
+      if (calls === 3) assert.match(JSON.stringify(request.messages), /Parser error/);
+      yield { type: 'tool-call-delta', toolCallId: `propose-${calls}`, toolName: 'workspace_propose',
+        input: { files: [{ path: 'sql/a.sql', content: calls === 2 ? 'SELECT * FROM' : '-- preserve\nSELECT 1;' },
+          { path: 'etl/b.sql', content: 'SELECT 2;' }], notes: 'No SQL executed' } };
+    } else yield { type: 'text-delta', text: 'Parsed candidates are ready for user Diff review.' };
+    yield { type: 'finish', reason: calls <= 3 ? 'tool-calls' : 'stop' };
+  } };
+  const gateway = { reserveModel() {}, settleModel() {},
+    readWorkspace: async () => ({ context: 'authorized Mapping and historical SQL' }),
+    async proposeWorkspace(_contract, id, proposal) {
+      proposals.push({ id, proposal });
+      return proposals.length === 1 ? { valid: false, diagnostics: ['Parser error'] }
+        : { valid: true, evidenceBundleRef: 'workspace:bundle', sqlExecuted: false };
+    }, finish(_contract, value) { finished = value; } };
+  const result = await createCodingRun(sqlTask, gateway, { model }).run();
+  assert.equal(result.status, 'completed');
+  assert.equal(proposals.length, 2);
+  assert.equal(proposals[1].proposal.files.length, 2);
+  assert.equal(finished.operationId, proposals[1].id);
+  assert.match(finished.operationId, /^workspace-[0-9a-f]{64}$/);
+  assert.throws(() => createCodingRun({ ...sqlTask, authorization: {
+    ...sqlTask.authorization, allowedTools: ['workspace_read', 'python_execute'] } }, gateway, { model }), /Unrecognized/);
+});

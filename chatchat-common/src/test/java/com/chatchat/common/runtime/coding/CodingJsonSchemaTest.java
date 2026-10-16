@@ -50,6 +50,17 @@ class CodingJsonSchemaTest {
     }
 
     record Invalid(String fixture, String pointer, Object value) { }
+    @Test void workspaceSchemaIsVersionedAndDoesNotExpandTheV1WireProfile() throws Exception {
+        try(var input=getClass().getResourceAsStream("/runtime/coding/coding-workspace.schema.json")){
+            var validator=JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012).getSchema(JSON.readTree(input));
+            ObjectNode task=fixture("task");task.put("schemaVersion",CodingProtocol.WORKSPACE_VERSION);
+            set(task,"/outputContract/resultFormat","WORKSPACE_FILES");
+            assertThat(validator.validate(task)).isEmpty();
+            assertThat(schema("task").validate(task)).isNotEmpty();
+            set(task,"/outputContract/resultFormat","JSON_LINES");
+            assertThat(validator.validate(task)).isNotEmpty();
+        }
+    }
 
     @TestFactory Stream<DynamicTest> invalidWireValuesAreRejectedBySchemaAndJava() {
         return Stream.of(

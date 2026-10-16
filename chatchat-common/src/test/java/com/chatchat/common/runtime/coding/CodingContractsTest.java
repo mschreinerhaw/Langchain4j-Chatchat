@@ -108,7 +108,7 @@ class CodingContractsTest {
     @Test void standardErrorsHaveNoVendorPayloadAndUnknownVersionIsNeverDefaulted() throws Exception {
         CodingAgentSPI.Error error = JSON.treeToValue(fixture("error"), CodingAgentSPI.Error.class);
         assertThat(new CodingContractException(error).error()).isEqualTo(error);
-        ObjectNode node = fixture("task"); node.put("schemaVersion", "runtime_os.coding.v2");
+        ObjectNode node = fixture("task"); node.put("schemaVersion", "runtime_os.coding.v3");
         assertThatThrownBy(() -> JSON.treeToValue(node, CodingTaskContract.class))
             .rootCause().isInstanceOf(CodingContractException.class)
             .extracting(value -> ((CodingContractException) value).error().code()).isEqualTo(CodingErrorCode.VERSION_UNSUPPORTED);

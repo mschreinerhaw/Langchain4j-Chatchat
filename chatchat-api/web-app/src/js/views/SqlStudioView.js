@@ -226,7 +226,8 @@ async function generate() { await action(async () => {
   prompt.value = '';
   pendingPhase.value = 'PREPARING'; pendingStartedAt.value = Date.now(); pollError.value = ''; result.value = null;
   try {
-    const prepared = await sql.prepareSqlGeneration(id, { action:aiAction.value, prompt:request, dialect:dialect.value, mappingDocumentIds:mappingDocumentIds.value, mappingIds:mappingIds.value, referenceIds:referenceIds.value, agentId:executionMode.value === 'agent' ? agentId.value || null : null, modelName:executionMode.value === 'model' ? modelName.value || null : null });
+    const prepared = await sql.prepareSqlGeneration(id, { action:aiAction.value, prompt:request, dialect:dialect.value, mappingDocumentIds:mappingDocumentIds.value, mappingIds:mappingIds.value, referenceIds:referenceIds.value, agentId:executionMode.value === 'agent' ? agentId.value || null : null, modelName:executionMode.value === 'model' ? modelName.value || null : null,
+      codingMetadataSelection:schemaExplorer.value?.codingSelection?.() || null });
     if (id !== projectId.value || !active) return;
     for (const turn of chatTurns.value.filter(turn => turn.id.endsWith(localId))) {
       turn.id = `${turn.role}:${prepared.generationId}`; turn.generationId = prepared.generationId;
@@ -301,7 +302,12 @@ async function apply() { await action(async () => {
   for (const file of saved) { const index = files.value.findIndex(current => current.id === file.id); const clean = mergeAppliedSqlFile(file, files.value[index]); index < 0 ? files.value.push(clean) : files.value.splice(index,1,clean); }
   preview.value = null; reviewOpen.value=false; if (saved[0]) openFile(saved[0].id); await refreshGeneration(); references.value = await sql.sqlReferences(); persist(); message.value = `已保存 ${saved.length} 个生成文件`;
 }); }
-async function cancel() { await action(async () => { await cancelAgentTask(result.value.task.taskId, props.tenantId); await refreshGeneration(); }); }
+async function cancel() { await action(async () => {
+  if(result.value?.generation?.prepared?.taskRequest?.toolInput?.codingWorkspaceProfile === 'SQL_WORKSPACE_V2')
+    await sql.cancelSqlCodingGeneration(projectId.value,generationId.value);
+  else await cancelAgentTask(result.value.task.taskId, props.tenantId);
+  await refreshGeneration();
+}); }
 async function showVersions(file) { await action(async () => { versions.value = await sql.sqlVersions(projectId.value, file.id); versionFile.value = file; }); }
 async function download(file) { await action(() => sql.downloadSqlFile(projectId.value, file)); }
 async function renameFile({ file, path }) { await action(async () => {

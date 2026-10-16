@@ -41,6 +41,12 @@ public class SqlStudioService {
     private final EnterpriseAdminService identities;
     private final SqlStudioGenerationScopeStore generationScopes;
     private final com.chatchat.api.datascience.StudioCodePlanService codePlans;
+    private com.chatchat.api.runtime.CodingWorkspaceService coding;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setCoding(com.chatchat.api.runtime.CodingWorkspaceService coding) { this.coding=coding; }
+    private org.springframework.beans.factory.ObjectProvider<SqlStudioMetadataService> codingMetadata;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setCodingMetadata(org.springframework.beans.factory.ObjectProvider<SqlStudioMetadataService> metadata){this.codingMetadata=metadata;}
 
     public record Project(String id, String name, String dialect, String sessionId, String tenantId, String ownerId) { }
     public record File(String id, String projectId, String path, String kind, String content, int version,
@@ -48,7 +54,13 @@ public class SqlStudioService {
     public record FileWrite(String path, String kind, String content, Integer expectedVersion) { }
     public record Version(int version, String content, String sourceTaskId) { }
     public record Generate(String prompt, String dialect, List<String> mappingIds, List<String> referenceIds,
-                           String agentId, String modelName, List<String> mappingDocumentIds, String action, Boolean planRequested) { }
+                           String agentId, String modelName, List<String> mappingDocumentIds, String action, Boolean planRequested,
+                           SqlStudioMetadataService.CodingSelection codingMetadataSelection) {
+        public Generate(String prompt,String dialect,List<String> mappingIds,List<String> referenceIds,String agentId,
+                        String modelName,List<String> mappingDocumentIds,String action,Boolean planRequested){
+            this(prompt,dialect,mappingIds,referenceIds,agentId,modelName,mappingDocumentIds,action,planRequested,null);
+        }
+    }
     public record Prepared(String generationId, AgentTaskSubmitRequest taskRequest) { }
     public record Generation(String id, String taskId, boolean applied, Prepared prepared, Map<String,Integer> baseVersions) { }
     public record GenerationView(Generation generation, AgentTaskResponse task, List<AgentEvent> events,
@@ -337,6 +349,16 @@ public class SqlStudioService {
         require(query.length() <= 250_000, "Project context exceeds 250000 characters; select smaller inputs");
         Map<String, Object> applicationContext = new LinkedHashMap<>();
         applicationContext.put("sqlStudioAction", operation);
+        applicationContext.put("sqlStudioDialect", dialect);
+        if(body.codingMetadataSelection()!=null){
+            var snapshot=codingMetadata.getObject().captureCoding(request,projectId,body.codingMetadataSelection());
+            applicationContext.put("sqlCodingMetadata",snapshot);
+            applicationContext.put("sqlCodingMetadataSelection",body.codingMetadataSelection());
+            query+="\nAuthorized registered metadata snapshot (not SQL execution authority): "+json(snapshot);
+            require(query.length()<=250000,"Project and metadata context exceeds limit");
+        }
+        if(coding!=null && !"explain".equals(operation) && (body.agentId()==null || body.agentId().isBlank()))
+            applicationContext.put("codingWorkspaceProfile","SQL_WORKSPACE_V2");
         // Every request at this endpoint invokes a model. Local deterministic editor actions never enter it.
         // Keep planRequested as an input compatibility field; false cannot bypass the existing plan contract.
         // This initial analysis plan is not tool authority or a replacement for Runtime executable-plan governance.
@@ -385,7 +407,9 @@ public class SqlStudioService {
     }
     @Transactional
     public Generation bind(HttpServletRequest request, String projectId, String id, String taskId) {
-        Generation generation = generation(request, projectId, id); access.requireTask(request, taskId);
+        Generation generation = generation(request, projectId, id);
+        require(!isCoding(generation),"Coding workspace generations cannot bind an unrelated Agent task");
+        access.requireTask(request, taskId);
         Project project = project(request, projectId); AgentTaskResponse task = tasks.get(project.tenantId(), taskId).orElseThrow();
         require(generation.prepared().taskRequest().getSessionId().equals(task.sessionId()) && generation.prepared().taskRequest().getQuery().equals(task.question()), "Task does not belong to this generation context");
         if (generation.taskId() != null && !generation.taskId().equals(taskId)) conflict();
@@ -395,6 +419,7 @@ public class SqlStudioService {
     public GenerationView result(HttpServletRequest request, String projectId, String id) {
         Project project = project(request, projectId); Generation generation = generation(request, projectId, id);
         if (generation.taskId() == null) return new GenerationView(generation, null, List.of(), List.of(), "", "", "NOT_RUN");
+        if(isCoding(generation)){requireCodingMetadata(request,projectId,generation);return codingResult(project,generation);}
         access.requireTask(request, generation.taskId());
         AgentTaskResponse task = tasks.get(project.tenantId(), generation.taskId()).orElseThrow();
         List<AgentEvent> trace = events.listByTask(project.tenantId(), task.sessionId(), task.taskId(), 2000);
@@ -406,6 +431,74 @@ public class SqlStudioService {
             catch (ResponseStatusException ex) { error = ex.getReason(); }
         }
         return new GenerationView(generation, task, trace, output, answer, error, "NOT_RUN");
+    }
+    /** Saved context, project owner and server feature selection determine Coding authority. */
+    public AgentTaskResponse submitCoding(HttpServletRequest request,String projectId,String id) {
+        Project project=project(request,projectId);Generation generation=generation(request,projectId,id);
+        require(isCoding(generation),"Generation does not use the Coding workspace profile");
+        require(coding!=null,"Coding workspace profile is unavailable");
+        requireCodingMetadata(request,projectId,generation);
+        String task="sql-coding-"+id;
+        if(generation.taskId()!=null && !task.equals(generation.taskId()))conflict();
+        var outcome=coding.submit(codingScope(project,id),task,generation.prepared().taskRequest().getQuery(),
+            Objects.toString(generation.prepared().taskRequest().getToolInput().get("sqlStudioDialect"),project.dialect()),
+            generation.prepared().taskRequest().getModelName(),codingSchema(generation));
+        if(jdbc.update("update ds_sql_generation set task_id=? where id=? and project_id=? and (task_id is null or task_id=?)",
+                task,id,projectId,task)!=1)conflict();
+        return codingTask(project,generation,outcome,"");
+    }
+    public void cancelCoding(HttpServletRequest request,String projectId,String id) {
+        Project project=project(request,projectId);Generation generation=generation(request,projectId,id);
+        require(isCoding(generation) && generation.taskId()!=null && coding!=null,"No Coding workspace task to cancel");
+        coding.cancel(codingScope(project,id),generation.taskId());
+    }
+    private static boolean isCoding(Generation generation){
+        return "SQL_WORKSPACE_V2".equals(generation.prepared().taskRequest().getToolInput().get("codingWorkspaceProfile"));
+    }
+    private static com.chatchat.common.kernel.KernelDataScope codingScope(Project project,String generation){
+        return new com.chatchat.common.kernel.KernelDataScope(project.tenantId(),project.ownerId(),null,project.sessionId(),
+            "sql-generation-"+generation,null,Map.of());
+    }
+    private GenerationView codingResult(Project project,Generation generation){
+        if(coding==null)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Coding workspace profile is unavailable");
+        var scope=codingScope(project,generation.id());var outcome=coding.get(scope,generation.taskId());
+        List<SqlOutputBundle.Candidate> files=List.of();String answer="",validation="NOT_RUN";
+        if(outcome.status()==com.chatchat.common.runtime.coding.CodingTaskOutcome.Status.COMPLETED){
+            var output=coding.output(scope,generation.taskId(),outcome);
+            answer=json(Map.of("schemaVersion","sql-studio.output.v1","files",output.get("files"),"notes",output.get("notes")));
+            files=SqlOutputBundle.parse(answer,mapper);
+            var checked=(Map<?,?>)output.get("validation");
+            validation="PARSED; FIELDS_"+checked.get("fieldValidation")+"; SQL_NOT_EXECUTED";
+        }
+        var trace=coding.events(scope,generation.taskId()).stream().map(event->AgentEvent.builder()
+            .eventId(event.eventId()).taskId(event.taskId()).runId(scope.runId()).tenantId(scope.tenantId()).userId(scope.userId())
+            .sequence(event.sequence()).type(event.type().name()).status(event.status().name()).payload(json(Map.of("summary",event.summary())))
+            .createTime(event.occurredAt().toEpochMilli()).build()).toList();
+        return new GenerationView(generation,codingTask(project,generation,outcome,answer),trace,files,answer,"",
+            validation);
+    }
+    @SuppressWarnings("unchecked") private Map<String,Object> codingSchema(Generation generation){
+        Object schema=generation.prepared().taskRequest().getToolInput().get("sqlCodingMetadata");
+        return schema instanceof Map<?,?>?(Map<String,Object>)schema:Map.of();
+    }
+    private void requireCodingMetadata(HttpServletRequest request,String project,Generation generation){
+        Object saved=generation.prepared().taskRequest().getToolInput().get("sqlCodingMetadataSelection");
+        if(saved!=null){
+            var selection=mapper.convertValue(saved,SqlStudioMetadataService.CodingSelection.class);
+            var current=codingMetadata.getObject().captureCoding(request,project,selection);
+            require(current.equals(codingSchema(generation)),"Authorized metadata changed; prepare a new generation");
+        }
+    }
+    private AgentTaskResponse codingTask(Project project,Generation generation,
+            com.chatchat.common.runtime.coding.CodingTaskOutcome outcome,String answer){
+        String status=switch(outcome.status()){
+            case CREATED->"PENDING";case RUNNING->"RUNNING";case COMPLETED->"SUCCESS";case PARTIAL->"PARTIAL";
+            case FAILED->"FAILED";case CANCELLED->"CANCELLED";case BUDGET_EXCEEDED->"MODEL_BUDGET_EXHAUSTED";
+        };
+        return new AgentTaskResponse(outcome.taskId(),null,null,null,null,1,outcome.status().name(),project.tenantId(),project.ownerId(),
+            null,generation.prepared().taskRequest().getSessionId(),status,generation.prepared().taskRequest().getQuery(),answer,
+            outcome.reasonCode()==null?null:outcome.summary(),null,null,null,null,null,null,outcome.createdAt(),outcome.updatedAt(),
+            outcome.endedAt(),outcome.lastEventSequence(),List.of());
     }
     @Transactional
     public List<File> apply(HttpServletRequest request, String projectId, String id, List<String> paths) {

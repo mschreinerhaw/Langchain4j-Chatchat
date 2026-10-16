@@ -85,4 +85,19 @@ class SqlStudioMetadataServiceTest {
         assertThatThrownBy(() -> service.create(request, "project", input())).isInstanceOf(ResponseStatusException.class);
         assertThat(jdbc.queryForObject("select count(*) from ds_sql_metadata_context", Integer.class)).isZero();
     }
+    @Test void codingCapturesOnlySelectedAuthorizedColumnsAndRejectsSnapshotChanges(){
+        var context=service.create(request,"project",input());
+        when(gateway.invoke(eq(request),any(),argThat(args->args!=null && "DESCRIBE".equals(args.get("operation")))))
+            .thenReturn(new SqlStudioMetadataGateway.Result("registered-mcp",Map.of("status","SUCCEEDED","snapshotId","snapshot-1",
+                "doesNotExecuteSql",true,"items",List.of(Map.of("tableName","orders","database","db","schema","public",
+                    "columns",List.of(Map.of("name","id","columnType","INT")),"connectionSecret","must not be captured")))));
+        var selection=new SqlStudioMetadataService.CodingSelection(context.discoveryId(),context.bindings().get(0).bindingId(),
+            "snapshot-1",List.of(new SqlStudioMetadataService.CodingTable("orders","db","public")));
+        var captured=service.captureCoding(request,"project",selection);
+        assertThat(captured.toString()).contains("orders","id","snapshot-1").doesNotContain("connectionSecret","must not be captured");
+        var stale=new SqlStudioMetadataService.CodingSelection(selection.discoveryId(),selection.bindingId(),"changed",selection.tables());
+        assertThatThrownBy(()->service.captureCoding(request,"project",stale)).isInstanceOf(ResponseStatusException.class);
+        when(gateway.invoke(eq(request),any(),anyMap())).thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN));
+        assertThatThrownBy(()->service.captureCoding(request,"project",selection)).isInstanceOf(ResponseStatusException.class);
+    }
 }

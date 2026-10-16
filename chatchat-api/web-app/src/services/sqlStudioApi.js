@@ -35,6 +35,8 @@ export async function uploadSqlInput(id, file, kind) {
   return apiRequest(`${project(id)}/uploads?kind=${kind}&expectedVersion=0`, { method: 'POST', body: form });
 }
 export async function submitSqlGeneration(id, prepared) {
+  if(prepared.taskRequest?.toolInput?.codingWorkspaceProfile === 'SQL_WORKSPACE_V2')
+    return apiRequest(`${project(id)}/generations/${encodeURIComponent(prepared.generationId)}/coding`, {method:'POST'});
   // Same authentication, RBAC, session advice, idempotency and runtime as all other Agent tasks.
   // The Studio explicitly supplies the current conversation in query. Runtime session
   // history would duplicate those turns and leak previous conversations after a reset.
@@ -42,6 +44,7 @@ export async function submitSqlGeneration(id, prepared) {
   await bindSqlTask(id, prepared.generationId, task.taskId);
   return task;
 }
+export const cancelSqlCodingGeneration = (id,generationId) => apiRequest(`${project(id)}/generations/${encodeURIComponent(generationId)}/coding/cancel`, {method:'POST'});
 export async function downloadSqlFile(projectId, file) {
   const blob = await readSqlFileBlob(projectId, file);
   const url = URL.createObjectURL(blob);

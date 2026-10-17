@@ -4,14 +4,13 @@ import com.chatchat.agents.model.ConfigurableChatModelFactory;
 import com.chatchat.common.config.ModelResourceRegistry;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
 import dev.langchain4j.model.chat.ChatModel;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
@@ -28,9 +27,9 @@ public class PythonCodeAssistantService {
     private final ConfigurableChatModelFactory chatModelFactory;
     private final DomainSkillRuntimePort domainSkillRuntime;
     private final com.chatchat.api.datascience.StudioCodePlanService codePlans;
-    private com.chatchat.api.runtime.CodingWorkspaceService codingWorkspace;
+    private com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService codingWorkspace;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
-    public void setCodingWorkspace(com.chatchat.api.runtime.CodingWorkspaceService value){this.codingWorkspace=value;}
+    public void setCodingWorkspace(com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService value){this.codingWorkspace=value;}
 
     public Map<String,Object> codingCapabilities(){return Map.of("enabled",codingWorkspace!=null,"profile","python-studio.output.v1");}
     public record CodingAssistRequest(AssistRequest request,String requestId,String entryPath,List<Map<String,String>> files) { }

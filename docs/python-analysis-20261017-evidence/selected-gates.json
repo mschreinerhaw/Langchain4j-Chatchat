@@ -1,0 +1,110 @@
+﻿{
+    "selected":  "PASSED",
+    "selectedResults":  {
+                            "skipped":  0,
+                            "errors":  0,
+                            "tests":  135,
+                            "failures":  0,
+                            "suites":  [
+                                           {
+                                               "name":  "com.chatchat.agents.orchestration.analysis.graph.BoundedAnalysisEvidenceTest",
+                                               "tests":  6,
+                                               "failures":  0,
+                                               "errors":  0,
+                                               "skipped":  0
+                                           },
+                                           {
+                                               "name":  "com.chatchat.agents.orchestration.analysis.graph.DataWorkspaceOperationsTest",
+                                               "tests":  9,
+                                               "failures":  0,
+                                               "errors":  0,
+                                               "skipped":  0
+                                           },
+                                           {
+                                               "name":  "com.chatchat.agents.orchestration.analysis.graph.HarnessCodingIntegrationTest",
+                                               "tests":  14,
+                                               "failures":  0,
+                                               "errors":  0,
+                                               "skipped":  0
+                                           },
+                                           {
+                                               "name":  "com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarnessTest",
+                                               "tests":  30,
+                                               "failures":  0,
+                                               "errors":  0,
+                                               "skipped":  0
+                                           },
+                                           {
+                                               "name":  "com.chatchat.api.controller.agent.CodingTraceArtifactControllerTest",
+                                               "tests":  3,
+                                               "failures":  0,
+                                               "errors":  0,
+                                               "skipped":  0
+                                           },
+                                           {
+                                               "name":  "com.chatchat.api.runtime.ClineModelCallbackControllerTest",
+                                               "tests":  4,
+                                               "failures":  0,
+                                               "errors":  0,
+                                               "skipped":  0
+                                           },
+                                           {
+                                               "name":  "com.chatchat.api.runtime.ClinePythonCallbackControllerTest",
+                                               "tests":  7,
+                                               "failures":  0,
+                                               "errors":  0,
+                                               "skipped":  0
+                                           },
+                                           {
+                                               "name":  "com.chatchat.api.runtime.CodingAnalysisServiceTest",
+                                               "tests":  11,
+                                               "failures":  0,
+                                               "errors":  0,
+                                               "skipped":  0
+                                           },
+                                           {
+                                               "name":  "com.chatchat.api.runtime.CodingChunkedSnapshotTest",
+                                               "tests":  1,
+                                               "failures":  0,
+                                               "errors":  0,
+                                               "skipped":  0
+                                           },
+                                           {
+                                               "name":  "com.chatchat.api.runtime.CodingDataSupplyServiceTest",
+                                               "tests":  11,
+                                               "failures":  0,
+                                               "errors":  0,
+                                               "skipped":  0
+                                           },
+                                           {
+                                               "name":  "com.chatchat.api.runtime.CodingInputSnapshotServiceTest",
+                                               "tests":  1,
+                                               "failures":  0,
+                                               "errors":  0,
+                                               "skipped":  0
+                                           },
+                                           {
+                                               "name":  "com.chatchat.api.runtime.CodingTaskPersistenceTest",
+                                               "tests":  31,
+                                               "failures":  0,
+                                               "errors":  0,
+                                               "skipped":  0
+                                           },
+                                           {
+                                               "name":  "com.chatchat.chat.interaction.service.ProblemAnalysisLifecycleTest",
+                                               "tests":  3,
+                                               "failures":  0,
+                                               "errors":  0,
+                                               "skipped":  0
+                                           },
+                                           {
+                                               "name":  "com.chatchat.common.runtime.capability.CapabilityWorkflowProtocolTest",
+                                               "tests":  4,
+                                               "failures":  0,
+                                               "errors":  0,
+                                               "skipped":  0
+                                           }
+                                       ]
+                        },
+    "scope":  "Required suites evaluated within this full-suite run"
+}

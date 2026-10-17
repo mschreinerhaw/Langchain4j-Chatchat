@@ -1,0 +1,108 @@
+﻿{
+    "baseCommit":  "fa3fa2264b3a20055840d8f262881d5b25859b51",
+    "branch":  "main",
+    "remoteMainConfirmedAtBase":  true,
+    "workingTreeChangesCommitted":  false,
+    "files":  [
+                  {
+                      "path":  "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinator.java",
+                      "sha256":  "d776bccd06271da406a5ab83128fc9402725556baf3b0252f962212388bfd49e"
+                  },
+                  {
+                      "path":  "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/graph/AnalysisCodingPort.java",
+                      "sha256":  "fe9459f51f507b5cbf730e9bdd93bdc0a04c4db73bd7c1f29b701ed152bada32"
+                  },
+                  {
+                      "path":  "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/graph/BoundedAnalysisEvidence.java",
+                      "sha256":  "4a241a3e4dd3624abe776dcbc30bef433a1ef94504247764900221b4d91b4a46"
+                  },
+                  {
+                      "path":  "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/graph/ModelNativeAnalysisHarness.java",
+                      "sha256":  "0642c1551074bab095797f4b9f72d35a0f8b3f81084a59e3d13fc951b7b3464f"
+                  },
+                  {
+                      "path":  "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinatorTest.java",
+                      "sha256":  "1b60f80053713479ac5ebbe1edfb6a7935f26f747df82de6be0d76d5386222eb"
+                  },
+                  {
+                      "path":  "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/analysis/graph/HarnessCodingIntegrationTest.java",
+                      "sha256":  "4276316f6b548b8584225a0930b4d93c00062ff682bc1fbc56896a80ee667ce8"
+                  },
+                  {
+                      "path":  "chatchat-api/src/main/java/com/chatchat/api/controller/agent/CodingTraceArtifactController.java",
+                      "sha256":  "53590925b7cf8feb0c79c7290357263d850e1f24ed6f8a1a4cae34ad92d66914"
+                  },
+                  {
+                      "path":  "chatchat-api/src/main/java/com/chatchat/api/runtime/ClinePythonCallbackController.java",
+                      "sha256":  "cccf8f6451b282f7e88c367433b768f7d313d2f4e6cf93d59d43faea6bee19c7"
+                  },
+                  {
+                      "path":  "chatchat-api/src/main/java/com/chatchat/api/runtime/CodingAnalysisService.java",
+                      "sha256":  "381fa1ad242c79377d0593f9e06e1535e838faca952a7c98e6fb5aa5592caf80"
+                  },
+                  {
+                      "path":  "chatchat-api/src/test/java/com/chatchat/api/controller/agent/CodingTraceArtifactControllerTest.java",
+                      "sha256":  "abd6feac47276210c1dd53d990831d7aa5325ae71091edda27ff62d928a0acd2"
+                  },
+                  {
+                      "path":  "chatchat-api/src/test/java/com/chatchat/api/runtime/ClinePythonCallbackControllerTest.java",
+                      "sha256":  "a5b82fbd37baa7703a0b06e1585433aa15f0a659034267a6b5fea22a1b0b80e4"
+                  },
+                  {
+                      "path":  "chatchat-api/src/test/java/com/chatchat/api/runtime/PythonAnalysisSmokeDriver.java",
+                      "sha256":  "87ad2b909f17b7aaaa80f2dcd990d19d4aa5867742b832b61e2df55497cc0fb0"
+                  },
+                  {
+                      "path":  "chatchat-api/web-app/src/components/CodingTracePanel.test.js",
+                      "sha256":  "fec502afa0a4008f058ec154b87b35bf66f78fbc9185f29939c76efa71dce62d"
+                  },
+                  {
+                      "path":  "chatchat-api/web-app/src/components/CodingTracePanel.vue",
+                      "sha256":  "05fcd4968670b67c830c810138bac0bd61a9f74c99939b4e80dab205455438d7"
+                  },
+                  {
+                      "path":  "chatchat-api/web-app/src/js/utils/runtimeObservationPresentation.js",
+                      "sha256":  "8881335b9ac3be8138e30edb6d0596aae0b797db47fecbfbfdd09abca41bfb89"
+                  },
+                  {
+                      "path":  "chatchat-api/web-app/src/js/utils/runtimeObservationPresentation.test.js",
+                      "sha256":  "82fec0edd39318f388b343b5f7ed750522b18f5ec39aa92853c88cd7ae3e86bd"
+                  },
+                  {
+                      "path":  "chatchat-api/web-app/src/js/views/AgentRuntimeView.js",
+                      "sha256":  "f2fe492c4dcfaf219aecadc62c3f50b6df29888dc14586328d89a17dd2398c1b"
+                  },
+                  {
+                      "path":  "chatchat-api/web-app/src/js/views/AgentRuntimeView.test.js",
+                      "sha256":  "43c35aaf08f8bda3cec974d6ca4446ac1e4b69bca29909e749271a049a96faae"
+                  },
+                  {
+                      "path":  "chatchat-api/web-app/src/views/AgentRuntimeView.vue",
+                      "sha256":  "81846cfc675a32d09730f1378f915f75054f0ac9bb6328f4c0c02ab9a68d52f5"
+                  },
+                  {
+                      "path":  "chatchat-chat/src/test/java/com/chatchat/chat/interaction/service/ProblemAnalysisLifecycleTest.java",
+                      "sha256":  "98af24512ba4905d2e6457c73d03812f83df20d8361cba33be8d8199abf627e8"
+                  },
+                  {
+                      "path":  "chatchat-common/src/main/java/com/chatchat/common/runtime/capability/ProblemAnalysisPlan.java",
+                      "sha256":  "dbbcb1031be37b9dcf8ca5e1b92a24584ad1a686b78230408a8fe435714fba3d"
+                  },
+                  {
+                      "path":  "chatchat-common/src/test/java/com/chatchat/common/runtime/capability/CapabilityWorkflowProtocolTest.java",
+                      "sha256":  "1587c80221e04af1cc007f0681865b941c7f4d7847a9f85adfdd8bf7e61c02fa"
+                  },
+                  {
+                      "path":  "coding-agent-node/src/runner.js",
+                      "sha256":  "ef13b3f99141c94de47fa2f765106f40ed9791d835f6759420732d189cd61c4e"
+                  },
+                  {
+                      "path":  "scripts/deploy-python-analysis-stage.sh",
+                      "sha256":  "1af64aeb7325662c0f2b65e68b5c618326a4efe31fcb59529089d0820a533f84"
+                  },
+                  {
+                      "path":  "scripts/verify-python-analysis.ps1",
+                      "sha256":  "f3540cb2870cd9ef8cbde9d359f6e0b9c17d871b265fe73f7f7e0122fff74eab"
+                  }
+              ]
+}

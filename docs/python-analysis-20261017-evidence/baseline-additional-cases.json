@@ -1,0 +1,59 @@
+﻿{
+    "succeeded":  0,
+    "baselineCommit":  "fa3fa2264b3a20055840d8f262881d5b25859b51",
+    "method":  "Six modified existing production classes replaced with HEAD versions in a classpath overlay; unchanged tests. Persistence case additionally rerun with its original module test classpath to reproduce the same assertion failure.",
+    "tests":  10,
+    "failures":  [
+                     {
+                         "exception":  "java.lang.IllegalStateException",
+                         "message":  "系统示例数据不可用：sample_application.log",
+                         "case":  "com.chatchat.api.datascience.python.PythonSystemExampleCatalogTest#providesExecutableReferenceForEverySupportedFormat"
+                     },
+                     {
+                         "exception":  "org.opentest4j.AssertionFailedError",
+                         "message":  "\r\nexpected: {\"KEY_FINDINGS\"=\"新业务标题\"}\r\n but was: null",
+                         "case":  "com.chatchat.chat.analysis.profile.DomainAnalysisProfileServiceTest#validatesUpdatesAndRejectsStaleRevisionsAndExecutionDirectives"
+                     },
+                     {
+                         "exception":  "org.opentest4j.AssertionFailedError",
+                         "message":  "\r\nExpecting actual:\r\n  [\"web_search\"]\r\nto contain exactly (and in same order):\r\n  [\"document_search\", \"mcp_chatchat_mcp_server_web_search\"]\r\nbut some elements were not found:\r\n  [\"document_search\", \"mcp_chatchat_mcp_server_web_search\"]\r\nand others were not expected:\r\n  [\"web_search\"]\r\n",
+                         "case":  "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest#documentWorkflowRequiresDocumentSearchBeforeWebSearch"
+                     },
+                     {
+                         "exception":  "org.opentest4j.AssertionFailedError",
+                         "message":  "\r\nExpecting actual:\r\n  [\"web_search\", \"document_search\"]\r\nto contain exactly (and in same order):\r\n  [\"mcp_chatchat_mcp_server_web_search\", \"document_search\"]\r\nbut some elements were not found:\r\n  [\"mcp_chatchat_mcp_server_web_search\"]\r\nand others were not expected:\r\n  [\"web_search\"]\r\n",
+                         "case":  "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest#webSearchToggleRequiresRegisteredMcpWebSearchTool"
+                     },
+                     {
+                         "exception":  "org.opentest4j.AssertionFailedError",
+                         "message":  "\r\nExpecting actual:\r\n  [\"web_search\", \"document_search\"]\r\nto contain exactly (and in same order):\r\n  [\"document_search\"]\r\nbut some elements were not expected:\r\n  [\"web_search\"]\r\n",
+                         "case":  "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest#webSearchToggleDoesNothingWhenAgentDidNotEnableWebSearch"
+                     },
+                     {
+                         "exception":  "java.lang.AssertionError",
+                         "message":  "\r\nExpecting map:\r\n  {\"agent\"={\"missingRequiredCapabilities\"=[], \"publicStatus\"=\"FAILED\", \"workflowOutcomeType\"=\"FAILED\"}, \"problemAnalysisPlan\"=ProblemAnalysisPlan[status=PLANNING_FAILED, objective=, subject=, domain=, explanation=问题分析计划生成失败，未选择或执行工作流。, tasks=[], clarificationQuestion=], \"runtimeExecution\"={\"phases\"=[{\"phase\"=\"SELECT_PLANNING_OWNER\", \"state\"=\"COMPLETED\"},\r\n    {\"phase\"=\"PROBLEM_ANALYSIS_PLAN\", \"state\"=\"COMPLETED\"},\r\n    {\"phase\"=\"EVALUATE\", \"state\"=\"COMPLETED\"}], \"state\"=\"COMPLETED\"}, \"runtimeLifecycle\"=[\"SELECT_PLANNING_OWNER\", \"PROBLEM_ANALYSIS_PLAN\", \"EVALUATE\", \"COMPLETE\"], \"runtimeLifecycleDefinition\"=[\"UNDERSTAND\",\r\n    \"PROBLEM_ANALYSIS_PLAN\",\r\n    \"SELECT_WORKFLOW\",\r\n    \"PLAN\",\r\n    \"RESOLVE_CAPABILITY\",\r\n    \"EXECUTE\",\r\n    \"EVALUATE\",\r\n    \"COMPLETE\"], \"workflowEntryPlan\"=WorkflowEntryPlan[owner=PROBLEM_ANALYSIS, reason=SEMANTIC_WORKFLOW_SELECTION, toolPurposes=[]], \"workflowOutcome\"=WorkflowOutcome[type=FAILED, reason=PROBLEM_ANALYSIS_FAILED, missingRequiredCapabilities=[], missingOptionalCapabilities=[], usableResult=false]}\r\nto contain entries:\r\n  [\"skillId\"=\"agent-default\"]\r\nbut could not find the following map entries:\r\n  [\"skillId\"=\"agent-default\"]",
+                         "case":  "com.chatchat.chat.interaction.service.handler.MaintainedAgentRuntimeScenarioCoverageTest#coversEveryMaintainedAgentThroughTheAgentRuntimeContract"
+                     },
+                     {
+                         "exception":  "org.opentest4j.AssertionFailedError",
+                         "message":  "\r\nexpected: \"runtime_skill_ir.v1\"\r\n but was: \"runtime_skill_ir.v2\"",
+                         "case":  "com.chatchat.chat.skills.domain.artifact.DomainSkillArtifactStoreTest#storesOriginalParsedAndCompiledArtifactsSeparately"
+                     },
+                     {
+                         "exception":  "org.opentest4j.AssertionFailedError",
+                         "message":  "\r\nexpected: 4000\r\n but was: 9000",
+                         "case":  "com.chatchat.chat.skills.runtime.AgentRuntimePolicyTest#projectsAndBoundsRuntimePolicyFromWorkflowConfiguration"
+                     },
+                     {
+                         "exception":  "java.lang.AssertionError",
+                         "message":  "\r\nExpected size: 2 but was: 1 in:\r\n[{\"term\"={\"tenantId\"=\"tenant-1\"}}]",
+                         "case":  "com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchDocumentIndexServiceTest#superAdminRoleNameDoesNotBypassDocumentVisibilityFilter"
+                     },
+                     {
+                         "message":  "\r\nExpecting map:\r\n  {\"focus\"=[\"资产总览：保持币种、期间和原始计量口径\",\r\n    \"持仓与盈亏：区分已实现、浮动与期间盈亏\",\r\n    \"配置与集中度：使用已声明分类并说明分母范围\",\r\n    \"资金与流动性：区分可用资金和资产市值，建议关联具体发现\"], \"methodology\"=[\"OBSERVE\", \"DECOMPOSE\", \"CONTRIBUTION\", \"RANK\", \"ASSESS_IMPACT\"]}\r\nto contain entries:\r\n  [\"sectionTitles\"={\"KEY_DRIVERS\"=\"数据库维护的新标题\"}]\r\nbut could not find the following map entries:\r\n  [\"sectionTitles\"={\"KEY_DRIVERS\"=\"数据库维护的新标题\"}]",
+                         "exception":  "java.lang.AssertionError",
+                         "case":  "com.chatchat.chat.analysis.profile.DomainAnalysisProfilePersistenceTest#persistsTitlesRevisionsAndTenantDisableWithoutResettingDefaults"
+                     }
+                 ],
+    "failed":  10
+}

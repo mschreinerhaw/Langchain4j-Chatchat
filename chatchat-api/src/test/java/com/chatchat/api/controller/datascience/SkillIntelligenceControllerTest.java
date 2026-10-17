@@ -1,16 +1,17 @@
 package com.chatchat.api.controller.datascience;
 
-import com.chatchat.api.runtime.SkillAnalysisRunService;
+import com.chatchat.api.runtime.skill.SkillAnalysisRunService;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.chatchat.runtime.skill.api.execution.SkillCompositionRequest;
 import com.chatchat.runtime.skill.application.SkillIntelligenceLayer;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import java.util.*;
-import static org.mockito.Mockito.*;
+
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class SkillIntelligenceControllerTest {
     private final SkillIntelligenceLayer intelligence = mock(SkillIntelligenceLayer.class);

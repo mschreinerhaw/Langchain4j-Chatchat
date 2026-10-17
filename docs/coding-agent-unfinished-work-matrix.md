@@ -34,11 +34,11 @@
 | --- | --- |
 | `chatchat-common/src/main/java/com/chatchat/common/runtime/coding/CodingAgentSPI.java` | submit/get/cancel/resume/subscribe；同目录 TaskContract/Outcome/ExecutionEvent/CanonicalHash/Protocol |
 | `chatchat-agents/src/main/java/com/chatchat/agents/runtime/coding/DurableCodingTaskService.java` | submit/claim/reserve/startIntent/reconcileStopped/commitOutcome/events |
-| `chatchat-api/src/main/java/com/chatchat/api/runtime/JdbcRuntimeEvidenceStore.java` | mutateExecutionCheckpoint/commitCodingEvidence |
-| `chatchat-api/src/main/java/com/chatchat/api/runtime/ClineCodingAdapter.java` | submit/cancel/resume/completeVerifiedOperation |
-| `chatchat-api/src/main/java/com/chatchat/api/runtime/ClineModelCallbackController.java` | reserve/model/settle/readWorkspace/proposeWorkspace/finish；同目录 ClineCallbackAuthFilter |
-| `chatchat-api/src/main/java/com/chatchat/api/runtime/CodingWorkspaceService.java` | submit/read/propose/complete/recover/output |
-| `chatchat-api/src/main/java/com/chatchat/api/runtime/CodingAnalysisService.java` | execute/run；同目录 CodingInputSnapshotService.capture/requireAuthorized、CodingEvidenceCollector.collect/registeredResult |
+| `chatchat-api/src/main/java/com/chatchat/api/runtime/evidence/JdbcRuntimeEvidenceStore.java` | mutateExecutionCheckpoint/commitCodingEvidence |
+| `chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineCodingAdapter.java` | submit/cancel/resume/completeVerifiedOperation |
+| `chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController.java` | reserve/model/settle/readWorkspace/proposeWorkspace/finish；同目录 ClineCallbackAuthFilter |
+| `chatchat-api/src/main/java/com/chatchat/api/runtime/coding/workspace/CodingWorkspaceService.java` | submit/read/propose/complete/recover/output |
+| `chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java` | execute/run；同目录 CodingInputSnapshotService.capture/requireAuthorized、CodingEvidenceCollector.collect/registeredResult |
 | `chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/graph/ModelNativeAnalysisHarness.java` | withCoding/execute；同目录 DataWorkspaceOperations/HarnessToolAccess |
 | `chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonManagedExecutionService.java` | start/get/cancel；同目录 PythonOperationWorkspace.prepare/archive/artifactPath、PythonDockerRuntime |
 | `chatchat-api/src/main/java/com/chatchat/api/datascience/sql/SqlStudioService.java` | prepare/submitCoding/result/apply/write；同目录 SqlStudioMetadataService.captureCoding/operate、SqlGlotToolchain.validate |

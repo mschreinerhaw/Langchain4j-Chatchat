@@ -82,7 +82,8 @@ class HarnessCodingIntegrationTest {
         when(model.chat(any(ChatRequest.class))).thenAnswer(call->{
             var prompt=((ChatRequest)call.getArgument(0)).messages().toString();
             if(turns.incrementAndGet()==1){
-                assertThat(prompt).contains("CODING_PROFILE_WITH_ONE_SAMPLE","RUN_CODING","Python processes");
+                assertThat(prompt).contains("CODING_PROFILE_ONLY","RUN_CODING","Python processes");
+                assertThat(prompt).doesNotContain("FIRST_ROW", "selectedRecords");
                 assertThat(prompt).doesNotContain("HIDDEN_SECOND_ROW");
                 var request=new LinkedHashMap<>(codingRequest("left"));
                 request.remove("datasetReference");request.put("datasetReferences",List.of("left","right"));
@@ -233,6 +234,64 @@ class HarnessCodingIntegrationTest {
         });
         var metadata=new LinkedHashMap<String,Object>();run(model,port,metadata);
         assertThat((List<?>)metadata.get("harnessCodingTasks")).hasSize(12);
+    }
+
+    @Test void pythonPolicyRejectsDirectCompletionAndRawReadsBeforeAdmittingComputedResults() {
+        var model=mock(ChatModel.class);var port=resultPort();var turn=new AtomicInteger();
+        doCallRealMethod().when(port).executeObserved(any(),anyMap(),anyMap(),any());
+        var metadata=new LinkedHashMap<String,Object>();metadata.put("analysisExecutionPolicy","PYTHON_REQUIRED");
+        when(model.chat(any(ChatRequest.class))).thenAnswer(call->{
+            var input=(ChatRequest)call.getArgument(0);
+            var layers=new com.fasterxml.jackson.databind.ObjectMapper().readTree(((UserMessage)input.messages().get(1)).singleText());
+            assertThat(layers.path("L3").path("datasets").get(0).toString()).doesNotContain("selectedRecords", "\"records\"");
+            return switch(turn.incrementAndGet()) {
+                case 1 -> reply("COMPLETE","Uncomputed answer",List.of());
+                case 2 -> {
+                    assertThat(layers.toString()).contains("PYTHON_RESULT_REQUIRED");
+                    yield reply("CONTINUE","",List.of(Map.of("operation","READ_RECORDS","datasetReference","source","fromRecord",1,"limit",100),
+                        Map.of("operation","BATCH_MODEL_INFERENCE","datasetReference","source"),
+                        Map.of("operation","QUERY_DATASET","datasetReference","source")));
+                }
+                case 3 -> {
+                    assertThat(layers.toString()).contains("RAW_DATA_EXECUTION_ONLY","PYTHON_EXECUTION_REQUIRED");
+                    verify(port,never()).execute(any(),anyMap(),anyMap());
+                    yield reply("CONTINUE","",List.of(codingRequest("source")));
+                }
+                default -> {
+                    assertThat(layers.toString()).contains("coding-result", "17");
+                    yield reply("COMPLETE","Computed result: 17",List.of());
+                }
+            };
+        });
+        assertThat(run(model,port,metadata).markdown()).contains("17");
+        verify(port).execute(any(),anyMap(),anyMap());
+        var catalog=(List<?>)metadata.get("runtimeReturnedReportDatasets");
+        assertThat(catalog).hasSize(1);
+    }
+
+    @Test void pythonPolicyDoesNotFallBackToModelWhenWorkerIsDisabled() {
+        var model=mock(ChatModel.class);var metadata=new LinkedHashMap<String,Object>();
+        metadata.put("analysisExecutionPolicy","PYTHON_REQUIRED");
+        assertThatThrownBy(()->run(model,null,metadata)).isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("PYTHON_ANALYSIS_UNAVAILABLE");
+        verifyNoInteractions(model);
+    }
+
+    @Test void emptyAnalysisCannotClaimCompleteWithoutComputedEvidence() {
+        var model=mock(ChatModel.class);var port=mock(AnalysisCodingPort.class);var turn=new AtomicInteger();
+        when(port.capabilities()).thenReturn(Map.of("RUN_CODING","Python calculation"));
+        when(model.chat(any(ChatRequest.class))).thenAnswer(call->{
+            if(turn.incrementAndGet()==1)return reply("COMPLETE","Uncomputed answer",List.of());
+            assertThat(((ChatRequest)call.getArgument(0)).messages().toString()).contains("PYTHON_RESULT_REQUIRED");
+            return reply("PARTIAL_COMPLETE","No authorized data is available for calculation.",List.of());
+        });
+        var metadata=new LinkedHashMap<String,Object>();metadata.put("analysisExecutionPolicy","PYTHON_REQUIRED");
+        var scope=GovernanceIsolationScope.runtime("tenant","user","run","request","conversation");
+        var context=new AnalysisCoverageCoordinator.Request(model,"Question",null,Map.of(),metadata,()->false,()->{},scope,null);
+        var result=new ModelNativeAnalysisHarness(3).withCoding(port,context).execute("Question",List.of(),model,scope,
+            AnalysisEvidenceSpillStore.disabled(),metadata,()->{},event->{});
+        assertThat(result.markdown()).contains("No authorized data");assertThat(turn).hasValue(2);
+        verify(port,never()).execute(any(),anyMap(),anyMap());
     }
 
     private static ModelNativeAnalysisHarness.Result run(ChatModel model,AnalysisCodingPort port,Map<String,Object> metadata){

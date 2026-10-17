@@ -1,0 +1,62 @@
+﻿{
+    "historicalManifestCases":  206,
+    "currentFailingCases":  214,
+    "matchedHistoricalCases":  204,
+    "additionalCases":  [
+                            {
+                                "name":  "providesExecutableReferenceForEverySupportedFormat",
+                                "class":  "com.chatchat.api.datascience.python.PythonSystemExampleCatalogTest",
+                                "kind":  "ERROR"
+                            },
+                            {
+                                "name":  "persistsTitlesRevisionsAndTenantDisableWithoutResettingDefaults",
+                                "class":  "com.chatchat.chat.analysis.profile.DomainAnalysisProfilePersistenceTest",
+                                "kind":  "FAILURE"
+                            },
+                            {
+                                "name":  "validatesUpdatesAndRejectsStaleRevisionsAndExecutionDirectives",
+                                "class":  "com.chatchat.chat.analysis.profile.DomainAnalysisProfileServiceTest",
+                                "kind":  "FAILURE"
+                            },
+                            {
+                                "name":  "documentWorkflowRequiresDocumentSearchBeforeWebSearch",
+                                "class":  "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest",
+                                "kind":  "FAILURE"
+                            },
+                            {
+                                "name":  "webSearchToggleRequiresRegisteredMcpWebSearchTool",
+                                "class":  "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest",
+                                "kind":  "FAILURE"
+                            },
+                            {
+                                "name":  "webSearchToggleDoesNothingWhenAgentDidNotEnableWebSearch",
+                                "class":  "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest",
+                                "kind":  "FAILURE"
+                            },
+                            {
+                                "name":  "coversEveryMaintainedAgentThroughTheAgentRuntimeContract",
+                                "class":  "com.chatchat.chat.interaction.service.handler.MaintainedAgentRuntimeScenarioCoverageTest",
+                                "kind":  "FAILURE"
+                            },
+                            {
+                                "name":  "storesOriginalParsedAndCompiledArtifactsSeparately",
+                                "class":  "com.chatchat.chat.skills.domain.artifact.DomainSkillArtifactStoreTest",
+                                "kind":  "FAILURE"
+                            },
+                            {
+                                "name":  "projectsAndBoundsRuntimePolicyFromWorkflowConfiguration",
+                                "class":  "com.chatchat.chat.skills.runtime.AgentRuntimePolicyTest",
+                                "kind":  "FAILURE"
+                            },
+                            {
+                                "name":  "superAdminRoleNameDoesNotBypassDocumentVisibilityFilter",
+                                "class":  "com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchDocumentIndexServiceTest",
+                                "kind":  "FAILURE"
+                            }
+                        ],
+    "additionalCasesReproducedWithHeadClasses":  10,
+    "unconfirmedAdditionalCases":  [
+
+                                   ],
+    "overallReleaseGate":  "FAILED"
+}

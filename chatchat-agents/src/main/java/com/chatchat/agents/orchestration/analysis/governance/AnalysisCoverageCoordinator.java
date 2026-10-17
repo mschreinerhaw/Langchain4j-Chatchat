@@ -37,6 +37,10 @@ public final class AnalysisCoverageCoordinator {
         this.spillStore = store == null ? AnalysisEvidenceSpillStore.disabled() : store;
     }
     public CoverageBundle analyze(Request request) {
+        // QA also uses this evidence coordinator. Enforce Python only for model-classified analysis.
+        if ("DATA_ANALYSIS".equals(request.runtimeAttributes().get("workflowFamily"))
+            || "DATA_ANALYSIS".equals(request.runtimeAttributes().get("taskType")))
+            request.metadata().put("analysisExecutionPolicy", "PYTHON_REQUIRED");
         if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.VERSION.equals(request.runtimeAttributes().get("modelAnalysisProtocol")))
             request.metadata().put("modelAnalysisProtocol", com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.VERSION);
         request.metadata().put("analysisDatasetProjectionAttempted", true);
@@ -190,6 +194,11 @@ public final class AnalysisCoverageCoordinator {
             .withCoding(coding, request)
             .execute(request.query(), datasets, request.model(), request.isolationScope(), spillStore,
                 request.metadata(), request.cancellationGuard(), trace -> {
+                    if ("CODING_TRACE".equals(trace.get("eventKind"))) {
+                        observe(request, "Python 分析：" + trace.getOrDefault("summary", trace.get("codingEventType")),
+                            "coding_agent", trace);
+                        return;
+                    }
                     String stage = String.valueOf(trace.getOrDefault("stage", "MODEL_NATIVE_ANALYSIS"));
                     String state = String.valueOf(trace.getOrDefault("eventState", "OBSERVED"));
                     String message = "第 " + trace.getOrDefault("turn", "?") + " 轮自主分析：" + switch (stage) {

@@ -49,13 +49,21 @@ public final class ModelNativeAnalysisHarness {
     private Result executeInternal(String question, List<Dataset> datasets, ChatModel model, GovernanceIsolationScope scope,
         AnalysisEvidenceSpillStore checkpoints, Map<String,Object> metadata, Runnable guard, Consumer<Map<String,Object>> observe) {
         if (model == null) throw new IllegalStateException("Analysis model unavailable");
+        boolean pythonRequired = "PYTHON_REQUIRED".equals(metadata.get("analysisExecutionPolicy"));
+        if (pythonRequired && coding == null)
+            throw new IllegalStateException("PYTHON_ANALYSIS_UNAVAILABLE: data analysis requires an enabled Coding Agent and Python Sandbox");
+        Set<String> rawReferences = new HashSet<>();
+        datasets.forEach(dataset -> rawReferences.add(dataset.reference()));
+        Set<String> admittedResults = new HashSet<>();
         if (coding != null && (codingContext == null || !Objects.equals(scope, codingContext.isolationScope())
                 || model != codingContext.model() || metadata != codingContext.metadata()))
             throw new SecurityException("Coding context must belong to the executing analysis scope, model and state");
         var access = new BoundedAnalysisEvidence();
         var prepared = access.prepare(datasets, checkpoints, scope, metadata, guard, coding != null);
+        rawReferences.addAll(prepared.sources().keySet());
         var operations = new DataWorkspaceOperations(prepared.sources(), checkpoints, scope, model, guard, observe, metadata);
-        var reportDatasets = prepared.sources().entrySet().stream().map(entry -> {
+        var reportDatasets = prepared.sources().entrySet().stream()
+            .filter(entry -> !pythonRequired || !rawReferences.contains(entry.getKey())).map(entry -> {
             var source = entry.getValue();
             var captured = ReturnedReportDataset.capture(entry.getKey(), source.handle().readPage(0,
                 Math.max(1, (int)Math.min(120, source.recordCount()))).rows(), source.analysisContext());
@@ -85,13 +93,13 @@ public final class ModelNativeAnalysisHarness {
         metadata.put("harnessSemanticCoverage", "MODEL_DECIDES_NOT_RUNTIME_CERTIFIED");
         for (int turn = 1; turn <= maximumTurns; turn++) {
             guard.run();
-            refreshReportCatalog(prepared.sources(), metadata);
+            refreshReportCatalog(reportSources(prepared.sources(), pythonRequired, admittedResults), metadata);
             // New tool results remain indexed after receipts are replaced by protocol
             // feedback. A model should never have to rediscover an acquired source.
             var newlyAcquired = prepared.sources().entrySet().stream()
                 .filter(entry -> !sourceViews.containsKey(entry.getKey())).map(Map.Entry::getValue).toList();
             if (!newlyAcquired.isEmpty()) {
-                var indexed = access.prepare(newlyAcquired, checkpoints, scope, metadata, guard, coding != null);
+                var indexed = access.prepare(newlyAcquired, checkpoints, scope, metadata, guard, !pythonRequired && coding != null);
                 for (var view : indexed.views()) sourceViews.put(String.valueOf(view.get("datasetReference")), view);
             }
             catalog = VerifiedReportDataCatalog.fromRuntime(metadata);
@@ -102,7 +110,7 @@ public final class ModelNativeAnalysisHarness {
                 "codingTasks", codingTasks.values().stream().skip(Math.max(0, codingTasks.size() - 8)).toList(),
                 "reportSha256", ModelProtocolJson.sha256Hex(report), "evidenceSnapshotRef", snapshot(prepared.sources())));
             layers.put("L2", Map.of("evidenceOperations", BoundedAnalysisEvidence.capabilities(), "planOperations", plans.capabilities(),
-                "workspaceOperations", operations.capabilities(),
+                "workspaceOperations", pythonRequired ? Map.of("CATALOG", operations.capabilities().get("CATALOG")) : operations.capabilities(),
                 "codingOperations", coding == null ? Map.of() : coding.capabilities(),
                 "externalToolCapabilities", "No external tool dispatch: only delivered template data and its declared data operations are available.",
                 "roleContext", metadata.getOrDefault("agentRoleAnalysisContext", Map.of())));
@@ -111,6 +119,10 @@ public final class ModelNativeAnalysisHarness {
             layers.put("L3", Map.of("datasets", access.fitViews(new ArrayList<>(sourceViews.values()), Math.max(4000, budget.inputTokens())), "receipts", receipts,
                 "sourceCoverageObservations", sourceCoverageObservations(metadata)));
             String instructions = ModelAnalysisPrompt.CORE
+                + (pythonRequired ? "\nEXECUTION POLICY: PYTHON_REQUIRED overrides optional Coding instructions. Raw rows are execution-only. "
+                    + "Use RUN_CODING for all data calculations, diagnostics and transformations. Do not read raw rows or use batch model inference. "
+                    + "READ_* operations may inspect only admitted Coding result datasets. COMPLETE requires an admitted result. "
+                    + "If execution fails or is pending, report limitations with PARTIAL_COMPLETE; never invent computed values.\n" : "")
                 + (coding == null ? "" : "For multi-record calculations, prefer RUN_CODING over reading all source rows into the model. "
                     + "Use the dataset catalog, structural profile and at most bounded samples to plan; Python processes the complete authorized snapshot. "
                     + "Synthesize from admitted result references and validation receipts, not from an unverified model calculation.\n")
@@ -161,6 +173,10 @@ public final class ModelNativeAnalysisHarness {
                 if (!v2 && nextV2) throw new IllegalArgumentException("PROTOCOL_MISMATCH: this request uses model_native_analysis.v1");
                 if (v2) normalizeLegacyIntent(product, metadata);
                 validateIntent(product, v2);
+                if (pythonRequired && admittedResults.isEmpty()
+                        && (v2 ? product.get("decision") instanceof Map<?,?> decision && "COMPLETE".equals(decision.get("action"))
+                               : Boolean.TRUE.equals(product.get("completed"))))
+                    throw new IllegalArgumentException("PYTHON_RESULT_REQUIRED: use RUN_CODING and an admitted result before COMPLETE");
                 Object authored = product.get(v2 ? "content" : "reportMarkdown");
                 if (authored != null && !(authored instanceof String)) throw new IllegalArgumentException("INVALID_CONTENT: content must be a string");
                 candidateReport = authored instanceof String value && !value.isBlank() ? value : report;
@@ -250,7 +266,13 @@ public final class ModelNativeAnalysisHarness {
                         } else if (coding != null && coding.capabilities().containsKey(operation)) {
                             if (!deliveredCodingInputs(request, prepared.sources()))
                                 throw new IllegalArgumentException("CODING_INPUT_NOT_DELIVERED: choose an exact datasetReference from the current data catalog");
-                            var receipt = coding.execute(codingContext, request, prepared.sources());
+                            var receipt = pythonRequired
+                                ? coding.executeObserved(codingContext, request, prepared.sources(), observe)
+                                : coding.execute(codingContext, request, prepared.sources());
+                            if (Boolean.TRUE.equals(receipt.get("resultAvailable"))
+                                    && receipt.get("datasetReference") instanceof String resultRef
+                                    && prepared.sources().containsKey(resultRef) && !rawReferences.contains(resultRef))
+                                admittedResults.add(resultRef);
                             receipts.add(receipt);
                             var summary = codingTaskSummary(request, receipt);
                             codingTasks.put(String.valueOf(receipt.getOrDefault("taskId", request.get("requestId"))), summary);
@@ -258,6 +280,8 @@ public final class ModelNativeAnalysisHarness {
                             audit.add(Map.of("status", "ACCEPTED", "request", request,
                                 "receiptFingerprint", ModelProtocolJson.sha256Hex(receipt), "receipt", receipt));
                         } else if (operations.supports(operation)) {
+                            if (pythonRequired && !"CATALOG".equals(operation))
+                                throw new IllegalArgumentException("PYTHON_EXECUTION_REQUIRED: use RUN_CODING for data processing");
                             var receipt = operations.execute(request);
                             receipts.add(receipt);
                             audit.add(Map.of("status", "ACCEPTED", "request", request, "receiptFingerprint", ModelProtocolJson.sha256Hex(receipt), "receipt", explorationReceipt(receipt)));
@@ -265,6 +289,8 @@ public final class ModelNativeAnalysisHarness {
                             var receipt = plans.read(request); receipts.add(receipt);
                             audit.add(Map.of("status", "ACCEPTED", "request", request, "receiptFingerprint", ModelProtocolJson.sha256Hex(receipt)));
                         } else {
+                            if (pythonRequired && !admittedResults.contains(String.valueOf(request.get("datasetReference"))))
+                                throw new IllegalArgumentException("RAW_DATA_EXECUTION_ONLY: use RUN_CODING; only admitted result datasets are readable");
                             if (!BoundedAnalysisEvidence.capabilities().containsKey(operation))
                                 throw new IllegalArgumentException("Operation is not registered for this harness");
                             var read = access.read(prepared, List.of(request), guard, model, scope, checkpoints, question, metadata);
@@ -321,7 +347,7 @@ public final class ModelNativeAnalysisHarness {
             : v2 ? "MODEL_DECISION" : "MODEL_COMPLETED");
         metadata.put("harnessMaxModelTurns", maximumTurns);
         metadata.put("visualizationCapabilitiesDraftInjected", true);
-        refreshReportCatalog(prepared.sources(), metadata);
+        refreshReportCatalog(reportSources(prepared.sources(), pythonRequired, admittedResults), metadata);
         if (v2) {
             metadata.put("modelAnalysisOutput", report);
             if (!metadata.containsKey("modelDecision")) {
@@ -341,6 +367,12 @@ public final class ModelNativeAnalysisHarness {
     private static String snapshot(Map<String,Dataset> sources) {
         return ModelProtocolJson.sha256Hex(sources.entrySet().stream().map(entry -> Map.of(
             "reference", entry.getKey(), "contentSha256", entry.getValue().handle().contentSha256())).toList());
+    }
+    private static Map<String,Dataset> reportSources(Map<String,Dataset> sources, boolean required, Set<String> results) {
+        if (!required) return sources;
+        Map<String,Dataset> admitted = new LinkedHashMap<>();
+        sources.forEach((ref, source) -> { if (results.contains(ref)) admitted.put(ref, source); });
+        return admitted;
     }
     private static boolean deliveredCodingInputs(Map<String,Object> request, Map<String,Dataset> sources) {
         Object single = request.get("datasetReference"), multiple = request.get("datasetReferences");

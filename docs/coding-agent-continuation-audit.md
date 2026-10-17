@@ -11,7 +11,7 @@
 | 阶段 | 源码依据 | 复核结论 |
 | --- | --- | --- |
 | A1 | `chatchat-common/src/main/java/com/chatchat/common/runtime/coding/CodingAgentSPI.java` 及同目录 TaskContract/Outcome/ExecutionEvent/CanonicalHash | 已有四契约、状态/身份校验、Schema、跨语言哈希测试。 |
-| A2 | `chatchat-agents/src/main/java/com/chatchat/agents/runtime/coding/DurableCodingTaskService.java` 的 submit/claim/reserve/startIntent/reconcileStopped/commitOutcome；`chatchat-api/src/main/java/com/chatchat/api/runtime/JdbcRuntimeEvidenceStore.java` 的 mutateExecutionCheckpoint | 独立真实实现。复用 Evidence owner 事务、CAS、lease/fencing、共享预算、持久事件。未知 provider 结果保留预留，不自动重放。 |
+| A2 | `chatchat-agents/src/main/java/com/chatchat/agents/runtime/coding/DurableCodingTaskService.java` 的 submit/claim/reserve/startIntent/reconcileStopped/commitOutcome；`chatchat-api/src/main/java/com/chatchat/api/runtime/evidence/JdbcRuntimeEvidenceStore.java` 的 mutateExecutionCheckpoint | 独立真实实现。复用 Evidence owner 事务、CAS、lease/fencing、共享预算、持久事件。未知 provider 结果保留预留，不自动重放。 |
 | B1–B4 | `chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonManagedExecutionService.java` 及同目录 PythonOperationWorkspace/PythonDockerRuntime | 已有操作去重、fencing、任务工作区、容器取消/查询、不可变归档；本轮 Docker 不可用，不能重签真实容器门槛。 |
 | C1–C3 | `CodingEvidenceCollector.collect/registeredResult`、`JdbcRuntimeEvidenceStore.commitCodingEvidence` | 已有六项证据、哈希/行数/Schema 核验及原子发布；当前结果仍按合同大小上限整批装载，不是大数据流式方案。 |
 | D1 | `ClineCodingAdapter`、`Cline*CallbackController`、`coding-agent-node/src/{server,runner,runtime-model}.js` | SDK `@cline/agents@0.0.93` 已真实安装并调用 Agent；Java 签名回调、模型预留/回执、Python 和证据已接线。单测模型替身不能当真实 provider 验收。 |

@@ -6,11 +6,11 @@
 
 | 阶段 | 代码 | 职责 |
 | --- | --- | --- |
-| C1 | `chatchat-api/src/main/java/com/chatchat/api/runtime/CodingEvidenceCollector.java` | 从已有 MCP Python 归档读取代码、输入、manifest、结果与回执；核对哈希、大小、JSONL Schema、行数、完整性、A2 停止证明；生成六项引用与血缘；按任务授权读取结果。`registeredResult` 使用现有 `AnalysisEvidenceCoordinator.Dataset` 和 `DatasetHandle` 类型提供分析工作区接入形状。 |
+| C1 | `chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector.java` | 从已有 MCP Python 归档读取代码、输入、manifest、结果与回执；核对哈希、大小、JSONL Schema、行数、完整性、A2 停止证明；生成六项引用与血缘；按任务授权读取结果。`registeredResult` 使用现有 `AnalysisEvidenceCoordinator.Dataset` 和 `DatasetHandle` 类型提供分析工作区接入形状。 |
 | C1 | `chatchat-agents/src/main/java/com/chatchat/agents/runtime/coding/DurableCodingTaskService.java` | 增加只读 `verifiedOperation`，供归集器核对 A2 已验证的 operationId、启动 fencing token 和停止证明。 |
-| C2 | `chatchat-api/src/main/java/com/chatchat/api/runtime/JdbcRuntimeEvidenceStore.java` | 在既有 owner 行锁与 JDBC 事务内，原子写入证据、血缘、bundle 快照和 COMMITTED 检查点；失败整体回滚。没有新增 Evidence Store 或证据数据库。 |
-| C3 | `chatchat-api/src/test/java/com/chatchat/api/runtime/CodingEvidenceCollectorTest.java` | 真实 H2 事务、授权读取、零行、业务校验失败、VERIFIED 后故障与幂等恢复。 |
-| C3 | `chatchat-api/src/test/java/com/chatchat/api/runtime/CodingEvidenceDockerIntegrationTest.java` | 真实 Docker + MCP 执行服务 + A2 任务/预算 + Evidence Store 的固定脚本闭环。 |
+| C2 | `chatchat-api/src/main/java/com/chatchat/api/runtime/evidence/JdbcRuntimeEvidenceStore.java` | 在既有 owner 行锁与 JDBC 事务内，原子写入证据、血缘、bundle 快照和 COMMITTED 检查点；失败整体回滚。没有新增 Evidence Store 或证据数据库。 |
+| C3 | `chatchat-api/src/test/java/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollectorTest.java` | 真实 H2 事务、授权读取、零行、业务校验失败、VERIFIED 后故障与幂等恢复。 |
+| C3 | `chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/CodingEvidenceDockerIntegrationTest.java` | 真实 Docker + MCP 执行服务 + A2 任务/预算 + Evidence Store 的固定脚本闭环。 |
 | 测试依赖 | `chatchat-api/pom.xml` | 仅 test scope 引入 MCP server，以便直接联测实际 B 执行服务；生产依赖方向不变。 |
 
 没有数据库迁移。沿用 `runtime_evidence_partition`、`runtime_evidence_entry` 及 B 阶段 `mcp_python_managed_operation`/fence 表。`DataWorkspaceOperations` 的任务内结果 map 不适合充当跨进程权威注册表；C 采用现有 Evidence Store 注册权威引用、B 归档保全字节，并把结果转为现有 `DatasetHandle`/`Dataset`。现有 `SpillStore` 负责 Analysis Loop 的临时溢出，不复制已持久归档的结果。`StructuredDataEvidence` 与 `ComputationEvidence` 的语义分别映射为 `CODING_STRUCTURED_DATASET` 与 `CODING_COMPUTATION_VALIDATION` 记录；不生成 Claim，也不将 stdout 当作结果数据。

@@ -68,7 +68,8 @@ class ProblemAnalysisLifecycleTest {
         }
     }
 
-    @Test @Timeout(10)
+    // Leave room for instrumented mock/class initialization; both behavioral waits below remain 3 seconds.
+    @Test @Timeout(30)
     void cancellationDuringInferenceCannotBePromotedToReadyOrPlanningFailure() throws Exception {
         var entered = new CountDownLatch(1);
         var release = new CountDownLatch(1);

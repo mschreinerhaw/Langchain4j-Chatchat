@@ -1,0 +1,243 @@
+﻿{
+    "recordedAt":  "2026-10-17T08:20:13.5161778Z",
+    "baseCommit":  "fa3fa2264b3a20055840d8f262881d5b25859b51",
+    "changesCommitted":  false,
+    "overallStatus":  "INCOMPLETE_RELEASE_GATE_FAILED",
+    "productionPublished":  false,
+    "implementation":  [
+                           "Model intent maps QA / DATA_ANALYSIS without business keywords",
+                           "Classified DATA_ANALYSIS requires Python; source rows excluded from prompts and raw workspace reads",
+                           "Existing Snapshot, CodingAgentSPI, Java authorization and Python sandbox reused",
+                           "Durable CODING_TRACE events feed SSE, replay and scoped code/stdout/stderr UI with diffs",
+                           "Execution diagnostics sent to the model contain only technical metadata; arbitrary process output and schema failure messages remain outside model prompts"
+                       ],
+    "tests":  {
+                  "relatedJava":  {
+                                      "skipped":  0,
+                                      "errors":  0,
+                                      "tests":  135,
+                                      "failures":  0,
+                                      "suites":  [
+                                                     {
+                                                         "name":  "com.chatchat.agents.orchestration.analysis.graph.BoundedAnalysisEvidenceTest",
+                                                         "tests":  6,
+                                                         "failures":  0,
+                                                         "errors":  0,
+                                                         "skipped":  0
+                                                     },
+                                                     {
+                                                         "name":  "com.chatchat.agents.orchestration.analysis.graph.DataWorkspaceOperationsTest",
+                                                         "tests":  9,
+                                                         "failures":  0,
+                                                         "errors":  0,
+                                                         "skipped":  0
+                                                     },
+                                                     {
+                                                         "name":  "com.chatchat.agents.orchestration.analysis.graph.HarnessCodingIntegrationTest",
+                                                         "tests":  14,
+                                                         "failures":  0,
+                                                         "errors":  0,
+                                                         "skipped":  0
+                                                     },
+                                                     {
+                                                         "name":  "com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarnessTest",
+                                                         "tests":  30,
+                                                         "failures":  0,
+                                                         "errors":  0,
+                                                         "skipped":  0
+                                                     },
+                                                     {
+                                                         "name":  "com.chatchat.api.controller.agent.CodingTraceArtifactControllerTest",
+                                                         "tests":  3,
+                                                         "failures":  0,
+                                                         "errors":  0,
+                                                         "skipped":  0
+                                                     },
+                                                     {
+                                                         "name":  "com.chatchat.api.runtime.ClineModelCallbackControllerTest",
+                                                         "tests":  4,
+                                                         "failures":  0,
+                                                         "errors":  0,
+                                                         "skipped":  0
+                                                     },
+                                                     {
+                                                         "name":  "com.chatchat.api.runtime.ClinePythonCallbackControllerTest",
+                                                         "tests":  7,
+                                                         "failures":  0,
+                                                         "errors":  0,
+                                                         "skipped":  0
+                                                     },
+                                                     {
+                                                         "name":  "com.chatchat.api.runtime.CodingAnalysisServiceTest",
+                                                         "tests":  11,
+                                                         "failures":  0,
+                                                         "errors":  0,
+                                                         "skipped":  0
+                                                     },
+                                                     {
+                                                         "name":  "com.chatchat.api.runtime.CodingChunkedSnapshotTest",
+                                                         "tests":  1,
+                                                         "failures":  0,
+                                                         "errors":  0,
+                                                         "skipped":  0
+                                                     },
+                                                     {
+                                                         "name":  "com.chatchat.api.runtime.CodingDataSupplyServiceTest",
+                                                         "tests":  11,
+                                                         "failures":  0,
+                                                         "errors":  0,
+                                                         "skipped":  0
+                                                     },
+                                                     {
+                                                         "name":  "com.chatchat.api.runtime.CodingInputSnapshotServiceTest",
+                                                         "tests":  1,
+                                                         "failures":  0,
+                                                         "errors":  0,
+                                                         "skipped":  0
+                                                     },
+                                                     {
+                                                         "name":  "com.chatchat.api.runtime.CodingTaskPersistenceTest",
+                                                         "tests":  31,
+                                                         "failures":  0,
+                                                         "errors":  0,
+                                                         "skipped":  0
+                                                     },
+                                                     {
+                                                         "name":  "com.chatchat.chat.interaction.service.ProblemAnalysisLifecycleTest",
+                                                         "tests":  3,
+                                                         "failures":  0,
+                                                         "errors":  0,
+                                                         "skipped":  0
+                                                     },
+                                                     {
+                                                         "name":  "com.chatchat.common.runtime.capability.CapabilityWorkflowProtocolTest",
+                                                         "tests":  4,
+                                                         "failures":  0,
+                                                         "errors":  0,
+                                                         "skipped":  0
+                                                     }
+                                                 ]
+                                  },
+                  "node":  {
+                               "passed":  22
+                           },
+                  "frontend":  {
+                                   "passed":  17,
+                                   "build":  "PASSED"
+                               },
+                  "fullBackend":  {
+                                      "status":  "FAILED",
+                                      "skipped":  10,
+                                      "errors":  65,
+                                      "tests":  4360,
+                                      "failures":  149
+                                  }
+              },
+    "realModel":  {
+                      "artifacts":  [
+                                        {
+                                            "taskId":  "analysis-coding-ef98e2bed39d70d8dfa7c4312a18c07da7e47b68493b251ee384d4bca5940d4d",
+                                            "operationId":  "cline-8b2e6b52950ab065cfb05c9afd8cb44167bb4bd34ce2cec3d9a1c4fe50fe4f00",
+                                            "kind":  "code",
+                                            "sha256":  "0642ee28e6ee8c46b2d785149492164fec57bed08002c952c5ddfdcfe97063e5",
+                                            "bytes":  804
+                                        },
+                                        {
+                                            "taskId":  "analysis-coding-ef98e2bed39d70d8dfa7c4312a18c07da7e47b68493b251ee384d4bca5940d4d",
+                                            "operationId":  "cline-8b2e6b52950ab065cfb05c9afd8cb44167bb4bd34ce2cec3d9a1c4fe50fe4f00",
+                                            "kind":  "stdout",
+                                            "sha256":  "81bb76bd3e8e30644c39103f5c3d223ecb57fa8ed59e098718f8cae4dcbbfe1d",
+                                            "bytes":  178
+                                        },
+                                        {
+                                            "taskId":  "analysis-coding-ef98e2bed39d70d8dfa7c4312a18c07da7e47b68493b251ee384d4bca5940d4d",
+                                            "operationId":  "cline-8b2e6b52950ab065cfb05c9afd8cb44167bb4bd34ce2cec3d9a1c4fe50fe4f00",
+                                            "kind":  "stderr",
+                                            "sha256":  "d381d176c90df7826db960af8591b3d988d8a51a3dfa5e5d0a83c4ab1da4705c",
+                                            "bytes":  177
+                                        },
+                                        {
+                                            "taskId":  "analysis-coding-be9ab730e955edef509e666d663c8bac46794980ffb9c683e6e9c2c991d237e7",
+                                            "operationId":  "cline-293c19eaa113f318bac1ae23156aa35e7f6ee0c87cd916f4e425beb23415f7ca",
+                                            "kind":  "code",
+                                            "sha256":  "566bbd62fab3422d66c2460d1ec80d37bf987744432d01c9643a17ba23421efb",
+                                            "bytes":  2276
+                                        },
+                                        {
+                                            "taskId":  "analysis-coding-be9ab730e955edef509e666d663c8bac46794980ffb9c683e6e9c2c991d237e7",
+                                            "operationId":  "cline-293c19eaa113f318bac1ae23156aa35e7f6ee0c87cd916f4e425beb23415f7ca",
+                                            "kind":  "stdout",
+                                            "sha256":  "c4f948ca84f505da9d5df2c0b31b777130b1a0e9df07762281ec5de29349de49",
+                                            "bytes":  572
+                                        },
+                                        {
+                                            "taskId":  "analysis-coding-be9ab730e955edef509e666d663c8bac46794980ffb9c683e6e9c2c991d237e7",
+                                            "operationId":  "cline-293c19eaa113f318bac1ae23156aa35e7f6ee0c87cd916f4e425beb23415f7ca",
+                                            "kind":  "stderr",
+                                            "sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                                            "bytes":  0
+                                        }
+                                    ],
+                      "details":  "real-model-final.json",
+                      "modelCalls":  9,
+                      "status":  "PASSED",
+                      "taskId":  "analysis-coding-be9ab730e955edef509e666d663c8bac46794980ffb9c683e6e9c2c991d237e7",
+                      "runId":  "python-analysis-399705aa-d74a-449e-840b-799e549b2bfa",
+                      "scope":  "Real configured model + Node SDK + Python sandbox on four synthetic authorized records; injected error then repair; median independently checked as 6.5",
+                      "rawSourceMarkerAudit":  "PASSED",
+                      "codingTaskCount":  2,
+                      "codeOperationCount":  2,
+                      "repairScope":  "One parent Java analysis run with two delegated coding tasks: archived diagnostic failure followed by a separately delegated repaired computation. Same-task Node repair is covered by Node loop tests."
+                  },
+    "deployment":  {
+                       "stageDirectory":  "/opt/runtime-python-analysis-20261017",
+                       "finalApiSha256":  "2fa8d4f8d507859ab256efda68cd651933f557b52676efc69ea82e1e0dd2a08d",
+                       "workerImage":  "runtime-coding-agent:python-analysis-20261017",
+                       "workerImageId":  "sha256:992c510c71b486dba9c1f02cf9008a15c0d978fe15b1c252d3e95820d02ac5b9",
+                       "workerReadOnly":  true,
+                       "workerCapabilitiesDropped":  [
+                                                         "ALL"
+                                                     ],
+                       "workerMemoryLimit":  536870912,
+                       "workerInternalNetwork":  true,
+                       "workerSourcesSha256":  {
+                                                   "runner.js":  "ef13b3f99141c94de47fa2f765106f40ed9791d835f6759420732d189cd61c4e",
+                                                   "server.js":  "6b095321ada9636dec463dcc1775b300029bfff0e9a5a125faa9bb74d74928aa",
+                                                   "runtime-model.js":  "28c0a403fd8b1b463eccaa53495d1f5986cbd2dcd519bfd7f672fd7fea1d681f"
+                                               },
+                       "productionHealth":  {
+                                                "productionApi":  200,
+                                                "productionMcp":  200
+                                            },
+                       "productionBinariesReplaced":  false
+                   },
+    "buildArtifacts":  {
+                           "backendSha256":  "2fa8d4f8d507859ab256efda68cd651933f557b52676efc69ea82e1e0dd2a08d",
+                           "sourceArchiveSha256":  "c42ac116bd7be9e1108c8d7738e5507b471898230e24c5434eab44bd6081801f",
+                           "acceptanceDriverSha256":  "89b0ab6e8a7036d4a7b6b3d2fde98b3101396e6110812d3229ec3fa721880539",
+                           "frontendArchiveSha256":  "d62a76bc759b7d2a6e2875eab690dd47e15bc99a1810a73041c7f565e20adb35"
+                       },
+    "failureAttribution":  {
+                               "historicalMatches":  204,
+                               "method":  "HEAD versions of modified production classes overlaid for the additional test cases; not a complete detached-checkout full-suite run",
+                               "additionalCasesReproducedWithHeadClasses":  10,
+                               "details":  "failure-comparison.json"
+                           },
+    "limitations":  [
+                        "Full backend gate failed; production release remains blocked",
+                        "No new real business database task acceptance performed",
+                        "Manual real-model smoke invokes the Java analysis harness directly; full UI and intent-planner end-to-end acceptance remains pending",
+                        "Runtime structural validation does not certify arbitrary business correctness",
+                        "Cost/resource metering remains incomplete",
+                        "Legacy internal callers without model-classified workflow family retain compatibility behavior"
+                    ],
+    "evidence":  {
+                     "frontendTests":  "frontend-tests.txt",
+                     "gates":  "full-gates.json",
+                     "nodeTests":  "node-tests.txt",
+                     "frontendBuild":  "frontend-build.txt",
+                     "sourceManifest":  "source-manifest.json",
+                     "remoteDirectory":  "/opt/runtime-python-analysis-20261017",
+                     "networkBoundary":  "node-network-boundary.json"
+                 }
+}

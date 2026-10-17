@@ -9,7 +9,7 @@ A2 使用现有 RuntimeExecutionCheckpointPort 和 JdbcRuntimeEvidenceStore 保�
 | 实际源码 | 已核对能力 | A2 的复用方式 |
 | --- | --- | --- |
 | [RuntimeExecutionCheckpointPort](../chatchat-common/src/main/java/com/chatchat/common/runtime/evidence/RuntimeExecutionCheckpointPort.java) | 原接口提供按作用域读取及字符串 CAS，没有多步骤原子事务回调 | 增加可选的事务内纯 mutation；不支持的适配器显式拒绝，不能用未加锁读取模拟 |
-| [JdbcRuntimeEvidenceStore](../chatchat-api/src/main/java/com/chatchat/api/runtime/JdbcRuntimeEvidenceStore.java) | REQUIRES_NEW 短事务、所属分区 SELECT FOR UPDATE、完整性哈希、分块检查点和安全分块清理 | mutation 在相同锁/事务中读改写；更新 SQL 校验原 checkpoint revision，保留原 CAS 行为 |
+| [JdbcRuntimeEvidenceStore](../chatchat-api/src/main/java/com/chatchat/api/runtime/evidence/JdbcRuntimeEvidenceStore.java) | REQUIRES_NEW 短事务、所属分区 SELECT FOR UPDATE、完整性哈希、分块检查点和安全分块清理 | mutation 在相同锁/事务中读改写；更新 SQL 校验原 checkpoint revision，保留原 CAS 行为 |
 | [DefaultAgentRuntime](../chatchat-agents/src/main/java/com/chatchat/agents/runtime/execution/DefaultAgentRuntime.java) | submit 先写 AgentRunStore，再启动 agent-run-v1 Workflow；该工作流处理既有 AgentRunRequest | 不把 Coding DTO 冒充分析请求，不启动已有 LLM 业务循环；复用 Runtime 执行设施及独立 Coding 检查点命名空间 |
 | [ResumableAgentRunExecutor](../chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/execution/ResumableAgentRunExecutor.java) | 已有恢复接口针对 InterpretationPlan 挂起/继续 | Coding 使用持久快照恢复，不调用 planner；不会将该接口误描述为已能恢复任意代码进程 |
 | [AgentRuntimeTaskScheduler](../chatchat-chat/src/main/java/com/chatchat/chat/task/queue/AgentRuntimeTaskScheduler.java) | 扫描既有 Agent 任务表，提供数据库队列与 claim 恢复 | 不创建第二套通用队列；A2 提供 claim/resume 入口，现有上层调度后续可携带 scope/taskId 调用，当前不自动扫描全库 Coding 任务 |
@@ -105,9 +105,9 @@ A2 没有新增 REST 入口、全库 Coding 队列或自动 Coding worker，不�
 | common/runtime/evidence/RuntimeExecutionCheckpointPort.java | 增加事务 mutation 可选能力；A1 Coding 文件未改 |
 | api/runtime/JdbcRuntimeEvidenceStore.java | 复用分区事务，实现 mutation 和带 revision 的 UPDATE |
 | [agents/runtime/coding](../chatchat-agents/src/main/java/com/chatchat/agents/runtime/coding/) | DurableCodingTaskService、CodingJournal、CodingBudgetMath、CodingTaskAccess、BoundCodingTaskAccess、CodingEvidenceVerifier、CodingExecutionProofVerifier |
-| [CodingTaskRuntimeConfiguration](../chatchat-api/src/main/java/com/chatchat/api/runtime/CodingTaskRuntimeConfiguration.java) | 默认关闭、要求可信授权的组合配置 |
-| [CodingTaskPersistenceTest](../chatchat-api/src/test/java/com/chatchat/api/runtime/CodingTaskPersistenceTest.java) | 真实 JDBC 并发、事务回滚、权限、Lease、预算、事件和恢复测试 |
-| [CodingRecoveryProcess](../chatchat-api/src/test/java/com/chatchat/api/runtime/CodingRecoveryProcess.java) | 独立 JVM 创建/恢复文件数据库；使用 Java 参数文件避免 Windows 命令行长度限制 |
+| [CodingTaskRuntimeConfiguration](../chatchat-api/src/main/java/com/chatchat/api/runtime/coding/CodingTaskRuntimeConfiguration.java) | 默认关闭、要求可信授权的组合配置 |
+| [CodingTaskPersistenceTest](../chatchat-api/src/test/java/com/chatchat/api/runtime/coding/CodingTaskPersistenceTest.java) | 真实 JDBC 并发、事务回滚、权限、Lease、预算、事件和恢复测试 |
+| [CodingRecoveryProcess](../chatchat-api/src/test/java/com/chatchat/api/runtime/coding/CodingRecoveryProcess.java) | 独立 JVM 创建/恢复文件数据库；使用 Java 参数文件避免 Windows 命令行长度限制 |
 | [CodingBudgetMathTest](../chatchat-agents/src/test/java/com/chatchat/agents/runtime/coding/CodingBudgetMathTest.java) | 逐维预算、精确费用及内存峰值纯单元测试 |
 | [RuntimeCheckpointMutationTest](../chatchat-common/src/test/java/com/chatchat/common/runtime/evidence/RuntimeCheckpointMutationTest.java) | 未支持事务的适配器不能伪装成原子 mutation |
 

@@ -22,6 +22,20 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AnalysisCoverageCoordinatorTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"workflowFamily","taskType"})
+    void modelClassifiedDataAnalysisRequiresPythonBeforeAnyRawDataPrompt(String classificationKey) {
+        var evidence=mock(AnalysisEvidenceCoordinator.class);
+        when(evidence.project(any(),any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(
+            new AnalysisEvidenceCoordinator.Dataset("source",Map.of(),List.of(Map.of("value",1)))),List.of()));
+        var model=mock(dev.langchain4j.model.chat.ChatModel.class);
+        var metadata=new LinkedHashMap<String,Object>();var base=request(metadata);
+        org.assertj.core.api.Assertions.assertThatThrownBy(()->coordinator(evidence).analyze(
+            new AnalysisCoverageCoordinator.Request(model,"Question",base.result(),Map.of(classificationKey,"DATA_ANALYSIS"),
+                metadata,()->false,()->{},base.isolationScope(),base.summaryProtocol())))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("PYTHON_ANALYSIS_UNAVAILABLE");
+        org.mockito.Mockito.verifyNoInteractions(model);
+    }
     @Test void explicitV2ModeCanThinkWithoutInitialDatasetsAndRetainItsCompletionIntent() {
         var evidence = mock(AnalysisEvidenceCoordinator.class);
         when(evidence.project(any(), any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(), List.of()));

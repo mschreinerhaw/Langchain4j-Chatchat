@@ -14,6 +14,31 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class ProblemAnalysisPlannerTest {
+    @Test @SuppressWarnings("unchecked") void maintainedWorkflowClassificationIsNotAnotherExecutionPlan() {
+        var model=mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn("{\"taskType\":\"DATA_ANALYSIS\"}");
+        var planner=new ProblemAnalysisPlanner(model,mock(ConfigurableChatModelFactory.class),new ObjectMapper(),mock(ObjectProvider.class));
+        var request=InteractionRequest.builder().query("inspect the current observations").build();
+        assertThat(planner.classify(request,InteractionContext.builder().build(),mock(SkillDefinition.class),List.of()))
+            .isEqualTo(ProblemAnalysisPlan.TaskType.DATA_ANALYSIS);
+        verify(model).chat(argThat((String prompt)->prompt.contains("Do not plan tools") && !prompt.contains("\"tasks\"")));
+    }
+
+    @Test @SuppressWarnings("unchecked") void classificationUsesTheModelEvenWhenQuestionContainsAnalysisWords() {
+        var model=mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn("{\"taskType\":\"QA\"}");
+        var planner=new ProblemAnalysisPlanner(model,mock(ConfigurableChatModelFactory.class),new ObjectMapper(),mock(ObjectProvider.class));
+        assertThat(planner.classify(InteractionRequest.builder().query("Explain data analysis and statistics").build(),
+            InteractionContext.builder().build(),mock(SkillDefinition.class),List.of())).isEqualTo(ProblemAnalysisPlan.TaskType.QA);
+    }
+
+    @Test @SuppressWarnings("unchecked") void malformedClassificationHasNoKeywordFallback() {
+        var model=mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn("DATA_ANALYSIS");
+        var planner=new ProblemAnalysisPlanner(model,mock(ConfigurableChatModelFactory.class),new ObjectMapper(),mock(ObjectProvider.class));
+        assertThat(planner.classify(InteractionRequest.builder().query("analyze current data").build(),
+            InteractionContext.builder().build(),mock(SkillDefinition.class),List.of())).isNull();
+    }
     @Test @SuppressWarnings("unchecked") void publishesFailedObservationWhenModelFails() {
         var model = mock(ChatModel.class);
         when(model.chat(anyString())).thenThrow(new IllegalStateException("model unavailable"));

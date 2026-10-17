@@ -485,6 +485,7 @@
           <p v-if="timelineLoading" class="agent-runtime-empty">Loading timeline...</p>
           <p v-else-if="!selectedRun" class="agent-runtime-empty">Select a run to inspect.</p>
 
+          <CodingTracePanel v-else-if="activeDetailTab === 'coding'" :run-id="selectedRunId" :observations="observations" />
           <div v-else-if="activeDetailTab === 'timeline'" class="agent-runtime-timeline">
             <article v-for="item in timelineItems" :key="item.key" :class="item.kind">
               <span></span>

@@ -1,6 +1,6 @@
 package com.chatchat.api.controller.datascience;
 
-import com.chatchat.api.runtime.SkillAnalysisRunService;
+import com.chatchat.api.runtime.skill.SkillAnalysisRunService;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
@@ -9,10 +9,10 @@ import com.chatchat.runtime.skill.api.execution.SkillCompositionRequest;
 import com.chatchat.runtime.skill.api.identity.SkillRoleContext;
 import com.chatchat.runtime.skill.application.SkillIntelligenceLayer;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-import java.util.*;
 
 /** Explicit analysis entry point. API analyses are persisted as runs, never sidebar conversations. */
 @RestController

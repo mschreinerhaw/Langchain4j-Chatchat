@@ -1,0 +1,6 @@
+Record 1: measurement = 1
+Record 2: measurement = 4
+Record 3: measurement = 9
+Record 4: measurement = 11
+Total records processed: 4
+Measurements collected: ['1', '4', '9', '11']

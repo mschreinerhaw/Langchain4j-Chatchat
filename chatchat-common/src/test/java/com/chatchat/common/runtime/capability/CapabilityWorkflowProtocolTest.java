@@ -6,6 +6,15 @@ import java.util.*;
 import static org.assertj.core.api.Assertions.*;
 
 class CapabilityWorkflowProtocolTest {
+    @Test void publicTaskTypeFollowsModelIntentRegardlessOfBusinessWords() throws Exception {
+        var qa=new ProblemAnalysisPlan.Task("分析收益率是什么意思",ProblemAnalysisPlan.Intent.DIRECT_ANSWER,List.of(),"解释");
+        var data=new ProblemAnalysisPlan.Task("处理这份观测数据",ProblemAnalysisPlan.Intent.DATA_ANALYSIS,List.of(),"计算结果");
+        assertThat(qa.taskType()).isEqualTo(ProblemAnalysisPlan.TaskType.QA);
+        assertThat(data.taskType()).isEqualTo(ProblemAnalysisPlan.TaskType.DATA_ANALYSIS);
+        var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
+        assertThat(mapper.writeValueAsString(data)).contains("\"taskType\":\"DATA_ANALYSIS\"");
+        assertThat(mapper.readValue(mapper.writeValueAsString(data),ProblemAnalysisPlan.Task.class)).isEqualTo(data);
+    }
     @Test void fourFamiliesHaveRequiredCapabilitiesButOnlyOptionalDomainSkills() {
         for (var family : RuntimeWorkflowFamily.values()) {
             var plan = CapabilityWorkflowPlan.forFamily(family);

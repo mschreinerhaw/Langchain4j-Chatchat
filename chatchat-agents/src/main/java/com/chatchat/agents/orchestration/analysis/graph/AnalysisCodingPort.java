@@ -9,4 +9,9 @@ public interface AnalysisCodingPort {
     Map<String, String> capabilities();
     Map<String, Object> execute(AnalysisCoverageCoordinator.Request context,
         Map<String, Object> request, Map<String, Dataset> deliveredSources);
+    default Map<String, Object> executeObserved(AnalysisCoverageCoordinator.Request context,
+        Map<String, Object> request, Map<String, Dataset> deliveredSources,
+        java.util.function.Consumer<Map<String,Object>> observer) {
+        return execute(context, request, deliveredSources);
+    }
 }

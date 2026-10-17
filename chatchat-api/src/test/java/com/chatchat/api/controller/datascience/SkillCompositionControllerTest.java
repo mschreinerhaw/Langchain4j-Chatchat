@@ -1,14 +1,18 @@
 package com.chatchat.api.controller.datascience;
-import com.chatchat.api.runtime.*;
+
+import com.chatchat.api.runtime.skill.SkillAnalysisRunService;
+import com.chatchat.api.runtime.skill.SkillDataBindingService;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
-import com.chatchat.runtime.skill.application.SkillCompositionRuntime;
 import com.chatchat.runtime.skill.api.execution.*;
+import com.chatchat.runtime.skill.application.SkillCompositionRuntime;
 import jakarta.servlet.http.HttpServletRequest;
-import org.junit.jupiter.api.Test;
 import java.util.*;
+import org.junit.jupiter.api.Test;
+
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
+
 class SkillCompositionControllerTest {
     private final SkillCompositionRuntime runtime=mock(SkillCompositionRuntime.class);
     private final SkillAnalysisRunService runs=mock(SkillAnalysisRunService.class);

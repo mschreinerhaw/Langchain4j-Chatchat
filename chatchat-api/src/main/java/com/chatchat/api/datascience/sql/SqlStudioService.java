@@ -1,17 +1,21 @@
 package com.chatchat.api.datascience.sql;
 
-import com.chatchat.api.security.ObjectAccessService;
 import com.chatchat.api.controller.agent.DocumentLibraryReadPort;
+import com.chatchat.api.security.ObjectAccessService;
 import com.chatchat.api.workspace.WorkspaceOriginService;
-import com.chatchat.enterprise.service.EnterpriseAdminService;
-import com.chatchat.knowledgebase.search.document.api.library.LibraryDocumentItem;
-import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 import com.chatchat.chat.task.core.*;
 import com.chatchat.chat.task.event.*;
+import com.chatchat.enterprise.service.EnterpriseAdminService;
+import com.chatchat.knowledgebase.search.document.api.library.LibraryDocumentItem;
 import com.chatchat.knowledgebase.search.document.infrastructure.extract.DocumentTextExtractor;
+import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
+import java.nio.charset.StandardCharsets;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -21,10 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
-import java.nio.charset.StandardCharsets;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.*;
 
 /** SQL application persistence and context adapter. Execution belongs to the existing Agent API. */
 @Service @RequiredArgsConstructor @Slf4j
@@ -41,9 +41,9 @@ public class SqlStudioService {
     private final EnterpriseAdminService identities;
     private final SqlStudioGenerationScopeStore generationScopes;
     private final com.chatchat.api.datascience.StudioCodePlanService codePlans;
-    private com.chatchat.api.runtime.CodingWorkspaceService coding;
+    private com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService coding;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
-    public void setCoding(com.chatchat.api.runtime.CodingWorkspaceService coding) { this.coding=coding; }
+    public void setCoding(com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService coding) { this.coding=coding; }
     private org.springframework.beans.factory.ObjectProvider<SqlStudioMetadataService> codingMetadata;
     @org.springframework.beans.factory.annotation.Autowired
     public void setCodingMetadata(org.springframework.beans.factory.ObjectProvider<SqlStudioMetadataService> metadata){this.codingMetadata=metadata;}

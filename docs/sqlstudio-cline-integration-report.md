@@ -39,7 +39,7 @@ SQL 任务仍提供六项引用：不可变上下文、候选 SQL manifest、**�
 ## 源码位置和部署配置
 
 - `chatchat-api/src/main/java/com/chatchat/api/datascience/sql/SqlStudioService.java`：prepare/submitCoding/result/codingResult/apply；`SqlStudioMetadataService.java`：captureCoding；`SqlGlotToolchain.java`：validate。
-- `chatchat-api/src/main/java/com/chatchat/api/runtime/CodingWorkspaceService.java`：submit/read/propose/complete/recover/output；`CodingWorkspaceProofVerifier.java`：confirmsStopped；同目录既有 Cline Adapter、模型桥和回调控制器。
+- `chatchat-api/src/main/java/com/chatchat/api/runtime/coding/workspace/CodingWorkspaceService.java`：submit/read/propose/complete/recover/output；`CodingWorkspaceProofVerifier.java`：confirmsStopped；同目录既有 Cline Adapter、模型桥和回调控制器。
 - `coding-agent-node/src/runner.js`：同一 createCodingRun 的 profile 工具选择；`server.js`：同一服务入口及签名回调。
 - `chatchat-api/web-app/src/services/sqlStudioApi.js`、`src/js/views/SqlStudioView.js`、`src/components/sql-studio/SqlSchemaExplorer.vue`：原客户端、任务展示/取消、授权表选择。
 

@@ -25,6 +25,8 @@ class InteractionWorkflowCoordinatorTest {
         var entry = new WorkflowEntryPlan(WorkflowEntryPlan.Owner.GOVERNED_RUNTIME, "DECLARED_EXECUTION_CONTRACT",
             List.of(Map.of("tool", "opaque", "data_type", "TEMPLATE_QUERY")));
         when(policy.planningSnapshot(request, agent)).thenReturn(entry);
+        when(frontPlanner.classify(eq(request), any(), eq(agent), eq(entry.toolPurposes())))
+            .thenReturn(ProblemAnalysisPlan.TaskType.DATA_ANALYSIS);
         var coordinator = new InteractionWorkflowCoordinator(policy, frontPlanner, direct, assets);
         var entered = new CountDownLatch(1);
         var release = new CountDownLatch(1);
@@ -33,6 +35,7 @@ class InteractionWorkflowCoordinatorTest {
             var result = executor.submit(() -> coordinator.execute(request, InteractionContext.builder().build(), agent,
                 (context, understanding) -> {
                     assertThat(understanding).isNull();
+                    assertThat(context.taskType()).isEqualTo(ProblemAnalysisPlan.TaskType.DATA_ANALYSIS);
                     entered.countDown();
                     try { release.await(); }
                     catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); throw new CancellationException(); }
@@ -41,16 +44,35 @@ class InteractionWorkflowCoordinatorTest {
                 }));
             assertThat(entered.await(3, TimeUnit.SECONDS)).isTrue();
             assertThatThrownBy(() -> result.get(150, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
-            verifyNoInteractions(frontPlanner, direct, assets);
+            verify(frontPlanner).classify(eq(request), any(), eq(agent), eq(entry.toolPurposes()));
+            verifyNoMoreInteractions(frontPlanner);
+            verifyNoInteractions(direct, assets);
             release.countDown();
             var response = result.get(3, TimeUnit.SECONDS);
             assertThat(response.getMetadata()).containsEntry("workflowEntryPlan", entry)
-                .containsEntry("runtimeLifecycle", List.of("SELECT_PLANNING_OWNER", "GOVERNED_RUNTIME", "EVALUATE", "COMPLETE"))
+                .containsEntry("taskType", "DATA_ANALYSIS")
+                .containsEntry("runtimeLifecycle", List.of("SELECT_PLANNING_OWNER", "TASK_CLASSIFICATION", "GOVERNED_RUNTIME", "EVALUATE", "COMPLETE"))
                 .doesNotContainKeys("problemAnalysisPlan", "capabilityPlan");
             assertThat(((WorkflowOutcome) response.getMetadata().get(WorkflowOutcome.METADATA_KEY)).publicStatus()).isEqualTo("SUCCESS");
             verify(policy, times(1)).planningSnapshot(request, agent);
             verifyNoMoreInteractions(policy);
         } finally { release.countDown(); executor.shutdownNow(); }
+    }
+
+    @Test void failedClassificationDoesNotExecuteAMaintainedWorkflow() {
+        var policy = mock(AgentToolPolicyResolver.class);
+        var planner = mock(ProblemAnalysisPlanner.class);
+        var agent = mock(SkillDefinition.class);
+        when(agent.boundMcpToolNames()).thenReturn(List.of("opaque"));
+        var request = InteractionRequest.builder().query("inspect current observations").build();
+        var context = InteractionContext.builder().build();
+        var entry = WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.GOVERNED_RUNTIME, "DECLARED_EXECUTION_CONTRACT");
+        when(policy.planningSnapshot(request, agent)).thenReturn(entry);
+        var governed = mock(InteractionWorkflowCoordinator.GovernedExecution.class);
+        var response = new InteractionWorkflowCoordinator(policy, planner, null, null).execute(request, context, agent, governed);
+        assertThat(((WorkflowOutcome) response.getMetadata().get(WorkflowOutcome.METADATA_KEY)).type()).isEqualTo(WorkflowOutcome.Type.FAILED);
+        verify(planner).classify(request, context, agent, entry.toolPurposes());
+        verifyNoInteractions(governed);
     }
 
     @Test void semanticPlannerReceivesTheEntrySnapshotAndFailureNeverStartsAnotherPlanner() {

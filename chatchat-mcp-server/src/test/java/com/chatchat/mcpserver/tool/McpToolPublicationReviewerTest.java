@@ -131,6 +131,10 @@ class McpToolPublicationReviewerTest {
                 .tool(tool)
                 .callHandler((exchange, request) -> {
                     capturedArguments[0] = request.arguments();
+                    var caller = com.chatchat.mcpserver.mcp.McpInvocationContext.current();
+                    assertThat(caller).isNotNull();
+                    assertThat(caller.userId()).isEqualTo("user-1");
+                    assertThat(caller.tenantId()).isEqualTo("tenant-1");
                     return McpSchema.CallToolResult.builder().addTextContent("ok").isError(false).build();
                 })
                 .build();
@@ -155,6 +159,7 @@ class McpToolPublicationReviewerTest {
             .containsEntry("tenantId", "tenant-1")
             .containsEntry("userId", "user-1")
             .containsEntry("traceId", "request-1");
+        assertThat(com.chatchat.mcpserver.mcp.McpInvocationContext.current()).isNull();
     }
 
     @Test

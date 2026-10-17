@@ -1,0 +1,27 @@
+{
+  "status": "FAILED_TEST_DRIVER_SELECTED_INTERMEDIATE_RESULT",
+  "apiSha256": "2fa8d4f8d507859ab256efda68cd651933f557b52676efc69ea82e1e0dd2a08d",
+  "exitCode": 1,
+  "results": [
+    {
+      "taskId": "analysis-coding-7980872f85d5fe914dfaa619e8768b986a76d2f27c5eb342e02757a0a4d597d6",
+      "rows": [
+        {
+          "probe_status": "repaired_after_diagnostic_probe"
+        }
+      ],
+      "sha256": "eaedbf8c60bc356c58aedbcc40683adf3adf30658b98c3a9b7b44f8c9221c9a9"
+    },
+    {
+      "taskId": "analysis-coding-f1250e1dbe3c4a4af5e9a90c50a37cc0eca0282877e05c457c0a8f89831156d0",
+      "rows": [
+        {
+          "statistic": "6.5"
+        }
+      ],
+      "sha256": "d04e7c8f745d7718f9a61f85c1da838a18ccd2cd6899a282c5b7bdc80b9d32c4"
+    }
+  ],
+  "rawSourceMarkerInterceptions": 0,
+  "note": "Final statistic was 6.5; acceptance driver selected the first admitted intermediate probe result. Corrected driver requires the final report-bound calculation result, archived repair probe, and independent statistic check."
+}

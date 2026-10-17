@@ -1,33 +1,32 @@
 package com.chatchat.api.controller.agent;
 
-import com.chatchat.agents.runtime.observation.AgentObservation;
-import com.chatchat.agents.runtime.run.AgentRun;
-import com.chatchat.agents.runtime.event.AgentRunEvent;
-import com.chatchat.agents.runtime.event.AgentRunEventType;
-import com.chatchat.agents.runtime.run.AgentRunQuery;
 import com.chatchat.agents.runtime.AgentRunRequest;
-import com.chatchat.agents.runtime.run.AgentRunStatus;
-import com.chatchat.agents.runtime.run.AgentRunStep;
 import com.chatchat.agents.runtime.AgentRuntime;
 import com.chatchat.agents.runtime.AgentRuntimeSnapshot;
 import com.chatchat.agents.runtime.evaluation.assessment.AgentEvaluationService;
 import com.chatchat.agents.runtime.evaluation.quality.AgentProductionQualityService;
 import com.chatchat.agents.runtime.evaluation.quality.AgentProductionQualitySnapshot;
+import com.chatchat.agents.runtime.event.AgentRunEvent;
+import com.chatchat.agents.runtime.event.AgentRunEventType;
+import com.chatchat.agents.runtime.observation.AgentObservation;
+import com.chatchat.agents.runtime.run.AgentRun;
+import com.chatchat.agents.runtime.run.AgentRunQuery;
+import com.chatchat.agents.runtime.run.AgentRunStatus;
+import com.chatchat.agents.runtime.run.AgentRunStep;
 import com.chatchat.agents.runtime.trace.AgentRunTraceBuilder;
-import com.chatchat.api.runtime.AgentRuntimeEventStreamService;
+import com.chatchat.api.runtime.trace.AgentRuntimeEventStreamService;
 import com.chatchat.api.security.ApiAuthenticationFilter;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;

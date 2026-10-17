@@ -108,7 +108,7 @@ final class BoundedAnalysisEvidence {
                 hashes.add(java.util.HexFormat.of().formatHex(chunkDigest.digest()));
                 Map<String, Object> profile = accumulated.finish(dataset.recordCount());
                 LinkedHashSet<Integer> selected = new LinkedHashSet<>();
-                if (dataset.recordCount() > 0) { selected.add(1); if (!codingAvailable) selected.add(Math.toIntExact(dataset.recordCount())); }
+                if (!codingAvailable && dataset.recordCount() > 0) { selected.add(1); selected.add(Math.toIntExact(dataset.recordCount())); }
                 for (Map<String, Object> field : codingAvailable ? List.<Map<String,Object>>of() : maps(profile.get("fields"))) {
                     if (selected.size() >= 24) break;
                     if (field.get("minRecord") instanceof Number n) selected.add(n.intValue());
@@ -121,11 +121,14 @@ final class BoundedAnalysisEvidence {
                 int catalogRows = (int) Math.min(100, dataset.recordCount());
                 if (!codingAvailable) view.put("nestedCollections", fit(NestedRecordReader.catalog(
                     catalogRows == 0 ? List.of() : dataset.handle().readPage(0, catalogRows).rows()), perDataset / 5));
-                view.put("evidenceMode", codingAvailable ? "CODING_PROFILE_WITH_ONE_SAMPLE" : "FULL_SCAN_PROFILE_WITH_SELECTED_RECORDS");
+                view.put("evidenceMode", codingAvailable ? "CODING_PROFILE_ONLY" : "FULL_SCAN_PROFILE_WITH_SELECTED_RECORDS");
                 view.put("profile", fit(profile, perDataset / 3));
-                view.put("context", fit(dataset.analysisContext(), perDataset / 3));
-                view.put("selectedRecords", rows(ref, dataset, selected, List.of(), perDataset / 4));
-                view.put("limitations", List.of("Selected records are navigation evidence, not a representative sample.",
+                if (!codingAvailable) view.put("context", fit(dataset.analysisContext(), perDataset / 3));
+                if (!codingAvailable) view.put("selectedRecords", rows(ref, dataset, selected, List.of(), perDataset / 4));
+                view.put("limitations", codingAvailable ? List.of(
+                    "Raw source rows are excluded from this prompt; Python processes the complete authorized snapshot.",
+                    "Structural statistics support planning and do not certify business calculations.",
+                    "The active execution policy controls reads; use RUN_CODING and admitted result references for data analysis.") : List.of("Selected records are navigation evidence, not a representative sample.",
                     "Structural numeric statistics do not authorize business aggregation or causal claims.",
                     "Omitted values remain available through bounded READ_RECORDS requests; profiling is not semantic review of every row."));
                 views.add(view);

@@ -1,0 +1,16 @@
+Number of records: 4
+Keys in first record: ['label', 'measurement']
+Record 0: measurement = '1' (type: str)
+Record 1: measurement = '4' (type: str)
+Record 2: measurement = '9' (type: str)
+Record 3: measurement = '11' (type: str)
+
+Extracted measurements: [Decimal('1'), Decimal('4'), Decimal('9'), Decimal('11')]
+Number of measurements: 4
+Sorted measurements: [Decimal('1'), Decimal('4'), Decimal('9'), Decimal('11')]
+
+Median calculation: (4 + 9) / 2 = 6.5
+Median as decimal string: '6.50'
+
+Written to /workspace/output/results/rows.jsonl
+Output row: {'statistic': '6.50'}

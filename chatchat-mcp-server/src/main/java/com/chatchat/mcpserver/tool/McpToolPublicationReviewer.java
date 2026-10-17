@@ -125,19 +125,21 @@ public final class McpToolPublicationReviewer {
         return McpServerFeatures.SyncToolSpecification.builder()
             .tool(governedTool)
             .callHandler((exchange, request) -> {
-                Map<String, Object> arguments = new LinkedHashMap<>(
-                    request.arguments() == null ? Map.of() : request.arguments());
-                McpInvocationArguments.enrich(request.name(), arguments, request.meta());
-                if (!visibleToCaller(publication.descriptor(), arguments)) {
-                    return McpSchema.CallToolResult.builder()
-                        .addTextContent("Tool is not enabled for this caller rollout")
-                        .structuredContent(Map.of("success", false,
-                            "code", "MCP_TOOL_NOT_ENABLED_FOR_CALLER", "toolName", request.name()))
-                        .isError(true).build();
+                try (var ignored = com.chatchat.mcpserver.mcp.McpInvocationContext.openRequestMeta(request.meta())) {
+                    Map<String, Object> arguments = new LinkedHashMap<>(
+                        request.arguments() == null ? Map.of() : request.arguments());
+                    McpInvocationArguments.enrich(request.name(), arguments, request.meta());
+                    if (!visibleToCaller(publication.descriptor(), arguments)) {
+                        return McpSchema.CallToolResult.builder()
+                            .addTextContent("Tool is not enabled for this caller rollout")
+                            .structuredContent(Map.of("success", false,
+                                "code", "MCP_TOOL_NOT_ENABLED_FOR_CALLER", "toolName", request.name()))
+                            .isError(true).build();
+                    }
+                    McpSchema.CallToolRequest enriched = new McpSchema.CallToolRequest(
+                        request.name(), arguments, request.meta());
+                    return publication.specification().callHandler().apply(exchange, enriched);
                 }
-                McpSchema.CallToolRequest enriched = new McpSchema.CallToolRequest(
-                    request.name(), arguments, request.meta());
-                return publication.specification().callHandler().apply(exchange, enriched);
             }).build();
     }
 

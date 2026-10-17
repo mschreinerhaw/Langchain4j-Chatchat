@@ -1,16 +1,19 @@
 package com.chatchat.api.datascience.sql;
 
-import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.api.controller.agent.DocumentLibraryReadPort;
-import com.chatchat.knowledgebase.search.model.SearchDocument;
+import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
 import com.chatchat.chat.task.core.AgentTaskLatestRepository;
 import com.chatchat.common.security.PasswordHashCodec;
 import com.chatchat.enterprise.entity.identity.*;
 import com.chatchat.enterprise.repository.identity.*;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
+import com.chatchat.knowledgebase.search.model.SearchDocument;
 import com.fasterxml.jackson.databind.*;
 import dev.langchain4j.model.chat.ChatModel;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -20,9 +23,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.*;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
+
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -103,7 +104,7 @@ class SqlStudioIntegrationTest {
         mvc.perform(get(ROOT+"/"+p+"/files/"+saved.path("id").asText()+"/download").header("Authorization","Bearer "+token)).andExpect(status().isOk()).andExpect(content().bytes("-- reviewed\nSELECT 1;".getBytes(StandardCharsets.UTF_8)));
     }
     @Test void codingWorkspaceEntryKeepsProjectOwnershipReviewAndVersionedApply() throws Exception {
-        var coding=mock(com.chatchat.api.runtime.CodingWorkspaceService.class);studio.setCoding(coding);
+        var coding=mock(com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService.class);studio.setCoding(coding);
         try{
             String p=project();save(p,"sql/existing.sql","SQL","-- preserve\nSELECT 1;",0);
             var prepared=prepare(p,List.of(),List.of());String generation=prepared.path("generationId").asText();
@@ -390,7 +391,7 @@ class SqlStudioIntegrationTest {
         assertThat(generationScopes.find(prepared.path("taskRequest").path("sessionId").asText())).hasSize(1);
         int enterprise=-1,boundary=-1;
         for(int i=0;i<toolPolicies.size();i++) {
-            if(toolPolicies.get(i) instanceof com.chatchat.api.runtime.EnterpriseToolRuntimePolicyProvider)enterprise=i;
+            if(toolPolicies.get(i) instanceof com.chatchat.api.runtime.tool.EnterpriseToolRuntimePolicyProvider)enterprise=i;
             if(toolPolicies.get(i) instanceof SqlStudioGenerationToolPolicy)boundary=i;
         }
         assertThat(enterprise).isGreaterThanOrEqualTo(0);assertThat(boundary).isGreaterThan(enterprise);

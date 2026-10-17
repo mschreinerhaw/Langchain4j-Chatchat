@@ -1,0 +1,22 @@
+{
+  "stageDirectory": "/opt/runtime-python-analysis-20261017",
+  "finalApiSha256": "2fa8d4f8d507859ab256efda68cd651933f557b52676efc69ea82e1e0dd2a08d",
+  "workerImage": "runtime-coding-agent:python-analysis-20261017",
+  "workerImageId": "sha256:992c510c71b486dba9c1f02cf9008a15c0d978fe15b1c252d3e95820d02ac5b9",
+  "workerReadOnly": true,
+  "workerCapabilitiesDropped": [
+    "ALL"
+  ],
+  "workerMemoryLimit": 536870912,
+  "workerInternalNetwork": true,
+  "workerSourcesSha256": {
+    "runner.js": "ef13b3f99141c94de47fa2f765106f40ed9791d835f6759420732d189cd61c4e",
+    "server.js": "6b095321ada9636dec463dcc1775b300029bfff0e9a5a125faa9bb74d74928aa",
+    "runtime-model.js": "28c0a403fd8b1b463eccaa53495d1f5986cbd2dcd519bfd7f672fd7fea1d681f"
+  },
+  "productionHealth": {
+    "productionApi": 200,
+    "productionMcp": 200
+  },
+  "productionBinariesReplaced": false
+}

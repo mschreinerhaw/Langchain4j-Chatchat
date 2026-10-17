@@ -108,12 +108,17 @@ class AgentChatModeHandlerTest {
         var handler = new AgentChatModeHandler(orchestrator, catalog, policies);
         org.springframework.test.util.ReflectionTestUtils.setField(handler, "problemAnalysisPlanner", planner);
         org.springframework.test.util.ReflectionTestUtils.setField(handler, "assetGuidance", guidance);
+        when(planner.classify(eq(request), any(), eq(agent), anyList()))
+            .thenReturn(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.TaskType.DATA_ANALYSIS);
         var response = handler.handle(request, InteractionContext.builder().requestId("native-planning").build());
         assertThat(response.getAnswer()).isEqualTo("专业分析返回");
         verify(orchestrator).executeAgent(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
             anyInt(), any(), anyBoolean(), org.mockito.ArgumentMatchers.argThat(attributes ->
-                !attributes.containsKey("problemAnalysisPlan") && !attributes.containsKey("capabilityPlan")));
-        org.mockito.Mockito.verifyNoInteractions(planner, guidance);
+                "DATA_ANALYSIS".equals(attributes.get("taskType"))
+                    && !attributes.containsKey("problemAnalysisPlan") && !attributes.containsKey("capabilityPlan")));
+        verify(planner).classify(eq(request), any(), eq(agent), anyList());
+        org.mockito.Mockito.verifyNoMoreInteractions(planner);
+        org.mockito.Mockito.verifyNoInteractions(guidance);
     }
     @Test void unboundAgentAnswersDirectlyWithoutPlanningOrAssetDiscovery() {
         var catalog = mock(SkillCatalogService.class);

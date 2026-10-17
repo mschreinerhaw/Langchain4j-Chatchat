@@ -38,7 +38,7 @@
 - `chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinator.java`。
 - `chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/graph/ModelNativeAnalysisHarness.java`、`DataWorkspaceOperations.java`、`HarnessToolAccess.java`。
 - `chatchat-agents/src/main/java/com/chatchat/agents/runtime/coding/DurableCodingTaskService.java`。
-- `chatchat-api/src/main/java/com/chatchat/api/runtime/CodingAnalysisService.java`、`CodingInputSnapshotService.java`、`CodingPythonExecutionBridge.java`、`CodingEvidenceCollector.java`、`ClineCodingAdapter.java`。
+- `chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java`、`CodingInputSnapshotService.java`、`CodingPythonExecutionBridge.java`、`CodingEvidenceCollector.java`、`ClineCodingAdapter.java`。
 - `chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonManagedExecutionService.java`、`PythonOperationWorkspace.java`、`PythonDockerRuntime.java`。
 
 测试范围、环境和日志见 [验收记录](coding-agent-end-to-end-validation.md)。

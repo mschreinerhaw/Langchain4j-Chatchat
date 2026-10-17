@@ -1,21 +1,20 @@
 package com.chatchat.api.datascience.python;
 
 import com.chatchat.agents.model.ConfigurableChatModelFactory;
-import com.chatchat.common.config.ModelsConfig;
 import com.chatchat.common.config.ModelResourceRegistry;
+import com.chatchat.common.config.ModelsConfig;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
 import dev.langchain4j.model.chat.ChatModel;
-import org.mockito.ArgumentCaptor;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
+import org.mockito.ArgumentCaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -50,7 +49,7 @@ class PythonCodeAssistantServiceTest {
     }
 
     @Test void pythonCodingUsesSharedWorkspaceWithServerDerivedOwnerAndAcceptedPlan() {
-        var workspace=mock(com.chatchat.api.runtime.CodingWorkspaceService.class);service.setCodingWorkspace(workspace);
+        var workspace=mock(com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService.class);service.setCodingWorkspace(workspace);
         when(factory.create("code-model")).thenReturn(codeModel);
         when(plans.require(anyString(),anyString(),eq("python"),anyString(),anyString(),anyString(),eq("accepted")))
             .thenReturn(new com.chatchat.api.datascience.StudioCodePlanService.Ticket("accepted",null,"READY"));
@@ -67,7 +66,7 @@ class PythonCodeAssistantServiceTest {
     }
 
     @Test void pythonCodingRejectsPathTraversalAndChangedSourceBeforeWorkerSubmission() {
-        var workspace=mock(com.chatchat.api.runtime.CodingWorkspaceService.class);service.setCodingWorkspace(workspace);
+        var workspace=mock(com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService.class);service.setCodingWorkspace(workspace);
         when(factory.create("code-model")).thenReturn(codeModel);
         when(plans.require(anyString(),anyString(),eq("python"),anyString(),anyString(),anyString(),eq("accepted")))
             .thenReturn(new com.chatchat.api.datascience.StudioCodePlanService.Ticket("accepted",null,"READY"));

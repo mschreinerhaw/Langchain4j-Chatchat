@@ -2,8 +2,8 @@ package com.chatchat.api.service;
 
 import com.chatchat.agents.runtime.tool.*;
 import com.chatchat.agents.tool.ToolRegistry;
-import com.chatchat.api.runtime.EnterpriseToolRuntimePolicyProvider;
 import com.chatchat.api.exception.RuntimeScopeAccessDeniedException;
+import com.chatchat.api.runtime.tool.EnterpriseToolRuntimePolicyProvider;
 import com.chatchat.chat.skills.catalog.SkillCatalogService;
 import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.chat.skills.model.SkillToolConfig;
@@ -12,11 +12,12 @@ import com.chatchat.common.mcp.capability.CapabilityManifest;
 import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.enterprise.service.*;
+import java.util.*;
 import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
-import java.util.*;
-import static org.mockito.Mockito.*;
+
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class CapabilityAccessServiceTest {
     McpRuntimeAccessService mcp = mock(McpRuntimeAccessService.class);

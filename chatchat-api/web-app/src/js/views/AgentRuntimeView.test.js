@@ -2,6 +2,19 @@ import { describe, expect, it } from "vitest";
 import AgentRuntimeView from "./AgentRuntimeView";
 
 describe("AgentRuntimeView production quality", () => {
+  it('projects Coding SSE observations immediately and deduplicates replay',()=>{
+    const context={selectedRunId:'run',timeline:{events:[],observations:[]},streamCursor:0,
+      get events(){return this.timeline.events;}};
+    const event={runId:'run',eventId:'transport-1',sequence:1,type:'OBSERVATION_RECORDED',
+      payload:{contentPreview:'Python program started',metadata:{eventKind:'CODING_TRACE',eventId:'coding-1',taskId:'task'}}};
+    AgentRuntimeView.methods.appendEvent.call(context,event);
+    expect(context.timeline.observations).toHaveLength(1);
+    expect(context.timeline.observations[0].content).toBe('Python program started');
+    AgentRuntimeView.methods.appendEvent.call(context,{...event,eventId:'transport-2',sequence:2});
+    expect(context.timeline.observations).toHaveLength(1);expect(context.streamCursor).toBe(2);
+    AgentRuntimeView.methods.appendEvent.call(context,{...event,runId:'another-run',eventId:'transport-3',sequence:3});
+    expect(context.timeline.observations).toHaveLength(1);expect(context.streamCursor).toBe(2);
+  });
   it("formats deterministic quality metrics", () => {
     const context = {
       productionQuality: {

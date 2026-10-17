@@ -1,4 +1,5 @@
 import "../../styles/pages/agent-runtime.css";
+import CodingTracePanel from '../../components/CodingTracePanel.vue';
 import {
   Activity,
   AlertTriangle,
@@ -50,6 +51,7 @@ const AUTO_REFRESH_MS = 10000;
 export default {
   name: "AgentRuntimeView",
   components: {
+    CodingTracePanel,
     Activity,
     AlertTriangle,
     CheckCircle2,
@@ -228,6 +230,7 @@ export default {
     detailTabs() {
       return [
         { key: "timeline", label: "Timeline", icon: GitBranch, count: this.timelineItems.length },
+        { key: "coding", label: "Python 编程", icon: Activity, count: this.observations.filter(item=>item.metadata?.eventKind==='CODING_TRACE').length },
         {
           key: "trace",
           label: "Trace",
@@ -752,7 +755,14 @@ export default {
       }
       const events = [...this.events, event].sort((left, right) =>
         (left.sequence || 0) - (right.sequence || 0));
-      this.timeline = { ...this.timeline, events };
+      const payload = event.payload || {};
+      let observations = this.timeline.observations || [];
+      if (event.type === 'OBSERVATION_RECORDED' && payload.metadata?.eventKind === 'CODING_TRACE'
+          && !observations.some(item => item.metadata?.eventId === payload.metadata.eventId)) {
+        observations = [...observations, { ...payload, content: payload.content || payload.contentPreview || '',
+          createdAt: event.createdAt }];
+      }
+      this.timeline = { ...this.timeline, events, observations };
       this.streamCursor = Math.max(this.streamCursor, event.sequence || 0);
     },
     startAutoRefresh() {

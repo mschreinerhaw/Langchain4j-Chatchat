@@ -3,7 +3,7 @@ package com.chatchat.api.service;
 import com.chatchat.agents.runtime.tool.*;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.api.exception.RuntimeScopeAccessDeniedException;
-import com.chatchat.api.runtime.EnterpriseToolRuntimePolicyProvider;
+import com.chatchat.api.runtime.tool.EnterpriseToolRuntimePolicyProvider;
 import com.chatchat.chat.skills.catalog.SkillCatalogService;
 import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.common.mcp.capability.CapabilityManifest;
@@ -12,10 +12,10 @@ import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.common.tool.*;
 import com.chatchat.enterprise.service.CapabilitySnapshotStore;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
-import org.springframework.stereotype.Service;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 import java.util.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 /** Authenticated discovery is deliberately separate from argument-specific execution authorization. */
 @Service

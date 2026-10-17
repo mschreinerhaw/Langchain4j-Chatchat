@@ -6,6 +6,13 @@ import {
 } from "./runtimeObservationPresentation.js";
 
 describe("runtime observation presentation", () => {
+  it('preserves every Coding event identity across replay and distinguishes attempts',()=>{
+    const metadata={eventKind:'CODING_TRACE',taskId:'task',eventId:'event-1',sequence:1,
+      codingEventType:'EXECUTION_STARTED',eventState:'RUNNING'};
+    expect(runtimeObservationPresentation({metadata})).toEqual({title:'执行 Python 程序',toolName:'coding_agent',status:'active'});
+    expect(runtimeObservationIdentity({metadata})).toBe(runtimeObservationIdentity({metadata:{...metadata}}));
+    expect(runtimeObservationIdentity({metadata})).not.toBe(runtimeObservationIdentity({metadata:{...metadata,eventId:'event-2',sequence:2}}));
+  });
   it("keeps request progress active until the whole turn completes", () => {
     const metadata = { eventKind: "HARNESS_TURN", eventState: "RUNNING", stage: "EVIDENCE_REQUEST_FINISHED",
       turn: 1, datasetFingerprint: "sources-a", completedRequestCount: 1, requestCount: 2 };

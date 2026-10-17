@@ -237,6 +237,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         runtimeAttributes.put(com.chatchat.agents.runtime.context.SkillAnalysisContext.ATTRIBUTE, skillContext);
         systemPrompt += com.chatchat.agents.runtime.context.SkillAnalysisContext.prompt(skillContext, "AGENT_RUN");
         runtimeAttributes.put("authorizationAgentId", resolvedSkillId);
+        if (context.taskType() != null) runtimeAttributes.put("taskType", context.taskType().name());
         if (understanding != null) {
             runtimeAttributes.put(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.METADATA_KEY, understanding);
             var workflowFamily = new com.chatchat.common.runtime.capability.CapabilityWorkflowRouter().route(understanding);

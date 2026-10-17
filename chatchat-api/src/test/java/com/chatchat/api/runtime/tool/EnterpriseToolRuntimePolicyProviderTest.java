@@ -1,0 +1,324 @@
+package com.chatchat.api.runtime.tool;
+
+import com.chatchat.agents.runtime.tool.ToolRuntimePolicy;
+import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
+import com.chatchat.common.retrieval.ResourceAuthorizationPort;
+import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.enterprise.entity.identity.SysRole;
+import com.chatchat.enterprise.entity.identity.SysUser;
+import com.chatchat.enterprise.entity.identity.SysUserRole;
+import com.chatchat.enterprise.entity.mcp.McpToolAsset;
+import com.chatchat.enterprise.entity.mcp.McpToolPermission;
+import com.chatchat.enterprise.repository.identity.SysRoleRepository;
+import com.chatchat.enterprise.repository.identity.SysUserRepository;
+import com.chatchat.enterprise.repository.identity.SysUserRoleRepository;
+import com.chatchat.enterprise.repository.mcp.McpToolAssetRepository;
+import com.chatchat.enterprise.repository.mcp.McpToolPermissionRepository;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+class EnterpriseToolRuntimePolicyProviderTest {
+
+    private final McpToolPermissionRepository permissionRepository = mock(McpToolPermissionRepository.class);
+    private final McpToolAssetRepository toolAssetRepository = mock(McpToolAssetRepository.class);
+    private final SysRoleRepository roleRepository = mock(SysRoleRepository.class);
+    private final SysUserRoleRepository userRoleRepository = mock(SysUserRoleRepository.class);
+    private final SysUserRepository userRepository = mock(SysUserRepository.class);
+    private final EnterpriseToolRuntimePolicyProvider provider = new EnterpriseToolRuntimePolicyProvider(
+        permissionRepository,
+        toolAssetRepository,
+        roleRepository,
+        userRoleRepository,
+        userRepository
+    );
+
+    @BeforeEach
+    void setUp() {
+        when(roleRepository.findByTenantIdOrderByRoleNameAsc(anyString())).thenReturn(List.of());
+        when(toolAssetRepository.findByLocalToolName(anyString())).thenReturn(Optional.of(managedTool()));
+        when(userRoleRepository.findByUserId(anyString())).thenReturn(List.of());
+        when(permissionRepository.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
+            anyString(), anyString(), anyString())).thenReturn(List.of());
+    }
+
+    @Test
+    void deniesCallerWithNoAssignedAssetAuthorization() {
+        ToolRuntimePolicy policy = provider.resolve(request("tenant-a", "user-a", Map.of()), null);
+
+        assertThat(policy.allowed()).isFalse();
+        assertThat(policy.reason()).contains("No MCP asset authorization");
+    }
+
+    @Test
+    void resourceGrantDenialStopsManagedToolAtRuntime() {
+        ResourceAuthorizationPort authorization = mock(ResourceAuthorizationPort.class);
+        ReflectionTestUtils.setField(provider, "resourceAuthorization", authorization);
+        when(authorization.allowedIds(ResourceAuthorizationPort.MCP_TOOL,
+            "tenant-a", "user-a", Set.of(), Set.of("sql_asset_query"))).thenReturn(Set.of());
+
+        ToolRuntimePolicy policy = provider.resolve(request("tenant-a", "user-a", Map.of()), null);
+
+        assertThat(policy.allowed()).isFalse();
+        assertThat(policy.reason()).contains("resource grant");
+    }
+
+    @Test
+    void disabledToolCannotBeInvokedEvenWhenPermissionExists() {
+        McpToolAsset disabled = managedTool();
+        disabled.setEnabled(false);
+        when(toolAssetRepository.findByLocalToolName("sql_asset_query")).thenReturn(Optional.of(disabled));
+
+        ToolRuntimePolicy policy = provider.resolve(request("tenant-a", "user-a", Map.of()), null);
+
+        assertThat(policy.allowed()).isFalse();
+        assertThat(policy.reason()).contains("disabled or offline");
+    }
+
+    @Test
+    void leavesNonMcpToolsToOtherRuntimePolicies() {
+        when(toolAssetRepository.findByLocalToolName("local_image_tool")).thenReturn(Optional.empty());
+
+        ToolRuntimePolicy policy = provider.resolve(ToolRuntimeRequest.builder()
+            .toolName("local_image_tool")
+            .build(), null);
+
+        assertThat(policy).isNull();
+    }
+
+    @Test
+    void resolvesDatabaseRolesForDynamicTemplateQueryWithoutRequiringToolAssetDuplication() {
+        String toolName = "mcp_chatchat_mcp_server_customer_service_template_query";
+        SysRole role = role("role-customer", "tenant-a", "CUSTOMER_SERVICE");
+        SysUser user = user("user-a", "tenant-a", "customer-agent");
+        when(toolAssetRepository.findByLocalToolName(toolName)).thenReturn(Optional.empty());
+        when(userRepository.findById("user-a")).thenReturn(Optional.of(user));
+        when(roleRepository.findByTenantIdOrderByRoleNameAsc("tenant-a")).thenReturn(List.of(role));
+        when(userRoleRepository.findByUserId("user-a")).thenReturn(List.of(binding(user, role)));
+        ToolRuntimeRequest request = ToolRuntimeRequest.builder()
+            .tenantId("tenant-a")
+            .userId("user-a")
+            .toolName(toolName)
+            .toolInput(ToolInput.builder().context(Map.of()).build())
+            .build();
+
+        ToolRuntimePolicy policy = provider.resolve(request, ToolMetadata.builder()
+            .categories(List.of("mcp", "external"))
+            .author("MCP:ChatChat MCP Server")
+            .build());
+
+        assertThat(policy).isNull();
+        assertThat(request.getToolInput().getContext())
+            .containsEntry("roles", List.of("role-customer"))
+            .containsEntry("username", "customer-agent")
+            .containsEntry("canonicalRolesResolved", true);
+    }
+
+    @Test
+    void deniesMissingTenantContext() {
+        ToolRuntimePolicy policy = provider.resolve(request(null, "user-a", Map.of()), null);
+
+        assertThat(policy.allowed()).isFalse();
+        assertThat(policy.reason()).contains("requires tenant");
+    }
+
+    @Test
+    void resolvesUserRoleAndAllowsOnlyMatchingAssetScope() {
+        SysRole role = role("role-analyst", "tenant-a", "ANALYST");
+        SysUser user = user("user-a", "tenant-a", "analyst");
+        SysUserRole binding = binding(user, role);
+        when(userRepository.findById("user-a")).thenReturn(Optional.of(user));
+        when(roleRepository.findByTenantIdOrderByRoleNameAsc("tenant-a")).thenReturn(List.of(role));
+        when(userRoleRepository.findByUserId("user-a")).thenReturn(List.of(binding));
+        when(permissionRepository.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
+            "tenant-a", "ROLE", "role-analyst")).thenReturn(List.of(permission(
+                "tenant-a",
+                "role-analyst",
+                "sql_asset_query",
+                "mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-1;level=read"
+            )));
+
+        ToolRuntimeRequest allowedRequest = request("tenant-a", "user-a", Map.of(
+            "scopeExpression", "mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-1;level=read"
+        ));
+        ToolRuntimePolicy allowed = provider.resolve(allowedRequest, null);
+        ToolRuntimePolicy otherAsset = provider.resolve(request("tenant-a", "user-a", Map.of(
+            "scopeExpression", "mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-2;level=read"
+        )), null);
+
+        assertThat(allowed.allowed()).isTrue();
+        assertThat(otherAsset.allowed()).isFalse();
+        assertThat(allowedRequest.getToolInput().getContext())
+            .containsEntry("roles", List.of("role-analyst"))
+            .containsEntry("roleIds", List.of("role-analyst"))
+            .containsEntry("canonicalRolesResolved", true)
+            .containsEntry("username", "analyst");
+    }
+
+    @Test
+    void assignedSuperAdminExecutesWithoutIndividualAssetGrants() {
+        SysRole role = role("role-super", "tenant-a", "SUPER_ADMIN");
+        SysUser user = user("user-a", "tenant-a", "business-admin");
+        when(userRepository.findById("user-a")).thenReturn(Optional.of(user));
+        when(roleRepository.findByTenantIdOrderByRoleNameAsc("tenant-a")).thenReturn(List.of(role));
+        when(userRoleRepository.findByUserId("user-a")).thenReturn(List.of(binding(user, role)));
+
+        ToolRuntimePolicy policy = provider.resolve(request("tenant-a", "user-a", Map.of()), null);
+
+        assertThat(policy.allowed()).isTrue();
+    }
+
+    @Test void omittedScopeCannotBypassAnAssetRestrictedGrant() {
+        when(permissionRepository.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
+            "tenant-a", "TENANT", "tenant-a")).thenReturn(List.of(permission("tenant-a", "tenant-a",
+                "sql_asset_query", "mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-1;level=read")));
+        assertThat(provider.resolve(request("tenant-a", "user-a", Map.of()), null).allowed()).isFalse();
+    }
+
+    @Test void matchingScopeCannotAuthorizeAnotherTool() {
+        when(permissionRepository.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
+            "tenant-a", "TENANT", "tenant-a")).thenReturn(List.of(permission("tenant-a", "tenant-a",
+                "other_tool", "mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-1;level=read")));
+        assertThat(provider.resolve(request("tenant-a", "user-a", Map.of("scopeExpression",
+            "mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-1;level=read")), null).allowed()).isFalse();
+    }
+
+    @Test void modelSuppliedAuthorizationExpressionIsNotATrustedScope() {
+        when(permissionRepository.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
+            "tenant-a", "TENANT", "tenant-a")).thenReturn(List.of(permission("tenant-a", "tenant-a",
+                "sql_asset_query", "mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-1;level=read")));
+        var call = request("tenant-a", "user-a", Map.of());
+        call.getToolInput().setParameters(Map.of("scopeExpression",
+            "mcp:sql_datasource:execute:query@tenant=tenant-a;domain=db-1;level=read"));
+        assertThat(provider.resolve(call, null).allowed()).isFalse();
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"disabled-user", "disabled-role", "foreign-role"})
+    void invalidAdministratorIdentityCannotBypassGrants(String scenario) {
+        SysRole role = role("role-super", "tenant-a", "SUPER_ADMIN");
+        SysUser user = user("user-a", "tenant-a", "admin");
+        if (scenario.equals("disabled-user")) user.setStatus("disabled");
+        if (scenario.equals("disabled-role")) role.setStatus("disabled");
+        if (scenario.equals("foreign-role")) role.setTenantId("tenant-b");
+        when(userRepository.findById("user-a")).thenReturn(Optional.of(user));
+        when(roleRepository.findByTenantIdOrderByRoleNameAsc("tenant-a")).thenReturn(List.of(role));
+        when(userRoleRepository.findByUserId("user-a")).thenReturn(List.of(binding(user, role)));
+        assertThat(provider.resolve(request("tenant-a", "user-a", Map.of()), null).allowed()).isFalse();
+    }
+
+    @Test
+    void ignoresForgedSuperAdminRoleFromRequest() {
+        SysRole role = role("role-super", "tenant-a", "SUPER_ADMIN");
+        SysUser user = user("user-a", "tenant-a", "analyst");
+        when(userRepository.findById("user-a")).thenReturn(Optional.of(user));
+        when(roleRepository.findByTenantIdOrderByRoleNameAsc("tenant-a")).thenReturn(List.of(role));
+
+        ToolRuntimeRequest request = ToolRuntimeRequest.builder()
+            .tenantId("tenant-a")
+            .userId("user-a")
+            .toolName("sql_asset_query")
+            .toolInput(ToolInput.builder().context(Map.of("roles", List.of("SUPER_ADMIN"))).build())
+            .attributes(Map.of("roles", List.of("SUPER_ADMIN"), "roleIds", List.of("role-super")))
+            .build();
+        ToolRuntimePolicy policy = provider.resolve(request, null);
+
+        assertThat(policy.allowed()).isFalse();
+        assertThat(policy.reason()).contains("No MCP asset authorization");
+        assertThat(request.getToolInput().getContext())
+            .containsEntry("roles", List.of())
+            .containsEntry("canonicalRolesResolved", true);
+    }
+
+    @Test
+    void deniesCanonicalUserWhenRequestTenantIsForged() {
+        SysUser user = user("user-a", "tenant-a", "analyst");
+        when(userRepository.findById("user-a")).thenReturn(Optional.of(user));
+
+        ToolRuntimePolicy policy = provider.resolve(request("tenant-b", "user-a", Map.of()), null);
+
+        assertThat(policy.allowed()).isFalse();
+        assertThat(policy.reason()).contains("does not belong");
+    }
+
+    @Test
+    void adminUsernameStillRequiresPersistedAssetAuthorization() {
+        SysUser admin = new SysUser();
+        admin.setId("user-admin-id");
+        admin.setTenantId("tenant-a");
+        admin.setUsername("admin");
+        when(userRepository.findById("user-admin-id")).thenReturn(Optional.of(admin));
+
+        ToolRuntimePolicy policy = provider.resolve(request("tenant-a", "user-admin-id", Map.of()), null);
+
+        assertThat(policy.allowed()).isFalse();
+        assertThat(policy.reason()).contains("No MCP asset authorization");
+    }
+
+    private ToolRuntimeRequest request(String tenantId, String userId, Map<String, Object> context) {
+        return ToolRuntimeRequest.builder()
+            .tenantId(tenantId)
+            .userId(userId)
+            .toolName("sql_asset_query")
+            .toolInput(ToolInput.builder().context(context).build())
+            .build();
+    }
+
+    private SysRole role(String id, String tenantId, String code) {
+        SysRole role = new SysRole();
+        role.setId(id);
+        role.setTenantId(tenantId);
+        role.setRoleCode(code);
+        role.setRoleName(code);
+        return role;
+    }
+
+    private SysUser user(String id, String tenantId, String username) {
+        SysUser user = new SysUser();
+        user.setId(id);
+        user.setTenantId(tenantId);
+        user.setUsername(username);
+        return user;
+    }
+
+    private SysUserRole binding(SysUser user, SysRole role) {
+        SysUserRole binding = new SysUserRole();
+        binding.setTenantId(user.getTenantId());
+        binding.setUserId(user.getId());
+        binding.setRoleId(role.getId());
+        return binding;
+    }
+
+    private McpToolPermission permission(String tenantId,
+                                         String roleId,
+                                         String toolName,
+                                         String scopeExpression) {
+        McpToolPermission permission = new McpToolPermission();
+        permission.setId("permission-1");
+        permission.setTenantId(tenantId);
+        permission.setTargetType("ROLE");
+        permission.setTargetId(roleId);
+        permission.setLocalToolName(toolName);
+        permission.setScopeExpression(scopeExpression);
+        permission.setEffect("allow");
+        permission.setEnabled(true);
+        return permission;
+    }
+
+    private McpToolAsset managedTool() {
+        McpToolAsset tool = new McpToolAsset();
+        tool.setId("mcp-tool-1");
+        tool.setLocalToolName("sql_asset_query");
+        return tool;
+    }
+}

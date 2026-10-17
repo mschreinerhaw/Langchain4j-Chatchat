@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/workspace/scripts/main.py", line 21, in <module>
+    raise ValueError('acceptance_repair_probe')
+ValueError: acceptance_repair_probe

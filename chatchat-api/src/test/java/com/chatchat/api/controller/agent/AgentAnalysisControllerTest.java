@@ -1,29 +1,28 @@
 package com.chatchat.api.controller.agent;
 
+import com.chatchat.api.runtime.analysis.GovernedExternalResearchOperator;
+import com.chatchat.api.runtime.analysis.PreauthorizedStructuredDataOperator;
+import com.chatchat.api.runtime.analysis.RegisteredToolAnalysisOperator;
+import com.chatchat.api.runtime.analysis.VerifiedEvidenceComputationOperator;
 import com.chatchat.api.security.ApiAuthenticationFilter;
-import com.chatchat.api.runtime.RegisteredToolAnalysisOperator;
-import com.chatchat.api.runtime.PreauthorizedStructuredDataOperator;
-import com.chatchat.api.runtime.VerifiedEvidenceComputationOperator;
-import com.chatchat.api.runtime.GovernedExternalResearchOperator;
 import com.chatchat.common.retrieval.SkillExecutionScopePort;
-import com.chatchat.common.runtime.analysis.execution.AnalysisExecutionOutcome;
-import com.chatchat.common.runtime.analysis.model.AnalysisContext;
-import com.chatchat.common.runtime.analysis.model.AnalysisCapability;
-import com.chatchat.common.runtime.analysis.spi.AnalysisRuntimePort;
 import com.chatchat.common.runtime.agent.AgentCollaborationPlan;
 import com.chatchat.common.runtime.agent.AgentDescriptor;
 import com.chatchat.common.runtime.agent.AgentRegistryPort;
+import com.chatchat.common.runtime.analysis.execution.AnalysisExecutionOutcome;
+import com.chatchat.common.runtime.analysis.model.AnalysisCapability;
+import com.chatchat.common.runtime.analysis.model.AnalysisContext;
+import com.chatchat.common.runtime.analysis.spi.AnalysisRuntimePort;
 import com.chatchat.common.runtime.capability.CapabilityId;
 import jakarta.servlet.http.HttpServletRequest;
-import org.junit.jupiter.api.Test;
-import org.springframework.web.server.ResponseStatusException;
-
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.net.URI;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.Test;
+import org.springframework.web.server.ResponseStatusException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

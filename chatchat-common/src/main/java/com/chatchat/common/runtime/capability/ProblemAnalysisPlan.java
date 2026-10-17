@@ -8,7 +8,16 @@ public record ProblemAnalysisPlan(Status status, String objective, String subjec
     public static final String METADATA_KEY = "problemAnalysisPlan";
     public enum Status { READY, NEEDS_CLARIFICATION, PLANNING_FAILED }
     public enum Intent { DIRECT_ANSWER, DOCUMENT_UNDERSTANDING, DATA_ANALYSIS, ASSET_USAGE_GUIDANCE, ACTION_EXECUTION }
+    public enum TaskType { QA, DATA_ANALYSIS }
     public record Task(String objective, Intent intent, List<String> dataRequirements, String expectedResult) {
+        /** Public two-way classification derived solely from the model's accepted intent. */
+        @com.fasterxml.jackson.annotation.JsonProperty(value="taskType", access=com.fasterxml.jackson.annotation.JsonProperty.Access.READ_ONLY)
+        @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+        public TaskType taskType() {
+            // Existing action workflows retain their separate authorization contract.
+            if (intent == Intent.ACTION_EXECUTION) return null;
+            return intent == Intent.DATA_ANALYSIS ? TaskType.DATA_ANALYSIS : TaskType.QA;
+        }
         public Task {
             if (objective == null || objective.isBlank() || intent == null || expectedResult == null || expectedResult.isBlank())
                 throw new IllegalArgumentException("Task objective, intent and expected result are required");

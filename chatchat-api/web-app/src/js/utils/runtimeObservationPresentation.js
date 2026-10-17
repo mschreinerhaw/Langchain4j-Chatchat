@@ -16,6 +16,16 @@ export function runtimeObservationPresentation(runtimePayload = {}) {
   const eventState = upper(metadata.eventState);
   const type = upper(metadata.type);
   const stage = upper(metadata.stage);
+  if (eventKind === 'CODING_TRACE') {
+    const titles = { TASK_CREATED: '创建 Python 分析任务', TASK_STARTED: '开始自主编程',
+      CODE_COMMITTED: 'Python 代码已归档', EXECUTION_STARTED: '执行 Python 程序',
+      EXECUTION_FINISHED: 'Python 执行已返回', VALIDATION_RECORDED: '校验计算结果',
+      BUDGET_UPDATED: '更新执行预算', CANCELLATION_REQUESTED: '正在取消执行',
+      RECOVERY_RECONCILED: '编程交互进展', TASK_FINISHED: 'Python 分析结束' };
+    return { title: titles[metadata.codingEventType] || 'Python 分析进展', toolName: 'coding_agent',
+      status: eventState === 'FAILED' ? 'error' : eventState === 'CANCELLED' ? 'cancelled'
+        : ['CREATED', 'RUNNING'].includes(eventState) ? 'active' : 'done' };
+  }
   if (eventKind === "HARNESS_TURN") {
     const titles = { MODEL_RETURNED: "模型已返回探索请求", EVIDENCE_REQUEST_STARTED: "正在执行取证操作",
       EVIDENCE_REQUEST_FINISHED: `取证已返回 ${metadata.completedRequestCount ?? 0}/${metadata.requestCount ?? 0}` };
@@ -125,6 +135,9 @@ export function runtimeObservationPresentation(runtimePayload = {}) {
 
 export function runtimeObservationIdentity(runtimePayload = {}) {
   const metadata = objectValue(runtimePayload.metadata);
+  if (upper(metadata.eventKind) === 'CODING_TRACE') {
+    return `coding:${metadata.taskId}:${metadata.eventId || metadata.sequence}`;
+  }
   if (upper(metadata.eventKind) === "HARNESS_TURN") {
     return `harness-turn:${metadata.datasetFingerprint || "run"}:${metadata.turn || "unknown"}`;
   }

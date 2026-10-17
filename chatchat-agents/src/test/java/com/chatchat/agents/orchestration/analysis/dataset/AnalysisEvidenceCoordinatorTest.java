@@ -24,6 +24,61 @@ import static org.mockito.Mockito.when;
 
 class AnalysisEvidenceCoordinatorTest {
 
+    @Test void verifiedEmptySqlRowsRemainEmptyEvidenceRatherThanSerializedTransportPayload() throws Exception {
+        var envelope=Map.of("dataSchema","sql_result.v1","data",Map.of("rows",List.of(),"rowCount",0,
+            "complete",true,"possiblyTruncated",false,"diagnostics",Map.of("password","private-value")));
+        for (Object payload : sqlCarriers(envelope)) {
+            var projection=coordinator(mock(ToolRegistry.class),new com.chatchat.agents.runtime.analysis.McpResultAnalysisBridge())
+                .project(result(step("empty_sql",payload)));
+            assertThat(projection.datasets()).singleElement().satisfies(dataset->{
+                assertThat(dataset.reference()).isEqualTo("empty_sql");
+                assertThat(dataset.recordCount()).isZero();
+                assertThat(dataset.analysisContext()).containsEntry("sourceVerifiedEmpty",true);
+                assertThat(dataset.records()).isEmpty();
+            });
+        }
+    }
+
+    @Test
+    void unsuccessfulOrIncompleteEmptySqlDoesNotBecomeTransportTextEvidence() throws Exception {
+        for (boolean complete : List.of(false, true)) for (boolean success : List.of(false,true)) {
+            if (complete && success) continue;
+            var envelope=Map.of("dataSchema","sql_result.v1","success",success,"data",Map.of(
+                "rows",List.of(),"rowCount",0,"complete",complete,"possiblyTruncated",!complete));
+            for (Object payload : sqlCarriers(envelope)) {
+                var projection=coordinator(mock(ToolRegistry.class),new com.chatchat.agents.runtime.analysis.McpResultAnalysisBridge())
+                    .project(result(step("unavailable_sql",payload)));
+                assertThat(projection.datasets()).isEmpty();
+                assertThat(projection.excludedDatasets()).singleElement().satisfies(item ->
+                    assertThat(item).containsEntry("reason","NO_PROJECTED_CONTENT"));
+            }
+        }
+    }
+
+    private List<Object> sqlCarriers(Map<String,?> envelope) throws Exception {
+        var json=new ObjectMapper();
+        var canonical=Map.of("schemaVersion",com.chatchat.common.mcp.runtime.McpAnalysisPayload.SCHEMA_VERSION,
+            "resultKind","UNDECLARED","data",envelope,
+            "rawData",Map.of("rows",List.of(Map.of("must_not_become_business_data",9999))));
+        return List.of(envelope,json.writeValueAsString(envelope),json.valueToTree(envelope),
+            canonical,json.writeValueAsString(canonical),json.valueToTree(canonical),
+            json.convertValue(canonical,com.chatchat.common.mcp.runtime.McpAnalysisPayload.class),
+            com.chatchat.common.tool.ToolOutput.success(canonical));
+    }
+
+    @Test void declaredDocumentContainingSqlJsonRemainsATextAnalysisSource() throws Exception {
+        String text=new ObjectMapper().writeValueAsString(Map.of("dataSchema","sql_result.v1","data",Map.of(
+            "rows",List.of(),"rowCount",0,"complete",true,"possiblyTruncated",false)));
+        var document=Map.of("schemaVersion",com.chatchat.common.mcp.runtime.McpAnalysisPayload.SCHEMA_VERSION,
+            "resultKind","DOCUMENT","data",text);
+        var projection=coordinator(mock(ToolRegistry.class),new com.chatchat.agents.runtime.analysis.McpResultAnalysisBridge())
+            .project(result(step("declared_document",document)));
+        assertThat(projection.datasets()).singleElement().satisfies(dataset->{
+            assertThat(dataset.recordCount()).isEqualTo(1);
+            assertThat(dataset.records()).singleElement().satisfies(row->assertThat(row.get("content")).isEqualTo(text));
+        });
+    }
+
     @Test
     void failedParentBatchCannotEraseItsBlockedChildOutcome() {
         var blocked = new ToolCallResult("blocked", "tool", "template", "asset", "BLOCKED", 0,

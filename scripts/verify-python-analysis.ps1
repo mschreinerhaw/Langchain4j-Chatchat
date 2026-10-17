@@ -35,7 +35,8 @@ if(-not $SqlGlotPython){$SqlGlotPython=Join-Path $repo 'target/sql-toolchain-pyt
 if(Test-Path -LiteralPath $SqlGlotPython){$base+=('-Dcoding.sqlglotPython='+[IO.Path]::GetFullPath($SqlGlotPython))}
 if($Offline){$base=@('-o')+$base}
 $names=@('CapabilityWorkflowProtocolTest','HarnessCodingIntegrationTest','ModelNativeAnalysisHarnessTest','BoundedAnalysisEvidenceTest','DataWorkspaceOperationsTest',
-    'CodingAnalysisServiceTest','CodingSchemaResultVerifierTest','CodingEvidenceCollectorTest','CodingTraceArtifactControllerTest','CodingInputSnapshotServiceTest','CodingChunkedSnapshotTest',
+    'CodingBudgetShareTest','PublishedAgentApiControllerTest','AgentRuntimeControllerTest','AnalysisEvidenceCoordinatorTest','AgentRuntimeTaskEventPublisherTest','RuntimeCancellationStorageTest','LocalWorkflowRuntimeTest','AgentTaskServiceTest','InteractionWorkflowCoordinatorTest','ComputedResultBoundaryTest',
+    'PythonSystemExampleCatalogTest','CodingAnalysisServiceTest','CodingSchemaResultVerifierTest','CodingEvidenceCollectorTest','CodingTraceArtifactControllerTest','CodingInputSnapshotServiceTest','CodingChunkedSnapshotTest',
     'CodingTaskPersistenceTest','CodingDataSupplyServiceTest','ClineModelCallbackControllerTest','ClinePythonCallbackControllerTest','ProblemAnalysisLifecycleTest')
 if(-not $FullSuiteOnly) {
     $start=[DateTime]::UtcNow

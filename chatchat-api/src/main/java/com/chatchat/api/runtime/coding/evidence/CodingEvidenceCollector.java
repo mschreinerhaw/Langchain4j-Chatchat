@@ -140,12 +140,14 @@ public class CodingEvidenceCollector {
             throw new IllegalStateException("Execution receipt does not prove this stopped operation");
         long occurredAt = java.time.Instant.parse(receiptJson.path("startedAt").asText()).toEpochMilli();
         List<Map<String, Object>> inputFacts = new ArrayList<>();
+        var computedBoundary = new ComputedResultBoundary(mapper);
         for (InputFile input : inputs == null ? List.<InputFile>of() : inputs) {
             if (!dynamic && !contract.authorization().allowedDataRefs().contains(input.fileId())
                     && !contract.authorization().allowedDataRefs().contains("mcp-python:data-file:" + input.fileId()))
                 throw new SecurityException("Input file is not authorized");
             byte[] bytes = artifact(scope, contract.taskId(), operationId, "input-" + input.fileId(), input.fileName());
             if (!sha(bytes).equals(input.sha256())) throw new IllegalStateException("Input snapshot hash mismatch");
+            computedBoundary.observeInput(bytes);
             inputFacts.add(Map.of("fileId", input.fileId(), "fileName", input.fileName(),
                 "sha256", input.sha256(), "size", bytes.length));
         }
@@ -168,6 +170,11 @@ public class CodingEvidenceCollector {
                 throw new SecurityException("Archived input differs from the authorized snapshot");
         }
         Validation validation = Objects.requireNonNull(validator.validate(List.copyOf(resultRows)), "independent validation");
+        if (computedBoundary.copiedSource(resultRows)) {
+            var checks = new LinkedHashMap<String,Object>(validation.checks());
+            checks.put("copiedSourceContentDetected", true);
+            validation = new Validation(false, validation.verifierId(), validation.ruleVersion(), checks, false);
+        }
         String stem = "coding:" + sha((scope.tenantId() + "\0" + scope.userId() + "\0" + scope.runId()
                 + "\0" + contract.taskId() + "\0" + operationId).getBytes(StandardCharsets.UTF_8));
         String inputId = id(contract.inputSnapshotRef());

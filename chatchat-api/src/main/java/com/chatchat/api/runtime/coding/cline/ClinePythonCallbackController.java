@@ -73,8 +73,8 @@ public final class ClinePythonCallbackController {
             long executions = contract.budget().maxCodeExecutions();
             if (executions < 1 || contract.budget().maxToolCalls() < 1)
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Python tool budget is unavailable");
-            long cpu = ceil(contract.budget().maxCpuMillis(), executions);
-            long output = ceil(contract.budget().maxOutputBytes(), executions);
+            long cpu = CodingBudgetShare.units(contract.budget().maxCpuMillis(), executions);
+            long output = CodingBudgetShare.units(contract.budget().maxOutputBytes(), executions);
             var reservation = new CodingTaskOutcome.Counters(0, 0, 1, 1,
                 cpu, 0, output, "0");
             McpPythonControlPlanePort.OperationView view;
@@ -126,6 +126,8 @@ public final class ClinePythonCallbackController {
                     response.put("resultAvailable",false);
                     response.put("diagnostic","The process succeeded but no contracted result was archived. "
                         +"Use the input descriptor; read JSONL as one JSON object per line. "
+                        +"Stdout and auxiliary file contents are not returned to the model: repeating print/file probes cannot reveal source samples. "
+                        +"Inspect and parse data within the same Python program that computes and writes the result. "
                         +"Each call starts a fresh sandbox: write the required JSONL file under /workspace/output/results/ in the same program.");
                     return response;
                 } catch(CodingEvidenceCollector.InvalidStructuredResultException invalid) {
@@ -138,7 +140,7 @@ public final class ClinePythonCallbackController {
                     response.put("validationStatus", "FAILED");
                     response.put("diagnostic", "Result validation failed. Match the contracted field names and types, "
                         + "and replace bulk source text with metrics and concise findings calculated in Python. "
-                        + "Text fields default to at most 2048 characters; do not split raw documents across fields or rows. "
+                        + "Unchanged source documents or record collections are not analytical results. Use short quotations or input row references alongside computed findings. Original long-form analysis is allowed; do not split raw documents across fields or rows. "
                         + "Repair the complete program and execute again.");
                     return response;
                 }
@@ -221,9 +223,6 @@ public final class ClinePythonCallbackController {
         try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
             .digest(value.getBytes(StandardCharsets.UTF_8))); }
         catch (Exception impossible) { throw new IllegalStateException(impossible); }
-    }
-    private static long ceil(long amount, long count) {
-        return amount / count + (amount % count == 0 ? 0 : 1);
     }
     private static Map<String, Object> view(McpPythonControlPlanePort.OperationView operation) {
         Map<String, Object> result = new LinkedHashMap<>();

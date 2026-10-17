@@ -67,6 +67,20 @@ class CodingEvidenceCollectorTest {
         tasks.submit(contract);
     }
     @AfterEach void shutdown() { timer.shutdownNow(); workers.shutdownNow(); }
+    @Test void aSchemaValidCopyOfArchivedSourceCannotBecomeAnAdmittedAnalysis() throws Exception {
+        String source = "private diagnostic source\n".repeat(100);
+        String result = json.writeValueAsString(Map.of("finding",source))+"\n";
+        fixture(result,"PRESENT",true,"{\"finding\":\"STRING\"}",1);
+        when(python.artifact("tenant","owner","run","task","op","input-prices","prices.csv"))
+            .thenReturn(source.getBytes(StandardCharsets.UTF_8));
+        var rules=Map.<String,Object>of("rowSchema",Map.of("type","object","properties",Map.of("finding",Map.of("type","string"))));
+        var collected=collector(store).collect(scope,contract,"op","main.py","rows.jsonl",
+            List.of(new CodingEvidenceCollector.InputFile("prices","prices.csv",sha(source))),
+            rows->new CodingSchemaResultVerifier().verify(scope,null,rules,rows));
+        assertThat(collected.validationStatus()).isEqualTo(CodingTaskOutcome.ValidationStatus.FAILED);
+        assertThat(store.find(scope,id(collected.validationRecordRef())).orElseThrow().payload().toString())
+            .contains("copiedSourceContentDetected=true").doesNotContain("private diagnostic source");
+    }
     private Map<String,Object> optionalAmountRules() {
         return Map.of("rowSchema",Map.of("type","object","properties",Map.of(
             "amount",Map.of("type","number"),"note",Map.of("type","string")),

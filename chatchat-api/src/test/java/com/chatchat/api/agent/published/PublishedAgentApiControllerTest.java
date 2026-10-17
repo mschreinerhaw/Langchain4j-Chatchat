@@ -45,7 +45,8 @@ class PublishedAgentApiControllerTest {
     void setUp() {
         PublishedAgentApiController controller = new PublishedAgentApiController(
             taskService, skillCatalogService, enterpriseAdminService, objectMapper);
-        mockMvc = standaloneSetup(controller).build();
+        mockMvc = standaloneSetup(controller)
+            .defaultRequest(get("/").accept(MediaType.APPLICATION_JSON)).build();
         when(skillCatalogService.isPublished("finance-agent")).thenReturn(true);
         when(skillCatalogService.resolve("finance-agent")).thenReturn(publishedAgent());
         when(enterpriseAdminService.canAccessAgent(anyString(), anyString())).thenReturn(true);
@@ -205,6 +206,29 @@ class PublishedAgentApiControllerTest {
             .andExpect(jsonPath("$.data.events[0].payload.debug").doesNotExist())
             .andExpect(jsonPath("$.data.eventCursor").value(9))
             .andExpect(jsonPath("$.data.hasMoreEvents").value(true));
+    }
+
+    @Test
+    void publishesOnlyTypedTaskClassificationWithoutLeakingPrivateMetadata() throws Exception {
+        when(taskService.get("tenant-a", "task-1"))
+            .thenReturn(Optional.of(task("user-a", "RUNNING", "EXECUTING")));
+        for (String type : List.of("QA", "DATA_ANALYSIS")) {
+            when(taskService.listEventsAfter("tenant-a", "task-1", 7L, 3)).thenReturn(List.of(
+                AgentEvent.builder().eventId("event-8").sequence(8L).type("RUNTIME_OBSERVATION")
+                    .payload(objectMapper.writeValueAsString(Map.of("payload", Map.of("stage", "TASK_CLASSIFICATION",
+                        "taskType", type, "password", "private-classification-secret")))).build(),
+                AgentEvent.builder().eventId("event-9").sequence(9L).type("RUNTIME_OBSERVATION")
+                    .payload(objectMapper.writeValueAsString(Map.of("payload", Map.of("stage", "TASK_CLASSIFICATION",
+                        "taskType", "private-classification-secret")))).build()));
+            mockMvc.perform(get("/api/v1/published-agents/finance-agent/questions/task-1/status")
+                    .param("afterSequence", "7").param("eventLimit", "2")
+                    .requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-a")
+                    .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-a"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.events[0].payload.payload.taskType").value(type))
+                .andExpect(jsonPath("$.data.events[0].payload.payload.password").doesNotExist())
+                .andExpect(jsonPath("$.data.events[1].payload.payload.taskType").doesNotExist());
+        }
     }
 
     @Test

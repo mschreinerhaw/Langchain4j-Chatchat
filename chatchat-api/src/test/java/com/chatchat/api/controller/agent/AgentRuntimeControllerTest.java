@@ -237,6 +237,7 @@ class AgentRuntimeControllerTest {
         )).build();
 
         mockMvc.perform(get("/api/v1/agent/runtime/runs/runtime-run-4/events/stream")
+                .accept(org.springframework.http.MediaType.TEXT_EVENT_STREAM)
                 .param("afterCreatedAt", "10")
                 .param("limit", "20")
                 .param("pollIntervalMs", "500")
@@ -272,6 +273,6 @@ class AgentRuntimeControllerTest {
             mock(AgentRunTraceBuilder.class),
             mock(AgentEvaluationService.class),
             qualityService
-        )).build();
+        )).defaultRequest(get("/").accept(org.springframework.http.MediaType.APPLICATION_JSON)).build();
     }
 }

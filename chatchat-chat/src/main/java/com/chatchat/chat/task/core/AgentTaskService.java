@@ -116,6 +116,7 @@ public class AgentTaskService {
     private final Map<String, AtomicInteger> tenantWorkerCounts = new ConcurrentHashMap<>();
     private final Map<String, Thread> runningTaskThreads = new ConcurrentHashMap<>();
     private final ThreadLocal<AgentTaskQueueCoordinator.ClaimedTask> activeDatabaseClaim = new ThreadLocal<>();
+    private final ThreadLocal<java.util.concurrent.atomic.AtomicBoolean> revokedDatabaseClaim = new ThreadLocal<>();
     /**
      * Database queue polling starts before {@code ApplicationReadyEvent}. Keep durable tasks
      * unclaimed until MCP tools and the published Agent catalog have finished bootstrapping;
@@ -1364,7 +1365,8 @@ public class AgentTaskService {
         AgentExecutionIdentity identity = task == null
             ? AgentExecutionIdentity.initial(taskId) : AgentExecutionIdentity.from(task);
         Map<String, Object> toolInput = new LinkedHashMap<>(request.getToolInput() == null ? Map.of() : request.getToolInput());
-        BooleanSupplier cancellationCheck = () -> isCancelled(taskId);
+        var revoked = revokedDatabaseClaim.get();
+        BooleanSupplier cancellationCheck = () -> (revoked != null && revoked.get()) || isCancelled(taskId);
         toolInput.put("__agentTaskId", taskId);
         toolInput.put("__agentRunId", identity.attemptId());
         toolInput.put("__executionId", identity.executionId());
@@ -1465,10 +1467,8 @@ public class AgentTaskService {
         } catch (RuntimeException ex) {
             log.debug("Agent runtime cancel skipped for taskId={}: {}", task.getTaskId(), ex.getMessage());
         }
-        Thread runningThread = runningTaskThreads.get(task.getTaskId());
-        if (runningThread != null) {
-            runningThread.interrupt();
-        }
+        // Cooperative cancellation must not interrupt shared database file I/O.
+        // The registry and Runtime token stop execution at guarded boundaries.
         updateLatest(task.getTaskId(), status, null, errorMessage);
         AgentEvent stoppedEvent = saveStatusEvent(task, status, Map.of("message", eventMessage));
         eventBus.publishResult(stoppedEvent);
@@ -1949,6 +1949,12 @@ public class AgentTaskService {
                 return;
             }
             AgentTaskLatestEntity entity = latest.get();
+            String currentStatus = normalizeStatus(entity.getStatus());
+            if (TERMINAL_STATUSES.contains(currentStatus) && !currentStatus.equals(normalizeStatus(status))) {
+                log.debug("Ignoring late Agent state after terminal outcome. taskId={} current={} requested={}",
+                    taskId, currentStatus, status);
+                return;
+            }
             AgentTaskQueueCoordinator.ClaimedTask claim = activeDatabaseClaim.get();
             if (claim != null && claim.taskId().equals(taskId)
                 && !claim.claimToken().equals(entity.getClaimToken())) {
@@ -2095,12 +2101,13 @@ public class AgentTaskService {
     }
 
     private void executeDatabaseClaim(AgentTaskQueueCoordinator.ClaimedTask claim) {
-        Thread owner = Thread.currentThread();
+        var revoked = new java.util.concurrent.atomic.AtomicBoolean();
         long heartbeatMs = databaseHeartbeatIntervalMs(properties);
         ScheduledFuture<?> heartbeat = DATABASE_HEARTBEATS.scheduleAtFixedRate(() -> {
             try {
                 if (!queueCoordinator.heartbeat(claim)) {
-                    owner.interrupt();
+                    // Revoke this lease only: a newer owner may have the same task id.
+                    revoked.set(true);
                 }
             } catch (RuntimeException ex) {
                 log.warn("Agent database claim heartbeat failed. taskId={} workerId={} error={}",
@@ -2108,6 +2115,7 @@ public class AgentTaskService {
             }
         }, heartbeatMs, heartbeatMs, TimeUnit.MILLISECONDS);
         activeDatabaseClaim.set(claim);
+        revokedDatabaseClaim.set(revoked);
         try {
             AgentTaskLatestEntity task = latestRepository.findById(claim.taskId())
                 .orElseThrow(() -> new IllegalStateException("Claimed Agent task not found: " + claim.taskId()));
@@ -2119,6 +2127,7 @@ public class AgentTaskService {
                 queueCoordinator.finish(claim);
             } finally {
                 activeDatabaseClaim.remove();
+                revokedDatabaseClaim.remove();
             }
         }
     }
@@ -2317,6 +2326,7 @@ public class AgentTaskService {
      * @return whether the condition is satisfied
      */
     private boolean reconcileLatestTaskState(AgentTaskLatestEntity task) {
+        if (TERMINAL_STATUSES.contains(normalizeStatus(task.getStatus()))) return false;
         List<AgentEvent> events = eventStore.listByTask(task.getTenantId(), task.getSessionId(), task.getTaskId(), Integer.MAX_VALUE);
         if (events.isEmpty()) {
             return false;
@@ -2600,7 +2610,8 @@ public class AgentTaskService {
      * @return whether the condition is satisfied
      */
     private boolean isCancelled(String taskId) {
-        return cancellationRegistry.isCancelled(taskId) || latestRepository.findById(taskId)
+        var revoked = revokedDatabaseClaim.get();
+        return (revoked != null && revoked.get()) || cancellationRegistry.isCancelled(taskId) || latestRepository.findById(taskId)
             .map(AgentTaskLatestEntity::getStatus)
             .map(this::normalizeStatus)
             .filter(TERMINAL_STATUSES::contains)

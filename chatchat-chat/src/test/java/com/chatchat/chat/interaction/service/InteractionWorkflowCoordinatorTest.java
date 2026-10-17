@@ -13,6 +13,26 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class InteractionWorkflowCoordinatorTest {
+    @Test void modelClassifiedKnowledgeQuestionDoesNotRunADataAcquisitionWorkflow() {
+        var policy = mock(AgentToolPolicyResolver.class);
+        var planner = mock(ProblemAnalysisPlanner.class);
+        var direct = mock(DirectAnswerWorkflow.class);
+        var governed = mock(InteractionWorkflowCoordinator.GovernedExecution.class);
+        var agent = mock(SkillDefinition.class);
+        when(agent.boundMcpToolNames()).thenReturn(List.of("opaque"));
+        var request = InteractionRequest.builder().query("explain the concept").build();
+        var context = InteractionContext.builder().build();
+        var entry = WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.GOVERNED_RUNTIME, "DECLARED_EXECUTION_CONTRACT");
+        when(policy.planningSnapshot(request, agent)).thenReturn(entry);
+        when(planner.classify(request, context, agent, entry.toolPurposes())).thenReturn(ProblemAnalysisPlan.TaskType.QA);
+        when(direct.execute(eq(request), any(), eq(agent))).thenReturn(InteractionResponse.builder().answer("explanation")
+            .metadata(Map.of(WorkflowOutcome.METADATA_KEY, new WorkflowOutcome(WorkflowOutcome.Type.READY_TO_ANSWER,
+                "DIRECT_ANSWER_COMPLETED", List.of(), List.of(), true))).build());
+        var result = new InteractionWorkflowCoordinator(policy, planner, direct, null).execute(request, context, agent, governed);
+        assertThat(result.getMetadata()).containsEntry("taskType", "QA");
+        assertThat(result.getAnswer()).isEqualTo("explanation");
+        verifyNoInteractions(governed);
+    }
     @Test @Timeout(10)
     void nativePlannerOwnsItsChildUntilItReturnsAndUsesCommonCompletion() throws Exception {
         var policy = mock(AgentToolPolicyResolver.class);

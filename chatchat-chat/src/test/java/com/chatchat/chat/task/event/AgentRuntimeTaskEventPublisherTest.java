@@ -40,6 +40,20 @@ class AgentRuntimeTaskEventPublisherTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    @Test void preservesTypedClassificationWithoutForwardingArbitraryUntrustedFields() throws Exception {
+        AgentTaskLatestRepository repository=mock(AgentTaskLatestRepository.class);
+        InMemoryAgentEventStore store=new InMemoryAgentEventStore();
+        var task=task("classification-task");
+        when(repository.findById(task.getTaskId())).thenReturn(Optional.of(task));
+        var publisher=new AgentRuntimeTaskEventPublisher(repository,store,mock(AgentEventBus.class),objectMapper);
+        publisher.publish(AgentRunEvent.of(task.getTaskId(),AgentRunEventType.OBSERVATION_RECORDED,"classification completed",
+            Map.of("stage","TASK_CLASSIFICATION","status","COMPLETED","taskType","QA","password","private-secret")));
+        var events=store.listByTask(task.getTenantId(),task.getSessionId(),task.getTaskId(),10);
+        var payload=objectMapper.readTree(events.get(0).getPayload()).path("payload");
+        assertThat(payload.path("taskType").asText()).isEqualTo("QA");
+        assertThat(payload.toString()).doesNotContain("private-secret");
+    }
+
     @Test
     void mapsObservationLifecycleStateInsteadOfMarkingEveryObservationRunning() {
         AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
@@ -119,6 +133,11 @@ class AgentRuntimeTaskEventPublisherTest {
             latestRepository, eventStore, eventBus, objectMapper);
         AgentTaskLatestEntity task = task("task-runtime-live-stream");
         CountDownLatch appended = new CountDownLatch(1);
+        CountDownLatch delivered = new CountDownLatch(1);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            delivered.countDown();
+            return null;
+        }).when(eventBus).publishResult(org.mockito.ArgumentMatchers.any(AgentEvent.class));
         when(latestRepository.findById(task.getTaskId())).thenReturn(Optional.of(task));
         when(eventStore.supportsDeferredAppend()).thenReturn(true);
         when(eventStore.findFirstByTaskAndType(
@@ -134,6 +153,7 @@ class AgentRuntimeTaskEventPublisherTest {
             "live lifecycle event", Map.of("type", "lifecycle")));
 
         assertThat(appended.await(2, TimeUnit.SECONDS)).isTrue();
+        assertThat(delivered.await(2, TimeUnit.SECONDS)).as("Persisted events must be delivered without an explicit flush").isTrue();
         verify(eventStore).appendAll(org.mockito.ArgumentMatchers.argThat(events -> events.size() == 1));
         verify(eventBus).publishResult(org.mockito.ArgumentMatchers.any(AgentEvent.class));
         publisher.flushDeferredAppends();

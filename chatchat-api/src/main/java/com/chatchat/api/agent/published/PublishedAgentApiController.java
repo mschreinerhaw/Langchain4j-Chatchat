@@ -187,7 +187,10 @@ public class PublishedAgentApiController {
             Map<String, Object> target = new LinkedHashMap<>();
             source.forEach((key, child) -> {
                 String name = String.valueOf(key);
-                if (publicEventField(name) && !sensitiveEventField(name) && !privateEventField(name)) {
+                if ("TASK_CLASSIFICATION".equals(source.get("stage")) && "taskType".equals(name)
+                        && ("QA".equals(child) || "DATA_ANALYSIS".equals(child))) {
+                    target.put(name, child);
+                } else if (publicEventField(name) && !sensitiveEventField(name) && !privateEventField(name)) {
                     target.put(name, projectPublicEventValue(child));
                 }
             });

@@ -1,0 +1,5 @@
+2026-01-01T09:00:00Z INFO synthetic example started
+2026-01-01T09:00:01Z INFO synthetic example record processed
+2026-01-01T09:00:02Z WARN synthetic example retry requested
+2026-01-01T09:00:03Z ERROR synthetic example operation failed
+2026-01-01T09:00:04Z INFO synthetic example recovery completed

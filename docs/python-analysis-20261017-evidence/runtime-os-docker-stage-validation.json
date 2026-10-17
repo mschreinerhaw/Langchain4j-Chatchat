@@ -1,0 +1,64 @@
+{
+  "recordedAt": "2026-10-17T23:52:31+08:00",
+  "sourceHead": "9cc5ac8f354c0ad3fc88058f95529d1d721620f3",
+  "worktree": "dirty; all pre-existing Runtime OS changes preserved",
+  "scope": "isolated application-image deployment; no production traffic switch",
+  "newSourceFiles": [
+    "deploy/docker/application/Dockerfile",
+    "deploy/docker/application/Dockerfile.mcp",
+    "deploy/docker/application/compose.yaml",
+    "deploy/docker/application/node-proxy.conf",
+    "deploy/docker/application/build-images.ps1",
+    "deploy/docker/application/README.md"
+  ],
+  "localBuild": {
+    "mavenPackage": "PASSED; 17 reactor modules",
+    "buildScriptSmoke": "PASSED with -SkipMaven",
+    "apiJarSha256": "c856ba49bc92de935f2e7b8f5f7f62b33719390f26e85abab7d9b8d51c271534",
+    "mcpJarSha256": "48f45a9469714111e801f1f6c543b2b12fd4e42783a4fff63ef070af23088b74",
+    "dockerCliInputSha256": "99d23b43792eaafe4baa171ef18a9d0244b0517c2b2271dab5900fb0fef3b428",
+    "deployedApplicationArchiveSha256": "1a8ee78514966676138293ac5a064f230d0f36c110c48ce92e5988d96d33a2c4",
+    "deployedProxyArchiveSha256": "c29d9518991695567d814c54b80338bfd422a2e554e152e67b982724351a07e5",
+    "reproducibleCombinedArchiveSha256": "dbc3366525c42b2bcc9486c3c0a26099afd1a88b30e9dfaa0b15592f586d5098"
+  },
+  "remote": {
+    "host": "192.168.195.221",
+    "directory": "/opt/runtime-os-docker-stage",
+    "services": ["api", "mcp", "coding-agent", "node-proxy"],
+    "apiBind": "127.0.0.1:18180",
+    "mcpBind": "127.0.0.1:18190",
+    "existingApiAndMcpPorts": [8080, 8090],
+    "existingPostgreSQLAndOpenSearchContainers": "running, not replaced",
+    "existingIsolatedJava": "gracefully stopped to free memory; data retained",
+    "postgresql": {
+      "candidateDatabases": ["runtime_os_stage_api", "runtime_os_stage_mcp"],
+      "initialTableCounts": {"api": 102, "mcp": 44},
+      "afterOneTimeIsolatedHibernateUpdate": {"api": 116, "mcp": 57},
+      "finalDdlMode": "validate",
+      "bridgeConnection": "PASSED",
+      "schemaRisk": "init SQL trails current entities; reviewed production migrations remain necessary"
+    },
+    "openSearchAuthFromApiContainer": "HTTP 200; candidate index name is separate",
+    "apiHome": "HTTP 200",
+    "apiAdminLogin": "HTTP 200, response code 200",
+    "mcpActuatorHealth": "HTTP 200",
+    "nodeAuthenticatedHealth": "HTTP 200",
+    "apiLoopbackProxyAuthenticatedHealth": "HTTP 200",
+    "nodeDirectMcpAccess": "blocked; MCP DNS lookup and direct-IP probe did not connect",
+    "mcpDockerServerVersion": "26.1.3",
+    "pythonSandboxFixedFixture": "PASSED; no network, read-only root, 1 CPU, 256 MiB; output 5",
+    "mcpLicense": {"valid": false, "status": "SERVER_MISMATCH"},
+    "publishedAgentRows": 0,
+    "publishedPythonEnvironmentRows": 0
+  },
+  "acceptance": {
+    "applicationImageBuildAndIsolatedDeployment": "PASSED",
+    "containerAndInfrastructureSmoke": "PASSED",
+    "mcpLicensedBusinessToolUse": "BLOCKED_BY_CONTAINER_LICENSE",
+    "realModelQaOnCandidate": "NOT_TESTED",
+    "realDatabaseAnalysisOnCandidate": "NOT_TESTED",
+    "fullBackendGateThisTurn": "NOT_RERUN",
+    "lastKnownFullBackendGate": {"tests": 4406, "failures": 130, "errors": 64, "skipped": 10},
+    "productionTrafficSwitch": "NOT_APPROVED"
+  }
+}

@@ -45,7 +45,9 @@ public final class InteractionWorkflowCoordinator {
                 var type = execution.call("TASK_CLASSIFICATION", () -> planner.classify(request, context, skill, entry.toolPurposes()));
                 if (type == null) yield ProblemAnalysisPlanner.blockedResponse(ProblemAnalysisPlan.unavailable());
                 var classified = context.toBuilder().taskType(type).build();
-                var result = execution.call("GOVERNED_RUNTIME", () -> governed.execute(classified, null));
+                var result = type == ProblemAnalysisPlan.TaskType.QA
+                    ? executeWorkflow(execution, RuntimeWorkflowFamily.DIRECT_ANSWER, request, classified, skill, null, governed)
+                    : execution.call("GOVERNED_RUNTIME", () -> governed.execute(classified, null));
                 var metadata = new java.util.LinkedHashMap<String,Object>(result.getMetadata() == null ? java.util.Map.of() : result.getMetadata());
                 metadata.put("taskType", type.name());
                 result.setMetadata(metadata);

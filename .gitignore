@@ -71,3 +71,4 @@ build/
 .codex-tmp/*
 .codex-run/*
 /coding-agent-node/node_modules/
+!chatchat-api/src/main/resources/python-examples/data/sample_application.log

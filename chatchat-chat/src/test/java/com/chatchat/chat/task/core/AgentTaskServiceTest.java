@@ -130,6 +130,22 @@ class AgentTaskServiceTest {
     }
 
     @Test
+    void lateWorkerAndRecoveryUpdatesCannotResurrectOrReplaceCancellation() {
+        AgentTaskLatestRepository repository = mock(AgentTaskLatestRepository.class);
+        AgentTaskLatestEntity task = new AgentTaskLatestEntity();
+        task.setTaskId("cancelled-task");
+        task.setStatus("CANCELLED");
+        when(repository.findById("cancelled-task")).thenReturn(Optional.of(task));
+        AgentTaskService service = taskService(mock(AgentEventBus.class), mock(AgentEventStore.class), repository,
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+        service.updateLatest("cancelled-task", "WAIT_MODEL", null, null);
+        service.updateLatest("cancelled-task", "SUCCESS", "late answer", null);
+        assertThat(task.getStatus()).isEqualTo("CANCELLED");
+        assertThat(task.getAnswerSummary()).isNull();
+        verify(repository, never()).save(any());
+    }
+
+    @Test
     void databaseHeartbeatKeepsMultipleRenewalWindowsInsideTheLease() {
         AgentTaskProperties properties = new AgentTaskProperties();
         properties.setWorkerLeaseMs(30_000L);

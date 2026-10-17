@@ -1,0 +1,143 @@
+name: runtime-os-app-stage
+
+services:
+  api:
+    image: ${API_IMAGE:?Set API_IMAGE}
+    restart: unless-stopped
+    env_file: ${STAGE_ROOT:?Set STAGE_ROOT}/config/api.env
+    environment:
+      SERVER_PORT: "8080"
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_CONFIG_ADDITIONAL_LOCATION: optional:file:/srv/app/config/
+      JAVA_TOOL_OPTIONS: -Xms256m -Xmx1536m -Dfile.encoding=UTF-8
+      CHATCHAT_DATASOURCE_CONFIG: datasource-postgresql.yml
+      CHATCHAT_MCP_GRPC_HOST: mcp
+      CHATCHAT_MCP_GRPC_PORT: "9091"
+      CHATCHAT_CODING_ENABLED: "true"
+      CHATCHAT_CODING_CLINE_ENABLED: "true"
+      CHATCHAT_CODING_CLINE_NODE_URL: http://127.0.0.1:8791
+      CHATCHAT_CODING_CLINE_ALLOWED_PEER_ADDRESSES: 172.30.93.10
+      CHATCHAT_CODING_CLINE_SHARED_SECRET_FILE: /run/secrets/coding_agent_shared_secret
+      CHATCHAT_SEARCH_OPENSEARCH_INDEX: runtime_os_stage_documents
+      CHATCHAT_MCP_CENTER_BASE_URL: http://mcp:8090
+      CHATCHAT_TOOLS_DOCUMENT_SEARCH_API_BASE_URL: http://api:8080
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - 127.0.0.1:18180:8080
+    volumes:
+      - ${STAGE_ROOT}/api/data:/srv/app/data
+      - ${STAGE_ROOT}/api/logs:/srv/app/logs
+      - ${MODEL_CONFIG_FILE:?Set MODEL_CONFIG_FILE}:/srv/app/config/application.yml:ro
+    secrets:
+      - source: api_internal_key
+        target: /srv/app/config/internal-credential.key
+      - coding_agent_shared_secret
+    networks:
+      control: {}
+      coding:
+        ipv4_address: 172.30.93.20
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 4g
+    cpus: 4
+
+  mcp:
+    image: ${MCP_IMAGE:?Set MCP_IMAGE}
+    restart: unless-stopped
+    env_file: ${STAGE_ROOT}/config/mcp.env
+    environment:
+      SERVER_PORT: "8090"
+      SPRING_PROFILES_ACTIVE: prod
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx1024m -Dfile.encoding=UTF-8
+      CHATCHAT_DATASOURCE_CONFIG: datasource-postgresql.yml
+      CHATCHAT_MCP_GRPC_PORT: "9091"
+      CHATCHAT_MCP_AUTHORIZATION_API_BASE_URL: http://api:8080
+      CHATCHAT_MCP_PYTHON_WORKSPACE_ROOT: ${STAGE_ROOT}/mcp/data/python-assets
+      CHATCHAT_MCP_PYTHON_DATA_ROOT: ${STAGE_ROOT}/mcp/data/python-user-data
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - 127.0.0.1:18190:8090
+    volumes:
+      - ${STAGE_ROOT}/mcp/data:/srv/app/data
+      - ${STAGE_ROOT}/mcp/data/python-assets:${STAGE_ROOT}/mcp/data/python-assets
+      - ${STAGE_ROOT}/mcp/data/python-user-data:${STAGE_ROOT}/mcp/data/python-user-data
+      - ${STAGE_ROOT}/mcp/logs:/srv/app/logs
+      - /var/run/docker.sock:/var/run/docker.sock
+    secrets:
+      - source: mcp_internal_key
+        target: /srv/app/config/internal-credential.key
+    networks:
+      - control
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 3g
+    cpus: 3
+
+  coding-agent:
+    image: ${NODE_IMAGE:?Set NODE_IMAGE}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      RUNTIME_CODING_HOST: 0.0.0.0
+      RUNTIME_CODING_PORT: "3100"
+      RUNTIME_CODING_CALLBACK_URL: http://api:8080
+      RUNTIME_CODING_ALLOWED_CALLBACK_HOSTS: api
+      RUNTIME_CODING_SHARED_SECRET_FILE: /run/secrets/coding_agent_shared_secret
+    secrets:
+      - source: coding_agent_node_secret
+        target: coding_agent_shared_secret
+    networks:
+      coding:
+        ipv4_address: 172.30.93.10
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,noexec,nosuid,nodev,uid=1000,gid=32101
+    user: "1000:32101"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    mem_limit: 2g
+    cpus: 2
+
+  node-proxy:
+    image: ${NODE_PROXY_IMAGE:?Set NODE_PROXY_IMAGE}
+    restart: unless-stopped
+    network_mode: service:api
+    depends_on:
+      - api
+      - coding-agent
+    volumes:
+      - ${STAGE_ROOT}/config/node-proxy.conf:/etc/nginx/nginx.conf:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev,uid=101,gid=101
+    user: "101:101"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 32
+    mem_limit: 128m
+    cpus: 0.25
+
+secrets:
+  api_internal_key:
+    file: ${API_INTERNAL_KEY_FILE:?Set API_INTERNAL_KEY_FILE}
+  mcp_internal_key:
+    file: ${MCP_INTERNAL_KEY_FILE:?Set MCP_INTERNAL_KEY_FILE}
+  coding_agent_shared_secret:
+    file: ${CODING_AGENT_SHARED_SECRET_FILE:?Set CODING_AGENT_SHARED_SECRET_FILE}
+  coding_agent_node_secret:
+    file: ${CODING_AGENT_NODE_SECRET_FILE:?Set CODING_AGENT_NODE_SECRET_FILE}
+
+networks:
+  control:
+  coding:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.93.0/24

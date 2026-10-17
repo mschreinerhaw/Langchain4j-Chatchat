@@ -35,6 +35,9 @@ import static com.chatchat.agents.orchestration.support.AgentValueSupport.*;
 public final class AnalysisEvidenceCoordinator {
 
     private static final Logger log = LoggerFactory.getLogger(AnalysisEvidenceCoordinator.class);
+    private static final com.fasterxml.jackson.databind.ObjectReader ENVELOPE_JSON =
+        new com.fasterxml.jackson.databind.ObjectMapper().readerFor(Object.class)
+            .with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
     private final ToolRegistry toolRegistry;
     private final ToolRuntimeService toolRuntimeService;
@@ -187,7 +190,7 @@ public final class AnalysisEvidenceCoordinator {
     private List<Dataset> deduplicateRepeatedExecutions(List<Dataset> datasets) {
         Map<String, Dataset> unique = new LinkedHashMap<>();
         for (Dataset dataset : datasets) {
-            if (dataset == null || dataset.recordCount() == 0) continue;
+            if (dataset == null || (dataset.recordCount() == 0 && !Boolean.TRUE.equals(dataset.analysisContext().get("sourceVerifiedEmpty")))) continue;
             String key = dataset.reference() + "\n" + dataset.handle().contentSha256();
             unique.putIfAbsent(key, dataset);
         }
@@ -272,6 +275,13 @@ public final class AnalysisEvidenceCoordinator {
 
     private List<Dataset> outputDatasets(Object output, String reference, ToolMetadata metadata) {
         Map<String, Object> rootContext = analysisContextProtocol.adapt(reference, metadata, output);
+        Map<String,Object> envelope=sqlEnvelope(output);
+        if ("sql_result.v1".equals(envelope.get("dataSchema"))
+                && map(envelope.get("data")).get("rows") instanceof List<?> empty && empty.isEmpty()) {
+            // An incomplete/failed empty SQL result is unavailable evidence. Its
+            // transport envelope must never become a countable business record.
+            return sqlDatasets(envelope,reference,rootContext);
+        }
         List<Dataset> typed = governedHandleProjection(output, reference, rootContext, false);
         if (!typed.isEmpty()) return typed;
         List<Dataset> sets = governedProjection(output, reference, rootContext, false);
@@ -289,6 +299,33 @@ public final class AnalysisEvidenceCoordinator {
         if (!sets.isEmpty()) return deduplicate(sets);
         typed = governedHandleProjection(output, reference, rootContext, true);
         return !typed.isEmpty() ? typed : governedProjection(output, reference, rootContext, true);
+    }
+
+    private Map<String,Object> sqlEnvelope(Object output) {
+        Object payload=output instanceof com.chatchat.common.tool.ToolOutput tool ? tool.getData() : output;
+        for (int depth=0;depth<12;depth++) {
+            try {
+                if (payload instanceof com.fasterxml.jackson.databind.JsonNode node)
+                    payload=ENVELOPE_JSON.readValue(node.traverse());
+                if (payload instanceof String text) {
+                    if (!text.stripLeading().startsWith("{")) return Map.of();
+                    payload=ENVELOPE_JSON.readValue(text);
+                }
+            } catch (java.io.IOException invalidEnvelope) {
+                return Map.of(); // Ordinary text retains its existing governed projection.
+            }
+            String declaredKind=payload instanceof com.chatchat.common.mcp.runtime.McpAnalysisPayload declared
+                ? declared.resultKind().name()
+                : payload instanceof Map<?,?> declared
+                    && com.chatchat.common.mcp.runtime.McpAnalysisPayload.SCHEMA_VERSION.equals(declared.get("schemaVersion"))
+                    ? String.valueOf(declared.get("resultKind")) : "";
+            if (java.util.Set.of("DOCUMENT","CALCULATION","COMMAND_STREAM","ERROR_PAGE").contains(declaredKind))
+                return Map.of(); // Honor explicitly declared text/calculation semantics.
+            Object governed=com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(payload);
+            if (governed==payload) return map(payload);
+            payload=governed;
+        }
+        throw new IllegalArgumentException("MCP SQL envelope nesting exceeds the contract limit");
     }
 
     private List<Dataset> governedHandleProjection(Object output, String reference,
@@ -389,6 +426,15 @@ public final class AnalysisEvidenceCoordinator {
         if ("sql_result.v1".equals(schema)) {
             List<Map<String, Object>> rows = annotateRows(maps(data.get("rows")),
                 !booleanValue(data.get("possiblyTruncated")), null, null);
+            if (rows.isEmpty() && data.get("rows") instanceof List<?> raw && raw.isEmpty()
+                && !Boolean.FALSE.equals(root.get("success")) && root.get("error")==null
+                && Boolean.TRUE.equals(data.get("complete")) && !booleanValue(data.get("possiblyTruncated"))
+                && data.get("rowCount") instanceof Number count && count.longValue()==0) {
+                var emptyContext=new LinkedHashMap<String,Object>(rootContext);
+                emptyContext.put("sourceVerifiedEmpty",true);
+                emptyContext.put("sourceDataSchema",schema);
+                return List.of(new Dataset(reference,emptyContext,List.of()));
+            }
             return rows.isEmpty() ? List.of() : List.of(new Dataset(reference, rootContext, rows));
         }
         if (!"sql_script_result.v1".equals(schema)
@@ -426,8 +472,9 @@ public final class AnalysisEvidenceCoordinator {
         Map<String, Dataset> unique = new LinkedHashMap<>();
         Map<String, LinkedHashSet<String>> aliases = new LinkedHashMap<>();
         for (Dataset dataset : datasets) {
-            if (dataset == null || dataset.recordCount() == 0) continue;
-            String fingerprint = ModelProtocolJson.sha256Hex(dataset.handle().descriptor());
+            if (dataset == null || (dataset.recordCount() == 0 && !Boolean.TRUE.equals(dataset.analysisContext().get("sourceVerifiedEmpty")))) continue;
+            String fingerprint = ModelProtocolJson.sha256Hex(dataset.recordCount()==0
+                ? Map.of("reference",dataset.reference(),"handle",dataset.handle().descriptor()) : dataset.handle().descriptor());
             unique.putIfAbsent(fingerprint, dataset);
             aliases.computeIfAbsent(fingerprint, ignored -> new LinkedHashSet<>()).add(dataset.reference());
         }

@@ -380,6 +380,13 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             }
         });
         compacted.put("eventPayloadCompacted", true);
+        // Classification is a small typed execution decision, not arbitrary tool
+        // output. Keep it observable after the generic payload summarizer runs.
+        Object taskType = runtimePayload.get("taskType");
+        if ("TASK_CLASSIFICATION".equals(runtimePayload.get("stage"))
+                && ("QA".equals(taskType) || "DATA_ANALYSIS".equals(taskType))) {
+            compacted.put("taskType", taskType);
+        }
         return compacted;
     }
 

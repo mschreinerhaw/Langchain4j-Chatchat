@@ -64,7 +64,7 @@ class ClinePythonCallbackControllerTest {
         assertThat(result).containsEntry("status","SUCCEEDED").containsEntry("executorStopped",true)
             .containsEntry("outputStatus","REQUIRED_OUTPUT_MISSING").containsEntry("resultAvailable",false)
             .containsEntry("requiredOutput","rows.jsonl").doesNotContainKeys("resultDatasetRef","evidenceBundleRef","stdout","rows");
-        assertThat(result.get("diagnostic").toString()).contains("fresh sandbox","JSONL");
+        assertThat(result.get("diagnostic").toString()).contains("fresh sandbox","JSONL","repeating print/file probes","same Python program");
     }
     @Test void archivedDiagnosticsDoNotTurnExplorationIntoAnAdmittedDataset(){
         when(python.stdout(scope,"task",operation)).thenReturn("columns: assets, date; rows: 3");

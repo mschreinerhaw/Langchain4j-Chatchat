@@ -48,9 +48,11 @@ public class CodingTraceArtifactController {
         byte[] bytes = python.artifact(tenant.toString(), user.toString(), runId, taskId, operationId,
             "code".equals(kind) ? "code" : "logs", file);
         int limit = "code".equals(kind) ? 256_000 : 8_192;
-        String content = new String(bytes, 0, Math.min(bytes.length, limit), StandardCharsets.UTF_8);
+        String content = new String(bytes, StandardCharsets.UTF_8);
+        String safeContent = CodingArtifactRedactor.redact(content);
+        byte[] presentation = safeContent.getBytes(StandardCharsets.UTF_8);
         // These are protected artifacts. Do not feed their contents back into the Runtime model context.
-        return ApiResponse.success(Map.of("kind", kind, "content", content,
-            "truncated", bytes.length > limit, "totalBytes", bytes.length));
+        return ApiResponse.success(Map.of("kind", kind, "content", new String(presentation,0,Math.min(presentation.length,limit),StandardCharsets.UTF_8),
+            "redacted", !content.equals(safeContent), "truncated", presentation.length > limit, "totalBytes", bytes.length));
     }
 }

@@ -15,7 +15,6 @@ import com.chatchat.common.runtime.coding.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
@@ -125,9 +124,8 @@ public final class ClineModelCallbackController {
             if (tokens < 1 || tokens > contract.budget().maxModelTokens())
                 throw new IllegalArgumentException("Model token reservation exceeds contract");
             tokens = Math.max(tokens, model.modelTokenReservation(contract));
-            BigDecimal totalCost = new BigDecimal(contract.budget().maxCostAmount());
-            String cost = totalCost.divide(BigDecimal.valueOf(Math.max(1, contract.budget().maxModelCalls())),
-                12, RoundingMode.UP).stripTrailingZeros().toPlainString();
+            String cost = CodingBudgetShare.amount(contract.budget().maxCostAmount(),
+                Math.max(1, contract.budget().maxModelCalls()));
             var reserved = tasks.reserve(call.scope(), call.taskId(), call.lease(), call.snapshot().revision(),
                 operationId, sha(call.contractHash() + "\0" + operationId + "\0" + tokens),
                 CodingJournal.OperationKind.MODEL,

@@ -25,6 +25,24 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingInputSnapshotServiceTest {
+    @Test void verifiedZeroRowsHaveAnUploadableEmptyJsonlSnapshotWithoutFabricatedRecords() {
+        var source=new DriverManagerDataSource("jdbc:h2:mem:empty-snapshot-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa","");
+        new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);
+        var json=new ObjectMapper();
+        var evidence=new JdbcRuntimeEvidenceStore(new JdbcTemplate(source),json,new DataSourceTransactionManager(source));
+        var python=mock(McpPythonControlPlanePort.class);
+        when(python.uploadDataFile(anyString(),anyString(),anyString(),anyString(),anyString(),any())).thenAnswer(call->{
+            byte[] bytes=call.getArgument(5);assertThat(bytes).containsExactly((byte)'\n');
+            return new McpPythonControlPlanePort.DataFileResult(call.getArgument(2),"stored","mounted",bytes.length,call.getArgument(4),"AVAILABLE");
+        });
+        var access=new CodingInvocationContext();
+        var snapshots=new CodingInputSnapshotService(evidence,python,access,json);
+        var scope=new KernelDataScope("tenant","owner",null,null,"run",null,Map.of());
+        var dataset=new Dataset("empty",Map.of("sourceVerifiedEmpty",true),List.of());
+        var snapshot=access.as(scope,EnumSet.of(CodingTaskAccess.Action.SUBMIT),()->snapshots.capture(scope,"empty-task",
+            List.of(dataset),"empty","decision","workspace",10,4096));
+        assertThat(snapshot.rowCount()).isZero();assertThat(snapshot.size()).isEqualTo(1);
+    }
     @Test void capturesOnlyDeliveredDatasetAndBindsContractToArchivedInput() {
         var source = new DriverManagerDataSource("jdbc:h2:mem:coding-input-" + UUID.randomUUID()
             + ";DB_CLOSE_DELAY=-1", "sa", "");

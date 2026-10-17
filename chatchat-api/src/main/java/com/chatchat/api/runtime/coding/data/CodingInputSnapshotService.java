@@ -138,6 +138,9 @@ public final class CodingInputSnapshotService {
         if (rows[0] != selected.recordCount())
             throw new IllegalStateException("Dataset changed during snapshot capture");
         byte[] bytes = output.toByteArray();
+        // A blank JSONL line represents zero records while remaining uploadable
+        // through file transports that reject zero-byte multipart files.
+        if (bytes.length == 0) bytes = new byte[]{'\n'};
         String schemaJson;
         try { schemaJson = mapper.writeValueAsString(schema); }
         catch (java.io.IOException invalid) { throw new IllegalStateException("Input schema cannot be encoded", invalid); }

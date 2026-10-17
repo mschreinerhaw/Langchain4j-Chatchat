@@ -1,0 +1,2823 @@
+{
+  "recordedAt": "2026-10-17T15:24:00.436123+00:00",
+  "overallStatus": "ACCEPTANCE_FAILED",
+  "productionSwitchRecommended": false,
+  "productionPublished": false,
+  "source": {
+    "head": "9cc5ac8f354c0ad3fc88058f95529d1d721620f3",
+    "startingWorktree": "CLEAN",
+    "existingChangesPreserved": true,
+    "changesCommitted": false,
+    "freeze": {
+      "frozenAt": "2026-10-17T14:44:25.282341+00:00",
+      "sourceHead": "9cc5ac8f354c0ad3fc88058f95529d1d721620f3",
+      "files": {
+        ".gitignore": "b56903e5cfbde76f36a7571ff7725ad2b844199480ed3c3ab9faa5c808bceebb",
+        "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/dataset/AnalysisEvidenceCoordinator.java": "700929338f295d17283d96feae3fc97039140028cc9d83f8a124187c4a42d6eb",
+        "chatchat-agents/src/main/java/com/chatchat/agents/runtime/execution/LocalWorkflowRuntime.java": "d5247590be99c235051982e1fc9627111c9f58b0715c899fdda032deeceab3eb",
+        "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/analysis/dataset/AnalysisEvidenceCoordinatorTest.java": "146b5ee0628a7e12cc1881f57e3dab30323de591368b6d46caef5d68aaf8082d",
+        "chatchat-api/src/main/java/com/chatchat/api/agent/published/PublishedAgentApiController.java": "cfbfcd7773573b72f7d2cdb51f57db88363067e66d16ebdb2ff6a332c8db6662",
+        "chatchat-api/src/main/java/com/chatchat/api/controller/agent/CodingTraceArtifactController.java": "2f589222091883c1794c88ab8b6fd5e990e73d168cb23607ce63909be192eaaf",
+        "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java": "8c9938e0b0ca38230ca6eed3258b6ee8ecaf36cab9a410b68411f33091debcb8",
+        "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController.java": "2212538e9aea380da67da279fe65e8290f5a6f55e093c22eda091f5144341548",
+        "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController.java": "0775769ae2ab9813325bcfde00c82911d4b490a8d4136d1aac76d59aa2b09ca5",
+        "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/data/CodingInputSnapshotService.java": "586803f807808529fbe99346080195c7f92ac594aef5f133eb0faf4d6f12c09c",
+        "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector.java": "6421e7725b1a9f9350b9b6778117fa851df0dc9c562e5b1047b94c29e7f300f4",
+        "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/CodingSchemaResultVerifier.java": "cd8b054a26a377a63d7a31b116988b558d26a0a2dd9d2348ad2bab56942929fc",
+        "chatchat-api/src/test/java/com/chatchat/api/agent/published/PublishedAgentApiControllerTest.java": "6e5a763dc28713c30ea0ff2472b7a88f4a4ce11ae479235a0ac2e64d5f5a8c0d",
+        "chatchat-api/src/test/java/com/chatchat/api/controller/agent/AgentRuntimeControllerTest.java": "aa7ca211c2792cb4664a779edc45bfee2b1cdd3f8104adda9c224cac52e32f65",
+        "chatchat-api/src/test/java/com/chatchat/api/controller/agent/CodingTraceArtifactControllerTest.java": "a68da8a12f64adf940521970c9aad1c640a6df4883f2fd8c2fcbb772bc9e25cb",
+        "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackControllerTest.java": "9956e5425dbe0b6ab1eeba8e0e06c074f77f2d332a9b5ee067cde832d06f18a7",
+        "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/data/CodingInputSnapshotServiceTest.java": "19a0f6d4510195ec2973275665163c84a466cc7f46f77ca728af7cdd259ae6ff",
+        "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollectorTest.java": "c7e681bc07f8e61ae5eb095108a00d0b559abf1a0d07bd42db1c4bdb1614a896",
+        "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/evidence/CodingSchemaResultVerifierTest.java": "0ee43844961e85dcf9fa1b5ab2294e856900643ac75109c4bd184bfb43ca72bf",
+        "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/InteractionWorkflowCoordinator.java": "8ae90ba3625b6ab3908632aa59caeafa03601484f334d9e3962710981f2ae9cc",
+        "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/ProblemAnalysisPlanner.java": "ffb0e23fcffe0c0ca03b91ba91912547dc60248eced40ed613384d0ee0980ea2",
+        "chatchat-chat/src/main/java/com/chatchat/chat/task/core/AgentTaskService.java": "d9da5a81315b3316fc0757c6eb88ebd39783f4d1af1d7f3999155d9d07f13779",
+        "chatchat-chat/src/main/java/com/chatchat/chat/task/event/AgentRuntimeTaskEventPublisher.java": "42f64d386711b429f4bd2aa06e486e277f95ed8b56ae77925cda6b2c92a82812",
+        "chatchat-chat/src/test/java/com/chatchat/chat/interaction/service/InteractionWorkflowCoordinatorTest.java": "ea489a7197d6a339b96bb3e0b5b4853602da6e8a5c7e43445daacfb814b7b92f",
+        "chatchat-chat/src/test/java/com/chatchat/chat/task/core/AgentTaskServiceTest.java": "b59be98243ebe403c27ebc966a5bf78cf94310de42f1d7b42b87d28ce6fbdc87",
+        "chatchat-chat/src/test/java/com/chatchat/chat/task/event/AgentRuntimeTaskEventPublisherTest.java": "cbefd3ed10a3340546d2155a5b1c8d51c5a9ff442c60c28748a4ca59f50a164b",
+        "scripts/verify-python-analysis.ps1": "f140882f649d94da3f3f7bd9d8d190b3c4570c2435c5d79bc5f775989d532f42",
+        "chatchat-api/src/main/java/com/chatchat/api/controller/agent/CodingArtifactRedactor.java": "8fe252759e21bbb2d5c629ce0e1ab900ee6be2028491f09dbb5cc87ce1df743b",
+        "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/CodingBudgetShare.java": "60ccd8c6ce7a5dc44b0f6544f23d328c74fc5b47fb7841901b6f17795d3e86fb",
+        "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/ComputedResultBoundary.java": "ed9d3d0a3f74e4a5f867f79239972c15a99468c24188cb0248ffd3a47c64588a",
+        "chatchat-api/src/main/resources/python-examples/data/sample_application.log": "390de5309dd9812c8e7bea841bdae2b01bf297a0a982b180a5b5d0f208bab97b",
+        "chatchat-api/src/test/java/com/chatchat/api/runtime/RuntimeCancellationStorageTest.java": "a01f109dafb8380d4d7d24bf22377cd84845e5994a4b1fd50b69bf7d8dbac425",
+        "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/CodingBudgetShareTest.java": "e8ee8235b8f6e311d30eaf564d2d019dee7a64899ec7fc3adb5343419ea3e1d1",
+        "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/evidence/ComputedResultBoundaryTest.java": "d9a87cafdf573731ce2f26490e6eda7c8c8e53de45632a22ede3c6e1ec773651"
+      },
+      "testOnlyChangeAfterPriorFreeze": [
+        "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/CodingBudgetShareTest.java"
+      ],
+      "productionSourcesChangedAfterLiveAcceptance": false,
+      "liveEvidenceSourceVersion": "CANONICAL_FIX_NEW_RUN_REQUIRED"
+    },
+    "recentCommits": [
+      "9cc5ac8f 2026-10-17T20:10:30+08:00",
+      "d9ce8caf 2026-10-17T17:16:37+08:00",
+      "fa3fa226 2026-10-16T17:24:22+08:00",
+      "dfb451fe 2026-10-16T16:40:05+08:00",
+      "bdc7f898 2026-10-16T15:11:48+08:00",
+      "a1b30b8a 2026-10-16T13:35:52+08:00"
+    ],
+    "historicalEvidenceUnmodifiedSha256": "930758d237040a8b0139b0239fd2271a2be6171cc02dc3aed0298fdb4efee002",
+    "historicalSourceContinuity": {
+      "historicalFingerprintSourceHead": "d9ce8caf5d577f99b899550c7298cd306625182b",
+      "startingHead": "9cc5ac8f354c0ad3fc88058f95529d1d721620f3",
+      "checkedFiles": 26,
+      "matched": 26,
+      "files": [
+        {
+          "path": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/graph/ModelAnalysisPrompt.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/graph/ModelNativeAnalysisHarness.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-api/src/main/java/com/chatchat/api/controller/agent/CodingTraceArtifactController.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineRuntimeModelBridge.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/data/CodingInputSnapshotService.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/CodingSchemaResultVerifier.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-api/src/test/java/com/chatchat/api/controller/agent/CodingTraceArtifactControllerTest.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackControllerTest.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClineRuntimeModelBridgeTest.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/data/CodingInputSnapshotServiceTest.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollectorTest.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/evidence/CodingSchemaResultVerifierTest.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-api/web-app/src/js/views/TasksView.js",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-api/web-app/src/views/TasksView.vue",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/ProblemAnalysisPlanner.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-chat/src/test/java/com/chatchat/chat/interaction/service/ProblemAnalysisPlannerTest.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-common/src/main/java/com/chatchat/common/mcp/python/JsonlStructuralSchema.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonOperationWorkspace.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/python/PythonOperationWorkspaceTest.java",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "scripts/deploy-python-analysis-stage.sh",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "scripts/verify-coding-evidence.py",
+          "matchesStartingHeadIgnoringLineEndings": true
+        },
+        {
+          "path": "scripts/verify-python-analysis.ps1",
+          "matchesStartingHeadIgnoringLineEndings": true
+        }
+      ],
+      "scope": "Tracked source fingerprint continuity, not a fresh baseline test execution."
+    }
+  },
+  "scenario": {
+    "agentId": "db_ops_assistant",
+    "agentName": "数据库运维助手",
+    "question": "帮我分析LiveData测试库_223数据库innodb运行情况",
+    "model": "hy3",
+    "mockUsedForLiveAcceptance": false,
+    "forcedPythonRequestFlagUsed": false,
+    "runtimeBudgetIncreasedToPass": false
+  },
+  "changes": [
+    {
+      "area": "CANCELLATION_AND_H2",
+      "behavior": "Cooperative cancellation replaces arbitrary worker interruption; terminal task states cannot be resurrected by late observations; lost leases revoke only their own claim.",
+      "tests": [
+        "RuntimeCancellationStorageTest",
+        "LocalWorkflowRuntimeTest",
+        "AgentTaskServiceTest"
+      ],
+      "limits": "No claim that every historical storage stack or all external interruption paths were causally proved.",
+      "testResults": {
+        "status": "PASSED",
+        "suites": [
+          {
+            "name": "com.chatchat.agents.runtime.execution.LocalWorkflowRuntimeTest",
+            "tests": 3,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          {
+            "name": "com.chatchat.api.runtime.RuntimeCancellationStorageTest",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          {
+            "name": "com.chatchat.chat.task.core.AgentTaskServiceTest",
+            "tests": 40,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          }
+        ]
+      }
+    },
+    {
+      "area": "MODEL_CLASSIFICATION",
+      "behavior": "Reuse model QA/DATA_ANALYSIS classification; QA uses the maintained direct-answer workflow; typed enum survives persistence and public projection.",
+      "tests": [
+        "InteractionWorkflowCoordinatorTest",
+        "AgentRuntimeTaskEventPublisherTest",
+        "PublishedAgentApiControllerTest"
+      ],
+      "liveEvidence": "live-classification-corrected.json",
+      "testResults": {
+        "status": "PASSED",
+        "suites": [
+          {
+            "name": "com.chatchat.api.agent.published.PublishedAgentApiControllerTest",
+            "tests": 9,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          {
+            "name": "com.chatchat.chat.interaction.service.InteractionWorkflowCoordinatorTest",
+            "tests": 4,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          {
+            "name": "com.chatchat.chat.task.event.AgentRuntimeTaskEventPublisherTest",
+            "tests": 11,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          }
+        ]
+      }
+    },
+    {
+      "area": "INPUT_NORMALIZATION",
+      "behavior": "Reuse canonical MCP data unwrapping before bounded Map/JSON-string/JsonNode decoding; verified complete empty SQL inputs remain zero-row datasets. Explicit document schemas remain text; rawData is never selected. Failed/incomplete empty SQL transport is excluded. Empty JSONL upload uses a blank line and retains zero record count.",
+      "tests": [
+        "AnalysisEvidenceCoordinatorTest",
+        "CodingInputSnapshotServiceTest"
+      ],
+      "liveEvidence": [
+        "validator-replays.json",
+        "attempt-16-independent-validation.json"
+      ],
+      "testResults": {
+        "status": "PASSED",
+        "suites": [
+          {
+            "name": "com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinatorTest",
+            "tests": 19,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          {
+            "name": "com.chatchat.api.runtime.coding.data.CodingInputSnapshotServiceTest",
+            "tests": 2,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          }
+        ]
+      }
+    },
+    {
+      "area": "CUMULATIVE_BUDGET",
+      "behavior": "Reservation shares fit unchanged cumulative caps without rounding up beyond the final slot. Positive tiny caps do not become free unknown-use admissions. Unknown reservations stay retained.",
+      "tests": [
+        "CodingBudgetShareTest",
+        "ClinePythonCallbackControllerTest",
+        "ClineModelCallbackControllerTest"
+      ],
+      "liveEvidence": "actual-budget-rounding-proof.json",
+      "testResults": {
+        "status": "PASSED",
+        "suites": [
+          {
+            "name": "com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest",
+            "tests": 4,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          {
+            "name": "com.chatchat.api.runtime.coding.cline.ClinePythonCallbackControllerTest",
+            "tests": 8,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          {
+            "name": "com.chatchat.api.runtime.coding.cline.CodingBudgetShareTest",
+            "tests": 4,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          }
+        ]
+      }
+    },
+    {
+      "area": "RESULT_PROVENANCE",
+      "behavior": "Compare immutable input locally with proposed results; reject copied long documents, text prefixes/suffixes and copied record collections. Long original text analysis and short quotations remain valid.",
+      "tests": [
+        "ComputedResultBoundaryTest",
+        "CodingEvidenceCollectorTest",
+        "CodingSchemaResultVerifierTest"
+      ],
+      "limits": "Structural/provenance validation is not a general mathematical or semantic correctness proof. Attempt 15 still admitted one field-renamed source projection; it is not accepted as independent analytical computation.",
+      "testResults": {
+        "status": "PASSED",
+        "suites": [
+          {
+            "name": "com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollectorTest",
+            "tests": 10,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          {
+            "name": "com.chatchat.api.runtime.coding.evidence.CodingSchemaResultVerifierTest",
+            "tests": 3,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          {
+            "name": "com.chatchat.api.runtime.coding.evidence.ComputedResultBoundaryTest",
+            "tests": 6,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          }
+        ]
+      }
+    },
+    {
+      "area": "TRACE_PRESENTATION",
+      "behavior": "Credential redaction precedes truncation on owner-scoped code/stdout/stderr reads; escaped, multiline and large unterminated strings are covered. Preserve archived bytes and hashes.",
+      "tests": [
+        "CodingTraceArtifactControllerTest"
+      ],
+      "liveEvidence": [
+        "restart-first-restart.json",
+        "restart-corrected-final.json"
+      ],
+      "testResults": {
+        "status": "PASSED",
+        "suites": [
+          {
+            "name": "com.chatchat.api.controller.agent.CodingTraceArtifactControllerTest",
+            "tests": 8,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          }
+        ]
+      }
+    },
+    {
+      "area": "TEST_AND_PACKAGED_RESOURCE",
+      "behavior": "Restore the packaged generic LOG example; REST fixtures explicitly negotiate JSON and SSE fixtures request event streams. Fix an asynchronous delivery-test race using an explicit delivery latch. Existing authorization assertions remain.",
+      "tests": [
+        "PythonSystemExampleCatalogTest",
+        "AgentRuntimeControllerTest",
+        "PublishedAgentApiControllerTest",
+        "AgentRuntimeTaskEventPublisherTest"
+      ],
+      "testResults": {
+        "status": "PASSED",
+        "suites": [
+          {
+            "name": "com.chatchat.api.agent.published.PublishedAgentApiControllerTest",
+            "tests": 9,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          {
+            "name": "com.chatchat.api.controller.agent.AgentRuntimeControllerTest",
+            "tests": 12,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          {
+            "name": "com.chatchat.api.datascience.python.PythonSystemExampleCatalogTest",
+            "tests": 2,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          {
+            "name": "com.chatchat.chat.task.event.AgentRuntimeTaskEventPublisherTest",
+            "tests": 11,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          }
+        ]
+      }
+    }
+  ],
+  "changedFiles": [
+    {
+      "path": ".gitignore",
+      "sha256": "b56903e5cfbde76f36a7571ff7725ad2b844199480ed3c3ab9faa5c808bceebb",
+      "added": "1",
+      "removed": "0",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/dataset/AnalysisEvidenceCoordinator.java",
+      "sha256": "700929338f295d17283d96feae3fc97039140028cc9d83f8a124187c4a42d6eb",
+      "added": "50",
+      "removed": "3",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-agents/src/main/java/com/chatchat/agents/runtime/execution/LocalWorkflowRuntime.java",
+      "sha256": "d5247590be99c235051982e1fc9627111c9f58b0715c899fdda032deeceab3eb",
+      "added": "6",
+      "removed": "5",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/analysis/dataset/AnalysisEvidenceCoordinatorTest.java",
+      "sha256": "146b5ee0628a7e12cc1881f57e3dab30323de591368b6d46caef5d68aaf8082d",
+      "added": "55",
+      "removed": "0",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/agent/published/PublishedAgentApiController.java",
+      "sha256": "cfbfcd7773573b72f7d2cdb51f57db88363067e66d16ebdb2ff6a332c8db6662",
+      "added": "4",
+      "removed": "1",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/controller/agent/CodingTraceArtifactController.java",
+      "sha256": "2f589222091883c1794c88ab8b6fd5e990e73d168cb23607ce63909be192eaaf",
+      "added": "5",
+      "removed": "3",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java",
+      "sha256": "8c9938e0b0ca38230ca6eed3258b6ee8ecaf36cab9a410b68411f33091debcb8",
+      "added": "5",
+      "removed": "1",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController.java",
+      "sha256": "2212538e9aea380da67da279fe65e8290f5a6f55e093c22eda091f5144341548",
+      "added": "2",
+      "removed": "4",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController.java",
+      "sha256": "0775769ae2ab9813325bcfde00c82911d4b490a8d4136d1aac76d59aa2b09ca5",
+      "added": "5",
+      "removed": "6",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/data/CodingInputSnapshotService.java",
+      "sha256": "586803f807808529fbe99346080195c7f92ac594aef5f133eb0faf4d6f12c09c",
+      "added": "3",
+      "removed": "0",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector.java",
+      "sha256": "6421e7725b1a9f9350b9b6778117fa851df0dc9c562e5b1047b94c29e7f300f4",
+      "added": "7",
+      "removed": "0",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/CodingSchemaResultVerifier.java",
+      "sha256": "cd8b054a26a377a63d7a31b116988b558d26a0a2dd9d2348ad2bab56942929fc",
+      "added": "2",
+      "removed": "16",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/agent/published/PublishedAgentApiControllerTest.java",
+      "sha256": "6e5a763dc28713c30ea0ff2472b7a88f4a4ce11ae479235a0ac2e64d5f5a8c0d",
+      "added": "25",
+      "removed": "1",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/controller/agent/AgentRuntimeControllerTest.java",
+      "sha256": "aa7ca211c2792cb4664a779edc45bfee2b1cdd3f8104adda9c224cac52e32f65",
+      "added": "2",
+      "removed": "1",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/controller/agent/CodingTraceArtifactControllerTest.java",
+      "sha256": "a68da8a12f64adf940521970c9aad1c640a6df4883f2fd8c2fcbb772bc9e25cb",
+      "added": "33",
+      "removed": "0",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackControllerTest.java",
+      "sha256": "9956e5425dbe0b6ab1eeba8e0e06c074f77f2d332a9b5ee067cde832d06f18a7",
+      "added": "1",
+      "removed": "1",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/data/CodingInputSnapshotServiceTest.java",
+      "sha256": "19a0f6d4510195ec2973275665163c84a466cc7f46f77ca728af7cdd259ae6ff",
+      "added": "18",
+      "removed": "0",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollectorTest.java",
+      "sha256": "c7e681bc07f8e61ae5eb095108a00d0b559abf1a0d07bd42db1c4bdb1614a896",
+      "added": "14",
+      "removed": "0",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/evidence/CodingSchemaResultVerifierTest.java",
+      "sha256": "0ee43844961e85dcf9fa1b5ab2294e856900643ac75109c4bd184bfb43ca72bf",
+      "added": "6",
+      "removed": "5",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/InteractionWorkflowCoordinator.java",
+      "sha256": "8ae90ba3625b6ab3908632aa59caeafa03601484f334d9e3962710981f2ae9cc",
+      "added": "3",
+      "removed": "1",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/ProblemAnalysisPlanner.java",
+      "sha256": "ffb0e23fcffe0c0ca03b91ba91912547dc60248eced40ed613384d0ee0980ea2",
+      "added": "1",
+      "removed": "1",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-chat/src/main/java/com/chatchat/chat/task/core/AgentTaskService.java",
+      "sha256": "d9da5a81315b3316fc0757c6eb88ebd39783f4d1af1d7f3999155d9d07f13779",
+      "added": "19",
+      "removed": "8",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-chat/src/main/java/com/chatchat/chat/task/event/AgentRuntimeTaskEventPublisher.java",
+      "sha256": "42f64d386711b429f4bd2aa06e486e277f95ed8b56ae77925cda6b2c92a82812",
+      "added": "7",
+      "removed": "0",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-chat/src/test/java/com/chatchat/chat/interaction/service/InteractionWorkflowCoordinatorTest.java",
+      "sha256": "ea489a7197d6a339b96bb3e0b5b4853602da6e8a5c7e43445daacfb814b7b92f",
+      "added": "20",
+      "removed": "0",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-chat/src/test/java/com/chatchat/chat/task/core/AgentTaskServiceTest.java",
+      "sha256": "b59be98243ebe403c27ebc966a5bf78cf94310de42f1d7b42b87d28ce6fbdc87",
+      "added": "16",
+      "removed": "0",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-chat/src/test/java/com/chatchat/chat/task/event/AgentRuntimeTaskEventPublisherTest.java",
+      "sha256": "cbefd3ed10a3340546d2155a5b1c8d51c5a9ff442c60c28748a4ca59f50a164b",
+      "added": "20",
+      "removed": "0",
+      "tracked": true
+    },
+    {
+      "path": "scripts/verify-python-analysis.ps1",
+      "sha256": "f140882f649d94da3f3f7bd9d8d190b3c4570c2435c5d79bc5f775989d532f42",
+      "added": "2",
+      "removed": "1",
+      "tracked": true
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/controller/agent/CodingArtifactRedactor.java",
+      "sha256": "8fe252759e21bbb2d5c629ce0e1ab900ee6be2028491f09dbb5cc87ce1df743b",
+      "added": 44,
+      "removed": 0,
+      "tracked": false
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/CodingBudgetShare.java",
+      "sha256": "60ccd8c6ce7a5dc44b0f6544f23d328c74fc5b47fb7841901b6f17795d3e86fb",
+      "added": 24,
+      "removed": 0,
+      "tracked": false
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/ComputedResultBoundary.java",
+      "sha256": "ed9d3d0a3f74e4a5f867f79239972c15a99468c24188cb0248ffd3a47c64588a",
+      "added": 98,
+      "removed": 0,
+      "tracked": false
+    },
+    {
+      "path": "chatchat-api/src/main/resources/python-examples/data/sample_application.log",
+      "sha256": "390de5309dd9812c8e7bea841bdae2b01bf297a0a982b180a5b5d0f208bab97b",
+      "added": 5,
+      "removed": 0,
+      "tracked": false
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/RuntimeCancellationStorageTest.java",
+      "sha256": "a01f109dafb8380d4d7d24bf22377cd84845e5994a4b1fd50b69bf7d8dbac425",
+      "added": 66,
+      "removed": 0,
+      "tracked": false
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/CodingBudgetShareTest.java",
+      "sha256": "e8ee8235b8f6e311d30eaf564d2d019dee7a64899ec7fc3adb5343419ea3e1d1",
+      "added": 111,
+      "removed": 0,
+      "tracked": false
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/evidence/ComputedResultBoundaryTest.java",
+      "sha256": "d9a87cafdf573731ce2f26490e6eda7c8c8e53de45632a22ede3c6e1ec773651",
+      "added": 43,
+      "removed": 0,
+      "tracked": false
+    }
+  ],
+  "engineeringChangeTotals": {
+    "files": 34,
+    "addedLines": 723,
+    "removedLines": 58,
+    "untrackedFiles": 7
+  },
+  "gitDiffSummary": ".gitignore                                         |  1 +\n .../dataset/AnalysisEvidenceCoordinator.java       | 53 +++++++++++++++++++--\n .../runtime/execution/LocalWorkflowRuntime.java    | 11 +++--\n .../dataset/AnalysisEvidenceCoordinatorTest.java   | 55 ++++++++++++++++++++++\n .../published/PublishedAgentApiController.java     |  5 +-\n .../agent/CodingTraceArtifactController.java       |  8 ++--\n .../coding/analysis/CodingAnalysisService.java     |  6 ++-\n .../coding/cline/ClineModelCallbackController.java |  6 +--\n .../cline/ClinePythonCallbackController.java       | 11 ++---\n .../coding/data/CodingInputSnapshotService.java    |  3 ++\n .../coding/evidence/CodingEvidenceCollector.java   |  7 +++\n .../evidence/CodingSchemaResultVerifier.java       | 18 +------\n .../published/PublishedAgentApiControllerTest.java | 26 +++++++++-\n .../agent/AgentRuntimeControllerTest.java          |  3 +-\n .../agent/CodingTraceArtifactControllerTest.java   | 33 +++++++++++++\n .../cline/ClinePythonCallbackControllerTest.java   |  2 +-\n .../data/CodingInputSnapshotServiceTest.java       | 18 +++++++\n .../evidence/CodingEvidenceCollectorTest.java      | 14 ++++++\n .../evidence/CodingSchemaResultVerifierTest.java   | 11 +++--\n .../service/InteractionWorkflowCoordinator.java    |  4 +-\n .../service/ProblemAnalysisPlanner.java            |  2 +-\n .../chatchat/chat/task/core/AgentTaskService.java  | 27 +++++++----\n .../task/event/AgentRuntimeTaskEventPublisher.java |  7 +++\n .../InteractionWorkflowCoordinatorTest.java        | 20 ++++++++\n .../chat/task/core/AgentTaskServiceTest.java       | 16 +++++++\n .../event/AgentRuntimeTaskEventPublisherTest.java  | 20 ++++++++\n scripts/verify-python-analysis.ps1                 |  3 +-\n 27 files changed, 332 insertions(+), 58 deletions(-)",
+  "gitDiffSummaryScope": "Tracked-file stat only; newly added engineering files are included individually in changedFiles and engineeringChangeTotals.",
+  "tests": {
+    "finalGateSource": "target/python-analysis-gates/20261017-230854/gates.json",
+    "fullBackend": "FAILED",
+    "selected": "PASSED",
+    "fullTotals": {
+      "tests": 4406,
+      "failures": 130,
+      "errors": 64,
+      "skipped": 10
+    },
+    "selectedResults": {
+      "skipped": 0,
+      "errors": 0,
+      "tests": 266,
+      "failures": 0,
+      "suites": [
+        {
+          "name": "com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinatorTest",
+          "tests": 19,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.agents.orchestration.analysis.graph.BoundedAnalysisEvidenceTest",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.agents.orchestration.analysis.graph.DataWorkspaceOperationsTest",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.agents.orchestration.analysis.graph.HarnessCodingIntegrationTest",
+          "tests": 14,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarnessTest",
+          "tests": 30,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.agents.runtime.execution.LocalWorkflowRuntimeTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.api.agent.published.PublishedAgentApiControllerTest",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.api.controller.agent.AgentRuntimeControllerTest",
+          "tests": 12,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.api.controller.agent.CodingTraceArtifactControllerTest",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.api.datascience.python.PythonSystemExampleCatalogTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.api.runtime.coding.cline.ClinePythonCallbackControllerTest",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.api.runtime.coding.cline.CodingBudgetShareTest",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.api.runtime.coding.CodingTaskPersistenceTest",
+          "tests": 31,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.api.runtime.coding.data.CodingChunkedSnapshotTest",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.api.runtime.coding.data.CodingDataSupplyServiceTest",
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.api.runtime.coding.data.CodingInputSnapshotServiceTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollectorTest",
+          "tests": 10,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.api.runtime.coding.evidence.CodingSchemaResultVerifierTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.api.runtime.coding.evidence.ComputedResultBoundaryTest",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.api.runtime.RuntimeCancellationStorageTest",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.chat.interaction.service.InteractionWorkflowCoordinatorTest",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.chat.interaction.service.ProblemAnalysisLifecycleTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.chat.task.core.AgentTaskServiceTest",
+          "tests": 40,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.chat.task.event.AgentRuntimeTaskEventPublisherTest",
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "name": "com.chatchat.common.runtime.capability.CapabilityWorkflowProtocolTest",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      ]
+    },
+    "missingSelectedSuites": [],
+    "baselineTotals": {
+      "tests": 4382,
+      "failures": 149,
+      "errors": 65,
+      "skipped": 10
+    },
+    "fixedBaselineEntries": [
+      {
+        "class": "com.chatchat.api.agent.published.PublishedAgentApiControllerTest",
+        "name": "cancelsOnlyTheAuthenticatedOwnersNonTerminalTask",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.agent.published.PublishedAgentApiControllerTest",
+        "name": "deniesReadingAnotherUsersTaskInsideTheSameTenant",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.agent.published.PublishedAgentApiControllerTest",
+        "name": "rejectsAnUnpublishedAgentBeforeTaskSubmission",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.agent.published.PublishedAgentApiControllerTest",
+        "name": "submitsWithAuthenticatedIdentityAndImmutablePublishedAgentContract",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.agent.published.PublishedAgentApiControllerTest",
+        "name": "returnsRunStatusAndFullFinalAnswerForTheOwner",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.agent.published.PublishedAgentApiControllerTest",
+        "name": "returnsIncrementalSanitizedEventsWithCursor",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.agent.published.PublishedAgentApiControllerTest",
+        "name": "exposesCurlExamplesOnlyToPlatformAdmin",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.agent.published.PublishedAgentApiControllerTest",
+        "name": "deniesCancellingAnotherUsersTask",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.controller.agent.AgentRuntimeControllerTest",
+        "name": "readsTimelineAndIncrementalRecords",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.controller.agent.AgentRuntimeControllerTest",
+        "name": "rejectsCrossTenantRunAccess",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.controller.agent.AgentRuntimeControllerTest",
+        "name": "listsRunsWithFilters",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.controller.agent.AgentRuntimeControllerTest",
+        "name": "readsSnapshot",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.controller.agent.AgentRuntimeControllerTest",
+        "name": "returnsTenantScopedProductionQualityAndRejectsTenantOverride",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.controller.agent.AgentRuntimeControllerTest",
+        "name": "readsOnlyEvidenceReferencedByAuthorizedRun",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.controller.agent.AgentRuntimeControllerTest",
+        "name": "returnsUnavailableWhenRunStoreFails",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.controller.agent.AgentRuntimeControllerTest",
+        "name": "returnsBadRequestForInvalidRunStatus",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.controller.agent.AgentRuntimeControllerTest",
+        "name": "tenantContextOverridesListTenantFilter",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.controller.agent.AgentRuntimeControllerTest",
+        "name": "requiresTenantForProductionQualityWithoutAuthenticatedScope",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.controller.agent.AgentRuntimeControllerTest",
+        "name": "cancelsRun",
+        "kind": "FAILURE",
+        "count": 1
+      },
+      {
+        "class": "com.chatchat.api.datascience.python.PythonSystemExampleCatalogTest",
+        "name": "providesExecutableReferenceForEverySupportedFormat",
+        "kind": "ERROR",
+        "count": 1
+      }
+    ],
+    "newFailureEntries": [],
+    "comparisonMethod": "Historical saved report at clean starting HEAD, not a newly executed clean-checkout baseline; testcase multiplicity retained."
+  },
+  "realScenarios": {
+    "originalAttempt13": {
+      "execution": {
+        "taskId": "33d848d9-f38b-3516-8853-529ac699e0a9",
+        "runId": "att-1-81311e89-9452-4bdb-a03f-067b536f0892",
+        "sessionId": "live-db-validation-f288ab1d101d4523ba5743c958cc9888",
+        "status": "SUCCESS",
+        "canonicalState": "SUCCEEDED",
+        "terminal": true,
+        "elapsedSeconds": 850,
+        "observationResumed": false,
+        "eventCursor": 267,
+        "observations": 239,
+        "codingTraceEvents": 185,
+        "sseEvents": 988,
+        "sseReconnectErrors": []
+      },
+      "publishedDefinitionMatched": true,
+      "publishedDefinitionSha256": "3e6eef6bb76af0194a99f291a8eb37608d7baf410d957686d51a99f38408de1b",
+      "functionalGate": {
+        "status": "FAILED",
+        "taskId": "33d848d9-f38b-3516-8853-529ac699e0a9",
+        "runId": "att-1-81311e89-9452-4bdb-a03f-067b536f0892",
+        "analysisAction": "PARTIAL_COMPLETE",
+        "partialAnalysisAllowed": false,
+        "uniqueCodingEvents": 185,
+        "admittedResults": [
+          {
+            "taskId": "analysis-coding-d6fe1c0aef05d0884e082030197619222620e9953378c30913741ab8242ad710",
+            "datasetReference": "runtime-evidence:coding:2187ddb5b667e76aa4fe7651b4e6ad033d962ed4331dd99305bdfe0ee4a6624d:result",
+            "rowCount": 23,
+            "evidenceRefs": [
+              "runtime-evidence:coding:input:7382939ad1e33c2d752076f99fb0006e079923a428f12245deb00188ee9858a4",
+              "runtime-evidence:coding:2187ddb5b667e76aa4fe7651b4e6ad033d962ed4331dd99305bdfe0ee4a6624d:code",
+              "runtime-evidence:coding:2187ddb5b667e76aa4fe7651b4e6ad033d962ed4331dd99305bdfe0ee4a6624d:receipt",
+              "runtime-evidence:coding:2187ddb5b667e76aa4fe7651b4e6ad033d962ed4331dd99305bdfe0ee4a6624d:result",
+              "runtime-evidence:coding:2187ddb5b667e76aa4fe7651b4e6ad033d962ed4331dd99305bdfe0ee4a6624d:validation",
+              "runtime-evidence:coding:2187ddb5b667e76aa4fe7651b4e6ad033d962ed4331dd99305bdfe0ee4a6624d:bundle"
+            ]
+          },
+          {
+            "taskId": "analysis-coding-3065fb8178829ad695dd5adf10836c1548aa9ff2662a4c5c34d4560860f0a02a",
+            "datasetReference": "runtime-evidence:coding:8a34a536054cbaad9496b6a9615a20f761c48c0c659ffcc94f4d9dbcc6876143:result",
+            "rowCount": 8,
+            "evidenceRefs": [
+              "runtime-evidence:coding:input:4768ba4c58a3f49071e2c9439a7c8006c834884950f71ebe682dc84661be5123",
+              "runtime-evidence:coding:8a34a536054cbaad9496b6a9615a20f761c48c0c659ffcc94f4d9dbcc6876143:code",
+              "runtime-evidence:coding:8a34a536054cbaad9496b6a9615a20f761c48c0c659ffcc94f4d9dbcc6876143:receipt",
+              "runtime-evidence:coding:8a34a536054cbaad9496b6a9615a20f761c48c0c659ffcc94f4d9dbcc6876143:result",
+              "runtime-evidence:coding:8a34a536054cbaad9496b6a9615a20f761c48c0c659ffcc94f4d9dbcc6876143:validation",
+              "runtime-evidence:coding:8a34a536054cbaad9496b6a9615a20f761c48c0c659ffcc94f4d9dbcc6876143:bundle"
+            ]
+          },
+          {
+            "taskId": "analysis-coding-a41296731072d9d32a17871b2ab2de4945bfa27456ff20b685af249d2ccb3dd7",
+            "datasetReference": "runtime-evidence:coding:f693b636147903a31659b7afef2633eca409189b38d62ec2e0f9817f9f0311d7:result",
+            "rowCount": 7,
+            "evidenceRefs": [
+              "runtime-evidence:coding:input:2bed53ba44a6f5b41d683eb0910b2e3d18d6259b91e2fb4239b281079b95b742",
+              "runtime-evidence:coding:f693b636147903a31659b7afef2633eca409189b38d62ec2e0f9817f9f0311d7:code",
+              "runtime-evidence:coding:f693b636147903a31659b7afef2633eca409189b38d62ec2e0f9817f9f0311d7:receipt",
+              "runtime-evidence:coding:f693b636147903a31659b7afef2633eca409189b38d62ec2e0f9817f9f0311d7:result",
+              "runtime-evidence:coding:f693b636147903a31659b7afef2633eca409189b38d62ec2e0f9817f9f0311d7:validation",
+              "runtime-evidence:coding:f693b636147903a31659b7afef2633eca409189b38d62ec2e0f9817f9f0311d7:bundle"
+            ]
+          }
+        ],
+        "failures": [
+          "ANALYSIS_NOT_COMPLETE_WITHIN_REQUIRED_SCOPE"
+        ],
+        "limitation": "This gate checks execution/evidence contracts, not business numerical correctness or release readiness."
+      },
+      "analysisDecision": {
+        "action": "PARTIAL_COMPLETE"
+      },
+      "runtimeRequestTimeoutMs": 0,
+      "codingTasks": [
+        {
+          "taskId": "analysis-coding-d6fe1c0aef05d0884e082030197619222620e9953378c30913741ab8242ad710",
+          "status": "COMPLETED",
+          "resultAvailable": true,
+          "datasetReference": "runtime-evidence:coding:2187ddb5b667e76aa4fe7651b4e6ad033d962ed4331dd99305bdfe0ee4a6624d:result",
+          "validationStatus": "INCONCLUSIVE",
+          "reasonCode": null
+        },
+        {
+          "taskId": "analysis-coding-3065fb8178829ad695dd5adf10836c1548aa9ff2662a4c5c34d4560860f0a02a",
+          "status": "COMPLETED",
+          "resultAvailable": true,
+          "datasetReference": "runtime-evidence:coding:8a34a536054cbaad9496b6a9615a20f761c48c0c659ffcc94f4d9dbcc6876143:result",
+          "validationStatus": "INCONCLUSIVE",
+          "reasonCode": null
+        },
+        {
+          "taskId": "analysis-coding-a41296731072d9d32a17871b2ab2de4945bfa27456ff20b685af249d2ccb3dd7",
+          "status": "COMPLETED",
+          "resultAvailable": true,
+          "datasetReference": "runtime-evidence:coding:f693b636147903a31659b7afef2633eca409189b38d62ec2e0f9817f9f0311d7:result",
+          "validationStatus": "INCONCLUSIVE",
+          "reasonCode": null
+        },
+        {
+          "taskId": "analysis-coding-ba28ef8c534d23b0a8b2dbf6776720c65ec13b6f356c6e3b7124442e788b0246",
+          "status": "BUDGET_EXCEEDED",
+          "resultAvailable": false,
+          "datasetReference": null,
+          "validationStatus": "NOT_RUN",
+          "reasonCode": "BUDGET_EXCEEDED"
+        }
+      ]
+    },
+    "originalAttempt14": {
+      "execution": {
+        "taskId": "628228ee-0c71-3c80-8642-8e657c257f5f",
+        "runId": "att-1-2ad6567d-7285-4812-bb39-1b85fd224acf",
+        "sessionId": "live-db-validation-78e2981c5b3f462abb71322250761e3c",
+        "status": "SUCCESS",
+        "canonicalState": "SUCCEEDED",
+        "terminal": true,
+        "elapsedSeconds": 1347,
+        "observationResumed": false,
+        "eventCursor": 273,
+        "observations": 245,
+        "codingTraceEvents": 185,
+        "sseEvents": 1410,
+        "sseReconnectErrors": []
+      },
+      "publishedDefinitionMatched": true,
+      "publishedDefinitionSha256": "3e6eef6bb76af0194a99f291a8eb37608d7baf410d957686d51a99f38408de1b",
+      "functionalGate": {
+        "status": "FAILED",
+        "taskId": "628228ee-0c71-3c80-8642-8e657c257f5f",
+        "runId": "att-1-2ad6567d-7285-4812-bb39-1b85fd224acf",
+        "analysisAction": "PARTIAL_COMPLETE",
+        "partialAnalysisAllowed": false,
+        "uniqueCodingEvents": 185,
+        "admittedResults": [
+          {
+            "taskId": "analysis-coding-87c8d807b6309f115762d3795a1bb33871c3d259adb75b96813a359e0dce65c0",
+            "datasetReference": "runtime-evidence:coding:2671d3af04da792e278ef2891ea2e09a1b19c49cd126b10fb75647ba85ee9392:result",
+            "rowCount": 1,
+            "evidenceRefs": [
+              "runtime-evidence:coding:input:2021f123dc815791866c01856c59eac4529984013e276dc3f79c087933dbf353",
+              "runtime-evidence:coding:2671d3af04da792e278ef2891ea2e09a1b19c49cd126b10fb75647ba85ee9392:code",
+              "runtime-evidence:coding:2671d3af04da792e278ef2891ea2e09a1b19c49cd126b10fb75647ba85ee9392:receipt",
+              "runtime-evidence:coding:2671d3af04da792e278ef2891ea2e09a1b19c49cd126b10fb75647ba85ee9392:result",
+              "runtime-evidence:coding:2671d3af04da792e278ef2891ea2e09a1b19c49cd126b10fb75647ba85ee9392:validation",
+              "runtime-evidence:coding:2671d3af04da792e278ef2891ea2e09a1b19c49cd126b10fb75647ba85ee9392:bundle"
+            ]
+          },
+          {
+            "taskId": "analysis-coding-9c61650a227e2b989a2da8751aa8b767fca0d7c9804c864fc0371906cd8d3c91",
+            "datasetReference": "runtime-evidence:coding:69c4f836903b91332ec2d74c6c9e314e82ca03803f74e9645b2bb5781370ffe1:result",
+            "rowCount": 1,
+            "evidenceRefs": [
+              "runtime-evidence:coding:input:7effc667e27ce1424544c44914ec8e7d478717600d93be887656d539b5f4833d",
+              "runtime-evidence:coding:69c4f836903b91332ec2d74c6c9e314e82ca03803f74e9645b2bb5781370ffe1:code",
+              "runtime-evidence:coding:69c4f836903b91332ec2d74c6c9e314e82ca03803f74e9645b2bb5781370ffe1:receipt",
+              "runtime-evidence:coding:69c4f836903b91332ec2d74c6c9e314e82ca03803f74e9645b2bb5781370ffe1:result",
+              "runtime-evidence:coding:69c4f836903b91332ec2d74c6c9e314e82ca03803f74e9645b2bb5781370ffe1:validation",
+              "runtime-evidence:coding:69c4f836903b91332ec2d74c6c9e314e82ca03803f74e9645b2bb5781370ffe1:bundle"
+            ]
+          },
+          {
+            "taskId": "analysis-coding-e29b264fdb0d9d3f2c0c2318bdeed19fd5d6472bd7b43e5cd433a56ec8ac433e",
+            "datasetReference": "runtime-evidence:coding:1cc1d1b2bcfe05c7727aa5ac8a34f584868104991851844f75bfb3da98c93b10:result",
+            "rowCount": 1,
+            "evidenceRefs": [
+              "runtime-evidence:coding:input:80e4302885f8648c6dd0962c28e19bfeeba9704ae74082d125bfe46117035ed7",
+              "runtime-evidence:coding:1cc1d1b2bcfe05c7727aa5ac8a34f584868104991851844f75bfb3da98c93b10:code",
+              "runtime-evidence:coding:1cc1d1b2bcfe05c7727aa5ac8a34f584868104991851844f75bfb3da98c93b10:receipt",
+              "runtime-evidence:coding:1cc1d1b2bcfe05c7727aa5ac8a34f584868104991851844f75bfb3da98c93b10:result",
+              "runtime-evidence:coding:1cc1d1b2bcfe05c7727aa5ac8a34f584868104991851844f75bfb3da98c93b10:validation",
+              "runtime-evidence:coding:1cc1d1b2bcfe05c7727aa5ac8a34f584868104991851844f75bfb3da98c93b10:bundle"
+            ]
+          }
+        ],
+        "failures": [
+          "ANALYSIS_NOT_COMPLETE_WITHIN_REQUIRED_SCOPE"
+        ],
+        "limitation": "This gate checks execution/evidence contracts, not business numerical correctness or release readiness."
+      },
+      "analysisDecision": {
+        "action": "PARTIAL_COMPLETE"
+      },
+      "runtimeRequestTimeoutMs": 0,
+      "codingTasks": [
+        {
+          "taskId": "analysis-coding-87c8d807b6309f115762d3795a1bb33871c3d259adb75b96813a359e0dce65c0",
+          "status": "COMPLETED",
+          "resultAvailable": true,
+          "datasetReference": "runtime-evidence:coding:2671d3af04da792e278ef2891ea2e09a1b19c49cd126b10fb75647ba85ee9392:result",
+          "validationStatus": "INCONCLUSIVE",
+          "reasonCode": null
+        },
+        {
+          "taskId": "analysis-coding-9c61650a227e2b989a2da8751aa8b767fca0d7c9804c864fc0371906cd8d3c91",
+          "status": "COMPLETED",
+          "resultAvailable": true,
+          "datasetReference": "runtime-evidence:coding:69c4f836903b91332ec2d74c6c9e314e82ca03803f74e9645b2bb5781370ffe1:result",
+          "validationStatus": "INCONCLUSIVE",
+          "reasonCode": null
+        },
+        {
+          "taskId": "analysis-coding-e29b264fdb0d9d3f2c0c2318bdeed19fd5d6472bd7b43e5cd433a56ec8ac433e",
+          "status": "COMPLETED",
+          "resultAvailable": true,
+          "datasetReference": "runtime-evidence:coding:1cc1d1b2bcfe05c7727aa5ac8a34f584868104991851844f75bfb3da98c93b10:result",
+          "validationStatus": "INCONCLUSIVE",
+          "reasonCode": null
+        },
+        {
+          "taskId": "analysis-coding-a8d8f8a7d29fa9ca72e0e5991b69ac233493a9e7fc181049be469762cdfbdb26",
+          "status": "BUDGET_EXCEEDED",
+          "resultAvailable": false,
+          "datasetReference": null,
+          "validationStatus": "NOT_RUN",
+          "reasonCode": "BUDGET_EXCEEDED"
+        }
+      ]
+    },
+    "previousAttempt15": {
+      "execution": {
+        "taskId": "c9ed083e-89ab-3b9a-85da-c638974e788f",
+        "runId": "att-1-d45cef6d-36d1-4d12-bd33-2e0af15b2ff8",
+        "sessionId": "live-db-validation-20e7ed0e58a841f2a246d388e10ed490",
+        "status": "SUCCESS",
+        "canonicalState": "SUCCEEDED",
+        "terminal": true,
+        "elapsedSeconds": 1264,
+        "observationResumed": false,
+        "eventCursor": 295,
+        "observations": 267,
+        "codingTraceEvents": 212,
+        "sseEvents": 1380,
+        "sseReconnectErrors": []
+      },
+      "publishedDefinitionMatched": true,
+      "publishedDefinitionSha256": "3e6eef6bb76af0194a99f291a8eb37608d7baf410d957686d51a99f38408de1b",
+      "functionalGate": {
+        "status": "FAILED",
+        "taskId": "c9ed083e-89ab-3b9a-85da-c638974e788f",
+        "runId": "att-1-d45cef6d-36d1-4d12-bd33-2e0af15b2ff8",
+        "analysisAction": "PARTIAL_COMPLETE",
+        "partialAnalysisAllowed": false,
+        "uniqueCodingEvents": 212,
+        "admittedResults": [
+          {
+            "taskId": "analysis-coding-fd445fcf617f28340eac0f6daf24f64d6870fe42b5244a42336124eb9747d539",
+            "datasetReference": "runtime-evidence:coding:05eb8c90f5550809ed9584da5b7635f9432a5c7c0460e414081ebbdd8662f804:result",
+            "rowCount": 53,
+            "evidenceRefs": [
+              "runtime-evidence:coding:input:331bbabfe3446e32a67f1b7397a0e7edf33bc7b2fb9bd17dbbadbd5706f40c73",
+              "runtime-evidence:coding:05eb8c90f5550809ed9584da5b7635f9432a5c7c0460e414081ebbdd8662f804:code",
+              "runtime-evidence:coding:05eb8c90f5550809ed9584da5b7635f9432a5c7c0460e414081ebbdd8662f804:receipt",
+              "runtime-evidence:coding:05eb8c90f5550809ed9584da5b7635f9432a5c7c0460e414081ebbdd8662f804:result",
+              "runtime-evidence:coding:05eb8c90f5550809ed9584da5b7635f9432a5c7c0460e414081ebbdd8662f804:validation",
+              "runtime-evidence:coding:05eb8c90f5550809ed9584da5b7635f9432a5c7c0460e414081ebbdd8662f804:bundle"
+            ]
+          },
+          {
+            "taskId": "analysis-coding-5896b60e91d3f4b2e7b801eb92e2257ccbaf63ebdea4dc22f21ea2551bab4d28",
+            "datasetReference": "runtime-evidence:coding:2cbd6c41d82f43f677b1622dbc2e1a298267de47adbe2e8860c77b161122736f:result",
+            "rowCount": 14,
+            "evidenceRefs": [
+              "runtime-evidence:coding:input:b2db55a896089a8465673edc674723d1d1de6ec486c81cecfc866ff20fce3e88",
+              "runtime-evidence:coding:2cbd6c41d82f43f677b1622dbc2e1a298267de47adbe2e8860c77b161122736f:code",
+              "runtime-evidence:coding:2cbd6c41d82f43f677b1622dbc2e1a298267de47adbe2e8860c77b161122736f:receipt",
+              "runtime-evidence:coding:2cbd6c41d82f43f677b1622dbc2e1a298267de47adbe2e8860c77b161122736f:result",
+              "runtime-evidence:coding:2cbd6c41d82f43f677b1622dbc2e1a298267de47adbe2e8860c77b161122736f:validation",
+              "runtime-evidence:coding:2cbd6c41d82f43f677b1622dbc2e1a298267de47adbe2e8860c77b161122736f:bundle"
+            ]
+          },
+          {
+            "taskId": "analysis-coding-05d553d47eca108ebb1f4de01df7dda269ea61410195051cfda5f85bbbf1e4fb",
+            "datasetReference": "runtime-evidence:coding:a0e6e2e98a62f340d9a7af441d3a5aaff408a25bbb7a806af5ba7e35d84bf3a5:result",
+            "rowCount": 45,
+            "evidenceRefs": [
+              "runtime-evidence:coding:input:dc18f186023db7cdd3e5b5dbe8e3dc56bd1614c5d05879031c2af8763644d331",
+              "runtime-evidence:coding:a0e6e2e98a62f340d9a7af441d3a5aaff408a25bbb7a806af5ba7e35d84bf3a5:code",
+              "runtime-evidence:coding:a0e6e2e98a62f340d9a7af441d3a5aaff408a25bbb7a806af5ba7e35d84bf3a5:receipt",
+              "runtime-evidence:coding:a0e6e2e98a62f340d9a7af441d3a5aaff408a25bbb7a806af5ba7e35d84bf3a5:result",
+              "runtime-evidence:coding:a0e6e2e98a62f340d9a7af441d3a5aaff408a25bbb7a806af5ba7e35d84bf3a5:validation",
+              "runtime-evidence:coding:a0e6e2e98a62f340d9a7af441d3a5aaff408a25bbb7a806af5ba7e35d84bf3a5:bundle"
+            ]
+          }
+        ],
+        "failures": [
+          "ANALYSIS_NOT_COMPLETE_WITHIN_REQUIRED_SCOPE"
+        ],
+        "limitation": "This gate checks execution/evidence contracts, not business numerical correctness or release readiness."
+      },
+      "analysisDecision": {
+        "action": "PARTIAL_COMPLETE"
+      },
+      "runtimeRequestTimeoutMs": 0,
+      "codingTasks": [
+        {
+          "taskId": "analysis-coding-fd445fcf617f28340eac0f6daf24f64d6870fe42b5244a42336124eb9747d539",
+          "status": "COMPLETED",
+          "resultAvailable": true,
+          "datasetReference": "runtime-evidence:coding:05eb8c90f5550809ed9584da5b7635f9432a5c7c0460e414081ebbdd8662f804:result",
+          "validationStatus": "INCONCLUSIVE",
+          "reasonCode": null
+        },
+        {
+          "taskId": "analysis-coding-5896b60e91d3f4b2e7b801eb92e2257ccbaf63ebdea4dc22f21ea2551bab4d28",
+          "status": "COMPLETED",
+          "resultAvailable": true,
+          "datasetReference": "runtime-evidence:coding:2cbd6c41d82f43f677b1622dbc2e1a298267de47adbe2e8860c77b161122736f:result",
+          "validationStatus": "INCONCLUSIVE",
+          "reasonCode": null
+        },
+        {
+          "taskId": "analysis-coding-05d553d47eca108ebb1f4de01df7dda269ea61410195051cfda5f85bbbf1e4fb",
+          "status": "COMPLETED",
+          "resultAvailable": true,
+          "datasetReference": "runtime-evidence:coding:a0e6e2e98a62f340d9a7af441d3a5aaff408a25bbb7a806af5ba7e35d84bf3a5:result",
+          "validationStatus": "INCONCLUSIVE",
+          "reasonCode": null
+        },
+        {
+          "taskId": "analysis-coding-94d1f656119623ea56f8881b84864a80e02a56d735f38bab15a8a4a62d09ad7b",
+          "status": "BUDGET_EXCEEDED",
+          "resultAvailable": false,
+          "datasetReference": null,
+          "validationStatus": "NOT_RUN",
+          "reasonCode": "BUDGET_EXCEEDED"
+        }
+      ]
+    },
+    "finalAttempt16": {
+      "execution": {
+        "taskId": "199f0031-a660-3f69-b2bc-876b8742218c",
+        "runId": "att-1-ab6ca95b-ca4c-43ce-a22f-8211d59868c9",
+        "sessionId": "live-db-validation-f947ca94b82a415bae14653e10f2ba00",
+        "status": "SUCCESS",
+        "canonicalState": "SUCCEEDED",
+        "terminal": true,
+        "elapsedSeconds": 543,
+        "observationResumed": false,
+        "eventCursor": 139,
+        "observations": 111,
+        "codingTraceEvents": 62,
+        "sseEvents": 619,
+        "sseReconnectErrors": []
+      },
+      "publishedDefinitionMatched": true,
+      "publishedDefinitionSha256": "3e6eef6bb76af0194a99f291a8eb37608d7baf410d957686d51a99f38408de1b",
+      "functionalGate": {
+        "status": "FAILED",
+        "taskId": "199f0031-a660-3f69-b2bc-876b8742218c",
+        "runId": "att-1-ab6ca95b-ca4c-43ce-a22f-8211d59868c9",
+        "analysisAction": "PARTIAL_COMPLETE",
+        "partialAnalysisAllowed": false,
+        "uniqueCodingEvents": 62,
+        "admittedResults": [
+          {
+            "taskId": "analysis-coding-8f78cd490eef70fb25c441752986cbf9668676bf8359fdccce498f7662a6051d",
+            "datasetReference": "runtime-evidence:coding:f1e63cda37894d8b05d94c5dbb722e11bf08d793809d9cd52aefc4f3237a15b4:result",
+            "rowCount": 7,
+            "evidenceRefs": [
+              "runtime-evidence:coding:input:43c8e8da132994d3471090d8c854bd92a9bd83bf7a5a680d78b7f0ad45d81730",
+              "runtime-evidence:coding:f1e63cda37894d8b05d94c5dbb722e11bf08d793809d9cd52aefc4f3237a15b4:code",
+              "runtime-evidence:coding:f1e63cda37894d8b05d94c5dbb722e11bf08d793809d9cd52aefc4f3237a15b4:receipt",
+              "runtime-evidence:coding:f1e63cda37894d8b05d94c5dbb722e11bf08d793809d9cd52aefc4f3237a15b4:result",
+              "runtime-evidence:coding:f1e63cda37894d8b05d94c5dbb722e11bf08d793809d9cd52aefc4f3237a15b4:validation",
+              "runtime-evidence:coding:f1e63cda37894d8b05d94c5dbb722e11bf08d793809d9cd52aefc4f3237a15b4:bundle"
+            ]
+          }
+        ],
+        "failures": [
+          "ANALYSIS_NOT_COMPLETE_WITHIN_REQUIRED_SCOPE"
+        ],
+        "limitation": "This gate checks execution/evidence contracts, not business numerical correctness or release readiness."
+      },
+      "analysisDecision": {
+        "action": "PARTIAL_COMPLETE"
+      },
+      "runtimeRequestTimeoutMs": 0,
+      "codingTasks": [
+        {
+          "taskId": "analysis-coding-8f78cd490eef70fb25c441752986cbf9668676bf8359fdccce498f7662a6051d",
+          "status": "COMPLETED",
+          "resultAvailable": true,
+          "datasetReference": "runtime-evidence:coding:f1e63cda37894d8b05d94c5dbb722e11bf08d793809d9cd52aefc4f3237a15b4:result",
+          "validationStatus": "INCONCLUSIVE",
+          "reasonCode": null
+        }
+      ]
+    },
+    "latestQa": {
+      "execution": {
+        "taskId": "6e246815-530b-319d-b4ec-e60335ed4597",
+        "runId": null,
+        "sessionId": "live-db-validation-48ab2ee3782043b2bab2364aa4b4b823",
+        "status": "SUCCESS",
+        "canonicalState": "SUCCEEDED",
+        "terminal": true,
+        "elapsedSeconds": 42,
+        "observationResumed": false,
+        "eventCursor": 10,
+        "observations": 0,
+        "codingTraceEvents": 0,
+        "sseEvents": 0,
+        "sseReconnectErrors": []
+      },
+      "publishedDefinitionMatched": true,
+      "publishedDefinitionSha256": "3e6eef6bb76af0194a99f291a8eb37608d7baf410d957686d51a99f38408de1b"
+    },
+    "classification": {
+      "status": "PASSED",
+      "scope": "Actual classification enum persisted and projected through the published Agent API on final canonical deployment; current execution progress is recorded separately.",
+      "cases": [
+        {
+          "questionKind": "QA",
+          "taskId": "6e246815-530b-319d-b4ec-e60335ed4597",
+          "modelClassifiedTaskType": "QA",
+          "codingTraceEvents": 0,
+          "terminal": true
+        },
+        {
+          "questionKind": "DATA_ANALYSIS",
+          "taskId": "199f0031-a660-3f69-b2bc-876b8742218c",
+          "modelClassifiedTaskType": "DATA_ANALYSIS",
+          "codingTraceEvents": 62,
+          "terminal": true
+        }
+      ]
+    },
+    "parallelCancellation": {
+      "status": "PASSED",
+      "scope": "Real published Agent cancellations while the independent real-data task remains active; no model or storage mock.",
+      "peerTaskId": "33d848d9-f38b-3516-8853-529ac699e0a9",
+      "cases": [
+        {
+          "taskId": "af6ae71f-81e8-3325-b889-f4114233af83",
+          "sessionId": "runtime-stability-cancel-74b371c8b7414c55b72f90b24958a560",
+          "phaseAtCancellation": "SUBMITTED",
+          "postCancellationStates": [
+            "CANCELLED",
+            "CANCELLED",
+            "CANCELLED",
+            "CANCELLED"
+          ],
+          "peerStateAfterCancellation": "PLANNING",
+          "httpFailures": 0
+        },
+        {
+          "taskId": "015cf14d-00bc-3451-8d18-292e07dcfac1",
+          "sessionId": "runtime-stability-cancel-b5b3160cbd004dbe927031343c6c3fce",
+          "phaseAtCancellation": "PLANNING",
+          "postCancellationStates": [
+            "CANCELLED",
+            "CANCELLED",
+            "CANCELLED",
+            "CANCELLED"
+          ],
+          "peerStateAfterCancellation": "PLANNING",
+          "httpFailures": 0
+        },
+        {
+          "taskId": "46d35b20-1594-3fdb-9c66-89e4e7f6ab1a",
+          "sessionId": "runtime-stability-cancel-e94ad844226948fa84e9042b616d72ab",
+          "phaseAtCancellation": "PLANNING",
+          "postCancellationStates": [
+            "CANCELLED",
+            "CANCELLED",
+            "CANCELLED",
+            "CANCELLED"
+          ],
+          "peerStateAfterCancellation": "PLANNING",
+          "httpFailures": 0
+        }
+      ]
+    },
+    "codingStageCancellation": {
+      "status": "PASSED",
+      "taskId": "68103ba7-26fa-3687-aa8a-4c08c577953d",
+      "sessionId": "runtime-stability-active-cancel-9503815c636842dd88a2bd352f929be5",
+      "scope": "Cancel an actual Coding Agent run after coding trace starts; observe peer and sticky terminal status. No claim of interruption exactly during a subsecond Python calculation.",
+      "runId": "att-1-dfdc626a-e00c-46de-a83f-c8c9a10e904e",
+      "codingEventsBeforeCancellation": 6,
+      "stateBeforeCancellation": "PLANNING",
+      "postCancellationStates": [
+        "CANCELLED",
+        "CANCELLED",
+        "CANCELLED",
+        "CANCELLED",
+        "CANCELLED",
+        "CANCELLED",
+        "CANCELLED",
+        "CANCELLED",
+        "CANCELLED",
+        "CANCELLED"
+      ],
+      "peerTaskId": "628228ee-0c71-3c80-8642-8e657c257f5f",
+      "peerState": "PLANNING",
+      "httpFailures": 0
+    }
+  },
+  "independentComputation": {
+    "attempt13": {
+      "status": "PARTIAL_COMPLETE_NOT_ACCEPTED",
+      "scope": "Independent arithmetic on immutable actual snapshots; generated Python was not executed by the checker.",
+      "results": [
+        {
+          "operationId": "cline-738065bba5c882e51bec5c6592171390286d322478735ae1b8141c15b8f14ea5",
+          "datasetReference": "runtime-evidence:coding:f693b636147903a31659b7afef2633eca409189b38d62ec2e0f9817f9f0311d7:result",
+          "resultSha256": "caadb4886c2cd9ae0d5ef5856d157eec26c92445ab613c765d2c3e49287099a9",
+          "allCodeInputAndArtifactHashesVerified": true,
+          "sourceRows": 86,
+          "outputRows": 7,
+          "kind": "PROCESSLIST_COUNTS",
+          "numericChecks": 7,
+          "methodQualified": true,
+          "limits": [
+            "Process list is instance-wide; Time>10 also includes sleeping sessions and does not prove long-running queries."
+          ]
+        },
+        {
+          "operationId": "cline-739d640ece3555ac0dd87ec5da33f29fe4db2f152ea099a57b09a5139cff2251",
+          "datasetReference": "runtime-evidence:coding:8a34a536054cbaad9496b6a9615a20f761c48c0c659ffcc94f4d9dbcc6876143:result",
+          "resultSha256": "e6bb6c117b0ece4beecbe3b8e6b8dd5a06102f94a591e305d084b6a89ef28a72",
+          "allCodeInputAndArtifactHashesVerified": true,
+          "sourceRows": 3,
+          "outputRows": 8,
+          "kind": "EMPTY_SQL_ROWS_TRANSPORT_PROJECTION_DEFECT",
+          "numericChecks": 5,
+          "methodQualified": false,
+          "limits": [
+            "Zeros agree with independently recognized empty SQL response, but the model did not recognize the source format. This is not a qualified parsing result; generic empty-dataset projection was fixed for the next run."
+          ]
+        },
+        {
+          "operationId": "cline-ba68458153076831b4483cbf037f3d4cbca93e37c22c075a2f3b87f532ef763c",
+          "datasetReference": "runtime-evidence:coding:2187ddb5b667e76aa4fe7651b4e6ad033d962ed4331dd99305bdfe0ee4a6624d:result",
+          "resultSha256": "c22b4aef92cca762e13a0bfaa6ab58beb7b498e08ab0020c41e0fb8bcb3e0968",
+          "allCodeInputAndArtifactHashesVerified": true,
+          "sourceRows": 369,
+          "outputRows": 23,
+          "kind": "INSTANCE_GLOBAL_COUNTERS_AND_THREE_RATIOS",
+          "numericChecks": 23,
+          "methodQualified": true,
+          "limits": [
+            "Single cumulative instance snapshot; cannot establish current rates or schema-specific resource consumption."
+          ]
+        }
+      ],
+      "qualifiedResults": 2,
+      "unqualifiedResults": 1
+    },
+    "attempt14": {
+      "status": "FAILED_NUMERICAL_AND_BUSINESS_ACCEPTANCE",
+      "scope": "Independent arithmetic on immutable actual snapshots; generated Python was not executed by the checker.",
+      "results": [
+        {
+          "operationId": "cline-1385e134d06817e1587c2a73293d42cb6255ff4d9dc54f561668bd1a52f36443",
+          "datasetReference": "runtime-evidence:coding:1cc1d1b2bcfe05c7727aa5ac8a34f584868104991851844f75bfb3da98c93b10:result",
+          "resultSha256": "eafc9e0b1f4d5c5edf6e908e16c4f12275189efd40cf520df43801bba4c3cf77",
+          "allCodeInputAndArtifactHashesVerified": true,
+          "sourceRows": 20,
+          "outputRows": 1,
+          "kind": "TOP_FIVE_DIGEST_RANKING",
+          "numericChecks": 15,
+          "methodQualified": true,
+          "limits": [
+            "Ranking covers only 20 returned digest rows; cumulative totals and supplied rounded averages are not a current measurement interval."
+          ]
+        },
+        {
+          "operationId": "cline-13da8a0d635711a9d009f01a7ace95ccccb69aa8ea5c5eae3af31b0d9a985d09",
+          "datasetReference": "runtime-evidence:coding:2671d3af04da792e278ef2891ea2e09a1b19c49cd126b10fb75647ba85ee9392:result",
+          "resultSha256": "bb289789918bb03b46d70bcf2e68ce02fbb47ce7af22a55f36ee9132c80f4c9c",
+          "allCodeInputAndArtifactHashesVerified": true,
+          "sourceRows": 375,
+          "outputRows": 1,
+          "kind": "INSTANCE_COUNTERS_AND_TWO_COMPUTED_RATIOS",
+          "numericChecks": 7,
+          "methodQualified": true,
+          "limits": [
+            "Single cumulative instance snapshot; does not establish current throughput or target-schema resource attribution."
+          ]
+        },
+        {
+          "operationId": "cline-956f59851c7544c0436a622f186881245c69327726e0e9806100b14e3b2a0740",
+          "datasetReference": "runtime-evidence:coding:69c4f836903b91332ec2d74c6c9e314e82ca03803f74e9645b2bb5781370ffe1:result",
+          "resultSha256": "86648bcfd5cc9c023e6c77f0e16fe9b356b9915fe3b78781a89b7263b4754037",
+          "allCodeInputAndArtifactHashesVerified": true,
+          "sourceRows": 3,
+          "outputRows": 1,
+          "kind": "FAILED_TRANSACTION_COUNT_TRANSPORT_ENVELOPE",
+          "numericChecks": 2,
+          "methodQualified": false,
+          "limits": [
+            "Actual SQL result has zero rows, but Python counted the envelope as one transaction. Expected active_trx_count=0, actual=1. Structural validation INCONCLUSIVE did not certify arithmetic; Map-only empty projection fix missed JSON string inputs and has been corrected for follow-up verification."
+          ]
+        }
+      ],
+      "qualifiedResults": 2,
+      "unqualifiedResults": 1
+    },
+    "attempt15": {
+      "status": "FAILED_COMPLETE_ANALYSIS_ACCEPTANCE",
+      "scope": "Independent checks on immutable real artifacts; generated Python was inspected but never executed by this checker.",
+      "results": [
+        {
+          "operationId": "cline-2cecfd79835b57627bfbb10922abca9b3d23f7442ed92942f2a698ed775692d3",
+          "datasetReference": "runtime-evidence:coding:2cbd6c41d82f43f677b1622dbc2e1a298267de47adbe2e8860c77b161122736f:result",
+          "resultSha256": "8507aa9a8da53114491f1a07398f7b19b7297a3f062d2bdf96b3b24f5af9bfe7",
+          "allCodeInputAndArtifactHashesVerified": true,
+          "sourceRows": 4,
+          "outputRows": 14,
+          "kind": "TEXT_PARSE_AND_TWO_SUMS",
+          "numericChecks": 11,
+          "methodQualified": true,
+          "limits": [
+            "Three unavailable transaction/lock/deadlock measurements remain NOT_FOUND. Their absence cannot prove zero. SQL transport chunks were unnecessarily included; the subsequent canonical-envelope fix removes them."
+          ]
+        },
+        {
+          "operationId": "cline-35203a172c95cf9d0bcac40900175be876667c479199a35436f8fcf467e984a0",
+          "datasetReference": "runtime-evidence:coding:a0e6e2e98a62f340d9a7af441d3a5aaff408a25bbb7a806af5ba7e35d84bf3a5:result",
+          "resultSha256": "bb6d243ce7e8aa5e3a951dfd43d1862a563bbeac3b8aa19f480b28ecfa136d70",
+          "allCodeInputAndArtifactHashesVerified": true,
+          "sourceRows": 89,
+          "outputRows": 45,
+          "kind": "PROCESS_COUNTS_AND_FILTERED_DETAILS",
+          "numericChecks": 8,
+          "methodQualified": true,
+          "limits": [
+            "Long sleeping sessions are not long-running SQL statements. Instance-wide process counts cannot be attributed solely to the requested schema."
+          ]
+        },
+        {
+          "operationId": "cline-98bc20326db57864e348806e80424377b907d75c0559963d3b4b02d47f00ec07",
+          "datasetReference": "runtime-evidence:coding:05eb8c90f5550809ed9584da5b7635f9432a5c7c0460e414081ebbdd8662f804:result",
+          "resultSha256": "afbced27069ac90d165effdab513901ea4f409180bd8f75c2a3c4f4e1f3e355b",
+          "allCodeInputAndArtifactHashesVerified": true,
+          "sourceRows": 369,
+          "outputRows": 53,
+          "kind": "SOURCE_METRIC_EXTRACTION_ONLY",
+          "numericChecks": 0,
+          "methodQualified": false,
+          "limits": [
+            "All 53 values match selected source fields, but key renaming and filtering alone do not establish analytical computation. This remains a result-admission limitation."
+          ]
+        }
+      ],
+      "qualifiedResults": 2,
+      "unqualifiedResults": 1
+    },
+    "attempt16": {
+      "status": "PARTIAL_NUMERIC_VERIFICATION_NOT_COMPLETE_ACCEPTANCE",
+      "scope": "Independent comparison with immutable real input and canonical SQL result; generated Python was inspected, never executed by checker.",
+      "operationId": "cline-de799d4823ee8a74199cf62c15d3b8b7bad39ea23732b18525c30f4cbf4196ad",
+      "datasetReference": "runtime-evidence:coding:f1e63cda37894d8b05d94c5dbb722e11bf08d793809d9cd52aefc4f3237a15b4:result",
+      "allCodeInputAndArtifactHashesVerified": true,
+      "resultSha256": "73679920bac2b98c254597f2b318210521636e9afa55986a56cb9ef95a3b7de8",
+      "inputRows": 11,
+      "outputRows": 7,
+      "sourceFieldComparisons": 4,
+      "computedChecks": [
+        "Binary byte-to-GiB conversion",
+        "Status text length",
+        "Actual complete zero-row transaction count"
+      ],
+      "emptySqlRegression": {
+        "status": "PASSED_REAL_MODEL_AND_DATABASE",
+        "canonicalEnvelopeObserved": true,
+        "sourceSqlRows": 0,
+        "pythonActiveTransactionCount": 0,
+        "transportChunksCountedAsRecords": false
+      },
+      "fullAnalysisAccepted": false,
+      "limitations": [
+        "The admitted artifact has a calculated count and unit conversion, but these do not establish complete InnoDB analysis.",
+        "The qualitative lock_contention_risk=NONE conclusion is broader than an instantaneous empty transaction snapshot supports; structural validation does not certify it.",
+        "Status keyword markers are not a parsed engine-health measurement. Instance-wide snapshots do not by themselves establish attribution to the requested schema."
+      ]
+    }
+  },
+  "actualBudgetRoundingProof": {
+    "status": "ROUNDING_DEFECT_IDENTIFIED",
+    "scope": "Actual attempt-14 persisted A2 ledger plus callback reservation arithmetic; historical task outcome remains unchanged.",
+    "maxOutputBytes": 4194304,
+    "maxCodeExecutions": 12,
+    "actualConsumedOutputBytes": 46118,
+    "actualRetainedOutputReservationBytes": 3798668,
+    "alreadyHeldOutputBytes": 3844786,
+    "historicalPerExecutionReservation": 349526,
+    "twelfthAdmissionProjectedBytes": 4194312,
+    "overageBytes": 8,
+    "correctedShareForFreshRuns": 349525,
+    "freshRunTwelveSharesBytes": 4194300,
+    "budgetLimitsIncreased": false,
+    "unknownReservationsReleased": false,
+    "diagnosticLimit": "Public outcome records BUDGET_EXCEEDED without a dimension; output-byte attribution is inferred from the persisted ledger and the exact admission algorithm."
+  },
+  "actualBudgetCorrection": {
+    "status": "PASSED_FINAL_OUTPUT_RESERVATION_SLOT",
+    "scope": "Actual attempt 15, unchanged cumulative limits; confirms 12 Sandbox operations admitted and stopped. This does not certify whole analysis completion.",
+    "operationCount": 12,
+    "operationReceipts": [
+      {
+        "operationId": "cline-18b987318beaede1e09c25170d973b8da19dd16903ffaab44a1f80f1ca7187d1",
+        "stopConfirmed": true,
+        "exitCode": 0
+      },
+      {
+        "operationId": "cline-27222e53ef56b071b2a75316a27f541aa854f14b304d4eff8dd0c09220595e25",
+        "stopConfirmed": true,
+        "exitCode": 0
+      },
+      {
+        "operationId": "cline-28a210d56b92be6be802242320ff665a7b6d446387d2a4d8157cb066bd793218",
+        "stopConfirmed": true,
+        "exitCode": 0
+      },
+      {
+        "operationId": "cline-290ed6784cbb104b982a90e86d2109982aaf1be3377c8c7852da7fb266ddf938",
+        "stopConfirmed": true,
+        "exitCode": 0
+      },
+      {
+        "operationId": "cline-2cecfd79835b57627bfbb10922abca9b3d23f7442ed92942f2a698ed775692d3",
+        "stopConfirmed": true,
+        "exitCode": 0
+      },
+      {
+        "operationId": "cline-35203a172c95cf9d0bcac40900175be876667c479199a35436f8fcf467e984a0",
+        "stopConfirmed": true,
+        "exitCode": 0
+      },
+      {
+        "operationId": "cline-8fd8db222e7b505544b1b925e04a3f416228b15e7ead718505cb97f80d4a1a99",
+        "stopConfirmed": true,
+        "exitCode": 1
+      },
+      {
+        "operationId": "cline-98bc20326db57864e348806e80424377b907d75c0559963d3b4b02d47f00ec07",
+        "stopConfirmed": true,
+        "exitCode": 0
+      },
+      {
+        "operationId": "cline-b1f84346faac6b1d44b9c0b4d4b8320eed8b1d3240f0c8528656b3fe8846575b",
+        "stopConfirmed": true,
+        "exitCode": 0
+      },
+      {
+        "operationId": "cline-bcc9416000beb01d63327444bf7302099c1efdd34835cc07007212af89ba78c3",
+        "stopConfirmed": true,
+        "exitCode": 0
+      },
+      {
+        "operationId": "cline-c96e7bc7c1d182c11d99cd9752edee1c6c9de76f130b03537e3b490dbb8e3c2b",
+        "stopConfirmed": true,
+        "exitCode": 0
+      },
+      {
+        "operationId": "cline-e235a81558db5a486d837369aa5c9cf271557416cfc18b924f8c4ff9c107ae9c",
+        "stopConfirmed": true,
+        "exitCode": 1
+      }
+    ],
+    "previousActualOperationCount": 11,
+    "outputCapBytes": 4194304,
+    "previousReservationShareBytes": 349526,
+    "correctedReservationShareBytes": 349525,
+    "oldTwelveShareSum": 4194312,
+    "correctedTwelveShareSum": 4194300,
+    "limitsIncreased": false,
+    "unknownReservationsReleased": false
+  },
+  "faultInjection": {
+    "status": "PASSED_AFTER_FIX",
+    "mechanism": "Real file-backed H2, minimum cache and large CLOB force storage I/O during worker cancellation cleanup; independent observer writes and reads the same store.",
+    "beforeFix": {
+      "tests": 1,
+      "failures": 1,
+      "errors": 0,
+      "observedFailure": "ExecutionException -> IOException: Block not found [H2 2.3.232/50]",
+      "privateLogSha256": "2ae70db0377dd3a4a43b250624d6f022f4e0e1aebec6e899ce606ecf1a26c684"
+    },
+    "afterFixSuite": "RuntimeCancellationStorageTest",
+    "scopeLimit": "This reproduces interrupt-induced H2 failure. It does not individually prove the exact causal stack of every historical incident, or resilience to power loss/disk failures."
+  },
+  "modelInputAudit": {
+    "attempt13": {
+      "status": "PASSED",
+      "bulkSourceDocumentsChecked": 3,
+      "bulkSourceDocumentEchoPresent": false,
+      "scope": "Actual persisted native-analysis model inputs and Coding SDK tool results for attempt 13; protected stdout/stderr archives were not treated as model inputs.",
+      "nativeModelInputs": [
+        {
+          "checkpoint": "harness:input:1",
+          "sourceProfileOnlyViews": 7,
+          "promptChars": 22443,
+          "rawSourceRecordArraysPresent": false
+        },
+        {
+          "checkpoint": "harness:input:2",
+          "sourceProfileOnlyViews": 7,
+          "promptChars": 41594,
+          "rawSourceRecordArraysPresent": false
+        }
+      ],
+      "codingToolResults": [
+        {
+          "operationId": "cline-ba03522403a78db90fd820a5a32c7177e24e93d1245bf7130238c3fa20a1d564",
+          "tool": "python_execute",
+          "stdoutBytes": 2393,
+          "outputStatus": "REQUIRED_OUTPUT_MISSING",
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-e971125f5571629479d4dba52a826c56ce9b3311d34168b909a2d307ba77b7eb",
+          "tool": "python_execute",
+          "stdoutBytes": 8192,
+          "outputStatus": "REQUIRED_OUTPUT_MISSING",
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-ed4ac9d5689210299b945bdd5b6ef11587cb2bb16db479576c55ef60fda77cd2",
+          "tool": "python_execute",
+          "stdoutBytes": 24,
+          "outputStatus": "REQUIRED_OUTPUT_MISSING",
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-20e7683da38b9764e8d68519ba7344df6202f7cd84c19cb5f9365e11ce0c5443",
+          "tool": "python_execute",
+          "stdoutBytes": 13,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-3e9bc178721ddf85375d2068600324a6b376b53c9fa55af446673b2807df685c",
+          "tool": "python_execute",
+          "stdoutBytes": 26,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-739d640ece3555ac0dd87ec5da33f29fe4db2f152ea099a57b09a5139cff2251",
+          "tool": "python_execute",
+          "stdoutBytes": 26,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-738065bba5c882e51bec5c6592171390286d322478735ae1b8141c15b8f14ea5",
+          "tool": "python_execute",
+          "stdoutBytes": 271,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-91d988b4694c40080672872d340d1020d1cb453c0ba25ccaaa3b1739c15dc74a",
+          "tool": "python_execute",
+          "stdoutBytes": 769,
+          "outputStatus": "REQUIRED_OUTPUT_MISSING",
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-629a00845a1e85b8d09f6feadb34eb901e622c4559b05881c452e0078522b0a4",
+          "tool": "python_execute",
+          "stdoutBytes": 1445,
+          "outputStatus": "REQUIRED_OUTPUT_MISSING",
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-f4075a37992d7f93f04d6c9b0ab34e9672ac73976278b11ca7f63ab2928916ef",
+          "tool": "python_execute",
+          "stdoutBytes": 277,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-ba68458153076831b4483cbf037f3d4cbca93e37c22c075a2f3b87f532ef763c",
+          "tool": "python_execute",
+          "stdoutBytes": 2722,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        }
+      ],
+      "limitation": "Structural/numeric source profiles remain planning metadata; the follow-up generic prompt correction prohibits using them as report-ready analytical measurements."
+    },
+    "attempt14": {
+      "status": "PASSED",
+      "bulkSourceDocumentsChecked": 3,
+      "bulkSourceDocumentEchoPresent": false,
+      "scope": "Actual persisted native-analysis model inputs and Coding SDK tool results for attempt 14; protected stdout/stderr archives were not treated as model inputs.",
+      "nativeModelInputs": [
+        {
+          "checkpoint": "harness:input:1",
+          "sourceProfileOnlyViews": 9,
+          "promptChars": 24384,
+          "rawSourceRecordArraysPresent": false
+        },
+        {
+          "checkpoint": "harness:input:2",
+          "sourceProfileOnlyViews": 9,
+          "promptChars": 27704,
+          "rawSourceRecordArraysPresent": false
+        },
+        {
+          "checkpoint": "harness:input:3",
+          "sourceProfileOnlyViews": 9,
+          "promptChars": 43498,
+          "rawSourceRecordArraysPresent": false
+        }
+      ],
+      "codingToolResults": [
+        {
+          "operationId": "cline-4bb2cea1dacfd71ad55b03eef7a10670b7ab29e335c9ffd3e5d2ac83d1662e99",
+          "tool": "python_execute",
+          "stdoutBytes": 3441,
+          "outputStatus": "REQUIRED_OUTPUT_MISSING",
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-7f39d92cf912a4b517d011ac63ea170fe8c5129836749151f009115e077cf678",
+          "tool": "python_execute",
+          "stdoutBytes": 0,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-8530e7bcebea08e24a567f76e615e7df8bdc5dafa9993eab88a21d2973db8c01",
+          "tool": "python_execute",
+          "stdoutBytes": 3,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-2bb54634268e9f8d567621c4cce7ef2176eb3d5b932a9a811254c0085dd9cf13",
+          "tool": "python_execute",
+          "stdoutBytes": 372,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-13da8a0d635711a9d009f01a7ace95ccccb69aa8ea5c5eae3af31b0d9a985d09",
+          "tool": "python_execute",
+          "stdoutBytes": 246,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-07441bf8fbea19f797c69bf4b9473ea28bf5c4129cc75b8954a5de39fb80b08d",
+          "tool": "python_execute",
+          "stdoutBytes": 89,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-cb7625eb915dc579a5fdf56caae255b41bbf042d35d374a44e3b534b5da7b642",
+          "tool": "python_execute",
+          "stdoutBytes": 594,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-a85c42ca6c3338dcf2d4c200b1bffa49a3f353ad50945035726867cf201e3c2f",
+          "tool": "python_execute",
+          "stdoutBytes": 0,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-3dee55b528aaa9c45543631c91a33ee69bc492822f964ebd23545ad03190d4fe",
+          "tool": "python_execute",
+          "stdoutBytes": 0,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-956f59851c7544c0436a622f186881245c69327726e0e9806100b14e3b2a0740",
+          "tool": "python_execute",
+          "stdoutBytes": 0,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-1385e134d06817e1587c2a73293d42cb6255ff4d9dc54f561668bd1a52f36443",
+          "tool": "python_execute",
+          "stdoutBytes": 216,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        }
+      ],
+      "limitation": "Structural/numeric source profiles remain planning metadata; the follow-up generic prompt correction prohibits using them as report-ready analytical measurements."
+    },
+    "attempt15": {
+      "status": "PASSED",
+      "bulkSourceDocumentsChecked": 4,
+      "bulkSourceDocumentEchoPresent": false,
+      "scope": "Actual persisted native-analysis model inputs and Coding SDK tool results for attempt 15; protected stdout/stderr archives were not treated as model inputs.",
+      "nativeModelInputs": [
+        {
+          "checkpoint": "harness:input:1",
+          "sourceProfileOnlyViews": 6,
+          "promptChars": 22175,
+          "rawSourceRecordArraysPresent": false
+        },
+        {
+          "checkpoint": "harness:input:2",
+          "sourceProfileOnlyViews": 6,
+          "promptChars": 50897,
+          "rawSourceRecordArraysPresent": false
+        }
+      ],
+      "codingToolResults": [
+        {
+          "operationId": "cline-c96e7bc7c1d182c11d99cd9752edee1c6c9de76f130b03537e3b490dbb8e3c2b",
+          "tool": "python_execute",
+          "stdoutBytes": 499,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-27222e53ef56b071b2a75316a27f541aa854f14b304d4eff8dd0c09220595e25",
+          "tool": "python_execute",
+          "stdoutBytes": 248,
+          "outputStatus": "REQUIRED_OUTPUT_MISSING",
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-35203a172c95cf9d0bcac40900175be876667c479199a35436f8fcf467e984a0",
+          "tool": "python_execute",
+          "stdoutBytes": 300,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-2cecfd79835b57627bfbb10922abca9b3d23f7442ed92942f2a698ed775692d3",
+          "tool": "python_execute",
+          "stdoutBytes": 39,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-b1f84346faac6b1d44b9c0b4d4b8320eed8b1d3240f0c8528656b3fe8846575b",
+          "tool": "python_execute",
+          "stdoutBytes": 565,
+          "outputStatus": "RESULT_VALIDATION_FAILED",
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-28a210d56b92be6be802242320ff665a7b6d446387d2a4d8157cb066bd793218",
+          "tool": "python_execute",
+          "stdoutBytes": 1001,
+          "outputStatus": "RESULT_VALIDATION_FAILED",
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-290ed6784cbb104b982a90e86d2109982aaf1be3377c8c7852da7fb266ddf938",
+          "tool": "python_execute",
+          "stdoutBytes": 128,
+          "outputStatus": "RESULT_VALIDATION_FAILED",
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": null,
+          "tool": "python_execute",
+          "stdoutBytes": null,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-18b987318beaede1e09c25170d973b8da19dd16903ffaab44a1f80f1ca7187d1",
+          "tool": "python_execute",
+          "stdoutBytes": 839,
+          "outputStatus": "REQUIRED_OUTPUT_MISSING",
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": null,
+          "tool": "python_execute",
+          "stdoutBytes": null,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-e235a81558db5a486d837369aa5c9cf271557416cfc18b924f8c4ff9c107ae9c",
+          "tool": "python_execute",
+          "stdoutBytes": 0,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-8fd8db222e7b505544b1b925e04a3f416228b15e7ead718505cb97f80d4a1a99",
+          "tool": "python_execute",
+          "stdoutBytes": 0,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-bcc9416000beb01d63327444bf7302099c1efdd34835cc07007212af89ba78c3",
+          "tool": "python_execute",
+          "stdoutBytes": 80,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-98bc20326db57864e348806e80424377b907d75c0559963d3b4b02d47f00ec07",
+          "tool": "python_execute",
+          "stdoutBytes": 113,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        }
+      ],
+      "limitation": "Structural/numeric source profiles remain planning metadata; the follow-up generic prompt correction prohibits using them as report-ready analytical measurements."
+    },
+    "attempt16": {
+      "status": "PASSED",
+      "bulkSourceDocumentsChecked": 1,
+      "bulkSourceDocumentEchoPresent": false,
+      "scope": "Actual persisted native-analysis model inputs and Coding SDK tool results for attempt 16; protected stdout/stderr archives were not treated as model inputs.",
+      "nativeModelInputs": [
+        {
+          "checkpoint": "harness:input:1",
+          "sourceProfileOnlyViews": 3,
+          "promptChars": 18110,
+          "rawSourceRecordArraysPresent": false
+        },
+        {
+          "checkpoint": "harness:input:2",
+          "sourceProfileOnlyViews": 3,
+          "promptChars": 25018,
+          "rawSourceRecordArraysPresent": false
+        }
+      ],
+      "codingToolResults": [
+        {
+          "operationId": "cline-f2aee4872ea91e18462ab6c2fba5999308b6fb3439db2fb5a10ffe367a12c3d6",
+          "tool": "python_execute",
+          "stdoutBytes": 8192,
+          "outputStatus": "REQUIRED_OUTPUT_MISSING",
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-421c99c2d939835709775a41f27f302119bcfeed46ea80e13c58408835c00f4f",
+          "tool": "python_execute",
+          "stdoutBytes": 38,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-beaa005134885ee8401675ab5f2f207acda3e91ea3c36aa065bff61c81682bd4",
+          "tool": "python_execute",
+          "stdoutBytes": 0,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        },
+        {
+          "operationId": "cline-de799d4823ee8a74199cf62c15d3b8b7bad39ea23732b18525c30f4cbf4196ad",
+          "tool": "python_execute",
+          "stdoutBytes": 645,
+          "outputStatus": null,
+          "rawOutputForwarded": false
+        }
+      ],
+      "limitation": "Structural/numeric source profiles remain planning metadata; the follow-up generic prompt correction prohibits using them as report-ready analytical measurements."
+    }
+  },
+  "restart": {
+    "previousRun": {
+      "status": "PASSED",
+      "runId": "att-1-81311e89-9452-4bdb-a03f-067b536f0892",
+      "codingEventsPreserved": 185,
+      "observationPageSize": 7,
+      "allObservations": 239,
+      "runtimeEventPageSize": 7,
+      "runtimeEvents": 246,
+      "eventIdsUnique": true,
+      "sseCursorReplayMatches": true,
+      "sseReplayedEvents": 7,
+      "artifactsAfterRestart": [
+        {
+          "kind": "code",
+          "presentationHashMatches": true,
+          "redacted": false,
+          "truncated": false
+        },
+        {
+          "kind": "stdout",
+          "presentationHashMatches": true,
+          "redacted": false,
+          "truncated": false
+        },
+        {
+          "kind": "stderr",
+          "presentationHashMatches": true,
+          "redacted": false,
+          "truncated": false
+        }
+      ],
+      "cancelledTasksStillTerminal": [
+        {
+          "taskId": "af6ae71f-81e8-3325-b889-f4114233af83",
+          "state": "CANCELLED"
+        },
+        {
+          "taskId": "015cf14d-00bc-3451-8d18-292e07dcfac1",
+          "state": "CANCELLED"
+        },
+        {
+          "taskId": "46d35b20-1594-3fdb-9c66-89e4e7f6ab1a",
+          "state": "CANCELLED"
+        }
+      ],
+      "scope": "Read actual persisted history after isolated API restart; no tasks or events synthesized."
+    },
+    "finalRun": {
+      "status": "PASSED",
+      "runId": "att-1-ab6ca95b-ca4c-43ce-a22f-8211d59868c9",
+      "codingEventsPreserved": 62,
+      "observationPageSize": 7,
+      "allObservations": 111,
+      "runtimeEventPageSize": 7,
+      "runtimeEvents": 118,
+      "eventIdsUnique": true,
+      "sseCursorReplayMatches": true,
+      "sseReplayedEvents": 7,
+      "artifactsAfterRestart": [
+        {
+          "kind": "code",
+          "presentationHashMatches": true,
+          "redacted": false,
+          "truncated": false
+        },
+        {
+          "kind": "stdout",
+          "presentationHashMatches": true,
+          "redacted": false,
+          "truncated": false
+        },
+        {
+          "kind": "stderr",
+          "presentationHashMatches": true,
+          "redacted": false,
+          "truncated": false
+        }
+      ],
+      "cancelledTasksStillTerminal": [
+        {
+          "taskId": "af6ae71f-81e8-3325-b889-f4114233af83",
+          "state": "CANCELLED"
+        },
+        {
+          "taskId": "015cf14d-00bc-3451-8d18-292e07dcfac1",
+          "state": "CANCELLED"
+        },
+        {
+          "taskId": "46d35b20-1594-3fdb-9c66-89e4e7f6ab1a",
+          "state": "CANCELLED"
+        },
+        {
+          "taskId": "68103ba7-26fa-3687-aa8a-4c08c577953d",
+          "state": "CANCELLED"
+        }
+      ],
+      "scope": "Read actual persisted history after isolated API restart; no tasks or events synthesized."
+    }
+  },
+  "storageHealth": {
+    "beforeFinalCorrection": {
+      "recordedAt": "2026-10-17T13:44:01.884052+00:00",
+      "scope": "Entire isolated API log after final analysis deployment; includes Coding-stage cancellation and data attempt 14. Earlier incident logs are separately preserved.",
+      "logLines": 3047,
+      "storageErrorOccurrences": {
+        "ClosedChannelException": 0,
+        "MVStoreException": 0,
+        "Block not found": 0,
+        "The database has been closed": 0,
+        "Database may be already in use": 0
+      },
+      "errorLogLines": 0,
+      "apiIntentionallyStoppedForReadOnlyAudit": false
+    },
+    "previousAttempt15": {
+      "recordedAt": "2026-10-17T14:24:05.752387+00:00",
+      "scope": "Entire isolated API log after corrected deployment; includes original-question attempt 15 and QA regression. Earlier incident logs are separately preserved.",
+      "logLines": 1912,
+      "storageErrorOccurrences": {
+        "ClosedChannelException": 0,
+        "MVStoreException": 0,
+        "Block not found": 0,
+        "The database has been closed": 0,
+        "Database may be already in use": 0
+      },
+      "errorLogLines": 0,
+      "apiIntentionallyStoppedForReadOnlyAudit": false
+    },
+    "finalCorrection": {
+      "recordedAt": "2026-10-17T15:05:55.224033+00:00",
+      "scope": "Entire isolated API log after corrected deployment; includes original-question attempt 16 and QA regression. Earlier incident logs are separately preserved.",
+      "logLines": 1363,
+      "storageErrorOccurrences": {
+        "ClosedChannelException": 0,
+        "MVStoreException": 0,
+        "Block not found": 0,
+        "The database has been closed": 0,
+        "Database may be already in use": 0
+      },
+      "errorLogLines": 0,
+      "apiIntentionallyStoppedForReadOnlyAudit": false
+    }
+  },
+  "deployment": {
+    "recordedAt": "2026-10-17T15:23:29.351738+00:00",
+    "productionApiSha256": "ed92b91e64170827ea0da83718bf0abbca6342db9d365aa371ffeb4fd4e8c63a",
+    "productionMcpSha256": "c49d240ffda0e726dab82f939e076338ead85f07a3127faca1339c604691b7ed",
+    "productionApiMatchesInitialHash": true,
+    "productionMcpMatchesInitialHash": true,
+    "workerImageId": "sha256:992c510c71b486dba9c1f02cf9008a15c0d978fe15b1c252d3e95820d02ac5b9",
+    "workerReadOnly": true,
+    "workerCapabilitiesDropped": [
+      "ALL"
+    ],
+    "workerMemoryLimit": 536870912,
+    "workerInternalNetwork": true,
+    "candidateApiBaseJarSha256": "c81809d8ac3dd6d3402782f09c31345d63ffe06d3a80d0e8a6aa99d88afe921e",
+    "effectiveApiOverlay": {
+      "sourceHead": "9cc5ac8f354c0ad3fc88058f95529d1d721620f3",
+      "changesCommitted": false,
+      "overlaySha256": "bdbb6ada605690d22793391b30035a23a7638534fcee79c7f9969dcec0b07997",
+      "files": {
+        "BOOT-INF/classes/com/chatchat/api/agent/published/PublishedAgentApiController$PublishedAgentAnswer.class": "6acf4c401b0a255f8cb6cb12dac728caa83949dec9307a87e060748c7a3dc794",
+        "BOOT-INF/classes/com/chatchat/api/agent/published/PublishedAgentApiController$PublishedAgentApiException.class": "21c31d391156f74815c3a34286eb6cf92c8e0f3f380ca4cfafa9b3577ab03083",
+        "BOOT-INF/classes/com/chatchat/api/agent/published/PublishedAgentApiController$PublishedAgentCancellation.class": "3a8cfeacdccd50ea08dffd706ad05fdc8ed1ad5227087a29563b53040e6e6d16",
+        "BOOT-INF/classes/com/chatchat/api/agent/published/PublishedAgentApiController$PublishedAgentCurlExample.class": "33a1ff0d373f31c39a84d0ec4d06f2be9e3adaa8b2641bb9c967de41ed3ce640",
+        "BOOT-INF/classes/com/chatchat/api/agent/published/PublishedAgentApiController$PublishedAgentEvent.class": "7d0e791fe8c26b2bda059286f7e61cdeadaaaaafffb2c3c7b45db7d02e7b628c",
+        "BOOT-INF/classes/com/chatchat/api/agent/published/PublishedAgentApiController$PublishedAgentQuestion.class": "1a49dd27e94db144a6d1f1a5e894f84a69a9683c1224633919c47b2457fdafc3",
+        "BOOT-INF/classes/com/chatchat/api/agent/published/PublishedAgentApiController$PublishedAgentRunStatus.class": "9473cf2f78387e184bed602cd181689b50f83623072e51fe48aba01432e2be97",
+        "BOOT-INF/classes/com/chatchat/api/agent/published/PublishedAgentApiController$PublishedAgentSubmission.class": "5c8d607ef2c740afe7be99211eeb215f434c89bd35b9b9630c81b4f36fec1c65",
+        "BOOT-INF/classes/com/chatchat/api/agent/published/PublishedAgentApiController$RequestIdentity.class": "a864081c001fe28b2471a01cc0795365b119a74bfcd64999b06a8a6a8176ad27",
+        "BOOT-INF/classes/com/chatchat/api/agent/published/PublishedAgentApiController.class": "2b2de372aa5b80eb5351224b8e3732e7a4f596247ef97a132b00c1e65de2eae5",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/evidence/ComputedResultBoundary.class": "a20ce47225c47ca2352ff78b937871904b0fb69719642cb96adbea092b22a047",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector$1.class": "f7d340915f95b9c11a58eb492ccf2e3dc161188119f5b646d3da5bf6688bfcb8",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector$2.class": "93b45d38ac69a55ee21c21bfcc6b31841c02ac1c4cc7004a77578f9742e2071a",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector$3.class": "39e43ad3434d48def960db818863ee76dba744809edb3c792de29291f0849a0e",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector$4.class": "4ddc637fe2cea668ee450f07dd69c07d9cde6ada1b46342b5099282be165687a",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector$Collected.class": "c1f6af7e85275055068b4fac63d67a898ef9f71deef82f70eec30354469dd3aa",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector$IndependentValidator.class": "f6a5ef2025cb8482015aabd756831489f88fee64e52f09a33560d2094cdfdb79",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector$InputFile.class": "10f688f5cdd619c5eb266a2ab2ca5b5bb805a064dededbab61f8414e38b163b5",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector$InvalidStructuredResultException.class": "df8ecb16938bc41fc8158c395364d6c966f57094a990c132af0ed44ba38139e9",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector$RequiredOutputMissingException.class": "b4cea061433b9c6a7a739102eee678e8fee6ae2ac8c737592a33724bb2f5ac06",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector$Stage.class": "4230bb995f984a373663098d9645a76a3374fdc6f5379f84218ce89e3906d6c5",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector$Validation.class": "14feb5abc76cf07faa03340656786631cca433c1d3cd9c3a5c33079fe02e8b31",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector.class": "890150faa35167230105c7cb1e2fd1bc1cd41af50a4249fde42f0b7b0617a671",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/evidence/CodingSchemaResultVerifier.class": "63f12370b2d6a4ace8fe09ca4ffe82ad6bd508d58669d273099e54e48fb26f93",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.class": "f2381909bf7d0fa06c4acf0e260add81b943346f442870b5442e214e420d2766",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController$Call.class": "facf230bdcdaab6582ea301765e510f7f3cd08174f63d726a26592bc736baaea",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController.class": "e061537b654bec7550fb556ed9a6506f4b3220d01d60757128b609162232d3a1",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController$1.class": "9688fa57f7c1bdd713dd1197bbb6955ed9233dd9909c161d31b35a6a79955cc4",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController$Call.class": "f20ad41705305e38a00d55a4335b15eb0fc1fe458e621360bd1dd5e444dbd4f4",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController.class": "a6b94a6d0c8ae5994f8290f59b651c8501cb78711436c9274ff3c95139e47bb5",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/CodingBudgetShare.class": "2861f3518313502b159583e45b71d43befdd5447990a95619650f8645ca3061a",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/data/CodingInputSnapshotService$1.class": "7a4ac2a2538110f9057360a4373739f78d0852c9c2ff56a7b2dc97769472b7a9",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/data/CodingInputSnapshotService$Chunk.class": "d24a73ac109a23b54a12ae54f197aec41c377c1c26c46be72eec1376390d3ae7",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/data/CodingInputSnapshotService$Snapshot.class": "63854eb9826ede25ab5941f98fcebe2cfc386868d30cdf899ed08ae1326a8f34",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/data/CodingInputSnapshotService.class": "5573b046820ca1007f3ffe36011e3cf723d22d355b2331162f9d25034a3d276f",
+        "BOOT-INF/classes/com/chatchat/api/controller/agent/CodingTraceArtifactController.class": "d245eb7ea22605ffdd48c7464fec3db8814a55855a072793ea80a7d21c1a7ba3",
+        "BOOT-INF/classes/com/chatchat/api/controller/agent/CodingArtifactRedactor.class": "5d156a929859255601f3346376d6efd5b31f05287b2059d5b499c94eb9002e0d",
+        "BOOT-INF/lib/chatchat-agents-1.0.0-SNAPSHOT.jar": "4a30398d7d3c543a407bd0ac4145c91dfcdb5b8f6ecac06c5b01af8c14aed12b",
+        "BOOT-INF/lib/chatchat-chat-1.0.0-SNAPSHOT.jar": "8b013456ff0fc82418d9835419e79925f1612246fe3fea53e1a155c4aa732ca0",
+        "BOOT-INF/classes/python-examples/data/sample_application.log": "390de5309dd9812c8e7bea841bdae2b01bf297a0a982b180a5b5d0f208bab97b"
+      },
+      "productionPublished": false
+    },
+    "effectiveApiOverlayFilesVerified": true,
+    "candidateApiSharedLibrarySha256": "4e1e252c38b24398cca4c6822550ceec54b053a20ef4721e64ca1de8a7f9bc97",
+    "candidateMcpSharedLibrarySha256": "4e1e252c38b24398cca4c6822550ceec54b053a20ef4721e64ca1de8a7f9bc97",
+    "candidateMcpArchiveClassSha256": "141d937f16791a83e4c74a52bb33b7ff93a64910623869c740f023017f9006c6",
+    "productionBinariesReplaced": false,
+    "candidateApiListener": "127.0.0.1:18080",
+    "candidateMcpListener": "127.0.0.1:18090"
+  },
+  "isolatedDeploymentIncident": {
+    "status": "ISOLATED_DEPLOYMENT_RECOVERED",
+    "cause": "Configured host secret file no longer existed; running Node retained its read-only bind-mounted original. Cause of external file disappearance is unknown.",
+    "action": "Restored identical bytes from existing Node mount to isolated API-owned config, mode 0600; changed only isolated launch path.",
+    "credentialsLogged": false,
+    "productionConfigurationModified": false,
+    "startupFailureLogPreserved": true
+  },
+  "browser": {
+    "status": "PASSED",
+    "taskId": "199f0031-a660-3f69-b2bc-876b8742218c",
+    "realBrowser": true,
+    "duringActualExecution": {
+      "taskSelected": true,
+      "eventCount": 45,
+      "codeButtons": 15,
+      "codeLoaded": true,
+      "error": null,
+      "codeBytes": 9034
+    },
+    "afterApiRestart": {
+      "taskSelected": true,
+      "eventCount": 62,
+      "codeButtons": 20,
+      "codeLoaded": true,
+      "error": null,
+      "codeBytes": 9034
+    },
+    "codeDiff": {
+      "loaded": true,
+      "added": 192,
+      "deleted": 17,
+      "error": null
+    },
+    "traceEventCounts": {
+      "TASK_CREATED": 1,
+      "TASK_STARTED": 1,
+      "BUDGET_UPDATED": 18,
+      "RECOVERY_RECONCILED": 41,
+      "TASK_FINISHED": 1
+    },
+    "codeButtonsAreNotVersionCount": true,
+    "liveMechanism": "UI periodically reads real observations; backend SSE cursor replay is checked separately.",
+    "workerObservationCounts": {
+      "MODEL_STARTED": 5,
+      "MODEL_USAGE": 5,
+      "TOOL_STARTED": 4,
+      "TOOL_FINISHED": 4
+    },
+    "traceScopeLimit": "Model/tool progress and immutable code/output/receipt references are persisted. Code diffs are computed by the real UI from archived versions; automatic repair is evidenced by revised programs and repeated execution, rather than a separately typed CODE_DIFF event."
+  },
+  "validatorReplays": {
+    "scope": "Actual immutable input/failed-result replay only; these checks do not substitute for model, database or Sandbox end-to-end acceptance.",
+    "canonicalEmptySql": {
+      "before": [
+        {
+          "datasetCountsByCarrier": [
+            1,
+            2,
+            1
+          ],
+          "sourceTransportSha256": "ba3532b00fdf0277cd226e214116e147fbc89ffb1f448003a326965e18d917cb",
+          "projectionRowsByCarrier": [
+            2,
+            25,
+            7
+          ],
+          "sourceSqlRows": 0,
+          "sourceArtifactsModified": false,
+          "status": "FAILED",
+          "scope": "ACTUAL_IMMUTABLE_INPUT_NORMALIZATION_REPLAY_ONLY",
+          "mapProjectionRows": 2
+        }
+      ],
+      "after": [
+        {
+          "sourceTransportSha256": "ba3532b00fdf0277cd226e214116e147fbc89ffb1f448003a326965e18d917cb",
+          "datasetCountsByCarrier": [
+            1,
+            1,
+            1
+          ],
+          "mapProjectionRows": 0,
+          "scope": "ACTUAL_IMMUTABLE_INPUT_NORMALIZATION_REPLAY_ONLY",
+          "status": "PASSED",
+          "sourceArtifactsModified": false,
+          "sourceSqlRows": 0,
+          "projectionRowsByCarrier": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "actualTransportSha256": "ba3532b00fdf0277cd226e214116e147fbc89ffb1f448003a326965e18d917cb",
+      "sourceArtifactsModified": false
+    },
+    "flatSqlReplayScopeLimit": "Earlier inner-only Map/String replay omitted the canonical MCP envelope. The complete-envelope reproduction and subsequent fix are separately retained.",
+    "actualRawCopyRejection": [
+      {
+        "inputsHashVerified": 1,
+        "sourceCopyRejected": true,
+        "generatedCodeExecuted": false,
+        "artifactsModified": false,
+        "scope": "VALIDATOR_REPLAY_ONLY",
+        "protectedResultSha256": "dcdbec99724afa7bbc9005ee55c6c7e29cb6f5ea431bafec11cc0ee0ff11628c",
+        "status": "PASSED",
+        "longOriginalTextAllowed": true
+      }
+    ]
+  },
+  "crossJvmTimeoutReview": {
+    "status": "PASSED_ISOLATED_RECHECK",
+    "suite": "com.chatchat.api.runtime.coding.CodingTaskPersistenceTest",
+    "tests": 31,
+    "failures": 0,
+    "errors": 0,
+    "crossJvmCaseSeconds": "29.146",
+    "sourceChanged": false,
+    "timeoutRaised": false,
+    "fullGate224520Failure": "create child JVM exceeded existing 30 second wait",
+    "rootCauseStatus": "UNCONFIRMED_INTERMITTENT_STARTUP_TIMEOUT",
+    "doesNotOverrideFailedFullGate": true,
+    "subsequentWholeGate": "20261017-230854",
+    "historicalCaseTimings": [],
+    "interpretationLimit": "An unchanged test and an isolated pass are not enough to prove an environment-only root cause; retain the new timeout observation and evaluate it in the final complete gate.",
+    "finalCompleteGateRecheck": {
+      "gate": "20261017-230854",
+      "tests": 31,
+      "failures": 0,
+      "errors": 0,
+      "crossJvmCaseSeconds": "11.26"
+    }
+  },
+  "evidenceGapReview": {
+    "status": "FAILED_COMPLETE_SCENARIO_REQUIRES_FOLLOWUP",
+    "scope": "Review of actual final run and the existing InterpretationPlanEvidenceAnalyzer aggregation; no business-keyword gap suppression was added.",
+    "allThreePlannedSqlResultsReturnedSuccessfully": true,
+    "actualExecutorResults": [
+      {
+        "templateId": "MYSQL_INNODB_STATUS",
+        "status": "SUCCESS",
+        "invoked": true,
+        "evidenceUsable": true,
+        "callId": "template-binding-1-schema-completed-1"
+      },
+      {
+        "templateId": "MYSQL_INSTANCE_VARIABLES",
+        "status": "SUCCESS",
+        "invoked": true,
+        "evidenceUsable": true,
+        "callId": "template-binding-2-schema-completed-2"
+      },
+      {
+        "templateId": "MYSQL_INNODB_TRX",
+        "status": "SUCCESS",
+        "invoked": true,
+        "evidenceUsable": true,
+        "callId": "template-binding-3-schema-completed-3"
+      }
+    ],
+    "successfulDatasetReferences": [
+      "MYSQL_INNODB_STATUS#template-binding-1-schema-completed-1",
+      "MYSQL_INSTANCE_VARIABLES#template-binding-2-schema-completed-2",
+      "MYSQL_INNODB_TRX#template-binding-3-schema-completed-3",
+      "runtime-evidence:coding:f1e63cda37894d8b05d94c5dbb722e11bf08d793809d9cd52aefc4f3237a15b4:result"
+    ],
+    "remainingGapCount": 3,
+    "preExecutionDiscoveryGapCount": 3,
+    "remainingNextActions": 0,
+    "modelDecision": {
+      "action": "PARTIAL_COMPLETE"
+    },
+    "codingTasks": [
+      {
+        "status": "COMPLETED",
+        "resultAvailable": true
+      }
+    ],
+    "codingBudgetExhausted": false,
+    "finding": "Earlier discovery-step missing-evidence statements remain in the aggregate after successful downstream execution. They are still projected into coverage metadata. This is a contributing condition for the final partial decision; it is not proof that every business evidence requirement was met.",
+    "requiredFollowup": "Reconcile earlier gaps against structured plan dependencies and fresh model evidence review; preserve unresolved semantic gaps. Do not clear all gaps solely because some executor returned success or because business names match."
+  },
+  "rawSourceLogReview": {
+    "status": "FAILED_RAW_SOURCE_LOG_BOUNDARY",
+    "scope": "Actual first Sandbox inspection program in final run; all source records found in protected archived stdout by canonical hashes. Values are not reproduced in this report.",
+    "operationId": "cline-f2aee4872ea91e18462ab6c2fba5999308b6fb3439db2fb5a10ffe367a12c3d6",
+    "sourceRows": 11,
+    "completeSourceRowsPrinted": 11,
+    "stdoutArchiveBytes": 16127,
+    "stdoutSha256": "b62ba5b6059789ee2414170a0e1bf8773eb5ba36e6d9282cc4b242a73470516d",
+    "forwardedIntoModelPrompt": false,
+    "stdoutModelPolicy": "METADATA_ONLY",
+    "archiveModified": false,
+    "qualification": "Credentials are separately redacted on owner-scoped presentation, but this does not provide general raw-data or PII masking. Missing required results correctly rejected the probe, yet the protected stdout archive still contains source records.",
+    "requiredFollowup": "Enforce a data-aware stdout/stderr logging boundary before persistence while retaining safe diagnostics; do not rely only on model instructions or credential patterns."
+  },
+  "failureRootClusters": {
+    "baseline": {
+      "ARCHITECTURE_DEPENDENCY_AND_SIZE_RATCHETS": 9,
+      "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW": 39,
+      "NULL_CONTRACT_REVIEW_REQUIRED": 9,
+      "CHAT_MODEL_CONFIGURATION_CONTRACT": 25,
+      "STALE_STRING_CHAT_TEST_DOUBLE": 3,
+      "UNIMPLEMENTED_CHAT_MODEL_TEST_DOUBLE": 6,
+      "PLANNER_PROTOCOL_AND_PROMPT_CONTRACT": 6,
+      "MODEL_NATIVE_V2_COMPLETION_METADATA_CONTRACT": 2,
+      "HISTORICAL_HARNESS_TOOL_CONTINUATION_TEST_CONTRACT": 4,
+      "V2_PUBLICATION_AUTHORIZATION_AND_REPORT_VERSION_REVIEW_REQUIRED": 2,
+      "MODEL_OWNED_REPORT_PROMPT_CONTRACT": 2,
+      "REVIEWER_TIMEOUT_ELAPSED_TIME_EXCEEDS_TEST_BOUND": 1,
+      "UNIMPLEMENTED_CHAT_MODEL_TEST_DOUBLE_ASSERTION": 2,
+      "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT": 19,
+      "WORKFLOW_TARGET_REFERENCE_CONTINUATION_CONTRACT": 1,
+      "MODEL_OWNED_COMPLETION_PUBLICATION_CONTRACT": 1,
+      "LEGACY_TIMESTAMP_ARGUMENT_USED_WITH_SEQUENCE_CURSOR_API": 1,
+      "BATCH_TOOL_ADMISSION_AND_TEMPLATE_AUTHORIZATION_CONTRACT": 13,
+      "MVC_RESPONSE_NEGOTIATION_OR_FILTER_CONTRACT_REVIEW": 19,
+      "SPRING_BOOTSTRAP_MISSING_REQUIRED_RECORD": 1,
+      "SPRING_CONTEXT_CASCADE": 16,
+      "SPRING_SEMANTIC_POLICY_BOOTSTRAP": 4,
+      "DATASOURCE_ENVIRONMENT_AND_ENCRYPTED_CONFIG_CONTRACT": 3,
+      "MAINTAINED_AGENT_ENVIRONMENT_AND_CODING_FIXTURE_REVIEW": 3,
+      "HISTORICAL_REST_JSON_CONTENT_NEGOTIATION": 2,
+      "JPA_SCHEMA_GENERATOR_ENTITY_COUNT_AND_DDL_BASELINE": 2,
+      "MISSING_PACKAGED_EXAMPLE_RESOURCE": 1,
+      "DOMAIN_PROFILE_PERSISTENCE_AND_TITLES_CONTRACT": 2,
+      "QA_DOCUMENT_AND_REGISTERED_WEB_SEARCH_TOOL_CONTRACT": 3,
+      "SKILL_IR_VERSION_V1_TO_V2_MIGRATION": 1,
+      "WORKFLOW_RUNTIME_BUDGET_BOUNDING_4000_VS_9000": 1,
+      "DOCUMENT_VISIBILITY_FILTER_SECURITY_REVIEW_REQUIRED": 1,
+      "RETIRED_MCP_TOOL_REMOVAL_NOT_OBSERVED": 5,
+      "TEMPLATE_DISCOVERY_FILTER_AND_FALLBACK_CONTRACT": 3,
+      "PUBLISHED_TEMPLATE_ROUTING_TRACE_REQUIRED": 1,
+      "MULTI_INTENT_DISCOVERY_QUERY_VARIANTS_CONTRACT": 1
+    },
+    "caseByCaseReport": "runtime-stability-failure-clusters.json",
+    "historical20261016Comparison": {
+      "startingOnly": [
+        {
+          "class": "com.chatchat.api.datascience.python.PythonSystemExampleCatalogTest",
+          "name": "providesExecutableReferenceForEverySupportedFormat"
+        },
+        {
+          "class": "com.chatchat.chat.analysis.profile.DomainAnalysisProfilePersistenceTest",
+          "name": "persistsTitlesRevisionsAndTenantDisableWithoutResettingDefaults"
+        },
+        {
+          "class": "com.chatchat.chat.analysis.profile.DomainAnalysisProfileServiceTest",
+          "name": "validatesUpdatesAndRejectsStaleRevisionsAndExecutionDirectives"
+        },
+        {
+          "class": "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest",
+          "name": "documentWorkflowRequiresDocumentSearchBeforeWebSearch"
+        },
+        {
+          "class": "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest",
+          "name": "webSearchToggleDoesNothingWhenAgentDidNotEnableWebSearch"
+        },
+        {
+          "class": "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest",
+          "name": "webSearchToggleRequiresRegisteredMcpWebSearchTool"
+        },
+        {
+          "class": "com.chatchat.chat.interaction.service.handler.MaintainedAgentRuntimeScenarioCoverageTest",
+          "name": "coversEveryMaintainedAgentThroughTheAgentRuntimeContract"
+        },
+        {
+          "class": "com.chatchat.chat.skills.domain.artifact.DomainSkillArtifactStoreTest",
+          "name": "storesOriginalParsedAndCompiledArtifactsSeparately"
+        },
+        {
+          "class": "com.chatchat.chat.skills.runtime.AgentRuntimePolicyTest",
+          "name": "projectsAndBoundsRuntimePolicyFromWorkflowConfiguration"
+        },
+        {
+          "class": "com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchDocumentIndexServiceTest",
+          "name": "superAdminRoleNameDoesNotBypassDocumentVisibilityFilter"
+        }
+      ],
+      "historicalOnly": [
+        {
+          "class": "com.chatchat.api.runtime.CodingAnalysisDockerGateTest",
+          "name": "independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[6]"
+        },
+        {
+          "class": "com.chatchat.api.runtime.CodingAnalysisDockerGateTest",
+          "name": "sqlAnalysisValidatesWithSqlGlotAndExecutesOnlyInSandboxSqlite"
+        }
+      ]
+    },
+    "limits": [
+      "Assertion failures need per-contract review; suite grouping alone does not prove obsolete tests.",
+      "Spring policy/bootstrap, null contracts and model configuration errors must not all be labeled environment errors.",
+      "The historical Harness continuation tests expect MCP access now absent from ModelNativeAnalysisHarness; do not restore that capability just to turn tests green."
+    ]
+  },
+  "acceptanceMatrix": [
+    {
+      "requirement": "MODEL_QA_AND_DATA_CLASSIFICATION",
+      "status": "PASSED",
+      "evidence": "live-classification-corrected.json"
+    },
+    {
+      "requirement": "REAL_QA_CONCEPT_SCENARIO",
+      "status": "PASSED",
+      "taskId": "6e246815-530b-319d-b4ec-e60335ed4597"
+    },
+    {
+      "requirement": "REAL_EMPTY_SQL_COUNT_CORRECTION",
+      "status": "PASSED",
+      "evidence": "attempt-16-independent-validation.json"
+    },
+    {
+      "requirement": "COMPLETE_ORIGINAL_DATABASE_ANALYSIS",
+      "status": "FAILED",
+      "taskId": "199f0031-a660-3f69-b2bc-876b8742218c"
+    },
+    {
+      "requirement": "OBSERVED_MODEL_INPUT_DATA_BOUNDARY",
+      "status": "PASSED",
+      "scope": "Only the actual captured native and Coding SDK model histories inspected."
+    },
+    {
+      "requirement": "CLINE_UI_CODE_AND_DIFF",
+      "status": "PASSED"
+    },
+    {
+      "requirement": "PAGINATION_SSE_AND_GRACEFUL_RESTART_HISTORY",
+      "status": "PASSED"
+    },
+    {
+      "requirement": "FULL_RAW_SOURCE_LOG_BOUNDARY",
+      "status": "FAILED_RAW_SOURCE_LOG_BOUNDARY"
+    },
+    {
+      "requirement": "COMPLETE_BACKEND_TEST_GATE",
+      "status": "FAILED"
+    },
+    {
+      "requirement": "ACTIVE_CRASH_RECOVERY",
+      "status": "NOT_TESTED"
+    },
+    {
+      "requirement": "PRIVATE_DOCUMENT_QA_LIVE_REGRESSION",
+      "status": "NOT_TESTED"
+    },
+    {
+      "requirement": "EXECUTION_NODE_HARD_LIMITS_AND_COMPLETE_METERING",
+      "status": "INCOMPLETE"
+    }
+  ],
+  "remainingRisks": [
+    {
+      "status": "FAILED",
+      "area": "ORIGINAL_REAL_DATABASE_SCENARIO",
+      "detail": "The final full InnoDB question has not passed the strict complete-analysis gate."
+    },
+    {
+      "status": "FAILED_REAL_SCENARIO",
+      "area": "RAW_SOURCE_LOG_BOUNDARY",
+      "detail": "The first attempt-16 inspection program printed all 11 source records into protected stdout. No raw stdout entered the model prompt, and the missing-result probe was rejected, but credential redaction alone does not meet a general raw-data logging boundary."
+    },
+    {
+      "status": "INTERMITTENT_FAILURE_OBSERVED",
+      "area": "CROSS_JVM_RECOVERY_STARTUP",
+      "detail": "Complete gate 224520 hit the existing 30-second child-JVM wait; unchanged isolated recheck passed 31 cases. Root cause is unconfirmed and the failed full gate is retained alongside the final whole-run result."
+    },
+    {
+      "status": "ENVIRONMENT_INCIDENT_RECOVERED_WITH_UNKNOWN_ORIGIN",
+      "area": "ISOLATED_SECRET_FILE",
+      "detail": "The configured host secret path disappeared. Only the isolated launch configuration was repaired using identical bytes retained by the running Node mount. The cause of disappearance remains unknown."
+    },
+    {
+      "status": "FAILED_REAL_SCENARIO",
+      "area": "EVIDENCE_GAP_RECONCILIATION",
+      "detail": "Attempt 16 retained three earlier discovery-stage missing-evidence statements after the three planned SQL calls returned successfully. No pending next-action remained, but final model coverage was PARTIAL_COMPLETE. Closing gaps requires structured dependencies and fresh evidence review, not business-keyword suppression."
+    },
+    {
+      "status": "FAILED",
+      "area": "FULL_BACKEND_GATE",
+      "detail": "Remaining baseline assertions/errors block production; historical status does not waive them."
+    },
+    {
+      "status": "NOT_TESTED",
+      "area": "IN_FLIGHT_CRASH_RESUMPTION",
+      "detail": "Live checks prove persisted history after graceful API restart. They do not prove active Coding-loop recovery after process kill, power loss or disk failure; isolated startup auto-recovery remains disabled."
+    },
+    {
+      "status": "NOT_TESTED",
+      "area": "PRIVATE_KNOWLEDGE_RETRIEVAL",
+      "detail": "Live QA covers the InnoDB MVCC conceptual question. Private-document retrieval/citation and existing document/web-tool failures are not certified."
+    },
+    {
+      "status": "INCOMPLETE",
+      "area": "EXECUTION_NODE_HARD_ENFORCEMENT",
+      "detail": "Actual CPU/memory/cost metering is incomplete; A2 retains unknown reservations. Cumulative admission does not certify instantaneous resource, disk or output hard limits."
+    },
+    {
+      "status": "INCOMPLETE",
+      "area": "OUTER_TASK_EVENT_ATOMICITY",
+      "detail": "Outer task state and event persistence have separate transaction boundaries; cross-write crash atomicity was reviewed but is not certified by the cancellation/ledger tests."
+    },
+    {
+      "status": "UNBOUNDED_PARENT_TIMEOUT",
+      "area": "PARENT_RUNTIME",
+      "detail": "Actual published Runtime request timeoutMs is zero. The shared Coding deadline does not impose an end-to-end parent-task duration limit."
+    },
+    {
+      "status": "FAILED_REAL_SCOPE",
+      "area": "SEMANTIC_CORRECTNESS",
+      "detail": "INCONCLUSIVE result validation is structural only. Original attempts contain an independently detected wrong transaction count; all original evidence is preserved. Source-copy checks do not prove arbitrary Python programs correct or detect every transformed reconstruction. Attempt 15 admitted a field-renamed source extraction; independent acceptance marks it unqualified."
+    }
+  ],
+  "productionAdvice": {
+    "decision": "DO_NOT_SWITCH",
+    "requiredBeforeSwitch": [
+      "Resolve every failure against the approved contracts and rerun the complete backend gate with zero failures and errors.",
+      "Pass the original complete real-database analysis scenario and independently verify all admitted calculations.",
+      "Complete active crash recovery, private-knowledge QA and execution-node hard-limit acceptance.",
+      "Define a finite end-to-end parent deadline and validate failure/transaction recovery."
+    ]
+  },
+  "privateEvidencePolicy": "Raw datasets, generated code, stdout/stderr, native prompts, SDK journals, H2 backups and credentials remain outside tracked documentation. Public reports contain bounded metadata, hashes, status and independent check results only."
+}

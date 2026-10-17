@@ -1,0 +1,17 @@
+FROM eclipse-temurin:17-jre-jammy
+
+# The build context supplies a Linux/amd64 Docker CLI binary compatible with the
+# target daemon. Only this image receives the host socket at deploy time.
+COPY docker /usr/local/bin/docker
+RUN chmod 0755 /usr/local/bin/docker && docker --version
+
+WORKDIR /srv/app
+RUN mkdir -p /srv/app/config /srv/app/data /srv/app/logs
+COPY app.jar /srv/app/app.jar
+
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    TZ=Asia/Shanghai
+
+EXPOSE 8090 9091
+ENTRYPOINT ["java", "-jar", "/srv/app/app.jar"]

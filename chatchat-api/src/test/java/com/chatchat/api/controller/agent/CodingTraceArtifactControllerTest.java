@@ -68,4 +68,37 @@ class CodingTraceArtifactControllerTest {
         assertThat(data.get("content").toString()).hasSize(8192);
         assertThat(data.get("truncated")).isEqualTo(true);
     }
+    @Test void credentialPresentationIsRedactedWithoutChangingArchivedBytes() {
+        var request=prepare("tenant","owner");
+        String original="password='private password'\n{\"api_key\":\"private-key\"}\nAuthorization: Bearer abc.def.ghi\nhttps://user:private@host/path\ncount=42";
+        byte[] archive=original.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        when(python.artifact("tenant","owner","run","task",operation,"logs","stdout.txt")).thenReturn(archive);
+        var data=(Map<?,?>)controller.artifact("run","task",operation,"stdout",request).getData();
+        assertThat(data.get("redacted")).isEqualTo(true);
+        assertThat(data.get("content").toString()).contains("[REDACTED]","count=42")
+            .doesNotContain("private password","private-key","abc.def.ghi","user:private");
+        assertThat(new String(archive,java.nio.charset.StandardCharsets.UTF_8)).isEqualTo(original);
+    }
+    @Test void truncationCannotExposeThePrefixOfAQuotedSecret() {
+        var request=prepare("tenant","owner");
+        when(python.artifact("tenant","owner","run","task",operation,"logs","stdout.txt"))
+            .thenReturn(("x".repeat(8150)+" password='"+"PRIVATE_SECRET".repeat(40)+"'").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        var data=(Map<?,?>)controller.artifact("run","task",operation,"stdout",request).getData();
+        assertThat(data.get("content").toString()).doesNotContain("PRIVATE_SECRET");
+        assertThat(data.get("redacted")).isEqualTo(true);
+    }
+    @Test void escapedQuotesAndMultilineSecretsAreFullyRedacted() throws Exception {
+        var request=prepare("tenant","owner");
+        String log=new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(Map.of("api_key","prefix\"PRIVATE_SUFFIX"))
+            +"\npassword=\"\"\"MULTILINE_PRIVATE\nPRIVATE_SUFFIX\"\"\"";
+        when(python.artifact("tenant","owner","run","task",operation,"logs","stdout.txt"))
+            .thenReturn(log.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        var data=(Map<?,?>)controller.artifact("run","task",operation,"stdout",request).getData();
+        assertThat(data.get("content").toString()).doesNotContain("PRIVATE_SUFFIX","MULTILINE_PRIVATE");
+        assertThat(data.get("redacted")).isEqualTo(true);
+    }
+    @Test void largeOrUnterminatedQuotedSecretsDoNotOverflowTheStack() {
+        String value="api_key=\""+"private\\\"fragment".repeat(20000);
+        assertThat(CodingArtifactRedactor.redact(value)).isEqualTo("api_key=\"[REDACTED]\"");
+    }
 }

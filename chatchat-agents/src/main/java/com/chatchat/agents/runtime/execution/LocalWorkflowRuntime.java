@@ -102,10 +102,9 @@ public final class LocalWorkflowRuntime implements WorkflowRuntime {
         }
         slot.cancellationReason = firstText(reason, "Workflow cancellation requested");
         slot.cancellationRequested.set(true);
-        Thread runningThread = slot.runningThread;
-        if (runningThread != null) {
-            runningThread.interrupt();
-        }
+        // The owner may currently be inside shared JDBC/MVStore I/O. Interrupting
+        // it can close a channel used by unrelated runs. Execution checkpoints
+        // observe this token; remote operations retain their own cancellation API.
         return true;
     }
 
@@ -141,7 +140,9 @@ public final class LocalWorkflowRuntime implements WorkflowRuntime {
             slot.errorMessage = firstText(failure.getMessage(), slot.cancellationReason);
             slot.completion.completeExceptionally(failure);
         } catch (InterruptedException failure) {
-            Thread.currentThread().interrupt();
+            // Cancellation is carried by the completion, not by an interrupt flag
+            // leaking into synchronous terminal-state persistence callbacks.
+            Thread.interrupted();
             slot.status = WorkflowExecutionStatus.CANCELLED;
             slot.errorMessage = firstText(slot.cancellationReason, failure.getMessage());
             slot.completion.completeExceptionally(

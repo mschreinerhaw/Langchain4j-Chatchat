@@ -12,12 +12,28 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.*;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class CodingTraceArtifactControllerTest {
     private final AgentRuntime runtime=mock(AgentRuntime.class);
     private final McpPythonControlPlanePort python=mock(McpPythonControlPlanePort.class);
     private final CodingTraceArtifactController controller=new CodingTraceArtifactController(runtime,python);
     private final String operation="cline-"+"a".repeat(64);
+    @Test void httpRouteBindsArtifactIdentityWithoutCompilerParameterMetadata() throws Exception {
+        prepare("tenant","owner");
+        when(python.artifact("tenant","owner","run","task",operation,"code","main.py"))
+            .thenReturn("print(1)".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        var mvc=org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(controller).build();
+        String path="/api/v1/agent/runtime/runs/run/coding/task/"+operation+"/code";
+        mvc.perform(get(path).accept(org.springframework.http.MediaType.APPLICATION_JSON).requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID,"tenant")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID,"owner"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.content").value("print(1)"));
+        mvc.perform(get(path).accept(org.springframework.http.MediaType.APPLICATION_JSON).requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID,"other")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID,"owner"))
+            .andExpect(status().isForbidden());
+        verify(python,times(1)).artifact(anyString(),anyString(),anyString(),anyString(),anyString(),anyString(),anyString());
+    }
     private MockHttpServletRequest prepare(String tenant,String user) {
         var request=new MockHttpServletRequest();
         request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID,tenant);

@@ -150,7 +150,7 @@ public class PythonOperationWorkspace {
                 for (Path file : outputFiles) {
                     if (Files.isSymbolicLink(file) || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)
                             || !file.getParent().equals(directory)
-                            || !file.getFileName().toString().matches("[A-Za-z0-9][A-Za-z0-9_.-]{0,255}"))
+                            || !file.getFileName().toString().matches("[A-Za-z0-9_][A-Za-z0-9_.-]{0,254}"))
                         throw new IllegalStateException("Invalid output artifact");
                     String name = file.getFileName().toString();
                     Path saved = preserved.resolve(name);
@@ -174,22 +174,23 @@ public class PythonOperationWorkspace {
                     String completeness = size == 0 ? "EMPTY" : "PRESENT";
                     if (name.endsWith(".jsonl")) {
                         rows = 0;
+                        var observedSchema = new com.chatchat.common.mcp.python.JsonlStructuralSchema();
+                        var jsonlReader = mapper.reader().with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
                         try (var reader = Files.newBufferedReader(saved, StandardCharsets.UTF_8)) {
                             String line;
                             while ((line = reader.readLine()) != null) {
                                 if (line.isBlank()) continue;
                                 try {
-                                    var parsed = mapper.readTree(line);
+                                    com.fasterxml.jackson.databind.JsonNode parsed = jsonlReader.readTree(line);
                                     if (!parsed.isObject()) throw new IllegalArgumentException("JSONL row must be an object");
-                                    String rowSchema = mapper.writeValueAsString(parsed.properties().stream()
-                                            .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, e -> e.getValue().getNodeType().name(),
-                                                    (a,b) -> a, TreeMap::new)));
-                                    if (schemaJson == null) schemaJson = rowSchema;
-                                    else if (!schemaJson.equals(rowSchema)) throw new IllegalArgumentException("JSONL schema changed");
+                                    var types = new TreeMap<String,String>();
+                                    parsed.properties().forEach(e -> types.put(e.getKey(),e.getValue().getNodeType().name()));
+                                    observedSchema.accept(types);
                                     rows++;
                                 } catch (Exception ex) { completeness = "PARTIAL"; break; }
                             }
                         }
+                        if (rows > 0) schemaJson = mapper.writeValueAsString(observedSchema.fieldTypes());
                         if (rows == 0 && !"PARTIAL".equals(completeness)) completeness = "EMPTY";
                     } else if (size > 0) {
                         completeness = "UNVERIFIED";

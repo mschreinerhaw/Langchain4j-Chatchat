@@ -25,6 +25,10 @@ final class ModelAnalysisPrompt {
         datasetReference with resultAvailable:true as Coding output; otherwise preserve its status.
         Preserve sources, units and values; distinguish facts, hypotheses and conclusions. Previews are
         not complete data: follow L2 contracts and returned pagination/locators to read originals.
+        Preserve measurement scope and time basis. Cumulative totals are not current rates, frequency,
+        trends or abnormal load without a measured interval, comparable baseline or supporting evidence.
+        Occupancy alone does not establish resource pressure. Distinguish instance/global measurements
+        from a particular database, tenant or entity; never silently narrow their observed scope.
         Empty data, execution failure, denial, truncation and exhausted resources are distinct facts.
         Source executionStatus, invoked and error are Runtime facts; accountingStatus is dataset bookkeeping.
         A BLOCKED or uninvoked check is not a transport failure. Preserve its recorded reason in limitations.

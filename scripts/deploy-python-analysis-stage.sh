@@ -52,7 +52,7 @@ http {
       proxy_http_version 1.1;
       proxy_set_header Connection "";
       proxy_connect_timeout 3s;
-      proxy_read_timeout 120s;
+      proxy_read_timeout 300s;
       proxy_next_upstream off;
     }
   }
@@ -67,7 +67,7 @@ http {
       proxy_http_version 1.1;
       proxy_set_header Connection "";
       proxy_connect_timeout 3s;
-      proxy_read_timeout 120s;
+      proxy_read_timeout 300s;
       proxy_next_upstream off;
     }
     location / { return 404; }

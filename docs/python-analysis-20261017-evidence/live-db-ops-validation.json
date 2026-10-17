@@ -1,0 +1,600 @@
+{
+  "recordedAt": "2026-10-17T12:09:00.942634+00:00",
+  "sourceHead": "d9ce8caf5d577f99b899550c7298cd306625182b",
+  "initialAuditBase": "fa3fa2264b3a20055840d8f262881d5b25859b51",
+  "changesCommitted": false,
+  "overallStatus": "BUSINESS_ACCEPTANCE_INCOMPLETE",
+  "productionPublished": false,
+  "scenario": {
+    "agentName": "数据库运维助手",
+    "agentId": "db_ops_assistant",
+    "question": "帮我分析LiveData测试库_223数据库innodb运行情况",
+    "scope": "Original published definition, configured hy3 model, real authorized MCP SQL sources; isolated platform/MCP metadata, data-file and Python-operation stores.",
+    "fixtureUsedForBusinessAcceptance": false,
+    "forcedPythonRequestFlagUsed": false
+  },
+  "currentAttempt": {
+    "taskId": "8e72b688-d78e-39ce-92a8-a9006f554395",
+    "runId": "att-1-d097ce39-9fde-47a5-b9f0-9bbd0c5e00e8",
+    "sessionId": "live-db-validation-0603a6dc83204e8cbb50e8bec425f49d",
+    "status": "CANCELLED",
+    "canonicalState": "CANCELLED",
+    "terminal": true,
+    "elapsedSeconds": 5,
+    "observationResumed": true,
+    "eventCursor": 105,
+    "observations": 87,
+    "codingTraceEvents": 45,
+    "sseEvents": 116,
+    "sseReconnectErrors": [],
+    "lastPreFaultObservation": {
+      "taskId": "8e72b688-d78e-39ce-92a8-a9006f554395",
+      "runId": "att-1-d097ce39-9fde-47a5-b9f0-9bbd0c5e00e8",
+      "sessionId": "live-db-validation-0603a6dc83204e8cbb50e8bec425f49d",
+      "status": "WAIT_MODEL",
+      "canonicalState": "PLANNING",
+      "terminal": false,
+      "elapsedSeconds": 631,
+      "eventCursor": 100,
+      "observations": 87,
+      "codingTraceEvents": 45,
+      "sseEvents": 658,
+      "sseReconnectErrors": []
+    },
+    "observerElapsedSecondsAreNotTaskDuration": true,
+    "codingResults": [],
+    "definitionMatchesProduction": true
+  },
+  "isolatedStorageIncident": {
+    "status": "ISOLATED_STORE_FAULT",
+    "firstObservedAt": "2026-10-17T20:00:40+08:00",
+    "affectedAttempts": [
+      12,
+      "qa-regression"
+    ],
+    "exceptionTypes": [
+      "MVStoreException",
+      "ClosedChannelException"
+    ],
+    "cause": "UNRESOLVED; occurred after owner cancellation, interruption race suspected but not proven",
+    "productionServicesChanged": false,
+    "businessDatabaseChanged": false,
+    "ownPythonExecutionsActive": 0,
+    "originalStoreBackupSha256": "e34be15aaf1235e1d942a88fdc3e1d32ffcc24d4f5418c1a5e8296ebfc970680",
+    "databaseFileReplaced": false,
+    "serviceRestoredFromExistingStore": true,
+    "affectedParentTaskStopped": true,
+    "faultCauseConfirmed": false
+  },
+  "qaLiveRegression": {
+    "status": "NOT_VERIFIED",
+    "reason": "The initial supplemental question was corrupted by local PowerShell pipe encoding and stopped. The corrected UTF-8 question could not be submitted during the isolated H2 fault. This is not a model QA-routing pass or failure."
+  },
+  "codingHistoryDurability": {
+    "status": "PASSED",
+    "scope": "Actual Coding event identities before and after isolated API/store restart. This does not certify cancellation or business success.",
+    "beforeUniqueCodingEvents": 45,
+    "afterUniqueCodingEvents": 45,
+    "lostPreviouslyObservedCodingEvents": 0
+  },
+  "currentBrowserReplay": {
+    "taskSelected": true,
+    "eventCount": 45,
+    "codeButtons": 15,
+    "codeLoaded": true,
+    "error": null,
+    "codeBytes": 654
+  },
+  "currentBrowserDiff": {
+    "loaded": true,
+    "added": 14,
+    "deleted": 12,
+    "error": null
+  },
+  "functionalEvidenceGate": {
+    "status": "FAILED",
+    "taskId": "8e72b688-d78e-39ce-92a8-a9006f554395",
+    "runId": "att-1-d097ce39-9fde-47a5-b9f0-9bbd0c5e00e8",
+    "analysisAction": "CONTINUE",
+    "partialAnalysisAllowed": false,
+    "uniqueCodingEvents": 45,
+    "admittedResults": [],
+    "failures": [
+      "ANALYSIS_NOT_COMPLETE_WITHIN_REQUIRED_SCOPE",
+      "NO_ADMITTED_NONEMPTY_CODING_RESULT_WITH_EVIDENCE",
+      "TASK_NOT_SUCCEEDED"
+    ],
+    "limitation": "This gate checks execution/evidence contracts, not business numerical correctness or release readiness."
+  },
+  "independentNumericalVerification": {
+    "status": "BLOCKED",
+    "reason": "Isolated H2 channel closure interrupted the live run. Three stopped Python exploration operations produced no contracted result; the owner task was stopped after preserving and restarting the existing store.",
+    "endToEndAcceptancePassed": false,
+    "productionPublished": false
+  },
+  "modelInputAudit": {
+    "status": "BLOCKED",
+    "reason": "Isolated H2 channel closure interrupted the live run. Three stopped Python exploration operations produced no contracted result; the owner task was stopped after preserving and restarting the existing store.",
+    "endToEndAcceptancePassed": false,
+    "productionPublished": false
+  },
+  "reportReview": {
+    "status": "BLOCKED",
+    "reason": "Isolated H2 channel closure interrupted the live run. Three stopped Python exploration operations produced no contracted result; the owner task was stopped after preserving and restarting the existing store.",
+    "endToEndAcceptancePassed": false,
+    "productionPublished": false
+  },
+  "genericChanges": [
+    "Configurable classification and Coding reply ceilings; reserves cover the configured reply without weakening shared budget admission.",
+    "Exact immutable dataset references and bounded field types, without source samples, reach Coding.",
+    "Safe underscore auxiliary filenames; auxiliary completeness does not displace required JSONL integrity and stop-proof verification.",
+    "Shared dependency-free JSONL field-type inference supports optional/null/varying fields; trusted row contracts still reject wrong types. Trailing JSON values are rejected.",
+    "Explicit HTTP path-variable binding, scoped artifact access and a Coding panel in the actually published Tasks page.",
+    "Recursive result text boundaries reject bulk documents even when the declared string schema matches; failed validation returns metadata-only repair instructions without admitting result references.",
+    "Generic measurement-scope and time-basis rules; source profiles are planning metadata, not report-ready calculated quantities."
+  ],
+  "targetedBackend": {
+    "tests": 31,
+    "failures": 0,
+    "errors": 0,
+    "scope": "Four affected result-boundary suites, including nested bulk-text rejection and metadata-only repair; previous archive tests remain covered by the full gate; no business model fixture substituted for the live scenario."
+  },
+  "fullBackend": {
+    "run": "20261017-194913",
+    "status": "FAILED",
+    "full": {
+      "tests": 4382,
+      "failures": 149,
+      "errors": 65,
+      "skipped": 10
+    },
+    "selected": {
+      "tests": 149,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "previousFullRuns": [
+    {
+      "run": "20261017-171106",
+      "status": "FAILED",
+      "full": {
+        "tests": 4368,
+        "failures": 149,
+        "errors": 65,
+        "skipped": 10
+      },
+      "selected": {
+        "tests": 135,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "run": "20261017-180517",
+      "status": "FAILED",
+      "full": {
+        "tests": 4373,
+        "failures": 149,
+        "errors": 65,
+        "skipped": 10
+      },
+      "selected": {
+        "tests": 136,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "run": "20261017-183505",
+      "status": "FAILED",
+      "full": {
+        "tests": 4373,
+        "failures": 151,
+        "errors": 65,
+        "skipped": 10
+      },
+      "selected": {
+        "tests": 136,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "run": "20261017-190607",
+      "status": "FAILED",
+      "full": {
+        "tests": 4378,
+        "failures": 149,
+        "errors": 65,
+        "skipped": 10
+      },
+      "selected": {
+        "tests": 136,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    }
+  ],
+  "finalFailedTestIdentityComparison": {
+    "comparisonScope": "Failed test identity sets; this is not a clean-checkout baseline rerun",
+    "referenceRun": "20261017-171106",
+    "currentRun": "20261017-194913",
+    "referenceTests": 4368,
+    "currentTests": 4382,
+    "referenceFailureEntries": 214,
+    "currentFailureEntries": 214,
+    "referenceUniqueFailedTestIdentities": 213,
+    "currentUniqueFailedTestIdentities": 213,
+    "addedFailures": [],
+    "absentFailures": [],
+    "sameFailedCaseSet": true,
+    "fullGate": "FAILED"
+  },
+  "preJsonlFailureComparison": {
+    "reference": "20261017-180517",
+    "candidate": "20261017-183505",
+    "scope": "Pre JSONL optional-field correction",
+    "referenceCounts": {
+      "tests": 4373,
+      "failures": 149,
+      "errors": 65,
+      "skipped": 10
+    },
+    "candidateCounts": {
+      "tests": 4373,
+      "failures": 151,
+      "errors": 65,
+      "skipped": 10
+    },
+    "addedFailureIdentities": [
+      [
+        "com.chatchat.chat.task.event.AgentRuntimeTaskEventPublisherTest",
+        "publishesEachDeferredRuntimeEventWithoutWaitingForAnEndOfRunBatch",
+        "FAILURE"
+      ],
+      [
+        "com.chatchat.integration.agent.A2aHttpJsonAgentGatewayTest",
+        "sendsProjectedContractThroughSdkRestTransport",
+        "FAILURE"
+      ]
+    ],
+    "absentFailureIdentities": []
+  },
+  "timingFailureIsolatedRecheck": {
+    "tests": 14,
+    "failures": 0,
+    "errors": 0,
+    "suites": [
+      "AgentRuntimeTaskEventPublisherTest",
+      "A2aHttpJsonAgentGatewayTest"
+    ],
+    "doesNotOverrideFailedFullGate": true
+  },
+  "deployment": {
+    "recordedAt": "2026-10-17T12:08:51.731086+00:00",
+    "candidateApiSha256": "c81809d8ac3dd6d3402782f09c31345d63ffe06d3a80d0e8a6aa99d88afe921e",
+    "productionApiSha256": "ed92b91e64170827ea0da83718bf0abbca6342db9d365aa371ffeb4fd4e8c63a",
+    "productionMcpSha256": "c49d240ffda0e726dab82f939e076338ead85f07a3127faca1339c604691b7ed",
+    "productionApiMatchesInitialHash": true,
+    "productionMcpMatchesInitialHash": true,
+    "workerImage": "runtime-coding-agent:python-analysis-20261017",
+    "workerImageId": "sha256:992c510c71b486dba9c1f02cf9008a15c0d978fe15b1c252d3e95820d02ac5b9",
+    "workerReadOnly": true,
+    "workerCapabilitiesDropped": [
+      "ALL"
+    ],
+    "workerMemoryLimit": 536870912,
+    "workerInternalNetwork": true,
+    "productionBinariesReplaced": false,
+    "candidateApiListener": "127.0.0.1:18080",
+    "candidateMcpListener": "127.0.0.1:18090",
+    "candidateMcpCallerOverlay": true,
+    "candidateMcpArchiveClassSha256": "141d937f16791a83e4c74a52bb33b7ff93a64910623869c740f023017f9006c6",
+    "pythonDataRoot": "/opt/runtime-db-ops-20261017/mcp-stage/app/data/python-user-data",
+    "pythonWorkspaceRoot": "/opt/runtime-db-ops-20261017/mcp-stage/app/data/python-assets",
+    "businessDatabaseConnections": "Original authorized registered sources; real SQL execution, no copied business fixture",
+    "runtimePatch": {
+      "selectedTests": 62,
+      "failures": 0,
+      "workspaceClassSha256": "141d937f16791a83e4c74a52bb33b7ff93a64910623869c740f023017f9006c6",
+      "collectorClassSha256": "cf18bf2a07320c405007fd24425fa354a2d9fd3b4528b5600eed89d13ec926d8",
+      "commonJarSha256": "4e1e252c38b24398cca4c6822550ceec54b053a20ef4721e64ca1de8a7f9bc97",
+      "apiOverlaySha256": "0af3242517dea714d5d136f4923a15dd9444d0a3c047782cd8457efd3453dbf1",
+      "sourceHead": "d9ce8caf5d577f99b899550c7298cd306625182b",
+      "productionPublished": false,
+      "errors": 0,
+      "mcpOverlaySha256": "a9233ab718437c6f8036eca8091992bf86442623e363ba86788f35d505d40661"
+    },
+    "candidateApiSharedLibrarySha256": "4e1e252c38b24398cca4c6822550ceec54b053a20ef4721e64ca1de8a7f9bc97",
+    "candidateMcpSharedLibrarySha256": "4e1e252c38b24398cca4c6822550ceec54b053a20ef4721e64ca1de8a7f9bc97",
+    "candidateCollectorClassSha256": "cf18bf2a07320c405007fd24425fa354a2d9fd3b4528b5600eed89d13ec926d8",
+    "resultBoundaryPatch": {
+      "overlaySha256": "d8c8b85acec88747125767c83cf38f066f442c03fc7e84390996e84d2c2c2452",
+      "classes": {
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/evidence/CodingSchemaResultVerifier.class": "f7f1ea8b01e36e9f820388893956526617f8f4cb27caf0949d0f818cacaf049e",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.class": "64f4edd02f5aed574d8c7b917716deac7389438e2c6360bdf19f9c013f11250e",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController$Call.class": "a1a059bdcbb77332fcd842313c12b4b0cc6d9c3d8c1283e1b0c2d6214769c069",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController.class": "b8807ba14e00723482b3cea82c3e178aae17391016d81341659d0345ed2a4033"
+      },
+      "targetedTests": 31,
+      "failures": 0,
+      "errors": 0,
+      "productionPublished": false
+    },
+    "candidateResultBoundaryClassesVerified": true
+  },
+  "resultBoundaryRuntimePatch": {
+    "overlaySha256": "d8c8b85acec88747125767c83cf38f066f442c03fc7e84390996e84d2c2c2452",
+    "classes": {
+      "BOOT-INF/classes/com/chatchat/api/runtime/coding/evidence/CodingSchemaResultVerifier.class": "f7f1ea8b01e36e9f820388893956526617f8f4cb27caf0949d0f818cacaf049e",
+      "BOOT-INF/classes/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.class": "64f4edd02f5aed574d8c7b917716deac7389438e2c6360bdf19f9c013f11250e",
+      "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController$Call.class": "a1a059bdcbb77332fcd842313c12b4b0cc6d9c3d8c1283e1b0c2d6214769c069",
+      "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController.class": "b8807ba14e00723482b3cea82c3e178aae17391016d81341659d0345ed2a4033"
+    },
+    "targetedTests": 31,
+    "failures": 0,
+    "errors": 0,
+    "productionPublished": false
+  },
+  "observedRawResultBypass": {
+    "attempt": 11,
+    "taskId": "8a54d018-afe9-3b71-9953-c39d29a43a16",
+    "sourceDocumentChars": 14062,
+    "businessAcceptance": "FAILED",
+    "promptAudit": {
+      "status": "FAILED",
+      "scope": "Actual persisted native-analysis model inputs for attempt 11.",
+      "finding": "A 14062-character raw source document was present in the second native input, after Python copied it into a schema-valid result.",
+      "sourceProfilesWereMetadataOnly": true,
+      "derivedResultBoundaryPassed": false,
+      "originalEvidencePreserved": true
+    },
+    "schemaAndExecutionGateAlonePassed": true,
+    "originalEvidencePreserved": true
+  },
+  "jsonlRuntimePatch": {
+    "selectedTests": 62,
+    "failures": 0,
+    "workspaceClassSha256": "141d937f16791a83e4c74a52bb33b7ff93a64910623869c740f023017f9006c6",
+    "collectorClassSha256": "cf18bf2a07320c405007fd24425fa354a2d9fd3b4528b5600eed89d13ec926d8",
+    "commonJarSha256": "4e1e252c38b24398cca4c6822550ceec54b053a20ef4721e64ca1de8a7f9bc97",
+    "apiOverlaySha256": "0af3242517dea714d5d136f4923a15dd9444d0a3c047782cd8457efd3453dbf1",
+    "sourceHead": "d9ce8caf5d577f99b899550c7298cd306625182b",
+    "productionPublished": false,
+    "errors": 0,
+    "mcpOverlaySha256": "a9233ab718437c6f8036eca8091992bf86442623e363ba86788f35d505d40661"
+  },
+  "stagingBudget": {
+    "modelReplyMaxOutputTokens": 16384,
+    "classificationMaxOutputTokens": 4096,
+    "sharedMaxModelCalls": 24,
+    "sharedMaxModelTokens": 786432,
+    "isolatedProxyReadTimeoutSeconds": 300,
+    "maxCostAmount": "10",
+    "costCurrency": "USD",
+    "maxCpuMillis": 300000,
+    "unknownUsageReservationsRetained": true
+  },
+  "realBulkTextBoundaryReplay": {
+    "status": "PASSED",
+    "scope": "VALIDATOR_REPLAY_ONLY; actual immutable attempt-11 file, no Sandbox execution or evidence admission",
+    "originalArtifactSha256": "dcdbec99724afa7bbc9005ee55c6c7e29cb6f5ea431bafec11cc0ee0ff11628c",
+    "replayedRows": 1,
+    "originalFileRewritten": false,
+    "resultAccepted": false,
+    "checks": {
+      "boundedResultText": false,
+      "resultRows": 1,
+      "maxResultTextChars": 2048,
+      "validationScope": "STRUCTURAL_ONLY",
+      "businessValidation": "NOT_EVALUATED",
+      "rowSchemaMatched": true
+    }
+  },
+  "realOptionalJsonlStructuralReplay": {
+    "scope": "STRUCTURAL_REPLAY_ONLY",
+    "newSandboxExecutionClaimed": false,
+    "newResultReferenceRegistered": false,
+    "originalRows": 3,
+    "originalCompleteness": "PARTIAL",
+    "correctedRows": 45,
+    "correctedCompleteness": "PRESENT",
+    "unchangedResultSha256": "7dc84fa7a73b9505d86cb9fc95919de1dfb74d5284c95688384718f7dd44a93e",
+    "observedFieldTypes": {
+      "category": "STRING",
+      "detail": "MISSING|STRING",
+      "metric": "STRING",
+      "numeric_value": "MISSING|NUMBER",
+      "value": "STRING"
+    },
+    "originalEvidenceUntouched": true,
+    "loadedClassLocation": "file:/opt/runtime-db-ops-20261017/mcp-stage/app/BOOT-INF/classes/"
+  },
+  "previousAttempt10Calculation": {
+    "status": "PASSED",
+    "scope": "Independent Decimal arithmetic on actual immutable snapshots; generated programs were not re-executed by this checker. This does not certify unsupported report interpretations.",
+    "results": [
+      {
+        "operationId": "cline-09098c9282769af4cebf3abaeea5a85567e234e1f53a22dd30cf769dc5578dbf",
+        "datasetReference": "runtime-evidence:coding:da302c40e1eac131f7b6a01b9bd54e487bf18c22e6a3cc218ead7194f8339b07:result",
+        "resultSha256": "b93102db57f256feccfcab7459c90779b8e1c63928b56b8598d25f9924c52d01",
+        "allCodeInputAndArtifactHashesVerified": true,
+        "kind": "SQL_DIGEST_AGGREGATES",
+        "scope": "DELIVERED_DIGEST_ROWS_ONLY",
+        "sourceRows": 20,
+        "numericChecks": 7,
+        "topFiveOrderVerified": true
+      },
+      {
+        "operationId": "cline-5f0c2d3822b8a9273fc8e72eac9effe97da88dfa3f535947c966af4a5716ffea",
+        "datasetReference": "runtime-evidence:coding:0b15f6d33cfed529640dfb49eeb6d89ae60a8c3e5ecf404a954075b2af95cfc5:result",
+        "resultSha256": "d19ce14365e0c804cb4e350de478073303ae8fd00c336bae9ee4ee316d4fdd94",
+        "allCodeInputAndArtifactHashesVerified": true,
+        "kind": "INNODB_GLOBAL_COUNTERS",
+        "scope": "INSTANCE_GLOBAL_SINGLE_SNAPSHOT",
+        "numericChecks": 14,
+        "sourceRows": 375,
+        "metrics": {
+          "buffer_pool_size_bytes": "4294967296",
+          "hit_rate_pct": "99.921535",
+          "row_lock_current_waits": "0",
+          "row_lock_waits": "56",
+          "row_lock_time_avg_ms": "5838",
+          "threads_connected": "87",
+          "threads_running": "1"
+        }
+      }
+    ],
+    "measurementLimits": [
+      "Digest sums cover only returned selected digest rows, not every statement in the instance.",
+      "Cumulative counters do not establish current frequency, throughput, pressure or an abnormality."
+    ]
+  },
+  "previousAttempt10ProxyFailure": {
+    "readTimeoutSeconds": 120,
+    "actualModelCallMillis": 161340,
+    "reportStatus": "PARTIAL",
+    "isolatedProxyReadTimeoutAfterFix": 300,
+    "productionProxyChanged": false
+  },
+  "previousCoreCalculation": {
+    "status": "PASSED",
+    "method": "Read immutable archived input; verify all code, input and artifact hashes; reconcile 13 source counters and recompute two ratios using independent Decimal arithmetic. Generated programs were not executed by this verifier.",
+    "operations": [
+      {
+        "operationId": "cline-3da8c13fd5dc3ea4cc12d59f2faefaef8bce00071e2759344cefd9bf3c487415",
+        "integrityVerified": true,
+        "requiredRowsPresent": true,
+        "rows": 15,
+        "directSourceValuesReconciled": 13,
+        "independentlyRecomputedRatios": 2,
+        "resultSha256": "3c3d8dc6ad923a3edac4b16f879405cd651ec295993288421b1f2c661936fd40",
+        "metrics": {
+          "bufferPoolBytes": 4294967296,
+          "cumulativeReadHitPercent": "99.921523",
+          "allocatedPagePercent": "96.874237"
+        }
+      },
+      {
+        "operationId": "cline-7b638385b1cdeea07fc4a44386a472123102cf925bad480a0177dd9edd6b16c9",
+        "integrityVerified": true,
+        "requiredRowsPresent": true,
+        "rows": 15,
+        "directSourceValuesReconciled": 13,
+        "independentlyRecomputedRatios": 2,
+        "resultSha256": "72ebb77ea07c61c588285dd4beb4d6f6aae223d96e8b7d0f8342c4a907cf1eb9",
+        "metrics": {
+          "bufferPoolBytes": 4294967296,
+          "cumulativeReadHitPercent": "99.921523",
+          "allocatedPagePercent": "96.874237"
+        }
+      },
+      {
+        "operationId": "cline-b393e85cb030b5479e3ef7d6546ffc1f735f150d1153650dba3d9be46f7c9c12",
+        "integrityVerified": true,
+        "requiredRowsPresent": false
+      }
+    ],
+    "interpretationLimitations": [
+      "Instance/global measurements do not establish the target database alone.",
+      "A single cumulative counter does not establish current frequency, recent load or an abnormality.",
+      "Allocated cache pages alone do not establish memory pressure."
+    ],
+    "businessReportScope": "PARTIAL_COMPLETE: additional requested analysis exhausted the shared budget."
+  },
+  "previousModelInputAudit": {
+    "status": "PASSED",
+    "scope": "Actual persisted native-analysis model inputs and Coding SDK tool results for attempt 8; protected stdout/stderr archives were not treated as model inputs.",
+    "nativeModelInputs": [
+      {
+        "checkpoint": "harness:input:1",
+        "sourceProfileOnlyViews": 9,
+        "promptChars": 23628,
+        "rawSourceRecordArraysPresent": false
+      },
+      {
+        "checkpoint": "harness:input:2",
+        "sourceProfileOnlyViews": 9,
+        "promptChars": 33697,
+        "rawSourceRecordArraysPresent": false
+      }
+    ],
+    "codingToolResults": [
+      {
+        "operationId": "cline-108f2af5a99ee2f9347a81e85daca3a6c8237a10ecfb8e0ba32f1155b17cba3d",
+        "tool": "python_execute",
+        "stdoutBytes": 382,
+        "outputStatus": "REQUIRED_OUTPUT_MISSING",
+        "rawOutputForwarded": false
+      },
+      {
+        "operationId": "cline-f90fcad7d690ca91f07209496ee666e31a1eefc587ffa81e38f2d30d04692805",
+        "tool": "python_execute",
+        "stdoutBytes": 8192,
+        "outputStatus": "REQUIRED_OUTPUT_MISSING",
+        "rawOutputForwarded": false
+      },
+      {
+        "operationId": "cline-b393e85cb030b5479e3ef7d6546ffc1f735f150d1153650dba3d9be46f7c9c12",
+        "tool": "python_execute",
+        "stdoutBytes": 1320,
+        "outputStatus": "REQUIRED_OUTPUT_MISSING",
+        "rawOutputForwarded": false
+      },
+      {
+        "operationId": "cline-3da8c13fd5dc3ea4cc12d59f2faefaef8bce00071e2759344cefd9bf3c487415",
+        "tool": "python_execute",
+        "stdoutBytes": 318,
+        "outputStatus": null,
+        "rawOutputForwarded": false
+      },
+      {
+        "operationId": "cline-7b638385b1cdeea07fc4a44386a472123102cf925bad480a0177dd9edd6b16c9",
+        "tool": "python_execute",
+        "stdoutBytes": 44,
+        "outputStatus": null,
+        "rawOutputForwarded": false
+      }
+    ],
+    "limitation": "Structural/numeric source profiles remain planning metadata; the follow-up generic prompt correction prohibits using them as report-ready analytical measurements."
+  },
+  "previousBrowserReplay": {
+    "taskSelected": true,
+    "eventCount": 83,
+    "codeButtons": 25,
+    "codeLoaded": true,
+    "error": null,
+    "codeBytes": 6422
+  },
+  "previousBrowserDiff": {
+    "loaded": true,
+    "added": 170,
+    "deleted": 15,
+    "error": null
+  },
+  "observedOptionalFieldDefect": {
+    "attempt": 9,
+    "validJsonlRows": 45,
+    "rowsMatchingDeclaredContract": 45,
+    "originalManifestRows": 3,
+    "originalCompleteness": "PARTIAL",
+    "originalArtifactSha256": "7dc84fa7a73b9505d86cb9fc95919de1dfb74d5284c95688384718f7dd44a93e",
+    "originalManifestRewritten": false
+  },
+  "knownLimitations": [
+    "Latest live acceptance was interrupted by an isolated H2 ClosedChannelException after owner cancellation. Restart restored the existing store; the cancellation/storage relationship remains unresolved.",
+    "The full release gate remains authoritative; local failure-set comparisons are not a fresh clean-checkout baseline run.",
+    "Generic result validation certifies structure, not business correctness; numerical acceptance is independently scoped to the checks recorded here.",
+    "Python CPU usage remains unmetered; disk and output-byte hard limits are not fully enforced by the current executor. Conservative reservations remain held.",
+    "A cancelled earlier staging attempt was once observed returning to WAIT_MODEL after restart; repeated owner cancellation persisted. This recovery observation remains unresolved.",
+    "Text-size boundaries reduce bulk document forwarding but cannot prove semantic aggregation or rule out all small raw records; result and report review remain separate acceptance checks.",
+    "Application-wide legacy logging was not certified by the Coding trace/model-input privacy audit."
+  ],
+  "privateEvidencePolicy": "Raw source observations, private journals, generated programs and stdout/stderr remain in ignored target directories and protected staging storage; this record contains bounded results and technical proof metadata."
+}

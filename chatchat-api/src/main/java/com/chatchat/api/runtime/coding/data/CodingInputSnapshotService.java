@@ -73,6 +73,26 @@ public final class CodingInputSnapshotService {
         description.put("format","JSON_LINES");
         description.put("encoding","UTF-8");
         description.put("qualitySummary",record.payload().getOrDefault("qualitySummary",Map.of()));
+        if(record.payload().get("inputVersions") instanceof List<?> versions) {
+            var projected=new ArrayList<Map<String,Object>>();
+            for(Object version:versions)if(version instanceof Map<?,?> fields) {
+                var item=new LinkedHashMap<String,Object>();
+                for(String key:List.of("datasetReference","contentSha256","rowCount","schemaCoverage"))
+                    if(fields.get(key) instanceof String || fields.get(key) instanceof Number)item.put(key,fields.get(key));
+                if(fields.get("fieldSchema") instanceof Map<?,?> schema) {
+                    var safe=new TreeMap<String,List<String>>();
+                    for(var field:schema.entrySet())if(safe.size()<256 && field.getKey() instanceof String name
+                            && field.getValue() instanceof java.util.Collection<?> types) {
+                        var allowed=types.stream().map(String::valueOf).filter(type->java.util.Set.of(
+                            "STRING","NUMBER","BOOLEAN","NULL","OBJECT","ARRAY","BINARY","POJO").contains(type)).sorted().toList();
+                        if(!allowed.isEmpty())safe.put(name,allowed);
+                    }
+                    item.put("fieldSchema",safe);
+                }
+                projected.add(Map.copyOf(item));
+            }
+            description.put("inputVersions",List.copyOf(projected));
+        }
         if(input.chunked())description.put("chunks",input.chunks());
         return Map.copyOf(description);
     }

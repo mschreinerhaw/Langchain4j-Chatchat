@@ -138,6 +138,11 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 +". Plan the analysis, inspect data types, missing dates, duplicate keys and precision before calculating. "
                 +"Never invent missing observations, trading calendars, business formulas, rounding policies or silently repair business data. "
                 +"For multi-dataset input, each JSONL row is {datasetReference,record}; join by explicit keys and report unmatched rows. "
+                +"Dataset references in inputVersions are exact opaque keys, including all suffixes. Never replace them with guessed short labels. "
+                +"Use each input version's fieldSchema to write the complete calculation; source samples and printed rows are not returned to the model. "
+                +"Write auxiliary diagnostics under /workspace/output/validation; only contracted analysis rows belong under /workspace/output/results. "
+                +"Parse source documents and diagnostic text in Python into calculated metrics and concise findings. "
+                +"Never copy raw source documents, logs or record collections into a result field; oversized text fields are rejected. "
                 +"For charts produce chart-ready columns and explicit chart specification in the contracted row schema; never fabricate plotted values. "
                 +"Use Decimal for exact money calculations when required. Inspect receipts and repair technical failures with a complete program. "
                 +"Schema checks do not establish business correctness. Explain limitations in your summary.";
@@ -262,7 +267,14 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             var selected=sources.get(text(ref,512));if(selected==null)throw new SecurityException("Coding input is not delivered in this analysis");
             if(!selected.handle().recordCountExact()||selected.recordCount()>policy.getMaxInputRows()-total)throw new IllegalArgumentException("Combined Coding input row limit");
             total+=selected.recordCount();selectedSources.add(selected);
-            versions.add(Map.of("datasetReference",selected.reference(),"contentSha256",selected.handle().contentSha256(),"rowCount",selected.recordCount()));
+            var fieldSchema=new TreeMap<String,java.util.Set<String>>();
+            var schemaPage=selected.handle().readPage(0,1000);
+            for(var row:schemaPage.rows())json.valueToTree(row).properties().forEach(field->{
+                if(fieldSchema.size()<256 || fieldSchema.containsKey(field.getKey()))
+                    fieldSchema.computeIfAbsent(field.getKey(),ignored->new java.util.TreeSet<>()).add(field.getValue().getNodeType().name());
+            });
+            versions.add(Map.of("datasetReference",selected.reference(),"contentSha256",selected.handle().contentSha256(),
+                "rowCount",selected.recordCount(),"fieldSchema",fieldSchema,"schemaCoverage","BOUNDED_STRUCTURAL_ONLY"));
         }
         final long count=total;
         var handle=new com.chatchat.agents.orchestration.analysis.dataset.PagedDatasetHandle(count,true,(offset,limit)->{

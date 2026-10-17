@@ -121,6 +121,9 @@ public final class ModelNativeAnalysisHarness {
             String instructions = ModelAnalysisPrompt.CORE
                 + (pythonRequired ? "\nEXECUTION POLICY: PYTHON_REQUIRED overrides optional Coding instructions. Raw rows are execution-only. "
                     + "Use RUN_CODING for all data calculations, diagnostics and transformations. Do not read raw rows or use batch model inference. "
+                    + "Source profiles, including numeric summaries and record counts, are navigation/quality metadata, not report-ready analytical results. "
+                    + "Obtain reported quantities from admitted Coding outputs; record or text-fragment counts are not domain entity counts. "
+                    + "Related calculations may share one Coding task over authorized inputs; all delegated tasks share this run's cumulative budget. "
                     + "READ_* operations may inspect only admitted Coding result datasets. COMPLETE requires an admitted result. "
                     + "If execution fails or is pending, report limitations with PARTIAL_COMPLETE; never invent computed values.\n" : "")
                 + (coding == null ? "" : "For multi-record calculations, prefer RUN_CODING over reading all source rows into the model. "

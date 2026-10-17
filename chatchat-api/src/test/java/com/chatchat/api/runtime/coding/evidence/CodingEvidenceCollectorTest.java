@@ -67,6 +67,38 @@ class CodingEvidenceCollectorTest {
         tasks.submit(contract);
     }
     @AfterEach void shutdown() { timer.shutdownNow(); workers.shutdownNow(); }
+    private Map<String,Object> optionalAmountRules() {
+        return Map.of("rowSchema",Map.of("type","object","properties",Map.of(
+            "amount",Map.of("type","number"),"note",Map.of("type","string")),
+            "required",List.of("note"),"additionalProperties",false));
+    }
+    @Test void optionalColumnsAreAdmittedUnderTheirDeclaredOutputContract() throws Exception {
+        fixture("{\"amount\":12.5,\"note\":\"observed\"}\n{\"note\":\"not applicable\"}\n","PRESENT",true,
+            "{\"amount\":\"MISSING|NUMBER\",\"note\":\"STRING\"}",2);
+        var result=collector(store).collect(scope,contract,"op","main.py","rows.jsonl",
+            List.of(new CodingEvidenceCollector.InputFile("prices","prices.csv",sha("amount\n12.50\n"))),
+            rows->new CodingSchemaResultVerifier().verify(scope,null,optionalAmountRules(),rows));
+        assertThat(result.validationStatus()).isEqualTo(CodingTaskOutcome.ValidationStatus.INCONCLUSIVE);
+        try(var dataset=collector(reopen()).openResult(scope,"task",result.resultDatasetRef())) {
+            assertThat(dataset.recordCount()).isEqualTo(2);
+            assertThat(dataset.readPage(0,2).rows().get(1)).doesNotContainKey("amount");
+        }
+    }
+    @Test void observedMixedTypesDoNotBypassTheTrustedOutputContract() throws Exception {
+        fixture("{\"amount\":12.5,\"note\":\"observed\"}\n{\"amount\":\"invalid\",\"note\":\"wrong type\"}\n","PRESENT",true,
+            "{\"amount\":\"NUMBER|STRING\",\"note\":\"STRING\"}",2);
+        var result=collector(store).collect(scope,contract,"op","main.py","rows.jsonl",
+            List.of(new CodingEvidenceCollector.InputFile("prices","prices.csv",sha("amount\n12.50\n"))),
+            rows->new CodingSchemaResultVerifier().verify(scope,null,optionalAmountRules(),rows));
+        assertThat(result.validationStatus()).isEqualTo(CodingTaskOutcome.ValidationStatus.FAILED);
+    }
+    @Test void trailingJsonValuesCannotBeAdmittedByAValidManifestCount() throws Exception {
+        fixture("{\"amount\":1} {\"amount\":2}\n","PRESENT");
+        assertThatThrownBy(()->collector(store).collect(scope,contract,"op","main.py","rows.jsonl",
+            List.of(new CodingEvidenceCollector.InputFile("prices","prices.csv",sha("amount\n12.50\n"))),
+            rows->new CodingEvidenceCollector.Validation(true,Map.of())))
+            .isInstanceOf(CodingEvidenceCollector.InvalidStructuredResultException.class);
+    }
     JdbcRuntimeEvidenceStore reopen() {
         return new JdbcRuntimeEvidenceStore(new JdbcTemplate(dataSource), json, new DataSourceTransactionManager(dataSource));
     }
@@ -125,6 +157,32 @@ class CodingEvidenceCollectorTest {
             "select count(*) from runtime_evidence_entry where entry_kind='EVIDENCE'", Integer.class)).isZero();
     }
 
+    @Test void auxiliaryMetadataDoesNotBecomeAnalysisRowsOrInvalidateVerifiedRequiredJsonl() throws Exception {
+        fixture("{\"amount\":12.50}\n","PRESENT");
+        var operation=python.get("tenant","owner","run","task","op");
+        var manifest=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree(
+            python.artifact("tenant","owner","run","task","op","manifest","manifest.json"));
+        String auxiliary="{\"debug\":true}";
+        ((com.fasterxml.jackson.databind.node.ArrayNode)manifest.path("artifacts")).add(json.valueToTree(Map.of(
+            "channel","results","fileName","_summary.json","size",auxiliary.length(),"sha256",sha(auxiliary),
+            "rows",-1,"completeness","UNVERIFIED")));
+        manifest.put("resultCompleteness","UNVERIFIED");String encoded=json.writeValueAsString(manifest);
+        when(python.artifact("tenant","owner","run","task","op","manifest","manifest.json"))
+            .thenReturn(encoded.getBytes(StandardCharsets.UTF_8));
+        when(python.artifact("tenant","owner","run","task","op","results","_summary.json"))
+            .thenReturn(auxiliary.getBytes(StandardCharsets.UTF_8));
+        when(python.get("tenant","owner","run","task","op"))
+            .thenReturn(new McpPythonControlPlanePort.OperationView("op","SUCCEEDED","container",1,false,true,0,
+                operation.codeHash(),"sha256:image",sha(encoded),null));
+        var result=collector(store).collect(scope,contract,"op","main.py","rows.jsonl",
+            List.of(new CodingEvidenceCollector.InputFile("prices","prices.csv",sha("amount\n12.50\n"))),
+            rows->new CodingEvidenceCollector.Validation(true,Map.of()));
+        try(var dataset=collector(store).openResult(scope,"task",result.resultDatasetRef())) {
+            assertThat(dataset.recordCount()).isEqualTo(1);
+            assertThat(dataset.readPage(0,1).rows().get(0)).containsKey("amount").doesNotContainKey("debug");
+        }
+    }
+
     @Test void archiveCommitFailureLeavesNoDanglingReferenceAndRestartCommitsWithoutRerun() throws Exception {
         fixture("{\"amount\":12.50}\n", "PRESENT");
         JdbcRuntimeEvidenceStore failed = spy(reopen());
@@ -162,15 +220,17 @@ class CodingEvidenceCollectorTest {
         fixture(result,completeness,true);
     }
     void fixture(String result, String completeness, boolean publishResult) throws Exception {
+        fixture(result,completeness,publishResult,result.isBlank()?null:"{\"amount\":\"NUMBER\"}",result.isBlank()?0:1);
+    }
+    void fixture(String result,String completeness,boolean publishResult,String schema,long rowCount) throws Exception {
         String code = "print('fixed')\n", input = "amount\n12.50\n";
         String receipt = json.writeValueAsString(Map.of("operationId", "op", "stopConfirmed", true,
             "fencingToken", 1, "startedAt", "2026-10-15T01:00:00Z", "containerName", "container",
             "imageDigest", "sha256:image"));
-        String schema = result.isBlank() ? null : "{\"amount\":\"NUMBER\"}";
         Map<String, Object> resultEntry = new LinkedHashMap<>();
         resultEntry.put("channel", "results"); resultEntry.put("fileName", "rows.jsonl");
         resultEntry.put("size", result.getBytes(StandardCharsets.UTF_8).length);
-        resultEntry.put("sha256", sha(result)); resultEntry.put("rows", result.isBlank() ? 0 : 1);
+        resultEntry.put("sha256", sha(result)); resultEntry.put("rows", rowCount);
         resultEntry.put("completeness", completeness); resultEntry.put("schemaJson", schema);
         Map<String, Object> receiptEntry = new LinkedHashMap<>();
         receiptEntry.put("channel", "logs"); receiptEntry.put("fileName", "receipt.json");

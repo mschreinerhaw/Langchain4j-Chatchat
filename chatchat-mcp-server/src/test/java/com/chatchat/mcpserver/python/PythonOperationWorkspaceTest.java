@@ -14,6 +14,51 @@ import static org.mockito.Mockito.mock;
 
 class PythonOperationWorkspaceTest {
     @TempDir Path temporary;
+    @Test void optionalAndNullFieldsDoNotMakeSyntacticallyCompleteJsonlPartial() throws Exception {
+        var properties=new PythonRuntimeProperties();properties.setWorkspaceRoot(temporary.toString());
+        var json=new ObjectMapper();
+        var workspaces=new PythonOperationWorkspace(properties,mock(PythonDataFileService.class),json);
+        Path path=workspaces.path("tenant","owner","run","task","optional",1);
+        workspaces.prepare(path,"main.py","print(1)",Map.of(),"tenant","owner",List.of());
+        Files.writeString(path.resolve("output/results/rows.jsonl"),
+            "{\"value\":1,\"note\":\"observed\"}\n{\"value\":null}\n{\"note\":\"not applicable\"}\n");
+        var manifest=workspaces.archive(path);
+        var result=manifest.artifacts().get(0);
+        assertEquals("PRESENT",manifest.resultCompleteness());
+        assertEquals(3,result.rows());
+        assertEquals("MISSING|NULL|NUMBER",json.readTree(result.schemaJson()).path("value").asText());
+        assertEquals("MISSING|STRING",json.readTree(result.schemaJson()).path("note").asText());
+    }
+
+    @Test void twoJsonValuesOnOnePhysicalLineAreStillAnIncompleteJsonlArtifact() throws Exception {
+        var properties=new PythonRuntimeProperties();properties.setWorkspaceRoot(temporary.toString());
+        var workspaces=new PythonOperationWorkspace(properties,mock(PythonDataFileService.class),new ObjectMapper());
+        Path path=workspaces.path("tenant","owner","run","task","trailing",1);
+        workspaces.prepare(path,"main.py","print(1)",Map.of(),"tenant","owner",List.of());
+        Files.writeString(path.resolve("output/results/rows.jsonl"),"{\"value\":1} {\"value\":2}\n");
+        var manifest=workspaces.archive(path);
+        assertEquals("PARTIAL",manifest.resultCompleteness());
+        assertEquals(0,manifest.artifacts().get(0).rows());
+    }
+
+    @Test void underscoreAuxiliaryFilesAreArchivedWhileHiddenFilesAndDirectoriesStayRejected() throws Exception {
+        var properties=new PythonRuntimeProperties();properties.setWorkspaceRoot(temporary.toString());
+        var workspaces=new PythonOperationWorkspace(properties,mock(PythonDataFileService.class),new ObjectMapper());
+        Path valid=workspaces.path("tenant","owner","run","task","auxiliary",1);
+        workspaces.prepare(valid,"main.py","print(1)",Map.of(),"tenant","owner",List.of());
+        Files.writeString(valid.resolve("output/results/rows.jsonl"),"{\"count\":1}\n");
+        Files.writeString(valid.resolve("output/results/_summary.json"),"{\"rows\":1}");
+        var manifest=workspaces.archive(valid);
+        assertEquals("UNVERIFIED",manifest.resultCompleteness());
+        assertTrue(manifest.artifacts().stream().anyMatch(a->a.fileName().equals("_summary.json")));
+        for(String name:List.of(".hidden","nested")) {
+            Path invalid=workspaces.path("tenant","owner","run","task",name.replace(".",""),1);
+            workspaces.prepare(invalid,"main.py","print(1)",Map.of(),"tenant","owner",List.of());
+            if(name.equals("nested"))Files.createDirectory(invalid.resolve("output/results/nested"));
+            else Files.writeString(invalid.resolve("output/results/"+name),"{}");
+            assertThrows(IllegalStateException.class,()->workspaces.archive(invalid));
+        }
+    }
 
     @Test void zeroRowsMissingOutputAndPartialJsonlAreDistinct() throws Exception {
         PythonRuntimeProperties properties = new PythonRuntimeProperties();

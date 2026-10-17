@@ -16,6 +16,12 @@ import java.util.concurrent.*;
 @Component
 @lombok.extern.slf4j.Slf4j
 public class ProblemAnalysisPlanner {
+    private int classificationMaxOutputTokens = 2048;
+    @org.springframework.beans.factory.annotation.Value("${chatchat.chat.task-classification.max-output-tokens:2048}")
+    public void setClassificationMaxOutputTokens(int tokens) {
+        if (tokens < 1 || tokens > 65536) throw new IllegalArgumentException("Invalid classification output limit");
+        classificationMaxOutputTokens = tokens;
+    }
     private final ChatModel defaultModel;
     private final ConfigurableChatModelFactory models;
     private final ObjectMapper mapper;
@@ -53,7 +59,7 @@ public class ProblemAnalysisPlanner {
                     "conversationSummary", bounded(context.conversationSummary(), 1000),
                     "agentDescription", bounded(agent.description(), 1500), "selectedToolPurposes", purposes));
             String name = agent.modelName() == null || agent.modelName().isBlank() ? request.getModelName() : agent.modelName();
-            String answer = (name == null || name.isBlank() ? defaultModel : models.create(name, null, 512)).chat(prompt);
+            String answer = (name == null || name.isBlank() ? defaultModel : models.create(name, null, classificationMaxOutputTokens)).chat(prompt);
             InteractionExecution.checkCancellation(request);
             if (answer == null || answer.length() > 1000) throw new IllegalArgumentException("Invalid classification output");
             String json = answer.strip().replace("\r\n", "\n");

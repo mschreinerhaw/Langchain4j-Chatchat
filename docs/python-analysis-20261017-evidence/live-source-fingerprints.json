@@ -1,0 +1,33 @@
+{
+  "sourceHead": "d9ce8caf5d577f99b899550c7298cd306625182b",
+  "changesCommitted": false,
+  "sourceFiles": {
+    "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/graph/ModelAnalysisPrompt.java": "467a0cc49a455bede71837c03464a0d0a9b1f3f05365ae789bb32d93aa759b60",
+    "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/graph/ModelNativeAnalysisHarness.java": "e56e1f5c328c40d9ea25222fa1e1d974bd11e2cdde387f2fcd5313794e8a0b3e",
+    "chatchat-api/src/main/java/com/chatchat/api/controller/agent/CodingTraceArtifactController.java": "0dd596a97aaf79f56e936a31c987331e291495eae9df9dca947fdfebb48cce70",
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java": "1f975ee02096350bcc5a4305de28d8a90f17c8782ab8aa9be28ea487f21b91b6",
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController.java": "ae5ad921ca574977fb9233960d7262ff66d9b9a7a990690db458e228b2902935",
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController.java": "c92571f7c8dd9c4e59cdd25e377a4f824e3057f0c8c0c4a7b7ce6c0d28811631",
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineRuntimeModelBridge.java": "d21b8d6123e5c554f55267e7bca6e7f60beb0c0236ce7a2c9d58d7dd6d0ee286",
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/data/CodingInputSnapshotService.java": "606789f02eda551eb17eba1eebd4aa736136209e05efa2a1542c6d70ec18d7ab",
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector.java": "8489fb3dba37930e58b1ea83ed92d0aa5161475865f272ed41eda7a1e9307c53",
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/CodingSchemaResultVerifier.java": "2f4bfbead9a255df771145bb897e022df3a2f43ecc7c6a964e36c70215024734",
+    "chatchat-api/src/test/java/com/chatchat/api/controller/agent/CodingTraceArtifactControllerTest.java": "8301722d68bbc3a13191a490102daf5928d029b775bc3600993b59e377c8acec",
+    "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackControllerTest.java": "aee555e37e906c6ed762aa4d9f39330d5511514ef31a3cb2624b0a0ac1340c39",
+    "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClineRuntimeModelBridgeTest.java": "0415270392df73e4be0f25290de6e9050607aa3164eafb5ff107c1b02cdb16e7",
+    "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/data/CodingInputSnapshotServiceTest.java": "3cca079e008ee72fd331d2bbe661f146577141a7a6223f7641aa35e06aeb6b60",
+    "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollectorTest.java": "504e7fddc613752008e059087adec7c0912cc0e2137dbf583a09aa38697bbadc",
+    "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/evidence/CodingSchemaResultVerifierTest.java": "5409f928f3e64f36e9853fb826923db7bc96af6b00b91065891bc8e218dd9792",
+    "chatchat-api/web-app/src/js/views/TasksView.js": "e3793a6575d60c5d8d9cda0995646fb9f9179a6f184921606b62209161a1151b",
+    "chatchat-api/web-app/src/views/TasksView.vue": "dbdab84611ae1a203ad4e323b3c46b71d526611e372adf034604a3d718ffcf32",
+    "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/ProblemAnalysisPlanner.java": "c844bb926d403c798860bea627234ca6a06f04806d546993a86278d69af0b2e4",
+    "chatchat-chat/src/test/java/com/chatchat/chat/interaction/service/ProblemAnalysisPlannerTest.java": "9be53e0ba1aa16b8dac52db5b2b39df9672d411097efc1cabba907c835fe9b15",
+    "chatchat-common/src/main/java/com/chatchat/common/mcp/python/JsonlStructuralSchema.java": "20beba4fea410418f6d9c51f8e425320c8bf1cc2cfaee9de86e4e682de5fcd0b",
+    "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonOperationWorkspace.java": "7ecba6dbc2af57c90d2b730cbc02ab8ecf6f7005716f891164c5153eebae957f",
+    "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/python/PythonOperationWorkspaceTest.java": "8254c198ce219c1f7dd81406113878570e0824275b4b403761d50fce1d714e0d",
+    "scripts/deploy-python-analysis-stage.sh": "e378e70af1d2b010127e06bffe5b7ceccea481ef2249edee3099ae2fa642177e",
+    "scripts/verify-coding-evidence.py": "50b775435e57788cc9689dfdd7dc9325d033b82e64418d01b7fd5e0188c49ee9",
+    "scripts/verify-python-analysis.ps1": "d491f21577156749737e02eb3326482a19b129791acf2198a90aa7ccd9307fbc"
+  },
+  "scope": "Changed source file bytes; this does not claim a clean checkout or publication."
+}

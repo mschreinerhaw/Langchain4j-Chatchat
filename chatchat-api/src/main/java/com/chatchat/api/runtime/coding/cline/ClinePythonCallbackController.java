@@ -132,6 +132,16 @@ public final class ClinePythonCallbackController {
                     response.put("outputStatus","INVALID_RESULT_SCHEMA");response.put("resultAvailable",false);
                     response.put("diagnostic","Structured result does not match the contracted row schema; repair field names and types in a complete new program.");return response;
                 }
+                if (collected.validationStatus() == com.chatchat.common.runtime.coding.CodingTaskOutcome.ValidationStatus.FAILED) {
+                    response.put("outputStatus", "RESULT_VALIDATION_FAILED");
+                    response.put("resultAvailable", false);
+                    response.put("validationStatus", "FAILED");
+                    response.put("diagnostic", "Result validation failed. Match the contracted field names and types, "
+                        + "and replace bulk source text with metrics and concise findings calculated in Python. "
+                        + "Text fields default to at most 2048 characters; do not split raw documents across fields or rows. "
+                        + "Repair the complete program and execute again.");
+                    return response;
+                }
                 response.put("inputSnapshotRef", collected.inputSnapshotRef());
                 response.put("codeArtifactRef", collected.codeArtifactRef());
                 response.put("executionReceiptRef", collected.executionReceiptRef());

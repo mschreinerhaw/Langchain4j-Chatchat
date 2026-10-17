@@ -25,6 +25,30 @@ import static org.mockito.Mockito.*;
 class ClineRuntimeModelBridgeTest {
     private final ObjectMapper json = new ObjectMapper();
 
+    @Test void codingReplyLimitIsConfigurableAndReservedWithinTheParentBudget() throws Exception {
+        var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
+        var parent=mock(ChatModel.class);when(resources.defaultChatModel()).thenReturn("registered-model");
+        when(parent.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder().aiMessage(AiMessage.from("done"))
+            .finishReason(dev.langchain4j.model.output.FinishReason.STOP).build());
+        var bridge=new ClineRuntimeModelBridge(resources,factory,json);
+        var registry=new CodingParentModels();bridge.setParentModels(registry);
+        json.findAndRegisterModules();var frozen=json.valueToTree(contract());
+        ((com.fasterxml.jackson.databind.node.ObjectNode)frozen.path("budget")).put("maxModelTokens",65536);
+        var contract=json.treeToValue(frozen,CodingTaskContract.class);
+        bridge.setMaxOutputTokens(8192);
+        assertThat(bridge.modelTokenReservation(contract)).isEqualTo(16384);
+        try(var binding=registry.bind(contract.scope(),contract.taskId(),parent)) {
+            var result=bridge.complete(contract,json.readTree("{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"write a complete program\"}]}],\"tools\":[]}"));
+            assertThat(result).containsEntry("maxOutputTokens",8192).containsEntry("finishReason","STOP");
+        }
+        var captured=org.mockito.ArgumentCaptor.forClass(ChatRequest.class);verify(parent).chat(captured.capture());
+        assertThat(captured.getValue().parameters().maxOutputTokens()).isEqualTo(8192);
+        verifyNoInteractions(factory);
+        bridge.setMaxOutputTokens(32768);
+        assertThat(bridge.maxOutputTokens(contract())).isEqualTo(2048);
+        assertThat(bridge.modelTokenReservation(contract())).isEqualTo(4096);
+    }
+
     @Test void usesServerModelAndReturnsOnlyAuthorizedToolCallsWithProviderUsage() throws Exception {
         ModelResourceRegistry resources = mock(ModelResourceRegistry.class);
         ConfigurableChatModelFactory factory = mock(ConfigurableChatModelFactory.class);

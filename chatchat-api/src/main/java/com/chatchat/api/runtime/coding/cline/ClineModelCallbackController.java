@@ -124,6 +124,7 @@ public final class ClineModelCallbackController {
             long tokens = request.path("maxTokens").asLong(-1);
             if (tokens < 1 || tokens > contract.budget().maxModelTokens())
                 throw new IllegalArgumentException("Model token reservation exceeds contract");
+            tokens = Math.max(tokens, model.modelTokenReservation(contract));
             BigDecimal totalCost = new BigDecimal(contract.budget().maxCostAmount());
             String cost = totalCost.divide(BigDecimal.valueOf(Math.max(1, contract.budget().maxModelCalls())),
                 12, RoundingMode.UP).stripTrailingZeros().toPlainString();

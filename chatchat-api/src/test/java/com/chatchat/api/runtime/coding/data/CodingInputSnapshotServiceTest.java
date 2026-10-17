@@ -40,7 +40,9 @@ class CodingInputSnapshotServiceTest {
         var access = new CodingInvocationContext();
         var snapshots = new CodingInputSnapshotService(evidence, python, access, json);
         var scope = new KernelDataScope("tenant", "owner", null, null, "run", null, Map.of());
-        var delivered = new Dataset("template#call", Map.of(),
+        var delivered = new Dataset("template#call", Map.of("inputVersions",List.of(Map.of(
+                "datasetReference","template#call","contentSha256","a".repeat(64),"rowCount",2L,
+                "fieldSchema",Map.of("tradeDate",List.of("STRING")),"secretRecords","RAW_SHOULD_NOT_ENTER_DESCRIPTOR"))),
             List.of(Map.of("tradeDate", "2026-10-14", "amount", "1.25"),
                 Map.of("tradeDate", "2026-10-15")));
         var snapshot = access.as(scope, EnumSet.of(CodingTaskAccess.Action.SUBMIT), () ->
@@ -58,6 +60,7 @@ class CodingInputSnapshotServiceTest {
         assertThat(((Number)amount.get("missingCount")).longValue()).isEqualTo(1L);
         assertThat(((Number)amount.get("nullCount")).longValue()).isZero();
         assertThat(descriptor.toString()).doesNotContain("2026-10-14","1.25");
+        assertThat(descriptor.toString()).contains("template#call","fieldSchema").doesNotContain("RAW_SHOULD_NOT_ENTER_DESCRIPTOR");
         var contract = contract(scope, snapshot);
         assertThat(access.as(scope, EnumSet.of(CodingTaskAccess.Action.READ), () ->
             snapshots.requireAuthorized(contract))).isEqualTo(snapshot);

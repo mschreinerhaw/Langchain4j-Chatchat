@@ -10,6 +10,8 @@ import org.springframework.stereotype.Component;
 /** Structural validation only. Runtime does not certify model-selected business conclusions. */
 @Component
 public final class CodingSchemaResultVerifier implements CodingResultVerifier {
+    @org.springframework.beans.factory.annotation.Value("${runtime.coding.analysis.max-result-text-chars:2048}")
+    private int maxResultTextChars = 2048;
     public String id() { return "runtime-result-schema"; }
     public String version() { return "v1"; }
     public void validateRules(Map<String, Object> rules) {
@@ -28,8 +30,21 @@ public final class CodingSchemaResultVerifier implements CodingResultVerifier {
             try { WorkspaceResultSchema.validate(row, schema); }
             catch (IllegalArgumentException mismatch) { valid = false; break; }
         }
-        return new CodingEvidenceCollector.Validation(valid, id(), version(),
+        boolean boundedText = rows.stream().allMatch(row -> boundedText(row, 0));
+        return new CodingEvidenceCollector.Validation(valid && boundedText, id(), version(),
             Map.of("validationScope", "STRUCTURAL_ONLY", "rowSchemaMatched", valid,
+                "boundedResultText", boundedText, "maxResultTextChars", maxResultTextChars,
                 "resultRows", rows.size(), "businessValidation", "NOT_EVALUATED"), false);
+    }
+
+    private boolean boundedText(Object value, int depth) {
+        if (depth > 64) return false;
+        if (value instanceof String text) return text.length() <= Math.max(1, maxResultTextChars);
+        if (value instanceof Map<?, ?> object)
+            return object.entrySet().stream().allMatch(e -> boundedText(e.getKey(), depth + 1)
+                && boundedText(e.getValue(), depth + 1));
+        if (value instanceof List<?> array)
+            return array.stream().allMatch(item -> boundedText(item, depth + 1));
+        return true;
     }
 }

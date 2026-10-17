@@ -25,8 +25,8 @@ public class CodingTraceArtifactController {
     private final McpPythonControlPlanePort python;
 
     @GetMapping("/runs/{runId}/coding/{taskId}/{operationId}/{kind}")
-    public ApiResponse<?> artifact(@PathVariable String runId, @PathVariable String taskId,
-            @PathVariable String operationId, @PathVariable String kind, HttpServletRequest request) {
+    public ApiResponse<?> artifact(@PathVariable("runId") String runId, @PathVariable("taskId") String taskId,
+            @PathVariable("operationId") String operationId, @PathVariable("kind") String kind, HttpServletRequest request) {
         var run = runtime.find(runId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         Object tenant = request.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID);
         Object user = request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID);

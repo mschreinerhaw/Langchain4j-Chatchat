@@ -122,7 +122,7 @@ public class CodingEvidenceCollector {
         String overall = manifest.path("resultCompleteness").asText();
         String expected = resultRows.isEmpty() ? "EMPTY" : "PRESENT";
         if (!expected.equals(resultEntry.path("completeness").asText())
-                || !("PRESENT".equals(overall) || "EMPTY".equals(overall)))
+                || !("PRESENT".equals(overall) || "EMPTY".equals(overall) || "UNVERIFIED".equals(overall)))
             throw new IllegalStateException("Result is incomplete");
         byte[] code = artifact(scope, contract.taskId(), operationId, "code", codeFile);
         if (!sha(code).equals(operation.codeHash())) throw new IllegalStateException("Executed code hash mismatch");
@@ -363,19 +363,20 @@ public class CodingEvidenceCollector {
     private List<Map<String, Object>> rows(byte[] bytes, JsonNode manifestEntry) {
         List<Map<String, Object>> result = new ArrayList<>();
         String schema = null;
+        var observedSchema = new com.chatchat.common.mcp.python.JsonlStructuralSchema();
+        var jsonlReader = mapper.reader().with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
         try (BufferedReader reader = new BufferedReader(new StringReader(new String(bytes, StandardCharsets.UTF_8)))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 if (line.isBlank()) continue;
-                JsonNode row = mapper.readTree(line);
+                JsonNode row = jsonlReader.readTree(line);
                 if (!row.isObject()) throw new InvalidStructuredResultException("JSONL row must be an object");
-                TreeMap<String, String> types = new TreeMap<>();
-                row.properties().forEach(e -> types.put(e.getKey(), e.getValue().getNodeType().name()));
-                String nextSchema = mapper.writeValueAsString(types);
-                if (schema != null && !schema.equals(nextSchema)) throw new InvalidStructuredResultException("JSONL column types changed between rows; use one explicit output schema");
-                schema = nextSchema;
+                var types = new TreeMap<String,String>();
+                row.properties().forEach(e -> types.put(e.getKey(),e.getValue().getNodeType().name()));
+                observedSchema.accept(types);
                 result.add(mapper.convertValue(row, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {}));
             }
+            if (!result.isEmpty()) schema = mapper.writeValueAsString(observedSchema.fieldTypes());
         } catch (java.io.IOException error) { throw new InvalidStructuredResultException("Result is not valid JSONL"); }
         if (manifestEntry != null && (manifestEntry.path("rows").asLong(-1) != result.size()
                 || !Objects.equals(schema == null ? "" : schema, manifestEntry.path("schemaJson").asText(""))))

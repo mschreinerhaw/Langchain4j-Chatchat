@@ -95,6 +95,16 @@ class ClinePythonCallbackControllerTest {
         assertThat(result.toString()).doesNotContain("PRIVATE_FIXTURE_ROW_");
         verify(tasks,never()).cancel(any(),anyString(),anyString());
     }
+    @Test void rejectedResultDoesNotExposeAnAdmittedDatasetAndRequestsRepair(){
+        when(collector.collect(any(),any(),anyString(),anyString(),anyString(),anyList(),any()))
+            .thenReturn(new CodingEvidenceCollector.Collected("input","code","receipt","rejected-result","validation","bundle",false,
+                CodingTaskOutcome.ValidationStatus.FAILED));
+        var result=controller.get(json.valueToTree(body()));
+        assertThat(result).containsEntry("outputStatus","RESULT_VALIDATION_FAILED").containsEntry("resultAvailable",false)
+            .doesNotContainKeys("resultDatasetRef","evidenceBundleRef");
+        assertThat(result.get("diagnostic").toString()).contains("calculated in Python","execute again");
+        verify(tasks,never()).cancel(any(),anyString(),anyString());
+    }
     @Test void committedResultKeepsTheExistingSixEvidenceResponse(){
         when(collector.collect(any(),any(),anyString(),anyString(),anyString(),anyList(),any()))
             .thenReturn(new CodingEvidenceCollector.Collected("input","code","receipt","result","validation","bundle",false,

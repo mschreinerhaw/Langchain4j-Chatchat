@@ -14,6 +14,17 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class ProblemAnalysisPlannerTest {
+    @Test @SuppressWarnings("unchecked") void classificationReplyBudgetIsConfigurableForTheSelectedModel() {
+        var model=mock(ChatModel.class);var factory=mock(ConfigurableChatModelFactory.class);
+        var agent=mock(SkillDefinition.class);when(agent.modelName()).thenReturn("registered-model");
+        when(factory.create("registered-model",null,4096)).thenReturn(model);
+        when(model.chat(anyString())).thenReturn("{\"taskType\":\"DATA_ANALYSIS\"}");
+        var planner=new ProblemAnalysisPlanner(mock(ChatModel.class),factory,new ObjectMapper(),mock(ObjectProvider.class));
+        planner.setClassificationMaxOutputTokens(4096);
+        assertThat(planner.classify(InteractionRequest.builder().query("analyze current observations").build(),
+            InteractionContext.builder().build(),agent,List.of())).isEqualTo(ProblemAnalysisPlan.TaskType.DATA_ANALYSIS);
+        verify(factory).create("registered-model",null,4096);
+    }
     @Test @SuppressWarnings("unchecked") void maintainedWorkflowClassificationIsNotAnotherExecutionPlan() {
         var model=mock(ChatModel.class);
         when(model.chat(anyString())).thenReturn("{\"taskType\":\"DATA_ANALYSIS\"}");

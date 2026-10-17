@@ -27,6 +27,21 @@ public final class ClineRuntimeModelBridge {
     private final ObjectMapper json;
     private CodingParentModels parentModels;
     private CodingWorkspaceService workspace;
+    private int configuredMaxOutputTokens = 8192;
+    @org.springframework.beans.factory.annotation.Value("${chatchat.coding.cline.max-output-tokens:8192}")
+    public void setMaxOutputTokens(int tokens) {
+        if (tokens < 1 || tokens > 262144) throw new IllegalArgumentException("Invalid Coding model output limit");
+        configuredMaxOutputTokens = tokens;
+    }
+
+    public int maxOutputTokens(CodingTaskContract contract) {
+        return (int)Math.max(1, Math.min(configuredMaxOutputTokens, contract.budget().maxModelTokens() / 2));
+    }
+
+    public long modelTokenReservation(CodingTaskContract contract) {
+        // Reserve room for both the reply and its prompt under the unchanged parent budget.
+        return Math.min(contract.budget().maxModelTokens(), 2L * maxOutputTokens(contract));
+    }
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setWorkspace(CodingWorkspaceService workspace) { this.workspace=workspace; }
     @org.springframework.beans.factory.annotation.Autowired(required=false)
@@ -99,9 +114,10 @@ public final class ClineRuntimeModelBridge {
         var parent = parentModels == null ? null : parentModels.find(contract.scope(), contract.taskId());
         if (parent == null && contract.metadataRefs().contains(CodingParentModels.REQUIRED_REF))
             throw new IllegalStateException("Parent metered model binding is unavailable; reconcile before dispatch");
-        ChatResponse answer = (parent == null ? models.create(modelName, Duration.ofSeconds(90), 2048) : parent)
+        int outputLimit = maxOutputTokens(contract);
+        ChatResponse answer = (parent == null ? models.create(modelName, Duration.ofSeconds(90), outputLimit) : parent)
             .chat(ChatRequest.builder().messages(messages).toolSpecifications(tools)
-                .parameters(dev.langchain4j.model.chat.request.DefaultChatRequestParameters.builder().maxOutputTokens(2048).build()).build());
+                .parameters(dev.langchain4j.model.chat.request.DefaultChatRequestParameters.builder().maxOutputTokens(outputLimit).build()).build());
         if (answer == null || answer.aiMessage() == null) throw new IllegalStateException("Model returned no assistant message");
         List<Map<String, Object>> toolCalls = new ArrayList<>();
         for (ToolExecutionRequest call : answer.aiMessage().toolExecutionRequests()) {
@@ -120,6 +136,8 @@ public final class ClineRuntimeModelBridge {
         result.put("text", answer.aiMessage().text() == null ? "" : answer.aiMessage().text());
         result.put("toolCalls", toolCalls);
         result.put("usage", usage);
+        result.put("maxOutputTokens", outputLimit);
+        if (answer.finishReason() != null) result.put("finishReason", answer.finishReason().name());
         if (answer.id() != null) result.put("requestId", answer.id());
         return result;
     }

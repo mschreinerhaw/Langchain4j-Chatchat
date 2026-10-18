@@ -1,0 +1,20 @@
+{
+  "sourceHeadAtFinalVerification": "fa25869bfb16e13dec37ee71fd3c9b3df7edc016",
+  "sourceHeadAtTaskStart": "54e8a3eea6df9a8874d81ba6c40ee13e25456c6e",
+  "note": "HEAD advanced externally during task; no commit or push issued by this work. Image label retains task-start prefix.",
+  "sources": {
+    "chatchat-api/web-app/src/js/App.js": "9bf8a7c22fb5b0dd981e4a48eb806d806d36a77b413e5532e952b2fc618d4218",
+    "chatchat-api/web-app/src/js/App.test.js": "896cbfc7ffc86431274eb4741a2fa7da6b603f24af1fb2bfefb05b189176d279",
+    "chatchat-api/web-app/package.json": "e468ef50392334e89930e109ea14654d3b96e182412a80951e8358ca2ec058dd",
+    "chatchat-api/src/main/resources/workspace/zhice.json": "e919c6051c97134c9efdd39ab1fc9bbf9b48b5f838619af1d7990079d9c2df94",
+    "chatchat-api/src/main/resources/workspace/workspace-seed.sql": "00d9b104b6709c14d94567278fc8bf6d291e2abdbc19dc26c5ed3be6e8461456",
+    "chatchat-api/src/main/resources/workspace/workspace-navigation.sql": "7edd4af9d93da1c9e664c043b12958fabe04b0619173835c3c12f1fc56f863fd",
+    "chatchat-api/src/main/resources/workspace/workspace-management.sql": "85e8c7d78c10f42e36d32469485dda746ea5a3f81da385fc4ba6d34298e617c6"
+  },
+  "deletedStandalonePageFiles": [
+    "chatchat-api/web-app/src/views/AgentRuntimeView.vue",
+    "chatchat-api/web-app/src/js/views/AgentRuntimeView.js",
+    "chatchat-api/web-app/src/js/views/AgentRuntimeView.test.js"
+  ],
+  "apiImage": "runtime-os-api:54e8a3ee-no-runtime-page-20261018"
+}

@@ -39,7 +39,7 @@ public final class ClineRuntimeModelBridge {
     }
 
     public long modelTokenReservation(CodingTaskContract contract) {
-        // Reserve room for both the reply and its prompt under the unchanged parent budget.
+        // Reserve room for both the reply and its prompt under the durable tool budget.
         return Math.min(contract.budget().maxModelTokens(), 2L * maxOutputTokens(contract));
     }
     @org.springframework.beans.factory.annotation.Autowired(required=false)
@@ -113,7 +113,7 @@ public final class ClineRuntimeModelBridge {
         }
         var parent = parentModels == null ? null : parentModels.find(contract.scope(), contract.taskId());
         if (parent == null && contract.metadataRefs().contains(CodingParentModels.REQUIRED_REF))
-            throw new IllegalStateException("Parent metered model binding is unavailable; reconcile before dispatch");
+            throw new IllegalStateException("Authorized tool model binding is unavailable; reconcile before dispatch");
         int outputLimit = maxOutputTokens(contract);
         ChatResponse answer = (parent == null ? models.create(modelName, Duration.ofSeconds(90), outputLimit) : parent)
             .chat(ChatRequest.builder().messages(messages).toolSpecifications(tools)

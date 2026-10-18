@@ -1,0 +1,42 @@
+{
+  "status": "BUDGET_ISOLATION_PASSED_BUSINESS_ANALYSIS_NOT_PASSED",
+  "scope": "Actual published db_ops_assistant, real configured model, authorized MCP database access, Node-generated Python and actual Sandbox executions. No mock or pre-authored Python supplied to this run.",
+  "agentName": "\u6570\u636e\u5e93\u8fd0\u7ef4\u52a9\u624b",
+  "taskId": "c153254f-aa70-3daf-9128-e53d7e041006",
+  "runId": "att-1-79f3028d-3b74-4984-b6fc-0d19270a7734",
+  "question": "\u5e2e\u6211\u5206\u6790LiveData\u6d4b\u8bd5\u5e93_223\u6570\u636e\u5e93innodb\u8fd0\u884c\u60c5\u51b5",
+  "modelClassification": "DATA_ANALYSIS",
+  "publicTaskStatus": "PARTIAL_SUCCESS",
+  "harnessStopReason": "MODEL_DECISION",
+  "mainModelCalls": 10,
+  "mainMeterContainsCodingCallbacks": false,
+  "toolBudgetId": "analysis-coding-tool-budget:analysis-coding-d4db586b4c6442a49a4c8b01ac17e7238ae823490c312781de1d67a16ed1db16",
+  "toolBudgetScope": "TOOL_INVOCATION",
+  "toolConsumed": {
+    "modelCalls": 3,
+    "modelTokens": 44409,
+    "toolCalls": 2,
+    "codeExecutions": 2
+  },
+  "toolUsageRetainsUnknownReservations": true,
+  "sandboxExecutions": 2,
+  "successfulSandboxExecutions": 2,
+  "codeVersions": 2,
+  "resultRowsPerRegisteredArtifact": [
+    89,
+    89
+  ],
+  "semanticAdmission": {
+    "status": "INCONCLUSIVE",
+    "reason": "Semantic review requires a smaller result partition"
+  },
+  "analyticalResultAdmitted": false,
+  "remainingBusinessBlocker": {
+    "source": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingSemanticAdmission.java",
+    "currentMaxReviewRows": 64,
+    "actualResultRows": 89,
+    "reason": "Existing guard returns INCONCLUSIVE before model semantic review if more than 64 result rows exist. This is independent of Coding budget exhaustion.",
+    "changedInThisBudgetFix": false
+  },
+  "productionAcceptance": "NOT_PASSED"
+}

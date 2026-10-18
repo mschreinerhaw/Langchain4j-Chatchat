@@ -298,7 +298,7 @@ public final class ModelNativeAnalysisHarness {
                             metadata.put("harnessCodingTasks", List.copyOf(codingTasks.values()));
                             audit.add(Map.of("status", "ACCEPTED", "request", request,
                                 "receiptFingerprint", ModelProtocolJson.sha256Hex(receipt), "receipt", receipt));
-                            if (Boolean.TRUE.equals(receipt.get("budgetExhausted"))) exhausted = true;
+                            // Tool-local exhaustion is a receipt for the model, not exhaustion of the caller.
                         } else if (operations.supports(operation)) {
                             if (pythonRequired && !"CATALOG".equals(operation))
                                 throw new IllegalArgumentException("PYTHON_EXECUTION_REQUIRED: use RUN_CODING for data processing");

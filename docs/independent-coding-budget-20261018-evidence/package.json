@@ -1,0 +1,10 @@
+{
+  "status": "PASSED",
+  "jarSha256": "38591396a40427f47c0defe610826e3950a06ab585d6451e1ac80c40c3dc001a",
+  "independentToolModelAndTimeScopePackaged": true,
+  "perToolBudgetV2Packaged": true,
+  "budgetIsolationEventPackaged": true,
+  "retiredRuntimePageStillAbsent": true,
+  "packagedWebReferences": 7,
+  "deploymentSecretFilenameScan": "PASSED"
+}

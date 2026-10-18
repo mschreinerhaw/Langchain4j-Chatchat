@@ -1,0 +1,42 @@
+{
+  "scope": "Actual model-generated code and archived artifacts for current real acceptance runs. Only byte counts, hashes, allowlisted exception types and line numbers are permitted in logs. Does not certify terminal result/semantic correctness or exactly-once recovery.",
+  "status": "PASSED",
+  "imageTag": "fa25869b-independent-coding-budget-20261018",
+  "operations": [
+    {
+      "operationId": "cline-43b23459dddb624a292ed48ea1a36aa63ceaa77248374b25cabd01c5f78c5b6e",
+      "taskId": "analysis-coding-d4db586b4c6442a49a4c8b01ac17e7238ae823490c312781de1d67a16ed1db16",
+      "runId": "att-1-79f3028d-3b74-4984-b6fc-0d19270a7734",
+      "status": "SUCCEEDED",
+      "codeHash": "04eac1204fe992c9c7b07472e3115be9dd96f96ca4cda8ed16b288a3d64a770d",
+      "containerStartedAt": "2026-10-18T08:07:20.186018+00:00",
+      "executorStopped": true,
+      "attemptNumber": 1,
+      "revision": 4,
+      "createdAt": "2026-10-18T08:07:19.644949+00:00",
+      "updatedAt": "2026-10-18T08:07:20.987029+00:00",
+      "manifestHash": "07d8dee3a55da97fcc3a4dbd97c75dcf681ba086150b6bcf5aea240228c7c939",
+      "codeHashMatches": true,
+      "stdoutMetadataOnly": true,
+      "stderrMetadataOnly": true
+    },
+    {
+      "operationId": "cline-930aa213556c24f49d0eb3a5737197df3b08220d379b439164c6d6352ee22a97",
+      "taskId": "analysis-coding-d4db586b4c6442a49a4c8b01ac17e7238ae823490c312781de1d67a16ed1db16",
+      "runId": "att-1-79f3028d-3b74-4984-b6fc-0d19270a7734",
+      "status": "SUCCEEDED",
+      "codeHash": "dad11fa3bdc91f7105bf4bb4701a50313281ae0f3d65fd1a9f9db97992ec2bb7",
+      "containerStartedAt": "2026-10-18T08:08:23.16348+00:00",
+      "executorStopped": true,
+      "attemptNumber": 1,
+      "revision": 4,
+      "createdAt": "2026-10-18T08:08:21.588577+00:00",
+      "updatedAt": "2026-10-18T08:08:23.652853+00:00",
+      "manifestHash": "4372b1010337b279d1820a2dfcaccdc97baca66740f9592e3b6253eec48d9f24",
+      "codeHashMatches": true,
+      "stdoutMetadataOnly": true,
+      "stderrMetadataOnly": true,
+      "changedCodeLines": 159
+    }
+  ]
+}

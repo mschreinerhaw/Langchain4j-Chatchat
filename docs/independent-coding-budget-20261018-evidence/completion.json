@@ -1,0 +1,103 @@
+{
+  "recordedAt": "2026-10-18T08:26:12.066094+00:00",
+  "status": "BUDGET_FIX_DEPLOYED_AND_SCOPED_VALIDATION_PASSED_FULL_ACCEPTANCE_FAILED",
+  "scope": "Separate autonomous Coding tool budgets from parent analysis budgets and from other RUN_CODING invocations. Preserve cancellation, original-request idempotency, unknown usage reservations, authorization, snapshot and Sandbox controls.",
+  "changes": [
+    "Each new Coding task gets an independent persisted v2 tool budget; the same request replay retains its original contract and deadline.",
+    "Reuse the selected provider through an independent tool deadline wrapper, bypassing parent token/cost/deadline accounting for Coding model calls; Coding durable ledger still records usage.",
+    "Bounded synchronous tool wait is excluded from parent active execution time, with unused reservation refunded on close and cancellation/failure.",
+    "Tool-local budget exhaustion returns a receipt to the parent model instead of terminating the analysis harness.",
+    "Add budget-scope and budget-ID observability to receipts and persisted observations.",
+    "Fix the prior standalone-page retirement mismatch in nine external H2/MySQL/PostgreSQL workspace migration scripts while retaining historical exact-match predicates and administrator choices."
+  ],
+  "sourceDiff": {
+    "files": 25,
+    "addedLinesIncludingNewFiles": 208,
+    "deletedLines": 44,
+    "manifest": "source-and-image-manifest.json"
+  },
+  "passed": {
+    "budgetAndRelatedFocusedRegression": {
+      "tests": 117,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "evidence": "focused-tests.json"
+    },
+    "realModelKnowledgeQa": "knowledge-qa.json",
+    "realBudgetFlow": {
+      "mainModelCalls": 10,
+      "codingModelCallsSeparatelyMetered": 3,
+      "actualSuccessfulSandboxExecutions": 2,
+      "harnessStopReason": "MODEL_DECISION",
+      "evidence": "real-database-analysis.json"
+    },
+    "rawStdoutAndStderrBoundary": "execution-artifacts.json",
+    "retiredPageRemainsAbsentAndOrdinaryTaskLogsAccessible": "browser-regression.json",
+    "nginxAssetsLicenseMcpNewsAndArchivedCodeReads": "application-probes.json",
+    "workspaceMigrationCompatibility": "additional-docker-and-migration-retest.json"
+  },
+  "notPassed": {
+    "initialCompleteBackendGate": {
+      "results": {
+        "tests": 4454,
+        "failures": 142,
+        "errors": 68,
+        "skipped": 0
+      },
+      "baseline": {
+        "tests": 4441,
+        "failures": 131,
+        "errors": 64,
+        "skipped": 10
+      },
+      "historicalMatchingFailureOccurrences": 194,
+      "newObservedFailureOccurrences": 16,
+      "note": "Initial run enabled Docker tests skipped in the baseline. Preserve the frozen full run; no fresh full gate after the external SQL compatibility fix is claimed.",
+      "evidence": "full-regression-initial.json"
+    },
+    "additionalTargetedDockerAndMigrationRetest": {
+      "results": {
+        "tests": 22,
+        "failures": 10,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 12
+      },
+      "clusters": {
+        "EXPECTED_COMPLETION_BUT_TASK_FAILED_REQUIRES_FIXTURE_REVIEW": 2,
+        "SOURCE_COPY_PROJECTION_REJECTED_IN_PREVIOUSLY_SKIPPED_FIXTURE": 6,
+        "EXECUTION_UNKNOWN_REQUIRES_RECONCILIATION_REVIEW": 1,
+        "RAW_STDERR_EXPECTATION_CONFLICTS_WITH_PRIVACY_CONTRACT": 1
+      },
+      "evidence": "additional-docker-and-migration-retest.json"
+    },
+    "originalDatabaseBusinessAnalysis": {
+      "status": "PARTIAL_SUCCESS",
+      "analyticalDatasetAdmitted": false,
+      "reason": "89 computed result rows hit the existing 64-row semantic-review guard; review was INCONCLUSIVE. No InnoDB health conclusion is certified.",
+      "evidence": "real-database-analysis.json"
+    }
+  },
+  "notTestedOrCertified": [
+    "Fresh entire backend gate after the external SQL migration compatibility change.",
+    "Actual PostgreSQL/MySQL execution of the newly revised standalone migration scripts; H2 execution and all-dialect JSON/static checks passed.",
+    "API/Node/MCP process-kill recovery of the new caller-time exclusion in this revision; JSON deadline serialization and ordinary replay are covered, not full crash-time accounting.",
+    "Production readiness, discovery completeness and semantic correctness of the original InnoDB business report."
+  ],
+  "compatibilityNotes": [
+    "Existing immutable legacy contracts are not rewritten or granted a renewed budget; new delegations use v2 per-task budgets.",
+    "Unknown provider usage reservations remain retained in their own tool ledger. Aggregate billing must include both parent and tool ledgers.",
+    "No resource limit setting was raised by this deployment; only API_IMAGE changed in the remote deployment configuration.",
+    "Existing production services and non-API application containers/data mounts were retained. External SQL changes are reviewable source assets; no remote database migration was executed."
+  ],
+  "deployment": {
+    "scope": "Existing isolated candidate deployment",
+    "runtimeUrl": "http://192.168.195.221:18100/",
+    "mcpUrl": "http://192.168.195.221:18101/",
+    "apiImage": "runtime-os-api:fa25869b-independent-coding-budget-20261018",
+    "imageArchiveSha256": "1d9b2d8ed711a09cb975771497bf8fecd8fb11a97a1fa942f4fba69b0ee59879",
+    "productionSwitchRecommended": false
+  },
+  "publicEvidenceContainsCredentialsOrRawDatasets": false
+}

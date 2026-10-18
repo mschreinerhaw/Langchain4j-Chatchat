@@ -1,0 +1,102 @@
+{
+  "status": "PASSED",
+  "tests": 117,
+  "suites": [
+    {
+      "class": "com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarnessTest",
+      "tests": 30,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.model.DeadlineAwareChatModelTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.model.MeteredChatModelTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.model.ToolExecutionModelsTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.planning.validation.AgentRuntimeGuardTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.planning.validation.ToolExecutionTimeScopeTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+      "tests": 14,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.cline.ClineRuntimeModelBridgeTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.analysis.graph.HarnessCodingIntegrationTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.CodingTaskPersistenceTest",
+      "tests": 31,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "logs": [
+    {
+      "file": "independent-coding-budget-tests.log",
+      "sha256": "26c88a46eb2b01d1e34765af134f2ef4232da3853e77bab97af72305a2a7b013"
+    },
+    {
+      "file": "independent-coding-budget-package.log",
+      "sha256": "8341da66fae7ec6d3bddca5bd7b7a3bd4d9b06699fb1531b36e580b13c5b63d1"
+    }
+  ],
+  "coverage": [
+    "Independent per-tool contract and budget identity",
+    "Stable request replay without budget renewal",
+    "Expired legacy shared budget does not block new calls",
+    "Same selected provider without caller token/cost/deadline wrappers",
+    "Bounded caller time exclusion, refund, JSON-compatible deadline, cancellation",
+    "Tool exhaustion returns control to the main model",
+    "Durable reservations, reconciliation, fencing and persistence"
+  ]
+}

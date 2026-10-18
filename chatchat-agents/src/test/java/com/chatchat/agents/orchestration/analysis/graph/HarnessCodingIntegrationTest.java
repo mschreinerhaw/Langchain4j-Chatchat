@@ -17,12 +17,15 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class HarnessCodingIntegrationTest {
-    @Test void exhaustedCodingBudgetStopsWithoutMoreModelRequests() {
+    @Test void exhaustedToolBudgetReturnsToCallerForANewDecision() {
         var model=mock(ChatModel.class);var calls=new AtomicInteger();
         var metadata=new LinkedHashMap<String,Object>();
         var scope=GovernanceIsolationScope.runtime("tenant","user","run","request","conversation");
         when(model.chat(any(ChatRequest.class))).thenAnswer(invocation->{
-            calls.incrementAndGet();
+            if (calls.incrementAndGet() == 2) {
+                assertThat(((ChatRequest)invocation.getArgument(0)).messages().toString()).contains("DEADLINE_EXCEEDED", "coding-task");
+                return reply("PARTIAL_COMPLETE", "The delegated calculation timed out; no computed conclusion is available.", List.of());
+            }
             return ChatResponse.builder().aiMessage(AiMessage.from(ModelProtocolJson.compact(Map.of(
                 "schemaVersion","model_native_analysis.v2","decision",Map.of("action","CONTINUE"),
                 "output_type","intermediate","plan",plan(),"evidenceRequests",List.of(Map.of(
@@ -40,9 +43,8 @@ class HarnessCodingIntegrationTest {
         new ModelNativeAnalysisHarness(8).withCoding(port,context).execute(context.query(),
             List.of(new Dataset("source",Map.of(),List.of(Map.of("value",5)))),model,scope,
             AnalysisEvidenceSpillStore.disabled(),metadata,()->{},trace->{});
-        assertThat(calls).hasValue(1);
-        assertThat(metadata).containsEntry("executionStopReason","RESOURCE_BUDGET_EXHAUSTED")
-            .containsEntry("publicationState","NOT_REQUESTED");
+        assertThat(calls).hasValue(2);
+        assertThat(metadata).containsEntry("harnessStopReason","MODEL_DECISION");
     }
     @Test void modelDelegatesOnlyAdvertisedCodingAndThenSeesItsCommittedDataset() {
         var model=mock(ChatModel.class);var calls=new AtomicInteger();var dispatched=new AtomicInteger();

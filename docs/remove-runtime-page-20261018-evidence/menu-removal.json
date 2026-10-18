@@ -1,0 +1,40 @@
+{
+  "status": "PASSED",
+  "workspaces": [
+    {
+      "workspaceId": "zhice",
+      "pagesRemoved": 1,
+      "remainingPageIds": [
+        "chat",
+        "search",
+        "domainAnalysis",
+        "market",
+        "favorites",
+        "library",
+        "mcp",
+        "dataScienceSkills",
+        "agents",
+        "schedules",
+        "rules",
+        "debugger",
+        "tasks",
+        "system",
+        "systemUsers",
+        "systemOrganizations",
+        "systemRoles",
+        "systemLogins",
+        "systemResources",
+        "systemSkillRoles",
+        "models",
+        "workspaces"
+      ],
+      "configVersion": 4
+    }
+  ],
+  "menuRecordsDeleted": 1,
+  "otherMenusPreserved": true,
+  "scope": "Deleted standalone runtime page registrations and its leaf navigation menu through existing versioned workspace and menu APIs; other pages/permissions and backend logs preserved.",
+  "publicManifestExcludesPage": true,
+  "publicNavigationExcludesMenu": true,
+  "otherMenuPermissionMappingsUnchanged": true
+}

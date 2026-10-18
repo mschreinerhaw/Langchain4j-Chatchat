@@ -1,0 +1,11 @@
+{
+  "status": "PASSED",
+  "checkedDefaultResources": [
+    "workspace-seed.sql",
+    "workspace-navigation.sql",
+    "workspace-management.sql",
+    "zhice.json"
+  ],
+  "retiredPageAbsentFromWrittenManifests": true,
+  "historicalManifestPredicatesRetained": true
+}

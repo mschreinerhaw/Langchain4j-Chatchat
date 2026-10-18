@@ -1,0 +1,17 @@
+{
+  "status": "PASSED",
+  "scope": "Existing durable server event logs through authenticated API; no raw payloads retained. Archived task business acceptance remains NOT_PASSED.",
+  "phase": "page-removed",
+  "runId": "att-1-f6e6343d-3961-4f7a-bc23-571a14a5b4b8",
+  "events": 213,
+  "codingLogEvents": 159,
+  "sequenceSha256": "9b422cecbc464da08037108148d120a03e56cbeb6b70475b2a9d84625803a0db",
+  "eventIdsSha256": "a95a01c088c1eb4ca2a38b4e64fed0e8d2e2bd28269ed7d58381a10f143e12ed",
+  "codingTypes": {
+    "TASK_CREATED": 3,
+    "TASK_STARTED": 3,
+    "BUDGET_UPDATED": 47,
+    "RECOVERY_RECONCILED": 103,
+    "TASK_FINISHED": 3
+  }
+}

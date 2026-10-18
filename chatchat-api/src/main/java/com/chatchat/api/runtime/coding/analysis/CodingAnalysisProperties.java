@@ -4,7 +4,7 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-/** Deployment resource ceilings; contains no business rules or model-generated policy. */
+/** Independent per-invocation tool ceilings; contains no business rules or model-generated policy. */
 @Data @Component
 @ConfigurationProperties(prefix="chatchat.coding.analysis")
 public class CodingAnalysisProperties {

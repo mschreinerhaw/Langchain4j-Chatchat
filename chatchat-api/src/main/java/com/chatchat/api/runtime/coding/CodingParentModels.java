@@ -6,10 +6,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-/** Transient transport binding to the parent's already metered model. No execution/usage authority. */
+/** Scoped transport binding to the selected model. Analysis tools bind an independently governed model. */
 @Component
 @ConditionalOnProperty(prefix="chatchat.coding", name="enabled", havingValue="true")
 public final class CodingParentModels {
+    // Retain the existing contract marker for persisted-task compatibility.
     public static final String REQUIRED_REF="runtime-coding:parent-metering.v1";
     private final ConcurrentHashMap<String, ChatModel> models = new ConcurrentHashMap<>();
     private static String key(KernelDataScope scope, String task) {

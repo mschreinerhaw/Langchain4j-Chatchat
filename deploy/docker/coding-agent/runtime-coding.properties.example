@@ -9,6 +9,9 @@ chatchat.coding.analysis.enabled=true
 # Required: select an actual PUBLISHED environment whose networkPolicy is NONE.
 chatchat.coding.analysis.environment-id=${CODING_PYTHON_ENVIRONMENT_ID}
 chatchat.coding.analysis.max-concurrent-tasks=2
+# Independent ceilings per RUN_CODING invocation, not shared with the parent analysis or other invocations.
+# Retries/resume of the same requestId retain the original durable budget and deadline.
+# Tool-internal model calls are charged by the Coding ledger; explicit cancellation still propagates.
 chatchat.coding.analysis.timeout-seconds=300
 chatchat.coding.analysis.max-model-calls=12
 chatchat.coding.analysis.max-model-tokens=65536

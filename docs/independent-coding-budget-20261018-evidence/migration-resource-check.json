@@ -1,0 +1,18 @@
+{
+  "status": "PASSED",
+  "files": [
+    "database/migration/h2/V20261013_01__workspace_apps.sql",
+    "database/migration/h2/V20261013_02__workspace_navigation.sql",
+    "database/migration/h2/V20261014_01__workspace_management.sql",
+    "database/migration/mysql/V20261013_01__workspace_apps.sql",
+    "database/migration/mysql/V20261013_02__workspace_navigation.sql",
+    "database/migration/mysql/V20261014_01__workspace_management.sql",
+    "database/migration/postgresql/V20261013_01__workspace_apps.sql",
+    "database/migration/postgresql/V20261013_02__workspace_navigation.sql",
+    "database/migration/postgresql/V20261014_01__workspace_management.sql"
+  ],
+  "retiredPageAbsentFromWrittenDefaultManifests": true,
+  "historicalExactMatchPredicatesPreserved": true,
+  "remoteDatabaseScriptsExecuted": false,
+  "scope": "Static JSON validation for all three dialects; actual H2 repeatability and permission preservation tested by WorkspaceMigrationTest. Existing deployed page removal remains handled through versioned APIs."
+}

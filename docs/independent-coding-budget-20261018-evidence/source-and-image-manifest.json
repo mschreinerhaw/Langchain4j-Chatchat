@@ -1,0 +1,138 @@
+{
+  "head": "fa25869bfb16e13dec37ee71fd3c9b3df7edc016",
+  "modifiedFiles": [
+    {
+      "path": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/graph/ModelNativeAnalysisHarness.java",
+      "sha256": "27412b1bb5f573104651be1dcc44946f65647c922fb8326cfd25ad9c57c369d9",
+      "new": false
+    },
+    {
+      "path": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/model/DeadlineAwareChatModel.java",
+      "sha256": "ef94e06abb33ec9a036027f2f7a0bb239abba094aa7789b8e2db418ad0d2ead2",
+      "new": false
+    },
+    {
+      "path": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/model/MeteredChatModel.java",
+      "sha256": "c5c04c44460740c50c12532da5ee10877c7ab984d97f672e23b4599ce801d2a8",
+      "new": false
+    },
+    {
+      "path": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/model/ToolExecutionModels.java",
+      "sha256": "ff6cb7c55f8329153d21b52f631aec034a8d31b4d19de55b068b6e85e2224756",
+      "new": true
+    },
+    {
+      "path": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/planning/validation/AgentRuntimeGuard.java",
+      "sha256": "8f086262cf15f3c2321d45593fd2b2920e91c1729865692b279fe7ce1e55fe8f",
+      "new": false
+    },
+    {
+      "path": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/planning/validation/ToolExecutionTimeScope.java",
+      "sha256": "8bcc9bcb2ff61fdc6ea622ac0325bcc0cbc5a32d597d12bf3f3a84e0a70f9d0e",
+      "new": true
+    },
+    {
+      "path": "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/analysis/graph/HarnessCodingIntegrationTest.java",
+      "sha256": "101b503bd56b47980a77a420089a2b8e77bea2f760a57262f3ed1e54ad2301b1",
+      "new": false
+    },
+    {
+      "path": "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/model/ToolExecutionModelsTest.java",
+      "sha256": "43027d19f8391c99465fbb6300c7019530789f07a3b9c4362835ad79dabfa538",
+      "new": true
+    },
+    {
+      "path": "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/planning/validation/ToolExecutionTimeScopeTest.java",
+      "sha256": "831f7172b868501dee427cbffc88eaae7783cfcde8730cfaa5f06bc1b5668ef7",
+      "new": true
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/CodingParentModels.java",
+      "sha256": "12af4c70d8a7a00a821fb244e42b07f21c1f636863a43c1b6b268b7a6e9913c0",
+      "new": false
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisProperties.java",
+      "sha256": "02ec6817fe4d8d142c974e5ca405aa59906d4491899ac77fe65d7f1d98f4e2a9",
+      "new": false
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java",
+      "sha256": "120ee3213cb54705af134ddeafa8040aea6b673ee5f0050a82c3a899ed692428",
+      "new": false
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineRuntimeModelBridge.java",
+      "sha256": "df7fc7af00a980e635258b72d61e05af1651cef7cde7dd5eed16f0d3d1012bf5",
+      "new": false
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisServiceTest.java",
+      "sha256": "bd23650ad31c1b6fb62bc3e8b230e43784b356673ecee109dc8a380b25a57036",
+      "new": false
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClineRuntimeModelBridgeTest.java",
+      "sha256": "75928959001dd540013b6fc75e186481476aa88077c22d3c16b254c3cee40632",
+      "new": false
+    },
+    {
+      "path": "database/migration/h2/V20261013_01__workspace_apps.sql",
+      "sha256": "660d6482325610a410e05c09f6687847cb4a8b99e6921b29f2931a1752fab7bd",
+      "new": false
+    },
+    {
+      "path": "database/migration/h2/V20261013_02__workspace_navigation.sql",
+      "sha256": "7edd4af9d93da1c9e664c043b12958fabe04b0619173835c3c12f1fc56f863fd",
+      "new": false
+    },
+    {
+      "path": "database/migration/h2/V20261014_01__workspace_management.sql",
+      "sha256": "85e8c7d78c10f42e36d32469485dda746ea5a3f81da385fc4ba6d34298e617c6",
+      "new": false
+    },
+    {
+      "path": "database/migration/mysql/V20261013_01__workspace_apps.sql",
+      "sha256": "ff53489af97b58cf9287dc7d062811df80b99e414e4cb65ede5f0e8ccd17cdb7",
+      "new": false
+    },
+    {
+      "path": "database/migration/mysql/V20261013_02__workspace_navigation.sql",
+      "sha256": "7edd4af9d93da1c9e664c043b12958fabe04b0619173835c3c12f1fc56f863fd",
+      "new": false
+    },
+    {
+      "path": "database/migration/mysql/V20261014_01__workspace_management.sql",
+      "sha256": "85e8c7d78c10f42e36d32469485dda746ea5a3f81da385fc4ba6d34298e617c6",
+      "new": false
+    },
+    {
+      "path": "database/migration/postgresql/V20261013_01__workspace_apps.sql",
+      "sha256": "77cd3212ba759f5543746aa24b7c8e6ea7e8c974ce238a55b632ffeeca381435",
+      "new": false
+    },
+    {
+      "path": "database/migration/postgresql/V20261013_02__workspace_navigation.sql",
+      "sha256": "7edd4af9d93da1c9e664c043b12958fabe04b0619173835c3c12f1fc56f863fd",
+      "new": false
+    },
+    {
+      "path": "database/migration/postgresql/V20261014_01__workspace_management.sql",
+      "sha256": "85e8c7d78c10f42e36d32469485dda746ea5a3f81da385fc4ba6d34298e617c6",
+      "new": false
+    },
+    {
+      "path": "deploy/docker/coding-agent/runtime-coding.properties.example",
+      "sha256": "25dd2d60091168a83e8a58c5da4e08779787a6855a62b2eb6644ea5288fa5898",
+      "new": false
+    }
+  ],
+  "fileCount": 25,
+  "diffSummary": {
+    "addedLinesIncludingNewFiles": 208,
+    "deletedLines": 44
+  },
+  "image": "runtime-os-api:fa25869b-independent-coding-budget-20261018",
+  "archiveSha256": "1d9b2d8ed711a09cb975771497bf8fecd8fb11a97a1fa942f4fba69b0ee59879",
+  "scope": "Preserved existing untracked page-removal evidence; no reset, commit or push issued."
+}

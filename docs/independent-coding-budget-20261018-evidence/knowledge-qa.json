@@ -1,0 +1,12 @@
+{
+  "status": "PASSED",
+  "scope": "Actual published db_ops_assistant, real configured model and LAN endpoint; no mock model or preselected classification.",
+  "taskId": "76367b78-81d5-36ac-b1b6-990ba9972150",
+  "publicTaskStatus": "SUCCESS",
+  "modelClassification": "QA",
+  "answerBytes": 3275,
+  "answerSha256": "b8a8872d505c75e1e5a1297b1d11281d11f06160edbf879f18929114b016c989",
+  "question": "InnoDB MVCC and consistent reads",
+  "rawAnswerOmitted": true,
+  "codingDelegations": 0
+}

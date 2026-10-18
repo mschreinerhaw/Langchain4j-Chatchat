@@ -82,7 +82,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             + "Use a stable requestId; changed content under the same ID conflicts. Results have a scoped datasetReference "
             + "and six evidence refs. Validation is structural only; business correctness is NOT_EVALUATED. "
             + "Only resultAvailable:true admits a dataset for analysis; failed/pending receipts include reasons and limitations. "
-            + "Data-analysis calculations require Coding. Pending/unknown is not a result. Calls share one durable Coding budget per parent run.");
+            + "Data-analysis calculations require Coding. Pending/unknown is not a result. Each RUN_CODING invocation has an independent durable tool budget; retries of the same request retain that budget.");
     }
     public Map<String,Object> execute(AnalysisCoverageCoordinator.Request context, Map<String,Object> request,
                                      Map<String,Dataset> sources) {
@@ -124,9 +124,9 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             if (!fingerprint.equals(record.path("requestHash").asText())) throw new IllegalArgumentException("Coding request identity conflict");
             contract=convert(record.get("contract"),CodingTaskContract.class);
         } else {
-            var budget=budget(context,scope);
+            var budget=budget(scope,taskId);
             if (!Instant.now().isBefore(budget.deadlineAt())) {
-                // An expired shared delegation budget cannot be renewed with another model-chosen request ID.
+                // The same tool invocation never renews its persisted deadline.
                 var receipt=Map.<String,Object>of("operation","RUN_CODING","requestId",requestId,"taskId",taskId,
                     "status","RESOURCE_BUDGET_EXHAUSTED","reasonCode","DEADLINE_EXCEEDED",
                     "budgetExhausted",true,"retryable",false,"resultAvailable",false);
@@ -192,8 +192,15 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         ensureActive(context);
         CodingTaskOutcome outcome=null;
         boolean bound=false;
-        try(var binding=models.bind(scope,taskId,context.model())) {
+        try(var toolTime=com.chatchat.agents.orchestration.planning.validation.ToolExecutionTimeScope.open(
+                context.runtimeAttributes(),accepted.budget().deadlineAt().toEpochMilli());
+            var binding=models.bind(scope,taskId,
+                com.chatchat.agents.orchestration.model.ToolExecutionModels.independent(context.model(),
+                    () -> Math.max(0, accepted.budget().deadlineAt().toEpochMilli()-System.currentTimeMillis())))) {
             long traceCursor = 0;
+            observer.accept(Map.of("eventKind","CODING_BUDGET_ISOLATED","taskId",taskId,
+                "runId",scope.runId(),"budgetId",accepted.budget().budgetId(),
+                "deadlineAt",accepted.budget().deadlineAt().toString(),"budgetScope","TOOL_INVOCATION"));
             bound=true;
             outcome=agent.submit(accepted);
             if(saved.isPresent()&&!outcome.status().terminal())outcome=agent.resume(scope,taskId);
@@ -219,12 +226,14 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             receipt.put("status",outcome.status().name());receipt.put("reconciliationRequired",outcome.executionControl().reconciliationRequired());
             receipt.put("validationStatus",outcome.validationStatus().name());receipt.put("businessValidation","NOT_EVALUATED");
             receipt.put("usage",outcome.usage());
+            receipt.put("budgetScope","TOOL_INVOCATION");
+            receipt.put("budgetId",accepted.budget().budgetId());
             receipt.put("resultAvailable",false);
             if(outcome.reasonCode()!=null)receipt.put("reasonCode",outcome.reasonCode().name());
             if (outcome.reasonCode() == CodingErrorCode.OUTPUT_CONTRACT_VIOLATION) {
                 receipt.put("replanningRequired", true);
                 receipt.put("retryable", false);
-                receipt.put("diagnostic", "Revise the analytical objective/outputSchema and submit a new requestId within the same shared budget. "
+                receipt.put("diagnostic", "Revise the analytical objective/outputSchema and submit a new requestId with an independent tool budget. "
                     + "Request computed metrics, derived text or structural summaries; do not reproduce source rows for the model to analyze. "
                     + "Same-shape transformations remain valid when their values are actually derived.");
             }
@@ -346,16 +355,12 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         if(deadline instanceof Number number && number.longValue()>0 && System.currentTimeMillis()>=number.longValue())
             throw new com.chatchat.agents.orchestration.model.AgentDeadlineExceededException("Parent analysis deadline reached");
     }
-    private CodingTaskContract.Budget budget(AnalysisCoverageCoordinator.Request context,KernelDataScope scope) {
-        String key="coding:analysis-budget.v1";
+    private CodingTaskContract.Budget budget(KernelDataScope scope,String taskId) {
+        String key="coding:analysis-tool-budget.v2:"+taskId;
         var prior=checkpoints.readExecutionCheckpoint(scope,key);
         if(prior.isPresent())return convert(tree(prior.get()),CodingTaskContract.Budget.class);
         Instant deadline=Instant.now().plusSeconds(policy.getTimeoutSeconds()).truncatedTo(ChronoUnit.MILLIS);
-        Object parentDeadline=context.runtimeAttributes().get("__agentDeadlineAt");
-        if(parentDeadline instanceof Number number && number.longValue()>0) {
-            Instant parent=Instant.ofEpochMilli(number.longValue());if(parent.isBefore(deadline))deadline=parent;
-        }
-        var budget=new CodingTaskContract.Budget("analysis-coding-budget:"+scope.runId(),deadline,
+        var budget=new CodingTaskContract.Budget("analysis-coding-tool-budget:"+taskId,deadline,
             policy.getMaxModelCalls(),policy.getMaxModelTokens(),policy.getMaxToolCalls(),policy.getMaxCodeExecutions(),
             policy.getMaxCostAmount(),policy.getCostCurrency(),policy.getMaxCpuMillis(),policy.getMaxMemoryBytes(),policy.getMaxResultBytes());
         String encoded=encode(budget);

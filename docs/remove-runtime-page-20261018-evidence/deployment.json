@@ -1,0 +1,69 @@
+{
+  "status": "PASSED_WITH_POST_RESTART_BROWSER_AND_LOG_VERIFICATION",
+  "apiImage": "runtime-os-api:54e8a3ee-no-runtime-page-20261018",
+  "archiveSha256": "2b25e339bc1c804346f832f8946c25825eff71c14e244d9832fd0af36c60f019",
+  "archiveBytes": 465478144,
+  "before": {
+    "api": {
+      "containerId": "e76ef7e973402c9ec6d4c6167a9359c6b9c8a647e7fa0492a1d4f43a3356e9ae",
+      "imageId": "sha256:312917f3e327ebe3e48bcdd9fd7f3bd10d496d539bf4555900761390b807a922"
+    },
+    "mcp": {
+      "containerId": "06177b6beef6aa1ae9c97af0c2053705d1c8c9438aff38290dd8942b4e920725",
+      "imageId": "sha256:f843db253f5c9f688c968de2bb14ee1a5e45b3a983b23a35d95ab20216236a69"
+    },
+    "news": {
+      "containerId": "30209542f36533d62c4d28096d0d4b5e4fc60979fb18917e9e294341fa7e5fc0",
+      "imageId": "sha256:b7992a73b4acebdfe3b215cd173a1343c6a89dd98c21e79401068081a05c55c3"
+    },
+    "coding-agent": {
+      "containerId": "bdfa83d474d78c63d85deef1cff18752678bd38ea07ba30bebdf262a47cf9a27",
+      "imageId": "sha256:a3cf18023dab7ed8ee97c8bf47e1e307a7fe8b50d67fde847e6d40e4f14d7004"
+    }
+  },
+  "after": {
+    "api": {
+      "containerId": "f961db672581abb8ffc73cde74dd84e593a35e60db311102a3fb44a5115477e1",
+      "imageId": "sha256:8dfc3bc3697c90d9682140f285106f8e62f470e12f0bebdd6a36bf352fcb7c06",
+      "dataMounts": [
+        {
+          "source": "/opt/chatchat-1.0.0-SNAPSHOT/data",
+          "target": "/srv/app/data"
+        }
+      ]
+    },
+    "mcp": {
+      "containerId": "06177b6beef6aa1ae9c97af0c2053705d1c8c9438aff38290dd8942b4e920725",
+      "imageId": "sha256:f843db253f5c9f688c968de2bb14ee1a5e45b3a983b23a35d95ab20216236a69",
+      "dataMounts": [
+        {
+          "source": "/opt/chatchat-mcp-server-1.0.0-SNAPSHOT/data",
+          "target": "/srv/app/data"
+        }
+      ]
+    },
+    "news": {
+      "containerId": "30209542f36533d62c4d28096d0d4b5e4fc60979fb18917e9e294341fa7e5fc0",
+      "imageId": "sha256:b7992a73b4acebdfe3b215cd173a1343c6a89dd98c21e79401068081a05c55c3",
+      "dataMounts": [
+        {
+          "source": "/opt/chatchat-runtime-news-1.0.0-SNAPSHOT/data",
+          "target": "/srv/app/data"
+        }
+      ]
+    },
+    "coding-agent": {
+      "containerId": "bdfa83d474d78c63d85deef1cff18752678bd38ea07ba30bebdf262a47cf9a27",
+      "imageId": "sha256:a3cf18023dab7ed8ee97c8bf47e1e307a7fe8b50d67fde847e6d40e4f14d7004",
+      "dataMounts": []
+    }
+  },
+  "nonApiApplicationContainersUnchanged": true,
+  "existingHostDataMountsRetained": true,
+  "deploymentExecutionStatus": "DEPLOYED_PENDING_BROWSER_AND_LOG_PROBES",
+  "verificationEvidence": [
+    "browser.json",
+    "application-probes.json",
+    "server-log-retention.json"
+  ]
+}

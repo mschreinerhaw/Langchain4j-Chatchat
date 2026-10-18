@@ -63,6 +63,11 @@ public class AgentRuntimeGuard {
         if (timeoutMs > 0 && !attributes.containsKey(deadlineAtAttribute)) {
             attributes.put(deadlineAtAttribute, startedAt + timeoutMs);
         }
+        if (attributes.containsKey(deadlineAtAttribute)
+                && !(attributes.get(deadlineAtAttribute) instanceof java.util.concurrent.atomic.AtomicLong)) {
+            attributes.put(deadlineAtAttribute, new java.util.concurrent.atomic.AtomicLong(
+                runtimeLong(attributes.get(deadlineAtAttribute), 0L)));
+        }
         return attributes;
     }
 

@@ -19,6 +19,8 @@ import dev.langchain4j.model.output.TokenUsage;
 public final class MeteredChatModel implements ChatModel {
 
     private final ChatModel delegate;
+
+    ChatModel toolDelegate() { return delegate; }
     private final ContextTokenEstimator estimator = new ContextTokenEstimator();
     private final Map<String, Object> usage;
     private final long tokenBudget;

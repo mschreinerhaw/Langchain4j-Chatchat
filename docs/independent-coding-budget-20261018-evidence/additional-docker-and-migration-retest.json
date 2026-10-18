@@ -1,0 +1,130 @@
+{
+  "status": "FAILED",
+  "totals": {
+    "tests": 22,
+    "failures": 10,
+    "errors": 0,
+    "skipped": 0,
+    "passed": 12
+  },
+  "suites": [
+    {
+      "class": "com.chatchat.mcpserver.python.PythonManagedExecutionServiceTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest",
+      "tests": 10,
+      "failures": 9,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.cline.CodingEvidenceDockerIntegrationTest",
+      "tests": 3,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.api.workspace.WorkspaceMigrationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "failedCases": [
+    {
+      "class": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest",
+      "name": "sqlAnalysisValidatesWithSqlGlotAndExecutesOnlyInSandboxSqlite",
+      "kind": "FAILURE",
+      "category": "EXPECTED_COMPLETION_BUT_TASK_FAILED_REQUIRES_FIXTURE_REVIEW",
+      "baselineSuiteWasSkipped": true
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest",
+      "name": "workerAndJavaComponentRestartRestoreSettledSdkBoundaryWithoutBudgetReset",
+      "kind": "FAILURE",
+      "category": "EXPECTED_COMPLETION_BUT_TASK_FAILED_REQUIRES_FIXTURE_REVIEW",
+      "baselineSuiteWasSkipped": true
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest",
+      "name": "independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[1]",
+      "kind": "FAILURE",
+      "category": "SOURCE_COPY_PROJECTION_REJECTED_IN_PREVIOUSLY_SKIPPED_FIXTURE",
+      "baselineSuiteWasSkipped": true
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest",
+      "name": "independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[2]",
+      "kind": "FAILURE",
+      "category": "EXECUTION_UNKNOWN_REQUIRES_RECONCILIATION_REVIEW",
+      "baselineSuiteWasSkipped": true
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest",
+      "name": "independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[3]",
+      "kind": "FAILURE",
+      "category": "SOURCE_COPY_PROJECTION_REJECTED_IN_PREVIOUSLY_SKIPPED_FIXTURE",
+      "baselineSuiteWasSkipped": true
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest",
+      "name": "independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[4]",
+      "kind": "FAILURE",
+      "category": "SOURCE_COPY_PROJECTION_REJECTED_IN_PREVIOUSLY_SKIPPED_FIXTURE",
+      "baselineSuiteWasSkipped": true
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest",
+      "name": "independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[5]",
+      "kind": "FAILURE",
+      "category": "SOURCE_COPY_PROJECTION_REJECTED_IN_PREVIOUSLY_SKIPPED_FIXTURE",
+      "baselineSuiteWasSkipped": true
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest",
+      "name": "independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[6]",
+      "kind": "FAILURE",
+      "category": "SOURCE_COPY_PROJECTION_REJECTED_IN_PREVIOUSLY_SKIPPED_FIXTURE",
+      "baselineSuiteWasSkipped": true
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest",
+      "name": "independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[7]",
+      "kind": "FAILURE",
+      "category": "SOURCE_COPY_PROJECTION_REJECTED_IN_PREVIOUSLY_SKIPPED_FIXTURE",
+      "baselineSuiteWasSkipped": true
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.cline.CodingEvidenceDockerIntegrationTest",
+      "name": "fixedFinancialScriptsProduceGovernedEvidenceWithBudgetAndExecutionIdentity",
+      "kind": "FAILURE",
+      "category": "RAW_STDERR_EXPECTATION_CONFLICTS_WITH_PRIVACY_CONTRACT",
+      "baselineSuiteWasSkipped": true
+    }
+  ],
+  "rootClusters": {
+    "EXPECTED_COMPLETION_BUT_TASK_FAILED_REQUIRES_FIXTURE_REVIEW": 2,
+    "SOURCE_COPY_PROJECTION_REJECTED_IN_PREVIOUSLY_SKIPPED_FIXTURE": 6,
+    "EXECUTION_UNKNOWN_REQUIRES_RECONCILIATION_REVIEW": 1,
+    "RAW_STDERR_EXPECTATION_CONFLICTS_WITH_PRIVACY_CONTRACT": 1
+  },
+  "fixed": {
+    "workspaceMigrationCompatibility": "PASSED_3_TESTS",
+    "localMcpActualDockerExecuteCancelAndChildJvmRecovery": "PASSED_6_TESTS",
+    "requiredTestImage": "python:3.11-alpine",
+    "testImageId": "sha256:d9368b3a5ac59afea7b5d4f2e2aea0941dbf9fdee9c369c5bec00b98244bc929"
+  },
+  "limits": [
+    "Image pinning prerequisite was repaired locally; remaining SDK fixture/result/privacy contract failures are retained, not mislabeled as environment-only.",
+    "These suites use scripted providers for deterministic integration; real model acceptance is separately documented.",
+    "This targeted retest is not a fresh complete backend gate.",
+    "Workspace source scripts were statically checked across all three dialects and executed with H2; new PostgreSQL/MySQL script variants were not executed remotely."
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "status": "PASSED",
+  "phase": "final",
+  "scope": "Actual Chrome, published workspace navigation and old deep link. No CSS hiding, identity/filter override or menu substitution in browser.",
+  "workspaceConfigVersion": 4,
+  "standaloneMenuAbsent": true,
+  "pageRegistrationAbsent": true,
+  "oldRuntimeDeepLinkCannotOpenPage": true,
+  "ordinaryTaskEventLogAccessible": true,
+  "retiredPageChunkRequests": [],
+  "retiredRuntimeApiRequests": [],
+  "pageErrorTypes": []
+}

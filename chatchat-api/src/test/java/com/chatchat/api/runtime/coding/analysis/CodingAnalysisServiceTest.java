@@ -24,17 +24,14 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
-    @Test void expiredSharedBudgetRejectsNewRequestBeforeSnapshotOrExecution() throws Exception {
-        policy.setEnvironmentId("environment");
+    @Test void expiredLegacySharedBudgetDoesNotBlockNewIndependentToolInvocation() throws Exception {
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
         var expired=new CodingTaskContract.Budget("analysis-coding-budget:run",java.time.Instant.EPOCH,
             12,65536,24,12,"10","USD",300000,512L*1024*1024,4L*1024*1024);
         saved.put("tenant:user:run:coding:analysis-budget.v1",new ObjectMapper().findAndRegisterModules().writeValueAsString(expired));
         var result=service().execute(context("tenant"),request(),sources());
-        assertThat(result).containsEntry("status","RESOURCE_BUDGET_EXHAUSTED")
-            .containsEntry("reasonCode","DEADLINE_EXCEEDED").containsEntry("retryable",false)
-            .containsEntry("budgetExhausted",true).containsEntry("resultAvailable",false);
-        verifyNoInteractions(agent,python,plans);
-        verify(inputs,never()).capture(any(),anyString(),anyList(),anyString(),anyString(),anyString(),anyLong(),anyLong());
+        assertThat(result).containsEntry("status","FAILED").doesNotContainKey("budgetExhausted");
+        verify(agent).submit(any());
     }
     final CodingAnalysisProperties policy=new CodingAnalysisProperties();
     final CodingInvocationContext identity=new CodingInvocationContext();
@@ -180,7 +177,7 @@ class CodingAnalysisServiceTest {
         assertThat(receipt).containsEntry("resultAvailable",false).containsEntry("replanningRequired",true)
             .containsEntry("retryable",false).containsEntry("reasonCode","OUTPUT_CONTRACT_VIOLATION")
             .doesNotContainKeys("datasetReference","evidenceRefs","budgetExhausted");
-        assertThat(receipt.get("diagnostic").toString()).contains("new requestId","same shared budget","Same-shape transformations");
+        assertThat(receipt.get("diagnostic").toString()).contains("new requestId","independent tool budget","Same-shape transformations");
         assertThat(sources).containsOnlyKeys("source");
         verifyNoInteractions(collector);
         verify(agent,never()).cancel(any(),anyString(),anyString());
@@ -244,7 +241,7 @@ class CodingAnalysisServiceTest {
         assertThat(models.find(contract.getValue().scope(),contract.getValue().taskId())).isNull();
     }
 
-    @Test void differentModelChosenCalculationsShareThePersistedParentBudget() {
+    @Test void differentModelChosenCalculationsHaveIndependentDurableToolBudgets() {
         var completed=outcome(CodingTaskOutcome.Status.COMPLETED,CodingTaskOutcome.ValidationStatus.INCONCLUSIVE);
         prepare(completed);
         var service=service();var parent=context("tenant");
@@ -253,7 +250,29 @@ class CodingAnalysisServiceTest {
         service.execute(parent,another,sources());
         var contracts=org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);verify(agent,times(2)).submit(contracts.capture());
         assertThat(contracts.getAllValues().get(0).taskId()).isNotEqualTo(contracts.getAllValues().get(1).taskId());
-        assertThat(contracts.getAllValues().get(0).budget()).isEqualTo(contracts.getAllValues().get(1).budget());
+        assertThat(contracts.getAllValues().get(0).budget().budgetId()).isNotEqualTo(contracts.getAllValues().get(1).budget().budgetId());
+        assertThat(contracts.getAllValues()).allSatisfy(c -> assertThat(c.budget().maxModelTokens()).isEqualTo(policy.getMaxModelTokens()));
+    }
+
+    @Test void toolDeadlineIsIndependentAndParentModelUsageIsNotChargedForCoding() {
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        var provider=mock(ChatModel.class);when(provider.chat(anyString())).thenReturn("tool response");
+        var usage=new LinkedHashMap<String,Object>();
+        var parentModel=new com.chatchat.agents.orchestration.model.MeteredChatModel(
+            new com.chatchat.agents.orchestration.model.DeadlineAwareChatModel(provider,()->0L),usage,1,0,0,0,0.8);
+        var deadline=new java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis()+60_000);
+        var parent=context("tenant");
+        var ctx=new AnalysisCoverageCoordinator.Request(parentModel,parent.query(),null,Map.of("__agentDeadlineAt",deadline),
+            parent.metadata(),()->false,()->{},parent.isolationScope(),null);
+        when(agent.submit(any())).thenAnswer(call -> {
+            CodingTaskContract contract=call.getArgument(0);
+            assertThat(contract.budget().deadlineAt()).isAfter(java.time.Instant.now().plusSeconds(200));
+            assertThat(models.find(contract.scope(),contract.taskId()).chat("a large code generation prompt")).isEqualTo("tool response");
+            return outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN);
+        });
+        service().execute(ctx,request(),sources());
+        assertThat(usage.get("invocations")).isEqualTo(0L);
+        assertThat(deadline.get()-System.currentTimeMillis()).isBetween(55_000L,60_000L);
     }
 
     private CodingTaskOutcome outcome(CodingTaskOutcome.Status status,CodingTaskOutcome.ValidationStatus validation){

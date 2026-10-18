@@ -33,6 +33,8 @@ public final class DeadlineAwareChatModel implements ChatModel {
     );
 
     private final ChatModel delegate;
+
+    ChatModel toolDelegate() { return delegate; }
     private final LongSupplier remainingTimeMs;
 
     public DeadlineAwareChatModel(ChatModel delegate, LongSupplier remainingTimeMs) {

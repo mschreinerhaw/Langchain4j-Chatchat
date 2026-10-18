@@ -1,0 +1,59 @@
+{
+  "status": "PASSED",
+  "phase": "independent-coding-budget",
+  "legacyRuntimeEntryFinalUrl": "http://192.168.195.221:18100/",
+  "htmlCacheControl": "no-store, max-age=0",
+  "assets": [
+    {
+      "path": "/lingdong-insight-mark.svg",
+      "status": 200,
+      "bytes": 1688,
+      "sha256": "51fb37c1d7f4d516acc8bcbb0d08d5317c0edd038e01b57bbc2b93d99bdc1f08"
+    },
+    {
+      "path": "/lingdong-insight-logo.svg",
+      "status": 200,
+      "bytes": 2471,
+      "sha256": "23cc7ee2026144c2a2fb7e6ab8fe0a363f2463ef099a920911095d3feb068676"
+    },
+    {
+      "path": "/js/github.min.css",
+      "status": 200,
+      "bytes": 1318,
+      "sha256": "6a2f2b4c152ee715d1e45a1997510212a64373e3173d9cbd9e21833fb8e0aee1"
+    },
+    {
+      "path": "/assets/index-CZK7rFOJ.js",
+      "status": 200,
+      "bytes": 259072,
+      "sha256": "f2a1ec0488d59e39f7d2efc5a6628a2dfb0c9aca84f102332a7f465f8dadd3ad"
+    },
+    {
+      "path": "/assets/index-9fsZFVRE.css",
+      "status": 200,
+      "bytes": 67333,
+      "sha256": "dde4e61ee30c3e26624e4e9d8753040cfc763f38d5d0a267dceb7cf9fa5c79a9"
+    },
+    {
+      "path": "/js/marked.umd.js",
+      "status": 200,
+      "bytes": 42956,
+      "sha256": "7237200e7eb2c89b94c146686c7a19072f2f13c594e3e4831bcc9317c5efa4d8"
+    },
+    {
+      "path": "/js/highlight.min.js",
+      "status": 200,
+      "bytes": 122939,
+      "sha256": "30ecef6c6f78426a75fa5f60f92780501a3619ec11367e3b67331576f3370812"
+    }
+  ],
+  "faviconFinalUrl": "http://192.168.195.221:18100/lingdong-insight-mark.svg",
+  "licenseStatus": "VALID",
+  "licenseIdentity": "MAC-000C298F20F0",
+  "mcpToNewsSignedCall": "PASSED",
+  "newsSourcesCount": 37,
+  "newsSourceIdsSha256": "1f1b128494c70d5a9bb1bc030d302eca240724aa7f60b8b1414c189eae1a8577",
+  "existingPythonCodeStillReadableAndHashMatches": true,
+  "archivedCodeHash": "9b09340de61c00673cf2238d37e5e686038816d573f806756b14b977192d9e47",
+  "scope": "Actual LAN Nginx, API/MCP logins, signed MCP-to-News source listing, existing archived Python code and current packaged asset reads. No article content or credentials retained."
+}

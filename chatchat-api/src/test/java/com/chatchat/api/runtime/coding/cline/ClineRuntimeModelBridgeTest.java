@@ -25,7 +25,7 @@ import static org.mockito.Mockito.*;
 class ClineRuntimeModelBridgeTest {
     private final ObjectMapper json = new ObjectMapper();
 
-    @Test void codingReplyLimitIsConfigurableAndReservedWithinTheParentBudget() throws Exception {
+    @Test void codingReplyLimitIsConfigurableAndReservedWithinTheToolBudget() throws Exception {
         var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
         var parent=mock(ChatModel.class);when(resources.defaultChatModel()).thenReturn("registered-model");
         when(parent.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder().aiMessage(AiMessage.from("done"))
@@ -75,7 +75,7 @@ class ClineRuntimeModelBridgeTest {
         assertThat(captured.getValue().toolSpecifications()).hasSize(1);
     }
 
-    @Test void boundParentModelReceivesCodingCallsAndFactoryCannotBypassParentMetering() throws Exception {
+    @Test void boundAuthorizedModelReceivesCodingCallsAndFactoryCannotReplaceIt() throws Exception {
         var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
         var parent=mock(ChatModel.class);when(resources.defaultChatModel()).thenReturn("registered-model");
         when(parent.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder().aiMessage(AiMessage.from("done"))
@@ -101,7 +101,7 @@ class ClineRuntimeModelBridgeTest {
         verifyNoInteractions(factory);
     }
 
-    @Test void lostParentBindingCannotDispatchAnUnmeteredReplacementModel() throws Exception {
+    @Test void lostAuthorizedBindingCannotDispatchAnUnaccountedReplacementModel() throws Exception {
         var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
         when(resources.defaultChatModel()).thenReturn("registered-model");
         var original=contract();

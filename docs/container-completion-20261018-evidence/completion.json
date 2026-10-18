@@ -1,0 +1,58 @@
+{
+  "recordedAt": "2026-10-18T07:01:26.552797+00:00",
+  "status": "REQUESTED_CONTAINER_PAGE_AND_PERSISTENCE_FIXES_PASSED",
+  "changes": [
+    {
+      "files": [
+        "compose.yaml",
+        "build-images.ps1",
+        "Dockerfile"
+      ],
+      "result": "News Runtime image/build/export/service added; MCP routes signed requests to news:8091; News calls mcp:8090; News remains on the private control network."
+    },
+    {
+      "files": [
+        "public-gateway.conf"
+      ],
+      "result": "Runtime legacy /admin paths redirect to current root; relative redirects preserve external port 18100; Runtime HTML no-store; favicon points to packaged SVG. Current entry and lazy assets all load in real Chrome."
+    },
+    {
+      "files": [
+        "compose.yaml"
+      ],
+      "result": "API/MCP/News bind their separate existing host data directories. Main missing data/config paths fail closed; News config readonly; historical absolute Python workspace/data paths retained as host binds."
+    },
+    {
+      "files": [
+        "README.md",
+        "tests/test_application_deployment.py"
+      ],
+      "result": "Deployment instructions and real Compose/Nginx regression checks added."
+    }
+  ],
+  "runtimeUrl": "http://192.168.195.221:18100/",
+  "mcpAdminUrl": "http://192.168.195.221:18101/admin/index.html",
+  "newsContainer": "runtime-os-app-stage-news-1",
+  "existingDataMounts": {
+    "api": "/opt/chatchat-1.0.0-SNAPSHOT/data -> /srv/app/data",
+    "mcp": "/opt/chatchat-mcp-server-1.0.0-SNAPSHOT/data -> /srv/app/data",
+    "news": "/opt/chatchat-runtime-news-1.0.0-SNAPSHOT/data -> /srv/app/data"
+  },
+  "dataBackup": "news-persistence-backup.json",
+  "containerRecreation": "news-data-recreation.json",
+  "applicationAfterRecreation": "after-recreation-live-probes.json",
+  "browser": "browser-proof.json",
+  "newsSourcesAfterRecreation": 37,
+  "newsSourceIdsUnchanged": true,
+  "existingNewsRecordTotal": 16782,
+  "license": "VALID before and after forced recreation; host NIC MAC-000C298F20F0, signed license file unchanged.",
+  "databaseConfiguration": "Existing API/MCP PostgreSQL settings unchanged. Existing News H2 reused, backed up before startup; initial schema update followed by validate on final recreation.",
+  "sourceAndImages": "source-and-image-manifest.json",
+  "tests": "tests.json",
+  "limitations": [
+    "This follow-up did not rerun or waive the failed full Runtime OS gate or original database analysis acceptance. Production cutover is still not recommended on that basis.",
+    "News retains its existing embedded Temporal mode; H2 records persist but in-memory Temporal workflow history is not durable. External Temporal and collector failure/recovery certification are outside these deployment fixes.",
+    "All current packaged assets were verified. An already cached older browser page may require refresh; missing old hashed bundles are not substituted with unrelated files."
+  ],
+  "secretsOrArticleBodiesInEvidence": false
+}

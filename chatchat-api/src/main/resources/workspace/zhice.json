@@ -70,12 +70,6 @@
       "props": {}
     },
     {
-      "id": "runtime",
-      "menuCode": "runtime",
-      "componentKey": "runtime",
-      "props": {}
-    },
-    {
       "id": "rules",
       "menuCode": "rules",
       "componentKey": "rules",

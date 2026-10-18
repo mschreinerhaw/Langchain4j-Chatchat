@@ -1,0 +1,79 @@
+{
+  "status": "PASSED",
+  "sqlEnvironmentFilesUnchanged": true,
+  "services": [
+    {
+      "service": "api",
+      "imageId": "sha256:3890899fe7bb5b5b5535892209cb09b76c2faf034c4be088a0838f1306c9e6fb",
+      "state": "running",
+      "restartCount": 0,
+      "publishedPorts": {
+        "8080/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "18180"
+          }
+        ]
+      }
+    },
+    {
+      "service": "mcp",
+      "imageId": "sha256:f843db253f5c9f688c968de2bb14ee1a5e45b3a983b23a35d95ab20216236a69",
+      "state": "running",
+      "restartCount": 0,
+      "publishedPorts": {
+        "8090/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "18190"
+          }
+        ]
+      }
+    },
+    {
+      "service": "news",
+      "imageId": "sha256:b7992a73b4acebdfe3b215cd173a1343c6a89dd98c21e79401068081a05c55c3",
+      "state": "running",
+      "restartCount": 0,
+      "publishedPorts": {}
+    },
+    {
+      "service": "coding-agent",
+      "imageId": "sha256:a3cf18023dab7ed8ee97c8bf47e1e307a7fe8b50d67fde847e6d40e4f14d7004",
+      "state": "running",
+      "restartCount": 0,
+      "publishedPorts": {}
+    },
+    {
+      "service": "gateway",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "state": "running",
+      "restartCount": 0,
+      "publishedPorts": {
+        "8080/tcp": [
+          {
+            "HostIp": "0.0.0.0",
+            "HostPort": "18100"
+          }
+        ],
+        "8090/tcp": [
+          {
+            "HostIp": "0.0.0.0",
+            "HostPort": "18101"
+          }
+        ]
+      }
+    },
+    {
+      "service": "node-proxy",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "state": "running",
+      "restartCount": 0,
+      "publishedPorts": {}
+    }
+  ],
+  "composeSha256": "816dc07b25322f72160b19672b3efe8c13aa424ca24f834aa296dcac8cb503e1",
+  "gatewayHostConfigSha256": "96f3d6da8074526d56ae61595a654572199bf33f419327ead22497aa283a2ed8",
+  "gatewayContainerConfigSha256": "96f3d6da8074526d56ae61595a654572199bf33f419327ead22497aa283a2ed8",
+  "newsJarSha256": "6084c90cd144c65ce22d3f804d01ed316d037a3afca7eef9e365682f71ff3a2f"
+}

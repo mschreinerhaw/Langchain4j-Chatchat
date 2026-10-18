@@ -1,0 +1,40 @@
+{
+  "status": "PASSED",
+  "recordedAt": "2026-10-18T07:20:05.377085+00:00",
+  "scope": "Remove the dedicated Python execution trace UI per user request while keeping process observability through existing logs.",
+  "changes": [
+    "Removed Runtime Python coding tab and coding-history pagination.",
+    "Removed Python trace panel from task details, component imports, unused component and component tests.",
+    "Removed duplicate Coding SSE observation projection. Ordinary event messages remain available.",
+    "Bounded visible live Runtime events to 200 entries; complete server history is retained."
+  ],
+  "frontendTests": {
+    "tests": 36,
+    "failures": 0,
+    "suites": 4,
+    "includes": "2000 live events retain at most 200 visible rows without duplicating coding observations; deduplication and unrelated-run isolation remain verified."
+  },
+  "build": {
+    "vite": "PASSED",
+    "bundledAssetsWithoutCodingTracePanel": 73,
+    "mavenContainerPackage": "PASSED",
+    "packagedIndexReferences": 7,
+    "applicationAndNestedSecretFilenameScan": "PASSED"
+  },
+  "deployment": "deployment.json",
+  "browser": "browser.json",
+  "durableServerLogs": "server-log-retention.json",
+  "applicationProbes": "application-probes.json",
+  "sourceAndImages": "source-and-image-manifest.json",
+  "runtimeUrl": "http://192.168.195.221:18100/",
+  "preserved": [
+    "Java task/model/data/MCP authorization and Node Python execution flow.",
+    "Durable coding events, code versions, execution receipts, sanitized stdout/stderr and evidence archives.",
+    "News/MCP/Coding Agent containers and existing host data mounts."
+  ],
+  "limits": [
+    "Frontend visible-event cap is not a server log retention limit.",
+    "This UI-only change does not waive the previously failing full Runtime gate or original database-analysis acceptance. Those were not rerun here.",
+    "Earlier browser probe attempts had test navigation timing and selector encoding problems; retained privately and excluded from the passing browser proof."
+  ]
+}

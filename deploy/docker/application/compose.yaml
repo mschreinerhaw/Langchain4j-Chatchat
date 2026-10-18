@@ -26,7 +26,11 @@ services:
     ports:
       - 127.0.0.1:18180:8080
     volumes:
-      - ${STAGE_ROOT}/api/data:/srv/app/data
+      - type: bind
+        source: ${API_DATA_DIR:-${STAGE_ROOT}/api/data}
+        target: /srv/app/data
+        bind:
+          create_host_path: false
       - ${STAGE_ROOT}/api/logs:/srv/app/logs
       - ${MODEL_CONFIG_FILE:?Set MODEL_CONFIG_FILE}:/srv/app/config/application.yml:ro
     secrets:
@@ -53,17 +57,22 @@ services:
       CHATCHAT_DATASOURCE_CONFIG: datasource-postgresql.yml
       CHATCHAT_MCP_GRPC_PORT: "9091"
       CHATCHAT_MCP_AUTHORIZATION_API_BASE_URL: http://api:8080
+      CHATCHAT_MCP_NEWS_RUNTIME_BASE_URL: http://news:8091
       CHATCHAT_LICENSE_HOST_MAC_FILE: /run/license/host-mac
-      CHATCHAT_MCP_PYTHON_WORKSPACE_ROOT: ${STAGE_ROOT}/mcp/data/python-assets
-      CHATCHAT_MCP_PYTHON_DATA_ROOT: ${STAGE_ROOT}/mcp/data/python-user-data
+      CHATCHAT_MCP_PYTHON_WORKSPACE_ROOT: ${MCP_PYTHON_WORKSPACE_ROOT:-${MCP_DATA_DIR:-${STAGE_ROOT}/mcp/data}/python-assets}
+      CHATCHAT_MCP_PYTHON_DATA_ROOT: ${MCP_PYTHON_DATA_ROOT:-${MCP_DATA_DIR:-${STAGE_ROOT}/mcp/data}/python-user-data}
     extra_hosts:
       - host.docker.internal:host-gateway
     ports:
       - 127.0.0.1:18190:8090
     volumes:
-      - ${STAGE_ROOT}/mcp/data:/srv/app/data
-      - ${STAGE_ROOT}/mcp/data/python-assets:${STAGE_ROOT}/mcp/data/python-assets
-      - ${STAGE_ROOT}/mcp/data/python-user-data:${STAGE_ROOT}/mcp/data/python-user-data
+      - type: bind
+        source: ${MCP_DATA_DIR:-${STAGE_ROOT}/mcp/data}
+        target: /srv/app/data
+        bind:
+          create_host_path: false
+      - ${MCP_PYTHON_WORKSPACE_ROOT:-${MCP_DATA_DIR:-${STAGE_ROOT}/mcp/data}/python-assets}:${MCP_PYTHON_WORKSPACE_ROOT:-${MCP_DATA_DIR:-${STAGE_ROOT}/mcp/data}/python-assets}
+      - ${MCP_PYTHON_DATA_ROOT:-${MCP_DATA_DIR:-${STAGE_ROOT}/mcp/data}/python-user-data}:${MCP_PYTHON_DATA_ROOT:-${MCP_DATA_DIR:-${STAGE_ROOT}/mcp/data}/python-user-data}
       - ${STAGE_ROOT}/mcp/logs:/srv/app/logs
       - /var/run/docker.sock:/var/run/docker.sock
       - type: bind
@@ -81,6 +90,38 @@ services:
       - no-new-privileges:true
     mem_limit: 3g
     cpus: 3
+
+  news:
+    image: ${NEWS_IMAGE:?Set NEWS_IMAGE}
+    restart: unless-stopped
+    stop_grace_period: 60s
+    env_file: ${STAGE_ROOT}/config/news.env
+    environment:
+      SERVER_PORT: "8091"
+      SPRING_CONFIG_ADDITIONAL_LOCATION: optional:file:/srv/app/config/
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx1024m -Dfile.encoding=UTF-8
+      CHATCHAT_RUNTIME_NEWS_MCP_SERVER_BASE_URL: http://mcp:8090
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - type: bind
+        source: ${NEWS_DATA_DIR:?Set NEWS_DATA_DIR to the existing News data directory}
+        target: /srv/app/data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${NEWS_CONFIG_DIR:?Set NEWS_CONFIG_DIR to the existing News config directory}
+        target: /srv/app/config
+        read_only: true
+        bind:
+          create_host_path: false
+      - ${STAGE_ROOT}/news/logs:/srv/app/logs
+    networks:
+      - control
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 2g
+    cpus: 2
 
   coding-agent:
     image: ${NODE_IMAGE:?Set NODE_IMAGE}

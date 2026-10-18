@@ -1,0 +1,30 @@
+{
+  "status": "FILES_VERIFIED_APPLICATION_PROBE_PENDING",
+  "scope": "Actual forced recreation of API/MCP/News using existing host data. Existing file hashes match inside/outside and before/after; News application source IDs are checked separately.",
+  "files": [
+    {
+      "service": "api",
+      "hostDataDirectory": "/opt/chatchat-1.0.0-SNAPSHOT/data",
+      "existingFile": "README.md",
+      "sha256": "663d54b237bb273ae0656335e6e6fd09ada15b9f81bdcf4f6516526fc5c913d7",
+      "containerMatchesHost": true
+    },
+    {
+      "service": "mcp",
+      "hostDataDirectory": "/opt/chatchat-mcp-server-1.0.0-SNAPSHOT/data",
+      "existingFile": "license/license.dat",
+      "sha256": "91268fce3f26dd1289af343344e3404ce7a10e118683b3bbda250781f80850bb",
+      "containerMatchesHost": true
+    },
+    {
+      "service": "news",
+      "hostDataDirectory": "/opt/chatchat-runtime-news-1.0.0-SNAPSHOT/data",
+      "existingFile": "README.md",
+      "sha256": "751d2b46be980287c6fbcd87afd5aa12584dd677359d12993557c72a3552f408",
+      "containerMatchesHost": true
+    }
+  ],
+  "allThreeContainerIdsChanged": true,
+  "newsHibernateDdlAuto": "validate",
+  "historicalPythonHostPathsPreserved": true
+}

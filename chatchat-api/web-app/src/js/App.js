@@ -64,7 +64,6 @@ const SqlStudioView = asyncView(() => import("../views/SqlStudioView.vue"));
 const DomainSkillsView = asyncView(() => import("../views/DomainSkillsView.vue"));
 const AgentWorkshopView = asyncView(() => import("../views/AgentWorkshopView.vue"));
 const AgentScheduleView = asyncView(() => import("../views/AgentScheduleView.vue"));
-const AgentRuntimeView = asyncView(() => import("../views/AgentRuntimeView.vue"));
 const RetrievalRulesView = asyncView(() => import("../views/RetrievalRulesView.vue"));
 const EvidenceDebuggerView = asyncView(() => import("../views/EvidenceDebuggerView.vue"));
 const SystemUsersView = asyncView(() => import("../views/SystemUsersView.vue"));
@@ -101,7 +100,6 @@ const views = {
   sqlStudio: SqlStudioView,
   agents: AgentWorkshopView,
   schedules: AgentScheduleView,
-  runtime: AgentRuntimeView,
   rules: RetrievalRulesView,
   debugger: EvidenceDebuggerView,
   tasks: TasksView,
@@ -252,9 +250,7 @@ export default {
           }
         : {
             ...pageProps,
-            userId: this.activeView === "runtime"
-              ? (this.authSession?.user?.id || this.userId)
-              : this.userId,
+            userId: this.userId,
             tenantId: this.tenantId,
             workspaceContext: this.workspaceContext,
             ...(DATA_SCIENCE_TABS[this.activeView]

@@ -1,0 +1,19 @@
+{
+  "head": "89f48b768d9570fdbaaaeeee3fcfdfbaabb80ae5",
+  "scope": "Six deployment/build/documentation files changed in this follow-up; previous uncommitted Runtime OS changes retained.",
+  "files": {
+    "deploy/docker/application/Dockerfile": "00d1c96e2eaba74fe7876b2fc8f8e881da1cd3e0f27cb9be7569fb1b963ab966",
+    "deploy/docker/application/build-images.ps1": "31677ecaed1c987a020eb1524cd81a70239d34ce473be9f666d8a8229745712a",
+    "deploy/docker/application/compose.yaml": "816dc07b25322f72160b19672b3efe8c13aa424ca24f834aa296dcac8cb503e1",
+    "deploy/docker/application/public-gateway.conf": "96f3d6da8074526d56ae61595a654572199bf33f419327ead22497aa283a2ed8",
+    "deploy/docker/application/README.md": "f0c442bf7fc1cb2206ccb616dea3e4ff75351e26fb3b40764a6522e08023e7ef",
+    "deploy/docker/application/tests/test_application_deployment.py": "149a67257ccd9de8b49a34c3da8ea9a4bbec14942d20487a3c385d5b4e165fb9"
+  },
+  "previousRuntimeSourcesOutsideTheseFilesUnchanged": true,
+  "newsImage": "runtime-os-news:54e8a3ee-news-persist-20261018",
+  "newsImageId": "sha256:b7992a73b4acebdfe3b215cd173a1343c6a89dd98c21e79401068081a05c55c3",
+  "newsJarSha256": "6084c90cd144c65ce22d3f804d01ed316d037a3afca7eef9e365682f71ff3a2f",
+  "newsArchiveSha256": "9f3e9d1264b28196ff370e48405c334b98a1fde2efd8af330692a65870c06c3c",
+  "newsArchiveBytes": 233753600,
+  "apiMcpNodeImages": "Existing verified images reused; see news-final-inspection.json."
+}

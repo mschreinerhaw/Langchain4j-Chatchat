@@ -1,0 +1,38 @@
+{
+  "head": "89f48b768d9570fdbaaaeeee3fcfdfbaabb80ae5",
+  "scope": "Seven frontend files only; backend source, existing deployment files and prior user changes retained.",
+  "files": {
+    "chatchat-api/web-app/src/components/CodingTracePanel.vue": {
+      "state": "deleted"
+    },
+    "chatchat-api/web-app/src/components/CodingTracePanel.test.js": {
+      "state": "deleted"
+    },
+    "chatchat-api/web-app/src/js/views/AgentRuntimeView.js": {
+      "state": "present",
+      "sha256": "7e7fa2c2c7ed0c2f27e694e4724c2be31a72d221d8d03b0e8f9d0de2063a98c0"
+    },
+    "chatchat-api/web-app/src/js/views/AgentRuntimeView.test.js": {
+      "state": "present",
+      "sha256": "3cefc5d86101d50905b65b6430d065c5a4790e69192091969fb80992fde4f486"
+    },
+    "chatchat-api/web-app/src/js/views/TasksView.js": {
+      "state": "present",
+      "sha256": "1b2cf1710192c4b8e3f8da3e354bac379d694be477781a7a42ea04c1c8297598"
+    },
+    "chatchat-api/web-app/src/views/AgentRuntimeView.vue": {
+      "state": "present",
+      "sha256": "ca28ec76773977f4229c9740d39ac1e83bbd2df3f849977f22e72a062c4fdc41"
+    },
+    "chatchat-api/web-app/src/views/TasksView.vue": {
+      "state": "present",
+      "sha256": "3265fa2a2bd9e2bce45065512b80da2074754789d10940bb5e0623c975a799f5"
+    }
+  },
+  "apiImage": "runtime-os-api:54e8a3ee-no-coding-ui-20261018",
+  "apiImageId": "sha256:312917f3e327ebe3e48bcdd9fd7f3bd10d496d539bf4555900761390b807a922",
+  "archiveSha256": "4ddfa8650ece823743585e2731d8f5d15bff55454c59aff70c182d3125be5531",
+  "archiveBytes": 465487360,
+  "apiJarSha256": "4c2a9933462736c3a3180966acdc13471da74364d6f6a6c8ac11368260d940c3",
+  "otherApplicationContainersUnchanged": true
+}

@@ -31,17 +31,18 @@ if (-not $SkipMaven) {
         & npm.cmd run build -- --outDir $frontendOutput
         if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed.' }
     } finally { Pop-Location }
-    & mvn -o -pl chatchat-api,chatchat-mcp-server -am -Pbackend-only '-Dfrontend.skip=true' '-DskipTests' '-Dcontainer.image=true' "-Dweb.static.directory=$frontendOutput" package
+    & mvn -o -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am -Pbackend-only '-Dfrontend.skip=true' '-DskipTests' '-Dcontainer.image=true' "-Dweb.static.directory=$frontendOutput" package
     if ($LASTEXITCODE -ne 0) { throw 'Maven package failed.' }
 }
 
 & (Join-Path $PSScriptRoot 'verify-web-assets.ps1') -JarPath (Join-Path $repo 'chatchat-api/target/chatchat-api-1.0.0-SNAPSHOT.jar')
-foreach ($module in @('chatchat-api','chatchat-mcp-server')) {
+foreach ($module in @('chatchat-api','chatchat-mcp-server','chatchat-runtime-news')) {
     & (Join-Path $PSScriptRoot 'verify-image-secrets.ps1') -JarPath (Join-Path $repo "$module/target/$module-1.0.0-SNAPSHOT.jar")
 }
 $apps = @(
     @{ Name = 'api'; Jar = 'chatchat-api/target/chatchat-api-1.0.0-SNAPSHOT.jar'; Dockerfile = 'Dockerfile' },
-    @{ Name = 'mcp'; Jar = 'chatchat-mcp-server/target/chatchat-mcp-server-1.0.0-SNAPSHOT.jar'; Dockerfile = 'Dockerfile.mcp' }
+    @{ Name = 'mcp'; Jar = 'chatchat-mcp-server/target/chatchat-mcp-server-1.0.0-SNAPSHOT.jar'; Dockerfile = 'Dockerfile.mcp' },
+    @{ Name = 'news'; Jar = 'chatchat-runtime-news/target/chatchat-runtime-news-1.0.0-SNAPSHOT.jar'; Dockerfile = 'Dockerfile' }
 )
 foreach ($app in $apps) {
     $context = Join-Path $contextRoot $app.Name
@@ -54,7 +55,8 @@ foreach ($app in $apps) {
             Copy-Item -LiteralPath $DockerCliPath -Destination $cliDestination -Force -ErrorAction Stop
         }
     }
-    & docker build --platform linux/amd64 -t "runtime-os-$($app.Name):$Tag" $context
+    $appPort = if ($app.Name -eq 'news') { '8091' } elseif ($app.Name -eq 'mcp') { '8090' } else { '8080' }
+    & docker build --platform linux/amd64 --build-arg "APP_PORT=$appPort" -t "runtime-os-$($app.Name):$Tag" $context
     if ($LASTEXITCODE -ne 0) { throw "Docker build failed for $($app.Name)." }
 }
 
@@ -65,6 +67,6 @@ if ($LASTEXITCODE -ne 0) { throw 'Docker build failed for Coding Agent.' }
 if ($LASTEXITCODE -ne 0) { throw 'Docker pull failed for the loopback proxy.' }
 
 $archive = Join-Path $contextRoot "runtime-os-app-$Tag.tar"
-& docker save -o $archive "runtime-os-api:$Tag" "runtime-os-mcp:$Tag" "runtime-os-coding-agent:$Tag" nginx:1.27.5-alpine
+& docker save -o $archive "runtime-os-api:$Tag" "runtime-os-mcp:$Tag" "runtime-os-news:$Tag" "runtime-os-coding-agent:$Tag" nginx:1.27.5-alpine
 if ($LASTEXITCODE -ne 0) { throw 'Docker image export failed.' }
 Get-FileHash -Algorithm SHA256 $archive | Select-Object Path, Hash

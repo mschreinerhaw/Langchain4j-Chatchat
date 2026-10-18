@@ -1,0 +1,23 @@
+{
+  "status": "PASSED",
+  "scope": "Actual Chrome over external 18100 after data mounts and container recreation. Normal authenticated principal, legacy entry redirect, Runtime/Agent management/capability market views; no CSS or filter overrides.",
+  "legacyEntryKeepsExternalPort": true,
+  "htmlNoStore": true,
+  "routes": [
+    {
+      "route": "runtime",
+      "viewVisible": true
+    },
+    {
+      "route": "agents",
+      "viewVisible": true
+    },
+    {
+      "route": "market",
+      "viewVisible": true
+    }
+  ],
+  "pageErrorTypes": [],
+  "staticFailures": [],
+  "screenshotRetainedPrivately": true
+}

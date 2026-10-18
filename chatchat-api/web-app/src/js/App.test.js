@@ -6,12 +6,13 @@ import AssistantSidebar from "./components/AssistantSidebar.js";
 import SystemManagementView from "./views/SystemManagementView.js";
 import * as api from "../services/api.js";
 
-describe("runtime run ownership", () => {
-  it("queries persisted runtime runs with the authenticated principal ID", () => {
-    const context = { activeView: "runtime", userId: "login-name", tenantId: "tenant",
-      authSession: { user: { id: "principal-id", username: "login-name" } } };
-    expect(App.computed.activeComponentProps.call(context).userId).toBe("principal-id");
-    expect(App.computed.activeComponentProps.call({ ...context, activeView: "chat" }).userId).toBe("login-name");
+describe("retired execution trace page", () => {
+  it("does not resolve the retired component even with a stale workspace page registration", () => {
+    const context = { menuAuthorizationReady: true, activeView: "runtime", canAccessView: () => true,
+      workspacePages: [{ id: "runtime", componentKey: "runtime" }] };
+    const retired = App.computed.activeComponent.call(context);
+    const unavailable = App.computed.activeComponent.call({ ...context, activeView: "not-a-page", workspacePages: [] });
+    expect(retired).toBe(unavailable);
   });
 });
 

@@ -1,0 +1,21 @@
+{
+  "status": "PASSED",
+  "scope": "Actual Chrome through external 18100 after API image deployment. Runtime historical task and task exploration views remain usable without Python trace panels. No identity/filter/CSS overrides.",
+  "pythonRuntimeTabAbsent": true,
+  "pythonTaskPanelAbsent": true,
+  "ordinaryEventLogTabAccessible": true,
+  "visibleLogRows": 200,
+  "pageErrorTypes": [],
+  "assetFailures": [],
+  "codingArtifactRequests": [],
+  "automaticSseRequests": [],
+  "taskExplorationVisible": true,
+  "screenshotRetainedPrivately": true,
+  "runtimeTabLabels": [
+    "Timeline",
+    "Trace",
+    "Events",
+    "Steps",
+    "Observations"
+  ]
+}

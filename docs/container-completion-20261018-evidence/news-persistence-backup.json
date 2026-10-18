@@ -1,0 +1,9 @@
+{
+  "backupDirectory": "/opt/runtime-os-docker-stage/evidence/remediation-20261018/before-news-persistence-144821",
+  "dataRoots": [
+    "/opt/chatchat-1.0.0-SNAPSHOT/data",
+    "/opt/chatchat-mcp-server-1.0.0-SNAPSHOT/data",
+    "/opt/chatchat-runtime-news-1.0.0-SNAPSHOT/data"
+  ],
+  "status": "BACKED_UP_BEFORE_MOUNT_CHANGE"
+}

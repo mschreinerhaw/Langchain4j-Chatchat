@@ -1,0 +1,9 @@
+{
+  "status": "PASSED",
+  "scope": "Actual bounded existing News record page through authenticated MCP-to-News service; article content is neither logged nor retained.",
+  "total": 16782,
+  "page": 0,
+  "pageSize": 1,
+  "returnedItems": 1,
+  "existingRecordsPresent": true
+}

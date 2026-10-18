@@ -1,0 +1,108 @@
+{
+  "status": "DEPLOYED_PENDING_APPLICATION_PROBES",
+  "archiveSha256": "9f3e9d1264b28196ff370e48405c334b98a1fde2efd8af330692a65870c06c3c",
+  "archiveBytes": 233753600,
+  "newsImage": "runtime-os-news:54e8a3ee-news-persist-20261018",
+  "dataDirectories": {
+    "API_DATA_DIR": "/opt/chatchat-1.0.0-SNAPSHOT/data",
+    "MCP_DATA_DIR": "/opt/chatchat-mcp-server-1.0.0-SNAPSHOT/data",
+    "NEWS_DATA_DIR": "/opt/chatchat-runtime-news-1.0.0-SNAPSHOT/data",
+    "NEWS_CONFIG_DIR": "/opt/chatchat-runtime-news-1.0.0-SNAPSHOT/config",
+    "MCP_PYTHON_WORKSPACE_ROOT": "/opt/runtime-os-docker-stage/mcp/data/python-assets",
+    "MCP_PYTHON_DATA_ROOT": "/opt/runtime-os-docker-stage/mcp/data/python-user-data"
+  },
+  "backupDirectory": "/opt/runtime-os-docker-stage/evidence/remediation-20261018/before-news-persistence-144821",
+  "containers": [
+    {
+      "service": "api",
+      "imageId": "sha256:3890899fe7bb5b5b5535892209cb09b76c2faf034c4be088a0838f1306c9e6fb",
+      "mounts": [
+        {
+          "source": "/opt/chatchat-1.0.0-SNAPSHOT/data",
+          "target": "/srv/app/data",
+          "readOnly": false
+        }
+      ],
+      "ports": {
+        "8080/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "18180"
+          }
+        ]
+      }
+    },
+    {
+      "service": "mcp",
+      "imageId": "sha256:f843db253f5c9f688c968de2bb14ee1a5e45b3a983b23a35d95ab20216236a69",
+      "mounts": [
+        {
+          "source": "/opt/chatchat-mcp-server-1.0.0-SNAPSHOT/data",
+          "target": "/srv/app/data",
+          "readOnly": false
+        },
+        {
+          "source": "/opt/runtime-os-docker-stage/mcp/data/python-assets",
+          "target": "/opt/runtime-os-docker-stage/mcp/data/python-assets",
+          "readOnly": false
+        },
+        {
+          "source": "/opt/runtime-os-docker-stage/mcp/data/python-user-data",
+          "target": "/opt/runtime-os-docker-stage/mcp/data/python-user-data",
+          "readOnly": false
+        }
+      ],
+      "ports": {
+        "8090/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "18190"
+          }
+        ]
+      }
+    },
+    {
+      "service": "news",
+      "imageId": "sha256:b7992a73b4acebdfe3b215cd173a1343c6a89dd98c21e79401068081a05c55c3",
+      "mounts": [
+        {
+          "source": "/opt/chatchat-runtime-news-1.0.0-SNAPSHOT/data",
+          "target": "/srv/app/data",
+          "readOnly": false
+        },
+        {
+          "source": "/opt/chatchat-runtime-news-1.0.0-SNAPSHOT/config",
+          "target": "/srv/app/config",
+          "readOnly": true
+        }
+      ],
+      "ports": {}
+    },
+    {
+      "service": "gateway",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "mounts": [],
+      "ports": {
+        "8080/tcp": [
+          {
+            "HostIp": "0.0.0.0",
+            "HostPort": "18100"
+          }
+        ],
+        "8090/tcp": [
+          {
+            "HostIp": "0.0.0.0",
+            "HostPort": "18101"
+          }
+        ]
+      }
+    },
+    {
+      "service": "node-proxy",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "mounts": [],
+      "ports": {}
+    }
+  ],
+  "sqlDatabasesChanged": false
+}

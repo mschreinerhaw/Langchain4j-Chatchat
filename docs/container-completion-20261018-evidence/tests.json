@@ -1,0 +1,34 @@
+{
+  "status": "PASSED",
+  "composeAndActualNginxContainerTests": {
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "scope": "Real Compose expansion, persistent path selection/private News networking, Nginx syntax and real external-port redirect responses."
+  },
+  "newsJavaSelectedTests": [
+    {
+      "class": "com.chatchat.runtime.news.NewsRuntimeControllerSurfaceContractTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.runtime.news.temporal.config.NewsTemporalEmbeddedServerTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "package": "BUILD_SUCCESS",
+  "newsApplicationJarSecretFilenameScan": "PASSED",
+  "browser": "browser-proof.json",
+  "realNetworkAndData": [
+    "after-recreation-live-probes.json",
+    "existing-news-records.json",
+    "news-final-inspection.json"
+  ],
+  "fullRuntimeGate": "NOT_RERUN_FOR_DEPLOYMENT_ONLY_CHANGE; prior 4441/131F/64E/10skip remains unresolved. No Java/Node/frontend source changed in this follow-up."
+}

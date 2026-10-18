@@ -732,10 +732,6 @@
       </div>
 
       <p v-if="explorationWarning && graphMode === 'exploration'" class="runtime-empty">{{ explorationWarning }}</p>
-      <details v-if="explorationRunId && explorationTimeline.observations.some(item => item.metadata?.eventKind === 'CODING_TRACE')" class="runtime-coding-log">
-        <summary>Python 编程交互日志</summary>
-        <CodingTracePanel :run-id="explorationRunId" :observations="explorationTimeline.observations" />
-      </details>
       <div v-if="selectedTask && activeGraphNodes.length > 0" class="plan-dag-layout">
         <aside v-if="graphMode === 'plan' && selectedPlanDag" class="plan-dag-side">
           <div>

@@ -328,10 +328,8 @@ public class PythonManagedExecutionService {
         boolean stopped = state.exists() && docker.stopManaged(row.containerName).confirmed();
         if (stopped) {
             try {
-                PythonDockerRuntime.ExecResult logs = docker.logsManaged(row.containerName);
                 Path workspace = Path.of(row.workspacePath);
-                writeOnce(workspace.resolve("output/logs/stdout.txt"), logs.stdout());
-                writeOnce(workspace.resolve("output/logs/stderr.txt"), logs.stderr());
+                PythonExecutionLogBoundary.persist(workspace, mapper);
                 writeReceipt(row, docker.inspectManaged(row.containerName), true);
                 workspaces.archive(workspace);
             } catch (Exception ex) {
@@ -357,10 +355,8 @@ public class PythonManagedExecutionService {
         PythonDockerRuntime.ContainerState state = docker.inspectManaged(row.containerName);
         if (!state.exists() || state.running()) return;
         try {
-            PythonDockerRuntime.ExecResult logs = docker.logsManaged(row.containerName);
             Path workspace = Path.of(row.workspacePath);
-            writeOnce(workspace.resolve("output/logs/stdout.txt"), logs.stdout());
-            writeOnce(workspace.resolve("output/logs/stderr.txt"), logs.stderr());
+            PythonExecutionLogBoundary.persist(workspace, mapper);
             writeReceipt(row, state, false);
             workspaces.archive(workspace);
             String manifestHash = PythonOperationWorkspace.hash(Files.readAllBytes(workspace.resolve("manifest.json")));

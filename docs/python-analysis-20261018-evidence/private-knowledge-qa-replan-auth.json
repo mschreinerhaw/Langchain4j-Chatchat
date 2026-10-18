@@ -1,0 +1,22 @@
+{
+  "status": "PASSED",
+  "imageTag": "54e8a3ee-hostnic-runtime-replan-auth-20261018",
+  "scope": "Actual model, existing published role_chat workflow, synthetic private OpenSearch document and strict owner/reader scope. Broad dynamic document routing is not certified.",
+  "privateMarkerExcludedFromQuestion": true,
+  "cases": [
+    {
+      "caller": "owner",
+      "taskId": "84d0806b-49b0-3729-8dc8-90a2d3330594",
+      "status": "SUCCESS",
+      "privateMarkerFound": true,
+      "references": 1
+    },
+    {
+      "caller": "reader",
+      "taskId": "89a2c1a7-34e1-3303-b398-7a3c1715b1c0",
+      "status": "SUCCESS",
+      "privateMarkerFound": false,
+      "references": 0
+    }
+  ]
+}

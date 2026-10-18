@@ -71,6 +71,9 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             + "calculate, inspect real execution receipts, repair technical faults, and produce structured results. "
             + "Supports cleansing diagnostics, aggregation, time series, portfolio/cash/returns, joins, statistics and chart data. "
             + "instruction describes the calculation and required output; the Coding worker writes rows.jsonl. "
+            + "Design the objective and outputSchema for computed facts, derived text or chart data, not a raw-source round trip. "
+            + "Source schema/profile is already available. Do not request source-row reproduction merely to inspect data. "
+            + "A derived transformation may retain the source field names; unchanged source values are not analytical results. "
             + "outputSchema validates EACH JSONL ROW, never the containing array/file; its root type MUST be object. "
             + "Supported keywords ONLY: type/properties/required/items/enum/additionalProperties/description/title. "
             + "Do not use array as the root type, minItems, maxItems, minLength or other unsupported keywords. "
@@ -122,6 +125,14 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             contract=convert(record.get("contract"),CodingTaskContract.class);
         } else {
             var budget=budget(context,scope);
+            if (!Instant.now().isBefore(budget.deadlineAt())) {
+                // An expired shared delegation budget cannot be renewed with another model-chosen request ID.
+                var receipt=Map.<String,Object>of("operation","RUN_CODING","requestId",requestId,"taskId",taskId,
+                    "status","RESOURCE_BUDGET_EXHAUSTED","reasonCode","DEADLINE_EXCEEDED",
+                    "budgetExhausted",true,"retryable",false,"resultAvailable",false);
+                context.metadata().put("codingLastReceipt",receipt);
+                return receipt;
+            }
             var env=python.environment(text(policy.getEnvironmentId(),256));
             if(env==null || !"PUBLISHED".equals(env.status()) || !"NONE".equals(env.networkPolicy()))
                 throw new SecurityException("Coding requires a published network-disabled deployment environment");
@@ -137,6 +148,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 +"Write rows.jsonl matching this row schema: "+ModelProtocolJson.compact(schema)
                 +". Plan the analysis, inspect data types, missing dates, duplicate keys and precision before calculating. "
                 +"Never invent missing observations, trading calendars, business formulas, rounding policies or silently repair business data. "
+                +"Never substitute a common default for unmeasured source configuration. Request authorized data or preserve the assumption explicitly in conditional estimates and affected result fields. "
                 +"Unrecognized formats and failed parsing are not empty datasets. Fail explicitly rather than replacing missing fields with zero; "
                 +"zero counts require recognized observations or an authorized manifest that proves an empty source. "
                 +"For multi-dataset input, each JSONL row is {datasetReference,record}; join by explicit keys and report unmatched rows. "
@@ -209,11 +221,37 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             receipt.put("usage",outcome.usage());
             receipt.put("resultAvailable",false);
             if(outcome.reasonCode()!=null)receipt.put("reasonCode",outcome.reasonCode().name());
+            if (outcome.reasonCode() == CodingErrorCode.OUTPUT_CONTRACT_VIOLATION) {
+                receipt.put("replanningRequired", true);
+                receipt.put("retryable", false);
+                receipt.put("diagnostic", "Revise the analytical objective/outputSchema and submit a new requestId within the same shared budget. "
+                    + "Request computed metrics, derived text or structural summaries; do not reproduce source rows for the model to analyze. "
+                    + "Same-shape transformations remain valid when their values are actually derived.");
+            }
             if(outcome.executionControl().stopReason()!=null)receipt.put("stopReason",outcome.executionControl().stopReason().name());
+            if (outcome.reasonCode()==CodingErrorCode.DEADLINE_EXCEEDED || outcome.reasonCode()==CodingErrorCode.BUDGET_EXCEEDED
+                    || outcome.executionControl().stopReason()==CodingErrorCode.DEADLINE_EXCEEDED
+                    || outcome.executionControl().stopReason()==CodingErrorCode.BUDGET_EXCEEDED) {
+                receipt.put("budgetExhausted",true);receipt.put("retryable",false);
+            }
             if(outcome.summary()!=null)receipt.put("summary",outcome.summary());
             receipt.put("limitations",outcome.limitations());
             if(outcome.status()==CodingTaskOutcome.Status.COMPLETED && outcome.validationStatus()!=CodingTaskOutcome.ValidationStatus.FAILED) {
                 var result=collector.registeredResult(scope,taskId,outcome.resultDatasetRef());
+                var review = new CodingSemanticAdmission(json).review(context.model(), instruction,
+                    collector.codeForReview(scope, taskId, outcome.codeArtifactRef()), outcome.summary(), result,
+                    inputs.describe(scope, taskId, inputs.requireAuthorized(accepted)), scope, taskId, checkpoints,
+                    () -> ensureActive(context));
+                receipt.put("semanticAdmission", review);
+                observer.accept(Map.of("eventKind", "CODING_SEMANTIC_REVIEW", "taskId", taskId,
+                    "runId", scope.runId(), "eventState", review.get("status"), "review", review));
+                if (!"SUPPORTED".equals(review.get("status"))) {
+                    receipt.remove("summary");
+                    receipt.put("outputStatus", "SEMANTIC_REVIEW_REQUIRES_REVISION");
+                    receipt.put("diagnostic", "Execution artifacts remain archived. Revise the program to limit findings to measured evidence and submit a new requestId; no analytical dataset was admitted.");
+                    context.metadata().put("codingLastReceipt", Map.copyOf(receipt));
+                    return Collections.unmodifiableMap(receipt);
+                }
                 var refs=List.of(outcome.inputSnapshotRef(),outcome.codeArtifactRef(),outcome.executionReceiptRef(),
                     outcome.resultDatasetRef(),outcome.validationRecordRef(),outcome.evidenceBundleRef());
                 var resultContext=new LinkedHashMap<String,Object>(result.analysisContext());

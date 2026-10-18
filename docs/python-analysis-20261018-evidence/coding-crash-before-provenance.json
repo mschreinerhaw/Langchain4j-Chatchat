@@ -1,0 +1,31 @@
+{
+  "status": "NOT_PASSED",
+  "imageTag": "54e8a3ee-hostnic-runtime-20261018",
+  "scope": "Real model, real database, API SIGKILL during actual Python execution; full task recovery certification.",
+  "taskId": "2b0484b5-6726-376f-8019-7089aa059fcc",
+  "runId": "att-1-93e5438b-4def-451d-844d-a82328b00b37",
+  "activeOperationAtKill": {
+    "operation": "cline-24c6c973508492f32882d1da453265cf919de164dce949b74ae343d2826340ba",
+    "run": "att-1-93e5438b-4def-451d-844d-a82328b00b37",
+    "task": "analysis-coding-0d1360eb1ad856b5564568f2a166c9b9257a3d84374db545609ac1abdc4b7f92",
+    "status": "RUNNING",
+    "container": "chatchat-py-11cfb1cbb45a71f2b9e14df37a3c3212e51a726f",
+    "codeHash": "9ad34939bca32dc9e214430e05ca18d259d2d4cd06ff37c1bb6302c3cc7645fc"
+  },
+  "sandboxContinuedAfterApiKill": true,
+  "originalOperationTerminal": "SUCCEEDED",
+  "originalArithmetic": "PASSED_INDEPENDENT_RECOMPUTATION",
+  "parentFinalStatus": "TIME_BUDGET_EXHAUSTED",
+  "sameParentAttemptRecovered": true,
+  "reacquisitionObservedAfterRestart": true,
+  "codingTaskIds": [
+    "analysis-coding-0d1360eb1ad856b5564568f2a166c9b9257a3d84374db545609ac1abdc4b7f92",
+    "analysis-coding-4bb05a31d010bceca935351c63564dc67482c316907f610037b48214b17a22a9",
+    "analysis-coding-87399236b806072170815f4a6f80d7e33d8d4857cadf803925eb92abef70387d"
+  ],
+  "exactlyOnceWorkflowRecovery": "NOT_CERTIFIED",
+  "statusMisreportRegression": "PASSED_NO_FALSE_SUCCESS",
+  "reportReviewsRejected": 6,
+  "knownIssue": "Reviewer lacked bounded source/execution provenance; repeated report correction exhausted the task budget. Separate generic provenance fix requires new live acceptance.",
+  "productionSwitchRecommended": false
+}

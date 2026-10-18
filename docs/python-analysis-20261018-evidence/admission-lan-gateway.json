@@ -1,0 +1,41 @@
+{
+  "status": "PASSED",
+  "scope": "Actual LAN access through Nginx from development workstation; internal and actuator routes blocked.",
+  "imageTag": "54e8a3ee-hostnic-runtime-admission-20261018",
+  "checks": [
+    {
+      "service": "runtime",
+      "path": "/internal/v1/not-public",
+      "status": 404
+    },
+    {
+      "service": "runtime",
+      "path": "/actuator/health",
+      "status": 404
+    },
+    {
+      "service": "runtime",
+      "path": "/api/v1/enterprise/auth/login",
+      "status": 200,
+      "authenticated": true
+    },
+    {
+      "service": "mcp",
+      "path": "/internal/v1/not-public",
+      "status": 404
+    },
+    {
+      "service": "mcp",
+      "path": "/actuator/health",
+      "status": 404
+    },
+    {
+      "service": "mcp",
+      "path": "/api/v1/license/status",
+      "status": 200,
+      "valid": true,
+      "licenseState": "VALID",
+      "serverIdentity": "MAC-000C298F20F0"
+    }
+  ]
+}

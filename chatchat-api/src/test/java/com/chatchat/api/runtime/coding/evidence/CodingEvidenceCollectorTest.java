@@ -78,6 +78,9 @@ class CodingEvidenceCollectorTest {
             List.of(new CodingEvidenceCollector.InputFile("prices","prices.csv",sha(source))),
             rows->new CodingSchemaResultVerifier().verify(scope,null,rules,rows));
         assertThat(collected.validationStatus()).isEqualTo(CodingTaskOutcome.ValidationStatus.FAILED);
+        assertThat(collector(store).copiedSourceResult(scope,"task",collected.validationRecordRef())).isTrue();
+        assertThatThrownBy(() -> collector(store).copiedSourceResult(scope,"task",collected.resultDatasetRef()))
+            .isInstanceOf(IllegalArgumentException.class);
         assertThat(store.find(scope,id(collected.validationRecordRef())).orElseThrow().payload().toString())
             .contains("copiedSourceContentDetected=true").doesNotContain("private diagnostic source");
     }
@@ -93,6 +96,7 @@ class CodingEvidenceCollectorTest {
             List.of(new CodingEvidenceCollector.InputFile("prices","prices.csv",sha("amount\n12.50\n"))),
             rows->new CodingSchemaResultVerifier().verify(scope,null,optionalAmountRules(),rows));
         assertThat(result.validationStatus()).isEqualTo(CodingTaskOutcome.ValidationStatus.INCONCLUSIVE);
+        assertThat(collector(store).copiedSourceResult(scope,"task",result.validationRecordRef())).isFalse();
         try(var dataset=collector(reopen()).openResult(scope,"task",result.resultDatasetRef())) {
             assertThat(dataset.recordCount()).isEqualTo(2);
             assertThat(dataset.readPage(0,2).rows().get(1)).doesNotContainKey("amount");

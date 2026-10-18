@@ -1,0 +1,22 @@
+{
+  "runId": "att-1-f6e6343d-3961-4f7a-bc23-571a14a5b4b8",
+  "nginxEndpoint": "http://192.168.195.221:18100",
+  "pagedEventCount": 213,
+  "pagesAtLimitTwo": 108,
+  "sequenceUnique": true,
+  "sequenceMonotonic": true,
+  "eventTypes": [
+    "BUSINESS_TEMPLATE_REQUIREMENT_MATCHING",
+    "OBSERVATION_RECORDED",
+    "RUN_COMPLETED",
+    "RUN_STARTED",
+    "STEP_RECORDED"
+  ],
+  "sseContentType": "text/event-stream;charset=UTF-8",
+  "sseDataObserved": true,
+  "sseEventIdObserved": true,
+  "scope": "Transport and persistence only; code/repair/artifact coverage requires a completed real Coding Agent task.",
+  "status": "PASSED",
+  "imageTag": "54e8a3ee-hostnic-runtime-replan-auth-20261018",
+  "businessAcceptance": "NOT_PASSED"
+}

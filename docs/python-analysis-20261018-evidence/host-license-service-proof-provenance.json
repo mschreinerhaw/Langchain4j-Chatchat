@@ -1,0 +1,44 @@
+{
+  "status": "PASSED",
+  "scope": "Actual MCP application license endpoint before and after container recreation",
+  "licenseReissuedDuringRecreation": false,
+  "sameSignedLicenseAcrossRecreation": true,
+  "rounds": [
+    {
+      "round": 1,
+      "containerId": "f063c219b6642280c7ee732747125ce1a7f10e08f5b4e9f4d02ca2adf5e2f214",
+      "image": "runtime-os-mcp:54e8a3ee-hostnic-runtime-prov-20261018",
+      "licenseValid": true,
+      "status": "VALID",
+      "identity": "MAC-000C298F20F0",
+      "licensedMacs": [
+        "MAC-000C298F20F0"
+      ],
+      "containerMacs": [
+        "02:42:ac:12:00:02"
+      ],
+      "hostMacMountReadOnly": true,
+      "hostNetworking": false,
+      "privileged": false,
+      "licenseSha256": "91268fce3f26dd1289af343344e3404ce7a10e118683b3bbda250781f80850bb"
+    },
+    {
+      "round": 2,
+      "containerId": "3e6aac3e4a21419f86c9616a7f60a92f22924a4341696438973dbe979ee386e4",
+      "image": "runtime-os-mcp:54e8a3ee-hostnic-runtime-prov-20261018",
+      "licenseValid": true,
+      "status": "VALID",
+      "identity": "MAC-000C298F20F0",
+      "licensedMacs": [
+        "MAC-000C298F20F0"
+      ],
+      "containerMacs": [
+        "02:42:ac:12:00:02"
+      ],
+      "hostMacMountReadOnly": true,
+      "hostNetworking": false,
+      "privileged": false,
+      "licenseSha256": "91268fce3f26dd1289af343344e3404ce7a10e118683b3bbda250781f80850bb"
+    }
+  ]
+}

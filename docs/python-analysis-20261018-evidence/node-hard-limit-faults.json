@@ -1,0 +1,50 @@
+{
+  "status": "PASSED",
+  "scope": "Actual disposable Node image containers using the running worker CPU/memory/PID/read-only/tmpfs limits; no model and no credentials; does not certify Node global admission or Python output disk quota.",
+  "image": "runtime-os-coding-agent:54e8a3ee-hostnic-runtime-20261018",
+  "memoryBytes": 2147483648,
+  "nanoCpus": 2000000000,
+  "pidsLimit": 128,
+  "cases": [
+    {
+      "case": "cpu",
+      "status": "PASSED",
+      "exitCode": 0,
+      "oomKilled": false,
+      "observations": {
+        "wallSeconds": 3.125394723,
+        "cpuSeconds": 6.265306
+      }
+    },
+    {
+      "case": "pids",
+      "status": "PASSED",
+      "exitCode": 0,
+      "oomKilled": false,
+      "observations": {
+        "children": 121,
+        "error": "EAGAIN"
+      }
+    },
+    {
+      "case": "disk",
+      "status": "PASSED",
+      "exitCode": 0,
+      "oomKilled": false,
+      "observations": {
+        "rootBlocked": true,
+        "tmpBytes": 134217728,
+        "error": "ENOSPC"
+      }
+    },
+    {
+      "case": "memory",
+      "status": "PASSED",
+      "exitCode": 137,
+      "oomKilled": true,
+      "observations": {}
+    }
+  ],
+  "disposableContainersRemoved": true,
+  "productionAffected": false
+}

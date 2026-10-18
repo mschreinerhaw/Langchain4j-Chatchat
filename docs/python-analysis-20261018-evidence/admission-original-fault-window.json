@@ -1,0 +1,24 @@
+{
+  "status": "PASSED",
+  "scope": "Independent Docker daemon event chronology proves API SIGKILL was signaled before the real Sandbox exited successfully. Does not alone certify parent analysis completion.",
+  "imageTag": "54e8a3ee-hostnic-runtime-admission-20261018",
+  "taskId": "655766e5-1d6f-3e8f-bb41-2b12bd69a389",
+  "runId": "att-1-dd5902ff-e55e-4ae4-a956-0e3a911f7588",
+  "rawPostKillObserverFailed": true,
+  "rawObserverFailure": "Postkill docker inspect raced with automatic removal of a completed Sandbox; failure log retained.",
+  "corroborationSource": "Docker daemon kill/die events, independently captured after the observer failed.",
+  "apiKillSignalTimeNano": 1792300825114494144,
+  "sandboxExitTimeNano": 1792300825241595479,
+  "sandboxExitAfterKillSignalMilliseconds": 127.101335,
+  "sandboxExitCode": 0,
+  "apiExitCode": 137,
+  "managedOperation": {
+    "operationId": "cline-069a1b35ca89304dda90289f2b98566f6863d74ca5af4440de179b0afc4dc4f9",
+    "status": "SUCCEEDED",
+    "executorStopped": true,
+    "updatedAt": "2026-10-18T05:20:25.38401+00:00",
+    "codeHash": "32dfb9d1ada2fbe3b6cbe91e6a69981dfb8266ec359756002df3feb6816339f1"
+  },
+  "apiRunningAfterRestart": true,
+  "parentOutcome": "PENDING_REAL_COMPLETION"
+}

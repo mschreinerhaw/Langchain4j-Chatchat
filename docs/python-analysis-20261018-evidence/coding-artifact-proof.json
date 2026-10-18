@@ -1,0 +1,31 @@
+{
+  "scope": "Real model-written Python, actual execution artifact access through authenticated Nginx.",
+  "runId": "att-1-13914b55-201d-4124-af9b-eb3c2d86f6d4",
+  "codingTaskId": "analysis-coding-e140bb2d89a7a428909ca6f4fd48fa682be6e3a78055ff6f8a9f6226c4eba122",
+  "operationId": "cline-fafb138ce190702d1b65514d2b11bdea3ff3c52ebcac44ed2f79e398e37ea22b",
+  "artifacts": {
+    "code": {
+      "redacted": false,
+      "truncated": false,
+      "totalBytes": 4573,
+      "sha256": "006841baeb09b104b5fefb732f5650a2f27fec6d1283aba920e7f102738137d7",
+      "matchesManagedExecutionCodeHash": true
+    },
+    "stdout": {
+      "redacted": false,
+      "truncated": false,
+      "totalBytes": 50,
+      "sha256": "60fbad1b46eb90e5babec7492eb3b7a8ce4f0d08ec994a4666b4bbe963f7fef0",
+      "metadataOnlyPolicyObserved": true,
+      "observedUserStreamBytes": 1351
+    },
+    "stderr": {
+      "redacted": false,
+      "truncated": false,
+      "totalBytes": 47,
+      "sha256": "16d6babff79a456c2e43de9eb8a253b0c6374695ba6c6626844688624913fdac",
+      "metadataOnlyPolicyObserved": true,
+      "observedUserStreamBytes": 0
+    }
+  }
+}

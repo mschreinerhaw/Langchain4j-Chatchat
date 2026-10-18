@@ -1,0 +1,390 @@
+{
+  "scope": "Real candidate MCP managed-operation API and actual Docker Sandbox; synthetic inputs, independent of model-driven coding acceptance.",
+  "cases": [
+    {
+      "case": "raw-stream-boundary",
+      "operation": "op-f5cdb78a-1f8e-4d96-8d6d-5ed7ee3186e6",
+      "status": "FAILED",
+      "exitCode": 1,
+      "executorStopped": true,
+      "manifestHash": "dfc99e014129b0999826b745b92a86afda2deb3f024e9cc8ebc713ae210921d3",
+      "limits": {
+        "Memory": 134217728,
+        "NanoCpus": 500000000,
+        "PidsLimit": 256,
+        "NetworkMode": "none",
+        "ReadonlyRootfs": true,
+        "LogConfig": {
+          "Type": "none",
+          "Config": {}
+        },
+        "Tmpfs": {
+          "/tmp": "rw,noexec,nosuid,size=16m"
+        }
+      },
+      "rawMarkerAbsentFromLogs": true,
+      "diagnostic": {
+        "exceptionType": "ValueError",
+        "line": 4,
+        "policy": "METADATA_ONLY_V1",
+        "stderrBytes": 192,
+        "stderrSha256": "09049c4443d3ff5b20ee8806855bcc8adc63d91417293588ba58d9b7a6968804",
+        "stdoutBytes": 661,
+        "stdoutSha256": "84c94818d6af96fefa8830511184a5252dab64457e60d49b6862164053dec355"
+      },
+      "receipt": {
+        "operationId": "op-f5cdb78a-1f8e-4d96-8d6d-5ed7ee3186e6",
+        "containerName": "chatchat-py-f55fbb27fcb675b7c609f0e6b01475a652425394",
+        "environmentId": "b71ef1dd-95c3-4a01-a5fe-f50e194b2573",
+        "imageDigest": "sha256:0eb75f9a036322d9d1120c62ed74cb85c14359337f6760b1001c91bf684541d2",
+        "deadlineAt": "2026-10-18T00:54:12.176547Z",
+        "timeoutSeconds": 5,
+        "fencingToken": 1,
+        "budgetReservationRef": "acceptance-fault-injection-op-f5cdb78a-1f8e-4d96-8d6d-5ed7ee3186e6",
+        "codeHash": "4eef63bd36961f669e07327cec73592959ad061b01d828571c43cbcc487dd084",
+        "inputSnapshotHash": "5aebc2faab37ef9aaceb2973aabfdaf65cd33a078c6a7b902cb8bc391b80f8e5",
+        "startedAt": "2026-10-18T00:52:42.837846203Z",
+        "finishedAt": "2026-10-18T00:52:45.440588278Z",
+        "exitCode": 1,
+        "oomKilled": false,
+        "stopConfirmed": true,
+        "cancelRequested": false,
+        "fenceSuperseded": false,
+        "cpuMillisMetered": false,
+        "diskHardLimitEnforced": false,
+        "outputBytesHardLimitEnforced": false
+      }
+    },
+    {
+      "case": "timeout",
+      "operation": "op-69f35311-87b4-4518-90cc-361d6a3bacfb",
+      "status": "TIMED_OUT",
+      "exitCode": 137,
+      "executorStopped": true,
+      "manifestHash": "0703d37b927884c3e23f345a20a43303fea7ee10d63764edfb35ccfd5f624056",
+      "limits": {
+        "Memory": 134217728,
+        "NanoCpus": 500000000,
+        "PidsLimit": 256,
+        "NetworkMode": "none",
+        "ReadonlyRootfs": true,
+        "LogConfig": {
+          "Type": "none",
+          "Config": {}
+        },
+        "Tmpfs": {
+          "/tmp": "rw,noexec,nosuid,size=16m"
+        }
+      },
+      "rawMarkerAbsentFromLogs": true,
+      "diagnostic": {
+        "policy": "METADATA_ONLY_V1"
+      },
+      "receipt": {
+        "operationId": "op-69f35311-87b4-4518-90cc-361d6a3bacfb",
+        "containerName": "chatchat-py-6c76afae54e2b320457b062c7bf7dc9dd329b7a1",
+        "environmentId": "b71ef1dd-95c3-4a01-a5fe-f50e194b2573",
+        "imageDigest": "sha256:0eb75f9a036322d9d1120c62ed74cb85c14359337f6760b1001c91bf684541d2",
+        "deadlineAt": "2026-10-18T00:54:17.091162Z",
+        "timeoutSeconds": 5,
+        "fencingToken": 1,
+        "budgetReservationRef": "acceptance-fault-injection-op-69f35311-87b4-4518-90cc-361d6a3bacfb",
+        "codeHash": "7bb27269d0ab62348143bd62afd105fa116504f698bda72c86fcece929cc2e4b",
+        "inputSnapshotHash": "884b5d39be8b1ce779b7f95d88a46e0a93c21a750ee1663650edd3de994c88e1",
+        "startedAt": "2026-10-18T00:52:47.620056869Z",
+        "finishedAt": "2026-10-18T00:52:54.768736554Z",
+        "exitCode": 137,
+        "oomKilled": false,
+        "stopConfirmed": true,
+        "cancelRequested": false,
+        "fenceSuperseded": false,
+        "cpuMillisMetered": false,
+        "diskHardLimitEnforced": false,
+        "outputBytesHardLimitEnforced": false
+      }
+    },
+    {
+      "case": "memory",
+      "operation": "op-3dcedfc9-1955-41b0-9652-ebe20629fd6e",
+      "status": "FAILED",
+      "exitCode": 137,
+      "executorStopped": true,
+      "manifestHash": "bf6b7b0aec6dd6059fc02c0559c6a890fd4c19ac1f934b6293e46a3bcbe57914",
+      "limits": {
+        "Memory": 134217728,
+        "NanoCpus": 500000000,
+        "PidsLimit": 256,
+        "NetworkMode": "none",
+        "ReadonlyRootfs": true,
+        "LogConfig": {
+          "Type": "none",
+          "Config": {}
+        },
+        "Tmpfs": {
+          "/tmp": "rw,noexec,nosuid,size=16m"
+        }
+      },
+      "rawMarkerAbsentFromLogs": true,
+      "diagnostic": {
+        "policy": "METADATA_ONLY_V1",
+        "stderrBytes": 0,
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 0,
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "receipt": {
+        "operationId": "op-3dcedfc9-1955-41b0-9652-ebe20629fd6e",
+        "containerName": "chatchat-py-365252cf557b7e0a10ab3f31622da30115e9adc3",
+        "environmentId": "b71ef1dd-95c3-4a01-a5fe-f50e194b2573",
+        "imageDigest": "sha256:0eb75f9a036322d9d1120c62ed74cb85c14359337f6760b1001c91bf684541d2",
+        "deadlineAt": "2026-10-18T00:54:25.868876Z",
+        "timeoutSeconds": 5,
+        "fencingToken": 1,
+        "budgetReservationRef": "acceptance-fault-injection-op-3dcedfc9-1955-41b0-9652-ebe20629fd6e",
+        "codeHash": "345f0a6d24ed751d9311a649e780bd2bc48dc0138dfe7b34b421014d6d8d8b64",
+        "inputSnapshotHash": "f63e00bc4735aa454078d6d039738e6a3d1152c97d51b11ef965c4b958f4cbe7",
+        "startedAt": "2026-10-18T00:52:56.422840066Z",
+        "finishedAt": "2026-10-18T00:52:57.993373062Z",
+        "exitCode": 137,
+        "oomKilled": true,
+        "stopConfirmed": true,
+        "cancelRequested": false,
+        "fenceSuperseded": false,
+        "cpuMillisMetered": false,
+        "diskHardLimitEnforced": false,
+        "outputBytesHardLimitEnforced": false
+      }
+    },
+    {
+      "case": "network",
+      "operation": "op-5e0f6203-f068-4504-b2bd-2718bc8100c0",
+      "status": "SUCCEEDED",
+      "exitCode": 0,
+      "executorStopped": true,
+      "manifestHash": "d1eddb01f0cdaa1346b5bff070f5b7bd40d96ba8c68a5cb8b0ad504de1e33345",
+      "limits": {
+        "Memory": 134217728,
+        "NanoCpus": 500000000,
+        "PidsLimit": 256,
+        "NetworkMode": "none",
+        "ReadonlyRootfs": true,
+        "LogConfig": {
+          "Type": "none",
+          "Config": {}
+        },
+        "Tmpfs": {
+          "/tmp": "rw,noexec,nosuid,size=16m"
+        }
+      },
+      "rawMarkerAbsentFromLogs": true,
+      "diagnostic": {
+        "policy": "METADATA_ONLY_V1",
+        "stderrBytes": 0,
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 0,
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "receipt": {
+        "operationId": "op-5e0f6203-f068-4504-b2bd-2718bc8100c0",
+        "containerName": "chatchat-py-b82b39652dbaec4645caed7de14ecc320504fd95",
+        "environmentId": "b71ef1dd-95c3-4a01-a5fe-f50e194b2573",
+        "imageDigest": "sha256:0eb75f9a036322d9d1120c62ed74cb85c14359337f6760b1001c91bf684541d2",
+        "deadlineAt": "2026-10-18T00:54:29.170346Z",
+        "timeoutSeconds": 5,
+        "fencingToken": 1,
+        "budgetReservationRef": "acceptance-fault-injection-op-5e0f6203-f068-4504-b2bd-2718bc8100c0",
+        "codeHash": "6bd88131178f54340a5ccbb4f71343267ffa496f850ae6e80001189fa1da0adf",
+        "inputSnapshotHash": "4ea9f5284b567c13bd9de5df8ebfb40098d88dfbe63ccd37343c067ed0572951",
+        "startedAt": "2026-10-18T00:52:59.664245680Z",
+        "finishedAt": "2026-10-18T00:53:00.492321087Z",
+        "exitCode": 0,
+        "oomKilled": false,
+        "stopConfirmed": true,
+        "cancelRequested": false,
+        "fenceSuperseded": false,
+        "cpuMillisMetered": false,
+        "diskHardLimitEnforced": false,
+        "outputBytesHardLimitEnforced": false
+      },
+      "network": {
+        "networkBlocked": true
+      }
+    },
+    {
+      "case": "cpu",
+      "operation": "op-d16b8a48-2cff-46cd-82c9-26fa9d0b757c",
+      "status": "SUCCEEDED",
+      "exitCode": 0,
+      "executorStopped": true,
+      "manifestHash": "afd37021a014c518e85c607b92ba632ffdf049b69b5cc94eb651e4815f3f87df",
+      "limits": {
+        "Memory": 134217728,
+        "NanoCpus": 500000000,
+        "PidsLimit": 256,
+        "NetworkMode": "none",
+        "ReadonlyRootfs": true,
+        "LogConfig": {
+          "Type": "none",
+          "Config": {}
+        },
+        "Tmpfs": {
+          "/tmp": "rw,noexec,nosuid,size=16m"
+        }
+      },
+      "rawMarkerAbsentFromLogs": true,
+      "diagnostic": {
+        "policy": "METADATA_ONLY_V1",
+        "stderrBytes": 0,
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 0,
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "receipt": {
+        "operationId": "op-d16b8a48-2cff-46cd-82c9-26fa9d0b757c",
+        "containerName": "chatchat-py-439996f1e92ed8a8a0c429dc8c65052f9d88c3a0",
+        "environmentId": "b71ef1dd-95c3-4a01-a5fe-f50e194b2573",
+        "imageDigest": "sha256:0eb75f9a036322d9d1120c62ed74cb85c14359337f6760b1001c91bf684541d2",
+        "deadlineAt": "2026-10-18T00:54:31.463423Z",
+        "timeoutSeconds": 5,
+        "fencingToken": 1,
+        "budgetReservationRef": "acceptance-fault-injection-op-d16b8a48-2cff-46cd-82c9-26fa9d0b757c",
+        "codeHash": "19e3088fb5db2f78f81649662e87946077873a205e3eaf08743aa1a95c949320",
+        "inputSnapshotHash": "00f56c9675fb02f2f7e1c7604b5974141d5f2258989a1ec3ead5cca49a4823be",
+        "startedAt": "2026-10-18T00:53:01.968143790Z",
+        "finishedAt": "2026-10-18T00:53:04.527900640Z",
+        "exitCode": 0,
+        "oomKilled": false,
+        "stopConfirmed": true,
+        "cancelRequested": false,
+        "fenceSuperseded": false,
+        "cpuMillisMetered": false,
+        "diskHardLimitEnforced": false,
+        "outputBytesHardLimitEnforced": false
+      },
+      "cpu": {
+        "wallSeconds": 2.000297660008073,
+        "cpuSeconds": 1.000533
+      }
+    },
+    {
+      "case": "pids",
+      "operation": "op-8a36ea51-a7f3-401b-8f5d-638621ab763d",
+      "status": "SUCCEEDED",
+      "exitCode": 0,
+      "executorStopped": true,
+      "manifestHash": "01f3b9e349c2b8f94b8eec72d19d087bc0217c2ebc478082e791cbc46cece904",
+      "limits": {
+        "Memory": 536870912,
+        "NanoCpus": 500000000,
+        "PidsLimit": 256,
+        "NetworkMode": "none",
+        "ReadonlyRootfs": true,
+        "LogConfig": {
+          "Type": "none",
+          "Config": {}
+        },
+        "Tmpfs": {
+          "/tmp": "rw,noexec,nosuid,size=16m"
+        }
+      },
+      "rawMarkerAbsentFromLogs": true,
+      "diagnostic": {
+        "policy": "METADATA_ONLY_V1",
+        "stderrBytes": 0,
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 0,
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "receipt": {
+        "operationId": "op-8a36ea51-a7f3-401b-8f5d-638621ab763d",
+        "containerName": "chatchat-py-a08a3c280cbe4cb2fd2777785bcf1e3aeeec41d0",
+        "environmentId": "46f0de1f-a141-412b-a0af-108c479da96e",
+        "imageDigest": "sha256:0eb75f9a036322d9d1120c62ed74cb85c14359337f6760b1001c91bf684541d2",
+        "deadlineAt": "2026-10-18T00:54:35.600230Z",
+        "timeoutSeconds": 15,
+        "fencingToken": 1,
+        "budgetReservationRef": "acceptance-fault-injection-op-8a36ea51-a7f3-401b-8f5d-638621ab763d",
+        "codeHash": "19a24814fd9d454c09fbc628b34f15a38eba74c835f891b3f99573d1520804c6",
+        "inputSnapshotHash": "d7aad0b3798383a1b73c15083dc9a8014e2f9bdbf59a867176e4c6548ad6e94a",
+        "startedAt": "2026-10-18T00:53:06.128130595Z",
+        "finishedAt": "2026-10-18T00:53:07.687907609Z",
+        "exitCode": 0,
+        "oomKilled": false,
+        "stopConfirmed": true,
+        "cancelRequested": false,
+        "fenceSuperseded": false,
+        "cpuMillisMetered": false,
+        "diskHardLimitEnforced": false,
+        "outputBytesHardLimitEnforced": false
+      },
+      "pids": {
+        "pidsLimitHit": true,
+        "children": 252
+      }
+    },
+    {
+      "case": "memory-observed",
+      "operation": "op-c846e4b5-e013-4aa3-8847-a5eb8e9a84c1",
+      "status": "SUCCEEDED",
+      "exitCode": 0,
+      "executorStopped": true,
+      "manifestHash": "8f3b03a87313c0265d8769be773527e818beeb2fba8b884f29c7ceb8372b2bf2",
+      "limits": {
+        "Memory": 134217728,
+        "NanoCpus": 500000000,
+        "PidsLimit": 256,
+        "NetworkMode": "none",
+        "ReadonlyRootfs": true,
+        "LogConfig": {
+          "Type": "none",
+          "Config": {}
+        },
+        "Tmpfs": {
+          "/tmp": "rw,noexec,nosuid,size=16m"
+        }
+      },
+      "rawMarkerAbsentFromLogs": true,
+      "diagnostic": {
+        "policy": "METADATA_ONLY_V1",
+        "stderrBytes": 0,
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 0,
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "receipt": {
+        "operationId": "op-c846e4b5-e013-4aa3-8847-a5eb8e9a84c1",
+        "containerName": "chatchat-py-cc51abc56641b5a8d9b560c8c73f548a9cee8e6c",
+        "environmentId": "a01d9aec-261d-4659-8a6a-a9f0d46b6b53",
+        "imageDigest": "sha256:0eb75f9a036322d9d1120c62ed74cb85c14359337f6760b1001c91bf684541d2",
+        "deadlineAt": "2026-10-18T00:58:51.790142Z",
+        "timeoutSeconds": 5,
+        "fencingToken": 1,
+        "budgetReservationRef": "acceptance-fault-injection-op-c846e4b5-e013-4aa3-8847-a5eb8e9a84c1",
+        "codeHash": "f271df2809721ad62cf718e1bc5325425ea640c8489438ce3b2623071ac46940",
+        "inputSnapshotHash": "388fde967572633c9753038bdb2ed9c0365f7d40213b1b9955e0c5253fbc0188",
+        "startedAt": "2026-10-18T00:57:22.337470386Z",
+        "finishedAt": "2026-10-18T00:57:23.284089778Z",
+        "exitCode": 0,
+        "oomKilled": true,
+        "stopConfirmed": true,
+        "cancelRequested": false,
+        "fenceSuperseded": false,
+        "cpuMillisMetered": false,
+        "diskHardLimitEnforced": false,
+        "outputBytesHardLimitEnforced": false
+      },
+      "memory-observed": {
+        "allocationExit": -9,
+        "memoryLimitBytes": 134217728,
+        "cgroupCounters": {
+          "failcnt": 188
+        }
+      }
+    }
+  ],
+  "limits": [
+    "Disk quota, output-byte hard limit, node-wide admission and CPU-millisecond metering are NOT certified.",
+    "Expected FAILED/TIMED_OUT operation states are intentional fault injections, not successful business analysis.",
+    "Actual sandbox limits do not replace real model plus database end-to-end acceptance."
+  ]
+}

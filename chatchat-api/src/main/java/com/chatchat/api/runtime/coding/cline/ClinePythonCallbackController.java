@@ -12,6 +12,7 @@ import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.mcp.python.McpPythonControlPlanePort;
 import com.chatchat.common.runtime.coding.CodingTaskContract;
 import com.chatchat.common.runtime.coding.CodingTaskOutcome;
+import com.chatchat.common.runtime.coding.CodingErrorCode;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
@@ -21,6 +22,7 @@ import java.time.Instant;
 import java.util.EnumSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -135,6 +137,17 @@ public final class ClinePythonCallbackController {
                     response.put("diagnostic","Structured result does not match the contracted row schema; repair field names and types in a complete new program.");return response;
                 }
                 if (collected.validationStatus() == com.chatchat.common.runtime.coding.CodingTaskOutcome.ValidationStatus.FAILED) {
+                    if (collector.copiedSourceResult(call.scope(), call.taskId(), collected.validationRecordRef())
+                            && rejectSourceCopy(call, collected)) {
+                        response.put("outputStatus", "SOURCE_COPY_REJECTED");
+                        response.put("resultAvailable", false);
+                        response.put("validationStatus", "FAILED");
+                        response.put("replanningRequired", true);
+                        response.put("diagnostic", "The immutable-input comparison rejected a raw source copy. "
+                            + "This Coding delegation has ended without admitting a dataset. Runtime must revise the analytical objective "
+                            + "and output contract under a new requestId; do not repeat source inspection or source-row reproduction.");
+                        return response;
+                    }
                     response.put("outputStatus", "RESULT_VALIDATION_FAILED");
                     response.put("resultAvailable", false);
                     response.put("validationStatus", "FAILED");
@@ -167,6 +180,33 @@ public final class ClinePythonCallbackController {
 
     private record Call(KernelDataScope scope, String taskId, CodingTaskContract contract,
                         CodingJournal.Lease lease) { }
+
+    private boolean rejectSourceCopy(Call call, CodingEvidenceCollector.Collected collected) {
+        var current = tasks.get(call.scope(), call.taskId());
+        if (current.status().terminal() || current.cancellationRequested()
+                || current.executionControl().stopReason() != null) return false;
+        if (!tasks.unresolvedOperations(call.scope(), call.taskId()).isEmpty())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "Rejected result requires execution reconciliation before task revision");
+        Instant at = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+        if (at.isBefore(current.updatedAt())) at = current.updatedAt();
+        var proposal = new CodingTaskOutcome(current.schemaVersion(), current.taskId(), current.scope(),
+            current.contractSha256(), CodingTaskOutcome.Status.FAILED, current.revision() + 1,
+            current.lastEventSequence() + 1, current.createdAt(), at, current.startedAt(), at, false,
+            CodingErrorCode.OUTPUT_CONTRACT_VIOLATION,
+            "Source copy rejected; Runtime must revise the analytical objective and output contract",
+            List.of("No analytical dataset was admitted; raw source copies cannot be returned to the model"),
+            current.inputSnapshotRef(), collected.codeArtifactRef(), collected.executionReceiptRef(), null,
+            collected.validationRecordRef(), collected.evidenceBundleRef(), CodingTaskOutcome.ValidationStatus.FAILED,
+            current.reproducibility(), current.usage(), new CodingTaskOutcome.ExecutionControl(null, null, true, false),
+            current.parentTaskId(), current.supersedesTaskId(), Map.of());
+        // Only this server-verified transition receives EVIDENCE; the worker callback
+        // retains READ/WORKER/STOP and cannot submit arbitrary evidence or outcomes.
+        var committed = identity.as(call.scope(), EnumSet.of(CodingTaskAccess.Action.READ, CodingTaskAccess.Action.EVIDENCE),
+            () -> tasks.commitOutcome(call.scope(), call.taskId(), call.lease(), current.revision(), proposal));
+        return committed.status() == CodingTaskOutcome.Status.FAILED
+            && committed.reasonCode() == CodingErrorCode.OUTPUT_CONTRACT_VIOLATION;
+    }
 
     private <T> T bound(JsonNode body, boolean allowStop, Function<Call, T> action) {
         try {

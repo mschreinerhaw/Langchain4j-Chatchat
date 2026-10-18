@@ -1,0 +1,21 @@
+{
+  "status": "NOT_PASSED",
+  "imageTag": "54e8a3ee-hostnic-runtime-prov-20261018",
+  "taskId": "5c47c48a-2261-327c-86aa-8a63ff8f723f",
+  "runId": "att-1-6a6d7224-69b1-49fd-9fa0-9d085290b8f5",
+  "activeSandboxAtApiKill": true,
+  "sandboxContinuedAfterApiKill": true,
+  "otherActiveCandidateTasksAtKill": 0,
+  "parentTerminalStatus": "TIME_BUDGET_EXHAUSTED",
+  "eventCount": 163,
+  "liveEventRecovery": "PASSED_SEPARATE_PROOF",
+  "falseSuccessAvoided": true,
+  "failureRoots": [
+    "Final reviewer lacked schema field-name and validation-state provenance.",
+    "Conservative certification caveats were incorrectly treated as unsupported computed claims.",
+    "Additional field-presence counts were not in admitted computed outputs and must be recomputed or removed."
+  ],
+  "followup": "Source fixes passed 41 focused checks; real revalidation on validated candidate is required.",
+  "exactlyOnceWholeWorkflowCertified": false,
+  "productionSwitchRecommended": false
+}

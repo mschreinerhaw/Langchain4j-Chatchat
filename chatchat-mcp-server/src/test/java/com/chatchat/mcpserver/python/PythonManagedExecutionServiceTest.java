@@ -83,7 +83,10 @@ class PythonManagedExecutionServiceTest {
     @Test void realJdbcUnknownStartIntentIsNeverDispatchedAgain() throws Exception {
         Harness h = harness(false);
         h.start("unknown", 1, "print('once')");
-        await("SUCCEEDED", "tenant", "unknown");
+        var completed = await("SUCCEEDED", "tenant", "unknown");
+        // Terminal journal commit precedes asynchronous Docker cleanup. Inject the
+        // missing-container fault only after the fixture actually lost that container.
+        awaitRemoved(h.docker, completed.containerId());
         h.jdbc.update("update mcp_python_managed_operation set status='STARTING',executor_stopped=false,manifest_hash=null,updated_at=? where operation_id='unknown'",
                 java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(60)));
         assertEquals("UNKNOWN", service.get("tenant", "owner", "run", "task", "unknown").status());

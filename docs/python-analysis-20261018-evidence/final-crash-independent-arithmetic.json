@@ -1,0 +1,28 @@
+{
+  "status": "PASSED",
+  "operationId": "cline-24c6c973508492f32882d1da453265cf919de164dce949b74ae343d2826340ba",
+  "scope": "Independent arithmetic against actual immutable authorized input after API SIGKILL; not final task/recovery certification.",
+  "inputFiles": [
+    {
+      "rows": 1,
+      "topLevelKeys": [
+        "Name",
+        "Status",
+        "Type"
+      ],
+      "wrappedRecordKeys": []
+    }
+  ],
+  "checks": {
+    "recordCount": true,
+    "fieldCount": true,
+    "completeFields": true,
+    "overallRate": true
+  },
+  "codeSha256": "9ad34939bca32dc9e214430e05ca18d259d2d4cd06ff37c1bb6302c3cc7645fc",
+  "resultSha256": "e7580fca89b3e248a6882d72995dc63e92974f0eb467db262e7b85e2ec16eb0c",
+  "expectedRecordCount": 1,
+  "expectedFieldCount": 3,
+  "expectedCompleteFields": 2,
+  "expectedCompletenessRate": 0.6666666666666666
+}

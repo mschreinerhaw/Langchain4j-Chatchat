@@ -34,10 +34,19 @@ public class AgentTaskQueueCoordinator {
 
     @Transactional
     public List<ClaimedTask> claimAvailable(String workerId) {
+        return claimAvailable(workerId, Math.max(1, properties.getDatabaseQueueClaimBatchSize()));
+    }
+
+    @Transactional
+    public List<ClaimedTask> claimAvailable(String workerId, int availableWorkers) {
+        if (availableWorkers <= 0) {
+            return List.of();
+        }
         Instant now = Instant.now();
-        int batchSize = Math.max(1, properties.getDatabaseQueueClaimBatchSize());
+        int configuredBatchSize = Math.max(1, properties.getDatabaseQueueClaimBatchSize());
+        int batchSize = Math.min(configuredBatchSize, availableWorkers);
         List<AgentTaskLatestEntity> candidates = new ArrayList<>(taskRepository.findDispatchCandidates(
-            now, normalized(properties.getWorkerVersion(), "1.0"), PageRequest.of(0, batchSize * 8)));
+            now, normalized(properties.getWorkerVersion(), "1.0"), PageRequest.of(0, configuredBatchSize * 8)));
         candidates.sort(Comparator
             .comparing((AgentTaskLatestEntity task) -> quotaRepository.findById(task.getTenantId())
                 .map(TenantRuntimeQuotaEntity::getLastDispatchAt).orElse(Instant.EPOCH))

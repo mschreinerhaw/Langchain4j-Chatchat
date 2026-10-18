@@ -1,0 +1,27 @@
+{
+  "scope": "Original exact question, published database operations agent, actual hy3 model, authorized real SQL data and autonomous Node/Python execution.",
+  "imageTag": "54e8a3ee-hostnic-runtime-20261018",
+  "taskId": "db5a0035-b834-3244-91d7-2951b973b3ab",
+  "runId": "att-1-141d7d04-8dfa-4d5a-8620-55b29e106fec",
+  "taskStatus": "SUCCESS",
+  "modelClassification": "DATA_ANALYSIS",
+  "finalSemanticReviewHistory": [
+    "UNSUPPORTED",
+    "UNSUPPORTED",
+    "UNSUPPORTED",
+    "UNSUPPORTED",
+    "SUPPORTED"
+  ],
+  "answerPresent": true,
+  "references": 3,
+  "computedMetricRows": 24,
+  "computedResultReference": "runtime-evidence:coding:e687d55b15435ba3b4e6398fc16694b64fabd440f6de5a722728bb26d39ce9e0:result",
+  "endToEndExecution": "PASSED",
+  "businessAcceptance": "NOT_FULLY_CERTIFIED",
+  "manualLimitations": [
+    "Generated Python used an assumed 16 KiB page size to derive bytes; current source configuration was not independently certified.",
+    "Final acquisition review retained one gap; later assessment reported three missing-evidence items.",
+    "A model SUPPORTED decision is a scoped interpretation review, not a universal correctness certificate."
+  ],
+  "productionSwitchRecommended": false
+}

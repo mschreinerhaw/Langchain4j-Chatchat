@@ -1,0 +1,152 @@
+{
+  "source": "Selected cases from the complete final backend run, not a replacement for that gate.",
+  "gatePath": "target\\python-analysis-gates\\20261018-121825\\gates.json",
+  "totals": {
+    "tests": 158,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 2
+  },
+  "suites": [
+    {
+      "name": "com.chatchat.agents.orchestration.analysis.graph.ComputedReportAdmissionTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.agents.orchestration.analysis.graph.HarnessCodingIntegrationTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarnessTest",
+      "tests": 30,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.agents.orchestration.evidence.PlanGapReconcilerTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.agents.runtime.run.AgentOutcomeProjectionTest",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.analysis.CodingSemanticAdmissionTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.cline.ClinePythonCallbackControllerTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.chat.task.core.AgentTaskServiceTest",
+      "tests": 40,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.chat.task.event.DatabaseAgentEventStoreTransactionTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.chat.task.event.DatabaseTerminalCommitTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.knowledgebase.runtime.DocumentKnowledgeSkillExecutorTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.license.LicenseManagerTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.mcpserver.license.McpLicenseServiceTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.mcpserver.python.PythonExecutionLogBoundaryTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.mcpserver.python.PythonManagedExecutionServiceTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 2
+    },
+    {
+      "name": "com.chatchat.agents.orchestration.AgentOrchestratorTest#completedDiagnosticContractDoesNotEraseUnreviewedDiscoveryGaps",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "nodeTests": {
+    "tests": 22,
+    "failures": 0,
+    "scope": "Unchanged Node runner; earlier recorded run."
+  },
+  "pythonCaptureTests": {
+    "tests": 2,
+    "failures": 0,
+    "scope": "Actual Python subprocess boundary; earlier recorded run."
+  },
+  "packagingTests": {
+    "webReferences": {
+      "tests": 2,
+      "passed": 2
+    },
+    "secretFiles": {
+      "tests": 3,
+      "passed": 3
+    }
+  },
+  "dockerConditionalSkipsCoveredBySeparateLiveEvidence": true
+}

@@ -15,6 +15,9 @@ public final class AgentOutcomeProjection {
         boolean mandatoryBlocked = booleanValue(values.get("mandatoryWorkflowBlocked"))
             || fatalExecutionBlocked;
         String stopReason = text(values.get("stopReason")).toUpperCase();
+        Map<?, ?> analysisIntent = com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.VERSION.equals(values.get("modelAnalysisProtocol"))
+            ? values : values.get("analysisModelIntent") instanceof Map<?, ?> intent ? intent : Map.of();
+        String analysisStopReason = text(values.getOrDefault("executionStopReason", analysisIntent.get("executionStopReason")));
         boolean hasAnswer = answer != null && !answer.isBlank();
 
         if (confirmationRequired) {
@@ -28,7 +31,8 @@ public final class AgentOutcomeProjection {
             return new Outcome("CANCELLED", hasAnswer ? "PARTIAL" : "EMPTY", "CANCELLED",
                 "CANCELLED", CONTRACT_VERSION);
         }
-        if (stopReason.contains("TIME_BUDGET") || stopReason.contains("TIMED_OUT")) {
+        if (stopReason.contains("TIME_BUDGET") || stopReason.contains("TIMED_OUT")
+                || "RESOURCE_BUDGET_EXHAUSTED".equals(analysisStopReason)) {
             return new Outcome("COMPLETED", hasAnswer ? "PARTIAL" : "EMPTY", "BUDGET_EXHAUSTED",
                 "TIME_BUDGET_EXHAUSTED", CONTRACT_VERSION);
         }
@@ -59,6 +63,12 @@ public final class AgentOutcomeProjection {
         }
         if (booleanValue(values.get("runtimeExecutionFailed")) && !hasAnswer) {
             return new Outcome("FAILED", "FAILED", "FAILED", "FAILED", CONTRACT_VERSION);
+        }
+        if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.VERSION.equals(analysisIntent.get("modelAnalysisProtocol"))
+                && analysisIntent.get("modelDecision") instanceof Map<?, ?> decision
+                && "PARTIAL_COMPLETE".equals(decision.get("action"))) {
+            return new Outcome("COMPLETED", hasAnswer ? "PARTIAL" : "EMPTY", "PARTIAL_COMPLETE",
+                hasAnswer ? "PARTIAL_SUCCESS" : "NO_PRESENTABLE_RESULT", CONTRACT_VERSION);
         }
         if ("FAIL".equalsIgnoreCase(text(values.get("claimCoverageStatus")))
             || "false".equalsIgnoreCase(text(values.get("answerClaimAuditPassed")))) {

@@ -1,0 +1,32 @@
+{
+  "scope": "Actual model and isolated OpenSearch private document using the existing published role-chat workflow; not dynamic routing certification.",
+  "agent": "acceptance_private_knowledge_20261018",
+  "documentVisibility": "private",
+  "privateMarkerExcludedFromQuestion": true,
+  "ownerDirectSearchVisible": true,
+  "readerDirectSearchVisible": false,
+  "cases": [
+    {
+      "caller": "owner",
+      "taskId": "06a1fa95-8abe-3d1e-8312-a88e768478b2",
+      "status": "SUCCESS",
+      "answerContainsPrivateMarker": true,
+      "references": 1,
+      "answerPresent": true
+    },
+    {
+      "caller": "reader",
+      "taskId": "bacbb58f-bd75-3862-96d7-7a716d0d8d29",
+      "status": "SUCCESS",
+      "answerContainsPrivateMarker": false,
+      "references": 0,
+      "answerPresent": true
+    }
+  ],
+  "status": "PASSED",
+  "separateFailedPath": {
+    "agent": "financial_document_analysis",
+    "status": "NOT_PASSED",
+    "reason": "Required MCP document_search disabled or unauthorized; owner admission rejected. Reader classified QA and gave no-evidence answer. Dynamic document routing requires separate remediation."
+  }
+}

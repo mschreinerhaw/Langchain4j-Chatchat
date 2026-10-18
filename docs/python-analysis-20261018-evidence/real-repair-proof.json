@@ -1,0 +1,68 @@
+{
+  "status": "PASSED",
+  "scope": "Real model Coding Agent produced different Python versions; actual Sandbox failure followed by a successful repaired execution within the same coding task.",
+  "testedImageTag": "54e8a3ee-hostnic-20261018",
+  "cases": [
+    {
+      "runId": "att-1-636294de-147f-4be7-b442-5a7a83822e41",
+      "taskId": "analysis-coding-a6e962c2533d702341bfd2027d4e2a5bf346fa39af774e986704843bfec86326",
+      "operationId": "cline-a94e15ad3398546c5b22ee74e87bed29650019fdce461d162872a977d1625182",
+      "status": "SUCCEEDED",
+      "codeHash": "bbf0b12e46bf50e375bd1fc91b9a7b25bbd23e872e2aa88228359cd4caea5174",
+      "executorStopped": true,
+      "manifestHash": "76c509625c77f5a15933f1597afdfe88df31121d27f825c175c3e4d7a1e4e513",
+      "codeHashMatches": true,
+      "stdoutMetadataOnly": true,
+      "stdoutUserBytes": 395,
+      "stderrMetadataOnly": true,
+      "diagnosticType": null
+    },
+    {
+      "runId": "att-1-636294de-147f-4be7-b442-5a7a83822e41",
+      "taskId": "analysis-coding-a6e962c2533d702341bfd2027d4e2a5bf346fa39af774e986704843bfec86326",
+      "operationId": "cline-cc63d70ca36b219f30ff04b632d0479e7d5ef6c49a417cc09ae2d21e6c8c3156",
+      "status": "FAILED",
+      "codeHash": "c6cf73d528193a367359e55c905f55cdb43f12102bffda7a8a27bed673f99c0b",
+      "executorStopped": true,
+      "manifestHash": "e69d670250ebaf33f1b440302792920fce0d8f3b444b3bd02db46b11a024aed3",
+      "codeHashMatches": true,
+      "stdoutMetadataOnly": true,
+      "stdoutUserBytes": 0,
+      "stderrMetadataOnly": true,
+      "diagnosticType": "SyntaxError",
+      "diffChangedLines": 180
+    },
+    {
+      "runId": "att-1-636294de-147f-4be7-b442-5a7a83822e41",
+      "taskId": "analysis-coding-a6e962c2533d702341bfd2027d4e2a5bf346fa39af774e986704843bfec86326",
+      "operationId": "cline-332a2fd8db5ca47427d88451085293d0ba4468cd569974bd7321a59d7bcd352b",
+      "status": "SUCCEEDED",
+      "codeHash": "384decef695d023f467995e8ab71c484463bae02cc75ae6a5374c6d6106c628c",
+      "executorStopped": true,
+      "manifestHash": "e7ab8a1b9c259365dcc8763da3c3470554cbdcfd83a24eb963291a1f89bdbc39",
+      "codeHashMatches": true,
+      "stdoutMetadataOnly": true,
+      "stdoutUserBytes": 670,
+      "stderrMetadataOnly": true,
+      "diagnosticType": null,
+      "diffChangedLines": 3
+    },
+    {
+      "runId": "att-1-636294de-147f-4be7-b442-5a7a83822e41",
+      "taskId": "analysis-coding-a6e962c2533d702341bfd2027d4e2a5bf346fa39af774e986704843bfec86326",
+      "operationId": "cline-746cceab57e4bf64ad9a0280b403fcd618e35dbf5c1efacc07ca68594f617879",
+      "status": "SUCCEEDED",
+      "codeHash": "4e22521794ae785b420f95cd8c2e0b660c3a87a843db7f0f4e258074a42c3912",
+      "executorStopped": true,
+      "manifestHash": "4463fe38e095f676724b66d48c936cfb58a9f0a916220f19c6819bf1149f3908",
+      "codeHashMatches": true,
+      "stdoutMetadataOnly": true,
+      "stdoutUserBytes": 137,
+      "stderrMetadataOnly": true,
+      "diagnosticType": null,
+      "diffChangedLines": 221
+    }
+  ],
+  "productionAcceptance": "NOT_CERTIFIED_BY_THIS_COMPONENT_TEST",
+  "originalTaskFinalReport": "Manual semantic review found overreach; separate final-report admission fix requires a new live run."
+}

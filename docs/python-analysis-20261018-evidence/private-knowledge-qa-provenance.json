@@ -1,0 +1,24 @@
+{
+  "status": "NOT_PASSED",
+  "ownerDirectSearchVisible": true,
+  "readerDirectSearchVisible": false,
+  "imageTag": "54e8a3ee-hostnic-runtime-prov-20261018",
+  "scope": "Actual model and existing published role-chat workflow over a synthetic private OpenSearch document, owner vs reader; not broad dynamic document routing certification.",
+  "privateMarkerExcludedFromQuestion": true,
+  "cases": [
+    {
+      "caller": "owner",
+      "taskId": "4d7b9bd1-e176-37f0-92fa-5043a8730dba",
+      "status": "SUCCESS",
+      "privateMarkerFound": false,
+      "references": 0
+    },
+    {
+      "caller": "reader",
+      "taskId": "e978fdc4-ee4b-32e5-838d-4a680c7ddf63",
+      "status": "SUCCESS",
+      "privateMarkerFound": false,
+      "references": 0
+    }
+  ]
+}

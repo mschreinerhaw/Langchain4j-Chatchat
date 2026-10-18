@@ -1,0 +1,98 @@
+{
+  "recordedAt": "2026-10-18T00:40:47.224736+00:00",
+  "mavenBuildSuccess": true,
+  "suites": [
+    {
+      "suite": "com.chatchat.license.LicenseManagerTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.chatchat.agents.orchestration.evidence.PlanGapReconcilerTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.chatchat.chat.task.core.AgentTaskServiceTest",
+      "tests": 40,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.chatchat.chat.task.event.DatabaseAgentEventStoreTransactionTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.chatchat.chat.task.event.DatabaseTerminalCommitTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.chatchat.mcpserver.license.McpLicenseServiceTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.chatchat.mcpserver.python.PythonExecutionLogBoundaryTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.chatchat.mcpserver.python.PythonManagedExecutionServiceTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 2
+    },
+    {
+      "suite": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.chatchat.api.runtime.coding.analysis.CodingSemanticAdmissionTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.chatchat.api.runtime.coding.cline.ClinePythonCallbackControllerTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "totals": {
+    "tests": 86,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 2
+  },
+  "dockerSkippedMustBeVerifiedLive": true,
+  "initialExecutionFixtureRace": "Earlier missing-container fixture injected before asynchronous cleanup; final fixture waits for actual removal. Earlier failure log retained."
+}

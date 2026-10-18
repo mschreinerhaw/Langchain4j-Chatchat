@@ -1,0 +1,137 @@
+{
+  "recordedAt": "2026-10-18T06:41:51.309771+00:00",
+  "status": "ACCEPTANCE_NOT_PASSED",
+  "head": "54e8a3eea6df9a8874d81ba6c40ee13e25456c6e",
+  "imageTag": "54e8a3ee-hostnic-runtime-replan-auth-20261018",
+  "deploymentScope": "Isolated /opt/runtime-os-docker-stage candidate, Runtime 18100 / MCP 18101 through Nginx. Existing production 8080/8090 unchanged.",
+  "sourceChanges": {
+    "files": 59,
+    "addedLines": 1804,
+    "deletedLines": 64,
+    "fileInventory": "source-diff-summary.json",
+    "hashManifest": "source-manifest.json",
+    "committed": false
+  },
+  "passed": [
+    {
+      "item": "Host NIC license identity and actual MCP container recreation",
+      "evidence": "host-license-service-proof-replan-auth.json",
+      "scope": "Same valid signed license, ens192 VM NIC, no reissue; host identity file readonly, no fallback to container MAC."
+    },
+    {
+      "item": "Latest candidate image deployment and LAN Nginx boundaries",
+      "evidence": [
+        "replan-auth-image-build.json",
+        "replan-auth-deployment.json",
+        "replan-auth-lan-gateway.json"
+      ]
+    },
+    {
+      "item": "Actual model dynamic concept QA",
+      "evidence": "knowledge-qa-replan-auth.json"
+    },
+    {
+      "item": "Private knowledge owner/reader isolation",
+      "evidence": "private-knowledge-qa-replan-auth.json",
+      "scope": "Existing published role_chat and synthetic private OpenSearch document; not general dynamic document routing."
+    },
+    {
+      "item": "Actual packaged browser code, sanitized stdout, code diff and over-200 pagination",
+      "evidence": [
+        "browser-trace-replan-auth.json",
+        "browser-paged-replay.json"
+      ],
+      "scope": "Current browser bundle over archived real model repair and archived failed task; transport/UI only."
+    },
+    {
+      "item": "Current original-task log boundary and exact live SSE persistence",
+      "evidence": [
+        "replan-auth-operation-artifacts.json",
+        "live-sse-replan-auth.json"
+      ]
+    },
+    {
+      "item": "Real active Python API-kill recovery and independent arithmetic",
+      "evidence": [
+        "coding-crash-validated.json",
+        "validated-crash-independent-arithmetic.json"
+      ],
+      "scope": "Earlier validated candidate and stated test question; not certification of the later original InnoDB question."
+    },
+    {
+      "item": "Real PostgreSQL terminal transaction SIGKILL/rollback/recovery",
+      "evidence": "terminal-crash-recovery.json"
+    },
+    {
+      "item": "Sandbox and Node actual fault injections",
+      "evidence": [
+        "sandbox-faults.json",
+        "node-hard-limit-faults-provenance.json",
+        "replan-auth-node-limits-equivalence.json"
+      ],
+      "scope": "Separate injected resource failures; same Node image ID and effective limits verified on latest candidate."
+    },
+    {
+      "item": "Worker local admission vs lease and queue saturation",
+      "evidence": "worker-queue-saturation-admission.json"
+    },
+    {
+      "item": "Selected remediation tests from latest complete gate",
+      "tests": 184,
+      "passed": 182,
+      "skipped": 2,
+      "evidence": "focused-tests.json",
+      "scope": "Includes H2 terminal rollback/retry, callback authority/cancel races, copy rejection, budgets, schema/semantic and private QA changes; not a replacement for the failing full gate."
+    },
+    {
+      "item": "Current completed run history pagination at page size two",
+      "evidence": "trace-pagination-replan-auth.json",
+      "scope": "Transport/persistence only; failed business task remains not passed."
+    }
+  ],
+  "notPassed": [
+    {
+      "item": "Full backend gate",
+      "results": {
+        "tests": 4441,
+        "failures": 131,
+        "errors": 64,
+        "skipped": 10
+      },
+      "evidence": [
+        "full-gates-summary.json",
+        "failure-clusters.json"
+      ],
+      "comparison": "Compared by saved testcase identity/multiplicity to HEAD baseline 4406/130F/64E/10skip; current 4441/131F/64E/10skip adds one observed local A2A REST transport timeout. Saved earlier baseline was not freshly rerun. Original baseline 4382/149F/65E/10skip. Historical failures are not waived or classified wholesale as environment issues."
+    },
+    {
+      "item": "Original real database InnoDB business analysis",
+      "evidence": "original-db-replan-auth.json",
+      "reason": "No admitted analytical dataset; cumulative budget exhausted after rejection and replanning."
+    },
+    {
+      "item": "A2A local SDK REST timeout root cause",
+      "evidence": [
+        "failure-clusters.json",
+        "a2a-validated-focused-failures.json"
+      ],
+      "reason": "Observed in latest gate and an earlier isolated rerun. Unconfirmed origin; unchanged source does not prove environment-only failure."
+    }
+  ],
+  "notCertified": [
+    "Discovery completeness and supported final InnoDB health conclusions for the original question.",
+    "Node-wide global admission, Python output disk quota and hard output-byte limits.",
+    "Whole-workflow exactly-once recovery; earlier successful recovery may reacquire and recompute immutable inputs.",
+    "Node-process and MCP-process kill recovery; certified kill scopes above are API process only.",
+    "General dynamic private document routing, large-volume and arbitrary text-analysis end-to-end coverage.",
+    "Reviewed production schema migrations; isolated candidate bootstrap does not certify production migration."
+  ],
+  "productionSwitchRecommended": false,
+  "productionCutoverPrerequisites": [
+    "Fix and rerun the complete gate with no unresolved blocking failures.",
+    "Pass the exact original question with actual authorized data, independently checked computed results and a supported final report, including unresolved discovery gaps.",
+    "Complete the listed resource/recovery certifications needed by production policy.",
+    "Review migrations, backups/rollback, site ingress/TLS and pinned image digests; retain readonly host NIC identity and externally mounted signed license."
+  ],
+  "credentialsAndRawDatasetsInPublicReports": false
+}

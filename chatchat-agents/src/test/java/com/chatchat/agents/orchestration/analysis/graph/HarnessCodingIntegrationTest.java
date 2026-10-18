@@ -17,6 +17,33 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class HarnessCodingIntegrationTest {
+    @Test void exhaustedCodingBudgetStopsWithoutMoreModelRequests() {
+        var model=mock(ChatModel.class);var calls=new AtomicInteger();
+        var metadata=new LinkedHashMap<String,Object>();
+        var scope=GovernanceIsolationScope.runtime("tenant","user","run","request","conversation");
+        when(model.chat(any(ChatRequest.class))).thenAnswer(invocation->{
+            calls.incrementAndGet();
+            return ChatResponse.builder().aiMessage(AiMessage.from(ModelProtocolJson.compact(Map.of(
+                "schemaVersion","model_native_analysis.v2","decision",Map.of("action","CONTINUE"),
+                "output_type","intermediate","plan",plan(),"evidenceRequests",List.of(Map.of(
+                    "operation","RUN_CODING","requestId","calculation-1","datasetReference","source",
+                    "instruction","Compute a statistic","outputSchema",Map.of("type","object"))))))).build();
+        });
+        AnalysisCodingPort port=new AnalysisCodingPort(){
+            public Map<String,String> capabilities(){return Map.of("RUN_CODING","Runtime calculation");}
+            public Map<String,Object> execute(AnalysisCoverageCoordinator.Request context,Map<String,Object> request,Map<String,Dataset> sources){
+                return Map.of("taskId","coding-task","status","RESOURCE_BUDGET_EXHAUSTED",
+                    "reasonCode","DEADLINE_EXCEEDED","budgetExhausted",true,"retryable",false,"resultAvailable",false);
+            }
+        };
+        var context=new AnalysisCoverageCoordinator.Request(model,"Compute a statistic",null,Map.of(),metadata,()->false,()->{},scope,null);
+        new ModelNativeAnalysisHarness(8).withCoding(port,context).execute(context.query(),
+            List.of(new Dataset("source",Map.of(),List.of(Map.of("value",5)))),model,scope,
+            AnalysisEvidenceSpillStore.disabled(),metadata,()->{},trace->{});
+        assertThat(calls).hasValue(1);
+        assertThat(metadata).containsEntry("executionStopReason","RESOURCE_BUDGET_EXHAUSTED")
+            .containsEntry("publicationState","NOT_REQUESTED");
+    }
     @Test void modelDelegatesOnlyAdvertisedCodingAndThenSeesItsCommittedDataset() {
         var model=mock(ChatModel.class);var calls=new AtomicInteger();var dispatched=new AtomicInteger();
         var meta=new LinkedHashMap<String,Object>();
@@ -238,6 +265,7 @@ class HarnessCodingIntegrationTest {
 
     @Test void pythonPolicyRejectsDirectCompletionAndRawReadsBeforeAdmittingComputedResults() {
         var model=mock(ChatModel.class);var port=resultPort();var turn=new AtomicInteger();
+        when(model.chat(anyString())).thenReturn("{\"status\":\"SUPPORTED\",\"reason\":\"Computed value is supported\",\"unsupportedClaims\":[]}");
         doCallRealMethod().when(port).executeObserved(any(),anyMap(),anyMap(),any());
         var metadata=new LinkedHashMap<String,Object>();metadata.put("analysisExecutionPolicy","PYTHON_REQUIRED");
         when(model.chat(any(ChatRequest.class))).thenAnswer(call->{
@@ -275,6 +303,28 @@ class HarnessCodingIntegrationTest {
         assertThatThrownBy(()->run(model,null,metadata)).isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("PYTHON_ANALYSIS_UNAVAILABLE");
         verifyNoInteractions(model);
+    }
+
+    @Test void finalReportMustRepairClaimsOutsideComputedEvidence() {
+        var model=mock(ChatModel.class);var port=resultPort();var turn=new AtomicInteger();
+        doCallRealMethod().when(port).executeObserved(any(),anyMap(),anyMap(),any());
+        var metadata=new LinkedHashMap<String,Object>();metadata.put("analysisExecutionPolicy","PYTHON_REQUIRED");
+        when(model.chat(anyString())).thenReturn(
+            "{\"status\":\"UNSUPPORTED\",\"reason\":\"A sample statistic cannot prove universal health\",\"unsupportedClaims\":[\"Always healthy\"]}",
+            "{\"status\":\"SUPPORTED\",\"reason\":\"The sampled statistic is present\",\"unsupportedClaims\":[]}");
+        when(model.chat(any(ChatRequest.class))).thenAnswer(call->{
+            return switch(turn.incrementAndGet()) {
+                case 1 -> reply("CONTINUE","",List.of(codingRequest("source")));
+                case 2 -> reply("COMPLETE","The system is always healthy.",List.of());
+                default -> {
+                    assertThat(((ChatRequest)call.getArgument(0)).messages().toString()).contains("FINAL_REPORT_EVIDENCE_UNSUPPORTED");
+                    yield reply("COMPLETE","The sampled computed statistic is 17.",List.of());
+                }
+            };
+        });
+        assertThat(run(model,port,metadata).markdown()).isEqualTo("The sampled computed statistic is 17.");
+        assertThat(((Map<?,?>)metadata.get("finalReportSemanticAdmission")).get("status")).isEqualTo("SUPPORTED");
+        assertThat(metadata.get("harnessModelCalls")).isEqualTo(5);
     }
 
     @Test void emptyAnalysisCannotClaimCompleteWithoutComputedEvidence() {

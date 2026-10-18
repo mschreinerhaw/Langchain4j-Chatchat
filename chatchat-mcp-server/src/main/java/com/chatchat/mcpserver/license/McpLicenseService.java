@@ -36,7 +36,9 @@ public class McpLicenseService {
             objectMapper,
             resolveLicenseFile(Path.of(properties.getLicenseFile())),
             Path.of(properties.getServerIdFile()),
-            material(properties.getPublicKey(), properties.getPublicKeyPath())
+            material(properties.getPublicKey(), properties.getPublicKeyPath()),
+            properties.getHostMacFile() == null || properties.getHostMacFile().isBlank()
+                ? null : Path.of(properties.getHostMacFile())
         );
     }
 

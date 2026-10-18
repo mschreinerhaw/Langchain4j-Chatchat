@@ -1,0 +1,13 @@
+{
+  "sha256": "f396dc1daf2344f4497c4e97cf956164c2f67cadced1e5b29f685162d60bca4a",
+  "bytes": 848484864,
+  "tag": "54e8a3ee-hostnic-runtime-validated-20261018",
+  "status": "BUILT_AND_DEPLOYED_CANDIDATE",
+  "builder": "Docker Desktop desktop-linux docker driver, explicitly selected after initial builder bootstrap wait and incompatible default builder selection",
+  "webReferencesVerified": 7,
+  "apiAndMcpDeploymentSecretFileChecks": "PASSED",
+  "secretCheckScope": "Deployment secret filenames in application JARs and nested first-party libraries; not a general secret-content certificate.",
+  "productionSwitchRecommended": false,
+  "deploymentEvidence": "validated-deployment.json",
+  "signedHostNicLicenseEvidence": "host-license-service-proof-validated.json"
+}

@@ -1,0 +1,35 @@
+{
+  "status": "PASSED",
+  "scope": "Four actual model tasks with two workers; measures startup queue admission beyond a lease, ending when three short QA tasks finish. Original database analysis completion and subsequent deliberate API SIGKILL are separate.",
+  "workerThreads": 2,
+  "workerLeaseSeconds": 30.0,
+  "maximumClaimsObserved": 2,
+  "leaseFailureObserved": false,
+  "waitingTaskExceededLeaseWithoutClaim": true,
+  "maxUnclaimedPendingSeconds": {
+    "655766e5-1d6f-3e8f-bb41-2b12bd69a389": 0,
+    "ac37bfab-b5e4-3bd0-8911-ac49bf1f86e6": 0,
+    "e33568db-4fea-3394-9dd1-466f132bfaa6": 10.898682916536927,
+    "f6ae209c-76fc-3c88-96cf-a2f8bd0c2fec": 63.353247379884124
+  },
+  "maxAttempts": {
+    "655766e5-1d6f-3e8f-bb41-2b12bd69a389": 1,
+    "ac37bfab-b5e4-3bd0-8911-ac49bf1f86e6": 1,
+    "e33568db-4fea-3394-9dd1-466f132bfaa6": 1,
+    "f6ae209c-76fc-3c88-96cf-a2f8bd0c2fec": 1
+  },
+  "terminalShortTaskStates": {
+    "ac37bfab-b5e4-3bd0-8911-ac49bf1f86e6": "SUCCESS",
+    "e33568db-4fea-3394-9dd1-466f132bfaa6": "SUCCESS",
+    "f6ae209c-76fc-3c88-96cf-a2f8bd0c2fec": "SUCCESS"
+  },
+  "originalTaskStateAtAuditEnd": "WAIT_MODEL",
+  "elapsedSeconds": 91.95,
+  "imageTag": "54e8a3ee-hostnic-runtime-admission-20261018",
+  "taskIds": [
+    "655766e5-1d6f-3e8f-bb41-2b12bd69a389",
+    "ac37bfab-b5e4-3bd0-8911-ac49bf1f86e6",
+    "e33568db-4fea-3394-9dd1-466f132bfaa6",
+    "f6ae209c-76fc-3c88-96cf-a2f8bd0c2fec"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "status": "PASSED",
+  "scope": "Actual live Nginx SSE, Last-Event-ID reconnect and persistence comparison; payloads are not written to this audit log.",
+  "runId": "att-1-12ce3690-7446-48eb-81b9-01e6eecc97d3",
+  "taskId": "c50c293a-999c-36ae-9385-d655d85597e3",
+  "elapsedSeconds": 1250,
+  "connections": 53,
+  "lastEventIdHeaderConnections": 52,
+  "eventCount": 130,
+  "lastSequence": 130,
+  "codingEventCount": 42,
+  "duplicateEventCount": 0,
+  "contentType": "text/event-stream;charset=UTF-8",
+  "reauthentications": 1,
+  "persistedEventCount": 130,
+  "streamExactlyMatchesPersistedSequence": true,
+  "sequenceMonotonic": true,
+  "payloadsRetained": false,
+  "imageTag": "54e8a3ee-hostnic-runtime-validated-20261018",
+  "taskBusinessOutcome": "SUCCESS"
+}

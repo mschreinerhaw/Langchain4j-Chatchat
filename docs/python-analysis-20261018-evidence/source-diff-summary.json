@@ -1,0 +1,365 @@
+{
+  "head": "54e8a3eea6df9a8874d81ba6c40ee13e25456c6e",
+  "sourceFileCount": 59,
+  "trackedFiles": 41,
+  "newFiles": 18,
+  "addedLines": 1804,
+  "deletedLines": 64,
+  "sourceHashesMatchFrozenManifest": true,
+  "files": [
+    {
+      "file": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinator.java",
+      "added": 2,
+      "deleted": 0,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/graph/ComputedReportAdmission.java",
+      "added": 164,
+      "deleted": 0,
+      "tracked": false
+    },
+    {
+      "file": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/graph/ModelNativeAnalysisHarness.java",
+      "added": 19,
+      "deleted": 1,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/evidence/InterpretationPlanEvidenceAnalyzer.java",
+      "added": 10,
+      "deleted": 9,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/evidence/PlanGapReconciler.java",
+      "added": 92,
+      "deleted": 0,
+      "tracked": false
+    },
+    {
+      "file": "chatchat-agents/src/main/java/com/chatchat/agents/runtime/run/AgentOutcomeProjection.java",
+      "added": 11,
+      "deleted": 1,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/AgentOrchestratorTest.java",
+      "added": 4,
+      "deleted": 6,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/analysis/graph/ComputedReportAdmissionTest.java",
+      "added": 97,
+      "deleted": 0,
+      "tracked": false
+    },
+    {
+      "file": "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/analysis/graph/HarnessCodingIntegrationTest.java",
+      "added": 50,
+      "deleted": 0,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/evidence/PlanGapReconcilerTest.java",
+      "added": 47,
+      "deleted": 0,
+      "tracked": false
+    },
+    {
+      "file": "chatchat-agents/src/test/java/com/chatchat/agents/runtime/run/AgentOutcomeProjectionTest.java",
+      "added": 21,
+      "deleted": 0,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-api/pom.xml",
+      "added": 2,
+      "deleted": 1,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java",
+      "added": 38,
+      "deleted": 0,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingSemanticAdmission.java",
+      "added": 73,
+      "deleted": 0,
+      "tracked": false
+    },
+    {
+      "file": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController.java",
+      "added": 40,
+      "deleted": 0,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector.java",
+      "added": 19,
+      "deleted": 0,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisServiceTest.java",
+      "added": 38,
+      "deleted": 2,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/analysis/CodingSemanticAdmissionTest.java",
+      "added": 41,
+      "deleted": 0,
+      "tracked": false
+    },
+    {
+      "file": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackControllerTest.java",
+      "added": 85,
+      "deleted": 0,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollectorTest.java",
+      "added": 4,
+      "deleted": 0,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-api/web-app/src/js/App.js",
+      "added": 3,
+      "deleted": 1,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-api/web-app/src/js/App.test.js",
+      "added": 9,
+      "deleted": 0,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-api/web-app/src/js/views/AgentRuntimeView.js",
+      "added": 28,
+      "deleted": 1,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-api/web-app/src/js/views/AgentRuntimeView.test.js",
+      "added": 31,
+      "deleted": 1,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-api/web-app/src/styles/pages/agent-runtime.css",
+      "added": 4,
+      "deleted": 3,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-api/web-app/src/views/AgentRuntimeView.vue",
+      "added": 4,
+      "deleted": 1,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-chat/src/main/java/com/chatchat/chat/task/core/AgentTaskService.java",
+      "added": 29,
+      "deleted": 8,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-chat/src/main/java/com/chatchat/chat/task/event/DatabaseAgentEventStore.java",
+      "added": 49,
+      "deleted": 0,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-chat/src/main/java/com/chatchat/chat/task/queue/AgentTaskQueueCoordinator.java",
+      "added": 11,
+      "deleted": 2,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-chat/src/test/java/com/chatchat/chat/task/core/AgentTaskServiceTest.java",
+      "added": 93,
+      "deleted": 6,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-chat/src/test/java/com/chatchat/chat/task/event/DatabaseTerminalCommitTest.java",
+      "added": 67,
+      "deleted": 0,
+      "tracked": false
+    },
+    {
+      "file": "chatchat-chat/src/test/java/com/chatchat/chat/task/queue/AgentTaskDatabaseQueueScenarioTest.java",
+      "added": 25,
+      "deleted": 0,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-knowledge-base/src/main/java/com/chatchat/knowledgebase/runtime/DocumentKnowledgeSkillExecutor.java",
+      "added": 1,
+      "deleted": 1,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-knowledge-base/src/test/java/com/chatchat/knowledgebase/runtime/DocumentKnowledgeSkillExecutorTest.java",
+      "added": 23,
+      "deleted": 0,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-license/src/main/java/com/chatchat/license/HostMacIdentity.java",
+      "added": 36,
+      "deleted": 0,
+      "tracked": false
+    },
+    {
+      "file": "chatchat-license/src/main/java/com/chatchat/license/LicenseManager.java",
+      "added": 17,
+      "deleted": 3,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-license/src/test/java/com/chatchat/license/LicenseManagerTest.java",
+      "added": 34,
+      "deleted": 1,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/license/LicenseProperties.java",
+      "added": 3,
+      "deleted": 0,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/license/McpLicenseService.java",
+      "added": 3,
+      "deleted": 1,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonDockerRuntime.java",
+      "added": 9,
+      "deleted": 1,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonExecutionLogBoundary.java",
+      "added": 58,
+      "deleted": 0,
+      "tracked": false
+    },
+    {
+      "file": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonManagedExecutionService.java",
+      "added": 2,
+      "deleted": 6,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-mcp-server/src/main/resources/application-prod.yml",
+      "added": 1,
+      "deleted": 0,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-mcp-server/src/main/resources/python/runtime_capture.py",
+      "added": 57,
+      "deleted": 0,
+      "tracked": false
+    },
+    {
+      "file": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/license/McpLicenseServiceTest.java",
+      "added": 16,
+      "deleted": 0,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/python/PythonExecutionLogBoundaryTest.java",
+      "added": 35,
+      "deleted": 0,
+      "tracked": false
+    },
+    {
+      "file": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/python/PythonManagedExecutionServiceTest.java",
+      "added": 4,
+      "deleted": 1,
+      "tracked": true
+    },
+    {
+      "file": "chatchat-mcp-server/src/test/python/test_runtime_capture.py",
+      "added": 41,
+      "deleted": 0,
+      "tracked": false
+    },
+    {
+      "file": "coding-agent-node/src/runner.js",
+      "added": 1,
+      "deleted": 1,
+      "tracked": true
+    },
+    {
+      "file": "deploy/docker/application/README.md",
+      "added": 8,
+      "deleted": 4,
+      "tracked": true
+    },
+    {
+      "file": "deploy/docker/application/build-images.ps1",
+      "added": 18,
+      "deleted": 2,
+      "tracked": true
+    },
+    {
+      "file": "deploy/docker/application/compose.yaml",
+      "added": 33,
+      "deleted": 0,
+      "tracked": true
+    },
+    {
+      "file": "deploy/docker/application/host-license-identity.sh",
+      "added": 13,
+      "deleted": 0,
+      "tracked": false
+    },
+    {
+      "file": "deploy/docker/application/public-gateway.conf",
+      "added": 35,
+      "deleted": 0,
+      "tracked": false
+    },
+    {
+      "file": "deploy/docker/application/tests/verify-image-secrets.tests.ps1",
+      "added": 40,
+      "deleted": 0,
+      "tracked": false
+    },
+    {
+      "file": "deploy/docker/application/tests/verify-web-assets.tests.ps1",
+      "added": 35,
+      "deleted": 0,
+      "tracked": false
+    },
+    {
+      "file": "deploy/docker/application/verify-image-secrets.ps1",
+      "added": 26,
+      "deleted": 0,
+      "tracked": false
+    },
+    {
+      "file": "deploy/docker/application/verify-web-assets.ps1",
+      "added": 24,
+      "deleted": 0,
+      "tracked": false
+    },
+    {
+      "file": "pom.xml",
+      "added": 21,
+      "deleted": 0,
+      "tracked": true
+    }
+  ]
+}

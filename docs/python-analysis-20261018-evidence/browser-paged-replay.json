@@ -1,0 +1,21 @@
+{
+  "status": "PASSED",
+  "scope": "Actual packaged browser with over 200 persisted observations, load-more and SSE merge, no CSS injection or identity/filter override. Original task business outcome remains TIME_BUDGET_EXHAUSTED.",
+  "imageTag": "54e8a3ee-hostnic-runtime-replan-auth-20261018",
+  "archivedTaskImageTag": "54e8a3ee-hostnic-runtime-admission-20261018",
+  "runId": "att-1-dd5902ff-e55e-4ae4-a956-0e3a911f7588",
+  "persistedObservations": 224,
+  "expectedUniqueCodingEntries": 153,
+  "renderedCodingEntries": 153,
+  "timelinePages": [
+    {
+      "offset": 0,
+      "status": 200
+    },
+    {
+      "offset": 200,
+      "status": 200
+    }
+  ],
+  "pageErrorTypes": []
+}

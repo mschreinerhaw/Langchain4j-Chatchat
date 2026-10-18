@@ -1,0 +1,13 @@
+{
+  "scope": "Candidate configuration through existing workspace/menu APIs; no parallel UI framework.",
+  "status": "PASSED",
+  "workspaceId": "zhice",
+  "oldConfigVersion": 3,
+  "newConfigVersion": 3,
+  "runtimePageVisibleToOperator": true,
+  "route": "/#/w/zhice/runtime",
+  "existingPagesPreserved": true,
+  "menuPermissionSource": "Existing tasks menu permissionIds",
+  "permissionsExpandedBeyondTaskMonitoring": false,
+  "productionAffected": false
+}

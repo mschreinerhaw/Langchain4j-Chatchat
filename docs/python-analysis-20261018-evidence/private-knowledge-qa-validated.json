@@ -1,0 +1,24 @@
+{
+  "status": "PASSED",
+  "scope": "Actual model/private OpenSearch document in existing published role-chat workflow, authorized owner and serialized unauthorized reader; not a concurrent scheduler or broad document-router certificate.",
+  "imageTag": "54e8a3ee-hostnic-runtime-validated-20261018",
+  "privateMarkerExcludedFromQuestion": true,
+  "cases": [
+    {
+      "caller": "owner",
+      "taskId": "6981c1c9-92cc-3dfe-affa-e5c5a942c90a",
+      "terminalStatus": "SUCCESS",
+      "privateMarkerFound": true,
+      "references": 1
+    },
+    {
+      "caller": "reader",
+      "taskId": "740e8573-0622-31ed-89b4-140d02855111",
+      "terminalStatus": "SUCCESS",
+      "privateMarkerFound": false,
+      "references": 0
+    }
+  ],
+  "concurrentSchedulerFault": "NOT_PASSED_SEPARATE_EVIDENCE",
+  "sourceFix": "Preserve the original knowledge request query when combining model goals and hints; authorization scopes remain strict."
+}

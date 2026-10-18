@@ -1,0 +1,14 @@
+{
+  "status": "PASSED",
+  "tests": 22,
+  "failures": 0,
+  "errors": 0,
+  "scope": "App principal ID for runtime queries, stale timeline request isolation, incremental coding history pagination and existing runtime presentation tests. Layout repair separately requires actual packaged-browser validation.",
+  "testFiles": [
+    "chatchat-api/web-app/src/js/App.test.js",
+    "chatchat-api/web-app/src/js/views/AgentRuntimeView.test.js"
+  ],
+  "imageTag": "54e8a3ee-hostnic-runtime-prov-20261018",
+  "artifactBuild": "PASSED",
+  "browserFinalArtifact": "PASSED_SEPARATE_ACTUAL_BROWSER_PROOF"
+}

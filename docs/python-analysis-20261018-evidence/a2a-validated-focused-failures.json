@@ -1,0 +1,38 @@
+{
+  "status": "NOT_PASSED",
+  "scope": "Focused real localhost HTTP+JSON SDK transport rerun after two newly observed failures in the full reactor gate; no model mocks replace live acceptance.",
+  "tests": 4,
+  "failures": 1,
+  "errors": 0,
+  "cases": [
+    {
+      "name": "sendsProjectedContractThroughSdkRestTransport",
+      "seconds": 16.089,
+      "status": "FAILED",
+      "failure": "\nexpected: COMPLETED\n but was: TIMED_OUT"
+    },
+    {
+      "name": "rejectsAgentCardRedirectingCallsAwayFromRegisteredEndpoint",
+      "seconds": 0.15,
+      "status": "PASSED",
+      "failure": null
+    },
+    {
+      "name": "cancelsOutstandingTaskThroughSdk",
+      "seconds": 1.123,
+      "status": "PASSED",
+      "failure": null
+    },
+    {
+      "name": "resumesInputRequiredTaskWithOriginalTaskAndContextIds",
+      "seconds": 0.309,
+      "status": "PASSED",
+      "failure": null
+    }
+  ],
+  "restTransportDeadlineFailure": "REPRODUCED",
+  "cancellationFailure": "NOT_REPRODUCED_IN_THIS_RUN",
+  "rootCause": "UNCONFIRMED; not classified as a general environment failure.",
+  "a2aSourceChanged": false,
+  "productionSwitchRecommended": false
+}

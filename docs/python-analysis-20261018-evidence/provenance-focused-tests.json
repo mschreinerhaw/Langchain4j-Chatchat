@@ -1,0 +1,19 @@
+{
+  "scope": "Bounded provenance, source/receipt leakage exclusion, lower-bound cardinality and actual Harness integration contract; model semantic decisions require separate live evidence.",
+  "suites": [
+    {
+      "class": "ComputedReportAdmissionTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "HarnessCodingIntegrationTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ]
+}

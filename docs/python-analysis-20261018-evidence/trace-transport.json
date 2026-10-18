@@ -1,0 +1,17 @@
+{
+  "runId": "att-1-13914b55-201d-4124-af9b-eb3c2d86f6d4",
+  "nginxEndpoint": "http://192.168.195.221:18100",
+  "pagedEventCount": 17,
+  "pagesAtLimitTwo": 10,
+  "sequenceUnique": true,
+  "sequenceMonotonic": true,
+  "eventTypes": [
+    "OBSERVATION_RECORDED",
+    "RUN_STARTED",
+    "STEP_RECORDED"
+  ],
+  "sseContentType": "text/event-stream;charset=UTF-8",
+  "sseDataObserved": true,
+  "sseEventIdObserved": true,
+  "scope": "Transport and persistence only; code/repair/artifact coverage requires a completed real Coding Agent task."
+}

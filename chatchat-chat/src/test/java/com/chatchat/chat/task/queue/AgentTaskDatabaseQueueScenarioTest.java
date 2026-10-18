@@ -65,6 +65,31 @@ class AgentTaskDatabaseQueueScenarioTest {
     }
 
     @Test
+    void doesNotLeaseExcessTasksBeyondWorkerCapacity() {
+        taskRepository.save(task("capacity-first", "capacity-tenant-a"));
+        taskRepository.save(task("capacity-second", "capacity-tenant-b"));
+
+        var claims = coordinator.claimAvailable("capacity-worker", 1);
+
+        assertThat(claims).hasSize(1);
+        assertThat(coordinator.claimAvailable("saturated-worker", 0)).isEmpty();
+        var unclaimed = taskRepository.findAll().stream()
+            .filter(task -> task.getClaimToken() == null).toList();
+        assertThat(unclaimed).hasSize(1);
+        assertThat(unclaimed.get(0).getStatus()).isEqualTo("PENDING");
+        assertThat(unclaimed.get(0).getAttemptCount()).isZero();
+        var expired = taskRepository.findById(claims.get(0).taskId()).orElseThrow();
+        expired.setLeaseExpiresAt(Instant.now().minusSeconds(1));
+        taskRepository.saveAndFlush(expired);
+
+        assertThat(coordinator.recoverExpiredClaims()).isEqualTo(1);
+        var waiting = taskRepository.findById(unclaimed.get(0).getTaskId()).orElseThrow();
+        assertThat(waiting.getStatus()).isEqualTo("PENDING");
+        assertThat(waiting.getAttemptCount()).isZero();
+        assertThat(waiting.getClaimToken()).isNull();
+    }
+
+    @Test
     void claimsEveryTaskAtMostOnceUnderConcurrentDatabasePressure() throws Exception {
         int tenants = 8;
         int totalTasks = 160;

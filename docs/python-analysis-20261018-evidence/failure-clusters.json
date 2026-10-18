@@ -1,0 +1,1824 @@
+{
+  "recordedAt": "2026-10-18T06:34:21.020466+00:00",
+  "comparisonMethod": "Fresh full reactor test run compared by testcase identity and multiplicity with saved previous gate; previous checkout was not rerun.",
+  "gatePath": "target\\python-analysis-gates\\20261018-140525\\gates.json",
+  "gate": "FAILED",
+  "totals": {
+    "tests": 4441,
+    "failures": 131,
+    "errors": 64,
+    "skipped": 10
+  },
+  "priorTotals": {
+    "tests": 4406,
+    "failures": 130,
+    "errors": 64,
+    "skipped": 10
+  },
+  "originalTotals": {
+    "tests": 4382,
+    "failures": 149,
+    "errors": 65,
+    "skipped": 10
+  },
+  "newComparedWithPrior": [
+    {
+      "class": "com.chatchat.integration.agent.A2aHttpJsonAgentGatewayTest",
+      "name": "sendsProjectedContractThroughSdkRestTransport",
+      "kind": "FAILURE",
+      "occurrences": 1
+    }
+  ],
+  "absentComparedWithPrior": [],
+  "caseRoots": [
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorArchitectureTest",
+      "name": "orchestrationEngineCannotRegrowDuringMigration",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARCHITECTURE_DEPENDENCY_AND_SIZE_RATCHETS"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorArchitectureTest",
+      "name": "extractedWorkflowComponentsRemainFocused",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARCHITECTURE_DEPENDENCY_AND_SIZE_RATCHETS"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorArchitectureTest",
+      "name": "coreServiceMigrationRatchetsPreventFurtherGrowth",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARCHITECTURE_DEPENDENCY_AND_SIZE_RATCHETS"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "interpretationPlanCarriesSuccessfulPrePlanToolsIntoWorkflowDependencies",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "successfulTemplateExecutionIsAdmittedWithoutRedundantModelReview",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "NULL_CONTRACT_REVIEW_REQUIRED"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "workflowRuntimeOverridesPlannerWhenItSkipsConfiguredToolOrder",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "appliesCompleteRecordCoverageToNonBatchProtocolRows",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "workflowConditionCanShortCircuitMandatoryStepAndContinueDependentFlow",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "sqlScriptCoverageProcessesEveryFetchedRowAndReportsDatabaseLimitCompleteness",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "workflowParallelRequiredToolsMustAllCompleteBeforeFinalAnswer",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "recordCoverageStressSkipsSuccessfulNonToolNodesWithoutLosingToolEvidence",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "iterativelySummarizesCompleteLinuxStdoutInsteadOfDroppingTheMiddle",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "authoritativeFallbackStopsAtEmptyAssetInsteadOfRunningTemplateDiscovery",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "completeFirstPassCandidatePartitionDoesNotRequireVerboseRejectedEvaluations",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "documentWebVerificationAllowsDocumentSearchBeforeMandatoryWebTool",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "secondPassAuditMayRejectEveryCurrentPageCandidateAndStillRequestNextPage",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "resumesPendingToolExecutionAfterConfirmation",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "mandatoryFallbackModelReviewProjectsOracleAssetAndRejectsMysqlCandidate",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "runtimeRunStorePersistsRunLifecycleEvents",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "searchAndExtractUsesUnifiedEvidenceTrustAndCitationPipeline",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "adaptsMcpToolMetadataAndInheritsItIntoAssetCenterDatasetSummary",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "interpretationPlanFailureTriggersRewriteAndRunsRewrittenPlan",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "requiredToolCannotBeSkippedByPlannerSufficientSignal",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "templateReviewPreservesEveryCandidateIdentityWithoutSendingExecutorPayloads",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "pendingDocumentSearchCompletionAllowsNextWorkflowWebSearch",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "graphPublicationDoesNotAdoptUnrelatedAlternative",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "workflowConfigRequiredStepsDriveMandatoryToolsAndUseFullMcpToolNames",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "recordCoverageUsesFullRuntimeCachedBatchChildInsteadOfExternalizedPreview",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "STALE_STRING_CHAT_TEST_DOUBLE"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "appendsGovernedModelAnalysisWhenCandidateContainsOnlyHeadingsAndDataSource",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "evidenceChainCanExtendPositiveRewriteEstimateWithinRuntimeCeiling",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "narrativeFallbackUsesDriverSynthesisInsteadOfRepeatingChunkSummaries",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "executeRuntimeRequestProjectsTimeoutAsCompletedBudgetExhaustion",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "unifiedAnalysisDoesNotInvokeLegacyChunkRetries",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "UNIMPLEMENTED_CHAT_MODEL_TEST_DOUBLE"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "iteratesUntilEveryOversizedReturnedRecordIsCovered",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "executeRuntimeRequestReturnsCancelledRunWhenCancellationIsRequested",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "rejectedRewriteDoesNotBecomeDuplicateBaselineForCorrectedRewrite",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "executeRuntimeRequestHonorsMaxToolCallsBudget",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "usesStructuredEvidenceCapsuleWithoutReplayingCompleteJmxDataset",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "mandatoryFallbackBlocksAssetDiscoveryWhenModelSelectsIdOutsideReturnedSet",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "interpretationPlanPreservesSuccessfulDocumentSearchWhenModelNeedsMoreEvidence",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "interpretationPlanRunsThroughDagRuntimePipeline",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "enterpriseMetadataReviewerUsesFormattedEvidenceForEveryFieldInsteadOfRawPreview",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "spillsOversizedLoopEvidenceAndRestoresCheckpointsWithoutRepeatingModelWork",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "sqlScriptCoveragePreservesNullColumnValues",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "STALE_STRING_CHAT_TEST_DOUBLE"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "mandatoryFallbackBlocksTemplateDiscoveryWhenReviewerIsUnavailable",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "mandatoryFallbackSemanticReviewRemainsStableUnderMixedCandidateLoad",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "NULL_CONTRACT_REVIEW_REQUIRED"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "plannerAttributionCoveragePrefersEvidenceBackedCandidateOverShortFinalPlan",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "executeRuntimeRequestReturnsTypedRunResult",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "executeRuntimeRequestPreservesToolEvidenceWhenFinalSynthesisExceedsDeadline",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "mandatoryRecoveryBatchEntersWorkerAnalysisAndPublishesProgress",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "UNIMPLEMENTED_CHAT_MODEL_TEST_DOUBLE"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "mandatoryFallbackPreservesAllAssetsSelectedByModelReviewer",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "appendsEveryGovernedTemplateAnalysisWhenDraftOnlyCoversOneDataset",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "retainsTrustedGlobalDriverSynthesisInsteadOfConcatenatingWorkerSummaries",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "governedWorkerAnalysisReplacesDraftWithoutInspectingDomainTermsOrSchema",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "legacyActionsAndPlainAnswersCannotExecuteOrPublishThroughCompatibilityRoutes",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "executeRuntimeRequestHonorsMaxStepsBudget",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "executeRuntimeRequestDoesNotAcceptReportProducedAfterDeadline",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "completeFirstPassTemplateReviewIsReusedWithoutAQualityReducingSecondSelection",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "NULL_CONTRACT_REVIEW_REQUIRED"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "mandatoryWorkflowLocallyReviewsCompleteEnterpriseMetadataResult",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "assignsStableDistinctEvidenceIdsToRepeatedDatasetReferences",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "invalidPlannerDagHandsAuthoritativeWorkflowToJavaWithoutOuterReplanLoop",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "mandatoryWorkflowFailureBlocksFinalSummarySynthesis",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "fiveCallBatchUsesOneFinalSynthesisAndNoPerResultModelReview",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "v2ModelIntentSurvivesTheFullInterpretationDagAndAnswerFinalizer",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "UNIMPLEMENTED_CHAT_MODEL_TEST_DOUBLE"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "extractsBatchCommandStreamByProtocolDiscriminatorWhenSchemaAliasEvolves",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "plannerAttributionSelectsBestPlanAfterThreeInvalidRepairs",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "sqlCoveragePreservesNullColumnValues",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "STALE_STRING_CHAT_TEST_DOUBLE"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "analyzesNonEmptyExternalizedPreviewWhenFullEvidenceCannotBeResolved",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "includesWebCitationMapInPromptAfterWebSearch",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "executeRuntimeRequestReturnsFailedRunWhenPlannerThrows",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "keepsFinalAnswerWhenReviewerAcceptsIt",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "deduplicatesMirroredStructuredRecordsBeforeAnalysis",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "UNIMPLEMENTED_CHAT_MODEL_TEST_DOUBLE"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "interpretationPlanHonorsZeroRewriteBudgetAndFallsBack",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "interpretationPlanCanUseRequestScopedAvailableToolWhenRegistryDoesNotAdvertiseIt",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "genericToolResultTailReachesReviewerAndFinalSynthesisWithoutRuntimeTruncation",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "nestedHttpJsonParticipatesInGovernedRecordAnalysis",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "name": "finalOnlyPlanUsesGraphPublicationInsteadOfLegacyAnswerSelection",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "CHAT_MODEL_CONFIGURATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentPlannerTest",
+      "name": "mcpControlPlanePromptDoesNotTeachInventedDockerServiceLabels",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "PLANNER_PROTOCOL_AND_PROMPT_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentPlannerTest",
+      "name": "acceptsDomainPrefixedAssetQueryAsTypedAssetDiscovery",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "PLANNER_PROTOCOL_AND_PROMPT_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentPlannerTest",
+      "name": "acceptsDatabaseAssetSearchAsTypedAssetDiscovery",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "PLANNER_PROTOCOL_AND_PROMPT_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentPlannerTest",
+      "name": "normalizesCompoundContextStringAsExactAssetName",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "NULL_CONTRACT_REVIEW_REQUIRED"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentPlannerTest",
+      "name": "admitsPublisherDeclaredTemplateDiscoveryMaterializedOutsidePlannerVisibleTools",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "PLANNER_PROTOCOL_AND_PROMPT_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentPlannerTest",
+      "name": "authoritativeDagKeepsConcreteTemplateDiscoveryDependenciesDistinct",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "PLANNER_PROTOCOL_AND_PROMPT_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentPlannerTest",
+      "name": "normalizesRecoverableInterpretationPlanBeforeValidation",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "NULL_CONTRACT_REVIEW_REQUIRED"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentPlannerTest",
+      "name": "normalizesTemplateQueryContextStringAsExactAssetName",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "NULL_CONTRACT_REVIEW_REQUIRED"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentPlannerTest",
+      "name": "plannerPromptIncludesAgentRuntimeOsWorkflowGraph",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "PLANNER_PROTOCOL_AND_PROMPT_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinatorTest",
+      "name": "nativeHarnessOwnsAnalysisWhileSourceFailuresRemainObservable",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "MODEL_NATIVE_V2_COMPLETION_METADATA_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinatorTest",
+      "name": "explicitV2ModeCanThinkWithoutInitialDatasetsAndRetainItsCompletionIntent",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "MODEL_NATIVE_V2_COMPLETION_METADATA_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccessTest",
+      "name": "acquiredEvidenceStaysInContextAfterAnInvalidModelResponse",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "HISTORICAL_HARNESS_TOOL_CONTINUATION_TEST_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccessTest",
+      "name": "modelMayContinueWithAuthorizedToolAndReceiveQueryableResultHandles",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "HISTORICAL_HARNESS_TOOL_CONTINUATION_TEST_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccessTest",
+      "name": "v2ModelChoosesSameToolWithDifferentParametersAndCanReadOldEvidence",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "HISTORICAL_HARNESS_TOOL_CONTINUATION_TEST_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.analysis.graph.HarnessToolRecoveryTest",
+      "name": "fullHarnessReplaysSavedModelTurnAndRestoresToolEvidenceAfterCancellation",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "HISTORICAL_HARNESS_TOOL_CONTINUATION_TEST_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.analysis.nodes.synthesis.FinalSynthesisNodeTest",
+      "name": "v2PublishesBoundVersionDespiteGapsAndPreservesPartialScope",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "V2_PUBLICATION_AUTHORIZATION_AND_REPORT_VERSION_REVIEW_REQUIRED"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.analysis.nodes.synthesis.FinalSynthesisNodeTest",
+      "name": "v2AuthorizationAndReportVersionStillBlockPublication",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "V2_PUBLICATION_AUTHORIZATION_AND_REPORT_VERSION_REVIEW_REQUIRED"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.analysis.prompt.GovernedRecordFinalPromptBuilderTest",
+      "name": "nullInputsDoNotLeakNullLiterals",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "MODEL_OWNED_REPORT_PROMPT_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.analysis.prompt.GovernedRecordFinalPromptBuilderTest",
+      "name": "compactPromptPreservesAnalyticalDepthAndMarkdownOwnership",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "MODEL_OWNED_REPORT_PROMPT_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.answer.AgentAnswerFinalizerEvidenceAnswerTest",
+      "name": "reviewerTimeoutUsesConfiguredModelTimeout",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "REVIEWER_TIMEOUT_ELAPSED_TIME_EXCEEDS_TEST_BOUND"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.RuntimeOsBusinessAnalysisGoldenTest",
+      "name": "rejectedWorkerAnalysisIsReportedForReviewWithoutAutomaticGovernanceRetry",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "UNIMPLEMENTED_CHAT_MODEL_TEST_DOUBLE_ASSERTION"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.RuntimeOsBusinessAnalysisGoldenTest",
+      "name": "traceableWorkerNarrativeContinuesThroughThePipelineWhenJsonProtocolIsIncomplete",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "UNIMPLEMENTED_CHAT_MODEL_TEST_DOUBLE_ASSERTION"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.RuntimeOsBusinessAnalysisGoldenTest",
+      "name": "customerProfileWaitsForAndAnalyzesEveryReturnedBusinessDataset",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "UNIMPLEMENTED_CHAT_MODEL_TEST_DOUBLE"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.RuntimeOsBusinessAnalysisGoldenTest",
+      "name": "etfFlowClaimIsRetainedForHumanReviewWithoutProducerSemantics",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "UNIMPLEMENTED_CHAT_MODEL_TEST_DOUBLE"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "templateQueryMarksLowConfidenceForReview",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "templateQueryRejectsTargetKindAssetTypeConflict",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "sqlDatasourceAssetQueryWrapsDirectQueryFallbackAsDiscoveryContract",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "templateQueryRejectsMissingTargetKindInsteadOfGuessingFromKeywords",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "templateQueryRejectsCandidateSetWithoutFinalDecision",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "resolvesPublishedAssetReferencesForFallbackTemplateDiscovery",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "injectsUniqueObservedAssetIntoFallbackTemplateDiscovery",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "templateQueryRejectsInvalidTargetKind",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "mandatoryRecoveryRejectsExecutorWithoutCompatibleDiscoveredTemplate",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "linuxGatewayRejectsConcreteTargetsAndRawCommands",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "linuxGatewayBindsLogicalContextFromUserQuery",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "templateQueryBindsRoutingCandidateSetFinalDecision",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "templateQueryBindsFiltersFromUserQuery",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "canonicalizesVerifiedDiscoveryQueryAliasForFallbackContinuation",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "templateQueryUsesSqlDatasourceForDatabaseStatusIntent",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "sqlGatewayRenamesTemplateIdAndBindsLogicalContext",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "rejectsUnpublishedAssetReferenceForFallbackContinuation",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "defaultArgumentPipelinePreservesCapabilityDiscoveryIntentForExecutorProtocolFamily",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+      "name": "templateDiscoveryRepairsUnsupportedFiltersFromPublishedContract",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.workflow.AgentWorkflowStateTrackerTest",
+      "name": "carriesTheUniqueSuccessfulAssetTargetAcrossWorkflowAttempts",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "WORKFLOW_TARGET_REFERENCE_CONTINUATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.protocol.AgentModuleArchitectureTest",
+      "name": "topLevelPackageCallGraphIsExplicitAndAcyclic",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARCHITECTURE_DEPENDENCY_AND_SIZE_RATCHETS"
+    },
+    {
+      "class": "com.chatchat.agents.protocol.AgentModuleArchitectureTest",
+      "name": "orchestrationRootContainsOnlyEntryPointsAndCoreEngines",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARCHITECTURE_DEPENDENCY_AND_SIZE_RATCHETS"
+    },
+    {
+      "class": "com.chatchat.agents.protocol.AgentModuleArchitectureTest",
+      "name": "runtimeLayerDoesNotDependOnOrchestrationLayer",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARCHITECTURE_DEPENDENCY_AND_SIZE_RATCHETS"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.analysis.workflow.ModelDirectedWorkflowIntegrationTest",
+      "name": "completionWaitAndBudgetNeverAutoPublishRetainedWork",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "MODEL_OWNED_COMPLETION_PUBLICATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.execution.DefaultAgentRuntimeTest",
+      "name": "readsIncrementalEventsThroughRuntimeFacade",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "LEGACY_TIMESTAMP_ARGUMENT_USED_WITH_SEQUENCE_CURSOR_API"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeArchitectureTest",
+      "name": "interpretationPlanRuntimeCannotRegrowDuringDecomposition",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARCHITECTURE_DEPENDENCY_AND_SIZE_RATCHETS"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.plan.RuntimePlanPackageArchitectureTest",
+      "name": "rootPackageCannotBecomeAnotherResponsibilityBucket",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARCHITECTURE_DEPENDENCY_AND_SIZE_RATCHETS"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.tool.ToolRuntimeServiceTest",
+      "name": "explicitUnlockedStrictPolicyCanRejectACompletedFailedBatch",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "BATCH_TOOL_ADMISSION_AND_TEMPLATE_AUTHORIZATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.tool.ToolRuntimeServiceTest",
+      "name": "templateDeclaredRequiredFieldsReduceQualityWithoutReducingExecutionCoverage",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "BATCH_TOOL_ADMISSION_AND_TEMPLATE_AUTHORIZATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.tool.ToolRuntimeServiceTest",
+      "name": "diagnosticBatchChildrenInheritCanonicalAssetFromOuterExecutionContext",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "BATCH_TOOL_ADMISSION_AND_TEMPLATE_AUTHORIZATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.tool.ToolRuntimeServiceTest",
+      "name": "batchResolvesSemanticChildToolNameToRegisteredExecutor",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "BATCH_TOOL_ADMISSION_AND_TEMPLATE_AUTHORIZATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.tool.ToolRuntimeServiceTest",
+      "name": "compilationGapProducesExplicitNotExecutedResultAndCardinality",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "BATCH_TOOL_ADMISSION_AND_TEMPLATE_AUTHORIZATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.tool.ToolRuntimeServiceTest",
+      "name": "expiredDiagnosticDeadlineBlocksWholeBatchWithoutRemoteCalls",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "NULL_CONTRACT_REVIEW_REQUIRED"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.tool.ToolRuntimeServiceTest",
+      "name": "diagnosticBatchAllowsMultipleEndpointAssetsOnlyThroughDiscoveryTemplateAuthorization",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "BATCH_TOOL_ADMISSION_AND_TEMPLATE_AUTHORIZATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.tool.ToolRuntimeServiceTest",
+      "name": "sequentialBatchPreservesOrderAndContinuesAfterOneFailure",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "BATCH_TOOL_ADMISSION_AND_TEMPLATE_AUTHORIZATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.tool.ToolRuntimeServiceTest",
+      "name": "diagnosticBatchRejectsEndpointAssetThatDoesNotMatchItsDiscoveredTemplate",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "BATCH_TOOL_ADMISSION_AND_TEMPLATE_AUTHORIZATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.tool.ToolRuntimeServiceTest",
+      "name": "preflightBlockedTemplateIsRecordedAndDoesNotStopExecutableTemplates",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "BATCH_TOOL_ADMISSION_AND_TEMPLATE_AUTHORIZATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.tool.ToolRuntimeServiceTest",
+      "name": "diagnosticBatchRejectsDuplicateCallsMissingAssetAndCrossAssetMixing",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "BATCH_TOOL_ADMISSION_AND_TEMPLATE_AUTHORIZATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.tool.ToolRuntimeServiceTest",
+      "name": "failureIsolatedBatchLayerIgnoresLegacyStopFlagAndReturnsEveryFailure",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "BATCH_TOOL_ADMISSION_AND_TEMPLATE_AUTHORIZATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.tool.ToolRuntimeServiceTest",
+      "name": "emptyDiagnosticResultUsesPerCheckTemplatePolicy",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "NULL_CONTRACT_REVIEW_REQUIRED"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.tool.ToolRuntimeServiceTest",
+      "name": "rejectsCallLimitAndNestedBatchBeforeAnyRemoteInvocation",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "BATCH_TOOL_ADMISSION_AND_TEMPLATE_AUTHORIZATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.tool.ToolRuntimeServiceTest",
+      "name": "allFailedBatchCannotReportSuccessfulOuterExecution",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "NULL_CONTRACT_REVIEW_REQUIRED"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.tool.ToolRuntimeServiceTest",
+      "name": "rejectsOversizedBatchBeforeAnyRemoteInvocation",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "BATCH_TOOL_ADMISSION_AND_TEMPLATE_AUTHORIZATION_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.api.agent.task.AgentTaskControllerTest",
+      "name": "rejectMissingTenantAndCrossTenantAccess",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_BOOTSTRAP_MISSING_REQUIRED_RECORD"
+    },
+    {
+      "class": "com.chatchat.api.agent.task.AgentTaskControllerTest",
+      "name": "cancelAndRetryTaskWithinTenantBoundary",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_CONTEXT_CASCADE"
+    },
+    {
+      "class": "com.chatchat.api.agent.task.AgentTaskControllerTest",
+      "name": "confirmationResumeContinuesWaitingWorkerWithoutNewQuestionEvent",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_CONTEXT_CASCADE"
+    },
+    {
+      "class": "com.chatchat.api.agent.task.AgentTaskControllerTest",
+      "name": "modelErrorIsWrittenAsErrorEvent",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_CONTEXT_CASCADE"
+    },
+    {
+      "class": "com.chatchat.api.agent.task.AgentTaskControllerTest",
+      "name": "recordsFeedbackForCompletedTaskAndAppendsFeedbackEvent",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_CONTEXT_CASCADE"
+    },
+    {
+      "class": "com.chatchat.api.agent.task.AgentTaskControllerTest",
+      "name": "onceScheduleTriggersAgentTaskAndCompletes",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_CONTEXT_CASCADE"
+    },
+    {
+      "class": "com.chatchat.api.agent.task.AgentTaskControllerTest",
+      "name": "listToolRuntimeAuditsWithinTenantBoundary",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_CONTEXT_CASCADE"
+    },
+    {
+      "class": "com.chatchat.api.agent.task.AgentTaskControllerTest",
+      "name": "submitTaskAndReadEvents",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_CONTEXT_CASCADE"
+    },
+    {
+      "class": "com.chatchat.api.agent.task.AgentTaskControllerTest",
+      "name": "emptyFinalAnswerPublishesNoPresentableResultInsteadOfSuccessAnswer",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_CONTEXT_CASCADE"
+    },
+    {
+      "class": "com.chatchat.api.agent.task.AgentTaskControllerTest",
+      "name": "scheduledTaskRetriesFailedAgentRunOnce",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_CONTEXT_CASCADE"
+    },
+    {
+      "class": "com.chatchat.api.agent.task.AgentTaskControllerTest",
+      "name": "rejectEmptyQuery",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_CONTEXT_CASCADE"
+    },
+    {
+      "class": "com.chatchat.api.agent.task.AgentTaskControllerTest",
+      "name": "reconcileLatestStateFromEventStoreRepairsTerminalSnapshot",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_CONTEXT_CASCADE"
+    },
+    {
+      "class": "com.chatchat.api.agent.task.AgentTaskControllerTest",
+      "name": "toolOutputWithoutFinalAnswerPublishesPartialResult",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_CONTEXT_CASCADE"
+    },
+    {
+      "class": "com.chatchat.api.agent.task.AgentTaskControllerTest",
+      "name": "recoverActiveTaskReusesPersistedQuestionEvent",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_CONTEXT_CASCADE"
+    },
+    {
+      "class": "com.chatchat.api.AgentAuthorizationIsolationTest",
+      "name": "notificationHistoryIsTenantScopedSearchableAndPagedByTen",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_SEMANTIC_POLICY_BOOTSTRAP"
+    },
+    {
+      "class": "com.chatchat.api.AgentAuthorizationIsolationTest",
+      "name": "onlyExactlyPublishedAgentsPassSchedulePublicationValidation",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_CONTEXT_CASCADE"
+    },
+    {
+      "class": "com.chatchat.api.AgentAuthorizationIsolationTest",
+      "name": "adminSeesAllAgentsWhileTenantUsersOnlySeeOwnRoleBindings",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_CONTEXT_CASCADE"
+    },
+    {
+      "class": "com.chatchat.api.AgentRuntimeMonitoringTenantIntegrationTest",
+      "name": "everyRuntimeMonitoringResultUsesAuthenticatedTenantAndMaintainedPermission",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_SEMANTIC_POLICY_BOOTSTRAP"
+    },
+    {
+      "class": "com.chatchat.api.ApiUserRoleScheduleMcpAuthorizationIntegrationTest",
+      "name": "loginMenuScheduleAndMcpToolAuthorizationStayTenantAndRoleScoped",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_SEMANTIC_POLICY_BOOTSTRAP"
+    },
+    {
+      "class": "com.chatchat.api.architecture.RuntimeOsArchitectureBoundaryTest",
+      "name": "commonCoreIsFrameworkNeutralAndSpringAdaptersHaveExplicitOwnership",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "ARCHITECTURE_DEPENDENCY_AND_SIZE_RATCHETS"
+    },
+    {
+      "class": "com.chatchat.api.config.DatasourceConfigurationSeparationTest",
+      "name": "applicationProfilesSelectSeparateDatasourceFiles",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "DATASOURCE_ENVIRONMENT_AND_ENCRYPTED_CONFIG_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.api.config.DatasourceConfigurationSeparationTest",
+      "name": "apiProfilesDefaultMcpCommunicationToSharedEncryptedCredential",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "DATASOURCE_ENVIRONMENT_AND_ENCRYPTED_CONFIG_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.api.contract.MaintainedAgentEnvironmentCoverageTest",
+      "name": "coversEveryScenarioMaintainedByPublishedAgents",
+      "kind": "FAILURE",
+      "occurrences": 2,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "MAINTAINED_AGENT_ENVIRONMENT_AND_CODING_FIXTURE_REVIEW"
+    },
+    {
+      "class": "com.chatchat.api.controller.chat.InteractionControllerTest",
+      "name": "toolDirectWritesPersistentAuditLog",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_SEMANTIC_POLICY_BOOTSTRAP"
+    },
+    {
+      "class": "com.chatchat.api.controller.chat.InteractionControllerTest",
+      "name": "tenantToolPermissionCanDenyToolRuntime",
+      "kind": "ERROR",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SPRING_CONTEXT_CASCADE"
+    },
+    {
+      "class": "com.chatchat.api.controller.system.UiDisplayConfigControllerTest",
+      "name": "updatesConfigurationForAuthenticatedTenant",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "HISTORICAL_REST_JSON_CONTENT_NEGOTIATION"
+    },
+    {
+      "class": "com.chatchat.api.controller.system.UiDisplayConfigControllerTest",
+      "name": "readsConfigurationForAuthenticatedTenant",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "HISTORICAL_REST_JSON_CONTENT_NEGOTIATION"
+    },
+    {
+      "class": "com.chatchat.api.DatabaseSchemaGeneratorTest",
+      "name": "generateApiSchemasFromJpaEntities",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "JPA_SCHEMA_GENERATOR_ENTITY_COUNT_AND_DDL_BASELINE"
+    },
+    {
+      "class": "com.chatchat.chat.analysis.profile.DomainAnalysisProfilePersistenceTest",
+      "name": "persistsTitlesRevisionsAndTenantDisableWithoutResettingDefaults",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "DOMAIN_PROFILE_PERSISTENCE_AND_TITLES_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.chat.analysis.profile.DomainAnalysisProfileServiceTest",
+      "name": "validatesUpdatesAndRejectsStaleRevisionsAndExecutionDirectives",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "DOMAIN_PROFILE_PERSISTENCE_AND_TITLES_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest",
+      "name": "documentWorkflowRequiresDocumentSearchBeforeWebSearch",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "QA_DOCUMENT_AND_REGISTERED_WEB_SEARCH_TOOL_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest",
+      "name": "webSearchToggleRequiresRegisteredMcpWebSearchTool",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "QA_DOCUMENT_AND_REGISTERED_WEB_SEARCH_TOOL_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest",
+      "name": "webSearchToggleDoesNothingWhenAgentDidNotEnableWebSearch",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "QA_DOCUMENT_AND_REGISTERED_WEB_SEARCH_TOOL_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.chat.interaction.service.handler.MaintainedAgentRuntimeScenarioCoverageTest",
+      "name": "coversEveryMaintainedAgentThroughTheAgentRuntimeContract",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "MAINTAINED_AGENT_ENVIRONMENT_AND_CODING_FIXTURE_REVIEW"
+    },
+    {
+      "class": "com.chatchat.chat.skills.domain.artifact.DomainSkillArtifactStoreTest",
+      "name": "storesOriginalParsedAndCompiledArtifactsSeparately",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "SKILL_IR_VERSION_V1_TO_V2_MIGRATION"
+    },
+    {
+      "class": "com.chatchat.chat.skills.runtime.AgentRuntimePolicyTest",
+      "name": "projectsAndBoundsRuntimePolicyFromWorkflowConfiguration",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "WORKFLOW_RUNTIME_BUDGET_BOUNDING_4000_VS_9000"
+    },
+    {
+      "class": "com.chatchat.integration.agent.A2aHttpJsonAgentGatewayTest",
+      "name": "sendsProjectedContractThroughSdkRestTransport",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": false,
+      "presentInOriginalBaseline": false,
+      "category": "A2A_LOCAL_REST_TRANSPORT_DEADLINE_UNCONFIRMED"
+    },
+    {
+      "class": "com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchDocumentIndexServiceTest",
+      "name": "superAdminRoleNameDoesNotBypassDocumentVisibilityFilter",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "DOCUMENT_VISIBILITY_FILTER_SECURITY_REVIEW_REQUIRED"
+    },
+    {
+      "class": "com.chatchat.mcpserver.api.publication.ApiRequirementAnalysisMcpToolPublisherTest",
+      "name": "refreshKeepsRequirementAnalysisInternalToTheApiBridge",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "RETIRED_MCP_TOOL_REMOVAL_NOT_OBSERVED"
+    },
+    {
+      "class": "com.chatchat.mcpserver.config.DatasourceConfigurationSeparationTest",
+      "name": "runtimeAndReleaseProfilesDefaultApiCommunicationToSharedEncryptedCredential",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "DATASOURCE_ENVIRONMENT_AND_ENCRYPTED_CONFIG_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.mcpserver.database.publication.DatabaseQueryMcpToolPublisherTest",
+      "name": "refreshKeepsAllDatabaseQueriesBehindDataBridge",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "RETIRED_MCP_TOOL_REMOVAL_NOT_OBSERVED"
+    },
+    {
+      "class": "com.chatchat.mcpserver.DatabaseSchemaGeneratorTest",
+      "name": "generateMcpServerSchemasFromJpaEntities",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "JPA_SCHEMA_GENERATOR_ENTITY_COUNT_AND_DDL_BASELINE"
+    },
+    {
+      "class": "com.chatchat.mcpserver.metadata.tool.MetadataGovernanceMcpToolPublisherTest",
+      "name": "refreshRemovesRetiredMetadataToolsWithoutRepublishingThem",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "RETIRED_MCP_TOOL_REMOVAL_NOT_OBSERVED"
+    },
+    {
+      "class": "com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryDatabaseQueryTest",
+      "name": "returnsRuntimeManagedFinancialTemplateWithoutExternalDatasourceRegistration",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "TEMPLATE_DISCOVERY_FILTER_AND_FALLBACK_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryDatabaseQueryTest",
+      "name": "databaseQuerySearchFallsBackToRelevantRegistryEntriesWhenSearchIndexReturnsNoHits",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "TEMPLATE_DISCOVERY_FILTER_AND_FALLBACK_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryDatabaseQueryTest",
+      "name": "businessCategoryRanksDatabaseTemplatesWithoutSuppressingCrossCategoryCandidates",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "TEMPLATE_DISCOVERY_FILTER_AND_FALLBACK_CONTRACT"
+    },
+    {
+      "class": "com.chatchat.mcpserver.ops.discovery.FinancialQueryRuntimeContractAcceptanceTest",
+      "name": "discoversMaintainedQuerySampleAndExecutesItThroughRuntimeOwnedBinding",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "PUBLISHED_TEMPLATE_ROUTING_TRACE_REQUIRED"
+    },
+    {
+      "class": "com.chatchat.mcpserver.python.PythonMcpToolPublisherTest",
+      "name": "publishesDiscoveryFacadeAndNativeRuntimeExecutor",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "RETIRED_MCP_TOOL_REMOVAL_NOT_OBSERVED"
+    },
+    {
+      "class": "com.chatchat.mcpserver.routing.asset.AssetDiscoveryMcpToolPublisherTest",
+      "name": "refreshKeepsTypedAssetDiscoveryInternal",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "RETIRED_MCP_TOOL_REMOVAL_NOT_OBSERVED"
+    },
+    {
+      "class": "com.chatchat.mcpserver.search.query.DiscoveryQueryVariantsTest",
+      "name": "preservesNestedMultiIntentQueriesAsIndependentVariants",
+      "kind": "FAILURE",
+      "occurrences": 1,
+      "presentInPriorGate": true,
+      "presentInOriginalBaseline": true,
+      "category": "MULTI_INTENT_DISCOVERY_QUERY_VARIANTS_CONTRACT"
+    }
+  ],
+  "rootClusters": {
+    "ARCHITECTURE_DEPENDENCY_AND_SIZE_RATCHETS": 9,
+    "ORCHESTRATOR_EXECUTION_AND_PLAN_CONTRACT_REVIEW": 39,
+    "NULL_CONTRACT_REVIEW_REQUIRED": 9,
+    "CHAT_MODEL_CONFIGURATION_CONTRACT": 25,
+    "STALE_STRING_CHAT_TEST_DOUBLE": 3,
+    "UNIMPLEMENTED_CHAT_MODEL_TEST_DOUBLE": 6,
+    "PLANNER_PROTOCOL_AND_PROMPT_CONTRACT": 6,
+    "MODEL_NATIVE_V2_COMPLETION_METADATA_CONTRACT": 2,
+    "HISTORICAL_HARNESS_TOOL_CONTINUATION_TEST_CONTRACT": 4,
+    "V2_PUBLICATION_AUTHORIZATION_AND_REPORT_VERSION_REVIEW_REQUIRED": 2,
+    "MODEL_OWNED_REPORT_PROMPT_CONTRACT": 2,
+    "REVIEWER_TIMEOUT_ELAPSED_TIME_EXCEEDS_TEST_BOUND": 1,
+    "UNIMPLEMENTED_CHAT_MODEL_TEST_DOUBLE_ASSERTION": 2,
+    "ARGUMENT_BINDING_PUBLISHED_POLICY_AND_REFERENCE_CONTRACT": 19,
+    "WORKFLOW_TARGET_REFERENCE_CONTINUATION_CONTRACT": 1,
+    "MODEL_OWNED_COMPLETION_PUBLICATION_CONTRACT": 1,
+    "LEGACY_TIMESTAMP_ARGUMENT_USED_WITH_SEQUENCE_CURSOR_API": 1,
+    "BATCH_TOOL_ADMISSION_AND_TEMPLATE_AUTHORIZATION_CONTRACT": 13,
+    "SPRING_BOOTSTRAP_MISSING_REQUIRED_RECORD": 1,
+    "SPRING_CONTEXT_CASCADE": 16,
+    "SPRING_SEMANTIC_POLICY_BOOTSTRAP": 4,
+    "DATASOURCE_ENVIRONMENT_AND_ENCRYPTED_CONFIG_CONTRACT": 3,
+    "MAINTAINED_AGENT_ENVIRONMENT_AND_CODING_FIXTURE_REVIEW": 3,
+    "HISTORICAL_REST_JSON_CONTENT_NEGOTIATION": 2,
+    "JPA_SCHEMA_GENERATOR_ENTITY_COUNT_AND_DDL_BASELINE": 2,
+    "DOMAIN_PROFILE_PERSISTENCE_AND_TITLES_CONTRACT": 2,
+    "QA_DOCUMENT_AND_REGISTERED_WEB_SEARCH_TOOL_CONTRACT": 3,
+    "SKILL_IR_VERSION_V1_TO_V2_MIGRATION": 1,
+    "WORKFLOW_RUNTIME_BUDGET_BOUNDING_4000_VS_9000": 1,
+    "A2A_LOCAL_REST_TRANSPORT_DEADLINE_UNCONFIRMED": 1,
+    "DOCUMENT_VISIBILITY_FILTER_SECURITY_REVIEW_REQUIRED": 1,
+    "RETIRED_MCP_TOOL_REMOVAL_NOT_OBSERVED": 5,
+    "TEMPLATE_DISCOVERY_FILTER_AND_FALLBACK_CONTRACT": 3,
+    "PUBLISHED_TEMPLATE_ROUTING_TRACE_REQUIRED": 1,
+    "MULTI_INTENT_DISCOVERY_QUERY_VARIANTS_CONTRACT": 1
+  },
+  "limits": [
+    "Historical presence is not a waiver. Contract and security failures still block release.",
+    "Previous categories are retained only for matching testcase identities. New failures require review.",
+    "A failed full gate is not reclassified wholesale as an environment issue."
+  ],
+  "rootClusterMeasure": "TESTCASE_OCCURRENCES"
+}

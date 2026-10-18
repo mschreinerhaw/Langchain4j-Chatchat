@@ -1,0 +1,11 @@
+{
+  "scope": "Focused rerun of the intermittently failing local SDK HTTP transport test class, unchanged implementation and test sources.",
+  "tests": 4,
+  "failures": 0,
+  "errors": 0,
+  "fullGateFailure": "sendsProjectedContractThroughSdkRestTransport returned TIMED_OUT instead of COMPLETED under a 5000 ms contract.",
+  "focusedStatus": "PASSED",
+  "rootCause": "UNCONFIRMED",
+  "fullGateOverridden": false,
+  "interpretation": "A focused pass demonstrates intermittency; it does not waive the full gate or prove an environment-only cause."
+}

@@ -1,0 +1,41 @@
+{
+  "scope": "Actual model-generated code and archived artifacts for current real acceptance runs. Only byte counts, hashes, allowlisted exception types and line numbers are permitted in logs. Does not certify terminal result/semantic correctness or exactly-once recovery.",
+  "status": "PASSED",
+  "imageTag": "54e8a3ee-hostnic-runtime-validated-20261018",
+  "operations": [
+    {
+      "operationId": "cline-c329c60e2754830f0a7e6f305ca40ba22b7ae2b245c8c9c89ffdba338f70aaf0",
+      "taskId": "analysis-coding-f4c77d160bd4368725620d94ba0de5aba81770472492562eb8d02fec9c4202f3",
+      "runId": "att-1-12ce3690-7446-48eb-81b9-01e6eecc97d3",
+      "status": "SUCCEEDED",
+      "codeHash": "1a1ecacc084db9750c1bb813f04b81c7fcf5766040214f996d0623288a747190",
+      "containerStartedAt": "2026-10-18T04:46:08.043275+00:00",
+      "executorStopped": true,
+      "attemptNumber": 1,
+      "revision": 4,
+      "createdAt": "2026-10-18T04:46:07.474939+00:00",
+      "updatedAt": "2026-10-18T04:46:28.652166+00:00",
+      "manifestHash": "876cc84d196863bb9464a31325b37978c0a524b1d4858ad3e04c9efde7ab907a",
+      "codeHashMatches": true,
+      "stdoutMetadataOnly": true,
+      "stderrMetadataOnly": true
+    },
+    {
+      "operationId": "cline-cb33a194d2196d30d366a7e678dc4e5a4ba2473f2163343b3db48ad0cc54c633",
+      "taskId": "analysis-coding-6c1e82be284faab588e6b04f7a7fb2620e4024b3b2e4991ff0a362a2c33649ad",
+      "runId": "att-1-12ce3690-7446-48eb-81b9-01e6eecc97d3",
+      "status": "SUCCEEDED",
+      "codeHash": "9b09340de61c00673cf2238d37e5e686038816d573f806756b14b977192d9e47",
+      "containerStartedAt": "2026-10-18T04:54:33.538176+00:00",
+      "executorStopped": true,
+      "attemptNumber": 1,
+      "revision": 4,
+      "createdAt": "2026-10-18T04:54:33.032392+00:00",
+      "updatedAt": "2026-10-18T04:54:53.968586+00:00",
+      "manifestHash": "f0e9ddb9b0c6b4e965a35818ce230dbd3146c950e40edc6dfbba3f07bb0fb835",
+      "codeHashMatches": true,
+      "stdoutMetadataOnly": true,
+      "stderrMetadataOnly": true
+    }
+  ]
+}

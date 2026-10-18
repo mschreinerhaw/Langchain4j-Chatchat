@@ -1,0 +1,16 @@
+{
+  "sha256": "8139c35f2c7fd6a78d689c961e26c80d80a64dacd6fa7d858f9ebb37b63a180e",
+  "bytes": 848487424,
+  "tag": "54e8a3ee-hostnic-runtime-admission-20261018",
+  "status": "DEPLOYED_CANDIDATE_ONLY",
+  "onlyApiRebuilt": true,
+  "reusedMcpImageId": "sha256:f843db253f5c9f688c968de2bb14ee1a5e45b3a983b23a35d95ab20216236a69",
+  "reusedNodeImageId": "sha256:a3cf18023dab7ed8ee97c8bf47e1e307a7fe8b50d67fde847e6d40e4f14d7004",
+  "reusedExecutableJarSha256": "11e61fc78e7c280ce0b61c6c9ba900ab4af34b6f58027f13d10a89b86db2eb36",
+  "dockerCliSha256": "99d23b43792eaafe4baa171ef18a9d0244b0517c2b2271dab5900fb0fef3b428",
+  "sourceManifest": "source-manifest.json",
+  "sourceFiles": 56,
+  "productionSwitchRecommended": false,
+  "deploymentEvidence": "admission-deployment.json",
+  "licenseEvidence": "host-license-service-proof-admission.json"
+}

@@ -485,7 +485,10 @@
           <p v-if="timelineLoading" class="agent-runtime-empty">Loading timeline...</p>
           <p v-else-if="!selectedRun" class="agent-runtime-empty">Select a run to inspect.</p>
 
-          <CodingTracePanel v-else-if="activeDetailTab === 'coding'" :run-id="selectedRunId" :observations="observations" />
+          <div v-else-if="activeDetailTab === 'coding'">
+            <CodingTracePanel :run-id="selectedRunId" :observations="observations" />
+            <button v-if="observationsHasMore" type="button" :disabled="observationPageLoading" @click="loadMoreCodingObservations">加载更多编码记录</button>
+          </div>
           <div v-else-if="activeDetailTab === 'timeline'" class="agent-runtime-timeline">
             <article v-for="item in timelineItems" :key="item.key" :class="item.kind">
               <span></span>

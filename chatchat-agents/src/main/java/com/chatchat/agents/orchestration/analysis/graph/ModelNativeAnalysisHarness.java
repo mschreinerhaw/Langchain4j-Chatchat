@@ -183,6 +183,19 @@ public final class ModelNativeAnalysisHarness {
                 Object authored = product.get(v2 ? "content" : "reportMarkdown");
                 if (authored != null && !(authored instanceof String)) throw new IllegalArgumentException("INVALID_CONTENT: content must be a string");
                 candidateReport = authored instanceof String value && !value.isBlank() ? value : report;
+                if (pythonRequired && !admittedResults.isEmpty() && product.get("decision") instanceof Map<?,?> decision
+                        && Set.of("COMPLETE","PARTIAL_COMPLETE").contains(String.valueOf(decision.get("action")))) {
+                    var review=new ComputedReportAdmission().review(question,candidateReport,prepared.sources(),admittedResults,
+                        model,scope,checkpoints,guard,trace,prepared.views());
+                    calls+=review.modelCalls();metadata.put("harnessModelCalls",calls);
+                    metadata.put("finalReportSemanticAdmission",review.value());
+                    observe.accept(Map.of("eventKind","FINAL_REPORT_SEMANTIC_REVIEW","stage","FINAL_REPORT_SEMANTIC_REVIEW",
+                        "eventState",review.value().get("status"),"turn",turn,"review",review.value()));
+                    if(!"SUPPORTED".equals(review.value().get("status")))
+                        throw new IllegalArgumentException("FINAL_REPORT_EVIDENCE_UNSUPPORTED: "+ModelProtocolJson.compact(review.value())
+                            +". Remove unsupported claims or use RUN_CODING with an output schema exposing the missing computations. "
+                            +"Do not repeatedly resubmit rejected numerical claims from source profiles or worker prose.");
+                }
                 if (product.get("workspace") != null && !(product.get("workspace") instanceof Map<?,?>))
                     throw new IllegalArgumentException("INVALID_WORKSPACE: public state must be an object");
                 if (v2) recordIntent(product, candidateReport, snapshot(prepared.sources()), acceptedIntent);
@@ -191,6 +204,9 @@ public final class ModelNativeAnalysisHarness {
                 var proposedPlan = plans.prepare(product);
                 plans.commit(proposedPlan);
 
+            }
+            catch (com.chatchat.agents.orchestration.model.AgentBudgetExceededException limited) {
+                exhausted=true;metadata.put("harnessBudgetFeedback",limited.getClass().getSimpleName());break;
             }
             catch (IllegalArgumentException invalid) {
                 // Protocol correction must not erase the execution facts that prompted it.
@@ -282,6 +298,7 @@ public final class ModelNativeAnalysisHarness {
                             metadata.put("harnessCodingTasks", List.copyOf(codingTasks.values()));
                             audit.add(Map.of("status", "ACCEPTED", "request", request,
                                 "receiptFingerprint", ModelProtocolJson.sha256Hex(receipt), "receipt", receipt));
+                            if (Boolean.TRUE.equals(receipt.get("budgetExhausted"))) exhausted = true;
                         } else if (operations.supports(operation)) {
                             if (pythonRequired && !"CATALOG".equals(operation))
                                 throw new IllegalArgumentException("PYTHON_EXECUTION_REQUIRED: use RUN_CODING for data processing");
@@ -318,6 +335,7 @@ public final class ModelNativeAnalysisHarness {
                     progress.put("completedRequestCount", audit.size());
                     progress.put("reads", List.copyOf(audit));
                     observe.accept(Collections.unmodifiableMap(new LinkedHashMap<>(progress)));
+                    if (exhausted) break;
                 }
             } else if (!completed) exhausted = true;
             var span = new LinkedHashMap<String,Object>(Map.<String,Object>of("type", "harness_turn", "eventKind", "HARNESS_TURN", "stage", "MODEL_NATIVE_ANALYSIS",
@@ -344,7 +362,7 @@ public final class ModelNativeAnalysisHarness {
             span.put("eventState", "COMPLETED");
             trace.add(span); observe.accept(span);
             metadata.put("harnessTrace", List.copyOf(trace));
-            if (completed) break;
+            if (completed || exhausted) break;
         }
         metadata.put("harnessStopReason", exhausted ? "RESOURCE_BUDGET_EXHAUSTED"
             : v2 ? "MODEL_DECISION" : "MODEL_COMPLETED");

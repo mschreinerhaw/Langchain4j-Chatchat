@@ -1,0 +1,38 @@
+{
+  "status": "BUILT_AND_DEPLOYED_CANDIDATE_ONLY",
+  "head": "54e8a3eea6df9a8874d81ba6c40ee13e25456c6e",
+  "imageTag": "54e8a3ee-hostnic-runtime-replan-auth-20261018",
+  "archiveSha256": "a7ceaa66d14e5351eb1fb43bf08cf6d208c487e829088b9ac6b0249647751069",
+  "archiveBytes": 848491008,
+  "sourceFileCount": 59,
+  "jars": {
+    "chatchat-api\\target\\chatchat-api-1.0.0-SNAPSHOT.jar": "ea56a84e22d4b72daf41e11e6d89f80aa3147557412805c287999a5d21641ca6",
+    "chatchat-mcp-server\\target\\chatchat-mcp-server-1.0.0-SNAPSHOT.jar": "11e61fc78e7c280ce0b61c6c9ba900ab4af34b6f58027f13d10a89b86db2eb36"
+  },
+  "images": [
+    {
+      "service": "api",
+      "image": "runtime-os-api:54e8a3ee-hostnic-runtime-replan-auth-20261018",
+      "imageId": "sha256:3890899fe7bb5b5b5535892209cb09b76c2faf034c4be088a0838f1306c9e6fb",
+      "running": true,
+      "externalCredentialKeyReadOnly": true
+    },
+    {
+      "service": "mcp",
+      "image": "runtime-os-mcp:54e8a3ee-hostnic-runtime-replan-auth-20261018",
+      "imageId": "sha256:f843db253f5c9f688c968de2bb14ee1a5e45b3a983b23a35d95ab20216236a69",
+      "running": true,
+      "externalCredentialKeyReadOnly": true
+    },
+    {
+      "service": "coding-agent",
+      "image": "runtime-os-coding-agent:54e8a3ee-hostnic-runtime-replan-auth-20261018",
+      "imageId": "sha256:a3cf18023dab7ed8ee97c8bf47e1e307a7fe8b50d67fde847e6d40e4f14d7004",
+      "running": true,
+      "memoryBytes": 2147483648,
+      "memorySwapBytes": 2147483648
+    }
+  ],
+  "scope": "API image rebuilt from frozen sources. MCP and Node reuse unchanged, verified image IDs. Existing PostgreSQL and OpenSearch are shared only through isolated candidate databases/index.",
+  "productionSwitchRecommended": false
+}

@@ -1,0 +1,45 @@
+{
+  "runId": "att-1-f6e6343d-3961-4f7a-bc23-571a14a5b4b8",
+  "validationRecords": [
+    {
+      "evidenceId": "coding:290bb4b01f805411933ed2438ded5a36df18830284be24417a488f01453352aa:validation",
+      "status": "FAILED",
+      "copiedSourceContentDetected": true,
+      "structuralChecksPassed": false
+    },
+    {
+      "evidenceId": "coding:b70c7430b7619265fe16bf50f853c5ad67697c668b4165305cf469d38bd6572a:validation",
+      "status": "FAILED",
+      "copiedSourceContentDetected": null,
+      "structuralChecksPassed": false
+    },
+    {
+      "evidenceId": "coding:0878ec5c58b76d5c16253eae3f461173068db488f837c821d8a4cb6ba62d306f:validation",
+      "status": "FAILED",
+      "copiedSourceContentDetected": null,
+      "structuralChecksPassed": false
+    },
+    {
+      "evidenceId": "coding:6f47a12fd402ffc7e2698d51ba86849aca586fc13d05023caf1b4fb7ce4ecd0e:validation",
+      "status": "INCONCLUSIVE",
+      "copiedSourceContentDetected": null,
+      "structuralChecksPassed": true
+    },
+    {
+      "evidenceId": "coding:9ea4c967efc897477285b032507e8b7f680d244891e9b5e3e67daf426515d577:validation",
+      "status": "INCONCLUSIVE",
+      "copiedSourceContentDetected": null,
+      "structuralChecksPassed": true
+    },
+    {
+      "evidenceId": "coding:457e95a145efd7fd00f27ee000bfe1295d8986c13f100f6ff180b1c931498b4f:validation",
+      "status": "INCONCLUSIVE",
+      "copiedSourceContentDetected": null,
+      "structuralChecksPassed": true
+    }
+  ],
+  "rawProjectionDetectedAndRejected": true,
+  "scope": "Immutable source-copy rejection and coding-delegation failure/replan boundary only; original business analysis did not pass.",
+  "status": "PASSED",
+  "imageTag": "54e8a3ee-hostnic-runtime-replan-auth-20261018"
+}

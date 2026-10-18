@@ -1,0 +1,41 @@
+{
+  "operationId": "cline-fafb138ce190702d1b65514d2b11bdea3ff3c52ebcac44ed2f79e398e37ea22b",
+  "status": "PASSED",
+  "scope": "Independent read-only recomputation from immutable input files and archived result; no model used.",
+  "executionStatus": "SUCCEEDED",
+  "codeSha256": "006841baeb09b104b5fefb732f5650a2f27fec6d1283aba920e7f102738137d7",
+  "inputFiles": [
+    {
+      "sha256": "286fba294959ac7cc0e51d8594f52b205640f6fb8253768a689cc7c43563923c",
+      "actualRows": 1
+    }
+  ],
+  "resultSha256": "05be75f464ae3133cf4e22ade479bae9a459c638b7eddf92f0115c9841b21213",
+  "checks": [
+    {
+      "datasetRefSha256": "a2098dfebae37f6e911acb3fd45f1e795398c4e05045cf8b58cee7491a9b52af",
+      "actualRecords": 0,
+      "actualFields": 0,
+      "actualNonNullCells": 0,
+      "countMatches": true,
+      "fieldCountMatches": true,
+      "rateMatches": true,
+      "emptyDatasetUsesNaSentinel": true
+    },
+    {
+      "datasetRefSha256": "36a9eb7e7c10141216d530dabf6d9bf92dfabbf0fe53226854aa7b8bd674715e",
+      "actualRecords": 1,
+      "actualFields": 3,
+      "actualNonNullCells": 3,
+      "countMatches": true,
+      "fieldCountMatches": true,
+      "rateMatches": true,
+      "emptyDatasetUsesNaSentinel": false
+    }
+  ],
+  "limitations": [
+    "This proves record-count/completeness arithmetic only, not InnoDB health.",
+    "Empty-input metadata provenance and final semantic admission are separate gates.",
+    "The -1 value is the generated program's N/A sentinel, not an observed rate."
+  ]
+}

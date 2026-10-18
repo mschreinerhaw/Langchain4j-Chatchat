@@ -9,6 +9,7 @@ public class LicenseProperties {
     private String serverIdFile = "./data/license/server.id";
     private String publicKey = "";
     private String publicKeyPath = "";
+    private String hostMacFile = "";
 
     public boolean isFailStartupOnInvalid() { return failStartupOnInvalid; }
     public void setFailStartupOnInvalid(boolean value) { this.failStartupOnInvalid = value; }
@@ -20,4 +21,6 @@ public class LicenseProperties {
     public void setPublicKey(String value) { this.publicKey = value; }
     public String getPublicKeyPath() { return publicKeyPath; }
     public void setPublicKeyPath(String value) { this.publicKeyPath = value; }
+    public String getHostMacFile() { return hostMacFile; }
+    public void setHostMacFile(String value) { this.hostMacFile = value; }
 }

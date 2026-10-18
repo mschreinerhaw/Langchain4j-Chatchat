@@ -1,0 +1,23 @@
+{
+  "status": "PASSED",
+  "imageTag": "54e8a3ee-hostnic-runtime-admission-20261018",
+  "scope": "Actual concurrent model/private OpenSearch QA through the existing published role-chat agent; not a broad dynamic document-router certificate.",
+  "privateMarkerExcludedFromQuestion": true,
+  "cases": [
+    {
+      "caller": "owner",
+      "taskId": "e33568db-4fea-3394-9dd1-466f132bfaa6",
+      "status": "SUCCESS",
+      "privateMarkerFound": true,
+      "references": 1
+    },
+    {
+      "caller": "reader",
+      "taskId": "f6ae209c-76fc-3c88-96cf-a2f8bd0c2fec",
+      "status": "SUCCESS",
+      "privateMarkerFound": false,
+      "references": 0
+    }
+  ],
+  "concurrencyEvidence": "worker-queue-saturation-admission.json"
+}

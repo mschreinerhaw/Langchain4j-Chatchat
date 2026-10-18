@@ -1,0 +1,9 @@
+{
+  "imageTag": "54e8a3ee-hostnic-runtime-prov-20261018",
+  "status": "SUCCESS",
+  "taskId": "027e5db2-a56f-37ac-bc8a-fa6b3230546c",
+  "agent": "db_ops_assistant",
+  "classification": "QA",
+  "scope": "Actual model dynamically classified a database concept question through the published database operations agent.",
+  "answerPresent": true
+}

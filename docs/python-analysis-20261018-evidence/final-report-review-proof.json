@@ -1,0 +1,33 @@
+{
+  "scope": "Actual model final-report review, not a mock. Review inputs contain admitted computed outputs and provenance, no original source rows.",
+  "imageTag": "54e8a3ee-hostnic-runtime-20261018",
+  "cases": [
+    {
+      "case": "coding-final",
+      "runId": "att-1-93e5438b-4def-451d-844d-a82328b00b37",
+      "reviews": [
+        {
+          "status": "UNSUPPORTED",
+          "unsupportedClaimCount": 4,
+          "reviewFingerprint": "8326a4b112887a26c4b7a2da2a5bbe5dc99f8418efa09b05ebcc011454a71a34",
+          "scope": "COMPUTED_OUTPUT_SUPPORT_NOT_UNIVERSAL_CORRECTNESS"
+        }
+      ],
+      "terminalAcceptance": "PENDING"
+    },
+    {
+      "case": "original-final",
+      "runId": "att-1-141d7d04-8dfa-4d5a-8620-55b29e106fec",
+      "reviews": [
+        {
+          "status": "UNSUPPORTED",
+          "unsupportedClaimCount": 2,
+          "reviewFingerprint": "8dcf71b1d5ec88b83e325c68978f6efde7796a849bcd7b0a7f566dedc3489ffb",
+          "scope": "COMPUTED_OUTPUT_SUPPORT_NOT_UNIVERSAL_CORRECTNESS"
+        }
+      ],
+      "terminalAcceptance": "PENDING"
+    }
+  ],
+  "productionSwitchRecommended": false
+}

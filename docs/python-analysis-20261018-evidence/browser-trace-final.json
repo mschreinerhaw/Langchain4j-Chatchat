@@ -1,0 +1,14 @@
+{
+  "scope": "Actual packaged browser default route and identity, code/metadata-only stdout/diff replay through final candidate Nginx, using archived real model repair operations. No browser CSS injection or filter override.",
+  "route": "http://192.168.195.221:18100/#/w/zhice/runtime",
+  "runButtons": 4,
+  "pythonTabVisible": true,
+  "codingEntries": 69,
+  "codeVisible": true,
+  "metadataStdoutVisible": true,
+  "diffVisible": true,
+  "pageErrorTypes": [],
+  "screenshotRetainedPrivately": true,
+  "status": "PASSED",
+  "imageTag": "54e8a3ee-hostnic-runtime-prov-20261018"
+}

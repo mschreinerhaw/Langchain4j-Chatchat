@@ -1,0 +1,23 @@
+{
+  "status": "PASSED",
+  "scope": "Live event stream recovery only; does not certify successful task completion.",
+  "runId": "att-1-6a6d7224-69b1-49fd-9fa0-9d085290b8f5",
+  "taskId": "5c47c48a-2261-327c-86aa-8a63ff8f723f",
+  "elapsedSeconds": 1158,
+  "connections": 72,
+  "lastEventIdHeaderConnections": 71,
+  "eventCount": 135,
+  "resumeFromAuditedCursor": 59,
+  "reauthentications": 1,
+  "lastSequence": 135,
+  "codingEventCount": 35,
+  "duplicateEventCount": 0,
+  "contentType": "text/event-stream;charset=UTF-8",
+  "persistedEventCount": 135,
+  "streamExactlyMatchesPersistedSequence": true,
+  "prefixProof": "Previous audit observed N strictly increasing positive event IDs with maximum N, hence complete 1..N; no event IDs were invented.",
+  "sequenceMonotonic": true,
+  "payloadsRetained": false,
+  "imageTag": "54e8a3ee-hostnic-runtime-prov-20261018",
+  "taskBusinessOutcome": "TIME_BUDGET_EXHAUSTED"
+}

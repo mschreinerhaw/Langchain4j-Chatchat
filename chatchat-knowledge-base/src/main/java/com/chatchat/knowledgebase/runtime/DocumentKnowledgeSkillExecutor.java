@@ -52,7 +52,7 @@ public class DocumentKnowledgeSkillExecutor implements KnowledgeSkillExecutorPor
     @Override
     public KnowledgeSkillResult execute(KnowledgeSkillExecutionContext context) {
         KnowledgeSkillInstance skill = context.skill();
-        String query = skill.goal() + (skill.queryHints().isEmpty()
+        String query = context.request().query() + "\n" + skill.goal() + (skill.queryHints().isEmpty()
             ? "" : "；检索提示：" + String.join("、", skill.queryHints()));
         int topK = Math.max(1, Math.min(8, (skill.tokenBudget() + 299) / 300));
         com.chatchat.common.knowledge.model.KnowledgeScope knowledgeScope = context.request().scope();

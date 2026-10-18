@@ -242,4 +242,25 @@
         </pluginManagement>
     </build>
 
+    <profiles>
+        <profile>
+            <id>container-image</id>
+            <activation><property><name>container.image</name><value>true</value></property></activation>
+            <build><plugins><plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+                <configuration>
+                    <forceCreation>true</forceCreation>
+                    <excludes>
+                        <exclude>**/*.key</exclude>
+                        <exclude>**/license.dat</exclude>
+                        <exclude>**/*private*.pem</exclude>
+                        <exclude>**/*signing*.pem</exclude>
+                        <exclude>**/.env*</exclude>
+                    </excludes>
+                </configuration>
+            </plugin></plugins></build>
+        </profile>
+    </profiles>
 </project>

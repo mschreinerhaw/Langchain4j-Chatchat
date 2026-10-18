@@ -1,0 +1,33 @@
+{
+  "status": "PASSED",
+  "scope": "Trusted source-copy rejection returns control to parent; no false executor stop, cancellation override, raw result admission or budget renewal. Real-model retest remains required.",
+  "suites": [
+    {
+      "name": "com.chatchat.api.runtime.coding.cline.ClinePythonCallbackControllerTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollectorTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "totals": {
+    "tests": 34,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

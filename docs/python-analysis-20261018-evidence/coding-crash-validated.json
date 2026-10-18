@@ -1,0 +1,44 @@
+{
+  "status": "PASSED",
+  "scope": "Actual model, authorized live database, Node-authored Python, active Sandbox API SIGKILL and successful parent recovery on validated candidate. Whole-workflow exactly-once behavior and final admission candidate remain separately scoped.",
+  "imageTag": "54e8a3ee-hostnic-runtime-validated-20261018",
+  "taskId": "c50c293a-999c-36ae-9385-d655d85597e3",
+  "runId": "att-1-12ce3690-7446-48eb-81b9-01e6eecc97d3",
+  "otherActiveCandidateTasksAtKill": 0,
+  "activeOperationAtKill": {
+    "operation": "cline-c329c60e2754830f0a7e6f305ca40ba22b7ae2b245c8c9c89ffdba338f70aaf0",
+    "run": "att-1-12ce3690-7446-48eb-81b9-01e6eecc97d3",
+    "task": "analysis-coding-f4c77d160bd4368725620d94ba0de5aba81770472492562eb8d02fec9c4202f3",
+    "status": "RUNNING",
+    "container": "chatchat-py-eae07b3f0d96182fb5fd2331814ee6dc60434487",
+    "codeHash": "1a1ecacc084db9750c1bb813f04b81c7fcf5766040214f996d0623288a747190"
+  },
+  "sandboxContinuedAfterApiKill": true,
+  "actualModelClassifications": [
+    "DATA_ANALYSIS",
+    "DATA_ANALYSIS"
+  ],
+  "parentStatus": "SUCCESS",
+  "finalReportSemanticReviews": [
+    "UNSUPPORTED",
+    "SUPPORTED"
+  ],
+  "terminalProjection": {
+    "taskId": "c50c293a-999c-36ae-9385-d655d85597e3",
+    "status": "SUCCESS",
+    "canonicalState": "SUCCEEDED",
+    "taskCompleteEvents": 1,
+    "taskAnswerEvents": 1,
+    "taskResultEvents": 0,
+    "sequenceUnique": true,
+    "notificationMatchesAnswer": true,
+    "answerPresent": true,
+    "failureInjectionTriggerRemoved": true,
+    "failureInjectionTableRemoved": true
+  },
+  "independentMetricsEvidence": "validated-crash-independent-arithmetic.json",
+  "artifactBoundaryEvidence": "validated-operation-artifacts.json",
+  "liveSseEvidence": "live-sse-validated.json",
+  "exactlyOnceWholeWorkflowCertified": false,
+  "productionSwitchRecommended": false
+}

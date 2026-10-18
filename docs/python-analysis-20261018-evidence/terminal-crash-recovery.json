@@ -1,0 +1,27 @@
+{
+  "scope": "Real model QA, candidate PostgreSQL terminal transaction fault injection and actual API SIGKILL/restart.",
+  "projectionPauseObserved": true,
+  "afterKill": {
+    "status": "RUNNING",
+    "taskCompleteEvents": 0
+  },
+  "rollbackAtomic": true,
+  "afterRestart": {
+    "taskId": "c60498c2-b7fd-31eb-9ef6-95c70f9b0d9a",
+    "status": "SUCCESS",
+    "canonicalState": "SUCCEEDED",
+    "taskCompleteEvents": 1,
+    "taskAnswerEvents": 1,
+    "taskResultEvents": 0,
+    "sequenceUnique": true,
+    "notificationMatchesAnswer": true,
+    "answerPresent": true,
+    "failureInjectionTriggerRemoved": true,
+    "failureInjectionTableRemoved": true
+  },
+  "status": "PASSED",
+  "fixtureHistory": "Earlier fixture lacked SELECT grant; excluded from certification. Corrected fresh task used an explicit grant and recovered. Earlier evidence retained privately.",
+  "limitations": "Does not certify a crash during an active model-generated Python execution.",
+  "persistedAgainAfterLaterApiRestart": true,
+  "eventTypeClarification": "Actual answer event type is ANSWER; zero RESULT events is expected."
+}

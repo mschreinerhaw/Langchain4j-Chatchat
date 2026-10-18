@@ -1,0 +1,21 @@
+{
+  "status": "NOT_PASSED",
+  "scope": "Exact original database operations question on admission candidate, including real API SIGKILL. Raw data boundary held, but no qualifying analytical dataset was produced within the unchanged budget.",
+  "imageTag": "54e8a3ee-hostnic-runtime-admission-20261018",
+  "taskId": "655766e5-1d6f-3e8f-bb41-2b12bd69a389",
+  "runId": "att-1-dd5902ff-e55e-4ae4-a956-0e3a911f7588",
+  "actualModelClassifications": [
+    "DATA_ANALYSIS",
+    "DATA_ANALYSIS"
+  ],
+  "parentStatus": "TIME_BUDGET_EXHAUSTED",
+  "publishedTaskEvents": 260,
+  "runtimeObservations": 224,
+  "answerIsAnalysisReport": false,
+  "rawSourceProjectionRejected": true,
+  "rawSourceBoundaryEvidence": "admission-source-copy-boundary.json",
+  "apiFaultWindowEvidence": "admission-original-fault-window.json",
+  "failureRoot": "Repeated copied-source results were treated as reparable Coding errors within an immutable delegation contract; parent contract revision did not happen before budget exhaustion.",
+  "followup": "Java now ends the rejected delegation with OUTPUT_CONTRACT_VIOLATION and instructs parent model to revise objective/outputSchema within the same shared budget. Scoped authority tests passed; fresh live acceptance required.",
+  "fullGateProductionSwitchRecommended": false
+}

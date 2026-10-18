@@ -29,6 +29,29 @@ import static org.mockito.Mockito.when;
 class DocumentKnowledgeSkillExecutorTest {
 
     @Test
+    void preservesOriginalDocumentAnchorsAlongsideModelGoalsAndAuthorizedScope() {
+        DocumentSearchEvidenceService search = mock(DocumentSearchEvidenceService.class);
+        when(search.search(org.mockito.ArgumentMatchers.any())).thenReturn(
+            new DocumentSearchResult("v1", "query", "intent", 0, List.of(), "", List.of()));
+        var executor = new DocumentKnowledgeSkillExecutor(search);
+        var skill = new KnowledgeSkillInstance("lookup", KnowledgeSkillType.CONCEPT_LOOKUP,
+            "operations", "Explain the requested concept", List.of("maintenance constraints"), 1, 900, Map.of());
+        var request = new KnowledgeRequest("v", "Find the code in manual DOCUMENT_ANCHOR_7391",
+            "ROLE_CHAT", 1200, new KnowledgeScope("agent", "tenant", "owner", List.of("private-document"),
+                List.of(), List.of(), List.of("owner-role")), null, Map.of());
+
+        executor.execute(new KnowledgeSkillExecutionContext(request, skill));
+
+        var captured = ArgumentCaptor.forClass(DocumentSearchRequest.class);
+        verify(search).search(captured.capture());
+        assertThat(captured.getValue().query()).contains(request.query(), skill.goal(), "maintenance constraints");
+        assertThat(captured.getValue().selectedDocumentIds()).containsExactly("private-document");
+        assertThat(captured.getValue().documentVisibilityEnforced()).isTrue();
+        assertThat(captured.getValue().userId()).isEqualTo("owner");
+        assertThat(captured.getValue().roles()).containsExactly("owner-role");
+    }
+
+    @Test
     void usesAllBoundTagsAndDerivesTopKFromTheSkillBudget() {
         DocumentSearchEvidenceService search = mock(DocumentSearchEvidenceService.class);
         when(search.search(org.mockito.ArgumentMatchers.any())).thenReturn(

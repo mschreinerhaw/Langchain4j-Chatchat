@@ -3004,7 +3004,7 @@ class AgentOrchestratorTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void completedDiagnosticContractSupersedesInterimDiscoveryGaps() throws Exception {
+    void completedDiagnosticContractDoesNotEraseUnreviewedDiscoveryGaps() throws Exception {
         DiagnosticRun diagnosticRun = new DiagnosticRun(
             "generic_profile",
             "generic_target",
@@ -3070,13 +3070,11 @@ class AgentOrchestratorTest {
         );
 
         assertThat(snapshot)
-            .containsEntry("sufficient", true)
+            .containsEntry("sufficient", false)
             .containsEntry("diagnosticCoverageComplete", true);
-        assertThat((List<?>) snapshot.get("missingEvidence")).isEmpty();
-        assertThat((List<?>) snapshot.get("remainingMissing")).isEmpty();
-        assertThat(((List<?>) snapshot.get("supersededMissingEvidence")).stream()
-            .map(String::valueOf).toList())
+        assertThat(((List<?>) snapshot.get("missingEvidence")).stream().map(String::valueOf).toList())
             .containsExactly("downstream execution has not run yet");
+        assertThat((List<?>) snapshot.get("supersededMissingEvidence")).isEmpty();
         assertThat(String.valueOf(snapshot.get("conclusion")))
             .contains("Execution returned all required evidence.")
             .doesNotContain("execution has not run yet");

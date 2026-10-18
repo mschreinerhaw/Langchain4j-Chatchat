@@ -1060,7 +1060,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 14px;
-  min-height: 0;
+  min-height: min-content;
   width: 100%;
 }
 
@@ -1081,7 +1081,7 @@
 .agent-runtime-runs {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  min-height: 0;
+  min-height: 160px;
 }
 
 .agent-runtime-runs header {
@@ -1104,7 +1104,8 @@
 }
 
 .agent-run-list {
-  min-height: 0;
+  min-height: 80px;
+  max-height: 480px;
   display: grid;
   align-content: start;
   gap: 0;

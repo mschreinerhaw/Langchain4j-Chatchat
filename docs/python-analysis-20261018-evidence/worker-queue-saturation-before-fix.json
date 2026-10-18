@@ -1,0 +1,15 @@
+{
+  "status": "NOT_PASSED",
+  "imageTag": "54e8a3ee-hostnic-runtime-validated-20261018",
+  "taskId": "ae5fc984-eb57-3c97-958a-8aaece871352",
+  "terminalStatus": "DLQ",
+  "failure": "Worker lease expired before queued execution started; exhausted three claims.",
+  "effectiveWorkerThreads": 2,
+  "workerLeaseMilliseconds": 30000,
+  "heartbeatMilliseconds": 5000,
+  "concurrentSubmittedTasks": 4,
+  "rawPrivateContentDisclosed": false,
+  "fixStatus": "SOURCE_CHANGED_TESTS_PENDING",
+  "fix": "Limit durable claims to available local worker capacity; waiting tasks retain PENDING and no lease.",
+  "originalFailureRetained": true
+}

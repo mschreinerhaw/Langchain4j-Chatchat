@@ -6,6 +6,15 @@ import AssistantSidebar from "./components/AssistantSidebar.js";
 import SystemManagementView from "./views/SystemManagementView.js";
 import * as api from "../services/api.js";
 
+describe("runtime run ownership", () => {
+  it("queries persisted runtime runs with the authenticated principal ID", () => {
+    const context = { activeView: "runtime", userId: "login-name", tenantId: "tenant",
+      authSession: { user: { id: "principal-id", username: "login-name" } } };
+    expect(App.computed.activeComponentProps.call(context).userId).toBe("principal-id");
+    expect(App.computed.activeComponentProps.call({ ...context, activeView: "chat" }).userId).toBe("login-name");
+  });
+});
+
 describe("history pagination request ordering", () => {
   it("keeps the visible page while loading and ignores an older response", async () => {
     let finishFirst, finishSecond;

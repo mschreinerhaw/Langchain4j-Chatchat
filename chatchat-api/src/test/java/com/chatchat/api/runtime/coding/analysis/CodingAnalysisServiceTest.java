@@ -24,6 +24,18 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
+    @Test void expiredSharedBudgetRejectsNewRequestBeforeSnapshotOrExecution() throws Exception {
+        policy.setEnvironmentId("environment");
+        var expired=new CodingTaskContract.Budget("analysis-coding-budget:run",java.time.Instant.EPOCH,
+            12,65536,24,12,"10","USD",300000,512L*1024*1024,4L*1024*1024);
+        saved.put("tenant:user:run:coding:analysis-budget.v1",new ObjectMapper().findAndRegisterModules().writeValueAsString(expired));
+        var result=service().execute(context("tenant"),request(),sources());
+        assertThat(result).containsEntry("status","RESOURCE_BUDGET_EXHAUSTED")
+            .containsEntry("reasonCode","DEADLINE_EXCEEDED").containsEntry("retryable",false)
+            .containsEntry("budgetExhausted",true).containsEntry("resultAvailable",false);
+        verifyNoInteractions(agent,python,plans);
+        verify(inputs,never()).capture(any(),anyString(),anyList(),anyString(),anyString(),anyString(),anyLong(),anyLong());
+    }
     final CodingAnalysisProperties policy=new CodingAnalysisProperties();
     final CodingInvocationContext identity=new CodingInvocationContext();
     final CodingInputSnapshotService inputs=mock(CodingInputSnapshotService.class);
@@ -40,13 +52,19 @@ class CodingAnalysisServiceTest {
             String name=key(scope,key);return old==null?saved.putIfAbsent(name,next)==null:saved.replace(name,old,next);
         }
     };
-    CodingAnalysisService service(){return new CodingAnalysisService(policy,identity,inputs,plans,agent,
+    CodingAnalysisService service(){
+        when(collector.codeForReview(any(),anyString(),anyString())).thenReturn("print('computed result')");
+        when(inputs.requireAuthorized(any())).thenReturn(new CodingInputSnapshotService.Snapshot("runtime-evidence:input","c"+"a".repeat(63),"input.jsonl","a".repeat(64),1,30,"source"));
+        return new CodingAnalysisService(policy,identity,inputs,plans,agent,
         mock(DurableCodingTaskService.class),collector,checkpoints,models,python,new ObjectMapper().findAndRegisterModules());}
     Map<String,Object> request(){return Map.of("operation","RUN_CODING","requestId","calculation-1",
         "datasetReference","source","instruction","Transform the authorized data",
         "outputSchema",Map.of("type","object","properties",Map.of("value",Map.of("type","string")))) ;}
     Map<String,Dataset> sources(){var result=new LinkedHashMap<String,Dataset>();result.put("source",new Dataset("source",Map.of(),List.of(Map.of("text","example"))));return result;}
-    AnalysisCoverageCoordinator.Request context(String tenant){return new AnalysisCoverageCoordinator.Request(mock(ChatModel.class),"Question",null,Map.of(),
+    AnalysisCoverageCoordinator.Request context(String tenant){
+        var model=mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn("{\"status\":\"SUPPORTED\",\"reason\":\"Test review\",\"unsupportedFields\":[]}");
+        return new AnalysisCoverageCoordinator.Request(model,"Question",null,Map.of(),
         new LinkedHashMap<>(),()->false,()->{},GovernanceIsolationScope.runtime(tenant,"user","run","request","conversation"),null);}
 
     @Test void reusesPersistedContractAndBudgetAndAdmitsOnlyCommittedScopedResults() {
@@ -146,6 +164,24 @@ class CodingAnalysisServiceTest {
             assertThat(receipt).doesNotContainKeys("datasetReference","evidenceRefs");
             assertThat(sources).containsOnlyKeys("source");
         }
+        verifyNoInteractions(collector);
+        verify(agent,never()).cancel(any(),anyString(),anyString());
+    }
+
+    @Test void outputContractFailureReturnsToParentForReplanningWithoutReadingRejectedRows() {
+        var result=outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.FAILED);
+        when(result.reasonCode()).thenReturn(CodingErrorCode.OUTPUT_CONTRACT_VIOLATION);
+        when(result.summary()).thenReturn("Source copy rejected");
+        prepare(result);
+        var sources=sources();
+
+        var receipt=service().execute(context("tenant"),request(),sources);
+
+        assertThat(receipt).containsEntry("resultAvailable",false).containsEntry("replanningRequired",true)
+            .containsEntry("retryable",false).containsEntry("reasonCode","OUTPUT_CONTRACT_VIOLATION")
+            .doesNotContainKeys("datasetReference","evidenceRefs","budgetExhausted");
+        assertThat(receipt.get("diagnostic").toString()).contains("new requestId","same shared budget","Same-shape transformations");
+        assertThat(sources).containsOnlyKeys("source");
         verifyNoInteractions(collector);
         verify(agent,never()).cancel(any(),anyString(),anyString());
     }

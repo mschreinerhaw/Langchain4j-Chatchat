@@ -60,6 +60,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -563,14 +564,91 @@ class AgentTaskServiceTest {
         Field queueCoordinatorField = AgentTaskService.class.getDeclaredField("queueCoordinator");
         queueCoordinatorField.setAccessible(true);
         queueCoordinatorField.set(service, coordinator);
-        when(coordinator.claimAvailable(any())).thenReturn(List.of());
+        when(coordinator.claimAvailable(any(), anyInt())).thenReturn(List.of());
 
         assertThat(service.dispatchPersistentTasks()).isZero();
-        verify(coordinator, never()).claimAvailable(any());
+        verify(coordinator, never()).claimAvailable(any(), anyInt());
 
         service.activatePersistentTaskDispatch();
         assertThat(service.dispatchPersistentTasks()).isZero();
-        verify(coordinator).claimAvailable(any());
+        verify(coordinator).claimAvailable(any(), anyInt());
+    }
+
+    @Test
+    void saturatedWorkerLeavesWaitingTasksWithoutLeases() throws Exception {
+        AgentTaskQueueCoordinator coordinator = mock(AgentTaskQueueCoordinator.class);
+        AgentTaskLatestRepository repository = mock(AgentTaskLatestRepository.class);
+        AgentTaskProperties properties = new AgentTaskProperties();
+        properties.setWorkerLeaseMs(1_000);
+        properties.setWorkerHeartbeatMs(250);
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(1);
+        executor.setMaxPoolSize(1);
+        executor.setQueueCapacity(8);
+        executor.initialize();
+        var entered = new java.util.concurrent.CountDownLatch(1);
+        var release = new java.util.concurrent.CountDownLatch(1);
+        when(repository.findById(any())).thenAnswer(invocation -> {
+            entered.countDown();
+            if (!release.await(10, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Injected worker wait expired");
+            }
+            throw new IllegalStateException("Injected execution failure");
+        });
+        when(coordinator.heartbeat(any())).thenReturn(true);
+        var claim = new AgentTaskQueueCoordinator.ClaimedTask("blocked", "tenant", "token", "worker");
+        when(coordinator.claimAvailable(any(), anyInt())).thenReturn(List.of(claim));
+        AgentTaskService service = taskService(mock(AgentEventBus.class), mock(AgentEventStore.class),
+            repository, mock(TaskConfirmRepository.class), new ObjectMapper(), properties, executor);
+        Field coordinatorField = AgentTaskService.class.getDeclaredField("queueCoordinator");
+        coordinatorField.setAccessible(true);
+        coordinatorField.set(service, coordinator);
+        service.activatePersistentTaskDispatch();
+        try {
+            assertThat(service.dispatchPersistentTasks()).isEqualTo(1);
+            assertThat(entered.await(10, TimeUnit.SECONDS)).isTrue();
+            // Stay saturated beyond a full lease, as in the real two-worker failure.
+            for (int scan = 0; scan < 60; scan++) {
+                assertThat(service.dispatchPersistentTasks()).isZero();
+                Thread.sleep(20);
+            }
+            verify(coordinator, times(1)).claimAvailable(any(), org.mockito.ArgumentMatchers.eq(1));
+            verify(coordinator, org.mockito.Mockito.atLeastOnce()).heartbeat(claim);
+            release.countDown();
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            int next = 0;
+            while (next == 0 && System.nanoTime() < deadline) {
+                next = service.dispatchPersistentTasks();
+                if (next == 0) Thread.sleep(10);
+            }
+            assertThat(next).isEqualTo(1);
+        } finally {
+            release.countDown();
+            executor.shutdown();
+        }
+    }
+
+    @Test
+    void rejectedSubmissionReleasesLocalWorkerCapacity() throws Exception {
+        AgentTaskQueueCoordinator coordinator = mock(AgentTaskQueueCoordinator.class);
+        ThreadPoolTaskExecutor executor = mock(ThreadPoolTaskExecutor.class);
+        when(executor.getCorePoolSize()).thenReturn(1);
+        when(executor.submit(any(Runnable.class)))
+            .thenThrow(new org.springframework.core.task.TaskRejectedException("Injected rejection"));
+        var claim = new AgentTaskQueueCoordinator.ClaimedTask("rejected", "tenant", "token", "worker");
+        when(coordinator.claimAvailable(any(), anyInt())).thenReturn(List.of(claim));
+        AgentTaskService service = taskService(mock(AgentEventBus.class), mock(AgentEventStore.class),
+            mock(AgentTaskLatestRepository.class), mock(TaskConfirmRepository.class), new ObjectMapper(),
+            new AgentTaskProperties(), executor);
+        Field coordinatorField = AgentTaskService.class.getDeclaredField("queueCoordinator");
+        coordinatorField.setAccessible(true);
+        coordinatorField.set(service, coordinator);
+        service.activatePersistentTaskDispatch();
+
+        assertThat(service.dispatchPersistentTasks()).isZero();
+        assertThat(service.dispatchPersistentTasks()).isZero();
+        verify(coordinator, times(2)).claimAvailable(any(), org.mockito.ArgumentMatchers.eq(1));
+        verify(coordinator, times(2)).requeueRejectedClaim(org.mockito.ArgumentMatchers.eq(claim), any());
     }
 
     @Test
@@ -593,7 +671,7 @@ class AgentTaskServiceTest {
             lifecycle.add("event:QUESTION");
             return "event-1";
         });
-        when(coordinator.claimAvailable(any())).thenAnswer(invocation -> {
+        when(coordinator.claimAvailable(any(), anyInt())).thenAnswer(invocation -> {
             lifecycle.add("dispatch");
             throw new IllegalStateException("temporary dispatcher failure");
         });
@@ -1407,20 +1485,29 @@ class AgentTaskServiceTest {
                                          AgentTaskLatestRepository latestRepository,
                                          TaskConfirmRepository confirmationRepository,
                                          ObjectMapper objectMapper) {
+        return taskService(eventBus, eventStore, latestRepository, confirmationRepository, objectMapper,
+            new AgentTaskProperties(), mock(ThreadPoolTaskExecutor.class));
+    }
+
+    private AgentTaskService taskService(AgentEventBus eventBus, AgentEventStore eventStore,
+                                         AgentTaskLatestRepository latestRepository,
+                                         TaskConfirmRepository confirmationRepository,
+                                         ObjectMapper objectMapper, AgentTaskProperties taskProperties,
+                                         ThreadPoolTaskExecutor executor) {
         return new AgentTaskService(
             eventBus,
             eventStore,
             latestRepository,
             mock(InteractionOrchestrationService.class),
             objectMapper,
-            new AgentTaskProperties(),
+            taskProperties,
             mock(ToolRuntimeService.class),
             mock(AgentRuntime.class),
             mock(AgentTaskCancellationRegistry.class),
             mock(AgentLearningService.class),
             confirmationRepository,
             mock(InterpretationPlanStore.class),
-            mock(ThreadPoolTaskExecutor.class)
+            executor
         );
     }
 

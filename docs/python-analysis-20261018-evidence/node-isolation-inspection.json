@@ -1,0 +1,18 @@
+{
+  "scope": "Actual running Node Coding Agent container configuration and TCP reachability, not resource stress/global admission certification.",
+  "image": "runtime-os-coding-agent:54e8a3ee-hostnic-runtime-20261018",
+  "memoryBytes": 2147483648,
+  "nanoCpus": 2000000000,
+  "pidsLimit": 128,
+  "readOnlyRootfs": true,
+  "capDrop": [
+    "ALL"
+  ],
+  "networkNames": [
+    "runtime-os-app-stage_coding"
+  ],
+  "mcpDirectTcpBlocked": true,
+  "mcpReachabilityObservation": "BLOCKED_ERROR",
+  "resourceStressStatus": "NOT_TESTED",
+  "globalAdmissionStatus": "NOT_CERTIFIED"
+}

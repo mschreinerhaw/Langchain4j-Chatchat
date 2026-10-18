@@ -1,0 +1,33 @@
+{
+  "status": "PASSED",
+  "scope": "Real CodingInvocationContext enforces worker/EVIDENCE separation and restoration; trusted source-copy failure, accepted stop races, unresolved executions, scoped H2 evidence and parent replanning are checked. Real model retest remains required.",
+  "suites": [
+    {
+      "name": "com.chatchat.api.runtime.coding.cline.ClinePythonCallbackControllerTest",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollectorTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "totals": {
+    "tests": 35,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

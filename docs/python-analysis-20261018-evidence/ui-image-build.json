@@ -1,0 +1,10 @@
+{
+  "imageTag": "54e8a3ee-hostnic-runtime-ui-20261018",
+  "bytes": 848477184,
+  "sha256": "dc23f0a03915990642e91012a03fdeee1b66e445e9a478aaaed8c10f1a923db3",
+  "productionSwitchRecommended": false,
+  "status": "SUPERSEDED_NOT_DEPLOYED",
+  "deploymentSecretFileScan": "PASSED_APPLICATION_AND_NESTED_FIRST_PARTY_JARS",
+  "assetReferenceCheck": "PASSED_7_REFERENCES",
+  "scanLimit": "File-name exclusions and archive scan, not a general secret-content audit."
+}

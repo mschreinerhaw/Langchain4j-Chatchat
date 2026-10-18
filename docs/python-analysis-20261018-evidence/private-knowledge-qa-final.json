@@ -1,0 +1,22 @@
+{
+  "status": "PASSED",
+  "imageTag": "54e8a3ee-hostnic-runtime-20261018",
+  "scope": "Actual model, isolated OpenSearch synthetic private document, existing published role-chat workflow; dynamic private-question routing is NOT certified.",
+  "privateMarkerExcludedFromQuestion": true,
+  "cases": [
+    {
+      "caller": "owner",
+      "taskId": "a7ce4a19-a16e-3659-ba17-24ff7b82bebc",
+      "status": "SUCCESS",
+      "answerContainsPrivateMarker": true,
+      "references": 1
+    },
+    {
+      "caller": "reader",
+      "taskId": "b45565ef-244a-34c3-908d-8b704fff6a13",
+      "status": "SUCCESS",
+      "answerContainsPrivateMarker": false,
+      "references": 0
+    }
+  ]
+}

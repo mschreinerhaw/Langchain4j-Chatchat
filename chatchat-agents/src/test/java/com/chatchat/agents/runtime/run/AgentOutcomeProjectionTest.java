@@ -13,6 +13,27 @@ class AgentOutcomeProjectionTest {
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(booleans = {true, false})
+    void modelDeclaredPartialResultCannotBecomeFullSuccess(boolean nested) {
+        Map<String,Object> intent=Map.of("modelAnalysisProtocol","model_native_analysis.v2",
+            "modelDecision",Map.of("action","PARTIAL_COMPLETE"));
+        var result=projection.project(nested ? Map.of("analysisModelIntent",intent) : intent,
+            "Calculation could not finish; only structural evidence is available.");
+        assertThat(result.publicStatus()).isEqualTo("PARTIAL_SUCCESS");
+        assertThat(result.answerStatus()).isEqualTo("PARTIAL");
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {true, false})
+    void exhaustedAnalysisBudgetCannotBecomeFullSuccess(boolean nested) {
+        Map<String,Object> intent=Map.of("modelAnalysisProtocol","model_native_analysis.v2",
+            "executionStopReason","RESOURCE_BUDGET_EXHAUSTED");
+        var result=projection.project(nested ? Map.of("analysisModelIntent",intent) : intent,"Retained progress.");
+        assertThat(result.publicStatus()).isEqualTo("TIME_BUDGET_EXHAUSTED");
+        assertThat(result.answerStatus()).isEqualTo("PARTIAL");
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {true, false})
     void fatalBlockClosesRunEvenWhenRequiredNodesNeverStarted(boolean mandatoryBlocked) {
         var outcome = projection.project(Map.of(
             "fatalExecutionBlocked", true, "mandatoryWorkflowBlocked", mandatoryBlocked,

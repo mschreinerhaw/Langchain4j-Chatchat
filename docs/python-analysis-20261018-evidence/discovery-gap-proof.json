@@ -1,0 +1,32 @@
+{
+  "status": "PARTIAL",
+  "testedImageTag": "54e8a3ee-hostnic-20261018",
+  "runId": "att-1-636294de-147f-4be7-b442-5a7a83822e41",
+  "closedInterimGaps": 2,
+  "remainingGapCount": 4,
+  "reconciliation": {
+    "resolutions": [
+      {
+        "gapId": "gap-0",
+        "supportingStepIds": [
+          3
+        ],
+        "reason": "Step 3 sql_query_execute succeeded, fulfilling MYSQL_INNODB_STATUS execution acquisition per plan; source rows not supplied, semantic coverage unverified."
+      },
+      {
+        "gapId": "gap-1",
+        "supportingStepIds": [
+          3
+        ],
+        "reason": "Pending sql_query_execute completed successfully at step 3, acquiring InnoDB status/trx execution results; actual content absent, semantic coverage not proven."
+      }
+    ],
+    "reviewFingerprint": "238218acca7dff3ebc89d322043d2d3e42b1d612d0078758104e9935a2500010",
+    "scope": "ACQUISITION_REVIEW"
+  },
+  "limits": [
+    "Completed SQL does not erase unrelated provenance or coverage obligations.",
+    "Four gaps remain concerning source linkage/authorized scope, catalog pagination and host-tool identity.",
+    "This is not a complete-coverage certificate."
+  ]
+}

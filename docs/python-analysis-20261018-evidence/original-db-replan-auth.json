@@ -1,0 +1,76 @@
+{
+  "status": "NOT_PASSED",
+  "imageTag": "54e8a3ee-hostnic-runtime-replan-auth-20261018",
+  "agent": "数据库运维助手",
+  "agentId": "db_ops_assistant",
+  "question": "帮我分析LiveData测试库_223数据库innodb运行情况",
+  "taskId": "9b24388e-bded-3080-ab23-708b7acdb349",
+  "runId": "att-1-f6e6343d-3961-4f7a-bc23-571a14a5b4b8",
+  "actualModelClassification": "DATA_ANALYSIS",
+  "taskStatus": "TIME_BUDGET_EXHAUSTED",
+  "taskEventCount": 235,
+  "persistedRuntimeObservations": 206,
+  "executionCount": 11,
+  "successfulExecutions": 10,
+  "executionSuccessIsNotBusinessAcceptance": true,
+  "analyticalDatasetAdmitted": false,
+  "finalSemanticSupportedReport": false,
+  "independentResultArithmetic": "NOT_APPLICABLE_NO_ADMITTED_RESULT",
+  "terminalPersistence": {
+    "taskId": "9b24388e-bded-3080-ab23-708b7acdb349",
+    "status": "TIME_BUDGET_EXHAUSTED",
+    "canonicalState": "FAILED",
+    "taskCompleteEvents": 1,
+    "taskAnswerEvents": 0,
+    "taskResultEvents": 1,
+    "sequenceUnique": true,
+    "notificationMatchesAnswer": true,
+    "answerPresent": true,
+    "failureInjectionTriggerRemoved": true,
+    "failureInjectionTableRemoved": true
+  },
+  "codingDelegations": [
+    {
+      "taskId": "analysis-coding-c6db6fd303a551e98fadbdf8206fd037f3e4565c57ef7c4394f23ea070fb12de",
+      "eventState": "FAILED",
+      "summary": "Source copy rejected; Runtime must revise the analytical objective and output contract"
+    },
+    {
+      "taskId": "analysis-coding-ff431ef2296c51991533bfad0bd11eab91e5389c602e46108e7668a07351493b",
+      "eventState": "COMPLETED",
+      "summary": "Coding execution archived; validation INCONCLUSIVE"
+    },
+    {
+      "taskId": "analysis-coding-6333e9450f28a3e93a5c347df31a83b6ec63ff337a656b6cafddc194c2a33abb",
+      "eventState": "BUDGET_EXCEEDED",
+      "summary": "Worker stopped; all started operations reconciled"
+    }
+  ],
+  "codingSemanticReviews": [
+    {
+      "status": "UNSUPPORTED",
+      "reason": "The computed result's 'not_found' object includes a 'size_mb' field with value 0. This is a hardcoded constant in the executed code applied when the target database is absent from the input (missing input), not a measured size from any source row. The objective only required object_type and name for the not_found case, and per review rules missing input is not an observed zero; constants disguised as computed findings are rejected. Thus 'size_mb' lacks semantic support.",
+      "unsupportedFields": [
+        "size_mb"
+      ],
+      "validationScope": "MODEL_SEMANTIC_REVIEW_NOT_MATHEMATICAL_PROOF",
+      "reviewFingerprint": "75d20b7e5ac1ed54b7e57f1e45f0daa5de08972c52a7e0691c5bfe659bdb42e2"
+    }
+  ],
+  "confirmedFailureChain": [
+    "Immutable input comparison rejected the first raw source projection; Java ended that delegation and the parent revised its request.",
+    "Intermediate result attempts failed structural validation or required output handling; later structurally valid output was semantically rejected.",
+    "Semantic reviewer rejected size_mb=0 in a not_found finding: absent target data is not an observed zero.",
+    "The parent continued replanning within the same cumulative budget; the next reservation was denied and no analytical dataset was admitted."
+  ],
+  "unconfirmedRootCauses": [
+    "Precise cause of the model failing to locate the requested target in the authorized input and the relative contribution of data discovery/contract design remain unresolved. No conclusion about InnoDB health or database absence is certified."
+  ],
+  "boundaryChecks": {
+    "sourceCopyRejected": true,
+    "rawStdoutStderrNotArchived": true,
+    "liveSseExactReplay": true
+  },
+  "discoveryCoverage": "NOT_CERTIFIED_BY_THIS_FAILED_RUN",
+  "productionSwitchRecommended": false
+}

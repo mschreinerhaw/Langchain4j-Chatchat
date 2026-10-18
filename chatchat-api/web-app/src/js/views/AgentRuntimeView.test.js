@@ -1,7 +1,37 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import AgentRuntimeView from "./AgentRuntimeView";
+import * as api from "../../services/api";
 
 describe("AgentRuntimeView production quality", () => {
+  it("loads later coding history without duplicating events already received live", async () => {
+    const existing = { metadata: { eventId: "live" } };
+    const later = { metadata: { eventId: "later" } };
+    const fetch = vi.spyOn(api, "fetchGenericAgentRunTimeline").mockResolvedValue({ observations: [existing, later] });
+    const context = { selectedRunId: "run", observationOffset: 200, observationsHasMore: true,
+      timeline: { observations: [existing] } };
+    try {
+      await AgentRuntimeView.methods.loadMoreCodingObservations.call(context);
+      expect(fetch).toHaveBeenCalledWith("run", expect.objectContaining({ observationOffset: 200, observationLimit: 200 }));
+      expect(context.timeline.observations).toEqual([existing, later]);
+      expect(context.observationOffset).toBe(202);
+      expect(context.observationsHasMore).toBe(false);
+    } finally { fetch.mockRestore(); }
+  });
+  it("does not replace the selected run with a late previous timeline response", async () => {
+    let finish;
+    const timeline = vi.spyOn(api, "fetchGenericAgentRunTimeline").mockImplementation(
+      () => new Promise(resolve => { finish = resolve; }));
+    const trace = vi.spyOn(api, "fetchGenericAgentRunTrace").mockResolvedValue({});
+    const context = { selectedRunId: "old", timeline: { run: { runId: "visible" } } };
+    try {
+      const pending = AgentRuntimeView.methods.loadTimeline.call(context, "old");
+      context.selectedRunId = "new";
+      finish({ run: { runId: "old" } });
+      await pending;
+      expect(context.timeline.run.runId).toBe("visible");
+      expect(context.timelineLoading).toBe(true);
+    } finally { timeline.mockRestore(); trace.mockRestore(); }
+  });
   it('projects Coding SSE observations immediately and deduplicates replay',()=>{
     const context={selectedRunId:'run',timeline:{events:[],observations:[]},streamCursor:0,
       get events(){return this.timeline.events;}};

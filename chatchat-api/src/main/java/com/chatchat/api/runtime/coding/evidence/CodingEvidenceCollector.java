@@ -244,6 +244,16 @@ public class CodingEvidenceCollector {
         public String requiredFile(){return requiredFile;}
     }
 
+    public String codeForReview(KernelDataScope scope, String taskId, String codeRef) {
+        EvidenceRecord record = resolve(scope, taskId, codeRef);
+        if (!"CODING_CODE_ARTIFACT".equals(record.evidenceType())) throw new SecurityException("Not a code artifact");
+        Map<String,Object> p = record.payload();
+        byte[] code = artifact(scope, taskId, (String)p.get("operationId"), (String)p.get("channel"), (String)p.get("fileName"));
+        if (code.length != ((Number)p.get("size")).longValue() || !sha(code).equals(p.get("artifactSha256")))
+            throw new SecurityException("Review code differs from executed artifact");
+        return new String(code, StandardCharsets.UTF_8);
+    }
+
     /** Spools the verified archive to bounded local storage and serves pages without Java heap materialization. */
     public DatasetHandle openResult(KernelDataScope scope, String taskId, String resultRef) {
         EvidenceRecord record = resolve(scope, taskId, resultRef);
@@ -315,6 +325,15 @@ public class CodingEvidenceCollector {
     public DatasetHandle.Page readResultPage(KernelDataScope scope,String taskId,String resultRef,long offset,int limit) {
         if(limit<1||limit>1000)throw new IllegalArgumentException("Result page limit must be 1..1000");
         try(var handle=openResult(scope,taskId,resultRef)) {return handle.readPage(offset,limit);}
+    }
+
+    /** Reads only the trusted, scoped validation flag; never returns rejected source values. */
+    public boolean copiedSourceResult(KernelDataScope scope, String taskId, String validationRef) {
+        EvidenceRecord record = resolve(scope, taskId, validationRef);
+        if (!"CODING_COMPUTATION_VALIDATION".equals(record.evidenceType()))
+            throw new IllegalArgumentException("Not a computation validation record");
+        Object checks = record.payload().get("checks");
+        return checks instanceof Map<?, ?> values && Boolean.TRUE.equals(values.get("copiedSourceContentDetected"));
     }
 
     /** Existing analysis workspace registration shape; callers decide whether to admit it into an Analysis Loop. */

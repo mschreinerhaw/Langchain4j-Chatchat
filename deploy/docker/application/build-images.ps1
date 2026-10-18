@@ -17,12 +17,28 @@ if ($Tag -notmatch '^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$') {
     throw 'Invalid Docker tag.'
 }
 
+$contextRoot = Join-Path $repo 'target/docker-application-build'
 if (-not $SkipMaven) {
-    & mvn -o -pl chatchat-api,chatchat-mcp-server -am -Pbackend-only '-Dfrontend.skip=true' '-DskipTests' package
+    # Keep generated frontend output outside the source tree, including its versioned index.
+    $frontendOutput = [IO.Path]::GetFullPath((Join-Path $contextRoot 'frontend'))
+    if (-not $frontendOutput.StartsWith($repo + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Frontend output must remain inside this workspace.'
+    }
+    Push-Location (Join-Path $repo 'chatchat-api/web-app')
+    try {
+        & npm.cmd ci --no-audit --no-fund --prefer-offline
+        if ($LASTEXITCODE -ne 0) { throw 'Frontend dependency installation failed.' }
+        & npm.cmd run build -- --outDir $frontendOutput
+        if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed.' }
+    } finally { Pop-Location }
+    & mvn -o -pl chatchat-api,chatchat-mcp-server -am -Pbackend-only '-Dfrontend.skip=true' '-DskipTests' '-Dcontainer.image=true' "-Dweb.static.directory=$frontendOutput" package
     if ($LASTEXITCODE -ne 0) { throw 'Maven package failed.' }
 }
 
-$contextRoot = Join-Path $repo 'target/docker-application-build'
+& (Join-Path $PSScriptRoot 'verify-web-assets.ps1') -JarPath (Join-Path $repo 'chatchat-api/target/chatchat-api-1.0.0-SNAPSHOT.jar')
+foreach ($module in @('chatchat-api','chatchat-mcp-server')) {
+    & (Join-Path $PSScriptRoot 'verify-image-secrets.ps1') -JarPath (Join-Path $repo "$module/target/$module-1.0.0-SNAPSHOT.jar")
+}
 $apps = @(
     @{ Name = 'api'; Jar = 'chatchat-api/target/chatchat-api-1.0.0-SNAPSHOT.jar'; Dockerfile = 'Dockerfile' },
     @{ Name = 'mcp'; Jar = 'chatchat-mcp-server/target/chatchat-mcp-server-1.0.0-SNAPSHOT.jar'; Dockerfile = 'Dockerfile.mcp' }

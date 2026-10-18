@@ -22,6 +22,7 @@ chatchat:
     encrypted-secret: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
     crypto-key-file: ./config/internal-credential.key
   license:
+    host-mac-file: ${CHATCHAT_LICENSE_HOST_MAC_FILE:}
     fail-startup-on-invalid: false
     status-check-interval-ms: 60000
     license-file: ./data/license/license.dat

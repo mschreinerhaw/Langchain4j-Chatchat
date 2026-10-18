@@ -133,17 +133,17 @@ public final class InterpretationPlanEvidenceAnalyzer {
             }
         }
         nextActions.addAll(pendingEvidenceNextActions(toolEvidence));
-        if (diagnosticRun != null && diagnosticCoverageComplete && result != null && result.success()) {
-            // Per-step reviewers run before downstream dependencies. Their interim
-            // "not executed yet" gaps are therefore stale once the Runtime-owned
-            // diagnostic contract proves that every required check is covered by
-            // successful execution evidence. Preserve them for audit, but never let
-            // them override the authoritative completion state.
-            supersededMissingEvidence.addAll(missingEvidence);
-            missingEvidence.clear();
-            nextActions.clear();
+        var gapReview = new PlanGapReconciler().reconcile(activeChatModel, query, plan, toolEvidence,
+            missingEvidence, cancellationCheck);
+        supersededMissingEvidence.addAll(gapReview.closed());
+        missingEvidence.removeAll(gapReview.closed());
+        if (gapReview.sufficient() && missingEvidence.isEmpty() && conflicts.isEmpty() && nextActions.isEmpty()
+                && diagnosticCoverageComplete && result != null && result.success()) {
             iterationSufficient = true;
+            explicitIterationDecision = true;
         }
+        // Completed diagnostic checks cannot erase unrelated semantic gaps. Interim
+        // acquisition statements are superseded only by the dependency-bound review above.
         analysis.put("sufficient", explicitIterationDecision ? iterationSufficient : fallbackSufficient);
         analysis.put("conclusion", conclusions.isEmpty()
             ? (fallbackSufficient ? "The round returned usable evidence." : "The round did not return sufficient evidence.")
@@ -184,6 +184,7 @@ public final class InterpretationPlanEvidenceAnalyzer {
         snapshot.put("missingEvidence", evidenceAnalysisValue(analysis,
             "missing_evidence", "missingEvidence", "missing", "gaps"));
         snapshot.put("supersededMissingEvidence", supersededMissingEvidence);
+        snapshot.put("gapReconciliation", gapReview.audit());
         snapshot.put("conflicts", evidenceAnalysisValue(analysis,
             "conflicts", "contradictions", "uncertainty"));
         snapshot.put("hypotheses", hypotheses);

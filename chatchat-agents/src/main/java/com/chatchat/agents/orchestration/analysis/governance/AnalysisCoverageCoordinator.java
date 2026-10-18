@@ -190,6 +190,8 @@ public final class AnalysisCoverageCoordinator {
         request.metadata().put("datasetAnalysisMode", "MODEL_NATIVE_HARNESS");
         request.metadata().put("recordAnalysisSummaryDispatchMode", "MODEL_NATIVE_HARNESS");
         request.metadata().put("analysisSemanticReviewPolicy", "NONE_USER_JUDGES");
+        if ("PYTHON_REQUIRED".equals(request.metadata().get("analysisExecutionPolicy")))
+            request.metadata().put("finalReportSemanticReviewPolicy", "COMPUTED_OUTPUT_SUPPORT");
         var result = new com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarness(configuration.harnessMaxModelTurns())
             .withCoding(coding, request)
             .execute(request.query(), datasets, request.model(), request.isolationScope(), spillStore,

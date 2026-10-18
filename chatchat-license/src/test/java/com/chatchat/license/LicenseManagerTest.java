@@ -30,6 +30,7 @@ class LicenseManagerTest {
     private ObjectMapper objectMapper;
     private LicenseManager manager;
     private String privateKey;
+    private String publicKey;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -38,7 +39,7 @@ class LicenseManagerTest {
         generator.initialize(2048);
         KeyPair pair = generator.generateKeyPair();
         privateKey = pem("PRIVATE KEY", pair.getPrivate().getEncoded());
-        String publicKey = pem("PUBLIC KEY", pair.getPublic().getEncoded());
+        publicKey = pem("PUBLIC KEY", pair.getPublic().getEncoded());
         manager = new LicenseManager(objectMapper, tempDir.resolve("license.dat"),
             tempDir.resolve("server.id"), publicKey);
     }
@@ -97,6 +98,38 @@ class LicenseManagerTest {
         return new LicensePayload("LIC-TEST", null, "TEST", "LiveMCP", "enterprise",
             List.of("mcp", "news"), 100, serverId, expiry,
             Map.of("sql_query", true, "news_collect", true), LocalDate.now().minusDays(1));
+    }
+
+    @Test
+    void signedHostMacLicenseSurvivesRecreationAndRejectsHostChanges() throws Exception {
+        Path host = tempDir.resolve("host-mac");
+        Files.writeString(host, "00:11:22:33:44:66\n");
+        Path license = tempDir.resolve("host-license.dat");
+        var first = new LicenseManager(objectMapper, license, tempDir.resolve("container-one.id"), publicKey, host);
+        first.install(first.issue(payload(first.serverId(), LocalDate.now().plusYears(1)), privateKey, "test-key"));
+        var recreated = new LicenseManager(objectMapper, license, tempDir.resolve("container-two.id"), publicKey, host);
+        assertEquals("MAC-001122334466", recreated.serverId());
+        assertEquals(first.serverId(), recreated.serverId());
+        assertTrue(recreated.status().valid());
+        assertEquals(List.of("MAC-001122334466"), recreated.macAddresses());
+        Files.writeString(host, "00:11:22:33:44:77\n");
+        assertEquals("SERVER_MISMATCH", recreated.status().status());
+        Files.delete(host);
+        assertEquals("MACHINE_IDENTITY_UNAVAILABLE", recreated.status().status());
+        assertTrue(recreated.macAddresses().isEmpty());
+    }
+
+    @Test
+    void explicitHostIdentityMustExistAndContainExactlyOneUnicastAddress() throws Exception {
+        Path host = tempDir.resolve("invalid-host-mac");
+        assertThrows(LicenseException.class, () -> new LicenseManager(objectMapper,
+            tempDir.resolve("unused-license"), null, publicKey, host));
+        for (String text : List.of("00:00:00:00:00:00", "ff:ff:ff:ff:ff:ff", "not-a-mac",
+                "00:11:22:33:44:66\n00:11:22:33:44:77", "x".repeat(1024))) {
+            Files.writeString(host, text);
+            assertThrows(LicenseException.class, () -> new LicenseManager(objectMapper,
+                tempDir.resolve("unused-license"), null, publicKey, host));
+        }
     }
 
     private static String pem(String type, byte[] content) {

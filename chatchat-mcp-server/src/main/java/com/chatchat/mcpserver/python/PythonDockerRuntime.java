@@ -50,9 +50,17 @@ public class PythonDockerRuntime {
                 throw new IllegalArgumentException("Invalid managed mount");
         }
         PythonOperationWorkspace.assignOutputOwner(workspace, env.getRuntimeUser());
+        Path runner = scripts.resolve("_runtime_capture.py");
+        if (fileName.equals("_runtime_capture.py")) throw new IllegalArgumentException("Reserved Runtime script name");
+        try (var resource = PythonDockerRuntime.class.getResourceAsStream("/python/runtime_capture.py")) {
+            if (resource == null) throw new IOException("Runtime stream boundary is unavailable");
+            Files.write(runner, resource.readAllBytes(), StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING, LinkOption.NOFOLLOW_LINKS);
+        }
         String input = Files.readString(workspace.resolve("parameters.json"));
         List<String> command = new ArrayList<>(List.of(properties.getDockerCommand(), "create", "--name", container,
                 "--label", "chatchat.python.operation=" + container,
+                "--log-driver", "none",
                 "--cpus", env.getCpuLimit(), "--memory", env.getMemoryLimit(), "--pids-limit", "256",
                 "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
                 "--user", env.getRuntimeUser(), "--tmpfs", "/tmp:rw,noexec,nosuid,size=" + env.getTmpfsLimit(),
@@ -62,7 +70,7 @@ public class PythonDockerRuntime {
                 "-w", "/workspace", "-e", "CHATCHAT_INPUT_JSON=" + input));
         if ("NONE".equals(env.getNetworkPolicy())) command.addAll(List.of("--network", "none"));
         else command.addAll(List.of("--network", env.getNetworkName()));
-        command.addAll(List.of(imageId, "python", "/workspace/scripts/" + fileName));
+        command.addAll(List.of(imageId, "python", "/workspace/scripts/_runtime_capture.py", "/workspace/scripts/" + fileName));
         ExecResult created = run(command, Duration.ofSeconds(60));
         if (created.exitCode() != 0) throw new IllegalStateException("Docker create failed: " + created.stderr());
     }

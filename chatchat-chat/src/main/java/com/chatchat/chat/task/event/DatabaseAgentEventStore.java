@@ -1,6 +1,8 @@
 package com.chatchat.chat.task.event;
 
 import com.chatchat.chat.task.core.AgentTaskLatestRepository;
+import com.chatchat.chat.task.core.AgentExecutionState;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -23,6 +25,7 @@ public class DatabaseAgentEventStore implements AgentEventStore {
 
     private final DatabaseAgentEventRepository repository;
     private final AgentTaskLatestRepository taskRepository;
+    private final ObjectMapper json = new ObjectMapper();
 
     @Override
     public boolean supportsDeferredAppend() {
@@ -72,6 +75,7 @@ public class DatabaseAgentEventStore implements AgentEventStore {
             entities.add(toEntity(event));
         }
         if (!entities.isEmpty()) repository.saveAllAndFlush(entities);
+        projectTerminal(ordered);
         return List.copyOf(ids);
     }
 
@@ -101,12 +105,57 @@ public class DatabaseAgentEventStore implements AgentEventStore {
         }
         try {
             repository.saveAndFlush(toEntity(event));
+            projectTerminal(List.of(event));
         } catch (DataIntegrityViolationException duplicate) {
             if (!repository.existsById(event.getEventId())) {
                 throw duplicate;
             }
         }
         return event.getEventId();
+    }
+
+    /** Terminal events and their authoritative task projection commit or roll back together. */
+    private void projectTerminal(List<AgentEvent> events) {
+        for (AgentEvent event : events) {
+            if (!"TASK".equals(event.getEventScope())
+                    || !("COMPLETE".equals(event.getType()) || "STATUS".equals(event.getType()))) continue;
+            AgentExecutionState state;
+            try { state = AgentExecutionState.fromWire(event.getStatus()); }
+            catch (IllegalArgumentException unknown) { continue; }
+            if (!state.terminal()) continue;
+            var task = taskRepository.findByTaskIdForUpdate(event.getTaskId()).orElseThrow();
+            if (!java.util.Objects.equals(task.getTenantId(), event.getTenantId())
+                    || !java.util.Objects.equals(task.getSessionId(), event.getSessionId()))
+                throw new IllegalStateException("Terminal event owner differs from task");
+            if (AgentExecutionState.fromWire(task.getStatus()).terminal()
+                    && !java.util.Objects.equals(task.getStatus(), event.getStatus()))
+                throw new IllegalStateException("A conflicting terminal outcome cannot replace the task");
+            task.setStatus(event.getStatus());
+            task.setCanonicalState(state.name());
+            task.setUpdateTime(java.time.Instant.now());
+            if ("COMPLETE".equals(event.getType()) && event.getPayload() != null) {
+                try {
+                    var payload = json.readTree(event.getPayload());
+                    if (payload.path("answer").isTextual()) {
+                        task.setAnswerSummary(payload.path("answer").asText());
+                        task.setFinalNotificationJson(json.writeValueAsString(java.util.Map.of(
+                            "answer", payload.path("answer").asText(),
+                            "references", payload.path("citations").isArray() ? payload.path("citations") : java.util.List.of())));
+                    }
+                    if (payload.path("error").isTextual()) task.setErrorMessage(payload.path("error").asText());
+                    if (payload.path("answerSummary").isTextual())
+                        task.setAnswerSummary(payload.path("answerSummary").asText());
+                    if (payload.path("finalNotificationJson").isTextual()) {
+                        var notification = json.readTree(payload.path("finalNotificationJson").asText());
+                        if (notification == null || !notification.isObject()
+                                || !notification.path("answer").isTextual() || !notification.path("references").isArray())
+                            throw new IllegalArgumentException("Invalid terminal notification projection");
+                        task.setFinalNotificationJson(json.writeValueAsString(notification));
+                    }
+                } catch (java.io.IOException invalid) { throw new IllegalArgumentException("Invalid terminal payload", invalid); }
+            }
+            taskRepository.saveAndFlush(task);
+        }
     }
 
     @Override

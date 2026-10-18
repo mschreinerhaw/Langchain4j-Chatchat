@@ -252,7 +252,9 @@ export default {
           }
         : {
             ...pageProps,
-            userId: this.userId,
+            userId: this.activeView === "runtime"
+              ? (this.authSession?.user?.id || this.userId)
+              : this.userId,
             tenantId: this.tenantId,
             workspaceContext: this.workspaceContext,
             ...(DATA_SCIENCE_TABS[this.activeView]

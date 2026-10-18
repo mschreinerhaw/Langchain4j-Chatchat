@@ -17,13 +17,21 @@ public class LicenseManager {
     private final Path licenseFile;
     private final String publicKeyPem;
     private final String serverId;
+    private final Path hostMacFile;
 
     public LicenseManager(ObjectMapper objectMapper, Path licenseFile, Path serverIdFile, String publicKeyPem) {
+        this(objectMapper, licenseFile, serverIdFile, publicKeyPem, null);
+    }
+
+    public LicenseManager(ObjectMapper objectMapper, Path licenseFile, Path serverIdFile, String publicKeyPem,
+                          Path hostMacFile) {
         this.objectMapper = objectMapper;
         this.crypto = new LicenseCrypto(objectMapper);
         this.licenseFile = licenseFile.toAbsolutePath().normalize();
         this.publicKeyPem = publicKeyPem;
-        this.serverId = MachineIdentity.resolve(serverIdFile);
+        this.hostMacFile = hostMacFile;
+        this.serverId = hostMacFile == null ? MachineIdentity.resolve(serverIdFile)
+            : HostMacIdentity.resolve(hostMacFile, serverIdFile);
     }
 
     public String serverId() {
@@ -31,7 +39,9 @@ public class LicenseManager {
     }
 
     public java.util.List<String> macAddresses() {
-        return MachineIdentity.macAddresses();
+        if (hostMacFile == null) return MachineIdentity.macAddresses();
+        try { return java.util.List.of(HostMacIdentity.read(hostMacFile)); }
+        catch (LicenseException unavailable) { return java.util.List.of(); }
     }
 
     public LicenseStatus status() {
@@ -135,9 +145,13 @@ public class LicenseManager {
             return LicenseStatus.invalid("INVALID_PAYLOAD", "License 内容为空", serverId, null);
         }
         String binding = payload.serverId();
+        java.util.List<String> availableMacs = hostMacFile != null || MachineIdentity.normalizeMac(binding) != null
+            ? macAddresses() : java.util.List.of();
+        if (hostMacFile != null && availableMacs.isEmpty())
+            return LicenseStatus.invalid("MACHINE_IDENTITY_UNAVAILABLE", "Host NIC identity is unavailable", serverId, payload);
         boolean machineMismatch = binding != null && !binding.isBlank() && !"*".equals(binding)
             && (MachineIdentity.normalizeMac(binding) != null
-                ? !MachineIdentity.matchesMac(binding)
+                ? !availableMacs.contains(MachineIdentity.normalizeMac(binding))
                 : !serverId.equalsIgnoreCase(binding));
         if (machineMismatch) {
             return LicenseStatus.invalid("SERVER_MISMATCH", "License 与当前服务器不匹配", serverId, payload);

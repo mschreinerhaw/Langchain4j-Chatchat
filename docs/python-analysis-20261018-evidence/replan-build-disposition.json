@@ -1,0 +1,7 @@
+{
+  "status": "ABORTED_NOT_DEPLOYED",
+  "imageTag": "54e8a3ee-hostnic-runtime-replan-20261018",
+  "reason": "Review found the new trusted terminal commit needed scoped EVIDENCE authority; earlier mock storage test missed that action check. Build and full gate were terminated, source and tests corrected.",
+  "fullGateStatus": "INCOMPLETE_NOT_CERTIFIED",
+  "replacementTag": "54e8a3ee-hostnic-runtime-replan-auth-20261018"
+}

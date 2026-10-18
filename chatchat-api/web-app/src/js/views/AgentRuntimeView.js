@@ -88,6 +88,9 @@ export default {
     return {
       loading: false,
       timelineLoading: false,
+      observationPageLoading: false,
+      observationOffset: 0,
+      observationsHasMore: false,
       error: "",
       snapshot: null,
       productionQuality: null,
@@ -578,6 +581,7 @@ export default {
           }),
           fetchGenericAgentRunTrace(runId)
         ]);
+        if (runId !== this.selectedRunId) return;
         this.timeline = {
           run: timeline?.run || null,
           events: Array.isArray(timeline?.events) ? timeline.events : [],
@@ -585,12 +589,35 @@ export default {
           observations: Array.isArray(timeline?.observations) ? timeline.observations : [],
           trace: trace || null
         };
+        this.observationOffset = this.timeline.observations.length;
+        this.observationsHasMore = this.observationOffset === 200;
         this.streamCursor = this.events.reduce((cursor, event) => Math.max(cursor, event.sequence || 0), 0);
       } catch (error) {
+        if (runId !== this.selectedRunId) return;
         this.error = error.message || "Failed to load run timeline.";
       } finally {
-        this.timelineLoading = false;
+        if (runId === this.selectedRunId) this.timelineLoading = false;
       }
+    },
+    async loadMoreCodingObservations() {
+      if (!this.selectedRunId || this.timelineLoading || this.observationPageLoading || !this.observationsHasMore) return;
+      const runId = this.selectedRunId;
+      const offset = this.observationOffset;
+      this.observationPageLoading = true;
+      try {
+        const page = await fetchGenericAgentRunTimeline(runId, {
+          observationOffset: offset, observationLimit: 200, eventLimit: 1, stepLimit: 1
+        });
+        if (runId !== this.selectedRunId || offset !== this.observationOffset) return;
+        const observations = Array.isArray(page?.observations) ? page.observations : [];
+        const keys = new Set(this.timeline.observations.map(item => item.metadata?.eventId).filter(Boolean));
+        this.timeline = { ...this.timeline, observations: [...this.timeline.observations,
+          ...observations.filter(item => !item.metadata?.eventId || !keys.has(item.metadata.eventId))] };
+        this.observationOffset += observations.length;
+        this.observationsHasMore = observations.length === 200;
+      } catch (error) {
+        if (runId === this.selectedRunId) this.error = error.message || "Failed to load coding history.";
+      } finally { this.observationPageLoading = false; }
     },
     applyFilters() {
       this.filters.offset = 0;

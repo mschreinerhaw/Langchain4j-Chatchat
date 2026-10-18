@@ -113,6 +113,91 @@ class ClinePythonCallbackControllerTest {
             .containsEntry("evidenceBundleRef","bundle").containsEntry("validationStatus","INCONCLUSIVE")
             .doesNotContainKey("outputStatus");
     }
+
+    @Test void trustedSourceCopyFailureEndsOnlyThisDelegationForParentReplanning(){
+        var current=running(false);
+        when(tasks.get(scope,"task")).thenReturn(current);
+        copiedResult();
+        var execution=python.get(scope,"task",operation);
+        when(python.get(scope,"task",operation)).thenAnswer(invocation->{
+            identity.require(scope,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.WORKER);
+            assertThatThrownBy(()->identity.require(scope,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.EVIDENCE))
+                .isInstanceOf(CodingContractException.class);
+            return execution;
+        });
+        when(tasks.commitOutcome(eq(scope),eq("task"),any(),eq(current.revision()),any()))
+            .thenAnswer(invocation->{
+                identity.require(scope,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.EVIDENCE);
+                CodingTaskOutcome proposal=invocation.getArgument(4);
+                current.validateSuccessor(proposal);
+                proposal.validateAgainst(contract);
+                return proposal;
+            });
+
+        var response=controller.get(json.valueToTree(body()));
+
+        assertThat(response).containsEntry("outputStatus","SOURCE_COPY_REJECTED")
+            .containsEntry("replanningRequired",true).containsEntry("resultAvailable",false)
+            .doesNotContainKeys("resultDatasetRef","evidenceBundleRef","stdout","stderr");
+        var outcome=org.mockito.ArgumentCaptor.forClass(CodingTaskOutcome.class);
+        verify(tasks).commitOutcome(eq(scope),eq("task"),any(),eq(current.revision()),outcome.capture());
+        assertThat(outcome.getValue().status()).isEqualTo(CodingTaskOutcome.Status.FAILED);
+        assertThat(outcome.getValue().reasonCode()).isEqualTo(CodingErrorCode.OUTPUT_CONTRACT_VIOLATION);
+        assertThat(outcome.getValue().validationStatus()).isEqualTo(CodingTaskOutcome.ValidationStatus.FAILED);
+        assertThat(outcome.getValue().resultDatasetRef()).isNull();
+        assertThat(outcome.getValue().cancellationRequested()).isFalse();
+        assertThatThrownBy(()->identity.require(scope,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.EVIDENCE))
+            .isInstanceOf(CodingContractException.class);
+        verify(tasks,never()).cancel(any(),anyString(),anyString());
+    }
+
+    @Test void sourceCopyCannotDeclareUnknownExecutionsStopped(){
+        when(tasks.get(scope,"task")).thenReturn(running(false));
+        copiedResult();
+        when(tasks.unresolvedOperations(scope,"task")).thenReturn(List.of("unresolved-operation"));
+
+        assertThatThrownBy(()->controller.get(json.valueToTree(body())))
+            .isInstanceOf(ResponseStatusException.class).hasMessageContaining("reconciliation");
+        verify(tasks,never()).commitOutcome(any(),anyString(),any(),anyLong(),any());
+    }
+
+    @Test void sourceCopyDoesNotOverrideAnAcceptedCancellation(){
+        when(tasks.get(scope,"task")).thenReturn(running(true));
+        copiedResult();
+
+        assertThat(controller.get(json.valueToTree(body()))).doesNotContainKey("replanningRequired");
+        verify(tasks,never()).commitOutcome(any(),anyString(),any(),anyLong(),any());
+        verify(tasks,never()).cancel(any(),anyString(),anyString());
+    }
+
+    @Test void cancellationAcceptedDuringCommitDoesNotReportACompletedPolicyFailure(){
+        var current=running(false);
+        when(tasks.get(scope,"task")).thenReturn(current);
+        copiedResult();
+        when(tasks.commitOutcome(eq(scope),eq("task"),any(),eq(current.revision()),any()))
+            .thenReturn(running(true));
+
+        assertThat(controller.get(json.valueToTree(body()))).doesNotContainKey("replanningRequired");
+    }
+
+    private void copiedResult(){
+        when(collector.collect(any(),any(),anyString(),anyString(),anyString(),anyList(),any()))
+            .thenReturn(new CodingEvidenceCollector.Collected(contract.inputSnapshotRef(),"code","receipt","rejected-result","validation","bundle",false,
+                CodingTaskOutcome.ValidationStatus.FAILED));
+        when(collector.copiedSourceResult(scope,"task","validation")).thenReturn(true);
+    }
+
+    private CodingTaskOutcome running(boolean cancelled){
+        Instant at=Instant.now().minusSeconds(1).truncatedTo(ChronoUnit.MILLIS);
+        var zero=new CodingTaskOutcome.Counters(0,0,0,0,0,0,0,"0");
+        return new CodingTaskOutcome(contract.schemaVersion(),"task",scope,CodingCanonicalHash.sha256(contract),
+            CodingTaskOutcome.Status.RUNNING,3,4,at,at,at,null,cancelled,null,"Running",List.of(),
+            contract.inputSnapshotRef(),null,null,null,null,null,CodingTaskOutcome.ValidationStatus.NOT_RUN,
+            new CodingTaskOutcome.Reproducibility(CodingTaskOutcome.ReproducibilityLevel.UNAVAILABLE,List.of("fixture"),List.of()),
+            new CodingTaskOutcome.Usage("budget","USD",zero,zero,true),
+            new CodingTaskOutcome.ExecutionControl(cancelled?CodingErrorCode.CANCEL_REQUESTED:null,cancelled?at:null,false,false),
+            null,null,Map.of());
+    }
     @Test void corruptedArchiveIsNotDowngradedToAnExplorationReceipt(){
         when(collector.collect(any(),any(),anyString(),anyString(),anyString(),anyList(),any()))
             .thenThrow(new IllegalStateException("Manifest hash differs"));

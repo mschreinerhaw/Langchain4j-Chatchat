@@ -114,6 +114,7 @@ public class AgentTaskService {
     private final ThreadPoolTaskExecutor taskExecutor;
 
     private final Map<String, AtomicInteger> tenantWorkerCounts = new ConcurrentHashMap<>();
+    private final AtomicInteger databaseWorkersInFlight = new AtomicInteger();
     private final Map<String, Thread> runningTaskThreads = new ConcurrentHashMap<>();
     private final ThreadLocal<AgentTaskQueueCoordinator.ClaimedTask> activeDatabaseClaim = new ThreadLocal<>();
     private final ThreadLocal<java.util.concurrent.atomic.AtomicBoolean> revokedDatabaseClaim = new ThreadLocal<>();
@@ -1261,6 +1262,8 @@ public class AgentTaskService {
                     completeExecutionResult.put("uiResponse", artifactPresentation.uiResponse());
                 }
                 completePayload.put("executionResult", completeExecutionResult);
+                completePayload.put("answerSummary", resultContract.answerSummary());
+                completePayload.put("finalNotificationJson", finalNotificationPayload(resultContract));
                 AgentEvent completeEvent = copyEvent(question, "COMPLETE", resultContract.status(), writePayload(completePayload));
                 completeEvent.setParentEventId(resultEvent.getEventId());
                 completeEvent.setCreateTime(Math.max(resultEvent.getCreateTime(), System.currentTimeMillis()));
@@ -1288,13 +1291,13 @@ public class AgentTaskService {
             }
             if (!isCancelled(question.getTaskId())) {
                 String status = ex instanceof AgentTaskStoppedException stopped ? stopped.status : "CANCELLED";
-                updateLatest(question.getTaskId(), status, null, firstText(ex.getMessage(), "Task cancelled"));
                 AgentEvent cancelledEvent = copyEvent(question, "STATUS", status, writePayload(Map.of(
                     "message", firstText(ex.getMessage(), "Agent task cancelled")
                 )));
                 cancelledEvent.setSequence(nextSequence(question));
                 cancelledEvent.setParentEventId(question.getEventId());
                 eventStore.save(cancelledEvent);
+                updateLatest(question.getTaskId(), status, null, firstText(ex.getMessage(), "Task cancelled"));
                 logAgentTaskEvent("cancelled", cancelledEvent);
                 eventBus.publishResult(cancelledEvent);
             }
@@ -1316,20 +1319,23 @@ public class AgentTaskService {
             errorEvent.setSequence(nextSequence(question));
             errorEvent.setParentEventId(question.getEventId());
             errorEvent.setErrorCode(errorCode);
-            eventStore.save(errorEvent);
-            logAgentTaskEvent("error", errorEvent);
             Map<String, Object> completePayload = new LinkedHashMap<>(resultContract.asMap(null));
             completePayload.put("message", resultContract.completeMessage());
             completePayload.put("error", message);
             completePayload.put("errorCode", errorCode);
             completePayload.put("answer", resultContract.answerSummary());
             completePayload.put("uiResponse", resultContract.uiResponseView());
+            completePayload.put("answerSummary", resultContract.answerSummary());
+            completePayload.put("finalNotificationJson", finalNotificationPayload(resultContract));
             AgentEvent completeEvent = copyEvent(question, "COMPLETE", "FAILED", writePayload(completePayload));
             completeEvent.setSequence(nextSequence(question));
             completeEvent.setParentEventId(errorEvent.getEventId());
             completeEvent.setErrorCode(errorCode);
             completeEvent.setCreateTime(Math.max(errorEvent.getCreateTime(), System.currentTimeMillis()));
-            eventStore.save(completeEvent);
+            errorEvent.setSequence(null);
+            completeEvent.setSequence(null);
+            eventStore.appendAll(List.of(errorEvent, completeEvent));
+            logAgentTaskEvent("error", errorEvent);
             logAgentTaskEvent("complete", completeEvent);
             updateLatest(
                 question.getTaskId(),
@@ -1469,8 +1475,8 @@ public class AgentTaskService {
         }
         // Cooperative cancellation must not interrupt shared database file I/O.
         // The registry and Runtime token stop execution at guarded boundaries.
-        updateLatest(task.getTaskId(), status, null, errorMessage);
         AgentEvent stoppedEvent = saveStatusEvent(task, status, Map.of("message", eventMessage));
+        updateLatest(task.getTaskId(), status, null, errorMessage);
         eventBus.publishResult(stoppedEvent);
         return get(task.getTenantId(), task.getTaskId())
             .orElseThrow(() -> new IllegalArgumentException("Task not found: " + task.getTaskId()));
@@ -2067,17 +2073,32 @@ public class AgentTaskService {
         return saved == null ? task : saved;
     }
 
-    public int dispatchPersistentTasks() {
+    public synchronized int dispatchPersistentTasks() {
         if (!databaseQueueEnabled() || stopping || !persistentTaskDispatchReady) {
             return 0;
         }
-        List<AgentTaskQueueCoordinator.ClaimedTask> claims = queueCoordinator.claimAvailable(DATABASE_WORKER_ID);
+        // A queued Runnable cannot renew its lease. Leave excess work in the durable queue
+        // until a local worker is free, rather than consuming retries before execution starts.
+        int availableWorkers = Math.max(1, taskExecutor.getCorePoolSize()) - databaseWorkersInFlight.get();
+        if (availableWorkers <= 0) {
+            return 0;
+        }
+        List<AgentTaskQueueCoordinator.ClaimedTask> claims =
+            queueCoordinator.claimAvailable(DATABASE_WORKER_ID, availableWorkers);
         int submitted = 0;
         for (AgentTaskQueueCoordinator.ClaimedTask claim : claims) {
+            databaseWorkersInFlight.incrementAndGet();
             try {
-                taskExecutor.submit(() -> executeDatabaseClaim(claim));
+                taskExecutor.submit(() -> {
+                    try {
+                        executeDatabaseClaim(claim);
+                    } finally {
+                        databaseWorkersInFlight.decrementAndGet();
+                    }
+                });
                 submitted++;
             } catch (RuntimeException rejected) {
+                databaseWorkersInFlight.decrementAndGet();
                 queueCoordinator.requeueRejectedClaim(claim, "local worker executor rejected database claim");
                 log.warn("Requeued database Agent claim after local executor rejection. taskId={} error={}",
                     claim.taskId(), rejected.getMessage());

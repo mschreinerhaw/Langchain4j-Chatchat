@@ -1,0 +1,33 @@
+{
+  "runId": "att-1-dd5902ff-e55e-4ae4-a956-0e3a911f7588",
+  "validationRecords": [
+    {
+      "evidenceId": "coding:9cbd1c1fb2e66472b807b8d2dce7af9f16f7f20750de4c1915ed45d83e0f3806:validation",
+      "status": "FAILED",
+      "copiedSourceContentDetected": true,
+      "structuralChecksPassed": false
+    },
+    {
+      "evidenceId": "coding:00ff247b85946b43f53445db4d93892e1c42f82dcca9e0560f9f3100f3fb8459:validation",
+      "status": "FAILED",
+      "copiedSourceContentDetected": true,
+      "structuralChecksPassed": false
+    },
+    {
+      "evidenceId": "coding:7f8b5f08cf522e52bb8298caa5982a48727ddc85fd2f51ef53fd6622e3d555b4:validation",
+      "status": "FAILED",
+      "copiedSourceContentDetected": true,
+      "structuralChecksPassed": false
+    },
+    {
+      "evidenceId": "coding:b8f8f79454f5c0a0d153099c1c558abe9bfac2fc51111fe3202534930df8c3b8:validation",
+      "status": "FAILED",
+      "copiedSourceContentDetected": true,
+      "structuralChecksPassed": false
+    }
+  ],
+  "rawProjectionDetectedAndRejected": true,
+  "scope": "Actual immutable validation records show copied raw source rows were rejected before analytical result admission. This is boundary enforcement, not successful completion of the database analysis.",
+  "status": "PASSED",
+  "imageTag": "54e8a3ee-hostnic-runtime-admission-20261018"
+}

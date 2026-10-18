@@ -19,6 +19,7 @@
         <!-- Keep installed dependencies aligned with package-lock.json before building assets. -->
         <frontend.skip>false</frontend.skip>
         <frontend.install.skip>false</frontend.install.skip>
+        <web.static.directory>${project.basedir}/src/main/resources/static</web.static.directory>
     </properties>
 
     <dependencies>
@@ -248,7 +249,7 @@
                             <outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
                             <resources>
                                 <resource>
-                                    <directory>${project.basedir}/src/main/resources/static</directory>
+                                    <directory>${web.static.directory}</directory>
                                     <filtering>false</filtering>
                                 </resource>
                             </resources>

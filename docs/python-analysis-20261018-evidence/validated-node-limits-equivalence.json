@@ -1,0 +1,14 @@
+{
+  "status": "PASSED",
+  "scope": "Unchanged Node image and effective hard limits verified after Java candidate deployment; existing four real resource fault proofs are reused without rerunning identical stress.",
+  "imageTag": "runtime-os-coding-agent:54e8a3ee-hostnic-runtime-validated-20261018",
+  "imageId": "sha256:a3cf18023dab7ed8ee97c8bf47e1e307a7fe8b50d67fde847e6d40e4f14d7004",
+  "memoryBytes": 2147483648,
+  "memorySwapBytes": 2147483648,
+  "nanoCpus": 2000000000,
+  "pidsLimit": 128,
+  "readOnlyRoot": true,
+  "faultEvidence": "node-hard-limit-faults-provenance.json",
+  "globalAdmissionCertified": false,
+  "pythonOutputDiskQuotaCertified": false
+}

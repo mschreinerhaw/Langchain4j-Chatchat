@@ -1,0 +1,26 @@
+{
+  "status": "PASSED",
+  "scope": "Real local worker saturation beyond one lease, executor rejection, H2 bounded claiming and lease recovery; real concurrent model replay remains required.",
+  "suites": [
+    {
+      "name": "com.chatchat.chat.task.core.AgentTaskServiceTest",
+      "tests": 42,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.chat.task.queue.AgentTaskDatabaseQueueScenarioTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "totals": {
+    "tests": 51,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

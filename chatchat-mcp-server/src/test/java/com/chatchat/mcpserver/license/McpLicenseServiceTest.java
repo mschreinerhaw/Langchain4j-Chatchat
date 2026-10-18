@@ -83,4 +83,20 @@ class McpLicenseServiceTest {
             + Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(content)
             + "\n-----END " + type + "-----";
     }
+
+    @Test
+    void configuredHostNicIsUsedInsteadOfContainerInterfaces() throws Exception {
+        ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        Path hostMac = tempDir.resolve("host-mac");
+        Files.writeString(hostMac, "00:11:22:33:44:66\n");
+        LicenseProperties properties = new LicenseProperties();
+        properties.setHostMacFile(hostMac.toString());
+        properties.setLicenseFile(tempDir.resolve("not-installed.dat").toString());
+        properties.setServerIdFile(tempDir.resolve("host-server.id").toString());
+        var service = new McpLicenseService(properties, mapper);
+        assertThat(service.serverId()).isEqualTo("MAC-001122334466");
+        assertThat(service.macAddresses()).containsExactly("MAC-001122334466");
+        Files.delete(hostMac);
+        assertThat(service.macAddresses()).isEmpty();
+    }
 }

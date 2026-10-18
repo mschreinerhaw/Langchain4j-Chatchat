@@ -1,0 +1,51 @@
+{
+  "recordedAt": "2026-10-18T00:38:46.570449+00:00",
+  "scope": "Actual Docker containers exercising the rebuilt license library with the original signed host license; full MCP deployment verification pending",
+  "hostInterface": "ens192",
+  "hostIsVirtualMachine": true,
+  "hostNicMac": "MAC-000C298F20F0",
+  "existingSignedLicenseReused": true,
+  "licenseServerReissuanceDuringProof": false,
+  "containerMacVariation": [
+    {
+      "valid": true,
+      "licensedMacs": [
+        "MAC-000C298F20F0"
+      ],
+      "identity": "MAC-000C298F20F0",
+      "mode": "host",
+      "status": "VALID",
+      "containerMacs": [
+        "MAC-0242ACFF0094"
+      ]
+    },
+    {
+      "containerMacs": [
+        "MAC-0242ACFF0095"
+      ],
+      "valid": true,
+      "licensedMacs": [
+        "MAC-000C298F20F0"
+      ],
+      "identity": "MAC-000C298F20F0",
+      "mode": "host",
+      "status": "VALID"
+    },
+    {
+      "identity": "SERVER-DED0E1381A87D5983BD10507",
+      "mode": "native",
+      "status": "SERVER_MISMATCH",
+      "containerMacs": [
+        "MAC-0242ACFF0096"
+      ],
+      "valid": false,
+      "licensedMacs": [
+        "MAC-0242ACFF0096"
+      ]
+    }
+  ],
+  "librarySha256": "f9fc3ae6fb780cb3f62ffbd2882bcc483b250b19dfe0dca6740b40ee48f363c9",
+  "proofPassed": true,
+  "harnessCorrection": "Standalone proof uses production-compatible ISO date serialization; initial timestamp-array mismatch retained in private logs.",
+  "privateEvidencePolicy": "License contents, public-key files, credentials and raw logs remain outside tracked documentation."
+}

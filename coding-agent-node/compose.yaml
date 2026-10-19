@@ -1,0 +1,36 @@
+# Independent component. Runtime callback service and shared dispatch secret are supplied by the caller.
+services:
+  coding-agent-node:
+    build:
+      context: .
+      args:
+        BUILD_REVISION: ${BUILD_REVISION:-development}
+    image: ${CODING_NODE_IMAGE:-coding-agent-node:local}
+    restart: unless-stopped
+    ports:
+      - ${CODING_NODE_BIND:-127.0.0.1}:${CODING_NODE_PORT:-3100}:3100
+    environment:
+      RUNTIME_CODING_CALLBACK_URL: ${RUNTIME_CALLBACK_URL:?Set Runtime callback origin}
+      RUNTIME_CODING_ALLOWED_CALLBACK_HOSTS: ${RUNTIME_CALLBACK_HOSTS:?Set permitted Runtime hostname}
+      RUNTIME_CODING_SHARED_SECRET_FILE: /run/secrets/dispatch
+      RUNTIME_CODING_MONITOR_TOKEN_FILE: /run/secrets/monitor
+      RUNTIME_CODING_MONITOR_DIRECTORY: /srv/monitor-data
+      RUNTIME_CODING_CALLBACK_TIMEOUT_MS: "300000"
+      RUNTIME_CODING_MONITOR_SECURE_COOKIE: ${MONITOR_SECURE_COOKIE:-false}
+    secrets: [dispatch, monitor]
+    volumes:
+      - monitor-data:/srv/monitor-data
+    read_only: true
+    tmpfs: [/tmp:size=64m,noexec,nosuid,nodev,uid=1000,gid=1000]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    pids_limit: 128
+    mem_limit: 2g
+    cpus: 2
+secrets:
+  dispatch:
+    file: ${RUNTIME_DISPATCH_SECRET_FILE:?Set dispatch secret file}
+  monitor:
+    file: ${MONITOR_TOKEN_FILE:?Set separate monitor token file}
+volumes:
+  monitor-data:

@@ -169,17 +169,26 @@ public final class ClineModelCallbackController {
             JsonNode request = body.path("request");
             String operationId = operationId(request.path("operationId").asText(null));
             var prior = receipts.response(call.scope(), call.taskId(), operationId);
-            if (prior.isPresent()) return prior.get();
+            if (prior.isPresent()) {
+                if (prior.get().containsKey("error")) throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                    "Archived model response contains invalid tool arguments");
+                return prior.get();
+            }
             Instant permittedAt = freshDispatches.remove(key(call, operationId));
             if (!tasks.unresolvedOperations(call.scope(), call.taskId()).contains(operationId)
                     || permittedAt == null || permittedAt.isBefore(Instant.now().minus(Duration.ofMinutes(5))))
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Model dispatch is not a fresh A2 start intent");
-            // The provider call is bounded to 90 seconds; the renewed lease survives callback and settlement.
+            // Renew before dispatch. The bound model uses the tool deadline; a late
+            // response remains archival evidence even if ownership expires meanwhile.
             tasks.renew(call.scope(), call.taskId(), call.lease(), Duration.ofMinutes(5),
                 call.snapshot().revision());
             Map<String, Object> response;
             try {
                 response = model.complete(contract, request);
+            } catch (ClineRuntimeModelBridge.InvalidModelResponseException invalid) {
+                receipts.commit(contract, operationId, "runtime-model:" + operationId, invalid.receipt());
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                    "Model response rejected; provider stop and usage receipt archived", invalid);
             } catch (RuntimeException providerFailure) {
                 LOG.warn("Bound Coding model operation {} failed after its durable start intent",
                     operationId, providerFailure);

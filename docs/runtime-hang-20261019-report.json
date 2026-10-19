@@ -1,0 +1,172 @@
+{
+    "status":  "DEPLOYED_AND_VERIFIED",
+    "date":  "2026-10-19",
+    "environment":  "192.168.195.221:18100",
+    "baseCommit":  "1b63b1a7",
+    "originalTaskId":  "d826575b-9bdb-4e65-a9d5-b918f045359c",
+    "originalRunId":  "att-1-4fce4d50-2f13-4c9e-bd68-3918998a153a",
+    "originalParentAfterCancellation":  "CANCELLED",
+    "observedChildTasks":  8,
+    "observedUnresolvedChildTasks":  6,
+    "findings":  [
+                     "Provider returned invalid tool JSON; output parsing threw before the provider response and usage receipt were committed.",
+                     "Durable start intents correctly retained unknown status and reservations, but ended SDK sessions without recoverable results had no general failure transition after verified reconciliation.",
+                     "Each Coding invocation had an independent 1200-second wait budget. The parent continued creating new tasks after receiving expired, unresolved RUNNING receipts.",
+                     "Commit 3760fde7 added full-budget reconciliation polling. Commit b98330c6 introduced independent Coding budgets. The latest 1b63b1a7 concerns session persistence; the hang crosses older failure and recovery paths.",
+                     "The API thread stack was inside CodingAnalysisService.run -\u003e ClineCodingAdapter.resume. MCP CPU was also consumed by unrelated financial H2 snapshot backup work.",
+                     "Live verification exposed Coding task revision conflict when recovery settled receipts concurrently with a still-running SDK, cancelling a healthy calculation.",
+                     "The full R2 case failed before Coding: mandatory recovery reviewed the oldest rejected discovery before the newer successful MySQL candidate, yielding MANDATORY_TOOL_NOT_SCHEDULED.",
+                     "Manual retry of a FAILED task attempted to rewrite its terminal state to CANCELLED; the immutable terminal projection rejected the retry before a new attempt could be created.",
+                     "Worker callbacks timed out at 90000ms while genuine provider replies took 107197ms and 127645ms, causing SDK loss before Python dispatch despite a live 1200-second tool budget.",
+                     "The parent repeatedly created new request IDs after non-retryable source-copy rejection, allowing independent tool budgets to prolong unsuccessful analysis."
+                 ],
+    "fixes":  [
+                  "Archive genuine provider stop and usage receipts even when returned tool JSON is invalid or unauthorized; reject the output and deduplicate repeated callbacks.",
+                  "Fail an ended SDK session once all starts have verified stop proofs and no checkpoint or usable result can be recovered; preserve unknown operations without replay.",
+                  "Stop parent analysis when a Coding wait budget expires with unresolved execution, preventing new independent tasks from bypassing reconciliation.",
+                  "Correct the analysis prompt to describe independent tool budgets and prohibit replacement of unresolved work.",
+                  "Allow receipt reconciliation only for missing, ended or fenced SDK sessions; live or unavailable worker state cannot grant recovery settlement.",
+                  "Review completed discovery traces newest first, reusing current committed admission while preserving audit history and rejecting the latest inadmissible candidate without falling back to an older admission.",
+                  "Preserve the predecessor terminal state and original failure details when linking a newly submitted retry attempt.",
+                  "Set the worker callback limit to its supported 300000ms, still clipped by the task deadline; retain cancellation and sandbox limits.",
+                  "Persist a tenant/user/run-owned consecutive rejection budget, default 2, with exactly-once outcome accounting. Service replacement, configuration changes and replayed successful results cannot reset it; only a new admitted result resets consecutive failures."
+              ],
+    "historicalLimitations":  [
+                                  "Missing historical provider receipts cannot be reconstructed safely. Original child states and reservations remain available for evidence-based reconciliation."
+                              ],
+    "validation":  {
+                       "packagedWebReferences":  7,
+                       "focusedTests":  110,
+                       "jarSha256":  "9731fff5658f07bedd3da514c5b9e11da2d943f45e079ba6cd330e11455f36fe",
+                       "deploymentSecretFilesCheck":  "PASSED",
+                       "errors":  0,
+                       "failures":  0,
+                       "buildLog":  "runtime-hang-r5.log",
+                       "liveSmokeR1":  {
+                                           "resultAdmitted":  true,
+                                           "expectedInputFormat":  "PARQUET",
+                                           "hasArchivedCode":  true,
+                                           "parent":  {
+                                                          "status":  "SUCCESS",
+                                                          "canonicalState":  "SUCCEEDED",
+                                                          "terminal":  true,
+                                                          "answerAvailable":  true,
+                                                          "attemptNumber":  1
+                                                      },
+                                           "taskId":  "0dc642e9-5f1b-3e12-8ec4-a7057eeeaad7",
+                                           "status":  "PASSED"
+                                       },
+                       "finalBoundaryCheck":  "PASSED",
+                       "fullScenarioR1":  {
+                                              "allChildExecutorsStopped":  true,
+                                              "result":  "CANCELLED_FOR_R2_DEPLOYMENT_AFTER_REPRODUCING_LIVE_SDK_SETTLEMENT_RACE",
+                                              "taskId":  "53730a11-1f20-4ead-a8ff-13cafbe5b2c7",
+                                              "children":  7
+                                          },
+                       "liveSmokeR2":  {
+                                           "resultAdmitted":  true,
+                                           "expectedInputFormat":  "PARQUET",
+                                           "hasArchivedCode":  true,
+                                           "hasActualModelTelemetry":  true,
+                                           "parent":  {
+                                                          "status":  "SUCCESS",
+                                                          "canonicalState":  "SUCCEEDED",
+                                                          "terminal":  true,
+                                                          "answerAvailable":  true,
+                                                          "attemptNumber":  1
+                                                      },
+                                           "taskId":  "13880fce-f2ce-3efc-99cc-47fc75b3324f",
+                                           "status":  "PASSED"
+                                       },
+                       "fullScenarioR2":  {
+                                              "codingTasks":  0,
+                                              "elapsedSeconds":  413.5,
+                                              "staleDiscoveryEvidenceIdentified":  true,
+                                              "errorCode":  "MANDATORY_TOOL_NOT_SCHEDULED",
+                                              "taskId":  "fb2c3fd4-f984-412b-9665-7540b6b3ca69",
+                                              "status":  "FAILED"
+                                          },
+                       "fullScenarioR3":  {
+                                              "error":  "A conflicting terminal outcome cannot replace the task",
+                                              "result":  "RETRY_API_REJECTED_BEFORE_SUBMISSION",
+                                              "noTaskCreated":  true,
+                                              "repairedIn":  "r4"
+                                          },
+                       "failedTaskRetryR4":  {
+                                                 "originalExecutionId":  "d826575b-9bdb-4e65-a9d5-b918f045359c",
+                                                 "status":  "ACCEPTED",
+                                                 "newTaskId":  "cb5feb7f-e237-4c87-ab34-ab419fd5fe27",
+                                                 "previousTaskId":  "fb2c3fd4-f984-412b-9665-7540b6b3ca69",
+                                                 "newAttemptNumber":  4
+                                             },
+                       "fullScenarioR4":  {
+                                              "codingTasks":  0,
+                                              "status":  "FAILED",
+                                              "reason":  "Asset-name 223 search returned no candidates; rewritten plan failed configured DAG and template-provenance validation.",
+                                              "taskId":  "cb5feb7f-e237-4c87-ab34-ab419fd5fe27",
+                                              "elapsedSeconds":  321.5
+                                          },
+                       "liveSmokeR5":  {
+                                           "hasActualModelTelemetry":  true,
+                                           "expectedInputFormat":  "PARQUET",
+                                           "parent":  {
+                                                          "status":  "SUCCESS",
+                                                          "canonicalState":  "SUCCEEDED",
+                                                          "terminal":  true,
+                                                          "answerAvailable":  true,
+                                                          "attemptNumber":  1
+                                                      },
+                                           "hasArchivedCode":  true,
+                                           "status":  "PASSED",
+                                           "taskId":  "c1eece7b-a483-3042-a516-80a9b64d41c6",
+                                           "hasCompletedCoding":  true,
+                                           "resultAdmitted":  true
+                                       },
+                       "fullScenarioR5":  {
+                                              "codingTasks":  2,
+                                              "unresolvedExecutions":  0,
+                                              "rawEvidence":  "target/runtime-hang-innodb-final-r5.json",
+                                              "elapsedSeconds":  1047.4,
+                                              "parentStatus":  "SUCCESS",
+                                              "canonicalState":  "SUCCEEDED",
+                                              "modelReceipts":  8,
+                                              "status":  "SUCCEEDED",
+                                              "taskId":  "5f9da607-b176-33b4-8177-b861d955f06d",
+                                              "runId":  "att-1-b6246733-1379-4af9-92ca-fb1876bb3cfd",
+                                              "verificationQuestion":  "分析LiveData测试库_223的InnoDB运行情况，用Python汇总指标，仅分析本次快照。",
+                                              "terminal":  true,
+                                              "answerAvailable":  true,
+                                              "allExecutorsStopped":  true
+                                          },
+                       "rejectionBudgetValidation":  "Targeted tests passed for frozen run limit, duplicate/replayed outcomes, successful reset, service replacement and tenant isolation. Final live InnoDB run succeeded; rejection cap was not exhausted in that run."
+                   },
+    "deployment":  {
+                       "image":  "runtime-os-api:runtime-hang-20261019-r5",
+                       "jarSha256":  "9731fff5658f07bedd3da514c5b9e11da2d943f45e079ba6cd330e11455f36fe",
+                       "backup":  "/opt/runtime-os-docker-stage/evidence/runtime-hang-20261019/backup-1792426202",
+                       "webUnchanged":  true,
+                       "unrelatedContainersUnchanged":  true,
+                       "apiImageId":  "sha256:b71f0ea42807c5d4106368f45c10501e52f9b36bc71f0b772f7a90132ca8bfcb",
+                       "callbackTimeoutAdjustment":  {
+                                                         "beforeMs":  90000,
+                                                         "afterMs":  300000,
+                                                         "backup":  "/opt/runtime-os-docker-stage/evidence/runtime-hang-20261019/callback-before-1792423056.json",
+                                                         "unrelatedContainersUnchanged":  true,
+                                                         "taskDeadlineAndCancellationUnchanged":  true,
+                                                         "observedModelDurationsMs":  [
+                                                                                          107197,
+                                                                                          127645
+                                                                                      ]
+                                                     }
+                   },
+    "retryTaskId":  "cb5feb7f-e237-4c87-ab34-ab419fd5fe27",
+    "explicitAssetVerificationTaskId":  "5f9da607-b176-33b4-8177-b861d955f06d",
+    "runtimePolicy":  {
+                          "taskTimeoutSeconds":  1200,
+                          "maxConsecutiveRejectedTasks":  2,
+                          "rejectionBudgetScope":  "TENANT_USER_RUN",
+                          "callbackTimeoutMs":  300000,
+                          "frozenForRun":  true
+                      },
+    "completedDate":  "2026-10-20"
+}

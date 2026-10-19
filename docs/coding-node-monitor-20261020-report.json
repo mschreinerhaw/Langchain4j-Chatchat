@@ -1,0 +1,156 @@
+{
+    "component":  "coding-agent-node",
+    "image":  "runtime-os-coding-agent:node-monitor-20261020-r1",
+    "persistence":  {
+                        "codeVersionsPerTask":  64,
+                        "sourceBytes":  8388608,
+                        "directory":  "/opt/runtime-os-docker-stage/coding-monitor/data",
+                        "eventsPerTask":  512,
+                        "restart":  "Unfinished tasks INTERRUPTED; reconciliationRequired=true; no automatic replay",
+                        "start":  "History begins when this monitor is enabled; old Runtime history is not imported",
+                        "durability":  "150ms coalesced asynchronous atomic snapshots; graceful flush; recent observations may be lost on sudden power loss",
+                        "maxTasks":  256
+                    },
+    "validation":  {
+                       "realRunId":  "att-1-2b16bb4f-3fec-439e-b788-27c0ac9bbd1a",
+                       "nodeTests":  36,
+                       "browser":  {
+                                       "status":  "PASSED",
+                                       "source":  "Local real Cline SDK loop with deterministic gateway fixture",
+                                       "checks":  [
+                                                      "login",
+                                                      "read-only session",
+                                                      "code source/hash",
+                                                      "XSS text rendering",
+                                                      "models",
+                                                      "skills",
+                                                      "events",
+                                                      "offline recovery",
+                                                      "search",
+                                                      "mobile overflow",
+                                                      "API discovery",
+                                                      "logout"
+                                                  ],
+                                       "errors":  [
+
+                                                  ]
+                                   },
+                       "failures":  0,
+                       "realTaskId":  "a170ce77-72b4-3798-b718-5d9826f5c527",
+                       "sandboxBoundary":  "PASSED",
+                       "typescriptBuild":  "PASSED",
+                       "liveBrowser":  {
+                                           "status":  "PASSED",
+                                           "scope":  "Real deployed monitor and Runtime-submitted task; no mocked network or model",
+                                           "runId":  "att-1-2b16bb4f-3fec-439e-b788-27c0ac9bbd1a",
+                                           "taskId":  "analysis-coding-45d92f55cd170665a8ad296a5d58d1425492aa1a9c9bf485c3ed099638a1b6cd",
+                                           "monitorId":  "fc4264f08ee40825970e6d566f485adaa5a451a57e2c26a2ec1699579945cbb1",
+                                           "taskStatus":  "COMPLETED",
+                                           "codeVersions":  1,
+                                           "codeSha256":  "f7209337e485a5ba6cc8a941e131d31b4c2e77ebd18638a36b1260a8c96e198e",
+                                           "codeSourceVerifiedInBrowser":  true,
+                                           "models":  [
+                                                          {
+                                                              "ordinal":  1,
+                                                              "status":  "SUCCEEDED",
+                                                              "providerModel":  "hy3",
+                                                              "inputTokens":  4043,
+                                                              "outputTokens":  974
+                                                          },
+                                                          {
+                                                              "ordinal":  2,
+                                                              "status":  "SUCCEEDED",
+                                                              "providerModel":  "hy3",
+                                                              "inputTokens":  5452,
+                                                              "outputTokens":  841
+                                                          }
+                                                      ],
+                                           "skills":  {
+                                                          "status":  "NO_RELEVANT_SKILL",
+                                                          "fingerprint":  "721c4d899d4558341192da081ee44e2006abc4c0a01174c19b406eae68f7c127",
+                                                          "configured":  [
+
+                                                                         ],
+                                                          "stages":  [
+
+                                                                     ],
+                                                          "loadedAt":  null,
+                                                          "applications":  0,
+                                                          "lastAppliedAt":  null
+                                                      },
+                                           "events":  12,
+                                           "persistence":  "HEALTHY",
+                                           "build":  "node-monitor-20261020-r1",
+                                           "errors":  [
+
+                                                      ]
+                                       },
+                       "realEndToEnd":  {
+                                            "taskId":  "a170ce77-72b4-3798-b718-5d9826f5c527",
+                                            "resultAdmitted":  true,
+                                            "hasArchivedCode":  true,
+                                            "hasActualModelTelemetry":  true,
+                                            "parent":  {
+                                                           "status":  "SUCCESS",
+                                                           "canonicalState":  "SUCCEEDED",
+                                                           "terminal":  true,
+                                                           "answerAvailable":  true,
+                                                           "attemptNumber":  1
+                                                       },
+                                            "hasCompletedCoding":  true,
+                                            "status":  "PASSED"
+                                        },
+                       "restart":  {
+                                       "status":  "PASSED",
+                                       "tasksPreserved":  1,
+                                       "codeVersionsVerified":  1,
+                                       "modelReceiptsPreserved":  2,
+                                       "instanceChanged":  true,
+                                       "containerIdsUnchanged":  true,
+                                       "persistence":  "HEALTHY"
+                                   }
+                   },
+    "backup":  "/opt/runtime-os-docker-stage/evidence/coding-node-monitor-20261020/before-1792428520",
+    "security":  {
+                     "noPublicExecutionRoutes":  true,
+                     "cookie":  "HttpOnly; SameSite=Strict; 8h; restart expires session",
+                     "unrelatedContainersUnchanged":  true,
+                     "noProviderCredentialsOrCheckpointsInApi":  true,
+                     "scriptRendering":  "textContent / strict CSP",
+                     "monitorCredential":  "Separate read-only operator token",
+                     "taskScope":  "Node operator; all tenants on this node",
+                     "credentialFile":  "/opt/runtime-os-docker-stage/config/coding-node-monitor.token"
+                 },
+    "archiveSha256":  "fba445a355cd28398ed158a74b45bd03c64a441c18f3eed3ba6fc14d339db425",
+    "url":  "http://192.168.195.221:18100/monitor/",
+    "interfaces":  [
+                       "/monitor/",
+                       "/v1/monitor/node",
+                       "/v1/monitor/tasks",
+                       "/v1/monitor/tasks/{id}/events",
+                       "/v1/monitor/tasks/{id}/codes",
+                       "/v1/monitor/tasks/{id}/models",
+                       "/v1/monitor/tasks/{id}/skills",
+                       "/v1/monitor/openapi.json"
+                   ],
+    "status":  "DEPLOYED_AND_VERIFIED",
+    "architecture":  {
+                         "newBackend":  "TypeScript",
+                         "existingExecutor":  "Cline SDK 0.0.93; existing Runtime callback protocol preserved",
+                         "browser":  "TypeScript / dependency-free DOM",
+                         "deployment":  "Independent Docker/Compose; monitored Runtime stage gateway reloads in place",
+                         "client":  "Typed fetch client and declarations",
+                         "authority":  "NODE_OBSERVATION_ONLY"
+                     },
+    "imageId":  "sha256:80938e27c5cc0cf71224abc88b18915ec06bf99a066da507625cdb96b1eb6445",
+    "date":  "2026-10-20",
+    "artifacts":  {
+                      "readme":  "coding-agent-node/README.md",
+                      "tests":  "target/coding-node-monitor-tests.log",
+                      "screenshots":  [
+                                          "target/coding-node-monitor/live-code.png",
+                                          "target/coding-node-monitor/live-models.png"
+                                      ],
+                      "liveBrowser":  "target/coding-node-monitor/live-browser.json"
+                  }
+}

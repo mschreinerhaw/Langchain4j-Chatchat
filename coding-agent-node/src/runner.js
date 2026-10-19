@@ -73,6 +73,8 @@ export function createCodingRun(contract, gateway, options = {}) {
     const progress = { ...event, sequence: ++eventOrdinal, timestamp: new Date().toISOString(),
       source: 'NODE_CLINE', attemptId };
     events.push(progress);
+    // Observability must never grant authority or interrupt Runtime-owned execution.
+    try { options.observe?.(progress); } catch { /* isolated operator observer */ }
     if (typeof gateway.event === 'function') await gateway.event(progress);
   };
   const tools = [];
@@ -124,6 +126,9 @@ export function createCodingRun(contract, gateway, options = {}) {
         const id = operationId(contract, `${name}\0${required(context.toolCallId, 'toolCallId')}`).replace(/^cline-/, 'workspace-');
         if (name === 'workspace_propose') lastCollectedOperation = null;
         await forward({ type: 'TOOL_STARTED', tool: name, operationId: id });
+        if (name === 'workspace_propose') for (const file of input.files ?? []) {
+          try { options.observeCode?.({ operationId: id, fileName: file.path, source: file.content }); } catch { /* observer only */ }
+        }
         if (context.signal?.aborted) throw context.signal.reason ?? new Error('Coding task cancelled');
         const receipt = name === 'workspace_read'
           ? await gateway.readWorkspace(contract, id, context.signal)
@@ -154,6 +159,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       const toolCallId = required(context.toolCallId, 'toolCallId');
       const id = operationId(contract, toolCallId);
       const codeSha256 = createHash('sha256').update(source).digest('hex');
+      try { options.observeCode?.({ operationId: id, fileName: 'main.py', source }); } catch { /* observer only */ }
       codeFiles.push({ fileName: 'main.py', sha256: codeSha256, operationId: id,
         sourceBytes: Buffer.byteLength(source), artifactRef:
           `/api/v1/agent/runtime/runs/${encodeURIComponent(contract.scope.runId)}/coding/${encodeURIComponent(contract.taskId)}/${id}/code` });
@@ -325,6 +331,7 @@ export function createCodingRun(contract, gateway, options = {}) {
           if (event.type === 'finish' && event.reason === 'error') {
             modelFailed = true;
             firstRuntimeError ??= String(event.error ?? 'Runtime model execution failed').slice(0, 512);
+            await forward({ type: 'MODEL_FAILED', modelCall: modelIndex, stage: 'CODING', status: 'FAILED' });
           }
           yield event.type === 'finish' ? { ...event, errorRetryable: false } : event;
         }
@@ -332,6 +339,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         if (request.signal?.aborted) throw error;
         modelFailed = true;
         firstRuntimeError ??= String(error?.message ?? error).slice(0, 512);
+        await forward({ type: 'MODEL_FAILED', modelCall: modelIndex, stage: 'CODING', status: 'FAILED' });
         yield { type: 'finish', reason: 'error', errorRetryable: false,
           error: String(error?.message ?? error).slice(0, 512) };
       }

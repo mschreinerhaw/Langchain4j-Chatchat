@@ -240,7 +240,11 @@ public final class MandatoryWorkflowRecoveryCoordinator {
         if (predecessors == null || predecessors.isEmpty()) {
             return true;
         }
-        for (InteractionToolTrace trace : predecessors) {
+        // Trace history is append-only. A later discovery/repair supersedes the
+        // candidate admission for the same tool; an old rejection must not veto it.
+        List<InteractionToolTrace> newestFirst = new ArrayList<>(predecessors);
+        java.util.Collections.reverse(newestFirst);
+        for (InteractionToolTrace trace : newestFirst) {
             if (trace == null || !trace.isSuccess() || trace.getToolName() == null
                 || reviewedDiscoveryTraces.keySet().stream()
                     .anyMatch(name -> toolNames.sameToolName(name, trace.getToolName()))) {

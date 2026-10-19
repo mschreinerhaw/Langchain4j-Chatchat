@@ -17,7 +17,9 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class HarnessCodingIntegrationTest {
-    @Test void exhaustedToolBudgetReturnsToCallerForANewDecision() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"false,false", "true,false", "false,true"})
+    void exhaustedToolBudgetReturnsToCallerOnlyAfterExecutionIsReconciled(boolean unresolved, boolean rejectionBlocked) {
         var model=mock(ChatModel.class);var calls=new AtomicInteger();
         var metadata=new LinkedHashMap<String,Object>();
         var scope=GovernanceIsolationScope.runtime("tenant","user","run","request","conversation");
@@ -36,11 +38,22 @@ class HarnessCodingIntegrationTest {
             public Map<String,String> capabilities(){return Map.of("RUN_CODING","Runtime calculation");}
             public Map<String,Object> execute(AnalysisCoverageCoordinator.Request context,Map<String,Object> request,Map<String,Dataset> sources){
                 return Map.of("taskId","coding-task","status","RESOURCE_BUDGET_EXHAUSTED",
-                    "reasonCode","DEADLINE_EXCEEDED","budgetExhausted",true,"retryable",false,"resultAvailable",false);
+                    "reasonCode","DEADLINE_EXCEEDED","budgetExhausted",true,"retryable",false,"resultAvailable",false,
+                    "reconciliationRequired",unresolved,"analysisBlocked",rejectionBlocked);
             }
         };
         var context=new AnalysisCoverageCoordinator.Request(model,"Compute a statistic",null,Map.of(),metadata,()->false,()->{},scope,null);
-        new ModelNativeAnalysisHarness(8).withCoding(port,context).execute(context.query(),
+        var harness = new ModelNativeAnalysisHarness(8).withCoding(port,context);
+        if (unresolved || rejectionBlocked) {
+            assertThatThrownBy(() -> harness.execute(context.query(),
+                List.of(new Dataset("source",Map.of(),List.of(Map.of("value",5)))),model,scope,
+                AnalysisEvidenceSpillStore.disabled(),metadata,()->{},trace->{}))
+                .hasMessageContaining(rejectionBlocked ? "CODING_FAILURE_BUDGET_EXHAUSTED" : "CODING_RECONCILIATION_REQUIRED");
+            assertThat(calls).hasValue(1);
+            assertThat(metadata).containsKey("codingLastReceipt");
+            return;
+        }
+        harness.execute(context.query(),
             List.of(new Dataset("source",Map.of(),List.of(Map.of("value",5)))),model,scope,
             AnalysisEvidenceSpillStore.disabled(),metadata,()->{},trace->{});
         assertThat(calls).hasValue(2);

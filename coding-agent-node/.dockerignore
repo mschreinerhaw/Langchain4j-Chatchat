@@ -1,57 +1,9 @@
 node_modules
-test
 coverage
-*.log
-.env*
 .git
-*** Add File: D:\IdeaProjects\LangChain4j-AIChat\Langchain4j-Chatchat\deploy\docker\coding-agent\compose.yml
-services:
-  coding-agent:
-    image: runtime-coding-agent:1.0
-    build:
-      context: ../../../coding-agent-node
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      RUNTIME_CODING_HOST: 0.0.0.0
-      RUNTIME_CODING_PORT: "3100"
-      RUNTIME_CODING_CALLBACK_URL: http://host.docker.internal:8080
-      RUNTIME_CODING_ALLOWED_CALLBACK_HOSTS: host.docker.internal
-      RUNTIME_CODING_SHARED_SECRET_FILE: /run/secrets/coding_agent_shared_secret
-    secrets:
-      - coding_agent_shared_secret
-    ports:
-      - "127.0.0.1:8791:3100"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    networks:
-      coding_internal:
-        ipv4_address: 172.30.91.10
-    read_only: true
-    tmpfs:
-      - /tmp:size=128m,noexec,nosuid,nodev,uid=1000,gid=1000
-    user: "1000:1000"
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    pids_limit: 128
-    mem_limit: 2g
-    cpus: 2
-    healthcheck:
-      test: ["CMD", "node", "-e", "const fs=require('fs');const s=fs.readFileSync('/run/secrets/coding_agent_shared_secret','utf8').trim();fetch('http://127.0.0.1:3100/healthz',{headers:{Authorization:'Bearer '+s}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-
-secrets:
-  coding_agent_shared_secret:
-    file: ${CODING_AGENT_SHARED_SECRET_FILE:?Set an absolute path to a 32+ character secret file}
-
-networks:
-  coding_internal:
-    internal: true
-    ipam:
-      config:
-        - subnet: 172.30.91.0/24
+dist
+test
+monitor-data
+*.log
+*.key
+.env*

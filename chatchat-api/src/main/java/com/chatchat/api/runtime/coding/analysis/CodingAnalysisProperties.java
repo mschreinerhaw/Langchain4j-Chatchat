@@ -12,6 +12,7 @@ public class CodingAnalysisProperties {
     private String environmentId;
     private int maxConcurrentTasks = 2;
     private int timeoutSeconds = 300;
+    private int maxConsecutiveRejectedTasks = 2;
     private long maxModelCalls = 12;
     private long maxModelTokens = 65536;
     private long maxCodeExecutions = 12;

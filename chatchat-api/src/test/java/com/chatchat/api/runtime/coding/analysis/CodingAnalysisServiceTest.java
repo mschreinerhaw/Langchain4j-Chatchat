@@ -45,6 +45,9 @@ class CodingAnalysisServiceTest {
     final RuntimeExecutionCheckpointPort checkpoints=new RuntimeExecutionCheckpointPort(){
         String key(KernelDataScope scope,String key){return scope.tenantId()+":"+scope.userId()+":"+scope.runId()+":"+key;}
         public Optional<String> readExecutionCheckpoint(KernelDataScope scope,String key){return Optional.ofNullable(saved.get(key(scope,key)));}
+        public String mutateExecutionCheckpoint(KernelDataScope scope,String checkpoint,java.util.function.UnaryOperator<String> mutation){
+            synchronized(saved){String name=key(scope,checkpoint);String next=mutation.apply(saved.get(name));saved.put(name,next);return next;}
+        }
         public boolean compareAndSetExecutionCheckpoint(KernelDataScope scope,String key,String old,String next){
             String name=key(scope,key);return old==null?saved.putIfAbsent(name,next)==null:saved.replace(name,old,next);
         }
@@ -182,6 +185,42 @@ class CodingAnalysisServiceTest {
         assertThat(sources).containsOnlyKeys("source");
         verifyNoInteractions(collector);
         verify(agent,never()).cancel(any(),anyString(),anyString());
+    }
+
+    @Test void rejectionBudgetSurvivesServiceReplacementAndCountsEachTaskOnce() {
+        var failed=outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.FAILED);
+        when(failed.reasonCode()).thenReturn(CodingErrorCode.OUTPUT_CONTRACT_VIOLATION);
+        prepare(failed);
+        var first=service().execute(context("tenant"),request(),sources());
+        assertThat(first).containsEntry("replanningRequired",true).doesNotContainKey("analysisBlocked");
+        policy.setMaxConsecutiveRejectedTasks(10);
+        var replay=service().execute(context("tenant"),request(),sources());
+        assertThat(replay.get("rejectionBudget")).isEqualTo(first.get("rejectionBudget"));
+        var secondRequest=new LinkedHashMap<String,Object>(request());secondRequest.put("requestId","calculation-2");
+        var second=service().execute(context("tenant"),secondRequest,sources());
+        assertThat(second).containsEntry("analysisBlocked",true).containsEntry("replanningRequired",false)
+            .containsEntry("retryable",false).containsEntry("resultAvailable",false);
+        assertThat(second.get("rejectionBudget")).isEqualTo(Map.of("limit",2,"consecutiveRejectedTasks",2,"scope","RUN"));
+        var otherTenant=service().execute(context("other-tenant"),secondRequest,sources());
+        assertThat(otherTenant).doesNotContainKey("analysisBlocked");
+        verifyNoInteractions(collector);
+    }
+
+    @Test void onlyANewAdmittedResultResetsConsecutiveRejections() {
+        var failed=outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.FAILED);
+        when(failed.reasonCode()).thenReturn(CodingErrorCode.OUTPUT_CONTRACT_VIOLATION);
+        var completed=outcome(CodingTaskOutcome.Status.COMPLETED,CodingTaskOutcome.ValidationStatus.INCONCLUSIVE);
+        var good=new LinkedHashMap<String,Object>(request());good.put("requestId","good-result");
+        var next=new LinkedHashMap<String,Object>(request());next.put("requestId","next-rejection");
+        var last=new LinkedHashMap<String,Object>(request());last.put("requestId","last-rejection");
+        prepare(failed);service().execute(context("tenant"),request(),sources());
+        prepare(completed);
+        assertThat(service().execute(context("tenant"),good,sources())).containsEntry("resultAvailable",true);
+        prepare(failed);
+        assertThat(service().execute(context("tenant"),next,sources())).doesNotContainKey("analysisBlocked");
+        prepare(completed);service().execute(context("tenant"),good,sources());
+        prepare(failed);
+        assertThat(service().execute(context("tenant"),last,sources())).containsEntry("analysisBlocked",true);
     }
 
     @Test void cancellationWhileCapturingInputPreventsWorkerDispatch() {

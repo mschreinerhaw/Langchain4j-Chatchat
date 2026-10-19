@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { createCodingRun } from './runner.js';
 import { createRuntimeModel } from './runtime-model.js';
+import { MonitorStore, createMonitorHandler } from './monitor.ts';
 
 const MAX_BODY = 1024 * 1024;
 
@@ -95,7 +96,7 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
 /** Node owns only transient SDK state; Runtime's A2 snapshot remains authoritative. */
 export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayFactory = httpGateway,
   allowedCallbackHosts = ['127.0.0.1', 'localhost'], maxSessions = 256, sessionRetentionMs = 900000,
-  callbackTimeoutMs = 90000 }) {
+  callbackTimeoutMs = 90000, monitorToken, monitorDirectory, monitorSecureCookie = false }) {
   if (!Number.isSafeInteger(maxSessions) || maxSessions < 1 || maxSessions > 4096
       || !Number.isSafeInteger(sessionRetentionMs) || sessionRetentionMs < 0)
     throw new Error('Invalid Coding session resource limits');
@@ -110,8 +111,15 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
     throw new Error('Runtime callback URL must use an explicitly allowed internal host');
   const runs = new Map();
   let draining = false;
+  if (monitorToken && equalSecret(monitorToken, secret))
+    throw new Error('Monitor token must be separate from the Runtime dispatch secret');
+  const monitor = new MonitorStore({ directory: monitorDirectory, maxTasks: Math.max(256, maxSessions), secrets: [secret, monitorToken] });
+  const handleMonitor = createMonitorHandler({ token: monitorToken, store: monitor, secureCookie: monitorSecureCookie,
+    snapshot: () => monitor.node(draining, [...runs.values()].filter(run => run.state === 'RUNNING').length,
+      maxSessions, callbackTimeoutMs) });
   const server = createServer(async (request, reply) => {
     try {
+      if (await handleMonitor(request, reply)) return;
       const authorization = request.headers.authorization ?? '';
       if (!equalSecret(authorization.startsWith('Bearer ') ? authorization.slice(7) : '', secret))
         return response(reply, 401, { message: 'Unauthorized' });
@@ -159,13 +167,17 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
           contractHash: value.contractHash, fencingToken: value.fencingToken };
         const gateway = gatewayFactory(callbackUrl, secret, binding, { timeoutMs: callbackTimeoutMs });
         run.recoveryMode = value.checkpoint ? 'CHECKPOINT_RESTORED_NEW_SDK' : 'NEW_SDK';
+        let monitorId = null;
         run.session = createCodingRun(value.contract, gateway, {
           model: modelFactory ? modelFactory(value.contract)
             : createRuntimeModel(gateway, value.contract, value.checkpoint?.modelOrdinal ?? 0),
           modelTokenReservation: value.modelTokenReservation, checkpoint: value.checkpoint,
           contractHash: value.contractHash,
           attemptId: `${value.contract.taskId}:fence-${value.fencingToken}`,
+          observe: event => monitor.event(monitorId, event),
+          observeCode: code => monitor.code(monitorId, code),
         });
+        monitorId = monitor.start(value.contract, value.fencingToken, run.recoveryMode);
         runs.set(key, run);
         run.pending = run.session.run().then(result => {
           run.finishedAt = Date.now();
@@ -173,7 +185,9 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
           run.error = result.error ?? null;
           run.state = result.status === 'completed' ? 'COMPLETED'
             : result.status === 'aborted' ? 'CANCELLED' : 'FAILED';
-        }).catch(error => { run.finishedAt = Date.now(); run.error = String(error?.message ?? error).slice(0, 512); run.state = 'FAILED'; });
+          monitor.finish(monitorId, run.state, run.error);
+        }).catch(error => { run.finishedAt = Date.now(); run.error = String(error?.message ?? error).slice(0, 512); run.state = 'FAILED';
+          monitor.finish(monitorId, run.state, run.error); });
         return response(reply, 202, view(run));
       }
       if (request.method === 'POST' && url.pathname === '/v1/runs/get') {
@@ -202,6 +216,7 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
       await Promise.race([Promise.allSettled([...runs.values()].map(run => run.pending)),
         new Promise(resolve => { timer = setTimeout(resolve, graceMs); })]);
     } finally { clearTimeout(timer); }
+    await monitor.flush();
     server.closeIdleConnections();
     await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); });
   };
@@ -225,12 +240,17 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const allowedCallbackHosts = (process.env.RUNTIME_CODING_ALLOWED_CALLBACK_HOSTS ?? '127.0.0.1,localhost')
     .split(',').map(value => value.trim()).filter(Boolean);
   const callbackTimeoutMs = Number(process.env.RUNTIME_CODING_CALLBACK_TIMEOUT_MS ?? 90000);
+  const monitorToken = process.env.RUNTIME_CODING_MONITOR_TOKEN_FILE
+    ? readFileSync(process.env.RUNTIME_CODING_MONITOR_TOKEN_FILE, 'utf8').trim()
+    : process.env.RUNTIME_CODING_MONITOR_TOKEN;
   const level = process.env.RUNTIME_CODING_LOG_LEVEL ?? 'info';
   if (!['silent', 'error', 'warn', 'info'].includes(level)) throw new Error('Invalid worker log level');
   const log = event => { if (level === 'info') process.stdout.write(JSON.stringify({
     timestamp: new Date().toISOString(), component: 'NODE_CLINE', event,
     build: process.env.RUNTIME_CODING_BUILD ?? 'development', port }) + '\n'); };
-  const server = createCodingServer({ secret, callbackUrl, allowedCallbackHosts, callbackTimeoutMs });
+  const server = createCodingServer({ secret, callbackUrl, allowedCallbackHosts, callbackTimeoutMs,
+    monitorToken, monitorDirectory: process.env.RUNTIME_CODING_MONITOR_DIRECTORY,
+    monitorSecureCookie: process.env.RUNTIME_CODING_MONITOR_SECURE_COOKIE === 'true' });
   server.listen(port, host, () => log('WORKER_READY'));
   for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, () => {
     log('WORKER_DRAINING');

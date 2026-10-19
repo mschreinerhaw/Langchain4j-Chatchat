@@ -23,6 +23,31 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineRuntimeModelBridgeTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"{\"code\":", "null", "[]"})
+    void malformedProviderToolOutputRetainsStopAndUsageReceipt(String arguments) throws Exception {
+        var resources = mock(ModelResourceRegistry.class);
+        var factory = mock(ConfigurableChatModelFactory.class);
+        var parent = mock(ChatModel.class);
+        when(resources.defaultChatModel()).thenReturn("registered-model");
+        when(parent.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder()
+            .aiMessage(AiMessage.from(List.of(ToolExecutionRequest.builder().id("call-1")
+                .name("python_execute").arguments(arguments).build())))
+            .tokenUsage(new TokenUsage(13, 7, 20)).build());
+        var bridge = new ClineRuntimeModelBridge(resources, factory, json);
+        var registry = new CodingParentModels();
+        bridge.setParentModels(registry);
+        var contract = contract();
+        try (var binding = registry.bind(contract.scope(), contract.taskId(), parent)) {
+            var request = json.readTree("{\"systemPrompt\":\"calculate\",\"messages\":[],\"tools\":[]}");
+            var error = catchThrowableOfType(() -> bridge.complete(contract, request),
+                ClineRuntimeModelBridge.InvalidModelResponseException.class);
+            assertThat(error.receipt()).containsEntry("usage", Map.of("inputTokens", 13, "outputTokens", 7));
+            assertThat((List<?>) error.receipt().get("toolCalls")).isEmpty();
+            assertThat(error.receipt()).containsKey("modelInfo").containsKey("error");
+        }
+        verify(parent, times(1)).chat(any(ChatRequest.class));
+    }
     @Test void reportsFrozenActualModelAndContinuesBoundModelAfterDefaultChanges() throws Exception {
         var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
         when(resources.defaultChatModel()).thenReturn("changed-default");

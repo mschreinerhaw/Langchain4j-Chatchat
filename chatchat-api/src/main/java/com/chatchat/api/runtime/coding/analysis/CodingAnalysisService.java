@@ -263,6 +263,15 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 receipt.put("diagnostic", "Revise the analytical objective/outputSchema and submit a new requestId with an independent tool budget. "
                     + "Request computed metrics, derived text or structural summaries; do not reproduce source rows for the model to analyze. "
                     + "Same-shape transformations remain valid when their values are actually derived.");
+                var failureBudget = recordRejectionBudget(scope, taskId, true);
+                receipt.put("rejectionBudget", Map.of("limit", failureBudget.path("limit").asInt(),
+                    "consecutiveRejectedTasks", failureBudget.path("consecutiveRejectedTasks").asInt(), "scope", "RUN"));
+                if (failureBudget.path("consecutiveRejectedTasks").asInt() >= failureBudget.path("limit").asInt()) {
+                    receipt.put("analysisBlocked", true);
+                    receipt.put("replanningRequired", false);
+                    receipt.put("diagnostic", "Run Coding rejection budget exhausted; new request IDs cannot reset it. "
+                        + "End this analysis with the archived failure evidence and revise the parent workflow before a new run.");
+                }
             }
             if(outcome.executionControl().stopReason()!=null)receipt.put("stopReason",outcome.executionControl().stopReason().name());
             if (outcome.reasonCode()==CodingErrorCode.DEADLINE_EXCEEDED || outcome.reasonCode()==CodingErrorCode.BUDGET_EXCEEDED
@@ -298,6 +307,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 receipt.put("resultAvailable",true);
                 receipt.put("datasetReference",result.reference());receipt.put("rowCount",result.recordCount());
                 receipt.put("evidenceRefs",refs);
+                recordRejectionBudget(scope, taskId, false);
             }
             context.metadata().put("codingLastReceipt",Map.copyOf(receipt));
             return Collections.unmodifiableMap(receipt);
@@ -307,6 +317,27 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             throw failure;
         } catch(Exception failure){throw new IllegalStateException("Coding model binding failed",failure);}
     }
+    /** Run-owned rejection budget: replaying a task or restarting the API cannot reset it. */
+    private com.fasterxml.jackson.databind.JsonNode recordRejectionBudget(KernelDataScope scope, String taskId, boolean rejected) {
+        String updated = checkpoints.mutateExecutionCheckpoint(scope, "coding:analysis-rejection-budget", current -> {
+            var state = current == null ? json.createObjectNode()
+                : (com.fasterxml.jackson.databind.node.ObjectNode) tree(current);
+            if (current == null) {
+                state.put("schemaVersion", "runtime_os.coding.analysis_rejection_budget.v1");
+                state.put("limit", Math.max(1, Math.min(64, policy.getMaxConsecutiveRejectedTasks())));
+            } else if (!"runtime_os.coding.analysis_rejection_budget.v1".equals(state.path("schemaVersion").asText()))
+                throw new IllegalStateException("Unknown Coding rejection budget version");
+            var seen = new LinkedHashSet<String>();
+            state.path("taskIds").forEach(id -> seen.add(id.asText()));
+            if (seen.add(taskId)) {
+                state.put("consecutiveRejectedTasks", rejected ? state.path("consecutiveRejectedTasks").asInt()+1 : 0);
+                state.set("taskIds", json.valueToTree(seen));
+            }
+            return encode(state);
+        });
+        return tree(updated);
+    }
+
     private long publishTrace(KernelDataScope scope, String taskId, long cursor,
             java.util.function.Consumer<Map<String,Object>> observer) {
         List<CodingExecutionEvent> page;

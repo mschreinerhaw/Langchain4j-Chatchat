@@ -253,7 +253,9 @@ class ClineModelCallbackControllerTest {
         } finally { timer.shutdownNow(); }
     }
 
-    @Test void modelCallHasDurableIntentReceiptReconciliationAndUnknownCostReservation() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void modelCallHasDurableIntentReceiptReconciliationAndUnknownCostReservation(boolean invalidResponse) {
         var source = new DriverManagerDataSource("jdbc:h2:mem:model-callback-" + UUID.randomUUID()
             + ";DB_CLOSE_DELAY=-1", "sa", "");
         new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);
@@ -281,6 +283,9 @@ class ClineModelCallbackControllerTest {
             var model = mock(ClineRuntimeModelBridge.class);
             when(model.complete(any(), any())).thenReturn(Map.of("text", "done", "toolCalls", List.of(),
                 "usage", Map.of("inputTokens", 4, "outputTokens", 2), "requestId", "provider-1"));
+            if (invalidResponse) when(model.complete(any(), any())).thenThrow(
+                new ClineRuntimeModelBridge.InvalidModelResponseException(Map.of("error", "Invalid tool JSON",
+                    "toolCalls", List.of(), "usage", Map.of("inputTokens", 4, "outputTokens", 2))));
             var controller = new ClineModelCallbackController(access, tasks, model, receipts,
                 mock(CodingInputSnapshotService.class), mock(CodingValidationPlanService.class),
                 mock(CodingEvidenceCollector.class), json);
@@ -295,8 +300,14 @@ class ClineModelCallbackControllerTest {
             var execution = base.deepCopy();
             execution.set("request", json.valueToTree(Map.of("operationId", "model-1",
                 "messages", List.of(), "tools", List.of())));
-            assertThat(controller.model(execution).get("text")).isEqualTo("done");
-            assertThat(controller.model(execution).get("text")).isEqualTo("done");
+            if (invalidResponse) {
+                assertThatThrownBy(() -> controller.model(execution)).hasMessageContaining("receipt archived");
+                assertThatThrownBy(() -> controller.model(execution)).hasMessageContaining("Archived model response");
+                verify(model, times(1)).complete(any(), any());
+            } else {
+                assertThat(controller.model(execution).get("text")).isEqualTo("done");
+                assertThat(controller.model(execution).get("text")).isEqualTo("done");
+            }
             verify(model, times(1)).complete(any(), any());
             assertThat(controller.settle(admission).get("meteringComplete")).isEqualTo(false);
             var stale = admission.deepCopy();

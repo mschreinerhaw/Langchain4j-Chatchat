@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "module": "ES2022", "moduleResolution": "Bundler",
+    "strict": true, "skipLibCheck": true, "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": [], "outDir": "dist/client", "rootDir": "."
+  },
+  "include": ["web/**/*.ts", "src/monitor-types.ts"]
+}

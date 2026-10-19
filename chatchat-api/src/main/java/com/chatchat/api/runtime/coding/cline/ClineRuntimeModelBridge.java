@@ -124,12 +124,20 @@ public final class ClineRuntimeModelBridge {
                 .parameters(dev.langchain4j.model.chat.request.DefaultChatRequestParameters.builder().maxOutputTokens(outputLimit).build()).build());
         if (answer == null || answer.aiMessage() == null) throw new IllegalStateException("Model returned no assistant message");
         List<Map<String, Object>> toolCalls = new ArrayList<>();
+        String responseError = null;
         for (ToolExecutionRequest call : answer.aiMessage().toolExecutionRequests()) {
-            allowedTool(contract, call.name());
-            Object input;
-            try { input = json.readTree(call.arguments()); }
-            catch (Exception invalid) { throw new IllegalStateException("Model returned invalid tool arguments", invalid); }
-            toolCalls.add(Map.of("id", call.id(), "name", call.name(), "input", input));
+            try {
+                allowedTool(contract, call.name());
+                var input = json.readTree(call.arguments());
+                if (input == null || !input.isObject()) throw new IllegalArgumentException("Tool input must be an object");
+                toolCalls.add(Map.of("id", call.id(), "name", call.name(), "input", input));
+            } catch (Exception invalid) {
+                // The provider has returned. Preserve its stop/usage receipt even when its
+                // tool output is unusable; this is not an unknown external execution.
+                responseError = "Model returned invalid or unauthorized tool arguments";
+                toolCalls.clear();
+                break;
+            }
         }
         Map<String, Object> usage = new LinkedHashMap<>();
         if (answer.tokenUsage() != null) {
@@ -154,7 +162,20 @@ public final class ClineRuntimeModelBridge {
         result.put("modelInfo", modelInfo);
         if (answer.finishReason() != null) result.put("finishReason", answer.finishReason().name());
         if (answer.id() != null) result.put("requestId", answer.id());
+        if (responseError != null) {
+            result.put("error", responseError);
+            throw new InvalidModelResponseException(result);
+        }
         return result;
+    }
+
+    public static final class InvalidModelResponseException extends IllegalStateException {
+        private final Map<String, Object> receipt;
+        InvalidModelResponseException(Map<String, Object> receipt) {
+            super(String.valueOf(receipt.get("error")));
+            this.receipt = java.util.Collections.unmodifiableMap(new LinkedHashMap<>(receipt));
+        }
+        public Map<String, Object> receipt() { return receipt; }
     }
 
     private static String allowedTool(CodingTaskContract contract, String name) {

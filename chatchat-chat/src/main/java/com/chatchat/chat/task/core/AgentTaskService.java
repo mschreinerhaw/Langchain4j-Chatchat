@@ -818,7 +818,8 @@ public class AgentTaskService {
         // A retry is a new attempt and must not resolve to the original idempotent submission.
         retryRequest.setIdempotencyKey(null);
         AgentExecutionIdentity nextIdentity = AgentExecutionIdentity.from(task).retry();
-        saveStatusEvent(task, "CANCELLED", Map.of(
+        // A retry creates a new attempt; the predecessor's terminal outcome is immutable.
+        saveStatusEvent(task, currentStatus, Map.of(
             "message", "Task retried and superseded",
             "executionId", nextIdentity.executionId(),
             "supersededByAttemptId", nextIdentity.attemptId(),

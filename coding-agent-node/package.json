@@ -4,12 +4,26 @@
   "version": "0.1.0",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.18"
   },
   "scripts": {
-    "test": "node --test"
+    "build": "node scripts/build.mjs",
+    "start": "node dist/server.js",
+    "pretest": "npm run build",
+    "test": "node --test test/*.test.js",
+    "test:browser": "node scripts/test-monitor-browser.mjs"
   },
   "dependencies": {
     "@cline/agents": "0.0.93"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3"
+  },
+  "exports": {
+    "./monitor-client": {
+      "types": "./dist/monitor-client.d.ts",
+      "import": "./dist/monitor-client.js"
+    }
   }
 }

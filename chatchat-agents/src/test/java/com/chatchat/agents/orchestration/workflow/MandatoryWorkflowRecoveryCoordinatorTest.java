@@ -25,6 +25,40 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class MandatoryWorkflowRecoveryCoordinatorTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {true, false})
+    void latestDiscoveryAdmissionSupersedesHistoricalCandidateReview(boolean latestAccepted) {
+        var coordinator = new MandatoryWorkflowRecoveryCoordinator(
+            new AgentToolNameResolver(), mock(AgentToolArgumentResolver.class),
+            mock(AgentWorkflowToolResolver.class), mock(AgentWorkflowStatePort.class),
+            mock(MandatoryWorkflowTopology.class), mock(MandatoryWorkflowRecoveryPolicy.class),
+            mock(MandatoryWorkflowResultReviewer.class), mock(ModelAssistedRetrievalBridge.class),
+            mock(AgentToolBudgetPort.class), mock(AgentRunStore.class), new ObjectMapper());
+        String tool = "mcp_chatchat_mcp_server_database_capability_query";
+        var old = InteractionToolTrace.builder().toolName(tool).success(true)
+            .input(Map.of("version", "old")).output("{\"assets\":[\"old\"]}")
+            .runtimeMetadata(Map.of("semanticCandidateReviewSatisfied", !latestAccepted)).build();
+        var latest = InteractionToolTrace.builder().toolName(tool).success(true)
+            .input(Map.of("version", "latest")).output("{\"assets\":[\"current\"]}")
+            .runtimeMetadata(Map.of("semanticCandidateReviewSatisfied", latestAccepted)).build();
+        var history = List.of(old, latest);
+        var reviewed = new LinkedHashMap<String, InteractionToolTrace>();
+        var metadata = new LinkedHashMap<String, Object>();
+        boolean admitted = coordinator.reviewCompletedDiscoveryPredecessors(
+            request(metadata, new ArrayList<>()), history, reviewed, (name, input, output) -> {
+                assertThat(latestAccepted).isFalse();
+                assertThat(input).containsEntry("version", "latest");
+                return new MandatoryWorkflowRecoveryCoordinator.SemanticReview(
+                    true, false, "latest candidate rejected", output.getData(), Map.of());
+            });
+        assertThat(admitted).isEqualTo(latestAccepted);
+        assertThat(history).containsExactly(old, latest);
+        if (latestAccepted) assertThat(reviewed).containsEntry(tool, latest);
+        else {
+            assertThat(reviewed).isEmpty();
+            assertThat(metadata).containsEntry("mandatoryWorkflowSemanticReviewBlocked", true);
+        }
+    }
 
     @Test
     void missingInputsOnOneProviderDoNotSuppressAnIndependentProvider() {

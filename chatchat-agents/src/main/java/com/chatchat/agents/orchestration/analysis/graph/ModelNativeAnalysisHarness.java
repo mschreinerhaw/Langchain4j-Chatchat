@@ -123,7 +123,8 @@ public final class ModelNativeAnalysisHarness {
                     + "Use RUN_CODING for all data calculations, diagnostics and transformations. Do not read raw rows or use batch model inference. "
                     + "Source profiles, including numeric summaries and record counts, are navigation/quality metadata, not report-ready analytical results. "
                     + "Obtain reported quantities from admitted Coding outputs; record or text-fragment counts are not domain entity counts. "
-                    + "Related calculations may share one Coding task over authorized inputs; all delegated tasks share this run's cumulative budget. "
+                    + "Related calculations may share one Coding task over authorized inputs; each distinct request has an independent tool budget. "
+                    + "Never replace an unresolved execution with a new request to bypass its stop or reconciliation state. "
                     + "READ_* operations may inspect only admitted Coding result datasets. COMPLETE requires an admitted result. "
                     + "If execution fails or is pending, report limitations with PARTIAL_COMPLETE; never invent computed values.\n" : "")
                 + (coding == null ? "" : "For multi-record calculations, prefer RUN_CODING over reading all source rows into the model. "
@@ -296,6 +297,15 @@ public final class ModelNativeAnalysisHarness {
                             var summary = codingTaskSummary(request, receipt);
                             codingTasks.put(String.valueOf(receipt.getOrDefault("taskId", request.get("requestId"))), summary);
                             metadata.put("harnessCodingTasks", List.copyOf(codingTasks.values()));
+                            if (Boolean.TRUE.equals(receipt.get("analysisBlocked"))) {
+                                metadata.put("codingLastReceipt", receipt);
+                                throw new IllegalStateException("CODING_FAILURE_BUDGET_EXHAUSTED: repeated non-retryable output contract failures; stop analysis before creating more work");
+                            }
+                            if (Boolean.TRUE.equals(receipt.get("reconciliationRequired"))
+                                    && Boolean.TRUE.equals(receipt.get("budgetExhausted"))) {
+                                metadata.put("codingLastReceipt", receipt);
+                                throw new IllegalStateException("CODING_RECONCILIATION_REQUIRED: Coding wait budget ended with an unresolved execution; stop parent analysis before creating more work");
+                            }
                             audit.add(Map.of("status", "ACCEPTED", "request", request,
                                 "receiptFingerprint", ModelProtocolJson.sha256Hex(receipt), "receipt", receipt));
                             // Tool-local exhaustion is a receipt for the model, not exhaustion of the caller.

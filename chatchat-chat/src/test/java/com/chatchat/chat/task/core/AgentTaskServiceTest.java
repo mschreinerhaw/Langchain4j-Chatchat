@@ -68,6 +68,53 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentTaskServiceTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"FAILED", "CANCELLED"})
+    void retryPreservesTerminalOutcomeAndCreatesNewAttempt(String terminal) throws Exception {
+        var mapper = new ObjectMapper();
+        var request = idempotentRequest("retry-terminal", "diagnose current evidence");
+        var old = taskFor(request);
+        old.setStatus(terminal);
+        old.setAnswerSummary("Original terminal answer");
+        old.setErrorMessage("Original failure detail");
+        old.setExecutionAttemptId("att-1-original");
+        var repository = mock(AgentTaskLatestRepository.class);
+        when(repository.findById(old.getTaskId())).thenReturn(Optional.of(old));
+        when(repository.save(any(AgentTaskLatestEntity.class))).thenAnswer(call -> {
+            AgentTaskLatestEntity saved = call.getArgument(0);
+            when(repository.findById(saved.getTaskId())).thenReturn(Optional.of(saved));
+            return saved;
+        });
+        var store = mock(AgentEventStore.class);
+        var question = AgentEvent.builder().taskId(old.getTaskId()).tenantId(old.getTenantId())
+            .sessionId(old.getSessionId()).userId(old.getUserId()).type("QUESTION")
+            .payload(mapper.writeValueAsString(new AgentTaskPayload(request))).build();
+        when(store.findFirstByTaskAndType(old.getTenantId(), old.getSessionId(), old.getTaskId(), "QUESTION"))
+            .thenReturn(Optional.of(question));
+        var savedEvents = new ArrayList<AgentEvent>();
+        when(store.save(any(AgentEvent.class))).thenAnswer(call -> {
+            AgentEvent event = call.getArgument(0);
+            if (old.getTaskId().equals(event.getTaskId())) {
+                // Same invariant enforced by DatabaseAgentEventStore.projectTerminal.
+                assertThat(event.getStatus()).isEqualTo(terminal);
+            }
+            savedEvents.add(event);
+            return "event-"+savedEvents.size();
+        });
+        var service = taskService(mock(AgentEventBus.class), store, repository,
+            mock(TaskConfirmRepository.class), mapper);
+        var retried = service.retry(old.getTenantId(), old.getTaskId());
+        assertThat(retried.taskId()).isNotEqualTo(old.getTaskId());
+        assertThat(retried.executionId()).isEqualTo(old.getTaskId());
+        assertThat(retried.attemptNumber()).isEqualTo(2);
+        assertThat(old.getStatus()).isEqualTo(terminal);
+        assertThat(old.getAnswerSummary()).isEqualTo("Original terminal answer");
+        assertThat(old.getErrorMessage()).isEqualTo("Original failure detail");
+        assertThat(savedEvents).anySatisfy(event -> {
+            assertThat(event.getTaskId()).isEqualTo(old.getTaskId());
+            assertThat(event.getPayload()).contains("supersededByAttemptId");
+        });
+    }
 
     @Test
     @SuppressWarnings("unchecked")

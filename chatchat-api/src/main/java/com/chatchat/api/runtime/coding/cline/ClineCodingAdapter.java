@@ -148,6 +148,13 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
                 "contractHash", current.contractSha256(), "fencingToken", lease.fencingToken())); }
             catch (RuntimeException unavailable) { /* Old worker remains fenced by A2. */ }
         }
+        // A current live SDK owns settlement. Racing its callbacks with recovery
+        // advances the same revision twice and can cancel a healthy invocation.
+        // A missing/ended/fenced session is the boundary that permits recovery.
+        boolean recoveryOwned = sessionMissing || remote != null
+            && (remote.path("fencingToken").asLong() < lease.fencingToken()
+                || List.of("COMPLETED", "FAILED", "CANCELLED").contains(remote.path("status").asText()));
+        if (!recoveryOwned) return tasks.get(scope, taskId);
         // Only Python operations have MCP execution identities. Model starts retain their
         // reservations until the receipt can be reconciled; they are never dispatched again.
         for (String operationId : tasks.unresolvedOperations(scope, taskId)) {
@@ -190,6 +197,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             return tasks.finishStoppedAfterReconciliation(scope, taskId, lease, current.revision());
         if (workerId.equals(lease.owner()) && current.executionControl().stopReason() == null
                 && tasks.unresolvedOperations(scope, taskId).isEmpty()
+                && tasks.hasStartedOperations(scope, taskId)
                 && (sessionMissing || remote != null
                     && List.of("COMPLETED", "FAILED", "CANCELLED").contains(remote.path("status").asText()))) {
             CodingTaskOutcome archived = completeVerifiedOperation(scope, taskId, lease);
@@ -212,6 +220,20 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
                     return tasks.commitOutcome(scope,taskId,lease,current.revision(),failed);
                 }
             }
+            // The SDK has ended and all physical starts have stop proofs, but no
+            // checkpoint or usable result survived. Waiting cannot produce more work.
+            current = tasks.get(scope, taskId);
+            var at = clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+            if (at.isBefore(current.updatedAt())) at = current.updatedAt();
+            var limitations = new java.util.ArrayList<>(current.limitations());
+            limitations.add("Worker ended without a completed, independently verified result");
+            var failed = new CodingTaskOutcome(current.schemaVersion(),current.taskId(),current.scope(),current.contractSha256(),
+                CodingTaskOutcome.Status.FAILED,current.revision()+1,current.lastEventSequence()+1,current.createdAt(),at,current.startedAt(),at,
+                false,CodingErrorCode.EXECUTION_FAILED,"Worker session ended without a recoverable result; all started operations reconciled",
+                limitations,current.inputSnapshotRef(),null,null,null,null,null,CodingTaskOutcome.ValidationStatus.NOT_RUN,
+                current.reproducibility(),current.usage(),new CodingTaskOutcome.ExecutionControl(null,null,true,false),
+                current.parentTaskId(),current.supersedesTaskId(),Map.of());
+            return tasks.commitOutcome(scope,taskId,lease,current.revision(),failed);
         }
         if (workerId.equals(lease.owner()) && current.executionControl().stopReason() == null
                 && !tasks.hasStartedOperations(scope, taskId)

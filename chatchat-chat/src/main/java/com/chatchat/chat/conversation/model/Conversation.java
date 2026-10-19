@@ -27,6 +27,7 @@ public class Conversation {
     private LocalDateTime updatedAt;
     private Map<String, Object> analysisTree;
     private List<Message> messages;
+    private int missingMessageCount;
 
     /**
      * Creates a new Conversation instance.

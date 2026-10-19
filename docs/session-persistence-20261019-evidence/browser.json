@@ -1,0 +1,38 @@
+{
+  "realDeployedPage": true,
+  "localBuiltFrontendAgainstRealStageApi": false,
+  "requestMocking": false,
+  "browserCacheSeeded": false,
+  "results": [
+    {
+      "sessionId": "1792316974447-0e89f57cd99f8",
+      "messages": 4,
+      "reopenedAfterReload": true,
+      "richResponses": 0,
+      "assistantRendered": true,
+      "latestTaskVerified": true,
+      "streamingPlaceholders": 0
+    },
+    {
+      "sessionId": "0beff766-c847-39f6-855b-4ba025209d20",
+      "messages": 2,
+      "reopenedAfterReload": true,
+      "richResponses": 0,
+      "assistantRendered": true,
+      "latestTaskVerified": true,
+      "streamingPlaceholders": 0
+    },
+    {
+      "sessionId": "c468c8d5-de03-3fa0-ae38-04e77f87a971",
+      "messages": 2,
+      "reopenedAfterReload": true,
+      "richResponses": 0,
+      "assistantRendered": true,
+      "latestTaskVerified": true,
+      "streamingPlaceholders": 0
+    }
+  ],
+  "incompleteHistoryVisible": true,
+  "missingMessages": 1,
+  "pageErrors": []
+}

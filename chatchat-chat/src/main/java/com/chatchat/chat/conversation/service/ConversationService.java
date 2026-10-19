@@ -149,14 +149,26 @@ public class ConversationService {
     @Transactional(readOnly = true)
     public Optional<Conversation> getConversation(String conversationId) {
         return sessionRepository.findById(conversationId)
-            .map(session -> toConversation(session, listMessageDetails(conversationId)));
+            .map(session -> restoreConversation(session,
+                messageIndexRepository.findBySessionIdOrderByCreatedAtAsc(conversationId)));
     }
 
     @Transactional(readOnly = true)
     public Optional<Conversation> getConversation(String tenantId, String conversationId) {
         String normalizedTenantId = normalizeTenantId(tenantId);
         return sessionRepository.findBySessionIdAndTenantId(conversationId, normalizedTenantId)
-            .map(session -> toConversation(session, listMessageDetails(normalizedTenantId, conversationId)));
+            .map(session -> restoreConversation(session,
+                messageIndexRepository.findByTenantIdAndSessionIdOrderByCreatedAtAsc(normalizedTenantId, conversationId)));
+    }
+
+    private Conversation restoreConversation(ChatSessionEntity session, List<ChatMessageIndexEntity> indexes) {
+        Map<String, ChatMessageDetail> details = detailStore.getAll(
+            indexes.stream().map(ChatMessageIndexEntity::getRocksKey).toList());
+        List<Conversation.Message> messages = indexes.stream().map(index -> details.get(index.getRocksKey()))
+            .filter(java.util.Objects::nonNull).map(this::toMessage).toList();
+        Conversation conversation = toConversation(session, messages);
+        conversation.setMissingMessageCount(indexes.size() - messages.size());
+        return conversation;
     }
 
     /**
@@ -240,6 +252,27 @@ public class ConversationService {
         int pageSize,
         int totalPages
     ) {
+    }
+
+    /** Owners must be resolved from the authenticated principal by the API policy. */
+    @Transactional(readOnly = true)
+    public ConversationPage listOwnerConversationSummaryPage(String tenantId, java.util.Collection<String> owners,
+                                                              String keyword, int page, int pageSize) {
+        if (owners == null || owners.isEmpty()) throw new IllegalArgumentException("Authenticated owners are required");
+        int normalizedPage = Math.max(1, page);
+        int normalizedSize = Math.max(1, Math.min(pageSize, 100));
+        var result = sessionRepository.findPlatformHistoryByOwners(normalizeTenantId(tenantId), owners,
+            keyword == null ? "" : keyword.trim(), PageRequest.of(normalizedPage - 1, normalizedSize));
+        return new ConversationPage(result.getContent().stream().map(session -> toConversation(session, List.of())).toList(),
+            result.getTotalElements(), normalizedPage, normalizedSize, result.getTotalPages());
+    }
+
+    @Transactional(readOnly = true)
+    public List<Conversation> listOwnerConversations(String tenantId, java.util.Collection<String> owners) {
+        if (owners == null || owners.isEmpty()) throw new IllegalArgumentException("Authenticated owners are required");
+        return sessionRepository.findPlatformHistoryByOwners(normalizeTenantId(tenantId), owners, "",
+            org.springframework.data.domain.Pageable.unpaged()).stream()
+            .map(session -> toConversation(session, List.of())).toList();
     }
 
     @Transactional

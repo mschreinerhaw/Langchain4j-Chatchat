@@ -15,6 +15,15 @@ import java.util.List;
 
 public interface ChatSessionRepository extends JpaRepository<ChatSessionEntity, String> {
 
+    @Query(value = "select s from ChatSessionEntity s where s.tenantId = :tenantId and s.userId in :owners "
+        + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' "
+        + "and (:keyword = '' or lower(s.title) like lower(concat('%', :keyword, '%'))) order by s.updatedAt desc",
+        countQuery = "select count(s) from ChatSessionEntity s where s.tenantId = :tenantId and s.userId in :owners "
+            + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' "
+            + "and (:keyword = '' or lower(s.title) like lower(concat('%', :keyword, '%')))")
+    Page<ChatSessionEntity> findPlatformHistoryByOwners(@Param("tenantId") String tenantId,
+        @Param("owners") java.util.Collection<String> owners, @Param("keyword") String keyword, Pageable pageable);
+
     /**
      * Finds the by user id order by updated at desc.
      *

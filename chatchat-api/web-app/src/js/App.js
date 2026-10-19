@@ -353,8 +353,11 @@ export default {
           pendingAnalysisProvider: this.pendingAnalysisProvider
         };
         const saved = this.workspaceContexts[id] || {};
+        // A sidebar selection may arrive while the initial workspace manifest loads.
+        // Preserve it for the first workspace; later workspace switches use their own saved context.
+        const initialSelection = !from ? this.selectedConversation : null;
         const pageIds = new Set(pages.map((page) => page.id));
-        const selected = [requestedPage, saved.activeView, manifest.entryPage, pages[0].id].find((page) => pageIds.has(page));
+        const selected = [initialSelection ? "chat" : requestedPage, saved.activeView, manifest.entryPage, pages[0].id].find((page) => pageIds.has(page));
         const convert = (node) => {
           const children = node.children.map(convert).filter(Boolean);
           const page = pages.find((candidate) => candidate.menuCode === node.id);
@@ -370,7 +373,8 @@ export default {
             items: (studioRoot ? studioRoot.children : direct).map(convert).filter(Boolean) };
         }).filter((group) => group.items.length);
         if (from !== id) {
-          this.selectedConversation = saved.selectedConversation || null; this.activeHistoryId = saved.activeHistoryId || "";
+          this.selectedConversation = saved.selectedConversation || initialSelection || null;
+          this.activeHistoryId = saved.activeHistoryId || initialSelection?.id || "";
           this.pendingChatDraft = saved.pendingChatDraft || null; this.pendingDocumentShortcut = saved.pendingDocumentShortcut || null;
           this.pendingAnalysisProvider = saved.pendingAnalysisProvider || null;
         }
@@ -1012,8 +1016,8 @@ export default {
       this.navigateToView("chat");
       const conversationId = conversation.id || conversation.conversationId || "";
       const needsDetail = !!conversationId
-        && !conversation.detailsLoaded
-        && !(Array.isArray(conversation.messages) && conversation.messages.length > 0);
+        && (conversation.missingMessageCount > 0 || (!conversation.detailsLoaded
+          && !(Array.isArray(conversation.messages) && conversation.messages.length > 0)));
       this.activeHistoryId = conversationId;
       this.selectedConversation = {
         ...conversation,
@@ -1368,6 +1372,7 @@ export default {
       }
     },
     upsertLocalConversation(conversation) {
+      const previous = this.conversationHistory.find((item) => item.id === conversation.id);
       const nextItem = {
         id: conversation.id,
         question: conversation.question,
@@ -1378,6 +1383,7 @@ export default {
         modelName: conversation.modelName || "",
         agentName: conversation.agentName || "",
         status: conversation.status || "running",
+        missingMessageCount: conversation.missingMessageCount ?? previous?.missingMessageCount ?? 0,
         messages: Array.isArray(conversation.messages)
           ? conversation.messages.map((message) => ({
               ...message,

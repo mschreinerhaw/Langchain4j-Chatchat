@@ -125,7 +125,8 @@ public class RocksDbChatMessageDetailStore implements ChatMessageDetailStore {
         try {
             byte[] value = db.get(bytes(key));
             if (value == null) {
-                return Optional.empty();
+                if (!textStore.isEnabled()) return Optional.empty();
+                return textStore.get(documentId(key)).filter(detail -> matchesKey(key, detail));
             }
             String documentId = referenceDocumentId(value);
             if (documentId != null) {
@@ -154,6 +155,7 @@ public class RocksDbChatMessageDetailStore implements ChatMessageDetailStore {
             try {
                 byte[] value = db.get(bytes(key));
                 if (value == null) {
+                    if (textStore.isEnabled()) externalDocumentKeys.put(documentId(key), key);
                     continue;
                 }
                 String documentId = referenceDocumentId(value);
@@ -176,7 +178,7 @@ public class RocksDbChatMessageDetailStore implements ChatMessageDetailStore {
                 textStore.getAll(List.copyOf(externalDocumentKeys.keySet()));
             externalDetails.forEach((documentId, detail) -> {
                 String key = externalDocumentKeys.get(documentId);
-                if (key != null && detail != null) {
+                if (key != null && detail != null && matchesKey(key, detail)) {
                     details.put(key, detail);
                 }
             });
@@ -242,6 +244,11 @@ public class RocksDbChatMessageDetailStore implements ChatMessageDetailStore {
 
     private boolean externalTextEnabled() {
         return properties.getExternalText() != null && properties.getExternalText().isEnabled();
+    }
+
+    private boolean matchesKey(String key, ChatMessageDetail detail) {
+        return detail.getCreatedAt() != null && key.equals(ChatMessageKeyBuilder.build(
+            detail.getTenantId(), detail.getSessionId(), detail.getCreatedAt(), detail.getMessageId()));
     }
 
     private String referenceDocumentId(byte[] value) throws IOException {

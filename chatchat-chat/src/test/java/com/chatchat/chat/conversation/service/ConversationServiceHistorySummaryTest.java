@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -35,6 +36,47 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ConversationServiceHistorySummaryTest {
+
+    @Test
+    void aliasHistoryKeepsTenantPaginationAndSearchWithoutHydratingMessageBodies() {
+        var sessions = mock(ChatSessionRepository.class);
+        var store = mock(ChatMessageDetailStore.class);
+        var owners = Set.of("stable-user", "legacy-name");
+        ChatSessionEntity session = new ChatSessionEntity();session.setSessionId("old-session");
+        var pageable = org.springframework.data.domain.PageRequest.of(1, 10);
+        when(sessions.findPlatformHistoryByOwners("tenant", owners, "analysis", pageable))
+            .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(session), pageable, 11));
+        var result = new ConversationService(sessions, mock(ChatMessageIndexRepository.class),
+            mock(ConversationSummaryRepository.class), store)
+            .listOwnerConversationSummaryPage("tenant", owners, " analysis ", 2, 10);
+        assertEquals(11, result.total());
+        assertEquals(2, result.page());
+        assertEquals("old-session", result.items().get(0).getId());
+        verify(store, never()).getAll(anyList());
+    }
+
+    @Test
+    void reportsMissingBodiesWithoutDiscardingRestoredMessages() {
+        ChatSessionRepository sessions = mock(ChatSessionRepository.class);
+        ChatMessageIndexRepository indexes = mock(ChatMessageIndexRepository.class);
+        ChatMessageDetailStore store = mock(ChatMessageDetailStore.class);
+        ChatSessionEntity session = new ChatSessionEntity();
+        session.setSessionId("session"); session.setTenantId("tenant");
+        when(sessions.findBySessionIdAndTenantId("session", "tenant")).thenReturn(Optional.of(session));
+        var present = new com.chatchat.chat.conversation.persistence.ChatMessageIndexEntity();
+        present.setRocksKey("present");
+        var missing = new com.chatchat.chat.conversation.persistence.ChatMessageIndexEntity();
+        missing.setRocksKey("missing");
+        when(indexes.findByTenantIdAndSessionIdOrderByCreatedAtAsc("tenant", "session"))
+            .thenReturn(List.of(present, missing));
+        when(store.getAll(List.of("present", "missing"))).thenReturn(Map.of("present",
+            com.chatchat.chat.conversation.model.ChatMessageDetail.builder().messageId("message")
+                .role("user").content("saved question").build()));
+        var conversation = new ConversationService(sessions, indexes, mock(ConversationSummaryRepository.class), store)
+            .getConversation("tenant", "session").orElseThrow();
+        assertEquals(1, conversation.getMissingMessageCount());
+        assertEquals("saved question", conversation.getMessages().get(0).getContent());
+    }
 
     @Test
     void agentApiConversationIsMarkedOutsidePlatformHistoryChannel() {

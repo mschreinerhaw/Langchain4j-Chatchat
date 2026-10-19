@@ -1,0 +1,16 @@
+{
+  "actualRocksDbLibrary": true,
+  "scope": "Isolated copy of pre-repair database; no mocks",
+  "identityMismatchRejected": true,
+  "noPartialWritesAfterRejection": true,
+  "firstApply": {
+    "examined": 117,
+    "missing": 117,
+    "restored": 117
+  },
+  "secondApply": {
+    "examined": 117,
+    "missing": 0,
+    "restored": 0
+  }
+}

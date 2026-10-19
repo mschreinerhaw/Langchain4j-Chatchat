@@ -25,6 +25,7 @@ public class ConversationController {
 
     private final ConversationService conversationService;
     private final com.chatchat.api.workspace.WorkspaceOriginService workspaceOrigins;
+    private final com.chatchat.api.security.ObjectAccessService objectAccess;
 
     /**
      * Create a new conversation
@@ -62,7 +63,8 @@ public class ConversationController {
     public ApiResponse<List<Conversation>> listUserConversations(@PathVariable("userId") String userId,
                                                                  @RequestParam(value = "tenantId", required = false) String tenantId,
                                                                  HttpServletRequest servletRequest) {
-        return ApiResponse.success(conversationService.listUserConversations(resolveTenantId(servletRequest, tenantId), userId));
+        return ApiResponse.success(conversationService.listOwnerConversations(resolveTenantId(servletRequest, tenantId),
+            historyOwners(servletRequest, userId)));
     }
 
     /**
@@ -82,7 +84,8 @@ public class ConversationController {
         int normalizedPage = page == null ? 0 : Math.max(0, page);
         int normalizedLimit = limit == null ? 30 : Math.max(1, Math.min(limit, 100));
         List<ConversationListItem> summaries = conversationService
-            .listUserConversationSummaries(resolveTenantId(servletRequest, tenantId), userId, normalizedPage, normalizedLimit)
+            .listOwnerConversationSummaryPage(resolveTenantId(servletRequest, tenantId),
+                historyOwners(servletRequest, userId), "", normalizedPage + 1, normalizedLimit).items()
             .stream()
             .map(ConversationListItem::from)
             .toList();
@@ -104,8 +107,8 @@ public class ConversationController {
     ) {
         int normalizedPage = page == null ? 1 : Math.max(1, page);
         int normalizedPageSize = pageSize == null ? 10 : Math.max(1, Math.min(pageSize, 100));
-        ConversationService.ConversationPage result = conversationService.listUserConversationSummaryPage(
-            resolveTenantId(servletRequest, tenantId), userId, keyword, normalizedPage, normalizedPageSize
+        ConversationService.ConversationPage result = conversationService.listOwnerConversationSummaryPage(
+            resolveTenantId(servletRequest, tenantId), historyOwners(servletRequest, userId), keyword, normalizedPage, normalizedPageSize
         );
         return ApiResponse.success(Map.of(
             "items", result.items().stream().map(ConversationListItem::from).toList(),
@@ -168,6 +171,13 @@ public class ConversationController {
                                                 HttpServletRequest servletRequest) {
         conversationService.deleteConversation(resolveTenantId(servletRequest, tenantId), conversationId);
         return ApiResponse.success(null, "Conversation deleted successfully");
+    }
+
+    private java.util.Set<String> historyOwners(HttpServletRequest request, String requestedUser) {
+        var owners = objectAccess.ownerAliases(request);
+        if (owners.isEmpty()) return java.util.Set.of(requestedUser); // Existing unauthenticated/test profile semantics.
+        objectAccess.requireUser(request, requestedUser);
+        return owners;
     }
 
     private String resolveTenantId(HttpServletRequest request, String requestedTenantId) {

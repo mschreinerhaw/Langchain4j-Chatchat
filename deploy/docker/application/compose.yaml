@@ -4,6 +4,7 @@ services:
   api:
     image: ${API_IMAGE:?Set API_IMAGE}
     restart: unless-stopped
+    stop_grace_period: 60s
     env_file: ${STAGE_ROOT:?Set STAGE_ROOT}/config/api.env
     environment:
       SERVER_PORT: "8080"
@@ -19,6 +20,10 @@ services:
       CHATCHAT_CODING_CLINE_ALLOWED_PEER_ADDRESSES: 172.30.93.10
       CHATCHAT_CODING_CLINE_SHARED_SECRET_FILE: /run/secrets/coding_agent_shared_secret
       CHATCHAT_SEARCH_OPENSEARCH_INDEX: runtime_os_stage_documents
+      CHATCHAT_CHAT_DETAIL_STORE_PATH: /srv/app/data/chat-rocksdb
+      CHATCHAT_CHAT_DETAIL_STORE_EXTERNAL_TEXT_ENABLED: ${CHAT_EXTERNAL_TEXT_ENABLED:-true}
+      CHATCHAT_CHAT_DETAIL_STORE_EXTERNAL_TEXT_MIGRATE_LEGACY_ON_READ: "false"
+      CHATCHAT_UI_ARTIFACT_STORAGE_PATH: /srv/app/data/ui-artifacts
       CHATCHAT_MCP_CENTER_BASE_URL: http://mcp:8090
       CHATCHAT_TOOLS_DOCUMENT_SEARCH_API_BASE_URL: http://api:8080
     extra_hosts:
@@ -27,7 +32,7 @@ services:
       - 127.0.0.1:18180:8080
     volumes:
       - type: bind
-        source: ${API_DATA_DIR:-${STAGE_ROOT}/api/data}
+        source: ${API_DATA_DIR:?Set API_DATA_DIR to the existing persistent API data directory}
         target: /srv/app/data
         bind:
           create_host_path: false
@@ -49,6 +54,7 @@ services:
   mcp:
     image: ${MCP_IMAGE:?Set MCP_IMAGE}
     restart: unless-stopped
+    stop_grace_period: 60s
     env_file: ${STAGE_ROOT}/config/mcp.env
     environment:
       SERVER_PORT: "8090"
@@ -67,7 +73,7 @@ services:
       - 127.0.0.1:18190:8090
     volumes:
       - type: bind
-        source: ${MCP_DATA_DIR:-${STAGE_ROOT}/mcp/data}
+        source: ${MCP_DATA_DIR:?Set MCP_DATA_DIR to the existing persistent MCP data directory}
         target: /srv/app/data
         bind:
           create_host_path: false

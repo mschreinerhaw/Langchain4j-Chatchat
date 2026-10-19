@@ -1864,9 +1864,12 @@ export default {
     question(value) {
       saveWorkspaceDraft("chatchat.composerDraft.v1", this.workspaceContext, { question: String(value || "").slice(0, 200000) });
     },
-    selectedConversation(conversation) {
-      if (conversation) {
-        this.restoreConversation(conversation);
+    selectedConversation: {
+      immediate: true,
+      handler(conversation) {
+        if (conversation) {
+          this.restoreConversation(conversation);
+        }
       }
     },
     pendingDraft: {
@@ -3495,9 +3498,8 @@ export default {
       this.selectedAgentId = conversation.skillId || "";
       this.conversationStatus = normalizeStatus(status, messages);
       this.messages = messages;
-      this.analysisTree = conversation.analysisTree
-        ? normalizeAnalysisTree(conversation.analysisTree)
-        : analysisTreeFromMessages(messages);
+      const savedTree = normalizeAnalysisTree(conversation.analysisTree);
+      this.analysisTree = savedTree.nodes.length ? savedTree : analysisTreeFromMessages(messages);
       this.errorMessage = "";
       this.loading = false;
       this.activeRunId = "";

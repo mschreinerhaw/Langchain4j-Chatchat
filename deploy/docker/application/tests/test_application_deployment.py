@@ -12,7 +12,7 @@ import urllib.error
 ROOT = Path(__file__).resolve().parents[1]
 
 class ApplicationDeploymentTest(unittest.TestCase):
-    def config(self, explicit=False):
+    def config(self, explicit=False, missing_api_data=False):
         with tempfile.TemporaryDirectory(prefix='runtime-compose-') as directory:
             stage = Path(directory)
             (stage / 'config').mkdir()
@@ -24,12 +24,15 @@ class ApplicationDeploymentTest(unittest.TestCase):
                       'API_INTERNAL_KEY_FILE': '/keys/api', 'MCP_INTERNAL_KEY_FILE': '/keys/mcp',
                       'CODING_AGENT_SHARED_SECRET_FILE': '/keys/shared', 'CODING_AGENT_NODE_SECRET_FILE': '/keys/node',
                       'NEWS_DATA_DIR': '/existing/news/data', 'NEWS_CONFIG_DIR': '/existing/news/config'}
+            values.update(API_DATA_DIR=stage.as_posix()+'/api/data', MCP_DATA_DIR=stage.as_posix()+'/mcp/data')
             if explicit:
                 values.update(API_DATA_DIR='/existing/api/data', MCP_DATA_DIR='/existing/mcp/data',
                               MCP_PYTHON_WORKSPACE_ROOT='/legacy/python-assets', MCP_PYTHON_DATA_ROOT='/legacy/user-data')
+            if missing_api_data:values.pop('API_DATA_DIR')
             envfile=stage/'deployment.env'
             envfile.write_text('\n'.join(k+'='+v for k,v in values.items()))
             env=os.environ.copy()
+            env.pop('API_DATA_DIR',None)
             for key in values:env.pop(key,None)
             result=subprocess.run(['docker','compose','--env-file',str(envfile),'-f',str(ROOT/'compose.yaml'),
                                    'config','--format','json'],env=env,capture_output=True,text=True,check=True)
@@ -47,11 +50,19 @@ class ApplicationDeploymentTest(unittest.TestCase):
         self.assertTrue(any(v['source']==v['target']=='/legacy/python-assets' for v in services['mcp']['volumes']))
         self.assertTrue(next(v for v in news['volumes'] if v['target']=='/srv/app/config')['read_only'])
 
+    def test_missing_explicit_api_data_directory_fails_instead_of_selecting_an_empty_store(self):
+        with self.assertRaises(subprocess.CalledProcessError):self.config(missing_api_data=True)
+
     def test_stage_defaults_remain_persistent(self):
         doc,stage=self.config()
         for service in ['api','mcp']:
             mount=next(v for v in doc['services'][service]['volumes'] if v['target']=='/srv/app/data')
             self.assertEqual(mount['source'],stage+'/'+service+'/data')
+        api=doc['services']['api']
+        self.assertEqual(api['environment']['CHATCHAT_CHAT_DETAIL_STORE_PATH'],'/srv/app/data/chat-rocksdb')
+        self.assertEqual(api['environment']['CHATCHAT_CHAT_DETAIL_STORE_EXTERNAL_TEXT_ENABLED'],'true')
+        self.assertEqual(api['environment']['CHATCHAT_CHAT_DETAIL_STORE_EXTERNAL_TEXT_MIGRATE_LEGACY_ON_READ'],'false')
+        self.assertEqual(api['stop_grace_period'],'1m0s')
 
     def test_nginx_accepts_gateway_config(self):
         subprocess.run(['docker','run','--rm','-i','--add-host','api:127.0.0.1','--add-host','mcp:127.0.0.1',
@@ -70,7 +81,7 @@ class ApplicationDeploymentTest(unittest.TestCase):
             subprocess.run(['docker','cp',str(ROOT/'public-gateway.conf'),container+':/etc/nginx/nginx.conf'],check=True,capture_output=True)
             subprocess.run(['docker','start',container],check=True,capture_output=True)
             address=subprocess.check_output(['docker','port',container,'8080'],text=True).strip()
-            opener=urllib.request.build_opener(NoRedirect())
+            opener=urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect())
             for path,expected in [('/admin/index.html','/'),('/admin','/'),('/admin/','/'),('/favicon.ico','/lingdong-insight-mark.svg')]:
                 for attempt in range(20):
                     try:

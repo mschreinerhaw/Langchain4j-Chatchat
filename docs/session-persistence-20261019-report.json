@@ -1,0 +1,212 @@
+{
+  "status": "PERSISTENCE_AND_RESTORATION_VERIFIED_WITH_PARTIAL_HISTORICAL_BODY_RECOVERY",
+  "date": "2026-10-19",
+  "timezone": "Asia/Shanghai",
+  "baselineCommit": "752cb076f535789d0420a38fd42edaf1711815ce",
+  "branch": "main",
+  "sourceChangesCommitted": false,
+  "url": "http://192.168.195.221:18100/#/w/zhice/chat",
+  "rootCauses": [
+    "The container used runtime_os_acceptance_api (55 sessions), while 713 archived sessions remained in live_runtime_api.",
+    "Existing API and MCP host data bind mounts were already present; mounts alone did not migrate PostgreSQL indexes.",
+    "OpenSearch body reads were disabled although 1704 retained RocksDB records referenced external bodies.",
+    "The browser requested the legacy username while newer history used the same authenticated principal stable UUID.",
+    "Initial workspace manifest completion cleared a history selection made during startup; the chat change-only watcher also skipped an initial prop.",
+    "An empty header analysis tree prevented rebuilding analysis branches from persisted message metadata."
+  ],
+  "recovery": {
+    "originalSessionsImported": 713,
+    "preexistingNewSessionsPreserved": 55,
+    "totalSessions": 768,
+    "afterMigrationMessageIndexes": 2099,
+    "currentMessageIndexes": 2101,
+    "restoredFromPersistedResponses": 117,
+    "externalReferencesReadable": 1704,
+    "externalFallbackBodiesWithoutLocalKey": 4,
+    "unavailableBodies": 192,
+    "currentAccountPlatformHistoryBeforeAliasFix": 283,
+    "currentAccountPlatformHistoryAfterAliasFix": 602,
+    "sourceDatabaseUnmodified": true,
+    "existingRowsOverwritten": false,
+    "analysisTasksRerun": false,
+    "notes": "Migration-count snapshots cover all stored owners/tenants. Subsequent unrelated user activity added two messages and one task. A single browser account sees only its authorized platform history. 117 bodies were reconstructed from stored single-turn responses with original identity and immutable key timestamps; no model inference was used."
+  },
+  "persistence": {
+    "api": {
+      "source": "/opt/chatchat-1.0.0-SNAPSHOT/data",
+      "target": "/srv/app/data"
+    },
+    "mcp": {
+      "source": "/opt/chatchat-mcp-server-1.0.0-SNAPSHOT/data",
+      "target": "/srv/app/data"
+    },
+    "postgresql": {
+      "source": "/data/postgresql",
+      "target": "/var/lib/postgresql"
+    },
+    "opensearch": {
+      "source": "/data/opensearch/data",
+      "target": "/usr/share/opensearch/data"
+    },
+    "explicitDataDirectoriesRequired": true,
+    "automaticEmptyReplacementDirectory": false,
+    "javaStopGracePeriodSeconds": 60
+  },
+  "publicApi": {
+    "routesUnchanged": [
+      "GET /api/v1/conversations/user/{userId}",
+      "GET /api/v1/conversations/user/{userId}/summaries",
+      "GET /api/v1/conversations/user/{userId}/summaries/page",
+      "GET /api/v1/conversations/{conversationId}"
+    ],
+    "newDetailField": "missingMessageCount: integer; zero when all indexed bodies were restored",
+    "identityResolution": "ObjectAccessService.ownerAliases; current authenticated tenant, UUID and verified legacy username only",
+    "sourceChannels": "PLATFORM_UI/null retained in sidebar; AGENT_API remains separate"
+  },
+  "validation": {
+    "backendFocused": [
+      {
+        "suite": "ConversationServiceHistorySummaryTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "ConversationServiceResultDeduplicationTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "RocksDbChatMessageDetailStoreTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "OpenSearchChatMessageTextStoreTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "ConversationHistoryOwnerAliasTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ],
+    "frontendTests": {
+      "passed": 54,
+      "scope": "Vitest pure functions and actual mounted Vue lifecycle in jsdom",
+      "suites": {
+        "App.test.js": 19,
+        "ChatAssistantView.test.js": 32,
+        "ChatAssistantView.restoration.test.js": 3
+      }
+    },
+    "offlineRecoveryPythonUnitTests": 5,
+    "realDockerComposeAndNginxTests": 5,
+    "totalFocusedAutomatedTests": 88,
+    "viteProductionBuild": "PASSED",
+    "mavenPackage": "BUILD SUCCESS",
+    "packagedFrontendReferences": 7,
+    "applicationAndNestedFirstPartySecretFileScan": "PASSED",
+    "bodyRepairAtomicityEvidence": "session-persistence-20261019-evidence/body-repair-atomicity.json",
+    "postgresMigrationIdempotency": "Eight tables repeated with zero inserts",
+    "realServerAliases": "602 visible platform sessions; username and UUID queries identical; unauthorized principal receives 403; title search checked",
+    "realRecreatedContainerCases": 16,
+    "concurrentUserTurn": "One observed session received an additional user turn during maintenance. Its original message IDs and new turn were preserved; other snapshot cases retained identical body/state hashes.",
+    "waitedForExistingTask": "The previously running task was allowed to become terminal (CANCELLED/KILLED) before container replacement. No cancellation was issued by this repair; its attempt stayed at one.",
+    "realBrowser": {
+      "realDeployedPage": true,
+      "localBuiltFrontendAgainstRealStageApi": false,
+      "requestMocking": false,
+      "browserCacheSeeded": false,
+      "results": [
+        {
+          "sessionId": "1792316974447-0e89f57cd99f8",
+          "messages": 4,
+          "reopenedAfterReload": true,
+          "richResponses": 0,
+          "assistantRendered": true,
+          "latestTaskVerified": true,
+          "streamingPlaceholders": 0
+        },
+        {
+          "sessionId": "0beff766-c847-39f6-855b-4ba025209d20",
+          "messages": 2,
+          "reopenedAfterReload": true,
+          "richResponses": 0,
+          "assistantRendered": true,
+          "latestTaskVerified": true,
+          "streamingPlaceholders": 0
+        },
+        {
+          "sessionId": "c468c8d5-de03-3fa0-ae38-04e77f87a971",
+          "messages": 2,
+          "reopenedAfterReload": true,
+          "richResponses": 0,
+          "assistantRendered": true,
+          "latestTaskVerified": true,
+          "streamingPlaceholders": 0
+        }
+      ],
+      "incompleteHistoryVisible": true,
+      "missingMessages": 1,
+      "pageErrors": []
+    },
+    "realModelAcceptance": "Not run or needed for history/storage repair; no model calls or analysis execution claimed",
+    "fullBackendSuite": "Not rerun for this increment. Prior repository baseline had 130 failures and 64 errors; this report does not claim a green full suite."
+  },
+  "build": {
+    "jarSha256": "c8e15b19d3615fd8d26de69c951279cc841b88d2a7b1b9a3ec224674d1256ede",
+    "frontendIndexSha256": "ab4c5b5652857c25ce7db1f659ff4e8dadba2c61f82b7d77b816524864e15c9a",
+    "dockerBase": "eclipse-temurin:17-jre-jammy@sha256:b3054a20e1a851574cdb1692dd0db5310c647e62214a2a7abecbec1b9e3ae8f1",
+    "deployment": {
+      "tag": "session-persistence-20261019-r5",
+      "archiveSha256": "b0666bbc2574e18dad1cae1295543da783cce29dfbf86c5119906ad368ecf507",
+      "apiImage": "sha256:2f978a7f806aa1be5e2f9387fb3d5341e171066ab4ab375276a7faa78f2c1045",
+      "backupDirectory": "/opt/runtime-os-docker-stage/evidence/session-recovery-20261019/deployment-before-1792403487",
+      "bodyRepair": {
+        "examined": 0,
+        "missing": 0,
+        "restored": 0
+      },
+      "persistentDataSource": "/opt/chatchat-1.0.0-SNAPSHOT/data",
+      "externalBodyReadsEnabled": true,
+      "unrelatedContainersUnchanged": true,
+      "productionSwitched": false
+    },
+    "sourceManifest": "session-persistence-20261019-evidence/source-manifest.json",
+    "incrementalPackaging": "R5 reused compiled Java classes from validated R4; only frontend source changed. Full R4 Maven packaging and the 24 focused Java tests passed; R5 resource packaging, frontend tests and artifact scans passed."
+  },
+  "resolvedVerificationFailures": [
+    "Offline repair rejected SQL/key time-zone mismatches before its atomic write; immutable key timestamps fixed it and the copy-based atomicity test verified zero partial writes.",
+    "A new negative permission test initially expected the wrong exception class; it now asserts the actual scope-denied exception and passes.",
+    "The local Nginx redirect test inherited a machine HTTP proxy; localhost requests now explicitly bypass proxies and all five Docker tests pass.",
+    "Real browser testing exposed both initial-prop and workspace-bootstrap selection races; actual mounted lifecycle, delayed-manifest isolation and final browser tests cover the fixes.",
+    "One Docker registry TLS timeout succeeded on retry using the same resolved base digest."
+  ],
+  "unresolved": [
+    "192 indexed message bodies are absent from retained RocksDB/OpenSearch. Some multi-turn event histories are ambiguous and are deliberately not guessed. Additional trustworthy backups are needed for full recovery.",
+    "Empty conversations with zero message indexes remain empty; no placeholder answer is fabricated.",
+    "Existing artifact expiration policies and permissions remain in force; restoring history does not recreate already expired/deleted artifact files.",
+    "After API replacement the acceptance login was refreshed; authentication-token survival was not claimed as part of chat-history persistence."
+  ],
+  "operations": {
+    "instructions": "deploy/docker/application/README.md",
+    "privateEvidenceRoot": "/opt/runtime-os-docker-stage/evidence/session-recovery-20261019",
+    "databaseBackup": "/opt/runtime-os-docker-stage/evidence/session-recovery-20261019/history-20261019-165238/target-before.dump",
+    "preRepairRocksDbBackup": "/opt/runtime-os-docker-stage/evidence/session-recovery-20261019/deployment-before-1792400556/chat-rocksdb",
+    "rollback": "Restore the reviewed private prior Compose/environment and API image, then recreate only API/node-proxy/gateway. Keep current persistent data, merged history and external body readers. Do not overwrite the live database with an old dump during image rollback.",
+    "productionSwitched": false,
+    "unrelatedContainersUnchanged": true
+  },
+  "evidenceDirectory": "docs/session-persistence-20261019-evidence"
+}

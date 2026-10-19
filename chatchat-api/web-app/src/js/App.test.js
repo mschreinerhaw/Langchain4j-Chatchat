@@ -5,6 +5,51 @@ import ChatAssistantView from "./views/ChatAssistantView.js";
 import AssistantSidebar from "./components/AssistantSidebar.js";
 import SystemManagementView from "./views/SystemManagementView.js";
 import * as api from "../services/api.js";
+import { setWorkspaceContext } from "./utils/workspaceContext";
+
+describe("history selected during workspace startup", () => {
+  it.each([false, true])("preserves only an initial selection, without leaking it across workspace switches (%s)", async switching => {
+    let resolve;
+    const manifest = vi.spyOn(api, "fetchWorkspaceManifest").mockImplementation(() => new Promise(done => { resolve = done; }));
+    const preferences = vi.spyOn(api, "saveWorkspacePreferences").mockResolvedValue({});
+    vi.stubGlobal("window", { location: { hash: "#/w/zhice/chat" } });
+    const context = { authSession: { user: { id: "owner" } }, tenantId: "tenant", workspaceNavigationSerial: 0,
+      currentWorkspace: switching ? { workspaceId: "other" } : null, workspaceContexts: {}, setHashRoute: vi.fn() };
+    try {
+      const pending = App.methods.switchWorkspace.call(context, "zhice", "tasks");
+      const selection = { id: "selected-before-ready", messages: [{ role: "user", content: "saved question" }] };
+      context.selectedConversation = selection; context.activeHistoryId = selection.id;
+      resolve({ manifest: { workspaceId: "zhice", pages: [{ id: "chat", componentKey: "chat" },
+        { id: "tasks", componentKey: "tasks" }], entryPage: "chat" }, menus: [] });
+      await pending;
+      expect(context.workspaceReady).toBe(true);
+      expect(context.selectedConversation).toBe(switching ? null : selection);
+      expect(context.activeHistoryId).toBe(switching ? "" : selection.id);
+      expect(context.activeView).toBe(switching ? "tasks" : "chat");
+      if (switching) expect(context.workspaceContexts.other.selectedConversation).toBe(selection);
+    } finally { manifest.mockRestore(); preferences.mockRestore(); vi.unstubAllGlobals(); setWorkspaceContext(null); }
+  });
+});
+
+describe("incomplete history restoration", () => {
+  it("reloads missing bodies when reopening a partially hydrated conversation", async () => {
+    const fetch = vi.spyOn(api, "fetchConversationDetail").mockResolvedValue({
+      id: "session", messages: [{ id: "restored", role: "assistant", content: "saved answer" }],
+      missingMessageCount: 0
+    });
+    const conversation = { id: "session", detailsLoaded: true, missingMessageCount: 1,
+      messages: [{ id: "question", role: "user", content: "saved question" }] };
+    const context = { tenantId: "tenant", navigateToView: vi.fn(), conversationHistory: [conversation] };
+    try {
+      App.methods.upsertLocalConversation.call(context, { id: "session", status: "completed", messages: conversation.messages });
+      expect(context.conversationHistory[0].missingMessageCount).toBe(1);
+      await App.methods.selectConversation.call(context, context.conversationHistory[0]);
+      expect(fetch).toHaveBeenCalledWith("session", "tenant");
+      expect(context.selectedConversation.missingMessageCount).toBe(0);
+      expect(context.selectedConversation.messages[0].id).toBe("restored");
+    } finally { fetch.mockRestore(); }
+  });
+});
 
 describe("retired execution trace page", () => {
   it("does not resolve the retired component even with a stale workspace page registration", () => {

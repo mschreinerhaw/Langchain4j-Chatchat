@@ -1,0 +1,57 @@
+{
+  "action": "MERGED",
+  "sourceUnchanged": true,
+  "existingRowsOverwritten": false,
+  "backupDirectory": "/opt/runtime-os-docker-stage/evidence/session-recovery-20261019/history-20261019-170531",
+  "tables": {
+    "chat_session": {
+      "source": 713,
+      "before": 768,
+      "after": 768,
+      "inserted": 0
+    },
+    "chat_message_index": {
+      "source": 1999,
+      "before": 2099,
+      "after": 2099,
+      "inserted": 0
+    },
+    "conversation_summary": {
+      "source": 2,
+      "before": 2,
+      "after": 2,
+      "inserted": 0
+    },
+    "agent_task_latest": {
+      "source": 1388,
+      "before": 1444,
+      "after": 1444,
+      "inserted": 0
+    },
+    "agent_execution_event": {
+      "source": 36255,
+      "before": 40034,
+      "after": 40034,
+      "inserted": 0
+    },
+    "agent_runtime_checkpoint": {
+      "source": 125,
+      "before": 220,
+      "after": 220,
+      "inserted": 0
+    },
+    "ui_artifact": {
+      "source": 669,
+      "before": 717,
+      "after": 717,
+      "inserted": 0
+    },
+    "workspace_resource_origin": {
+      "source": 51,
+      "before": 53,
+      "after": 53,
+      "inserted": 0
+    }
+  },
+  "bodyStorageVerificationRequired": true
+}

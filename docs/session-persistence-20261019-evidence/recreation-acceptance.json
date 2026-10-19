@@ -1,0 +1,96 @@
+{
+  "realContainerReplacement": true,
+  "fromRelease": "session-persistence-20261019-r1",
+  "toRelease": "session-persistence-20261019-r5",
+  "cases": [
+    {
+      "sessionId": "livedata-223-dbops-capacity-20261016",
+      "bodyAndStateUnchanged": true,
+      "missingMessageCount": 0
+    },
+    {
+      "sessionId": "f6aa34fb-ea5e-45cf-b26d-0e963ee9415c",
+      "bodyAndStateUnchanged": true,
+      "missingMessageCount": 0
+    },
+    {
+      "sessionId": "9e78072d-e48e-498a-9e85-1cb82ecc2475",
+      "bodyAndStateUnchanged": true,
+      "missingMessageCount": 0
+    },
+    {
+      "sessionId": "562118b0-3ba5-4173-a117-d394256b4828",
+      "bodyAndStateUnchanged": true,
+      "missingMessageCount": 6
+    },
+    {
+      "sessionId": "1792316974447-0e89f57cd99f8",
+      "concurrentUserTurnAppended": true,
+      "originalMessageIdsPreserved": true,
+      "messagesBefore": 2,
+      "messagesAfter": 4
+    },
+    {
+      "sessionId": "1180c4c7-1665-433c-8a5e-a779c617bb39",
+      "bodyAndStateUnchanged": true,
+      "missingMessageCount": 0
+    },
+    {
+      "sessionId": "0beff766-c847-39f6-855b-4ba025209d20",
+      "bodyAndStateUnchanged": true,
+      "missingMessageCount": 0
+    },
+    {
+      "sessionId": "c468c8d5-de03-3fa0-ae38-04e77f87a971",
+      "bodyAndStateUnchanged": true,
+      "missingMessageCount": 0
+    },
+    {
+      "sessionId": "781cc96f-6cba-387d-9d88-87e863f6fa2f",
+      "bodyAndStateUnchanged": true,
+      "missingMessageCount": 0
+    },
+    {
+      "sessionId": "0f87b198-1cc9-48f9-b2a2-5f97117019b3",
+      "bodyAndStateUnchanged": true,
+      "missingMessageCount": 0
+    },
+    {
+      "sessionId": "708c39a5-0f45-4cc0-ad2a-c7b6ee8b4435",
+      "bodyAndStateUnchanged": true,
+      "missingMessageCount": 0
+    },
+    {
+      "sessionId": "567dcb3d-60b1-4c55-9de0-6fc82ace8b9a",
+      "bodyAndStateUnchanged": true,
+      "missingMessageCount": 0
+    },
+    {
+      "sessionId": "3fe7ead3-ce8f-4996-b764-748b4376b5b5",
+      "bodyAndStateUnchanged": true,
+      "missingMessageCount": 0
+    },
+    {
+      "sessionId": "ec4a30f4-b364-4ead-b943-34cffac58066",
+      "bodyAndStateUnchanged": true,
+      "missingMessageCount": 0
+    },
+    {
+      "sessionId": "b43e2fee-052a-4aca-b87c-2e9f1326c43c",
+      "bodyAndStateUnchanged": true,
+      "missingMessageCount": 0
+    },
+    {
+      "sessionId": "bf63b903-781d-45fb-9283-5bcb370cbbf2",
+      "bodyAndStateUnchanged": true,
+      "missingMessageCount": 1
+    }
+  ],
+  "sourceSessionsUnchanged": true,
+  "destinationSessions": 768,
+  "destinationMessages": 2101,
+  "taskCount": 1445,
+  "executionEventCount": 40075,
+  "archivedTaskStatesAndAttemptIdsUnchanged": 1388,
+  "concurrentUserActivityMayIncreaseCounts": true
+}

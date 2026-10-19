@@ -1,0 +1,15 @@
+{
+  "tag": "session-persistence-20261019-r1",
+  "archiveSha256": "cf7a1352827048d0089040a8809b9d2f137c884ae32b809092ff8a1470a86cb1",
+  "apiImage": "sha256:a7b2cac73787f62205d36d79aed06296ccfe0a2a8a9fd388b11a5ee665c61752",
+  "backupDirectory": "/opt/runtime-os-docker-stage/evidence/session-recovery-20261019/deployment-before-1792400556",
+  "bodyRepair": {
+    "examined": 117,
+    "missing": 117,
+    "restored": 117
+  },
+  "persistentDataSource": "/opt/chatchat-1.0.0-SNAPSHOT/data",
+  "externalBodyReadsEnabled": true,
+  "unrelatedContainersUnchanged": true,
+  "productionSwitched": false
+}

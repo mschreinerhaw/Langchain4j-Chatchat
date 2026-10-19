@@ -167,6 +167,34 @@ class RocksDbChatMessageDetailStoreTest {
         }
     }
 
+    @Test
+    void restoresExternalBodyAfterLocalReferenceIsLostWithoutAcceptingAnotherMessage() throws Exception {
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        ChatDetailStoreProperties properties = new ChatDetailStoreProperties();
+        properties.setPath(tempDir.resolve("lost-reference").toString());
+        properties.getExternalText().setEnabled(true);
+        TestTextStore textStore = new TestTextStore(true);
+        RocksDbChatMessageDetailStore store = new RocksDbChatMessageDetailStore(properties, mapper, textStore);
+        ChatMessageDetail detail = ChatMessageDetail.builder().messageId("m").sessionId("s").tenantId("t")
+            .role("assistant").content("persisted answer").createdAt(Instant.parse("2026-10-19T00:00:00Z")).build();
+        store.open();
+        String key = store.put(detail);
+        store.close();
+        try (org.rocksdb.Options options = new org.rocksdb.Options();
+             org.rocksdb.RocksDB db = org.rocksdb.RocksDB.open(options, properties.getPath())) {
+            db.delete(key.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
+        store.open();
+        try {
+            assertThat(store.get(key)).contains(detail);
+            assertThat(store.getAll(List.of(key))).containsEntry(key, detail);
+            detail.setTenantId("other-tenant");
+            assertThat(store.get(key)).isEmpty();
+            assertThat(store.getAll(List.of(key))).isEmpty();
+            assertThat(textStore.putCount).hasValue(1);
+        } finally { store.close(); }
+    }
+
     private static class TestTextStore implements ChatMessageTextStore {
 
         private final boolean enabled;

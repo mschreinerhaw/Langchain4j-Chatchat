@@ -1,0 +1,16 @@
+{
+  "waitedForExistingTaskToBecomeTerminal": true,
+  "task": {
+    "task_id": "43ccf3f4-f3a3-449f-b046-fff23f224b9a",
+    "session_id": "1792316974447-0e89f57cd99f8",
+    "canonical_state": "CANCELLED",
+    "status": "KILLED",
+    "execution_attempt_number": 1,
+    "update_time": "2026-10-19T09:44:17.727251+00:00"
+  },
+  "newContainerCreatedAfterTaskEnded": true,
+  "executionAttemptUnchanged": true,
+  "messages": 4,
+  "missingMessageCount": 0,
+  "bodySha256": "08eb55a85151ea8640cba50cf081af1a92653bc52c379af975ea6f1441f55e42"
+}

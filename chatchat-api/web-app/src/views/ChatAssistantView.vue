@@ -1,5 +1,9 @@
 ﻿<template>
   <div class="chat-view">
+    <section v-if="!historyDetailsLoading && selectedConversation?.missingMessageCount" class="history-detail-state history-detail-error" role="alert">
+      <strong>部分历史消息尚未恢复</strong>
+      <p>有 {{ selectedConversation.missingMessageCount }} 条消息正文暂不可用，以下保留已恢复的内容。可再次点击左侧会话重试。</p>
+    </section>
     <section v-if="historyDetailsLoading" class="history-detail-state" aria-live="polite">
       <span class="history-detail-spinner" aria-hidden="true"></span>
       <strong>正在加载历史会话</strong>
@@ -11,7 +15,7 @@
       <p>{{ historyDetailError }}。可以再次点击左侧会话重试。</p>
     </section>
 
-    <section v-else-if="!hasConversation" class="hero-panel">
+    <section v-else-if="!hasConversation && !selectedConversation?.missingMessageCount" class="hero-panel">
       <div
         class="hero-demo"
         role="img"

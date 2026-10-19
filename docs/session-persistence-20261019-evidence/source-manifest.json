@@ -1,0 +1,90 @@
+[
+  {
+    "path": "chatchat-api/src/main/java/com/chatchat/api/controller/chat/ConversationController.java",
+    "sha256": "950d7c5bb41ab8980bd37f9f5ce16cac4c3cccd6c10a15b42a45553995a1589f"
+  },
+  {
+    "path": "chatchat-api/src/test/java/com/chatchat/api/controller/chat/ConversationHistoryOwnerAliasTest.java",
+    "sha256": "c0dca4e70e43af45e5ef95b873b7175a41ce7fc4629367b4163dd88cbe506746"
+  },
+  {
+    "path": "chatchat-api/web-app/src/js/App.js",
+    "sha256": "1c68b4a97afb559543ccf4a21f802870360ec11f6c3c8194b76d0fd5d43dbf0a"
+  },
+  {
+    "path": "chatchat-api/web-app/src/js/App.test.js",
+    "sha256": "962e75e733ca1248ec84ce0a4efe99e42732c929b8e48baa94ab96d64c2e6de2"
+  },
+  {
+    "path": "chatchat-api/web-app/src/js/views/ChatAssistantView.js",
+    "sha256": "786f60034d6869796c1e627a0a6504ab30ea3b70241bc46352ad999336c82605"
+  },
+  {
+    "path": "chatchat-api/web-app/src/js/views/ChatAssistantView.restoration.test.js",
+    "sha256": "f3e50f6a9a3a79f4611622420525f16552d6471e4a9806769d2cbf96caab5bba"
+  },
+  {
+    "path": "chatchat-api/web-app/src/views/ChatAssistantView.vue",
+    "sha256": "ef571bbebd56aead7273c39322e9b5219a4a115b92fa6e19a44f1806fd2ef23c"
+  },
+  {
+    "path": "chatchat-chat/src/main/java/com/chatchat/chat/conversation/model/Conversation.java",
+    "sha256": "afc9ccf9c7a64313b84f4125da671574356440e4d47df978a6af0e54c20fa76a"
+  },
+  {
+    "path": "chatchat-chat/src/main/java/com/chatchat/chat/conversation/persistence/ChatSessionRepository.java",
+    "sha256": "fe6cf7ea3eb75bbc1c61f94ce8918d4dd27ddea4bc01785fbc0f6baa47582c69"
+  },
+  {
+    "path": "chatchat-chat/src/main/java/com/chatchat/chat/conversation/service/ConversationService.java",
+    "sha256": "b1fd5157d6e0f617961772a94210871fdcfc64358714b5816fae2c3b47cd69fa"
+  },
+  {
+    "path": "chatchat-chat/src/main/java/com/chatchat/chat/conversation/store/RocksDbChatMessageDetailStore.java",
+    "sha256": "cf2677894b3d5bd14cd28fe4913a26161b1358e1b0088d5452b49b65781ee133"
+  },
+  {
+    "path": "chatchat-chat/src/test/java/com/chatchat/chat/conversation/service/ConversationServiceHistorySummaryTest.java",
+    "sha256": "d0cc2821ca5714f68d85f30b126842482d90c9c0e9e445b5f03d6fdf4a70a475"
+  },
+  {
+    "path": "chatchat-chat/src/test/java/com/chatchat/chat/conversation/store/RocksDbChatMessageDetailStoreTest.java",
+    "sha256": "84c9addc67a131496884fb7716bb027fc7e2fb55587f94a9720be16b518e6ee0"
+  },
+  {
+    "path": "deploy/docker/application/README.md",
+    "sha256": "9575b7f0e8f5cb8b05fa826b155682f5769af3e678761517dd159d66021fe89d"
+  },
+  {
+    "path": "deploy/docker/application/compose.yaml",
+    "sha256": "e8ee7292f806913c439d6212ca6f873afaa11fd29c78ecddb7c8be6620549683"
+  },
+  {
+    "path": "deploy/docker/application/tests/test_application_deployment.py",
+    "sha256": "c254388ca9ddad9a346a792e2a9c564dd60456f2a5b19b5081885c7ad10ae4fc"
+  },
+  {
+    "path": "scripts/ChatHistoryBodyRecovery.java",
+    "sha256": "1f24279c53c62498f9129069cc4b2e25dcd320d02ff65fe11b6b6507af5cce0a"
+  },
+  {
+    "path": "scripts/deploy-session-persistence-stage.py",
+    "sha256": "876d63e0c55f32d990bba907de498f8a623941d4ee355eba12155cff326f5488"
+  },
+  {
+    "path": "scripts/migrate-container-conversation-history.py",
+    "sha256": "8f4bf50b10eded0bc7e3d5253addd272b3c887fb064583586fd0f8bba3dd876a"
+  },
+  {
+    "path": "scripts/prepare-conversation-body-recovery.py",
+    "sha256": "8d82674273d0225b8590ffe28f0100b1ae7663ee931ddc62b8614736c1747d97"
+  },
+  {
+    "path": "scripts/test-conversation-restoration-browser.mjs",
+    "sha256": "3b6dfaa28b2a15cece0d9c9efcaac04fea98195a8d0c59839eb3d3ebede3d523"
+  },
+  {
+    "path": "scripts/tests/test_conversation_body_recovery.py",
+    "sha256": "136fa3c334011e9ac8688097cd61a3be2dce5502f78a1027153416f8d996fe0f"
+  }
+]

@@ -1,0 +1,150 @@
+<template>
+  <details class="coding-monitor" @toggle="toggle" data-testid="coding-monitor">
+    <summary>Python 编程任务 · Cline <span>{{ tasks.length }} 个委派任务</span></summary>
+    <div v-if="expanded" class="monitor-body">
+      <header><strong>编程与执行监控</strong><button @click="refresh" :disabled="loading">刷新状态</button></header>
+      <p v-if="error" role="alert">{{ error }} · 已保留加载的历史记录</p>
+      <p v-if="!loading && !tasks.length">该运行暂无 Coding 委派记录。</p>
+      <label v-if="tasks.length">任务 <select v-model="selectedId"><option v-for="task in tasks" :key="task.taskId" :value="task.taskId">{{ task.taskId }}</option></select></label>
+      <template v-if="selected">
+        <h3>{{ selected.objective }}</h3>
+        <dl class="task-facts">
+          <div><dt>任务编号</dt><dd>{{ selected.taskId }}</dd></div>
+          <div><dt>尝试编号</dt><dd>{{ selected.attemptId }}</dd></div>
+          <div><dt>当前阶段</dt><dd aria-live="polite">{{ stageLabels[stage] || stage }}</dd></div>
+          <div><dt>服务端状态</dt><dd>{{ selected.outcome.status }}</dd></div>
+          <div><dt>结果校验</dt><dd>{{ selected.outcome.validationStatus || '未记录' }}</dd></div>
+          <div><dt>创建时间</dt><dd>{{ time(selected.outcome.createdAt) }}</dd></div>
+          <div><dt>运行时长</dt><dd>{{ elapsed }} 秒</dd></div>
+          <div><dt>失败 / 停止原因</dt><dd>{{ selected.outcome.reasonCode || selected.outcome.executionControl?.stopReason || '无' }}</dd></div>
+          <div><dt>代码修正次数</dt><dd>{{ Math.max(0, versions.length - 1) }}</dd></div>
+        </dl>
+        <button v-if="selected.canCancel" @click="cancel" :disabled="cancelling">{{ cancelling ? '取消请求中' : '取消任务' }}</button>
+        <button v-if="selected.canResume" @click="resume" :disabled="resuming">{{ resuming ? '核对中' : '核对并恢复' }}</button>
+        <p v-if="selected.outcome.summary">{{ selected.outcome.summary }}</p>
+        <h4>实际模型调用</h4>
+        <p>配置快照：{{ selected.configuration.model?.selectedModel || '历史任务未记录' }} · 任务内固定</p>
+        <div class="table-scroll"><table><thead><tr><th>调用</th><th>模型 / 供应商协议</th><th>开始 / 结束</th><th>状态</th><th>耗时 / Tokens</th></tr></thead>
+          <tbody><tr v-for="call in calls" :key="call.id"><td>{{ call.ordinal }}</td><td>{{ call.providerModel || call.selectedModel || '未记录实际身份' }} / {{ call.protocol || '未记录' }}</td><td>{{ time(call.startedAt) }}<br>{{ time(call.finishedAt) }}</td><td>{{ call.state === 'RUNNING' && selected.outcome.endedAt ? '未取得完成回执' : call.state }}</td><td>{{ call.durationMs ?? '—' }} ms · {{ call.usage?.inputTokens ?? '—' }} / {{ call.usage?.outputTokens ?? '—' }}</td></tr></tbody>
+        </table></div>
+        <h4>Skills 与权限</h4>
+        <p>已配置：{{ selected.configuration.configuredSkillIds?.join('、') || '无记录' }}</p>
+        <p>已加载：{{ loadedSkills }} · 方法状态：{{ selected.configuration.skills?.status || '未加载' }}</p>
+        <p>提示应用：{{ skillApplications }} 次；独立 Skill 工具执行：{{ skillExecutions }} 次</p>
+        <p>允许工具：{{ selected.allowedTools.join('、') }}</p>
+        <h4>代码工作区 · main.py</h4>
+        <p v-if="!versions.length">尚无完整代码版本。模型请求期间显示 CODING，返回完整工具参数后显示代码。</p>
+        <label v-if="versions.length">版本 <select v-model="selectedOperation"><option v-for="(version, index) in versions" :key="version.operationId" :value="version.operationId">v{{ index + 1 }} · {{ version.state }} · {{ time(version.generatedAt) }}</option></select></label>
+        <p v-if="version">SHA-256：{{ version.hash }} · {{ version.state }} · 校验 {{ version.validationStatus || '待回执' }} {{ version.outputStatus || '' }}</p>
+        <p v-if="codeError" role="alert">{{ codeError }} <button @click="loadCode">重读源码</button></p>
+        <nav v-if="code"><button @click="showDiff = false">完整源码</button><button @click="loadDiff" :disabled="!previousVersion">与上一版本对比</button></nav>
+        <p v-if="code?.redacted">源码中的凭据已脱敏；展示文本不用于执行或哈希计算。</p>
+        <PythonCodeDiff v-if="showDiff && code" :diff="diff" action="fix" request="与上一份提交源码对比" scope="Runtime 受控执行版本" />
+        <pre v-else-if="code" tabindex="0"><code>{{ code.content }}</code></pre>
+        <h4>持久化事件时间线 · {{ selectedEvents.length }} 条</h4>
+        <ol class="event-list"><li v-for="event in visibleEvents" :key="event.eventId"><time>{{ time(event.occurredAt) }}</time> <strong>#{{ event.sequence }} {{ event.payload?.type || event.type }}</strong><span>{{ event.payload?.stage || event.status }} · {{ event.summary }}</span><small>{{ event.payload?.source || '历史来源未记录' }} · {{ event.payload?.attemptId || '历史尝试未记录' }}</small><small>{{ event.operationId || event.payload?.proposedOperationId || event.eventId }}</small><span v-if="event.payload?.tool">工具：{{ event.payload.tool }} · {{ event.payload.status || '状态见后续事件' }}</span><details v-if="event.payload" class="event-payload"><summary>查看事件详情</summary><pre>{{ JSON.stringify(event.payload, null, 2) }}</pre></details></li></ol>
+        <button v-if="eventLimit < selectedEvents.length" @click="eventLimit += 100">展开更多历史事件</button>
+      </template>
+    </div>
+  </details>
+</template>
+
+<script setup lang="ts">
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import PythonCodeDiff from './PythonCodeDiff.vue';
+import { buildPythonLineDiff } from '../js/utils/pythonCodeDiff';
+import { cancelCodingTask, codingStage, codeVersions, fetchCodingCode, fetchCodingEvents, fetchCodingTasks,
+  mergeCodingEvents, modelCalls, resumeCodingTask, stageLabels, type CodingEvent, type CodingTask } from '../services/codingMonitor';
+
+const props = defineProps<{ runId: string }>();
+const expanded = ref(false), loading = ref(false), cancelling = ref(false), error = ref(''), codeError = ref('');
+const resuming = ref(false);
+const tasks = ref<CodingTask[]>([]), selectedId = ref(''), events = ref<Record<string, CodingEvent[]>>({});
+const selectedOperation = ref(''), code = ref<Record<string, any> | null>(null), previousCode = ref('');
+const showDiff = ref(false), eventLimit = ref(100), now = ref(Date.now());
+let timer: ReturnType<typeof setInterval> | undefined;
+let generation = 0;
+const selected = computed(() => tasks.value.find(task => task.taskId === selectedId.value));
+const selectedEvents = computed(() => events.value[selectedId.value] ?? []);
+const stage = computed(() => selected.value ? codingStage(selected.value, selectedEvents.value) : 'QUEUED');
+const versions = computed(() => codeVersions(selectedEvents.value));
+const version = computed(() => versions.value.find(item => item.operationId === selectedOperation.value));
+const previousVersion = computed(() => versions.value[versions.value.findIndex(item => item.operationId === selectedOperation.value) - 1]);
+const calls = computed(() => modelCalls(selectedEvents.value));
+const loadedSkills = computed(() => (selected.value?.configuration.skills?.skills ?? []).map((skill: any) => skill.name || skill.skillName || skill.skillId || skill.id).join('、') || '无');
+const skillApplications = computed(() => selectedEvents.value.filter(event => event.payload?.type === 'SKILLS_APPLIED').length);
+const skillExecutions = computed(() => selectedEvents.value.filter(event => event.payload?.type === 'SKILL_EXECUTED').length);
+const elapsed = computed(() => selected.value ? Math.max(0, Math.floor(((selected.value.outcome.endedAt ? Date.parse(selected.value.outcome.endedAt) : now.value) - Date.parse(selected.value.outcome.createdAt)) / 1000)) : 0);
+const visibleEvents = computed(() => selectedEvents.value.slice(-eventLimit.value));
+const diff = computed(() => buildPythonLineDiff(previousCode.value, code.value?.content ?? ''));
+const time = (value?: string) => value ? new Date(value).toLocaleString() : '—';
+async function refresh() {
+  if (loading.value || !expanded.value || !props.runId) return;
+  const run = props.runId, epoch = generation;
+  loading.value = true;
+  try {
+    const result = await fetchCodingTasks(run);
+    if (epoch !== generation) return;
+    tasks.value = result.tasks;
+    if (!tasks.value.some(task => task.taskId === selectedId.value)) selectedId.value = tasks.value[0]?.taskId ?? '';
+    for (const task of result.tasks) {
+      let cursor = (events.value[task.taskId] ?? []).at(-1)?.sequence ?? 0;
+      for (let page = 0; page < 64; page++) {
+        const result = await fetchCodingEvents(run, task.taskId, cursor);
+        if (epoch !== generation) return;
+        events.value[task.taskId] = mergeCodingEvents(events.value[task.taskId] ?? [], result.events);
+        if (!result.hasMore || result.nextSequence <= cursor) break;
+        cursor = result.nextSequence;
+      }
+    }
+    error.value = '';
+  } catch (failure: any) { if (epoch === generation) error.value = failure.message || '读取任务失败'; }
+  finally { if (epoch === generation) loading.value = false; }
+}
+async function loadCode() {
+  code.value = null; showDiff.value = false; codeError.value = '';
+  const run = props.runId, task = selectedId.value, operation = selectedOperation.value;
+  if (!run || !task || !operation) return;
+  try {
+    const result = await fetchCodingCode(run, task, operation);
+    if (run === props.runId && task === selectedId.value && operation === selectedOperation.value) code.value = result;
+  } catch (failure: any) { if (operation === selectedOperation.value) codeError.value = failure.message || '源码尚未归档'; }
+}
+async function loadDiff() {
+  const previous = previousVersion.value, operation = selectedOperation.value;
+  if (!previous) return;
+  try {
+    const result = await fetchCodingCode(props.runId, selectedId.value, previous.operationId);
+    if (operation === selectedOperation.value) { previousCode.value = result.content; showDiff.value = true; }
+  } catch (failure: any) { codeError.value = failure.message; }
+}
+async function cancel() {
+  if (!selected.value?.canCancel || cancelling.value) return;
+  cancelling.value = true;
+  try { await cancelCodingTask(props.runId, selectedId.value); await refresh(); }
+  catch (failure: any) { error.value = failure.message; }
+  finally { cancelling.value = false; }
+}
+async function resume() {
+  if (!selected.value?.canResume || resuming.value) return;
+  resuming.value = true;
+  try { await resumeCodingTask(props.runId, selectedId.value); await refresh(); }
+  catch (failure: any) { error.value = failure.message; }
+  finally { resuming.value = false; }
+}
+function toggle(event: Event) {
+  expanded.value = (event.target as HTMLDetailsElement).open;
+  clearInterval(timer);
+  if (expanded.value) { void refresh(); timer = setInterval(() => { now.value = Date.now(); void refresh(); }, 2500); }
+}
+watch(() => props.runId, () => { generation++; loading.value = false; tasks.value = []; events.value = {}; selectedId.value = ''; selectedOperation.value = ''; code.value = null; void refresh(); });
+watch(selectedId, () => { selectedOperation.value = ''; eventLimit.value = 100; code.value = null; });
+watch(versions, value => { if (!value.some(version => version.operationId === selectedOperation.value)) selectedOperation.value = value.at(-1)?.operationId ?? ''; });
+watch(selectedOperation, loadCode);
+onBeforeUnmount(() => { generation++; clearInterval(timer); });
+</script>
+
+<style scoped>
+.coding-monitor,.monitor-body{min-width:0}
+.coding-monitor{border:1px solid #dce5ef;border-radius:10px;margin:14px 0;background:#fff;color:#283950}.coding-monitor>summary{padding:14px;cursor:pointer;font-weight:650}.coding-monitor summary span{font-size:12px;color:#677b92;margin-left:12px}.monitor-body{padding:0 16px 16px}.monitor-body header,.monitor-body nav{display:flex;align-items:center;gap:12px;margin:10px 0}.monitor-body header button{margin-left:auto}.monitor-body h3{font-size:15px;line-height:1.6;overflow-wrap:anywhere}.monitor-body h4{margin:20px 0 9px;font-size:13px}.monitor-body button,.monitor-body select{border:1px solid #cad7e6;border-radius:5px;padding:6px 10px;background:#fff;color:inherit;max-width:100%;cursor:pointer}.monitor-body button:disabled{opacity:.5;cursor:default}.task-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.task-facts dt{font-size:11px;color:#718399}.task-facts dd{margin:4px 0;font-size:12px;overflow-wrap:anywhere}.monitor-body p{font-size:12px;line-height:1.6;overflow-wrap:anywhere}.monitor-body [role=alert]{color:#b42318}.monitor-body pre{max-height:480px;overflow:auto;background:#f4f7fb;border:1px solid #e0e7f0;padding:14px;font:12px/1.65 Consolas,monospace;white-space:pre}.table-scroll{overflow:auto}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px;text-align:left;border-bottom:1px solid #e3eaf3;overflow-wrap:anywhere}.event-list{max-height:430px;overflow:auto;padding:0;list-style:none}.event-list li{display:grid;gap:5px;padding:10px;border-bottom:1px solid #edf1f6;font-size:12px}.event-list time,.event-list small{font-size:11px;color:#708198;overflow-wrap:anywhere}
+</style>

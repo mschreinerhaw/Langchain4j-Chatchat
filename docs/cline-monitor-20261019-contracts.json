@@ -1,0 +1,76 @@
+{
+  "compatibility": {
+    "legacyContracts": "runtimeContext omitted/empty retains original canonical hash; 12-argument constructor retained",
+    "legacyEvents": "Original constructor and fields retained; payload additive",
+    "datasetLimit": "Existing 1..8 datasets, immutable manifest and chunk hashes preserved"
+  },
+  "configuration": {
+    "authority": "Existing Java parent model binding and SkillAnalysisContext; no worker model catalog or secrets",
+    "consistency": "TASK_SNAPSHOT; changed authorized model configuration requires a distinct task; JSON number normalization preserves replay",
+    "skills": "Configured identifiers, validated loaded methodology and actual prompt application/tool executions displayed separately"
+  },
+  "execution": {
+    "authority": "Java validates scope, operation binding, path main.py, 256 KiB size and exact SHA before existing Sandbox dispatch",
+    "sourceStorage": "Immutable private evidence, source fetched only on demand with tenant/owner checks; hashes/events contain no full source",
+    "completion": "Existing durable journal plus output contract and parent semantic admission; worker text cannot authorize completion",
+    "dispatchStage": "Existing CODE startIntent is RECOVERY_RECONCILED with stage EXECUTING (submitted/waiting for execution receipt), not a fabricated EXECUTION_STARTED confirmation. Verified stop proof advances RESULT_VALIDATING."
+  },
+  "phases": [
+    "QUEUED",
+    "CONTEXT_READY",
+    "CODING",
+    "CODE_READY",
+    "VALIDATING",
+    "EXECUTING",
+    "RESULT_VALIDATING",
+    "COMPLETED"
+  ],
+  "phaseCompatibility": "Monitor derives presentation phases from persisted native task/execution events without replacing existing durable task states. FAILED/CANCELLED remain authoritative terminals; DEADLINE_EXCEEDED stop/reason projects TIMED_OUT.",
+  "events": {
+    "identity": [
+      "eventId",
+      "taskId",
+      "sequence",
+      "occurredAt",
+      "type",
+      "status"
+    ],
+    "context": [
+      "payload.attemptId (task:fence-N)",
+      "payload.stage",
+      "payload.source",
+      "payload.modelCall",
+      "operationId/proposedOperationId/codeSha256"
+    ],
+    "ordering": "Durable sequence cursor, eventId deduplication, limit<=256, expired compacted cursors explicit",
+    "retention": "Existing bounded journal enlarged from 128 to 8192 events; no invented restoration of already-compacted legacy records"
+  },
+  "monitorApi": [
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/runtime/runs/{runId}/coding"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/runtime/runs/{runId}/coding/{taskId}/events?afterSequence={sequence}&limit={limit}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/runtime/runs/{runId}/coding/{taskId}/{operationId}/code"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent/runtime/runs/{runId}/coding/{taskId}/cancel"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent/runtime/runs/{runId}/coding/{taskId}/resume"
+    }
+  ],
+  "controls": "Owner/tenant and native state required. Resume reconciles original operation receipts/checkpoints; it is not new-budget retry. Unsafe retry is not exposed.",
+  "limitations": [
+    "Complete source submissions update live; provider partial tokens are not rendered as fake code drafts.",
+    "Unknown provider/executor outcomes retain reservations until stop/receipt evidence; no blind retry.",
+    "External cleanup deleted historical Sandbox directories; live isolation config restored, historical deleted files cannot be recreated from metadata."
+  ]
+}

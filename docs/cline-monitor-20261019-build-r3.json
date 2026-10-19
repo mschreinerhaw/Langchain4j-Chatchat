@@ -1,0 +1,18 @@
+{
+  "tag": "cline-monitor-20261019-r3",
+  "baseCommit": "b98330c6",
+  "archiveBytes": 576877056,
+  "archiveSha256": "086dc20868ae046fe2ccce4702f03505658cd7ecae1d85bc729124994b264e5a",
+  "jarSha256": "e08cccb303a028a3026e9f240e1ac5ae10e2caf270228797e61fccbaa3efc89f",
+  "localApiImage": "sha256:6b6e171d8c9b2aeedd0d1e688a5539214c53756b71ca0a8ca0710fd0978a1efd",
+  "archiveConfigIds": {
+    "runtime-os-api": "sha256:0977f853b3a5b94cb3fe83654ccfb09c6442489cc57b19cb873192c2345c66f4",
+    "runtime-os-coding-agent": "sha256:760f3356e11d7e93309b47234053ff2866acaa78a63a9d63ffadbadd053e4c0a"
+  },
+  "scope": "Final width and real startIntent stage fixes; unchanged Node image",
+  "productionSwitched": false,
+  "serverJarSha256": "e08cccb303a028a3026e9f240e1ac5ae10e2caf270228797e61fccbaa3efc89f",
+  "serverJarMatches": true,
+  "webReferencesChecked": 7,
+  "deploymentSecretFileCheck": "PASSED"
+}

@@ -26,6 +26,18 @@ import static org.assertj.core.api.Assertions.*;
 
 /** Real JDBC transactions and independent connections. No mocked store, CAS, lock or recovery. */
 class CodingTaskPersistenceTest {
+    @Test void codeSubmissionsAreImmutableHashCheckedAndScopedAcrossServiceRestarts() {
+        register("input:fixture");
+        String operation="cline-"+"a".repeat(64),source="print(42)";
+        var code=new com.chatchat.api.runtime.coding.cline.CodingCodeArtifactStore(evidence);
+        String hash=code.commit(contract("task",10),operation,source,null);
+        assertThat(code.commit(contract("task",10),operation,source,hash)).isEqualTo(hash);
+        var restarted=new com.chatchat.api.runtime.coding.cline.CodingCodeArtifactStore(store(new JdbcTemplate(dataSource)));
+        assertThat(restarted.find(scope,"task",operation).orElseThrow()).containsEntry("content",source).containsEntry("sha256",hash);
+        assertThat(restarted.find(scope("other","owner","run"),"task",operation)).isEmpty();
+        assertThatThrownBy(()->code.commit(contract("task",10),operation,source,"0".repeat(64))).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(()->code.commit(contract("task",10),operation,"different",null)).isInstanceOf(RuntimeException.class);
+    }
     @TempDir Path disk;
     DriverManagerDataSource dataSource;
     JdbcTemplate jdbc;
@@ -133,7 +145,7 @@ class CodingTaskPersistenceTest {
         code(()->service.saveSdkCheckpoint(scope,"sdk",lease,sdkBoundary("sdk",2)),EXECUTION_OUTCOME_UNKNOWN);
     }
 
-    @Test void latestCodeExecutionSurvivesProgressHistoryCompaction() {
+    @Test void latestCodeExecutionAndEarlyHistorySurviveDetailedProgress() {
         service.submit(contract("task", 10));
         var lease = claim("task", "worker");
         for (String id : List.of("z-earlier", "a-later")) {
@@ -145,7 +157,7 @@ class CodingTaskPersistenceTest {
                 "TOOL_STARTED", null, intent);
         var restarted = service(store(new JdbcTemplate(dataSource)));
         assertThat(restarted.startedCodeOperations(scope, "task")).containsExactly("z-earlier", "a-later");
-        code(() -> restarted.events(scope, "task", 0, 10), EVENT_CURSOR_EXPIRED);
+        assertThat(restarted.events(scope,"task",0,10)).hasSize(10);
     }
 
     @Test void workerProgressSurvivesReconnectWithoutGrantingExecutionAuthority() throws Exception {
@@ -179,6 +191,19 @@ class CodingTaskPersistenceTest {
         code(() -> restarted.recordWorkerProgress(scope, "task", lease, rev("task"), 2,
             "TOOL_STARTED", null, intent), INVALID_STATE_TRANSITION);
         assertThat(takeover.fencingToken()).isGreaterThan(lease.fencingToken());
+    }
+
+    @Test void structuredWorkerTelemetrySurvivesRestartAndDuplicateDelivery() {
+        service.submit(contract("task",10));var lease=claim("task","worker");
+        var payload=Map.<String,Object>of("type","CODE_READY","stage","CODE_READY","codeSha256",intent,
+            "proposedOperationId","cline-"+"a".repeat(64));
+        var saved=service.recordWorkerProgress(scope,"task",lease,rev("task"),1,"CODE_READY",null,intent,payload);
+        var restarted=service(store(new JdbcTemplate(dataSource)));
+        assertThat(restarted.events(scope,"task",0,256).get(2).payload()).containsAllEntriesOf(payload)
+            .containsEntry("attemptId","task:fence-1").containsEntry("source","CODING_WORKER");
+        assertThat(restarted.recordWorkerProgress(scope,"task",lease,0,1,"CODE_READY",null,intent,payload)).isEqualTo(saved);
+        assertThat(restarted.get(scope,"task").status()).isEqualTo(Status.RUNNING);
+        assertThat(restarted.startedCodeOperations(scope,"task")).isEmpty();
     }
 
     @Test void sameIdWithDifferentContractOrSharedBudgetLimitsIsRejected() {
@@ -394,6 +419,8 @@ class CodingTaskPersistenceTest {
         var reserved=service.reserve(scope,"task",lease,rev("task"),"op",intent,counters(1,"1"));
         assertThat(service.reserve(scope,"task",lease,0,"op",intent,counters(1,"1")).outcome()).isEqualTo(reserved.outcome());
         assertThat(service.startIntent(scope,"task",lease,rev("task"),"op","execution:one").dispatchIntentCreated()).isTrue();
+        var dispatchedEvents=service.events(scope,"task",0,256);
+        assertThat(dispatchedEvents.get(dispatchedEvents.size()-1).payload()).containsEntry("stage","EXECUTING");
         assertThat(service.startIntent(scope,"task",lease,0,"op","execution:one").dispatchIntentCreated()).isFalse();
         code(()->service.startIntent(scope,"task",lease,rev("task"),"op","execution:two"),EXECUTION_OUTCOME_UNKNOWN);
         code(()->service.reserve(scope,"task",lease,rev("task"),"op","b".repeat(64),counters(1,"1")),TASK_ID_CONFLICT);
@@ -437,10 +464,10 @@ class CodingTaskPersistenceTest {
         code(()->service.reconcileTerminalEvidence(scope,"task",lease,rev("task"),List.of("evidence:late")),INVALID_STATE_TRANSITION);
     }
 
-    @Test void eventCompactionIsExplicitAndTheLatestEventStillMatchesTheSnapshot() {
+    @Test void extendedHistoryRetainsEarlyEventsAndTheLatestEventStillMatchesTheSnapshot() {
         service.submit(contract("task",10));var lease=claim("task","worker");
         for(int index=0;index<130;index++)service.renew(scope,"task",lease,Duration.ofSeconds(10),rev("task"));
-        code(()->service.events(scope,"task",0,20),EVENT_CURSOR_EXPIRED);
+        assertThat(service.events(scope,"task",0,20)).hasSize(20);
         var snapshot=service.get(scope,"task");var events=service.events(scope,"task",snapshot.lastEventSequence()-128,256);
         assertThat(events).hasSize(128);assertThat(events.get(127).revision()).isEqualTo(snapshot.revision());
     }

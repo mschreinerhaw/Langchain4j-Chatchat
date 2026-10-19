@@ -1,0 +1,12 @@
+{
+  "status": "DELETED_TEST_MOUNTS_REPAIRED",
+  "services": [
+    "mcp",
+    "news",
+    "gateway"
+  ],
+  "sameMcpAndNewsImagesAndEffectiveEnvironment": true,
+  "unrelatedContainersUnchanged": true,
+  "productionSwitched": false,
+  "at": 1792373924.7809134
+}

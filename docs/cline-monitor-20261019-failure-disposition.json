@@ -1,0 +1,104 @@
+{
+  "scope": "Classification by tested contract, not a claim that every historical root cause has been repaired. Per-case assertions/messages are in backend-comparison.json.",
+  "groups": {
+    "Architecture, configuration and generated-schema expectations": {
+      "failures": 17,
+      "errors": 0,
+      "suites": [
+        "com.chatchat.agents.orchestration.AgentOrchestratorArchitectureTest",
+        "com.chatchat.agents.protocol.AgentModuleArchitectureTest",
+        "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeArchitectureTest",
+        "com.chatchat.agents.runtime.plan.RuntimePlanPackageArchitectureTest",
+        "com.chatchat.api.architecture.RuntimeOsArchitectureBoundaryTest",
+        "com.chatchat.api.config.DatasourceConfigurationSeparationTest",
+        "com.chatchat.api.contract.MaintainedAgentEnvironmentCoverageTest",
+        "com.chatchat.api.DatabaseSchemaGeneratorTest",
+        "com.chatchat.chat.interaction.service.handler.MaintainedAgentRuntimeScenarioCoverageTest",
+        "com.chatchat.mcpserver.config.DatasourceConfigurationSeparationTest",
+        "com.chatchat.mcpserver.DatabaseSchemaGeneratorTest"
+      ],
+      "baselineComparison": "Same failing cases on clean b98330c6 and current tree",
+      "disposition": "Retained as an explicit production acceptance blocker; no assertion weakening, access widening or unrelated framework rewrite in this change."
+    },
+    "Harness, planning, routing, workflow and evidence behavior": {
+      "failures": 94,
+      "errors": 43,
+      "suites": [
+        "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "com.chatchat.agents.orchestration.AgentPlannerTest",
+        "com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinatorTest",
+        "com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccessTest",
+        "com.chatchat.agents.orchestration.analysis.graph.HarnessToolRecoveryTest",
+        "com.chatchat.agents.orchestration.analysis.nodes.synthesis.FinalSynthesisNodeTest",
+        "com.chatchat.agents.orchestration.analysis.prompt.GovernedRecordFinalPromptBuilderTest",
+        "com.chatchat.agents.orchestration.answer.AgentAnswerFinalizerEvidenceAnswerTest",
+        "com.chatchat.agents.orchestration.RuntimeOsBusinessAnalysisGoldenTest",
+        "com.chatchat.agents.orchestration.tool.AgentToolArgumentResolverTest",
+        "com.chatchat.agents.orchestration.workflow.AgentWorkflowStateTrackerTest",
+        "com.chatchat.agents.runtime.analysis.workflow.ModelDirectedWorkflowIntegrationTest",
+        "com.chatchat.agents.runtime.execution.DefaultAgentRuntimeTest",
+        "com.chatchat.agents.runtime.tool.ToolRuntimeServiceTest",
+        "com.chatchat.chat.skills.runtime.AgentRuntimePolicyTest"
+      ],
+      "baselineComparison": "Same failing cases on clean b98330c6 and current tree",
+      "disposition": "Retained as an explicit production acceptance blocker; no assertion weakening, access widening or unrelated framework rewrite in this change."
+    },
+    "Controller/authorization integration initialization": {
+      "failures": 0,
+      "errors": 19,
+      "suites": [
+        "com.chatchat.api.agent.task.AgentTaskControllerTest",
+        "com.chatchat.api.AgentAuthorizationIsolationTest",
+        "com.chatchat.api.AgentRuntimeMonitoringTenantIntegrationTest",
+        "com.chatchat.api.ApiUserRoleScheduleMcpAuthorizationIntegrationTest"
+      ],
+      "baselineComparison": "Same failing cases on clean b98330c6 and current tree",
+      "disposition": "Retained as an explicit production acceptance blocker; no assertion weakening, access widening or unrelated framework rewrite in this change."
+    },
+    "Other UI/search/chat regressions": {
+      "failures": 6,
+      "errors": 2,
+      "suites": [
+        "com.chatchat.api.controller.chat.InteractionControllerTest",
+        "com.chatchat.api.controller.system.UiDisplayConfigControllerTest",
+        "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest",
+        "com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchDocumentIndexServiceTest"
+      ],
+      "baselineComparison": "Same failing cases on clean b98330c6 and current tree",
+      "disposition": "Retained as an explicit production acceptance blocker; no assertion weakening, access widening or unrelated framework rewrite in this change."
+    },
+    "Skills/domain persistence and policy fixtures": {
+      "failures": 3,
+      "errors": 0,
+      "suites": [
+        "com.chatchat.chat.analysis.profile.DomainAnalysisProfilePersistenceTest",
+        "com.chatchat.chat.analysis.profile.DomainAnalysisProfileServiceTest",
+        "com.chatchat.chat.skills.domain.artifact.DomainSkillArtifactStoreTest"
+      ],
+      "baselineComparison": "Same failing cases on clean b98330c6 and current tree",
+      "disposition": "Retained as an explicit production acceptance blocker; no assertion weakening, access widening or unrelated framework rewrite in this change."
+    },
+    "MCP publication, discovery and routing contracts": {
+      "failures": 10,
+      "errors": 0,
+      "suites": [
+        "com.chatchat.mcpserver.api.publication.ApiRequirementAnalysisMcpToolPublisherTest",
+        "com.chatchat.mcpserver.database.publication.DatabaseQueryMcpToolPublisherTest",
+        "com.chatchat.mcpserver.metadata.tool.MetadataGovernanceMcpToolPublisherTest",
+        "com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryDatabaseQueryTest",
+        "com.chatchat.mcpserver.ops.discovery.FinancialQueryRuntimeContractAcceptanceTest",
+        "com.chatchat.mcpserver.python.PythonMcpToolPublisherTest",
+        "com.chatchat.mcpserver.routing.asset.AssetDiscoveryMcpToolPublisherTest",
+        "com.chatchat.mcpserver.search.query.DiscoveryQueryVariantsTest"
+      ],
+      "baselineComparison": "Same failing cases on clean b98330c6 and current tree",
+      "disposition": "Retained as an explicit production acceptance blocker; no assertion weakening, access widening or unrelated framework rewrite in this change."
+    }
+  },
+  "dockerGates": {
+    "tests": 31,
+    "failures": 10,
+    "newFailures": 0,
+    "disposition": "Preserve source-copy/privacy guards. Historical diagnostics and receipt-recovery expectations remain blockers; see docker-comparison.json."
+  }
+}

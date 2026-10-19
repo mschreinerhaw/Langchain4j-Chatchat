@@ -1,0 +1,52 @@
+Test scope: runtime-os-app-stage, http://192.168.195.221:18100
+Existing MCP/news/database services are retained. Production switching is not authorized.
+
+Local verification:
+  cd coding-agent-node && npm ci --ignore-scripts && npm test
+  docker build --build-arg BUILD_REVISION=<git-and-release-id> -t runtime-os-coding-agent:<tag> coding-agent-node
+  cd chatchat-api/web-app && npx vitest run src/services/codingMonitor.test.ts src/components/CodingTaskMonitor.test.ts src/js/views/TasksView.test.js
+  npm run build -- --outDir ../../target/cline-monitor-20261019/web
+  mvn -pl chatchat-api -am -Pbackend-only -Dfrontend.skip=true -Dcontainer.image=true -Dweb.static.directory=<absolute-built-web-directory> -DskipTests package
+  Verify the JAR using deploy/docker/application/verify-web-assets.ps1 and verify-image-secrets.ps1.
+  Copy the API JAR and deploy/docker/application/Dockerfile into a dedicated build context.
+  docker build -t runtime-os-api:<tag> <api-build-context>
+  docker save -o <archive.tar> runtime-os-api:<tag> runtime-os-coding-agent:<tag>
+
+Upload the archive and deployment script over the authorized SSH connection; compare SHA-256 locally and remotely.
+On the TEST server:
+  python3 /opt/runtime-os-docker-stage/evidence/cline-monitor-20261019/deploy-cline-monitor-stage.py /opt/runtime-os-docker-stage/images/<archive.tar> <sha256> <tag>
+  docker exec runtime-os-app-stage-coding-agent-1 node src/healthcheck.js
+  bash /opt/runtime-os-docker-stage/evidence/cline-monitor-20261019/restrict-coding-worker.sh
+  python3 /opt/runtime-os-docker-stage/evidence/cline-monitor-20261019/verify-cline-boundary-stage.py
+  docker logs --since 10m runtime-os-app-stage-coding-agent-1
+  docker logs --since 10m runtime-os-app-stage-api-1
+  curl -fsS --header "Authorization: Bearer $CHATCHAT_STAGE_TOKEN" http://127.0.0.1:18100/api/v1/health
+
+Rollback (use the exact backupEnv returned by deployment; no active test tasks):
+  python3 /opt/runtime-os-docker-stage/evidence/cline-monitor-20261019/deploy-cline-monitor-stage.py --rollback /opt/runtime-os-docker-stage/evidence/cline-monitor-20261019/deployment-before-<timestamp>.env
+
+Public monitoring API (normal authenticated workspace session; tenant and owner checked server-side):
+  GET  /api/v1/agent/runtime/runs/{runId}/coding
+  GET  /api/v1/agent/runtime/runs/{runId}/coding/{taskId}/events?afterSequence=0&limit=128
+  GET  /api/v1/agent/runtime/runs/{runId}/coding/{taskId}/{operationId}/code
+  POST /api/v1/agent/runtime/runs/{runId}/coding/{taskId}/cancel
+  POST /api/v1/agent/runtime/runs/{runId}/coding/{taskId}/resume
+Continue from nextSequence; deduplicate by eventId and sort by sequence. Pages are limited to 256.
+Legacy compacted journals return EVENT_CURSOR_EXPIRED; do not invent missing records.
+Task identity, fencing, cancellation and result admission still come from the existing durable journal.
+The monitor is in the existing task event details, expandable as Python Coding / Cline.
+Code is shown after a complete source submission, not as simulated token streaming.
+Skills APPLIED denotes methodology included in the model prompt, not a separately executed Skill tool.
+Retry is unavailable in the monitor: the existing Coding SPI exposes resume/reconcile, not a safe new-attempt retry grant.
+Reapply the exact worker firewall script and recheck its boundary after host/firewall/Docker changes. Image rollback retains this network restriction.
+Model-call failure without a provider stop receipt remains unknown and retains its budget reservation.
+The worker has no model keys, database connection, MCP access or Docker socket.
+
+Final deployed release: cline-monitor-20261019-r4. R2 was superseded without deployment; R3 real control acceptance remains valid for the identical non-web contents and unchanged Node image.
+Final rollback backup: /opt/runtime-os-docker-stage/evidence/cline-monitor-20261019/deployment-before-1792380084.env
+Wait for authenticated /api/v1/health after API restart; existing browser sessions may require login again.
+The native CODE startIntent uses RECOVERY_RECONCILED + stage EXECUTING; this is dispatch/waiting, not physical container start confirmation.
+
+Worker environment: RUNTIME_CODING_CALLBACK_URL, RUNTIME_CODING_ALLOWED_CALLBACK_HOSTS, RUNTIME_CODING_CALLBACK_TIMEOUT_MS (default 90000, max 300000), RUNTIME_CODING_LOG_LEVEL (info/warn/error/silent), RUNTIME_CODING_SHARED_SECRET_FILE, RUNTIME_CODING_HOST, RUNTIME_CODING_PORT, RUNTIME_CODING_BUILD.
+Model and Skills configuration source is the authenticated Java task snapshot and model callback; no worker provider-key/catalog environment is required.
+Final health/boundary and real browser including expanded python_execute metadata passed on R4.

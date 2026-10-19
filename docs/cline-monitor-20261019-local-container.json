@@ -1,0 +1,16 @@
+{
+  "scope": "Real locally built worker; no network; random test secret; Runtime callbacks not exercised by this health smoke",
+  "dockerHealth": "healthy",
+  "buildMetadata": {
+    "status": "UP",
+    "sdk": "@cline/agents@0.0.93",
+    "runtime": "v24.21.0",
+    "build": "b98330c6-cline-monitor-20261019"
+  },
+  "image": "sha256:e5bccf2aa923c0870db5471196b45650e34620655836164ea88e85fdc441e01c",
+  "user": "1000:1000",
+  "readOnly": true,
+  "network": "none",
+  "memoryBytes": 268435456,
+  "pidsLimit": 64
+}

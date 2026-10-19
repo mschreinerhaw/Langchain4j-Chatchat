@@ -21,6 +21,7 @@ export function createRuntimeModel(gateway, contract, initialOrdinal = 0) {
         operationId: `model-${++modelCallIndex}`,
         systemPrompt: request.systemPrompt ?? '', messages, tools,
       }, request.signal);
+      if (answer.modelInfo) yield { type: 'runtime-model-metadata', metadata: answer.modelInfo };
       if (answer.text) yield { type: 'text-delta', text: answer.text };
       for (const call of answer.toolCalls ?? []) {
         yield { type: 'tool-call-delta', toolCallId: call.id,

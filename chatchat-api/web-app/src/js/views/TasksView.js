@@ -33,6 +33,7 @@ import { notifyAgentTaskCancelled } from "../utils/agentTaskEvents";
 import { fetchGenericAgentRunTimeline } from "../../services/api";
 import { buildExplorationGraph } from "../utils/explorationGraph.js";
 const PlanDagGraph = defineAsyncComponent(() => import("../../components/PlanDagGraph.vue"));
+const CodingTaskMonitor = defineAsyncComponent(() => import("../../components/CodingTaskMonitor.vue"));
 
 const DEFAULT_RUNTIME_PAGE_SIZE = 10;
 const RUNTIME_REFRESH_INTERVAL_MS = 5000;
@@ -56,7 +57,8 @@ export default {
     ShieldX,
     TimerReset,
     XCircle,
-    PlanDagGraph
+    PlanDagGraph,
+    CodingTaskMonitor
   },
   props: {
     userId: {

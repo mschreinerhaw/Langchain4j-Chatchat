@@ -1,0 +1,27 @@
+{
+  "mode": "qa",
+  "scope": "Real published task API, configured provider and real Docker Sandbox",
+  "taskId": "40040881-a8e6-37e2-b83b-6dc31b1c9184",
+  "runId": "att-1-7a140432-1e1d-4eac-8914-771e7088e8b6",
+  "startedAt": 1792377009.3504663,
+  "productionSwitched": false,
+  "tasks": [],
+  "events": {},
+  "codeSubmissions": [],
+  "nodeRestarted": false,
+  "cancelRequested": false,
+  "parent": {
+    "status": "SUCCESS",
+    "canonicalState": "SUCCEEDED",
+    "terminal": true,
+    "answerAvailable": true,
+    "attemptNumber": 1
+  },
+  "hasActualModelTelemetry": false,
+  "hasCodeReadyEvent": false,
+  "hasArchivedCode": false,
+  "hasCompletedCoding": false,
+  "resultAdmitted": false,
+  "orderedUniqueEvents": true,
+  "status": "PASSED"
+}

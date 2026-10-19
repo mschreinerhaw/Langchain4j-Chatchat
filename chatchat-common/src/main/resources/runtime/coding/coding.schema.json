@@ -514,6 +514,35 @@
         },
         "outputContract": {
           "$ref": "#/$defs/outputContract"
+        },
+        "runtimeContext": {
+          "type": "object",
+          "maxProperties": 7,
+          "properties": {
+            "schemaVersion": {
+              "const": "runtime_os.coding.context.v1"
+            },
+            "consistency": {
+              "const": "TASK_SNAPSHOT"
+            },
+            "capturedAt": {
+              "type": "string"
+            },
+            "model": {
+              "type": "object"
+            },
+            "skills": {
+              "type": "object"
+            },
+            "configuredSkillIds": {
+              "type": "array",
+              "maxItems": 128,
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
         }
       },
       "required": [
@@ -1841,6 +1870,11 @@
           "minLength": 1,
           "maxLength": 4096,
           "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+        },
+        "payload": {
+          "type": "object",
+          "maxProperties": 32,
+          "description": "Bounded secret-free telemetry; source and model text are on-demand private artifacts."
         }
       },
       "required": [

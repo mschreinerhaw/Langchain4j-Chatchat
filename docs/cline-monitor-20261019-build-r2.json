@@ -1,0 +1,11 @@
+{
+  "tag": "cline-monitor-20261019-r2",
+  "scope": "Frontend width constraint only; unchanged Node image",
+  "archiveBytes": 576876544,
+  "archiveSha256": "467f672ad745212af1a802c99eecc903ed9f82032797ca9905d90a3943286a47",
+  "jarSha256": "606c33c5ca1b3c8029cee539bb1d68803ed95313dff086e89a0feff4d8ccb847",
+  "localApiImage": "sha256:9439609a51617b18b7b191117e86c5aa71f1d5cdf385c6ede53e260cb34e035d",
+  "remoteApiConfigId": "sha256:39ce42a1bcc09462564c0b043472c86c4f34be31c641c0176b6dcec400981f54",
+  "nodeConfigId": "sha256:760f3356e11d7e93309b47234053ff2866acaa78a63a9d63ffadbadd053e4c0a",
+  "status": "BUILT_UPLOADED_NOT_DEPLOYED_SUPERSEDED_BY_R3"
+}

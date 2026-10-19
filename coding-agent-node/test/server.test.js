@@ -13,6 +13,25 @@ const contract = {
   budget: { maxModelCalls: 1 },
 };
 
+test('Runtime callback timeout bounds stalled admission while expired tasks can still request cancellation', async () => {
+  let calls = 0;
+  const callback = createServer((request, response) => {
+    calls++;
+    if (request.url.endsWith('/cancel-python')) { response.writeHead(200, { 'content-type': 'application/json' }); response.end('{}'); }
+  });
+  await new Promise(resolve => callback.listen(0, '127.0.0.1', resolve));
+  try {
+    const gateway = httpGateway(`http://127.0.0.1:${callback.address().port}`, secret, {}, { timeoutMs: 100 });
+    await assert.rejects(gateway.reserveModel(contract, {}), /timeout|aborted/i);
+    const expired = { ...contract, budget: { deadlineAt: '2020-01-01T00:00:00Z' } };
+    const before = calls;
+    await assert.rejects(gateway.reserveModel(expired, {}), /deadline reached/);
+    assert.equal(calls, before);
+    await gateway.cancelPython(expired, 'existing-operation');
+    assert.equal(calls, before + 1);
+  } finally { callback.closeAllConnections(); await new Promise(resolve => callback.close(resolve)); }
+});
+
 test('Runtime callbacks carry a fresh authenticated request signature', async () => {
   let received;
   const callback = createServer(async (request, response) => {
@@ -63,9 +82,10 @@ test('Node HTTP boundary authenticates, dispatches once, and hides SDK session I
   });
   try {
     assert.equal((await fetch(`${url}/healthz`)).status, 401);
-    assert.deepEqual(await (await fetch(`${url}/healthz`, {
+    assert.equal((await (await fetch(`${url}/healthz`, {
       headers: { authorization: `Bearer ${secret}` },
-    })).json(), { status: 'UP' });
+    })).json()).status, 'UP');
+    assert.equal((await fetch(`${url}/readyz`, { headers: { authorization: `Bearer ${secret}` } })).status, 200);
     const request = { contract, contractHash: 'a'.repeat(64), fencingToken: 1 };
     const unsupported = await post('/v1/runs', { ...request,
       contract: { ...contract, schemaVersion: 'runtime_os.coding.v2' } });

@@ -9,8 +9,17 @@ import java.util.List;
 public record CodingTaskContract(String schemaVersion, String taskId, KernelDataScope scope,
     Objective objective, String inputSnapshotRef, List<String> metadataRefs, String workspaceRef,
     Authorization authorization, Budget budget, String environmentRef, String validationPlanRef,
-    OutputContract outputContract) {
+    OutputContract outputContract, java.util.Map<String, Object> runtimeContext) {
+    /** Legacy tasks retain their original canonical hash and transport semantics. */
+    public CodingTaskContract(String schemaVersion, String taskId, KernelDataScope scope,
+            Objective objective, String inputSnapshotRef, List<String> metadataRefs, String workspaceRef,
+            Authorization authorization, Budget budget, String environmentRef, String validationPlanRef,
+            OutputContract outputContract) {
+        this(schemaVersion, taskId, scope, objective, inputSnapshotRef, metadataRefs, workspaceRef,
+            authorization, budget, environmentRef, validationPlanRef, outputContract, java.util.Map.of());
+    }
     public CodingTaskContract {
+        runtimeContext = CodingRuntimeContext.validate(runtimeContext);
         CodingProtocol.version(schemaVersion); taskId = CodingProtocol.ref(taskId, "taskId");
         scope = CodingProtocol.scope(scope); CodingProtocol.required(objective, "objective");
         inputSnapshotRef = CodingProtocol.ref(inputSnapshotRef, "inputSnapshotRef");

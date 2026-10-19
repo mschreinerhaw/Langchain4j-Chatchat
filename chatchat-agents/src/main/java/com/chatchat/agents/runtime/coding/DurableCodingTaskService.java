@@ -22,7 +22,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     public static final String CHECKPOINT_KEY = "coding.tasks.v1";
     public static final String ENFORCEMENT_LIMITATION = "A2 enforces cumulative admission reservations only; "
         + "model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters.";
-    private static final int MAX_TASKS = 64, MAX_OPERATIONS = 256, EVENT_HISTORY = 128;
+    private static final int MAX_TASKS = 64, MAX_OPERATIONS = 256, EVENT_HISTORY = 8192;
     private final RuntimeExecutionCheckpointPort store;
     private final ObjectMapper json;
     private final Clock clock;
@@ -422,8 +422,16 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     public CodingTaskOutcome recordWorkerProgress(KernelDataScope scope, String taskId,
             CodingJournal.Lease lease, long expectedRevision, long sequence, String type,
             String operationId, String payloadHash) {
+        return recordWorkerProgress(scope, taskId, lease, expectedRevision, sequence, type, operationId,
+            payloadHash, Map.of());
+    }
+
+    public CodingTaskOutcome recordWorkerProgress(KernelDataScope scope, String taskId,
+            CodingJournal.Lease lease, long expectedRevision, long sequence, String type,
+            String operationId, String payloadHash, Map<String, Object> payload) {
         require(sequence > 0 && sequence <= 1024, CONTRACT_INVALID, "Worker event sequence is out of bounds");
-        require(Set.of("MODEL_STARTED", "MODEL_USAGE", "TOOL_STARTED", "TOOL_FINISHED").contains(type),
+        require(Set.of("MODEL_STARTED", "MODEL_USAGE", "MODEL_RESOLVED", "TOOL_STARTED", "TOOL_FINISHED",
+            "CODE_READY", "CONTEXT_READY", "SKILLS_LOADED", "SKILLS_APPLIED").contains(type),
             CONTRACT_INVALID, "Unknown worker progress type");
         require(payloadHash != null && payloadHash.matches("[0-9a-f]{64}"), CONTRACT_INVALID,
             "Worker event content hash is required");
@@ -443,6 +451,12 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             advance(task, RECOVERY_RECONCILED, null, "Worker observation: " + type,
                 operationId, List.of(), copy(task, task.outcome.status(), task.outcome.reasonCode(),
                     task.outcome.executionControl(), null));
+            int last = task.events.size() - 1;
+            var telemetry = new java.util.LinkedHashMap<String,Object>(task.events.get(last).payload());
+            telemetry.putAll(payload);
+            telemetry.put("attemptId",taskId+":fence-"+lease.fencingToken());
+            telemetry.put("source",payload.getOrDefault("source","CODING_WORKER"));
+            task.events.set(last, task.events.get(last).withPayload(telemetry));
         }).outcome;
     }
 
@@ -615,8 +629,23 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     }
     private static CodingExecutionEvent event(CodingJournal.Task task,CodingExecutionEvent.Type type,String operation,List<String> refs) {
         var out=task.outcome;
+        String phase = task.events.isEmpty() ? "QUEUED" : String.valueOf(
+            task.events.get(task.events.size()-1).payload().getOrDefault("stage","CONTEXT_READY"));
+        if(out.status().terminal()) phase = out.reasonCode()==CodingErrorCode.DEADLINE_EXCEEDED ? "TIMED_OUT" : out.status().name();
+        else if(type==CodingExecutionEvent.Type.TASK_STARTED) phase="CONTEXT_READY";
+        else if(type==CodingExecutionEvent.Type.EXECUTION_STARTED) phase=operation!=null&&operation.startsWith("model-")?"CODING":"EXECUTING";
+        else if(type==CodingExecutionEvent.Type.EXECUTION_FINISHED) phase=operation!=null&&operation.startsWith("model-")?"CODING":"RESULT_VALIDATING";
+        else if(type==CodingExecutionEvent.Type.CODE_COMMITTED||type==CodingExecutionEvent.Type.VALIDATION_RECORDED) phase="RESULT_VALIDATING";
+        else if(type==CodingExecutionEvent.Type.CANCELLATION_REQUESTED) phase="CANCELLING";
+        else if(operation!=null && task.operations.containsKey(operation)) {
+            var intent=task.operations.get(operation);
+            if(intent.startIntent && intent.kind==CodingJournal.OperationKind.MODEL) phase="CODING";
+            else if(intent.startIntent && intent.kind==CodingJournal.OperationKind.CODE)
+                phase=intent.stopProofRef==null ? "EXECUTING" : "RESULT_VALIDATING";
+        }
         return new CodingExecutionEvent(out.schemaVersion(),"coding:"+UUID.randomUUID(),out.taskId(),out.scope(),out.lastEventSequence(),out.revision(),
-            out.updatedAt(),type,operation,operation==null ? null : 1L,out.status(),out.reasonCode(),refs,out.usage(),out.summary());
+            out.updatedAt(),type,operation,operation==null ? null : 1L,out.status(),out.reasonCode(),refs,out.usage(),out.summary())
+            .withPayload(Map.of("attemptId",out.taskId()+":fence-"+task.lease.fencingToken(),"stage",phase,"source","JAVA_RUNTIME"));
     }
     private static Usage usage(CodingJournal.Task task) {
         Counters actual=CodingBudgetMath.zero(),reserved=CodingBudgetMath.zero(); boolean complete=true;

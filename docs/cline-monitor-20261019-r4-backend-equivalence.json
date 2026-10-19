@@ -1,0 +1,6 @@
+{
+  "scope": "All non-web application entries and recursively unpacked first-party library contents compared against R3 used for real cancel/restart. ZIP container timestamps differ; contained bytes compared independently.",
+  "entries": 3764,
+  "changedEntries": [],
+  "status": "IDENTICAL_NON_WEB_CONTENTS"
+}

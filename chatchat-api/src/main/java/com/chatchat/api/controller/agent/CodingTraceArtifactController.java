@@ -23,6 +23,9 @@ import java.util.Objects;
 public class CodingTraceArtifactController {
     private final AgentRuntime runtime;
     private final McpPythonControlPlanePort python;
+    private com.chatchat.api.runtime.coding.cline.CodingCodeArtifactStore codeArtifacts;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setCodeArtifacts(com.chatchat.api.runtime.coding.cline.CodingCodeArtifactStore value) { codeArtifacts = value; }
 
     @GetMapping("/runs/{runId}/coding/{taskId}/{operationId}/{kind}")
     public ApiResponse<?> artifact(@PathVariable("runId") String runId, @PathVariable("taskId") String taskId,
@@ -34,6 +37,18 @@ public class CodingTraceArtifactController {
                 || !Objects.equals(tenant, run.request().getTenantId())
                 || !Objects.equals(user, run.request().getUserId()))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if (codeArtifacts != null && "code".equals(kind) && operationId.matches("cline-[0-9a-f]{64}")) {
+            var scope = new com.chatchat.common.kernel.KernelDataScope(tenant.toString(),user.toString(),null,null,runId,null,Map.of());
+            var submitted = codeArtifacts.find(scope,taskId,operationId);
+            if (submitted.isPresent()) {
+                var file = submitted.get();
+                String source = file.get("content").toString();
+                String safe = CodingArtifactRedactor.redact(source);
+                return ApiResponse.success(Map.of("kind","code","content",safe,"sha256",file.get("sha256"),
+                    "sourceBytes",file.get("sourceBytes"),"redacted",!source.equals(safe),"truncated",false,
+                    "version",operationId,"status","SUBMITTED_TO_RUNTIME"));
+            }
+        }
         boolean referenced = runtime.observations(runId).stream().map(item -> item.metadata()).anyMatch(meta ->
             "CODING_TRACE".equals(meta.get("eventKind")) && taskId.equals(meta.get("taskId"))
                 && operationId.equals(meta.get("stepId")));

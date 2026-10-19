@@ -1,0 +1,23 @@
+{
+  "attempts": [
+    {
+      "mode": "cancel",
+      "taskId": "b05f4d51-13b9-3a8d-acee-3d1f8e948b98",
+      "status": "FAILED_BEFORE_CODING",
+      "error": "QUERY_DSL_BUDGET_EXCEEDED: Estimated analyzer/field expansion exceeds budget {estimatedClauses=524}",
+      "codingTasksCreated": 0,
+      "cancelExercised": false,
+      "handling": "Preserve the existing DSL budget. Shorten the test request and submit a distinct controlled acceptance task; no automatic replay of this failed task."
+    },
+    {
+      "mode": "cancel",
+      "taskId": "48b13d9c-7c28-35b2-80f1-9cb02f927845",
+      "status": "CONTROL_NOT_TRIGGERED_TEST_HARNESS_DEFECT",
+      "parentStatus": "SUCCESS",
+      "codingStatus": "COMPLETED",
+      "cancelRequested": false,
+      "error": "Verifier waited for EXECUTION_STARTED; this durable adapter persists startIntent as RECOVERY_RECONCILED.",
+      "handling": "Select the submitted operation from CODE_READY and require its exact scoped Docker container to be running. Add Java dispatch/receipt phase metadata and monitor projection regression."
+    }
+  ]
+}

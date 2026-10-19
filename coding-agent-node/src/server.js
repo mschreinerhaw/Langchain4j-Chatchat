@@ -46,7 +46,9 @@ function boundRun(runs, value, allowNewerFence = false) {
       || allowNewerFence && value.fencingToken > run.fencingToken) ? run : null;
 }
 
-export function httpGateway(callbackUrl, secret, binding) {
+export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } = {}) {
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 300000)
+    throw new Error('Invalid Runtime callback timeout');
   const callback = async (action, payload, signal) => {
     const path = `/internal/coding/cline/${action}`;
     const timestamp = String(Math.floor(Date.now() / 1000));
@@ -55,11 +57,16 @@ export function httpGateway(callbackUrl, secret, binding) {
     const digest = createHash('sha256').update(bytes).digest('hex');
     const signature = createHmac('sha256', secret)
       .update(`v2\nPOST\n${path}\n${timestamp}\n${nonce}\n${digest}`).digest('hex');
+    const deadline = Date.parse(payload.contract?.budget?.deadlineAt ?? '');
+    const reconciliation = ['get-python', 'cancel-python', 'event', 'finish', 'settle-model'].includes(action);
+    const remaining = !reconciliation && Number.isFinite(deadline) ? Math.min(timeoutMs, deadline - Date.now()) : timeoutMs;
+    if (remaining <= 0) throw new Error('Runtime Coding deadline reached before callback dispatch');
+    const timeout = AbortSignal.timeout(remaining);
     const answer = await fetch(`${callbackUrl}${path}`, {
       method: 'POST', headers: { authorization: `Bearer ${secret}`, 'content-type': 'application/json',
         'x-chatchat-timestamp': timestamp, 'x-chatchat-nonce': nonce,
         'x-chatchat-signature': signature, 'x-chatchat-signature-version': '2' },
-      body: bytes, signal, redirect: 'error',
+      body: bytes, signal: signal ? AbortSignal.any([signal, timeout]) : timeout, redirect: 'error',
     });
     const data = await answer.json().catch(() => ({}));
     if (!answer.ok) throw new Error(data.message ?? `Runtime callback rejected ${action}: ${answer.status}`);
@@ -86,10 +93,13 @@ export function httpGateway(callbackUrl, secret, binding) {
 
 /** Node owns only transient SDK state; Runtime's A2 snapshot remains authoritative. */
 export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayFactory = httpGateway,
-  allowedCallbackHosts = ['127.0.0.1', 'localhost'], maxSessions = 256, sessionRetentionMs = 900000 }) {
+  allowedCallbackHosts = ['127.0.0.1', 'localhost'], maxSessions = 256, sessionRetentionMs = 900000,
+  callbackTimeoutMs = 90000 }) {
   if (!Number.isSafeInteger(maxSessions) || maxSessions < 1 || maxSessions > 4096
       || !Number.isSafeInteger(sessionRetentionMs) || sessionRetentionMs < 0)
     throw new Error('Invalid Coding session resource limits');
+  if (!Number.isSafeInteger(callbackTimeoutMs) || callbackTimeoutMs < 1 || callbackTimeoutMs > 300000)
+    throw new Error('Invalid Runtime callback timeout');
   if (typeof secret !== 'string' || secret.length < 32) throw new Error('A 32-character shared secret is required');
   let endpoint;
   try { endpoint = new URL(callbackUrl); }
@@ -98,6 +108,7 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
       || endpoint.search || endpoint.hash || !allowedCallbackHosts.includes(endpoint.hostname))
     throw new Error('Runtime callback URL must use an explicitly allowed internal host');
   const runs = new Map();
+  let draining = false;
   const server = createServer(async (request, reply) => {
     try {
       const authorization = request.headers.authorization ?? '';
@@ -105,8 +116,13 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
         return response(reply, 401, { message: 'Unauthorized' });
       const url = new URL(request.url ?? '/', 'http://localhost');
       if (request.method === 'GET' && url.pathname === '/healthz')
-        return response(reply, 200, { status: 'UP' });
+        return response(reply, 200, { status: 'UP', sdk: '@cline/agents@0.0.93',
+          runtime: process.version, build: process.env.RUNTIME_CODING_BUILD ?? 'development' });
+      if (request.method === 'GET' && url.pathname === '/readyz')
+        return response(reply, draining ? 503 : 200, { status: draining ? 'DRAINING' : 'READY',
+          activeSessions: [...runs.values()].filter(run => run.state === 'RUNNING').length });
       if (request.method === 'POST' && url.pathname === '/v1/runs') {
+        if (draining) return response(reply, 503, { code: 'WORKER_DRAINING' });
         const value = await body(request);
         if (value.contract?.schemaVersion !== 'runtime_os.coding.v1'
             && !(value.contract?.schemaVersion === 'runtime_os.coding.v3'
@@ -136,16 +152,17 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
           contract: value.contract, state: 'RUNNING', result: null, error: null, session: null };
         const binding = { scope: value.contract.scope, taskId: value.contract.taskId,
           contractHash: value.contractHash, fencingToken: value.fencingToken };
-        const gateway = gatewayFactory(callbackUrl, secret, binding);
+        const gateway = gatewayFactory(callbackUrl, secret, binding, { timeoutMs: callbackTimeoutMs });
         run.recoveryMode = value.checkpoint ? 'CHECKPOINT_RESTORED_NEW_SDK' : 'NEW_SDK';
         run.session = createCodingRun(value.contract, gateway, {
           model: modelFactory ? modelFactory(value.contract)
             : createRuntimeModel(gateway, value.contract, value.checkpoint?.modelOrdinal ?? 0),
           modelTokenReservation: value.modelTokenReservation, checkpoint: value.checkpoint,
           contractHash: value.contractHash,
+          attemptId: `${value.contract.taskId}:fence-${value.fencingToken}`,
         });
         runs.set(key, run);
-        void run.session.run().then(result => {
+        run.pending = run.session.run().then(result => {
           run.finishedAt = Date.now();
           run.result = result;
           run.error = result.error ?? null;
@@ -172,6 +189,17 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
       return response(reply, error.status ?? 500, { message: String(error.message ?? error).slice(0, 512) });
     }
   });
+  server.shutdown = async (graceMs = 10000) => {
+    draining = true;
+    for (const run of runs.values()) if (run.state === 'RUNNING') run.session.abort('Worker shutting down; reconcile Runtime checkpoint');
+    let timer;
+    try {
+      await Promise.race([Promise.allSettled([...runs.values()].map(run => run.pending)),
+        new Promise(resolve => { timer = setTimeout(resolve, graceMs); })]);
+    } finally { clearTimeout(timer); }
+    server.closeIdleConnections();
+    await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); });
+  };
   return server;
 }
 
@@ -191,5 +219,16 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const port = Number(process.env.RUNTIME_CODING_PORT ?? 8791);
   const allowedCallbackHosts = (process.env.RUNTIME_CODING_ALLOWED_CALLBACK_HOSTS ?? '127.0.0.1,localhost')
     .split(',').map(value => value.trim()).filter(Boolean);
-  createCodingServer({ secret, callbackUrl, allowedCallbackHosts }).listen(port, host);
+  const callbackTimeoutMs = Number(process.env.RUNTIME_CODING_CALLBACK_TIMEOUT_MS ?? 90000);
+  const level = process.env.RUNTIME_CODING_LOG_LEVEL ?? 'info';
+  if (!['silent', 'error', 'warn', 'info'].includes(level)) throw new Error('Invalid worker log level');
+  const log = event => { if (level === 'info') process.stdout.write(JSON.stringify({
+    timestamp: new Date().toISOString(), component: 'NODE_CLINE', event,
+    build: process.env.RUNTIME_CODING_BUILD ?? 'development', port }) + '\n'); };
+  const server = createCodingServer({ secret, callbackUrl, allowedCallbackHosts, callbackTimeoutMs });
+  server.listen(port, host, () => log('WORKER_READY'));
+  for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, () => {
+    log('WORKER_DRAINING');
+    void server.shutdown().then(() => log('WORKER_STOPPED')).catch(() => { process.exitCode = 1; });
+  });
 }

@@ -1,0 +1,136 @@
+{
+  "status": "TEST_DEPLOYMENT_ACCEPTED_WITH_HISTORICAL_TEST_BLOCKERS",
+  "baseCommit": "b98330c6",
+  "branch": "main",
+  "versionBranch": "1.0版本 -> 9d0c65896c1b9fafc985bf2669393a32bc6b770f",
+  "testUrl": "http://192.168.195.221:18100/#/w/zhice/tasks",
+  "deployment": "runtime-os-app-stage / cline-monitor-20261019-r4",
+  "productionSwitched": false,
+  "implementation": [
+    "Compatible effective model/Skills snapshots and authorized Java callbacks",
+    "Immutable exact source submission hash and private source evidence before Sandbox execution",
+    "Durable native/worker event metadata, sequence cursor and owner-scoped monitor API",
+    "Vue 3 TypeScript task monitor, source versions/diff and actual call metadata",
+    "Pinned Node 24.21.0 and SDK 0.0.93, authenticated readiness, bounded callbacks and graceful drain",
+    "Exact worker-only host firewall restrictions and recovered isolated mounts"
+  ],
+  "verification": {
+    "realModelComplete": "PASSED",
+    "knowledgeQaWithoutCoding": "PASSED",
+    "realCancel": "PASSED",
+    "realNodeRestartRecovery": "PASSED",
+    "realBrowserAndReconnect": "PASSED",
+    "localDockerBuildHealth": "PASSED",
+    "backendCleanBaseline": {
+      "tests": 4447,
+      "failures": 130,
+      "errors": 64,
+      "skipped": 21
+    },
+    "backendCleanCurrent": {
+      "tests": 4458,
+      "failures": 130,
+      "errors": 64,
+      "skipped": 21
+    },
+    "introducedBackendFailureIdentities": 0,
+    "latestFocusedProtocol": {
+      "tests": 103,
+      "failures": 0,
+      "errors": 0
+    },
+    "finalDispatchMetadata": {
+      "tests": 33,
+      "failures": 0,
+      "errors": 0
+    },
+    "nodeTests": {
+      "tests": 25,
+      "failures": 0
+    },
+    "frontendMonitorTests": {
+      "tests": 16,
+      "failures": 0
+    },
+    "existingUiArtifactTests": {
+      "tests": 290,
+      "failures": 0
+    },
+    "historicalDockerGates": {
+      "tests": 31,
+      "failures": 10,
+      "newFailures": 0
+    },
+    "realCancelDetails": {
+      "physicalSandbox": "Running before cancel; user 10001:10001, readOnly=true, network=none",
+      "parent": "CANCELLED",
+      "coding": "CANCELLED",
+      "codeSourceRetained": true,
+      "nativeExecutingPhaseObserved": true
+    },
+    "resultValidationSemantics": "Original Coding outcome validationStatus INCONCLUSIVE is preserved; output artifacts were registered and parent semantic review SUPPORTED with canonical SUCCEEDED. No status was rewritten to PASSED.",
+    "browserSessionRefresh": "API service restart invalidated the previous login session; real browser acceptance passed after a fresh login. No fabricated/anonymous bypass.",
+    "runtimePhaseEvidence": "R3 real cancellation observed QUEUED, CONTEXT_READY, CODING, CODE_READY, VALIDATING, EXECUTING, CANCELLING, RESULT_VALIDATING, CANCELLED from persisted events.",
+    "restartDetails": {
+      "mechanism": "SIGKILL and start the isolated Node while exact scoped Docker Sandbox is running; Java reconciles existing operation receipts and output admission.",
+      "codeExecutions": 1,
+      "codeSubmissions": 1,
+      "codeStartIntents": 1,
+      "parent": {
+        "status": "SUCCESS",
+        "canonicalState": "SUCCEEDED",
+        "terminal": true,
+        "answerAvailable": true,
+        "attemptNumber": 1
+      },
+      "resultAdmitted": true,
+      "orderedUniqueEvents": true,
+      "meteringComplete": false,
+      "unmeasuredBudgetPolicy": "Preserved original residual reservation; no forced zero or blind replay."
+    },
+    "testDependencyTypes": {
+      "node25": "Actual @cline/agents SDK and process recovery; deterministic model and simulated Runtime callbacks. Not real provider acceptance.",
+      "javaFocused": "Simulated provider/SPI dependencies with real JDBC journal persistence and process reconstruction as named in each suite.",
+      "docker31": "Real local Docker where gated; historical failures reproduced in clean baseline.",
+      "remoteFourScenarios": "Real official task API, configured provider, live isolated services and Docker Sandbox. QA correctly creates no Coding task.",
+      "browser": "Real authenticated deployed page and APIs; offline/reconnect uses browser network offline, no response mocking."
+    },
+    "remoteR4HealthAndBoundary": "PASSED",
+    "finalBrowserActualToolDetails": "PASSED",
+    "backendEquivalence": "R4 all non-web application entries and unpacked internal library contents equal R3, where real cancellation and Node crash recovery ran; Node image unchanged."
+  },
+  "evidence": {
+    "audit": "cline-monitor-20261019-audit.json",
+    "interfaces": "cline-monitor-20261019-contracts.json",
+    "sourceChanges": "cline-monitor-20261019-source-manifest.json",
+    "build": "cline-monitor-20261019-build-r4.json",
+    "deployment": "cline-monitor-20261019-deployment-r4.json",
+    "operations": "cline-monitor-20261019-operations.txt",
+    "failureClassification": "cline-monitor-20261019-failure-disposition.json",
+    "failedAcceptanceAttempts": "cline-monitor-20261019-acceptance-obstacles.json",
+    "realModel": {
+      "complete": "cline-monitor-20261019-real-model-complete.json",
+      "qa": "cline-monitor-20261019-real-model-qa.json",
+      "cancel": "cline-monitor-20261019-real-model-cancel.json",
+      "restart-node": "cline-monitor-20261019-real-model-restart-node.json"
+    },
+    "finalHealthBoundary": "cline-monitor-20261019-service-and-boundary-r4.json",
+    "browser": "cline-monitor-20261019-browser.json",
+    "backendEquivalence": "cline-monitor-20261019-r4-backend-equivalence.json"
+  },
+  "productionPrerequisites": [
+    "Resolve and rerun the historical full-backend and Docker acceptance blockers without weakening security assertions.",
+    "Provide durable installation/reapplication of the exact isolated worker firewall policy in the production host lifecycle.",
+    "Confirm bounded journal retention and receipt/unknown-usage recovery policy against production workloads.",
+    "Authorize a separate production rollout; no production switch performed."
+  ],
+  "limitations": [
+    "Code panel updates complete submitted source versions, not provider token fragments.",
+    "Skill APPLIED means methodology in the prompt; independently executed Skill tools are counted separately.",
+    "Monitor exposes safe receipt reconciliation, not unsupported new-budget retry.",
+    "External cleanup deleted old Sandbox files; recovered live config cannot restore historical file contents."
+  ],
+  "overallFullSuiteAccepted": false,
+  "rollbackBackup": "/opt/runtime-os-docker-stage/evidence/cline-monitor-20261019/deployment-before-1792380084.env",
+  "sourceState": "Local main has the implementation changes; no commit or push performed."
+}

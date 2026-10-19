@@ -13,6 +13,7 @@ import dev.langchain4j.data.message.*;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -55,13 +56,14 @@ public final class ClineRuntimeModelBridge {
         Objects.requireNonNull(contract);
         if (request == null || !request.isObject()) throw new IllegalArgumentException("Model request is required");
         String modelName = resources.defaultChatModel();
+        Map<?,?> effectiveModel = contract.runtimeContext().get("model") instanceof Map<?,?> snapshot ? snapshot : Map.of();
+        if (effectiveModel.get("selectedModel") instanceof String selected && !selected.isBlank()) modelName = selected;
         if(CodingWorkspaceService.supports(contract)) {
             if(workspace==null)throw new SecurityException("Workspace Coding profile is not enabled");
             String requested=(String)workspace.requireAuthorized(contract).get("modelName");
             if(requested!=null && !requested.isBlank())modelName=requested;
         }
         if (modelName == null || modelName.isBlank()) throw new IllegalStateException("Default server chat model is not configured");
-        resources.require(modelName);
         List<ChatMessage> messages = new ArrayList<>();
         String system = bounded(request.path("systemPrompt").asText(""), "system prompt");
         if (!system.isBlank()) messages.add(SystemMessage.from(system));
@@ -114,7 +116,9 @@ public final class ClineRuntimeModelBridge {
         var parent = parentModels == null ? null : parentModels.find(contract.scope(), contract.taskId());
         if (parent == null && contract.metadataRefs().contains(CodingParentModels.REQUIRED_REF))
             throw new IllegalStateException("Authorized tool model binding is unavailable; reconcile before dispatch");
+        if (parent == null) resources.require(modelName);
         int outputLimit = maxOutputTokens(contract);
+        Instant started = Instant.now();
         ChatResponse answer = (parent == null ? models.create(modelName, Duration.ofSeconds(90), outputLimit) : parent)
             .chat(ChatRequest.builder().messages(messages).toolSpecifications(tools)
                 .parameters(dev.langchain4j.model.chat.request.DefaultChatRequestParameters.builder().maxOutputTokens(outputLimit).build()).build());
@@ -137,6 +141,17 @@ public final class ClineRuntimeModelBridge {
         result.put("toolCalls", toolCalls);
         result.put("usage", usage);
         result.put("maxOutputTokens", outputLimit);
+        var modelInfo = new LinkedHashMap<String,Object>();
+        if (parent == null || effectiveModel.containsKey("selectedModel")) modelInfo.put("selectedModel", modelName);
+        for (String key : List.of("providerModel", "protocol"))
+            if (effectiveModel.get(key) instanceof String value) modelInfo.put(key, value);
+        if (answer.modelName() != null && !answer.modelName().isBlank())
+            modelInfo.put("providerModel", answer.modelName());
+        modelInfo.put("startedAt", started.toString());
+        modelInfo.put("finishedAt", Instant.now().toString());
+        modelInfo.put("durationMs", Duration.between(started, Instant.now()).toMillis());
+        modelInfo.put("maxOutputTokens", outputLimit);
+        result.put("modelInfo", modelInfo);
         if (answer.finishReason() != null) result.put("finishReason", answer.finishReason().name());
         if (answer.id() != null) result.put("requestId", answer.id());
         return result;

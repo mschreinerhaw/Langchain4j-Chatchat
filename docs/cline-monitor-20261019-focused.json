@@ -1,0 +1,282 @@
+{
+  "scope": "Clean source-only reports; mocks and real persistence unless explicitly Docker-gated. Real SDK and remote model evidence are separate. Historical Docker failures reproduced on baseline, not counted as passing. Latest protocol/config reruns supersede earlier metadata tests.",
+  "runs": {
+    "final-all-focused.log": {
+      "suites": [
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.common.runtime.coding.CodingCanonicalHashTest"
+        },
+        {
+          "tests": 58,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.common.runtime.coding.CodingContractsTest"
+        },
+        {
+          "tests": 38,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.common.runtime.coding.CodingJsonSchemaTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.common.runtime.coding.CodingRuntimeContextTest"
+        },
+        {
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.mcpserver.python.PythonManagedExecutionServiceTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.mcpserver.python.PythonManagedInternalAuthFilterTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.mcpserver.python.PythonOperationWorkspaceTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.controller.agent.CodingTaskMonitorControllerTest"
+        },
+        {
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.controller.agent.CodingTraceArtifactControllerTest"
+        },
+        {
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.datascience.sql.SqlGlotToolchainTest"
+        },
+        {
+          "tests": 14,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.cline.ClineCodingAdapterDispatchTest"
+        },
+        {
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.cline.ClineCodingAdapterRecoveryTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest"
+        },
+        {
+          "tests": 12,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.cline.ClinePythonCallbackControllerTest"
+        },
+        {
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.cline.ClineRuntimeModelBridgeTest"
+        },
+        {
+          "tests": 10,
+          "failures": 9,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest"
+        },
+        {
+          "tests": 3,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.cline.CodingEvidenceDockerIntegrationTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.cline.CodingWorkspaceNodeIntegrationTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.CodingConfigurationSnapshotTest"
+        },
+        {
+          "tests": 33,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.CodingTaskPersistenceTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.data.CodingChunkedSnapshotTest"
+        },
+        {
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.data.CodingDataSupplyServiceTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.data.CodingInputSnapshotServiceTest"
+        },
+        {
+          "tests": 10,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollectorTest"
+        }
+      ],
+      "totals": {
+        "tests": 246,
+        "failures": 10,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "final-protocol-regression.log": {
+      "suites": [
+        {
+          "tests": 38,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.common.runtime.coding.CodingJsonSchemaTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.common.runtime.coding.CodingRuntimeContextTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.controller.agent.CodingTaskMonitorControllerTest"
+        },
+        {
+          "tests": 14,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest"
+        },
+        {
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.cline.ClineRuntimeModelBridgeTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.CodingConfigurationSnapshotTest"
+        },
+        {
+          "tests": 33,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.CodingTaskPersistenceTest"
+        }
+      ],
+      "totals": {
+        "tests": 103,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "config-replay-regression.log": {
+      "suites": [
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "com.chatchat.api.runtime.coding.CodingConfigurationSnapshotTest"
+        }
+      ],
+      "totals": {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "dispatch-stage-regression.log": {
+      "totals": {
+        "tests": 33,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "scope": "Final native dispatch intent EXECUTING metadata and persistent lifecycle regression"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "tag": "cline-monitor-20261019",
+  "baseCommit": "b98330c6",
+  "archiveBytes": 576877056,
+  "archiveSha256": "cea17b9f5a165c0df6664c08e15d491060b5bc63e34883658b72f915357c1206",
+  "images": {
+    "api": {
+      "imageId": "sha256:4c61d041eab1d95a38625ebb67563f83202832379cc261496ff2a46dc2972bff",
+      "architecture": "amd64",
+      "os": "linux",
+      "archiveConfigId": "sha256:b16d14dc94793db3d53f7b2c9374113fa5f4b988bbd681645904a9c29996f16e"
+    },
+    "coding-agent": {
+      "imageId": "sha256:e5bccf2aa923c0870db5471196b45650e34620655836164ea88e85fdc441e01c",
+      "architecture": "amd64",
+      "os": "linux",
+      "archiveConfigId": "sha256:760f3356e11d7e93309b47234053ff2866acaa78a63a9d63ffadbadd053e4c0a"
+    }
+  },
+  "jarSha256": "ab1177f7bebe96b1ca04ea9b17570b1306346bf0581c39c0c70f65cba0b630fa",
+  "checkedNormalizedConfigurationReplay": true,
+  "checkedNativeEventMetadata": true,
+  "checkedPackagedMonitorChunk": true,
+  "productionSwitched": false,
+  "imageIdentityNote": "Docker Desktop containerd reports content/manifest IDs; the target legacy image store reports archive configuration IDs. Verify archive configuration digests and application bytes."
+}

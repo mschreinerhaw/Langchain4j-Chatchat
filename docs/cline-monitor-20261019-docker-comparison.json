@@ -1,0 +1,243 @@
+{
+  "scope": "Clean source-only baseline b98330c6; real local Docker and real SDK; deterministic model and governed template source doubles. Maven failure.ignore is enabled to collect every gate.",
+  "baseline": {
+    "suites": [
+      {
+        "name": "com.chatchat.api.datascience.sql.SqlGlotToolchainTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "failedCases": []
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest",
+        "tests": 10,
+        "failures": 9,
+        "errors": 0,
+        "skipped": 0,
+        "failedCases": [
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest.sqlAnalysisValidatesWithSqlGlotAndExecutesOnlyInSandboxSqlite",
+            "type": "failure",
+            "message": "\nexpected: COMPLETED\n but was: FAILED"
+          },
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest.workerAndJavaComponentRestartRestoreSettledSdkBoundaryWithoutBudgetReset",
+            "type": "failure",
+            "message": "\nexpected: COMPLETED\n but was: FAILED"
+          },
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest.independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[1]",
+            "type": "failure",
+            "message": "Worker failed: {\"status\":\"FAILED\",\"contractHash\":\"59c944a78af294116c7f7db79e94ebd1f6804c01719734a0f5fded693669ed69\",\"fencingToken\":1,\"result\":{\"status\":\"failed\",\"text\":\"\",\"iterations\":2,\"usage\":{\"inputTokens\":20,\"outputTokens\":20,\"cacheReadTokens\":0,\"cacheWriteTokens\":0,\"reasoningTokenCount\":0,\"totalCost\":0},\"lastUsage\":{\"inputTokens\":20,\"outputTokens\":20,\"totalCost\":null},\"error\":\"Coding task state rejected callback: EXECUTION_OUTCOME_UNKNOWN\"},\"error\":\"Coding task state rejected callback: EXECUTION_OUTCOME_UNKNOWN\",\"recoveryMode\":\"NEW_SDK\"}; A2: CodingTaskOutcome[schemaVersion=runtime_os.coding.v3, taskId=clean, scope=KernelDataScope[tenantId=tenant, userId=owner, requestId=trace, conversationId=null, runId=run, environment=null, attributes={}], contractSha256=59c944a78af294116c7f7db79e94ebd1f6804c01719734a0f5fded693669ed69, status=RUNNING, revision=11, lastEventSequence=12, createdAt=2026-10-19T01:51:07.100Z, updatedAt=2026-10-19T01:51:07.266Z, startedAt=2026-10-19T01:51:07.129Z, endedAt=null, cancellationRequested=false, reasonCode=null, summary=Start intent committed; execution result is not yet known, limitations=[A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters.], inputS"
+          },
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest.independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[2]",
+            "type": "failure",
+            "message": "[CodingTaskOutcome[schemaVersion=runtime_os.coding.v3, taskId=type, scope=KernelDataScope[tenantId=tenant, userId=owner, requestId=trace, conversationId=null, runId=run, environment=null, attributes={}], contractSha256=681c3d4072b96f93937302e48662b5aadcbfd47a4a06c9cbe39cfdc4c5d2b1b5, status=FAILED, revision=40, lastEventSequence=41, createdAt=2026-10-19T01:51:09.116Z, updatedAt=2026-10-19T01:51:11.852Z, startedAt=2026-10-19T01:51:09.141Z, endedAt=2026-10-19T01:51:11.852Z, cancellationRequested=false, reasonCode=OUTPUT_CONTRACT_VIOLATION, summary=Source copy rejected; Runtime must revise the analytical objective and output contract, limitations=[No analytical dataset was admitted; raw source copies cannot be returned to the model, A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters., Required execution evidence was not produced], inputSnapshotRef=runtime-evidence:coding:input:fc768d55de651ffba312a1cf087ea387bcfac12fa1b3dd02587972623831f9dd, codeArtifactRef=runtime-evidence:coding:085de197342c6db9a2316c4ef9cb2c3fdaa98595c902163ae2fe6ddac915d404:code, executionReceiptRef=runtime-evidence:coding:085de197342c6db9a2316c4ef9cb2c3fdaa98595c902163ae2fe6ddac915d404:receipt, resultDatasetRef"
+          },
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest.independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[3]",
+            "type": "failure",
+            "message": "Worker failed: {\"status\":\"FAILED\",\"contractHash\":\"1767f923e24f056710ec4534eb5becb53c58811b4e09531f6830ee7c6e50ee3c\",\"fencingToken\":1,\"result\":{\"status\":\"failed\",\"text\":\"\",\"iterations\":2,\"usage\":{\"inputTokens\":20,\"outputTokens\":20,\"cacheReadTokens\":0,\"cacheWriteTokens\":0,\"reasoningTokenCount\":0,\"totalCost\":0},\"lastUsage\":{\"inputTokens\":20,\"outputTokens\":20,\"totalCost\":null},\"error\":\"Coding task state rejected callback: EXECUTION_OUTCOME_UNKNOWN\"},\"error\":\"Coding task state rejected callback: EXECUTION_OUTCOME_UNKNOWN\",\"recoveryMode\":\"NEW_SDK\"}; A2: CodingTaskOutcome[schemaVersion=runtime_os.coding.v3, taskId=missing, scope=KernelDataScope[tenantId=tenant, userId=owner, requestId=trace, conversationId=null, runId=run, environment=null, attributes={}], contractSha256=1767f923e24f056710ec4534eb5becb53c58811b4e09531f6830ee7c6e50ee3c, status=RUNNING, revision=11, lastEventSequence=12, createdAt=2026-10-19T01:51:12.562Z, updatedAt=2026-10-19T01:51:12.691Z, startedAt=2026-10-19T01:51:12.581Z, endedAt=null, cancellationRequested=false, reasonCode=null, summary=Start intent committed; execution result is not yet known, limitations=[A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters.], inpu"
+          },
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest.independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[4]",
+            "type": "failure",
+            "message": "Worker failed: {\"status\":\"FAILED\",\"contractHash\":\"9c63e2d1e9115fb737b3a94c84903fe4748fb8189faf02043d5b536eb0edb674\",\"fencingToken\":1,\"result\":{\"status\":\"failed\",\"text\":\"\",\"iterations\":4,\"usage\":{\"inputTokens\":60,\"outputTokens\":60,\"cacheReadTokens\":0,\"cacheWriteTokens\":0,\"reasoningTokenCount\":0,\"totalCost\":0},\"lastUsage\":{\"inputTokens\":20,\"outputTokens\":20,\"totalCost\":null},\"error\":\"Coding task state rejected callback: EXECUTION_OUTCOME_UNKNOWN\"},\"error\":\"Coding task state rejected callback: EXECUTION_OUTCOME_UNKNOWN\",\"recoveryMode\":\"NEW_SDK\"}; A2: CodingTaskOutcome[schemaVersion=runtime_os.coding.v3, taskId=duplicate, scope=KernelDataScope[tenantId=tenant, userId=owner, requestId=trace, conversationId=null, runId=run, environment=null, attributes={}], contractSha256=9c63e2d1e9115fb737b3a94c84903fe4748fb8189faf02043d5b536eb0edb674, status=RUNNING, revision=37, lastEventSequence=38, createdAt=2026-10-19T01:51:14.467Z, updatedAt=2026-10-19T01:51:15.925Z, startedAt=2026-10-19T01:51:14.490Z, endedAt=null, cancellationRequested=false, reasonCode=null, summary=Start intent committed; execution result is not yet known, limitations=[A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters.], in"
+          },
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest.independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[5]",
+            "type": "failure",
+            "message": "[CodingTaskOutcome[schemaVersion=runtime_os.coding.v3, taskId=precision, scope=KernelDataScope[tenantId=tenant, userId=owner, requestId=trace, conversationId=null, runId=run, environment=null, attributes={}], contractSha256=8021ea9a6cab34b084bf7d0395f66651016bc8244f64fd000d75bc0be330d7fd, status=FAILED, revision=40, lastEventSequence=41, createdAt=2026-10-19T01:51:17.584Z, updatedAt=2026-10-19T01:51:20.027Z, startedAt=2026-10-19T01:51:17.595Z, endedAt=2026-10-19T01:51:20.027Z, cancellationRequested=false, reasonCode=OUTPUT_CONTRACT_VIOLATION, summary=Source copy rejected; Runtime must revise the analytical objective and output contract, limitations=[No analytical dataset was admitted; raw source copies cannot be returned to the model, A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters., Required execution evidence was not produced], inputSnapshotRef=runtime-evidence:coding:input:24907dc5dde395bd9b8a50d1a018713b7eb427963b380b8b6b09825b8df7d02e, codeArtifactRef=runtime-evidence:coding:c6cb41ea098526bb51e19926b4ad3afec738ed0fa5e1f3bc3ef61c5a4a55d358:code, executionReceiptRef=runtime-evidence:coding:c6cb41ea098526bb51e19926b4ad3afec738ed0fa5e1f3bc3ef61c5a4a55d358:receipt, resultDatas"
+          },
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest.independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[6]",
+            "type": "failure",
+            "message": "Worker failed: {\"status\":\"FAILED\",\"contractHash\":\"204fc00796a3d086820886a5f6d96be22c9dbcc09f6ccae886067b579d614a87\",\"fencingToken\":1,\"result\":{\"status\":\"failed\",\"text\":\"\",\"iterations\":2,\"usage\":{\"inputTokens\":20,\"outputTokens\":20,\"cacheReadTokens\":0,\"cacheWriteTokens\":0,\"reasoningTokenCount\":0,\"totalCost\":0},\"lastUsage\":{\"inputTokens\":20,\"outputTokens\":20,\"totalCost\":null},\"error\":\"Coding task state rejected callback: EXECUTION_OUTCOME_UNKNOWN\"},\"error\":\"Coding task state rejected callback: EXECUTION_OUTCOME_UNKNOWN\",\"recoveryMode\":\"NEW_SDK\"}; A2: CodingTaskOutcome[schemaVersion=runtime_os.coding.v3, taskId=return, scope=KernelDataScope[tenantId=tenant, userId=owner, requestId=trace, conversationId=null, runId=run, environment=null, attributes={}], contractSha256=204fc00796a3d086820886a5f6d96be22c9dbcc09f6ccae886067b579d614a87, status=RUNNING, revision=11, lastEventSequence=12, createdAt=2026-10-19T01:51:20.756Z, updatedAt=2026-10-19T01:51:20.892Z, startedAt=2026-10-19T01:51:20.778Z, endedAt=null, cancellationRequested=false, reasonCode=null, summary=Start intent committed; execution result is not yet known, limitations=[A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters.], input"
+          },
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest.independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[7]",
+            "type": "failure",
+            "message": "[CodingTaskOutcome[schemaVersion=runtime_os.coding.v3, taskId=combined, scope=KernelDataScope[tenantId=tenant, userId=owner, requestId=trace, conversationId=null, runId=run, environment=null, attributes={}], contractSha256=28d6839fa5cc0bcc923a360921b355a3b7c4cba693f4303c9ac7d65ca394db56, status=FAILED, revision=40, lastEventSequence=41, createdAt=2026-10-19T01:51:22.582Z, updatedAt=2026-10-19T01:51:25.118Z, startedAt=2026-10-19T01:51:22.596Z, endedAt=2026-10-19T01:51:25.118Z, cancellationRequested=false, reasonCode=OUTPUT_CONTRACT_VIOLATION, summary=Source copy rejected; Runtime must revise the analytical objective and output contract, limitations=[No analytical dataset was admitted; raw source copies cannot be returned to the model, A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters., Required execution evidence was not produced], inputSnapshotRef=runtime-evidence:coding:input:e664fc005dc0851f3ec77f9cc04865b3fa0d463e2ca51ab4dcf12452fdfa7378, codeArtifactRef=runtime-evidence:coding:d8acd52aa906bc27cdfd2f8c3c7a9489e701842e8fb1ee2472afb10b6bfac340:code, executionReceiptRef=runtime-evidence:coding:d8acd52aa906bc27cdfd2f8c3c7a9489e701842e8fb1ee2472afb10b6bfac340:receipt, resultDatase"
+          }
+        ]
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.cline.CodingEvidenceDockerIntegrationTest",
+        "tests": 3,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0,
+        "failedCases": [
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingEvidenceDockerIntegrationTest.fixedFinancialScriptsProduceGovernedEvidenceWithBudgetAndExecutionIdentity",
+            "type": "failure",
+            "message": "\nExpecting actual:\n  \"[Runtime: raw stderr omitted; observedBytes=146]\n  File \"/workspace/main.py\", line 1\nValueError:\n\"\nto contain:\n  \"ValueError: injected\" "
+          }
+        ]
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.cline.CodingWorkspaceNodeIntegrationTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "failedCases": []
+      },
+      {
+        "name": "com.chatchat.mcpserver.python.PythonManagedExecutionServiceTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "failedCases": []
+      },
+      {
+        "name": "com.chatchat.mcpserver.python.PythonManagedInternalAuthFilterTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "failedCases": []
+      },
+      {
+        "name": "com.chatchat.mcpserver.python.PythonOperationWorkspaceTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "failedCases": []
+      }
+    ],
+    "totals": {
+      "tests": 31,
+      "failures": 10,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "current": {
+    "suites": [
+      {
+        "name": "com.chatchat.api.datascience.sql.SqlGlotToolchainTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "failedCases": []
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest",
+        "tests": 10,
+        "failures": 9,
+        "errors": 0,
+        "skipped": 0,
+        "failedCases": [
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest.sqlAnalysisValidatesWithSqlGlotAndExecutesOnlyInSandboxSqlite",
+            "type": "failure",
+            "message": "\nexpected: COMPLETED\n but was: FAILED"
+          },
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest.workerAndJavaComponentRestartRestoreSettledSdkBoundaryWithoutBudgetReset",
+            "type": "failure",
+            "message": "\nexpected: COMPLETED\n but was: FAILED"
+          },
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest.independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[1]",
+            "type": "failure",
+            "message": "Worker failed: {\"status\":\"FAILED\",\"contractHash\":\"1e03d68febc33e204b003ab5ed5a3d6542e3d836655d49d8dae7a08deb536411\",\"fencingToken\":1,\"result\":{\"taskId\":\"clean\",\"attemptId\":\"clean:fence-1\",\"codeFiles\":[{\"fileName\":\"main.py\",\"sha256\":\"ac7211e75bf70dc89af57d1fe0bdceae690bdbf5da35722adfb83598a99043ec\",\"operationId\":\"cline-018ffa0716e1f11f2533dd1e1c5640a6383ccac2f1e891274cfdfda6dbc3bc41\",\"sourceBytes\":47,\"artifactRef\":\"/api/v1/agent/runtime/runs/run/coding/clean/cline-018ffa0716e1f11f2533dd1e1c5640a6383ccac2f1e891274cfdfda6dbc3bc41/code\"}],\"eventReferences\":[{\"sequence\":1,\"attemptId\":\"clean:fence-1\"},{\"sequence\":2,\"attemptId\":\"clean:fence-1\"},{\"sequence\":3,\"attemptId\":\"clean:fence-1\"},{\"sequence\":4,\"attemptId\":\"clean:fence-1\"}],\"status\":\"failed\",\"text\":\"\",\"iterations\":2,\"usage\":{\"inputTokens\":20,\"outputTokens\":20,\"cacheReadTokens\":0,\"cacheWriteTokens\":0,\"reasoningTokenCount\":0,\"totalCost\":0},\"lastUsage\":{\"inputTokens\":20,\"outputTokens\":20,\"totalCost\":null},\"error\":\"Coding task state rejected callback: EXECUTION_OUTCOME_UNKNOWN\"},\"error\":\"Coding task state rejected callback: EXECUTION_OUTCOME_UNKNOWN\",\"recoveryMode\":\"NEW_SDK\"}; A2: CodingTaskOutcome[schemaVersion=runtime_os.coding.v3, taskId=clean, scope=KernelDataScope[tenantId=tenant, userId=owner, requestId=trace, conversationId=nul"
+          },
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest.independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[2]",
+            "type": "failure",
+            "message": "[CodingTaskOutcome[schemaVersion=runtime_os.coding.v3, taskId=type, scope=KernelDataScope[tenantId=tenant, userId=owner, requestId=trace, conversationId=null, runId=run, environment=null, attributes={}], contractSha256=520f2b8dfc1eac9781a70a3856208f92e92d68a9444dabd7ee775451255540cc, status=FAILED, revision=42, lastEventSequence=43, createdAt=2026-10-19T01:50:59.014Z, updatedAt=2026-10-19T01:51:02.034Z, startedAt=2026-10-19T01:50:59.032Z, endedAt=2026-10-19T01:51:02.034Z, cancellationRequested=false, reasonCode=OUTPUT_CONTRACT_VIOLATION, summary=Source copy rejected; Runtime must revise the analytical objective and output contract, limitations=[No analytical dataset was admitted; raw source copies cannot be returned to the model, A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters., Required execution evidence was not produced], inputSnapshotRef=runtime-evidence:coding:input:fc768d55de651ffba312a1cf087ea387bcfac12fa1b3dd02587972623831f9dd, codeArtifactRef=runtime-evidence:coding:085de197342c6db9a2316c4ef9cb2c3fdaa98595c902163ae2fe6ddac915d404:code, executionReceiptRef=runtime-evidence:coding:085de197342c6db9a2316c4ef9cb2c3fdaa98595c902163ae2fe6ddac915d404:receipt, resultDatasetRef"
+          },
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest.independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[3]",
+            "type": "failure",
+            "message": "Worker failed: {\"status\":\"FAILED\",\"contractHash\":\"f6d8f930ee19a27c4c141a7b8363135f7e98960eb0e1c717da88029168454ff5\",\"fencingToken\":1,\"result\":{\"taskId\":\"missing\",\"attemptId\":\"missing:fence-1\",\"codeFiles\":[{\"fileName\":\"main.py\",\"sha256\":\"ac7211e75bf70dc89af57d1fe0bdceae690bdbf5da35722adfb83598a99043ec\",\"operationId\":\"cline-1d781c033e7b00da37c822aea9a3c502d0a638cde65eccea9067418e95888113\",\"sourceBytes\":47,\"artifactRef\":\"/api/v1/agent/runtime/runs/run/coding/missing/cline-1d781c033e7b00da37c822aea9a3c502d0a638cde65eccea9067418e95888113/code\"}],\"eventReferences\":[{\"sequence\":1,\"attemptId\":\"missing:fence-1\"},{\"sequence\":2,\"attemptId\":\"missing:fence-1\"},{\"sequence\":3,\"attemptId\":\"missing:fence-1\"},{\"sequence\":4,\"attemptId\":\"missing:fence-1\"}],\"status\":\"failed\",\"text\":\"\",\"iterations\":2,\"usage\":{\"inputTokens\":20,\"outputTokens\":20,\"cacheReadTokens\":0,\"cacheWriteTokens\":0,\"reasoningTokenCount\":0,\"totalCost\":0},\"lastUsage\":{\"inputTokens\":20,\"outputTokens\":20,\"totalCost\":null},\"error\":\"Coding task state rejected callback: EXECUTION_OUTCOME_UNKNOWN\"},\"error\":\"Coding task state rejected callback: EXECUTION_OUTCOME_UNKNOWN\",\"recoveryMode\":\"NEW_SDK\"}; A2: CodingTaskOutcome[schemaVersion=runtime_os.coding.v3, taskId=missing, scope=KernelDataScope[tenantId=tenant, userId=owner, requestId=trace, co"
+          },
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest.independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[4]",
+            "type": "failure",
+            "message": "[CodingTaskOutcome[schemaVersion=runtime_os.coding.v3, taskId=duplicate, scope=KernelDataScope[tenantId=tenant, userId=owner, requestId=trace, conversationId=null, runId=run, environment=null, attributes={}], contractSha256=3c8416a4a8188a73e2b92140a4cec296c949dcec64d817c7a75e995001a8ad7a, status=FAILED, revision=42, lastEventSequence=43, createdAt=2026-10-19T01:51:04.613Z, updatedAt=2026-10-19T01:51:07.298Z, startedAt=2026-10-19T01:51:04.625Z, endedAt=2026-10-19T01:51:07.298Z, cancellationRequested=false, reasonCode=OUTPUT_CONTRACT_VIOLATION, summary=Source copy rejected; Runtime must revise the analytical objective and output contract, limitations=[No analytical dataset was admitted; raw source copies cannot be returned to the model, A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters., Required execution evidence was not produced], inputSnapshotRef=runtime-evidence:coding:input:6a466c69810b140a201a256159e02be7f1177464feb5a6b4ff205d18d80a673b, codeArtifactRef=runtime-evidence:coding:42b8630ed40b97ee07db83bc89b38583f59cfabeb7a987ccc6c766b59ceeb016:code, executionReceiptRef=runtime-evidence:coding:42b8630ed40b97ee07db83bc89b38583f59cfabeb7a987ccc6c766b59ceeb016:receipt, resultDatas"
+          },
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest.independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[5]",
+            "type": "failure",
+            "message": "[CodingTaskOutcome[schemaVersion=runtime_os.coding.v3, taskId=precision, scope=KernelDataScope[tenantId=tenant, userId=owner, requestId=trace, conversationId=null, runId=run, environment=null, attributes={}], contractSha256=4256ff3f2dfc706dc7cc30fa274a61a9e8a6962ec999af70c07222e7e2ff360b, status=FAILED, revision=42, lastEventSequence=43, createdAt=2026-10-19T01:51:07.977Z, updatedAt=2026-10-19T01:51:10.669Z, startedAt=2026-10-19T01:51:07.993Z, endedAt=2026-10-19T01:51:10.669Z, cancellationRequested=false, reasonCode=OUTPUT_CONTRACT_VIOLATION, summary=Source copy rejected; Runtime must revise the analytical objective and output contract, limitations=[No analytical dataset was admitted; raw source copies cannot be returned to the model, A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters., Required execution evidence was not produced], inputSnapshotRef=runtime-evidence:coding:input:24907dc5dde395bd9b8a50d1a018713b7eb427963b380b8b6b09825b8df7d02e, codeArtifactRef=runtime-evidence:coding:c6cb41ea098526bb51e19926b4ad3afec738ed0fa5e1f3bc3ef61c5a4a55d358:code, executionReceiptRef=runtime-evidence:coding:c6cb41ea098526bb51e19926b4ad3afec738ed0fa5e1f3bc3ef61c5a4a55d358:receipt, resultDatas"
+          },
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest.independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[6]",
+            "type": "failure",
+            "message": "Worker failed: {\"status\":\"FAILED\",\"contractHash\":\"9a02d30956fc1e510a338022ce382945c1be659f0a0a81dbde3cc01cc2e2f95c\",\"fencingToken\":1,\"result\":{\"taskId\":\"return\",\"attemptId\":\"return:fence-1\",\"codeFiles\":[{\"fileName\":\"main.py\",\"sha256\":\"ac7211e75bf70dc89af57d1fe0bdceae690bdbf5da35722adfb83598a99043ec\",\"operationId\":\"cline-204bb65da20b18f798830d90fe8f169a989563eeff1143836490f447d17043dd\",\"sourceBytes\":47,\"artifactRef\":\"/api/v1/agent/runtime/runs/run/coding/return/cline-204bb65da20b18f798830d90fe8f169a989563eeff1143836490f447d17043dd/code\"}],\"eventReferences\":[{\"sequence\":1,\"attemptId\":\"return:fence-1\"},{\"sequence\":2,\"attemptId\":\"return:fence-1\"},{\"sequence\":3,\"attemptId\":\"return:fence-1\"},{\"sequence\":4,\"attemptId\":\"return:fence-1\"}],\"status\":\"failed\",\"text\":\"\",\"iterations\":2,\"usage\":{\"inputTokens\":20,\"outputTokens\":20,\"cacheReadTokens\":0,\"cacheWriteTokens\":0,\"reasoningTokenCount\":0,\"totalCost\":0},\"lastUsage\":{\"inputTokens\":20,\"outputTokens\":20,\"totalCost\":null},\"error\":\"Coding task state rejected callback: EXECUTION_OUTCOME_UNKNOWN\"},\"error\":\"Coding task state rejected callback: EXECUTION_OUTCOME_UNKNOWN\",\"recoveryMode\":\"NEW_SDK\"}; A2: CodingTaskOutcome[schemaVersion=runtime_os.coding.v3, taskId=return, scope=KernelDataScope[tenantId=tenant, userId=owner, requestId=trace, conversati"
+          },
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest.independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String)[7]",
+            "type": "failure",
+            "message": "Worker failed: {\"status\":\"FAILED\",\"contractHash\":\"8b868bbe9c733e6ed02e4ed3359337aaba0c62cf6226a0357245244e9072458e\",\"fencingToken\":1,\"result\":{\"taskId\":\"combined\",\"attemptId\":\"combined:fence-1\",\"codeFiles\":[{\"fileName\":\"main.py\",\"sha256\":\"ac7211e75bf70dc89af57d1fe0bdceae690bdbf5da35722adfb83598a99043ec\",\"operationId\":\"cline-b788947d1860eab11ebd514b2171093bdd3bdf77e3147246ecc4d455b5b9f8ca\",\"sourceBytes\":47,\"artifactRef\":\"/api/v1/agent/runtime/runs/run/coding/combined/cline-b788947d1860eab11ebd514b2171093bdd3bdf77e3147246ecc4d455b5b9f8ca/code\"}],\"eventReferences\":[{\"sequence\":1,\"attemptId\":\"combined:fence-1\"},{\"sequence\":2,\"attemptId\":\"combined:fence-1\"},{\"sequence\":3,\"attemptId\":\"combined:fence-1\"},{\"sequence\":4,\"attemptId\":\"combined:fence-1\"}],\"status\":\"failed\",\"text\":\"\",\"iterations\":2,\"usage\":{\"inputTokens\":20,\"outputTokens\":20,\"cacheReadTokens\":0,\"cacheWriteTokens\":0,\"reasoningTokenCount\":0,\"totalCost\":0},\"lastUsage\":{\"inputTokens\":20,\"outputTokens\":20,\"totalCost\":null},\"error\":\"Coding task state rejected callback: EXECUTION_OUTCOME_UNKNOWN\"},\"error\":\"Coding task state rejected callback: EXECUTION_OUTCOME_UNKNOWN\",\"recoveryMode\":\"NEW_SDK\"}; A2: CodingTaskOutcome[schemaVersion=runtime_os.coding.v3, taskId=combined, scope=KernelDataScope[tenantId=tenant, userId=owner, requestId=t"
+          }
+        ]
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.cline.CodingEvidenceDockerIntegrationTest",
+        "tests": 3,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0,
+        "failedCases": [
+          {
+            "test": "com.chatchat.api.runtime.coding.cline.CodingEvidenceDockerIntegrationTest.fixedFinancialScriptsProduceGovernedEvidenceWithBudgetAndExecutionIdentity",
+            "type": "failure",
+            "message": "\nExpecting actual:\n  \"[Runtime: raw stderr omitted; observedBytes=146]\n  File \"/workspace/main.py\", line 1\nValueError:\n\"\nto contain:\n  \"ValueError: injected\" "
+          }
+        ]
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.cline.CodingWorkspaceNodeIntegrationTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "failedCases": []
+      },
+      {
+        "name": "com.chatchat.mcpserver.python.PythonManagedExecutionServiceTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "failedCases": []
+      },
+      {
+        "name": "com.chatchat.mcpserver.python.PythonManagedInternalAuthFilterTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "failedCases": []
+      },
+      {
+        "name": "com.chatchat.mcpserver.python.PythonOperationWorkspaceTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "failedCases": []
+      }
+    ],
+    "totals": {
+      "tests": 31,
+      "failures": 10,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "newFailureIdentities": [],
+  "resolvedFailureIdentities": [],
+  "status": "FAILED_HISTORICAL_GATES",
+  "handling": "No historical failure is counted as passed. Preserve privacy and source-copy guards; old fixtures and reconciliation failures remain production blockers."
+}

@@ -212,9 +212,41 @@ public final class ClineModelCallbackController {
                 : type.startsWith("MODEL_") ? operationId("model-" + event.path("modelCall").asLong(-1)) : null;
             var snapshot = tasks.recordWorkerProgress(call.scope(), call.taskId(), call.lease(),
                 call.snapshot().revision(), event.path("sequence").asLong(), type, operation,
-                sha(event.toString()));
+                sha(event.toString()), workerPayload(event));
             return Map.of("authoritativeRevision", snapshot.revision());
         });
+    }
+
+    /** Only bounded telemetry fields are retained. Source, prompts and tool responses are private artifacts. */
+    private Map<String,Object> workerPayload(JsonNode event) {
+        var payload = new java.util.LinkedHashMap<String,Object>();
+        for (String key : List.of("type", "timestamp", "stage", "source", "attemptId", "tool", "status",
+                "codeSha256", "fileName", "proposedOperationId", "skillFingerprint", "selectedModel", "providerModel", "protocol", "startedAt", "finishedAt", "validationStatus", "outputStatus")) {
+            JsonNode value = event.path(key);
+            if (value.isTextual() && value.asText().length() <= 512) payload.put(key, value.asText());
+        }
+        for (String key : List.of("modelCall", "sourceBytes", "durationMs", "maxOutputTokens")) {
+            if (event.path(key).isIntegralNumber() && event.path(key).asLong() >= 0)
+                payload.put(key, event.path(key).asLong());
+        }
+        if (event.path("usage").isObject()) {
+            var usage = new java.util.LinkedHashMap<String,Object>();
+            for (String key : List.of("inputTokens", "outputTokens"))
+                if (event.path("usage").path(key).isIntegralNumber() && event.path("usage").path(key).asLong() >= 0)
+                    usage.put(key, event.path("usage").path(key).asLong());
+            payload.put("usage", usage);
+        }
+        payload.put("source","NODE_CLINE");
+        if (!payload.containsKey("stage")) {
+            String type=event.path("type").asText();
+            String tool=event.path("tool").asText();
+            payload.put("stage", "CODE_READY".equals(type)?"CODE_READY"
+                : Set.of("CONTEXT_READY","SKILLS_LOADED").contains(type)?"CONTEXT_READY"
+                : "TOOL_STARTED".equals(type)&&"python_execute".equals(tool)?"VALIDATING"
+                : "TOOL_STARTED".equals(type)&&"data_request".equals(tool)?"WAITING_CONTEXT"
+                : "TOOL_FINISHED".equals(type)&&"python_execute".equals(tool)?"RESULT_VALIDATING":"CODING");
+        }
+        return Map.copyOf(payload);
     }
 
     /** Only the independently verified MCP operation and immutable evidence may become authoritative. */

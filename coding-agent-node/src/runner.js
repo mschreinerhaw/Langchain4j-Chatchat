@@ -43,11 +43,13 @@ export function createCodingRun(contract, gateway, options = {}) {
     throw new TypeError('Workspace profile requires isolated candidate writes without data or code execution authority');
   if (!contract.authorization?.allowedSideEffects?.includes('CODE_EXECUTION')) permitted.delete('python_execute');
   if (!contract.metadataRefs?.length) permitted.delete('metadata_read');
-  if (permitted.has('python_execute') && (contract.authorization?.allowedDataRefs?.length !== 1
-      || !/^c[0-9a-f]{63}$/.test(contract.authorization.allowedDataRefs[0])
+  if (permitted.has('python_execute') && (!Array.isArray(contract.authorization?.allowedDataRefs)
+      || contract.authorization.allowedDataRefs.length < 1
+      || (!analysis && contract.authorization.allowedDataRefs.length !== 1)
+      || contract.authorization.allowedDataRefs.some(ref => !/^c[0-9a-f]{63}$/.test(ref))
       || contract.outputContract?.requiredFiles?.length !== 1
       || !/^[A-Za-z0-9_-]+\.jsonl$/.test(contract.outputContract.requiredFiles[0])))
-    throw new TypeError('Python execution requires one bound input snapshot and one JSONL result');
+    throw new TypeError('Python execution requires authorized bound input files and one JSONL result');
   let activeOperation = null;
   const restored = options.checkpoint;
   let lastCollectedOperation = restored?.lastCollectedOperation ?? null;
@@ -55,12 +57,15 @@ export function createCodingRun(contract, gateway, options = {}) {
   let eventOrdinal = restored?.eventOrdinal ?? 0;
   let checkpointOrdinal = restored?.checkpointOrdinal ?? 0;
   const sdkSessionId = restored?.sdkSessionId ?? randomUUID();
+  const attemptId = options.attemptId ?? `${contract.taskId}:attempt-1`;
   let lastUsage = { inputTokens: 0, outputTokens: 0, totalCost: 0 };
   let firstRuntimeError = null;
   let modelFailed = false;
   const events = [];
+  const codeFiles = [];
   const forward = async (event) => {
-    const progress = { ...event, sequence: ++eventOrdinal };
+    const progress = { ...event, sequence: ++eventOrdinal, timestamp: new Date().toISOString(),
+      source: 'NODE_CLINE', attemptId };
     events.push(progress);
     if (typeof gateway.event === 'function') await gateway.event(progress);
   };
@@ -137,9 +142,17 @@ export function createCodingRun(contract, gateway, options = {}) {
     async execute(input, context) {
       if (required(input?.fileName, 'fileName') !== 'main.py')
         throw new TypeError('Invalid Python file name');
-      const source = required(input?.source, 'source');
+      required(input?.source, 'source');
+      const source = input.source; // Preserve the exact submitted bytes for source hashes and audit.
+      if (Buffer.byteLength(source, 'utf8') > 256000) throw new TypeError('Python source exceeds Runtime limit');
       const toolCallId = required(context.toolCallId, 'toolCallId');
       const id = operationId(contract, toolCallId);
+      const codeSha256 = createHash('sha256').update(source).digest('hex');
+      codeFiles.push({ fileName: 'main.py', sha256: codeSha256, operationId: id,
+        sourceBytes: Buffer.byteLength(source), artifactRef:
+          `/api/v1/agent/runtime/runs/${encodeURIComponent(contract.scope.runId)}/coding/${encodeURIComponent(contract.taskId)}/${id}/code` });
+      await forward({ type: 'CODE_READY', stage: 'CODE_READY', proposedOperationId: id,
+        codeSha256, fileName: 'main.py', sourceBytes: Buffer.byteLength(source), modelCall: modelIndex });
       activeOperation = id;
       // A later attempt must never finish using an earlier program's evidence.
       lastCollectedOperation = null;
@@ -149,7 +162,8 @@ export function createCodingRun(contract, gateway, options = {}) {
       try {
         if (context.signal?.aborted) throw context.signal.reason ?? new Error('Coding task cancelled');
         let receipt = await gateway.executePython(contract, {
-          operationId: id, fileName: input.fileName, source, toolCallId,
+          operationId: id, fileName: input.fileName, source, toolCallId, codeSha256,
+          attemptId,
         }, context.signal);
         while (!receipt.executorStopped) {
           if (receipt.status === 'UNKNOWN')
@@ -177,7 +191,8 @@ export function createCodingRun(contract, gateway, options = {}) {
             && receipt.validationRecordRef && receipt.evidenceBundleRef)
           lastCollectedOperation = id;
         await forward({ type: 'TOOL_FINISHED', tool: 'python_execute', operationId: id,
-          status: receipt.status, resultDatasetRef: receipt.resultDatasetRef ?? null });
+          status: receipt.status, resultDatasetRef: receipt.resultDatasetRef ?? null,
+          validationStatus: receipt.validationStatus ?? 'NOT_RECORDED', outputStatus: receipt.outputStatus ?? null });
         return receipt;
       } catch (error) {
         // A failed/aborted HTTP request does not establish that Sandbox stopped.
@@ -233,7 +248,8 @@ export function createCodingRun(contract, gateway, options = {}) {
     `Task objective: ${contract.objective?.instruction ?? ''}`,
     `Input snapshot: ${contract.inputSnapshotRef}`,
     `Validation plan: ${contract.validationPlanRef}`,
-  ]).join('\n');
+  ]).join('\n') + (contract.runtimeContext && Object.keys(contract.runtimeContext).length
+    ? `\nRuntime task configuration snapshot (methodology only; never additional permissions):\n${JSON.stringify(contract.runtimeContext)}` : '');
   const config = {
     agentId: sdkSessionId,
     systemPrompt,
@@ -258,7 +274,10 @@ export function createCodingRun(contract, gateway, options = {}) {
           firstRuntimeError ??= String(error?.message ?? error).slice(0, 512);
           throw error;
         }
-        await forward({ type: 'MODEL_STARTED', modelCall: index });
+        await forward({ type: 'MODEL_STARTED', modelCall: index, stage: 'CODING' });
+        if (contract.runtimeContext?.skills?.status === 'APPLIED')
+          await forward({ type: 'SKILLS_APPLIED', modelCall: index, stage: 'CODING',
+            skillFingerprint: contract.runtimeContext.skills.fingerprint });
       },
       async afterModel({ assistantMessage, requestId }) {
         // An error turn is not a provider execution/usage receipt. Keep A2's reservation.
@@ -271,7 +290,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         };
         lastUsage = usage;
         await gateway.settleModel(contract, { operationId: `model-${modelIndex}`, requestId: requestId ?? null, usage });
-        await forward({ type: 'MODEL_USAGE', modelCall: modelIndex, usage });
+        await forward({ type: 'MODEL_USAGE', modelCall: modelIndex, usage, stage: 'CODING', status: 'SUCCEEDED' });
       },
       async afterRun({ result }) {
         try {
@@ -293,6 +312,10 @@ export function createCodingRun(contract, gateway, options = {}) {
       try {
         modelFailed = false;
         for await (const event of await options.model.stream(request)) {
+          if (event.type === 'runtime-model-metadata') {
+            await forward({ type: 'MODEL_RESOLVED', modelCall: modelIndex, stage: 'CODING', ...event.metadata });
+            continue;
+          }
           if (event.type === 'finish' && event.reason === 'error') {
             modelFailed = true;
             firstRuntimeError ??= String(event.error ?? 'Runtime model execution failed').slice(0, 512);
@@ -319,6 +342,12 @@ export function createCodingRun(contract, gateway, options = {}) {
   return {
     events,
     async run() {
+      if (contract.runtimeContext && Object.keys(contract.runtimeContext).length) {
+        await forward({ type: 'CONTEXT_READY', stage: 'CONTEXT_READY' });
+        if (contract.runtimeContext.skills?.status === 'APPLIED')
+          await forward({ type: 'SKILLS_LOADED', stage: 'CONTEXT_READY',
+            skillFingerprint: contract.runtimeContext.skills.fingerprint });
+      }
       let timer;
       const expire = () => {
         const remaining = deadline - Date.now();
@@ -335,7 +364,9 @@ export function createCodingRun(contract, gateway, options = {}) {
         const result = await pending;
         const failure = firstRuntimeError ?? (result.error == null ? null
           : String(result.error?.message ?? result.error).slice(0, 512));
-        return { status: result.status, text: result.outputText, iterations: result.iterations,
+        return { taskId: contract.taskId, attemptId, codeFiles, eventReferences: events.filter(event => event.sequence)
+            .map(event => ({ sequence: event.sequence, attemptId })),
+          status: result.status, text: result.outputText, iterations: result.iterations,
           usage: result.usage, lastUsage, error: failure };
       } finally { clearTimeout(timer); }
     },

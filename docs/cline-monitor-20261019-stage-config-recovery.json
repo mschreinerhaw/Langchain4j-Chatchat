@@ -1,0 +1,22 @@
+{
+  "scope": "Reconstructed only current isolated project configuration after external deletion; no live services recreated in this step",
+  "configurationSource": "docker inspect and effective mounted files from running containers",
+  "secretsPrinted": false,
+  "composeValidationExit": 0,
+  "services": [
+    "api",
+    "coding-agent",
+    "mcp",
+    "news",
+    "node-proxy",
+    "gateway"
+  ],
+  "imagesBefore": {
+    "API_IMAGE": "runtime-os-api:fa25869b-independent-coding-budget-20261018",
+    "NODE_IMAGE": "runtime-os-coding-agent:54e8a3ee-hostnic-runtime-replan-auth-20261018"
+  },
+  "externalNetworksPreserved": [
+    "coding",
+    "control"
+  ]
+}

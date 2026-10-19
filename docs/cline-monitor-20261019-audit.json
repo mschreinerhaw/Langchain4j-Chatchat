@@ -1,0 +1,94 @@
+{
+  "baseline": "b98330c6",
+  "branch": "main",
+  "workingTreeInitiallyClean": true,
+  "deploymentScope": "Isolated test services only, 192.168.195.221:18100",
+  "capabilities": [
+    {
+      "existing": "Harness model-native QA/DATA_ANALYSIS routing and independently budgeted Coding delegation",
+      "chain": "AnalysisCoverageCoordinator -> CodingAnalysisService -> ClineCodingAdapter -> POST /v1/runs",
+      "gap": "No immutable Coding model/Skills presentation snapshot",
+      "files": [
+        "CodingTaskContract.java",
+        "CodingAnalysisService.java",
+        "ClineRuntimeModelBridge.java"
+      ],
+      "validation": "Contract compatibility, configuration snapshot and authorized-model tests"
+    },
+    {
+      "existing": "Real @cline/agents 0.0.93 Coding loop with Java-only data/model/Python callbacks",
+      "chain": "runner.js -> signed callback -> ClinePythonCallbackController -> CodingPythonExecutionBridge -> MCP Python control plane",
+      "gap": "Explicit code receipt metadata and detailed lifecycle visibility",
+      "files": [
+        "runner.js",
+        "ClinePythonCallbackController.java"
+      ],
+      "validation": "Real SDK deterministic-model tests, Sandbox gates and real-model test deployment"
+    },
+    {
+      "existing": "Immutable manifests, chunk hashes, bounded data_request and 1..8 dataset selection",
+      "chain": "CodingInputSnapshotService / CodingDataSupplyService -> mounted authorized files",
+      "gap": "Preserve existing limits; no replacement transport needed",
+      "files": [],
+      "validation": "Snapshot, chunk, data supply and authorization regression"
+    },
+    {
+      "existing": "Durable journal, lease/fencing, budget reservations, private SDK checkpoints and independent result collector",
+      "chain": "DurableCodingTaskService -> JDBC journal / evidence store",
+      "gap": "Worker payload is hashed but discarded, only four worker event types accepted",
+      "files": [
+        "CodingExecutionEvent.java",
+        "DurableCodingTaskService.java",
+        "ClineModelCallbackController.java"
+      ],
+      "validation": "Legacy JSON, deduplication, paging, process reconstruction and cancellation tests"
+    },
+    {
+      "existing": "Vue 3 TasksView, authenticated task cancellation and on-demand protected code artifacts",
+      "chain": "TasksView -> task API / run timeline; CodingTraceArtifactController -> scoped Python artifacts",
+      "gap": "Coding trace panel removed in fa25869b; need integrated TypeScript monitor",
+      "files": [
+        "TasksView.vue",
+        "TasksView.js",
+        "CodingTaskMonitor.vue",
+        "codingMonitor.ts"
+      ],
+      "validation": "Vitest component/state tests, TypeScript check, Vite build and browser acceptance"
+    },
+    {
+      "existing": "Non-root Node Docker image and restricted worker/proxy network, read-only root filesystem",
+      "chain": "coding-agent-node/Dockerfile -> application compose -> isolated node-proxy",
+      "gap": "Readiness, graceful drain, image-local healthcheck and build identity",
+      "files": [
+        "Dockerfile",
+        "server.js",
+        "compose.yaml"
+      ],
+      "validation": "Local Docker build, health/readiness/drain tests, remote network boundary and restart recovery"
+    }
+  ],
+  "baselineValidation": {
+    "command": "mvn -pl chatchat-api -am -Pbackend-only -Dfrontend.skip=true -Dmaven.test.failure.ignore=true test",
+    "log": "target/cline-monitor-20261019/clean-baseline-backend.log",
+    "status": "COMPLETED_WITH_EXISTING_FAILURES",
+    "baseline": {
+      "tests": 4447,
+      "failures": 130,
+      "errors": 64,
+      "skipped": 21
+    },
+    "current": {
+      "tests": 4458,
+      "failures": 130,
+      "errors": 64,
+      "skipped": 21
+    },
+    "introducedFailureIdentities": 0,
+    "comparison": "cline-monitor-20261019-backend-comparison.json"
+  },
+  "knownPreviousAcceptance": {
+    "completeBackendPassed": false,
+    "originalBusinessAnalysisAdmitted": false,
+    "source": "independent-coding-budget-20261018-evidence/completion.json"
+  }
+}

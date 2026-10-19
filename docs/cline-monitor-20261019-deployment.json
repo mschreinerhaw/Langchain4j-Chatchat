@@ -1,0 +1,108 @@
+{
+  "status": "DEPLOYED_PENDING_ACCEPTANCE",
+  "testProject": "runtime-os-app-stage",
+  "backupEnv": "/opt/runtime-os-docker-stage/evidence/cline-monitor-20261019/deployment-before-1792375971.env",
+  "before": {
+    "runtime-os-app-stage-gateway-1": {
+      "containerId": "aaffecc559ddce1d5a9fdb64bf74fe1232ac94781e219298bea3d979da319188",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea"
+    },
+    "runtime-os-app-stage-mcp-1": {
+      "containerId": "a9e3903a80904491216007aee5678182b6663dc51040bb2f1b463b1746b30bf3",
+      "imageId": "sha256:f843db253f5c9f688c968de2bb14ee1a5e45b3a983b23a35d95ab20216236a69"
+    },
+    "runtime-os-app-stage-news-1": {
+      "containerId": "b4360eaa85666d43f0dd3762acd5fdd90518bbade7139957b34bb55c22f12423",
+      "imageId": "sha256:b7992a73b4acebdfe3b215cd173a1343c6a89dd98c21e79401068081a05c55c3"
+    },
+    "runtime-os-app-stage-node-proxy-1": {
+      "containerId": "ef9d96e0992f0346b7a2f693c4e234d53b78f8d95a95d8ee374ebce1deac42f6",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea"
+    },
+    "runtime-os-app-stage-api-1": {
+      "containerId": "ec5ff2c61d78691026a5c32b6da2190d618265238f621e5c530d8b922b980091",
+      "imageId": "sha256:eb06caf75ee0a658bc5d36e276bd90f9ab38eb534c65cd2092d0282f20accf70"
+    },
+    "runtime-os-app-stage-coding-agent-1": {
+      "containerId": "bdfa83d474d78c63d85deef1cff18752678bd38ea07ba30bebdf262a47cf9a27",
+      "imageId": "sha256:a3cf18023dab7ed8ee97c8bf47e1e307a7fe8b50d67fde847e6d40e4f14d7004"
+    },
+    "python-analysis-stage-20261017": {
+      "containerId": "435c64fa4e806b916e69ec07f66fa7a406d687ba5619e41e2133e318da1e6f64",
+      "imageId": "sha256:992c510c71b486dba9c1f02cf9008a15c0d978fe15b1c252d3e95820d02ac5b9"
+    },
+    "postgres": {
+      "containerId": "7973ac268874e433aafcc1f48bd02bf7320e0cad405eb9aa9ab15ac3a4e88c91",
+      "imageId": "sha256:662db3da228c2ea2649b3ae04db4b4479e85fea5979f6a917a7f6d5cb1e7ec39"
+    },
+    "opensearch-node": {
+      "containerId": "7f88eddff78018de371d041df49d3f70787378b27d2fdcb7d90d8bf3dbfb4464",
+      "imageId": "sha256:731779f1c50424e38335b0af191058642a4964a2b2c62175ebcc8d5734fee13a"
+    },
+    "zookeeper": {
+      "containerId": "177e1bc85d6c1165e5675ec8915fe0b8e89f22578b23498de8b1c8125e275a41",
+      "imageId": "sha256:36c607e7b14df07e3976ebe6216db9aabd41ef0884f73d4e6b5ccf5d44d9c195"
+    },
+    "redis": {
+      "containerId": "6fd55e0f7a35d6f9aa5e283ed3739c9cf3c35163e793292446f1a6609921d5f7",
+      "imageId": "sha256:7614ae9453d1d87e740a2056257a6de7135c84037c367e1fffa92ae922784631"
+    },
+    "dm8_01": {
+      "containerId": "3916eda796deaeb8b70526c09a12d4fc527597a215c01c4c3ab5bbf14a47afdf",
+      "imageId": "sha256:0880e3256f92003d9928d61b7e0525d7d9373a68ac3246ebaf563b45746f8e2c"
+    }
+  },
+  "after": {
+    "runtime-os-app-stage-gateway-1": {
+      "containerId": "5a127136915d82d1991d770a62468accd3f0d5b5aa6a6af6e0ed0e753d8c2506",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea"
+    },
+    "runtime-os-app-stage-node-proxy-1": {
+      "containerId": "f919d9c03c333f4974059b47c5bd27987273bede60dd5f4c4fc43d22cce3a487",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea"
+    },
+    "runtime-os-app-stage-api-1": {
+      "containerId": "9333a9b1f1237f06d14e8a3fb7bd77db4b61497174de9ae0b6ec770b5173a1aa",
+      "imageId": "sha256:b16d14dc94793db3d53f7b2c9374113fa5f4b988bbd681645904a9c29996f16e"
+    },
+    "runtime-os-app-stage-coding-agent-1": {
+      "containerId": "beda8f00d10f8b34b310e2b812537a1e44becf8dd0050705089857926d458ef0",
+      "imageId": "sha256:760f3356e11d7e93309b47234053ff2866acaa78a63a9d63ffadbadd053e4c0a"
+    },
+    "runtime-os-app-stage-mcp-1": {
+      "containerId": "a9e3903a80904491216007aee5678182b6663dc51040bb2f1b463b1746b30bf3",
+      "imageId": "sha256:f843db253f5c9f688c968de2bb14ee1a5e45b3a983b23a35d95ab20216236a69"
+    },
+    "runtime-os-app-stage-news-1": {
+      "containerId": "b4360eaa85666d43f0dd3762acd5fdd90518bbade7139957b34bb55c22f12423",
+      "imageId": "sha256:b7992a73b4acebdfe3b215cd173a1343c6a89dd98c21e79401068081a05c55c3"
+    },
+    "python-analysis-stage-20261017": {
+      "containerId": "435c64fa4e806b916e69ec07f66fa7a406d687ba5619e41e2133e318da1e6f64",
+      "imageId": "sha256:992c510c71b486dba9c1f02cf9008a15c0d978fe15b1c252d3e95820d02ac5b9"
+    },
+    "postgres": {
+      "containerId": "7973ac268874e433aafcc1f48bd02bf7320e0cad405eb9aa9ab15ac3a4e88c91",
+      "imageId": "sha256:662db3da228c2ea2649b3ae04db4b4479e85fea5979f6a917a7f6d5cb1e7ec39"
+    },
+    "opensearch-node": {
+      "containerId": "7f88eddff78018de371d041df49d3f70787378b27d2fdcb7d90d8bf3dbfb4464",
+      "imageId": "sha256:731779f1c50424e38335b0af191058642a4964a2b2c62175ebcc8d5734fee13a"
+    },
+    "zookeeper": {
+      "containerId": "177e1bc85d6c1165e5675ec8915fe0b8e89f22578b23498de8b1c8125e275a41",
+      "imageId": "sha256:36c607e7b14df07e3976ebe6216db9aabd41ef0884f73d4e6b5ccf5d44d9c195"
+    },
+    "redis": {
+      "containerId": "6fd55e0f7a35d6f9aa5e283ed3739c9cf3c35163e793292446f1a6609921d5f7",
+      "imageId": "sha256:7614ae9453d1d87e740a2056257a6de7135c84037c367e1fffa92ae922784631"
+    },
+    "dm8_01": {
+      "containerId": "3916eda796deaeb8b70526c09a12d4fc527597a215c01c4c3ab5bbf14a47afdf",
+      "imageId": "sha256:0880e3256f92003d9928d61b7e0525d7d9373a68ac3246ebaf563b45746f8e2c"
+    }
+  },
+  "repairedDeletedTestMounts": [],
+  "unrelatedContainersUnchanged": true,
+  "productionSwitched": false
+}

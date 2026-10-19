@@ -39,6 +39,9 @@ import org.springframework.web.server.ResponseStatusException;
 @ConditionalOnProperty(prefix = "chatchat.coding.cline", name = "enabled", havingValue = "true")
 @ConditionalOnProperty(prefix = "chatchat.coding", name = "enabled", havingValue = "true")
 public final class ClinePythonCallbackController {
+    private CodingCodeArtifactStore codeArtifacts;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setCodeArtifacts(CodingCodeArtifactStore value) { codeArtifacts = value; }
     private static final Logger LOG = LoggerFactory.getLogger(ClinePythonCallbackController.class);
     private static final String CODE_FILE = "main.py";
     private final CodingInvocationContext identity;
@@ -70,6 +73,11 @@ public final class ClinePythonCallbackController {
             String source = request.path("source").asText("");
             if (source.isBlank() || source.getBytes(StandardCharsets.UTF_8).length > 256_000)
                 throw new IllegalArgumentException("Python source exceeds the D1 limit");
+            if (request.path("codeSha256").isTextual() && !sha(source).equals(request.path("codeSha256").asText()))
+                throw new IllegalArgumentException("Python source hash mismatch");
+            // Freeze the exact source before Sandbox admission; rejected code remains inspectable.
+            if (codeArtifacts != null) codeArtifacts.commit(contract, operationId, source,
+                request.path("codeSha256").isTextual() ? request.path("codeSha256").asText() : null);
             var input = inputs.requireAuthorized(contract);
             plans.validator(contract); // Fail before dispatch if no independent trusted plan exists.
             long executions = contract.budget().maxCodeExecutions();

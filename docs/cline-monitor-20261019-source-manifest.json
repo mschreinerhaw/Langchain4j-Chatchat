@@ -1,0 +1,163 @@
+{
+  "baseCommit": "b98330c6",
+  "branch": "main",
+  "changesCommitted": false,
+  "files": [
+    {
+      "path": "chatchat-agents/src/main/java/com/chatchat/agents/runtime/coding/DurableCodingTaskService.java",
+      "sha256": "82ba13364c95b3baff257fb583c82a2ff5379715ed3f2a9d6f1a2d1b4787bf4e"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/controller/agent/CodingTaskMonitorController.java",
+      "sha256": "f61edccd0248d00492371b3fb839c6ea07a868de85c79bee93632df4bb8ad245"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/controller/agent/CodingTraceArtifactController.java",
+      "sha256": "c576ddadd6d832e4555ae5c6916d3aeaef92956da0d47072e31c983273d67063"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/CodingConfigurationSnapshot.java",
+      "sha256": "71135b3c8a74bec0e5ee970b8c34a57b766dd57d1b6857311d2bd40f62526840"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java",
+      "sha256": "cfc398022e5a6163858559f9789bd3b6209062ba78ba35b18300906c53f6c187"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController.java",
+      "sha256": "1882b9ab10129b9cc7e9eb6fb0453b590af3a50057b7d4ba960226376677bf38"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController.java",
+      "sha256": "7ade0a0e344953246ea8ec5d5642c957583c4773b0a6e7c6d5f8b06b3ac9dd89"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineRuntimeModelBridge.java",
+      "sha256": "b86428f1875fc9179e2ca48989e7937a58fbe822d8d4c3ad0f364abaf37476de"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/CodingCodeArtifactStore.java",
+      "sha256": "c3aa0c6928d37ce0b39c4f428f90cdbda117a80eb493487662088d3071afb754"
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/controller/agent/CodingTaskMonitorControllerTest.java",
+      "sha256": "e55d6e1cd5e155e7754c57380dc67ac0fa5c23234399d7d8f6729c402d592fec"
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/CodingConfigurationSnapshotTest.java",
+      "sha256": "69d3574d4dfe1d5a9ae8f075c1f4c0d82ba874192bb35109eac95424057e2f79"
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/CodingTaskPersistenceTest.java",
+      "sha256": "a1aa778c2d1762067965e567291fb50d1e193fed6fa34d9b2493f28bf988df51"
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClineRuntimeModelBridgeTest.java",
+      "sha256": "ee353d54266598cf25ecf8c4fde17a65989720c5380ff507afc08fa6a14be22c"
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/CodingTaskMonitor.test.ts",
+      "sha256": "adbde44ade5c932d447540c02606f94adf018cad55a58d73d189e997b437500e"
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/CodingTaskMonitor.vue",
+      "sha256": "62909fb79a3ecdbf7e5058a3782ae2dcc2e99b82b493eba580252d61ac815661"
+    },
+    {
+      "path": "chatchat-api/web-app/src/js/views/TasksView.js",
+      "sha256": "c6c7f33a33aa5dcc0dbb1d5bee4db604bc0ec9c5c0244deef46f40750b9667fe"
+    },
+    {
+      "path": "chatchat-api/web-app/src/services/codingMonitor.test.ts",
+      "sha256": "58960de08d0b8fa2e29f307aacfc2d1ae52b10fb343e4d7734ef3cf03772e84b"
+    },
+    {
+      "path": "chatchat-api/web-app/src/services/codingMonitor.ts",
+      "sha256": "26658a96d70c8a7c009717ae176e0ae053a4ef94b12f9cae80cd366925319e17"
+    },
+    {
+      "path": "chatchat-api/web-app/src/views/TasksView.vue",
+      "sha256": "59ecdd3ea03dac8016002e6968d52a422cc50e45ac70bf8a5a97317fad25c0a4"
+    },
+    {
+      "path": "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/CodingCanonicalHash.java",
+      "sha256": "be58440456d45c3aefd781a12460a0de83cf057ca5ea9dc518a861c49af5ab90"
+    },
+    {
+      "path": "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/CodingExecutionEvent.java",
+      "sha256": "6b92db67d554c82e2bf3848f834c4ba928a2533d560fce1c9d4ce7de0a51b7d3"
+    },
+    {
+      "path": "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/CodingRuntimeContext.java",
+      "sha256": "2559e6ce61e58574e288a554fed6a5bb7ee7ade0c7439047d611bfaa8054e3df"
+    },
+    {
+      "path": "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/CodingTaskContract.java",
+      "sha256": "80d2d01b9e3def2c9ea0cc0c742fbc0105e3883db731d135dbbb0f3f85e7ddb4"
+    },
+    {
+      "path": "chatchat-common/src/main/resources/runtime/coding/coding-analysis.schema.json",
+      "sha256": "e6b770875f38104e4055a5f4ac91dbe69010f7b4a01a3b5dc3e1b346f353b5de"
+    },
+    {
+      "path": "chatchat-common/src/main/resources/runtime/coding/coding-workspace.schema.json",
+      "sha256": "3ecd01d3024d4f73fdb894b431f89f43c2267a3ab1256c85a120c85e055a1826"
+    },
+    {
+      "path": "chatchat-common/src/main/resources/runtime/coding/coding.schema.json",
+      "sha256": "a613550ae1b49884a52109b9304625866c5b2088bbd19df38a97eec797286858"
+    },
+    {
+      "path": "chatchat-common/src/test/java/com/chatchat/common/runtime/coding/CodingRuntimeContextTest.java",
+      "sha256": "c567533cd5858fe92c16f1d4c0bbe1782f2c6afbafdc86065d539d445243da43"
+    },
+    {
+      "path": "coding-agent-node/Dockerfile",
+      "sha256": "435060a5b884fade456d1ece4dc7ae944ee624e798d0c522b3b00f5d0aa5fc4d"
+    },
+    {
+      "path": "coding-agent-node/src/healthcheck.js",
+      "sha256": "e0acf2489d85f8f1b4f575ddcd6dae0e3bbee018e0cf590193278882055da7a6"
+    },
+    {
+      "path": "coding-agent-node/src/runner.js",
+      "sha256": "055a98c7376612774b05bb726433518db9ad77a989615cb4b4177fee013af63a"
+    },
+    {
+      "path": "coding-agent-node/src/runtime-model.js",
+      "sha256": "47e6ba668fbfa16859f2db676c5a9df773bb73a3bb42eff86e1d532049e675e7"
+    },
+    {
+      "path": "coding-agent-node/src/server.js",
+      "sha256": "2d346ad0e03dd5b462ba70d46779a10f5ef2305156a2ee3cf8c5d791eea6b351"
+    },
+    {
+      "path": "coding-agent-node/test/monitor.test.js",
+      "sha256": "f48fa5bf2340450322a69ca0bf674fb8e3da94f0df28a02e5d92dcf96c7da30b"
+    },
+    {
+      "path": "coding-agent-node/test/server.test.js",
+      "sha256": "648b27dc575a92091828cd2223c2110426161069bdb9ea18b0a93ff501cb6771"
+    },
+    {
+      "path": "deploy/docker/application/restrict-coding-worker.sh",
+      "sha256": "5bc72d4a4fdbf9640eafb874ff32e08a0e7667679cc8d559c929722f6d051117"
+    },
+    {
+      "path": "scripts/deploy-cline-monitor-stage.py",
+      "sha256": "56ef658b36d5e2a498c5ec180cb265c84d03914e2f51d49b7b17b33f65fa3690"
+    },
+    {
+      "path": "scripts/test-cline-monitor-browser.mjs",
+      "sha256": "481e30eece448929ad03273a5fdfb4d69b64556cf14fd5c50fe0aa94ea9091d5"
+    },
+    {
+      "path": "scripts/verify-cline-boundary-stage.py",
+      "sha256": "a2a5cc96ba329dc456ceb7cef178259bbf2852b21292ea0bd41aa3847f518cda"
+    },
+    {
+      "path": "scripts/verify-cline-monitor-stage.py",
+      "sha256": "78543f4b99689db3a2ea2b7559c4bc27c59dc7f409e56916bf1f532dc6747b3c"
+    }
+  ]
+}

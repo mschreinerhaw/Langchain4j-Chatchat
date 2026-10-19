@@ -180,7 +180,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                     CodingTaskContract.NetworkPolicy.NONE,List.of(),List.of(CodingTaskContract.SideEffect.CODE_EXECUTION)),budget,
                 policy.getEnvironmentId(),plan,new CodingTaskContract.OutputContract(CodingTaskContract.ResultFormat.JSON_LINES,
                     "runtime-coding-schema:"+hash(schema),"runtime-coding-structural.v1",List.of("rows.jsonl"),
-                    List.of("application/x-ndjson"),policy.getMaxResultRows(),policy.getMaxResultBytes(),List.of(CodingTaskContract.RequiredEvidence.values())));
+                    List.of("application/x-ndjson"),policy.getMaxResultRows(),policy.getMaxResultBytes(),List.of(CodingTaskContract.RequiredEvidence.values())),
+                com.chatchat.api.runtime.coding.CodingConfigurationSnapshot.capture(context.runtimeAttributes(),context.metadata()));
             String encoded=encode(Map.of("requestHash",fingerprint,"contract",contract));
             if(!checkpoints.compareAndSetExecutionCheckpoint(scope,key,null,encoded)) {
                 var existing=tree(checkpoints.readExecutionCheckpoint(scope,key).orElseThrow());
@@ -190,6 +191,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         }
         CodingTaskContract accepted=contract;
         ensureActive(context);
+        com.chatchat.api.runtime.coding.CodingConfigurationSnapshot.requireSameModel(
+            accepted.runtimeContext(),context.runtimeAttributes(),context.metadata());
         CodingTaskOutcome outcome=null;
         boolean bound=false;
         try(var toolTime=com.chatchat.agents.orchestration.planning.validation.ToolExecutionTimeScope.open(
@@ -298,6 +301,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 trace.put("eventState", event.status().name());
                 trace.put("summary", event.summary());
                 trace.put("evidenceRefs", event.evidenceRefs());
+                trace.put("payload", event.payload());
                 observer.accept(Collections.unmodifiableMap(trace));
                 cursor = event.sequence();
             }

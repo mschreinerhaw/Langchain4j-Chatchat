@@ -600,6 +600,7 @@
         </div>
       </details>
 
+      <CodingTaskMonitor v-if="selectedTask?.attemptId" :key="selectedTask.attemptId" :run-id="selectedTask.attemptId" />
       <div class="event-timeline">
         <button
           v-for="event in pagedRows(filteredEvents, 'events')"

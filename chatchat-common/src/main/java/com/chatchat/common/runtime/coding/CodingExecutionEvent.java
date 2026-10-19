@@ -9,12 +9,24 @@ import java.util.List;
 public record CodingExecutionEvent(String schemaVersion, String eventId, String taskId, KernelDataScope scope,
     long sequence, long revision, Instant occurredAt, Type type, String operationId, Long attempt,
     CodingTaskOutcome.Status status, CodingErrorCode reasonCode, List<String> evidenceRefs,
-    CodingTaskOutcome.Usage usage, String summary) {
+    CodingTaskOutcome.Usage usage, String summary, java.util.Map<String, Object> payload) {
+    public CodingExecutionEvent(String schemaVersion, String eventId, String taskId, KernelDataScope scope,
+            long sequence, long revision, Instant occurredAt, Type type, String operationId, Long attempt,
+            CodingTaskOutcome.Status status, CodingErrorCode reasonCode, List<String> evidenceRefs,
+            CodingTaskOutcome.Usage usage, String summary) {
+        this(schemaVersion, eventId, taskId, scope, sequence, revision, occurredAt, type, operationId,
+            attempt, status, reasonCode, evidenceRefs, usage, summary, java.util.Map.of());
+    }
+    public CodingExecutionEvent withPayload(java.util.Map<String, Object> value) {
+        return new CodingExecutionEvent(schemaVersion, eventId, taskId, scope, sequence, revision, occurredAt,
+            type, operationId, attempt, status, reasonCode, evidenceRefs, usage, summary, value);
+    }
     public enum Type {
         TASK_CREATED, TASK_STARTED, CODE_COMMITTED, EXECUTION_STARTED, EXECUTION_FINISHED,
         VALIDATION_RECORDED, BUDGET_UPDATED, CANCELLATION_REQUESTED, RECOVERY_RECONCILED, TASK_FINISHED
     }
     public CodingExecutionEvent {
+        payload = payload == null ? java.util.Map.of() : java.util.Map.copyOf(payload);
         CodingProtocol.version(schemaVersion); eventId = CodingProtocol.ref(eventId, "eventId");
         taskId = CodingProtocol.ref(taskId, "taskId"); scope = CodingProtocol.scope(scope);
         CodingProtocol.count(sequence, "sequence"); CodingProtocol.require(sequence > 0, "event sequence starts at 1");

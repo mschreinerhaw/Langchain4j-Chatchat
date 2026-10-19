@@ -26,6 +26,7 @@ public final class CodingCanonicalHash {
     public static String canonicalJson(CodingTaskContract task) {
         CodingProtocol.required(task, "task");
         Map<String, Object> payload = fields(task);
+        if (task.runtimeContext().isEmpty()) payload.remove("runtimeContext");
         // Scope attributes, requestId, conversationId and environment are transport context, not task semantics.
         payload.put("scope", Map.of("tenantId", task.scope().tenantId(), "userId", task.scope().userId(), "runId", task.scope().runId()));
         return encode(payload);

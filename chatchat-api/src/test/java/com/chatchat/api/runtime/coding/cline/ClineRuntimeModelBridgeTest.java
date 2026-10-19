@@ -23,6 +23,24 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineRuntimeModelBridgeTest {
+    @Test void reportsFrozenActualModelAndContinuesBoundModelAfterDefaultChanges() throws Exception {
+        var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
+        when(resources.defaultChatModel()).thenReturn("changed-default");
+        var parent=mock(ChatModel.class);
+        when(parent.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder().modelName("actual-reported-provider").aiMessage(AiMessage.from("done"))
+            .tokenUsage(new TokenUsage(3,2,5)).build());
+        var bridge=new ClineRuntimeModelBridge(resources,factory,json);var registry=new CodingParentModels();bridge.setParentModels(registry);
+        json.findAndRegisterModules();var node=json.valueToTree(contract());
+        ((com.fasterxml.jackson.databind.node.ObjectNode)node).set("runtimeContext",json.valueToTree(Map.of(
+            "schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","model",
+            Map.of("selectedModel","authorized-selected","providerModel","actual-provider","protocol","openai"))));
+        var task=json.treeToValue(node,CodingTaskContract.class);
+        try(var binding=registry.bind(task.scope(),task.taskId(),parent)) {
+            var answer=bridge.complete(task,json.readTree("{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"calculate\"}]}],\"tools\":[]}"));
+            assertThat(answer.get("modelInfo").toString()).contains("authorized-selected","actual-reported-provider").doesNotContain("changed-default");
+        }
+        verifyNoInteractions(factory);verify(resources,never()).require(anyString());
+    }
     private final ObjectMapper json = new ObjectMapper();
 
     @Test void codingReplyLimitIsConfigurableAndReservedWithinTheToolBudget() throws Exception {

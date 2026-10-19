@@ -2,7 +2,15 @@
   <details class="coding-monitor" @toggle="toggle" data-testid="coding-monitor">
     <summary>Python 编程任务 · Cline <span>{{ tasks.length }} 个委派任务</span></summary>
     <div v-if="expanded" class="monitor-body">
-      <header><strong>编程与执行监控</strong><button @click="refresh" :disabled="loading">刷新状态</button></header>
+      <header>
+        <strong>编程与执行监控</strong>
+        <button class="refresh-button" type="button" title="刷新状态" aria-label="刷新状态" @click="refresh" :disabled="loading">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 7v5h-5M4 17v-5h5" />
+            <path d="M6.1 7a7 7 0 0 1 11.6-1L20 9M4 15l2.3 3A7 7 0 0 0 17.9 17" />
+          </svg>
+        </button>
+      </header>
       <p v-if="error" role="alert">{{ error }} · 已保留加载的历史记录</p>
       <p v-if="!loading && !tasks.length">该运行暂无 Coding 委派记录。</p>
       <label v-if="tasks.length">任务 <select v-model="selectedId"><option v-for="task in tasks" :key="task.taskId" :value="task.taskId">{{ task.taskId }}</option></select></label>
@@ -170,6 +178,9 @@ onBeforeUnmount(() => { generation++; clearInterval(timer); });
 </script>
 
 <style scoped>
+.monitor-body header .refresh-button{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:28px;height:28px;min-width:0;padding:0;border:0;border-radius:5px;background:transparent;color:#677b92}
+.monitor-body header .refresh-button:hover:not(:disabled){background:#edf2f7;color:#283950}
+.monitor-body header .refresh-button:focus-visible{outline:2px solid #4f80c6;outline-offset:2px}
 .coding-monitor,.monitor-body{min-width:0}
 .coding-monitor{border:1px solid #dce5ef;border-radius:10px;margin:14px 0;background:#fff;color:#283950}.coding-monitor>summary{padding:14px;cursor:pointer;font-weight:650}.coding-monitor summary span{font-size:12px;color:#677b92;margin-left:12px}.monitor-body{padding:0 16px 16px}.monitor-body header,.monitor-body nav{display:flex;align-items:center;gap:12px;margin:10px 0}.monitor-body header button{margin-left:auto}.monitor-body h3{font-size:15px;line-height:1.6;overflow-wrap:anywhere}.monitor-body h4{margin:20px 0 9px;font-size:13px}.monitor-body button,.monitor-body select{border:1px solid #cad7e6;border-radius:5px;padding:6px 10px;background:#fff;color:inherit;max-width:100%;cursor:pointer}.monitor-body button:disabled{opacity:.5;cursor:default}.task-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.task-facts dt{font-size:11px;color:#718399}.task-facts dd{margin:4px 0;font-size:12px;overflow-wrap:anywhere}.monitor-body p{font-size:12px;line-height:1.6;overflow-wrap:anywhere}.monitor-body [role=alert]{color:#b42318}.monitor-body pre{max-height:480px;overflow:auto;background:#f4f7fb;border:1px solid #e0e7f0;padding:14px;font:12px/1.65 Consolas,monospace;white-space:pre}.table-scroll{overflow:auto}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px;text-align:left;border-bottom:1px solid #e3eaf3;overflow-wrap:anywhere}.event-list{max-height:430px;overflow:auto;padding:0;list-style:none}.event-list li{display:grid;gap:5px;padding:10px;border-bottom:1px solid #edf1f6;font-size:12px}.event-list time,.event-list small{font-size:11px;color:#708198;overflow-wrap:anywhere}
 </style>

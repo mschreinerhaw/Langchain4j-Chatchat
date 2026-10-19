@@ -1,0 +1,23 @@
+{
+  "scope": "Real H2 evidence/checkpoint persistence; MCP archived bytes mocked, no model",
+  "before": {
+    "status": "REPRODUCED",
+    "tests": 1,
+    "errors": 1,
+    "message": "Coding evidence stage or content changed during recovery",
+    "logSha256": "d86414e1def236b34475a0b89513fde3adb09088b5e8bb90940da8034ee8450a"
+  },
+  "after": {
+    "status": "PASSED",
+    "tests": 10,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "surefireXmlSha256": "cc0017dec857bd4d5dca20ea3bb103932489027052eda1c8b65cc03512b9123b"
+  },
+  "checks": [
+    "Reopen evidence store and collect the same operation under a different HTTP trace",
+    "Preserve immutable contract scope and exact evidence references",
+    "Reject a different tenant before canonicalizing scope"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "health": 200,
+  "capabilities": {
+    "schemaVersion": "runtime_os.coding.input.v1",
+    "formats": [
+      "PARQUET",
+      "CSV"
+    ]
+  },
+  "uid": 1000,
+  "node": "v24.21.0",
+  "scope": "Real local Docker container; no model or Runtime service called",
+  "image": "runtime-os-coding-agent:shared-input-20261019-r9"
+}

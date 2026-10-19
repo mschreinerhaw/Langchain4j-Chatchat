@@ -29,6 +29,7 @@ final class ComputedResultBoundary {
             catch (java.io.IOException nonJsonSource) { /* CSV/text is still checked as a complete document. */ }
         }
     }
+    void observeRow(Map<String,Object> row) {visit(json.valueToTree(row),true,0);}
 
     boolean copiedSource(List<Map<String, Object>> rows) {
         if (rows.stream().filter(row -> sourceRecords.contains(canonicalHash(json.valueToTree(row)))).limit(2).count() >= 2)

@@ -8,7 +8,15 @@ public final class CodingRuntimeContext {
     public static Map<String, Object> validate(Map<String, Object> value) {
         if (value == null || value.isEmpty()) return Map.of();
         CodingProtocol.require(value.keySet().stream().allMatch(Set.of("schemaVersion", "capturedAt",
-            "consistency", "model", "skills", "configuredSkillIds")::contains), "Unknown Coding context field");
+            "consistency", "model", "skills", "configuredSkillIds", "inputFiles")::contains), "Unknown Coding context field");
+        if(value.containsKey("inputFiles")) {
+            CodingProtocol.require(value.get("inputFiles") instanceof Map<?,?>,"Input capability descriptor required");
+            var input=(Map<?,?>)value.get("inputFiles");
+            CodingProtocol.require(input.keySet().equals(Set.of("schemaVersion","format","delivery","manifestFileId","manifestSha256"))
+                && CodingInputManifest.VERSION.equals(input.get("schemaVersion")) && "SHARED_DIRECTORY".equals(input.get("delivery"))
+                && Set.of("PARQUET","CSV").contains(input.get("format")),"Unsupported input capability descriptor");
+            CodingInputManifest.fileId(String.valueOf(input.get("manifestFileId")));CodingInputManifest.hash(String.valueOf(input.get("manifestSha256")));
+        }
         CodingProtocol.require("runtime_os.coding.context.v1".equals(value.get("schemaVersion")), "Unknown Coding context version");
         CodingProtocol.require("TASK_SNAPSHOT".equals(value.get("consistency")), "Coding context must be task scoped");
         return freeze(value, 0);

@@ -26,6 +26,27 @@ public class CodingTaskMonitorController {
     private final DurableCodingTaskService tasks;
     private final CodingAgentSPI coding;
     private final CodingInvocationContext identity;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.chatchat.api.runtime.coding.data.CodingInputSnapshotService inputs;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.chatchat.api.runtime.coding.data.CodingDataSupplyService dataSupply;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.chatchat.api.runtime.coding.cline.ClineModelReceiptStore modelReceipts;
+
+    @GetMapping("/{taskId}/inputs")
+    public ApiResponse<?> inputFiles(@PathVariable("runId") String runId,@PathVariable("taskId") String taskId,
+            @RequestParam(name="operationId",required=false) String operation,HttpServletRequest request) {
+        return authorized(runId,request,scope->{
+            var contract=tasks.contract(scope,taskId);
+            if(inputs==null)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
+            if(operation!=null && !operation.matches("cline-[0-9a-f]{64}"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+            boolean frozen=operation!=null && tasks.privateState(scope,taskId,"inputs:"+operation)!=null;
+            var snapshots=dataSupply!=null?dataSupply.snapshots(contract,frozen?operation:null):List.of(inputs.requireAuthorized(contract));
+            return ApiResponse.success(Map.of("binding",frozen?"OPERATION_FROZEN":"TASK_LATEST","snapshots",
+                snapshots.stream().map(s->{var description=new LinkedHashMap<String,Object>(inputs.describe(scope,taskId,s));
+                    description.put("reference",s.reference());description.put("fileName",s.fileName());return description;}).toList()));
+        });
+    }
 
     @GetMapping
     public ApiResponse<?> list(@PathVariable("runId") String runId, HttpServletRequest request) {
@@ -44,6 +65,12 @@ public class CodingTaskMonitorController {
                     item.put("taskId",id); item.put("outcome",outcome);
                     item.put("objective",contract.objective().instruction().split("\n",2)[0]);
                     item.put("configuration",contract.runtimeContext());
+                    if(modelReceipts!=null) {
+                        var calls=new ArrayList<CodingModelCallTelemetry>();
+                        for(var operation:tasks.startedModelOperations(scope,id))
+                            modelReceipts.telemetry(contract,operation.operationId(),operation.fencingToken()).ifPresent(calls::add);
+                        item.put("modelReceipts",calls);
+                    }
                     item.put("allowedTools",contract.authorization().allowedTools());
                     item.put("canCancel",!outcome.status().terminal() && !outcome.cancellationRequested());
                     item.put("canRetry",false); // Retries require the existing parent workflow and its original authorization.

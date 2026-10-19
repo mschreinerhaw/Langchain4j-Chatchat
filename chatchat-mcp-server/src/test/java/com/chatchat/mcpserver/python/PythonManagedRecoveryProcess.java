@@ -26,6 +26,7 @@ public final class PythonManagedRecoveryProcess {
         var dataSource = new DriverManagerDataSource(url, "sa", "");
         try (Connection connection = dataSource.getConnection()) {
             ScriptUtils.executeSqlScript(connection, new FileSystemResource(migration));
+            ScriptUtils.executeSqlScript(connection, new FileSystemResource(migration.resolveSibling("V20261019_03__mcp_python_unadmitted_cancellation.sql")));
         }
         PythonRuntimeProperties properties = new PythonRuntimeProperties();
         properties.setWorkspaceRoot(workspaceRoot.toString());

@@ -74,6 +74,25 @@ public final class ClineModelCallbackController {
             return dataSupply.request(c,call.lease(),body.path("requirement"));
         });
     }
+    /** Context preparation, not a model-selected tool or data acquisition operation. */
+    @PostMapping("/input-context")
+    public Map<String,Object> inputContext(@RequestBody JsonNode body) {
+        return bound(body,call->{
+            var c=contract(body,call);
+            if(!c.runtimeContext().containsKey("inputFiles"))throw new SecurityException("Versioned file context was not authorized");
+            var input=inputs.requireAuthorized(c);
+            var description=inputs.describe(call.scope(),call.taskId(),input);
+            var response=new java.util.LinkedHashMap<String,Object>();
+            for(String key:List.of("fileId","sha256","rowCount","format","inputManifest","inputVersions"))
+                if(description.containsKey(key))response.put(key,description.get(key));
+            response.put("files",CodingInputSnapshotService.mountedFiles(input).stream().map(file->Map.of(
+                "fileId",file.fileId(),"fileName",file.fileName(),"sha256",file.sha256(),"rowCount",file.rowCount(),"size",file.size(),
+                "virtualPath","/data/input/"+file.fileId()+"/"+file.fileName())).toList());
+            if(mapper.valueToTree(response).toString().getBytes(java.nio.charset.StandardCharsets.UTF_8).length>180000)
+                throw new IllegalArgumentException("Input metadata exceeds the bounded Coding context; narrower authorized projection required");
+            return response;
+        });
+    }
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setWorkspace(CodingWorkspaceService workspace) { this.workspace=workspace; }
 

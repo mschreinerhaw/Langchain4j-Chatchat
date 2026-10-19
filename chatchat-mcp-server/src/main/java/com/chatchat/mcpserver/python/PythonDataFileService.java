@@ -24,6 +24,19 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Service
 @RequiredArgsConstructor
 public class PythonDataFileService {
+    public List<String> inputCapabilities() {
+        return properties.isSharedInputsEnabled()?List.of("JSON_LINES","PARQUET","CSV","SHARED_DIRECTORY"):List.of("JSON_LINES","REMOTE_UPLOAD");
+    }
+    public DataFileResult registerShared(String tenant,String owner,String id,String fileName,String hash,long size) {
+        if(!properties.isSharedInputsEnabled())throw new IllegalStateException("Shared input delivery is disabled");
+        if(size<0 || size>properties.getMaxDataFileBytes())throw new IllegalArgumentException("Shared input exceeds file ceiling");
+        try {
+            Path file=new com.chatchat.platform.runtime.coding.CodingSharedFiles(Paths.get(properties.getDataRoot()))
+                .verify(tenant,owner,id,fileName,hash,size);
+            makeRuntimeTraversable(file.getParent());makeRuntimeReadable(file);
+            return new DataFileResult(id,file.toString(),"/data/input/"+id+"/"+fileName,size,hash,"AVAILABLE");
+        }catch(java.io.IOException invalid){throw new IllegalArgumentException("Shared immutable input verification failed",invalid);}
+    }
     private final PythonRuntimeProperties properties;
     private final InternalCredentialProperties credentials;
     private final ObjectMapper objectMapper;

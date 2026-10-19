@@ -53,6 +53,8 @@ public class PythonManagedExecutionService {
         requireSame(request.ownerId(), owner);
         if (request.fencingToken() < 1 || request.attempt() < 1) throw new IllegalArgumentException("Invalid fencing token or attempt");
         String id = identity(tenant, owner, request.runId(), request.taskId(), request.operationId());
+        var cancelled = noStart(id);
+        if (cancelled != null) return noStartView(cancelled);
         Operation prior = find(id);
         if (request.deadlineAt() == null || prior == null && !request.deadlineAt().isAfter(Instant.now()))
             throw new IllegalArgumentException("Execution deadline has expired");
@@ -94,6 +96,7 @@ public class PythonManagedExecutionService {
         Operation row = tx.execute(status -> {
             long current = lockFence(fenceId);
             if (request.fencingToken() < current) throw new IllegalStateException("Fencing token is stale");
+            if (noStart(id) != null) return null; // Cancellation won the same fence lock; never dispatch.
             Operation existing = find(id);
             if (existing != null) {
                 if (!existing.requestHash.equals(hash) || existing.fencingToken != request.fencingToken())
@@ -110,11 +113,14 @@ public class PythonManagedExecutionService {
                     timeoutSeconds, request.budgetReservationRef(), Timestamp.from(now), Timestamp.from(now));
             return Objects.requireNonNull(find(id));
         });
+        if (row == null) return noStartView(Objects.requireNonNull(noStart(id)));
         if ("ACCEPTED".equals(row.status)) dispatch(id);
         return view(row);
     }
 
     public OperationView get(String tenant, String owner, String run, String task, String operation) {
+        var cancelled = noStart(identity(tenant, owner, run, task, operation));
+        if (cancelled != null) return noStartView(cancelled);
         Operation row = authorized(tenant, owner, run, task, operation);
         if ("ACCEPTED".equals(row.status)) dispatch(row.id);
         else if (Set.of("STARTING", "RUNNING", "UNKNOWN").contains(row.status)) reconcile(row.id);
@@ -126,10 +132,26 @@ public class PythonManagedExecutionService {
     public OperationView cancel(String tenant, String owner, String run, String task, String operation, long token) {
         String id = identity(tenant, owner, run, task, operation);
         String fenceId = identity(tenant, owner, run, task, "fence");
+        if (token < 1) throw new IllegalArgumentException("Positive cancellation fence required");
+        ensureFence(fenceId, tenant, owner, run, task);
         Operation row = tx.execute(status -> {
             long current = lockFence(fenceId);
             if (token < current) throw new IllegalStateException("Fencing token is stale");
-            Operation found = Objects.requireNonNull(find(id), "Operation does not exist");
+            Operation found = find(id);
+            if (found == null) {
+                if (noStart(id) == null) {
+                    byte[] receipt = json(Map.of("schemaVersion", com.chatchat.common.mcp.python.McpPythonControlPlanePort.NO_START_RECEIPT_VERSION,
+                        "tenantId", tenant, "ownerId", owner, "runId", run, "taskId", task, "operationId", operation,
+                        "fencingToken", token, "stopConfirmed", true, "dispatchPrevented", true, "timestamp", Instant.now().toString()));
+                    byte[] manifest = json(Map.of("schemaVersion", "runtime_os.mcp.python_no_start_manifest.v1", "artifacts",
+                        List.of(Map.of("channel", "logs", "fileName", "receipt.json", "size", receipt.length,
+                            "sha256", PythonOperationWorkspace.hash(receipt)))));
+                    jdbc.update("insert into mcp_python_managed_cancellation(id,operation_id,fencing_token,receipt_json,manifest_json) values (?,?,?,?,?)",
+                        id, operation, token, new String(receipt, StandardCharsets.UTF_8), new String(manifest, StandardCharsets.UTF_8));
+                }
+                if (token > current) jdbc.update("update mcp_python_managed_fence set fencing_token=? where id=?", token, fenceId);
+                return null;
+            }
             checkScope(found, tenant, owner, run, task, operation);
             if (token > current) {
                 jdbc.update("update mcp_python_managed_fence set fencing_token=? where id=?", token, fenceId);
@@ -144,6 +166,7 @@ public class PythonManagedExecutionService {
             }
             return Objects.requireNonNull(find(id));
         });
+        if (row == null) return noStartView(Objects.requireNonNull(noStart(id)));
         if (!row.executorStopped && row.cancelRequested) {
             PythonDockerRuntime.StopCheck stopped = docker.stopManaged(row.containerName);
             if (stopped.confirmed()) finalizeStopped(id);
@@ -172,9 +195,30 @@ public class PythonManagedExecutionService {
 
     public byte[] artifact(String tenant, String owner, String run, String task, String operation,
                            String channel, String fileName) {
+        byte[] stopped = noStartArtifact(tenant, owner, run, task, operation, channel, fileName);
+        if (stopped != null) return stopped;
         try { return Files.readAllBytes(artifactPath(tenant, owner, run, task, operation, channel, fileName)); }
         catch (java.io.IOException ex) { throw new IllegalStateException("Artifact cannot be read", ex); }
     }
+
+    /** Small audit artifacts only; a tombstone has no source, stdout, dataset or execution output. */
+    byte[] noStartArtifact(String tenant, String owner, String run, String task, String operation, String channel, String file) {
+        var stopped = noStart(identity(tenant, owner, run, task, operation));
+        if (stopped == null) return null;
+        if ("logs".equals(channel) && "receipt.json".equals(file)) return stopped.receipt.getBytes(StandardCharsets.UTF_8);
+        if ("manifest".equals(channel) && "manifest.json".equals(file)) return stopped.manifest.getBytes(StandardCharsets.UTF_8);
+        throw new IllegalArgumentException("No execution artifacts exist for an unadmitted cancellation");
+    }
+
+    private NoStart noStart(String id) {
+        return jdbc.query("select operation_id,fencing_token,receipt_json,manifest_json from mcp_python_managed_cancellation where id=?",
+            rs -> rs.next() ? new NoStart(rs.getString(1), rs.getLong(2), rs.getString(3), rs.getString(4)) : null, id);
+    }
+    private OperationView noStartView(NoStart stopped) {
+        return new OperationView(stopped.operation, "CANCELLED", null, stopped.fence, true, true, null, null, null,
+            PythonOperationWorkspace.hash(stopped.manifest.getBytes(StandardCharsets.UTF_8)), "CANCELLED_BEFORE_ACCEPTANCE");
+    }
+    private record NoStart(String operation, long fence, String receipt, String manifest) { }
 
     public Path artifactPath(String tenant, String owner, String run, String task, String operation,
                              String channel, String fileName) {

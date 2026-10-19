@@ -540,6 +540,39 @@
               "items": {
                 "type": "string"
               }
+            },
+            "inputFiles": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schemaVersion",
+                "format",
+                "delivery",
+                "manifestFileId",
+                "manifestSha256"
+              ],
+              "properties": {
+                "schemaVersion": {
+                  "const": "runtime_os.coding.input.v1"
+                },
+                "format": {
+                  "enum": [
+                    "PARQUET",
+                    "CSV"
+                  ]
+                },
+                "delivery": {
+                  "const": "SHARED_DIRECTORY"
+                },
+                "manifestFileId": {
+                  "type": "string",
+                  "pattern": "^c[0-9a-f]{63}$"
+                },
+                "manifestSha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
             }
           },
           "additionalProperties": false

@@ -1,0 +1,12 @@
+{
+  "status": "PASSED",
+  "scope": "Reviewed additive DDL in the isolated MCP database only",
+  "database": "runtime_os_acceptance_mcp",
+  "migration": "V20261019_03__mcp_python_unadmitted_cancellation.sql",
+  "sha256": "8bc8bb17553d0a4596fcfeb6b4f1b7a4d01b27f0926d5ec0b1ec0b7606170013",
+  "existingOwnerPreserved": true,
+  "addedTables": [
+    "mcp_python_managed_cancellation"
+  ],
+  "productionSwitched": false
+}

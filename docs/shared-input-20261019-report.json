@@ -1,0 +1,412 @@
+{
+  "scope": "Shared-directory typed input increment on the existing Runtime OS Coding task system",
+  "status": "INCREMENT_VERIFIED_WITH_HISTORICAL_TEST_FAILURES",
+  "productionSwitched": false,
+  "baseCommit": "1fae5a585e39afa87f31866787f8ed7d8f4bcf4c",
+  "releaseTag": "shared-input-20261019-r9",
+  "uncommittedChanges": true,
+  "address": "http://192.168.195.221:18100/#/w/zhice/tasks",
+  "tests": {
+    "fullBackend": {
+      "baselineTotals": {
+        "tests": 4458,
+        "failures": 130,
+        "errors": 64,
+        "skipped": 21
+      },
+      "currentTotals": {
+        "tests": 4486,
+        "failures": 130,
+        "errors": 64,
+        "skipped": 21
+      },
+      "introducedFailures": [],
+      "historicalFailureTypes": {
+        "java.lang.AssertionError": 74,
+        "org.opentest4j.AssertionFailedError": 50,
+        "java.lang.NullPointerException": 9,
+        "java.lang.IllegalArgumentException": 25,
+        "java.lang.ClassCastException": 3,
+        "java.lang.RuntimeException": 6,
+        "Argument(s) are different! Wanted": 1,
+        "java.lang.IllegalStateException": 21,
+        "Wanted but not invoked": 5
+      }
+    },
+    "focusedJava": {
+      "tests": 69,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 2
+    },
+    "node": {
+      "tests": 29,
+      "passed": 29,
+      "failed": 0,
+      "kind": "Unit and real local HTTP; model mocked"
+    },
+    "frontend": {
+      "monitorTargetedTests": 18,
+      "monitorPassed": 18,
+      "viteBuild": "PASSED",
+      "kind": "Unit tests and production bundle",
+      "defaultNpmSuite": {
+        "uiArtifact": 290,
+        "sqlStudio": 61,
+        "codeIntelligence": 10,
+        "status": "PASSED_ON_IDLE_RERUN"
+      },
+      "earlierFailure": "One unmodified SQL grammar cold-start exceeded 5000ms while full Maven ran; log retained. Same default npm command passed idle without code or timeout changes."
+    },
+    "pythonFormatReader": {
+      "scope": "Real Python reader, Java test fixtures, no model or business source",
+      "pandas": "3.0.6",
+      "pyarrow": "26.0.0",
+      "results": [
+        {
+          "format": "PARQUET",
+          "rows": 2,
+          "parts": 2,
+          "status": "PASSED"
+        },
+        {
+          "format": "CSV",
+          "rows": 2,
+          "parts": 2,
+          "status": "PASSED"
+        }
+      ]
+    },
+    "localNodeContainer": {
+      "health": 200,
+      "capabilities": {
+        "schemaVersion": "runtime_os.coding.input.v1",
+        "formats": [
+          "PARQUET",
+          "CSV"
+        ]
+      },
+      "uid": 1000,
+      "node": "v24.21.0",
+      "scope": "Real local Docker container; no model or Runtime service called",
+      "image": "runtime-os-coding-agent:shared-input-20261019-r9"
+    },
+    "browser": {
+      "scope": "Real deployed page and authenticated task API; no request mocking",
+      "taskId": "a38c0f98-e2f3-34b9-b8ca-5c74639ebe68",
+      "hasActualSource": true,
+      "codeLines": 98,
+      "hasModelSection": true,
+      "hasSkillsSection": true,
+      "hasEventTimeline": true,
+      "hasCodeHash": true,
+      "hasConfiguredAndLoadedSkills": true,
+      "retainedWhileOffline": true,
+      "recoveredPersistedHistory": true,
+      "hasActualToolDetails": true,
+      "geometry": {
+        "x": 297,
+        "width": 980.40625,
+        "viewport": 1440,
+        "scrollWidth": 1440
+      },
+      "codeVersionCount": 1,
+      "verifiedCodeHistory": false,
+      "verifiedCodeDiff": false,
+      "modelCallCount": 2,
+      "hasCompleteActualModelReceipts": true,
+      "hasExpectedInputFormat": true,
+      "hasFrozenInputBinding": true,
+      "errors": [],
+      "failedRequests": [],
+      "screenshot": "docs/shared-input-20261019-browser-final.png"
+    },
+    "codeHistoryAndDiff": {
+      "scope": "Real deployed page and authenticated task API; no request mocking",
+      "taskId": "93644c5a-8aa3-4b5a-920a-d3c02e486c80",
+      "hasActualSource": true,
+      "codeLines": 116,
+      "hasModelSection": true,
+      "hasSkillsSection": true,
+      "hasEventTimeline": true,
+      "hasCodeHash": true,
+      "hasConfiguredAndLoadedSkills": true,
+      "retainedWhileOffline": true,
+      "recoveredPersistedHistory": true,
+      "hasActualToolDetails": true,
+      "geometry": {
+        "x": 297,
+        "width": 980.40625,
+        "viewport": 1440,
+        "scrollWidth": 1440
+      },
+      "codeVersionCount": 4,
+      "verifiedCodeHistory": true,
+      "verifiedCodeDiff": true,
+      "modelCallCount": 5,
+      "hasCompleteActualModelReceipts": true,
+      "hasExpectedInputFormat": true,
+      "hasFrozenInputBinding": true,
+      "errors": [],
+      "failedRequests": [],
+      "screenshot": "docs/shared-input-20261019-browser-history-r7.png"
+    },
+    "serverIsolation": {
+      "status": "PASSED",
+      "health": [
+        {
+          "port": 18180,
+          "status": "UP"
+        },
+        {
+          "port": 18100,
+          "status": "UP"
+        }
+      ],
+      "nodeReadinessExit": 0,
+      "apiImage": "sha256:680bfe82226209742d64605d018853c990e9201a96550f86945a6f7e18908e2e",
+      "nodeImage": "sha256:59766edabaa10ab0d30e22dea24d9134e0c072ccb9b3aefaa15b21a292a27059",
+      "nodeUser": "1000:32101",
+      "nodeReadOnly": true,
+      "nodeMemoryBytes": 2147483648,
+      "nodeCpuQuota": 2000000000,
+      "nodeCapDrop": [
+        "ALL"
+      ],
+      "probe": {
+        "endpoints": [
+          {
+            "path": "/internal/coding/cline/model",
+            "status": 401
+          },
+          {
+            "path": "/api/v1/agent/tasks",
+            "status": 401
+          }
+        ],
+        "network": [
+          {
+            "host": "172.18.0.2",
+            "port": 8090,
+            "allowed": false
+          },
+          {
+            "host": "172.30.93.1",
+            "port": 3306,
+            "allowed": false
+          },
+          {
+            "host": "172.30.93.1",
+            "port": 5432,
+            "allowed": false
+          },
+          {
+            "host": "192.168.195.223",
+            "port": 3306,
+            "allowed": false
+          },
+          {
+            "host": "1.1.1.1",
+            "port": 80,
+            "allowed": false
+          }
+        ],
+        "dockerSocket": false,
+        "rootWritable": false,
+        "uid": 1000
+      },
+      "productionSwitched": false
+    },
+    "parentAdmissionRegression": {
+      "scope": "Unit test; Coding SPI, provider, MCP and collector mocked. Real server acceptance is separate.",
+      "tests": [
+        "reconciledWorkerLossContinuesToSemanticAdmissionUnderTheOriginalTaskBudget",
+        "unknownExecutionRemainsUnknownAndCannotSupplyAnAnalysisResult"
+      ],
+      "status": "PASSED",
+      "surefireXmlSha256": "26d78d81f5f2f94b665619fd2aae1889db83b96f4c81a6e50283a8bd8317f278",
+      "checks": [
+        "Keep original model binding and task identity while receipts remain unknown",
+        "Continue through existing semantic review and dataset registration once the same task completes",
+        "An unknown operation at the accepted deadline cannot become an analytical result"
+      ]
+    },
+    "scopeRegression": {
+      "scope": "Real H2 evidence/checkpoint persistence; MCP archived bytes mocked, no model",
+      "before": {
+        "status": "REPRODUCED",
+        "tests": 1,
+        "errors": 1,
+        "message": "Coding evidence stage or content changed during recovery",
+        "logSha256": "d86414e1def236b34475a0b89513fde3adb09088b5e8bb90940da8034ee8450a"
+      },
+      "after": {
+        "status": "PASSED",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "surefireXmlSha256": "cc0017dec857bd4d5dca20ea3bb103932489027052eda1c8b65cc03512b9123b"
+      },
+      "checks": [
+        "Reopen evidence store and collect the same operation under a different HTTP trace",
+        "Preserve immutable contract scope and exact evidence references",
+        "Reject a different tenant before canonicalizing scope"
+      ]
+    },
+    "startupObservation": {
+      "scope": "Real Docker startup observation; no RocksDB or lock files removed",
+      "service": "runtime-os-app-stage-mcp-1",
+      "startupRetries": 2,
+      "cause": "RocksDB LOCK contention before readiness",
+      "priorLockHolderNotEstablished": true,
+      "restartCountAfterReadiness": 2,
+      "runningSince": "2026-10-19T08:28:22.84209394Z",
+      "observedAt": "2026-10-19T08:36:41.158424+00:00",
+      "lockErrorsSinceSuccessfulStart": 0,
+      "currentRunning": true,
+      "productionSwitched": false
+    },
+    "frontendRerun": {
+      "scope": "Actual default npm test; no mocks substituted for grammar loading",
+      "firstRun": {
+        "uiArtifactPassed": 290,
+        "sqlStudioPassed": 60,
+        "sqlStudioFailed": 1,
+        "failure": "sqlSchemaCompletion.test.js cold grammar load exceeded unchanged 5000ms timeout",
+        "context": "Concurrent full Maven tests",
+        "logSha256": "13a911490285c6eed725c9b9929507ec58e563c41eb780486ba7a0305ef934e3"
+      },
+      "idleRerun": {
+        "status": "PASSED",
+        "uiArtifact": 290,
+        "sqlStudio": 61,
+        "codeIntelligence": 10,
+        "logSha256": "d67e1b62eb154df0dcf6d5e4207076126b2f5ea5be1b08866f3f3140389b4c88"
+      },
+      "sourceAndTimeoutChanged": false,
+      "conclusion": "Same command passed after Maven ended; timing sensitivity retained as evidence, not classified as a new functional regression"
+    }
+  },
+  "realServiceAndModel": {
+    "complete": {
+      "testedRelease": "r6",
+      "status": "PASSED",
+      "taskId": "42a9971e-2e98-315a-9c0d-ffd6f5ff2cd0",
+      "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+      "resultAdmitted": true,
+      "hasCompletedCoding": true,
+      "orderedUniqueEvents": true
+    },
+    "restart": {
+      "testedRelease": "r8",
+      "recoveredOutcomeSummary": "Verified Coding execution recovered after worker session loss",
+      "status": "PASSED",
+      "taskId": "a38c0f98-e2f3-34b9-b8ca-5c74639ebe68",
+      "runId": "att-1-e7843b08-79d1-454a-9a2c-36693fa4c554",
+      "nodeRestarted": true,
+      "restartPhase": "validated",
+      "recoveryDriver": "automatic",
+      "codeExecutionsAtRestart": 1,
+      "noExecutionReplayAfterRestart": true,
+      "resultAdmitted": true
+    },
+    "latestModelTelemetry": {
+      "status": "PASSED",
+      "scope": "Real authenticated API after service recreation; Java receipt metadata, no provider replay",
+      "taskId": "a38c0f98-e2f3-34b9-b8ca-5c74639ebe68",
+      "codingTaskId": "analysis-coding-051a9aa1cbd3c193e2c372b410c851f74dc564551f4dbbebdf7d0298e740d6a9",
+      "calls": [
+        {
+          "operationId": "model-1",
+          "attemptId": "analysis-coding-051a9aa1cbd3c193e2c372b410c851f74dc564551f4dbbebdf7d0298e740d6a9:fence-1",
+          "modelCall": 1,
+          "state": "SUCCEEDED",
+          "selectedModel": "hy3",
+          "providerModel": "hy3",
+          "protocol": "openai",
+          "startedAt": "2026-10-19T07:56:22.966281907Z",
+          "finishedAt": "2026-10-19T07:56:36.504989200Z",
+          "durationMs": 13538,
+          "usage": {
+            "outputTokens": 1562,
+            "inputTokens": 4655
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        },
+        {
+          "operationId": "model-2",
+          "attemptId": "analysis-coding-051a9aa1cbd3c193e2c372b410c851f74dc564551f4dbbebdf7d0298e740d6a9:fence-1",
+          "modelCall": 2,
+          "state": "SUCCEEDED",
+          "selectedModel": "hy3",
+          "providerModel": "hy3",
+          "protocol": "openai",
+          "startedAt": "2026-10-19T07:56:41.060394906Z",
+          "finishedAt": "2026-10-19T07:56:47.508288737Z",
+          "durationMs": 6447,
+          "usage": {
+            "outputTokens": 597,
+            "inputTokens": 6367
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        }
+      ],
+      "productionSwitched": false
+    },
+    "releaseScope": "r9 adds read-only receipt projections and UI; unchanged execution/admission path was accepted on r8. r9 restores that same persisted successful run after API/MCP/Node recreation.",
+    "knowledgeAnswer": {
+      "status": "PASSED",
+      "taskId": "b2fb8bf8-160e-3980-853d-0c219602d46c",
+      "codingTasks": 0,
+      "testedRelease": "r6"
+    },
+    "cancel": {
+      "status": "PASSED",
+      "taskId": "68024cc3-2402-3746-ac25-cbc7ffcba575",
+      "testedRelease": "r4",
+      "physicalSandboxObserved": true
+    },
+    "retry": {
+      "evidence": "shared-input-20261019-real-retry-r7.json",
+      "acceptedAttemptNumber": 2,
+      "scope": "Real official retry attempt 2; worker loss recovered Coding COMPLETED without replay; premature parent return prevented admission. This failed attempt exposed the r8 parent-wait fix; not full end-to-end success.",
+      "attemptOutcomeEvidence": "shared-input-20261019-retry-parent-premature-return.json"
+    },
+    "verifiedStopAfterWorkerLoss": {
+      "scope": "Official resume of verified failed Python after worker loss; no database changes",
+      "taskId": "analysis-coding-db102b5952d394c83f9a2bf16973d82873273b67cfaba4a90dd1934d2a748c67",
+      "parentTaskId": "34acef58-8775-4659-a48d-00d643f0d4de",
+      "status": "BUDGET_EXCEEDED",
+      "reasonCode": "DEADLINE_EXCEEDED",
+      "executionControl": {
+        "stopReason": "DEADLINE_EXCEEDED",
+        "stopRequestedAt": "2026-10-19T06:40:08.396Z",
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "productionSwitched": false
+    },
+    "csvScope": "Java round-trip and real restricted Python reader passed; no real-model CSV server acceptance claimed"
+  },
+  "evidence": {
+    "implementationAndContracts": "shared-input-20261019-implementation.md",
+    "buildAndChangedFileHashes": "shared-input-20261019-build.json",
+    "deployment": "shared-input-20261019-deployment.json",
+    "failedAttempts": "shared-input-20261019-failed-attempts.json",
+    "backendComparison": "shared-input-20261019-backend-comparison.json"
+  },
+  "remaining": {
+    "introducedTestFailures": 0,
+    "historicalBackendFailures": 130,
+    "historicalBackendErrors": 64,
+    "historicalDockerGateFailures": 10,
+    "historicalDockerGateScope": "Previously recorded baseline; this increment separately ran real container build, health and isolation checks",
+    "productionPrerequisites": [
+      "Resolve or formally disposition historical backend/Docker gates",
+      "Review configuration, resource limits, retention and additive schema migration",
+      "Review the observed MCP RocksDB startup lock contention and graceful shutdown ordering; service is currently stable",
+      "Explicit production-switch authorization"
+    ]
+  }
+}

@@ -9,6 +9,8 @@ import java.util.Map;
 public interface McpPythonControlPlanePort extends RuntimeProtocolPort {
     String PROTOCOL_VERSION = "runtime_os.mcp.python_control.v1";
     String MANAGED_PROTOCOL_VERSION = "runtime_os.mcp.python_managed.v1";
+    /** Durable cancellation before MCP admission; never an execution/result receipt. */
+    String NO_START_RECEIPT_VERSION = "runtime_os.mcp.python_no_start.v1";
 
     List<EnvironmentView> environments();
     /** Returns the MCP-published state of an environment, including non-active states. */
@@ -22,6 +24,12 @@ public interface McpPythonControlPlanePort extends RuntimeProtocolPort {
     DataFileResult uploadDataFile(String tenantId, String ownerId, String fileId, String fileName,
                                   String fileHash, byte[] content);
     byte[] downloadDataFile(String tenantId, String ownerId, String fileId);
+    /** Small authenticated receipt only: data bytes are already published on the configured shared volume. */
+    default DataFileResult registerSharedDataFile(String tenantId,String ownerId,String fileId,String fileName,
+                                                 String fileHash,long fileSize) {
+        throw new UnsupportedOperationException("Shared immutable input delivery is unavailable");
+    }
+    default List<String> inputCapabilities() { return List.of("JSON_LINES", "REMOTE_UPLOAD"); }
     void deleteDataFile(String tenantId, String ownerId, String fileId);
 
     /** An accepted operation is durable before this call returns. Source is encrypted by the client. */
@@ -33,6 +41,10 @@ public interface McpPythonControlPlanePort extends RuntimeProtocolPort {
         throw new UnsupportedOperationException("Async Python execution is unavailable");
     }
 
+    /** Cancellation before admission must durably fence late starts for the exact scoped operation.
+     * Its CANCELLED view has null executor/code/image fields and only receipt.json/manifest.json audit artifacts.
+     * The receipt uses NO_START_RECEIPT_VERSION, binds tenantId/ownerId/runId/taskId/operationId/fencingToken,
+     * and confirms stopConfirmed + dispatchPrevented. A missing get response alone is never stop proof. */
     default OperationView cancel(String tenantId, String ownerId, String runId, String taskId,
                                  String operationId, long fencingToken) {
         throw new UnsupportedOperationException("Async Python execution is unavailable");

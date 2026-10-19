@@ -29,6 +29,7 @@ pydantic
 # Database Abstraction
 # ============================================================
 sqlalchemy
+sqlglot
 
 # ============================================================
 # MySQL / MariaDB / Doris / StarRocks
@@ -70,5 +71,102 @@ python-dateutil
 pytz
 tenacity
 
-# Editor tooling (invoked through the authenticated Python API, never from the browser)
+# SQL Engineering
+jinja2
+pyyaml
+sqlfluff
+networkx
+jsonschema
+deepdiff
+pyright
+
+# Local SQL Analysis
+duckdb
+duckdb-engine
+polars
+
+# File / Object Storage
+fsspec
+s3fs
+minio
+
+# Additional Database Connectors
+trino
+pyiceberg
+
+# Testing / Quality
+pytest
 ruff
+
+# Performance
+orjson
+six
+
+
+# ============================================================
+# Interactive Visualization
+# ============================================================
+plotly
+kaleido
+
+# ============================================================
+# Statistical Visualization
+# ============================================================
+seaborn
+statsmodels
+missingno
+
+# ============================================================
+# Image Processing
+# ============================================================
+Pillow
+
+# ============================================================
+# Optional: Declarative Visualization
+# ============================================================
+altair
+
+# ============================================================
+# Optional: Large-scale Visualization
+# ============================================================
+datashader
+
+
+# ============================================================
+# Automated Data Exploration
+# ============================================================
+ydata-profiling
+
+# ============================================================
+# Data Quality and Property Testing
+# ============================================================
+pandera
+hypothesis
+
+# ============================================================
+# Interactive Data Tables
+# ============================================================
+itables
+great-tables
+
+# ============================================================
+# Execution Monitoring and Performance
+# ============================================================
+psutil
+threadpoolctl
+joblib
+
+# ============================================================
+# Optional: Unified DataFrame API
+# ============================================================
+ibis-framework
+
+# ============================================================
+# Optional: Parallel Data Processing
+# ============================================================
+dask[dataframe]
+
+# ============================================================
+# Optional: Machine Learning Explainability
+# ============================================================
+shap

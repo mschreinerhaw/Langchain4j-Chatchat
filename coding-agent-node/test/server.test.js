@@ -86,6 +86,9 @@ test('Node HTTP boundary authenticates, dispatches once, and hides SDK session I
       headers: { authorization: `Bearer ${secret}` },
     })).json()).status, 'UP');
     assert.equal((await fetch(`${url}/readyz`, { headers: { authorization: `Bearer ${secret}` } })).status, 200);
+    assert.equal((await post('/v1/input-capabilities', {}, 'wrong')).status, 401);
+    assert.deepEqual(await (await post('/v1/input-capabilities', {})).json(),
+      { schemaVersion: 'runtime_os.coding.input.v1', formats: ['PARQUET', 'CSV'] });
     const request = { contract, contractHash: 'a'.repeat(64), fencingToken: 1 };
     const unsupported = await post('/v1/runs', { ...request,
       contract: { ...contract, schemaVersion: 'runtime_os.coding.v2' } });

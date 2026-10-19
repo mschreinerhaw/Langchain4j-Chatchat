@@ -50,6 +50,7 @@ class CodingAnalysisServiceTest {
         }
     };
     CodingAnalysisService service(){
+        when(inputs.withInputContext(anyMap(),any(),anyString(),any())).thenAnswer(call->call.getArgument(0));
         when(collector.codeForReview(any(),anyString(),anyString())).thenReturn("print('computed result')");
         when(inputs.requireAuthorized(any())).thenReturn(new CodingInputSnapshotService.Snapshot("runtime-evidence:input","c"+"a".repeat(63),"input.jsonl","a".repeat(64),1,30,"source"));
         return new CodingAnalysisService(policy,identity,inputs,plans,agent,
@@ -67,7 +68,7 @@ class CodingAnalysisServiceTest {
     @Test void reusesPersistedContractAndBudgetAndAdmitsOnlyCommittedScopedResults() {
         policy.setEnvironmentId("environment");
         when(python.environment("environment")).thenReturn(new McpPythonControlPlanePort.EnvironmentView("environment","Python",null,"image","3", "1","512m","8m","8m","1000","NONE",null,"[]",300,false,1,"PUBLISHED"));
-        when(inputs.capture(any(),anyString(),anyList(),eq("source"),anyString(),anyString(),anyLong(),anyLong()))
+        when(inputs.captureConfigured(any(),anyString(),anyList(),eq("source"),anyString(),anyString(),anyLong(),anyLong(),any()))
             .thenAnswer(call->new CodingInputSnapshotService.Snapshot("runtime-evidence:input","c"+"a".repeat(63),"input.jsonl","a".repeat(64),1,30,"source"));
         when(inputs.describe(any(),anyString(),any())).thenReturn(Map.of("rowCount",1,"schemaJson","{}"));
         when(plans.register(any(),anyString(),any(),any())).thenReturn("runtime-evidence:plan");
@@ -102,7 +103,7 @@ class CodingAnalysisServiceTest {
             assertThatThrownBy(()->service().execute(parent,request(),sources())).isInstanceOf(IllegalStateException.class);
             verify(agent,never()).cancel(any(),anyString(),anyString());
         } catch(Exception failure) { throw new AssertionError(failure); }
-        verify(inputs,times(1)).capture(any(),anyString(),anyList(),anyString(),anyString(),anyString(),anyLong(),anyLong());
+        verify(inputs,times(1)).captureConfigured(any(),anyString(),anyList(),anyString(),anyString(),anyString(),anyLong(),anyLong(),any());
         var conflicting=new LinkedHashMap<>(request());conflicting.put("instruction","Changed target under the same identity");
         assertThatThrownBy(()->service().execute(parent,conflicting,sources())).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("identity conflict");
         verify(agent,times(2)).submit(any());
@@ -217,18 +218,41 @@ class CodingAnalysisServiceTest {
     }
 
     @Test void unknownExecutionRemainsUnknownAndCannotSupplyAnAnalysisResult() {
+        policy.setTimeoutSeconds(1);
         var unknown=outcome(CodingTaskOutcome.Status.RUNNING,CodingTaskOutcome.ValidationStatus.NOT_RUN);
         when(unknown.executionControl()).thenReturn(new CodingTaskOutcome.ExecutionControl(null,null,false,true));
         when(unknown.reasonCode()).thenReturn(CodingErrorCode.EXECUTION_OUTCOME_UNKNOWN);
         when(unknown.limitations()).thenReturn(List.of("Provider execution requires reconciliation"));
         prepare(unknown);when(agent.resume(any(),anyString())).thenReturn(unknown);
+        when(agent.get(any(),anyString())).thenReturn(unknown);
         var sources=sources();var receipt=service().execute(context("tenant"),request(),sources);
         assertThat(receipt).containsEntry("status","RUNNING").containsEntry("reconciliationRequired",true)
             .containsEntry("resultAvailable",false).containsEntry("reasonCode","EXECUTION_OUTCOME_UNKNOWN")
             .doesNotContainKeys("datasetReference","evidenceRefs");
         assertThat(sources).containsOnlyKeys("source");
         verifyNoInteractions(collector);
-        verify(agent).submit(any());verify(agent).resume(any(),anyString());
+        verify(agent).submit(any());verify(agent,atLeastOnce()).resume(any(),anyString());
+        verify(agent).cancel(any(),anyString(),anyString());
+    }
+
+    @Test void reconciledWorkerLossContinuesToSemanticAdmissionUnderTheOriginalTaskBudget() {
+        policy.setTimeoutSeconds(30);
+        var unknown=outcome(CodingTaskOutcome.Status.RUNNING,CodingTaskOutcome.ValidationStatus.NOT_RUN);
+        when(unknown.executionControl()).thenReturn(new CodingTaskOutcome.ExecutionControl(null,null,false,true));
+        var completed=outcome(CodingTaskOutcome.Status.COMPLETED,CodingTaskOutcome.ValidationStatus.INCONCLUSIVE);
+        prepare(unknown);
+        when(agent.get(any(),anyString())).thenReturn(unknown);
+        var attempts=new java.util.concurrent.atomic.AtomicInteger();
+        when(agent.resume(any(),anyString())).thenAnswer(call->{
+            assertThat(models.find(call.getArgument(0),call.getArgument(1))).isNotNull();
+            return attempts.incrementAndGet()==1?unknown:completed;
+        });
+        var sources=sources();var receipt=service().execute(context("tenant"),request(),sources);
+        assertThat(receipt).containsEntry("status","COMPLETED").containsEntry("resultAvailable",true);
+        assertThat(sources).containsKey("runtime-evidence:result");
+        verify(collector).registeredResult(any(),anyString(),eq("runtime-evidence:result"));
+        verify(agent,times(2)).resume(any(),anyString());
+        verify(agent,times(1)).submit(any());verify(agent,never()).cancel(any(),anyString(),anyString());
     }
 
     @Test void resultReadFailureDoesNotCancelAnAlreadyCompletedTask() {
@@ -288,7 +312,7 @@ class CodingAnalysisServiceTest {
     private void prepare(CodingTaskOutcome result){
         policy.setEnvironmentId("environment");
         when(python.environment("environment")).thenReturn(new McpPythonControlPlanePort.EnvironmentView("environment","Python",null,"image","3", "1","512m","8m","8m","1000","NONE",null,"[]",300,false,1,"PUBLISHED"));
-        when(inputs.capture(any(),anyString(),anyList(),eq("source"),anyString(),anyString(),anyLong(),anyLong()))
+        when(inputs.captureConfigured(any(),anyString(),anyList(),eq("source"),anyString(),anyString(),anyLong(),anyLong(),any()))
             .thenReturn(new CodingInputSnapshotService.Snapshot("runtime-evidence:input","c"+"a".repeat(63),"input.jsonl","a".repeat(64),1,30,"source"));
         when(inputs.describe(any(),anyString(),any())).thenReturn(Map.of("rowCount",1,"schemaJson","{}"));
         when(plans.register(any(),anyString(),any(),any())).thenReturn("runtime-evidence:plan");

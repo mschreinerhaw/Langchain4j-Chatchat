@@ -80,6 +80,7 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
     getPython: (contract, operationId, signal) => callback('get-python', { contract, operationId }, signal),
     cancelPython: (contract, operationId) => callback('cancel-python', { contract, operationId }),
     readMetadata: (contract, reference, signal) => callback('read-metadata', { contract, reference }, signal),
+    readInputContext: (contract, signal) => callback('input-context', { contract }, signal),
     readArtifact: (contract, reference, signal) => callback('read-artifact', { contract, reference }, signal),
     readWorkspace: (contract, operationId, signal) => callback('workspace-read', { contract, operationId }, signal),
     proposeWorkspace: (contract, operationId, proposal, signal) => callback('workspace-propose', { contract, operationId, proposal }, signal),
@@ -115,6 +116,10 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
       if (!equalSecret(authorization.startsWith('Bearer ') ? authorization.slice(7) : '', secret))
         return response(reply, 401, { message: 'Unauthorized' });
       const url = new URL(request.url ?? '/', 'http://localhost');
+      if (request.method === 'POST' && url.pathname === '/v1/input-capabilities') {
+        await body(request);
+        return response(reply, 200, { schemaVersion: 'runtime_os.coding.input.v1', formats: ['PARQUET', 'CSV'] });
+      }
       if (request.method === 'GET' && url.pathname === '/healthz')
         return response(reply, 200, { status: 'UP', sdk: '@cline/agents@0.0.93',
           runtime: process.version, build: process.env.RUNTIME_CODING_BUILD ?? 'development' });

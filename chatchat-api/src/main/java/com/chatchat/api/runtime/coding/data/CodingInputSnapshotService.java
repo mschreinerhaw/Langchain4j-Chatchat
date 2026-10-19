@@ -33,6 +33,31 @@ public final class CodingInputSnapshotService {
     private final McpPythonControlPlanePort python;
     private final CodingTaskAccess access;
     private final ObjectMapper mapper;
+    private CodingInputFilePublisher filePublisher;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setFilePublisher(CodingInputFilePublisher value){this.filePublisher=value;}
+    public Map<String,Object> withInputContext(Map<String,Object> configuration,KernelDataScope scope,String task,Snapshot input) {
+        var description=describe(scope,task,input);var result=new LinkedHashMap<String,Object>(configuration);
+        if(description.containsKey("inputManifest"))result.put("inputFiles",Map.of("schemaVersion",
+            com.chatchat.common.runtime.coding.CodingInputManifest.VERSION,"format",description.get("format"),
+            "delivery","SHARED_DIRECTORY","manifestFileId",input.fileId(),"manifestSha256",input.sha256()));
+        return com.chatchat.common.runtime.coding.CodingRuntimeContext.validate(result);
+    }
+    public Snapshot captureConfigured(KernelDataScope scope,String task,List<Dataset> authorized,String source,String decision,
+            String workspace,long maxRows,long maxBytes,Runnable guard) {
+        if(filePublisher!=null && filePublisher.enabled())return filePublisher.capture(scope,task,authorized,source,decision,workspace,maxRows,maxBytes,guard);
+        return maxRows>100000||maxBytes>16L*1024*1024?captureChunked(scope,task,authorized,source,decision,workspace,maxRows,maxBytes,guard)
+            :captureJsonl(scope,task,authorized,source,decision,workspace,maxRows,maxBytes);
+    }
+    public Snapshot captureForTask(CodingTaskContract contract,List<Dataset> authorized,String source,long maxRows,long maxBytes) {
+        if(contract.runtimeContext().get("inputFiles") instanceof Map<?,?> frozen) {
+            if(filePublisher==null || !filePublisher.enabled() || !filePublisher.format().equals(frozen.get("format")))
+                throw new IllegalStateException("Task input format configuration changed; original task cannot be reinterpreted");
+            return filePublisher.capture(contract.scope(),contract.taskId(),authorized,source,contract.authorization().decisionRef(),contract.workspaceRef(),
+                maxRows,maxBytes,()->{},String.valueOf(frozen.get("format")));
+        }
+        return captureJsonl(contract.scope(),contract.taskId(),authorized,source,contract.authorization().decisionRef(),contract.workspaceRef(),maxRows,maxBytes);
+    }
 
     public record Chunk(String fileId, String fileName, String sha256, long rowCount, long size) { }
     public record Snapshot(String reference, String fileId, String fileName, String sha256,
@@ -68,9 +93,15 @@ public final class CodingInputSnapshotService {
         var description = new LinkedHashMap<String,Object>();
         description.put("schemaJson",record.payload().get("schemaJson"));
         description.put("rowCount",input.rowCount());
+        description.put("size",input.size());
         description.put("sha256",input.sha256());
         description.put("fileId",input.fileId());
         description.put("format","JSON_LINES");
+        if(record.payload().get("inputManifest") instanceof Map<?,?> manifest) {
+            description.put("format",manifest.get("format"));
+            description.put("inputManifest",manifest);
+            description.put("delivery","SHARED_DIRECTORY");
+        }
         description.put("encoding","UTF-8");
         description.put("qualitySummary",record.payload().getOrDefault("qualitySummary",Map.of()));
         if(record.payload().get("inputVersions") instanceof List<?> versions) {
@@ -101,6 +132,13 @@ public final class CodingInputSnapshotService {
     public Snapshot capture(KernelDataScope scope, String taskId, List<Dataset> authorizedDatasets,
             String sourceDatasetRef, String decisionRef, String workspaceRef,
             long maxRows, long maxBytes) {
+        access.require(scope, CodingTaskAccess.Action.SUBMIT);
+        if(filePublisher!=null && filePublisher.enabled())return filePublisher.capture(scope,taskId,authorizedDatasets,
+            sourceDatasetRef,decisionRef,workspaceRef,maxRows,maxBytes,()->{});
+        return captureJsonl(scope,taskId,authorizedDatasets,sourceDatasetRef,decisionRef,workspaceRef,maxRows,maxBytes);
+    }
+    private Snapshot captureJsonl(KernelDataScope scope,String taskId,List<Dataset> authorizedDatasets,
+            String sourceDatasetRef,String decisionRef,String workspaceRef,long maxRows,long maxBytes) {
         access.require(scope, CodingTaskAccess.Action.SUBMIT);
         if (scope == null || scope.tenantId() == null || scope.userId() == null || scope.runId() == null
                 || taskId == null || taskId.isBlank() || sourceDatasetRef == null || sourceDatasetRef.isBlank()
@@ -182,6 +220,8 @@ public final class CodingInputSnapshotService {
     public Snapshot captureChunked(KernelDataScope scope,String taskId,List<Dataset> authorizedDatasets,
             String sourceDatasetRef,String decisionRef,String workspaceRef,long maxRows,long maxBytes,Runnable guard) {
         access.require(scope,CodingTaskAccess.Action.SUBMIT);
+        if(filePublisher!=null && filePublisher.enabled())return filePublisher.capture(scope,taskId,authorizedDatasets,
+            sourceDatasetRef,decisionRef,workspaceRef,maxRows,maxBytes,guard);
         if(maxRows<1||maxRows>1_000_000||maxBytes<1||maxBytes>256L*1024*1024)
             throw new IllegalArgumentException("Chunked snapshot exceeds deployment limits");
         Dataset selected=Objects.requireNonNull(authorizedDatasets).stream()
@@ -299,10 +339,18 @@ public final class CodingInputSnapshotService {
         if(value.get("chunks") instanceof List<?> stored)
             chunks=stored.stream().map(item->mapper.convertValue(item,Chunk.class)).toList();
         var mounted=new ArrayList<String>();mounted.add(fileId);chunks.forEach(item->mounted.add(item.fileId()));
-        if (!contract.authorization().allowedDataRefs().equals(mounted)
+        // Authorization references are canonically sorted by the public contract; file read
+        // order belongs to the immutable manifest, not to the permission list.
+        if (!contract.authorization().allowedDataRefs().equals(mounted.stream().sorted().toList())
                 || !(FILE_NAME.equals(fileName) && chunks.isEmpty() || "manifest.json".equals(fileName) && !chunks.isEmpty())
                 || !hash.matches("[0-9a-f]{64}"))
             throw new SecurityException("Coding input file authorization differs from its snapshot");
+        Object frozen=contract.runtimeContext().get("inputFiles");
+        if(value.get("inputManifest") instanceof Map<?,?> manifest) {
+            if(!(frozen instanceof Map<?,?> input) || !fileId.equals(input.get("manifestFileId"))
+                    || !hash.equals(input.get("manifestSha256")) || !manifest.get("format").equals(input.get("format")))
+                throw new SecurityException("Task input capability is not bound to its snapshot");
+        }else if(frozen!=null)throw new SecurityException("Legacy input cannot claim a new format");
         return new Snapshot(ref, fileId, fileName, hash,
             ((Number) value.get("rowCount")).longValue(), ((Number) value.get("size")).longValue(), source,chunks);
     }

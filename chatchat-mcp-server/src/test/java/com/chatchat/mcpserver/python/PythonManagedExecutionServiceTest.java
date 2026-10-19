@@ -31,6 +31,42 @@ class PythonManagedExecutionServiceTest {
 
     @AfterEach void shutdown() { if (service != null) service.shutdown(); }
 
+    @Test void cancelBeforeAdmissionPersistsNoStartProofAndBlocksLateStartAcrossRestart() throws Exception {
+        Harness h = harness(false);
+        var stopped = service.cancel("tenant", "owner", "run", "task", "not-admitted", 1);
+        assertEquals("CANCELLED", stopped.status()); assertTrue(stopped.executorStopped());
+        assertNull(stopped.containerId()); assertNull(stopped.imageDigest());
+        byte[] receipt = service.artifact("tenant", "owner", "run", "task", "not-admitted", "logs", "receipt.json");
+        assertTrue(new ObjectMapper().readTree(receipt).path("dispatchPrevented").asBoolean());
+        assertEquals(stopped, h.start("not-admitted", 1, "print('must never execute')"));
+        assertArrayEquals(receipt, service.artifact("tenant", "owner", "run", "task", "not-admitted", "logs", "receipt.json"));
+        assertThrows(Exception.class, () -> service.artifact("tenant", "owner", "run", "task", "not-admitted", "results", "rows.jsonl"));
+        assertThrows(Exception.class, () -> service.get("other-tenant", "owner", "run", "task", "not-admitted"));
+        service.shutdown();
+        service = new PythonManagedExecutionService(h.jdbc, new DataSourceTransactionManager(h.jdbc.getDataSource()),
+            mock(PythonCapabilityService.class), h.docker, mock(PythonOperationWorkspace.class), mock(InternalCredentialProperties.class), new ObjectMapper());
+        assertEquals(stopped, service.get("tenant", "owner", "run", "task", "not-admitted"));
+        assertEquals(stopped, h.start("not-admitted", 2, "print('still forbidden')"));
+        verifyNoInteractions(h.docker);
+        assertEquals(0L, h.jdbc.queryForObject("select count(*) from mcp_python_managed_operation", Long.class));
+    }
+
+    @Test void cancellationWinsAgainstStartAlreadyPreparingItsAdmission() throws Exception {
+        Harness h = harness(false);
+        var entered = new java.util.concurrent.CountDownLatch(1);
+        var release = new java.util.concurrent.CountDownLatch(1);
+        when(h.docker.resolveImageId(any())).thenAnswer(call -> { entered.countDown(); release.await(5, java.util.concurrent.TimeUnit.SECONDS); return "sha256:" + "a".repeat(64); });
+        var pool = java.util.concurrent.Executors.newSingleThreadExecutor();
+        try {
+            var pending = pool.submit(() -> h.start("racing", 1, "print('late')"));
+            assertTrue(entered.await(5, java.util.concurrent.TimeUnit.SECONDS));
+            assertEquals("CANCELLED", service.cancel("tenant", "owner", "run", "task", "racing", 1).status());
+            release.countDown();
+            assertEquals("CANCELLED", pending.get(5, java.util.concurrent.TimeUnit.SECONDS).status());
+            assertEquals(0, h.created.get());
+        } finally { release.countDown(); pool.shutdownNow(); }
+    }
+
     @Test void realJdbcIdempotencyFenceScopeAndArtifactAfterCleanup() throws Exception {
         Harness h = harness(false);
         var first = h.start("op-1", 1, "print('one')");
@@ -185,6 +221,7 @@ class PythonManagedExecutionServiceTest {
         var dataSource = new DriverManagerDataSource("jdbc:h2:mem:pyop-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", "");
         try (Connection connection = dataSource.getConnection()) {
             ScriptUtils.executeSqlScript(connection, new FileSystemResource(Path.of("../database/migration/h2/V20261015_01__mcp_python_managed_operation.sql")));
+            ScriptUtils.executeSqlScript(connection, new FileSystemResource(Path.of("../database/migration/h2/V20261019_03__mcp_python_unadmitted_cancellation.sql")));
         }
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
         PythonRuntimeProperties properties = new PythonRuntimeProperties();

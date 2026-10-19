@@ -30,6 +30,14 @@ public class McpPythonControlPlaneClient implements McpPythonControlPlanePort {
     public SyncResult synchronizeTemplate(String id,TemplatePayload payload){Map<String,Object> body=mapper.convertValue(payload,new TypeReference<>(){});body.put("sourceCiphertext",encrypt(payload.source()));body.remove("source");return convert(put("/api/v1/python/templates/"+encode(id),body),SyncResult.class);}
     public ExecutionResult executeTemplate(String id,String tenantId,String ownerId,Map<String,Object> parameters){String token=login();Object raw=webClient.post().uri(url("/api/v1/python/templates/"+encode(id)+"/execute")).header(HttpHeaders.AUTHORIZATION,"Bearer "+token).header("X-Tenant-Scope",scopeHeader(tenantId)).header("X-Owner-Scope",scopeHeader(ownerId)).contentType(MediaType.APPLICATION_JSON).bodyValue(parameters==null?Map.of():parameters).retrieve().bodyToMono(Object.class).timeout(timeout()).block();return convert(unwrap(raw),ExecutionResult.class);}
     public void setTemplateEnabled(String id,boolean enabled){post("/api/v1/python/templates/"+encode(id)+"/enabled?enabled="+enabled,Map.of());}
+    public List<String> inputCapabilities(){Object raw=get("/api/v1/python/input-capabilities");return mapper.convertValue(raw,new TypeReference<List<String>>(){});}
+    public DataFileResult registerSharedDataFile(String tenantId,String ownerId,String fileId,String fileName,String fileHash,long fileSize){
+        Object raw=webClient.post().uri(url("/api/v1/python/data-files/"+encode(fileId)+"/shared"))
+            .header(HttpHeaders.AUTHORIZATION,"Bearer "+login()).header("X-Tenant-Scope",scopeHeader(tenantId))
+            .header("X-Owner-Scope",scopeHeader(ownerId)).contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(Map.of("fileName",fileName,"sha256",fileHash,"sizeBytes",fileSize)).retrieve()
+            .bodyToMono(Object.class).timeout(timeout()).block();return convert(unwrap(raw),DataFileResult.class);
+    }
     public DataFileResult uploadDataFile(String tenantId,String ownerId,String fileId,String fileName,String fileHash,byte[] content){
         byte[] encrypted=InternalSecretCipher.encryptBytes(content,secret());String token=login();
         Object raw=webClient.post().uri(url("/api/v1/python/data-files/"+encode(fileId)))

@@ -1,0 +1,12 @@
+{
+  "status": "PASSED",
+  "scope": "Read-only infrastructure audit after MCP container recreation; Runtime API established the stop proof",
+  "taskId": "analysis-coding-711255e8b0ac9d5d90ab875a4b34be02fe1271fc538a1ba4d5d84ad2d5c6f4e3",
+  "operationId": "cline-cde0538be1811165c31d8bbfd56be5441ed18e3f3e7cd8b844c80237cb863c8a",
+  "receiptSha256": "ea503673ee25116031c4c89a1d7d158dde4ef8fdd938c81e5f02a82adcb3e86b",
+  "fencingToken": 2,
+  "receiptVersion": "runtime_os.mcp.python_no_start.v1",
+  "matchesRuntimeStopEvidence": true,
+  "persistedAfterMcpRecreation": true,
+  "productionSwitched": false
+}

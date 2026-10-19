@@ -1,0 +1,14 @@
+{
+  "scope": "Unit test; Coding SPI, provider, MCP and collector mocked. Real server acceptance is separate.",
+  "tests": [
+    "reconciledWorkerLossContinuesToSemanticAdmissionUnderTheOriginalTaskBudget",
+    "unknownExecutionRemainsUnknownAndCannotSupplyAnAnalysisResult"
+  ],
+  "status": "PASSED",
+  "surefireXmlSha256": "26d78d81f5f2f94b665619fd2aae1889db83b96f4c81a6e50283a8bd8317f278",
+  "checks": [
+    "Keep original model binding and task identity while receipts remain unknown",
+    "Continue through existing semantic review and dataset registration once the same task completes",
+    "An unknown operation at the accepted deadline cannot become an analytical result"
+  ]
+}

@@ -85,6 +85,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         if (contract.authorization().networkPolicy() != CodingTaskContract.NetworkPolicy.NONE)
             throw new SecurityException("D1 Coding Sandbox requires a no-network authorization");
         }
+        requireInputCapabilities(contract);
         CodingTaskOutcome accepted = tasks.submit(contract); // A2 persists acceptance before any Node dispatch.
         if (accepted.status().terminal() || accepted.executionControl().stopReason() != null) return accepted;
         KernelDataScope scope = contract.scope();
@@ -174,14 +175,17 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
                 && tasks.unresolvedOperations(scope, taskId).isEmpty()) {
             JsonNode checkpoint = tasks.sdkCheckpoint(scope, taskId);
             if (checkpoint != null) {
+                requireInputCapabilities(tasks.contract(scope,taskId));
                 request("/v1/runs", Map.of("contract", tasks.contract(scope, taskId),
                     "contractHash", current.contractSha256(), "fencingToken", lease.fencingToken(),
                     "checkpoint", checkpoint));
                 return tasks.get(scope, taskId);
             }
         }
+        // A durable stop rejects new model/tool admissions. Once every started operation has
+        // verified stop evidence, a lost SDK session must not keep cancellation pending forever.
         if (workerId.equals(lease.owner()) && current.executionControl().stopReason() != null
-                && remote != null && List.of("COMPLETED", "FAILED", "CANCELLED").contains(remote.path("status").asText())
+                && (sessionMissing || remote != null && List.of("COMPLETED", "FAILED", "CANCELLED").contains(remote.path("status").asText()))
                 && tasks.unresolvedOperations(scope, taskId).isEmpty())
             return tasks.finishStoppedAfterReconciliation(scope, taskId, lease, current.revision());
         if (workerId.equals(lease.owner()) && current.executionControl().stopReason() == null
@@ -190,12 +194,31 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
                     && List.of("COMPLETED", "FAILED", "CANCELLED").contains(remote.path("status").asText()))) {
             CodingTaskOutcome archived = completeVerifiedOperation(scope, taskId, lease);
             if (archived != null) return archived;
+            var operations=tasks.startedCodeOperations(scope,taskId);
+            if(!operations.isEmpty()) {
+                String operationId=operations.get(operations.size()-1);
+                var operation=python.get(scope,taskId,operationId);
+                if(operation.executorStopped() && operation.manifestHash()!=null
+                        && java.util.Set.of("FAILED","CANCELLED","TIMED_OUT").contains(operation.status())
+                        && tasks.verifiedOperation(scope,taskId,operationId).isPresent()) {
+                    var at=clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+                    if(at.isBefore(current.updatedAt()))at=current.updatedAt();
+                    var failed=new CodingTaskOutcome(current.schemaVersion(),current.taskId(),current.scope(),current.contractSha256(),
+                        CodingTaskOutcome.Status.FAILED,current.revision()+1,current.lastEventSequence()+1,current.createdAt(),at,current.startedAt(),at,
+                        false,CodingErrorCode.EXECUTION_FAILED,"Worker session ended after a verified failed execution; no safe SDK checkpoint is available",
+                        List.of("Execution diagnostics remain archived; retry through the existing parent workflow"),current.inputSnapshotRef(),
+                        null,null,null,null,null,CodingTaskOutcome.ValidationStatus.NOT_RUN,current.reproducibility(),current.usage(),
+                        new CodingTaskOutcome.ExecutionControl(null,null,true,false),current.parentTaskId(),current.supersedesTaskId(),Map.of());
+                    return tasks.commitOutcome(scope,taskId,lease,current.revision(),failed);
+                }
+            }
         }
         if (workerId.equals(lease.owner()) && current.executionControl().stopReason() == null
                 && !tasks.hasStartedOperations(scope, taskId)
                 && (sessionMissing || remote != null && remote.path("fencingToken").asLong() < lease.fencingToken()
                     && List.of("COMPLETED", "FAILED", "CANCELLED").contains(remote.path("status").asText()))) {
             CodingTaskContract contract = tasks.contract(scope, taskId);
+            requireInputCapabilities(contract);
             request("/v1/runs", Map.of("contract", contract, "contractHash", current.contractSha256(),
                 "fencingToken", lease.fencingToken()));
         }
@@ -284,6 +307,14 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             throw new IllegalStateException("Cline dispatch interrupted; reconcile before retry", interrupted);
         } catch (java.io.IOException failure) {
             throw new IllegalStateException("Cline dispatch outcome unknown; reconcile before retry", failure);
+        }
+    }
+    private void requireInputCapabilities(CodingTaskContract contract) {
+        if(contract.runtimeContext().get("inputFiles") instanceof Map<?,?> input) {
+            JsonNode capabilities=request("/v1/input-capabilities",Map.of());
+            if(!com.chatchat.common.runtime.coding.CodingInputManifest.VERSION.equals(capabilities.path("schemaVersion").asText())
+                    || !capabilities.path("formats").toString().contains("\""+input.get("format")+"\""))
+                throw new IllegalStateException("Cline worker has not negotiated this input descriptor");
         }
     }
 

@@ -1,0 +1,20 @@
+{
+  "scope": "Actual default npm test; no mocks substituted for grammar loading",
+  "firstRun": {
+    "uiArtifactPassed": 290,
+    "sqlStudioPassed": 60,
+    "sqlStudioFailed": 1,
+    "failure": "sqlSchemaCompletion.test.js cold grammar load exceeded unchanged 5000ms timeout",
+    "context": "Concurrent full Maven tests",
+    "logSha256": "13a911490285c6eed725c9b9929507ec58e563c41eb780486ba7a0305ef934e3"
+  },
+  "idleRerun": {
+    "status": "PASSED",
+    "uiArtifact": 290,
+    "sqlStudio": 61,
+    "codeIntelligence": 10,
+    "logSha256": "d67e1b62eb154df0dcf6d5e4207076126b2f5ea5be1b08866f3f3140389b4c88"
+  },
+  "sourceAndTimeoutChanged": false,
+  "conclusion": "Same command passed after Maven ended; timing sensitivity retained as evidence, not classified as a new functional regression"
+}

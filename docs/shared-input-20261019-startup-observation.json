@@ -1,0 +1,13 @@
+{
+  "scope": "Real Docker startup observation; no RocksDB or lock files removed",
+  "service": "runtime-os-app-stage-mcp-1",
+  "startupRetries": 2,
+  "cause": "RocksDB LOCK contention before readiness",
+  "priorLockHolderNotEstablished": true,
+  "restartCountAfterReadiness": 2,
+  "runningSince": "2026-10-19T08:28:22.84209394Z",
+  "observedAt": "2026-10-19T08:36:41.158424+00:00",
+  "lockErrorsSinceSuccessfulStart": 0,
+  "currentRunning": true,
+  "productionSwitched": false
+}

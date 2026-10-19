@@ -23,6 +23,12 @@ def main():
     parser.add_argument('--base-url', default='http://127.0.0.1:18180')
     parser.add_argument('--timeout', type=int, default=1200)
     parser.add_argument('--task-id', help='Continue observing an already accepted official task without resubmitting')
+    parser.add_argument('--expected-input-format', choices=['PARQUET', 'CSV'], help='Assert the actual immutable input binding for every submitted operation')
+    parser.add_argument('--restart-phase', choices=['executing', 'validated'], default='executing',
+        help='Kill the worker during physical execution or after Java has validated the Python result')
+    parser.add_argument('--question-file', help='UTF-8 acceptance request, submitted through the same published API')
+    parser.add_argument('--recovery-driver', choices=['manual', 'automatic'], default='manual',
+        help='Observe Runtime reconciliation or invoke the existing explicit resume control')
     args = parser.parse_args()
     if args.base_url not in ('http://127.0.0.1:18180', 'http://127.0.0.1:18100'):
         raise RuntimeError('Acceptance must target the loopback test service')
@@ -46,14 +52,18 @@ def main():
     token = http('/api/v1/enterprise/auth/login', credentials)['token']
     question = ('这是知识问答：解释 InnoDB Buffer Pool 命中率的含义和局限。'
         '不要查询当前数据库、不要计算实例数据、不要调用 Python。') if args.mode == 'qa' else (
-        '数据分析任务：通过现有授权数据库模板读取 LiveData测试库_223 的当前连接状态。'
-        '必须委派 Coding Agent 编写 Python，从本次已返回的快照中统计 Sleep 连接数与全部连接数，'
-        '仅返回一行结构化计数和简短限制说明。只报告本次快照，不判断数据库是否健康，不复制原始记录。')
+        '数据分析：使用授权模板查询 LiveData测试库_223 当前连接状态，委派 Coding Agent 用 Python '
+        '统计 Sleep 和总连接数；仅输出一行聚合计数和限制说明，禁止复制原始记录。'
+        '仅分析本次快照，不判断健康。')
     if args.mode in ('cancel', 'restart-node'):
         # Keep the acceptance request concise: the existing search DSL has a clause budget.
         question = ('数据分析：使用授权模板查询 LiveData测试库_223 当前连接状态，委派 Coding Agent 用 Python '
             '统计 Sleep 和总连接数；仅输出聚合计数，禁止复制原始记录。Python 读取本次快照后先 '
             'time.sleep(25)，再统计；仅分析本次快照，不判断健康。')
+    if args.question_file:
+        question = pathlib.Path(args.question_file).read_text(encoding='utf-8').strip()
+        if not question or len(question.encode('utf-8')) > 8192:
+            raise RuntimeError('Acceptance question must contain 1..8192 UTF-8 bytes')
     if args.task_id:
         existing = http('/api/v1/published-agents/db_ops_assistant/questions/' + args.task_id + '/status?eventLimit=1')
         submission = {'taskId': args.task_id, 'attemptId': existing['attemptId']}
@@ -63,9 +73,11 @@ def main():
     parent, run = submission['taskId'], submission['attemptId']
     root = '/api/v1/agent/runtime/runs/' + urllib.parse.quote(run) + '/coding'
     status_path = '/api/v1/published-agents/db_ops_assistant/questions/' + parent + '/status?eventLimit=1'
-    report = {'mode': args.mode, 'scope': 'Real published task API, configured provider and real Docker Sandbox',
+    report = {'mode': args.mode, 'scope': 'Real published task API and configured provider; Sandbox execution verified by task receipts',
         'taskId': parent, 'runId': run, 'startedAt': time.time(), 'productionSwitched': False,
-        'tasks': [], 'events': {}, 'codeSubmissions': [], 'nodeRestarted': False, 'cancelRequested': False}
+        'tasks': [], 'events': {}, 'codeSubmissions': [], 'nodeRestarted': False, 'cancelRequested': False,
+        'inputBindings': [], 'expectedInputFormat': args.expected_input_format, 'restartPhase': args.restart_phase,
+        'recoveryDriver': args.recovery_driver}
     output = pathlib.Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
 
@@ -112,6 +124,18 @@ def main():
                         digest = hashlib.sha256(code['content'].encode()).hexdigest()
                         if not code.get('redacted') and digest != payload.get('codeSha256'):
                             raise RuntimeError('Displayed source differs from submitted code hash')
+                        if args.expected_input_format:
+                            binding = http(root + '/' + urllib.parse.quote(tid) + '/inputs?operationId=' + operation)
+                            if binding['binding'] != 'OPERATION_FROZEN' or not binding['snapshots']:
+                                # Code proposal can become visible before execution freezes its inputs.
+                                continue
+                            for snapshot in binding['snapshots']:
+                                manifest = snapshot.get('inputManifest', {})
+                                if snapshot.get('format') != args.expected_input_format or manifest.get('format') != args.expected_input_format:
+                                    raise RuntimeError('Actual input format differs from the requested acceptance format')
+                                if manifest.get('schemaVersion') != 'runtime_os.coding.input.v1' or not manifest.get('parts'):
+                                    raise RuntimeError('Immutable file manifest is missing')
+                            report['inputBindings'].append({'taskId': tid, 'operationId': operation, **binding})
                         read_codes.add(operation)
                         report['codeSubmissions'].append({'taskId': tid, 'operationId': operation,
                             'sha256': payload.get('codeSha256'), 'displayedSourceSha256': digest,
@@ -142,14 +166,25 @@ def main():
                     http('/api/v1/published-agents/db_ops_assistant/questions/' + parent, method='DELETE')
                     report['cancelRequested'] = True
                     report['cancelTarget'] = tid
-                if args.mode == 'restart-node' and active_python and not report['nodeRestarted']:
+                validated = any(e.get('payload', {}).get('type') == 'TOOL_FINISHED'
+                    and e['payload'].get('tool') == 'python_execute' and e['payload'].get('status') == 'SUCCEEDED'
+                    # Public events intentionally omit artifact references. Java only reports
+                    # PASSED/INCONCLUSIVE here after collection; final admission is checked below.
+                    and e['payload'].get('validationStatus') in ('PASSED', 'INCONCLUSIVE') for e in ordered)
+                restart_ready = active_python if args.restart_phase == 'executing' else validated
+                if args.mode == 'restart-node' and restart_ready and not report['nodeRestarted'] and not task['outcome'].get('endedAt'):
+                    current = next(t for t in http(root)['tasks'] if t['taskId'] == tid)
+                    if current['outcome'].get('endedAt'):
+                        continue  # A restart after completion is not recovery acceptance.
+                    report['codeExecutionsAtRestart'] = current['outcome']['usage']['consumed']['codeExecutions']
                     subprocess.run(['docker', 'kill', '--signal', 'KILL', 'runtime-os-app-stage-coding-agent-1'], check=True, capture_output=True)
                     subprocess.run(['docker', 'start', 'runtime-os-app-stage-coding-agent-1'], check=True, capture_output=True)
                     report['nodeRestarted'] = True
                     report['nodeRestartedAt'] = time.time()
                     report['restartTarget'] = tid
-                reconciliation_ready = report['cancelRequested'] or report['nodeRestarted'] and time.time() - report['nodeRestartedAt'] >= 30
-                if args.mode in ('cancel', 'restart-node') and reconciliation_ready and not task['outcome'].get('endedAt'):
+                reconciliation_ready = report['cancelRequested'] or report['nodeRestarted'] and (
+                    args.restart_phase == 'validated' or time.time() - report['nodeRestartedAt'] >= 30)
+                if args.mode in ('cancel', 'restart-node') and args.recovery_driver == 'manual' and reconciliation_ready and not task['outcome'].get('endedAt'):
                     # The existing SPI reconciles receipts and restores only a settled checkpoint; it never blindly retries.
                     http(root + '/' + urllib.parse.quote(tid) + '/resume', {}, 'POST')
             summary = (state['status'], tuple((t['taskId'], t['outcome']['status']) for t in tasks))
@@ -160,7 +195,7 @@ def main():
             save()
             if state.get('terminal') and all(t['outcome'].get('endedAt') for t in tasks):
                 break
-            time.sleep(2)
+            time.sleep(0.2 if args.mode == 'restart-node' and args.restart_phase == 'validated' and tasks else 2)
         else:
             report['status'] = 'TIMED_OUT_WAITING_FOR_ACCEPTANCE'
             http('/api/v1/published-agents/db_ops_assistant/questions/' + parent, method='DELETE')
@@ -193,6 +228,12 @@ def main():
             passed = passed and bool(report['parent']['answerAvailable']) and report['parent']['canonicalState'] == 'SUCCEEDED'
             if args.mode == 'restart-node':
                 passed = passed and report['nodeRestarted']
+                if args.restart_phase == 'validated' and report['nodeRestarted']:
+                    final = next(t for t in report['tasks'] if t['taskId'] == report['restartTarget'])
+                    report['noExecutionReplayAfterRestart'] = final['outcome']['usage']['consumed']['codeExecutions'] == report['codeExecutionsAtRestart']
+                    passed = passed and report['noExecutionReplayAfterRestart']
+        if args.expected_input_format and args.mode != 'qa':
+            passed = passed and bool(report['inputBindings'])
         report['status'] = 'PASSED' if passed else 'FAILED'
         save()
         print(json.dumps({key: report.get(key) for key in ('status', 'taskId', 'hasActualModelTelemetry', 'hasArchivedCode', 'hasCompletedCoding', 'nodeRestarted', 'cancelRequested')}), flush=True)

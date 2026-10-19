@@ -38,6 +38,77 @@ test('SDK receives task configuration and chunk bindings; final code receipt ref
   assert.ok(run.events.every(e => !Object.hasOwn(e, 'source') || e.source === 'NODE_CLINE'));
   assert.equal(JSON.stringify(run.events).includes('print(42)'), false);
 });
+test('versioned file inputs negotiate format before SDK/model admission and keep output JSONL', async () => {
+  for (const format of ['PARQUET', 'CSV']) {
+    let prompt, metadataReads = 0;
+    const next = structuredClone(contract);
+    next.runtimeContext.inputFiles = { schemaVersion: 'runtime_os.coding.input.v1', format, delivery: 'SHARED_DIRECTORY',
+      manifestFileId: next.authorization.allowedDataRefs[0], manifestSha256: 'a'.repeat(64) };
+    const run = createCodingRun(next, { reserveModel: async () => {}, settleModel: async () => {},
+      readInputContext: async () => { metadataReads++; return { columns: ['metadata-column-from-java'] }; },
+      executePython: async () => {}, finish: async () => {} }, { model: { async *stream(request) {
+        prompt = request.systemPrompt; assert.match(JSON.stringify(request.messages), /metadata-column-from-java/);
+        yield { type: 'text-delta', text: 'No execution requested' }; yield { type: 'finish', reason: 'stop' };
+      } } });
+    await run.run(); assert.equal(metadataReads, 1); assert.match(prompt, /ordered Parquet\/CSV parts|ordered parts|Parquet presence columns/);
+    assert.match(prompt, /map storage columns to logical names/i);
+    assert.match(prompt, /file ID directories are siblings/);
+    assert.match(prompt, /exact files\[\]\.virtualPath/);
+    next.runtimeContext.inputFiles.schemaVersion = 'unnegotiated';
+    assert.throws(() => createCodingRun(next, {}), /VERSION_UNSUPPORTED/);
+  }
+});
+test('cancellation during input preparation cannot start a late model loop', async () => {
+  const next = structuredClone(contract);
+  next.runtimeContext.inputFiles = { schemaVersion: 'runtime_os.coding.input.v1', format: 'PARQUET',
+    delivery: 'SHARED_DIRECTORY', manifestFileId: next.authorization.allowedDataRefs[0], manifestSha256: 'a'.repeat(64) };
+  let release, signal, modelCalls = 0, finish;
+  const run = createCodingRun(next, {
+    reserveModel: async () => {}, executePython: async () => {},
+    finish: async (_contract, outcome) => { finish = outcome; },
+    readInputContext: async (_contract, value) => {
+      signal = value;
+      return new Promise(resolve => { release = resolve; });
+    },
+  }, { model: { async *stream() { modelCalls++; yield { type: 'finish', reason: 'stop' }; } } });
+  const pending = run.run();
+  run.abort('Runtime cancellation');
+  assert.equal(signal.aborted, true);
+  release({ columns: [] });
+  await assert.rejects(pending, /Runtime cancellation/);
+  assert.equal(modelCalls, 0);
+  assert.equal(finish.status, 'aborted');
+  assert.equal(run.events.some(event => event.type === 'CONTEXT_READY'), false);
+});
+
+test('failed input preparation records a failed Runtime finish without admitting a model', async () => {
+  const next = structuredClone(contract);
+  next.runtimeContext.inputFiles = { schemaVersion: 'runtime_os.coding.input.v1', format: 'CSV', delivery: 'SHARED_DIRECTORY',
+    manifestFileId: next.authorization.allowedDataRefs[0], manifestSha256: 'a'.repeat(64) };
+  let finish, modelCalls = 0;
+  const run = createCodingRun(next, { reserveModel: async () => {}, executePython: async () => {},
+    readInputContext: async () => { throw new Error('Metadata unavailable'); },
+    finish: async (_contract, outcome) => { finish = outcome; },
+  }, { model: { async *stream() { modelCalls++; yield { type: 'finish', reason: 'stop' }; } } });
+  await assert.rejects(run.run(), /Metadata unavailable/);
+  assert.equal(finish.status, 'failed'); assert.equal(finish.iterations, 0); assert.equal(modelCalls, 0);
+});
+
+test('cancellation while persisting context events cannot be reset by Agent.run', async () => {
+  let release, entered, finish, modelCalls = 0;
+  const started = new Promise(resolve => { entered = resolve; });
+  const run = createCodingRun(contract, { reserveModel: async () => {}, executePython: async () => {},
+    event: async event => {
+      if (event.type === 'CONTEXT_READY') { entered(); await new Promise(resolve => { release = resolve; }); }
+    },
+    finish: async (_contract, outcome) => { finish = outcome; },
+  }, { model: { async *stream() { modelCalls++; yield { type: 'finish', reason: 'stop' }; } } });
+  const pending = run.run(); await started;
+  run.abort('Runtime cancellation'); release();
+  await assert.rejects(pending, /Runtime cancellation/);
+  assert.equal(finish.status, 'aborted'); assert.equal(modelCalls, 0);
+});
+
 test('worker graceful shutdown cancels active SDK execution and records finish before exiting', async () => {
   const secret = '0123456789abcdef0123456789abcdef';
   let entered, stopped = false;

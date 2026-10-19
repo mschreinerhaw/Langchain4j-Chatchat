@@ -1,0 +1,30 @@
+{
+  "mode": "qa",
+  "scope": "Real published task API and configured provider; Sandbox execution verified by task receipts",
+  "taskId": "b2fb8bf8-160e-3980-853d-0c219602d46c",
+  "runId": "att-1-058677b7-75a6-4062-acec-1002091b7349",
+  "startedAt": 1792392673.6794562,
+  "productionSwitched": false,
+  "tasks": [],
+  "events": {},
+  "codeSubmissions": [],
+  "nodeRestarted": false,
+  "cancelRequested": false,
+  "inputBindings": [],
+  "expectedInputFormat": null,
+  "restartPhase": "executing",
+  "parent": {
+    "status": "SUCCESS",
+    "canonicalState": "SUCCEEDED",
+    "terminal": true,
+    "answerAvailable": true,
+    "attemptNumber": 1
+  },
+  "hasActualModelTelemetry": false,
+  "hasCodeReadyEvent": false,
+  "hasArchivedCode": false,
+  "hasCompletedCoding": false,
+  "resultAdmitted": false,
+  "orderedUniqueEvents": true,
+  "status": "PASSED"
+}

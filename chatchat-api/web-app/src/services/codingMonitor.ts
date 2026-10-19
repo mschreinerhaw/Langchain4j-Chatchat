@@ -6,6 +6,7 @@ export interface CodingEvent {
   payload?: Record<string, any>; evidenceRefs?: string[];
 }
 export interface CodingTask {
+  modelReceipts?: CodingModelCallTelemetry[];
   taskId: string; attemptId: string; objective: string; canCancel: boolean; canRetry: boolean; canResume?: boolean;
   configuration: { model?: Record<string, any>; skills?: Record<string, any>; configuredSkillIds?: string[] };
   allowedTools: string[];
@@ -67,7 +68,12 @@ export function codeVersions(events: CodingEvent[]) {
   }
   return [...versions.values()];
 }
-export function modelCalls(events: CodingEvent[]) {
+export interface CodingModelCallTelemetry {
+  operationId: string; attemptId?: string; modelCall: number; state: string;
+  selectedModel?: string; providerModel?: string; protocol?: string; startedAt?: string; finishedAt?: string;
+  durationMs?: number; usage: { inputTokens?: number; outputTokens?: number }; source: 'JAVA_MODEL_RECEIPT';
+}
+export function modelCalls(events: CodingEvent[], receipts: CodingModelCallTelemetry[] = []) {
   const calls = new Map<string, Record<string, any>>();
   for (const event of events) {
     const p = event.payload ?? {};
@@ -79,9 +85,24 @@ export function modelCalls(events: CodingEvent[]) {
     if (p.type === 'MODEL_USAGE') Object.assign(call, { finishedAt: event.occurredAt, usage: p.usage, state: 'SUCCEEDED' });
     calls.set(key, call);
   }
-  return [...calls.values()];
+  for (const receipt of receipts) {
+    const key = `${receipt.attemptId ?? ''}:${receipt.modelCall}`;
+    const call = calls.get(key) ?? { id: key, ordinal: receipt.modelCall };
+    const usage = { ...(call.usage ?? {}), ...receipt.usage };
+    Object.assign(call, Object.fromEntries(Object.entries(receipt).filter(([, value]) => value != null)), { usage });
+    calls.set(key, call);
+  }
+  return [...calls.values()].sort((left, right) => left.ordinal - right.ordinal);
 }
 const root = (run: string) => `/agent/runtime/runs/${encodeURIComponent(run)}/coding`;
+export interface CodingInputVersion {
+  reference: string; fileId: string; fileName: string; sha256: string; rowCount: number; size: number; format: string;
+  chunks?: { fileId: string; fileName: string; sha256: string; rowCount: number; size: number }[];
+  schemaJson?: string; qualitySummary?: Record<string, unknown>;
+  inputManifest?: { schemaVersion: string; schemaFileId: string; columns: Record<string, unknown>[] };
+}
+export const fetchCodingInputs = (run: string, task: string, operation?: string): Promise<{ binding: string; snapshots: CodingInputVersion[] }> =>
+  apiRequest(`${root(run)}/${encodeURIComponent(task)}/inputs${operation ? `?operationId=${encodeURIComponent(operation)}` : ''}`);
 export const fetchCodingTasks = (run: string): Promise<{ tasks: CodingTask[] }> => apiRequest(root(run));
 export const fetchCodingEvents = (run: string, task: string, cursor = 0): Promise<{ events: CodingEvent[]; nextSequence: number; hasMore: boolean }> =>
   apiRequest(`${root(run)}/${encodeURIComponent(task)}/events?afterSequence=${cursor}&limit=128`);

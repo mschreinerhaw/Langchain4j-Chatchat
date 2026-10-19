@@ -137,13 +137,19 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             if(env==null || !"PUBLISHED".equals(env.status()) || !"NONE".equals(env.networkPolicy()))
                 throw new SecurityException("Coding requires a published network-disabled deployment environment");
             String decision="runtime-coding-delegation:"+taskId, workspace="runtime-coding-workspace:"+taskId;
-            boolean chunked=policy.getMaxInputRows()>100_000||policy.getMaxInputBytes()>16L*1024*1024;
-            var input=chunked?inputs.captureChunked(scope,taskId,List.of(source),source.reference(),decision,workspace,
-                policy.getMaxInputRows(),policy.getMaxInputBytes(),()->ensureActive(context))
-                :inputs.capture(scope,taskId,List.of(source),source.reference(),decision,workspace,
-                    policy.getMaxInputRows(),policy.getMaxInputBytes());
+            observer.accept(Map.of("eventKind","CODING_INPUT_PREPARING","taskId",taskId,"source","JAVA_RUNTIME"));
+            var input=inputs.captureConfigured(scope,taskId,List.of(source),source.reference(),decision,workspace,
+                policy.getMaxInputRows(),policy.getMaxInputBytes(),()->ensureActive(context));
+            var description=inputs.describe(scope,taskId,input);
+            boolean tableInput=description.containsKey("inputManifest");
+            observer.accept(Map.of("eventKind","CODING_INPUT_READY","taskId",taskId,"source","JAVA_RUNTIME",
+                "snapshotRef",input.reference(),"fileId",input.fileId(),"sha256",input.sha256(),"rowCount",input.rowCount(),
+                "format",description.getOrDefault("format","JSON_LINES")));
             var plan=plans.register(scope,taskId,input,new CodingValidationPlanService.Plan("runtime-result-schema","v1",Map.of("rowSchema",schema)));
-            String goal=instruction+"\nAuthorized immutable input descriptor: "+ModelProtocolJson.compact(inputs.describe(scope,taskId,input))
+            Map<String,Object> promptDescriptor=description;
+            if(tableInput)promptDescriptor=Map.of("fileId",input.fileId(),"fileName",input.fileName(),"sha256",input.sha256(),
+                "rowCount",input.rowCount(),"format",description.get("format"),"schemaVersion",com.chatchat.common.runtime.coding.CodingInputManifest.VERSION);
+            String goal=instruction+"\nAuthorized immutable input descriptor: "+ModelProtocolJson.compact(promptDescriptor)
                 +"\nUse the authorized snapshot. Inspect its columns in Python if necessary. "
                 +"Write rows.jsonl matching this row schema: "+ModelProtocolJson.compact(schema)
                 +". Plan the analysis, inspect data types, missing dates, duplicate keys and precision before calculating. "
@@ -151,7 +157,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 +"Never substitute a common default for unmeasured source configuration. Request authorized data or preserve the assumption explicitly in conditional estimates and affected result fields. "
                 +"Unrecognized formats and failed parsing are not empty datasets. Fail explicitly rather than replacing missing fields with zero; "
                 +"zero counts require recognized observations or an authorized manifest that proves an empty source. "
-                +"For multi-dataset input, each JSONL row is {datasetReference,record}; join by explicit keys and report unmatched rows. "
+                +"For multi-dataset input, each logical row is {datasetReference,record}; join by explicit keys and report unmatched rows. "
                 +"Dataset references in inputVersions are exact opaque keys, including all suffixes. Never replace them with guessed short labels. "
                 +"Use each input version's fieldSchema to write the complete calculation; source samples and printed rows are not returned to the model. "
                 +"Perform inspection, parsing and calculation inside the same Python program that writes the contracted result. "
@@ -168,7 +174,16 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             List<String> tools=new ArrayList<>(List.of("python_execute"));
             if(dataAvailable)tools.add("data_request");if(sqlAvailable)tools.add("sql_validate");
             if(sqlAvailable)goal+="\nFor SQL analysis, use sql_validate for static diagnostics; it never executes SQL. You may execute SQLite in-memory SQL over the delivered files inside python_execute. Never connect to external databases.";
-            if(input.chunked())goal+="\nThe original input is a JSON manifest mounted at /data/input/"+input.fileId()
+            if(tableInput)goal+="\nRead /data/input/"+input.fileId()+"/manifest.json. The schema is /data/input/"
+                +((Map<?,?>)description.get("inputManifest")).get("schemaFileId")+"/schema.json. "
+                +"Every file ID is a sibling directory directly under /data/input. The manifest directory contains only manifest.json; "
+                +"never append schemaFileId or a part fileId to the manifest directory. Read each part at /data/input/{part.fileId}/{part.fileName}. "
+                +"Read ordered parts with pyarrow or pandas.read_parquet(dtype_backend='pyarrow') for PARQUET; CSV uses dtype=str, keep_default_na=False. "
+                +"Map cN storage columns to columns[].name. Parquet pN=false means a missing field, otherwise a null cN is explicit null. "
+                +"CSV tokens \\M and \\N mean missing and null; a literal leading backslash is prefixed with another backslash. "
+                +"Decode JSON-typed cells with json.loads(parse_float=Decimal); DECIMAL uses exact precision/scale. Verify schema and part hashes and row counts. "
+                +"Only authorized /data/input/{fileId}/{fileName} paths exist. Never parse the manifest or schema as data rows.";
+            else if(input.chunked())goal+="\nThe original input is a JSON manifest mounted at /data/input/"+input.fileId()
                 +"/manifest.json. Its chunks list is ordered and contains only authorized fileId/fileName/hash/rowCount/size. "
                 +"Read each /data/input/{fileId}/{fileName} sequentially in Python and verify each chunk SHA-256 and total rows; never treat the manifest itself as JSONL data.";
             if(dataAvailable)goal+="\nAuthorized Java data capabilities: "+ModelProtocolJson.compact(dataSupply.describe(scope))
@@ -181,7 +196,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 policy.getEnvironmentId(),plan,new CodingTaskContract.OutputContract(CodingTaskContract.ResultFormat.JSON_LINES,
                     "runtime-coding-schema:"+hash(schema),"runtime-coding-structural.v1",List.of("rows.jsonl"),
                     List.of("application/x-ndjson"),policy.getMaxResultRows(),policy.getMaxResultBytes(),List.of(CodingTaskContract.RequiredEvidence.values())),
-                com.chatchat.api.runtime.coding.CodingConfigurationSnapshot.capture(context.runtimeAttributes(),context.metadata()));
+                inputs.withInputContext(com.chatchat.api.runtime.coding.CodingConfigurationSnapshot.capture(
+                    context.runtimeAttributes(),context.metadata()),scope,taskId,input));
             String encoded=encode(Map.of("requestHash",fingerprint,"contract",contract));
             if(!checkpoints.compareAndSetExecutionCheckpoint(scope,key,null,encoded)) {
                 var existing=tree(checkpoints.readExecutionCheckpoint(scope,key).orElseThrow());
@@ -207,10 +223,18 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             bound=true;
             outcome=agent.submit(accepted);
             if(saved.isPresent()&&!outcome.status().terminal())outcome=agent.resume(scope,taskId);
+            long nextReconciliation = System.nanoTime();
             while(!outcome.status().terminal() && Instant.now().isBefore(accepted.budget().deadlineAt())) {
                 ensureActive(context);
                 traceCursor = publishTrace(scope,taskId,traceCursor,observer);
-                if(outcome.executionControl().reconciliationRequired())break;
+                // Keep the parent model binding until the accepted tool budget ends. A lost
+                // worker can settle after provider receipts arrive; returning RUNNING here
+                // would orphan admission even when the same Coding task later completes.
+                if(System.nanoTime()-nextReconciliation>=0) {
+                    outcome=agent.resume(scope,taskId);
+                    nextReconciliation=System.nanoTime()+java.util.concurrent.TimeUnit.SECONDS.toNanos(1);
+                    if(outcome.status().terminal())break;
+                }
                 try{Thread.sleep(250);}catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw new java.util.concurrent.CancellationException();}
                 outcome=agent.get(scope,taskId);
             }

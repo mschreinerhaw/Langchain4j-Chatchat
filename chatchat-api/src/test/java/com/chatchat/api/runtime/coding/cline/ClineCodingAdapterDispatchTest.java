@@ -37,10 +37,17 @@ import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.scheduling.concurrent.ConcurrentTaskScheduler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 class ClineCodingAdapterDispatchTest {
     @Test void missingNodeSessionCanRestartOnlyBeforeAnExternalOperationWasStarted() throws Exception {
+        runScenario(false);
+    }
+    @Test void fileCapabilitiesAreRequiredOnInitialDispatchAndSessionRecovery() throws Exception {
+        runScenario(true);
+    }
+    private void runScenario(boolean fileInput) throws Exception {
         var source = new DriverManagerDataSource("jdbc:h2:mem:adapter-dispatch-" + UUID.randomUUID()
             + ";DB_CLOSE_DELAY=-1", "sa", "");
         new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);
@@ -53,6 +60,13 @@ class ClineCodingAdapterDispatchTest {
         var timer = Executors.newSingleThreadScheduledExecutor();
         var http = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         var dispatches = new AtomicInteger();
+        var fileSupport=new java.util.concurrent.atomic.AtomicBoolean(!fileInput);
+        http.createContext("/v1/input-capabilities",exchange->{
+            exchange.getRequestBody().readAllBytes();
+            byte[] reply=("{\"schemaVersion\":\"runtime_os.coding.input.v1\",\"formats\":"
+                +(fileSupport.get()?"[\"PARQUET\",\"CSV\"]":"[]")+"}").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200,reply.length);try(var out=exchange.getResponseBody()){out.write(reply);}exchange.close();
+        });
         http.createContext("/v1/runs", exchange -> {
             if (exchange.getRequestURI().getPath().equals("/v1/runs/get")) {
                 exchange.sendResponseHeaders(404, -1);
@@ -74,12 +88,28 @@ class ClineCodingAdapterDispatchTest {
                 mock(CodingEvidenceCollector.class), receipts,
                 URI.create("http://127.0.0.1:" + http.getAddress().getPort()),
                 "0123456789abcdef0123456789abcdef", json);
-            var contract = contract(scope);
+            var base=contract(scope);
+            var contract=fileInput?new CodingTaskContract(CodingProtocol.ANALYSIS_VERSION,base.taskId(),scope,base.objective(),base.inputSnapshotRef(),
+                base.metadataRefs(),base.workspaceRef(),new CodingTaskContract.Authorization(base.authorization().decisionRef(),List.of(),
+                    List.of("c"+"a".repeat(63)),List.of(),List.of(),CodingTaskContract.NetworkPolicy.NONE,List.of(),List.of()),
+                base.budget(),base.environmentRef(),base.validationPlanRef(),base.outputContract(),
+                Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","inputFiles",
+                    Map.of("schemaVersion","runtime_os.coding.input.v1","format","PARQUET","delivery","SHARED_DIRECTORY",
+                        "manifestFileId","c"+"a".repeat(63),"manifestSha256","a".repeat(64)))):base;
+            if(fileInput)adapter.setDataSupply(mock(com.chatchat.api.runtime.coding.data.CodingDataSupplyService.class));
             access.as(scope, EnumSet.allOf(CodingTaskAccess.Action.class), () -> {
+                if(fileInput) {
+                    assertThatThrownBy(()->adapter.submit(contract)).hasMessageContaining("negotiated");
+                    assertThat(dispatches).hasValue(0);fileSupport.set(true);
+                }
                 adapter.submit(contract);
                 assertThat(dispatches).hasValue(1);
                 adapter.resume(scope, contract.taskId()); // Node lost a session before any external call.
                 assertThat(dispatches).hasValue(2);
+                if(fileInput) {
+                    fileSupport.set(false);assertThatThrownBy(()->adapter.resume(scope,contract.taskId())).hasMessageContaining("negotiated");
+                    assertThat(dispatches).hasValue(2);fileSupport.set(true);
+                }
                 var lease = tasks.ownership(scope, contract.taskId());
                 var reserved = tasks.reserve(scope, contract.taskId(), lease,
                     tasks.get(scope, contract.taskId()).revision(), "model-1", "a".repeat(64),

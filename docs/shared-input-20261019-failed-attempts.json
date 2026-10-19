@@ -1,0 +1,196 @@
+{
+  "scope": "Actual failed server attempts, retained separately from passing evidence",
+  "productionSwitched": false,
+  "attempts": [
+    {
+      "report": "real-parquet-complete-r4",
+      "taskId": "7a84abee-9791-3b32-82b4-7ced4b10b9a7",
+      "runId": "att-1-34d8f1e9-2f12-4728-bb9e-e9ba6af4f28b",
+      "acceptanceStatus": "FAILED",
+      "parent": {
+        "status": "FAILED",
+        "canonicalState": "FAILED",
+        "terminal": true,
+        "answerAvailable": true,
+        "attemptNumber": 1
+      },
+      "codingStatuses": [],
+      "nodeRestarted": false,
+      "noExecutionReplayAfterRestart": null,
+      "resultAdmitted": false,
+      "failureType": "RuntimeError",
+      "causeAndCorrection": "MCP schema validate rejected missing additive cancellation table; migration added before deployment",
+      "countedAsPassing": false
+    },
+    {
+      "report": "real-parquet-cancel-r4",
+      "taskId": "147b9c71-d64d-3b60-b9ab-10c092bc9cbd",
+      "runId": "att-1-7984f806-3279-4935-9d30-836be6ff05e8",
+      "acceptanceStatus": "FAILED",
+      "parent": {
+        "status": "FAILED",
+        "canonicalState": "FAILED",
+        "terminal": true,
+        "answerAvailable": true,
+        "attemptNumber": 1
+      },
+      "codingStatuses": [],
+      "nodeRestarted": false,
+      "noExecutionReplayAfterRestart": null,
+      "resultAdmitted": false,
+      "failureType": "RuntimeError",
+      "causeAndCorrection": "Submitted before MCP became ready; deployment now checks HTTP and gRPC readiness",
+      "countedAsPassing": false
+    },
+    {
+      "report": "real-parquet-complete-ready",
+      "taskId": "b7c000ba-6b0e-3811-ad4f-f44f2133bb44",
+      "runId": "att-1-8eee6b61-a98f-4202-bf7e-55ae5ae0e6a9",
+      "acceptanceStatus": "FAILED",
+      "parent": {
+        "status": "NO_PRESENTABLE_RESULT",
+        "canonicalState": "PARTIAL",
+        "terminal": true,
+        "answerAvailable": true,
+        "attemptNumber": 1
+      },
+      "codingStatuses": [],
+      "nodeRestarted": false,
+      "noExecutionReplayAfterRestart": null,
+      "resultAdmitted": false,
+      "failureType": "RuntimeError",
+      "causeAndCorrection": "Snapshot authorization compared sorted public allowedDataRefs with unsorted file list; canonical ordering fixed and permutation-tested",
+      "countedAsPassing": false
+    },
+    {
+      "report": "real-parquet-restart-node-ready",
+      "taskId": "df5feb0d-7456-316a-8c2c-1067b58f0a68",
+      "runId": "att-1-7eb473c6-cf43-49a8-81e6-bf74d46dfead",
+      "acceptanceStatus": "FAILED",
+      "parent": {
+        "status": "NO_PRESENTABLE_RESULT",
+        "canonicalState": "PARTIAL",
+        "terminal": true,
+        "answerAvailable": true,
+        "attemptNumber": 1
+      },
+      "codingStatuses": [],
+      "nodeRestarted": false,
+      "noExecutionReplayAfterRestart": null,
+      "resultAdmitted": false,
+      "failureType": "RuntimeError",
+      "causeAndCorrection": "Same authorization ordering rejection before a coding operation; no restart acceptance",
+      "countedAsPassing": false
+    },
+    {
+      "report": "real-parquet-retry-restart-r5",
+      "taskId": "34acef58-8775-4659-a48d-00d643f0d4de",
+      "runId": "att-2-fc4d27f9-cbc1-4ad7-be5b-32314d864d98",
+      "acceptanceStatus": "TIMED_OUT_WAITING_FOR_ACCEPTANCE",
+      "parent": {
+        "status": "PARTIAL_SUCCESS",
+        "canonicalState": "PARTIAL",
+        "terminal": true,
+        "answerAvailable": true,
+        "attemptNumber": 2
+      },
+      "codingStatuses": [
+        "RUNNING"
+      ],
+      "nodeRestarted": true,
+      "noExecutionReplayAfterRestart": null,
+      "resultAdmitted": null,
+      "failureType": "RuntimeError",
+      "causeAndCorrection": "Physical worker restart occurred, but generated Python nested sibling input directories and failed; exact virtual paths and terminal failed-operation reconciliation added",
+      "countedAsPassing": false
+    },
+    {
+      "report": "real-parquet-restart-r6",
+      "taskId": "42a9971e-2e98-315a-9c0d-ffd6f5ff2cd0",
+      "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+      "acceptanceStatus": "FAILED",
+      "parent": {
+        "status": "SUCCESS",
+        "canonicalState": "SUCCEEDED",
+        "terminal": true,
+        "answerAvailable": true,
+        "attemptNumber": 1
+      },
+      "codingStatuses": [
+        "COMPLETED"
+      ],
+      "nodeRestarted": false,
+      "noExecutionReplayAfterRestart": null,
+      "resultAdmitted": true,
+      "failureType": "RuntimeError",
+      "causeAndCorrection": "Acceptance observer required an artifact reference intentionally omitted from public events; Python and parent succeeded but restart was not triggered. Corrected observer uses persisted Java validation status; independent complete observer verified this same task without resubmission",
+      "countedAsPassing": false
+    },
+    {
+      "report": "real-parquet-restart-r6b",
+      "taskId": "701857de-02fa-3159-9e8f-25b4b744ebf2",
+      "runId": "att-1-22d58fa8-b6cd-4bf6-a48c-6ff1597d1350",
+      "acceptanceStatus": "FAILED",
+      "parent": {
+        "status": "WAIT_MODEL",
+        "canonicalState": "PLANNING",
+        "terminal": false,
+        "answerAvailable": false,
+        "attemptNumber": 1
+      },
+      "codingStatuses": [
+        "RUNNING"
+      ],
+      "nodeRestarted": true,
+      "noExecutionReplayAfterRestart": null,
+      "resultAdmitted": null,
+      "failureType": "HTTPError",
+      "causeAndCorrection": "Real worker kill after repaired Python succeeded; evidence recovery batch included the incoming HTTP trace, conflicting with the original task scope. Reproduced with reopened H2 store and new request trace; fixed by binding evidence to immutable contract scope after owner authorization. Failed task cancelled through official API before release replacement.",
+      "countedAsPassing": false
+    },
+    {
+      "report": "real-parquet-retry-restart-r7",
+      "taskId": "93644c5a-8aa3-4b5a-920a-d3c02e486c80",
+      "runId": "att-2-38fb7f74-658c-4df4-9437-f9e4f989c6ce",
+      "acceptanceStatus": "FAILED",
+      "parent": {
+        "status": "PARTIAL_SUCCESS",
+        "canonicalState": "PARTIAL",
+        "terminal": true,
+        "answerAvailable": true,
+        "attemptNumber": 2
+      },
+      "codingStatuses": [
+        "COMPLETED"
+      ],
+      "nodeRestarted": true,
+      "noExecutionReplayAfterRestart": true,
+      "resultAdmitted": false,
+      "failureType": "RuntimeError",
+      "causeAndCorrection": "Official retry attempt 2; Cline corrected three failed programs. Worker kill recovered Coding COMPLETED without replay, but the parent invocation returned RUNNING after its first reconciliation and ended PARTIAL before admission. Not a business semantic rejection. Fixed bounded parent reconciliation/admission wait in r8.",
+      "countedAsPassing": false
+    },
+    {
+      "report": "real-parquet-count-restart-r7",
+      "taskId": "153a1f15-9132-3a8c-a79b-020e22ef6bcb",
+      "runId": "att-1-3a6b8a1e-55ca-4ef2-987a-27e7c1c5629f",
+      "acceptanceStatus": "FAILED",
+      "parent": {
+        "status": "PARTIAL_SUCCESS",
+        "canonicalState": "PARTIAL",
+        "terminal": true,
+        "answerAvailable": true,
+        "attemptNumber": 1
+      },
+      "codingStatuses": [
+        "COMPLETED"
+      ],
+      "nodeRestarted": true,
+      "noExecutionReplayAfterRestart": true,
+      "resultAdmitted": false,
+      "failureType": "RuntimeError",
+      "causeAndCorrection": "Single row-count program executed and recovered Coding COMPLETED with no replay. The parent returned early while reconciliation was pending, never reaching semantic admission and ending PARTIAL. Confirms the same generic parent recovery gap; fixed in r8.",
+      "countedAsPassing": false
+    }
+  ]
+}

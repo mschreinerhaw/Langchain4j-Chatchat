@@ -32,6 +32,15 @@ public class McpPythonExecutionProofVerifier implements CodingExecutionProofVeri
             byte[] receipt = python.artifact(scope.tenantId(), scope.userId(), scope.runId(), taskId, operationId,
                     "logs", "receipt.json");
             var document = mapper.readTree(receipt);
+            if (McpPythonControlPlanePort.NO_START_RECEIPT_VERSION.equals(document.path("schemaVersion").asText()))
+                return "CANCELLED".equals(operation.status()) && operation.cancelRequested()
+                    && operation.containerId() == null && operation.imageDigest() == null && operation.codeHash() == null
+                    && document.path("stopConfirmed").asBoolean(false) && document.path("dispatchPrevented").asBoolean(false)
+                    && scope.tenantId().equals(document.path("tenantId").asText()) && scope.userId().equals(document.path("ownerId").asText())
+                    && scope.runId().equals(document.path("runId").asText()) && taskId.equals(document.path("taskId").asText())
+                    && operationId.equals(document.path("operationId").asText())
+                    && operation.fencingToken() > 0 && operation.fencingToken() == document.path("fencingToken").asLong(-1)
+                    && proofRef.equals("mcp-python-receipt:" + sha256(receipt));
             return document.path("stopConfirmed").asBoolean(false)
                     && operationId.equals(document.path("operationId").asText())
                     && operation.containerId().equals(document.path("containerName").asText())

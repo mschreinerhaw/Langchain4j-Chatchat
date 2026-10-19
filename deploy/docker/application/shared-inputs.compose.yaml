@@ -1,0 +1,16 @@
+# Opt-in overlay. Keep the shared data root out of the Node worker container.
+services:
+  api:
+    environment:
+      CHATCHAT_CODING_INPUT_FILES_ENABLED: "true"
+      CHATCHAT_CODING_INPUT_FILES_FORMAT: ${CODING_INPUT_FORMAT:-PARQUET}
+      CHATCHAT_CODING_INPUT_FILES_SHARED_ROOT: /srv/shared-coding-input
+    volumes:
+      - type: bind
+        source: ${CODING_SHARED_INPUT_DIR:?Set the existing MCP Python data root}
+        target: /srv/shared-coding-input
+        bind:
+          create_host_path: false
+  mcp:
+    environment:
+      CHATCHAT_MCP_PYTHON_SHARED_INPUTS_ENABLED: "true"

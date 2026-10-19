@@ -1,0 +1,43 @@
+{
+  "status": "PASSED",
+  "scope": "Real authenticated API after service recreation; Java receipt metadata, no provider replay",
+  "taskId": "a38c0f98-e2f3-34b9-b8ca-5c74639ebe68",
+  "codingTaskId": "analysis-coding-051a9aa1cbd3c193e2c372b410c851f74dc564551f4dbbebdf7d0298e740d6a9",
+  "calls": [
+    {
+      "operationId": "model-1",
+      "attemptId": "analysis-coding-051a9aa1cbd3c193e2c372b410c851f74dc564551f4dbbebdf7d0298e740d6a9:fence-1",
+      "modelCall": 1,
+      "state": "SUCCEEDED",
+      "selectedModel": "hy3",
+      "providerModel": "hy3",
+      "protocol": "openai",
+      "startedAt": "2026-10-19T07:56:22.966281907Z",
+      "finishedAt": "2026-10-19T07:56:36.504989200Z",
+      "durationMs": 13538,
+      "usage": {
+        "outputTokens": 1562,
+        "inputTokens": 4655
+      },
+      "source": "JAVA_MODEL_RECEIPT"
+    },
+    {
+      "operationId": "model-2",
+      "attemptId": "analysis-coding-051a9aa1cbd3c193e2c372b410c851f74dc564551f4dbbebdf7d0298e740d6a9:fence-1",
+      "modelCall": 2,
+      "state": "SUCCEEDED",
+      "selectedModel": "hy3",
+      "providerModel": "hy3",
+      "protocol": "openai",
+      "startedAt": "2026-10-19T07:56:41.060394906Z",
+      "finishedAt": "2026-10-19T07:56:47.508288737Z",
+      "durationMs": 6447,
+      "usage": {
+        "outputTokens": 597,
+        "inputTokens": 6367
+      },
+      "source": "JAVA_MODEL_RECEIPT"
+    }
+  ],
+  "productionSwitched": false
+}

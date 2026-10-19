@@ -24,17 +24,11 @@ public final class CodingFinancialResultVerifier implements CodingResultVerifier
         Map<String,Long> expected=new TreeMap<>(),actual=new TreeMap<>();
         var json=new com.fasterxml.jackson.databind.ObjectMapper();
         for(var input:inputs) {
-            for(var file:input.chunked()?input.chunks():CodingInputSnapshotService.mountedFiles(input)) {
-            byte[] bytes=python.downloadDataFile(scope.tenantId(),scope.userId(),file.fileId());
-            if(!McpPythonExecutionProofVerifier.sha256(bytes).equals(file.sha256()))throw new SecurityException("Financial input content changed");
-            for(String line:new String(bytes,java.nio.charset.StandardCharsets.UTF_8).split("\\R"))if(!line.isBlank()) {
-                try {
-                    Map<String,Object> raw=json.readValue(line,new com.fasterxml.jackson.core.type.TypeReference<>(){});
+            com.chatchat.api.runtime.coding.data.CodingInputRows.scan(input,
+                file->python.downloadDataFile(scope.tenantId(),scope.userId(),file.fileId()),json,raw->{
                     for(String field:List.of("assets","netFlow","returnRate"))if(!(raw.get(field) instanceof String))faults.add("FIELD_TYPE");
                     expected.merge(sourceKey(raw),1L,Long::sum);
-                }catch(java.io.IOException invalid){throw new IllegalStateException("Financial input JSON invalid",invalid);}
-            }
-            }
+                });
         }
         rows.forEach(row->actual.merge(sourceKey(row),1L,Long::sum));
         if(!actual.equals(expected))faults.add("SOURCE_VALUE_CHANGED");

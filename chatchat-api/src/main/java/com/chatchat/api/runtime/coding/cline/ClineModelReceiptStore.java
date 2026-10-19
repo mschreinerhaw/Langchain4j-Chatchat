@@ -40,6 +40,38 @@ public final class ClineModelReceiptStore implements CodingExecutionProofVerifie
         return "runtime-evidence:" + id(scope, taskId, operationId);
     }
 
+    public Optional<com.chatchat.common.runtime.coding.CodingModelCallTelemetry> telemetry(
+            CodingTaskContract contract,String operationId,long fencingToken) {
+        if(operationId==null || !operationId.matches("model-[1-9][0-9]{0,5}"))
+            throw new IllegalArgumentException("Invalid model operation identity");
+        var scope=contract.scope();
+        return evidence.find(scope,id(scope,contract.taskId(),operationId)).map(record->{
+            if(!TYPE.equals(record.evidenceType()) || !contract.taskId().equals(record.payload().get("taskId"))
+                    || !operationId.equals(record.payload().get("operationId"))
+                    || !com.chatchat.common.runtime.coding.CodingCanonicalHash.sha256(contract).equals(record.payload().get("contractHash"))
+                    || !evidence.contentHash(record.payload()).equals(record.contentSha256()))
+                throw new SecurityException("Model telemetry receipt binding differs from contract");
+            if(!(record.payload().get("response") instanceof Map<?,?> response))
+                throw new IllegalStateException("Invalid model receipt");
+            Map<?,?> info=response.get("modelInfo") instanceof Map<?,?> value?value:Map.of();
+            var usage=new java.util.LinkedHashMap<String,Long>();
+            if(response.get("usage") instanceof Map<?,?> values)
+                for(String key:List.of("inputTokens","outputTokens")) {
+                    Long value=number(values.get(key));if(value!=null)usage.put(key,value);
+                }
+            return new com.chatchat.common.runtime.coding.CodingModelCallTelemetry(operationId,
+                fencingToken>0?contract.taskId()+":fence-"+fencingToken:null,Integer.parseInt(operationId.substring(6)),"SUCCEEDED",
+                label(info.get("selectedModel")),label(info.get("providerModel")),label(info.get("protocol")),
+                label(info.get("startedAt")),label(info.get("finishedAt")),number(info.get("durationMs")),usage,"JAVA_MODEL_RECEIPT");
+        });
+    }
+    private static String label(Object value) {
+        return value instanceof String text && text.length()<=512 && text.chars().noneMatch(Character::isISOControl)?text:null;
+    }
+    private static Long number(Object value) {
+        return value instanceof Number number && number.longValue()>=0?number.longValue():null;
+    }
+
     public String commit(CodingTaskContract contract, String operationId, String executionHandle,
                          Map<String, Object> response) {
         KernelDataScope scope = contract.scope();

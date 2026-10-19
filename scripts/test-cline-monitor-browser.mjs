@@ -5,7 +5,10 @@ const base = 'http://192.168.195.221:18100';
 const session = JSON.parse(readFileSync(process.env.CHATCHAT_STAGE_SESSION_FILE, 'utf8'));
 const taskId = process.env.CHATCHAT_STAGE_TASK_ID;
 if (!taskId) throw new Error('An actual accepted task ID is required');
-const output = 'docs/cline-monitor-20261019-browser';
+const output = process.env.CHATCHAT_STAGE_BROWSER_OUTPUT ?? 'docs/cline-monitor-20261019-browser';
+const expectedInputFormat = process.env.CHATCHAT_STAGE_INPUT_FORMAT;
+const minCodeVersions = Number(process.env.CHATCHAT_STAGE_MIN_CODE_VERSIONS ?? 1);
+const requireModelReceipts = process.env.CHATCHAT_STAGE_REQUIRE_MODEL_RECEIPTS === '1';
 const browser = await chromium.launch({
   executablePath: process.env.CHATCHAT_BROWSER_PATH ?? 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
   headless: true, args: ['--no-proxy-server'],
@@ -43,10 +46,33 @@ try {
   await page.waitForFunction(() => !document.querySelector('.coding-monitor [role="alert"]'), null, { timeout: 30000 });
   const historyAfter = await page.locator('.coding-monitor .event-list li').allTextContents();
   const recoveredPersistedHistory = historyBefore.every(item => historyAfter.includes(item));
+  const versionSelect = page.locator('.coding-monitor label select').last();
+  const versionValues = await versionSelect.locator('option').evaluateAll(options => options.map(option => option.value));
+  let verifiedCodeHistory = false, verifiedCodeDiff = false;
+  if (minCodeVersions > 1) {
+    const selected = await versionSelect.inputValue();
+    await versionSelect.selectOption(versionValues[0]);
+    await page.waitForFunction(latest => {
+      const source = document.querySelector('.coding-monitor pre code')?.textContent;
+      return source && source !== latest;
+    }, code, { timeout: 30000 });
+    verifiedCodeHistory = true;
+    await versionSelect.selectOption(selected);
+    await page.waitForFunction(latest => document.querySelector('.coding-monitor pre code')?.textContent === latest, code, { timeout: 30000 });
+    await page.locator('.coding-monitor nav button').last().click();
+    await page.locator('.coding-monitor .python-code-diff').waitFor({ state: 'visible' });
+    verifiedCodeDiff = await page.locator('.coding-monitor .diff-added, .coding-monitor .diff-deleted').count() > 0;
+    await page.locator('.coding-monitor .python-code-diff').screenshot({ path: output + '-diff.png' });
+    await page.locator('.coding-monitor nav button').first().click();
+    await page.locator('.coding-monitor pre code').waitFor({ state: 'visible' });
+  }
   const toolEvent = page.locator('.coding-monitor .event-list li').filter({ hasText: 'TOOL_STARTED' }).first();
   await toolEvent.locator('.event-payload summary').click();
   const hasActualToolDetails = (await toolEvent.locator('.event-payload pre').innerText()).includes('python_execute');
   const text = await page.locator('.coding-monitor').innerText();
+  const modelRows = await page.locator('.coding-monitor .table-scroll').first().locator('tbody tr').allTextContents();
+  const hasCompleteActualModelReceipts = modelRows.length > 0 && modelRows.every(row =>
+    !row.includes('未记录') && !row.includes('未取得完成回执') && row.includes('SUCCEEDED'));
   const geometry = await page.locator('.coding-monitor').evaluate(node => ({
     x: node.getBoundingClientRect().x, width: node.getBoundingClientRect().width,
     viewport: window.innerWidth, scrollWidth: document.documentElement.scrollWidth,
@@ -57,6 +83,10 @@ try {
     hasEventTimeline: text.includes('持久化事件时间线'), hasCodeHash: text.includes('SHA-256'),
     hasConfiguredAndLoadedSkills: text.includes('已配置') && text.includes('已加载'),
     retainedWhileOffline, recoveredPersistedHistory, hasActualToolDetails, geometry,
+    codeVersionCount: versionValues.length, verifiedCodeHistory, verifiedCodeDiff,
+    modelCallCount: modelRows.length, hasCompleteActualModelReceipts,
+    hasExpectedInputFormat: !expectedInputFormat || text.includes(expectedInputFormat),
+    hasFrozenInputBinding: !expectedInputFormat || text.includes('当前代码操作已冻结的输入版本'),
     errors, failedRequests, screenshot: output + '.png' };
   // The app owns a viewport scroll container; render the entire evidence panel for capture.
   await page.setViewportSize({ width: 1440, height: 3000 });
@@ -64,6 +94,9 @@ try {
   writeFileSync(output + '.json', JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report));
   if (errors.length || !report.hasActualSource || !report.hasEventTimeline || !retainedWhileOffline || !recoveredPersistedHistory || !hasActualToolDetails
+      || !report.hasExpectedInputFormat || !report.hasFrozenInputBinding
+      || versionValues.length < minCodeVersions || minCodeVersions > 1 && (!verifiedCodeHistory || !verifiedCodeDiff)
+      || requireModelReceipts && !hasCompleteActualModelReceipts
       || geometry.x < 0 || geometry.width > geometry.viewport) process.exitCode = 1;
 } catch (error) {
   await page.screenshot({ path: output + '-failure.png', fullPage: true });

@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 import { createApp, h, nextTick } from 'vue';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import CodingTaskMonitor from './CodingTaskMonitor.vue';
-import { fetchCodingTasks, fetchCodingEvents, fetchCodingCode, cancelCodingTask } from '../services/codingMonitor';
+import { fetchCodingTasks, fetchCodingEvents, fetchCodingCode, fetchCodingInputs, cancelCodingTask } from '../services/codingMonitor';
 vi.mock('../services/codingMonitor', async importOriginal => ({
   ...await importOriginal<typeof import('../services/codingMonitor')>(),
   fetchCodingTasks: vi.fn(), fetchCodingEvents: vi.fn(), fetchCodingCode: vi.fn(), cancelCodingTask: vi.fn(),
+  fetchCodingInputs: vi.fn(async () => ({ binding: 'TASK_LATEST', snapshots: [] })),
 }));
 let app: ReturnType<typeof createApp>, host: HTMLElement;
+beforeEach(() => vi.mocked(fetchCodingInputs).mockResolvedValue({ binding: 'TASK_LATEST', snapshots: [] }));
 afterEach(() => { app?.unmount(); host?.remove(); vi.clearAllMocks(); });
 const task = (status = 'RUNNING') => ({ taskId: 'coding-1', attemptId: 'coding-1:fence-1', objective: 'Calculate median',
   canCancel: status === 'RUNNING', canRetry: false, allowedTools: ['python_execute'],
@@ -31,8 +33,12 @@ describe('Coding task monitor page', () => {
         payload: { type: 'CODE_READY', stage: 'CODE_READY', proposedOperationId: 'cline-abc', codeSha256: 'hash' } },
     ], nextSequence: 2, hasMore: false });
     vi.mocked(fetchCodingCode).mockResolvedValue({ content: 'print(42)', redacted: false });
-    await mount(); await vi.waitFor(() => expect(host.querySelector('pre')?.textContent).toBe('print(42)'));
+    vi.mocked(fetchCodingInputs).mockResolvedValue({ binding: 'OPERATION_FROZEN', snapshots: [{ reference: 'input-revision-1',
+      fileId: 'manifest', fileName: 'manifest.json', sha256: 'manifest-hash', rowCount: 2, size: 100, format: 'PARQUET' }] });
+    await mount(); await vi.waitFor(() => expect(host.querySelector('pre code')?.textContent).toBe('print(42)'));
     expect(host.textContent).toContain('actual-model'); expect(host.textContent).toContain('代码已返回');
+    await vi.waitFor(() => expect(host.textContent).toContain('input-revision-1'));
+    expect(host.textContent).toContain('PARQUET'); expect(host.textContent).toContain('当前代码操作已冻结的输入版本');
     expect(host.textContent).toContain('RUNNING'); expect(host.textContent).toContain('skill-a');
     const cancel = [...host.querySelectorAll('button')].find(b => b.textContent === '取消任务')!;
     cancel.click(); await vi.waitFor(() => expect(cancelCodingTask).toHaveBeenCalledWith('run', 'coding-1'));

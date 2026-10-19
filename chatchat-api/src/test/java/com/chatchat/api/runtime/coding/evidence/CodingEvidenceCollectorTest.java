@@ -130,7 +130,8 @@ class CodingEvidenceCollectorTest {
                 && new java.math.BigDecimal(rows.get(0).get("amount").toString()).compareTo(new java.math.BigDecimal("12.50")) == 0,
                 Map.of("independentExpectedAmount", "12.50")));
         assertThat(result.businessValidationPassed()).isTrue();
-        assertThat(collector(store).collect(scope, contract, "op", "main.py", "rows.jsonl",
+        KernelDataScope recoveredRequest = new KernelDataScope("tenant", "owner", "new-http-trace", null, "run", null, Map.of());
+        assertThat(collector(reopen()).collect(recoveredRequest, contract, "op", "main.py", "rows.jsonl",
             List.of(new CodingEvidenceCollector.InputFile("prices", "prices.csv", sha("amount\n12.50\n"))),
             rows -> new CodingEvidenceCollector.Validation(true, Map.of("independentExpectedAmount", "12.50"))))
             .isEqualTo(result);
@@ -149,6 +150,10 @@ class CodingEvidenceCollectorTest {
             assertThat(registered.analysisContext().get("parentEvidenceIds")).asList().hasSize(3);
         }
         KernelDataScope other = new KernelDataScope("other", "owner", "trace", null, "run", null, Map.of());
+        assertThatThrownBy(() -> collector(reopen()).collect(other, contract, "op", "main.py", "rows.jsonl",
+            List.of(new CodingEvidenceCollector.InputFile("prices", "prices.csv", sha("amount\n12.50\n"))),
+            rows -> new CodingEvidenceCollector.Validation(true, Map.of())))
+            .isInstanceOf(SecurityException.class);
         assertThat(reopen().find(other, id(result.resultDatasetRef()))).isEmpty();
         assertThatThrownBy(() -> collector(reopen()).openResult(other, "task", result.resultDatasetRef()))
             .isInstanceOf(RuntimeException.class);

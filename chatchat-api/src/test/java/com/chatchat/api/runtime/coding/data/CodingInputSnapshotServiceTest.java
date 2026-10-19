@@ -25,6 +25,46 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingInputSnapshotServiceTest {
+    @Test void sortedAuthorizationDoesNotChangeManifestOrderAndStillRejectsMissingOrExtraFiles() {
+        var db=new DriverManagerDataSource("jdbc:h2:mem:sorted-input-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa","");
+        new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(db);
+        var json=new ObjectMapper().findAndRegisterModules();
+        var evidence=new JdbcRuntimeEvidenceStore(new JdbcTemplate(db),json,new DataSourceTransactionManager(db));
+        var access=new CodingInvocationContext();
+        var inputs=new CodingInputSnapshotService(evidence,mock(McpPythonControlPlanePort.class),access,json);
+        var scope=new KernelDataScope("tenant","owner",null,null,"run",null,Map.of());
+        String root="c"+"f".repeat(63), first="c"+"a".repeat(63), second="c"+"5".repeat(63), hash="a".repeat(64);
+        var chunks=List.of(new CodingInputSnapshotService.Chunk(first,"input-00000.jsonl",hash,1,10),
+            new CodingInputSnapshotService.Chunk(second,"input-00001.jsonl",hash,1,10));
+        var payload=new java.util.LinkedHashMap<String,Object>();
+        payload.put("taskId","task");payload.put("decisionRef","decision:1");payload.put("workspaceRef","workspace:1");
+        payload.put("fileId",root);payload.put("fileName","manifest.json");payload.put("sha256",hash);
+        payload.put("sourceDatasetRef","source");payload.put("rowCount",2);payload.put("size",20);
+        payload.put("chunks",json.convertValue(chunks,List.class));
+        String id="coding:input:"+root.substring(1);
+        evidence.register(new com.chatchat.common.runtime.evidence.EvidenceRecord(null,id,scope,"CODING_INPUT_SNAPSHOT","test",
+            evidence.contentHash(payload),payload,null,System.currentTimeMillis(),Map.of()),
+            new com.chatchat.common.runtime.evidence.EvidenceLineage(null,id,scope,List.of(),"task","test",null,Map.of()));
+        var input=new CodingInputSnapshotService.Snapshot("runtime-evidence:"+id,root,"manifest.json",hash,2,20,"source",chunks);
+        var base=contract(scope,input);
+        for(var refs:List.of(List.of(root,first,second),List.of(first,second,root),List.of(second,root,first),
+                List.of(root,second,first),List.of(first,root,second),List.of(second,first,root))) {
+            var c=withRefs(base,refs);
+            assertThat(access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->inputs.requireAuthorized(c))).isEqualTo(input);
+        }
+        for(var refs:List.of(List.of(root,first),List.of(first,second),List.of(root,first,second,"unapproved-file"))) {
+            var c=withRefs(base,refs);
+            assertThatThrownBy(()->access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->inputs.requireAuthorized(c)))
+                .isInstanceOf(SecurityException.class);
+        }
+    }
+
+    private static CodingTaskContract withRefs(CodingTaskContract c,List<String> refs) {
+        return new CodingTaskContract(c.schemaVersion(),c.taskId(),c.scope(),c.objective(),c.inputSnapshotRef(),c.metadataRefs(),c.workspaceRef(),
+            new CodingTaskContract.Authorization(c.authorization().decisionRef(),c.authorization().allowedTools(),refs,List.of(),List.of(),
+                CodingTaskContract.NetworkPolicy.NONE,List.of(),c.authorization().allowedSideEffects()),
+            c.budget(),c.environmentRef(),c.validationPlanRef(),c.outputContract());
+    }
     @Test void verifiedZeroRowsHaveAnUploadableEmptyJsonlSnapshotWithoutFabricatedRecords() {
         var source=new DriverManagerDataSource("jdbc:h2:mem:empty-snapshot-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa","");
         new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);

@@ -22,6 +22,12 @@ export function createCodingRun(contract, gateway, options = {}) {
   const analysis = contract?.schemaVersion === 'runtime_os.coding.v3'
     && contract?.outputContract?.resultFormat === 'JSON_LINES';
   const pythonWorkspace=workspace && contract.outputContract.resultSchemaRef==='python-studio.output.v1';
+  const fileInput = contract?.runtimeContext?.inputFiles;
+  if (fileInput && (!analysis || fileInput.schemaVersion !== 'runtime_os.coding.input.v1'
+      || fileInput.delivery !== 'SHARED_DIRECTORY' || !['PARQUET', 'CSV'].includes(fileInput.format)
+      || !contract.authorization?.allowedDataRefs?.includes(fileInput.manifestFileId)
+      || !/^[0-9a-f]{64}$/.test(fileInput.manifestSha256)))
+    throw new TypeError('VERSION_UNSUPPORTED: Unknown input descriptor or format');
   if (contract?.schemaVersion !== 'runtime_os.coding.v1' && !workspace && !analysis)
     throw new TypeError('VERSION_UNSUPPORTED: Coding worker requires runtime_os.coding.v1');
   if (!contract?.scope?.tenantId || !contract?.scope?.userId || !contract?.scope?.runId || !contract?.taskId)
@@ -84,7 +90,7 @@ export function createCodingRun(contract, gateway, options = {}) {
   });
   if (analysis && permitted.has('data_request')) tools.push({
     name:'data_request',
-    description:'Request missing data through a Java-issued authorizedTemplateId and exact permitted parameter values. Never supplies SQL or source credentials. Returns immutable input descriptor; subsequent Python executions mount every delivered version at /data/input/{fileId}/input.jsonl. Same task/budget; bounded rounds. Do not guess business parameters.',
+    description:'Request missing data through a Java-issued authorizedTemplateId and exact permitted parameter values. Never supplies SQL or source credentials. Returns immutable input descriptor; subsequent Python executions mount every delivered version at /data/input/{fileId}/{fileName}. Respect its declared format. Same task/budget; bounded rounds. Do not guess business parameters.',
     inputSchema:{type:'object',properties:{requestId:{type:'string'},datasetRefs:{type:'array',items:{type:'string'}},
       authorizedTemplateId:{type:'string'},parameterBindings:{type:'object',additionalProperties:{type:'string'}},
       requiredFields:{type:'array',items:{type:'string'}},reason:{type:'string'},expectedUsage:{type:'string'}},
@@ -132,7 +138,7 @@ export function createCodingRun(contract, gateway, options = {}) {
   }
   if (permitted.has('python_execute')) tools.push({
     name: 'python_execute',
-    description: `Run main.py in a NEW isolated Python sandbox for EACH call. Java mounts only authorized immutable inputs under /data/input/{fileId}/{fileName}. A single input is input.jsonl; a chunked input uses manifest.json plus its ordered input.jsonl chunks. Read and hash-check the manifest's chunks in Python. Previous calls' output files do not exist here. To produce an analysis result, perform the calculation and write structured JSONL to /workspace/output/results/${contract.outputContract?.requiredFiles?.[0] ?? 'rows.jsonl'}. A diagnostic program without that file may succeed as a process, but produces no analysis result. Inspect the returned Runtime receipt; repair technical errors with a complete new program. Never claim business validation yourself.`,
+    description: `Run main.py in a NEW isolated Python sandbox for EACH call. Java mounts only authorized immutable inputs under /data/input/{fileId}/{fileName}. ${fileInput ? 'Input is a versioned manifest with schemaFileId and ordered Parquet/CSV parts; use columns[].storageName/type to reconstruct logical columns and null/missing semantics. Read and hash-check each part; never parse this manifest as JSONL.' : 'A single input is input.jsonl; a chunked input uses manifest.json plus its ordered input.jsonl chunks. Read and hash-check the manifest chunks in Python.'} Previous calls' output files do not exist here. To produce an analysis result, perform the calculation and write structured JSONL to /workspace/output/results/${contract.outputContract?.requiredFiles?.[0] ?? 'rows.jsonl'}. A diagnostic program without that file may succeed as a process, but produces no analysis result. Inspect the returned Runtime receipt; repair technical errors with a complete new program. Never claim business validation yourself.`,
     inputSchema: { type: 'object', properties: {
       fileName: { type: 'string', enum: ['main.py'] }, source: { type: 'string' },
     }, required: ['fileName', 'source'], additionalProperties: false },
@@ -242,7 +248,7 @@ export function createCodingRun(contract, gateway, options = {}) {
     'Use only the listed tools. Do not access a host shell, Docker socket, arbitrary files, databases, or network resources.',
     'Generate Python when useful, inspect execution receipts, fix technical errors, and report verification limits.',
     'When validationStatus is FAILED, inspect and repair the output schema. INCONCLUSIVE structural validation does not certify business correctness.',
-    'Each Python call starts a fresh sandbox with the original immutable input and any additional input versions explicitly delivered by Java data_request, without earlier output files or Python variables. Single inputs use /data/input/{fileId}/input.jsonl; chunked inputs use /data/input/{fileId}/manifest.json and the ordered, hash-checked chunks listed there. Do not launch a new call just to open a previous output file.',
+    fileInput ? 'Each Python call starts a fresh sandbox with Java-authorized input versions. Use the exact files[].virtualPath values supplied by Java. All file ID directories are siblings directly under /data/input: the manifest is /data/input/{manifestFileId}/manifest.json, the schema is /data/input/{schemaFileId}/schema.json, and each part is /data/input/{part.fileId}/{part.fileName}. Never nest schema or part IDs under the manifest directory. Verify SHA-256 and row counts, map storage columns to logical names, and decode JSON cells. Use pyarrow or pandas.read_parquet(dtype_backend="pyarrow") to retain nullable integer/decimal precision. Parquet presence columns pN distinguish missing from null; CSV null/missing/backslash rules are explicit in schema.json. Full data stays in files, never ask to put it in a prompt. Do not reopen previous output in a new sandbox.' : 'Each Python call starts a fresh sandbox with the original immutable input and any additional input versions explicitly delivered by Java data_request, without earlier output files or Python variables. Single inputs use /data/input/{fileId}/input.jsonl; chunked inputs use /data/input/{fileId}/manifest.json and the ordered, hash-checked chunks listed there. Do not launch a new call just to open a previous output file.',
     'Runtime returns only safe diagnostic metadata (stream byte counts, exception type and program line) after the process is confirmed stopped. Raw stdout and stderr are discarded before persistence; printing source rows cannot produce a preview. Inspect schema and data quality inside Python; never print source rows or samples. Printing a result alone does not create an analysis dataset. REQUIRED_OUTPUT_MISSING means the process did not write the contracted result. Write the complete result in a fresh program.',
     'A SUCCEEDED receipt with resultDatasetRef, validationRecordRef and evidenceBundleRef means Runtime archived the result. INCONCLUSIVE with businessValidationPassed=false means business correctness was not evaluated, not an execution failure. You may finish with that limitation; the main analysis can read the registered result.',
     `Task objective: ${contract.objective?.instruction ?? ''}`,
@@ -333,6 +339,8 @@ export function createCodingRun(contract, gateway, options = {}) {
   };
   else throw new TypeError('A Runtime-owned model connection is required');
   const agent = new Agent(config);
+  const contextAbort = new AbortController();
+  let stopReason = null;
   if (restored) {
     if (!Array.isArray(restored.messages) || !restored.messages.length
         || !Number.isSafeInteger(restored.modelOrdinal) || restored.modelOrdinal < 0)
@@ -342,11 +350,33 @@ export function createCodingRun(contract, gateway, options = {}) {
   return {
     events,
     async run() {
-      if (contract.runtimeContext && Object.keys(contract.runtimeContext).length) {
-        await forward({ type: 'CONTEXT_READY', stage: 'CONTEXT_READY' });
-        if (contract.runtimeContext.skills?.status === 'APPLIED')
-          await forward({ type: 'SKILLS_LOADED', stage: 'CONTEXT_READY',
-            skillFingerprint: contract.runtimeContext.skills.fingerprint });
+      let instruction = contract.objective?.instruction ?? 'Complete the authorized Coding task';
+      try {
+        if (fileInput && !restored) {
+          if (typeof gateway.readInputContext !== 'function') throw new TypeError('Runtime input metadata callback is required');
+          const metadata = await gateway.readInputContext(contract, contextAbort.signal);
+          const encoded = JSON.stringify(metadata);
+          if (Buffer.byteLength(encoded, 'utf8') > 180000) throw new TypeError('Runtime input metadata exceeds limit');
+          instruction += `\nJava-authorized immutable input metadata (schema and file references only):\n${encoded}`;
+        }
+        if (stopReason) throw new Error(stopReason);
+        if (contract.runtimeContext && Object.keys(contract.runtimeContext).length) {
+          await forward({ type: 'CONTEXT_READY', stage: 'CONTEXT_READY' });
+          if (contract.runtimeContext.skills?.status === 'APPLIED')
+            await forward({ type: 'SKILLS_LOADED', stage: 'CONTEXT_READY',
+              skillFingerprint: contract.runtimeContext.skills.fingerprint });
+        }
+        if (stopReason) throw new Error(stopReason);
+      } catch (error) {
+        // Agent.afterRun has not started yet. Close the existing Runtime task explicitly;
+        // a metadata failure must not leave an idle RUNNING task until its deadline.
+        try {
+          await gateway.finish?.(contract, { status: stopReason ? 'aborted' : 'failed', iterations: 0,
+            summary: 'Input context preparation stopped', operationId: null });
+        } catch (finishError) {
+          events.push({ type: 'RUNTIME_FINISH_FAILED', message: String(finishError?.message ?? finishError).slice(0, 512) });
+        }
+        throw error;
       }
       let timer;
       const expire = () => {
@@ -357,7 +387,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       // Arm after run starts, since Agent.run creates its own AbortController.
       const pending = deadline !== null && deadline <= Date.now() ? null
         : restored ? agent.continue()
-          : agent.run(contract.objective?.instruction ?? 'Complete the authorized Coding task');
+          : agent.run(instruction);
       if (!pending) throw new Error('Runtime Coding deadline reached before dispatch');
       if (deadline !== null) expire();
       try {
@@ -371,6 +401,8 @@ export function createCodingRun(contract, gateway, options = {}) {
       } finally { clearTimeout(timer); }
     },
     abort(reason = 'Runtime cancellation') {
+      stopReason = reason;
+      contextAbort.abort(new Error(reason));
       agent.abort(reason);
       if (activeOperation) void gateway.cancelPython?.(contract, activeOperation).catch(() => {});
     },

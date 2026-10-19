@@ -1,0 +1,5 @@
+pandas==3.0.6
+pyarrow==26.0.0
+numpy==2.4.6
+python-dateutil==2.9.0.post0
+six==1.17.0

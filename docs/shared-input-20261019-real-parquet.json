@@ -1,0 +1,1898 @@
+{
+  "mode": "complete",
+  "scope": "Real published task API and configured provider; Sandbox execution verified by task receipts",
+  "taskId": "42a9971e-2e98-315a-9c0d-ffd6f5ff2cd0",
+  "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+  "startedAt": 1792392539.0785115,
+  "productionSwitched": false,
+  "tasks": [
+    {
+      "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+      "outcome": {
+        "schemaVersion": "runtime_os.coding.v3",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "contractSha256": "469907664afbf6a3200dd57150b6b7648459e7d9b22080d142ef5a073a58d940",
+        "status": "COMPLETED",
+        "revision": 26,
+        "lastEventSequence": 27,
+        "createdAt": "2026-10-19T06:46:40.321Z",
+        "updatedAt": "2026-10-19T06:47:26.591Z",
+        "startedAt": "2026-10-19T06:46:40.339Z",
+        "endedAt": "2026-10-19T06:47:26.591Z",
+        "cancellationRequested": false,
+        "reasonCode": null,
+        "summary": "Coding execution archived; validation INCONCLUSIVE",
+        "limitations": [
+          "A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters."
+        ],
+        "inputSnapshotRef": "runtime-evidence:coding:input:43a3e50cbd3d015afa48d62bd14ecff2452d81052530add558a085d3a1df8e8",
+        "codeArtifactRef": "runtime-evidence:coding:948b52f69f6e8ce907cc64dda3b1fd1dc3ea3fafba3f34c12c4d818683dde352:code",
+        "executionReceiptRef": "runtime-evidence:coding:948b52f69f6e8ce907cc64dda3b1fd1dc3ea3fafba3f34c12c4d818683dde352:receipt",
+        "resultDatasetRef": "runtime-evidence:coding:948b52f69f6e8ce907cc64dda3b1fd1dc3ea3fafba3f34c12c4d818683dde352:result",
+        "validationRecordRef": "runtime-evidence:coding:948b52f69f6e8ce907cc64dda3b1fd1dc3ea3fafba3f34c12c4d818683dde352:validation",
+        "evidenceBundleRef": "runtime-evidence:coding:948b52f69f6e8ce907cc64dda3b1fd1dc3ea3fafba3f34c12c4d818683dde352:bundle",
+        "validationStatus": "INCONCLUSIVE",
+        "reproducibility": {
+          "level": "CONDITIONAL",
+          "limitations": [
+            "Execution and reproducibility have not been verified"
+          ],
+          "dependencyRefs": [
+            "b1068ad2-7b8d-4fb0-9230-316c86c596a4"
+          ]
+        },
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 2,
+            "modelTokens": 10885,
+            "toolCalls": 1,
+            "codeExecutions": 1,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 1420,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 54651,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 25000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 348105,
+            "costAmount": "1.666666666666"
+          },
+          "meteringComplete": false
+        },
+        "executionControl": {
+          "stopReason": null,
+          "stopRequestedAt": null,
+          "executorStopped": true,
+          "reconciliationRequired": false
+        },
+        "parentTaskId": null,
+        "supersedesTaskId": null,
+        "perArtifactCompleteness": {}
+      },
+      "objective": "Read the complete authorized snapshot from the delivered dataset. After loading all rows into memory, execute time.sleep(25) BEFORE performing any counting or aggregation. Then compute: (1) total_connections = total number of connection records in the snapshot; (2) sleep_connections = number of records where the State field equals the exact string 'Sleep' (case-sensitive). Output exactly one JSONL row containing only these two integer aggregate counts. Do NOT output any raw records, row-level data, or source fields.",
+      "configuration": {
+        "capturedAt": "2026-10-19T06:46:40.200365706Z",
+        "configuredSkillIds": [],
+        "consistency": "TASK_SNAPSHOT",
+        "inputFiles": {
+          "delivery": "SHARED_DIRECTORY",
+          "format": "PARQUET",
+          "manifestFileId": "c43a3e50cbd3d015afa48d62bd14ecff2452d81052530add558a085d3a1df8e8",
+          "manifestSha256": "7f677d9dc3c50c2ca2728fc5fe6781393720bfe0dfcd5af24d7bf91cb87b0c31",
+          "schemaVersion": "runtime_os.coding.input.v1"
+        },
+        "model": {
+          "binding": "AUTHORIZED_PARENT_MODEL",
+          "implementation": "dev.langchain4j.model.openai.OpenAiChatModel",
+          "maxRetries": 3,
+          "maxTokens": -1,
+          "protocol": "openai",
+          "providerModel": "",
+          "selectedModel": "hy3",
+          "timeout": 1800000
+        },
+        "schemaVersion": "runtime_os.coding.context.v1",
+        "skills": {
+          "authority": "AUTHORIZED_SKILL_METHODOLOGY_NOT_EVIDENCE",
+          "fingerprint": "721c4d899d4558341192da081ee44e2006abc4c0a01174c19b406eae68f7c127",
+          "schemaVersion": "skill_analysis_context.v1",
+          "skills": [],
+          "stages": {},
+          "status": "NO_RELEVANT_SKILL"
+        }
+      },
+      "allowedTools": [
+        "python_execute"
+      ],
+      "canCancel": false,
+      "canRetry": false,
+      "canResume": false,
+      "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1"
+    }
+  ],
+  "events": {
+    "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e": [
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:4e98589e-57ad-444a-93ef-e4d3d94ed76f",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 1,
+        "revision": 0,
+        "occurredAt": "2026-10-19T06:46:40.321Z",
+        "type": "TASK_CREATED",
+        "operationId": null,
+        "attempt": null,
+        "status": "CREATED",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 0,
+            "modelTokens": 0,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 0,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "meteringComplete": true
+        },
+        "summary": "Coding task accepted durably",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-0",
+          "stage": "QUEUED",
+          "source": "JAVA_RUNTIME"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:f8917796-e7cd-45db-86eb-d97a18dc10fe",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 2,
+        "revision": 1,
+        "occurredAt": "2026-10-19T06:46:40.339Z",
+        "type": "TASK_STARTED",
+        "operationId": null,
+        "attempt": null,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 0,
+            "modelTokens": 0,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 0,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "meteringComplete": true
+        },
+        "summary": "Execution ownership acquired; no operation was started",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "CONTEXT_READY",
+          "source": "JAVA_RUNTIME"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:da1decc4-d847-49d9-b63c-9f66e3f60804",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 3,
+        "revision": 2,
+        "occurredAt": "2026-10-19T06:46:40.459Z",
+        "type": "RECOVERY_RECONCILED",
+        "operationId": null,
+        "attempt": null,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 0,
+            "modelTokens": 0,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 0,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "meteringComplete": true
+        },
+        "summary": "Worker observation: CONTEXT_READY",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "source": "NODE_CLINE",
+          "stage": "CONTEXT_READY",
+          "type": "CONTEXT_READY",
+          "timestamp": "2026-10-19T06:46:40.433Z"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:66dac43f-94c0-4d46-9a28-c08682780bb7",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 4,
+        "revision": 3,
+        "occurredAt": "2026-10-19T06:46:40.573Z",
+        "type": "BUDGET_UPDATED",
+        "operationId": "model-1",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 0,
+            "modelTokens": 0,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 1,
+            "modelTokens": 32768,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0.833333333333"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Operation budget reserved",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "CONTEXT_READY",
+          "source": "JAVA_RUNTIME"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:3aa2cd21-4be8-428d-a766-ed245e1b5642",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 5,
+        "revision": 4,
+        "occurredAt": "2026-10-19T06:46:40.586Z",
+        "type": "RECOVERY_RECONCILED",
+        "operationId": "model-1",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 0,
+            "modelTokens": 0,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 1,
+            "modelTokens": 32768,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0.833333333333"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Start intent committed; execution result is not yet known",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "CODING",
+          "source": "JAVA_RUNTIME"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:94911cfc-2ac5-4c7a-afef-f926d95d4e6a",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 6,
+        "revision": 5,
+        "occurredAt": "2026-10-19T06:46:40.621Z",
+        "type": "RECOVERY_RECONCILED",
+        "operationId": "model-1",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 0,
+            "modelTokens": 0,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 1,
+            "modelTokens": 32768,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0.833333333333"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Worker observation: MODEL_STARTED",
+        "payload": {
+          "source": "NODE_CLINE",
+          "timestamp": "2026-10-19T06:46:40.600Z",
+          "type": "MODEL_STARTED",
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "CODING",
+          "modelCall": 1
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:4ecb31f2-3d35-4f0a-b5a7-9c6c01d8b49d",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 7,
+        "revision": 6,
+        "occurredAt": "2026-10-19T06:46:40.673Z",
+        "type": "RECOVERY_RECONCILED",
+        "operationId": null,
+        "attempt": null,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 0,
+            "modelTokens": 0,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 1,
+            "modelTokens": 32768,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0.833333333333"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Lease renewed",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "CODING",
+          "source": "JAVA_RUNTIME"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:bf3259ad-0c89-4acc-8989-7a74931b5985",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 8,
+        "revision": 7,
+        "occurredAt": "2026-10-19T06:46:48.387Z",
+        "type": "RECOVERY_RECONCILED",
+        "operationId": "model-1",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 0,
+            "modelTokens": 0,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 1,
+            "modelTokens": 32768,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0.833333333333"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Worker observation: MODEL_RESOLVED",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "durationMs": 7623,
+          "finishedAt": "2026-10-19T06:46:48.337176832Z",
+          "stage": "CODING",
+          "timestamp": "2026-10-19T06:46:48.369Z",
+          "protocol": "openai",
+          "startedAt": "2026-10-19T06:46:40.713362437Z",
+          "type": "MODEL_RESOLVED",
+          "selectedModel": "hy3",
+          "maxOutputTokens": 16384,
+          "source": "NODE_CLINE",
+          "modelCall": 1,
+          "providerModel": "hy3"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:d6bcf8ba-8dcc-4c66-8b30-1d56b0b31fa5",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 9,
+        "revision": 8,
+        "occurredAt": "2026-10-19T06:46:48.450Z",
+        "type": "RECOVERY_RECONCILED",
+        "operationId": "model-1",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [
+          "runtime-evidence:coding:model:e059ebe21d963081a66abaa609d1ea8b53f881d49f22e46acc34195f1c4a0415"
+        ],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 0,
+            "modelTokens": 0,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 1,
+            "modelTokens": 32768,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0.833333333333"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Verified stop evidence recorded",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "CODING",
+          "source": "JAVA_RUNTIME"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:8768c7ac-9f81-4fb3-b2ee-44ea899129c6",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 10,
+        "revision": 9,
+        "occurredAt": "2026-10-19T06:46:48.473Z",
+        "type": "BUDGET_UPDATED",
+        "operationId": "model-1",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 1,
+            "modelTokens": 4917,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 27851,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0.833333333333"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Unknown usage retains unspent reservation",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "CODING",
+          "source": "JAVA_RUNTIME"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:369dfee3-280d-4723-87cf-01542dbc33cb",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 11,
+        "revision": 10,
+        "occurredAt": "2026-10-19T06:46:48.515Z",
+        "type": "RECOVERY_RECONCILED",
+        "operationId": "model-1",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 1,
+            "modelTokens": 4917,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 27851,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0.833333333333"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Worker observation: MODEL_USAGE",
+        "payload": {
+          "usage": {
+            "inputTokens": 4116,
+            "outputTokens": 801
+          },
+          "status": "SUCCEEDED",
+          "timestamp": "2026-10-19T06:46:48.493Z",
+          "modelCall": 1,
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "type": "MODEL_USAGE",
+          "source": "NODE_CLINE",
+          "stage": "CODING"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:dc60a380-90f2-4ec5-afad-172621b63b43",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 12,
+        "revision": 11,
+        "occurredAt": "2026-10-19T06:46:48.543Z",
+        "type": "RECOVERY_RECONCILED",
+        "operationId": null,
+        "attempt": null,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 1,
+            "modelTokens": 4917,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 27851,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0.833333333333"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Worker observation: CODE_READY",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "CODE_READY",
+          "codeSha256": "bb0042a6f5d513cc554318843916f6d2c70195a0203cc94d4fe52d78126d8f7a",
+          "proposedOperationId": "cline-18acb9cbb9fa68d4769c3fb2bd9258fbdaff3a0053a182a26fc198babc96cb73",
+          "sourceBytes": 2041,
+          "modelCall": 1,
+          "source": "NODE_CLINE",
+          "type": "CODE_READY",
+          "timestamp": "2026-10-19T06:46:48.528Z",
+          "fileName": "main.py"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:03135be3-9694-48c4-a3fc-21a5f04e717a",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 13,
+        "revision": 12,
+        "occurredAt": "2026-10-19T06:46:48.570Z",
+        "type": "RECOVERY_RECONCILED",
+        "operationId": null,
+        "attempt": null,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 1,
+            "modelTokens": 4917,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 27851,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0.833333333333"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Worker observation: TOOL_STARTED",
+        "payload": {
+          "timestamp": "2026-10-19T06:46:48.552Z",
+          "type": "TOOL_STARTED",
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "tool": "python_execute",
+          "stage": "VALIDATING",
+          "source": "NODE_CLINE"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:2ed8c5fa-701f-4fd4-a083-25ef9b990a5a",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 14,
+        "revision": 13,
+        "occurredAt": "2026-10-19T06:46:48.727Z",
+        "type": "BUDGET_UPDATED",
+        "operationId": "cline-18acb9cbb9fa68d4769c3fb2bd9258fbdaff3a0053a182a26fc198babc96cb73",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 1,
+            "modelTokens": 4917,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 27851,
+            "toolCalls": 1,
+            "codeExecutions": 1,
+            "cpuMillis": 25000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 349525,
+            "costAmount": "0.833333333333"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Operation budget reserved",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "VALIDATING",
+          "source": "JAVA_RUNTIME"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:8eacd4b9-b786-4801-9a86-58bb5f20cd8d",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 15,
+        "revision": 14,
+        "occurredAt": "2026-10-19T06:46:48.762Z",
+        "type": "RECOVERY_RECONCILED",
+        "operationId": "cline-18acb9cbb9fa68d4769c3fb2bd9258fbdaff3a0053a182a26fc198babc96cb73",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 1,
+            "modelTokens": 4917,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 27851,
+            "toolCalls": 1,
+            "codeExecutions": 1,
+            "cpuMillis": 25000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 349525,
+            "costAmount": "0.833333333333"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Start intent committed; execution result is not yet known",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "EXECUTING",
+          "source": "JAVA_RUNTIME"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:2259f919-8395-4fd9-8104-4de4c1dfb3d5",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 16,
+        "revision": 15,
+        "occurredAt": "2026-10-19T06:47:18.189Z",
+        "type": "RECOVERY_RECONCILED",
+        "operationId": "cline-18acb9cbb9fa68d4769c3fb2bd9258fbdaff3a0053a182a26fc198babc96cb73",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [
+          "mcp-python-receipt:df6812221909077e843d5632ee987216318e4098ebd261607d0148e890d81dc5"
+        ],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 1,
+            "modelTokens": 4917,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 27851,
+            "toolCalls": 1,
+            "codeExecutions": 1,
+            "cpuMillis": 25000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 349525,
+            "costAmount": "0.833333333333"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Verified stop evidence recorded",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "RESULT_VALIDATING",
+          "source": "JAVA_RUNTIME"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:0bf57e3b-4996-492c-8a15-acc09b870485",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 17,
+        "revision": 16,
+        "occurredAt": "2026-10-19T06:47:18.229Z",
+        "type": "BUDGET_UPDATED",
+        "operationId": "cline-18acb9cbb9fa68d4769c3fb2bd9258fbdaff3a0053a182a26fc198babc96cb73",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 1,
+            "modelTokens": 4917,
+            "toolCalls": 1,
+            "codeExecutions": 1,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 1420,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 27851,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 25000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 348105,
+            "costAmount": "0.833333333333"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Unknown usage retains unspent reservation",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "RESULT_VALIDATING",
+          "source": "JAVA_RUNTIME"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:ef06e4fa-3e54-4498-80d5-1425a424c5d3",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 18,
+        "revision": 17,
+        "occurredAt": "2026-10-19T06:47:18.857Z",
+        "type": "RECOVERY_RECONCILED",
+        "operationId": "cline-18acb9cbb9fa68d4769c3fb2bd9258fbdaff3a0053a182a26fc198babc96cb73",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 1,
+            "modelTokens": 4917,
+            "toolCalls": 1,
+            "codeExecutions": 1,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 1420,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 27851,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 25000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 348105,
+            "costAmount": "0.833333333333"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Worker observation: TOOL_FINISHED",
+        "payload": {
+          "status": "SUCCEEDED",
+          "timestamp": "2026-10-19T06:47:18.840Z",
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "tool": "python_execute",
+          "type": "TOOL_FINISHED",
+          "source": "NODE_CLINE",
+          "validationStatus": "INCONCLUSIVE",
+          "stage": "RESULT_VALIDATING"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:4253e14f-b8c1-4f14-a0de-2f4438eca5e3",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 19,
+        "revision": 18,
+        "occurredAt": "2026-10-19T06:47:18.937Z",
+        "type": "BUDGET_UPDATED",
+        "operationId": "model-2",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 1,
+            "modelTokens": 4917,
+            "toolCalls": 1,
+            "codeExecutions": 1,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 1420,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 1,
+            "modelTokens": 60619,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 25000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 348105,
+            "costAmount": "1.666666666666"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Operation budget reserved",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "RESULT_VALIDATING",
+          "source": "JAVA_RUNTIME"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:54e19485-5ef6-475d-b4be-f79230ed4d71",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 20,
+        "revision": 19,
+        "occurredAt": "2026-10-19T06:47:18.952Z",
+        "type": "RECOVERY_RECONCILED",
+        "operationId": "model-2",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 1,
+            "modelTokens": 4917,
+            "toolCalls": 1,
+            "codeExecutions": 1,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 1420,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 1,
+            "modelTokens": 60619,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 25000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 348105,
+            "costAmount": "1.666666666666"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Start intent committed; execution result is not yet known",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "CODING",
+          "source": "JAVA_RUNTIME"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:fccfcba1-c3cf-436b-92aa-48563657fd46",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 21,
+        "revision": 20,
+        "occurredAt": "2026-10-19T06:47:18.986Z",
+        "type": "RECOVERY_RECONCILED",
+        "operationId": "model-2",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 1,
+            "modelTokens": 4917,
+            "toolCalls": 1,
+            "codeExecutions": 1,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 1420,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 1,
+            "modelTokens": 60619,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 25000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 348105,
+            "costAmount": "1.666666666666"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Worker observation: MODEL_STARTED",
+        "payload": {
+          "source": "NODE_CLINE",
+          "timestamp": "2026-10-19T06:47:18.965Z",
+          "type": "MODEL_STARTED",
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "CODING",
+          "modelCall": 2
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:6cb46651-a8c8-41bd-8461-e0c1db19e216",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 22,
+        "revision": 21,
+        "occurredAt": "2026-10-19T06:47:19.034Z",
+        "type": "RECOVERY_RECONCILED",
+        "operationId": null,
+        "attempt": null,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 1,
+            "modelTokens": 4917,
+            "toolCalls": 1,
+            "codeExecutions": 1,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 1420,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 1,
+            "modelTokens": 60619,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 25000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 348105,
+            "costAmount": "1.666666666666"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Lease renewed",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "CODING",
+          "source": "JAVA_RUNTIME"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:e3025e9f-460a-4841-89b5-c0141f1e31e2",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 23,
+        "revision": 22,
+        "occurredAt": "2026-10-19T06:47:26.121Z",
+        "type": "RECOVERY_RECONCILED",
+        "operationId": "model-2",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 1,
+            "modelTokens": 4917,
+            "toolCalls": 1,
+            "codeExecutions": 1,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 1420,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 1,
+            "modelTokens": 60619,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 25000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 348105,
+            "costAmount": "1.666666666666"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Worker observation: MODEL_RESOLVED",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "durationMs": 7040,
+          "finishedAt": "2026-10-19T06:47:26.083605279Z",
+          "stage": "CODING",
+          "timestamp": "2026-10-19T06:47:26.098Z",
+          "protocol": "openai",
+          "startedAt": "2026-10-19T06:47:19.043224207Z",
+          "type": "MODEL_RESOLVED",
+          "selectedModel": "hy3",
+          "maxOutputTokens": 16384,
+          "source": "NODE_CLINE",
+          "modelCall": 2,
+          "providerModel": "hy3"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:ec791148-92b8-4f47-a2e0-34b701f0a47b",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 24,
+        "revision": 23,
+        "occurredAt": "2026-10-19T06:47:26.159Z",
+        "type": "RECOVERY_RECONCILED",
+        "operationId": "model-2",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [
+          "runtime-evidence:coding:model:5942643bb5a57b90da1e5b836dc34e934f3ff1f12b2ed3ff135b730b6a0a2c22"
+        ],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 1,
+            "modelTokens": 4917,
+            "toolCalls": 1,
+            "codeExecutions": 1,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 1420,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 1,
+            "modelTokens": 60619,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 25000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 348105,
+            "costAmount": "1.666666666666"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Verified stop evidence recorded",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "CODING",
+          "source": "JAVA_RUNTIME"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:4fba40ab-9c41-42de-b71e-e4506d4af7d7",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 25,
+        "revision": 24,
+        "occurredAt": "2026-10-19T06:47:26.169Z",
+        "type": "BUDGET_UPDATED",
+        "operationId": "model-2",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 2,
+            "modelTokens": 10885,
+            "toolCalls": 1,
+            "codeExecutions": 1,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 1420,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 54651,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 25000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 348105,
+            "costAmount": "1.666666666666"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Unknown usage retains unspent reservation",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "CODING",
+          "source": "JAVA_RUNTIME"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:595def40-cfe9-407b-b52f-b9fb966cc9f2",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 26,
+        "revision": 25,
+        "occurredAt": "2026-10-19T06:47:26.198Z",
+        "type": "RECOVERY_RECONCILED",
+        "operationId": "model-2",
+        "attempt": 1,
+        "status": "RUNNING",
+        "reasonCode": null,
+        "evidenceRefs": [],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 2,
+            "modelTokens": 10885,
+            "toolCalls": 1,
+            "codeExecutions": 1,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 1420,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 54651,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 25000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 348105,
+            "costAmount": "1.666666666666"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Worker observation: MODEL_USAGE",
+        "payload": {
+          "usage": {
+            "inputTokens": 5327,
+            "outputTokens": 641
+          },
+          "status": "SUCCEEDED",
+          "timestamp": "2026-10-19T06:47:26.177Z",
+          "modelCall": 2,
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "type": "MODEL_USAGE",
+          "source": "NODE_CLINE",
+          "stage": "CODING"
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.coding.v3",
+        "eventId": "coding:e53f1e7c-188f-43cc-a965-a462cbb29a06",
+        "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "4d916468-787d-4f40-a064-f00780b8a771",
+          "conversationId": "59dbd9c5-fe5f-44bb-acd6-ec76da0911f9",
+          "runId": "att-1-9f244acf-22cc-4479-8ec9-fb252c5d4338",
+          "environment": null,
+          "attributes": {}
+        },
+        "sequence": 27,
+        "revision": 26,
+        "occurredAt": "2026-10-19T06:47:26.591Z",
+        "type": "TASK_FINISHED",
+        "operationId": null,
+        "attempt": null,
+        "status": "COMPLETED",
+        "reasonCode": null,
+        "evidenceRefs": [
+          "runtime-evidence:coding:948b52f69f6e8ce907cc64dda3b1fd1dc3ea3fafba3f34c12c4d818683dde352:bundle",
+          "runtime-evidence:coding:948b52f69f6e8ce907cc64dda3b1fd1dc3ea3fafba3f34c12c4d818683dde352:code",
+          "runtime-evidence:coding:948b52f69f6e8ce907cc64dda3b1fd1dc3ea3fafba3f34c12c4d818683dde352:receipt",
+          "runtime-evidence:coding:948b52f69f6e8ce907cc64dda3b1fd1dc3ea3fafba3f34c12c4d818683dde352:result",
+          "runtime-evidence:coding:948b52f69f6e8ce907cc64dda3b1fd1dc3ea3fafba3f34c12c4d818683dde352:validation",
+          "runtime-evidence:coding:input:43a3e50cbd3d015afa48d62bd14ecff2452d81052530add558a085d3a1df8e8"
+        ],
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 2,
+            "modelTokens": 10885,
+            "toolCalls": 1,
+            "codeExecutions": 1,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 1420,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 54651,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 25000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 348105,
+            "costAmount": "1.666666666666"
+          },
+          "meteringComplete": false
+        },
+        "summary": "Coding execution archived; validation INCONCLUSIVE",
+        "payload": {
+          "attemptId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e:fence-1",
+          "stage": "COMPLETED",
+          "source": "JAVA_RUNTIME"
+        }
+      }
+    ]
+  },
+  "codeSubmissions": [
+    {
+      "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+      "operationId": "cline-18acb9cbb9fa68d4769c3fb2bd9258fbdaff3a0053a182a26fc198babc96cb73",
+      "sha256": "bb0042a6f5d513cc554318843916f6d2c70195a0203cc94d4fe52d78126d8f7a",
+      "displayedSourceSha256": "bb0042a6f5d513cc554318843916f6d2c70195a0203cc94d4fe52d78126d8f7a",
+      "redacted": false,
+      "lines": 53
+    }
+  ],
+  "nodeRestarted": false,
+  "cancelRequested": false,
+  "inputBindings": [
+    {
+      "taskId": "analysis-coding-29118e38a6c1b1bbe32cee5a382153e0662dd61387af13302a74bb806e4c6f1e",
+      "operationId": "cline-18acb9cbb9fa68d4769c3fb2bd9258fbdaff3a0053a182a26fc198babc96cb73",
+      "binding": "OPERATION_FROZEN",
+      "snapshots": [
+        {
+          "delivery": "SHARED_DIRECTORY",
+          "sha256": "7f677d9dc3c50c2ca2728fc5fe6781393720bfe0dfcd5af24d7bf91cb87b0c31",
+          "fileId": "c43a3e50cbd3d015afa48d62bd14ecff2452d81052530add558a085d3a1df8e8",
+          "inputManifest": {
+            "columns": [
+              {
+                "missingCount": 0,
+                "name": "Command",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c0",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "Host",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c1",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "Id",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c2",
+                "type": "INT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "Info",
+                "nullCount": 95,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c3",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "State",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c4",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "Time",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c5",
+                "type": "INT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "User",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c6",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "db",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c7",
+                "type": "STRING"
+              }
+            ],
+            "format": "PARQUET",
+            "logicalBytes": 13400,
+            "logicalContentSha256": "a0f11fd17efe45b67466e9940218244f9843e9ca2d36c5983b05002376d453c6",
+            "parts": [
+              {
+                "fileId": "c0d602590a96c6bae453b2a842600a5b49314e9bf03c66a7861c217940ffe551",
+                "fileName": "part-00000.parquet",
+                "rowCount": 96,
+                "sha256": "ff35549b921ca337e897459309d34c6f55cbf1cd961d173a92300ea17274ed8c",
+                "sizeBytes": 11286
+              }
+            ],
+            "rowCount": 96,
+            "schemaFileId": "c430ff47ab53da2f955762ed1ec772d7690e9362123e7517d04a8aea8d51faae",
+            "schemaVersion": "runtime_os.coding.input.v1",
+            "sourceDatasetRef": "mcp_chatchat_mcp_server_sql_query_execute"
+          },
+          "qualitySummary": {
+            "coverage": "FULL_SNAPSHOT_STRUCTURAL_ONLY",
+            "fields": [
+              {
+                "missingCount": 0,
+                "name": "Command",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c0",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "Host",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c1",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "Id",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c2",
+                "type": "INT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "Info",
+                "nullCount": 95,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c3",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "State",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c4",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "Time",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c5",
+                "type": "INT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "User",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c6",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "db",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c7",
+                "type": "STRING"
+              }
+            ],
+            "rowCount": 96
+          },
+          "format": "PARQUET",
+          "encoding": "UTF-8",
+          "size": 1422,
+          "schemaJson": "{\"columns\":[{\"name\":\"Command\",\"storageName\":\"c0\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"Host\",\"storageName\":\"c1\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"Id\",\"storageName\":\"c2\",\"type\":\"INT64\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"Info\",\"storageName\":\"c3\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":95},{\"name\":\"State\",\"storageName\":\"c4\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"Time\",\"storageName\":\"c5\",\"type\":\"INT64\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"User\",\"storageName\":\"c6\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"db\",\"storageName\":\"c7\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0}],\"csv\":{\"delimiter\":\",\",\"escape\":\"DOUBLE_QUOTE\",\"literalBackslash\":\"PREFIX_BACKSLASH\",\"missingToken\":\"\\\\M\",\"nullToken\":\"\\\\N\",\"quote\":\"\\\"\"},\"encoding\":\"UTF-8\",\"format\":\"PARQUET\",\"presenceColumns\":{\"c0\":\"p0\",\"c1\":\"p1\",\"c2\":\"p2\",\"c3\":\"p3\",\"c4\":\"p4\",\"c5\":\"p5\",\"c6\":\"p6\",\"c7\":\"p7\"},\"schemaVersion\":\"runtime_os.coding.input.v1\",\"sourceDatasetRef\":\"mcp_chatchat_mcp_server_sql_query_execute\"}",
+          "rowCount": 96,
+          "chunks": [
+            {
+              "fileId": "c430ff47ab53da2f955762ed1ec772d7690e9362123e7517d04a8aea8d51faae",
+              "fileName": "schema.json",
+              "sha256": "23112d822b9bef0004e9270b363bd69d3411f5eb612439908ae40c1297b2cf99",
+              "rowCount": 0,
+              "size": 1244
+            },
+            {
+              "fileId": "c0d602590a96c6bae453b2a842600a5b49314e9bf03c66a7861c217940ffe551",
+              "fileName": "part-00000.parquet",
+              "sha256": "ff35549b921ca337e897459309d34c6f55cbf1cd961d173a92300ea17274ed8c",
+              "rowCount": 96,
+              "size": 11286
+            }
+          ],
+          "reference": "runtime-evidence:coding:input:43a3e50cbd3d015afa48d62bd14ecff2452d81052530add558a085d3a1df8e8",
+          "fileName": "manifest.json"
+        }
+      ]
+    }
+  ],
+  "expectedInputFormat": "PARQUET",
+  "restartPhase": "validated",
+  "parent": {
+    "status": "SUCCESS",
+    "canonicalState": "SUCCEEDED",
+    "terminal": true,
+    "answerAvailable": true,
+    "attemptNumber": 1
+  },
+  "hasActualModelTelemetry": true,
+  "hasCodeReadyEvent": true,
+  "hasArchivedCode": true,
+  "hasCompletedCoding": true,
+  "resultAdmitted": true,
+  "orderedUniqueEvents": true,
+  "status": "PASSED"
+}

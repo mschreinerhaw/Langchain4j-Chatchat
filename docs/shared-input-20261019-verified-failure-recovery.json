@@ -1,0 +1,14 @@
+{
+  "scope": "Official resume of verified failed Python after worker loss; no database changes",
+  "taskId": "analysis-coding-db102b5952d394c83f9a2bf16973d82873273b67cfaba4a90dd1934d2a748c67",
+  "parentTaskId": "34acef58-8775-4659-a48d-00d643f0d4de",
+  "status": "BUDGET_EXCEEDED",
+  "reasonCode": "DEADLINE_EXCEEDED",
+  "executionControl": {
+    "stopReason": "DEADLINE_EXCEEDED",
+    "stopRequestedAt": "2026-10-19T06:40:08.396Z",
+    "executorStopped": true,
+    "reconciliationRequired": false
+  },
+  "productionSwitched": false
+}

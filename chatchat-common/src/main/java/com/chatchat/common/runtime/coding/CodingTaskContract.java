@@ -20,12 +20,17 @@ public record CodingTaskContract(String schemaVersion, String taskId, KernelData
     }
     public CodingTaskContract {
         runtimeContext = CodingRuntimeContext.validate(runtimeContext);
+        CodingProtocol.require(!runtimeContext.containsKey("inputFiles") || CodingProtocol.ANALYSIS_VERSION.equals(schemaVersion),
+            "Versioned file inputs require the analysis task profile");
         CodingProtocol.version(schemaVersion); taskId = CodingProtocol.ref(taskId, "taskId");
         scope = CodingProtocol.scope(scope); CodingProtocol.required(objective, "objective");
         inputSnapshotRef = CodingProtocol.ref(inputSnapshotRef, "inputSnapshotRef");
         metadataRefs = CodingProtocol.strings(metadataRefs, "metadataRefs", true);
         workspaceRef = CodingProtocol.ref(workspaceRef, "workspaceRef");
         CodingProtocol.required(authorization, "authorization"); CodingProtocol.required(budget, "budget");
+        if(runtimeContext.get("inputFiles") instanceof java.util.Map<?,?> files)
+            CodingProtocol.require(authorization.allowedDataRefs().contains(files.get("manifestFileId")),
+                "File manifest must be in the task's authorized inputs");
         environmentRef = CodingProtocol.ref(environmentRef, "environmentRef");
         validationPlanRef = CodingProtocol.ref(validationPlanRef, "validationPlanRef");
         CodingProtocol.required(outputContract, "outputContract");

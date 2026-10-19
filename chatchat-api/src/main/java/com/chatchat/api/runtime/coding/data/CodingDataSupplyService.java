@@ -144,7 +144,7 @@ public final class CodingDataSupplyService {
                 return failedReceipt(c,lease,request,digest,receiptId,"INVALID_DATA","Required field missing; no input revision admitted",fact.evidenceId(),hash(payload));
             String source="coding-data:"+operation+":"+hash(rows);
             var dataset=new Dataset(source,Map.of("sourceEvidenceId",fact.evidenceId(),"templateId",template,"parameters",parameters),rows);
-            var snapshot=inputs.capture(c.scope(),c.taskId(),List.of(dataset),source,c.authorization().decisionRef(),c.workspaceRef(),100,1024*1024);
+            var snapshot=inputs.captureForTask(c,List.of(dataset),source,100,1024*1024);
             Map<String,Object> response=new LinkedHashMap<>();
             response.put("taskId",c.taskId());response.put("operationId",operation);response.put("requestId",requestId);
             response.put("requestHash",digest);response.put("executionHandle","runtime-data:"+operation);response.put("executorStopped",true);

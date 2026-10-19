@@ -31,7 +31,7 @@ import static org.mockito.Mockito.*;
 /** Real HTTP worker status; execution/collector doubles do not constitute Docker or SDK recovery. */
 class ClineCodingAdapterRecoveryTest {
     @ParameterizedTest
-    @ValueSource(strings = {"COMPLETED", "FAILED", "CANCELLED", "MISSING", "UNKNOWN_MODEL", "FAILED_PYTHON"})
+    @ValueSource(strings = {"COMPLETED", "FAILED", "CANCELLED", "MISSING", "UNKNOWN_MODEL", "FAILED_PYTHON", "MISSING_FAILED_PYTHON", "MISSING_STOPPED", "MISSING_STOPPED_UNKNOWN_MODEL"})
     void stoppedWorkerRequiresVerifiedLatestExecutionBeforeEvidenceOnlyRecovery(String scenario) throws Exception {
         var scope = new KernelDataScope("tenant", "owner", null, null, "run", null, Map.of());
         var contract = ClineCodingAdapterDispatchTest.contract(scope);
@@ -42,16 +42,18 @@ class ClineCodingAdapterRecoveryTest {
         var collector = mock(CodingEvidenceCollector.class);
         var receipts = mock(ClineModelReceiptStore.class);
         var at = Instant.now().minusSeconds(1).truncatedTo(ChronoUnit.MILLIS);
+        boolean stopping = scenario.startsWith("MISSING_STOPPED");
+        boolean unknownModel = scenario.endsWith("UNKNOWN_MODEL");
         var zero = new CodingTaskOutcome.Counters(0, 0, 0, 0, 0, 0, 0, "0");
         var current = new CodingTaskOutcome(CodingProtocol.VERSION, contract.taskId(), scope,
             CodingCanonicalHash.sha256(contract), CodingTaskOutcome.Status.RUNNING, 4, 4,
-            at, at, at, null, false, null, "Awaiting verified completion", List.of(),
+            at, at, at, null, stopping, null, "Awaiting verified completion", List.of(),
             contract.inputSnapshotRef(), null, null, null, null, null,
             CodingTaskOutcome.ValidationStatus.NOT_RUN,
             new CodingTaskOutcome.Reproducibility(CodingTaskOutcome.ReproducibilityLevel.CONDITIONAL,
                 List.of("Fixture environment"), List.of()),
             new CodingTaskOutcome.Usage(contract.budget().budgetId(), "USD", zero, zero, false),
-            new CodingTaskOutcome.ExecutionControl(null, null, false, false), null, null, Map.of());
+            new CodingTaskOutcome.ExecutionControl(stopping ? CodingErrorCode.CANCEL_REQUESTED : null, stopping ? at : null, false, stopping), null, null, Map.of());
         when(tasks.resume(scope, contract.taskId())).thenReturn(current);
         when(tasks.get(scope, contract.taskId())).thenReturn(current);
         when(tasks.contract(scope, contract.taskId())).thenReturn(contract);
@@ -60,13 +62,15 @@ class ClineCodingAdapterRecoveryTest {
             .thenAnswer(call -> new CodingJournal.Lease(call.getArgument(2), Instant.now().plusSeconds(120), 1));
         String operationId = "cline-" + "a".repeat(64);
         when(tasks.unresolvedOperations(scope, contract.taskId()))
-            .thenReturn("UNKNOWN_MODEL".equals(scenario) ? List.of("model-1") : List.of());
+            .thenReturn(unknownModel ? List.of("model-1") : List.of());
+        when(tasks.finishStoppedAfterReconciliation(eq(scope), eq(contract.taskId()), any(), eq(current.revision())))
+            .thenReturn(current);
         when(tasks.hasStartedOperations(scope, contract.taskId())).thenReturn(true);
         when(tasks.startedCodeOperations(scope, contract.taskId())).thenReturn(List.of(operationId));
         when(tasks.verifiedOperation(scope, contract.taskId(), operationId)).thenReturn(Optional.of(
             new DurableCodingTaskService.VerifiedOperation(operationId, 1, "executor:fixture", "proof:fixture")));
         when(python.get(scope, contract.taskId(), operationId)).thenReturn(new McpPythonControlPlanePort.OperationView(
-            operationId, "FAILED_PYTHON".equals(scenario) ? "FAILED" : "SUCCEEDED", null, 1,
+            operationId, scenario.endsWith("FAILED_PYTHON") ? "FAILED" : "SUCCEEDED", null, 1,
             false, true, 0, "a".repeat(64), "image:fixture", "b".repeat(64), null));
         when(inputs.requireAuthorized(contract)).thenReturn(new CodingInputSnapshotService.Snapshot(
             contract.inputSnapshotRef(), "input", "input.jsonl", "a".repeat(64), 1, 20, "source"));
@@ -81,8 +85,8 @@ class ClineCodingAdapterRecoveryTest {
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         var dispatches = new AtomicInteger();
         server.createContext("/v1/runs", exchange -> {
-            if (!exchange.getRequestURI().getPath().equals("/v1/runs/get")) dispatches.incrementAndGet();
-            if ("MISSING".equals(scenario)) exchange.sendResponseHeaders(404, -1);
+            if (exchange.getRequestURI().getPath().equals("/v1/runs")) dispatches.incrementAndGet();
+            if (scenario.startsWith("MISSING")) exchange.sendResponseHeaders(404, -1);
             else {
                 String status = List.of("UNKNOWN_MODEL", "FAILED_PYTHON").contains(scenario) ? "COMPLETED" : scenario;
                 byte[] bytes = ("{\"status\":\"" + status + "\",\"fencingToken\":1}").getBytes(StandardCharsets.UTF_8);
@@ -97,7 +101,16 @@ class ClineCodingAdapterRecoveryTest {
                 URI.create("http://127.0.0.1:" + server.getAddress().getPort()),
                 "0123456789abcdef0123456789abcdef", new ObjectMapper().findAndRegisterModules());
             var result = adapter.resume(scope, contract.taskId());
-            if (List.of("UNKNOWN_MODEL", "FAILED_PYTHON").contains(scenario)) {
+            if (stopping) {
+                assertThat(result).isSameAs(current);
+                verify(tasks, times(unknownModel ? 0 : 1)).finishStoppedAfterReconciliation(eq(scope), eq(contract.taskId()), any(), eq(current.revision()));
+                verifyNoInteractions(collector);
+            } else if (scenario.endsWith("FAILED_PYTHON")) {
+                assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.FAILED);
+                assertThat(result.reasonCode()).isEqualTo(CodingErrorCode.EXECUTION_FAILED);
+                assertThat(result.executionControl().executorStopped()).isTrue();
+                verifyNoInteractions(collector);
+            } else if ("UNKNOWN_MODEL".equals(scenario)) {
                 assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.RUNNING);
                 verifyNoInteractions(collector);
                 verify(tasks, never()).commitOutcome(any(), anyString(), any(), anyLong(), any());

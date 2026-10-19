@@ -1,0 +1,25 @@
+{
+  "scope": "Real deployed page and authenticated task API; no request mocking",
+  "taskId": "c9fe8f77-3451-3753-bc74-4550749ad11f",
+  "hasActualSource": true,
+  "codeLines": 65,
+  "hasModelSection": true,
+  "hasSkillsSection": true,
+  "hasEventTimeline": true,
+  "hasCodeHash": true,
+  "hasConfiguredAndLoadedSkills": true,
+  "retainedWhileOffline": true,
+  "recoveredPersistedHistory": true,
+  "hasActualToolDetails": true,
+  "geometry": {
+    "x": 297,
+    "width": 980.40625,
+    "viewport": 1440,
+    "scrollWidth": 1440
+  },
+  "hasExpectedInputFormat": true,
+  "hasFrozenInputBinding": true,
+  "errors": [],
+  "failedRequests": [],
+  "screenshot": "docs/shared-input-20261019-browser.png"
+}

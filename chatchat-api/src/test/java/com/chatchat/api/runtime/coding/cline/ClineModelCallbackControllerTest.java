@@ -37,6 +37,58 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineModelCallbackControllerTest {
+    @Test void inputMetadataRequiresFrozenContractAndCurrentLeaseAndExcludesRawFields() {
+        var source = new DriverManagerDataSource("jdbc:h2:mem:input-context-" + UUID.randomUUID()
+            + ";DB_CLOSE_DELAY=-1", "sa", "");
+        new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);
+        var json = new ObjectMapper().findAndRegisterModules().disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        var evidence = new JdbcRuntimeEvidenceStore(new JdbcTemplate(source), json, new DataSourceTransactionManager(source));
+        var scope = new KernelDataScope("tenant", "owner", null, null, "run", null, Map.of());
+        var access = new CodingInvocationContext();
+        var timer = Executors.newSingleThreadScheduledExecutor();
+        try {
+            var receipts = new ClineModelReceiptStore(evidence);
+            var tasks = new DurableCodingTaskService(evidence, json, Clock.systemUTC(), access,
+                (owner, ref) -> true, receipts, Runnable::run, new ConcurrentTaskScheduler(timer));
+            var base = contract(scope);
+            String fileId = "c" + "a".repeat(63);
+            var contract = new CodingTaskContract(CodingProtocol.ANALYSIS_VERSION, base.taskId(), scope,
+                base.objective(), base.inputSnapshotRef(), base.metadataRefs(), base.workspaceRef(),
+                new CodingTaskContract.Authorization("decision:1", List.of(), List.of(fileId), List.of(), List.of(),
+                    CodingTaskContract.NetworkPolicy.NONE, List.of(), List.of()),
+                base.budget(), base.environmentRef(), base.validationPlanRef(), base.outputContract(),
+                Map.of("schemaVersion", "runtime_os.coding.context.v1", "consistency", "TASK_SNAPSHOT", "inputFiles",
+                    Map.of("schemaVersion", "runtime_os.coding.input.v1", "format", "PARQUET", "delivery", "SHARED_DIRECTORY",
+                        "manifestFileId", fileId, "manifestSha256", "a".repeat(64))));
+            var lease = access.as(scope, EnumSet.allOf(CodingTaskAccess.Action.class), () -> {
+                var accepted = tasks.submit(contract);
+                return tasks.claim(scope, "task", "cline-adapter:test", Duration.ofSeconds(90), accepted.revision());
+            });
+            var inputs = mock(CodingInputSnapshotService.class);
+            var snapshot = new CodingInputSnapshotService.Snapshot("runtime-evidence:input", fileId,
+                "manifest.json", "a".repeat(64), 2, 10, "source");
+            when(inputs.requireAuthorized(any())).thenReturn(snapshot);
+            when(inputs.describe(scope, "task", snapshot)).thenReturn(Map.of("fileId", fileId, "format", "PARQUET",
+                "inputManifest", Map.of("schemaVersion", "runtime_os.coding.input.v1"), "rows", List.of("private"),
+                "hostPath", "/private/data", "schemaJson", "duplicate"));
+            var controller = new ClineModelCallbackController(access, tasks, mock(ClineRuntimeModelBridge.class),
+                receipts, inputs, mock(CodingValidationPlanService.class), mock(CodingEvidenceCollector.class), json);
+            var body = json.createObjectNode();
+            body.set("scope", json.valueToTree(scope)); body.put("taskId", "task");
+            body.put("contractHash", CodingCanonicalHash.sha256(contract)); body.put("fencingToken", lease.fencingToken());
+            body.set("contract", json.valueToTree(contract));
+            var response=controller.inputContext(body);
+            assertThat(response).containsEntry("format", "PARQUET")
+                .doesNotContainKeys("rows", "hostPath", "schemaJson");
+            assertThat(json.valueToTree(response).path("files").get(0).path("virtualPath").asText())
+                .isEqualTo("/data/input/"+fileId+"/manifest.json");
+            body.put("fencingToken", lease.fencingToken() + 1);
+            assertThatThrownBy(() -> controller.inputContext(body))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+            verify(inputs, times(1)).requireAuthorized(any());
+        } finally { timer.shutdownNow(); }
+    }
+
     @Test void acknowledgedSdkAbortClosesAcceptedCancellationWithoutInventingSandboxProof() {
         var source = new DriverManagerDataSource("jdbc:h2:mem:model-abort-" + UUID.randomUUID()
             + ";DB_CLOSE_DELAY=-1", "sa", "");

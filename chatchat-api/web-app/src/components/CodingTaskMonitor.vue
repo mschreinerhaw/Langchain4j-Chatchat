@@ -32,6 +32,17 @@
         <p>已加载：{{ loadedSkills }} · 方法状态：{{ selected.configuration.skills?.status || '未加载' }}</p>
         <p>提示应用：{{ skillApplications }} 次；独立 Skill 工具执行：{{ skillExecutions }} 次</p>
         <p>允许工具：{{ selected.allowedTools.join('、') }}</p>
+        <h4>输入快照与数据文件</h4>
+        <p v-if="inputError" role="alert">{{ inputError }}</p>
+        <p>{{ inputBinding === 'LOADING' ? '正在读取所选操作的输入绑定' : inputBinding === 'OPERATION_FROZEN' ? '当前代码操作已冻结的输入版本' : '任务当前输入版本；尚未绑定到所选代码操作' }}</p>
+        <article v-for="input in inputVersions" :key="input.reference">
+          <p>{{ input.reference }} · {{ input.format }} · {{ input.rowCount }} 行</p>
+          <p>清单 SHA-256：{{ input.sha256 }}</p>
+          <div class="table-scroll"><table><thead><tr><th>文件</th><th>文件 ID</th><th>行数 / 字节</th><th>SHA-256</th></tr></thead>
+            <tbody><tr v-for="file in input.chunks?.length ? input.chunks : [input]" :key="file.fileId"><td>{{ file.fileName }}</td><td>{{ file.fileId }}</td><td>{{ file.rowCount }} / {{ file.size }}</td><td>{{ file.sha256 }}</td></tr></tbody>
+          </table></div>
+          <details><summary>字段类型与数据质量</summary><pre>{{ JSON.stringify({ schema: input.inputManifest?.columns || input.schemaJson, quality: input.qualitySummary }, null, 2) }}</pre></details>
+        </article>
         <h4>代码工作区 · main.py</h4>
         <p v-if="!versions.length">尚无完整代码版本。模型请求期间显示 CODING，返回完整工具参数后显示代码。</p>
         <label v-if="versions.length">版本 <select v-model="selectedOperation"><option v-for="(version, index) in versions" :key="version.operationId" :value="version.operationId">v{{ index + 1 }} · {{ version.state }} · {{ time(version.generatedAt) }}</option></select></label>
@@ -53,12 +64,14 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import PythonCodeDiff from './PythonCodeDiff.vue';
 import { buildPythonLineDiff } from '../js/utils/pythonCodeDiff';
-import { cancelCodingTask, codingStage, codeVersions, fetchCodingCode, fetchCodingEvents, fetchCodingTasks,
-  mergeCodingEvents, modelCalls, resumeCodingTask, stageLabels, type CodingEvent, type CodingTask } from '../services/codingMonitor';
+import { cancelCodingTask, codingStage, codeVersions, fetchCodingCode, fetchCodingEvents, fetchCodingTasks, fetchCodingInputs,
+  mergeCodingEvents, modelCalls, resumeCodingTask, stageLabels, type CodingEvent, type CodingTask, type CodingInputVersion } from '../services/codingMonitor';
 
 const props = defineProps<{ runId: string }>();
 const expanded = ref(false), loading = ref(false), cancelling = ref(false), error = ref(''), codeError = ref('');
 const resuming = ref(false);
+const inputVersions = ref<CodingInputVersion[]>([]), inputBinding = ref('TASK_LATEST'), inputError = ref('');
+let inputGeneration = 0;
 const tasks = ref<CodingTask[]>([]), selectedId = ref(''), events = ref<Record<string, CodingEvent[]>>({});
 const selectedOperation = ref(''), code = ref<Record<string, any> | null>(null), previousCode = ref('');
 const showDiff = ref(false), eventLimit = ref(100), now = ref(Date.now());
@@ -70,7 +83,7 @@ const stage = computed(() => selected.value ? codingStage(selected.value, select
 const versions = computed(() => codeVersions(selectedEvents.value));
 const version = computed(() => versions.value.find(item => item.operationId === selectedOperation.value));
 const previousVersion = computed(() => versions.value[versions.value.findIndex(item => item.operationId === selectedOperation.value) - 1]);
-const calls = computed(() => modelCalls(selectedEvents.value));
+const calls = computed(() => modelCalls(selectedEvents.value, selected.value?.modelReceipts));
 const loadedSkills = computed(() => (selected.value?.configuration.skills?.skills ?? []).map((skill: any) => skill.name || skill.skillName || skill.skillId || skill.id).join('、') || '无');
 const skillApplications = computed(() => selectedEvents.value.filter(event => event.payload?.type === 'SKILLS_APPLIED').length);
 const skillExecutions = computed(() => selectedEvents.value.filter(event => event.payload?.type === 'SKILL_EXECUTED').length);
@@ -98,8 +111,19 @@ async function refresh() {
       }
     }
     error.value = '';
+    void loadInputs();
   } catch (failure: any) { if (epoch === generation) error.value = failure.message || '读取任务失败'; }
   finally { if (epoch === generation) loading.value = false; }
+}
+async function loadInputs() {
+  const epoch = generation, request = ++inputGeneration, run = props.runId, task = selectedId.value, operation = selectedOperation.value;
+  if (!run || !task) return;
+  try {
+    const result = await fetchCodingInputs(run, task, operation || undefined);
+    if (epoch === generation && request === inputGeneration && task === selectedId.value && operation === selectedOperation.value) {
+      inputVersions.value = result.snapshots; inputBinding.value = result.binding; inputError.value = '';
+    }
+  } catch (failure: any) { if (epoch === generation && request === inputGeneration) inputError.value = failure.message || '输入版本暂不可用'; }
 }
 async function loadCode() {
   code.value = null; showDiff.value = false; codeError.value = '';
@@ -138,9 +162,10 @@ function toggle(event: Event) {
   if (expanded.value) { void refresh(); timer = setInterval(() => { now.value = Date.now(); void refresh(); }, 2500); }
 }
 watch(() => props.runId, () => { generation++; loading.value = false; tasks.value = []; events.value = {}; selectedId.value = ''; selectedOperation.value = ''; code.value = null; void refresh(); });
-watch(selectedId, () => { selectedOperation.value = ''; eventLimit.value = 100; code.value = null; });
+watch(selectedId, () => { selectedOperation.value = ''; eventLimit.value = 100; code.value = null; inputVersions.value = []; inputError.value = ''; });
 watch(versions, value => { if (!value.some(version => version.operationId === selectedOperation.value)) selectedOperation.value = value.at(-1)?.operationId ?? ''; });
 watch(selectedOperation, loadCode);
+watch([selectedId, selectedOperation], () => { inputVersions.value = []; inputBinding.value = 'LOADING'; void loadInputs(); });
 onBeforeUnmount(() => { generation++; clearInterval(timer); });
 </script>
 

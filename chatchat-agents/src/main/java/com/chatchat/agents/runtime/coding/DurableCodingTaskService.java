@@ -469,6 +469,16 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     }
     public record VerifiedOperation(String operationId,long fencingToken,String executionHandle,String stopProofRef) { }
 
+    /** Actual started model identities, including their original fence, for receipt projections. */
+    public List<StartedModelOperation> startedModelOperations(KernelDataScope scope,String taskId) {
+        return task(read(scope,READ),taskId).operations.entrySet().stream()
+            .filter(entry->entry.getValue().kind==CodingJournal.OperationKind.MODEL && entry.getValue().startIntent
+                && entry.getKey().matches("model-[1-9][0-9]{0,5}"))
+            .map(entry->new StartedModelOperation(entry.getKey(),entry.getValue().startingFencingToken))
+            .sorted(java.util.Comparator.comparingInt(operation->Integer.parseInt(operation.operationId().substring(6)))).toList();
+    }
+    public record StartedModelOperation(String operationId,long fencingToken) { }
+
     /** Read-only unknown starts for cancellation and reconciliation; never authorizes replay. */
     public List<String> unresolvedOperations(KernelDataScope scope,String taskId) {
         var task=task(read(scope,READ),taskId);

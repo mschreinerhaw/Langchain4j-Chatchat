@@ -1,0 +1,12 @@
+{
+  "scope": "Real existing task retry API; original task authorization preserved",
+  "previousTaskId": "aa87024c-e8b0-321f-b5c1-c330638de065",
+  "previousAttemptId": "att-1-a2f3d3a0-f7e6-4945-aeeb-475d2b358483",
+  "previousAttemptNumber": 1,
+  "taskId": "93644c5a-8aa3-4b5a-920a-d3c02e486c80",
+  "executionId": "aa87024c-e8b0-321f-b5c1-c330638de065",
+  "attemptId": "att-2-38fb7f74-658c-4df4-9437-f9e4f989c6ce",
+  "attemptNumber": 2,
+  "status": "PENDING",
+  "productionSwitched": false
+}

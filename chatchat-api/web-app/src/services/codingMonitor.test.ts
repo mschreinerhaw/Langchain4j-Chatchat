@@ -8,6 +8,22 @@ const task = (outcome = {}): CodingTask => ({ taskId: 'task', attemptId: 'fence-
   canCancel: true, canRetry: false, configuration: {}, allowedTools: [],
   outcome: { status: 'RUNNING', createdAt: '', updatedAt: '', cancellationRequested: false, lastEventSequence: 5, ...outcome } });
 describe('Coding monitor durable projections', () => {
+  it('restores actual identities and usage from Java receipts when Node completion telemetry was lost', () => {
+    const events = [event(2, { type: 'MODEL_STARTED', modelCall: 2, attemptId: 'task:fence-1' })];
+    const calls = modelCalls(events, [1, 2].map(ordinal => ({ operationId: `model-${ordinal}`, attemptId: 'task:fence-1',
+      modelCall: ordinal, state: 'SUCCEEDED', providerModel: `actual-${ordinal}`, protocol: 'openai',
+      finishedAt: '2026-10-19T01:00:02Z', usage: { inputTokens: ordinal }, source: 'JAVA_MODEL_RECEIPT' as const })));
+    expect(calls).toHaveLength(2);
+    expect(calls).toMatchObject([{ providerModel: 'actual-1', state: 'SUCCEEDED' },
+      { providerModel: 'actual-2', state: 'SUCCEEDED', usage: { inputTokens: 2 } }]);
+  });
+  it('preserves older actual event metadata when a legacy receipt has missing optional fields', () => {
+    const calls = modelCalls([event(1, { type: 'MODEL_RESOLVED', modelCall: 1, attemptId: 'task:fence-1', providerModel: 'actual-model' }),
+      event(2, { type: 'MODEL_USAGE', modelCall: 1, attemptId: 'task:fence-1', usage: { inputTokens: 7 } })],
+      [{ operationId: 'model-1', attemptId: 'task:fence-1', modelCall: 1, state: 'SUCCEEDED',
+        providerModel: null as any, usage: {}, source: 'JAVA_MODEL_RECEIPT' }]);
+    expect(calls).toMatchObject([{ providerModel: 'actual-model', usage: { inputTokens: 7 }, state: 'SUCCEEDED' }]);
+  });
   it('restores out-of-order pages and deduplicates repeated reconnect pages', () => {
     expect(mergeCodingEvents([event(3), event(1)], [event(2), event(3)]).map(e => e.sequence)).toEqual([1, 2, 3]);
   });

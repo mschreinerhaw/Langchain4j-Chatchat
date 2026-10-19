@@ -127,6 +127,9 @@ public class PythonAdminController {
                                            @RequestHeader("X-Tenant-Scope") String tenant,
                                            @RequestHeader("X-Owner-Scope") String owner,
                                            @RequestParam("runId") String runId, @RequestParam("taskId") String taskId) {
+        byte[] stopped = managed.noStartArtifact(scope(tenant), scope(owner), runId, taskId, id, channel, file);
+        if (stopped != null) return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM).contentLength(stopped.length)
+                .body(output -> output.write(stopped));
         java.nio.file.Path path = managed.artifactPath(scope(tenant), scope(owner), runId, taskId, id, channel, file);
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM).contentLength(path.toFile().length())
                 .body(output -> java.nio.file.Files.copy(path, output));
@@ -135,6 +138,14 @@ public class PythonAdminController {
     @PostMapping(value = "/data-files/{id}", consumes = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     public ApiResponse<?> uploadDataFile(@PathVariable("id") String id, @RequestHeader("X-Tenant-Scope") String tenant, @RequestHeader("X-Owner-Scope") String owner, @RequestHeader("X-File-Name") String fileName, @RequestHeader("X-File-Sha256") String hash, @RequestBody byte[] encrypted) {
         return ApiResponse.success(dataFiles.store(scope(tenant), scope(owner), id, fileName, hash, encrypted));
+    }
+    @GetMapping("/input-capabilities")
+    public ApiResponse<?> inputCapabilities(){return ApiResponse.success(dataFiles.inputCapabilities());}
+    public record SharedInput(String fileName,String sha256,long sizeBytes) { }
+    @PostMapping("/data-files/{id}/shared")
+    public ApiResponse<?> registerShared(@PathVariable("id") String id,@RequestHeader("X-Tenant-Scope") String tenant,
+            @RequestHeader("X-Owner-Scope") String owner,@RequestBody SharedInput input) {
+        return ApiResponse.success(dataFiles.registerShared(scope(tenant),scope(owner),id,input.fileName(),input.sha256(),input.sizeBytes()));
     }
 
     @GetMapping(value = "/data-files/{id}/content", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)

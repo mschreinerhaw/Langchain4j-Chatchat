@@ -106,13 +106,15 @@ public class CodingPythonExecutionBridge {
     public McpPythonControlPlanePort.OperationView cancel(KernelDataScope scope, String taskId,
                                                             String operationId, String reason) {
         CodingTaskOutcome stopped = tasks.cancel(scope, taskId, reason);
-        if (!stopped.cancellationRequested()) return get(scope, taskId, operationId);
+        if (stopped.executionControl().stopReason() == null) return get(scope, taskId, operationId);
         CodingJournal.Lease current = tasks.ownership(scope, taskId);
         return python.cancel(scope.tenantId(), scope.userId(), scope.runId(), taskId, operationId, current.fencingToken());
     }
     /** Stop one tool operation after transport/SDK interruption without inventing a user task cancellation. */
     public McpPythonControlPlanePort.OperationView cancelExecution(KernelDataScope scope,String taskId,String operationId) {
         tasks.get(scope,taskId);
+        if (!tasks.startedCodeOperations(scope, taskId).contains(operationId))
+            throw new SecurityException("Only an admitted task operation can be cancelled");
         return python.cancel(scope.tenantId(),scope.userId(),scope.runId(),taskId,operationId,tasks.ownership(scope,taskId).fencingToken());
     }
 

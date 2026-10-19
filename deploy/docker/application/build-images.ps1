@@ -9,6 +9,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Continue'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).Path
 Set-Location $repo
+$buildRevision = "$(git rev-parse HEAD)-$Tag"
 
 if (-not (Test-Path -LiteralPath $DockerCliPath -PathType Leaf)) {
     throw "Supply a Linux/amd64 Docker CLI binary compatible with the target Docker daemon."
@@ -56,11 +57,11 @@ foreach ($app in $apps) {
         }
     }
     $appPort = if ($app.Name -eq 'news') { '8091' } elseif ($app.Name -eq 'mcp') { '8090' } else { '8080' }
-    & docker build --platform linux/amd64 --build-arg "APP_PORT=$appPort" -t "runtime-os-$($app.Name):$Tag" $context
+    & docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$buildRevision" --build-arg "APP_PORT=$appPort" -t "runtime-os-$($app.Name):$Tag" $context
     if ($LASTEXITCODE -ne 0) { throw "Docker build failed for $($app.Name)." }
 }
 
-& docker build --platform linux/amd64 -t "runtime-os-coding-agent:$Tag" (Join-Path $repo 'coding-agent-node')
+& docker build --platform linux/amd64 --build-arg "BUILD_REVISION=$buildRevision" -t "runtime-os-coding-agent:$Tag" (Join-Path $repo 'coding-agent-node')
 if ($LASTEXITCODE -ne 0) { throw 'Docker build failed for Coding Agent.' }
 
 & docker pull --platform linux/amd64 nginx:1.27.5-alpine

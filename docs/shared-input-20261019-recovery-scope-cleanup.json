@@ -1,0 +1,13 @@
+{
+  "scope": "Official cancellation of failed acceptance before replacement; no task state edits",
+  "parentTaskId": "701857de-02fa-3159-9e8f-25b4b744ebf2",
+  "taskId": "analysis-coding-b43f8de9e2c927ed9e0accf2d4771f95060f850e84e19983abb03b55e6f1c662",
+  "status": "CANCELLED",
+  "reasonCode": "CANCEL_REQUESTED",
+  "executionControl": {
+    "stopReason": "CANCEL_REQUESTED",
+    "stopRequestedAt": "2026-10-19T07:01:10.342Z",
+    "executorStopped": true,
+    "reconciliationRequired": false
+  }
+}

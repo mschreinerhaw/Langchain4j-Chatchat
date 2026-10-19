@@ -76,7 +76,7 @@ public class CodingEvidenceCollector {
     }
 
     /** Retry-safe after a crash at either stage boundary. The executor is never restarted here. */
-    public Collected collect(KernelDataScope scope, CodingTaskContract contract, String operationId,
+    public Collected collect(KernelDataScope callerScope, CodingTaskContract contract, String operationId,
             String codeFile, String resultFile, List<InputFile> inputs, IndependentValidator validator) {
         boolean dynamic=com.chatchat.common.runtime.coding.CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion());
         if(dynamic) {
@@ -86,7 +86,10 @@ public class CodingEvidenceCollector {
             inputs=dataSupply.mountedFiles(contract,operationId).stream().map(s->new InputFile(s.fileId(),s.fileName(),s.sha256())).toList();
         }
         Objects.requireNonNull(contract); Objects.requireNonNull(validator);
-        if (!sameOwner(scope, contract.scope())) throw new SecurityException("Coding task owner mismatch");
+        if (!sameOwner(callerScope, contract.scope())) throw new SecurityException("Coding task owner mismatch");
+        // HTTP reconciliation has a different trace from the original signed callback. Evidence
+        // identities and staged batch hashes must retain the immutable task scope after access checks.
+        KernelDataScope scope = contract.scope();
         tasks.get(scope, contract.taskId()).validateAgainst(contract);
         if (!contract.outputContract().requiredFiles().contains("results/" + resultFile)
                 && !contract.outputContract().requiredFiles().contains(resultFile))
@@ -147,9 +150,14 @@ public class CodingEvidenceCollector {
                 throw new SecurityException("Input file is not authorized");
             byte[] bytes = artifact(scope, contract.taskId(), operationId, "input-" + input.fileId(), input.fileName());
             if (!sha(bytes).equals(input.sha256())) throw new IllegalStateException("Input snapshot hash mismatch");
-            computedBoundary.observeInput(bytes);
+            if(!dynamic || !contract.runtimeContext().containsKey("inputFiles"))computedBoundary.observeInput(bytes);
             inputFacts.add(Map.of("fileId", input.fileId(), "fileName", input.fileName(),
                 "sha256", input.sha256(), "size", bytes.length));
+        }
+        if(dynamic && contract.runtimeContext().containsKey("inputFiles")) {
+            for(var input:dataSupply.snapshots(contract,operationId))
+                com.chatchat.api.runtime.coding.data.CodingInputRows.scan(input,
+                    file->artifact(scope,contract.taskId(),operationId,"input-"+file.fileId(),file.fileName()),mapper,computedBoundary::observeRow);
         }
         var existingInput = evidence.find(scope, id(contract.inputSnapshotRef()));
         if (existingInput.isEmpty() && inputFacts.isEmpty())

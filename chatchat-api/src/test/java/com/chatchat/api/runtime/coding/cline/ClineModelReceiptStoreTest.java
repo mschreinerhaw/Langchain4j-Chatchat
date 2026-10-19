@@ -35,10 +35,21 @@ class ClineModelReceiptStoreTest {
             new EvidenceLineage(null, "input", scope, List.of(), "task", "test", null, Map.of()));
         var contract = contract(scope);
         var receipts = new ClineModelReceiptStore(evidence);
-        Map<String, Object> response = Map.of("text", "calculate", "toolCalls", List.of(),
-            "usage", Map.of("inputTokens", 4, "outputTokens", 2), "requestId", "provider-request");
+        Map<String, Object> response = Map.of("text", "private response sentinel", "toolCalls", List.of(),
+            "usage", Map.of("inputTokens", 4, "outputTokens", 2), "requestId", "provider-request",
+            "modelInfo",Map.of("selectedModel","configured-alias","providerModel","actual-fallback-model","protocol","openai",
+                "startedAt","2026-10-19T01:00:00Z","finishedAt","2026-10-19T01:00:01Z","durationMs",1000,"apiKey","private key sentinel"));
         String ref = receipts.commit(contract, "model-1", "runtime-model:model-1", response);
         assertThat(receipts.response(scope, "task", "model-1")).contains(response);
+        var telemetry=new ClineModelReceiptStore(new JdbcRuntimeEvidenceStore(new JdbcTemplate(data),new ObjectMapper(),
+            new DataSourceTransactionManager(data))).telemetry(contract,"model-1",3).orElseThrow();
+        assertThat(telemetry.providerModel()).isEqualTo("actual-fallback-model");
+        assertThat(telemetry.attemptId()).isEqualTo("task:fence-3");
+        assertThat(telemetry.usage()).containsEntry("inputTokens",4L).containsEntry("outputTokens",2L);
+        assertThat(telemetry.durationMs()).isEqualTo(1000);
+        assertThat(new ObjectMapper().valueToTree(telemetry).toString()).doesNotContain("private response sentinel","private key sentinel","toolCalls","requestId","apiKey");
+        assertThat(receipts.telemetry(contract,"model-2",3)).isEmpty();
+        assertThat(receipts.telemetry(contract(new KernelDataScope("other","owner",null,null,"run",null,Map.of())),"model-1",3)).isEmpty();
         assertThat(receipts.confirmsStopped(scope, "task", "model-1", "runtime-model:model-1", ref)).isTrue();
         assertThat(new ClineModelReceiptStore(new JdbcRuntimeEvidenceStore(new JdbcTemplate(data),
             new ObjectMapper(), new DataSourceTransactionManager(data)))

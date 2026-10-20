@@ -82,6 +82,10 @@ class ClineModelCallbackControllerTest {
                 .doesNotContainKeys("rows", "hostPath", "schemaJson");
             assertThat(json.valueToTree(response).path("files").get(0).path("virtualPath").asText())
                 .isEqualTo("/data/input/"+fileId+"/manifest.json");
+            assertThat(json.valueToTree(response).path("fileLayout").path("expectedManifestSha256").asText())
+                .isEqualTo("a".repeat(64));
+            assertThat(json.valueToTree(response).path("fileLayout").path("manifestRootFields").toString())
+                .contains("columns", "parts").doesNotContain("inputManifest", "sha256");
             body.put("fencingToken", lease.fencingToken() + 1);
             assertThatThrownBy(() -> controller.inputContext(body))
                 .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
@@ -273,9 +277,9 @@ class ClineModelCallbackControllerTest {
         var receipts = new ClineModelReceiptStore(evidence);
         var timer = Executors.newSingleThreadScheduledExecutor();
         try {
-            var tasks = new DurableCodingTaskService(evidence, json, Clock.systemUTC(), access,
+            var tasks = spy(new DurableCodingTaskService(evidence, json, Clock.systemUTC(), access,
                 (owner, ref) -> evidence.find(owner, ref.replace("runtime-evidence:", "")).isPresent(),
-                receipts, Runnable::run, new ConcurrentTaskScheduler(timer));
+                receipts, Runnable::run, new ConcurrentTaskScheduler(timer)));
             var lease = access.as(scope, EnumSet.allOf(CodingTaskAccess.Action.class), () -> {
                 var accepted = tasks.submit(contract);
                 return tasks.claim(scope, "task", "cline-adapter:test", Duration.ofSeconds(90), accepted.revision());
@@ -300,6 +304,13 @@ class ClineModelCallbackControllerTest {
             var execution = base.deepCopy();
             execution.set("request", json.valueToTree(Map.of("operationId", "model-1",
                 "messages", List.of(), "tools", List.of())));
+            // Deterministically reproduce a recovery poll between revision read and renewal.
+            var firstRenewal = new java.util.concurrent.atomic.AtomicBoolean(true);
+            doAnswer(invocation -> {
+                if (firstRenewal.getAndSet(false))
+                    access.as(scope, EnumSet.allOf(CodingTaskAccess.Action.class), () -> tasks.resume(scope, "task"));
+                return invocation.callRealMethod();
+            }).when(tasks).renew(eq(scope), eq("task"), any(), any(), anyLong());
             if (invalidResponse) {
                 assertThatThrownBy(() -> controller.model(execution)).hasMessageContaining("receipt archived");
                 assertThatThrownBy(() -> controller.model(execution)).hasMessageContaining("Archived model response");

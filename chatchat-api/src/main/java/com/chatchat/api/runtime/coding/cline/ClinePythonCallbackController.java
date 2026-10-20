@@ -110,6 +110,8 @@ public final class ClinePythonCallbackController {
             if (result.executorStopped() && result.manifestHash() != null)
                 python.reconcile(call.scope(), call.taskId(), call.lease(), operationId);
             Map<String, Object> response = view(result);
+            var layout = CodingInputLayout.describe(call.contract().runtimeContext());
+            if (!layout.isEmpty()) response.put("inputLayout", layout);
             if (result.executorStopped() && result.manifestHash()!=null) {
                 try { var stderr=python.stderr(call.scope(), call.taskId(), operationId);
                     var stdout=python.stdout(call.scope(),call.taskId(),operationId);

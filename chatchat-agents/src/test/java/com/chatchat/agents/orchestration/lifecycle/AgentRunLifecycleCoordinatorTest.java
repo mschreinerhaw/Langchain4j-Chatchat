@@ -47,6 +47,12 @@ class AgentRunLifecycleCoordinatorTest {
             });
         org.assertj.core.api.Assertions.assertThat(result.status())
             .isEqualTo(com.chatchat.agents.runtime.run.AgentRunStatus.FAILED);
+        org.assertj.core.api.Assertions.assertThat(result.metadata())
+            .containsEntry("publicStatus", "FAILED")
+            .containsEntry("runtimeExecutionFailed", true)
+            .containsEntry("stopReason", "failed");
+        org.assertj.core.api.Assertions.assertThat(result.metadata().get("errorMessage").toString())
+            .contains("Unexpected interruption");
     }
 
     @Test

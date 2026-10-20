@@ -140,6 +140,10 @@ public final class AgentRunLifecycleCoordinator {
     private AgentRunResult failed(AgentRun run) {
         // Cancellation can also win the race between checking state and persisting failure.
         if (run.status() == AgentRunStatus.CANCELLED) return cancelled(run);
+        Map<String, Object> metadata = new LinkedHashMap<>(run.metadata());
+        metadata.put("runtimeExecutionFailed", true);
+        metadata.put("stopReason", "failed");
+        if (run.errorMessage() != null) metadata.put("errorMessage", run.errorMessage());
         return AgentRunResult.builder()
             .runId(run.runId())
             .status(AgentRunStatus.FAILED)
@@ -147,7 +151,7 @@ public final class AgentRunLifecycleCoordinator {
             .stopReason("failed")
             .errorMessage(run.errorMessage())
             .events(run.events())
-            .metadata(run.metadata())
+            .metadata(outcomeProjection.enrich(metadata, ""))
             .build();
     }
 

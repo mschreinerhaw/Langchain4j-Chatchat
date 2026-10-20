@@ -1,19 +1,19 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Cline · Node Console</title><link rel="stylesheet" href="/monitor/style.css"><script type="module" src="/monitor/app.js"></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>coding-agent · 运维控制台</title><link rel="stylesheet" href="/monitor/style.css"><script type="module" src="/monitor/app.js"></script></head>
 <body>
   <div id="login" class="login-wrap">
     <form id="login-form" class="login-card">
-      <div class="brand-mark">C</div><p class="eyebrow">CODING AGENT NODE</p><h1>Cline 运行控制台</h1>
+      <div class="brand-mark">C</div><p class="eyebrow">CODING-AGENT</p><h1>coding-agent 运维控制台</h1>
       <p class="muted">查看节点、任务和每一次执行的真实记录。</p>
-      <label for="token">只读监控凭据</label><input id="token" type="password" autocomplete="off" required minlength="32" placeholder="输入独立 Monitor Token">
+      <label for="token">只读监控凭据</label><input id="token" type="password" autocomplete="off" required minlength="32" placeholder="输入独立监控凭证">
       <button type="submit" class="primary">连接节点 <span>→</span></button>
       <p id="login-error" role="alert"></p><p class="login-note">凭据仅用于创建 HttpOnly 会话，不保存在浏览器存储中。</p>
     </form>
   </div>
   <div id="console" class="shell" hidden>
     <aside class="sidebar">
-      <a class="brand" href="/monitor/"><span class="brand-mark small">C</span><span>Cline <b>NODE</b></span></a>
+      <a class="brand" href="/monitor/"><span class="brand-mark small">C</span><span>coding-agent</span></a>
       <div class="workspace"><span class="dot"></span><div><strong id="sidebar-host">Coding Agent</strong><small>独立运行组件</small></div></div>
       <p class="nav-label">WORKSPACE</p>
       <nav aria-label="控制台导航">
@@ -22,12 +22,12 @@
         <button class="nav-item" data-view="failed"><span>◇</span>异常记录</button>
         <button class="nav-item" data-view="api"><span>⌘</span>接入 API</button>
       </nav>
-      <div class="sidebar-bottom"><span class="tag">READ ONLY</span><p>Runtime OS 保留执行权威。<br>此控制台提供节点侧观测。</p><button id="logout" class="quiet">退出连接 ↗</button></div>
+      <div class="sidebar-bottom"><span class="tag">READ ONLY</span><p>查看服务状态与任务记录。<br>此控制台仅提供只读监控。</p><button id="logout" class="quiet">退出连接 ↗</button></div>
     </aside>
     <main>
-      <header class="topbar"><div class="breadcrumb">基础组件 <span>/</span> Coding Agent Node</div><div class="connection"><span id="connection-dot" class="dot"></span><span id="connection-text">连接中</span><span class="operator">OP</span><button id="logout-mobile" class="mobile-logout">退出</button></div></header>
+      <header class="topbar"><div class="breadcrumb">基础组件 <span>/</span> coding-agent</div><div class="connection"><span id="connection-dot" class="dot"></span><span id="connection-text">连接中</span><span class="operator">OP</span><button id="logout-mobile" class="mobile-logout">退出</button></div></header>
       <div class="page-content">
-        <div class="page-title"><div><p class="eyebrow">CLINE OBSERVABILITY</p><h1 id="page-title">节点运行总览</h1><p class="muted">从任务接收到代码执行，查看完整运行轨迹。</p></div><div class="refresh-group"><span id="updated" class="muted">等待节点</span><button id="refresh" class="button">↻ 刷新</button></div></div>
+        <div class="page-title"><div><p class="eyebrow">CODING-AGENT</p><h1 id="page-title">节点运行总览</h1><p class="muted">从任务接收到代码执行，查看完整运行轨迹。</p></div><div class="refresh-group"><span id="updated" class="muted">等待节点</span><button id="refresh" class="button">↻ 刷新</button></div></div>
         <div id="error-banner" class="banner error" role="alert" hidden></div>
         <div id="node-strip" class="node-strip"></div>
         <section id="metrics" class="metrics" aria-label="节点指标"></section>
@@ -44,7 +44,7 @@
             <div id="detail-content" class="detail-content"><div class="empty"><span>⌁</span><h3>等待选择任务</h3><p>代码、模型回执和 Skills 应用记录将在这里显示。</p></div></div>
           </section>
         </div>
-        <footer><span>Cline Node Console <b>v1</b></span><span>观测数据有保留上限 · 未知执行需要 Runtime 对账</span></footer>
+        <footer><span>coding-agent <b>v1</b></span><span>观测数据有保留上限 · 未确认结果需要核对</span></footer>
       </div>
     </main>
   </div>

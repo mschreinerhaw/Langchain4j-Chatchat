@@ -127,9 +127,9 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
             List<String> assetSignals = hasAssetScope(filters)
                 ? apiServiceSignals(scopedConfigs)
                 : List.of();
-            Map<String, Object> retrievalFilters = assetSignals.isEmpty()
-                ? filters
-                : filtersWithApiAssetSignals(filters, assetSignals);
+            // Asset metadata describes the bounded candidate scope; it is not a set
+            // of caller-requested independent searches and must not consume their budget.
+            Map<String, Object> retrievalFilters = filters;
             List<String> terms = terms(retrievalFilters);
             DiscoveryQueryPlan retrievalPlan = DiscoveryQueryPlan.from(retrievalFilters);
             List<String> retrievalVariants = retrievalPlan.queriesForExecution(queryOptimizer.budget().getLongTextThreshold());
@@ -263,7 +263,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
             "filtersSchemaVersion", Map.of("type", "string", "description", TargetKindRegistry.FILTERS_SCHEMA_VERSION),
             "filters", Map.of(
                 "type", "object",
-                "description", "Logical filters for API templates. queryTerms[], keywords[], retrievalSignals[], and nested intentCandidates queries are independent query units: each item is searched separately and results are unioned with per-unit evidence. Do not concatenate analyzed keywords. Raw URL, headers, and body templates are not accepted.",
+                "description", "Logical filters for API templates. assetName is an asset identity scope, equivalent to toolName/name, copied from authorized asset discovery. queryTerms[], keywords[], retrievalSignals[], and nested intentCandidates queries are independent query units: each item is searched separately and results are unioned with per-unit evidence. Do not concatenate analyzed keywords. Raw URL, headers, and body templates are not accepted.",
                 "additionalProperties", true
             ),
             "bilingualIntent", Map.of(
@@ -377,6 +377,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
         }
         for (String key : List.of(
             "toolName",
+            "assetName",
             "name",
             "businessGroup",
             "business_group",
@@ -534,35 +535,6 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
         return SearchQueryTokenizer.terms(value);
     }
 
-    private Map<String, Object> filtersWithApiAssetSignals(Map<String, Object> filters, List<String> signals) {
-        Map<String, Object> merged = new LinkedHashMap<>(filters);
-        appendSignals(merged, "intent", signals);
-        appendSignals(merged, "retrievalSignals", signals);
-        appendSignals(merged, "queryTerms", signals);
-        return merged;
-    }
-
-    private void appendSignals(Map<String, Object> filters, String key, List<String> signals) {
-        if (filters == null || key == null || signals == null || signals.isEmpty()) {
-            return;
-        }
-        List<Object> values = new ArrayList<>();
-        Object existing = filters.get(key);
-        if (existing instanceof Iterable<?> iterable) {
-            for (Object item : iterable) {
-                values.add(item);
-            }
-        } else if (existing != null) {
-            values.add(existing);
-        }
-        values.addAll(signals);
-        filters.put(key, values.stream()
-            .filter(value -> value != null && !String.valueOf(value).isBlank())
-            .map(value -> String.valueOf(value).trim())
-            .distinct()
-            .toList());
-    }
-
     private List<ApiServiceConfig> scopedApiServices(List<ApiServiceConfig> configs, Map<String, Object> filters) {
         if (!hasAssetScope(filters)) {
             return List.of();
@@ -574,13 +546,13 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
 
     private boolean hasAssetScope(Map<String, Object> filters) {
         return firstValue(filters,
-            "toolName", "templateId", "template_id", "name", "service", "target",
+            "toolName", "assetName", "templateId", "template_id", "name", "service", "target",
             "businessGroup", "business_group", "group", "groupName", "group_name",
             "groupDescription", "group_description", "labels") != null;
     }
 
     private boolean matchesApiServiceScope(ApiServiceConfig config, Map<String, Object> filters) {
-        String requestedName = text(firstValue(filters, "toolName", "name", "service", "target"));
+        String requestedName = text(firstValue(filters, "toolName", "assetName", "name", "service", "target"));
         if (!requestedName.isBlank()
             && !logicalNameMatches(requestedName, config.getToolName())
             && !logicalNameMatches(requestedName, config.getTitle())

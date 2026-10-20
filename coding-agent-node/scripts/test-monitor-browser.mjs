@@ -15,11 +15,16 @@ async function until(predicate) {
 page.on('pageerror', error => errors.push(error.message));
 try {
   await page.goto(fixture.base + '/monitor/');
+  assert.equal(await page.title(), 'coding-agent · 运维控制台');
+  assert.ok((await page.locator('#login h1').innerText()).includes('coding-agent'));
+  assert.doesNotMatch(await page.content(), /cline/i);
   await page.locator('#token').fill('incorrect-token-with-at-least-32-characters');
   await page.locator('#login-form button').click();
   await until(async () => (await page.locator('#login-error').innerText()).includes('Invalid'));
   await page.locator('#token').fill(fixture.monitorToken); await page.locator('#login-form button').click();
   await page.locator('#console').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('.brand').innerText(), 'C\ncoding-agent');
+  assert.doesNotMatch(await page.locator('#node-strip').innerText(), /Node v|构建|linux|win32/i);
   await page.locator('.task-row').first().waitFor();
   await page.locator('[data-tab="codes"]').click();
   await until(async () => (await page.locator('.code-block').innerText()).includes('import json'));

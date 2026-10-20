@@ -149,7 +149,7 @@ def main():
         else:
             raise RuntimeError('Public monitor route is unavailable')
         with client.open('http://127.0.0.1:18100/monitor/', timeout=5) as response:
-            if b'Cline' not in response.read():
+            if b'coding-agent' not in response.read():
                 raise RuntimeError('Monitor page not served')
         after = containers()
         changed = [name for name in before if name != PROJECT + '-coding-agent-1'

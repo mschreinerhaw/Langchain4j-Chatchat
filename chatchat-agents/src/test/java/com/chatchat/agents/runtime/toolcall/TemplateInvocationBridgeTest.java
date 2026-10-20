@@ -14,6 +14,39 @@ class TemplateInvocationBridgeTest {
     private final TemplateInvocationBridge bridge = new TemplateInvocationBridge();
 
     @Test
+    void modelDefaultCopiesAreReappliedFromAuthoritativeSchema() {
+        var result = defaultCopy(20, Map.of("type", "integer", "default", 20));
+        assertThat(result.parameters()).containsEntry("limit", 20);
+        assertThat(result.parameterEvidence().get("limit").source())
+            .isEqualTo(TemplateInvocationBridge.TEMPLATE_DEFAULT_SOURCE);
+        assertThat(result.protocolTrace()).containsEntry("reviewedParameterCount", 0)
+            .containsEntry("templateDefaultParameterCount", 1);
+    }
+
+    @Test
+    void modelCannotChangeDefaultByClaimingTemplateProvenance() {
+        assertThatThrownBy(() -> defaultCopy(99, Map.of("type", "integer", "default", 20)))
+            .hasMessageContaining("TEMPLATE_PARAMETER_EVIDENCE_MISMATCH");
+    }
+
+    @Test
+    void modelCannotClaimDefaultForFieldWithoutOne() {
+        assertThatThrownBy(() -> defaultCopy(20, Map.of("type", "integer")))
+            .hasMessageContaining("TEMPLATE_PARAMETER_EVIDENCE_MISMATCH");
+    }
+
+    private TemplateInvocationBridge.BridgeResult defaultCopy(Object value, Map<String, Object> property) {
+        Map<String, Object> protocol = Map.of(
+            "protocol_version", TemplateInvocationBridge.PROTOCOL_VERSION,
+            "template_id", "ORDER_QUERY",
+            "arguments", Map.of("limit", Map.of("value", value, "source", "template_default")));
+        return bridge.prepare(new TemplateInvocationBridge.BridgeRequest(
+            "api_template_execute", null, "ORDER_QUERY",
+            template("ORDER_QUERY", Map.of("limit", property), new String[]{"limit"}),
+            Map.of(), protocol, true, true));
+    }
+
+    @Test
     void auditsModelArgumentsAndCompilesRuntimeRequest() {
         Map<String, Object> template = template(
             "ORDER_QUERY",

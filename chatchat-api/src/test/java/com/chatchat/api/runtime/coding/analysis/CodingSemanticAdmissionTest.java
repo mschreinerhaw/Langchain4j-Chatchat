@@ -30,6 +30,28 @@ class CodingSemanticAdmissionTest {
         when(model.chat(anyString())).thenReturn("{\"status\":\"SUPPORTED\",\"reason\":\"yes\",\"unsupportedFields\":[\"claim\"]}");
         assertEquals("INCONCLUSIVE",review(model,Map.of("claim","value")).get("status"));
     }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"json", "", "JSON"})
+    void aCompleteJsonFencePreservesTheReviewDecision(String language) {
+        var model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn("```" + language + "\n{\"status\":\"SUPPORTED\",\"reason\":\"Scoped calculation\",\"unsupportedFields\":[]}\n```");
+        assertEquals("SUPPORTED", review(model, Map.of("difference", 2)).get("status"));
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+        "prefix ```json\n%s\n```", "```json\n%s\n``` suffix", "```python\n%s\n```",
+        "```json\n%s\n```\n```json\n{}\n```", "```json\n%s", "%s {}"
+    })
+    void commentaryMultipleDocumentsAndIncompleteFencesFailClosed(String envelope) {
+        var model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn(envelope.formatted("{\"status\":\"SUPPORTED\",\"reason\":\"Scoped\",\"unsupportedFields\":[]}"));
+        assertEquals("INCONCLUSIVE", review(model, Map.of("difference", 2)).get("status"));
+    }
+    @Test void aFenceNeverConvertsAnUnsupportedReviewIntoAnAdmission() {
+        var model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn("```json\n{\"status\":\"UNSUPPORTED\",\"reason\":\"Missing scope\",\"unsupportedFields\":[\"claim\"]}\n```");
+        assertEquals("UNSUPPORTED", review(model, Map.of("claim", "value")).get("status"));
+    }
     private Map<String,Object> review(ChatModel model,Map<String,Object> row) {
         var checkpoints = mock(RuntimeExecutionCheckpointPort.class);
         when(checkpoints.readExecutionCheckpoint(any(),anyString())).thenReturn(Optional.empty());

@@ -44,8 +44,8 @@ function renderNode(node: NodeSnapshot) {
   $('active-badge').textContent = String(node.sessions.active);
   const state = el('span', 'node-status'); state.append(el('span', 'dot'), el('strong', '', node.status === 'READY' ? '节点就绪' : '节点排空中'));
   replace($('node-strip'), state, el('strong', 'mono', node.hostname),
-    el('span', '', `${node.platform} / ${node.arch}`), el('span', '', `Node ${node.nodeVersion}`),
-    el('span', '', `在线 ${duration(node.uptimeSeconds * 1000)}`), el('span', '', `构建 ${node.build}`));
+    el('span', '', 'coding-agent'),
+    el('span', '', `在线 ${duration(node.uptimeSeconds * 1000)}`));
   const cards = [
     ['执行中', String(node.sessions.active), `会话容量 ${node.sessions.capacity}`, '◉'],
     ['已完成任务', amount(node.tasks.COMPLETED), '当前保留历史中的完成任务', '✓'],
@@ -95,12 +95,12 @@ function renderOverview(task: TaskDetail) {
   node.append(stats, kv([['任务 ID', el('span', 'mono', task.taskId)], ['Run ID', el('span', 'mono', task.runId)],
     ['租户 / 用户', el('span', 'mono', `${task.tenantId} / ${task.userId}`)], ['当前阶段', task.stage],
     ['开始时间', time(task.createdAt)], ['结束时间', time(task.finishedAt)], ['执行截止', time(task.deadlineAt)],
-    ['恢复模式', task.recoveryMode], ['Fencing Token', String(task.fencingToken)],
+    ['恢复模式', task.recoveryMode], ['执行代次', String(task.fencingToken)],
     ['模型调用上限', task.budget.maxModelCalls === null ? '未声明' : String(task.budget.maxModelCalls)]]));
   if (task.error) node.append(el('p', 'banner error', task.error));
-  if (task.reconciliationRequired) node.append(el('p', 'banner error', '节点重启前执行未结束，真实结果需要由 Runtime 对账。请勿仅凭节点记录重放任务。'));
+  if (task.reconciliationRequired) node.append(el('p', 'banner error', '节点重启前执行未结束，真实结果需要由平台核对。请勿仅凭节点记录重放任务。'));
   const persistence = snapshot?.history.persistence;
-  node.append(el('p', 'notice', `节点观测记录，不代表业务结果验收。历史存储：${persistence === 'MEMORY' ? '仅内存' : persistence === 'HEALTHY' ? '已启用持久化' : '存储异常'}。任务和代码均有保留上限，完整权威回执由 Runtime 管理。`));
+  node.append(el('p', 'notice', `节点观测记录，不代表业务结果验收。历史存储：${persistence === 'MEMORY' ? '仅内存' : persistence === 'HEALTHY' ? '已启用持久化' : '存储异常'}。任务和代码均有保留上限，完整执行回执由平台管理。`));
   return node;
 }
 function renderModels(task: TaskDetail) {
@@ -169,7 +169,7 @@ async function loadSource(taskId: string, codeId: string) {
   const info = $('detail-content').querySelector<HTMLElement>('.code-info'), pre = $('detail-content').querySelector<HTMLElement>('pre');
   if (!info || !pre || !code) return;
   info.textContent = `SHA-256 ${code.sha256}\n${bytes(code.sourceBytes)} · ${code.operationId}`; info.style.whiteSpace = 'pre-wrap';
-  if (!code.sourceRetained) { pre.textContent = '源代码已超出节点保留上限。代码哈希与版本元信息仍可查阅；完整工件请向 Runtime 查询。'; return; }
+  if (!code.sourceRetained) { pre.textContent = '源代码已超出节点保留上限。代码哈希与版本元信息仍可查阅；完整工件请向平台查询。'; return; }
   if (sourceCache.has(codeId)) { pre.textContent = sourceCache.get(codeId)!; return; }
   pre.textContent = '读取源代码…';
   try {
@@ -229,7 +229,7 @@ function renderApi() {
   replace(panel, el('p', 'eyebrow', 'COMPONENT API'), el('h2', '', '将监控接入你的应用'),
     el('p', 'muted', '同源页面与外部应用共用 coding_agent.monitor.v1 只读协议。使用独立 Monitor Token；它不能提交任务、取消执行或调用模型。浏览器接入建议通过应用服务端代理，节点默认不开放跨域访问。'),
     el('pre', 'code-block', 'GET /v1/monitor/node\nGET /v1/monitor/tasks?status=RUNNING&limit=20&offset=0\nGET /v1/monitor/tasks/{id}\nGET /v1/monitor/tasks/{id}/events?after=0&limit=100\nGET /v1/monitor/tasks/{id}/models\nGET /v1/monitor/tasks/{id}/skills\nGET /v1/monitor/tasks/{id}/codes\nGET /v1/monitor/tasks/{id}/codes/{codeId}\n\nAuthorization: Bearer <MONITOR_TOKEN>'),
-    el('p', 'notice', `节点 ${snapshot?.hostname ?? ''} · 历史上限 ${snapshot?.history.maxTasks ?? 256} 个任务 / 每任务 ${snapshot?.history.maxEventsPerTask ?? 512} 个事件。events 使用游标增量查询并显式返回 truncated；代码过期返回 410。节点重启后，未完成任务标记 INTERRUPTED，需要 Runtime 对账。`));
+    el('p', 'notice', `节点 ${snapshot?.hostname ?? ''} · 历史上限 ${snapshot?.history.maxTasks ?? 256} 个任务 / 每任务 ${snapshot?.history.maxEventsPerTask ?? 512} 个事件。events 使用游标增量查询并显式返回 truncated；代码过期返回 410。节点重启后，未完成任务标记 INTERRUPTED，需要平台核对。`));
   const link = el('a', '', '查看 OpenAPI 描述 ↗') as HTMLAnchorElement; link.href = '/v1/monitor/openapi.json'; link.target = '_blank'; link.rel = 'noopener'; panel.append(link);
 }
 $('login-form').addEventListener('submit', async event => {

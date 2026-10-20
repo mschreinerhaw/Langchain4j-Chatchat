@@ -83,6 +83,7 @@ public final class TemplateInvocationBridge {
                 request.stepId(),
                 runtimeTemplateId,
                 request.runtimeTemplateAuthoritative(),
+                schema,
                 request.evidenceContext());
             // The audited protocol is authoritative. Never merge unreviewed model fields from
             // input.parameters with evidence-backed values.
@@ -355,6 +356,7 @@ public final class TemplateInvocationBridge {
                                               Integer expectedStepId,
                                               String runtimeTemplateId,
                                               boolean runtimeTemplateAuthoritative,
+                                              Map<String, Object> schema,
                                               EvidenceContext evidenceContext) {
         Map<String, Object> protocol = new LinkedHashMap<>(rawProtocol);
         String version = text(firstPresent(protocol, "protocol_version", "protocolVersion"));
@@ -393,6 +395,17 @@ public final class TemplateInvocationBridge {
             }
             Map<String, Object> argument = new LinkedHashMap<>((Map<String, Object>) rawArgument);
             Object value = argument.get("value");
+            if (TEMPLATE_DEFAULT_SOURCE.equals(text(argument.get("source")))) {
+                Map<String, Object> property = objectMap(objectMap(schema.get("properties")).get(name));
+                Object declaredDefault = firstPresent(property, "default", "defaultValue", "default_value");
+                if (!hasValue(declaredDefault) || !equivalent(value, declaredDefault)) {
+                    throw failure("TEMPLATE_PARAMETER_EVIDENCE_MISMATCH",
+                        "argument " + name + " does not match the Runtime template default");
+                }
+                // Discard the model's copy. The compiler reapplies the selected schema's
+                // authoritative default and records Runtime-owned provenance below.
+                continue;
+            }
             String source = normalizeSource(argument.get("source"));
             Object evidence = argument.get("evidence");
             if (!hasValue(value) || source == null || evidence == null) {

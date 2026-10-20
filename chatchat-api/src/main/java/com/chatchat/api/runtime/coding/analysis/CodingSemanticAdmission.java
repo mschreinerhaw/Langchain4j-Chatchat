@@ -57,7 +57,7 @@ final class CodingSemanticAdmission {
         }
         try {
             com.fasterxml.jackson.databind.JsonNode review = json.reader()
-                .with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(response);
+                .with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(jsonDocument(response));
             String status = review.path("status").asText("");
             if (!Set.of("SUPPORTED", "UNSUPPORTED", "INCONCLUSIVE").contains(status)
                     || !review.path("unsupportedFields").isArray() || !review.path("reason").isTextual()
@@ -69,5 +69,17 @@ final class CodingSemanticAdmission {
         } catch (Exception invalid) {
             return Map.of("status", "INCONCLUSIVE", "reason", "Semantic reviewer returned an invalid decision");
         }
+    }
+
+    /** Accept one JSON document, optionally enclosed in a complete Markdown code fence. */
+    private static String jsonDocument(String response) {
+        String text = response.strip();
+        if (!text.startsWith("```")) return text;
+        int newline = text.indexOf('\n');
+        if (newline < 0 || !text.endsWith("```")) throw new IllegalArgumentException("Incomplete JSON fence");
+        String language = text.substring(3, newline).strip();
+        if (!language.isEmpty() && !"json".equalsIgnoreCase(language))
+            throw new IllegalArgumentException("Unexpected JSON fence language");
+        return text.substring(newline + 1, text.length() - 3).strip();
     }
 }

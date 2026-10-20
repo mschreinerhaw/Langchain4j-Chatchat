@@ -1,6 +1,7 @@
 package com.chatchat.api.runtime.coding.cline;
 
 import com.chatchat.agents.runtime.coding.CodingJournal;
+import com.chatchat.agents.runtime.coding.CodingTaskRevisions;
 import com.chatchat.agents.runtime.coding.CodingTaskAccess;
 import com.chatchat.agents.runtime.coding.DurableCodingTaskService;
 import com.chatchat.api.runtime.coding.CodingInvocationContext;
@@ -88,6 +89,7 @@ public final class ClineModelCallbackController {
             response.put("files",CodingInputSnapshotService.mountedFiles(input).stream().map(file->Map.of(
                 "fileId",file.fileId(),"fileName",file.fileName(),"sha256",file.sha256(),"rowCount",file.rowCount(),"size",file.size(),
                 "virtualPath","/data/input/"+file.fileId()+"/"+file.fileName())).toList());
+            response.put("fileLayout", CodingInputLayout.describe(c.runtimeContext()));
             if(mapper.valueToTree(response).toString().getBytes(java.nio.charset.StandardCharsets.UTF_8).length>180000)
                 throw new IllegalArgumentException("Input metadata exceeds the bounded Coding context; narrower authorized projection required");
             return response;
@@ -145,13 +147,15 @@ public final class ClineModelCallbackController {
             tokens = Math.max(tokens, model.modelTokenReservation(contract));
             String cost = CodingBudgetShare.amount(contract.budget().maxCostAmount(),
                 Math.max(1, contract.budget().maxModelCalls()));
-            var reserved = tasks.reserve(call.scope(), call.taskId(), call.lease(), call.snapshot().revision(),
-                operationId, sha(call.contractHash() + "\0" + operationId + "\0" + tokens),
+            final long reservedTokens = tokens;
+            var reserved = CodingTaskRevisions.mutate(tasks, call.scope(), call.taskId(), revision ->
+                tasks.reserve(call.scope(), call.taskId(), call.lease(), revision,
+                operationId, sha(call.contractHash() + "\0" + operationId + "\0" + reservedTokens),
                 CodingJournal.OperationKind.MODEL,
-                new CodingTaskOutcome.Counters(1, tokens, 0, 0, 0, 0, 0, cost));
+                new CodingTaskOutcome.Counters(1, reservedTokens, 0, 0, 0, 0, 0, cost)));
             if (!reserved.admitted()) throw new ResponseStatusException(HttpStatus.CONFLICT, "Model budget denied");
-            var intent = tasks.startIntent(call.scope(), call.taskId(), call.lease(),
-                reserved.outcome().revision(), operationId, "runtime-model:" + operationId);
+            var intent = CodingTaskRevisions.mutate(tasks, call.scope(), call.taskId(), revision ->
+                tasks.startIntent(call.scope(), call.taskId(), call.lease(), revision, operationId, "runtime-model:" + operationId));
             if (intent.dispatchIntentCreated()) {
                 Instant cutoff = Instant.now().minus(Duration.ofMinutes(5));
                 freshDispatches.entrySet().removeIf(entry -> entry.getValue().isBefore(cutoff));
@@ -174,14 +178,16 @@ public final class ClineModelCallbackController {
                     "Archived model response contains invalid tool arguments");
                 return prior.get();
             }
-            Instant permittedAt = freshDispatches.remove(key(call, operationId));
+            Instant permittedAt = freshDispatches.get(key(call, operationId));
             if (!tasks.unresolvedOperations(call.scope(), call.taskId()).contains(operationId)
                     || permittedAt == null || permittedAt.isBefore(Instant.now().minus(Duration.ofMinutes(5))))
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Model dispatch is not a fresh A2 start intent");
             // Renew before dispatch. The bound model uses the tool deadline; a late
             // response remains archival evidence even if ownership expires meanwhile.
-            tasks.renew(call.scope(), call.taskId(), call.lease(), Duration.ofMinutes(5),
-                call.snapshot().revision());
+            CodingTaskRevisions.mutate(tasks, call.scope(), call.taskId(), revision ->
+                tasks.renew(call.scope(), call.taskId(), call.lease(), Duration.ofMinutes(5), revision));
+            if (!freshDispatches.remove(key(call, operationId), permittedAt))
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Model dispatch permission was already consumed");
             Map<String, Object> response;
             try {
                 response = model.complete(contract, request);
@@ -214,13 +220,14 @@ public final class ClineModelCallbackController {
             String proof = receipts.proofRef(call.scope(), call.taskId(), operationId);
             var current = tasks.get(call.scope(), call.taskId());
             if (tasks.verifiedOperation(call.scope(), call.taskId(), operationId).isEmpty())
-                current = tasks.reconcileStopped(call.scope(), call.taskId(), call.lease(),
-                    current.revision(), operationId, proof);
+                current = CodingTaskRevisions.mutate(tasks, call.scope(), call.taskId(), revision ->
+                    tasks.reconcileStopped(call.scope(), call.taskId(), call.lease(), revision, operationId, proof));
             @SuppressWarnings("unchecked") Map<String, Object> usage = (Map<String, Object>) response.get("usage");
             long input = number(usage, "inputTokens"), output = number(usage, "outputTokens");
-            current = tasks.settle(call.scope(), call.taskId(), call.lease(), current.revision(),
+            current = CodingTaskRevisions.mutate(tasks, call.scope(), call.taskId(), revision ->
+                tasks.settle(call.scope(), call.taskId(), call.lease(), revision,
                 operationId, new CodingTaskOutcome.Counters(1, Math.addExact(input, output),
-                    0, 0, 0, 0, 0, "0"), false);
+                    0, 0, 0, 0, 0, "0"), false));
             return Map.of("revision", current.revision(), "meteringComplete", false,
                 "receiptRef", proof);
         });
@@ -238,9 +245,9 @@ public final class ClineModelCallbackController {
             String operation = "TOOL_FINISHED".equals(type)
                 ? event.path("operationId").asText(null)
                 : type.startsWith("MODEL_") ? operationId("model-" + event.path("modelCall").asLong(-1)) : null;
-            var snapshot = tasks.recordWorkerProgress(call.scope(), call.taskId(), call.lease(),
-                call.snapshot().revision(), event.path("sequence").asLong(), type, operation,
-                sha(event.toString()), workerPayload(event));
+            var snapshot = CodingTaskRevisions.mutate(tasks, call.scope(), call.taskId(), revision ->
+                tasks.recordWorkerProgress(call.scope(), call.taskId(), call.lease(), revision,
+                    event.path("sequence").asLong(), type, operation, sha(event.toString()), workerPayload(event)));
             return Map.of("authoritativeRevision", snapshot.revision());
         });
     }

@@ -57,6 +57,28 @@ class ClinePythonCallbackControllerTest {
     Map<String,Object> body(){return new LinkedHashMap<>(Map.of("scope",scope,"taskId","task","contract",contract,
         "contractHash",CodingCanonicalHash.sha256(contract),"fencingToken",1,"operationId",operation));}
 
+    @Test void failedTableReaderReceivesStructuralRepairGuidanceWithoutSourceValues() {
+        var old=contract; String file="c"+"a".repeat(63);
+        contract=new CodingTaskContract(CodingProtocol.ANALYSIS_VERSION,old.taskId(),old.scope(),old.objective(),
+            old.inputSnapshotRef(),old.metadataRefs(),old.workspaceRef(),
+            new CodingTaskContract.Authorization("decision",List.of("python_execute"),List.of(file),List.of(),List.of(),
+                CodingTaskContract.NetworkPolicy.NONE,List.of(),List.of(CodingTaskContract.SideEffect.CODE_EXECUTION)),
+            old.budget(),old.environmentRef(),old.validationPlanRef(),old.outputContract(),Map.of(
+                "schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","inputFiles",Map.of(
+                    "schemaVersion",CodingInputManifest.VERSION,"delivery","SHARED_DIRECTORY","format","PARQUET",
+                    "manifestFileId",file,"manifestSha256","d".repeat(64))));
+        when(tasks.get(scope,"task").contractSha256()).thenReturn(CodingCanonicalHash.sha256(contract));
+        when(python.get(scope,"task",operation)).thenReturn(new McpPythonControlPlanePort.OperationView(operation,"FAILED","container",1,
+            false,true,1,"b".repeat(64),"sha256:image","a".repeat(64),"KeyError: PRIVATE_SOURCE_VALUE"));
+        when(python.stderr(scope,"task",operation)).thenReturn("KeyError: PRIVATE_SOURCE_VALUE");
+        var result=controller.get(json.valueToTree(body()));
+        assertThat(result).containsEntry("status","FAILED").containsKey("inputLayout");
+        assertThat(json.valueToTree(result).path("inputLayout").path("expectedManifestSha256").asText())
+            .isEqualTo("d".repeat(64));
+        assertThat(json.valueToTree(result).toString()).doesNotContain("PRIVATE_SOURCE_VALUE");
+        verifyNoInteractions(collector);
+    }
+
     @Test void successfulExplorationWithoutResultReturnsActionableOutputStatus(){
         when(collector.collect(any(),any(),anyString(),anyString(),anyString(),anyList(),any()))
             .thenThrow(new CodingEvidenceCollector.RequiredOutputMissingException("rows.jsonl"));

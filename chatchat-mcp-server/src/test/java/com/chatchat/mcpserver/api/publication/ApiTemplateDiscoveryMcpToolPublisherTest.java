@@ -29,6 +29,64 @@ import static org.mockito.Mockito.when;
 
 class ApiTemplateDiscoveryMcpToolPublisherTest {
 
+    @Test void scopedCatalogMetadataCannotCreateExtraIndependentQueries() throws Exception {
+        var selected = api("asset-selected", "selected_records_api", category("category-generic", "generic", "Generic"));
+        var fields = new java.util.LinkedHashMap<String,Object>();
+        for (int index = 0; index < 30; index++) fields.put("field_" + index,
+            Map.of("type", "string", "description", "Descriptive field metadata " + index));
+        selected.setOutputSchemaJson(new ObjectMapper().writeValueAsString(Map.of("type", "object", "properties", fields)));
+        var configs = mock(ApiServiceConfigService.class);
+        when(configs.listEnabled()).thenReturn(List.of(selected));
+        var lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchApiServiceTemplates(any())).thenReturn(List.of());
+        var result = publisher(configs, lucene).query(Map.of("filters", Map.of("assetName", selected.getToolName())));
+        assertThat(result).containsEntry("returnedCount", 1);
+        verify(lucene, times(1)).searchApiServiceTemplates(any());
+    }
+
+    @Test void identityScopeCannotBypassTheCallerIndependentQueryBudget() {
+        var configs = mock(ApiServiceConfigService.class);
+        when(configs.listEnabled()).thenReturn(List.of(api("asset-selected", "selected_records_api",
+            category("category-generic", "generic", "Generic"))));
+        var lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(true);
+        var queries = java.util.stream.IntStream.range(0, 32).mapToObj(index -> "independent query " + index).toList();
+        assertThatThrownBy(() -> publisher(configs, lucene).query(Map.of("filters",
+            Map.of("assetName", "selected_records_api", "keywords", queries))))
+            .hasMessageContaining("QUERY_BATCH_BUDGET_EXCEEDED");
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void discoveredAssetNameScopesTemplatesEvenWhenLexicalHitsPreferAnotherAsset(boolean topLevel) {
+        var category = category("category-generic", "generic", "Generic");
+        var selected = api("asset-selected", "selected_records_api", category);
+        var unrelated = api("asset-other", "other_records_api", category);
+        var configs = mock(ApiServiceConfigService.class);
+        when(configs.listEnabled()).thenReturn(List.of(unrelated, selected));
+        var lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchApiServiceTemplates(any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("other_records_api", "template", 20.0f, List.of("lucene")),
+            new LuceneMcpSearchService.SearchHit("selected_records_api", "template", 1.0f, List.of("lucene"))));
+        var arguments = topLevel ? Map.<String,Object>of("assetName", selected.getToolName())
+            : Map.<String,Object>of("filters", Map.of("assetName", selected.getToolName()));
+        var result = publisher(configs, lucene).query(arguments);
+        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(result.get("templates").toString()).contains("selected_records_api").doesNotContain("other_records_api");
+    }
+
+    @Test void anUnknownAssetNameCannotFallBackToUnscopedTemplates() {
+        var configs = mock(ApiServiceConfigService.class);
+        when(configs.listEnabled()).thenReturn(List.of(api("asset-other", "other_records_api",
+            category("category-generic", "generic", "Generic"))));
+        var lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.searchApiServiceTemplates(any())).thenReturn(List.of());
+        var result = publisher(configs, lucene).query(Map.of("filters", Map.of("assetName", "unknown_records_api")));
+        assertThat(result).containsEntry("returnedCount", 0);
+    }
+
     @Test
     void contributesTheParentToolboxAndDeclaresTheRuntimeChildIdentityField() {
         ApiTemplateDiscoveryMcpToolPublisher publisher = publisher(
@@ -213,7 +271,7 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
     }
 
     @Test
-    void queryEnrichesRetrievalWithScopedApiServiceSignals() {
+    void queryRetainsScopedServiceMetadataWithoutGeneratingMetadataSearches() {
         ApiServiceConfig config = new ApiServiceConfig();
         config.setId("api-payment");
         config.setToolName("payment_status_api");
@@ -241,10 +299,10 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
 
         assertThat(result.get("diagnostics").toString())
             .contains("retrievalSignals", "Payment status API", "settlement");
-        verify(lucene, org.mockito.Mockito.atLeastOnce()).searchApiServiceTemplates(argThat(request -> request != null
-            && request.intentText() != null && request.intentText().contains("payment status api")));
-        verify(lucene, org.mockito.Mockito.atLeastOnce()).searchApiServiceTemplates(argThat(request -> request != null
-            && request.intentText() != null && request.intentText().contains("settlement")));
+        var requests = ArgumentCaptor.forClass(LuceneMcpSearchService.TemplateSearchRequest.class);
+        verify(lucene, times(2)).searchApiServiceTemplates(requests.capture());
+        assertThat(requests.getAllValues()).extracting(LuceneMcpSearchService.TemplateSearchRequest::intentText)
+            .containsExactly("payment status api", "status");
     }
 
     @Test

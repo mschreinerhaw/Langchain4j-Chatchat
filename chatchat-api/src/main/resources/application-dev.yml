@@ -245,13 +245,6 @@ chatchat:
       fusion-candidate-limit: 30
       final-evidence-limit: 5
       parent-section-limit-per-document: 20
-      bge-reranker:
-        enabled: ${CHATCHAT_BGE_RERANKER_ENABLED:false}
-        endpoint: ${CHATCHAT_BGE_RERANKER_ENDPOINT:}
-        api-key: ${CHATCHAT_BGE_RERANKER_API_KEY:}
-        model: ${CHATCHAT_BGE_RERANKER_MODEL:BAAI/bge-reranker-v2-m3}
-        request-timeout-ms: 30000
-        max-document-chars: 6000
     max-upload-bytes: 57671680
     upload-chunk-bytes: 5242880
     store-path: ./data/search-rocksdb
@@ -268,7 +261,6 @@ chatchat:
       request-timeout-ms: 30000
       bulk-batch-size: 200
       bulk-max-bytes: 4194304
-      vector-rerank-max-bytes: 4194304
       max-query-terms: 20
       max-query-chars: 500
       max-permission-roles: 64
@@ -283,9 +275,7 @@ chatchat:
         # Use a new field to preserve existing indices with a 1024-dimensional contentVector.
         dimension: 2560
         dimension-request-mode: NEVER
-        vector-field: contentVector2560
         max-input-chars: 6000
-        vector-candidate-limit: 50
   tools:
     document-search:
       api-base-url: http://localhost:8080

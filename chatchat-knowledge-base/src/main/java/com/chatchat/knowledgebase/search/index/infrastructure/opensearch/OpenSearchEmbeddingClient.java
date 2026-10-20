@@ -57,7 +57,7 @@ public class OpenSearchEmbeddingClient {
 
     public boolean configured() {
         SearchProperties.OpenSearch.Embedding config = config();
-        return config.isEnabled() && hasText(config.getVectorField()) && config.getDimension() > 0;
+        return config.isEnabled() && config.getDimension() > 0;
     }
 
     public List<Float> embed(String input) {

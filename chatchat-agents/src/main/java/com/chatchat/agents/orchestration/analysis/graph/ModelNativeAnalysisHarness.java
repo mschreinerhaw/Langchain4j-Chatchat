@@ -48,6 +48,8 @@ public final class ModelNativeAnalysisHarness {
     }
     private Result executeInternal(String question, List<Dataset> datasets, ChatModel model, GovernanceIsolationScope scope,
         AnalysisEvidenceSpillStore checkpoints, Map<String,Object> metadata, Runnable guard, Consumer<Map<String,Object>> observe) {
+        com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnership.requireJavaExplorationAllowed(
+            codingContext == null ? Map.of() : codingContext.runtimeAttributes(), metadata);
         if (model == null) throw new IllegalStateException("Analysis model unavailable");
         boolean pythonRequired = "PYTHON_REQUIRED".equals(metadata.get("analysisExecutionPolicy"));
         if (pythonRequired && coding == null)

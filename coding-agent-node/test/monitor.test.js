@@ -21,6 +21,9 @@ test('SDK receives task configuration and chunk bindings; final code receipt ref
       resultDatasetRef: 'result', validationRecordRef: 'validation', evidenceBundleRef: 'bundle' }; },
   }, { attemptId: 'task:fence-3', model: { async *stream(request) {
     assert.doesNotMatch(request.systemPrompt, /selected-by-java/);
+    assert.match(request.systemPrompt, /responsible for exploring delivered data, choosing analytical methods/);
+    assert.match(request.systemPrompt, /already selected business template workflow is immutable/);
+    assert.doesNotMatch(request.systemPrompt, /analysis agent owns analytical goals, methods/);
     assert.match(JSON.stringify(request.messages), /selected-by-java/);
     assert.match(JSON.stringify(request.messages), /authorized-skill/);
     if (++turn === 1) {

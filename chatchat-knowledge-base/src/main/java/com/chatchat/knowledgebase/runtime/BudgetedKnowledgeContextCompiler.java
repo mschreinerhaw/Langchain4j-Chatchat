@@ -23,7 +23,7 @@ import java.util.Map;
 public class BudgetedKnowledgeContextCompiler implements KnowledgeContextCompilerPort {
 
     private final TokenEstimator tokenEstimator;
-    private final LangChain4jKnowledgeFusion knowledgeFusion;
+    private final KnowledgeContextOrdering contextOrdering;
     private final LangChain4jDomainSkillAdapter domainSkillAdapter;
 
     public BudgetedKnowledgeContextCompiler() {
@@ -33,7 +33,7 @@ public class BudgetedKnowledgeContextCompiler implements KnowledgeContextCompile
     @Autowired
     public BudgetedKnowledgeContextCompiler(TokenEstimator tokenEstimator) {
         this.tokenEstimator = tokenEstimator;
-        this.knowledgeFusion = new LangChain4jKnowledgeFusion();
+        this.contextOrdering = new KnowledgeContextOrdering();
         this.domainSkillAdapter = new LangChain4jDomainSkillAdapter();
     }
 
@@ -41,7 +41,7 @@ public class BudgetedKnowledgeContextCompiler implements KnowledgeContextCompile
     public KnowledgeContext compile(KnowledgeRequest request,
                                     KnowledgeSkillPlan plan,
                                     List<KnowledgeIR> units) {
-        List<KnowledgeIR> rankedUnits = knowledgeFusion.fuse(request,
+        List<KnowledgeIR> rankedUnits = contextOrdering.order(
             units == null ? List.of() : units.stream().filter(java.util.Objects::nonNull).toList());
         Map<String, KnowledgeIR> unique = new LinkedHashMap<>();
         rankedUnits.forEach(unit -> unique.putIfAbsent(dedupKey(unit), unit));
@@ -80,7 +80,7 @@ public class BudgetedKnowledgeContextCompiler implements KnowledgeContextCompile
         List<com.chatchat.common.knowledge.model.KnowledgeSourceReference> sources = selected.stream()
             .map(KnowledgeIR::source).filter(java.util.Objects::nonNull).distinct().toList();
         int used = tokenEstimator.estimate(compiledValue);
-        log.info("knowledgeContextCompiled framework=langchain4j skills=true fusion=rrf "
+        log.info("knowledgeContextCompiled skills=true ordering=authorized_context "
                 + "plannedSkills={} rawUnits={} fusedUnits={} selectedUnits={} sourceCount={} tokens={} truncated={}",
             plan == null ? 0 : plan.skills().size(), units == null ? 0 : units.size(), rankedUnits.size(),
             selected.size(), sources.size(), used, truncated);

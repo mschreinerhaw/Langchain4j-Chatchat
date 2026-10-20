@@ -276,7 +276,10 @@ export function createCodingRun(contract, gateway, options = {}) {
     'Modify requested files with complete content, preserve unrelated source and comments, and use separate safe relative .sql paths for multi-file ETL.',
     'Use parser diagnostics to fix technical errors. A valid proposal is staged for user Diff review; no SQL has been executed and field/business validation may be NOT_EVALUATED.',
   ] : [
-    'You are a Coding Agent serving the analysis agent. The analysis agent owns analytical goals, methods, findings and reports. Runtime OS enforces authorized data scope, execution contracts and resource budgets; it does not judge business conclusions.',
+    analysis
+      ? 'You are the Coding Agent responsible for exploring delivered data, choosing analytical methods, generating and repairing Python, and producing findings and the final report. Runtime OS owns the user objective, authorization, fixed template workflows, data delivery, execution contracts and resource budgets; it does not judge business conclusions.'
+      : 'You are a Coding Agent serving the analysis agent. The analysis agent owns analytical goals, methods, findings and reports. Runtime OS enforces authorized data scope, execution contracts and resource budgets; it does not judge business conclusions.',
+    'An already selected business template workflow is immutable. Never replace its steps, change its execution order or rebind its parameters. Any additional data must pass the explicitly authorized Runtime data_request contract. Explore only delivered immutable files; do not enumerate directories, repeatedly probe files, or request broader source access.',
     'Use only the listed tools. Do not access a host shell, Docker socket, arbitrary files, databases, or network resources.',
     'Generate Python when useful, inspect execution receipts, fix technical errors, and report verification limits.',
     'When validationStatus is FAILED, inspect and repair the output schema. INCONCLUSIVE structural validation does not certify business correctness.',

@@ -211,7 +211,6 @@ chatchat:
       request-timeout-ms: 30000
       bulk-batch-size: 200
       bulk-max-bytes: ${CHATCHAT_SEARCH_OPENSEARCH_BULK_MAX_BYTES:4194304}
-      vector-rerank-max-bytes: ${CHATCHAT_SEARCH_OPENSEARCH_VECTOR_RERANK_MAX_BYTES:4194304}
       max-query-terms: 20
       max-query-chars: 500
       max-permission-roles: 64
@@ -224,14 +223,7 @@ chatchat:
         model: text-embedding-v4
         dimension: 1024
         dimension-request-mode: ${CHATCHAT_SEARCH_EMBEDDING_DIMENSION_REQUEST_MODE:AUTO}
-        vector-field: contentVector
         max-input-chars: 6000
-        vector-candidate-limit: 50
-        bm25-weight: 0.45
-        vector-weight: 0.35
-        title-weight: 0.10
-        freshness-weight: 0.05
-        authority-weight: 0.05
     fallback-candidate-limit: 500
     fallback-empty-result-limit: 200
     fallback-exception-limit: 100

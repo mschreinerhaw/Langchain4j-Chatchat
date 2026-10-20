@@ -11,20 +11,20 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class LangChain4jKnowledgeFusionTest {
+class KnowledgeContextOrderingTest {
 
     @Test
-    void reciprocalRankFusionPromotesKnowledgeConfirmedByMultipleSkillDimensions() {
+    void authorizedContextUsesDeclaredRelevanceAndDeduplicatesWithoutRagFusion() {
         KnowledgeIR metricOnly = unit("metric-only", KnowledgeType.METRIC, "单一指标说明", 0.99);
         KnowledgeIR sharedMetric = unit("shared-metric", KnowledgeType.METRIC, "跨维度共同知识", 0.70);
         KnowledgeIR methodOnly = unit("method-only", KnowledgeType.METHOD, "单一方法说明", 0.98);
         KnowledgeIR sharedMethod = unit("shared-method", KnowledgeType.METHOD, "跨维度共同知识", 0.60);
 
-        List<KnowledgeIR> fused = new LangChain4jKnowledgeFusion().fuse(request(),
+        List<KnowledgeIR> fused = new KnowledgeContextOrdering().order(
             List.of(metricOnly, sharedMetric, methodOnly, sharedMethod));
 
         assertThat(fused).hasSize(3);
-        assertThat(fused.get(0).compactPromptRepresentation()).isEqualTo("跨维度共同知识");
+        assertThat(fused).containsExactly(metricOnly, methodOnly, sharedMetric);
     }
 
     @Test

@@ -83,8 +83,8 @@ public final class AnalysisCoverageCoordinator {
         return codingOwned ? analyzeWithCoding(request, datasets) : analyzeWithHarness(request, datasets);
     }
     private boolean isDataAnalysis(Request request) {
-        return "DATA_ANALYSIS".equals(request.runtimeAttributes().get("workflowFamily"))
-            || "DATA_ANALYSIS".equals(request.runtimeAttributes().get("taskType"));
+        return com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnership
+            .codingOwnsAnalysis(request.runtimeAttributes());
     }
     private List<AnalysisEvidenceCoordinator.Dataset> externalizeLargeDatasets(
         List<AnalysisEvidenceCoordinator.Dataset> datasets, Request request) {

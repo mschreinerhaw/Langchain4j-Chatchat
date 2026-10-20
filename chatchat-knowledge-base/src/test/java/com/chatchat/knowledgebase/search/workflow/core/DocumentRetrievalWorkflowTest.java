@@ -7,8 +7,8 @@ import com.chatchat.knowledgebase.search.security.DocumentVisibilityContext;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 import com.chatchat.knowledgebase.search.workflow.analysis.OriginalQueryStage;
 import com.chatchat.knowledgebase.search.workflow.authorization.SkillRoleContextStage;
-import com.chatchat.knowledgebase.search.workflow.ranking.CandidateRerankStage;
-import com.chatchat.knowledgebase.search.workflow.ranking.DocumentCandidateReranker;
+import com.chatchat.knowledgebase.search.workflow.ranking.CandidateLimitStage;
+import com.chatchat.knowledgebase.search.config.SearchProperties;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -57,22 +57,15 @@ class DocumentRetrievalWorkflowTest {
     }
 
     @Test
-    void candidateRerankersAreComposableAndOrdered() {
+    void resultLimitPreservesAuthorizedSearchOrderWithoutModelReranking() {
         DocumentSearchCandidate first = mock(DocumentSearchCandidate.class);
         DocumentSearchCandidate second = mock(DocumentSearchCandidate.class);
         DocumentRetrievalWorkflowContext context = new DocumentRetrievalWorkflowContext(plan(), 8);
         context.candidates(List.of(first, second));
-        DocumentCandidateReranker reverse = new DocumentCandidateReranker() {
-            @Override public int order() { return 10; }
-            @Override public List<DocumentSearchCandidate> rerank(DocumentSearchPlan ignored,
-                                                                   List<DocumentSearchCandidate> candidates) {
-                return List.of(candidates.get(1), candidates.get(0));
-            }
-        };
-
-        new CandidateRerankStage(List.of(reverse)).execute(context);
-
-        assertThat(context.candidates()).containsExactly(second, first);
+        SearchProperties properties = new SearchProperties();
+        properties.getProblemAnalysis().setFinalEvidenceLimit(1);
+        new CandidateLimitStage(properties).execute(context);
+        assertThat(context.candidates()).containsExactly(first);
     }
 
     @Test

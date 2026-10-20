@@ -1153,8 +1153,8 @@ final class InterpretationAnalysisSession {
     }
 
     private boolean codingOwnedDataAnalysis() {
-        return "DATA_ANALYSIS".equals(runtimeAttributes.get("workflowFamily"))
-                || "DATA_ANALYSIS".equals(runtimeAttributes.get("taskType"));
+        return com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnership
+                .codingOwnsAnalysis(runtimeAttributes);
     }
 
     Phase execute(Phase phase) {

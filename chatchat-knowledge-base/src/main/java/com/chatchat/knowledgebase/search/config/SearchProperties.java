@@ -99,18 +99,6 @@ public class SearchProperties {
         private int fusionCandidateLimit = 30;
         private int finalEvidenceLimit = 5;
         private int parentSectionLimitPerDocument = 20;
-        private BgeReranker bgeReranker = new BgeReranker();
-
-        @Getter
-        @Setter
-        public static class BgeReranker {
-            private boolean enabled = false;
-            private String endpoint = "";
-            private String apiKey = "";
-            private String model = "BAAI/bge-reranker-v2-m3";
-            private int requestTimeoutMs = 30000;
-            private int maxDocumentChars = 6000;
-        }
     }
 
     @Getter
@@ -138,14 +126,13 @@ public class SearchProperties {
         private int connectTimeoutMs = 5000;
         private int requestTimeoutMs = 30000;
         private int bulkBatchSize = 200;
-        /** Maximum UTF-8 NDJSON payload per bulk request. High-dimensional vectors make count-only batching unsafe. */
+        /** Maximum UTF-8 NDJSON payload per bulk request. */
         private int bulkMaxBytes = 4 * 1024 * 1024;
-        /** Response budget used only when KNN is unavailable and vectors must be fetched for local reranking. */
-        private int vectorRerankMaxBytes = 4 * 1024 * 1024;
         private int maxQueryTerms = 20;
         private int maxQueryChars = 500;
         private int maxPermissionRoles = 64;
         private boolean logQueryDsl = false;
+        /** Shared only by the Skill and MCP capability catalogs; documents use lexical search. */
         private Embedding embedding = new Embedding();
 
         @Getter
@@ -163,15 +150,8 @@ public class SearchProperties {
             private String model = "";
             private int dimension = 1024;
             private DimensionRequestMode dimensionRequestMode = DimensionRequestMode.AUTO;
-            private String vectorField = "contentVector";
             private int maxInputChars = 6000;
             private int requestTimeoutMs = 300000;
-            private int vectorCandidateLimit = 50;
-            private float bm25Weight = 0.45F;
-            private float vectorWeight = 0.35F;
-            private float titleWeight = 0.10F;
-            private float freshnessWeight = 0.05F;
-            private float authorityWeight = 0.05F;
         }
     }
 

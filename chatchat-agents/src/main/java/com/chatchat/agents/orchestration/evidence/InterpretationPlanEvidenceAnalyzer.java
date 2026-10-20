@@ -62,6 +62,8 @@ public final class InterpretationPlanEvidenceAnalyzer {
         Map<String, Object> metadata,
         BooleanSupplier cancellationCheck
     ) {
+        com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnership
+            .requireJavaExplorationAllowed(runtimeAttributes, metadata);
         List<Map<String, Object>> toolEvidence = interpretationToolEvidence(plan, result, iteration);
         DiagnosticRun diagnosticRun = diagnosticRun(result);
         Set<String> previouslyCompletedDiagnosticChecks = completedDiagnosticChecks(previousEvidence);

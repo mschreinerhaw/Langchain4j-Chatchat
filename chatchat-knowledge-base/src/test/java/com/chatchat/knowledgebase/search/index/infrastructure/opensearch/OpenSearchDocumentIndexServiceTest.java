@@ -36,19 +36,20 @@ class OpenSearchDocumentIndexServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void superAdminRoleNameDoesNotBypassDocumentVisibilityFilter() {
+    void superAdminRoleNameDoesNotBypassAuthoritativeDocumentScope() {
         SearchProperties properties = new SearchProperties();
         properties.setTenantIsolationEnabled(true);
         OpenSearchDocumentIndexService service = service(properties);
 
         Map<String, Object> query = service.searchQuery("private runbook",
             List.of("private", "runbook"), SearchPermissionContext.of(
-                "tenant-1", "admin-user", List.of("SUPER_ADMIN")), List.of());
+                "tenant-1", "admin-user", List.of("SUPER_ADMIN")), List.of("authorized-doc"));
 
         Map<String, Object> bool = (Map<String, Object>) query.get("bool");
         assertThat((List<Object>) bool.get("filter"))
             .hasSize(2)
-            .contains(Map.of("term", Map.of("tenantId", "tenant-1")));
+            .contains(Map.of("term", Map.of("tenantId", "tenant-1")),
+                Map.of("terms", Map.of("fileId", List.of("authorized-doc"))));
     }
 
     @Test
@@ -63,7 +64,6 @@ class OpenSearchDocumentIndexServiceTest {
             mock(KeywordExtractor.class),
             mock(QueryExpander.class),
             mock(ChunkTypeClassifier.class),
-            mock(OpenSearchEmbeddingClient.class),
             new ObjectMapper()
         );
         List<String> expandedTerms = IntStream.range(0, 80)
@@ -102,7 +102,6 @@ class OpenSearchDocumentIndexServiceTest {
             mock(KeywordExtractor.class),
             mock(QueryExpander.class),
             mock(ChunkTypeClassifier.class),
-            mock(OpenSearchEmbeddingClient.class),
             new ObjectMapper()
         );
 
@@ -128,7 +127,6 @@ class OpenSearchDocumentIndexServiceTest {
             mock(KeywordExtractor.class),
             mock(QueryExpander.class),
             mock(ChunkTypeClassifier.class),
-            mock(OpenSearchEmbeddingClient.class),
             new ObjectMapper()
         );
 
@@ -138,16 +136,14 @@ class OpenSearchDocumentIndexServiceTest {
     }
 
     @Test
-    void boundsLocalRerankBatchSizeWithoutReducingCandidateRecall() {
+    void documentIndexIsLexicalEvenWhenSharedSkillEmbeddingIsConfigured() {
         SearchProperties properties = new SearchProperties();
+        properties.getOpenSearch().getEmbedding().setEnabled(true);
         properties.getOpenSearch().getEmbedding().setDimension(2560);
-        properties.getOpenSearch().setVectorRerankMaxBytes(4 * 1024 * 1024);
         OpenSearchDocumentIndexService service = service(properties);
-
-        assertThat(service.localRerankBatchSize()).isEqualTo(102);
-        assertThat(service.resultSourceFilter(false)).doesNotContain("contentVector");
-        assertThat(service.resultSourceFilter(false)).contains("fileId", "sectionId", "chunkId", "sourceVersion");
-        assertThat(service.resultSourceFilter(true)).contains("contentVector");
+        assertThat(service.indexCreateBody().toString()).doesNotContain("knn", "contentVector");
+        assertThat(service.resultSourceFilter()).contains("fileId", "sectionId", "chunkId", "sourceVersion")
+            .doesNotContain("contentVector");
     }
 
     private OpenSearchDocumentIndexService service(SearchProperties properties) {
@@ -158,7 +154,6 @@ class OpenSearchDocumentIndexServiceTest {
             mock(KeywordExtractor.class),
             mock(QueryExpander.class),
             mock(ChunkTypeClassifier.class),
-            mock(OpenSearchEmbeddingClient.class),
             new ObjectMapper()
         );
     }

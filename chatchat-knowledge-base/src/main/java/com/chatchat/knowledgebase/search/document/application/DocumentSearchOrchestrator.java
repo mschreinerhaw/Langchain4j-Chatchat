@@ -11,7 +11,7 @@ import com.chatchat.knowledgebase.search.workflow.core.DocumentRetrievalWorkflow
 import com.chatchat.knowledgebase.search.workflow.recall.HybridIndexRecallStage;
 import com.chatchat.knowledgebase.search.workflow.analysis.OriginalQueryStage;
 import com.chatchat.knowledgebase.search.workflow.ranking.ReciprocalRankFusionStage;
-import com.chatchat.knowledgebase.search.workflow.ranking.CandidateRerankStage;
+import com.chatchat.knowledgebase.search.workflow.ranking.CandidateLimitStage;
 import com.chatchat.knowledgebase.search.workflow.authorization.SkillRoleContextStage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -40,7 +40,7 @@ public class DocumentSearchOrchestrator {
             new AuthorizedDocumentScopeStage(irRecall, properties),
             new HybridIndexRecallStage(documents, chunks, properties),
             new ReciprocalRankFusionStage(properties, versions),
-            new CandidateRerankStage(List.of())
+            new CandidateLimitStage(properties)
         )));
     }
 

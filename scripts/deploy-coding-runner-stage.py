@@ -9,7 +9,10 @@ import time
 import urllib.request
 
 ROOT = Path('/opt/runtime-os-docker-stage')
-EVIDENCE = ROOT / 'evidence/template-controlled-20261020'
+EVIDENCE_ROOT = ROOT / 'evidence'
+EVIDENCE = EVIDENCE_ROOT / (sys.argv[2] if len(sys.argv) > 2 else 'template-controlled-20261020')
+if not EVIDENCE.resolve().is_relative_to(EVIDENCE_ROOT.resolve()):
+    raise ValueError('Deployment evidence must stay within the stage evidence directory')
 PROJECT = 'runtime-os-app-stage'
 WORKER = PROJECT + '-coding-agent-1'
 
@@ -24,7 +27,7 @@ def compose(*args):
 
 
 def main():
-    expected = json.loads(sys.argv[1])
+    expected = json.loads(Path(sys.argv[1][1:]).read_text() if sys.argv[1].startswith('@') else sys.argv[1])
     names = ('runner.js', 'server.js', 'code-repair.js')
     if set(expected) != set(names):
         raise RuntimeError('Worker module manifest must contain the exact audited set')

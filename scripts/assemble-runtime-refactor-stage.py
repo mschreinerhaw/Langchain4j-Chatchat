@@ -70,7 +70,7 @@ def main():
             if not classes.namelist():
                 raise ValueError('Empty API class overlay')
             for name in classes.namelist():
-                if not re.fullmatch(r'com/chatchat/api/(?:runtime/coding/(?:cline/(?:ClineCodingAdapter|ClineModelCallbackController|ClineModelReceiptStore)|analysis/(?:ClineContextAnswerService|CodingAnalysisService|CodingExecutionProfile)|workspace/CodingWorkspaceService)|datascience/(?:StudioCodePlanService|StudioTaskHistory|sql/SqlStudioService|python/PythonCodeAssistantService))(?:\$[^/]+)?\.class',name):
+                if not re.fullmatch(r'com/chatchat/api/(?:runtime/coding/(?:cline/(?:ClineCodingAdapter|ClineModelCallbackController|ClineModelReceiptStore|ClineRuntimeModelBridge)|analysis/(?:ClineContextAnswerService|CodingAnalysisService|CodingExecutionProfile)|workspace/CodingWorkspaceService)|datascience/(?:StudioCodePlanService|StudioTaskHistory|sql/SqlStudioService|python/PythonCodeAssistantService))(?:\$[^/]+)?\.class',name):
                     raise ValueError('Unexpected API class override')
                 replacements['BOOT-INF/classes/' + name]=classes.read(name)
     if 'webAssetsSha256' in manifest:

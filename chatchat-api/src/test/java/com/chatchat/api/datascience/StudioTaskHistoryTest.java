@@ -21,14 +21,17 @@ class StudioTaskHistoryTest {
         var scope=new KernelDataScope("tenant","owner",null,null,"run",null,Map.of());
         var outcome=mock(CodingTaskOutcome.class);when(outcome.status()).thenReturn(CodingTaskOutcome.Status.COMPLETED);
         var request=new StudioTaskHistory.Request(null,language,"Generate a report","configured",Map.of());
-        history.project(scope,"task",request,outcome,Map.of("files",List.of(Map.of("path","main."+language,
+        String task="python-coding-"+"a".repeat(64);
+        history.project(scope,task,request,outcome,Map.of("files",List.of(Map.of("path","main."+language,
             "content","source-from-cline")),"notes","Cline notes"),List.of(Map.of("type","MODEL_CALL_COMPLETED")));
         var turns=ArgumentCaptor.forClass(List.class);
         verify(conversations).mergeMessages(eq("tenant"),anyString(),eq("owner"),turns.capture());
         var messages=(List<Conversation.Message>)turns.getValue();
         assertThat(messages).extracting(Conversation.Message::getRole).containsExactly("user","assistant");
         assertThat(messages.get(1).getContent()).contains("source-from-cline","Cline notes","未执行");
-        assertThat(messages.get(1).getTaskId()).isEqualTo("task");
+        assertThat(messages.get(1).getTaskId()).isEqualTo(task);
+        assertThat(messages).extracting(Conversation.Message::getId).doesNotHaveDuplicates()
+            .allSatisfy(id->assertThat(id).hasSize(36));
         assertThat(messages.get(1).getStatus()).isEqualTo("completed");
         assertThat(messages.get(1).getTraces()).hasSize(1);
         verify(conversations).updateConversationSummary(eq("tenant"),anyString(),eq("owner"),contains("Studio"),

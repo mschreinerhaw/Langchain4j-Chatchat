@@ -29,6 +29,12 @@ public final class ClineRuntimeModelBridge {
     private CodingParentModels parentModels;
     private CodingWorkspaceService workspace;
     private int configuredMaxOutputTokens = 8192;
+    private int workspaceMaxOutputTokens=8192;
+    @org.springframework.beans.factory.annotation.Value("${chatchat.coding.workspace.max-output-tokens:8192}")
+    public void setWorkspaceMaxOutputTokens(int tokens){
+        if(tokens<1 || tokens>32768)throw new IllegalArgumentException("Invalid workspace reply token limit");
+        workspaceMaxOutputTokens=tokens;
+    }
     @org.springframework.beans.factory.annotation.Value("${chatchat.coding.cline.max-output-tokens:8192}")
     public void setMaxOutputTokens(int tokens) {
         if (tokens < 1 || tokens > 262144) throw new IllegalArgumentException("Invalid Coding model output limit");
@@ -36,7 +42,8 @@ public final class ClineRuntimeModelBridge {
     }
 
     public int maxOutputTokens(CodingTaskContract contract) {
-        return (int)Math.max(1, Math.min(configuredMaxOutputTokens, contract.budget().maxModelTokens() / 2));
+        int configured=CodingWorkspaceService.supports(contract)?Math.min(configuredMaxOutputTokens,workspaceMaxOutputTokens):configuredMaxOutputTokens;
+        return (int)Math.max(1, Math.min(configured, contract.budget().maxModelTokens() / 2));
     }
 
     public long modelTokenReservation(CodingTaskContract contract) {

@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 /** SQL application profile over the existing A2, SPI, worker and Evidence Store. No database execution. */
 @Service
+@lombok.extern.slf4j.Slf4j
 @ConditionalOnProperty(prefix="chatchat.coding.workspace",name="enabled",havingValue="true")
 @ConditionalOnProperty(prefix="chatchat.coding",name="enabled",havingValue="true")
 @ConditionalOnProperty(prefix="chatchat.coding.cline",name="enabled",havingValue="true")
@@ -35,6 +36,12 @@ public final class CodingWorkspaceService {
     private final SqlGlotToolchain parser;
     private final ObjectMapper json;
     private final long timeoutSeconds;
+    private long maxModelTokens=262144;
+    @org.springframework.beans.factory.annotation.Value("${chatchat.coding.workspace.max-model-tokens:262144}")
+    public void setMaxModelTokens(long value){
+        if(value<32768 || value>8388608)throw new IllegalArgumentException("Invalid workspace token budget");
+        maxModelTokens=value;
+    }
     public CodingWorkspaceService(DurableCodingTaskService tasks,CodingInvocationContext identity,
             JdbcRuntimeEvidenceStore evidence,ObjectProvider<CodingAgentSPI> agents,SqlGlotToolchain parser,ObjectMapper json,
             @Value("${chatchat.coding.workspace.timeout-seconds:300}") long timeoutSeconds){
@@ -73,7 +80,7 @@ public final class CodingWorkspaceService {
                     "modelName",Objects.toString(modelName,""),"decisionRef",decision,"workspaceRef",workspace,"schema",schema);
                 register(scope,inputId,INPUT_TYPE,payload,List.of(),task,null);
                 var budget=new CodingTaskContract.Budget("workspace-budget:"+task,
-                    Instant.now().plusSeconds(timeoutSeconds).truncatedTo(ChronoUnit.MILLIS),8,32768,16,0,
+                    Instant.now().plusSeconds(timeoutSeconds).truncatedTo(ChronoUnit.MILLIS),8,maxModelTokens,16,0,
                     "1","USD",0,0,1024*1024);
                 contract=new CodingTaskContract(CodingProtocol.WORKSPACE_VERSION,task,scope,
                     new CodingTaskContract.Objective("Read the authorized "+language+" engineering context with workspace_read, then propose complete source files with workspace_propose. Preserve unrelated code. The Runtime will parse proposals and return errors to repair. Never execute code or claim business validation.",
@@ -268,6 +275,15 @@ public final class CodingWorkspaceService {
     }
     private synchronized void projectHistory(KernelDataScope scope,String task,CodingTaskOutcome outcome){
         if(history==null)return;
+        try{projectHistoryChecked(scope,task,outcome);}
+        catch(RuntimeException unavailable){
+            // The durable task is already accepted/committed. A secondary projection
+            // must not hide its ID or turn valid code into a failed Coding execution.
+            // No revision is acknowledged: the next scoped read retries from Evidence.
+            log.warn("studio_history_projection_pending taskId={} cause={}",task,unavailable.getClass().getSimpleName());
+        }
+    }
+    private void projectHistoryChecked(KernelDataScope scope,String task,CodingTaskOutcome outcome){
         String projectedKey="coding:workspace-history-revision:"+task;
         var projected=evidence.readExecutionCheckpoint(scope,projectedKey);
         if(projected.isPresent() && Long.parseLong(projected.get())>=outcome.revision())return;

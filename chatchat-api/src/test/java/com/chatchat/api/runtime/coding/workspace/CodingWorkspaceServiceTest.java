@@ -51,6 +51,13 @@ class CodingWorkspaceServiceTest {
         lease=actor(()->tasks.claim(scope,"task","cline-adapter:test",Duration.ofMinutes(2),tasks.get(scope,"task").revision()));
     }
     @AfterEach void close(){timer.shutdownNow();}
+    @Test void reservesForMultiRoundGenerationAndKeepsPreviouslyFrozenBudget(){
+        assertThat(contract.budget().maxModelTokens()).isGreaterThanOrEqualTo(8L*16384);
+        assertThat(contract.budget().maxCodeExecutions()).isZero();
+        service.setMaxModelTokens(32768);
+        service.submit(scope,"task","User request: modify sql/a.sql, preserve unrelated SQL. Mapping: source->target. Historical style: uppercase.","mysql","");
+        assertThat(actor(()->tasks.contract(scope,"task"))).isEqualTo(contract);
+    }
     @Test void projectsDurableHistoryAfterServiceRestartAndDeduplicatesPolling(){
         var request=new com.chatchat.api.datascience.StudioTaskHistory.Request(null,"sql","Generate source","model",Map.of());
         service.captureHistory(scope,"task",request);
@@ -65,6 +72,18 @@ class CodingWorkspaceServiceTest {
         assertThatThrownBy(()->restarted.captureHistory(scope,"task",
             new com.chatchat.api.datascience.StudioTaskHistory.Request(null,"sql","Different source","model",Map.of())))
             .isInstanceOf(IllegalArgumentException.class);
+    }
+    @Test void historyStorageFailureCannotFailCommittedCodeAndIsRetriedOnNextRead(){
+        var history=mock(com.chatchat.api.datascience.StudioTaskHistory.class);service.setHistory(history);
+        service.captureHistory(scope,"task",new com.chatchat.api.datascience.StudioTaskHistory.Request(null,"sql","Generate source","model",Map.of()));
+        doThrow(new IllegalStateException("history store unavailable")).doNothing().when(history)
+            .project(any(),anyString(),any(),any(),anyMap(),anyList());
+        actor(()->service.propose(contract,lease,operation('a'),proposal("SELECT 1;")));
+        var result=actor(()->service.complete(contract,lease,operation('a')));
+        assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.COMPLETED);
+        assertThat(service.get(scope,"task").status()).isEqualTo(CodingTaskOutcome.Status.COMPLETED);
+        service.get(scope,"task");
+        verify(history,times(2)).project(any(),anyString(),any(),any(),anyMap(),anyList());
     }
     String operation(char suffix){return "workspace-"+String.valueOf(suffix).repeat(64);}
     Map<String,Object> proposal(String source){return Map.of("schemaVersion","sql-studio.output.v1","files",List.of(

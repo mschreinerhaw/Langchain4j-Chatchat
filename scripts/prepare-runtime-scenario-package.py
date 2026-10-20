@@ -20,7 +20,7 @@ for module in modules:
     shutil.copy2(source,output/name)
     manifest['modules'][module] = digest(source)
 families = {
-    'cline':('ClineCodingAdapter','ClineModelCallbackController','ClineModelReceiptStore'),
+    'cline':('ClineCodingAdapter','ClineModelCallbackController','ClineModelReceiptStore','ClineRuntimeModelBridge'),
     'analysis':('ClineContextAnswerService','CodingAnalysisService','CodingExecutionProfile'),
 }
 with zipfile.ZipFile(output/'api-classes.zip','w') as archive:
@@ -40,14 +40,15 @@ with zipfile.ZipFile(output/'api-classes.zip','w') as archive:
                     archive.write(file,'com/chatchat/api/'+package+'/'+file.name)
 manifest['apiClassOverlaySha256'] = digest(output/'api-classes.zip')
 if studio:
-    web={}
-    folder=repo/'chatchat-api/src/main/resources/static'
-    with zipfile.ZipFile(output/'web-assets.zip','w',zipfile.ZIP_DEFLATED) as archive:
-        for file in folder.rglob('*'):
-            if file.is_file():
-                name='BOOT-INF/classes/static/'+file.relative_to(folder).as_posix()
-                archive.write(file,name);web[name]=digest(file)
-    (output/'web-files.json').write_text(json.dumps(web,indent=2))
+    if '--reuse-web' not in sys.argv:
+        web={}
+        folder=repo/'chatchat-api/src/main/resources/static'
+        with zipfile.ZipFile(output/'web-assets.zip','w',zipfile.ZIP_DEFLATED) as archive:
+            for file in folder.rglob('*'):
+                if file.is_file():
+                    name='BOOT-INF/classes/static/'+file.relative_to(folder).as_posix()
+                    archive.write(file,name);web[name]=digest(file)
+        (output/'web-files.json').write_text(json.dumps(web,indent=2))
     manifest['webAssetsSha256']=digest(output/'web-assets.zip')
 (output/'module-manifest.json').write_text(json.dumps(manifest,indent=2))
 node = {}

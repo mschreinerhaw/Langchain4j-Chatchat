@@ -23,6 +23,18 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineRuntimeModelBridgeTest {
+    @Test void workspaceBoundsIndividualRepliesEvenWhenGlobalAnalysisAllowsLargeOutputs(){
+        var bridge=new ClineRuntimeModelBridge(mock(ModelResourceRegistry.class),mock(ConfigurableChatModelFactory.class),json);
+        var task=mock(CodingTaskContract.class);var output=mock(CodingTaskContract.OutputContract.class);
+        var budget=mock(CodingTaskContract.Budget.class);
+        when(task.schemaVersion()).thenReturn(CodingProtocol.WORKSPACE_VERSION);when(task.outputContract()).thenReturn(output);
+        when(output.resultFormat()).thenReturn(CodingTaskContract.ResultFormat.WORKSPACE_FILES);
+        when(task.budget()).thenReturn(budget);when(budget.maxModelTokens()).thenReturn(262144L);
+        bridge.setMaxOutputTokens(65536);
+        assertThat(bridge.maxOutputTokens(task)).isEqualTo(8192);
+        assertThat(bridge.modelTokenReservation(task)).isEqualTo(16384L);
+        assertThat(budget.maxModelTokens()/bridge.modelTokenReservation(task)).isGreaterThanOrEqualTo(8);
+    }
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings = {"{\"code\":", "null", "[]"})
     void malformedProviderToolOutputRetainsStopAndUsageReceipt(String arguments) throws Exception {

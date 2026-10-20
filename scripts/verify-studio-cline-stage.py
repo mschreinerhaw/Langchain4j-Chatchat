@@ -54,6 +54,8 @@ else:
         plan=prepared['taskRequest']['toolInput']['studioCodePlan']
         endpoint='/data-science/sql/projects/'+project_id+'/generations/'+prepared['generationId']
         session=prepared['taskRequest']['sessionId']
+        private.write_text(json.dumps({'language':'sql','taskId':'sql-coding-'+prepared['generationId'],'endpoint':endpoint,
+            'conversationId':session,'projectId':project_id,'plan':plan,'prepared':prepared},ensure_ascii=False))
         submitted=http(endpoint+'/coding',{},'POST');task=submitted['taskId']
         saved={'language':'sql','taskId':task,'endpoint':endpoint,'conversationId':session,'projectId':project_id,'plan':plan,'prepared':prepared}
     else:
@@ -63,7 +65,12 @@ else:
             'sourceCode':source,'selectedCode':'','modelName':args.model,'skillIds':[]}
         plan=http('/data-science/python/assist/plan',request)
         request['planId']=plan['planId']
-        submitted=http('/data-science/python/assist/coding',{'request':request,'requestId':str(uuid.uuid4()),'entryPath':'main.py','files':[{'path':'main.py','content':source}]})
+        request_id=str(uuid.uuid4())
+        expected='python-coding-'+hashlib.sha256((user['tenantId']+'\0'+user['id']+'\0'+request_id).encode()).hexdigest()
+        expected_session=str(uuid.UUID(bytes=hashlib.md5((user['tenantId']+'\0'+user['id']+'\0'+expected).encode()).digest(),version=3))
+        private.write_text(json.dumps({'language':'python','taskId':expected,'endpoint':'/data-science/python/assist/coding/'+expected,
+            'conversationId':expected_session,'plan':plan,'request':request,'requestId':request_id},ensure_ascii=False))
+        submitted=http('/data-science/python/assist/coding',{'request':request,'requestId':request_id,'entryPath':'main.py','files':[{'path':'main.py','content':source}]})
         task=submitted['taskId'];endpoint='/data-science/python/assist/coding/'+task
         session=str(uuid.UUID(bytes=hashlib.md5((user['tenantId']+'\0'+user['id']+'\0'+task).encode()).digest(),version=3))
         saved={'language':'python','taskId':task,'endpoint':endpoint,'conversationId':session,'plan':plan,'request':request}
@@ -121,7 +128,9 @@ for number,file in enumerate(files,1):
     path=root/(args.label+'-source-'+str(number)+Path(file['path']).suffix)
     path.write_text(file['content'])
     artifacts.append({'path':file['path'],'sha256':hashlib.sha256(file['content'].encode()).hexdigest(),'characters':len(file['content'])})
-report={'status':'PASSED','language':args.language,'taskId':task,'conversationId':session,
+package=json.loads((root/'module-package.json').read_text())
+report={'status':'PASSED','label':args.label,'sourceCommit':package['sourceCommit'],'jarSha256':package['candidateSha256'],
+    'language':args.language,'taskId':task,'conversationId':session,
     'observedDurationMs':round((time.monotonic()-start)*1000),'modelCalls':len(telemetry),'modelTelemetry':telemetry,
     'javaPlanModelCalls':0,'analysisDecisionOwner':'CLINE','historyVisible':True,'historyContainsSource':True,
     'historyDuplicateMessages':False,'messageCount':len(messages),'artifacts':artifacts,

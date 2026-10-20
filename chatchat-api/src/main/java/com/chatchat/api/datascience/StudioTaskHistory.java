@@ -45,14 +45,18 @@ public class StudioTaskHistory {
         }
         var steps=request.plan()==null?List.<Map<String,Object>>of():List.of(request.plan());
         var now=LocalDateTime.now();
-        var user=Conversation.Message.builder().id(task+":user").role("user").content(request.question())
+        String messageIdentity=scope.tenantId()+"\0"+scope.userId()+"\0"+task+"\0";
+        var user=Conversation.Message.builder().id(messageId(messageIdentity+"user")).role("user").content(request.question())
             .timestamp(now).taskId(task).modelName(request.modelName()).build();
-        var assistant=Conversation.Message.builder().id(task+":assistant").role("assistant").content(answer)
+        var assistant=Conversation.Message.builder().id(messageId(messageIdentity+"assistant")).role("assistant").content(answer)
             .timestamp(now).taskId(task).status(status).streaming(false).modelName(request.modelName())
             .agentName(label).steps(steps).traces(events)
             .memoryContext(Map.of("taskOrigin","studio-coding","codingTaskId",task,"language",request.language())).build();
         conversations.updateConversationSummary(scope.tenantId(),session,scope.userId(),
             label+": "+request.question(),status,null,request.modelName(),"llm_chat",label);
         conversations.mergeMessages(scope.tenantId(),session,scope.userId(),List.of(user,assistant));
+    }
+    private static String messageId(String identity){
+        return UUID.nameUUIDFromBytes(identity.getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
     }
 }

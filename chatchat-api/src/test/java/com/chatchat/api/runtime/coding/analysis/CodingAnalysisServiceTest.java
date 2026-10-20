@@ -40,6 +40,7 @@ class CodingAnalysisServiceTest {
         @SuppressWarnings("unchecked") Map<String,Object> value = request.getValue();
         assertThat((List<?>) value.get("datasetReferences")).hasSize(9);
         assertThat(value.get("requestId")).isEqualTo("primary-data-analysis-v1");
+        assertThat(value.get("reviewResult")).isEqualTo(true);
         assertThat(value.get("instruction").toString()).contains("Autonomously inspect",
             "same declared metric, scope, period and unit", "every table header aligns with its values",
             "User objective", "Question").doesNotContain("customer", "security", "profit formula");
@@ -56,6 +57,21 @@ class CodingAnalysisServiceTest {
         verify(parent.model(),never()).chat(anyString());
         assertThat(result).containsEntry("resultAvailable",true)
             .containsEntry("validationStatus","INCONCLUSIVE").containsEntry("businessValidation","NOT_EVALUATED");
+    }
+
+    @Test void reviewedAnalysisKeepsSemanticReviewInsideCodingAndAllowsReadingOnlyItsResultArtifact() {
+        prepare(outcome(CodingTaskOutcome.Status.COMPLETED, CodingTaskOutcome.ValidationStatus.INCONCLUSIVE));
+        var reviewed = new LinkedHashMap<String,Object>(request());
+        reviewed.put("reviewResult", true);
+
+        service().execute(context("tenant"), reviewed, sources());
+
+        var contract = org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);
+        verify(agent).submit(contract.capture());
+        assertThat(contract.getValue().authorization().allowedTools()).contains("python_execute", "artifact_read");
+        assertThat(contract.getValue().metadataRefs()).contains("runtime-coding:analysis-reviewed-path:v1")
+            .doesNotContain("runtime-coding:analysis-fast-path:v1");
+        assertThat(contract.getValue().objective().instruction()).contains("call artifact_read", "Runtime will perform no semantic review");
     }
     @Test void combinedSourcesKeepTheirOwnDeclaredRepresentationInTheAcceptedObjective() {
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));

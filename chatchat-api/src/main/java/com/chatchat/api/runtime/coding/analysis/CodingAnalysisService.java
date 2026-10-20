@@ -112,6 +112,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         request.put("datasetReferences", List.copyOf(sources.keySet()));
         request.put("instruction", objective);
         request.put("outputSchema", primaryReportSchema());
+        request.put("reviewResult", true);
         return executeObserved(context, request, sources, observer);
     }
 
@@ -133,11 +134,14 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
     @Override public Map<String,Object> executeObserved(AnalysisCoverageCoordinator.Request context, Map<String,Object> request,
                                      Map<String,Dataset> sources, java.util.function.Consumer<Map<String,Object>> observer) {
         ensureActive(context);
-        if (!request.keySet().stream().allMatch(Set.of("operation","requestId","datasetReference","datasetReferences","instruction","outputSchema")::contains))
+        if (!request.keySet().stream().allMatch(Set.of("operation","requestId","datasetReference","datasetReferences","instruction","outputSchema","reviewResult")::contains))
             throw new IllegalArgumentException("Unknown Coding request field");
         if (!"RUN_CODING".equals(request.get("operation"))) throw new IllegalArgumentException("Unknown Coding operation");
         String requestId=text(request.get("requestId"),128), instruction=text(request.get("instruction"),16000);
         List<String> selectedReferences = selectedReferences(request);
+        boolean reviewResult = Boolean.TRUE.equals(request.get("reviewResult"));
+        if (request.containsKey("reviewResult") && !(request.get("reviewResult") instanceof Boolean))
+            throw new IllegalArgumentException("reviewResult must be boolean");
         Dataset source=selectSources(request,sources);
         int sourceCount=request.get("datasetReferences") instanceof List<?> references ? references.size() : 1;
         String reference=source.reference();
@@ -150,17 +154,18 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         var scope=new KernelDataScope(owner.tenantId(),owner.userId(),owner.requestId(),owner.conversationId(),owner.runId(),null,Map.of());
         String taskId="analysis-coding-"+hash(Map.of("tenant",owner.tenantId(),"user",owner.userId(),"run",owner.runId(),"request",requestId));
         String fingerprint=hash(Map.of("instruction",instruction,"source",reference,
-            "sourceHash",source.handle().contentSha256(),"schema",rowSchema));
+            "sourceHash",source.handle().contentSha256(),"schema",rowSchema,"reviewResult",reviewResult));
         if (!capacity.tryAcquire()) return Map.of("operation","RUN_CODING","requestId",requestId,"taskId",taskId,
             "status","CAPACITY_UNAVAILABLE","resultAvailable",false);
         try {
             return identity.as(scope,GRANTS,()->run(context,requestId,taskId,fingerprint,scope,source,instruction,rowSchema,
-                sources,observer,sourceCount,selectedReferences));
+                sources,observer,sourceCount,selectedReferences,reviewResult));
         } finally {capacity.release();}
     }
     private Map<String,Object> run(AnalysisCoverageCoordinator.Request context,String requestId,String taskId,
             String fingerprint,KernelDataScope scope,Dataset source,String instruction,Map<String,Object> schema,Map<String,Dataset> sources,
-            java.util.function.Consumer<Map<String,Object>> observer,int sourceCount,List<String> selectedReferences) {
+            java.util.function.Consumer<Map<String,Object>> observer,int sourceCount,List<String> selectedReferences,
+            boolean reviewResult) {
         String key="coding:analysis-request:"+taskId;
         var saved=checkpoints.readExecutionCheckpoint(scope,key);
         CodingTaskContract contract;
@@ -223,6 +228,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             boolean sqlAvailable=analysisSql!=null&&analysisSql.available();
             boolean dynamic=dataAvailable||sqlAvailable||input.chunked();
             List<String> tools=new ArrayList<>(List.of("python_execute"));
+            if(reviewResult)tools.add("artifact_read");
             if(dataAvailable)tools.add("data_request");if(sqlAvailable)tools.add("sql_validate");
             if(sqlAvailable)goal+="\nFor SQL analysis, use sql_validate for static diagnostics; it never executes SQL. You may execute SQLite in-memory SQL over the delivered files inside python_execute. Never connect to external databases.";
             if(tableInput)goal+="\nRead /data/input/"+input.fileId()+"/manifest.json. The schema is /data/input/"
@@ -242,7 +248,10 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             var metadataRefs=new ArrayList<String>();metadataRefs.add(CodingParentModels.REQUIRED_REF);
             if(dataAvailable)metadataRefs.add(dataSupply.policyRef(scope));
             if(tableInput)metadataRefs.add(com.chatchat.api.runtime.coding.data.CodingInputObservation.POLICY_REF);
-            if(dynamic && policy.isFastPathEnabled()) {
+            if(reviewResult) {
+                metadataRefs.add("runtime-coding:analysis-reviewed-path:v1");
+                goal+="\nResult review contract: after Python returns a registered resultDatasetRef, call artifact_read for that exact reference. Review the complete derived report row against the program, delivered schema, Skills and limitations. Repair and rerun the program when labels, field semantics, totals or conclusion strength are unsupported. Finish only after this Coding-owned review; Runtime will perform no semantic review.";
+            } else if(dynamic && policy.isFastPathEnabled()) {
                 metadataRefs.add("runtime-coding:analysis-fast-path:v1");
                 goal+="\nFast analysis contract: use the supplied protocol SDK when present, declared schemas and any authorized bounded analysisPreview to generate ONE complete program that computes the requested results and writes rows.jsonl. "
                     +"Avoid standalone print/file exploration. The Coding loop ends automatically once a stopped execution produces an archived structurally valid result; the analysis agent owns subsequent interpretation. "

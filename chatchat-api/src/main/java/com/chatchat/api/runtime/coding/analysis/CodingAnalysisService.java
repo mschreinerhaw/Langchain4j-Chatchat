@@ -31,6 +31,7 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(prefix="chatchat.coding",name="enabled",havingValue="true")
 @ConditionalOnProperty(prefix="chatchat.coding.analysis",name="enabled",havingValue="true")
 public final class CodingAnalysisService implements AnalysisCodingPort {
+    private static final int MAX_PRIMARY_DATASETS = 16;
     private final CodingAnalysisProperties policy;
     private final CodingInvocationContext identity;
     private final CodingInputSnapshotService inputs;
@@ -87,6 +88,41 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             + "Only resultAvailable:true admits a dataset for analysis; failed/pending receipts include reasons and limitations. "
             + "Data-analysis calculations require Coding. Pending/unknown is not a result. Each RUN_CODING invocation has an independent durable tool budget; retries of the same request retain that budget.");
     }
+
+    @Override public Map<String,Object> executePrimaryAnalysis(
+            AnalysisCoverageCoordinator.Request context, Map<String,Dataset> sources,
+            java.util.function.Consumer<Map<String,Object>> observer) {
+        if (sources == null || sources.isEmpty())
+            throw new IllegalArgumentException("Primary Coding analysis requires delivered datasets");
+        if (sources.size() > MAX_PRIMARY_DATASETS)
+            throw new IllegalArgumentException("Primary Coding analysis dataset limit exceeded");
+        String objective = "Answer the user's data-analysis objective using only the authorized immutable datasets. "
+            + "Autonomously inspect their schemas and quality, discover defensible relationships, choose the analysis methods, "
+            + "write and repair the Python program, and verify the computed output. Produce exactly one result row. "
+            + "reportMarkdown must be the complete user-facing Markdown report with computed findings and explicit limitations. "
+            + "evidenceReferences must list the exact delivered dataset references actually used; do not invent or shorten them. "
+            + "limitations must record material data or method limits. Do not delegate calculations back to Runtime OS.\n"
+            + "User objective:\n" + context.query();
+        var request = new LinkedHashMap<String,Object>();
+        request.put("operation", "RUN_CODING");
+        request.put("requestId", "primary-data-analysis-v1");
+        request.put("datasetReferences", List.copyOf(sources.keySet()));
+        request.put("instruction", objective);
+        request.put("outputSchema", primaryReportSchema());
+        return executeObserved(context, request, sources, observer);
+    }
+
+    private static Map<String,Object> primaryReportSchema() {
+        Map<String,Object> stringArray = Map.of("type", "array", "items", Map.of("type", "string"));
+        return Map.of(
+            "type", "object",
+            "properties", Map.of(
+                "reportMarkdown", Map.of("type", "string"),
+                "evidenceReferences", stringArray,
+                "limitations", stringArray),
+            "required", List.of("reportMarkdown", "evidenceReferences", "limitations"),
+            "additionalProperties", false);
+    }
     public Map<String,Object> execute(AnalysisCoverageCoordinator.Request context, Map<String,Object> request,
                                      Map<String,Dataset> sources) {
         return executeObserved(context, request, sources, event -> {});
@@ -98,6 +134,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             throw new IllegalArgumentException("Unknown Coding request field");
         if (!"RUN_CODING".equals(request.get("operation"))) throw new IllegalArgumentException("Unknown Coding operation");
         String requestId=text(request.get("requestId"),128), instruction=text(request.get("instruction"),16000);
+        List<String> selectedReferences = selectedReferences(request);
         Dataset source=selectSources(request,sources);
         int sourceCount=request.get("datasetReferences") instanceof List<?> references ? references.size() : 1;
         String reference=source.reference();
@@ -114,12 +151,13 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         if (!capacity.tryAcquire()) return Map.of("operation","RUN_CODING","requestId",requestId,"taskId",taskId,
             "status","CAPACITY_UNAVAILABLE","resultAvailable",false);
         try {
-            return identity.as(scope,GRANTS,()->run(context,requestId,taskId,fingerprint,scope,source,instruction,rowSchema,sources,observer,sourceCount));
+            return identity.as(scope,GRANTS,()->run(context,requestId,taskId,fingerprint,scope,source,instruction,rowSchema,
+                sources,observer,sourceCount,selectedReferences));
         } finally {capacity.release();}
     }
     private Map<String,Object> run(AnalysisCoverageCoordinator.Request context,String requestId,String taskId,
             String fingerprint,KernelDataScope scope,Dataset source,String instruction,Map<String,Object> schema,Map<String,Dataset> sources,
-            java.util.function.Consumer<Map<String,Object>> observer,int sourceCount) {
+            java.util.function.Consumer<Map<String,Object>> observer,int sourceCount,List<String> selectedReferences) {
         String key="coding:analysis-request:"+taskId;
         var saved=checkpoints.readExecutionCheckpoint(scope,key);
         CodingTaskContract contract;
@@ -278,6 +316,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             receipt.put("usage",outcome.usage());
             receipt.put("budgetScope","TOOL_INVOCATION");
             receipt.put("budgetId",accepted.budget().budgetId());
+            receipt.put("inputDatasetCount", sourceCount);
+            receipt.put("inputSnapshotCaptureCount", 1);
             receipt.put("resultAvailable",false);
             if(outcome.reasonCode()!=null)receipt.put("reasonCode",outcome.reasonCode().name());
             if (outcome.reasonCode() == CodingErrorCode.OUTPUT_CONTRACT_VIOLATION) {
@@ -317,6 +357,15 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 receipt.put("resultAvailable",true);
                 receipt.put("datasetReference",result.reference());receipt.put("rowCount",result.recordCount());
                 receipt.put("evidenceRefs",refs);
+                var authorizedReferences = new LinkedHashSet<String>(selectedReferences);
+                var supplementalSnapshots = dataSupply == null ? List.<CodingInputSnapshotService.Snapshot>of()
+                    : dataSupply.snapshots(accepted, null);
+                supplementalSnapshots.stream()
+                    .map(CodingInputSnapshotService.Snapshot::sourceDatasetRef)
+                    .filter(reference -> reference != null && !reference.equals(source.reference()))
+                    .forEach(authorizedReferences::add);
+                receipt.put("authorizedDatasetReferences", List.copyOf(authorizedReferences));
+                receipt.put("supplementalDataSnapshotCount", supplementalSnapshots.size());
                 recordRejectionBudget(scope, taskId, false);
             }
             context.metadata().put("codingLastReceipt",Map.copyOf(receipt));
@@ -406,7 +455,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             return selected;
         }
         if(request.containsKey("datasetReference")||!(request.get("datasetReferences") instanceof List<?> refs)
-            ||refs.isEmpty()||refs.size()>8||new HashSet<>(refs).size()!=refs.size())throw new IllegalArgumentException("Select 1..8 unique delivered datasets");
+            ||refs.isEmpty()||refs.size()>MAX_PRIMARY_DATASETS||new HashSet<>(refs).size()!=refs.size())
+            throw new IllegalArgumentException("Select 1.."+MAX_PRIMARY_DATASETS+" unique delivered datasets");
         List<Dataset> selectedSources=new ArrayList<>();List<Map<String,Object>> versions=new ArrayList<>();
         long total=0;
         for(Object ref:refs) {
@@ -443,6 +493,11 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             return new com.chatchat.agents.orchestration.analysis.dataset.DatasetHandle.Page(offset,rows,offset+rows.size()<count);
         },null,()->{},Map.of("kind","CODING_INPUT_SET","sourceCount",selectedSources.size()));
         return new Dataset("coding-input-set:"+hash(versions),Map.of("inputVersions",List.copyOf(versions)),handle);
+    }
+    private List<String> selectedReferences(Map<String,Object> request) {
+        if (request.get("datasetReferences") instanceof List<?> references)
+            return references.stream().map(reference -> text(reference,512)).toList();
+        return List.of(text(request.get("datasetReference"),512));
     }
     private static void ensureActive(AnalysisCoverageCoordinator.Request context) {
         context.cancellationGuard().run();

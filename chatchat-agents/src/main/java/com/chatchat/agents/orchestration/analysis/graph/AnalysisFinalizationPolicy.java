@@ -8,6 +8,11 @@ import java.util.Map;
 public final class AnalysisFinalizationPolicy {
     private AnalysisFinalizationPolicy() {}
     public static String directPublicationReason(Map<String, Object> metadata) {
+        if (Boolean.TRUE.equals(metadata.get("codingOwnedAnalysisActive"))
+            && Boolean.TRUE.equals(metadata.get("analysisSynthesisBarrierReady"))
+            && (metadata.get("analysisResultDatasetReference") != null
+                || "NO_AUTHORIZED_DATA".equals(metadata.get("analysisSynthesisBarrierStatus"))))
+            return "CODING_RESULT_STRUCTURALLY_VERIFIED";
         if (Boolean.TRUE.equals(metadata.get("analysisFinalAdmissionBlocked")))
             return "ANALYSIS_PREFLIGHT_TERMINAL";
         if (!Boolean.TRUE.equals(metadata.get("interpretationPlanFinalResultProduced"))

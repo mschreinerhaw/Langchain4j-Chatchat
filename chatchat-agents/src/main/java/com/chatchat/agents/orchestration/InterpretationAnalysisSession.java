@@ -342,6 +342,21 @@ final class InterpretationAnalysisSession {
             metadata.put("refinementStopReason", "supplemental_discovery_complete");
             return FINAL_SUPPLEMENTAL;
         }
+        if (codingOwnedDataAnalysis()) {
+            metadata.put("analysisExecutionMode", "CODING_OWNED_DATA_ANALYSIS");
+            metadata.put("javaEvidenceExplorationSkipped", true);
+            metadata.put("javaEvidenceAugmentationSkipped", true);
+            latestRecordCoverage =
+                    host.analyzeClaimAdmissionCoverage(
+                            activeChatModel,
+                            query,
+                            firstResult,
+                            planAttemptResults,
+                            runtimeAttributes,
+                            metadata,
+                            cancellationCheck);
+            return FINAL_INITIAL;
+        }
         firstEvidence =
                 host.analyzeInterpretationPlanEvidence(
                         activeChatModel,
@@ -758,6 +773,21 @@ final class InterpretationAnalysisSession {
     }
 
     Phase refinementAnalysis() {
+        if (codingOwnedDataAnalysis()) {
+            metadata.put("analysisExecutionMode", "CODING_OWNED_DATA_ANALYSIS");
+            metadata.put("javaEvidenceExplorationSkipped", true);
+            metadata.put("javaEvidenceAugmentationSkipped", true);
+            latestRecordCoverage =
+                    host.analyzeClaimAdmissionCoverage(
+                            activeChatModel,
+                            query,
+                            currentResult,
+                            planAttemptResults,
+                            runtimeAttributes,
+                            metadata,
+                            cancellationCheck);
+            return FINAL_REFINED;
+        }
         currentEvidence =
                 host.analyzeInterpretationPlanEvidence(
                         activeChatModel,
@@ -1120,6 +1150,11 @@ final class InterpretationAnalysisSession {
         scoped.addAll(new InterpretationPlanOptimizer(host.toolRegistry)
             .runtimeCompanionTools(executablePlan));
         return List.copyOf(scoped);
+    }
+
+    private boolean codingOwnedDataAnalysis() {
+        return "DATA_ANALYSIS".equals(runtimeAttributes.get("workflowFamily"))
+                || "DATA_ANALYSIS".equals(runtimeAttributes.get("taskType"));
     }
 
     Phase execute(Phase phase) {

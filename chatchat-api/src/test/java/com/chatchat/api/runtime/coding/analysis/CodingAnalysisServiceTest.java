@@ -24,6 +24,27 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
+    @Test void primaryAnalysisBatchesNineAuthorizedDatasetsIntoOneGenericCodingAssignment() {
+        var service = spy(service());
+        doReturn(Map.of("status", "COMPLETED")).when(service).executeObserved(
+            any(AnalysisCoverageCoordinator.Request.class), anyMap(), anyMap(), any());
+        var delivered = new LinkedHashMap<String,Dataset>();
+        for (int i = 1; i <= 9; i++)
+            delivered.put("dataset-" + i, new Dataset("dataset-" + i, Map.of(), List.of(Map.of("value", i))));
+
+        service.executePrimaryAnalysis(context("tenant"), delivered, event -> {});
+
+        @SuppressWarnings("rawtypes") var request = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(service).executeObserved(any(AnalysisCoverageCoordinator.Request.class), request.capture(),
+            same(delivered), any());
+        @SuppressWarnings("unchecked") Map<String,Object> value = request.getValue();
+        assertThat((List<?>) value.get("datasetReferences")).hasSize(9);
+        assertThat(value.get("requestId")).isEqualTo("primary-data-analysis-v1");
+        assertThat(value.get("instruction").toString()).contains("Autonomously inspect", "User objective", "Question");
+        assertThat((Map<String,Object>) value.get("outputSchema")).containsEntry("type", "object");
+        verifyNoInteractions(agent, python, inputs, plans, collector);
+    }
+
     @Test void runtimeLifecycleSummaryIsNotSubmittedAsAnAnalyticalClaim() {
         var completed=outcome(CodingTaskOutcome.Status.COMPLETED,CodingTaskOutcome.ValidationStatus.INCONCLUSIVE);
         when(completed.summary()).thenReturn("runtime lifecycle marker: validation INCONCLUSIVE");
@@ -343,6 +364,8 @@ class CodingAnalysisServiceTest {
         when(parent.model().chat(anyString())).thenThrow(new AssertionError("No OS semantic veto"));
         var receipt=service().execute(parent,request(),sources());
         assertThat(receipt).containsEntry("resultAvailable",true).containsEntry("businessValidation","NOT_EVALUATED")
+            .containsEntry("inputDatasetCount",1).containsEntry("inputSnapshotCaptureCount",1)
+            .containsEntry("supplementalDataSnapshotCount",0)
             .doesNotContainKey("semanticAdmission");
         verify(parent.model(),never()).chat(anyString());
         verify(collector,never()).codeForReview(any(),anyString(),anyString());

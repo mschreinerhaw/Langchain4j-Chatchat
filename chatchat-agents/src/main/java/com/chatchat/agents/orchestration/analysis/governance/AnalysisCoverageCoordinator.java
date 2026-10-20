@@ -38,10 +38,10 @@ public final class AnalysisCoverageCoordinator {
     }
     public CoverageBundle analyze(Request request) {
         // QA also uses this evidence coordinator. Enforce Python only for model-classified analysis.
-        if ("DATA_ANALYSIS".equals(request.runtimeAttributes().get("workflowFamily"))
-            || "DATA_ANALYSIS".equals(request.runtimeAttributes().get("taskType")))
+        boolean codingOwned = isDataAnalysis(request);
+        if (codingOwned)
             request.metadata().put("analysisExecutionPolicy", "PYTHON_REQUIRED");
-        if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.VERSION.equals(request.runtimeAttributes().get("modelAnalysisProtocol")))
+        if (!codingOwned && com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.VERSION.equals(request.runtimeAttributes().get("modelAnalysisProtocol")))
             request.metadata().put("modelAnalysisProtocol", com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.VERSION);
         request.metadata().put("analysisDatasetProjectionAttempted", true);
         AnalysisEvidenceCoordinator.Projection projection = evidenceCoordinator.project(
@@ -65,11 +65,26 @@ public final class AnalysisCoverageCoordinator {
             writeEmptyProjectionCompletion(request, projection.excludedDatasets());
             boolean sourceFailed = projection.excludedDatasets().stream().anyMatch(
                 item -> "FAILED".equals(item.get("accountingStatus")));
+            if (codingOwned) {
+                request.metadata().put("codingOwnedAnalysisActive", true);
+                request.metadata().put("datasetAnalysisMode", "CODING_OWNED_DATA_ANALYSIS");
+                request.metadata().put("javaDataExplorationSkipped", true);
+                request.metadata().put("javaAnalysisRefinementSkipped", true);
+                request.metadata().put("javaPostCodingExplorationSkipped", true);
+                request.metadata().put("modelNativeReportDraft",
+                    "No authorized dataset was produced, so the requested data analysis could not be started.");
+                request.metadata().put("analysisSynthesisBarrierReady", true);
+                request.metadata().put("analysisSynthesisBarrierStatus", "NO_AUTHORIZED_DATA");
+            }
             return new CoverageBundle("", "", List.of(), 0, 0, 0, false,
                 !sourceFailed, true, !sourceFailed, 0, List.of(), List.of());
         }
 
-        return analyzeWithHarness(request, datasets);
+        return codingOwned ? analyzeWithCoding(request, datasets) : analyzeWithHarness(request, datasets);
+    }
+    private boolean isDataAnalysis(Request request) {
+        return "DATA_ANALYSIS".equals(request.runtimeAttributes().get("workflowFamily"))
+            || "DATA_ANALYSIS".equals(request.runtimeAttributes().get("taskType"));
     }
     private List<AnalysisEvidenceCoordinator.Dataset> externalizeLargeDatasets(
         List<AnalysisEvidenceCoordinator.Dataset> datasets, Request request) {
@@ -176,6 +191,133 @@ public final class AnalysisCoverageCoordinator {
     public record Configuration(int harnessMaxModelTurns) {
         public Configuration { harnessMaxModelTurns = Math.max(1, Math.min(64, harnessMaxModelTurns)); }
     }
+    private CoverageBundle analyzeWithCoding(Request request, List<AnalysisEvidenceCoordinator.Dataset> datasets) {
+        if (coding == null)
+            throw new IllegalStateException("PYTHON_ANALYSIS_UNAVAILABLE: data analysis requires an enabled Coding Agent and Python Sandbox");
+        request.cancellationGuard().run();
+        var sources = new LinkedHashMap<String, AnalysisEvidenceCoordinator.Dataset>();
+        for (var dataset : datasets) {
+            if (sources.putIfAbsent(dataset.reference(), dataset) != null)
+                throw new IllegalStateException("Duplicate delivered dataset reference");
+        }
+        request.metadata().remove("modelAnalysisProtocol");
+        request.metadata().remove("modelDecision");
+        request.metadata().remove("modelOutput");
+        request.metadata().remove("modelPublicationRequest");
+        request.metadata().remove("publicationState");
+        request.metadata().put("codingOwnedAnalysisActive", true);
+        request.metadata().put("datasetAnalysisMode", "CODING_OWNED_DATA_ANALYSIS");
+        request.metadata().put("recordAnalysisSummaryDispatchMode", "PRIMARY_CODING_TASK");
+        request.metadata().put("analysisSemanticReviewPolicy", "NONE_USER_JUDGES");
+        request.metadata().put("finalReportSemanticReviewPolicy", "STRUCTURE_AND_AUTHORIZED_REFERENCES_ONLY");
+        request.metadata().put("javaDataExplorationSkipped", true);
+        request.metadata().put("javaAnalysisRefinementSkipped", true);
+        request.metadata().put("javaPostCodingExplorationSkipped", true);
+        request.metadata().put("runtimeReturnedReportDatasets", List.of());
+        request.metadata().put("primaryCodingDispatchCount", 1);
+        request.metadata().put("javaContentAnalysisModelCallCount", 0);
+        long codingStartedAt = System.nanoTime();
+        observe(request, "Coding Agent primary analysis started", "coding_agent", metadataOf(
+            "stage", "PRIMARY_CODING_ANALYSIS", "eventState", "STARTED",
+            "datasetCount", datasets.size(),
+            "inputRecordCount", datasets.stream().mapToLong(AnalysisEvidenceCoordinator.Dataset::recordCount).sum(),
+            "snapshotFingerprint", request.metadata().get("analysisEvidenceSnapshotFingerprint")));
+        Map<String,Object> receipt = coding.executePrimaryAnalysis(request, sources, trace -> {
+            String event = String.valueOf(trace.getOrDefault("codingEventType", trace.getOrDefault("eventKind", "CODING_TRACE")));
+            observe(request, "Coding Agent analysis: " + event, "coding_agent", trace);
+        });
+        long codingDurationMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - codingStartedAt);
+        request.metadata().put("primaryCodingDurationMs", codingDurationMs);
+        request.metadata().put("primaryCodingUsage", receipt.getOrDefault("usage", Map.of()));
+        request.metadata().put("analysisInputDatasetCount", receipt.getOrDefault("inputDatasetCount", datasets.size()));
+        request.metadata().put("analysisInputSnapshotCaptureCount", receipt.getOrDefault("inputSnapshotCaptureCount", 0));
+        request.metadata().put("analysisSupplementalSnapshotCount", receipt.getOrDefault("supplementalDataSnapshotCount", 0));
+        observe(request, "Coding Agent primary analysis completed", "coding_agent", metadataOf(
+            "stage", "PRIMARY_CODING_ANALYSIS", "eventState", "COMPLETED",
+            "durationMs", codingDurationMs, "status", receipt.getOrDefault("status", "UNKNOWN"),
+            "resultAvailable", receipt.getOrDefault("resultAvailable", false),
+            "usage", receipt.getOrDefault("usage", Map.of())));
+        request.metadata().put("primaryCodingReceipt", Map.copyOf(receipt));
+        if (!Boolean.TRUE.equals(receipt.get("resultAvailable")))
+            throw new IllegalStateException("PRIMARY_CODING_ANALYSIS_FAILED: status="
+                + receipt.getOrDefault("status", "UNKNOWN") + ", reason="
+                + receipt.getOrDefault("reasonCode", receipt.getOrDefault("summary", "result unavailable")));
+        String resultReference = String.valueOf(receipt.getOrDefault("datasetReference", ""));
+        var resultDataset = sources.get(resultReference);
+        if (resultReference.isBlank() || resultDataset == null)
+            throw new IllegalStateException("Primary Coding result was not registered in the authorized analysis scope");
+        if (!resultDataset.handle().recordCountExact() || resultDataset.recordCount() != 1)
+            throw new IllegalStateException("Primary Coding analysis must produce exactly one report row");
+        var page = resultDataset.handle().readPage(0, 2);
+        if (page.rows().size() != 1)
+            throw new IllegalStateException("Primary Coding report row is unavailable");
+        Map<String,Object> row = page.rows().get(0);
+        String report = String.valueOf(row.getOrDefault("reportMarkdown", "")).trim();
+        if (report.isBlank()) throw new IllegalStateException("Primary Coding report is empty");
+        List<String> cited = stringList(row.get("evidenceReferences"));
+        List<String> limitations = stringList(row.get("limitations"));
+        Set<String> authorized = new LinkedHashSet<>(stringList(receipt.get("authorizedDatasetReferences")));
+        if (authorized.isEmpty()) authorized.addAll(datasets.stream().map(AnalysisEvidenceCoordinator.Dataset::reference).toList());
+        if (cited.isEmpty() || !authorized.containsAll(cited))
+            throw new SecurityException("Primary Coding report cites data outside its authorized immutable inputs");
+        var reportDataset = com.chatchat.agents.orchestration.analysis.report.ReturnedReportDataset.capture(
+            resultReference, page.rows(), resultDataset.analysisContext());
+        request.metadata().put("runtimeReturnedReportDatasets", List.of(reportDataset));
+        request.metadata().put("modelNativeReportDraft", report);
+        request.metadata().put("codingOwnedReportEvidenceReferences", cited);
+        request.metadata().put("codingOwnedReportLimitations", limitations);
+        request.metadata().put("analysisResultDatasetReference", resultReference);
+        request.metadata().put("analysisSynthesisBarrierReady", true);
+        request.metadata().put("analysisSynthesisBarrierStatus", "READY");
+        request.metadata().put("analysisModelIntent", Map.of(
+            "protocol", "coding_owned_analysis.v1", "action", "PUBLISH",
+            "resultDatasetReference", resultReference));
+        long rows = datasets.stream().mapToLong(AnalysisEvidenceCoordinator.Dataset::recordCount).sum();
+        int count = Math.toIntExact(rows);
+        var failures = sourceFailureDatasets(request.metadata());
+        boolean[] sourceCompleteness = {true};
+        datasets.forEach(dataset -> dataset.handle().scan(1000, sourcePage -> {
+            request.cancellationGuard().run();
+            sourceCompleteness[0] &= sourcePage.rows().stream()
+                .noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
+        }));
+        boolean availableComplete = failures.isEmpty();
+        request.metadata().put("recordAnalysisDatasetCount", datasets.size());
+        request.metadata().put("recordAnalysisSuccessfulDatasetCount", datasets.size());
+        request.metadata().put("recordAnalysisFailedDatasetCount", failures.size());
+        request.metadata().put("recordAnalysisReturnedRecordCount", count);
+        request.metadata().put("recordAnalysisProcessedRecordCount", count);
+        request.metadata().put("recordAnalysisCoverageComplete", availableComplete);
+        request.metadata().put("recordAnalysisEvidenceTraceComplete", availableComplete);
+        request.metadata().put("recordAnalysisSourceContentComplete", sourceCompleteness[0]);
+        request.metadata().put("recordAnalysisProcessingMeaning", "CODING_AGENT_ANALYZED_AUTHORIZED_IMMUTABLE_SNAPSHOT");
+        request.metadata().put("datasetCompletionSnapshot", Map.of(
+            "successfulDatasetReferences", datasets.stream().map(AnalysisEvidenceCoordinator.Dataset::reference).toList(),
+            "failedDatasetReferences", failures.stream().map(item -> item.get("datasetReference")).toList(),
+            "analysisResultDatasetReference", resultReference, "partial", !availableComplete));
+        var summary = AnalysisSummaryResult.chunk(request.isolationScope(),
+            Map.of("datasetReference", resultReference, "recordFrom", 1, "recordTo", 1, "totalRecords", 1),
+            Map.of("analysisMode", "CODING_OWNED_DATA_ANALYSIS"), report, "CODING_AGENT_AUTHORED",
+            Map.of("authority", "CODING_AGENT_AUTHORED_NOT_RUNTIME_CERTIFIED",
+                "datasetReferences", cited, "resultEvidenceRefs", receipt.getOrDefault("evidenceRefs", List.of()),
+                "limitations", limitations));
+        return new CoverageBundle(
+            "Coding Agent completed the analysis over the authorized immutable datasets; Runtime retained only control and publication metadata.",
+            "", List.of(), count, count, 1, false, availableComplete, sourceCompleteness[0], availableComplete,
+            0, List.of(summary), List.of(summary));
+    }
+
+    private List<String> stringList(Object value) {
+        if (!(value instanceof Iterable<?> values)) return List.of();
+        List<String> result = new ArrayList<>();
+        for (Object item : values) {
+            if (!(item instanceof String text) || text.isBlank())
+                throw new IllegalArgumentException("Coding report reference/limitation entries must be non-blank strings");
+            result.add(text);
+        }
+        return List.copyOf(result);
+    }
+
     private CoverageBundle analyzeWithHarness(Request request, List<AnalysisEvidenceCoordinator.Dataset> datasets) {
         var skillContext = com.chatchat.agents.runtime.context.SkillAnalysisContext.from(request.runtimeAttributes());
         if (!skillContext.isEmpty()) request.metadata().put("skillAnalysisContext", skillContext);

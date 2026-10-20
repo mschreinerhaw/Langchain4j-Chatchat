@@ -15,6 +15,32 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 class InterpretationRefinementAdmissionTest {
+    @Test
+    void dataAnalysisSkipsJavaEvidenceExplorationAndGoesDirectlyToCodingCoverage() throws Exception {
+        AgentOrchestrationEngine host = mock(AgentOrchestrationEngine.class);
+        var metadata = new LinkedHashMap<String, Object>();
+        var result = new InterpretationPlanRuntime.ExecutionResult(
+            "completed", true, false, null, null, List.of(), Map.of(), 1L);
+        var coverage = new AgentOrchestrator.RecordCoverageBundle(
+            "", "", List.of(), 1, 1, 1, false, true, true, true, 0, List.of(), List.of());
+        when(host.analyzeClaimAdmissionCoverage(any(), anyString(), eq(result), anyList(), anyMap(),
+            eq(metadata), any())).thenReturn(coverage);
+        var session = new InterpretationAnalysisSession(host, null, mock(ChatModel.class), "analyze", "", "tenant",
+            "request", "conversation", "user", List.of("query"), Map.of("workflowFamily", "DATA_ANALYSIS"),
+            new ArrayList<>(), new ArrayList<>(), metadata, List.of(), List.of(), 5, 10, () -> false);
+        set(session, "firstResult", result);
+        set(session, "planAttemptResults", List.of(result));
+
+        assertThat(session.initialAnalysis()).isEqualTo(
+            com.chatchat.agents.orchestration.analysis.graph.InterpretationAnalysisGraph.Phase.FINAL_INITIAL);
+        assertThat(metadata).containsEntry("analysisExecutionMode", "CODING_OWNED_DATA_ANALYSIS")
+            .containsEntry("javaEvidenceExplorationSkipped", true)
+            .containsEntry("javaEvidenceAugmentationSkipped", true);
+        verify(host).analyzeClaimAdmissionCoverage(any(), anyString(), eq(result), anyList(), anyMap(), eq(metadata), any());
+        verify(host, never()).analyzeInterpretationPlanEvidence(any(), anyString(), anyString(), any(), any(), anyInt(),
+            anyList(), anyMap(), anyMap(), any());
+    }
+
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.CsvSource({"0,0,false", "1,0,true", "1,1,false", "2,1,true", "2,2,false"})
     void declaredDependencyRecoveryUsesPlanBudgetIndependentlyOfEvidenceSuggestions(

@@ -7,6 +7,22 @@ import java.util.LinkedHashMap;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AnalysisFinalizationPolicyTest {
+    @Test void structurallyVerifiedCodingReportEndsWithoutAJavaReviewer() {
+        assertThat(AnalysisFinalizationPolicy.directPublicationReason(Map.of(
+            "codingOwnedAnalysisActive", true,
+            "analysisSynthesisBarrierReady", true,
+            "analysisResultDatasetReference", "runtime-evidence:result")))
+            .isEqualTo("CODING_RESULT_STRUCTURALLY_VERIFIED");
+        assertThat(AnalysisFinalizationPolicy.directPublicationReason(Map.of(
+            "codingOwnedAnalysisActive", true,
+            "analysisSynthesisBarrierReady", false,
+            "analysisResultDatasetReference", "runtime-evidence:result"))).isEmpty();
+        assertThat(AnalysisFinalizationPolicy.directPublicationReason(Map.of(
+            "codingOwnedAnalysisActive", true,
+            "analysisSynthesisBarrierReady", true,
+            "analysisSynthesisBarrierStatus", "NO_AUTHORIZED_DATA")))
+            .isEqualTo("CODING_RESULT_STRUCTURALLY_VERIFIED");
+    }
     @Test void admittedStructuredReportIsNotSentToAnotherModel() {
         var metadata = new LinkedHashMap<String,Object>(Map.of(
             "analysisGraphStatus", "COMPLETED_WITH_LIMITATIONS", "finalClaimSelectionAccepted", true,

@@ -4,6 +4,7 @@ import com.chatchat.agents.orchestration.analysis.nodes.synthesis.FinalSynthesis
 
 import com.chatchat.agents.orchestration.AgentRunResultAdapter;
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator;
+import com.chatchat.agents.orchestration.analysis.graph.AnalysisCodingPort;
 import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore;
@@ -17,11 +18,56 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AnalysisCoverageCoordinatorTest {
+    @Test void dataAnalysisDelegatesTheWholeAnalysisToCodingWithoutCallingTheJavaModel() {
+        var evidence = mock(AnalysisEvidenceCoordinator.class);
+        var datasets = List.of(
+            new AnalysisEvidenceCoordinator.Dataset("source-1", Map.of(), List.of(Map.of("key", "A", "value", 1))),
+            new AnalysisEvidenceCoordinator.Dataset("source-2", Map.of(), List.of(Map.of("key", "A", "value", 2))));
+        when(evidence.project(any(), any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(datasets, List.of()));
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        var coding = new AnalysisCodingPort() {
+            public Map<String,String> capabilities() { return Map.of(); }
+            public Map<String,Object> execute(AnalysisCoverageCoordinator.Request context, Map<String,Object> request,
+                    Map<String,AnalysisEvidenceCoordinator.Dataset> sources) { throw new AssertionError("legacy coding loop used"); }
+            public Map<String,Object> executePrimaryAnalysis(AnalysisCoverageCoordinator.Request context,
+                    Map<String,AnalysisEvidenceCoordinator.Dataset> sources,
+                    java.util.function.Consumer<Map<String,Object>> observer) {
+                calls.incrementAndGet();
+                sources.put("coding-result", new AnalysisEvidenceCoordinator.Dataset("coding-result", Map.of(), List.of(Map.of(
+                    "reportMarkdown", "# Result\nComputed by Coding.",
+                    "evidenceReferences", List.of("source-1", "source-2"),
+                    "limitations", List.of("None declared")))));
+                return Map.of("status", "COMPLETED", "resultAvailable", true,
+                    "datasetReference", "coding-result", "authorizedDatasetReferences", List.of("source-1", "source-2"),
+                    "evidenceRefs", List.of("runtime-evidence:receipt"));
+            }
+        };
+        var coordinator = coordinator(evidence);
+        coordinator.setCodingPort(coding);
+        var model = mock(dev.langchain4j.model.chat.ChatModel.class);
+        var metadata = new LinkedHashMap<String,Object>();
+        var base = request(metadata);
+
+        var coverage = coordinator.analyze(new AnalysisCoverageCoordinator.Request(model, "Question", base.result(),
+            Map.of("workflowFamily", "DATA_ANALYSIS", "modelAnalysisProtocol", "model_native_analysis.v2"), metadata,
+            () -> false, () -> {}, base.isolationScope(), base.summaryProtocol()));
+
+        assertThat(calls).hasValue(1);
+        assertThat(metadata).containsEntry("datasetAnalysisMode", "CODING_OWNED_DATA_ANALYSIS")
+            .containsEntry("modelNativeReportDraft", "# Result\nComputed by Coding.")
+            .containsEntry("javaDataExplorationSkipped", true)
+            .doesNotContainKey("modelAnalysisProtocol");
+        assertThat(coverage.returnedRecordCount()).isEqualTo(2);
+        assertThat(coverage.iterations()).isEqualTo(1);
+        org.mockito.Mockito.verifyNoInteractions(model);
+    }
+
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings={"workflowFamily","taskType"})
     void modelClassifiedDataAnalysisRequiresPythonBeforeAnyRawDataPrompt(String classificationKey) {
@@ -36,20 +82,54 @@ class AnalysisCoverageCoordinatorTest {
             .isInstanceOf(IllegalStateException.class).hasMessageContaining("PYTHON_ANALYSIS_UNAVAILABLE");
         org.mockito.Mockito.verifyNoInteractions(model);
     }
+
+    @Test void dataAnalysisRejectsEvidenceReferencesOutsideTheAuthorizedSnapshot() {
+        var evidence = mock(AnalysisEvidenceCoordinator.class);
+        when(evidence.project(any(), any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(
+            new AnalysisEvidenceCoordinator.Dataset("authorized-source", Map.of(), List.of(Map.of("value", 1)))), List.of()));
+        var coding = new AnalysisCodingPort() {
+            public Map<String,String> capabilities() { return Map.of(); }
+            public Map<String,Object> execute(AnalysisCoverageCoordinator.Request context, Map<String,Object> request,
+                    Map<String,AnalysisEvidenceCoordinator.Dataset> sources) { throw new AssertionError("legacy coding loop used"); }
+            public Map<String,Object> executePrimaryAnalysis(AnalysisCoverageCoordinator.Request context,
+                    Map<String,AnalysisEvidenceCoordinator.Dataset> sources,
+                    java.util.function.Consumer<Map<String,Object>> observer) {
+                sources.put("coding-result", new AnalysisEvidenceCoordinator.Dataset("coding-result", Map.of(), List.of(Map.of(
+                    "reportMarkdown", "Unsupported conclusion",
+                    "evidenceReferences", List.of("unauthorized-source"),
+                    "limitations", List.of()))));
+                return Map.of("status", "COMPLETED", "resultAvailable", true,
+                    "datasetReference", "coding-result", "authorizedDatasetReferences", List.of("authorized-source"));
+            }
+        };
+        var coordinator = coordinator(evidence);
+        coordinator.setCodingPort(coding);
+        var metadata = new LinkedHashMap<String,Object>();
+        var base = request(metadata);
+
+        assertThatThrownBy(() -> coordinator.analyze(new AnalysisCoverageCoordinator.Request(null, "Question", base.result(),
+            Map.of("workflowFamily", "DATA_ANALYSIS"), metadata, () -> false, () -> {},
+            base.isolationScope(), base.summaryProtocol())))
+            .isInstanceOf(SecurityException.class)
+            .hasMessageContaining("outside its authorized immutable inputs");
+    }
     @Test void explicitV2ModeCanThinkWithoutInitialDatasetsAndRetainItsCompletionIntent() {
         var evidence = mock(AnalysisEvidenceCoordinator.class);
         when(evidence.project(any(), any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(), List.of()));
         var model = mock(dev.langchain4j.model.chat.ChatModel.class);
-        when(model.chat(any(String.class))).thenReturn(com.chatchat.agents.protocol.ModelProtocolJson.compact(Map.of(
-            "schemaVersion", "model_native_analysis.v2", "decision", Map.of("action", "COMPLETE"), "reportMarkdown", "Working notes")));
+        when(model.chat(any(dev.langchain4j.model.chat.request.ChatRequest.class))).thenReturn(
+            dev.langchain4j.model.chat.response.ChatResponse.builder().aiMessage(dev.langchain4j.data.message.AiMessage.from(
+                com.chatchat.agents.protocol.ModelProtocolJson.compact(Map.of(
+                    "schemaVersion", "model_native_analysis.v2", "decision", Map.of("action", "COMPLETE"),
+                    "output_type", "final", "content", "Working notes", "plan", validPlan(), "evidenceRequests", List.of())))).build());
         var coordinator = coordinator(evidence); var metadata = new LinkedHashMap<String,Object>();
         var base = request(metadata);
         var result = coordinator.analyze(new AnalysisCoverageCoordinator.Request(model, "Question", base.result(),
             Map.of("modelAnalysisProtocol", "model_native_analysis.v2"), metadata, () -> false, () -> {}, base.isolationScope(), base.summaryProtocol()));
-        assertThat(metadata).containsEntry("publicationState", "NOT_REQUESTED").containsEntry("modelAnalysisOutput", "Working notes");
+        assertThat(metadata).containsEntry("publicationState", "REQUESTED").containsEntry("modelAnalysisOutput", "Working notes");
         assertThat(((Map<?,?>) metadata.get("modelDecision")).get("action")).isEqualTo("COMPLETE");
         assertThat(result.returnedRecordCount()).isZero();
-        org.mockito.Mockito.verify(model).chat(any(String.class));
+        org.mockito.Mockito.verify(model).chat(any(dev.langchain4j.model.chat.request.ChatRequest.class));
     }
 
     @Test
@@ -64,7 +144,11 @@ class AnalysisCoverageCoordinatorTest {
         var insight = mock(DeterministicInsightEngine.class);
         var protocol = mock(DataAnalysisSummaryProtocol.class);
         var model = mock(dev.langchain4j.model.chat.ChatModel.class);
-        when(model.chat(any(String.class))).thenReturn("Model-selected final analysis.");
+        when(model.chat(any(dev.langchain4j.model.chat.request.ChatRequest.class))).thenReturn(
+            dev.langchain4j.model.chat.response.ChatResponse.builder().aiMessage(dev.langchain4j.data.message.AiMessage.from(
+                com.chatchat.agents.protocol.ModelProtocolJson.compact(Map.of(
+                    "schemaVersion", "model_native_analysis.v2", "decision", Map.of("action", "COMPLETE"),
+                    "output_type", "final", "content", "Model-selected final analysis.", "plan", validPlan(), "evidenceRequests", List.of())))).build());
         var coordinator = new AnalysisCoverageCoordinator(mock(AgentRunResultAdapter.class), "agentRunId", evidence,
             AnalysisEvidenceSpillStore.disabled(),
             new AnalysisCoverageCoordinator.Configuration(8));
@@ -73,7 +157,7 @@ class AnalysisCoverageCoordinatorTest {
         var result = coordinator.analyze(new AnalysisCoverageCoordinator.Request(model, "Question", execution, Map.of(), metadata,
             () -> false, () -> {}, GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation"), protocol));
         assertThat(metadata).containsEntry("modelNativeHarnessActive", true)
-            .containsEntry("modelNativeReportDraft", "Model-selected final analysis.")
+            .containsEntry("modelAnalysisOutput", "Model-selected final analysis.")
             .containsEntry("recordAnalysisFailedDatasetCount", 1);
         assertThat(result.sourceContentComplete()).isFalse();
         assertThat(result.evidenceTraceComplete()).isFalse();
@@ -156,6 +240,12 @@ class AnalysisCoverageCoordinatorTest {
             mock(AgentRunResultAdapter.class), "agentRunId", evidence,
             AnalysisEvidenceSpillStore.disabled(),
             new AnalysisCoverageCoordinator.Configuration(8));
+    }
+
+    private static Map<String,Object> validPlan() {
+        return Map.of("version", "1.0", "intent", Map.of("type", "analysis", "goal", "Answer the question"),
+            "context", Map.of("key_facts", List.of(), "assumptions", List.of(), "missing_info", List.of(), "constraints", List.of()),
+            "plan", Map.of("steps", List.of(Map.of("id", 1, "action_type", "reasoning", "input", Map.of(), "depends_on", List.of()))));
     }
 
     @Test

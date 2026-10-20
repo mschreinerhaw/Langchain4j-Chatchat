@@ -127,7 +127,9 @@ public final class FinalSynthesisNode {
                 Map.of("type", "visualization_planning", "eventKind", "VISUALIZATION_PLANNING", "stage", "VISUALIZATION_PLANNING", "planning", planning, "checks", plan.checks()));
         }
         if (answer.isBlank()) throw new IllegalStateException("Report contains no publishable content");
-        request.metadata().put("analysisReportGenerationMode", "MODEL_NATIVE_HARNESS");
+        boolean codingOwned = Boolean.TRUE.equals(request.metadata().get("codingOwnedAnalysisActive"));
+        request.metadata().put("analysisReportGenerationMode",
+            codingOwned ? "CODING_AGENT" : "MODEL_NATIVE_HARNESS");
         request.metadata().put("analysisSemanticReviewPolicy", "NONE_USER_JUDGES");
         request.metadata().put("analysisReportBodyPreserved", true);
         request.metadata().put("analysisReportContract", AnalysisReportContract.modelReport(answer, 0, 0, 1).toMap());
@@ -141,7 +143,7 @@ public final class FinalSynthesisNode {
         answerCandidateCollector.register(request.metadata(), AnswerCandidateCollector.FINAL_SYNTHESIS, answer);
         resultAdapter.recordRuntimeObservation(request.runtimeAttributes(), runIdAttribute,
             "Model-authored report published without a semantic quality gate or another summary model call.", "interpretation_plan_summary",
-            Map.of("type", "final_summary", "workflow", "model_native_harness", "stage", request.stage(),
+            Map.of("type", "final_summary", "workflow", codingOwned ? "coding_owned_analysis" : "model_native_harness", "stage", request.stage(),
                 "modelCalls", 0, "analysisSummaryResult", governed.toMap(), "reportQualityAuthority", "USER"));
         if (com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata()))
             request.metadata().put("publicationState", "DELIVERED");

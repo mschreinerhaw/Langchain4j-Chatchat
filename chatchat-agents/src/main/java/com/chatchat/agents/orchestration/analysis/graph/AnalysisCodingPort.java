@@ -14,4 +14,16 @@ public interface AnalysisCodingPort {
         java.util.function.Consumer<Map<String,Object>> observer) {
         return execute(context, request, deliveredSources);
     }
+
+    /**
+     * Runs the primary DATA_ANALYSIS assignment over all data already delivered by Runtime OS.
+     * The implementation owns analysis planning, programming and technical repair. Runtime keeps
+     * authorization, immutable input capture and structural result admission.
+     */
+    default Map<String, Object> executePrimaryAnalysis(
+        AnalysisCoverageCoordinator.Request context,
+        Map<String, Dataset> deliveredSources,
+        java.util.function.Consumer<Map<String,Object>> observer) {
+        throw new IllegalStateException("Primary Coding analysis is unavailable");
+    }
 }

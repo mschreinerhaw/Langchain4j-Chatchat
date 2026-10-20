@@ -1,0 +1,46 @@
+{
+  "case": "scenario1-final",
+  "code": [
+    {
+      "file": "scenario1-final-code-1.py",
+      "sha256": "09fcebc79f8b3ef71e7a12d5884e9254acc68b6399f999c67e94507c43eb23c1",
+      "redacted": false,
+      "lines": 448,
+      "operationId": "cline-a10d6af856460d6ef106edff45662eb3254fc33bc9bf56480228e1ab86d4305e"
+    },
+    {
+      "file": "scenario1-final-code-2.py",
+      "sha256": "be69eba8f4d5ee04d7d2a50eb59d7bccddf0c36b60119f1a0cf4fa4b836d93a7",
+      "redacted": false,
+      "lines": 414,
+      "operationId": "cline-59a7d13309eb780c2058d91513c65e08cb080e42a7724cdf34a6a92eb40b41e1"
+    },
+    {
+      "file": "scenario1-final-code-3.py",
+      "sha256": "e04c79895444c319537c6d3faa452be9b47f39c32bd8befb675041603361ab7a",
+      "redacted": false,
+      "lines": 415,
+      "operationId": "cline-57365942f0821421cf627562e359300cc1418d3a748a2b626c51c00f1f58819d"
+    }
+  ],
+  "sqlFiles": [
+    {
+      "file": "scenario1-final-sql-1.sql",
+      "blockIndex": 1,
+      "sha256": "b4c96f1619659fc5bb69fb73f0926fe37c7211696ce9968e285c39c5e07fd4c6"
+    },
+    {
+      "file": "scenario1-final-sql-2.sql",
+      "blockIndex": 2,
+      "sha256": "bc262073f7c8e2aedb9c67221a388379996fd37afcbfdf76f83e15d9ffed13c8"
+    },
+    {
+      "file": "scenario1-final-sql-3.sql",
+      "blockIndex": 3,
+      "sha256": "41529c2718125cd879bbd6869f1244585f64729845de8e57ecadaeeda36d8a87"
+    }
+  ],
+  "answerSha256": "094cdeb3dcd6c805630bc9a7a218b4d951c48d0105eb08dc5bc6df2c7cfa7aa9",
+  "answerCharacters": 12394,
+  "sqlBlocks": 3
+}

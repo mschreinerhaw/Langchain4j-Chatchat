@@ -1,0 +1,21 @@
+{
+  "comparisonBaseline": "375a89a9 acceptance evidence; not original frozen baseline",
+  "beforeTotals": {
+    "tests": 1152,
+    "failures": 52,
+    "errors": 39,
+    "skipped": 0
+  },
+  "afterTotals": {
+    "tests": 1155,
+    "failures": 52,
+    "errors": 39,
+    "skipped": 0
+  },
+  "reportedSuites": 248,
+  "addedFailureFingerprints": [],
+  "removedFailureFingerprints": [],
+  "unchangedFailureFingerprints": 91,
+  "passed": false,
+  "nativeCrash": "Windows RocksDB JNI EXCEPTION_ILLEGAL_INSTRUCTION; dependent modules incomplete"
+}

@@ -1,0 +1,31 @@
+{
+  "javaDirected": {
+    "classes": 25,
+    "tests": 190,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "buildSuccess": true
+  },
+  "javaFinalPromptRecheck": {
+    "classes": 3,
+    "tests": 35,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "buildSuccess": true
+  },
+  "recheckOverlapsDirected": true,
+  "node": {
+    "passed": 44,
+    "skipped": 0
+  },
+  "browser": {
+    "passed": 12,
+    "providerLive": false
+  },
+  "scripts": {
+    "passed": 3
+  },
+  "liveFinalScenarios": 3
+}

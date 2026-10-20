@@ -21,7 +21,8 @@ for path in sorted(evidence.glob('scenario*-*.json')):
     state = get(endpoint+'/status?eventLimit=5')
     print(json.dumps({'case':path.stem,'taskId':data['taskId'],'state':state['canonicalState'],
         'error':state.get('errorMessage'),'coding':[(t.get('taskId'),t.get('outcome',{}).get('status')) for t in data.get('tasks',[])],
-        'acceptance':data.get('status')}, ensure_ascii=False), flush=True)
+        'acceptance':data.get('status'),'archivedPrograms':len(data.get('codeSubmissions',[])),
+        'codingModelCalls':[item.get('outcome',{}).get('usage',{}).get('consumed',{}).get('modelCalls') for item in data.get('tasks',[])]}, ensure_ascii=False), flush=True)
     if state.get('answerAvailable'):
         answer = get(endpoint+'/answer')
         path.with_name(path.stem+'-answer.json').write_text(json.dumps(answer,ensure_ascii=False,indent=2))

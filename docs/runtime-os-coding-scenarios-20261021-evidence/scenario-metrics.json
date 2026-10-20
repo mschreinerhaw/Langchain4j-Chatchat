@@ -1,0 +1,2658 @@
+{
+  "scenario-qa-final": {
+    "schemaVersion": "runtime_os.analysis.performance.v1",
+    "taskId": "b366a8aa-5f8a-30a4-a766-d398d19e1fc1",
+    "runId": "att-1-66dab1a1-6802-4f6f-8cf2-c03785d545af",
+    "status": "SUCCEEDED",
+    "endToEndMs": 108453,
+    "codingTasks": 1,
+    "codingModelCalls": 5,
+    "codingModelDurationMs": 87535,
+    "javaModelCalls": null,
+    "javaModelDurationMs": null,
+    "javaPlanningModelDurationMs": null,
+    "planningBeforeFirstBatchMs": null,
+    "templateBatchCount": 0,
+    "templateBatchDurationMs": 0,
+    "inputTokens": 81467,
+    "outputTokens": 9030,
+    "javaInputTokens": null,
+    "javaOutputTokens": null,
+    "javaTokenUsageObserved": 0,
+    "cacheTelemetry": "OBSERVED",
+    "cacheReadTokens": 46208,
+    "cacheObservedCalls": 5,
+    "cacheEligibleCalls": 5,
+    "cacheHitRatioObserved": 0.56719898854751,
+    "pythonExecutions": 2,
+    "pythonRoundtripMs": 6207,
+    "pythonContainersReleased": 2,
+    "pythonCleanupPending": 0,
+    "pythonProcessMs": 2190,
+    "pythonStartMs": 1379,
+    "pythonArchiveMs": 639,
+    "retryReasons": {},
+    "firstExecutionProducedResult": true,
+    "runtimeSemanticReviews": 0,
+    "spans": [
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-05916671106fa034bb82b9013c7255c3218dccef487177fdff3f206a0a848ec3",
+        "operationId": "model-1",
+        "startedAt": "2026-10-20T16:45:20.298660952Z",
+        "finishedAt": "2026-10-20T16:46:11.556522914Z",
+        "durationMs": 51257,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 11469,
+          "outputTokens": 4631,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 2607
+        },
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": null,
+        "selectedModel": "hy3",
+        "providerModel": "hy3"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-05916671106fa034bb82b9013c7255c3218dccef487177fdff3f206a0a848ec3",
+        "operationId": "model-2",
+        "startedAt": "2026-10-20T16:46:15.030016430Z",
+        "finishedAt": "2026-10-20T16:46:17.833399279Z",
+        "durationMs": 2803,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 14351,
+          "outputTokens": 116,
+          "cacheReadTokens": 11392,
+          "reasoningTokens": 25
+        },
+        "cacheReadTokens": 11392,
+        "cacheWriteTokens": null,
+        "selectedModel": "hy3",
+        "providerModel": "hy3"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-05916671106fa034bb82b9013c7255c3218dccef487177fdff3f206a0a848ec3",
+        "operationId": "model-3",
+        "startedAt": "2026-10-20T16:46:18.583682306Z",
+        "finishedAt": "2026-10-20T16:46:40.025070659Z",
+        "durationMs": 21441,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 16060,
+          "outputTokens": 3325,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 1333
+        },
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": null,
+        "selectedModel": "hy3",
+        "providerModel": "hy3"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-05916671106fa034bb82b9013c7255c3218dccef487177fdff3f206a0a848ec3",
+        "operationId": "model-4",
+        "startedAt": "2026-10-20T16:46:44.537872029Z",
+        "finishedAt": "2026-10-20T16:46:47.545417062Z",
+        "durationMs": 3007,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 18901,
+          "outputTokens": 91,
+          "cacheReadTokens": 15936,
+          "reasoningTokens": 0
+        },
+        "cacheReadTokens": 15936,
+        "cacheWriteTokens": null,
+        "selectedModel": "hy3",
+        "providerModel": "hy3"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-05916671106fa034bb82b9013c7255c3218dccef487177fdff3f206a0a848ec3",
+        "operationId": "model-5",
+        "startedAt": "2026-10-20T16:46:48.695848531Z",
+        "finishedAt": "2026-10-20T16:46:57.723065446Z",
+        "durationMs": 9027,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 20686,
+          "outputTokens": 867,
+          "cacheReadTokens": 18880,
+          "reasoningTokens": 366
+        },
+        "cacheReadTokens": 18880,
+        "cacheWriteTokens": null,
+        "selectedModel": "hy3",
+        "providerModel": "hy3"
+      },
+      {
+        "layer": "PYTHON",
+        "phase": "dispatch_execution_collection_roundtrip",
+        "taskId": "analysis-coding-05916671106fa034bb82b9013c7255c3218dccef487177fdff3f206a0a848ec3",
+        "operationId": "cline-9684c9935496aa67ee8281dcc715d9ac666baf5c1e1c2ca88d73031c34c4589e",
+        "startedAt": 1792514771914,
+        "finishedAt": 1792514774650,
+        "durationMs": 2736,
+        "state": "SUCCEEDED",
+        "outputStatus": null,
+        "validationStatus": "INCONCLUSIVE",
+        "resultAvailable": true,
+        "resultAvailabilitySource": "EXPLICIT"
+      },
+      {
+        "layer": "PYTHON",
+        "phase": "dispatch_execution_collection_roundtrip",
+        "taskId": "analysis-coding-05916671106fa034bb82b9013c7255c3218dccef487177fdff3f206a0a848ec3",
+        "operationId": "cline-20f4a2ced24dc82df7cf440121f9886ce15dc198ae723537ce34c8cdf0626ea6",
+        "startedAt": 1792514800594,
+        "finishedAt": 1792514804065,
+        "durationMs": 3471,
+        "state": "SUCCEEDED",
+        "outputStatus": null,
+        "validationStatus": "INCONCLUSIVE",
+        "resultAvailable": true,
+        "resultAvailabilitySource": "EXPLICIT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-05916671106fa034bb82b9013c7255c3218dccef487177fdff3f206a0a848ec3",
+        "operationId": "cline-9684c9935496aa67ee8281dcc715d9ac666baf5c1e1c2ca88d73031c34c4589e",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "accepted_to_container_start",
+        "startedAt": "2026-10-20T16:46:12.137174+00:00",
+        "finishedAt": "2026-10-20T16:46:12.703108+00:00",
+        "durationMs": 566,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-05916671106fa034bb82b9013c7255c3218dccef487177fdff3f206a0a848ec3",
+        "operationId": "cline-9684c9935496aa67ee8281dcc715d9ac666baf5c1e1c2ca88d73031c34c4589e",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "container_process",
+        "startedAt": "2026-10-20T16:46:12.696918295Z",
+        "finishedAt": "2026-10-20T16:46:13.793903346Z",
+        "durationMs": 1097,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-05916671106fa034bb82b9013c7255c3218dccef487177fdff3f206a0a848ec3",
+        "operationId": "cline-9684c9935496aa67ee8281dcc715d9ac666baf5c1e1c2ca88d73031c34c4589e",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "process_finish_to_reconciled_archive",
+        "startedAt": "2026-10-20T16:46:13.793903346Z",
+        "finishedAt": "2026-10-20T16:46:13.97585+00:00",
+        "durationMs": 182,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-05916671106fa034bb82b9013c7255c3218dccef487177fdff3f206a0a848ec3",
+        "operationId": "cline-20f4a2ced24dc82df7cf440121f9886ce15dc198ae723537ce34c8cdf0626ea6",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "accepted_to_container_start",
+        "startedAt": "2026-10-20T16:46:40.92924+00:00",
+        "finishedAt": "2026-10-20T16:46:41.742861+00:00",
+        "durationMs": 813,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-05916671106fa034bb82b9013c7255c3218dccef487177fdff3f206a0a848ec3",
+        "operationId": "cline-20f4a2ced24dc82df7cf440121f9886ce15dc198ae723537ce34c8cdf0626ea6",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "container_process",
+        "startedAt": "2026-10-20T16:46:41.734969262Z",
+        "finishedAt": "2026-10-20T16:46:42.827888351Z",
+        "durationMs": 1093,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-05916671106fa034bb82b9013c7255c3218dccef487177fdff3f206a0a848ec3",
+        "operationId": "cline-20f4a2ced24dc82df7cf440121f9886ce15dc198ae723537ce34c8cdf0626ea6",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "process_finish_to_reconciled_archive",
+        "startedAt": "2026-10-20T16:46:42.827888351Z",
+        "finishedAt": "2026-10-20T16:46:43.284312+00:00",
+        "durationMs": 457,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      }
+    ],
+    "measurementLimits": [
+      "Python roundtrip includes startup, execution, polling and collection; it is not process CPU time.",
+      "Python post-process timing includes log preservation, manifest archive and final row update; these are not separately metered.",
+      "Missing provider cache telemetry is unknown, not zero.",
+      "Execution/structural validity does not measure business-result correctness."
+    ],
+    "skillContextEngines": [
+      "RUNTIME_CONTEXT_DELIVERY"
+    ],
+    "skillDeliveryWithoutJavaInference": true,
+    "skillContextDurationMs": 708,
+    "acceptanceStatus": "PASSED",
+    "resultAdmitted": true,
+    "javaSemanticReviewInvoked": false,
+    "publicAnswerSha256": "904a7fd781fd84d65efbada985ece50335d9d861fe593a55182ef7a0c2063dfc",
+    "publicAnswerCharacters": 2548,
+    "codeSubmissions": [
+      {
+        "taskId": "analysis-coding-05916671106fa034bb82b9013c7255c3218dccef487177fdff3f206a0a848ec3",
+        "operationId": "cline-9684c9935496aa67ee8281dcc715d9ac666baf5c1e1c2ca88d73031c34c4589e",
+        "sha256": "3f9d8df8569d752cc888b67f7a31ca19f16e4a1ce628ae6ea08c2b42bdf33b41",
+        "displayedSourceSha256": "3f9d8df8569d752cc888b67f7a31ca19f16e4a1ce628ae6ea08c2b42bdf33b41",
+        "redacted": false,
+        "lines": 110
+      },
+      {
+        "taskId": "analysis-coding-05916671106fa034bb82b9013c7255c3218dccef487177fdff3f206a0a848ec3",
+        "operationId": "cline-20f4a2ced24dc82df7cf440121f9886ce15dc198ae723537ce34c8cdf0626ea6",
+        "sha256": "a9c8eb4c55cb7f4f35bd9bf628e91c81371251e93e2c3418aa64c484a5d7cb78",
+        "displayedSourceSha256": "a9c8eb4c55cb7f4f35bd9bf628e91c81371251e93e2c3418aa64c484a5d7cb78",
+        "redacted": false,
+        "lines": 109
+      }
+    ],
+    "inputBindings": [
+      {
+        "taskId": "analysis-coding-05916671106fa034bb82b9013c7255c3218dccef487177fdff3f206a0a848ec3",
+        "operationId": "cline-9684c9935496aa67ee8281dcc715d9ac666baf5c1e1c2ca88d73031c34c4589e",
+        "snapshots": [
+          {
+            "format": "PARQUET",
+            "rowCount": 1,
+            "manifestSha256": "ce056464e247d7911f8f2e1791142822ecaff14592b875a4825f693f7971040c",
+            "datasets": []
+          }
+        ]
+      },
+      {
+        "taskId": "analysis-coding-05916671106fa034bb82b9013c7255c3218dccef487177fdff3f206a0a848ec3",
+        "operationId": "cline-20f4a2ced24dc82df7cf440121f9886ce15dc198ae723537ce34c8cdf0626ea6",
+        "snapshots": [
+          {
+            "format": "PARQUET",
+            "rowCount": 1,
+            "manifestSha256": "ce056464e247d7911f8f2e1791142822ecaff14592b875a4825f693f7971040c",
+            "datasets": []
+          }
+        ]
+      }
+    ],
+    "codingConfiguration": [
+      {
+        "taskId": "analysis-coding-05916671106fa034bb82b9013c7255c3218dccef487177fdff3f206a0a848ec3",
+        "model": {
+          "binding": "AUTHORIZED_PARENT_MODEL",
+          "implementation": "dev.langchain4j.model.openai.OpenAiChatModel",
+          "maxRetries": 3,
+          "maxTokens": -1,
+          "protocol": "openai",
+          "providerModel": "hy3",
+          "selectedModel": "hy3",
+          "timeout": 1800000
+        },
+        "skillStatus": "DELIVERED_WITH_LIMITS",
+        "skillFingerprint": "928154907cd3fc97ef876213be795b78e7c0b657c062fddd9353887c623466ca",
+        "skillIds": [
+          "239e79a1-415b-45ca-aa68-054fb02866d3",
+          "7704e35b-f526-48d4-819d-8b465ac4731e",
+          "9db489fc-919d-4c2b-beb8-ee48fcd6969d",
+          "c8a8fea9-3518-49dd-a613-199b7653cfa8",
+          "05f7be55-a33c-4fa0-9ed3-614baa2f5219",
+          "df0bc883-5df3-4a23-bed9-7badc48931c1"
+        ],
+        "executorStopped": true,
+        "reconciliationRequired": false
+      }
+    ],
+    "comparison": "One observation per version/scenario; failed cases and different objectives are not pooled. No P50/P95 or improvement percentage is established."
+  },
+  "scenario1-after": {
+    "schemaVersion": "runtime_os.analysis.performance.v1",
+    "taskId": "eb113281-9cd3-3f2d-9ed9-6e3347d5328c",
+    "runId": "att-1-8aa36675-bde0-4420-bf89-d1d2095fe34c",
+    "status": "SUCCEEDED",
+    "endToEndMs": 165145,
+    "codingTasks": 1,
+    "codingModelCalls": 3,
+    "codingModelDurationMs": 83450,
+    "javaModelCalls": null,
+    "javaModelDurationMs": null,
+    "javaPlanningModelDurationMs": null,
+    "planningBeforeFirstBatchMs": null,
+    "templateBatchCount": 0,
+    "templateBatchDurationMs": 0,
+    "inputTokens": 34049,
+    "outputTokens": 5049,
+    "javaInputTokens": null,
+    "javaOutputTokens": null,
+    "javaTokenUsageObserved": 0,
+    "cacheTelemetry": "OBSERVED",
+    "cacheReadTokens": 11520,
+    "cacheObservedCalls": 3,
+    "cacheEligibleCalls": 3,
+    "cacheHitRatioObserved": 0.33833592763370435,
+    "pythonExecutions": 1,
+    "pythonRoundtripMs": 3517,
+    "pythonContainersReleased": 1,
+    "pythonCleanupPending": 0,
+    "pythonProcessMs": 1830,
+    "pythonStartMs": 499,
+    "pythonArchiveMs": 238,
+    "retryReasons": {},
+    "firstExecutionProducedResult": true,
+    "runtimeSemanticReviews": 0,
+    "spans": [
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-1945caab73b9ffde758d8a727a624f2b9a4c2508af1962cd157816a48d972ea7",
+        "operationId": "model-1",
+        "startedAt": "2026-10-20T15:59:58.688010586Z",
+        "finishedAt": "2026-10-20T16:01:05.629819476Z",
+        "durationMs": 66941,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 6983,
+          "outputTokens": 4146,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 395
+        },
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-1945caab73b9ffde758d8a727a624f2b9a4c2508af1962cd157816a48d972ea7",
+        "operationId": "model-2",
+        "startedAt": "2026-10-20T16:01:12.134990139Z",
+        "finishedAt": "2026-10-20T16:01:15.085354728Z",
+        "durationMs": 2950,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 11778,
+          "outputTokens": 111,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 20
+        },
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-1945caab73b9ffde758d8a727a624f2b9a4c2508af1962cd157816a48d972ea7",
+        "operationId": "model-3",
+        "startedAt": "2026-10-20T16:01:15.929787141Z",
+        "finishedAt": "2026-10-20T16:01:29.489673516Z",
+        "durationMs": 13559,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 15288,
+          "outputTokens": 792,
+          "cacheReadTokens": 11520,
+          "reasoningTokens": 278
+        },
+        "cacheReadTokens": 11520,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "PYTHON",
+        "phase": "dispatch_execution_collection_roundtrip",
+        "taskId": "analysis-coding-1945caab73b9ffde758d8a727a624f2b9a4c2508af1962cd157816a48d972ea7",
+        "operationId": "cline-ad951cf69b6c5d33236ff95f125a1a8dd69f4fd7efe2358db1591f285396b569",
+        "startedAt": 1792512068287,
+        "finishedAt": 1792512071804,
+        "durationMs": 3517,
+        "state": "SUCCEEDED",
+        "outputStatus": null,
+        "validationStatus": "INCONCLUSIVE",
+        "resultAvailable": true,
+        "resultAvailabilitySource": "EXPLICIT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-1945caab73b9ffde758d8a727a624f2b9a4c2508af1962cd157816a48d972ea7",
+        "operationId": "cline-ad951cf69b6c5d33236ff95f125a1a8dd69f4fd7efe2358db1591f285396b569",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "accepted_to_container_start",
+        "startedAt": "2026-10-20T16:01:08.58723+00:00",
+        "finishedAt": "2026-10-20T16:01:09.086358+00:00",
+        "durationMs": 499,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-1945caab73b9ffde758d8a727a624f2b9a4c2508af1962cd157816a48d972ea7",
+        "operationId": "cline-ad951cf69b6c5d33236ff95f125a1a8dd69f4fd7efe2358db1591f285396b569",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "container_process",
+        "startedAt": "2026-10-20T16:01:09.078902723Z",
+        "finishedAt": "2026-10-20T16:01:10.908413708Z",
+        "durationMs": 1830,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-1945caab73b9ffde758d8a727a624f2b9a4c2508af1962cd157816a48d972ea7",
+        "operationId": "cline-ad951cf69b6c5d33236ff95f125a1a8dd69f4fd7efe2358db1591f285396b569",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "process_finish_to_reconciled_archive",
+        "startedAt": "2026-10-20T16:01:10.908413708Z",
+        "finishedAt": "2026-10-20T16:01:11.146758+00:00",
+        "durationMs": 238,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      }
+    ],
+    "measurementLimits": [
+      "Python roundtrip includes startup, execution, polling and collection; it is not process CPU time.",
+      "Python post-process timing includes log preservation, manifest archive and final row update; these are not separately metered.",
+      "Missing provider cache telemetry is unknown, not zero.",
+      "Execution/structural validity does not measure business-result correctness."
+    ],
+    "skillContextEngines": [
+      "GOOGLE_ADK_NATIVE"
+    ],
+    "skillDeliveryWithoutJavaInference": false,
+    "skillContextDurationMs": 65263,
+    "acceptanceStatus": "PASSED",
+    "resultAdmitted": true,
+    "javaSemanticReviewInvoked": false,
+    "publicAnswerSha256": "aee01b27c0ba908f523420d417fae9765ff3910b6dbc9d48df4215f740a2fb07",
+    "publicAnswerCharacters": 6965,
+    "codeSubmissions": [
+      {
+        "taskId": "analysis-coding-1945caab73b9ffde758d8a727a624f2b9a4c2508af1962cd157816a48d972ea7",
+        "operationId": "cline-ad951cf69b6c5d33236ff95f125a1a8dd69f4fd7efe2358db1591f285396b569",
+        "sha256": "2ebc0bc87fce57de5db70357beb9dafaba53c782a798f176edefab5b0d553753",
+        "displayedSourceSha256": "2ebc0bc87fce57de5db70357beb9dafaba53c782a798f176edefab5b0d553753",
+        "redacted": false,
+        "lines": 242
+      }
+    ],
+    "inputBindings": [
+      {
+        "taskId": "analysis-coding-1945caab73b9ffde758d8a727a624f2b9a4c2508af1962cd157816a48d972ea7",
+        "operationId": "cline-ad951cf69b6c5d33236ff95f125a1a8dd69f4fd7efe2358db1591f285396b569",
+        "snapshots": [
+          {
+            "format": "PARQUET",
+            "rowCount": 1,
+            "manifestSha256": "81c97150a4fc464c5d0b098eb894b0903596142383ba86acd62b0a8b6ebd6356",
+            "datasets": []
+          }
+        ]
+      }
+    ],
+    "codingConfiguration": [
+      {
+        "taskId": "analysis-coding-1945caab73b9ffde758d8a727a624f2b9a4c2508af1962cd157816a48d972ea7",
+        "model": {
+          "binding": "AUTHORIZED_PARENT_MODEL",
+          "implementation": "dev.langchain4j.model.openai.OpenAiChatModel",
+          "maxRetries": 3,
+          "maxTokens": -1,
+          "protocol": "openai",
+          "providerModel": "qwen3.7-plus",
+          "selectedModel": "qwen3.7-plus",
+          "timeout": 1800000
+        },
+        "skillStatus": "APPLIED",
+        "skillFingerprint": "1df4607e3b8ba69f7c3c5a9a75eaa66456a211fffdd6394dda5fa3fdfa33ea73",
+        "skillIds": [
+          "239e79a1-415b-45ca-aa68-054fb02866d3",
+          "9db489fc-919d-4c2b-beb8-ee48fcd6969d",
+          "05f7be55-a33c-4fa0-9ed3-614baa2f5219"
+        ],
+        "executorStopped": true,
+        "reconciliationRequired": false
+      }
+    ],
+    "comparison": "One observation per version/scenario; failed cases and different objectives are not pooled. No P50/P95 or improvement percentage is established."
+  },
+  "scenario1-before": {
+    "schemaVersion": "runtime_os.analysis.performance.v1",
+    "taskId": "12542878-7e38-3af4-a2f4-6d6b1fca5715",
+    "runId": "att-1-e264db8d-1e5c-41d1-9f82-c72e910434f3",
+    "status": "SUCCEEDED",
+    "endToEndMs": 117503,
+    "codingTasks": 0,
+    "codingModelCalls": 0,
+    "codingModelDurationMs": 0,
+    "javaModelCalls": null,
+    "javaModelDurationMs": null,
+    "javaPlanningModelDurationMs": null,
+    "planningBeforeFirstBatchMs": null,
+    "templateBatchCount": 0,
+    "templateBatchDurationMs": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "javaInputTokens": null,
+    "javaOutputTokens": null,
+    "javaTokenUsageObserved": 0,
+    "cacheTelemetry": "NOT_RECORDED",
+    "cacheReadTokens": null,
+    "cacheObservedCalls": 0,
+    "cacheEligibleCalls": 0,
+    "cacheHitRatioObserved": null,
+    "pythonExecutions": 0,
+    "pythonRoundtripMs": 0,
+    "pythonContainersReleased": 0,
+    "pythonCleanupPending": 0,
+    "pythonProcessMs": 0,
+    "pythonStartMs": 0,
+    "pythonArchiveMs": 0,
+    "retryReasons": {},
+    "firstExecutionProducedResult": null,
+    "runtimeSemanticReviews": 0,
+    "spans": [],
+    "measurementLimits": [
+      "Python roundtrip includes startup, execution, polling and collection; it is not process CPU time.",
+      "Python post-process timing includes log preservation, manifest archive and final row update; these are not separately metered.",
+      "Missing provider cache telemetry is unknown, not zero.",
+      "Execution/structural validity does not measure business-result correctness."
+    ],
+    "skillContextEngines": [
+      "GOOGLE_ADK_NATIVE"
+    ],
+    "skillDeliveryWithoutJavaInference": false,
+    "skillContextDurationMs": 59284,
+    "acceptanceStatus": "FAILED",
+    "resultAdmitted": false,
+    "javaSemanticReviewInvoked": false,
+    "publicAnswerSha256": null,
+    "publicAnswerCharacters": null,
+    "codeSubmissions": [],
+    "inputBindings": [],
+    "codingConfiguration": [],
+    "comparison": "One observation per version/scenario; failed cases and different objectives are not pooled. No P50/P95 or improvement percentage is established."
+  },
+  "scenario1-final": {
+    "schemaVersion": "runtime_os.analysis.performance.v1",
+    "taskId": "129fa8d3-6f02-325e-aef0-ccce650a202e",
+    "runId": "att-1-f5dcc274-3a6f-4493-b8a0-2deebc807944",
+    "status": "SUCCEEDED",
+    "endToEndMs": 420351,
+    "codingTasks": 1,
+    "codingModelCalls": 7,
+    "codingModelDurationMs": 392718,
+    "javaModelCalls": null,
+    "javaModelDurationMs": null,
+    "javaPlanningModelDurationMs": null,
+    "planningBeforeFirstBatchMs": null,
+    "templateBatchCount": 0,
+    "templateBatchDurationMs": 0,
+    "inputTokens": 212462,
+    "outputTokens": 24024,
+    "javaInputTokens": null,
+    "javaOutputTokens": null,
+    "javaTokenUsageObserved": 0,
+    "cacheTelemetry": "OBSERVED",
+    "cacheReadTokens": 125696,
+    "cacheObservedCalls": 7,
+    "cacheEligibleCalls": 7,
+    "cacheHitRatioObserved": 0.5916163831649895,
+    "pythonExecutions": 3,
+    "pythonRoundtripMs": 6667,
+    "pythonContainersReleased": 3,
+    "pythonCleanupPending": 0,
+    "pythonProcessMs": 1248,
+    "pythonStartMs": 2100,
+    "pythonArchiveMs": 566,
+    "retryReasons": {
+      "FAILED": 1
+    },
+    "firstExecutionProducedResult": false,
+    "runtimeSemanticReviews": 0,
+    "spans": [
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "model-1",
+        "startedAt": "2026-10-20T16:37:01.713565338Z",
+        "finishedAt": "2026-10-20T16:38:37.007291979Z",
+        "durationMs": 95293,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 12737,
+          "outputTokens": 5888,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 479
+        },
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "model-2",
+        "startedAt": "2026-10-20T16:38:39.925572936Z",
+        "finishedAt": "2026-10-20T16:40:22.399906757Z",
+        "durationMs": 102474,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 18778,
+          "outputTokens": 6331,
+          "cacheReadTokens": 12672,
+          "reasoningTokens": 1161
+        },
+        "cacheReadTokens": 12672,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "model-3",
+        "startedAt": "2026-10-20T16:40:25.364964423Z",
+        "finishedAt": "2026-10-20T16:40:28.732141920Z",
+        "durationMs": 3367,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 24998,
+          "outputTokens": 149,
+          "cacheReadTokens": 18432,
+          "reasoningTokens": 46
+        },
+        "cacheReadTokens": 18432,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "model-4",
+        "startedAt": "2026-10-20T16:40:29.849675936Z",
+        "finishedAt": "2026-10-20T16:41:59.794732939Z",
+        "durationMs": 89945,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 30430,
+          "outputTokens": 5535,
+          "cacheReadTokens": 18432,
+          "reasoningTokens": 121
+        },
+        "cacheReadTokens": 18432,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "model-5",
+        "startedAt": "2026-10-20T16:42:00.725995527Z",
+        "finishedAt": "2026-10-20T16:43:25.657000545Z",
+        "durationMs": 84931,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 35873,
+          "outputTokens": 5214,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 41
+        },
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "model-6",
+        "startedAt": "2026-10-20T16:43:29.167055491Z",
+        "finishedAt": "2026-10-20T16:43:32.663528315Z",
+        "durationMs": 3496,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 42112,
+          "outputTokens": 145,
+          "cacheReadTokens": 34816,
+          "reasoningTokens": 53
+        },
+        "cacheReadTokens": 34816,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "model-7",
+        "startedAt": "2026-10-20T16:43:34.605086674Z",
+        "finishedAt": "2026-10-20T16:43:47.817918194Z",
+        "durationMs": 13212,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 47534,
+          "outputTokens": 762,
+          "cacheReadTokens": 41344,
+          "reasoningTokens": 218
+        },
+        "cacheReadTokens": 41344,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "PYTHON",
+        "phase": "dispatch_execution_collection_roundtrip",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "cline-a10d6af856460d6ef106edff45662eb3254fc33bc9bf56480228e1ab86d4305e",
+        "startedAt": 1792514317367,
+        "finishedAt": 1792514319580,
+        "durationMs": 2213,
+        "state": "FAILED",
+        "outputStatus": null,
+        "validationStatus": "NOT_RECORDED",
+        "resultAvailable": false,
+        "resultAvailabilitySource": "EXPLICIT"
+      },
+      {
+        "layer": "PYTHON",
+        "phase": "dispatch_execution_collection_roundtrip",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "cline-59a7d13309eb780c2058d91513c65e08cb080e42a7724cdf34a6a92eb40b41e1",
+        "startedAt": 1792514422797,
+        "finishedAt": 1792514424933,
+        "durationMs": 2136,
+        "state": "SUCCEEDED",
+        "outputStatus": null,
+        "validationStatus": "INCONCLUSIVE",
+        "resultAvailable": true,
+        "resultAvailabilitySource": "EXPLICIT"
+      },
+      {
+        "layer": "PYTHON",
+        "phase": "dispatch_execution_collection_roundtrip",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "cline-57365942f0821421cf627562e359300cc1418d3a748a2b626c51c00f1f58819d",
+        "startedAt": 1792514606245,
+        "finishedAt": 1792514608563,
+        "durationMs": 2318,
+        "state": "SUCCEEDED",
+        "outputStatus": null,
+        "validationStatus": "INCONCLUSIVE",
+        "resultAvailable": true,
+        "resultAvailabilitySource": "EXPLICIT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "cline-a10d6af856460d6ef106edff45662eb3254fc33bc9bf56480228e1ab86d4305e",
+        "state": "FAILED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "accepted_to_container_start",
+        "startedAt": "2026-10-20T16:38:37.625497+00:00",
+        "finishedAt": "2026-10-20T16:38:38.586775+00:00",
+        "durationMs": 961,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "cline-a10d6af856460d6ef106edff45662eb3254fc33bc9bf56480228e1ab86d4305e",
+        "state": "FAILED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "container_process",
+        "startedAt": "2026-10-20T16:38:38.580798700Z",
+        "finishedAt": "2026-10-20T16:38:39.103061375Z",
+        "durationMs": 523,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "cline-a10d6af856460d6ef106edff45662eb3254fc33bc9bf56480228e1ab86d4305e",
+        "state": "FAILED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "process_finish_to_reconciled_archive",
+        "startedAt": "2026-10-20T16:38:39.103061375Z",
+        "finishedAt": "2026-10-20T16:38:39.312354+00:00",
+        "durationMs": 209,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "cline-59a7d13309eb780c2058d91513c65e08cb080e42a7724cdf34a6a92eb40b41e1",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "accepted_to_container_start",
+        "startedAt": "2026-10-20T16:40:23.080172+00:00",
+        "finishedAt": "2026-10-20T16:40:23.610408+00:00",
+        "durationMs": 530,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "cline-59a7d13309eb780c2058d91513c65e08cb080e42a7724cdf34a6a92eb40b41e1",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "container_process",
+        "startedAt": "2026-10-20T16:40:23.604818188Z",
+        "finishedAt": "2026-10-20T16:40:24.002725004Z",
+        "durationMs": 398,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "cline-59a7d13309eb780c2058d91513c65e08cb080e42a7724cdf34a6a92eb40b41e1",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "process_finish_to_reconciled_archive",
+        "startedAt": "2026-10-20T16:40:24.002725004Z",
+        "finishedAt": "2026-10-20T16:40:24.194262+00:00",
+        "durationMs": 192,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "cline-57365942f0821421cf627562e359300cc1418d3a748a2b626c51c00f1f58819d",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "accepted_to_container_start",
+        "startedAt": "2026-10-20T16:43:26.585409+00:00",
+        "finishedAt": "2026-10-20T16:43:27.194031+00:00",
+        "durationMs": 609,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "cline-57365942f0821421cf627562e359300cc1418d3a748a2b626c51c00f1f58819d",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "container_process",
+        "startedAt": "2026-10-20T16:43:27.183337713Z",
+        "finishedAt": "2026-10-20T16:43:27.510960067Z",
+        "durationMs": 327,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "cline-57365942f0821421cf627562e359300cc1418d3a748a2b626c51c00f1f58819d",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "process_finish_to_reconciled_archive",
+        "startedAt": "2026-10-20T16:43:27.510960067Z",
+        "finishedAt": "2026-10-20T16:43:27.675851+00:00",
+        "durationMs": 165,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      }
+    ],
+    "measurementLimits": [
+      "Python roundtrip includes startup, execution, polling and collection; it is not process CPU time.",
+      "Python post-process timing includes log preservation, manifest archive and final row update; these are not separately metered.",
+      "Missing provider cache telemetry is unknown, not zero.",
+      "Execution/structural validity does not measure business-result correctness."
+    ],
+    "skillContextEngines": [
+      "RUNTIME_CONTEXT_DELIVERY"
+    ],
+    "skillDeliveryWithoutJavaInference": true,
+    "skillContextDurationMs": 1229,
+    "acceptanceStatus": "PASSED",
+    "resultAdmitted": true,
+    "javaSemanticReviewInvoked": false,
+    "publicAnswerSha256": "094cdeb3dcd6c805630bc9a7a218b4d951c48d0105eb08dc5bc6df2c7cfa7aa9",
+    "publicAnswerCharacters": 12394,
+    "codeSubmissions": [
+      {
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "cline-a10d6af856460d6ef106edff45662eb3254fc33bc9bf56480228e1ab86d4305e",
+        "sha256": "09fcebc79f8b3ef71e7a12d5884e9254acc68b6399f999c67e94507c43eb23c1",
+        "displayedSourceSha256": "09fcebc79f8b3ef71e7a12d5884e9254acc68b6399f999c67e94507c43eb23c1",
+        "redacted": false,
+        "lines": 448
+      },
+      {
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "cline-59a7d13309eb780c2058d91513c65e08cb080e42a7724cdf34a6a92eb40b41e1",
+        "sha256": "be69eba8f4d5ee04d7d2a50eb59d7bccddf0c36b60119f1a0cf4fa4b836d93a7",
+        "displayedSourceSha256": "be69eba8f4d5ee04d7d2a50eb59d7bccddf0c36b60119f1a0cf4fa4b836d93a7",
+        "redacted": false,
+        "lines": 414
+      },
+      {
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "cline-57365942f0821421cf627562e359300cc1418d3a748a2b626c51c00f1f58819d",
+        "sha256": "e04c79895444c319537c6d3faa452be9b47f39c32bd8befb675041603361ab7a",
+        "displayedSourceSha256": "e04c79895444c319537c6d3faa452be9b47f39c32bd8befb675041603361ab7a",
+        "redacted": false,
+        "lines": 415
+      }
+    ],
+    "inputBindings": [
+      {
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "cline-a10d6af856460d6ef106edff45662eb3254fc33bc9bf56480228e1ab86d4305e",
+        "snapshots": [
+          {
+            "format": "PARQUET",
+            "rowCount": 1,
+            "manifestSha256": "71aa04f49d2e94c86dad77104e5f2c3bcf254b2a6e573c85b1485a2632419623",
+            "datasets": []
+          }
+        ]
+      },
+      {
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "cline-59a7d13309eb780c2058d91513c65e08cb080e42a7724cdf34a6a92eb40b41e1",
+        "snapshots": [
+          {
+            "format": "PARQUET",
+            "rowCount": 1,
+            "manifestSha256": "71aa04f49d2e94c86dad77104e5f2c3bcf254b2a6e573c85b1485a2632419623",
+            "datasets": []
+          }
+        ]
+      },
+      {
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "operationId": "cline-57365942f0821421cf627562e359300cc1418d3a748a2b626c51c00f1f58819d",
+        "snapshots": [
+          {
+            "format": "PARQUET",
+            "rowCount": 1,
+            "manifestSha256": "71aa04f49d2e94c86dad77104e5f2c3bcf254b2a6e573c85b1485a2632419623",
+            "datasets": []
+          }
+        ]
+      }
+    ],
+    "codingConfiguration": [
+      {
+        "taskId": "analysis-coding-4a7ced97cb9073bee6d377d68c4588e533a1ef0e1391668b7a893c4a08ca5370",
+        "model": {
+          "binding": "AUTHORIZED_PARENT_MODEL",
+          "implementation": "dev.langchain4j.model.openai.OpenAiChatModel",
+          "maxRetries": 3,
+          "maxTokens": -1,
+          "protocol": "openai",
+          "providerModel": "qwen3.7-plus",
+          "selectedModel": "qwen3.7-plus",
+          "timeout": 1800000
+        },
+        "skillStatus": "DELIVERED_WITH_LIMITS",
+        "skillFingerprint": "928154907cd3fc97ef876213be795b78e7c0b657c062fddd9353887c623466ca",
+        "skillIds": [
+          "239e79a1-415b-45ca-aa68-054fb02866d3",
+          "7704e35b-f526-48d4-819d-8b465ac4731e",
+          "9db489fc-919d-4c2b-beb8-ee48fcd6969d",
+          "c8a8fea9-3518-49dd-a613-199b7653cfa8",
+          "05f7be55-a33c-4fa0-9ed3-614baa2f5219",
+          "df0bc883-5df3-4a23-bed9-7badc48931c1"
+        ],
+        "executorStopped": true,
+        "reconciliationRequired": false
+      }
+    ],
+    "comparison": "One observation per version/scenario; failed cases and different objectives are not pooled. No P50/P95 or improvement percentage is established."
+  },
+  "scenario2-after": {
+    "schemaVersion": "runtime_os.analysis.performance.v1",
+    "taskId": "ccf258df-cb43-3b5a-88f2-e868b85a20fc",
+    "runId": "att-1-4aaa2e17-23db-4280-a88e-1893767e234f",
+    "status": "SUCCEEDED",
+    "endToEndMs": 724814,
+    "codingTasks": 1,
+    "codingModelCalls": 5,
+    "codingModelDurationMs": 305148,
+    "javaModelCalls": 9,
+    "javaModelDurationMs": 311430,
+    "javaPlanningModelDurationMs": 301412,
+    "planningBeforeFirstBatchMs": 354757,
+    "templateBatchCount": 1,
+    "templateBatchDurationMs": 14772,
+    "inputTokens": 128676,
+    "outputTokens": 18604,
+    "javaInputTokens": null,
+    "javaOutputTokens": null,
+    "javaTokenUsageObserved": 8,
+    "cacheTelemetry": "OBSERVED",
+    "cacheReadTokens": 53376,
+    "cacheObservedCalls": 13,
+    "cacheEligibleCalls": 14,
+    "cacheHitRatioObserved": 0.3320022392237358,
+    "pythonExecutions": 2,
+    "pythonRoundtripMs": 7878,
+    "pythonContainersReleased": 2,
+    "pythonCleanupPending": 0,
+    "pythonProcessMs": 3480,
+    "pythonStartMs": 1748,
+    "pythonArchiveMs": 536,
+    "retryReasons": {},
+    "firstExecutionProducedResult": true,
+    "runtimeSemanticReviews": 0,
+    "spans": [
+      {
+        "layer": "JAVA_MODEL",
+        "phase": "com.chatchat.agents.orchestration.AgentPlanner#decideNextDecision",
+        "operationId": "1",
+        "startedAt": 1792511981772,
+        "finishedAt": 1792512023056,
+        "durationMs": 41283,
+        "state": "SUCCEEDED",
+        "queueTimeMs": 0,
+        "usage": {
+          "inputTokens": 3197,
+          "outputTokens": 2545,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 1864
+        },
+        "inputTokensEstimated": 4118,
+        "outputTokensEstimated": 645,
+        "errorType": null
+      },
+      {
+        "layer": "JAVA_MODEL",
+        "phase": "com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge#enrichWithGate",
+        "operationId": "2",
+        "startedAt": 1792512028224,
+        "finishedAt": 1792512052011,
+        "durationMs": 23787,
+        "state": "SUCCEEDED",
+        "queueTimeMs": 0,
+        "usage": {
+          "inputTokens": 524,
+          "outputTokens": 1459,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 1288
+        },
+        "inputTokensEstimated": 671,
+        "outputTokensEstimated": 181,
+        "errorType": null
+      },
+      {
+        "layer": "JAVA_MODEL",
+        "phase": "com.chatchat.agents.orchestration.AgentOrchestrationEngine#reviewInterpretationPlanToolResult",
+        "operationId": "3",
+        "startedAt": 1792512052245,
+        "finishedAt": 1792512081698,
+        "durationMs": 29453,
+        "state": "SUCCEEDED",
+        "queueTimeMs": 0,
+        "usage": {
+          "inputTokens": 3256,
+          "outputTokens": 1801,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 1494
+        },
+        "inputTokensEstimated": 4184,
+        "outputTokensEstimated": 337,
+        "errorType": null
+      },
+      {
+        "layer": "JAVA_MODEL",
+        "phase": "com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge#enrichWithGate",
+        "operationId": "4",
+        "startedAt": 1792512082032,
+        "finishedAt": 1792512107150,
+        "durationMs": 25117,
+        "state": "SUCCEEDED",
+        "queueTimeMs": 0,
+        "usage": {
+          "inputTokens": 4707,
+          "outputTokens": 1517,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 1313
+        },
+        "inputTokensEstimated": 5655,
+        "outputTokensEstimated": 215,
+        "errorType": null
+      },
+      {
+        "layer": "JAVA_MODEL",
+        "phase": "com.chatchat.agents.orchestration.AgentOrchestrationEngine#reviewInterpretationPlanToolResult",
+        "operationId": "5",
+        "startedAt": 1792512107859,
+        "finishedAt": 1792512234172,
+        "durationMs": 126312,
+        "state": "SUCCEEDED",
+        "queueTimeMs": 0,
+        "usage": {
+          "inputTokens": 8051,
+          "outputTokens": 7834,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 4072
+        },
+        "inputTokensEstimated": 10522,
+        "outputTokensEstimated": 3733,
+        "errorType": null
+      },
+      {
+        "layer": "JAVA_MODEL",
+        "phase": "com.chatchat.agents.orchestration.AgentOrchestrationEngine#auditTemplateSelectionCoverage",
+        "operationId": "6",
+        "startedAt": 1792512234186,
+        "finishedAt": 1792512280429,
+        "durationMs": 46243,
+        "state": "SUCCEEDED",
+        "queueTimeMs": 0,
+        "usage": {
+          "inputTokens": 11215,
+          "outputTokens": 2809,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 2282
+        },
+        "inputTokensEstimated": 14613,
+        "outputTokensEstimated": 561,
+        "errorType": null
+      },
+      {
+        "layer": "JAVA_MODEL",
+        "phase": "com.chatchat.agents.orchestration.SchemaDrivenTemplateParameterBinder#nativeCall",
+        "operationId": "7",
+        "startedAt": 1792512280494,
+        "finishedAt": 1792512280655,
+        "durationMs": 160,
+        "state": "FAILED",
+        "queueTimeMs": 0,
+        "usage": {},
+        "inputTokensEstimated": 610,
+        "outputTokensEstimated": null,
+        "errorType": "dev.langchain4j.exception.InvalidRequestException"
+      },
+      {
+        "layer": "JAVA_MODEL",
+        "phase": "com.chatchat.agents.orchestration.SchemaDrivenTemplateParameterBinder#nativeCall",
+        "operationId": "8",
+        "startedAt": 1792512280657,
+        "finishedAt": 1792512289714,
+        "durationMs": 9057,
+        "state": "SUCCEEDED",
+        "queueTimeMs": 0,
+        "usage": {
+          "inputTokens": 620,
+          "outputTokens": 519,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 468
+        },
+        "inputTokensEstimated": 609,
+        "outputTokensEstimated": 89,
+        "errorType": null
+      },
+      {
+        "layer": "JAVA_MODEL",
+        "phase": "com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge#enrichWithGate",
+        "operationId": "9",
+        "startedAt": 1792512312009,
+        "finishedAt": 1792512322028,
+        "durationMs": 10018,
+        "state": "SUCCEEDED",
+        "queueTimeMs": 0,
+        "usage": {
+          "inputTokens": 524,
+          "outputTokens": 578,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 485
+        },
+        "inputTokensEstimated": 671,
+        "outputTokensEstimated": 132,
+        "errorType": null
+      },
+      {
+        "layer": "JAVA_TEMPLATE",
+        "phase": "controlled_batch",
+        "batchId": "reviewed-template-step-3",
+        "startedAt": "2026-10-20T16:04:50.074Z",
+        "finishedAt": "2026-10-20T16:05:04.846Z",
+        "durationMs": 14772,
+        "executionMode": "SEQUENTIAL",
+        "status": "PARTIAL_SUCCESS",
+        "summary": {
+          "total": 9,
+          "success": 8,
+          "failed": 0,
+          "blocked": 1,
+          "skipped": 0,
+          "remoteToolInvocations": 8
+        }
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-62547730e27326a9cf37533a4e58e48220f0c4584fc7cc649fe24fb587fb5677",
+        "operationId": "model-1",
+        "startedAt": "2026-10-20T16:05:27.257165514Z",
+        "finishedAt": "2026-10-20T16:07:57.226424278Z",
+        "durationMs": 149969,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 10797,
+          "outputTokens": 9302,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 237
+        },
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-62547730e27326a9cf37533a4e58e48220f0c4584fc7cc649fe24fb587fb5677",
+        "operationId": "model-2",
+        "startedAt": "2026-10-20T16:08:02.569611938Z",
+        "finishedAt": "2026-10-20T16:08:05.659897094Z",
+        "durationMs": 3090,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 20900,
+          "outputTokens": 102,
+          "cacheReadTokens": 10368,
+          "reasoningTokens": 17
+        },
+        "cacheReadTokens": 10368,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-62547730e27326a9cf37533a4e58e48220f0c4584fc7cc649fe24fb587fb5677",
+        "operationId": "model-3",
+        "startedAt": "2026-10-20T16:08:06.616307269Z",
+        "finishedAt": "2026-10-20T16:10:16.196421074Z",
+        "durationMs": 129580,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 25287,
+          "outputTokens": 8015,
+          "cacheReadTokens": 10368,
+          "reasoningTokens": 391
+        },
+        "cacheReadTokens": 10368,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-62547730e27326a9cf37533a4e58e48220f0c4584fc7cc649fe24fb587fb5677",
+        "operationId": "model-4",
+        "startedAt": "2026-10-20T16:10:20.314636539Z",
+        "finishedAt": "2026-10-20T16:10:23.580562133Z",
+        "durationMs": 3265,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 33976,
+          "outputTokens": 114,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 23
+        },
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-62547730e27326a9cf37533a4e58e48220f0c4584fc7cc649fe24fb587fb5677",
+        "operationId": "model-5",
+        "startedAt": "2026-10-20T16:10:25.009362560Z",
+        "finishedAt": "2026-10-20T16:10:44.253934124Z",
+        "durationMs": 19244,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 37716,
+          "outputTokens": 1071,
+          "cacheReadTokens": 32640,
+          "reasoningTokens": 459
+        },
+        "cacheReadTokens": 32640,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "PYTHON",
+        "phase": "dispatch_execution_collection_roundtrip",
+        "taskId": "analysis-coding-62547730e27326a9cf37533a4e58e48220f0c4584fc7cc649fe24fb587fb5677",
+        "operationId": "cline-81715eed2eaba140e2a7a04e24a70be32ed05e2a1017b3f930390f0d60bee74d",
+        "startedAt": 1792512477590,
+        "finishedAt": 1792512482251,
+        "durationMs": 4661,
+        "state": "SUCCEEDED",
+        "outputStatus": null,
+        "validationStatus": "INCONCLUSIVE",
+        "resultAvailable": true,
+        "resultAvailabilitySource": "EXPLICIT"
+      },
+      {
+        "layer": "PYTHON",
+        "phase": "dispatch_execution_collection_roundtrip",
+        "taskId": "analysis-coding-62547730e27326a9cf37533a4e58e48220f0c4584fc7cc649fe24fb587fb5677",
+        "operationId": "cline-3fcee967b85935a2eeb198799cd01a6337fe92b1b0dca55caa4fbcbebfd3d978",
+        "startedAt": 1792512616674,
+        "finishedAt": 1792512619891,
+        "durationMs": 3217,
+        "state": "SUCCEEDED",
+        "outputStatus": null,
+        "validationStatus": "INCONCLUSIVE",
+        "resultAvailable": true,
+        "resultAvailabilitySource": "EXPLICIT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-62547730e27326a9cf37533a4e58e48220f0c4584fc7cc649fe24fb587fb5677",
+        "operationId": "cline-81715eed2eaba140e2a7a04e24a70be32ed05e2a1017b3f930390f0d60bee74d",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "accepted_to_container_start",
+        "startedAt": "2026-10-20T16:07:57.871701+00:00",
+        "finishedAt": "2026-10-20T16:07:59.093291+00:00",
+        "durationMs": 1222,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-62547730e27326a9cf37533a4e58e48220f0c4584fc7cc649fe24fb587fb5677",
+        "operationId": "cline-81715eed2eaba140e2a7a04e24a70be32ed05e2a1017b3f930390f0d60bee74d",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "container_process",
+        "startedAt": "2026-10-20T16:07:59.074991699Z",
+        "finishedAt": "2026-10-20T16:08:01.333687566Z",
+        "durationMs": 2259,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-62547730e27326a9cf37533a4e58e48220f0c4584fc7cc649fe24fb587fb5677",
+        "operationId": "cline-81715eed2eaba140e2a7a04e24a70be32ed05e2a1017b3f930390f0d60bee74d",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "process_finish_to_reconciled_archive",
+        "startedAt": "2026-10-20T16:08:01.333687566Z",
+        "finishedAt": "2026-10-20T16:08:01.550926+00:00",
+        "durationMs": 217,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-62547730e27326a9cf37533a4e58e48220f0c4584fc7cc649fe24fb587fb5677",
+        "operationId": "cline-3fcee967b85935a2eeb198799cd01a6337fe92b1b0dca55caa4fbcbebfd3d978",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "accepted_to_container_start",
+        "startedAt": "2026-10-20T16:10:17.025129+00:00",
+        "finishedAt": "2026-10-20T16:10:17.551594+00:00",
+        "durationMs": 526,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-62547730e27326a9cf37533a4e58e48220f0c4584fc7cc649fe24fb587fb5677",
+        "operationId": "cline-3fcee967b85935a2eeb198799cd01a6337fe92b1b0dca55caa4fbcbebfd3d978",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "container_process",
+        "startedAt": "2026-10-20T16:10:17.544323089Z",
+        "finishedAt": "2026-10-20T16:10:18.765980655Z",
+        "durationMs": 1221,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-62547730e27326a9cf37533a4e58e48220f0c4584fc7cc649fe24fb587fb5677",
+        "operationId": "cline-3fcee967b85935a2eeb198799cd01a6337fe92b1b0dca55caa4fbcbebfd3d978",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "process_finish_to_reconciled_archive",
+        "startedAt": "2026-10-20T16:10:18.765980655Z",
+        "finishedAt": "2026-10-20T16:10:19.084227+00:00",
+        "durationMs": 319,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      }
+    ],
+    "measurementLimits": [
+      "Python roundtrip includes startup, execution, polling and collection; it is not process CPU time.",
+      "Python post-process timing includes log preservation, manifest archive and final row update; these are not separately metered.",
+      "Missing provider cache telemetry is unknown, not zero.",
+      "Execution/structural validity does not measure business-result correctness."
+    ],
+    "skillContextEngines": [
+      "GOOGLE_ADK_NATIVE"
+    ],
+    "skillDeliveryWithoutJavaInference": false,
+    "skillContextDurationMs": 36818,
+    "acceptanceStatus": "PASSED",
+    "resultAdmitted": true,
+    "javaSemanticReviewInvoked": false,
+    "publicAnswerSha256": "6e8ce42eab630d1e7ae2b46181edd7a0dc68f742da70a57977e5470db06a905b",
+    "publicAnswerCharacters": 5330,
+    "codeSubmissions": [
+      {
+        "taskId": "analysis-coding-62547730e27326a9cf37533a4e58e48220f0c4584fc7cc649fe24fb587fb5677",
+        "operationId": "cline-81715eed2eaba140e2a7a04e24a70be32ed05e2a1017b3f930390f0d60bee74d",
+        "sha256": "29827639300f0eed30ae909ea25aa1ded2eec707935163908d4229ec76c05b5d",
+        "displayedSourceSha256": "29827639300f0eed30ae909ea25aa1ded2eec707935163908d4229ec76c05b5d",
+        "redacted": false,
+        "lines": 656
+      },
+      {
+        "taskId": "analysis-coding-62547730e27326a9cf37533a4e58e48220f0c4584fc7cc649fe24fb587fb5677",
+        "operationId": "cline-3fcee967b85935a2eeb198799cd01a6337fe92b1b0dca55caa4fbcbebfd3d978",
+        "sha256": "33fb9fe03689cf91637ea493498d3d754ccba1544ae298d407fa13e7f067f06d",
+        "displayedSourceSha256": "33fb9fe03689cf91637ea493498d3d754ccba1544ae298d407fa13e7f067f06d",
+        "redacted": false,
+        "lines": 606
+      }
+    ],
+    "inputBindings": [
+      {
+        "taskId": "analysis-coding-62547730e27326a9cf37533a4e58e48220f0c4584fc7cc649fe24fb587fb5677",
+        "operationId": "cline-81715eed2eaba140e2a7a04e24a70be32ed05e2a1017b3f930390f0d60bee74d",
+        "snapshots": [
+          {
+            "format": "PARQUET",
+            "rowCount": 20,
+            "manifestSha256": "47e6f0ac0294a783123e03b8e2db07f58631c79a1430c7b56047b01d2ce15fb9",
+            "datasets": [
+              {
+                "datasetReference": "CHECK_SYSTEM_LOAD#template-binding-1-binding-1#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_SYSTEM_OVERVIEW#template-binding-2-binding-2#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_MEMORY#template-binding-3-binding-3#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_CPU#template-binding-4-binding-4#stdout",
+                "rowCount": 3
+              },
+              {
+                "datasetReference": "CHECK_DISK#template-binding-5-binding-5#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_IO_STATUS#template-binding-6-binding-6#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_PROCESS#template-binding-7-binding-7#stdout",
+                "rowCount": 6
+              },
+              {
+                "datasetReference": "CHECK_JAVA_PROCESS#template-binding-8-binding-8#stdout",
+                "rowCount": 6
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "taskId": "analysis-coding-62547730e27326a9cf37533a4e58e48220f0c4584fc7cc649fe24fb587fb5677",
+        "operationId": "cline-3fcee967b85935a2eeb198799cd01a6337fe92b1b0dca55caa4fbcbebfd3d978",
+        "snapshots": [
+          {
+            "format": "PARQUET",
+            "rowCount": 20,
+            "manifestSha256": "47e6f0ac0294a783123e03b8e2db07f58631c79a1430c7b56047b01d2ce15fb9",
+            "datasets": [
+              {
+                "datasetReference": "CHECK_SYSTEM_LOAD#template-binding-1-binding-1#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_SYSTEM_OVERVIEW#template-binding-2-binding-2#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_MEMORY#template-binding-3-binding-3#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_CPU#template-binding-4-binding-4#stdout",
+                "rowCount": 3
+              },
+              {
+                "datasetReference": "CHECK_DISK#template-binding-5-binding-5#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_IO_STATUS#template-binding-6-binding-6#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_PROCESS#template-binding-7-binding-7#stdout",
+                "rowCount": 6
+              },
+              {
+                "datasetReference": "CHECK_JAVA_PROCESS#template-binding-8-binding-8#stdout",
+                "rowCount": 6
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "codingConfiguration": [
+      {
+        "taskId": "analysis-coding-62547730e27326a9cf37533a4e58e48220f0c4584fc7cc649fe24fb587fb5677",
+        "model": {
+          "binding": "AUTHORIZED_PARENT_MODEL",
+          "implementation": "dev.langchain4j.model.openai.OpenAiChatModel",
+          "maxRetries": 3,
+          "maxTokens": -1,
+          "protocol": "openai",
+          "providerModel": "",
+          "selectedModel": "qwen3.7-plus",
+          "timeout": 1800000
+        },
+        "skillStatus": "NO_RELEVANT_SKILL",
+        "skillFingerprint": "721c4d899d4558341192da081ee44e2006abc4c0a01174c19b406eae68f7c127",
+        "skillIds": [],
+        "executorStopped": true,
+        "reconciliationRequired": false
+      }
+    ],
+    "comparison": "One observation per version/scenario; failed cases and different objectives are not pooled. No P50/P95 or improvement percentage is established."
+  },
+  "scenario2-before": {
+    "schemaVersion": "runtime_os.analysis.performance.v1",
+    "taskId": "7e0186e3-78f8-3e99-8053-54d584440bc7",
+    "runId": "att-1-c7971ce4-b2d1-4d67-b969-07f2833dd8de",
+    "status": "FAILED",
+    "endToEndMs": 605445,
+    "codingTasks": 1,
+    "codingModelCalls": 3,
+    "codingModelDurationMs": 247075,
+    "javaModelCalls": null,
+    "javaModelDurationMs": null,
+    "javaPlanningModelDurationMs": null,
+    "planningBeforeFirstBatchMs": null,
+    "templateBatchCount": 0,
+    "templateBatchDurationMs": 0,
+    "inputTokens": 46524,
+    "outputTokens": 15270,
+    "javaInputTokens": null,
+    "javaOutputTokens": null,
+    "javaTokenUsageObserved": 0,
+    "cacheTelemetry": "OBSERVED",
+    "cacheReadTokens": 16640,
+    "cacheObservedCalls": 3,
+    "cacheEligibleCalls": 3,
+    "cacheHitRatioObserved": 0.3576648611469349,
+    "pythonExecutions": 1,
+    "pythonRoundtripMs": 3967,
+    "pythonContainersReleased": 1,
+    "pythonCleanupPending": 0,
+    "pythonProcessMs": 1339,
+    "pythonStartMs": 1560,
+    "pythonArchiveMs": 131,
+    "retryReasons": {},
+    "firstExecutionProducedResult": true,
+    "runtimeSemanticReviews": 0,
+    "spans": [
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-4b6bc47baf200fc41feab4b225e263db68fbdbc2006ff39ceba296f64f552f72",
+        "operationId": "model-1",
+        "startedAt": "2026-10-20T15:35:54.347074213Z",
+        "finishedAt": "2026-10-20T15:37:48.772974987Z",
+        "durationMs": 114425,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 8897,
+          "outputTokens": 7107,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 160
+        },
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-4b6bc47baf200fc41feab4b225e263db68fbdbc2006ff39ceba296f64f552f72",
+        "operationId": "model-2",
+        "startedAt": "2026-10-20T15:37:53.479378097Z",
+        "finishedAt": "2026-10-20T15:37:56.412091268Z",
+        "durationMs": 2932,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 16894,
+          "outputTokens": 107,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 17
+        },
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-4b6bc47baf200fc41feab4b225e263db68fbdbc2006ff39ceba296f64f552f72",
+        "operationId": "model-3",
+        "startedAt": "2026-10-20T15:37:57.633083046Z",
+        "finishedAt": "2026-10-20T15:40:07.352052244Z",
+        "durationMs": 129718,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 20733,
+          "outputTokens": 8056,
+          "cacheReadTokens": 16640,
+          "reasoningTokens": 638
+        },
+        "cacheReadTokens": 16640,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "PYTHON",
+        "phase": "dispatch_execution_collection_roundtrip",
+        "taskId": "analysis-coding-4b6bc47baf200fc41feab4b225e263db68fbdbc2006ff39ceba296f64f552f72",
+        "operationId": "cline-debb552bb39714876ea271c6d874dd674c36b1874266d18756801db0ad4fff19",
+        "startedAt": 1792510669150,
+        "finishedAt": 1792510673117,
+        "durationMs": 3967,
+        "state": "SUCCEEDED",
+        "outputStatus": null,
+        "validationStatus": "INCONCLUSIVE",
+        "resultAvailable": true,
+        "resultAvailabilitySource": "EXPLICIT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-4b6bc47baf200fc41feab4b225e263db68fbdbc2006ff39ceba296f64f552f72",
+        "operationId": "cline-debb552bb39714876ea271c6d874dd674c36b1874266d18756801db0ad4fff19",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "accepted_to_container_start",
+        "startedAt": "2026-10-20T15:37:49.444991+00:00",
+        "finishedAt": "2026-10-20T15:37:51.004135+00:00",
+        "durationMs": 1560,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-4b6bc47baf200fc41feab4b225e263db68fbdbc2006ff39ceba296f64f552f72",
+        "operationId": "cline-debb552bb39714876ea271c6d874dd674c36b1874266d18756801db0ad4fff19",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "container_process",
+        "startedAt": "2026-10-20T15:37:50.995317499Z",
+        "finishedAt": "2026-10-20T15:37:52.334310771Z",
+        "durationMs": 1339,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-4b6bc47baf200fc41feab4b225e263db68fbdbc2006ff39ceba296f64f552f72",
+        "operationId": "cline-debb552bb39714876ea271c6d874dd674c36b1874266d18756801db0ad4fff19",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "process_finish_to_reconciled_archive",
+        "startedAt": "2026-10-20T15:37:52.334310771Z",
+        "finishedAt": "2026-10-20T15:37:52.465849+00:00",
+        "durationMs": 131,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      }
+    ],
+    "measurementLimits": [
+      "Python roundtrip includes startup, execution, polling and collection; it is not process CPU time.",
+      "Python post-process timing includes log preservation, manifest archive and final row update; these are not separately metered.",
+      "Missing provider cache telemetry is unknown, not zero.",
+      "Execution/structural validity does not measure business-result correctness."
+    ],
+    "skillContextEngines": [
+      "GOOGLE_ADK_NATIVE"
+    ],
+    "skillDeliveryWithoutJavaInference": false,
+    "skillContextDurationMs": 34516,
+    "acceptanceStatus": "FAILED",
+    "resultAdmitted": false,
+    "javaSemanticReviewInvoked": null,
+    "publicAnswerSha256": null,
+    "publicAnswerCharacters": null,
+    "codeSubmissions": [
+      {
+        "taskId": "analysis-coding-4b6bc47baf200fc41feab4b225e263db68fbdbc2006ff39ceba296f64f552f72",
+        "operationId": "cline-debb552bb39714876ea271c6d874dd674c36b1874266d18756801db0ad4fff19",
+        "sha256": "0249231ce2a91e21d04b804dfe9c185da731fc574e57064d68a18a86220c4cd0",
+        "displayedSourceSha256": "0249231ce2a91e21d04b804dfe9c185da731fc574e57064d68a18a86220c4cd0",
+        "redacted": false,
+        "lines": 495
+      }
+    ],
+    "inputBindings": [
+      {
+        "taskId": "analysis-coding-4b6bc47baf200fc41feab4b225e263db68fbdbc2006ff39ceba296f64f552f72",
+        "operationId": "cline-debb552bb39714876ea271c6d874dd674c36b1874266d18756801db0ad4fff19",
+        "snapshots": [
+          {
+            "format": "PARQUET",
+            "rowCount": 12,
+            "manifestSha256": "b9092cde72a8c81f4cf8c67fe6c09200287abf5b661220ada91b7c5fd3c4ed20",
+            "datasets": [
+              {
+                "datasetReference": "CHECK_CPU#template-binding-1-binding-1#stdout",
+                "rowCount": 3
+              },
+              {
+                "datasetReference": "CHECK_SYSTEM_LOAD#template-binding-2-binding-2#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_DISK#template-binding-3-binding-3#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_MEMORY#template-binding-4-binding-4#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_PROCESS#template-binding-5-binding-5#stdout",
+                "rowCount": 6
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "codingConfiguration": [
+      {
+        "taskId": "analysis-coding-4b6bc47baf200fc41feab4b225e263db68fbdbc2006ff39ceba296f64f552f72",
+        "model": {
+          "binding": "AUTHORIZED_PARENT_MODEL",
+          "implementation": "dev.langchain4j.model.openai.OpenAiChatModel",
+          "maxRetries": 3,
+          "maxTokens": -1,
+          "protocol": "openai",
+          "providerModel": "",
+          "selectedModel": "qwen3.7-plus",
+          "timeout": 1800000
+        },
+        "skillStatus": "APPLIED",
+        "skillFingerprint": "15ad2e5e3fe52cc7f903d03b6c19ea6e8120e4bfaeba933326e8ec22f6897d4e",
+        "skillIds": [
+          "239e79a1-415b-45ca-aa68-054fb02866d3"
+        ],
+        "executorStopped": true,
+        "reconciliationRequired": false
+      }
+    ],
+    "comparison": "One observation per version/scenario; failed cases and different objectives are not pooled. No P50/P95 or improvement percentage is established."
+  },
+  "scenario2-final": {
+    "schemaVersion": "runtime_os.analysis.performance.v1",
+    "taskId": "3a47391c-8f2a-375d-921e-a0b45984cc2a",
+    "runId": "att-1-661728c3-f939-486c-b4c8-17c190c6be26",
+    "status": "SUCCEEDED",
+    "endToEndMs": 599277,
+    "codingTasks": 1,
+    "codingModelCalls": 7,
+    "codingModelDurationMs": 286702,
+    "javaModelCalls": 7,
+    "javaModelDurationMs": 250567,
+    "javaPlanningModelDurationMs": 235183,
+    "planningBeforeFirstBatchMs": 251447,
+    "templateBatchCount": 1,
+    "templateBatchDurationMs": 5952,
+    "inputTokens": 190859,
+    "outputTokens": 17173,
+    "javaInputTokens": 31231,
+    "javaOutputTokens": 15273,
+    "javaTokenUsageObserved": 7,
+    "cacheTelemetry": "OBSERVED",
+    "cacheReadTokens": 112384,
+    "cacheObservedCalls": 14,
+    "cacheEligibleCalls": 14,
+    "cacheHitRatioObserved": 0.5060290873069476,
+    "pythonExecutions": 4,
+    "pythonRoundtripMs": 14246,
+    "pythonContainersReleased": 4,
+    "pythonCleanupPending": 0,
+    "pythonProcessMs": 5256,
+    "pythonStartMs": 4225,
+    "pythonArchiveMs": 1116,
+    "retryReasons": {
+      "FAILED": 2
+    },
+    "firstExecutionProducedResult": false,
+    "runtimeSemanticReviews": 0,
+    "spans": [
+      {
+        "layer": "JAVA_MODEL",
+        "phase": "com.chatchat.agents.orchestration.AgentPlanner#decideNextDecision",
+        "operationId": "1",
+        "startedAt": 1792514225521,
+        "finishedAt": 1792514281539,
+        "durationMs": 56017,
+        "state": "SUCCEEDED",
+        "queueTimeMs": 0,
+        "usage": {
+          "inputTokens": 3342,
+          "outputTokens": 3403,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 2674
+        },
+        "inputTokensEstimated": 4321,
+        "outputTokensEstimated": 688,
+        "errorType": null
+      },
+      {
+        "layer": "JAVA_MODEL",
+        "phase": "com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge#enrichWithGate",
+        "operationId": "2",
+        "startedAt": 1792514285991,
+        "finishedAt": 1792514297185,
+        "durationMs": 11193,
+        "state": "SUCCEEDED",
+        "queueTimeMs": 0,
+        "usage": {
+          "inputTokens": 535,
+          "outputTokens": 666,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 486
+        },
+        "inputTokensEstimated": 686,
+        "outputTokensEstimated": 180,
+        "errorType": null
+      },
+      {
+        "layer": "JAVA_MODEL",
+        "phase": "com.chatchat.agents.orchestration.AgentOrchestrationEngine#reviewInterpretationPlanToolResult",
+        "operationId": "3",
+        "startedAt": 1792514297398,
+        "finishedAt": 1792514321938,
+        "durationMs": 24540,
+        "state": "SUCCEEDED",
+        "queueTimeMs": 0,
+        "usage": {
+          "inputTokens": 3262,
+          "outputTokens": 1480,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 1021
+        },
+        "inputTokensEstimated": 4194,
+        "outputTokensEstimated": 388,
+        "errorType": null
+      },
+      {
+        "layer": "JAVA_MODEL",
+        "phase": "com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge#enrichWithGate",
+        "operationId": "4",
+        "startedAt": 1792514322167,
+        "finishedAt": 1792514346691,
+        "durationMs": 24523,
+        "state": "SUCCEEDED",
+        "queueTimeMs": 0,
+        "usage": {
+          "inputTokens": 4738,
+          "outputTokens": 1485,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 1339
+        },
+        "inputTokensEstimated": 5687,
+        "outputTokensEstimated": 150,
+        "errorType": null
+      },
+      {
+        "layer": "JAVA_MODEL",
+        "phase": "com.chatchat.agents.orchestration.AgentOrchestrationEngine#reviewInterpretationPlanToolResult",
+        "operationId": "5",
+        "startedAt": 1792514347264,
+        "finishedAt": 1792514449111,
+        "durationMs": 101846,
+        "state": "SUCCEEDED",
+        "queueTimeMs": 0,
+        "usage": {
+          "inputTokens": 8110,
+          "outputTokens": 6318,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 2852
+        },
+        "inputTokensEstimated": 10564,
+        "outputTokensEstimated": 3282,
+        "errorType": null
+      },
+      {
+        "layer": "JAVA_MODEL",
+        "phase": "com.chatchat.agents.orchestration.AgentOrchestrationEngine#auditTemplateSelectionCoverage",
+        "operationId": "6",
+        "startedAt": 1792514449127,
+        "finishedAt": 1792514466192,
+        "durationMs": 17064,
+        "state": "SUCCEEDED",
+        "queueTimeMs": 0,
+        "usage": {
+          "inputTokens": 10709,
+          "outputTokens": 1004,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 469
+        },
+        "inputTokensEstimated": 13905,
+        "outputTokensEstimated": 564,
+        "errorType": null
+      },
+      {
+        "layer": "JAVA_MODEL",
+        "phase": "com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge#enrichWithGate",
+        "operationId": "7",
+        "startedAt": 1792514477222,
+        "finishedAt": 1792514492607,
+        "durationMs": 15384,
+        "state": "SUCCEEDED",
+        "queueTimeMs": 0,
+        "usage": {
+          "inputTokens": 535,
+          "outputTokens": 917,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 775
+        },
+        "inputTokensEstimated": 686,
+        "outputTokensEstimated": 153,
+        "errorType": null
+      },
+      {
+        "layer": "JAVA_TEMPLATE",
+        "phase": "controlled_batch",
+        "batchId": "reviewed-template-step-3",
+        "startedAt": "2026-10-20T16:41:06.532Z",
+        "finishedAt": "2026-10-20T16:41:12.484Z",
+        "durationMs": 5952,
+        "executionMode": "SEQUENTIAL",
+        "status": "SUCCESS",
+        "summary": {
+          "total": 5,
+          "success": 5,
+          "failed": 0,
+          "blocked": 0,
+          "skipped": 0,
+          "remoteToolInvocations": 5
+        }
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "model-1",
+        "startedAt": "2026-10-20T16:41:35.934737146Z",
+        "finishedAt": "2026-10-20T16:42:37.870296394Z",
+        "durationMs": 61935,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 15217,
+          "outputTokens": 3782,
+          "cacheReadTokens": 512,
+          "reasoningTokens": 308
+        },
+        "cacheReadTokens": 512,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "model-2",
+        "startedAt": "2026-10-20T16:42:42.007240007Z",
+        "finishedAt": "2026-10-20T16:43:48.478888191Z",
+        "durationMs": 66471,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 19330,
+          "outputTokens": 4101,
+          "cacheReadTokens": 14976,
+          "reasoningTokens": 231
+        },
+        "cacheReadTokens": 14976,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "model-3",
+        "startedAt": "2026-10-20T16:43:53.081604077Z",
+        "finishedAt": "2026-10-20T16:44:56.185946763Z",
+        "durationMs": 63104,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 23838,
+          "outputTokens": 3863,
+          "cacheReadTokens": 14976,
+          "reasoningTokens": 130
+        },
+        "cacheReadTokens": 14976,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "model-4",
+        "startedAt": "2026-10-20T16:45:00.982088214Z",
+        "finishedAt": "2026-10-20T16:45:03.704589166Z",
+        "durationMs": 2722,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 28625,
+          "outputTokens": 104,
+          "cacheReadTokens": 23552,
+          "reasoningTokens": 14
+        },
+        "cacheReadTokens": 23552,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "model-5",
+        "startedAt": "2026-10-20T16:45:04.986173563Z",
+        "finishedAt": "2026-10-20T16:46:11.038185828Z",
+        "durationMs": 66052,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 30653,
+          "outputTokens": 4052,
+          "cacheReadTokens": 23552,
+          "reasoningTokens": 198
+        },
+        "cacheReadTokens": 23552,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "model-6",
+        "startedAt": "2026-10-20T16:46:15.474257537Z",
+        "finishedAt": "2026-10-20T16:46:19.751779147Z",
+        "durationMs": 4277,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 35586,
+          "outputTokens": 170,
+          "cacheReadTokens": 0,
+          "reasoningTokens": 76
+        },
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "CODING_MODEL",
+        "phase": "provider_call",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "model-7",
+        "startedAt": "2026-10-20T16:46:21.187737442Z",
+        "finishedAt": "2026-10-20T16:46:43.328989643Z",
+        "durationMs": 22141,
+        "state": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 37610,
+          "outputTokens": 1101,
+          "cacheReadTokens": 34816,
+          "reasoningTokens": 366
+        },
+        "cacheReadTokens": 34816,
+        "cacheWriteTokens": null,
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus"
+      },
+      {
+        "layer": "PYTHON",
+        "phase": "dispatch_execution_collection_roundtrip",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-f14b24146fca82f787dfe18861920a517c8188a5c17c4c1c805b3adf92fae4da",
+        "startedAt": 1792514558182,
+        "finishedAt": 1792514561689,
+        "durationMs": 3507,
+        "state": "FAILED",
+        "outputStatus": null,
+        "validationStatus": "NOT_RECORDED",
+        "resultAvailable": false,
+        "resultAvailabilitySource": "EXPLICIT"
+      },
+      {
+        "layer": "PYTHON",
+        "phase": "dispatch_execution_collection_roundtrip",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-8ac906d0c50df8323169bfa8f3c241ab41d8a7f6c2472bc33af30323838a8918",
+        "startedAt": 1792514628967,
+        "finishedAt": 1792514632649,
+        "durationMs": 3682,
+        "state": "FAILED",
+        "outputStatus": null,
+        "validationStatus": "NOT_RECORDED",
+        "resultAvailable": false,
+        "resultAvailabilitySource": "EXPLICIT"
+      },
+      {
+        "layer": "PYTHON",
+        "phase": "dispatch_execution_collection_roundtrip",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-70c7cd1f834baa14e6f4e781ecc5e1578fd94ef445566f06224b7bce6abdd747",
+        "startedAt": 1792514696761,
+        "finishedAt": 1792514700513,
+        "durationMs": 3752,
+        "state": "SUCCEEDED",
+        "outputStatus": null,
+        "validationStatus": "INCONCLUSIVE",
+        "resultAvailable": true,
+        "resultAvailabilitySource": "EXPLICIT"
+      },
+      {
+        "layer": "PYTHON",
+        "phase": "dispatch_execution_collection_roundtrip",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-a0725c1b5d187e762f0453df91a1833661b744f986f6229a607c9414cae9e9b5",
+        "startedAt": 1792514771658,
+        "finishedAt": 1792514774963,
+        "durationMs": 3305,
+        "state": "SUCCEEDED",
+        "outputStatus": null,
+        "validationStatus": "INCONCLUSIVE",
+        "resultAvailable": true,
+        "resultAvailabilitySource": "EXPLICIT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-f14b24146fca82f787dfe18861920a517c8188a5c17c4c1c805b3adf92fae4da",
+        "state": "FAILED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "accepted_to_container_start",
+        "startedAt": "2026-10-20T16:42:38.466946+00:00",
+        "finishedAt": "2026-10-20T16:42:39.19187+00:00",
+        "durationMs": 725,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-f14b24146fca82f787dfe18861920a517c8188a5c17c4c1c805b3adf92fae4da",
+        "state": "FAILED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "container_process",
+        "startedAt": "2026-10-20T16:42:39.184267407Z",
+        "finishedAt": "2026-10-20T16:42:40.902491331Z",
+        "durationMs": 1718,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-f14b24146fca82f787dfe18861920a517c8188a5c17c4c1c805b3adf92fae4da",
+        "state": "FAILED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "process_finish_to_reconciled_archive",
+        "startedAt": "2026-10-20T16:42:40.902491331Z",
+        "finishedAt": "2026-10-20T16:42:41.358616+00:00",
+        "durationMs": 456,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-8ac906d0c50df8323169bfa8f3c241ab41d8a7f6c2472bc33af30323838a8918",
+        "state": "FAILED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "accepted_to_container_start",
+        "startedAt": "2026-10-20T16:43:49.312105+00:00",
+        "finishedAt": "2026-10-20T16:43:50.882828+00:00",
+        "durationMs": 1570,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-8ac906d0c50df8323169bfa8f3c241ab41d8a7f6c2472bc33af30323838a8918",
+        "state": "FAILED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "container_process",
+        "startedAt": "2026-10-20T16:43:50.863431836Z",
+        "finishedAt": "2026-10-20T16:43:52.092811848Z",
+        "durationMs": 1229,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-8ac906d0c50df8323169bfa8f3c241ab41d8a7f6c2472bc33af30323838a8918",
+        "state": "FAILED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "process_finish_to_reconciled_archive",
+        "startedAt": "2026-10-20T16:43:52.092811848Z",
+        "finishedAt": "2026-10-20T16:43:52.320595+00:00",
+        "durationMs": 228,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-70c7cd1f834baa14e6f4e781ecc5e1578fd94ef445566f06224b7bce6abdd747",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "accepted_to_container_start",
+        "startedAt": "2026-10-20T16:44:57.190373+00:00",
+        "finishedAt": "2026-10-20T16:44:58.553224+00:00",
+        "durationMs": 1363,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-70c7cd1f834baa14e6f4e781ecc5e1578fd94ef445566f06224b7bce6abdd747",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "container_process",
+        "startedAt": "2026-10-20T16:44:58.543989554Z",
+        "finishedAt": "2026-10-20T16:44:59.576521147Z",
+        "durationMs": 1033,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-70c7cd1f834baa14e6f4e781ecc5e1578fd94ef445566f06224b7bce6abdd747",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "process_finish_to_reconciled_archive",
+        "startedAt": "2026-10-20T16:44:59.576521147Z",
+        "finishedAt": "2026-10-20T16:44:59.810697+00:00",
+        "durationMs": 234,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-a0725c1b5d187e762f0453df91a1833661b744f986f6229a607c9414cae9e9b5",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "accepted_to_container_start",
+        "startedAt": "2026-10-20T16:46:12.054872+00:00",
+        "finishedAt": "2026-10-20T16:46:12.621196+00:00",
+        "durationMs": 567,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-a0725c1b5d187e762f0453df91a1833661b744f986f6229a607c9414cae9e9b5",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "container_process",
+        "startedAt": "2026-10-20T16:46:12.611732183Z",
+        "finishedAt": "2026-10-20T16:46:13.887755307Z",
+        "durationMs": 1276,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      },
+      {
+        "layer": "PYTHON_RUNTIME",
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-a0725c1b5d187e762f0453df91a1833661b744f986f6229a607c9414cae9e9b5",
+        "state": "SUCCEEDED",
+        "executorStopped": true,
+        "containerRemoved": true,
+        "cleanupFailed": false,
+        "phase": "process_finish_to_reconciled_archive",
+        "startedAt": "2026-10-20T16:46:13.887755307Z",
+        "finishedAt": "2026-10-20T16:46:14.085757+00:00",
+        "durationMs": 198,
+        "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+      }
+    ],
+    "measurementLimits": [
+      "Python roundtrip includes startup, execution, polling and collection; it is not process CPU time.",
+      "Python post-process timing includes log preservation, manifest archive and final row update; these are not separately metered.",
+      "Missing provider cache telemetry is unknown, not zero.",
+      "Execution/structural validity does not measure business-result correctness."
+    ],
+    "skillContextEngines": [
+      "RUNTIME_CONTEXT_DELIVERY"
+    ],
+    "skillDeliveryWithoutJavaInference": true,
+    "skillContextDurationMs": 679,
+    "acceptanceStatus": "PASSED",
+    "resultAdmitted": true,
+    "javaSemanticReviewInvoked": false,
+    "publicAnswerSha256": "5f71169b12a49bca60ffb064b54d6ca1eeea737ea368ad51eabde3997160afb1",
+    "publicAnswerCharacters": 2652,
+    "codeSubmissions": [
+      {
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-f14b24146fca82f787dfe18861920a517c8188a5c17c4c1c805b3adf92fae4da",
+        "sha256": "0db327fda746004db7b956309c5d0d1c9a75a4ee9f3d49902bf4cff275a971fb",
+        "displayedSourceSha256": "0db327fda746004db7b956309c5d0d1c9a75a4ee9f3d49902bf4cff275a971fb",
+        "redacted": false,
+        "lines": 287
+      },
+      {
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-8ac906d0c50df8323169bfa8f3c241ab41d8a7f6c2472bc33af30323838a8918",
+        "sha256": "8ff18c9c2959cbabfacd5a22ae6ec08eb33f4fde8ad76b30b0c4272bf1d0044b",
+        "displayedSourceSha256": "8ff18c9c2959cbabfacd5a22ae6ec08eb33f4fde8ad76b30b0c4272bf1d0044b",
+        "redacted": false,
+        "lines": 305
+      },
+      {
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-70c7cd1f834baa14e6f4e781ecc5e1578fd94ef445566f06224b7bce6abdd747",
+        "sha256": "21f95e923b59ac169e4406ccaa61efa03c15a9157e6ee4fda925cc7109ba822d",
+        "displayedSourceSha256": "21f95e923b59ac169e4406ccaa61efa03c15a9157e6ee4fda925cc7109ba822d",
+        "redacted": false,
+        "lines": 297
+      },
+      {
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-a0725c1b5d187e762f0453df91a1833661b744f986f6229a607c9414cae9e9b5",
+        "sha256": "77a8403454308731437fbf4ed45c35e32817dffac08e291307c1096b989af2b3",
+        "displayedSourceSha256": "77a8403454308731437fbf4ed45c35e32817dffac08e291307c1096b989af2b3",
+        "redacted": false,
+        "lines": 304
+      }
+    ],
+    "inputBindings": [
+      {
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-f14b24146fca82f787dfe18861920a517c8188a5c17c4c1c805b3adf92fae4da",
+        "snapshots": [
+          {
+            "format": "PARQUET",
+            "rowCount": 12,
+            "manifestSha256": "80db19a910e50c96f0825c47b349f1b968672d2d331a32ee1e80bf0f4faed02f",
+            "datasets": [
+              {
+                "datasetReference": "CHECK_CPU#template-binding-1-binding-1#stdout",
+                "rowCount": 3
+              },
+              {
+                "datasetReference": "CHECK_SYSTEM_LOAD#template-binding-2-binding-2#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_DISK#template-binding-3-binding-3#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_MEMORY#template-binding-4-binding-4#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_PROCESS#template-binding-5-binding-5#stdout",
+                "rowCount": 6
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-8ac906d0c50df8323169bfa8f3c241ab41d8a7f6c2472bc33af30323838a8918",
+        "snapshots": [
+          {
+            "format": "PARQUET",
+            "rowCount": 12,
+            "manifestSha256": "80db19a910e50c96f0825c47b349f1b968672d2d331a32ee1e80bf0f4faed02f",
+            "datasets": [
+              {
+                "datasetReference": "CHECK_CPU#template-binding-1-binding-1#stdout",
+                "rowCount": 3
+              },
+              {
+                "datasetReference": "CHECK_SYSTEM_LOAD#template-binding-2-binding-2#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_DISK#template-binding-3-binding-3#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_MEMORY#template-binding-4-binding-4#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_PROCESS#template-binding-5-binding-5#stdout",
+                "rowCount": 6
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-70c7cd1f834baa14e6f4e781ecc5e1578fd94ef445566f06224b7bce6abdd747",
+        "snapshots": [
+          {
+            "format": "PARQUET",
+            "rowCount": 12,
+            "manifestSha256": "80db19a910e50c96f0825c47b349f1b968672d2d331a32ee1e80bf0f4faed02f",
+            "datasets": [
+              {
+                "datasetReference": "CHECK_CPU#template-binding-1-binding-1#stdout",
+                "rowCount": 3
+              },
+              {
+                "datasetReference": "CHECK_SYSTEM_LOAD#template-binding-2-binding-2#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_DISK#template-binding-3-binding-3#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_MEMORY#template-binding-4-binding-4#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_PROCESS#template-binding-5-binding-5#stdout",
+                "rowCount": 6
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "operationId": "cline-a0725c1b5d187e762f0453df91a1833661b744f986f6229a607c9414cae9e9b5",
+        "snapshots": [
+          {
+            "format": "PARQUET",
+            "rowCount": 12,
+            "manifestSha256": "80db19a910e50c96f0825c47b349f1b968672d2d331a32ee1e80bf0f4faed02f",
+            "datasets": [
+              {
+                "datasetReference": "CHECK_CPU#template-binding-1-binding-1#stdout",
+                "rowCount": 3
+              },
+              {
+                "datasetReference": "CHECK_SYSTEM_LOAD#template-binding-2-binding-2#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_DISK#template-binding-3-binding-3#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_MEMORY#template-binding-4-binding-4#stdout",
+                "rowCount": 1
+              },
+              {
+                "datasetReference": "CHECK_PROCESS#template-binding-5-binding-5#stdout",
+                "rowCount": 6
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "codingConfiguration": [
+      {
+        "taskId": "analysis-coding-c2380cf006bab7954551d5c84373c8aaef1ff92ad2150e8f9956f07c96fde5b5",
+        "model": {
+          "binding": "AUTHORIZED_PARENT_MODEL",
+          "implementation": "dev.langchain4j.model.openai.OpenAiChatModel",
+          "maxRetries": 3,
+          "maxTokens": -1,
+          "protocol": "openai",
+          "providerModel": "",
+          "selectedModel": "qwen3.7-plus",
+          "timeout": 1800000
+        },
+        "skillStatus": "DELIVERED_WITH_LIMITS",
+        "skillFingerprint": "928154907cd3fc97ef876213be795b78e7c0b657c062fddd9353887c623466ca",
+        "skillIds": [
+          "239e79a1-415b-45ca-aa68-054fb02866d3",
+          "7704e35b-f526-48d4-819d-8b465ac4731e",
+          "9db489fc-919d-4c2b-beb8-ee48fcd6969d",
+          "c8a8fea9-3518-49dd-a613-199b7653cfa8",
+          "05f7be55-a33c-4fa0-9ed3-614baa2f5219",
+          "df0bc883-5df3-4a23-bed9-7badc48931c1"
+        ],
+        "executorStopped": true,
+        "reconciliationRequired": false
+      }
+    ],
+    "comparison": "One observation per version/scenario; failed cases and different objectives are not pooled. No P50/P95 or improvement percentage is established."
+  }
+}

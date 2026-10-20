@@ -30,7 +30,7 @@ token = auth['token']
 tenant = urllib.parse.quote(auth['user']['tenantId'])
 results = {}
 for path in sorted(root.glob('scenario*-*.json')):
-    if not re.fullmatch(r'scenario[12]-(?:before|after|final)',path.stem): continue
+    if not re.fullmatch(r'scenario(?:[12]-(?:before|after|final)|-qa-final)',path.stem): continue
     case = json.loads(path.read_text())
     task,run = case['taskId'],case['runId']
     parent = http('/agent/tasks/'+task+'?tenantId='+tenant)

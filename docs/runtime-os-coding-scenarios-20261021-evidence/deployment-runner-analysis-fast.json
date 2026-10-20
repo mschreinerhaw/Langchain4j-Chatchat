@@ -1,0 +1,13 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-coding-agent:analysis-fast-daebd60fa2d6",
+  "moduleSha256": {
+    "runner.js": "1242465c39049280285c51614d166a498fec048cb0af545405a522b9b78f9460",
+    "server.js": "0688db06ca63bf4245fcdcba5c7603f55a49e6a335b149425a9a3c4afe59d400",
+    "code-repair.js": "e1d7f8fffc18d1e5d58ea600e403b3bb18a18fedcd02e1e85de86f69b71f256f"
+  },
+  "backup": "/opt/runtime-os-docker-stage/evidence/runtime-os-scenarios-final-20261021/runner-backup-1792514181",
+  "consoleUnchanged": true,
+  "unrelatedContainersUnchanged": true,
+  "activeTasks": 0
+}

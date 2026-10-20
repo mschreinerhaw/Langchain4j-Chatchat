@@ -1,0 +1,12 @@
+{
+  "scope": "Added production source lines 375a89a9..eb571d57",
+  "matches": {
+    "测试服务器CDH DataNode 节点 worker11": 0,
+    "worker11": 0,
+    "证券持仓": 0,
+    "financial_data_model": 0,
+    "server_ops_assistant": 0
+  },
+  "fixturesExcluded": true,
+  "limitation": "Literal audit complements ownership tests and live runs; not proof of all semantic behavior"
+}

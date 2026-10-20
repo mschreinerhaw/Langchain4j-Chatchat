@@ -1,0 +1,26 @@
+{
+  "status": "PARSED",
+  "parser": "sqlglot 30.23.0",
+  "databaseExecuted": false,
+  "businessStandardCertified": false,
+  "outputs": [
+    {
+      "file": "scenario1-final-sql-1.sql",
+      "sha256": "b4c96f1619659fc5bb69fb73f0926fe37c7211696ce9968e285c39c5e07fd4c6",
+      "dialect": "mysql",
+      "statements": [
+        "Create"
+      ],
+      "columnDefinitions": 56
+    },
+    {
+      "file": "scenario1-final-sql-2.sql",
+      "sha256": "bc262073f7c8e2aedb9c67221a388379996fd37afcbfdf76f83e15d9ffed13c8",
+      "dialect": "hive",
+      "statements": [
+        "Create"
+      ],
+      "columnDefinitions": 56
+    }
+  ]
+}

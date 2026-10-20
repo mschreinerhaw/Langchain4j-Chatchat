@@ -40,7 +40,9 @@ class CodingAnalysisServiceTest {
         @SuppressWarnings("unchecked") Map<String,Object> value = request.getValue();
         assertThat((List<?>) value.get("datasetReferences")).hasSize(9);
         assertThat(value.get("requestId")).isEqualTo("primary-data-analysis-v1");
-        assertThat(value.get("instruction").toString()).contains("Autonomously inspect", "User objective", "Question");
+        assertThat(value.get("instruction").toString()).contains("Autonomously inspect",
+            "same declared metric, scope, period and unit", "every table header aligns with its values",
+            "User objective", "Question").doesNotContain("customer", "security", "profit formula");
         assertThat((Map<String,Object>) value.get("outputSchema")).containsEntry("type", "object");
         verifyNoInteractions(agent, python, inputs, plans, collector);
     }

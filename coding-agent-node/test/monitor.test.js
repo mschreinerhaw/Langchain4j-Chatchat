@@ -126,6 +126,8 @@ test('reviewed analysis repairs locally and reads its scoped result before compl
   assert.equal(result.status, 'completed'); assert.equal(turns, 4); assert.equal(executions, 2); assert.equal(reviewed, 1);
   assert.equal(actual.source, 'value = 1\nprint(value)\n');
   assert.equal(finished.operationId, actual.operationId);
+  assert.ok(run.events.some(event => event.type === 'TOOL_STARTED' && event.tool === 'artifact_read'));
+  assert.ok(run.events.some(event => event.type === 'TOOL_FINISHED' && event.tool === 'artifact_read'));
 });
 
 test('versioned file inputs negotiate format before SDK/model admission and keep output JSONL', async () => {

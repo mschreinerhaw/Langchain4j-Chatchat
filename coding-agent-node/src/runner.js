@@ -258,7 +258,13 @@ export function createCodingRun(contract, gateway, options = {}) {
     inputSchema: { type: 'object', properties: { reference: { type: 'string' } },
       required: ['reference'], additionalProperties: false },
     executionMode: 'sequential', retryable: false, maxRetries: 0,
-    execute(input, context) { return gateway.readArtifact(contract, required(input?.reference, 'reference'), context.signal); },
+    async execute(input, context) {
+      const reference = required(input?.reference, 'reference');
+      await forward({ type: 'TOOL_STARTED', tool: 'artifact_read' });
+      const result = await gateway.readArtifact(contract, reference, context.signal);
+      await forward({ type: 'TOOL_FINISHED', tool: 'artifact_read', status: 'SUCCEEDED' });
+      return result;
+    },
   });
   const systemPrompt = (workspace && pythonWorkspace ? [
     'You are the Python engineering Coding Agent subordinate to Runtime OS. Read captured context with workspace_read, then propose complete .py files with workspace_propose.',

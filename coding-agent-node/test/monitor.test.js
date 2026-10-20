@@ -88,6 +88,46 @@ test('fast analysis keeps output-missing failures repairable and materializes au
   assert.equal(actual.codeSha256, createHash('sha256').update(actual.source).digest('hex'));
 });
 
+test('reviewed analysis repairs locally and reads its scoped result before completion', async () => {
+  const next = structuredClone(contract);
+  next.metadataRefs = ['runtime-coding:analysis-reviewed-path:v1'];
+  next.authorization.allowedTools = ['python_execute', 'artifact_read'];
+  next.budget.maxModelCalls = 4;
+  const initial = 'value = 1\nraise ValueError(value)\n';
+  const digest = createHash('sha256').update(initial).digest('hex');
+  let turns = 0, executions = 0, reviewed = 0, actual, finished;
+  const run = createCodingRun(next, {
+    reserveModel: async () => {}, settleModel: async () => {},
+    finish: async (_task, value) => { finished = value; },
+    executePython: async (_task, value) => {
+      actual = value;
+      if (++executions === 1) return { status: 'FAILED', executorStopped: true,
+        technicalError: 'ValueError at program line 2', codeHash: digest };
+      return { status: 'SUCCEEDED', executorStopped: true, resultDatasetRef: 'runtime-evidence:result',
+        validationRecordRef: 'runtime-evidence:validation', evidenceBundleRef: 'runtime-evidence:bundle' };
+    },
+    readArtifact: async (_task, reference) => {
+      reviewed++; assert.equal(reference, 'runtime-evidence:result');
+      return { reference, complete: true, rows: [{ reportMarkdown: 'supported' }] };
+    },
+  }, { model: { async *stream(request) {
+    turns++;
+    if (turns === 1) yield { type: 'tool-call-delta', toolCallId: 'initial', toolName: 'python_execute',
+      input: { fileName: 'main.py', source: initial } };
+    else if (turns === 2) yield { type: 'tool-call-delta', toolCallId: 'repair', toolName: 'python_execute',
+      input: { fileName: 'main.py', repair: { baseCodeSha256: digest,
+        edits: [{ oldText: 'raise ValueError(value)', newText: 'print(value)' }] } } };
+    else if (turns === 3) yield { type: 'tool-call-delta', toolCallId: 'review', toolName: 'artifact_read',
+      input: { reference: 'runtime-evidence:result' } };
+    else yield { type: 'text-delta', text: 'Reviewed result is supported.' };
+    yield { type: 'finish', reason: turns < 4 ? 'tool-calls' : 'stop' };
+  } } });
+  const result = await run.run();
+  assert.equal(result.status, 'completed'); assert.equal(turns, 4); assert.equal(executions, 2); assert.equal(reviewed, 1);
+  assert.equal(actual.source, 'value = 1\nprint(value)\n');
+  assert.equal(finished.operationId, actual.operationId);
+});
+
 test('versioned file inputs negotiate format before SDK/model admission and keep output JSONL', async () => {
   for (const format of ['PARQUET', 'CSV']) {
     let prompt, metadataReads = 0;

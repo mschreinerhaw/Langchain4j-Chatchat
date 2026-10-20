@@ -23,6 +23,8 @@ export function createCodingRun(contract, gateway, options = {}) {
   const analysis = contract?.schemaVersion === 'runtime_os.coding.v3'
     && contract?.outputContract?.resultFormat === 'JSON_LINES';
   const fastAnalysis = analysis && contract.metadataRefs?.includes('runtime-coding:analysis-fast-path:v1');
+  const reviewedAnalysis = analysis && contract.metadataRefs?.includes('runtime-coding:analysis-reviewed-path:v1');
+  const repairableAnalysis = fastAnalysis || reviewedAnalysis;
   const pythonWorkspace=workspace && contract.outputContract.resultSchemaRef==='python-studio.output.v1';
   const fileInput = contract?.runtimeContext?.inputFiles;
   if (fileInput && (!analysis || fileInput.schemaVersion !== 'runtime_os.coding.input.v1'
@@ -155,19 +157,19 @@ export function createCodingRun(contract, gateway, options = {}) {
     description: `Run main.py in a NEW isolated Python sandbox for EACH call. Java mounts only authorized immutable inputs under /data/input/{fileId}/{fileName}. ${fileInput ? 'Input is a versioned manifest with schemaFileId and ordered Parquet/CSV parts; use columns[].storageName/type to reconstruct logical columns and null/missing semantics. Read and hash-check each part; never parse this manifest as JSONL.' : 'A single input is input.jsonl; a chunked input uses manifest.json plus its ordered input.jsonl chunks. Read and hash-check the manifest chunks in Python.'} Previous calls' output files do not exist here. To produce an analysis result, perform the calculation and write structured JSONL to /workspace/output/results/${contract.outputContract?.requiredFiles?.[0] ?? 'rows.jsonl'}. A diagnostic program without that file may succeed as a process, but produces no analysis result. Inspect the returned Runtime receipt; repair technical errors with a complete new program. Never claim business validation yourself.`,
     inputSchema: { type: 'object', properties: {
       fileName: { type: 'string', enum: ['main.py'] }, source: { type: 'string' },
-      ...(fastAnalysis ? { repair: { type: 'object', properties: {
+      ...(repairableAnalysis ? { repair: { type: 'object', properties: {
         baseCodeSha256: { type: 'string' }, edits: { type: 'array', items: { type: 'object', properties: {
           oldText: { type: 'string' }, newText: { type: 'string' },
         }, required: ['oldText', 'newText'], additionalProperties: false } },
       }, required: ['baseCodeSha256', 'edits'], additionalProperties: false } } : {}),
-    }, required: fastAnalysis ? ['fileName'] : ['fileName', 'source'], additionalProperties: false },
+    }, required: repairableAnalysis ? ['fileName'] : ['fileName', 'source'], additionalProperties: false },
     // The SDK defaults to 30 seconds. Runtime owns the task deadline and cancellation.
     timeoutMs: deadline === null ? 30000 : Math.max(1, Math.min(deadline - Date.now(), 2147483647)),
     executionMode: 'sequential', retryable: false, maxRetries: 0,
     async execute(input, context) {
       if (required(input?.fileName, 'fileName') !== 'main.py')
         throw new TypeError('Invalid Python file name');
-      const source = prepareProgram(input, fastAnalysis ? previousProgram : null);
+      const source = prepareProgram(input, repairableAnalysis ? previousProgram : null);
       if (Buffer.byteLength(source, 'utf8') > 256000) throw new TypeError('Python source exceeds Runtime limit');
       const toolCallId = required(context.toolCallId, 'toolCallId');
       const id = operationId(contract, toolCallId);

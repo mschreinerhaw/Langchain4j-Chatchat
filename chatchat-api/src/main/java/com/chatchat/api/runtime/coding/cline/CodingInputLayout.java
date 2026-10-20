@@ -19,6 +19,9 @@ final class CodingInputLayout {
         CodingInputManifest.fileId(fileId);
         CodingInputManifest.hash(hash);
         return Map.of("schemaVersion", "runtime_os.coding.input-layout.v1",
+            "reader", Map.of("module", "runtime_input", "function", "load_rows",
+                "usage", "from runtime_input import load_rows; rows = list(load_rows(manifestPath, expectedManifestSha256))",
+                "returns", "logical dictionaries; JSON decoded; missing/null distinct; exact integer/decimal types"),
             "manifestPath", "/data/input/" + fileId + "/manifest.json",
             "expectedManifestSha256", hash,
             "manifestRootFields", Arrays.stream(CodingInputManifest.class.getRecordComponents())

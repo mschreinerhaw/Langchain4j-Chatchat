@@ -378,6 +378,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
         for (String key : List.of(
             "toolName",
             "assetName",
+            "assetIds",
             "name",
             "businessGroup",
             "business_group",
@@ -546,12 +547,19 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
 
     private boolean hasAssetScope(Map<String, Object> filters) {
         return firstValue(filters,
-            "toolName", "assetName", "templateId", "template_id", "name", "service", "target",
+            "toolName", "assetName", "assetIds", "templateId", "template_id", "name", "service", "target",
             "businessGroup", "business_group", "group", "groupName", "group_name",
             "groupDescription", "group_description", "labels") != null;
     }
 
     private boolean matchesApiServiceScope(ApiServiceConfig config, Map<String, Object> filters) {
+        Object ids = filters.get("assetIds");
+        if (ids != null) {
+            if (!(ids instanceof java.util.Collection<?> selected) || selected.isEmpty()
+                || selected.stream().noneMatch(id -> java.util.Objects.equals(text(id), config.getId()))) {
+                return false;
+            }
+        }
         String requestedName = text(firstValue(filters, "toolName", "assetName", "name", "service", "target"));
         if (!requestedName.isBlank()
             && !logicalNameMatches(requestedName, config.getToolName())

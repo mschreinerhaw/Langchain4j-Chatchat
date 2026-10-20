@@ -51,7 +51,7 @@ class AnalysisRefinementCoordinatorTest {
 
         assertThat(enforced.steps().get(0).input()).containsExactlyInAnyOrderEntriesOf(Map.of(
             "query", "customer trading", "limit", 10, "cursor", "next-page"));
-        assertThat(coordinator.templateDiscoveryContinuationSatisfied(enforced, result)).isTrue();
+        assertThat(coordinator.templateDiscoveryContinuationSatisfied(original,enforced, result)).isTrue();
     }
 
     @Test
@@ -71,7 +71,32 @@ class AnalysisRefinementCoordinatorTest {
             Map.of("query", "model changed query", "filters", Map.of("env", "SCOPE_B")), List.of(1), null, null)));
         var enforced = coordinator.enforceTemplateDiscoveryContinuation(original, rewritten, result);
         assertThat(enforced.steps().get(0).input()).containsAllEntriesOf(resolved).containsEntry("cursor", "opaque-next");
-        assertThat(coordinator.templateDiscoveryContinuationSatisfied(enforced, result)).isTrue();
+        assertThat(coordinator.templateDiscoveryContinuationSatisfied(original,enforced, result)).isTrue();
+    }
+
+    @Test
+    void movedContinuationStepCannotReuseCursorWithAChangedDiscoveryQuery() {
+        var coordinator = new AnalysisRefinementCoordinator(mock(AgentToolNameResolver.class),3);
+        var executed=Map.<String,Object>of("query","original words","stage","template",
+            "filters",Map.of("assetIds",List.of("asset-1"),"env","DEV"),"limit",10);
+        var discovery=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool","published_bridge",true,
+            Map.of(),null,null,null,1L,Map.of("resolvedInput",executed));
+        var result=new InterpretationPlanRuntime.ExecutionResult("DAG_REWRITE_REQUESTED",false,false,
+            "next page",null,List.of(discovery),Map.of("failedStepId",2,
+                "templateDiscoveryContinuationRequired",true,
+                "templateDiscoveryRetryInputChanges",Map.of("cursor","issued-next")),1L);
+        var original=plan(List.of(new InterpretationPlan.Step(2,"mcp_tool","published_bridge",
+            Map.of("query","pre-binding"),List.of(),null,null)));
+        var forged=plan(List.of(new InterpretationPlan.Step(7,"mcp_tool","published_bridge",
+            Map.of("query","changed words","stage","template","cursor","issued-next",
+                "filters",Map.of("assetIds",List.of("asset-1"),"env","DEV"),"limit",10),
+            List.of(),null,null)));
+        assertThat(coordinator.templateDiscoveryContinuationSatisfied(original,forged,result)).isFalse();
+        var fixed=coordinator.enforceTemplateDiscoveryContinuation(original,forged,result);
+        assertThat(fixed.steps().get(0).id()).isEqualTo(7);
+        assertThat(fixed.steps().get(0).input()).containsAllEntriesOf(executed)
+            .containsEntry("cursor","issued-next").doesNotContainEntry("query","changed words");
+        assertThat(coordinator.templateDiscoveryContinuationSatisfied(original,fixed,result)).isTrue();
     }
 
     @Test

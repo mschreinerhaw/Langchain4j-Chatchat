@@ -265,10 +265,18 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         if (!operation.executorStopped() || !"SUCCEEDED".equals(operation.status())
                 || operation.manifestHash() == null) return null;
         var input = inputs.requireAuthorized(contract);
-        var collected = collector.collect(scope, contract, operationId, "main.py",
-            contract.outputContract().requiredFiles().get(0),
-            List.of(new CodingEvidenceCollector.InputFile(
-                input.fileId(), input.fileName(), input.sha256())), plans.validator(contract));
+        CodingEvidenceCollector.Collected collected;
+        try {
+            collected = collector.collect(scope, contract, operationId, "main.py",
+                contract.outputContract().requiredFiles().get(0),
+                List.of(new CodingEvidenceCollector.InputFile(
+                    input.fileId(), input.fileName(), input.sha256())), plans.validator(contract));
+        } catch (CodingEvidenceCollector.RequiredOutputMissingException
+                | CodingEvidenceCollector.InvalidStructuredResultException unfulfilled) {
+            // A stopped probe is not a completed analysis. Return a settled failure receipt
+            // through recovery instead of throwing into and cancelling the parent workflow.
+            return null;
+        }
         CodingTaskOutcome current = tasks.get(scope, taskId);
         Instant at = clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
         if (at.isBefore(current.updatedAt())) at = current.updatedAt();
@@ -332,11 +340,19 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         }
     }
     private void requireInputCapabilities(CodingTaskContract contract) {
-        if(contract.runtimeContext().get("inputFiles") instanceof Map<?,?> input) {
-            JsonNode capabilities=request("/v1/input-capabilities",Map.of());
-            if(!com.chatchat.common.runtime.coding.CodingInputManifest.VERSION.equals(capabilities.path("schemaVersion").asText())
-                    || !capabilities.path("formats").toString().contains("\""+input.get("format")+"\""))
-                throw new IllegalStateException("Cline worker has not negotiated this input descriptor");
+        boolean fast=contract.metadataRefs().contains("runtime-coding:analysis-fast-path:v1");
+        Object descriptor=contract.runtimeContext().get("inputFiles");
+        if(descriptor==null && !fast)return;
+        JsonNode capabilities=request("/v1/input-capabilities",Map.of());
+        if(descriptor instanceof Map<?,?> input &&
+                (!com.chatchat.common.runtime.coding.CodingInputManifest.VERSION.equals(capabilities.path("schemaVersion").asText())
+                || !capabilities.path("formats").toString().contains("\""+input.get("format")+"\"")))
+            throw new IllegalStateException("Cline worker has not negotiated this input descriptor");
+        if(fast) {
+            boolean supported=false;
+            for(var profile:capabilities.path("analysisProfiles"))
+                if("runtime-coding:analysis-fast-path:v1".equals(profile.asText()))supported=true;
+            if(!supported)throw new IllegalStateException("Cline worker has not negotiated the analysis execution profile");
         }
     }
 

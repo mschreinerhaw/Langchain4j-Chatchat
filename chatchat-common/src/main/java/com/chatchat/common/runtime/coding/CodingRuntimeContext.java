@@ -8,7 +8,26 @@ public final class CodingRuntimeContext {
     public static Map<String, Object> validate(Map<String, Object> value) {
         if (value == null || value.isEmpty()) return Map.of();
         CodingProtocol.require(value.keySet().stream().allMatch(Set.of("schemaVersion", "capturedAt",
-            "consistency", "model", "skills", "configuredSkillIds", "inputFiles")::contains), "Unknown Coding context field");
+            "consistency", "model", "skills", "configuredSkillIds", "inputFiles", "executionProfile")::contains), "Unknown Coding context field");
+        if(value.containsKey("executionProfile")) {
+            CodingProtocol.require(value.get("executionProfile") instanceof Map<?,?>,"Coding execution profile required");
+            var profile=(Map<?,?>)value.get("executionProfile");
+            CodingProtocol.require(profile.keySet().stream().allMatch(Set.of("schemaVersion","complexity","sourceCount","inputRows","selectedModel","providerModel","protocol","implementation","reasoningEffort")::contains)
+                && "runtime_os.coding.execution_profile.v1".equals(profile.get("schemaVersion"))
+                && profile.get("complexity") instanceof String complexity && Set.of("SIMPLE","COMPLEX").contains(complexity)
+                && profile.get("sourceCount") instanceof Number sources && sources.longValue()>=1 && sources.longValue()<=8
+                && profile.get("inputRows") instanceof Number rows && rows.longValue()>=0,
+                "Invalid Coding execution profile");
+            if(profile.containsKey("selectedModel"))CodingProtocol.require(profile.get("selectedModel") instanceof String alias
+                && alias.matches("[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
+                && profile.containsKey("providerModel") && profile.containsKey("protocol")
+                && profile.containsKey("implementation"),"Invalid Coding model alias or unfrozen provider identity");
+            for(String key:List.of("providerModel","protocol","implementation"))
+                if(profile.containsKey(key))CodingProtocol.require(profile.get(key) instanceof String text && text.length()<=512,
+                    "Invalid Coding provider identity");
+            if(profile.containsKey("reasoningEffort"))CodingProtocol.require(profile.get("reasoningEffort") instanceof String effort
+                && Set.of("none","minimal","low","medium","high","xhigh").contains(effort),"Invalid Coding reasoning effort");
+        }
         if(value.containsKey("inputFiles")) {
             CodingProtocol.require(value.get("inputFiles") instanceof Map<?,?>,"Input capability descriptor required");
             var input=(Map<?,?>)value.get("inputFiles");

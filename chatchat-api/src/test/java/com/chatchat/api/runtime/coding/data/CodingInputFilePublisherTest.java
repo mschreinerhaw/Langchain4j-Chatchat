@@ -105,15 +105,36 @@ class CodingInputFilePublisherTest {
         var descriptor=access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->inputs.describe(scope,"frozen",snapshot));
         assertThat(descriptor).containsEntry("format","PARQUET");
     }
+    @Test void onlyDeclaredLeasedCodingContextReceivesBoundedVerifiedObservation() throws Exception {
+        var data=new Dataset("source",Map.of(),List.of(Map.of("text","PRIVATE_AUTHORIZED_SAMPLE"),Map.of("text","SECOND_ROW_NOT_PREVIEWED")));
+        var snapshot=capture("task",data,()->{});
+        var grants=EnumSet.of(CodingTaskAccess.Action.READ,CodingTaskAccess.Action.WORKER);
+        var declared=access.as(scope,grants,()->contract(snapshot,List.of(CodingInputObservation.POLICY_REF)));
+        var legacy=access.as(scope,grants,()->contract(snapshot));
+        assertThatThrownBy(()->access.as(scope,grants,()->inputs.observeForCoding(legacy))).isInstanceOf(SecurityException.class);
+        assertThatThrownBy(()->access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->inputs.observeForCoding(declared)))
+            .isInstanceOf(com.chatchat.common.runtime.coding.CodingContractException.class);
+        var observation=access.as(scope,grants,()->inputs.observeForCoding(declared));
+        assertThat(observation).containsEntry("complete",false).containsEntry("inputSha256",snapshot.sha256());
+        assertThat(observation.toString()).contains("PRIVATE_AUTHORIZED_SAMPLE").doesNotContain("SECOND_ROW_NOT_PREVIEWED");
+        assertThat(access.as(scope,grants,()->inputs.describe(scope,"task",snapshot)).toString())
+            .doesNotContain("PRIVATE_AUTHORIZED_SAMPLE","SECOND_ROW_NOT_PREVIEWED");
+        var part=snapshot.chunks().get(1);
+        Files.write(new CodingSharedFiles(root).directory("tenant","owner",part.fileId()).resolve(part.fileName()),new byte[]{1});
+        assertThatThrownBy(()->access.as(scope,grants,()->inputs.observeForCoding(declared))).isInstanceOf(SecurityException.class);
+    }
     private CodingInputSnapshotService.Snapshot capture(String task,Dataset dataset,Runnable guard) {
         return access.as(scope,EnumSet.of(CodingTaskAccess.Action.SUBMIT),()->inputs.captureConfigured(scope,task,List.of(dataset),
             "source","decision","workspace",100,1024*1024,guard));
     }
     private com.chatchat.common.runtime.coding.CodingTaskContract contract(CodingInputSnapshotService.Snapshot input) {
+        return contract(input,List.of());
+    }
+    private com.chatchat.common.runtime.coding.CodingTaskContract contract(CodingInputSnapshotService.Snapshot input,List<String> metadataRefs) {
         var c=com.chatchat.common.runtime.coding.CodingProtocol.ANALYSIS_VERSION;
         return new com.chatchat.common.runtime.coding.CodingTaskContract(c,"task",scope,
             new com.chatchat.common.runtime.coding.CodingTaskContract.Objective("calculate",List.of("rows.jsonl"),List.of("rule:1")),
-            input.reference(),List.of(),"workspace",
+            input.reference(),metadataRefs,"workspace",
             new com.chatchat.common.runtime.coding.CodingTaskContract.Authorization("decision",List.of("python_execute"),
                 CodingInputSnapshotService.mountedFiles(input).stream().map(CodingInputSnapshotService.Chunk::fileId).toList(),List.of(),List.of(),
                 com.chatchat.common.runtime.coding.CodingTaskContract.NetworkPolicy.NONE,List.of(),

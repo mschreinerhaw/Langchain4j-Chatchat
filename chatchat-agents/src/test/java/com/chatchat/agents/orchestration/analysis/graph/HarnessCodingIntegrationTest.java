@@ -320,26 +320,38 @@ class HarnessCodingIntegrationTest {
         verifyNoInteractions(model);
     }
 
-    @Test void finalReportMustRepairClaimsOutsideComputedEvidence() {
+    @Test void independentSameTurnCalculationsUseOneExecutionContract() {
         var model=mock(ChatModel.class);var port=resultPort();var turn=new AtomicInteger();
         doCallRealMethod().when(port).executeObserved(any(),anyMap(),anyMap(),any());
         var metadata=new LinkedHashMap<String,Object>();metadata.put("analysisExecutionPolicy","PYTHON_REQUIRED");
-        when(model.chat(anyString())).thenReturn(
-            "{\"status\":\"UNSUPPORTED\",\"reason\":\"A sample statistic cannot prove universal health\",\"unsupportedClaims\":[\"Always healthy\"]}",
-            "{\"status\":\"SUPPORTED\",\"reason\":\"The sampled statistic is present\",\"unsupportedClaims\":[]}");
-        when(model.chat(any(ChatRequest.class))).thenAnswer(call->{
-            return switch(turn.incrementAndGet()) {
-                case 1 -> reply("CONTINUE","",List.of(codingRequest("source")));
-                case 2 -> reply("COMPLETE","The system is always healthy.",List.of());
-                default -> {
-                    assertThat(((ChatRequest)call.getArgument(0)).messages().toString()).contains("FINAL_REPORT_EVIDENCE_UNSUPPORTED");
-                    yield reply("COMPLETE","The sampled computed statistic is 17.",List.of());
-                }
-            };
+        when(model.chat(any(ChatRequest.class))).thenAnswer(call -> {
+            if (turn.incrementAndGet()==1) {
+                var first=new LinkedHashMap<>(codingRequest("source"));first.put("requestId","first");
+                var second=new LinkedHashMap<>(codingRequest("source"));second.put("requestId","second");
+                return reply("CONTINUE","",List.of(first,second));
+            }
+            return reply("COMPLETE","Agent composed the results.",List.of());
         });
-        assertThat(run(model,port,metadata).markdown()).isEqualTo("The sampled computed statistic is 17.");
-        assertThat(((Map<?,?>)metadata.get("finalReportSemanticAdmission")).get("status")).isEqualTo("SUPPORTED");
-        assertThat(metadata.get("harnessModelCalls")).isEqualTo(5);
+        assertThat(run(model,port,metadata).markdown()).isEqualTo("Agent composed the results.");
+        var captured=org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(port,times(1)).execute(any(),captured.capture(),anyMap());
+        assertThat(captured.getValue().get("datasetReferences")).isEqualTo(List.of("source"));
+        assertThat(captured.getValue().get("instruction").toString()).contains("first","second","result_1","result_2");
+        assertThat(metadata.get("harnessModelCalls")).isEqualTo(2);
+    }
+
+    @Test void runtimePublishesAgentConclusionsWithoutAnOsSemanticVeto() {
+        var model=mock(ChatModel.class);var port=resultPort();var turn=new AtomicInteger();
+        doCallRealMethod().when(port).executeObserved(any(),anyMap(),anyMap(),any());
+        var metadata=new LinkedHashMap<String,Object>();metadata.put("analysisExecutionPolicy","PYTHON_REQUIRED");
+        when(model.chat(anyString())).thenThrow(new AssertionError("OS must not commission a business reviewer"));
+        when(model.chat(any(ChatRequest.class))).thenAnswer(call -> turn.incrementAndGet()==1
+            ? reply("CONTINUE","",List.of(codingRequest("source")))
+            : reply("COMPLETE","Agent-authored analytical conclusion.",List.of()));
+        assertThat(run(model,port,metadata).markdown()).isEqualTo("Agent-authored analytical conclusion.");
+        assertThat(metadata).doesNotContainKey("finalReportSemanticAdmission");
+        assertThat(metadata.get("harnessModelCalls")).isEqualTo(2);
+        verify(model,never()).chat(anyString());
     }
 
     @Test void emptyAnalysisCannotClaimCompleteWithoutComputedEvidence() {

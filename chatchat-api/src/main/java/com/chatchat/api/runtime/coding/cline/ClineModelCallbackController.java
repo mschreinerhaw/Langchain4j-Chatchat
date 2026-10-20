@@ -90,6 +90,8 @@ public final class ClineModelCallbackController {
                 "fileId",file.fileId(),"fileName",file.fileName(),"sha256",file.sha256(),"rowCount",file.rowCount(),"size",file.size(),
                 "virtualPath","/data/input/"+file.fileId()+"/"+file.fileName())).toList());
             response.put("fileLayout", CodingInputLayout.describe(c.runtimeContext()));
+            if(c.metadataRefs().contains(com.chatchat.api.runtime.coding.data.CodingInputObservation.POLICY_REF))
+                response.put("analysisPreview",inputs.observeForCoding(c));
             if(mapper.valueToTree(response).toString().getBytes(java.nio.charset.StandardCharsets.UTF_8).length>180000)
                 throw new IllegalArgumentException("Input metadata exceeds the bounded Coding context; narrower authorized projection required");
             return response;
@@ -256,7 +258,8 @@ public final class ClineModelCallbackController {
     private Map<String,Object> workerPayload(JsonNode event) {
         var payload = new java.util.LinkedHashMap<String,Object>();
         for (String key : List.of("type", "timestamp", "stage", "source", "attemptId", "tool", "status",
-                "codeSha256", "fileName", "proposedOperationId", "skillFingerprint", "selectedModel", "providerModel", "protocol", "startedAt", "finishedAt", "validationStatus", "outputStatus")) {
+                "codeSha256", "fileName", "proposedOperationId", "skillFingerprint", "selectedModel", "providerModel", "protocol", "startedAt", "finishedAt", "validationStatus", "outputStatus",
+                "resultDatasetRef", "validationRecordRef", "evidenceBundleRef")) {
             JsonNode value = event.path(key);
             if (value.isTextual() && value.asText().length() <= 512) payload.put(key, value.asText());
         }
@@ -264,6 +267,8 @@ public final class ClineModelCallbackController {
             if (event.path(key).isIntegralNumber() && event.path(key).asLong() >= 0)
                 payload.put(key, event.path(key).asLong());
         }
+        if (event.path("resultAvailable").isBoolean())
+            payload.put("resultAvailable", event.path("resultAvailable").asBoolean());
         if (event.path("usage").isObject()) {
             var usage = new java.util.LinkedHashMap<String,Object>();
             for (String key : List.of("inputTokens", "outputTokens"))

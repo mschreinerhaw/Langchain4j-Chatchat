@@ -104,6 +104,29 @@ class MeteredChatModelTest {
     }
 
     @Test
+    void nativeTextPathRetainsProviderTokenAndCacheReceipt() {
+        Map<String,Object> usage=new LinkedHashMap<>();
+        ChatModel provider=new ChatModel() {
+            @Override public ChatResponse doChat(ChatRequest request) {
+                var tokens=dev.langchain4j.model.openai.OpenAiTokenUsage.builder()
+                    .inputTokenCount(120).outputTokenCount(15)
+                    .inputTokensDetails(dev.langchain4j.model.openai.OpenAiTokenUsage.InputTokensDetails.builder()
+                        .cachedTokens(30).build()).build();
+                return ChatResponse.builder().aiMessage(AiMessage.from("done")).tokenUsage(tokens).build();
+            }
+        };
+        var governed=new CapacityGovernedChatModel("test",provider,
+            new ModelInvocationCapacityManager(2,100,1000));
+        var model=new MeteredChatModel(new DeadlineAwareChatModel(governed,()->10000L),
+            usage,0,0,0,0,0.8);
+        assertThat(model.chat("hello")).isEqualTo("done");
+        Map<?,?> call=(Map<?,?>)((List<?>)usage.get("calls")).get(0);
+        assertThat(call.get("inputTokens")).isEqualTo(120);
+        assertThat(call.get("outputTokens")).isEqualTo(15);
+        assertThat(call.get("cacheReadTokens")).isEqualTo(30L);
+    }
+
+    @Test
     void concurrentCallsReserveInputAndPublishIndependentSnapshots() throws Exception {
         Map<String, Object> usage = java.util.Collections.synchronizedMap(new LinkedHashMap<>());
         var entered = new java.util.concurrent.CountDownLatch(1);

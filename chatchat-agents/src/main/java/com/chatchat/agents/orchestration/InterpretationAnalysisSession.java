@@ -564,7 +564,7 @@ final class InterpretationAnalysisSession {
                 currentPlan, rewrittenPlan, currentResult);
         boolean templateContinuationSatisfied =
                 host.analysisRefinementCoordinator.templateDiscoveryContinuationSatisfied(
-                        rewrittenPlan, currentResult);
+                        currentPlan, rewrittenPlan, currentResult);
         metadata.put("templateDiscoveryContinuationContractSatisfied", templateContinuationSatisfied);
         if (templateContinuationRequired && rewrittenPlan != null
                 && templateContinuationSatisfied

@@ -12,7 +12,7 @@ public record CodingModelCallTelemetry(String operationId, String attemptId, int
                 || !"JAVA_MODEL_RECEIPT".equals(source) || durationMs!=null && durationMs<0)
             throw new IllegalArgumentException("Invalid model telemetry identity");
         usage=Map.copyOf(usage);
-        if(!java.util.Set.of("inputTokens","outputTokens").containsAll(usage.keySet())
+        if(!java.util.Set.of("inputTokens","outputTokens","cacheReadTokens","cacheWriteTokens","reasoningTokens").containsAll(usage.keySet())
                 || usage.values().stream().anyMatch(value->value<0))
             throw new IllegalArgumentException("Invalid model telemetry usage");
     }

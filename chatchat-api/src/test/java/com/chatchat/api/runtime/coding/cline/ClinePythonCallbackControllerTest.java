@@ -133,6 +133,7 @@ class ClinePythonCallbackControllerTest {
                 CodingTaskOutcome.ValidationStatus.INCONCLUSIVE));
         assertThat(controller.get(json.valueToTree(body()))).containsEntry("resultDatasetRef","result")
             .containsEntry("evidenceBundleRef","bundle").containsEntry("validationStatus","INCONCLUSIVE")
+            .containsEntry("resultAvailable",true)
             .doesNotContainKey("outputStatus");
     }
 

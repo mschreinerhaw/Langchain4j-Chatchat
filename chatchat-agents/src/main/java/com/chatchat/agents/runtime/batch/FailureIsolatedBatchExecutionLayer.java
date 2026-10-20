@@ -4,7 +4,12 @@ import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Kernel execution boundary that gives every admitted batch child a terminal slot.
@@ -14,6 +19,16 @@ import java.util.concurrent.CompletableFuture;
  * then represented explicitly as {@code NOT_EXECUTED}.</p>
  */
 public final class FailureIsolatedBatchExecutionLayer {
+    private static final int PARALLELISM = Math.max(1, Math.min(16,
+        Integer.getInteger("runtime.os.readonly.batch.parallelism", 4)));
+    private static final AtomicInteger THREAD_IDS = new AtomicInteger();
+    private static final ThreadPoolExecutor READ_ONLY_POOL = new ThreadPoolExecutor(
+        PARALLELISM, PARALLELISM, 30, TimeUnit.SECONDS,
+        new ArrayBlockingQueue<>(Math.max(16, PARALLELISM * 4)), runnable -> {
+            Thread thread = new Thread(runnable, "runtime-readonly-batch-" + THREAD_IDS.incrementAndGet());
+            thread.setDaemon(true);
+            return thread;
+        }, new ThreadPoolExecutor.CallerRunsPolicy());
 
     public List<Attempt> execute(List<ToolCallRequest> calls, ChildInvoker invoker) {
         List<ToolCallRequest> safeCalls = calls == null ? List.of() : List.copyOf(calls);
@@ -68,11 +83,11 @@ public final class FailureIsolatedBatchExecutionLayer {
      */
     public List<Attempt> executeParallelReadOnly(List<ToolCallRequest> calls, ChildInvoker invoker) {
         List<ToolCallRequest> safeCalls = calls == null ? List.of() : List.copyOf(calls);
-        List<CompletableFuture<Attempt>> futures = new ArrayList<>(safeCalls.size());
+        List<Future<Attempt>> futures = new ArrayList<>(safeCalls.size());
         for (int index = 0; index < safeCalls.size(); index++) {
             int invocationIndex = index;
             ToolCallRequest call = safeCalls.get(index);
-            futures.add(CompletableFuture.supplyAsync(
+            futures.add(READ_ONLY_POOL.submit(
                 () -> isolatedAttempt(call, invocationIndex, invoker)));
         }
         List<Attempt> attempts = new ArrayList<>(futures.size());
@@ -83,7 +98,7 @@ public final class FailureIsolatedBatchExecutionLayer {
             futures.forEach(future -> future.cancel(true));
             Thread.currentThread().interrupt();
             throw new java.util.concurrent.CancellationException("Batch wait was interrupted");
-        } catch (java.util.concurrent.ExecutionException failure) {
+        } catch (ExecutionException failure) {
             futures.forEach(future -> future.cancel(true));
             if (failure.getCause() instanceof java.util.concurrent.CancellationException cancelled) throw cancelled;
             throw new java.util.concurrent.CompletionException(failure.getCause());

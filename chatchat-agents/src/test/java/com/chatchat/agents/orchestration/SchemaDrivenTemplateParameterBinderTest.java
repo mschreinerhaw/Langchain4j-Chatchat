@@ -21,6 +21,49 @@ class SchemaDrivenTemplateParameterBinderTest {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
+    @Test void emptySchemasRemainExecutableWhenOtherNativeBindingsAreUnavailable() {
+        var fixed = Map.<String, Object>of("templateId", "fixed", "parameterSchema",
+            Map.of("type", "object", "properties", Map.of()));
+        var result = new SchemaDrivenTemplateParameterBinder(mapper).bind(null, "inspect data",
+            List.of(fixed, defaultBackedTemplate("parameterized", "subject", "catalog-example")),
+            List.of("fixed", "parameterized")).orElseThrow();
+        assertThat(result.protocols()).hasSize(2);
+        assertThat(result.protocols().get(0)).containsEntry("arguments", Map.of()).doesNotContainKey("binding_error");
+        assertThat(result.protocols().get(1)).containsEntry("binding_error", "NATIVE_SCHEMA_BINDING_UNAVAILABLE")
+            .containsEntry("arguments", Map.of());
+        assertThat(result.metrics()).containsEntry("blockedBindingCount", 1);
+    }
+
+    @Test void unknownRequiredValuesRemainExplicitlyUnresolvedInsteadOfInvented() {
+        AtomicReference<ChatRequest> captured = new AtomicReference<>();
+        var model = model(request -> {
+            captured.set(request);
+            return response("empty-values", "{\"bindings\":[{\"template_id\":\"assets\",\"arguments\":{}}]}");
+        });
+        var result = new SchemaDrivenTemplateParameterBinder(mapper).bind(model, "inspect data",
+            List.of(template("assets")), List.of("assets")).orElseThrow();
+        assertThat(result.protocols().get(0)).containsEntry("arguments", Map.of())
+            .containsEntry("unresolved_parameters", List.of("subject"));
+        assertThat(captured.get().toolSpecifications().get(0).toJson()).doesNotContain("\"required\":[\"subject\"]");
+    }
+
+    @Test void emptyParameterSchemaIsBoundByRuntimeWithoutModelInference() {
+        var result = new SchemaDrivenTemplateParameterBinder(mapper).bind(null, "inspect service",
+            List.of(Map.of("templateId", "approved-check", "parameterSchema",
+                Map.of("type", "object", "properties", Map.of()))), List.of("approved-check")).orElseThrow();
+        assertThat(result.mode()).isEqualTo("runtime_empty_schema");
+        assertThat(result.protocols()).singleElement().satisfies(protocol ->
+            assertThat(protocol.get("arguments")).isEqualTo(Map.of()));
+    }
+
+    @Test void freeFormReviewerStyleArgumentsCannotReplaceNativeBinding() {
+        ChatModel model = model(request -> ChatResponse.builder().aiMessage(AiMessage.from(
+            "{\"parameter_protocols\":[{\"template_id\":\"assets\",\"arguments\":{\"subject\":\"C-1\"}}]}"))
+            .build());
+        assertThat(new SchemaDrivenTemplateParameterBinder(mapper).bind(model, "customer C-1",
+            List.of(template("assets")), List.of("assets"))).isEmpty();
+    }
+
     @Test
     void bindsEntityCollectionAcrossTemplatesThroughOneNativeFunctionCall() throws Exception {
         AtomicReference<ChatRequest> captured = new AtomicReference<>();

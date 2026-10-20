@@ -52,7 +52,47 @@ final class SchemaDrivenTemplateParameterBinder {
                                  String userQuery,
                                  List<Map<String, Object>> returnedTemplates,
                                  List<String> selectedTemplateIds) {
-        if (model == null || selectedTemplateIds == null || selectedTemplateIds.isEmpty()) {
+        if (selectedTemplateIds == null || selectedTemplateIds.isEmpty()) return Optional.empty();
+        var selected = selectedTemplates(returnedTemplates, selectedTemplateIds);
+        if (selected.size() != new LinkedHashSet<>(selectedTemplateIds).size()) return Optional.empty();
+        List<Map<String, Object>> fixed = selected.values().stream().filter(this::emptySchema).toList();
+        if (fixed.isEmpty() || fixed.size() == selected.size()) {
+            return bindNative(model, userQuery, returnedTemplates, selectedTemplateIds);
+        }
+        List<Map<String, Object>> requiringValues = selected.values().stream()
+            .filter(template -> !emptySchema(template)).toList();
+        var nativeBinding = bindNative(model, userQuery, requiringValues,
+            requiringValues.stream().map(this::templateId).toList());
+        List<Map<String, Object>> protocols = new ArrayList<>();
+        for (var template : fixed) protocols.add(Map.of(
+            "protocol_version", AgentProtocolCatalog.TEMPLATE_PARAMETER,
+            "template_id", templateId(template), "arguments", Map.of(),
+            "unresolved_parameters", List.of(), "generation_mode", "runtime_empty_schema"));
+        if (nativeBinding.isPresent()) protocols.addAll(nativeBinding.get().protocols());
+        else for (var template : requiringValues) protocols.add(Map.of(
+            "protocol_version", AgentProtocolCatalog.TEMPLATE_PARAMETER,
+            "template_id", templateId(template), "arguments", Map.of(),
+            "unresolved_parameters", List.of(), "binding_error", "NATIVE_SCHEMA_BINDING_UNAVAILABLE"));
+        Map<String, Object> metrics = new LinkedHashMap<>(nativeBinding.map(BindingResult::metrics).orElse(Map.of()));
+        metrics.put("bindingCount", protocols.size());
+        metrics.put("runtimeEmptySchemaCount", fixed.size());
+        metrics.put("blockedBindingCount", nativeBinding.isPresent() ? 0 : requiringValues.size());
+        return Optional.of(new BindingResult(List.copyOf(protocols),
+            nativeBinding.map(BindingResult::nativeToolCallId).orElse(null), Map.copyOf(metrics), "controlled_schema_binding"));
+    }
+
+    private boolean emptySchema(Map<String, Object> template) {
+        Map<String, Object> schema = parameterSchema(template);
+        return "object".equals(schema.get("type")) && map(schema.get("properties")).isEmpty()
+            && (!schema.containsKey("required")
+                || schema.get("required") instanceof Collection<?> required && required.isEmpty());
+    }
+
+    private Optional<BindingResult> bindNative(ChatModel model,
+                                 String userQuery,
+                                 List<Map<String, Object>> returnedTemplates,
+                                 List<String> selectedTemplateIds) {
+        if (selectedTemplateIds == null || selectedTemplateIds.isEmpty()) {
             return Optional.empty();
         }
         Map<String, Map<String, Object>> selected = selectedTemplates(returnedTemplates,
@@ -60,6 +100,18 @@ final class SchemaDrivenTemplateParameterBinder {
         if (selected.size() != new LinkedHashSet<>(selectedTemplateIds).size()) {
             return Optional.empty();
         }
+        if (selected.values().stream().allMatch(this::emptySchema)) {
+            List<Map<String, Object>> protocols = new ArrayList<>();
+            for (Map<String, Object> template : selected.values()) {
+                protocols.add(Map.of("protocol_version", AgentProtocolCatalog.TEMPLATE_PARAMETER,
+                    "template_id", templateId(template), "arguments", Map.of(),
+                    "unresolved_parameters", List.of(), "generation_mode", "runtime_empty_schema"));
+            }
+            return Optional.of(new BindingResult(List.copyOf(protocols), null,
+                Map.of("bindingCount", protocols.size(), "evidenceVerifiedParameterCount", 0),
+                "runtime_empty_schema"));
+        }
+        if (model == null) return Optional.empty();
         try {
             ToolSpecification specification = specification(selected);
             List<dev.langchain4j.data.message.ChatMessage> messages = List.of(
@@ -79,7 +131,10 @@ final class SchemaDrivenTemplateParameterBinder {
                 response = nativeCall(model, messages, specification, ToolChoice.AUTO);
             }
             AiMessage message = response == null ? null : response.aiMessage();
-            if (message == null || !message.hasToolExecutionRequests()) return Optional.empty();
+            if (message == null || !message.hasToolExecutionRequests()) {
+                log.info("Controlled parameter binding rejected: no designated native function call");
+                return Optional.empty();
+            }
             List<ToolExecutionRequest> requests = message.toolExecutionRequests();
             if (requests == null || requests.size() != 1
                 || !FUNCTION_NAME.equals(requests.get(0).name())) {
@@ -94,7 +149,10 @@ final class SchemaDrivenTemplateParameterBinder {
                 .filter(Objects::nonNull)
                 .map(value -> value.toLowerCase(Locale.ROOT))
                 .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
-            if (!covered.equals(selected.keySet())) return Optional.empty();
+            if (!covered.equals(selected.keySet())) {
+                log.info("Controlled parameter binding rejected: selectedCount={}, coveredCount={}", selected.size(), covered.size());
+                return Optional.empty();
+            }
             int verified = protocols.stream().mapToInt(protocol -> map(protocol.get("arguments")).size()).sum();
             int unresolved = protocols.stream()
                 .map(protocol -> protocol.get("unresolved_parameters"))
@@ -121,7 +179,7 @@ final class SchemaDrivenTemplateParameterBinder {
         } catch (AgentBudgetExceededException | CancellationException failure) {
             throw failure;
         } catch (Exception failure) {
-            log.info("Schema-driven template parameter Function Calling unavailable; preserving reviewer protocol: {}",
+            log.info("Schema-driven template parameter Function Calling unavailable; execution remains blocked: {}",
                 failure.getMessage());
             return Optional.empty();
         }
@@ -302,6 +360,9 @@ final class SchemaDrivenTemplateParameterBinder {
                     "evidence", Map.of("quote", quote, "generated_by", "native_function_calling")
                 ));
             }
+            for (String required : requiredWithoutDefaults(parameterSchema(template), schemaProperties)) {
+                if (!audited.containsKey(required) && !unresolved.contains(required)) unresolved.add(required);
+            }
             String fingerprint = authoritativeId.toLowerCase(Locale.ROOT) + "|" + audited;
             if (!fingerprints.add(fingerprint)) continue;
             String bindingId = text(binding.get("binding_id"));
@@ -347,27 +408,18 @@ final class SchemaDrivenTemplateParameterBinder {
         return Map.copyOf(copy);
     }
 
-    /** Defaults remain Runtime-owned, so Function Calling only requires fields that have no
-     * published default. This prevents the model from copying or rewriting authoritative values. */
+    /** The binding proposal may omit unknown fields. Executor-required fields are enforced by
+     * Runtime after evidence verification, without forcing the model to invent their values. */
     private Map<String, Object> bindingParameterSchema(Map<String, Object> template) {
         Map<String, Object> schema = new LinkedHashMap<>(parameterSchema(template));
-        Map<String, Object> properties = map(schema.get("properties"));
-        Object requiredValue = schema.get("required");
-        if (requiredValue instanceof Collection<?> required) {
-            List<String> withoutDefaults = required.stream()
-                .map(this::text)
-                .filter(Objects::nonNull)
-                .filter(name -> !map(properties.get(name)).containsKey("default"))
-                .toList();
-            if (withoutDefaults.isEmpty()) schema.remove("required");
-            else schema.put("required", withoutDefaults);
-        }
+        schema.remove("required");
         return Map.copyOf(schema);
     }
 
     private String systemPrompt() {
         return "You bind user language to Runtime-published JSON Schemas. The template and field names are opaque. "
             + "Use only schema descriptions and literal user evidence. Never invent identifiers, dates, defaults or fields. "
+            + "Emit a binding for every selected template even when values are unknown; omit unknown arguments. "
             + "For a collection of entities, emit one binding for every entity and every selected template. "
             + "Omit default-backed fields unless the user explicitly overrides them.";
     }

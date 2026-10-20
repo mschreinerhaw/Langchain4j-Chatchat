@@ -58,6 +58,8 @@ public final class ClineRuntimeModelBridge {
         String modelName = resources.defaultChatModel();
         Map<?,?> effectiveModel = contract.runtimeContext().get("model") instanceof Map<?,?> snapshot ? snapshot : Map.of();
         if (effectiveModel.get("selectedModel") instanceof String selected && !selected.isBlank()) modelName = selected;
+        Map<?,?> executionProfile=contract.runtimeContext().get("executionProfile") instanceof Map<?,?> profile ? profile : Map.of();
+        if(executionProfile.get("selectedModel") instanceof String selected && !selected.isBlank())modelName=selected;
         if(CodingWorkspaceService.supports(contract)) {
             if(workspace==null)throw new SecurityException("Workspace Coding profile is not enabled");
             String requested=(String)workspace.requireAuthorized(contract).get("modelName");
@@ -118,10 +120,16 @@ public final class ClineRuntimeModelBridge {
             throw new IllegalStateException("Authorized tool model binding is unavailable; reconcile before dispatch");
         if (parent == null) resources.require(modelName);
         int outputLimit = maxOutputTokens(contract);
+        dev.langchain4j.model.chat.request.ChatRequestParameters requestParameters =
+            executionProfile.get("reasoningEffort") instanceof String effort
+                ? dev.langchain4j.model.openai.OpenAiChatRequestParameters.builder()
+                    .reasoningEffort(effort).maxOutputTokens(outputLimit).build()
+                : dev.langchain4j.model.chat.request.DefaultChatRequestParameters.builder()
+                    .maxOutputTokens(outputLimit).build();
         Instant started = Instant.now();
         ChatResponse answer = (parent == null ? models.create(modelName, Duration.ofSeconds(90), outputLimit) : parent)
             .chat(ChatRequest.builder().messages(messages).toolSpecifications(tools)
-                .parameters(dev.langchain4j.model.chat.request.DefaultChatRequestParameters.builder().maxOutputTokens(outputLimit).build()).build());
+                .parameters(requestParameters).build());
         if (answer == null || answer.aiMessage() == null) throw new IllegalStateException("Model returned no assistant message");
         List<Map<String, Object>> toolCalls = new ArrayList<>();
         String responseError = null;
@@ -143,6 +151,9 @@ public final class ClineRuntimeModelBridge {
         if (answer.tokenUsage() != null) {
             usage.put("inputTokens", answer.tokenUsage().inputTokenCount());
             usage.put("outputTokens", answer.tokenUsage().outputTokenCount());
+            var details=com.chatchat.agents.orchestration.model.ModelUsageMetrics.observed(answer.tokenUsage());
+            for(String key:List.of("cacheReadTokens","cacheWriteTokens","reasoningTokens"))
+                if(details.containsKey(key))usage.put(key,details.get(key));
         }
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("text", answer.aiMessage().text() == null ? "" : answer.aiMessage().text());
@@ -151,14 +162,18 @@ public final class ClineRuntimeModelBridge {
         result.put("maxOutputTokens", outputLimit);
         var modelInfo = new LinkedHashMap<String,Object>();
         if (parent == null || effectiveModel.containsKey("selectedModel")) modelInfo.put("selectedModel", modelName);
-        for (String key : List.of("providerModel", "protocol"))
-            if (effectiveModel.get(key) instanceof String value) modelInfo.put(key, value);
+        for (String key : List.of("providerModel", "protocol")) {
+            Object identity=executionProfile.containsKey("selectedModel") ? executionProfile.get(key) : effectiveModel.get(key);
+            if(identity instanceof String value) modelInfo.put(key,value);
+        }
         if (answer.modelName() != null && !answer.modelName().isBlank())
             modelInfo.put("providerModel", answer.modelName());
         modelInfo.put("startedAt", started.toString());
         modelInfo.put("finishedAt", Instant.now().toString());
         modelInfo.put("durationMs", Duration.between(started, Instant.now()).toMillis());
         modelInfo.put("maxOutputTokens", outputLimit);
+        if(executionProfile.get("complexity") instanceof String complexity)modelInfo.put("complexity",complexity);
+        if(executionProfile.get("reasoningEffort") instanceof String effort)modelInfo.put("reasoningEffort",effort);
         result.put("modelInfo", modelInfo);
         if (answer.finishReason() != null) result.put("finishReason", answer.finishReason().name());
         if (answer.id() != null) result.put("requestId", answer.id());

@@ -364,6 +364,10 @@ public final class TemplateInvocationBridge {
             throw failure("TEMPLATE_PARAMETER_PROTOCOL_INVALID",
                 "unsupported protocol version " + version);
         }
+        if (protocol.containsKey("binding_error")) {
+            throw failure("TEMPLATE_PARAMETER_BINDING_FAILED",
+                "controlled parameter binding did not authorize this template invocation");
+        }
         if (expectedStepId != null) {
             Integer protocolStepId = integer(firstPresent(protocol, "step_id", "stepId"));
             if (!expectedStepId.equals(protocolStepId)) {

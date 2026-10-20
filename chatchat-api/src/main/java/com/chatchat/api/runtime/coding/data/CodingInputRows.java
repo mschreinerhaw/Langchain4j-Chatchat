@@ -6,7 +6,7 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.function.*;
 
-/** Independent format-aware source reader for existing result verifiers; never returns raw rows to Cline. */
+/** Verified format decoder for execution provenance and explicitly declared bounded Coding observations. */
 public final class CodingInputRows {
     private CodingInputRows() { }
     public static void scan(CodingInputSnapshotService.Snapshot snapshot,

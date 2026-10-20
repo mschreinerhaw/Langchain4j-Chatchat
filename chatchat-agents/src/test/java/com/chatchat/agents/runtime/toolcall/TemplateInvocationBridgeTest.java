@@ -13,6 +13,16 @@ class TemplateInvocationBridgeTest {
 
     private final TemplateInvocationBridge bridge = new TemplateInvocationBridge();
 
+    @Test void rejectedNativeBindingCannotExecuteThroughCatalogDefaults() {
+        var protocol = Map.<String, Object>of("protocol_version", TemplateInvocationBridge.PROTOCOL_VERSION,
+            "template_id", "ORDER_QUERY", "arguments", Map.of(), "binding_error", "NATIVE_SCHEMA_BINDING_UNAVAILABLE");
+        assertThatThrownBy(() -> bridge.prepare(new TemplateInvocationBridge.BridgeRequest(
+            "api_template_execute", null, "ORDER_QUERY",
+            template("ORDER_QUERY", Map.of("limit", Map.of("type", "integer", "default", 20)),
+                new String[]{"limit"}), Map.of(), protocol, true, true)))
+            .hasMessageContaining("TEMPLATE_PARAMETER_BINDING_FAILED");
+    }
+
     @Test
     void modelDefaultCopiesAreReappliedFromAuthoritativeSchema() {
         var result = defaultCopy(20, Map.of("type", "integer", "default", 20));

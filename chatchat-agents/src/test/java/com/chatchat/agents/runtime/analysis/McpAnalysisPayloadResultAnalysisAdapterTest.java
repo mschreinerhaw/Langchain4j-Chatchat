@@ -11,6 +11,62 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class McpAnalysisPayloadResultAnalysisAdapterTest {
+    @Test void undeclaredCommandProtocolProjectsOnlyGovernedStreamsAndNeverExecutionNodes() {
+        var governed=Map.of("dataSchema","ssh_steps.v1","data",Map.of("stdout","observed-output\n",
+            "stderr","observed-warning\n"),"executionGraph",Map.of("nodes",List.of(
+                Map.of("id","private-step-id","type","EXECUTION_STEP","durationMs",12))));
+        var result=new McpAnalysisPayloadResultAnalysisAdapter().adapt(new AnalysisRequest("opaque",
+            Map.of("schemaVersion",McpAnalysisPayload.SCHEMA_VERSION,"resultKind","UNDECLARED",
+                "data",governed,"rawData",Map.of("dataSchema","ssh_steps.v1","data",Map.of("stdout","stale-mirror")),
+                "provenance",Map.of("sourceRef","authorized-source")),1000));
+        assertThat(result.evidenceRole()).isEqualTo("COMMAND_EXECUTION_STREAMS");
+        assertThat(result.datasets()).extracting(d -> d.datasetReference()).containsExactly("opaque#stdout","opaque#stderr");
+        assertThat(result.datasets()).allSatisfy(d -> {
+            assertThat(d.analysisContext()).containsEntry("contentType","text/plain")
+                .containsEntry("resultRouting","PROTOCOL_SCHEMA_COMPATIBILITY")
+                .containsEntry("resultKind","UNDECLARED").containsEntry("provenance",Map.of("sourceRef","authorized-source"));
+            assertThat(d.records().toString()).doesNotContain("private-step-id","durationMs","stale-mirror");
+        });
+        assertThat(result.datasets().get(0).records().get(0)).containsEntry("content","observed-output\n");
+        assertThat(result.datasets().get(1).records().get(0)).containsEntry("content","observed-warning\n");
+    }
+
+    @Test void emptyGovernedCommandStreamsCannotBecomeMetadataRowsOrRawMirrorData() {
+        var result=new McpAnalysisPayloadResultAnalysisAdapter().adapt(new AnalysisRequest("opaque",
+            Map.of("schemaVersion",McpAnalysisPayload.SCHEMA_VERSION,"data",Map.of(
+                "dataSchema","ssh_steps.v1","data",Map.of("stdout","","stderr",""),
+                "executionGraph",Map.of("nodes",List.of(Map.of("id","step")))),
+                "rawData",Map.of("rows",List.of(Map.of("stale",true)))),1000));
+        assertThat(result.evidenceRole()).isEqualTo("COMMAND_EXECUTION_STREAMS");
+        assertThat(result.datasets()).isEmpty();
+    }
+
+    @Test void commandProtocolProjectionPreservesStreamTruncation() {
+        var result=new McpAnalysisPayloadResultAnalysisAdapter().adapt(new AnalysisRequest("opaque",
+            Map.of("schemaVersion",McpAnalysisPayload.SCHEMA_VERSION,"data",Map.of(
+                "dataSchema","ssh_steps.v1","data",Map.of("stdout","partial",
+                    "outputLimits",Map.of("stdoutTruncated",true)))),1000));
+        assertThat(result.datasets()).singleElement().satisfies(d ->
+            assertThat(d.records()).allSatisfy(row -> assertThat(row).containsEntry("sourceComplete",false)));
+    }
+
+    @Test void explicitCalculationSemanticsAreNotReplacedByLegacyCommandCompatibility() {
+        var result=new McpAnalysisPayloadResultAnalysisAdapter().adapt(new AnalysisRequest("opaque",
+            Map.of("schemaVersion",McpAnalysisPayload.SCHEMA_VERSION,"resultKind","CALCULATION",
+                "data",Map.of("dataSchema","ssh_steps.v1","data",Map.of("stdout","value"))),1000));
+        assertThat(result.evidenceRole()).isEqualTo("MCP_DECLARED_CALCULATION");
+        assertThat(result.datasets()).singleElement().satisfies(d -> assertThat(d.datasetReference()).isEqualTo("opaque"));
+    }
+
+    @Test void rawMirrorCannotAuthorizeCommandProjectionForUnknownGovernedProtocol() {
+        var result=new McpAnalysisPayloadResultAnalysisAdapter().adapt(new AnalysisRequest("opaque",
+            Map.of("schemaVersion",McpAnalysisPayload.SCHEMA_VERSION,"data",Map.of("opaqueField","observed-value"),
+                "rawData",Map.of("dataSchema","ssh_steps.v1","data",Map.of("stdout","stale-stream"))),1000));
+        assertThat(result.datasets()).singleElement().satisfies(d -> {
+            assertThat(d.datasetReference()).doesNotEndWith("#stdout");
+            assertThat(d.records().toString()).doesNotContain("stale-stream");
+        });
+    }
 
     @Test
     void preservesTextBodyAndItsCanonicalPathWithoutUsingRawMirror() {

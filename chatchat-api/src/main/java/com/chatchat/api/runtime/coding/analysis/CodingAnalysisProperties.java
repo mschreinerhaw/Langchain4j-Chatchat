@@ -9,6 +9,15 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix="chatchat.coding.analysis")
 public class CodingAnalysisProperties {
     private boolean enabled;
+    private boolean fastPathEnabled = true;
+    /** Optional registered aliases. Blank values retain the run's selected model. */
+    private String simpleModelName;
+    private String complexModelName;
+    /** Sent only when explicitly configured for the selected provider. */
+    private String simpleReasoningEffort;
+    private String complexReasoningEffort;
+    private int simpleMaxSources = 2;
+    private long simpleMaxInputRows = 2000;
     private String environmentId;
     private int maxConcurrentTasks = 2;
     private int timeoutSeconds = 300;

@@ -33,6 +33,19 @@ public final class CodingInputFilePublisher {
             .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
     }
     public boolean enabled(){return policy.isEnabled();}
+    public Map<String,Object> observe(KernelDataScope scope, CodingInputSnapshotService.Snapshot input, boolean batched) {
+        access.require(scope,CodingTaskAccess.Action.WORKER);
+        access.require(scope,CodingTaskAccess.Action.READ);
+        if (!enabled()) throw new IllegalStateException("Immutable input observation is unavailable");
+        var store=new CodingSharedFiles(Path.of(policy.getSharedRoot()));
+        var observation=new CodingInputObservation(json,input.sourceDatasetRef(),batched);
+        CodingInputRows.scan(input,file->{
+            try { return Files.readAllBytes(store.verify(scope.tenantId(),scope.userId(),file.fileId(),
+                file.fileName(),file.sha256(),file.size())); }
+            catch(IOException invalid){throw new SecurityException("Input observation integrity check failed",invalid);}
+        },json,observation::accept);
+        return observation.snapshot();
+    }
     public String format(){return policy.getFormat()==null?"":policy.getFormat().name();}
     public CodingInputSnapshotService.Snapshot capture(KernelDataScope scope,String task,List<Dataset> authorized,
             String source,String decision,String workspace,long maxRows,long maxBytes,Runnable guard) {

@@ -128,6 +128,21 @@ public final class CodingInputSnapshotService {
         return Map.copyOf(description);
     }
 
+    /** Only the leased coding worker can observe its explicitly authorized immutable input. */
+    public Map<String,Object> observeForCoding(CodingTaskContract contract) {
+        access.require(contract.scope(),CodingTaskAccess.Action.WORKER);
+        if (!contract.metadataRefs().contains(CodingInputObservation.POLICY_REF))
+            throw new SecurityException("Coding input observation was not declared by this task");
+        var input=requireAuthorized(contract);
+        var description=describe(contract.scope(),contract.taskId(),input);
+        if(filePublisher==null || !description.containsKey("inputManifest"))
+            throw new IllegalStateException("Coding input observation requires versioned immutable files");
+        var observation=new LinkedHashMap<String,Object>(filePublisher.observe(contract.scope(),input,
+            description.containsKey("inputVersions")));
+        observation.put("snapshotRef",input.reference());observation.put("inputSha256",input.sha256());
+        return java.util.Collections.unmodifiableMap(observation);
+    }
+
     /** Caller supplies the current run's trusted dataset collection, never a model-supplied handle. */
     public Snapshot capture(KernelDataScope scope, String taskId, List<Dataset> authorizedDatasets,
             String sourceDatasetRef, String decisionRef, String workspaceRef,

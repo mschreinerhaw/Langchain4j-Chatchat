@@ -71,6 +71,20 @@ public final class MeteredChatModel implements ChatModel {
 
     @Override
     public String chat(String message) {
+        // Production SDK models inherit ChatModel.chat(String), which constructs exactly
+        // this native request. Keep custom text overrides on their original path.
+        if (delegate instanceof DeadlineAwareChatModel deadline
+                && deadline.toolDelegate() instanceof CapacityGovernedChatModel governed
+                && governed.textUsesNativeRequest()) {
+            ChatRequest request = ChatRequest.builder()
+                .messages(dev.langchain4j.data.message.UserMessage.from(message)).build();
+            ChatResponse response = invoke(estimator.estimate(message).tokens(),
+                () -> delegate.chat(request),
+                value -> estimator.estimate(value == null || value.aiMessage() == null
+                    ? "" : value.aiMessage().toString()).tokens(),
+                value -> value == null ? null : value.tokenUsage());
+            return response.aiMessage().text();
+        }
         return invoke(estimator.estimate(message).tokens(), () -> delegate.chat(message),
             value -> estimator.estimate(value).tokens(), value -> null);
     }
@@ -142,6 +156,9 @@ public final class MeteredChatModel implements ChatModel {
                 call.put("outputTokensEstimated", success ? responseTokens : null);
                 call.put("inputTokens", actual == null ? null : actual.inputTokenCount());
                 call.put("outputTokens", actual == null ? null : actual.outputTokenCount());
+                var details=ModelUsageMetrics.observed(actual);
+                for(String key:List.of("cacheReadTokens","cacheWriteTokens","reasoningTokens"))
+                    if(details.containsKey(key))call.put(key,details.get(key));
                 if (actual != null && actual.inputTokenCount() != null && actual.outputTokenCount() != null) {
                     actualUsageCalls++;
                     actualInputTokens += actual.inputTokenCount();

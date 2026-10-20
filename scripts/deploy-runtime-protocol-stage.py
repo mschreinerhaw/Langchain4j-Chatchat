@@ -11,7 +11,10 @@ import urllib.request
 import zipfile
 
 ROOT = Path('/opt/runtime-os-docker-stage')
-EVIDENCE = ROOT / 'evidence/ids-runtime-20261020'
+EVIDENCE_ROOT = ROOT / 'evidence'
+EVIDENCE = EVIDENCE_ROOT / (sys.argv[3] if len(sys.argv) > 3 else 'ids-runtime-20261020')
+if not EVIDENCE.resolve().is_relative_to(EVIDENCE_ROOT.resolve()):
+    raise ValueError('Deployment evidence must stay within the stage evidence directory')
 PROJECT = 'runtime-os-app-stage'
 
 

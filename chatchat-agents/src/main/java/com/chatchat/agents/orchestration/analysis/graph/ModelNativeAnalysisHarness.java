@@ -123,7 +123,7 @@ public final class ModelNativeAnalysisHarness {
                     + "Use RUN_CODING for all data calculations, diagnostics and transformations. Do not read raw rows or use batch model inference. "
                     + "Source profiles, including numeric summaries and record counts, are navigation/quality metadata, not report-ready analytical results. "
                     + "Obtain reported quantities from admitted Coding outputs; record or text-fragment counts are not domain entity counts. "
-                    + "Related calculations may share one Coding task over authorized inputs; each distinct request has an independent tool budget. "
+                    + "Batch related calculations over the delivered datasets in ONE RUN_CODING request using datasetReferences. Choose a combined outputSchema for the full analytical objective. Do not start one parsing task per source followed by separate aggregation tasks. Independent requests submitted together may be composed into one execution contract. Each distinct invocation has an independent tool budget. "
                     + "Never replace an unresolved execution with a new request to bypass its stop or reconciliation state. "
                     + "READ_* operations may inspect only admitted Coding result datasets. COMPLETE requires an admitted result. "
                     + "If execution fails or is pending, report limitations with PARTIAL_COMPLETE; never invent computed values.\n" : "")
@@ -184,19 +184,7 @@ public final class ModelNativeAnalysisHarness {
                 Object authored = product.get(v2 ? "content" : "reportMarkdown");
                 if (authored != null && !(authored instanceof String)) throw new IllegalArgumentException("INVALID_CONTENT: content must be a string");
                 candidateReport = authored instanceof String value && !value.isBlank() ? value : report;
-                if (pythonRequired && !admittedResults.isEmpty() && product.get("decision") instanceof Map<?,?> decision
-                        && Set.of("COMPLETE","PARTIAL_COMPLETE").contains(String.valueOf(decision.get("action")))) {
-                    var review=new ComputedReportAdmission().review(question,candidateReport,prepared.sources(),admittedResults,
-                        model,scope,checkpoints,guard,trace,prepared.views());
-                    calls+=review.modelCalls();metadata.put("harnessModelCalls",calls);
-                    metadata.put("finalReportSemanticAdmission",review.value());
-                    observe.accept(Map.of("eventKind","FINAL_REPORT_SEMANTIC_REVIEW","stage","FINAL_REPORT_SEMANTIC_REVIEW",
-                        "eventState",review.value().get("status"),"turn",turn,"review",review.value()));
-                    if(!"SUPPORTED".equals(review.value().get("status")))
-                        throw new IllegalArgumentException("FINAL_REPORT_EVIDENCE_UNSUPPORTED: "+ModelProtocolJson.compact(review.value())
-                            +". Remove unsupported claims or use RUN_CODING with an output schema exposing the missing computations. "
-                            +"Do not repeatedly resubmit rejected numerical claims from source profiles or worker prose.");
-                }
+                // Analytical conclusions belong to the agent; Runtime validates transport and execution contracts only.
                 if (product.get("workspace") != null && !(product.get("workspace") instanceof Map<?,?>))
                     throw new IllegalArgumentException("INVALID_WORKSPACE: public state must be an object");
                 if (v2) recordIntent(product, candidateReport, snapshot(prepared.sources()), acceptedIntent);
@@ -244,6 +232,7 @@ public final class ModelNativeAnalysisHarness {
                 "author", "MODEL", "state", Collections.unmodifiableMap(new LinkedHashMap<>(workspace))));
             List<Map<String,Object>> requests;
             requests = maps(product.get("evidenceRequests"));
+            if (pythonRequired) requests = CodingRequestBatch.compose(requests, prepared.sources().keySet());
             List<Map<String,Object>> audit = new ArrayList<>();
             boolean completed;
             if (v2) metadata.put("modelAnalysisOutput", report);

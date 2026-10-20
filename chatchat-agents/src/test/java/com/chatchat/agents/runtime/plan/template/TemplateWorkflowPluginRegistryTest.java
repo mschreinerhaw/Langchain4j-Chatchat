@@ -20,6 +20,34 @@ import static org.mockito.Mockito.when;
 
 class TemplateWorkflowPluginRegistryTest {
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({
+        "mcp.api-template.v1,api_service,api-template-workflow.v1,$.templateId",
+        "mcp.sql-template.v1,database,sql-template-workflow.v1,$.templateId",
+        "mcp.python-template.v1,python_analysis,python-template-workflow.v1,$.templateId",
+        "mcp.ssh-template.v1,host,ssh-template-workflow.v1,$.template",
+        "mcp.http-template.v1,http_endpoint,http-template-workflow.v1,$.template",
+        "extension.template.v1,extension,publisher-contract-template-workflow.v1,$.templateId"
+    })
+    void allFamiliesCompileTheControlledDiscoveryBinding(String family, String assetType,
+                                                        String pluginId, String inputPath) {
+        var registry = TemplateWorkflowPluginRegistry.load();
+        var plugin = registry.resolve(new TemplateWorkflowTool("opaque-executor",
+            ToolWorkflowRole.TEMPLATE_EXECUTION, family, assetType)).orElseThrow();
+        assertThat(plugin.id()).isEqualTo(pluginId);
+        var tools = registry(Map.of(
+            "opaque-discovery", metadata(ToolWorkflowRole.TEMPLATE_DISCOVERY, family, assetType),
+            "opaque-executor", metadata(ToolWorkflowRole.TEMPLATE_EXECUTION, family, assetType)));
+        var optimized = new InterpretationPlanOptimizer(tools).optimize(plan(List.of(
+            step(1, "opaque-discovery", List.of()), step(2, "opaque-executor", List.of())))).plan();
+        assertThat(optimized.plan().bindings()).singleElement().satisfies(binding -> {
+            assertThat(binding.from()).isEqualTo(1);
+            assertThat(binding.to()).isEqualTo(2);
+            assertThat(binding.inputField()).isEqualTo(inputPath);
+        });
+        assertThat(optimized.steps().get(1).dependsOn()).contains(1);
+    }
+
     @Test
     void runtimeOwnedInputsFollowPublishedBindingPolicy() {
         McpArgumentBindingFieldPolicy sql = McpArgumentBindingFieldPolicy.from(

@@ -142,30 +142,30 @@ public final class AnalysisRefinementCoordinator {
             .filter(step -> Objects.equals(step.id(), stepId))
             .findFirst().orElse(null);
         if (originalStep == null || originalStep.input() == null) return rewritten;
-        // Paging belongs to the exact executed query, which may have received authorized
-        // identity binding and retrieval normalization after the original plan was saved.
-        Map<String, Object> executedInput = originalStep.input();
-        if (result.steps() != null) {
-            for (var execution : result.steps()) {
-                if (execution != null && execution.success() && Objects.equals(execution.stepId(), stepId)
-                    && Objects.equals(execution.toolName(), originalStep.toolName()) && execution.metadata() != null
-                    && execution.metadata().get("resolvedInput") instanceof Map<?, ?> resolved) {
-                    executedInput = asStringMap(resolved);
-                }
-            }
-        }
-
+        Map<String,Object> expected = continuationInput(originalStep, stepId, result, inputChanges);
+        List<InterpretationPlan.Step> matchingTool=rewritten.steps().stream().filter(Objects::nonNull)
+            .filter(step -> "mcp_tool".equals(step.actionType())
+                && Objects.equals(step.toolName(),originalStep.toolName()))
+            .toList();
+        List<InterpretationPlan.Step> cursorSteps=matchingTool.stream()
+            .filter(step -> step.input()!=null && Objects.equals(step.input().get("cursor"),inputChanges.get("cursor")))
+            .toList();
+        List<InterpretationPlan.Step> candidates=cursorSteps.isEmpty()
+            ? matchingTool.stream().filter(step -> Objects.equals(step.id(),stepId)).toList()
+            : cursorSteps;
+        // A rewrite may move the continuation to a new DAG step ID. Only one exact
+        // discovery action may inherit the publisher's opaque cursor and query.
+        if(candidates.size()!=1)return rewritten;
+        Integer targetId=candidates.get(0).id();
         boolean changed = false;
         List<InterpretationPlan.Step> steps = new ArrayList<>();
         for (InterpretationPlan.Step step : rewritten.steps()) {
-            if (step == null || !Objects.equals(step.id(), stepId)) {
+            if (step == null || !Objects.equals(step.id(), targetId)) {
                 steps.add(step);
                 continue;
             }
-            Map<String, Object> input = new LinkedHashMap<>(executedInput);
-            input.putAll(inputChanges);
             steps.add(new InterpretationPlan.Step(
-                step.id(), step.actionType(), originalStep.toolName(), input,
+                step.id(), step.actionType(), originalStep.toolName(), expected,
                 step.dependsOn(), step.outputContract(), step.validation()));
             changed = true;
         }
@@ -181,18 +181,37 @@ public final class AnalysisRefinementCoordinator {
     }
 
     public boolean templateDiscoveryContinuationSatisfied(
-        InterpretationPlan plan,
+        InterpretationPlan original,InterpretationPlan plan,
         InterpretationPlanRuntime.ExecutionResult result
     ) {
         if (!templateDiscoveryContinuationRequired(result)) return true;
-        if (plan == null || result == null || result.metadata() == null) return false;
+        if (original == null || plan == null || result == null || result.metadata() == null) return false;
         Integer stepId = continuationStepId(result);
         Map<String, Object> changes = continuationInputChanges(result);
         if (stepId == null || changes.isEmpty()) return false;
+        InterpretationPlan.Step originalStep=original.steps().stream().filter(Objects::nonNull)
+            .filter(step -> Objects.equals(step.id(),stepId)).findFirst().orElse(null);
+        if(originalStep==null || originalStep.input()==null)return false;
+        Map<String,Object> expected=continuationInput(originalStep,stepId,result,changes);
         return plan.steps().stream().filter(Objects::nonNull)
-            .filter(step -> Objects.equals(step.id(), stepId))
-            .anyMatch(step -> changes.entrySet().stream()
-                .allMatch(change -> Objects.equals(step.input().get(change.getKey()), change.getValue())));
+            .filter(step -> "mcp_tool".equals(step.actionType())
+                && Objects.equals(step.toolName(),originalStep.toolName())
+                && Objects.equals(step.input(),expected)).count()==1;
+    }
+
+    private Map<String,Object> continuationInput(InterpretationPlan.Step originalStep,Integer stepId,
+            InterpretationPlanRuntime.ExecutionResult result,Map<String,Object> changes) {
+        // Use the actual authorized invocation, including identity and retrieval
+        // normalization, rather than a model's rewrite of that invocation.
+        Map<String,Object> executed=originalStep.input();
+        if(result.steps()!=null)for(var execution:result.steps())
+            if(execution!=null && execution.success() && Objects.equals(execution.stepId(),stepId)
+                && Objects.equals(execution.toolName(),originalStep.toolName()) && execution.metadata()!=null
+                && execution.metadata().get("resolvedInput") instanceof Map<?,?> resolved)
+                executed=asStringMap(resolved);
+        var expected=new LinkedHashMap<String,Object>(executed);
+        expected.putAll(changes);
+        return expected;
     }
 
     public List<InterpretationPlanRewriter.RequiredToolExecution> requiredTools(

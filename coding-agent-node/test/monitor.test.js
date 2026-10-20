@@ -20,7 +20,9 @@ test('SDK receives task configuration and chunk bindings; final code receipt ref
     executePython: async (_task, value) => { received = value; return { status: 'SUCCEEDED', executorStopped: true,
       resultDatasetRef: 'result', validationRecordRef: 'validation', evidenceBundleRef: 'bundle' }; },
   }, { attemptId: 'task:fence-3', model: { async *stream(request) {
-    assert.match(request.systemPrompt, /selected-by-java/); assert.match(request.systemPrompt, /authorized-skill/);
+    assert.doesNotMatch(request.systemPrompt, /selected-by-java/);
+    assert.match(JSON.stringify(request.messages), /selected-by-java/);
+    assert.match(JSON.stringify(request.messages), /authorized-skill/);
     if (++turn === 1) {
       yield { type: 'tool-call-delta', toolCallId: 'generate-1', toolName: 'python_execute', input: { fileName: 'main.py', source } };
       yield { type: 'finish', reason: 'tool-calls' };
@@ -38,6 +40,54 @@ test('SDK receives task configuration and chunk bindings; final code receipt ref
   assert.ok(run.events.every(e => !Object.hasOwn(e, 'source') || e.source === 'NODE_CLINE'));
   assert.equal(JSON.stringify(run.events).includes('print(42)'), false);
 });
+test('fast analysis finishes after a validated tool result and archives the final tool interaction', async () => {
+  const next = structuredClone(contract);
+  next.metadataRefs = ['runtime-coding:analysis-fast-path:v1'];
+  let calls = 0, finished, checkpoint;
+  const run = createCodingRun(next, { reserveModel: async () => {}, settleModel: async () => {},
+    checkpoint: async (_task, value) => { checkpoint = value; }, finish: async (_task, value) => { finished = value; },
+    executePython: async () => ({ status: 'SUCCEEDED', executorStopped: true, validationStatus: 'INCONCLUSIVE',
+      businessValidationPassed: false, resultDatasetRef: 'result', validationRecordRef: 'validation', evidenceBundleRef: 'bundle' }),
+  }, { model: { async *stream() {
+    calls++; assert.equal(calls, 1, 'No confirmation/model turn is needed after verified collection');
+    yield { type: 'tool-call-delta', toolCallId: 'complete-program', toolName: 'python_execute',
+      input: { fileName: 'main.py', source: 'print(1)' } };
+    yield { type: 'finish', reason: 'tool-calls' };
+  } } });
+  const result = await run.run();
+  assert.equal(result.status, 'completed'); assert.equal(finished.status, 'completed'); assert.equal(calls, 1);
+  assert.ok(checkpoint.messages.some(message => message.role === 'tool'));
+  assert.ok(checkpoint.lastCollectedOperation);
+});
+
+test('fast analysis keeps output-missing failures repairable and materializes audited patched code', async () => {
+  const next = structuredClone(contract); next.metadataRefs = ['runtime-coding:analysis-fast-path:v1'];
+  const initial = 'value = 1\nprint(value)\n';
+  const digest = createHash('sha256').update(initial).digest('hex');
+  let calls = 0, executions = 0, actual;
+  const run = createCodingRun(next, { reserveModel: async () => {}, settleModel: async () => {}, finish: async () => {},
+    executePython: async (_task, value) => {
+      actual = value;
+      if (++executions === 1) return { status: 'SUCCEEDED', executorStopped: true, codeHash: digest,
+        outputStatus: 'REQUIRED_OUTPUT_MISSING', resultAvailable: false };
+      return { status: 'SUCCEEDED', executorStopped: true, resultDatasetRef: 'result', validationRecordRef: 'validation', evidenceBundleRef: 'bundle' };
+    },
+  }, { model: { async *stream(request) {
+    calls++;
+    if (calls === 2) assert.match(JSON.stringify(request.messages), /"isError":true/);
+    assert.ok(calls <= 2);
+    yield { type: 'tool-call-delta', toolCallId: 'program-' + calls, toolName: 'python_execute',
+      input: calls === 1 ? { fileName: 'main.py', source: initial } : { fileName: 'main.py', repair: {
+        baseCodeSha256: digest, edits: [{ oldText: 'value = 1', newText: 'value = 2' }],
+      } } };
+    yield { type: 'finish', reason: 'tool-calls' };
+  } } });
+  const result = await run.run();
+  assert.equal(result.status, 'completed'); assert.equal(calls, 2);
+  assert.equal(actual.source, 'value = 2\nprint(value)\n');
+  assert.equal(actual.codeSha256, createHash('sha256').update(actual.source).digest('hex'));
+});
+
 test('versioned file inputs negotiate format before SDK/model admission and keep output JSONL', async () => {
   for (const format of ['PARQUET', 'CSV']) {
     let prompt, metadataReads = 0;
@@ -58,6 +108,26 @@ test('versioned file inputs negotiate format before SDK/model admission and keep
     assert.throws(() => createCodingRun(next, {}), /VERSION_UNSUPPORTED/);
   }
 });
+test('only explicitly declared bounded input observations reach the coding model', async () => {
+  for (const declared of [false, true]) {
+    const next = structuredClone(contract);
+    next.metadataRefs = declared ? ['runtime-coding:bounded-input-observation:v1'] : [];
+    next.runtimeContext.inputFiles = { schemaVersion: 'runtime_os.coding.input.v1', format: 'PARQUET',
+      delivery: 'SHARED_DIRECTORY', manifestFileId: next.authorization.allowedDataRefs[0], manifestSha256: 'a'.repeat(64) };
+    let calls = 0;
+    const run = createCodingRun(next, { reserveModel: async () => {}, settleModel: async () => {},
+      executePython: async () => {}, finish: async () => {}, readInputContext: async () => ({
+        analysisPreview: { complete: false, samples: [{ rowJsonPrefix: 'authorized-format-prefix' }] },
+      }) }, { model: { async *stream(request) {
+        calls++; assert.match(JSON.stringify(request.messages), /authorized-format-prefix/);
+        assert.match(request.systemPrompt, /does not judge business conclusions/);
+        yield { type: 'text-delta', text: 'Analysis agent owns the result' }; yield { type: 'finish', reason: 'stop' };
+      } } });
+    if (declared) { await run.run(); assert.equal(calls, 1); }
+    else { await assert.rejects(run.run(), /not declared/); assert.equal(calls, 0); }
+  }
+});
+
 test('cancellation during input preparation cannot start a late model loop', async () => {
   const next = structuredClone(contract);
   next.runtimeContext.inputFiles = { schemaVersion: 'runtime_os.coding.input.v1', format: 'PARQUET',

@@ -24,6 +24,49 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
+    @Test void runtimeLifecycleSummaryIsNotSubmittedAsAnAnalyticalClaim() {
+        var completed=outcome(CodingTaskOutcome.Status.COMPLETED,CodingTaskOutcome.ValidationStatus.INCONCLUSIVE);
+        when(completed.summary()).thenReturn("runtime lifecycle marker: validation INCONCLUSIVE");
+        prepare(completed);
+        var parent=context("tenant");
+        var result=service().execute(parent,request(),sources());
+        verify(parent.model(),never()).chat(anyString());
+        assertThat(result).containsEntry("resultAvailable",true)
+            .containsEntry("validationStatus","INCONCLUSIVE").containsEntry("businessValidation","NOT_EVALUATED");
+    }
+    @Test void combinedSourcesKeepTheirOwnDeclaredRepresentationInTheAcceptedObjective() {
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        when(inputs.captureConfigured(any(),anyString(),anyList(),startsWith("coding-input-set:"),
+            anyString(),anyString(),anyLong(),anyLong(),any())).thenReturn(
+                new CodingInputSnapshotService.Snapshot("runtime-evidence:input","c"+"a".repeat(63),
+                    "input.jsonl","a".repeat(64),2,60,"combined"));
+        var datasets=new LinkedHashMap<String,Dataset>();
+        datasets.put("source#payload",new Dataset("source#payload",Map.of("contentType","application/json",
+            "recordMeaning","CONTENT_CHUNK_NOT_BUSINESS_ROW","privateContext","private-value"),
+            List.of(Map.of("chunkIndex",0,"content","private-source"))));
+        datasets.put("other#stdout",new Dataset("other#stdout",Map.of("contentType","text/plain","stream","stdout"),
+            List.of(Map.of("chunkIndex",0,"content","private-other"))));
+        var request=new LinkedHashMap<>(request());request.remove("datasetReference");
+        request.put("datasetReferences",List.of("source#payload","other#stdout"));
+        service().execute(context("tenant"),request,datasets);
+        var captured=org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);
+        verify(agent).submit(captured.capture());
+        assertThat(captured.getValue().objective().instruction()).contains("source#payload","other#stdout",
+            "application/json","text/plain","Group logical rows by their exact datasetReference first",
+            "Decode the reconstructed text as JSON first").doesNotContain("private-source","private-value","private-other");
+    }
+    @Test void producerRepresentationReachesTheAcceptedCodingObjective() {
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        var datasets=new LinkedHashMap<String,Dataset>();
+        datasets.put("source",new Dataset("source",Map.of("contentType","application/json",
+            "recordMeaning","CONTENT_CHUNK_NOT_BUSINESS_ROW","privateContext","private-value"),
+            List.of(Map.of("chunkIndex",1,"content","private-source"))));
+        service().execute(context("tenant"),request(),datasets);
+        var captured=org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);
+        verify(agent).submit(captured.capture());
+        assertThat(captured.getValue().objective().instruction()).contains("application/json",
+            "Decode the reconstructed text as JSON first").doesNotContain("private-source","private-value");
+    }
     @Test void expiredLegacySharedBudgetDoesNotBlockNewIndependentToolInvocation() throws Exception {
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
         var expired=new CodingTaskContract.Budget("analysis-coding-budget:run",java.time.Instant.EPOCH,
@@ -274,7 +317,7 @@ class CodingAnalysisServiceTest {
         verify(agent).cancel(any(),anyString(),anyString());
     }
 
-    @Test void reconciledWorkerLossContinuesToSemanticAdmissionUnderTheOriginalTaskBudget() {
+    @Test void reconciledWorkerLossRegistersStructuralResultUnderTheOriginalTaskBudget() {
         policy.setTimeoutSeconds(30);
         var unknown=outcome(CodingTaskOutcome.Status.RUNNING,CodingTaskOutcome.ValidationStatus.NOT_RUN);
         when(unknown.executionControl()).thenReturn(new CodingTaskOutcome.ExecutionControl(null,null,false,true));
@@ -292,6 +335,17 @@ class CodingAnalysisServiceTest {
         verify(collector).registeredResult(any(),anyString(),eq("runtime-evidence:result"));
         verify(agent,times(2)).resume(any(),anyString());
         verify(agent,times(1)).submit(any());verify(agent,never()).cancel(any(),anyString(),anyString());
+    }
+
+    @Test void runtimeRegistersCommittedResultsWithoutCallingABusinessReviewer() {
+        prepare(outcome(CodingTaskOutcome.Status.COMPLETED,CodingTaskOutcome.ValidationStatus.INCONCLUSIVE));
+        var parent=context("tenant");
+        when(parent.model().chat(anyString())).thenThrow(new AssertionError("No OS semantic veto"));
+        var receipt=service().execute(parent,request(),sources());
+        assertThat(receipt).containsEntry("resultAvailable",true).containsEntry("businessValidation","NOT_EVALUATED")
+            .doesNotContainKey("semanticAdmission");
+        verify(parent.model(),never()).chat(anyString());
+        verify(collector,never()).codeForReview(any(),anyString(),anyString());
     }
 
     @Test void resultReadFailureDoesNotCancelAnAlreadyCompletedTask() {

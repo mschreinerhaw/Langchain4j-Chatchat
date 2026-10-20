@@ -126,7 +126,8 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
       const url = new URL(request.url ?? '/', 'http://localhost');
       if (request.method === 'POST' && url.pathname === '/v1/input-capabilities') {
         await body(request);
-        return response(reply, 200, { schemaVersion: 'runtime_os.coding.input.v1', formats: ['PARQUET', 'CSV'] });
+        return response(reply, 200, { schemaVersion: 'runtime_os.coding.input.v1', formats: ['PARQUET', 'CSV'],
+          analysisProfiles: ['runtime-coding:analysis-fast-path:v1'] });
       }
       if (request.method === 'GET' && url.pathname === '/healthz')
         return response(reply, 200, { status: 'UP', sdk: '@cline/agents@0.0.93',

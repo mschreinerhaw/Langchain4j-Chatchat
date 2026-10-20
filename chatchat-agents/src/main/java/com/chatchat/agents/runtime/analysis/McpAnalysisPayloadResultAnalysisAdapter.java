@@ -60,17 +60,24 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
         if (resultKind == McpResultKind.EMPTY || resultKind == McpResultKind.ERROR_PAGE) {
             return new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION, resultKind.name(), List.of());
         }
-        if (resultKind == McpResultKind.COMMAND_STREAM) {
-            Map<String, Object> command = map(governedData);
+        var commandStreams = new CommandStreamResultAnalysisAdapter();
+        var governedCommand = new AnalysisRequest(request.datasetReference(),
+            normalizeJson(governedData), request.maximumRecordChars());
+        if (resultKind == McpResultKind.COMMAND_STREAM
+            || resultKind == McpResultKind.UNDECLARED && commandStreams.supports(governedCommand)) {
+            // Legacy gateways can omit resultKind while retaining the command protocol schema.
+            // Reuse the existing protocol projection; execution graphs are not source records.
+            Map<String, Object> command = map(governedCommand.payload());
             Map<String, Object> root = command;
             if (!command.containsKey("data")) {
                 root = new LinkedHashMap<>();
                 if (envelope.get("resultSchemaRef") != null) root.put("dataSchema", envelope.get("resultSchemaRef"));
                 root.put("data", command);
             }
-            AnalysisResult projected = new CommandStreamResultAnalysisAdapter().adapt(
+            AnalysisResult projected = commandStreams.adapt(
                 new AnalysisRequest(request.datasetReference(), root, request.maximumRecordChars()));
-            return withContext(projected, contractContext, "DECLARED_RESULT_KIND");
+            return withContext(projected, contractContext, resultKind == McpResultKind.UNDECLARED
+                ? "PROTOCOL_SCHEMA_COMPATIBILITY" : "DECLARED_RESULT_KIND");
         }
         if (resultKind == McpResultKind.DOCUMENT) {
             if (governedData == null) return new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION,

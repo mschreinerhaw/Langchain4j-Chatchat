@@ -50,12 +50,14 @@ public class PythonDockerRuntime {
                 throw new IllegalArgumentException("Invalid managed mount");
         }
         PythonOperationWorkspace.assignOutputOwner(workspace, env.getRuntimeUser());
-        Path runner = scripts.resolve("_runtime_capture.py");
-        if (fileName.equals("_runtime_capture.py")) throw new IllegalArgumentException("Reserved Runtime script name");
-        try (var resource = PythonDockerRuntime.class.getResourceAsStream("/python/runtime_capture.py")) {
-            if (resource == null) throw new IOException("Runtime stream boundary is unavailable");
-            Files.write(runner, resource.readAllBytes(), StandardOpenOption.CREATE,
-                StandardOpenOption.TRUNCATE_EXISTING, LinkOption.NOFOLLOW_LINKS);
+        for (String helper : List.of("_runtime_capture.py", "runtime_input.py")) {
+            if (fileName.equals(helper)) throw new IllegalArgumentException("Reserved Runtime script name");
+            String resourceName = helper.equals("_runtime_capture.py") ? "runtime_capture.py" : helper;
+            try (var resource = PythonDockerRuntime.class.getResourceAsStream("/python/" + resourceName)) {
+                if (resource == null) throw new IOException("Runtime protocol helper is unavailable");
+                Files.write(scripts.resolve(helper), resource.readAllBytes(), StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING, LinkOption.NOFOLLOW_LINKS);
+            }
         }
         String input = Files.readString(workspace.resolve("parameters.json"));
         List<String> command = new ArrayList<>(List.of(properties.getDockerCommand(), "create", "--name", container,

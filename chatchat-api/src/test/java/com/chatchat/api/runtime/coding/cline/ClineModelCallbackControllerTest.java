@@ -37,7 +37,9 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineModelCallbackControllerTest {
-    @Test void inputMetadataRequiresFrozenContractAndCurrentLeaseAndExcludesRawFields() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans={false,true})
+    void inputMetadataRequiresFrozenContractAndCurrentLeaseAndExcludesRawFields(boolean previewDeclared) {
         var source = new DriverManagerDataSource("jdbc:h2:mem:input-context-" + UUID.randomUUID()
             + ";DB_CLOSE_DELAY=-1", "sa", "");
         new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);
@@ -53,7 +55,7 @@ class ClineModelCallbackControllerTest {
             var base = contract(scope);
             String fileId = "c" + "a".repeat(63);
             var contract = new CodingTaskContract(CodingProtocol.ANALYSIS_VERSION, base.taskId(), scope,
-                base.objective(), base.inputSnapshotRef(), base.metadataRefs(), base.workspaceRef(),
+                base.objective(), base.inputSnapshotRef(), previewDeclared ? List.of(com.chatchat.api.runtime.coding.data.CodingInputObservation.POLICY_REF) : base.metadataRefs(), base.workspaceRef(),
                 new CodingTaskContract.Authorization("decision:1", List.of(), List.of(fileId), List.of(), List.of(),
                     CodingTaskContract.NetworkPolicy.NONE, List.of(), List.of()),
                 base.budget(), base.environmentRef(), base.validationPlanRef(), base.outputContract(),
@@ -77,7 +79,13 @@ class ClineModelCallbackControllerTest {
             body.set("scope", json.valueToTree(scope)); body.put("taskId", "task");
             body.put("contractHash", CodingCanonicalHash.sha256(contract)); body.put("fencingToken", lease.fencingToken());
             body.set("contract", json.valueToTree(contract));
+            when(inputs.observeForCoding(any())).thenReturn(Map.of("complete",false,"samples",List.of("declared-preview")));
             var response=controller.inputContext(body);
+            if(previewDeclared) {
+                assertThat(response).containsKey("analysisPreview");verify(inputs).observeForCoding(any());
+            } else {
+                assertThat(response).doesNotContainKey("analysisPreview");verify(inputs,never()).observeForCoding(any());
+            }
             assertThat(response).containsEntry("format", "PARQUET")
                 .doesNotContainKeys("rows", "hostPath", "schemaJson");
             assertThat(json.valueToTree(response).path("files").get(0).path("virtualPath").asText())

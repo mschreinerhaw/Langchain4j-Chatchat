@@ -31,4 +31,13 @@ final class CapacityGovernedChatModel implements ChatModel {
     Class<?> delegateType() {
         return delegate.getClass();
     }
+
+    /** The SDK's default text method delegates to the identical native ChatRequest. */
+    boolean textUsesNativeRequest() {
+        try {
+            return delegate.getClass().getMethod("chat", String.class).getDeclaringClass() == ChatModel.class;
+        } catch (NoSuchMethodException impossible) {
+            return false;
+        }
+    }
 }

@@ -29,6 +29,22 @@ import static org.mockito.Mockito.when;
 
 class ApiTemplateDiscoveryMcpToolPublisherTest {
 
+    @Test void committedAssetIdsScopeApiTemplatesAndUnknownIdsCannotWidenTheQuery() {
+        var group = category("group", "generic", "Generic");
+        var selected = api("selected-id", "selected_api", group);
+        var other = api("other-id", "other_api", group);
+        var configs = mock(ApiServiceConfigService.class);
+        when(configs.listEnabled()).thenReturn(List.of(selected, other));
+        var lucene = mock(LuceneMcpSearchService.class);
+        var publisher = publisher(configs, lucene);
+        assertThat(publisher.query(Map.of("filters", Map.of("assetIds", List.of("selected-id")))))
+            .containsEntry("returnedCount", 1);
+        assertThat(publisher.query(Map.of("filters", Map.of("assetIds", List.of("unknown")))))
+            .containsEntry("returnedCount", 0);
+        assertThat(publisher.query(Map.of("filters", Map.of("assetIds", List.of()))))
+            .containsEntry("returnedCount", 0);
+    }
+
     @Test void scopedCatalogMetadataCannotCreateExtraIndependentQueries() throws Exception {
         var selected = api("asset-selected", "selected_records_api", category("category-generic", "generic", "Generic"));
         var fields = new java.util.LinkedHashMap<String,Object>();

@@ -173,6 +173,7 @@ public final class ClinePythonCallbackController {
                 response.put("resultDatasetRef", collected.resultDatasetRef());
                 response.put("validationRecordRef", collected.validationRecordRef());
                 response.put("evidenceBundleRef", collected.evidenceBundleRef());
+                response.put("resultAvailable", true);
                 response.put("businessValidationPassed", collected.businessValidationPassed());
                 response.put("validationStatus", collected.validationStatus().name());
             }

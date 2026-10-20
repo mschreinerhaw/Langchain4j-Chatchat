@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -118,6 +119,32 @@ class FailureIsolatedBatchExecutionLayerTest {
             .extracting(FailureIsolatedBatchExecutionLayer.Attempt::call)
             .extracting(ToolCallRequest::callId)
             .containsExactly("first", "second", "third");
+    }
+
+    @Test
+    void independentReadOnlyBatchHasABoundedSharedWorkerPool() throws Exception {
+        int configured = Math.max(1, Math.min(16, Integer.getInteger("runtime.os.readonly.batch.parallelism", 4)));
+        List<ToolCallRequest> calls = java.util.stream.IntStream.range(0, configured + 5)
+            .mapToObj(index -> call("child-" + index)).toList();
+        var active = new AtomicInteger();
+        var peak = new AtomicInteger();
+        var release = new CountDownLatch(1);
+        var submitted = java.util.concurrent.CompletableFuture.supplyAsync(() ->
+            layer.executeParallelReadOnly(calls, (call, index) -> {
+                int now = active.incrementAndGet();
+                peak.accumulateAndGet(now, Math::max);
+                try { release.await(2, TimeUnit.SECONDS); }
+                catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt(); throw new java.util.concurrent.CancellationException();
+                } finally { active.decrementAndGet(); }
+                return FailureIsolatedBatchExecutionLayer.Invocation.completed(execution(call.callId()));
+            }));
+        try {
+            Thread.sleep(100);
+            assertThat(peak.get()).isGreaterThan(0);
+            assertThat(peak.get()).isLessThanOrEqualTo(configured);
+        } finally { release.countDown(); }
+        assertThat(submitted.get(5, TimeUnit.SECONDS)).hasSize(calls.size());
     }
 
     private ToolCallRequest call(String callId) {

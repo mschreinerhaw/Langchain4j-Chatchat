@@ -4920,6 +4920,8 @@ class InterpretationPlanRuntimeTest {
         input.put("filters", new LinkedHashMap<>(Map.of(
             "intent", "disk IO",
             "assetName", "Docker database host",
+            "target", "Dockerdatabasehost",
+            "labels", List.of("invented-label"),
             "env", "DEV"
         )));
         Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
@@ -4951,6 +4953,8 @@ class InterpretationPlanRuntimeTest {
         Map<String, Object> filters = (Map<String, Object>) input.get("filters");
         assertThat(filters)
             .containsEntry("assetName", "LiveData scheduler CDH")
+            .containsEntry("assetIds", List.of(selectedAssetId))
+            .doesNotContainKeys("target", "labels")
             .containsEntry("env", "DEV");
     }
 

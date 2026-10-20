@@ -2002,13 +2002,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         prompt.append("- Do not emit final_answer in your JSON. If you need to leave a diagnostic, write review_answer; Java will produce final_answer only from the final plan step.\n");
         prompt.append("- If a required dependency failed, request rewrite_plan or abort instead of forcing a dependent step.\n");
         prompt.append("- After template discovery, inspect the selected template's parameterSchema/requiredParameters before selecting its execution step.\n");
-        prompt.append("- When the selected template declares parameters, analyze and organize an evidence-based parameter profile in parameter_protocols using ")
-            .append(InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION)
-            .append(". Use the exact declared parameter names and exact discovered template_id.\n");
-        prompt.append("- Each argument must be evidence-bearing: use {value, source:user_query, evidence:{quote}} for an exact User-query fact, or {value, source:tool_result, evidence:{step_id,output_path}} for an exact value in a successful completed step. Runtime re-reads and compares every cited source before execution.\n");
-        prompt.append("- Add analysis_summary to explain the parameter profile. Never use model inference as a source, and never copy parameterSchema, defaults, routing fields, credentials, or an entire template object into arguments. Runtime owns defaults, type compilation, routing and execution.\n");
-        prompt.append("- Put parameters that cannot be proven by the User query or a completed tool result in unresolved_parameters. When a required parameter is unresolved, request rewrite_plan instead of executing with an invented or empty value.\n");
-        prompt.append("- Do not put a parameter in unresolved_parameters merely because the user omitted it when the selected template declares a non-empty default for that field. Template defaults are authoritative contract evidence; emit only evidence-backed overrides and let Runtime apply the remaining defaults.\n");
+        prompt.append("- Runtime owns asset scope, template binding, parameter generation, defaults and execution. Return scheduling decisions only; the controlled schema binding stage supplies executor arguments.\n");
         if (compressionEnabled) {
             prompt.append("- Context compression is active because the complete DAG evidence exceeded its token budget.\n");
             prompt.append("- Compressed tool outputs below are semantic scheduling projections. Full results remain authoritative in Runtime step records and tool traces.\n");
@@ -3875,8 +3869,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
 
     /**
      * Runs parameter generation as a separate schema-driven native Function Call after semantic
-     * template admission. Discovery remains authoritative for selected ids and schemas. Providers
-     * without native calls retain the reviewer's protocol for the existing fail-closed bridge.
+     * template admission. Discovery remains authoritative for selected ids and schemas.
+     * Semantic reviewers and planners cannot bypass this controlled binding stage.
      */
     private Map<String, Object> bindSelectedTemplateParameters(ChatModel activeChatModel,
                                                                 String query,
@@ -3886,22 +3880,16 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             reviewedPayload, "selected_template_ids", "selectedTemplateIds"));
         if (selectedIds.isEmpty()) return reviewedPayload;
         List<Map<String, Object>> templates = findCandidateMaps(discoveryOutput, "templates", 0);
+        log.info("Controlled template parameter binding: selectedTemplates={}, schemaTemplates={}, payloadType={}",
+            selectedIds.size(), templates.size(), discoveryOutput == null ? "null" : discoveryOutput.getClass().getName());
         SchemaDrivenTemplateParameterBinder binder =
             new SchemaDrivenTemplateParameterBinder(objectMapper);
-        Optional<SchemaDrivenTemplateParameterBinder.BindingResult> schemaCompleted =
-            binder.completeFromReviewedProtocols(templates, selectedIds,
-                firstObject(reviewedPayload, "parameter_protocols", "parameterProtocols"));
-        Optional<SchemaDrivenTemplateParameterBinder.BindingResult> nativeBinding = schemaCompleted.isPresent()
-            ? Optional.empty()
-            : binder.bind(activeChatModel, query, templates, selectedIds);
-        Optional<SchemaDrivenTemplateParameterBinder.BindingResult> binding;
-        if (nativeBinding.isPresent() && (schemaCompleted.isEmpty()
-            || nativeBinding.get().protocols().size() >= schemaCompleted.get().protocols().size())) {
-            binding = nativeBinding;
-        } else {
-            binding = schemaCompleted;
+        Optional<SchemaDrivenTemplateParameterBinder.BindingResult> binding =
+            binder.bind(activeChatModel, query, templates, selectedIds);
+        if (binding.isEmpty()) {
+            throw new IllegalStateException("TEMPLATE_PARAMETER_BINDING_FAILED: selected templates require "
+                + "the controlled schema binding stage; planner/reviewer arguments cannot authorize execution");
         }
-        if (binding.isEmpty()) return reviewedPayload;
         Map<String, Object> result = new LinkedHashMap<>(reviewedPayload);
         result.put("parameter_protocols", binding.get().protocols());
         result.put("parameter_binding_mode", binding.get().mode());
@@ -4217,8 +4205,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             authoritativeEvidence = stringify(candidateEvidence);
         }
         if (authoritativeEvidence != null && !authoritativeEvidence.isBlank()) {
-            String boundedEvidence = shortObservationText(
-                authoritativeEvidence, TOOL_REVIEW_CURRENT_EVIDENCE_CHARS);
+            String catalog = candidateEvidence == null ? "" : candidateIdentityCatalog(request.execution().output());
+            String boundedEvidence = catalog.isEmpty()
+                ? shortObservationText(authoritativeEvidence, TOOL_REVIEW_CURRENT_EVIDENCE_CHARS)
+                : "Complete returned candidate identity catalog:\n" + catalog + "\nCandidate details:\n"
+                    + shortObservationText(authoritativeEvidence,
+                        Math.max(200, TOOL_REVIEW_CURRENT_EVIDENCE_CHARS - catalog.length() - 100));
             prompt.append("Authoritative tool result evidence projection (all candidate identities are preserved; complete raw results remain in the Runtime trace):\n")
                 .append(boundedEvidence)
                 .append("\nRuntime model-input projection applied: ")
@@ -4256,7 +4248,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             prompt.append("- If the current-turn query contains replacement characters or repeated question marks that may have destroyed substantive text, do not infer the missing intent and do not reject candidates on that basis. Put unassessable candidates in deferred_template_ids and report the damaged input as a missing aspect.\n");
             prompt.append("- First decide coverage_decision: SUFFICIENT, NEED_NEXT_PAGE, or SCOPE_INSUFFICIENT. SUFFICIENT requires at least one selected returned template. An empty selection is valid and required when the current page has no suitable candidate; use NEED_NEXT_PAGE only when the tool result says hasMore=true.\n");
             prompt.append("- Return one template_evaluations entry per candidate, selected_template_ids, deferred_template_ids, rejected_template_ids, evidence_gaps, analysis_intent, and only evidence-supported template_relationships. Assign each candidate one declared analysis_role. Every rejection requires its own evaluation with decision=reject and an evidence-based reason.\n");
-            prompt.append("- Return at least one parameter_protocols entry for every selected template. When the user supplies a collection of entities, repeat the template_id with one binding_id and one scalar argument set per distinct entity; the Runtime will compile the bounded entity-by-template batch. Include only schema-declared overrides proven by an exact user-query quote or completed tool-result path. Keep arguments={} when defaults are sufficient; do not copy defaults as model values.\n");
+            prompt.append("- Runtime performs parameter binding separately against selected schemas. Return semantic candidate decisions only; omit parameter_protocols and executor arguments.\n");
             prompt.append("- Preserve the original question scope. Candidate grouping and rank do not authorize execution or prove relevance.\n");
             prompt.append("- ").append(CROSS_ASSET_RELATIONSHIP_REVIEW_RULE).append('\n');
         } else if (discoveryResultRole(toolName, output) == ToolWorkflowRole.ASSET_DISCOVERY) {
@@ -4281,9 +4273,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             .append("{\"satisfied\":true,\"iteration_sufficient\":false,\"reason\":\"short evidence-based reason\",\"evidence_used\":[],\"missing_evidence\":[],\"conflicts\":[],\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[],\"missingAspects\":[],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":false,\"confidence\":0.0}\n");
         if (discoveryResultRole(toolName, output) == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
             prompt.append("Template-discovery fields:\n")
-                .append("{\"selected_template_ids\":[],\"deferred_template_ids\":[],\"rejected_template_ids\":[],\"parameter_protocols\":[{\"protocol_version\":\"")
-                .append(InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION)
-                .append("\",\"template_id\":\"returned-id\",\"binding_id\":\"stable-binding-id\",\"arguments\":{\"declared_field\":{\"value\":\"evidence-backed scalar value\",\"source\":\"user_query\",\"evidence\":{\"quote\":\"exact query excerpt\"}}},\"unresolved_parameters\":[]}],\"coverage_decision\":\"SUFFICIENT|NEED_NEXT_PAGE|SCOPE_INSUFFICIENT\",\"evidence_gaps\":[],\"analysis_intent\":{\"business_goal\":\"\",\"analysis_subject\":\"\",\"core_entities\":[],\"metrics\":[],\"dimensions\":[],\"analysis_focus\":[],\"time_scope\":\"\",\"expected_relationships\":[]},\"template_relationships\":[],\"template_evaluations\":[{\"template_id\":\"returned-id\",\"business_group\":\"\",\"relevance\":0.0,\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|defer|reject\",\"analysis_role\":\"TARGET|CAUSE|CONTEXT|DIMENSION|VALIDATION|EXPLANATION|IRRELEVANT\",\"reasons\":[],\"missing_parameters\":[],\"matched_question_aspects\":[],\"relationship_hints\":[]}],\"refined_intent\":\"\"}\n");
+                .append("{\"selected_template_ids\":[],\"deferred_template_ids\":[],\"rejected_template_ids\":[],\"coverage_decision\":\"SUFFICIENT|NEED_NEXT_PAGE|SCOPE_INSUFFICIENT\",\"evidence_gaps\":[],\"analysis_intent\":{\"business_goal\":\"\",\"analysis_subject\":\"\",\"core_entities\":[],\"metrics\":[],\"dimensions\":[],\"analysis_focus\":[],\"time_scope\":\"\",\"expected_relationships\":[]},\"template_relationships\":[],\"template_evaluations\":[{\"template_id\":\"returned-id\",\"business_group\":\"\",\"relevance\":0.0,\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|defer|reject\",\"analysis_role\":\"TARGET|CAUSE|CONTEXT|DIMENSION|VALIDATION|EXPLANATION|IRRELEVANT\",\"reasons\":[],\"missing_parameters\":[],\"matched_question_aspects\":[],\"relationship_hints\":[]}],\"refined_intent\":\"\"}\n");
         } else if (discoveryResultRole(toolName, output) == ToolWorkflowRole.ASSET_DISCOVERY) {
             prompt.append("Asset-discovery fields: {\"selected_asset_ids\":[],\"rejected_asset_ids\":[],\"asset_evaluations\":[{\"asset_id\":\"returned-id\",\"relevance\":0.0,\"decision\":\"accept|reject\",\"reasons\":[]}]}\n");
         } else if (isWebDiscoveryTool(toolName)) {
@@ -4346,6 +4336,28 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             "executionDetailsRetainedByRuntime", true
         ));
         return Map.copyOf(result);
+    }
+
+    private String candidateIdentityCatalog(Object output) {
+        List<Map<String, Object>> candidates = findCandidateMaps(output, "templates", 0);
+        if (candidates.isEmpty()) candidates = findCandidateMaps(output, "assets", 0);
+        List<Map<String, Object>> identities = new ArrayList<>();
+        for (var candidate : candidates) {
+            Map<String, Object> identity = new LinkedHashMap<>();
+            for (String key : List.of("templateId", "id", "name", "title")) {
+                if (candidate.get(key) != null) identity.put(key, candidate.get(key));
+            }
+            if (candidate.get("asset") instanceof Map<?, ?> asset) {
+                for (String key : List.of("id", "name", "displayName")) {
+                    if (asset.get(key) != null) identity.putIfAbsent(key, asset.get(key));
+                }
+            }
+            identities.add(identity);
+        }
+        try { return objectMapper.writeValueAsString(identities); }
+        catch (com.fasterxml.jackson.core.JsonProcessingException failure) {
+            throw new IllegalStateException("CANDIDATE_CATALOG_SERIALIZATION_FAILED", failure);
+        }
     }
 
     /**
@@ -4584,6 +4596,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
 
     private Map<String, Object> findCandidatePage(Object value, int depth) {
         if (value == null || depth > 10) return Map.of();
+        Object governed = com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(value);
+        if (governed != value) return findCandidatePage(governed, depth + 1);
         if (value instanceof Map<?, ?> raw) {
             Map<String, Object> map = asMap(raw);
             if (map.containsKey("hasMore") || map.containsKey("nextCursor")) return map;
@@ -4599,6 +4613,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         if (value == null || depth > 10) {
             return List.of();
         }
+        Object governed = com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(value);
+        if (governed != value) return findCandidateMaps(governed, key, depth + 1);
         if (value instanceof Map<?, ?> raw) {
             Map<String, Object> map = asMap(raw);
             Object direct = map.get(key);

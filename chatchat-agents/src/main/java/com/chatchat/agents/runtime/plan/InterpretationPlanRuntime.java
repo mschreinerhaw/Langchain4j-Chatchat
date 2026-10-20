@@ -5781,6 +5781,9 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             } else if (childTool == null || !batchCapable(childTool, toolRegistry)) {
                 call.put("preflightErrorCode", "TEMPLATE_EXECUTOR_UNAVAILABLE");
                 call.put("preflightMessage", "No authorized batch-capable executor was available for the admitted template");
+            } else if (firstValueAtAnyPath(arguments, "$.parameterProtocol.binding_error") != null) {
+                call.put("preflightErrorCode", "TEMPLATE_PARAMETER_BINDING_FAILED");
+                call.put("preflightMessage", "Controlled parameter binding did not authorize this invocation");
             } else {
                 List<String> missingParameters = missingRequiredTemplateParameters(template, arguments);
                 if (!missingParameters.isEmpty()) {
@@ -7756,11 +7759,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             throw new IllegalStateException("ASSET_SELECTION_EMPTY: template binding cannot rediscover or widen an empty authorized asset selection");
         }
         if (selectedContexts.size() > 1) {
-            if (selectedContexts.stream().anyMatch(context -> context.get("assetId") == null))
-                throw new IllegalStateException("ASSET_SELECTION_ID_REQUIRED: multi-asset binding requires canonical returned asset IDs");
-            Map<String, Object> filters = new LinkedHashMap<>(asStringMap(input.get("filters")));
-            for (String key : List.of("assetName", "asset_name", "name", "assetId", "asset_id")) filters.remove(key);
-            filters.put("assetIds", selectedContexts.stream().map(context -> context.get("assetId")).toList());
+            Map<String, Object> filters = com.chatchat.agents.runtime.plan.template.TemplateAssetScope.bind(
+                asStringMap(input.get("filters")), selectedContexts);
             input.put("filters", filters);
             log.info("InterpretationPlan handed off authorized asset selection: stepId={}, tool={}, assetIds={}",
                 step.id(), step.toolName(), filters.get("assetIds"));
@@ -7768,7 +7768,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         }
         Map<String, Object> selected = reviewSelectedAssetExecutionContext(completed);
         if (selected.isEmpty()) {
-            return;
+            selected = uniqueCompletedAssetExecutionContext(completed);
+            if (selected.isEmpty()) return;
         }
         Object filtersValue = firstMapValue(input, "filters", "executionContext", "mcpExecutionContext");
         Map<String, Object> filters = filtersValue instanceof Map<?, ?> map
@@ -7777,15 +7778,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         String previousAsset = stringValue(firstNonBlankObject(
             filters.get("assetName"), filters.get("asset_name"), filters.get("name")));
         String selectedAsset = stringValue(selected.get("assetName"));
-        filters.remove("asset_name");
-        filters.remove("name");
-        if (selectedAsset != null) {
-            filters.put("assetName", selectedAsset);
-        }
-        if (selected.get("env") != null) {
-            filters.remove("environment");
-            filters.put("env", selected.get("env"));
-        }
+        filters = com.chatchat.agents.runtime.plan.template.TemplateAssetScope.bind(filters, List.of(selected));
         input.put("filters", filters);
         if (!Objects.equals(previousAsset, selectedAsset)) {
             log.info("InterpretationPlan corrected template-discovery asset drift from reviewed "

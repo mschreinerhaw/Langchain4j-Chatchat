@@ -15,6 +15,19 @@ class McpResultAnalysisBridgeTest {
 
     private final McpResultAnalysisBridge bridge = new McpResultAnalysisBridge();
 
+    @Test void registeredAdaptersRouteLegacyCommandEnvelopeToObservedStreams() {
+        var result=bridge.analysisResult("opaque",Map.of("schemaVersion",McpAnalysisPayload.SCHEMA_VERSION,
+            "resultKind","UNDECLARED","data",Map.of("dataSchema","ssh_steps.v1",
+                "data",Map.of("stdout","observed-stream"),
+                "executionGraph",Map.of("nodes",List.of(Map.of("id","control-step"))))),1000,true);
+        assertThat(result.evidenceRole()).isEqualTo("COMMAND_EXECUTION_STREAMS");
+        assertThat(result.datasets()).singleElement().satisfies(dataset -> {
+            assertThat(dataset.datasetReference()).isEqualTo("opaque#stdout");
+            assertThat(dataset.records()).singleElement().satisfies(row ->
+                assertThat(row).containsEntry("content","observed-stream").doesNotContainKey("id"));
+        });
+    }
+
     @Test
     void projectsEveryNonNullRuntimeDataShapeIntoAnalyzableRecords() {
         List<Object> arbitraryResults = List.of(

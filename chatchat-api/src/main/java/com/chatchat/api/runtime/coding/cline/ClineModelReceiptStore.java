@@ -56,7 +56,7 @@ public final class ClineModelReceiptStore implements CodingExecutionProofVerifie
             Map<?,?> info=response.get("modelInfo") instanceof Map<?,?> value?value:Map.of();
             var usage=new java.util.LinkedHashMap<String,Long>();
             if(response.get("usage") instanceof Map<?,?> values)
-                for(String key:List.of("inputTokens","outputTokens")) {
+                for(String key:List.of("inputTokens","outputTokens","cacheReadTokens","cacheWriteTokens","reasoningTokens")) {
                     Long value=number(values.get(key));if(value!=null)usage.put(key,value);
                 }
             return new com.chatchat.common.runtime.coding.CodingModelCallTelemetry(operationId,

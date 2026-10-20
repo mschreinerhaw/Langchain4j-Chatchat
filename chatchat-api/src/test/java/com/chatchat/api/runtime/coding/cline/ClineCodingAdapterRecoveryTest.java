@@ -31,7 +31,7 @@ import static org.mockito.Mockito.*;
 /** Real HTTP worker status; execution/collector doubles do not constitute Docker or SDK recovery. */
 class ClineCodingAdapterRecoveryTest {
     @ParameterizedTest
-    @ValueSource(strings = {"COMPLETED", "FAILED", "CANCELLED", "MISSING", "UNKNOWN_MODEL", "FAILED_PYTHON", "MISSING_FAILED_PYTHON", "MISSING_STOPPED", "MISSING_STOPPED_UNKNOWN_MODEL", "MODEL_ONLY", "MISSING_MODEL_ONLY", "LIVE_UNKNOWN_MODEL", "UNAVAILABLE_UNKNOWN_MODEL"})
+    @ValueSource(strings = {"COMPLETED", "FAILED", "CANCELLED", "MISSING", "UNKNOWN_MODEL", "FAILED_PYTHON", "MISSING_FAILED_PYTHON", "MISSING_STOPPED", "MISSING_STOPPED_UNKNOWN_MODEL", "MODEL_ONLY", "MISSING_MODEL_ONLY", "LIVE_UNKNOWN_MODEL", "UNAVAILABLE_UNKNOWN_MODEL", "NO_RESULT", "INVALID_RESULT"})
     void stoppedWorkerRequiresVerifiedLatestExecutionBeforeEvidenceOnlyRecovery(String scenario) throws Exception {
         var scope = new KernelDataScope("tenant", "owner", null, null, "run", null, Map.of());
         var contract = ClineCodingAdapterDispatchTest.contract(scope);
@@ -80,6 +80,10 @@ class ClineCodingAdapterRecoveryTest {
             .thenReturn(new CodingEvidenceCollector.Collected(contract.inputSnapshotRef(), "evidence:code",
                 "evidence:receipt", "evidence:result", "evidence:validation", "evidence:bundle", false,
                 CodingTaskOutcome.ValidationStatus.INCONCLUSIVE));
+        if (scenario.equals("NO_RESULT") || scenario.equals("INVALID_RESULT"))
+            when(collector.collect(eq(scope),eq(contract),eq(operationId),eq("main.py"),eq("rows.jsonl"),anyList(),eq(validator)))
+                .thenThrow(scenario.equals("NO_RESULT") ? new CodingEvidenceCollector.RequiredOutputMissingException("rows.jsonl")
+                    : new CodingEvidenceCollector.InvalidStructuredResultException("Invalid result structure"));
         when(tasks.commitOutcome(eq(scope), eq(contract.taskId()), any(), eq(current.revision()), any()))
             .thenAnswer(call -> call.getArgument(4));
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -89,7 +93,7 @@ class ClineCodingAdapterRecoveryTest {
             if (scenario.startsWith("MISSING")) exchange.sendResponseHeaders(404, -1);
             else if (scenario.startsWith("UNAVAILABLE")) exchange.sendResponseHeaders(503, -1);
             else {
-                String status = scenario.startsWith("LIVE") ? "RUNNING" : List.of("UNKNOWN_MODEL", "FAILED_PYTHON", "MODEL_ONLY").contains(scenario) ? "COMPLETED" : scenario;
+                String status = scenario.startsWith("LIVE") ? "RUNNING" : List.of("UNKNOWN_MODEL", "FAILED_PYTHON", "MODEL_ONLY", "NO_RESULT", "INVALID_RESULT").contains(scenario) ? "COMPLETED" : scenario;
                 byte[] bytes = ("{\"status\":\"" + status + "\",\"fencingToken\":1}").getBytes(StandardCharsets.UTF_8);
                 exchange.sendResponseHeaders(200, bytes.length);
                 try (var output = exchange.getResponseBody()) { output.write(bytes); }
@@ -106,11 +110,13 @@ class ClineCodingAdapterRecoveryTest {
                 assertThat(result).isSameAs(current);
                 verify(tasks, times(unknownModel ? 0 : 1)).finishStoppedAfterReconciliation(eq(scope), eq(contract.taskId()), any(), eq(current.revision()));
                 verifyNoInteractions(collector);
-            } else if (scenario.endsWith("FAILED_PYTHON") || scenario.endsWith("MODEL_ONLY")) {
+            } else if (scenario.endsWith("FAILED_PYTHON") || scenario.endsWith("MODEL_ONLY") || scenario.equals("NO_RESULT") || scenario.equals("INVALID_RESULT")) {
                 assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.FAILED);
                 assertThat(result.reasonCode()).isEqualTo(CodingErrorCode.EXECUTION_FAILED);
                 assertThat(result.executionControl().executorStopped()).isTrue();
-                verifyNoInteractions(collector);
+                if (scenario.equals("NO_RESULT") || scenario.equals("INVALID_RESULT"))
+                    verify(collector).collect(eq(scope),eq(contract),eq(operationId),eq("main.py"),eq("rows.jsonl"),anyList(),eq(validator));
+                else verifyNoInteractions(collector);
             } else if (unknownModel) {
                 assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.RUNNING);
                 verifyNoInteractions(collector);

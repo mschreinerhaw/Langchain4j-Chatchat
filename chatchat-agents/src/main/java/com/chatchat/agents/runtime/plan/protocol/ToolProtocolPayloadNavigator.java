@@ -34,6 +34,8 @@ public final class ToolProtocolPayloadNavigator {
         if (output == null || depth > 8) return null;
         if (output instanceof com.chatchat.common.tool.ToolOutput receipt)
             return discoveryStage(receipt.getData(), depth + 1);
+        Object governed = com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(output);
+        if (governed != output) return discoveryStage(governed, depth + 1);
         Object normalized = normalize(output);
         if (normalized != output) return discoveryStage(normalized, depth + 1);
         if (!(output instanceof Map<?, ?> map)) return null;

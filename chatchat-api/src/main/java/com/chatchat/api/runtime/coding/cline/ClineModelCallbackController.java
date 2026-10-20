@@ -97,6 +97,24 @@ public final class ClineModelCallbackController {
             return response;
         });
     }
+
+    /** Reads only an immutable structured result produced by this Coding task. */
+    @PostMapping("/read-artifact")
+    public Map<String,Object> readArtifact(@RequestBody JsonNode body) {
+        return bound(body, call -> {
+            var contract=contract(body,call);
+            if(!CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
+                    || !contract.authorization().allowedTools().contains("artifact_read"))
+                throw new SecurityException("Artifact read is outside the Runtime authorization");
+            String reference=body.path("reference").asText("");
+            if(!reference.startsWith("runtime-evidence:") || reference.length()>256)
+                throw new IllegalArgumentException("A bounded Runtime evidence reference is required");
+            var page=collector.readResultPage(call.scope(),call.taskId(),reference,0,2);
+            if(page.rows().size()!=1 || page.hasMore())
+                throw new IllegalStateException("Analysis review requires exactly one complete report row");
+            return Map.of("reference",reference,"rows",page.rows(),"complete",true);
+        });
+    }
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setWorkspace(CodingWorkspaceService workspace) { this.workspace=workspace; }
 

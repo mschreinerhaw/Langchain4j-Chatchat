@@ -7,6 +7,7 @@ import com.chatchat.api.runtime.coding.data.CodingInputSnapshotService;
 import com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollector;
 import com.chatchat.api.runtime.coding.evidence.CodingValidationPlanService;
 import com.chatchat.api.runtime.evidence.JdbcRuntimeEvidenceStore;
+import com.chatchat.agents.orchestration.analysis.dataset.DatasetHandle;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.runtime.coding.*;
 import com.chatchat.common.runtime.evidence.*;
@@ -56,7 +57,7 @@ class ClineModelCallbackControllerTest {
             String fileId = "c" + "a".repeat(63);
             var contract = new CodingTaskContract(CodingProtocol.ANALYSIS_VERSION, base.taskId(), scope,
                 base.objective(), base.inputSnapshotRef(), previewDeclared ? List.of(com.chatchat.api.runtime.coding.data.CodingInputObservation.POLICY_REF) : base.metadataRefs(), base.workspaceRef(),
-                new CodingTaskContract.Authorization("decision:1", List.of(), List.of(fileId), List.of(), List.of(),
+                new CodingTaskContract.Authorization("decision:1", List.of("artifact_read"), List.of(fileId), List.of(), List.of(),
                     CodingTaskContract.NetworkPolicy.NONE, List.of(), List.of()),
                 base.budget(), base.environmentRef(), base.validationPlanRef(), base.outputContract(),
                 Map.of("schemaVersion", "runtime_os.coding.context.v1", "consistency", "TASK_SNAPSHOT", "inputFiles",
@@ -73,8 +74,9 @@ class ClineModelCallbackControllerTest {
             when(inputs.describe(scope, "task", snapshot)).thenReturn(Map.of("fileId", fileId, "format", "PARQUET",
                 "inputManifest", Map.of("schemaVersion", "runtime_os.coding.input.v1"), "rows", List.of("private"),
                 "hostPath", "/private/data", "schemaJson", "duplicate"));
+            var collector=mock(CodingEvidenceCollector.class);
             var controller = new ClineModelCallbackController(access, tasks, mock(ClineRuntimeModelBridge.class),
-                receipts, inputs, mock(CodingValidationPlanService.class), mock(CodingEvidenceCollector.class), json);
+                receipts, inputs, mock(CodingValidationPlanService.class), collector, json);
             var body = json.createObjectNode();
             body.set("scope", json.valueToTree(scope)); body.put("taskId", "task");
             body.put("contractHash", CodingCanonicalHash.sha256(contract)); body.put("fencingToken", lease.fencingToken());
@@ -94,6 +96,13 @@ class ClineModelCallbackControllerTest {
                 .isEqualTo("a".repeat(64));
             assertThat(json.valueToTree(response).path("fileLayout").path("manifestRootFields").toString())
                 .contains("columns", "parts").doesNotContain("inputManifest", "sha256");
+            String resultRef="runtime-evidence:"+"b".repeat(64);
+            when(collector.readResultPage(scope,"task",resultRef,0,2)).thenReturn(
+                new DatasetHandle.Page(0,List.of(Map.of("report","reviewed")),false));
+            body.put("reference",resultRef);
+            assertThat(controller.readArtifact(body)).containsEntry("complete",true)
+                .containsEntry("reference",resultRef);
+            verify(collector).readResultPage(scope,"task",resultRef,0,2);
             body.put("fencingToken", lease.fencingToken() + 1);
             assertThatThrownBy(() -> controller.inputContext(body))
                 .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);

@@ -10,7 +10,7 @@ public final class CodingExecutionProfile {
     private CodingExecutionProfile() { }
 
     public static Map<String,Object> select(CodingAnalysisProperties policy, int sourceCount, long inputRows) {
-        if (sourceCount < 1 || sourceCount > 8 || inputRows < 0
+        if (sourceCount < 1 || sourceCount > com.chatchat.common.runtime.coding.CodingProtocol.MAX_ANALYSIS_SOURCES || inputRows < 0
                 || policy.getSimpleMaxSources() < 1 || policy.getSimpleMaxSources() > 8
                 || policy.getSimpleMaxInputRows() < 0 || policy.getSimpleMaxInputRows() > 1_000_000)
             throw new IllegalArgumentException("Invalid Coding complexity configuration or input size");

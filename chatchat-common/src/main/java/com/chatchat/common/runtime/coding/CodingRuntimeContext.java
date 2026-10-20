@@ -15,7 +15,7 @@ public final class CodingRuntimeContext {
             CodingProtocol.require(profile.keySet().stream().allMatch(Set.of("schemaVersion","complexity","sourceCount","inputRows","selectedModel","providerModel","protocol","implementation","reasoningEffort")::contains)
                 && "runtime_os.coding.execution_profile.v1".equals(profile.get("schemaVersion"))
                 && profile.get("complexity") instanceof String complexity && Set.of("SIMPLE","COMPLEX").contains(complexity)
-                && profile.get("sourceCount") instanceof Number sources && sources.longValue()>=1 && sources.longValue()<=8
+                && profile.get("sourceCount") instanceof Number sources && sources.longValue()>=1 && sources.longValue()<=CodingProtocol.MAX_ANALYSIS_SOURCES
                 && profile.get("inputRows") instanceof Number rows && rows.longValue()>=0,
                 "Invalid Coding execution profile");
             if(profile.containsKey("selectedModel"))CodingProtocol.require(profile.get("selectedModel") instanceof String alias

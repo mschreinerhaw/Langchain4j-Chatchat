@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(prefix = "chatchat.coding.cline", name = "enabled", havingValue = "true")
 public final class ClineModelReceiptStore implements CodingExecutionProofVerifier {
     private static final String TYPE = "CODING_MODEL_RESPONSE_RECEIPT";
+    private static final com.fasterxml.jackson.databind.ObjectMapper JSON = new com.fasterxml.jackson.databind.ObjectMapper();
     private final JdbcRuntimeEvidenceStore evidence;
 
     public ClineModelReceiptStore(JdbcRuntimeEvidenceStore evidence) { this.evidence = evidence; }
@@ -49,7 +50,7 @@ public final class ClineModelReceiptStore implements CodingExecutionProofVerifie
             if(!TYPE.equals(record.evidenceType()) || !contract.taskId().equals(record.payload().get("taskId"))
                     || !operationId.equals(record.payload().get("operationId"))
                     || !com.chatchat.common.runtime.coding.CodingCanonicalHash.sha256(contract).equals(record.payload().get("contractHash"))
-                    || !evidence.contentHash(record.payload()).equals(record.contentSha256()))
+                    || !validContentHash(record))
                 throw new SecurityException("Model telemetry receipt binding differs from contract");
             if(!(record.payload().get("response") instanceof Map<?,?> response))
                 throw new IllegalStateException("Invalid model receipt");
@@ -80,7 +81,8 @@ public final class ClineModelReceiptStore implements CodingExecutionProofVerifie
         String id = id(scope, contract.taskId(), operationId);
         Map<String, Object> payload = Map.of("taskId", contract.taskId(), "operationId", operationId,
             "executionHandle", executionHandle, "contractHash",
-            com.chatchat.common.runtime.coding.CodingCanonicalHash.sha256(contract), "response", response);
+            com.chatchat.common.runtime.coding.CodingCanonicalHash.sha256(contract), "response",
+            JSON.convertValue(response, new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>() {}));
         String inputId = contract.inputSnapshotRef().startsWith("runtime-evidence:")
             ? contract.inputSnapshotRef().substring("runtime-evidence:".length()) : contract.inputSnapshotRef();
         if (evidence.find(scope, inputId).isEmpty())
@@ -100,7 +102,30 @@ public final class ClineModelReceiptStore implements CodingExecutionProofVerifie
                 && taskId.equals(record.payload().get("taskId"))
                 && operationId.equals(record.payload().get("operationId"))
                 && executionHandle.equals(record.payload().get("executionHandle"))
-                && evidence.contentHash(record.payload()).equals(record.contentSha256())).isPresent();
+                && validContentHash(record)).isPresent();
+    }
+
+    private boolean validContentHash(EvidenceRecord record) {
+        if (evidence.contentHash(record.payload()).equals(record.contentSha256())) return true;
+        // Legacy bridge responses stored tool input as ObjectNode: ORDER_MAP_ENTRIES_BY_KEYS
+        // sorted Maps but not that node. Reconstruct only this declared representation and
+        // still require equality with the ORIGINAL immutable SHA-256; never rewrite evidence.
+        if (!(record.payload().get("response") instanceof Map<?,?> response)
+                || !(response.get("toolCalls") instanceof List<?> calls)) return false;
+        var restored = new java.util.LinkedHashMap<String,Object>();
+        response.forEach((key,value) -> restored.put(String.valueOf(key),value));
+        var tools = new java.util.ArrayList<Map<String,Object>>();
+        for (Object value : calls) {
+            if (!(value instanceof Map<?,?> call) || !(call.get("input") instanceof Map<?,?> input)) return false;
+            var tool = new java.util.LinkedHashMap<String,Object>();
+            call.forEach((key,item) -> tool.put(String.valueOf(key),item));
+            tool.put("input", JSON.valueToTree(input));
+            tools.add(tool);
+        }
+        restored.put("toolCalls",tools);
+        var payload = new java.util.LinkedHashMap<>(record.payload());
+        payload.put("response",restored);
+        return evidence.contentHash(payload).equals(record.contentSha256());
     }
 
     private static String id(KernelDataScope scope, String taskId, String operationId) {

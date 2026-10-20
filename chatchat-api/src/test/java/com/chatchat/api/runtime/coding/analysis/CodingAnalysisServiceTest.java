@@ -24,6 +24,29 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
+    @Test void nineSourceFileContractRetainsTheAuthorizedParentModelAcrossComplexitySelection() {
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        policy.setComplexModelName("must-not-replace-parent");
+        when(inputs.captureConfigured(any(),anyString(),anyList(),startsWith("coding-input-set:"),
+            anyString(),anyString(),anyLong(),anyLong(),any())).thenReturn(
+                new CodingInputSnapshotService.Snapshot("runtime-evidence:input","c"+"a".repeat(63),
+                    "manifest.json","a".repeat(64),9,90,"combined",List.of(
+                        new CodingInputSnapshotService.Chunk("c"+"b".repeat(63),"input.jsonl","b".repeat(64),9,90))));
+        var delivered = new LinkedHashMap<String,Dataset>();
+        for (int i = 0; i < 9; i++) delivered.put("source-"+i,new Dataset("source-"+i,Map.of(),List.of(Map.of("value",i))));
+        var parent=context("tenant"); parent.metadata().put("modelName","request-model");
+        service().executePrimaryAnalysis(parent,delivered,event -> {});
+        var captured=org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);
+        verify(agent).submit(captured.capture());
+        var contract=captured.getValue();
+        assertThat(contract.schemaVersion()).isEqualTo(CodingProtocol.ANALYSIS_VERSION);
+        @SuppressWarnings("unchecked") var profile=(Map<String,Object>)contract.runtimeContext().get("executionProfile");
+        assertThat(profile)
+            .containsKey("sourceCount").doesNotContainKey("selectedModel");
+        assertThat(((Map<?,?>)contract.runtimeContext().get("executionProfile")).get("sourceCount")).isEqualTo(9);
+        assertThat(((Map<?,?>)contract.runtimeContext().get("model")).get("selectedModel")).isEqualTo("request-model");
+        verify(parent.model(),never()).chat(anyString());
+    }
     @Test void primaryAnalysisBatchesNineAuthorizedDatasetsIntoOneGenericCodingAssignment() {
         var service = spy(service());
         doReturn(Map.of("status", "COMPLETED")).when(service).executeObserved(

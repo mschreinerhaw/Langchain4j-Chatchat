@@ -23,6 +23,7 @@ def coding_owned_publication(metadata):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--auth-file', required=True)
+    parser.add_argument('--agent-id', default='db_ops_assistant', help='Published assistant ID resolved from the authorized catalog')
     parser.add_argument('--mode', choices=['complete', 'qa', 'cancel', 'restart-node'], default='complete')
     parser.add_argument('--output', required=True)
     parser.add_argument('--base-url', default='http://127.0.0.1:18180')
@@ -35,6 +36,9 @@ def main():
     parser.add_argument('--recovery-driver', choices=['manual', 'automatic'], default='manual',
         help='Observe Runtime reconciliation or invoke the existing explicit resume control')
     args = parser.parse_args()
+    if not args.agent_id or len(args.agent_id) > 128 or any(c not in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-' for c in args.agent_id):
+        raise RuntimeError('Invalid published assistant ID')
+    questions_path = '/api/v1/published-agents/' + args.agent_id + '/questions'
     if args.base_url not in ('http://127.0.0.1:18180', 'http://127.0.0.1:18100'):
         raise RuntimeError('Acceptance must target the loopback test service')
     client = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -56,7 +60,7 @@ def main():
     credentials = json.loads(pathlib.Path(args.auth_file).read_text())
     token = http('/api/v1/enterprise/auth/login', credentials)['token']
     question = ('这是知识问答：解释 InnoDB Buffer Pool 命中率的含义和局限。'
-        '不要查询当前数据库、不要计算实例数据、不要调用 Python。') if args.mode == 'qa' else (
+        '不要查询当前数据库或计算实例数据；仅使用一般知识和提供的上下文回答。') if args.mode == 'qa' else (
         '数据分析：使用授权模板查询 LiveData测试库_223 当前连接状态，委派 Coding Agent 用 Python '
         '统计 Sleep 和总连接数；仅输出一行聚合计数和限制说明，禁止复制原始记录。'
         '仅分析本次快照，不判断健康。')
@@ -70,16 +74,16 @@ def main():
         if not question or len(question.encode('utf-8')) > 8192:
             raise RuntimeError('Acceptance question must contain 1..8192 UTF-8 bytes')
     if args.task_id:
-        existing = http('/api/v1/published-agents/db_ops_assistant/questions/' + args.task_id + '/status?eventLimit=1')
+        existing = http(questions_path + '/' + args.task_id + '/status?eventLimit=1')
         submission = {'taskId': args.task_id, 'attemptId': existing['attemptId']}
     else:
-        submission = http('/api/v1/published-agents/db_ops_assistant/questions',
+        submission = http(questions_path,
             {'question': question, 'sessionId': str(uuid.uuid4()), 'idempotencyKey': str(uuid.uuid4())})
     parent, run = submission['taskId'], submission['attemptId']
     root = '/api/v1/agent/runtime/runs/' + urllib.parse.quote(run) + '/coding'
-    status_path = '/api/v1/published-agents/db_ops_assistant/questions/' + parent + '/status?eventLimit=1'
+    status_path = questions_path + '/' + parent + '/status?eventLimit=1'
     report = {'mode': args.mode, 'scope': 'Real published task API and configured provider; Sandbox execution verified by task receipts',
-        'taskId': parent, 'runId': run, 'startedAt': time.time(), 'productionSwitched': False,
+        'taskId': parent, 'runId': run, 'agentId': args.agent_id, 'startedAt': time.time(), 'productionSwitched': False,
         'tasks': [], 'events': {}, 'codeSubmissions': [], 'nodeRestarted': False, 'cancelRequested': False,
         'inputBindings': [], 'expectedInputFormat': args.expected_input_format, 'restartPhase': args.restart_phase,
         'recoveryDriver': args.recovery_driver}
@@ -168,7 +172,7 @@ def main():
                                     'readOnly': physical['HostConfig']['ReadonlyRootfs'], 'user': physical['Config']['User']}
                 if args.mode == 'cancel' and active_python and not report['cancelRequested']:
                     http(root + '/' + urllib.parse.quote(tid) + '/cancel', {}, 'POST')
-                    http('/api/v1/published-agents/db_ops_assistant/questions/' + parent, method='DELETE')
+                    http(questions_path + '/' + parent, method='DELETE')
                     report['cancelRequested'] = True
                     report['cancelTarget'] = tid
                 validated = any(e.get('payload', {}).get('type') == 'TOOL_FINISHED'
@@ -203,7 +207,7 @@ def main():
             time.sleep(0.2 if args.mode == 'restart-node' and args.restart_phase == 'validated' and tasks else 2)
         else:
             report['status'] = 'TIMED_OUT_WAITING_FOR_ACCEPTANCE'
-            http('/api/v1/published-agents/db_ops_assistant/questions/' + parent, method='DELETE')
+            http(questions_path + '/' + parent, method='DELETE')
             raise RuntimeError('Published task did not reach a terminal state within acceptance timeout')
         types = [e.get('payload', {}).get('type') for values in report['events'].values() for e in values]
         report['hasActualModelTelemetry'] = 'MODEL_RESOLVED' in types
@@ -213,7 +217,7 @@ def main():
         report['resultAdmitted'] = False
         report['javaSemanticReviewInvoked'] = False
         report['resultAdmissionScope'] = 'STRUCTURE_AND_AUTHORIZED_REFERENCES'
-        if args.mode not in ('qa', 'cancel'):
+        if args.mode != 'cancel':
             for offset in range(0, 6400, 200):
                 timeline = http('/api/v1/agent/runtime/runs/' + urllib.parse.quote(run)
                     + '/timeline?observationOffset=' + str(offset) + '&observationLimit=200&stepLimit=1&eventLimit=1')
@@ -228,9 +232,7 @@ def main():
                     break
         report['orderedUniqueEvents'] = all(len(values) == len({e['eventId'] for e in values}) and
             [e['sequence'] for e in values] == sorted(e['sequence'] for e in values) for values in report['events'].values())
-        if args.mode == 'qa':
-            passed = not report['tasks'] and bool(report['parent']['answerAvailable'])
-        elif args.mode == 'cancel':
+        if args.mode == 'cancel':
             passed = report['cancelRequested'] and any(t['outcome']['status'] == 'CANCELLED' for t in report['tasks'])
         else:
             passed = all(report[key] for key in ('hasActualModelTelemetry', 'hasCodeReadyEvent', 'hasArchivedCode', 'hasCompletedCoding', 'orderedUniqueEvents', 'resultAdmitted'))
@@ -245,6 +247,12 @@ def main():
         if args.expected_input_format and args.mode != 'qa':
             passed = passed and bool(report['inputBindings'])
         report['status'] = 'PASSED' if passed else 'FAILED'
+        report['finishedAt'] = time.time()
+        report['observedDurationMs'] = round((report['finishedAt'] - report['startedAt']) * 1000)
+        if report['parent'].get('answerAvailable'):
+            answer = http(questions_path + '/' + parent + '/answer')
+            report['publicAnswerSha256'] = hashlib.sha256((answer.get('answer') or '').encode()).hexdigest()
+            report['publicAnswerCharacters'] = len(answer.get('answer') or '')
         save()
         print(json.dumps({key: report.get(key) for key in ('status', 'taskId', 'hasActualModelTelemetry', 'hasArchivedCode', 'hasCompletedCoding', 'nodeRestarted', 'cancelRequested')}), flush=True)
         if not passed:

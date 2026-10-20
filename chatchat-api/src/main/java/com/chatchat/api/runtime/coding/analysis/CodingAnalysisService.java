@@ -31,7 +31,7 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(prefix="chatchat.coding",name="enabled",havingValue="true")
 @ConditionalOnProperty(prefix="chatchat.coding.analysis",name="enabled",havingValue="true")
 public final class CodingAnalysisService implements AnalysisCodingPort {
-    private static final int MAX_PRIMARY_DATASETS = 16;
+    private static final int MAX_PRIMARY_DATASETS = CodingProtocol.MAX_ANALYSIS_SOURCES;
     private final CodingAnalysisProperties policy;
     private final CodingInvocationContext identity;
     private final CodingInputSnapshotService inputs;
@@ -116,7 +116,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         return executeObserved(context, request, sources, observer);
     }
 
-    private static Map<String,Object> primaryReportSchema() {
+    static Map<String,Object> primaryReportSchema() {
         Map<String,Object> stringArray = Map.of("type", "array", "items", Map.of("type", "string"));
         return Map.of(
             "type", "object",
@@ -255,7 +255,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             } else if(dynamic && policy.isFastPathEnabled()) {
                 metadataRefs.add("runtime-coding:analysis-fast-path:v1");
                 goal+="\nFast analysis contract: use the supplied protocol SDK when present, declared schemas and any authorized bounded analysisPreview to generate ONE complete program that computes the requested results and writes rows.jsonl. "
-                    +"Avoid standalone print/file exploration. The Coding loop ends automatically once a stopped execution produces an archived structurally valid result; the analysis agent owns subsequent interpretation. "
+                    +"Avoid standalone print/file exploration. The Coding loop ends automatically once a stopped execution produces an archived structurally valid result; include your findings and interpretation in that contracted result. Runtime performs no analytical reinterpretation. "
                     +"On technical failure, python_execute may use repair:{baseCodeSha256:receipt.codeHash,edits:[{oldText:exactUniquePreviousCode,newText:replacement}]} instead of repeating the entire program. "
                     +"Repairs edit code only, never source data. Use full source when no valid prior program exists.";
             }
@@ -407,12 +407,9 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
 
     private Map<String,Object> freezeExecutionProfile(int sourceCount,long inputRows) {
         var result=new LinkedHashMap<String,Object>(CodingExecutionProfile.select(policy,sourceCount,inputRows));
-        if(result.get("selectedModel") instanceof String alias) {
-            if(profileModels==null)throw new IllegalStateException("Configured Coding model resolver is unavailable");
-            var identity=profileModels.checkpointModelConfiguration(alias,profileModels.resolveChatModel(alias));
-            for(String key:List.of("providerModel","protocol","implementation"))
-                if(identity.get(key) instanceof String text)result.put(key,text);
-        }
+        // Complexity changes resource/effort policy, never the user's authorized model.
+        // Persisted legacy contracts retain their frozen identity in selectedCodingModel.
+        result.remove("selectedModel");
         return Map.copyOf(result);
     }
     /** Run-owned rejection budget: replaying a task or restarting the API cannot reset it. */

@@ -49,6 +49,8 @@ public class RoleChatModeHandler implements InteractionModeHandler {
     private final ConfigurableChatModelFactory chatModelFactory;
     private final SkillCatalogService skillCatalogService;
     private final KnowledgeRuntimePort knowledgeRuntime;
+    @Autowired
+    private com.chatchat.chat.interaction.service.CodingAnswerPort codingAnswers;
     @Autowired(required = false)
     private DomainSkillRuntimePort domainSkillRuntime;
     @Autowired(required = false)
@@ -94,21 +96,21 @@ public class RoleChatModeHandler implements InteractionModeHandler {
         List<String> configuredDomainSkillIds = configuredDomainSkillIds(skill);
         List<DomainSkillRuntimePort.DomainSkillContent> domainSkills = skillAnalysisContexts != null ? List.of() : resolveDomainSkills(
             request, skill, effectiveScope.roles(), configuredDomainSkillIds);
-        DomainSkillPlanningRouter.RoutingResult domainSkillRouting = domainSkillPlanningRouter == null
-            ? null : domainSkillPlanningRouter.route(request.getQuery(), resolvedModelName(request, skill), domainSkills);
+        // Selection of analytical methods belongs to Coding; Runtime only supplies authorized Skills.
+        DomainSkillPlanningRouter.RoutingResult domainSkillRouting = null;
         String prompt = buildPrompt(request, context, skill, knowledge, domainSkills, domainSkillRouting);
         prompt += com.chatchat.agents.runtime.context.SkillAnalysisContext.prompt(skillContext, "REPORT");
-        ChatModel model = resolveModel(request, skill);
 
         long startedAt = System.currentTimeMillis();
         log.info("roleChatModelRequest requestId={} conversationId={} skillId={} modelName={} promptChars={} knowledgeUsed={}",
             context.requestId(), context.conversationId(), skill.id(), resolvedModelName(request, skill),
             prompt.length(), knowledge.used());
         InteractionExecution.checkCancellation(request);
-        String answer = model.chat(prompt);
+        var codingResponse = codingAnswers.answer(request, context.toBuilder().skillAnalysisContext(skillContext).build(), skill, prompt);
+        String answer = codingResponse.getAnswer();
         InteractionExecution.checkCancellation(request);
 
-        Map<String, Object> metadata = new LinkedHashMap<>();
+        Map<String, Object> metadata = new LinkedHashMap<>(codingResponse.getMetadata() == null ? Map.of() : codingResponse.getMetadata());
         metadata.put(com.chatchat.agents.runtime.context.SkillAnalysisContext.ATTRIBUTE, skillContext);
         boolean usable = answer != null && !answer.isBlank();
         metadata.put(WorkflowOutcome.METADATA_KEY, new WorkflowOutcome(
@@ -147,14 +149,6 @@ public class RoleChatModeHandler implements InteractionModeHandler {
             .toolTraces(List.of())
             .metadata(metadata)
             .build();
-    }
-
-    private ChatModel resolveModel(InteractionRequest request, SkillDefinition skill) {
-        String selected = resolvedModelName(request, skill);
-        if (!hasText(selected)) {
-            return defaultChatModel;
-        }
-        return chatModelFactory.create(selected);
     }
 
     private String resolvedModelName(InteractionRequest request, SkillDefinition skill) {

@@ -1,57 +1,48 @@
 package com.chatchat.chat.interaction.service;
 
-import com.chatchat.agents.model.ConfigurableChatModelFactory;
 import com.chatchat.chat.interaction.model.*;
 import com.chatchat.chat.skills.model.SkillDefinition;
-import com.chatchat.common.runtime.capability.WorkflowOutcome;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class DirectAnswerWorkflowTest {
-    @Test void selectedSkillGuidesDirectAnswerWithoutBusinessTools() {
-        var model = mock(ChatModel.class);
-        var context = com.chatchat.agents.runtime.context.SkillAnalysisContext.create("APPLIED",
-            java.util.List.of(java.util.Map.of("id", "s", "version", "v1")),
-            java.util.Map.of("REPORT", java.util.List.of("Explain comparison limits")));
-        when(model.chat(anyString())).thenReturn("A bounded explanation");
-        new DirectAnswerWorkflow(model, mock(ConfigurableChatModelFactory.class), new ObjectMapper())
-            .execute(InteractionRequest.builder().query("Explain").build(),
-                InteractionContext.builder().skillAnalysisContext(context).build(), mock(SkillDefinition.class));
-        verify(model).chat(argThat((String prompt) -> prompt.contains("Explain comparison limits")
-            && prompt.contains("No tools or external evidence have been acquired")));
+    @Test void contextAndSkillsReachCodingWithoutJavaModelFallback() {
+        var coding = mock(CodingAnswerPort.class);
+        var request = InteractionRequest.builder().query("Design a generic schema").build();
+        var context = InteractionContext.builder().skillAnalysisContext(java.util.Map.of("marker", "test")).build();
+        var skill = mock(SkillDefinition.class);
+        var response = InteractionResponse.builder().answer("Coding proposal").build();
+        when(coding.answer(request, context, skill, "")).thenReturn(response);
+        assertThat(new DirectAnswerWorkflow(coding).execute(request, context, skill)).isSameAs(response);
+        verify(coding).answer(request, context, skill, "");
     }
-    @Test void modelResultCannotOverrideCancellation() {
-        var model = mock(ChatModel.class);
+    @Test void cancellationPreventsDelegation() {
+        var coding = mock(CodingAnswerPort.class);
+        var request = InteractionRequest.builder().toolInput(java.util.Map.of(
+            "__agentCancellation", (java.util.function.BooleanSupplier) () -> true)).build();
+        assertThatThrownBy(() -> new DirectAnswerWorkflow(coding).execute(request,
+            InteractionContext.builder().build(), mock(SkillDefinition.class)))
+            .isInstanceOf(java.util.concurrent.CancellationException.class);
+        verifyNoInteractions(coding);
+    }
+    @Test void lateCodingResultCannotOverrideCancellation() {
+        var coding = mock(CodingAnswerPort.class);
         var cancelled = new java.util.concurrent.atomic.AtomicBoolean();
-        when(model.chat(anyString())).thenAnswer(invocation -> { cancelled.set(true); return "late result"; });
-        var request = InteractionRequest.builder().query("hello").toolInput(java.util.Map.of(
+        when(coding.answer(any(), any(), any(), anyString())).thenAnswer(call -> {
+            cancelled.set(true); return InteractionResponse.builder().answer("late").build();
+        });
+        var request = InteractionRequest.builder().toolInput(java.util.Map.of(
             "__agentCancellation", (java.util.function.BooleanSupplier) cancelled::get)).build();
-        var workflow = new DirectAnswerWorkflow(model, mock(ConfigurableChatModelFactory.class), new ObjectMapper());
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> workflow.execute(request,
+        assertThatThrownBy(() -> new DirectAnswerWorkflow(coding).execute(request,
             InteractionContext.builder().build(), mock(SkillDefinition.class)))
             .isInstanceOf(java.util.concurrent.CancellationException.class);
     }
-    @Test void answersWithoutToolRuntimeAndReportsExplicitOutcome() {
-        var model = mock(ChatModel.class);
-        when(model.chat(anyString())).thenReturn("你好！");
-        var models = mock(ConfigurableChatModelFactory.class);
-        var workflow = new DirectAnswerWorkflow(model, models, new ObjectMapper());
-        var response = workflow.execute(InteractionRequest.builder().query("你好").build(),
-            InteractionContext.builder().build(), mock(SkillDefinition.class));
-        assertThat(response.getAnswer()).isEqualTo("你好！");
-        assertThat(response.getToolTraces()).isEmpty();
-        assertThat(((WorkflowOutcome) response.getMetadata().get(WorkflowOutcome.METADATA_KEY)).publicStatus()).isEqualTo("SUCCESS");
-        verifyNoInteractions(models);
-    }
-
-    @Test void emptyModelAnswerIsAFailure() {
-        var model = mock(ChatModel.class);
-        when(model.chat(anyString())).thenReturn(" ");
-        var response = new DirectAnswerWorkflow(model, mock(ConfigurableChatModelFactory.class), new ObjectMapper())
-            .execute(InteractionRequest.builder().query("你好").build(), InteractionContext.builder().build(), mock(SkillDefinition.class));
-        assertThat(((WorkflowOutcome) response.getMetadata().get(WorkflowOutcome.METADATA_KEY)).publicStatus()).isEqualTo("FAILED");
+    @Test void failedCodingNeverStartsAnotherAnswerOwner() {
+        var coding = mock(CodingAnswerPort.class);
+        when(coding.answer(any(), any(), any(), anyString())).thenThrow(new IllegalStateException("worker down"));
+        assertThatThrownBy(() -> new DirectAnswerWorkflow(coding).execute(InteractionRequest.builder().build(),
+            InteractionContext.builder().build(), mock(SkillDefinition.class))).hasMessage("worker down");
+        verify(coding, times(1)).answer(any(), any(), any(), anyString());
     }
 }

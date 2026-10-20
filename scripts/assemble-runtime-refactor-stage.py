@@ -10,9 +10,11 @@ from pathlib import Path
 import subprocess
 import zipfile
 import re
+import sys
 
 ROOT = Path('/opt/runtime-os-docker-stage/evidence/runtime-os-refactor-20261020')
 MODULES = ('chatchat-agents', 'chatchat-knowledge-base')
+EXTENDED_MODULES = (*MODULES, 'chatchat-common', 'chatchat-chat')
 CONFIGS = {'application-dev.yml', 'application-prod.yml', 'application-dev.template',
            'application-prod.template', 'application-opensearch-mysql.template'}
 
@@ -50,8 +52,14 @@ def digest(body):
     return hashlib.sha256(body).hexdigest()
 
 def main():
+    global ROOT
+    if len(sys.argv) > 1:
+        evidence_root = ROOT.parent.resolve()
+        ROOT = evidence_root / sys.argv[1]
+        if not ROOT.resolve().is_relative_to(evidence_root):
+            raise ValueError('Assembly evidence must stay within stage evidence')
     manifest = json.loads((ROOT/'module-manifest.json').read_text())
-    if set(manifest['modules']) != set(MODULES):
+    if set(manifest['modules']) not in (set(MODULES), set(EXTENDED_MODULES)):
         raise ValueError('Unexpected replacement modules')
     replacements = {}
     if 'apiClassOverlaySha256' in manifest:
@@ -62,10 +70,10 @@ def main():
             if not classes.namelist():
                 raise ValueError('Empty API class overlay')
             for name in classes.namelist():
-                if not re.fullmatch(r'com/chatchat/api/runtime/coding/cline/(?:ClineCodingAdapter|ClineModelCallbackController)(?:\$[^/]+)?\.class',name):
+                if not re.fullmatch(r'com/chatchat/api/runtime/coding/(?:cline/(?:ClineCodingAdapter|ClineModelCallbackController|ClineModelReceiptStore)|analysis/(?:ClineContextAnswerService|CodingAnalysisService|CodingExecutionProfile))(?:\$[^/]+)?\.class',name):
                     raise ValueError('Unexpected API class override')
                 replacements['BOOT-INF/classes/' + name]=classes.read(name)
-    for module in MODULES:
+    for module in manifest['modules']:
         file = module + '-1.0.0-SNAPSHOT.jar'
         body = (ROOT/file).read_bytes()
         if digest(body) != manifest['modules'][module]:
@@ -81,6 +89,7 @@ def main():
     retained = {}
     config_updates = {}
     replaced = set()
+    added = []
     with zipfile.ZipFile(before) as source, zipfile.ZipFile(ROOT/'app.jar', 'w', allowZip64=True) as target:
         for entry in source.infolist():
             body = source.read(entry.filename)
@@ -97,6 +106,12 @@ def main():
             else:
                 retained[entry.filename] = digest(body)
             target.writestr(entry, body)
+        for name in set(replacements) - replaced:
+            if not name.startswith('BOOT-INF/classes/') or not name.endswith('.class'):
+                raise ValueError('Running stage has an unexpected library layout')
+            target.writestr(name,replacements[name])
+            replaced.add(name)
+            added.append(name)
     if replaced != set(replacements):
         raise ValueError('Running stage has an unexpected library layout')
     with zipfile.ZipFile(ROOT/'app.jar') as candidate:
@@ -107,6 +122,7 @@ def main():
               'baseSha256': digest(before.read_bytes()), 'candidateSha256': digest((ROOT/'app.jar').read_bytes()),
               'modules': manifest['modules'], 'unchangedEntries': len(retained),
               'apiClassOverlaySha256': manifest.get('apiClassOverlaySha256'),
+              'addedApiClasses': sorted(added),
               'removedDocumentRagConfig': config_updates,
               'retiredRagClasses': 0, 'productionSwitched': False,
               'configuration': 'Only retired chatchat.search RAG keys removed; model/API/Skills/MCP and all other configuration text retained.'}

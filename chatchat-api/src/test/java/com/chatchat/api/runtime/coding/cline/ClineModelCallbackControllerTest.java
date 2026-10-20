@@ -365,7 +365,7 @@ class ClineModelCallbackControllerTest {
         } finally { timer.shutdownNow(); }
     }
 
-    private static CodingTaskContract contract(KernelDataScope scope) {
+    static CodingTaskContract contract(KernelDataScope scope) {
         return new CodingTaskContract(CodingProtocol.VERSION, "task", scope,
             new CodingTaskContract.Objective("calculate", List.of("report"), List.of("validation:1")),
             "runtime-evidence:input", List.of(), "workspace:1",

@@ -7,6 +7,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class CodingExecutionProfileTest {
+    @Test void allSupportedMultiSourceCountsSurviveProfileAndWireValidation() {
+        var policy = new CodingAnalysisProperties();
+        for (int count : new int[]{6, 8, 9, 16}) {
+            var profile = CodingExecutionProfile.select(policy, count, 100);
+            assertThat(CodingRuntimeContext.validate(Map.of("schemaVersion", "runtime_os.coding.context.v1",
+                "consistency", "TASK_SNAPSHOT", "executionProfile", profile)))
+                .containsKey("executionProfile");
+            assertThat(profile).containsEntry("sourceCount", count).containsEntry("complexity", "COMPLEX");
+        }
+        assertThatThrownBy(() -> CodingExecutionProfile.select(policy, 17, 100))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
     @Test void selectionUsesOnlyDataVolumeAndTrustedRegisteredAliasConfiguration() {
         var policy = new CodingAnalysisProperties();
         policy.setSimpleModelName("registered-fast");

@@ -1,0 +1,66 @@
+{
+  "status": "PASSED",
+  "health": [
+    {
+      "port": 18180,
+      "status": "UP"
+    },
+    {
+      "port": 18100,
+      "status": "UP"
+    }
+  ],
+  "nodeReadinessExit": 0,
+  "apiImage": "sha256:f7f549e8ebacc9f2577050fb1bc69fc4acf14eac7a5a9ce09ec3048c22a06c20",
+  "nodeImage": "sha256:44aa40b818070c5c90b73ea7c8ebefe9f4e4866c7532058cdf5992f2e8867a58",
+  "nodeUser": "1000:32101",
+  "nodeReadOnly": true,
+  "nodeMemoryBytes": 2147483648,
+  "nodeCpuQuota": 2000000000,
+  "nodeCapDrop": [
+    "ALL"
+  ],
+  "probe": {
+    "endpoints": [
+      {
+        "path": "/internal/coding/cline/model",
+        "status": 401
+      },
+      {
+        "path": "/api/v1/agent/tasks",
+        "status": 401
+      }
+    ],
+    "network": [
+      {
+        "host": "172.18.0.2",
+        "port": 8090,
+        "allowed": false
+      },
+      {
+        "host": "172.30.93.1",
+        "port": 3306,
+        "allowed": false
+      },
+      {
+        "host": "172.30.93.1",
+        "port": 5432,
+        "allowed": false
+      },
+      {
+        "host": "192.168.195.223",
+        "port": 3306,
+        "allowed": false
+      },
+      {
+        "host": "1.1.1.1",
+        "port": 80,
+        "allowed": false
+      }
+    ],
+    "dockerSocket": false,
+    "rootWritable": false,
+    "uid": 1000
+  },
+  "productionSwitched": false
+}

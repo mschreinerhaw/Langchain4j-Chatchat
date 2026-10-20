@@ -25,7 +25,9 @@
 
 两条产品线共同构成灵动体系：灵动智联提供企业智能能力的连接与治理底座，灵动智策基于这些可信能力完成企业洞察与辅助决策。
 
-LangChain4j ChatChat 是一个基于 Spring Boot、LangChain4j、Vue 3 与 MCP 的企业级 AI Chat、RAG 和 Agent Runtime。项目的核心不是让模型决定流程是否正确，而是让 Runtime 按用户发布的流程定义审核、修复并持续执行 DAG；模型负责理解任务和分析完整工具结果，Runtime 负责流程、契约、证据与交付治理，不生成业务判断。
+LangChain4j ChatChat 是一个基于 Spring Boot、LangChain4j、Vue 3 与 MCP 的企业级 AI Chat 和 Agent Runtime。Java Runtime 负责需求分类、授权、固定模板工作流、数据交付和任务生命周期；数据分析由 Node/Cline Coding Agent 选择方法、生成和修复代码，再通过受控 Python Sandbox 执行。知识问答保留独立的轻量路径；通用文档处理、Skills、MCP 与业务元数据访问继续保留。
+
+本轮职责边界、文档 RAG 清理、任务契约、验证结果及回退方式见 [Runtime OS / Coding Agent 改造交付记录](docs/runtime-os-coding-refactor-20261020.md)。该候选的全量回归尚未通过，不作为生产替换依据。
 
 > 核心目标：**RUN**。单个节点失败、模型计划漂移或某次工具调用异常，不应直接终止整个任务；只要仍存在可执行路径或可用证据，Runtime 就应恢复流程、继续执行并如实交付结果。
 

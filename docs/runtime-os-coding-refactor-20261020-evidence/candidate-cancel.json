@@ -1,0 +1,9 @@
+{
+  "taskId": "64811a8d-b5d2-3814-b323-1d5308670ac7",
+  "before": "FAILED",
+  "after": "FAILED",
+  "cancelLatencyMs": 17,
+  "observationSecondsBeforeControl": 599.557,
+  "reason": "Planning provider invocation did not return; retained as a failed/cancelled observation, not a successful performance sample.",
+  "providerTerminationConfirmed": false
+}

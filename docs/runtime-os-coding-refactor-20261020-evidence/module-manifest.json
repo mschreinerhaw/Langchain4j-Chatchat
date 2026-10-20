@@ -1,0 +1,8 @@
+{
+    "sourceCommit":  "40ad2e563f487452d64f7451b16c1f2259208d6b",
+    "modules":  {
+                    "chatchat-agents":  "d82247284f117f6dc36dcc7a22db75146a9048a71a50c321527127aeb7d2ef4b",
+                    "chatchat-knowledge-base":  "ce9e0f61efacc83c8955b09a0e29f3d90b56a27a541bf41dcf870b75335c2de2"
+                },
+    "apiClassOverlaySha256":  "b4f3eb2c041c07dc737665f09d0309dfacc8ce55cb691530c0bed1cabe346efa"
+}

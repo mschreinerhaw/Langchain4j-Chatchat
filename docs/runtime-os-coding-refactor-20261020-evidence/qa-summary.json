@@ -1,0 +1,23 @@
+{
+  "mode": "qa",
+  "status": "PASSED",
+  "taskId": "837cc72e-3708-3d45-9c6e-39182c9e063c",
+  "runId": "att-1-8578e04c-f121-4d67-9d74-69a33900cc96",
+  "parent": {
+    "status": "SUCCESS",
+    "canonicalState": "SUCCEEDED",
+    "terminal": true,
+    "answerAvailable": true,
+    "attemptNumber": 1
+  },
+  "hasActualModelTelemetry": false,
+  "hasArchivedCode": false,
+  "hasCompletedCoding": false,
+  "resultAdmitted": false,
+  "productionSwitched": false,
+  "expectedInputFormat": null,
+  "inputBindings": [],
+  "javaSemanticReviewInvoked": null,
+  "resultAdmissionScope": null,
+  "codingTasks": []
+}

@@ -1,0 +1,12 @@
+runtime-os-app-stage-coding-agent-1 runtime-os-coding-agent:analysis-fast-b2d33c7e2bca Up 12 minutes (healthy)
+runtime-os-app-stage-node-proxy-1 nginx:1.27.5-alpine Up 12 minutes
+runtime-os-app-stage-api-1 runtime-os-api:protocol-recovery-b34c60331f72 Up 12 minutes
+runtime-os-app-stage-mcp-1 runtime-os-mcp:protocol-recovery-e6ae569883d4 Up 7 hours
+runtime-os-app-stage-gateway-1 nginx:1.27.5-alpine Up 23 hours
+runtime-os-app-stage-news-1 runtime-os-news:54e8a3ee-news-persist-20261018 Up 38 hours
+python-analysis-stage-20261017 runtime-coding-agent:python-analysis-20261017 Up 3 days
+postgres postgres:18 Up 4 weeks
+opensearch-node opensearchproject/opensearch:2.19.1 Up 3 months
+zookeeper zookeeper:latest Up 5 months
+redis redis Up 5 months
+dm8_01 dm8_single:dm8_20240715_rev232765_x86_rh6_64 Up 5 months

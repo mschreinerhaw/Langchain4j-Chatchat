@@ -2,6 +2,7 @@
 import json
 import pathlib
 import subprocess
+import sys
 import urllib.request
 
 ROOT = pathlib.Path('/opt/runtime-os-docker-stage/evidence/cline-monitor-20261019')
@@ -23,7 +24,7 @@ def main():
         request = urllib.request.Request(f'http://127.0.0.1:{port}/api/v1/health', headers={'Authorization':'Bearer '+token})
         with client.open(request, timeout=10) as response:
             health.append({'port': port, 'status': json.load(response)['data']['status']})
-    readiness = subprocess.run(['docker', 'exec', 'runtime-os-app-stage-coding-agent-1', 'node', 'src/healthcheck.js'], capture_output=True)
+    readiness = subprocess.run(['docker', 'exec', 'runtime-os-app-stage-coding-agent-1', 'node', 'dist/healthcheck.js'], capture_output=True)
     api, node, mcp = inspect('api'), inspect('coding-agent'), inspect('mcp')
     mcp_ip = next(iter(mcp['NetworkSettings']['Networks'].values()))['IPAddress']
     probe = """
@@ -48,7 +49,10 @@ console.log(JSON.stringify({endpoints,network,dockerSocket,rootWritable,uid:proc
         'nodeReadOnly': node['HostConfig']['ReadonlyRootfs'], 'nodeMemoryBytes': node['HostConfig']['Memory'],
         'nodeCpuQuota': node['HostConfig']['NanoCpus'], 'nodeCapDrop': node['HostConfig']['CapDrop'],
         'probe': proof, 'productionSwitched': False}
-    (ROOT / 'service-and-boundary.json').write_text(json.dumps(report, indent=2))
+    output = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / 'service-and-boundary.json'
+    if not output.resolve().is_relative_to(ROOT.parent.resolve()):
+        raise ValueError('Boundary evidence must stay within the stage evidence directory')
+    output.write_text(json.dumps(report, indent=2))
     print(json.dumps(report), flush=True)
     if not passed:
         raise SystemExit(1)

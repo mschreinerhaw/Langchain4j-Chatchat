@@ -14,6 +14,11 @@ import urllib.parse
 import urllib.request
 import uuid
 
+def coding_owned_publication(metadata):
+    return (metadata.get('type') == 'final_summary'
+            and metadata.get('workflow') == 'coding_owned_analysis'
+            and metadata.get('modelCalls') == 0)
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -206,6 +211,8 @@ def main():
         report['hasArchivedCode'] = bool(report['codeSubmissions'])
         report['hasCompletedCoding'] = any(t['outcome']['status'] == 'COMPLETED' for t in report['tasks'])
         report['resultAdmitted'] = False
+        report['javaSemanticReviewInvoked'] = False
+        report['resultAdmissionScope'] = 'STRUCTURE_AND_AUTHORIZED_REFERENCES'
         if args.mode not in ('qa', 'cancel'):
             for offset in range(0, 6400, 200):
                 timeline = http('/api/v1/agent/runtime/runs/' + urllib.parse.quote(run)
@@ -213,7 +220,9 @@ def main():
                 observations = timeline.get('observations', [])
                 for observation in observations:
                     metadata = observation.get('metadata') or {}
-                    if metadata.get('eventKind') == 'CODING_SEMANTIC_REVIEW' and metadata.get('eventState') == 'SUPPORTED':
+                    if metadata.get('eventKind') == 'CODING_SEMANTIC_REVIEW':
+                        report['javaSemanticReviewInvoked'] = True
+                    if coding_owned_publication(metadata):
                         report['resultAdmitted'] = True
                 if len(observations) < 200:
                     break
@@ -225,6 +234,7 @@ def main():
             passed = report['cancelRequested'] and any(t['outcome']['status'] == 'CANCELLED' for t in report['tasks'])
         else:
             passed = all(report[key] for key in ('hasActualModelTelemetry', 'hasCodeReadyEvent', 'hasArchivedCode', 'hasCompletedCoding', 'orderedUniqueEvents', 'resultAdmitted'))
+            passed = passed and not report['javaSemanticReviewInvoked']
             passed = passed and bool(report['parent']['answerAvailable']) and report['parent']['canonicalState'] == 'SUCCEEDED'
             if args.mode == 'restart-node':
                 passed = passed and report['nodeRestarted']

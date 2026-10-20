@@ -1,0 +1,14 @@
+{
+  "status": "ASSEMBLED",
+  "sourceCommit": "a3edd427d9efcb6b4e0edf10e2379c2596b3f97c",
+  "baseSha256": "87c4b3d27a0efadb2b5be366373ba4d79e765147f5af7c5d2156eebdf42acc1d",
+  "candidateSha256": "9ebfab08e0198dbd1cfd0852f922e9a9424f00350f7ce036a14434b120d4d6d5",
+  "modules": {
+    "chatchat-agents": "d82247284f117f6dc36dcc7a22db75146a9048a71a50c321527127aeb7d2ef4b",
+    "chatchat-knowledge-base": "ce9e0f61efacc83c8955b09a0e29f3d90b56a27a541bf41dcf870b75335c2de2"
+  },
+  "unchangedEntries": 1179,
+  "retiredRagClasses": 0,
+  "productionSwitched": false,
+  "configuration": "Existing stage settings retained. Removed RAG-only settings are ignored; shared embedding remains for Skills/MCP."
+}

@@ -1,0 +1,255 @@
+{
+  "schemaVersion": "runtime_os.regression.v1",
+  "since": "2026-10-20T14:18:59.000Z",
+  "until": null,
+  "capturedAt": "2026-10-20T14:31:56.176Z",
+  "totals": {
+    "tests": 306,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "suites": [
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnershipTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 3.94,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinatorTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 2.836,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.graph.InterpretationAnalysisGraphTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.619,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+      "tests": 160,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 5.865,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+      "tests": 23,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 15.235,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.runtime.coding.cline.ClineCallbackAuthFilterTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 1.457,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.runtime.coding.cline.ClineCodingAdapterDispatchTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 3.73,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.runtime.coding.cline.ClineCodingAdapterRecoveryTest",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.631,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 1.875,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.runtime.coding.cline.ClinePythonCallbackControllerTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.375,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.runtime.coding.cline.ClineRuntimeModelBridgeTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.391,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.runtime.coding.data.CodingDataSupplyServiceTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 17.768,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.runtime.coding.data.CodingInputFilePublisherTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 3.576,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.runtime.coding.data.CodingInputSnapshotServiceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.094,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.runtime.coding.data.CodingTableCodecTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.063,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.runtime.coding.execution.CodingPythonCancellationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.015,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-chat",
+      "name": "com.chatchat.chat.interaction.service.DirectAnswerWorkflowTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 7.922,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-chat",
+      "name": "com.chatchat.chat.interaction.service.InteractionWorkflowCoordinatorTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.88,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-knowledge-base",
+      "name": "com.chatchat.knowledgebase.runtime.BudgetedKnowledgeContextCompilerTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.8,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-knowledge-base",
+      "name": "com.chatchat.knowledgebase.runtime.KnowledgeContextOrderingTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.086,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-knowledge-base",
+      "name": "com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchDocumentIndexServiceTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 3.998,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-knowledge-base",
+      "name": "com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchEmbeddingClientTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 1.095,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-knowledge-base",
+      "name": "com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchSemanticIndexSchemaTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.824,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-knowledge-base",
+      "name": "com.chatchat.knowledgebase.search.workflow.core.DocumentRetrievalWorkflowTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.157,
+      "failedCases": []
+    }
+  ],
+  "acceptance": "Maven exit status, native crashes, missing modules, and required integration gates must also pass; XML totals alone are insufficient."
+}

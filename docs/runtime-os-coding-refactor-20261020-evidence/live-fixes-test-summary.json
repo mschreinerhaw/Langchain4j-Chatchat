@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "runtime_os.regression.v1",
+  "since": "2026-10-20T15:01:20.000Z",
+  "until": null,
+  "capturedAt": "2026-10-20T15:03:09.850Z",
+  "totals": {
+    "tests": 70,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "suites": [
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+      "tests": 23,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 16.159,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.runtime.coding.cline.ClineCodingAdapterDispatchTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 3.954,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.runtime.coding.cline.ClineCodingAdapterRecoveryTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.726,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 2.236,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.runtime.coding.cline.ClinePythonCallbackControllerTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.447,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.runtime.coding.cline.ClineRuntimeModelBridgeTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.314,
+      "failedCases": []
+    }
+  ],
+  "acceptance": "Maven exit status, native crashes, missing modules, and required integration gates must also pass; XML totals alone are insufficient."
+}

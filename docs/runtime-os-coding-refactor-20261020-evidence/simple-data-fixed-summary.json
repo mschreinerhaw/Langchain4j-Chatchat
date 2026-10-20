@@ -1,0 +1,355 @@
+{
+  "mode": "complete",
+  "status": "PASSED",
+  "taskId": "c7741946-fcc1-383c-9c71-10bb24cbce8e",
+  "runId": "att-1-b184724a-ac86-4ea4-aecd-346276f4153c",
+  "parent": {
+    "status": "SUCCESS",
+    "canonicalState": "SUCCEEDED",
+    "terminal": true,
+    "answerAvailable": true,
+    "attemptNumber": 1
+  },
+  "hasActualModelTelemetry": true,
+  "hasArchivedCode": true,
+  "hasCompletedCoding": true,
+  "resultAdmitted": true,
+  "productionSwitched": false,
+  "expectedInputFormat": "PARQUET",
+  "inputBindings": [
+    {
+      "taskId": "analysis-coding-6b29201fa7c613e84e132a795befc328fe31f7ac9b630381730f37fab07ed092",
+      "operationId": "cline-f8938b8f3ddd4343153558d7e9871564f1ee20e3e7399bf6dccfce2e76710edd",
+      "snapshots": [
+        {
+          "size": 839,
+          "inputManifest": {
+            "columns": [
+              {
+                "missingCount": 0,
+                "name": "datasetReference",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c0",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "record",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c1",
+                "type": "JSON"
+              }
+            ],
+            "format": "PARQUET",
+            "logicalBytes": 21489,
+            "logicalContentSha256": "91a270809e2b7e6ef1f9c279c52f2293cb622785cfdf23335eeff65a119af7fc",
+            "parts": [
+              {
+                "fileId": "ca6bcf416235626f45d6d7675e3ed2f583e82740c05817db08b0a0b429d0d9d7",
+                "fileName": "part-00000.parquet",
+                "rowCount": 98,
+                "sha256": "8358741e6986fdc60f41dd9dbe2c8a9136033ad9646bc1a20d49c464f1ac57d5",
+                "sizeBytes": 20223
+              }
+            ],
+            "rowCount": 98,
+            "schemaFileId": "c234ef5ff770094239cd8877a2c933e70858884e202b721859fc509099515b33",
+            "schemaVersion": "runtime_os.coding.input.v1",
+            "sourceDatasetRef": "coding-input-set:41d73358eea8ae87310dc7d7013df930b68c854723afe23d26dd15db2dbcc4a9"
+          },
+          "encoding": "UTF-8",
+          "delivery": "SHARED_DIRECTORY",
+          "rowCount": 98,
+          "qualitySummary": {
+            "coverage": "FULL_SNAPSHOT_STRUCTURAL_ONLY",
+            "fields": [
+              {
+                "missingCount": 0,
+                "name": "datasetReference",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c0",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "record",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c1",
+                "type": "JSON"
+              }
+            ],
+            "rowCount": 98
+          },
+          "schemaJson": "{\"columns\":[{\"name\":\"datasetReference\",\"storageName\":\"c0\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"record\",\"storageName\":\"c1\",\"type\":\"JSON\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0}],\"csv\":{\"delimiter\":\",\",\"escape\":\"DOUBLE_QUOTE\",\"literalBackslash\":\"PREFIX_BACKSLASH\",\"missingToken\":\"\\\\M\",\"nullToken\":\"\\\\N\",\"quote\":\"\\\"\"},\"encoding\":\"UTF-8\",\"format\":\"PARQUET\",\"presenceColumns\":{\"c0\":\"p0\",\"c1\":\"p1\"},\"schemaVersion\":\"runtime_os.coding.input.v1\",\"sourceDatasetRef\":\"coding-input-set:41d73358eea8ae87310dc7d7013df930b68c854723afe23d26dd15db2dbcc4a9\"}",
+          "chunks": [
+            {
+              "fileId": "c234ef5ff770094239cd8877a2c933e70858884e202b721859fc509099515b33",
+              "fileName": "schema.json",
+              "sha256": "a897e1772844ac38e63d0071a936acef77d2f494675e3ef32228551975687ba8",
+              "rowCount": 0,
+              "size": 601
+            },
+            {
+              "fileId": "ca6bcf416235626f45d6d7675e3ed2f583e82740c05817db08b0a0b429d0d9d7",
+              "fileName": "part-00000.parquet",
+              "sha256": "8358741e6986fdc60f41dd9dbe2c8a9136033ad9646bc1a20d49c464f1ac57d5",
+              "rowCount": 98,
+              "size": 20223
+            }
+          ],
+          "sha256": "b4a47d9385965010ccb73c91ee3a6d896181eaafe4b1ad9cbb29a136abe8b020",
+          "inputVersions": [
+            {
+              "contentSha256": "9ddf7a0e2fea1971d219e7312bdea3d28827fa5c442ec32be55ed8286193f712",
+              "fieldSchema": {
+                "variable_name": [
+                  "STRING"
+                ],
+                "variable_value": [
+                  "STRING"
+                ]
+              },
+              "datasetReference": "MYSQL_CONNECTION_STATUS#template-binding-1-binding-1",
+              "rowCount": 6,
+              "schemaCoverage": "BOUNDED_STRUCTURAL_ONLY"
+            },
+            {
+              "contentSha256": "ef9c50c8a28b246ebea9d15646cd216e64aaca461e4f5da5e1b9b9111752266e",
+              "fieldSchema": {
+                "Command": [
+                  "STRING"
+                ],
+                "Host": [
+                  "STRING"
+                ],
+                "Id": [
+                  "NUMBER"
+                ],
+                "Info": [
+                  "NULL",
+                  "STRING"
+                ],
+                "State": [
+                  "STRING"
+                ],
+                "Time": [
+                  "NUMBER"
+                ],
+                "User": [
+                  "STRING"
+                ],
+                "db": [
+                  "STRING"
+                ]
+              },
+              "datasetReference": "MYSQL_SHOW_PROCESSLIST#template-binding-2-binding-2",
+              "rowCount": 92,
+              "schemaCoverage": "BOUNDED_STRUCTURAL_ONLY"
+            }
+          ],
+          "fileId": "c0a3c6c02c4c3fa6f9533daf9edc5563769ecbe15998e5affdf2ef658d3a0587",
+          "format": "PARQUET",
+          "reference": "runtime-evidence:coding:input:0a3c6c02c4c3fa6f9533daf9edc5563769ecbe15998e5affdf2ef658d3a0587",
+          "fileName": "manifest.json"
+        }
+      ],
+      "binding": "OPERATION_FROZEN"
+    },
+    {
+      "taskId": "analysis-coding-6b29201fa7c613e84e132a795befc328fe31f7ac9b630381730f37fab07ed092",
+      "operationId": "cline-a62ec3183409e351481068df1c06778704b7e59c47fca1c9c54101336a8f3073",
+      "snapshots": [
+        {
+          "size": 839,
+          "inputManifest": {
+            "columns": [
+              {
+                "missingCount": 0,
+                "name": "datasetReference",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c0",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "record",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c1",
+                "type": "JSON"
+              }
+            ],
+            "format": "PARQUET",
+            "logicalBytes": 21489,
+            "logicalContentSha256": "91a270809e2b7e6ef1f9c279c52f2293cb622785cfdf23335eeff65a119af7fc",
+            "parts": [
+              {
+                "fileId": "ca6bcf416235626f45d6d7675e3ed2f583e82740c05817db08b0a0b429d0d9d7",
+                "fileName": "part-00000.parquet",
+                "rowCount": 98,
+                "sha256": "8358741e6986fdc60f41dd9dbe2c8a9136033ad9646bc1a20d49c464f1ac57d5",
+                "sizeBytes": 20223
+              }
+            ],
+            "rowCount": 98,
+            "schemaFileId": "c234ef5ff770094239cd8877a2c933e70858884e202b721859fc509099515b33",
+            "schemaVersion": "runtime_os.coding.input.v1",
+            "sourceDatasetRef": "coding-input-set:41d73358eea8ae87310dc7d7013df930b68c854723afe23d26dd15db2dbcc4a9"
+          },
+          "encoding": "UTF-8",
+          "delivery": "SHARED_DIRECTORY",
+          "rowCount": 98,
+          "qualitySummary": {
+            "coverage": "FULL_SNAPSHOT_STRUCTURAL_ONLY",
+            "fields": [
+              {
+                "missingCount": 0,
+                "name": "datasetReference",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c0",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "record",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c1",
+                "type": "JSON"
+              }
+            ],
+            "rowCount": 98
+          },
+          "schemaJson": "{\"columns\":[{\"name\":\"datasetReference\",\"storageName\":\"c0\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"record\",\"storageName\":\"c1\",\"type\":\"JSON\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0}],\"csv\":{\"delimiter\":\",\",\"escape\":\"DOUBLE_QUOTE\",\"literalBackslash\":\"PREFIX_BACKSLASH\",\"missingToken\":\"\\\\M\",\"nullToken\":\"\\\\N\",\"quote\":\"\\\"\"},\"encoding\":\"UTF-8\",\"format\":\"PARQUET\",\"presenceColumns\":{\"c0\":\"p0\",\"c1\":\"p1\"},\"schemaVersion\":\"runtime_os.coding.input.v1\",\"sourceDatasetRef\":\"coding-input-set:41d73358eea8ae87310dc7d7013df930b68c854723afe23d26dd15db2dbcc4a9\"}",
+          "chunks": [
+            {
+              "fileId": "c234ef5ff770094239cd8877a2c933e70858884e202b721859fc509099515b33",
+              "fileName": "schema.json",
+              "sha256": "a897e1772844ac38e63d0071a936acef77d2f494675e3ef32228551975687ba8",
+              "rowCount": 0,
+              "size": 601
+            },
+            {
+              "fileId": "ca6bcf416235626f45d6d7675e3ed2f583e82740c05817db08b0a0b429d0d9d7",
+              "fileName": "part-00000.parquet",
+              "sha256": "8358741e6986fdc60f41dd9dbe2c8a9136033ad9646bc1a20d49c464f1ac57d5",
+              "rowCount": 98,
+              "size": 20223
+            }
+          ],
+          "sha256": "b4a47d9385965010ccb73c91ee3a6d896181eaafe4b1ad9cbb29a136abe8b020",
+          "inputVersions": [
+            {
+              "contentSha256": "9ddf7a0e2fea1971d219e7312bdea3d28827fa5c442ec32be55ed8286193f712",
+              "fieldSchema": {
+                "variable_name": [
+                  "STRING"
+                ],
+                "variable_value": [
+                  "STRING"
+                ]
+              },
+              "datasetReference": "MYSQL_CONNECTION_STATUS#template-binding-1-binding-1",
+              "rowCount": 6,
+              "schemaCoverage": "BOUNDED_STRUCTURAL_ONLY"
+            },
+            {
+              "contentSha256": "ef9c50c8a28b246ebea9d15646cd216e64aaca461e4f5da5e1b9b9111752266e",
+              "fieldSchema": {
+                "Command": [
+                  "STRING"
+                ],
+                "Host": [
+                  "STRING"
+                ],
+                "Id": [
+                  "NUMBER"
+                ],
+                "Info": [
+                  "NULL",
+                  "STRING"
+                ],
+                "State": [
+                  "STRING"
+                ],
+                "Time": [
+                  "NUMBER"
+                ],
+                "User": [
+                  "STRING"
+                ],
+                "db": [
+                  "STRING"
+                ]
+              },
+              "datasetReference": "MYSQL_SHOW_PROCESSLIST#template-binding-2-binding-2",
+              "rowCount": 92,
+              "schemaCoverage": "BOUNDED_STRUCTURAL_ONLY"
+            }
+          ],
+          "fileId": "c0a3c6c02c4c3fa6f9533daf9edc5563769ecbe15998e5affdf2ef658d3a0587",
+          "format": "PARQUET",
+          "reference": "runtime-evidence:coding:input:0a3c6c02c4c3fa6f9533daf9edc5563769ecbe15998e5affdf2ef658d3a0587",
+          "fileName": "manifest.json"
+        }
+      ],
+      "binding": "OPERATION_FROZEN"
+    }
+  ],
+  "javaSemanticReviewInvoked": false,
+  "resultAdmissionScope": "STRUCTURE_AND_AUTHORIZED_REFERENCES",
+  "codingTasks": [
+    {
+      "taskId": "analysis-coding-6b29201fa7c613e84e132a795befc328fe31f7ac9b630381730f37fab07ed092",
+      "status": "COMPLETED",
+      "usage": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-6b29201fa7c613e84e132a795befc328fe31f7ac9b630381730f37fab07ed092",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 4,
+          "modelTokens": 36891,
+          "toolCalls": 2,
+          "codeExecutions": 2,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 6374,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 94181,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 50000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 692676,
+          "costAmount": "3.333333333332"
+        },
+        "meteringComplete": false
+      },
+      "validationStatus": "INCONCLUSIVE",
+      "executionControl": {
+        "stopReason": null,
+        "stopRequestedAt": null,
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "resultDatasetRef": "runtime-evidence:coding:debe6c2f93dbfddceaa7f03521bd889e3e865cc8866e1cdb61b1a0fcedb655dd:result",
+      "evidenceBundleRef": "runtime-evidence:coding:debe6c2f93dbfddceaa7f03521bd889e3e865cc8866e1cdb61b1a0fcedb655dd:bundle"
+    }
+  ]
+}

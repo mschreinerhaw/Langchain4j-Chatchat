@@ -1,0 +1,1740 @@
+{
+  "schemaVersion": "runtime_os.regression.v1",
+  "since": "2026-10-20T14:07:35.000Z",
+  "until": "2026-10-20T14:12:07.000Z",
+  "capturedAt": "2026-10-20T14:20:09.917Z",
+  "totals": {
+    "tests": 764,
+    "failures": 51,
+    "errors": 39,
+    "skipped": 0
+  },
+  "suites": [
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.assessment.EvidenceAugmentationPolicyTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.345,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.assessment.EvidenceExplorationPolicyTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.assessment.McpResultEvidencePolicyTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.491,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.assessment.TaskResultAssessmentCompilerTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.063,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.evidence.answer.AnswerAssemblyEngineTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.003,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.evidence.answer.EvidenceAnswerGroundingGuardTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.047,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.evidence.execution.EvidenceReasoningContractGoldenTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.696,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.evidence.governance.IndirectPromptInjectionDetectorTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.016,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.evidence.graph.EvidenceGraphExecutionEngineTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.078,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.evidence.normalization.EvidenceNormalizerTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.016,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.model.ConfigurableChatModelFactoryTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.71,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.model.DashScopeNativeChatModelTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.447,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.model.ModelEndpointTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.012,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.AgentOrchestratorArchitectureTest",
+      "tests": 8,
+      "failures": 3,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.164,
+      "failedCases": [
+        {
+          "name": "orchestrationEngineCannotRegrowDuringMigration",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "outerAnalysisEntryCannotDispatchDatasetModelTasks",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "analysisImplementationsRemainInResponsibilitySubpackages",
+          "type": "java.lang.AssertionError"
+        }
+      ]
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.AgentOrchestratorDagEvidenceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 8.903,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "tests": 136,
+      "failures": 39,
+      "errors": 35,
+      "skipped": 0,
+      "seconds": 5.773,
+      "failedCases": [
+        {
+          "name": "interpretationPlanCarriesSuccessfulPrePlanToolsIntoWorkflowDependencies",
+          "type": "org.opentest4j.AssertionFailedError"
+        },
+        {
+          "name": "successfulTemplateExecutionIsAdmittedWithoutRedundantModelReview",
+          "type": "java.lang.NullPointerException"
+        },
+        {
+          "name": "deterministicBoundTemplatePlanPassesPublishedWorkflowValidation",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "interpretationPlanWorkflowUsesAvailableEvidenceWhenOnlyNonMandatoryStepsRemain",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "failedFallbackDoesNotClearInterpretationPlanWorkflowBlock",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "sqlScriptCoverageProcessesEveryFetchedRowAndReportsDatabaseLimitCompleteness",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "workflowParallelRequiredToolsMustAllCompleteBeforeFinalAnswer",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "recordCoverageStressSkipsSuccessfulNonToolNodesWithoutLosingToolEvidence",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "stagedDiscoveryKeepsOriginalPlanningAndAssetSelectionFlow",
+          "type": "org.opentest4j.AssertionFailedError"
+        },
+        {
+          "name": "mandatoryFallbackExecutionOrderFollowsAuthoritativeDagNotBoundToolOrder",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "completeFirstPassCandidatePartitionDoesNotRequireVerboseRejectedEvaluations",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "documentWebVerificationAllowsDocumentSearchBeforeMandatoryWebTool",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "mandatoryPreflightValidatesCompiledBatchChildrenInsteadOfScalarEnvelope",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "resumesPendingToolExecutionAfterConfirmation",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "completedDiagnosticContractDoesNotEraseUnreviewedDiscoveryGaps",
+          "type": "org.opentest4j.AssertionFailedError"
+        },
+        {
+          "name": "runtimeRunStorePersistsRunLifecycleEvents",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "answerReviewerReceivesCompactGovernedTemplateEvidence",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "adaptsMcpToolMetadataAndInheritsItIntoAssetCenterDatasetSummary",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "interpretationPlanFailureTriggersRewriteAndRunsRewrittenPlan",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "requiredToolCannotBeSkippedByPlannerSufficientSignal",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "incompleteDiagnosticCoveragePreventsPrematureEvidenceStop",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "pendingDocumentSearchCompletionAllowsNextWorkflowWebSearch",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "graphPublicationDoesNotAdoptUnrelatedAlternative",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "dagControllerFailureStillSelectsSoleReadyFinalAnswerStep",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "recordCoverageUsesFullRuntimeCachedBatchChildInsteadOfExternalizedPreview",
+          "type": "java.lang.ClassCastException"
+        },
+        {
+          "name": "appendsGovernedModelAnalysisWhenCandidateContainsOnlyHeadingsAndDataSource",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "evidenceChainCanExtendPositiveRewriteEstimateWithinRuntimeCeiling",
+          "type": "org.opentest4j.AssertionFailedError"
+        },
+        {
+          "name": "narrativeFallbackUsesDriverSynthesisInsteadOfRepeatingChunkSummaries",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "executeRuntimeRequestProjectsTimeoutAsCompletedBudgetExhaustion",
+          "type": "org.opentest4j.AssertionFailedError"
+        },
+        {
+          "name": "continuationWorkflowDagOmitsCompletedNodesThatAreNotRepeated",
+          "type": "java.lang.RuntimeException"
+        },
+        {
+          "name": "iteratesUntilEveryOversizedReturnedRecordIsCovered",
+          "type": "org.opentest4j.AssertionFailedError"
+        },
+        {
+          "name": "executeRuntimeRequestReturnsCancelledRunWhenCancellationIsRequested",
+          "type": "org.opentest4j.AssertionFailedError"
+        },
+        {
+          "name": "deterministicSummaryKeepsSuccessfulChildrenWhenSiblingFails",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "executeRuntimeRequestHonorsMaxToolCallsBudget",
+          "type": "org.opentest4j.AssertionFailedError"
+        },
+        {
+          "name": "runScopedRoleContextReachesDagControlAndTemplateSelectionPrompts",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "mandatoryWorkflowBlocksSqlAndApiExecutionAfterEmptyTemplateDiscovery",
+          "type": "org.opentest4j.AssertionFailedError"
+        },
+        {
+          "name": "interpretationPlanPreservesSuccessfulDocumentSearchWhenModelNeedsMoreEvidence",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "interpretationPlanRunsThroughDagRuntimePipeline",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "enterpriseMetadataReviewerUsesFormattedEvidenceForEveryFieldInsteadOfRawPreview",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "spillsOversizedLoopEvidenceAndRestoresCheckpointsWithoutRepeatingModelWork",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "sqlScriptCoveragePreservesNullColumnValues",
+          "type": "java.lang.ClassCastException"
+        },
+        {
+          "name": "mandatoryFallbackUsesConfiguredDagDependenciesInsteadOfToolListOrder",
+          "type": "org.opentest4j.AssertionFailedError"
+        },
+        {
+          "name": "mandatoryFallbackSemanticReviewRemainsStableUnderMixedCandidateLoad",
+          "type": "java.lang.NullPointerException"
+        },
+        {
+          "name": "plannerAttributionCoveragePrefersEvidenceBackedCandidateOverShortFinalPlan",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "executeRuntimeRequestReturnsTypedRunResult",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "executeRuntimeRequestPreservesToolEvidenceWhenFinalSynthesisExceedsDeadline",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "mandatoryRecoveryBatchEntersWorkerAnalysisAndPublishesProgress",
+          "type": "java.lang.RuntimeException"
+        },
+        {
+          "name": "mandatoryFallbackPreservesAllAssetsSelectedByModelReviewer",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "appendsEveryGovernedTemplateAnalysisWhenDraftOnlyCoversOneDataset",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "retainsTrustedGlobalDriverSynthesisInsteadOfConcatenatingWorkerSummaries",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "dagStatusKeepsSuccessfulTruncatedEvidenceSeparateFromExecutionFailure",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "legacyActionsAndPlainAnswersCannotExecuteOrPublishThroughCompatibilityRoutes",
+          "type": "org.opentest4j.AssertionFailedError"
+        },
+        {
+          "name": "executeRuntimeRequestHonorsMaxStepsBudget",
+          "type": "org.opentest4j.AssertionFailedError"
+        },
+        {
+          "name": "compressedFinalSynthesisRetainsConcreteBusinessValuesFromEveryBatchChild",
+          "type": "org.opentest4j.AssertionFailedError"
+        },
+        {
+          "name": "completeFirstPassTemplateReviewIsReusedWithoutAQualityReducingSecondSelection",
+          "type": "java.lang.NullPointerException"
+        },
+        {
+          "name": "mandatoryWorkflowLocallyReviewsCompleteEnterpriseMetadataResult",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "assignsStableDistinctEvidenceIdsToRepeatedDatasetReferences",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "finalSynthesisPromptSummarizesAllExecutedPlanAttempts",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "mandatoryWorkflowFailureBlocksFinalSummarySynthesis",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "fiveCallBatchUsesOneFinalSynthesisAndNoPerResultModelReview",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "partialToolReviewPreservesSuccessfulAttemptForLimitedAnalysis",
+          "type": "java.lang.RuntimeException"
+        },
+        {
+          "name": "extractsBatchCommandStreamByProtocolDiscriminatorWhenSchemaAliasEvolves",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "finalSynthesisKeepsLateEnterpriseMetadataObservation",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "sqlCoveragePreservesNullColumnValues",
+          "type": "java.lang.ClassCastException"
+        },
+        {
+          "name": "terminalSynthesisDistinguishesLimitationsFromExhaustion",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "includesWebCitationMapInPromptAfterWebSearch",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "dagDecisionPromptSnapshotCompactsLargeEnterpriseMetadataPayload",
+          "type": "org.opentest4j.AssertionFailedError"
+        },
+        {
+          "name": "keepsFinalAnswerWhenReviewerAcceptsIt",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "deduplicatesMirroredStructuredRecordsBeforeAnalysis",
+          "type": "java.lang.RuntimeException"
+        },
+        {
+          "name": "interpretationPlanWorkflowBlockStopsBeforeAttemptsExhaustedSynthesis",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "interpretationPlanCanUseRequestScopedAvailableToolWhenRegistryDoesNotAdvertiseIt",
+          "type": "java.lang.IllegalArgumentException"
+        },
+        {
+          "name": "continuationWorkflowDagDoesNotConstrainRepeatedEvidenceRefinementTool",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "nestedHttpJsonParticipatesInGovernedRecordAnalysis",
+          "type": "org.opentest4j.AssertionFailedError"
+        },
+        {
+          "name": "finalOnlyPlanUsesGraphPublicationInsteadOfLegacyAnswerSelection",
+          "type": "java.lang.IllegalArgumentException"
+        }
+      ]
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.AgentPlannerKnowledgeContinuationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.128,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.AgentPlannerNativeToolCallingTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.198,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.AgentPlannerTest",
+      "tests": 37,
+      "failures": 6,
+      "errors": 3,
+      "skipped": 0,
+      "seconds": 1.505,
+      "failedCases": [
+        {
+          "name": "mcpControlPlanePromptDoesNotTeachInventedDockerServiceLabels",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "acceptsDomainPrefixedAssetQueryAsTypedAssetDiscovery",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "acceptsDatabaseAssetSearchAsTypedAssetDiscovery",
+          "type": "org.opentest4j.AssertionFailedError"
+        },
+        {
+          "name": "rejectsInterpretationPlanThatSkipsConfiguredAssetDiscoveryOrder",
+          "type": "java.lang.NullPointerException"
+        },
+        {
+          "name": "admitsPublisherDeclaredTemplateDiscoveryMaterializedOutsidePlannerVisibleTools",
+          "type": "org.opentest4j.AssertionFailedError"
+        },
+        {
+          "name": "authoritativeDagKeepsConcreteTemplateDiscoveryDependenciesDistinct",
+          "type": "org.opentest4j.AssertionFailedError"
+        },
+        {
+          "name": "plannerPromptAlwaysIncludesAuthoritativeRuntimeDateEvenWithoutWebCrawlerTools",
+          "type": "java.lang.NullPointerException"
+        },
+        {
+          "name": "plannerDescribesGenericRuntimeRequiredToolParameters",
+          "type": "java.lang.NullPointerException"
+        },
+        {
+          "name": "buildsItemLevelEvidenceContractFromPlannerSemantics",
+          "type": "java.lang.AssertionError"
+        }
+      ]
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.AgentWorkflowDecisionEngineTest",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.124,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.AnalysisContextPresentationContractTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.019,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.AnalysisExecutionOutcomeTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.014,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.AnalysisRecordScopeProfilerTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.006,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.AnalysisReportContractTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.026,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.AnalysisSemanticContractCompilerTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.context.SynthesisContextBudgetTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.009,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.contract.AgentRoleAnalysisContextTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.005,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.contract.AnalysisObjectiveContractCompilerTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.012,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisResponsibilityContractTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.001,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinatorTest",
+      "tests": 19,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.592,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.dataset.DatasetReferenceSequenceTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.006,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.dataset.SpillDatasetHandleTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.093,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.DeterministicInsightEngineTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.327,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.execution.DatasetExecutionRegistryTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.033,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinatorTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.647,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.governance.AnalysisOutputAdmissionPolicyTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.016,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.governance.DatasetCompletionSnapshotTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.003,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.graph.AnalysisExecutionGraphTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.027,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.graph.AnalysisFinalizationPolicyTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.01,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.graph.AnalysisFlowStateTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.064,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.graph.AnalysisPlanContractRegressionTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.029,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.graph.BoundedAnalysisEvidenceTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.242,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.graph.CodingRequestBatchTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.004,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.graph.DataWorkspaceOperationsTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 1.396,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.graph.FinalDeliveryIntegrationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.174,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.graph.FindingAnalysisGraphTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.029,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.graph.HarnessCodingIntegrationTest",
+      "tests": 19,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.481,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.graph.HarnessPromptAuditTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.016,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.graph.HarnessProtocolBoundaryTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.078,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccessTest",
+      "tests": 7,
+      "failures": 3,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.18,
+      "failedCases": [
+        {
+          "name": "unauthorizedWritesAndBudgetOverflowNeverInvokeExecution",
+          "type": "Argument(s) are different! Wanted"
+        },
+        {
+          "name": "workflowRoleChangesRevokePreviouslyAdvertisedCapability",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "v2ModelChoosesSameToolWithDifferentParametersAndCanReadOldEvidence",
+          "type": "org.opentest4j.AssertionFailedError"
+        }
+      ]
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.bridge.CommonRuntimeOsContractBoundaryTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.367,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.bridge.RuntimeBridgeTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.084,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.interaction.UserFacingAnswerSanitizerTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.051,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.interaction.UserFacingToolTraceProjectorTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.012,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.kernel.KernelModuleBoundaryTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.02,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.kernel.RuntimeOsKernelTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.165,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.knowledge.KnowledgeContractsTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.047,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.knowledge.template.TemplateKnowledgeProtocolTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.1,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.knowledge.template.TemplateMatchAnalysisTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.023,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.knowledge.template.TemplateServicePortTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.035,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.mcp.audit.StandardMcpContractAuditorTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.098,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.mcp.capability.McpCapabilityHierarchyTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.035,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.mcp.capability.McpDynamicCapabilityRouteTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.034,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.mcp.contract.McpSchemaCompatibilityCheckerTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.022,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.mcp.contract.McpTemplateBindingEvidenceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.025,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.mcp.contract.McpToolContractTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.042,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.mcp.runtime.McpAnalysisPayloadTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.009,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.mcp.service.McpServiceContractTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.173,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.retrieval.AuthorizedRetrievalTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.018,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.retrieval.query.SearchQueryOptimizerTest",
+      "tests": 19,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.324,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.analysis.execution.AdaptiveAnalysisControllerTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.045,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.analysis.execution.RuntimeToolReceiptTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.013,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.analysis.routing.PlanBasedAssetGuidanceRoutingTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.033,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.analysis.workflow.AnalysisWorkflowArchitectureTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.019,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.capability.CapabilityIdTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.021,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.capability.CapabilityWorkflowProtocolTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.838,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.coding.CodingCanonicalHashTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 1.123,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.coding.CodingContractsTest",
+      "tests": 58,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.9,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.coding.CodingJsonSchemaTest",
+      "tests": 38,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 1.28,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.coding.CodingRuntimeContextTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.033,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.event.RuntimeEventLogTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.107,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.evidence.EvidenceStoreContractTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.01,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.evidence.RuntimeCheckpointMutationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContractTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.118,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.summary.analysis.contract.AnalysisLoopContractTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.016,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContractTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.005,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.summary.analysis.contract.DataAnalysisDecisionOperatingModelTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.005,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.summary.analysis.contract.ProfessionalDataAnalysisContractTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.004,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLayerGovernanceContractTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.023,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLifecycleTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.01,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLineageGraphTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisRepairExecutionPolicyTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.008,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.summary.analysis.semantic.adapter.ProducerSemanticDeclarationProtocolTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.006,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.summary.analysis.semantic.governance.SemanticClaimAdmissionPolicyTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.021,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.summary.analysis.semantic.governance.SemanticClaimGapPolicyTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.01,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.summary.analysis.semantic.governance.SemanticClaimLifecycleContractTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.02,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.summary.analysis.semantic.governance.SemanticGapResolutionPolicyTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.011,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisParticipantTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.052,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.summary.ModelSummaryContractTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.033,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.runtime.workflow.AbstractStagedExecutionWorkflowTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.014,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.security.InternalSecretCipherBytesTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.162,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.security.PasswordHashCodecTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.943,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.tool.McpToolNamePolicyTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.021,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.tool.ToolLogSummarizerTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.035,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-common",
+      "name": "com.chatchat.common.tool.ToolWorkflowContractTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.01,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-data-migration",
+      "name": "com.chatchat.migration.ColumnMigrationPlanTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.2,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-data-migration",
+      "name": "com.chatchat.migration.DataFileTransferTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.284,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-data-migration",
+      "name": "com.chatchat.migration.DataMigrationApplicationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.018,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-data-migration",
+      "name": "com.chatchat.migration.MigrationSchemaTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.144,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-data-migration",
+      "name": "com.chatchat.migration.TargetBootstrapTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 1,
+      "skipped": 0,
+      "seconds": 0.169,
+      "failedCases": [
+        {
+          "name": "packagedSchemasContainOnlySupportedStatements",
+          "type": "java.lang.IllegalStateException"
+        }
+      ]
+    },
+    {
+      "module": "chatchat-license",
+      "name": "com.chatchat.license.LicenseManagerTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 9.645,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-license",
+      "name": "com.chatchat.license.server.LicenseAuditServiceTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 10.696,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-license",
+      "name": "com.chatchat.license.server.LicenseCenterSecurityTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 1.658,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-license",
+      "name": "com.chatchat.license.server.LicenseControllerSurfaceContractTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.02,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-license",
+      "name": "com.chatchat.license.server.LicenseDatabaseSecurityValidatorTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.01,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-license",
+      "name": "com.chatchat.license.server.LicenseDeliveryPackageServiceTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.627,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-license",
+      "name": "com.chatchat.license.server.LicenseIssuanceServiceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 1.466,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-license",
+      "name": "com.chatchat.license.server.LicenseModuleCatalogServiceTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.121,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-mcp-grpc",
+      "name": "com.chatchat.mcp.grpc.McpGrpcPayloadsTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.853,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-platform-spring",
+      "name": "com.chatchat.common.config.EnvPropertiesEnvironmentPostProcessorTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 2.084,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-platform-spring",
+      "name": "com.chatchat.common.config.ModelResourceRegistryTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.05,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-platform-spring",
+      "name": "com.chatchat.common.config.ModelsConfigTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.536,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-platform-spring",
+      "name": "com.chatchat.common.retrieval.query.QueryOptimizationConfigurationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 1.143,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-platform-spring",
+      "name": "com.chatchat.common.security.EncryptedPropertyEnvironmentPostProcessorTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.143,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-platform-spring",
+      "name": "com.chatchat.common.security.InternalCredentialPropertiesTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.007,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-platform-spring",
+      "name": "com.chatchat.platform.runtime.coding.CodingSharedFilesTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.145,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-runtime-skill",
+      "name": "com.chatchat.runtime.skill.application.DefaultAgentRuntimeDispatcherTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.54,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-runtime-skill",
+      "name": "com.chatchat.runtime.skill.application.DefaultSkillResolverTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.126,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-runtime-skill",
+      "name": "com.chatchat.runtime.skill.application.DefaultSkillRouterTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.094,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-runtime-skill",
+      "name": "com.chatchat.runtime.skill.application.DefaultSkillRuntimeTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.104,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-runtime-skill",
+      "name": "com.chatchat.runtime.skill.application.DefaultWorkflowResolverTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.028,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-runtime-skill",
+      "name": "com.chatchat.runtime.skill.application.SkillAnalysisExecutorTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.124,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-runtime-skill",
+      "name": "com.chatchat.runtime.skill.application.SkillCompositionRuntimeTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.061,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-runtime-skill",
+      "name": "com.chatchat.runtime.skill.application.SkillDataAcquisitionTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.052,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-runtime-skill",
+      "name": "com.chatchat.runtime.skill.application.SkillIntelligenceLayerTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.081,
+      "failedCases": []
+    },
+    {
+      "module": "chatchat-runtime-skill",
+      "name": "com.chatchat.runtime.skill.RuntimeSkillPackageArchitectureTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.054,
+      "failedCases": []
+    }
+  ],
+  "acceptance": "Maven exit status, native crashes, missing modules, and required integration gates must also pass; XML totals alone are insufficient."
+}

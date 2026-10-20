@@ -1,0 +1,86 @@
+[
+    {
+        "Names":  "runtime-os-app-stage-node-proxy-1",
+        "Image":  "nginx:1.27.5-alpine",
+        "Status":  "Up 3 hours",
+        "Networks":  "",
+        "Ports":  ""
+    },
+    {
+        "Names":  "runtime-os-app-stage-api-1",
+        "Image":  "runtime-os-api:protocol-recovery-87c4b3d27a0e",
+        "Status":  "Up 3 hours",
+        "Networks":  "runtime-os-app-stage_coding,runtime-os-app-stage_control",
+        "Ports":  "127.0.0.1:18180-\u003e8080/tcp"
+    },
+    {
+        "Names":  "runtime-os-app-stage-coding-agent-1",
+        "Image":  "runtime-os-coding-agent:analysis-fast-461e165ad657",
+        "Status":  "Up 3 hours (healthy)",
+        "Networks":  "runtime-os-app-stage_coding",
+        "Ports":  ""
+    },
+    {
+        "Names":  "runtime-os-app-stage-mcp-1",
+        "Image":  "runtime-os-mcp:protocol-recovery-e6ae569883d4",
+        "Status":  "Up 5 hours",
+        "Networks":  "runtime-os-app-stage_control",
+        "Ports":  "9091/tcp, 127.0.0.1:18190-\u003e8090/tcp"
+    },
+    {
+        "Names":  "runtime-os-app-stage-gateway-1",
+        "Image":  "nginx:1.27.5-alpine",
+        "Status":  "Up 22 hours",
+        "Networks":  "runtime-os-app-stage_control",
+        "Ports":  "80/tcp, 0.0.0.0:18100-\u003e8080/tcp, 0.0.0.0:18101-\u003e8090/tcp"
+    },
+    {
+        "Names":  "runtime-os-app-stage-news-1",
+        "Image":  "runtime-os-news:54e8a3ee-news-persist-20261018",
+        "Status":  "Up 37 hours",
+        "Networks":  "runtime-os-app-stage_control",
+        "Ports":  "8091/tcp"
+    },
+    {
+        "Names":  "python-analysis-stage-20261017",
+        "Image":  "runtime-coding-agent:python-analysis-20261017",
+        "Status":  "Up 3 days",
+        "Networks":  "runtime-python-analysis-stage",
+        "Ports":  ""
+    },
+    {
+        "Names":  "postgres",
+        "Image":  "postgres:18",
+        "Status":  "Up 4 weeks",
+        "Networks":  "bridge",
+        "Ports":  "0.0.0.0:5432-\u003e5432/tcp, :::5432-\u003e5432/tcp"
+    },
+    {
+        "Names":  "opensearch-node",
+        "Image":  "opensearchproject/opensearch:2.19.1",
+        "Status":  "Up 3 months",
+        "Networks":  "bridge",
+        "Ports":  "0.0.0.0:9200-\u003e9200/tcp, :::9200-\u003e9200/tcp, 9300/tcp, 0.0.0.0:9600-\u003e9600/tcp, :::9600-\u003e9600/tcp, 9650/tcp"
+    },
+    {
+        "Names":  "zookeeper",
+        "Image":  "zookeeper:latest",
+        "Status":  "Up 5 months",
+        "Networks":  "bridge",
+        "Ports":  "2888/tcp, 3888/tcp, 0.0.0.0:2181-\u003e2181/tcp, :::2181-\u003e2181/tcp, 8080/tcp"
+    },
+    {
+        "Names":  "redis",
+        "Image":  "redis",
+        "Status":  "Up 5 months",
+        "Networks":  "bridge",
+        "Ports":  "0.0.0.0:6379-\u003e6379/tcp, :::6379-\u003e6379/tcp"
+    },
+    {
+        "Names":  "dm8_01",
+        "Image":  "dm8_single:dm8_20240715_rev232765_x86_rh6_64",
+        "Status":  "Up 5 months",
+        "Networks":  "bridge",
+        "Ports":  "0.0.0.0:5236-\u003e5236/tcp, :::5236-\u003e5236/tcp"
+    }
+]

@@ -31,7 +31,7 @@ import static org.mockito.Mockito.*;
 /** Real HTTP worker status; execution/collector doubles do not constitute Docker or SDK recovery. */
 class ClineCodingAdapterRecoveryTest {
     @ParameterizedTest
-    @ValueSource(strings = {"COMPLETED", "FAILED", "CANCELLED", "MISSING", "UNKNOWN_MODEL", "FAILED_PYTHON", "MISSING_FAILED_PYTHON", "MISSING_STOPPED", "MISSING_STOPPED_UNKNOWN_MODEL", "MODEL_ONLY", "MISSING_MODEL_ONLY", "LIVE_UNKNOWN_MODEL", "UNAVAILABLE_UNKNOWN_MODEL", "NO_RESULT", "INVALID_RESULT"})
+    @ValueSource(strings = {"COMPLETED", "FAILED", "CANCELLED", "MISSING", "UNKNOWN_MODEL", "FAILED_PYTHON", "MISSING_FAILED_PYTHON", "MISSING_STOPPED", "MISSING_STOPPED_UNKNOWN_MODEL", "MODEL_ONLY", "MISSING_MODEL_ONLY", "LIVE_UNKNOWN_MODEL", "UNAVAILABLE_UNKNOWN_MODEL", "NO_RESULT", "INVALID_RESULT", "COMPLETION_RACE"})
     void stoppedWorkerRequiresVerifiedLatestExecutionBeforeEvidenceOnlyRecovery(String scenario) throws Exception {
         var scope = new KernelDataScope("tenant", "owner", null, null, "run", null, Map.of());
         var contract = ClineCodingAdapterDispatchTest.contract(scope);
@@ -85,7 +85,14 @@ class ClineCodingAdapterRecoveryTest {
                 .thenThrow(scenario.equals("NO_RESULT") ? new CodingEvidenceCollector.RequiredOutputMissingException("rows.jsonl")
                     : new CodingEvidenceCollector.InvalidStructuredResultException("Invalid result structure"));
         when(tasks.commitOutcome(eq(scope), eq(contract.taskId()), any(), eq(current.revision()), any()))
-            .thenAnswer(call -> call.getArgument(4));
+            .thenAnswer(call -> {
+                CodingTaskOutcome committed=call.getArgument(4);
+                if(scenario.equals("COMPLETION_RACE")) {
+                    when(tasks.get(scope,contract.taskId())).thenReturn(committed);
+                    throw new CodingContractException(CodingErrorCode.INVALID_STATE_TRANSITION,"Terminal results are immutable");
+                }
+                return committed;
+            });
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         var dispatches = new AtomicInteger();
         server.createContext("/v1/runs", exchange -> {
@@ -93,7 +100,7 @@ class ClineCodingAdapterRecoveryTest {
             if (scenario.startsWith("MISSING")) exchange.sendResponseHeaders(404, -1);
             else if (scenario.startsWith("UNAVAILABLE")) exchange.sendResponseHeaders(503, -1);
             else {
-                String status = scenario.startsWith("LIVE") ? "RUNNING" : List.of("UNKNOWN_MODEL", "FAILED_PYTHON", "MODEL_ONLY", "NO_RESULT", "INVALID_RESULT").contains(scenario) ? "COMPLETED" : scenario;
+                String status = scenario.startsWith("LIVE") ? "RUNNING" : List.of("UNKNOWN_MODEL", "FAILED_PYTHON", "MODEL_ONLY", "NO_RESULT", "INVALID_RESULT", "COMPLETION_RACE").contains(scenario) ? "COMPLETED" : scenario;
                 byte[] bytes = ("{\"status\":\"" + status + "\",\"fencingToken\":1}").getBytes(StandardCharsets.UTF_8);
                 exchange.sendResponseHeaders(200, bytes.length);
                 try (var output = exchange.getResponseBody()) { output.write(bytes); }

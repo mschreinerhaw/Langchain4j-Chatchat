@@ -103,10 +103,18 @@ class ClineModelCallbackControllerTest {
             assertThat(controller.readArtifact(body)).containsEntry("complete",true)
                 .containsEntry("reference",resultRef);
             verify(collector).readResultPage(scope,"task",resultRef,0,2);
+            when(collector.readResultPage(scope,"task",resultRef,0,2)).thenReturn(
+                new DatasetHandle.Page(0,List.of(Map.of("reportMarkdown","report","evidenceReferences",List.of("shortened-source"))),false));
+            var rejectedReview=json.valueToTree(controller.readArtifact(body)).path("reportReferenceValidation");
+            assertThat(rejectedReview.path("valid").asBoolean()).isFalse();
+            assertThat(rejectedReview.path("authorizedDatasetReferences").get(0).asText()).isEqualTo("source");
+            when(collector.readResultPage(scope,"task",resultRef,0,2)).thenReturn(
+                new DatasetHandle.Page(0,List.of(Map.of("reportMarkdown","report","evidenceReferences",List.of("source"))),false));
+            assertThat(json.valueToTree(controller.readArtifact(body)).path("reportReferenceValidation").path("valid").asBoolean()).isTrue();
             body.put("fencingToken", lease.fencingToken() + 1);
             assertThatThrownBy(() -> controller.inputContext(body))
                 .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
-            verify(inputs, times(1)).requireAuthorized(any());
+            verify(inputs, times(3)).requireAuthorized(any());
         } finally { timer.shutdownNow(); }
     }
 

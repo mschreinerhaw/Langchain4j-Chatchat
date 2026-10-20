@@ -63,6 +63,7 @@ export function createCodingRun(contract, gateway, options = {}) {
   let activeOperation = null;
   const restored = options.checkpoint;
   let lastCollectedOperation = restored?.lastCollectedOperation ?? null;
+  let reportReferenceFailure = restored?.reportReferenceFailure ?? null;
   let previousProgram = null;
   for (const message of restored?.messages ?? []) for (const part of message.content ?? []) {
     if (part.type === 'tool-call' && part.toolName === 'python_execute') {
@@ -254,7 +255,7 @@ export function createCodingRun(contract, gateway, options = {}) {
   });
   if (permitted.has('artifact_read')) tools.push({
     name: 'artifact_read',
-    description: 'Read a previously committed Coding result through Runtime authorization.',
+    description: 'Read a previously committed Coding result through Runtime authorization. If reportReferenceValidation.valid is false, repair the Python output using the exact authorizedDatasetReferences (including every suffix), rerun it, and review the new result before finishing.',
     inputSchema: { type: 'object', properties: { reference: { type: 'string' } },
       required: ['reference'], additionalProperties: false },
     executionMode: 'sequential', retryable: false, maxRetries: 0,
@@ -262,7 +263,11 @@ export function createCodingRun(contract, gateway, options = {}) {
       const reference = required(input?.reference, 'reference');
       await forward({ type: 'TOOL_STARTED', tool: 'artifact_read' });
       const result = await gateway.readArtifact(contract, reference, context.signal);
-      await forward({ type: 'TOOL_FINISHED', tool: 'artifact_read', status: 'SUCCEEDED' });
+      if (result.reportReferenceValidation) {
+        reportReferenceFailure = result.reportReferenceValidation.valid === true ? null : result.reportReferenceValidation;
+        if (reportReferenceFailure) lastCollectedOperation = null;
+      }
+      await forward({ type: 'TOOL_FINISHED', tool: 'artifact_read', status: reportReferenceFailure ? 'FAILED' : 'SUCCEEDED' });
       return result;
     },
   });
@@ -296,6 +301,8 @@ export function createCodingRun(contract, gateway, options = {}) {
     ...(fastAnalysis ? { completionPolicy: { requireCompletionTool: true } } : {}),
     hooks: {
       async afterTool({ toolCall, result }) {
+        if (toolCall.toolName === 'artifact_read' && result.output?.reportReferenceValidation?.valid === false)
+          return { result: { ...result, isError: true } };
         if (!fastAnalysis || toolCall.toolName !== 'python_execute') return;
         const receipt = result.output;
         const verified = !result.isError && receipt?.status === 'SUCCEEDED' && receipt.executorStopped === true
@@ -309,7 +316,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         if (fastAnalysis && lastCollectedOperation && event.type === 'message-added'
             && event.message?.role === 'tool' && typeof gateway.checkpoint === 'function') {
           await gateway.checkpoint(contract, { sdkSessionId, checkpointOrdinal: ++checkpointOrdinal,
-            modelOrdinal: modelIndex, eventOrdinal, messages: event.snapshot.messages, lastCollectedOperation,
+            modelOrdinal: modelIndex, eventOrdinal, messages: event.snapshot.messages, lastCollectedOperation, reportReferenceFailure,
             contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
             workspaceRef: contract.workspaceRef });
         }
@@ -319,7 +326,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         // restore() resets SDK usage; A2 remains the budget/ordinal authority.
         if (typeof gateway.checkpoint === 'function') await gateway.checkpoint(contract, {
           sdkSessionId, checkpointOrdinal: ++checkpointOrdinal, modelOrdinal: modelIndex,
-          eventOrdinal, messages: snapshot.messages, lastCollectedOperation,
+          eventOrdinal, messages: snapshot.messages, lastCollectedOperation, reportReferenceFailure,
           contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
           workspaceRef: contract.workspaceRef,
         });
@@ -351,6 +358,8 @@ export function createCodingRun(contract, gateway, options = {}) {
       },
       async afterRun({ result }) {
         try {
+          if (result.status === 'completed' && reportReferenceFailure)
+            throw new TypeError('REPORT_REFERENCE_REPAIR_REQUIRED: repair evidenceReferences using the exact Runtime-authorized dataset keys');
           await gateway.finish?.(contract, { status: result.status, iterations: result.iterations,
             summary: result.outputText?.slice(0, 1024) ?? '',
             operationId: lastCollectedOperation });

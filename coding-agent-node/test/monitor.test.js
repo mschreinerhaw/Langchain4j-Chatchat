@@ -133,6 +133,57 @@ test('reviewed analysis repairs locally and reads its scoped result before compl
   assert.ok(run.events.some(event => event.type === 'TOOL_FINISHED' && event.tool === 'artifact_read'));
 });
 
+test('report citation failures return to the Cline repair loop before task completion', async () => {
+  const next = structuredClone(contract);
+  next.metadataRefs = ['runtime-coding:analysis-reviewed-path:v1'];
+  next.authorization.allowedTools = ['python_execute', 'artifact_read'];
+  next.budget.maxModelCalls = 6;
+  let turns = 0, executions = 0, finished;
+  const run = createCodingRun(next, {
+    reserveModel() {}, settleModel() {}, finish(_task, value) { finished = value; },
+    executePython() { executions++; return { status: 'SUCCEEDED', executorStopped: true,
+      resultDatasetRef: 'runtime-evidence:result', validationRecordRef: 'validation', evidenceBundleRef: 'bundle' }; },
+    readArtifact() { return { rows: [{ reportMarkdown: 'report' }], complete: true,
+      reportReferenceValidation: { valid: executions === 2, repairRequired: executions !== 2,
+        authorizedDatasetReferences: ['exact-source#binding-1'] } }; },
+  }, { model: { async *stream(request) {
+    turns++;
+    if (turns === 3) assert.match(JSON.stringify(request.messages), /exact-source#binding-1/);
+    if (turns === 1 || turns === 3) yield { type: 'tool-call-delta', toolCallId: `code-${turns}`,
+      toolName: 'python_execute', input: { fileName: 'main.py', source: `# program ${turns}` } };
+    else if (turns === 2 || turns === 4) yield { type: 'tool-call-delta', toolCallId: `review-${turns}`,
+      toolName: 'artifact_read', input: { reference: 'runtime-evidence:result' } };
+    else yield { type: 'text-delta', text: 'Repaired exact source references.' };
+    yield { type: 'finish', reason: turns < 5 ? 'tool-calls' : 'stop' };
+  } } });
+  assert.equal((await run.run()).status, 'completed');
+  assert.equal(executions, 2); assert.equal(finished.status, 'completed');
+  assert.ok(finished.operationId);
+});
+
+test('a model cannot finish successfully after a rejected report reference check', async () => {
+  const next = structuredClone(contract);
+  next.metadataRefs = ['runtime-coding:analysis-reviewed-path:v1'];
+  next.authorization.allowedTools = ['python_execute', 'artifact_read'];
+  let turns = 0, finished;
+  const run = createCodingRun(next, {
+    reserveModel() {}, settleModel() {}, finish(_task, value) { finished = value; },
+    executePython() { return { status: 'SUCCEEDED', executorStopped: true,
+      resultDatasetRef: 'runtime-evidence:result', validationRecordRef: 'validation', evidenceBundleRef: 'bundle' }; },
+    readArtifact() { return { reportReferenceValidation: { valid: false, repairRequired: true } }; },
+  }, { model: { async *stream() {
+    if (++turns === 1) yield { type: 'tool-call-delta', toolCallId: 'code', toolName: 'python_execute',
+      input: { fileName: 'main.py', source: '# invalid report references' } };
+    else if (turns === 2) yield { type: 'tool-call-delta', toolCallId: 'review', toolName: 'artifact_read',
+      input: { reference: 'runtime-evidence:result' } };
+    else yield { type: 'text-delta', text: 'Finish without repairing.' };
+    yield { type: 'finish', reason: turns < 3 ? 'tool-calls' : 'stop' };
+  } } });
+  const result = await run.run().catch(error => ({ status: 'failed', error }));
+  assert.notEqual(result.status, 'completed');
+  assert.notEqual(finished?.status, 'completed');
+});
+
 test('versioned file inputs negotiate format before SDK/model admission and keep output JSONL', async () => {
   for (const format of ['PARQUET', 'CSV']) {
     let prompt, metadataReads = 0;

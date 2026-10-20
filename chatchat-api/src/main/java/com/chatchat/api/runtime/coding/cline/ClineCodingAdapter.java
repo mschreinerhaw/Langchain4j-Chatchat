@@ -217,7 +217,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
                         List.of("Execution diagnostics remain archived; retry through the existing parent workflow"),current.inputSnapshotRef(),
                         null,null,null,null,null,CodingTaskOutcome.ValidationStatus.NOT_RUN,current.reproducibility(),current.usage(),
                         new CodingTaskOutcome.ExecutionControl(null,null,true,false),current.parentTaskId(),current.supersedesTaskId(),Map.of());
-                    return tasks.commitOutcome(scope,taskId,lease,current.revision(),failed);
+                    return commitRecoveredOutcome(scope,taskId,lease,current.revision(),failed);
                 }
             }
             // The SDK has ended and all physical starts have stop proofs, but no
@@ -233,7 +233,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
                 limitations,current.inputSnapshotRef(),null,null,null,null,null,CodingTaskOutcome.ValidationStatus.NOT_RUN,
                 current.reproducibility(),current.usage(),new CodingTaskOutcome.ExecutionControl(null,null,true,false),
                 current.parentTaskId(),current.supersedesTaskId(),Map.of());
-            return tasks.commitOutcome(scope,taskId,lease,current.revision(),failed);
+            return commitRecoveredOutcome(scope,taskId,lease,current.revision(),failed);
         }
         if (workerId.equals(lease.owner()) && current.executionControl().stopReason() == null
                 && !tasks.hasStartedOperations(scope, taskId)
@@ -292,7 +292,20 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             current.reproducibility(), current.usage(),
             new CodingTaskOutcome.ExecutionControl(null, null, true, false),
             current.parentTaskId(), current.supersedesTaskId(), Map.of());
-        return tasks.commitOutcome(scope, taskId, lease, current.revision(), proposal);
+        return commitRecoveredOutcome(scope, taskId, lease, current.revision(), proposal);
+    }
+
+    private CodingTaskOutcome commitRecoveredOutcome(KernelDataScope scope,String taskId,
+            CodingJournal.Lease lease,long revision,CodingTaskOutcome proposal) {
+        try { return tasks.commitOutcome(scope,taskId,lease,revision,proposal); }
+        catch(CodingContractException conflict) {
+            if(conflict.error().code()==CodingErrorCode.INVALID_STATE_TRANSITION) {
+                var authoritative=tasks.get(scope,taskId);
+                if(authoritative.status().terminal()
+                        && authoritative.contractSha256().equals(proposal.contractSha256()))return authoritative;
+            }
+            throw conflict;
+        }
     }
 
     private void reconcileModel(KernelDataScope scope, String taskId, CodingJournal.Lease lease,

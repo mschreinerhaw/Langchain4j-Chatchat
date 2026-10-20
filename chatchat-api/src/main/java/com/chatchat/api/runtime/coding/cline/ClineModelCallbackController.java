@@ -112,7 +112,27 @@ public final class ClineModelCallbackController {
             var page=collector.readResultPage(call.scope(),call.taskId(),reference,0,2);
             if(page.rows().size()!=1 || page.hasMore())
                 throw new IllegalStateException("Analysis review requires exactly one complete report row");
-            return Map.of("reference",reference,"rows",page.rows(),"complete",true);
+            var response=new java.util.LinkedHashMap<String,Object>();
+            response.put("reference",reference);response.put("rows",page.rows());response.put("complete",true);
+            var row=page.rows().get(0);
+            if(row.containsKey("reportMarkdown") && row.containsKey("evidenceReferences")) {
+                var input=inputs.requireAuthorized(contract);
+                var description=inputs.describe(call.scope(),call.taskId(),input);
+                var authorized=new java.util.LinkedHashSet<String>();
+                if(description.get("inputVersions") instanceof Iterable<?> versions) {
+                    for(Object version:versions)if(version instanceof Map<?,?> source
+                            && source.get("datasetReference") instanceof String ref && !ref.isBlank())authorized.add(ref);
+                } else authorized.add(input.sourceDatasetRef());
+                if(dataSupply!=null)dataSupply.snapshots(contract,null).stream()
+                    .map(CodingInputSnapshotService.Snapshot::sourceDatasetRef)
+                    .filter(ref->ref!=null&&!ref.equals(input.sourceDatasetRef())).forEach(authorized::add);
+                var cited=row.get("evidenceReferences");
+                boolean valid=cited instanceof List<?> refs && !refs.isEmpty()
+                    && refs.stream().allMatch(ref->ref instanceof String && authorized.contains(ref));
+                response.put("reportReferenceValidation",Map.of("valid",valid,
+                    "authorizedDatasetReferences",List.copyOf(authorized),"repairRequired",!valid));
+            }
+            return response;
         });
     }
     @org.springframework.beans.factory.annotation.Autowired(required=false)

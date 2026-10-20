@@ -90,4 +90,11 @@ class ClineContextAnswerServiceTest {
         assertThatThrownBy(() -> service.answer(request(), context, skill, "")).hasMessageContaining("unavailable");
         verifyNoInteractions(model);
     }
+    @Test void disabledCodingBeanDoesNotPreventServiceConstructionOrPermitJavaFallback(){
+        var beans=new org.springframework.beans.factory.support.DefaultListableBeanFactory();
+        var disabled=new ClineContextAnswerService(beans.getBeanProvider(CodingAnalysisService.class),models,new ObjectMapper(),runs);
+        assertThatThrownBy(()->disabled.answer(request(),context,skill,"source"))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("must be enabled");
+        verifyNoInteractions(models,model,coding);
+    }
 }

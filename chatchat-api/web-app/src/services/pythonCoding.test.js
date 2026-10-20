@@ -6,10 +6,17 @@ const request={action:'fix',sourceCode:'print(1)',planId:'accepted-plan',modelNa
 const context={requestId:'turn-1',entryPath:'main.py',files:[{path:'main.py',content:'print(1)'}]};
 beforeEach(()=>vi.resetAllMocks());
 describe('shared Python Coding task lifecycle',()=>{
-  it('uses the existing assistant when deployment has not enabled the profile',async()=>{
-    apiRequest.mockResolvedValue({enabled:false});requestPythonCodeAssist.mockResolvedValue({code:'legacy'});
-    expect(await runPythonCoding(request,context)).toEqual({code:'legacy'});
-    expect(requestPythonCodeAssist).toHaveBeenCalledOnce();expect(apiRequest).toHaveBeenCalledOnce();
+  it('fails closed when deployment has not enabled Cline',async()=>{
+    apiRequest.mockResolvedValue({enabled:false});
+    await expect(runPythonCoding(request,context)).rejects.toThrow('Cline');
+    expect(requestPythonCodeAssist).not.toHaveBeenCalled();expect(apiRequest).toHaveBeenCalledOnce();
+  });
+  it.each(['continue','test'])('routes %s through the same Cline workspace',async action=>{
+    apiRequest.mockResolvedValueOnce({enabled:true}).mockResolvedValueOnce({taskId:'bound-task'})
+      .mockResolvedValueOnce({status:'COMPLETED',output:{files:[{path:'main.py',content:'print(2)'}]}});
+    await runPythonCoding({...request,action},context);
+    expect(apiRequest.mock.calls[1][0]).toBe('/data-science/python/assist/coding');
+    expect(requestPythonCodeAssist).not.toHaveBeenCalled();
   });
   it('retains all proposed files and evidence for user review without saving or executing source',async()=>{
     const files=[{path:'main.py',content:'print(2)'},{path:'helpers.py',content:'x=1'}];

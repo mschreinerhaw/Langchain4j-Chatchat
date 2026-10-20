@@ -7,9 +7,9 @@ export async function resumePythonCoding(task,request,context) {
   return waitForCoding({taskId:task,plan:context.plan},request,context);
 }
 export async function runPythonCoding(request,context) {
-  if(!['generate','fix','optimize'].includes(request.action))return requestPythonCodeAssist(request);
+  if(['explain','ask'].includes(request.action))return requestPythonCodeAssist(request);
   const capabilities=await apiRequest(`${base}/capabilities`);
-  if(!capabilities.enabled)return requestPythonCodeAssist(request);
+  if(!capabilities.enabled)throw new Error('Cline 代码生成服务未启用，请联系管理员；本轮尚未生成代码。');
   const started=await apiRequest(base,{method:'POST',body:JSON.stringify({request,requestId:context.requestId,
     entryPath:context.entryPath,files:context.files})});
   context.onTask?.(started.taskId);

@@ -22,13 +22,18 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public final class ClineContextAnswerService implements CodingAnswerPort {
-    private final CodingAnalysisService coding;
+    private final java.util.function.Supplier<CodingAnalysisService> codingServices;
     private final AgentChatModelResolver models;
     private final ObjectMapper json;
     private final AgentRunStore runs;
 
     public ClineContextAnswerService(CodingAnalysisService coding, AgentChatModelResolver models, ObjectMapper json, AgentRunStore runs) {
-        this.coding = coding; this.models = models; this.json = json; this.runs = runs;
+        this.codingServices = ()->coding; this.models = models; this.json = json; this.runs = runs;
+    }
+    @org.springframework.beans.factory.annotation.Autowired
+    public ClineContextAnswerService(org.springframework.beans.factory.ObjectProvider<CodingAnalysisService> coding,
+                                    AgentChatModelResolver models,ObjectMapper json,AgentRunStore runs){
+        this.codingServices=coding::getIfAvailable;this.models=models;this.json=json;this.runs=runs;
     }
 
     @Override public InteractionResponse answer(InteractionRequest request, InteractionContext context,
@@ -42,6 +47,8 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
         for (String value : new String[]{request.getTenantId(), request.getUserId(), context.requestId()})
             if (value == null || value.isBlank() || Set.of("default", "anonymous", "unknown-request").contains(value))
                 throw new SecurityException("Authenticated request identity is required for Coding answers");
+        CodingAnalysisService coding=codingServices.get();
+        if(coding==null)throw new IllegalStateException("Cline analysis service must be enabled for this task");
         String alias = agent == null || agent.modelName() == null || agent.modelName().isBlank() ? request.getModelName() : agent.modelName();
         var model = models.resolveChatModel(alias);
         var attrs = new LinkedHashMap<String,Object>();

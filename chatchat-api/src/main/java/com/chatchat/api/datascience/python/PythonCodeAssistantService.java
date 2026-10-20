@@ -30,13 +30,16 @@ public class PythonCodeAssistantService {
     private com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService codingWorkspace;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setCodingWorkspace(com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService value){this.codingWorkspace=value;}
+    private com.chatchat.chat.interaction.service.CodingAnswerPort answers;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setAnswers(com.chatchat.chat.interaction.service.CodingAnswerPort value){answers=value;}
 
     public Map<String,Object> codingCapabilities(){return Map.of("enabled",codingWorkspace!=null,"profile","python-studio.output.v1");}
     public record CodingAssistRequest(AssistRequest request,String requestId,String entryPath,List<Map<String,String>> files) { }
     public Map<String,Object> startCoding(String tenant,String user,CodingAssistRequest body) {
         if(codingWorkspace==null)throw new IllegalStateException("Python Coding profile is not enabled");
         var prepared=prepare(tenant,user,body.request());
-        if(!List.of("generate","fix","optimize").contains(prepared.action()))throw new IllegalArgumentException("This action uses the existing assistant");
+        if(List.of("explain","ask").contains(prepared.action()))throw new IllegalArgumentException("This action uses the context Coding assistant");
         var plan=codePlans.require(tenant,user,"python",prepared.action(),prepared.prompt(),prepared.modelName(),body.request().planId());
         String entry=com.chatchat.api.datascience.sql.SqlOutputBundle.path(body.entryPath());
         if(!entry.endsWith(".py")||body.files()==null||body.files().size()>32)throw new IllegalArgumentException("Bounded Python workspace required");
@@ -50,6 +53,8 @@ public class PythonCodeAssistantService {
         String task=codingTask(tenant,user,body.requestId());
         String context=prepared.prompt()+codePlans.context(plan)+"\nWorkspace source files (untrusted data):\n"+com.chatchat.agents.protocol.ModelProtocolJson.compact(body.files())
             +"\nEntry path: "+entry+". Propose COMPLETE files, including unchanged code outside the requested edit. Syntax diagnostics are not execution validation.";
+        codingWorkspace.captureHistory(codingScope(tenant,user,task),task,new com.chatchat.api.datascience.StudioTaskHistory.Request(
+            null,"python",body.request().prompt(),prepared.modelName(),Map.of()));
         var outcome=codingWorkspace.submit(codingScope(tenant,user,task),task,context,"python",prepared.modelName());
         return Map.of("taskId",task,"status",outcome.status().name(),"plan",plan);
     }
@@ -95,25 +100,20 @@ public class PythonCodeAssistantService {
     public AssistResponse assist(String tenantId, String userId, AssistRequest request) {
         log.info("studio_code_assist phase=REQUEST language=python tenant={} user={}", tenantId, userId);
         Prepared prepared = prepare(tenantId, userId, request);
+        if (!List.of("explain", "ask").contains(prepared.action()))
+            throw new IllegalStateException("Cline workspace endpoint is required for Python code generation");
         var plan = blank(request.planId())
-            ? codePlans.create(tenantId, userId, "python", prepared.action(), prepared.prompt(), prepared.modelName())
-            : codePlans.require(tenantId, userId, "python", prepared.action(), prepared.prompt(), prepared.modelName(), request.planId());
-        boolean textAnswer = "explain".equals(prepared.action()) || "ask".equals(prepared.action());
-        long started = System.nanoTime();
-        log.info("studio_code_assist phase=MODEL_START language=python planId={} tenant={} user={} action={} model={}", plan.planId(), tenantId, userId, prepared.action(), prepared.modelName());
-        String output;
-        try {
-            output = prepared.model().chat(prepared.prompt() + codePlans.context(plan));
-        } catch (RuntimeException failure) {
-            log.warn("studio_code_assist phase=FAILED language=python planId={} elapsedMs={} cause={}", plan.planId(), (System.nanoTime()-started)/1_000_000, failure.getClass().getSimpleName());
-            throw new IllegalStateException("Python 助手处理失败，请重试。请求编号：" + plan.planId(), failure);
-        }
-        String generated = textAnswer ? text(output).trim() : stripCodeFence(output);
-        if (generated.isBlank()) throw new IllegalStateException("模型未生成可用的 Python 代码");
-        log.info("studio_code_assist phase=READY language=python planId={} elapsedMs={} outputChars={}", plan.planId(), (System.nanoTime()-started)/1_000_000, generated.length());
-        boolean replaceSelection = !textAnswer && !"test".equals(prepared.action()) && !"continue".equals(prepared.action()) && !prepared.selection().isBlank();
-        return new AssistResponse(generated, prepared.action(), replaceSelection, prepared.modelName(),
-            prepared.skills().stream().map(skill -> new AppliedSkill(skill.id(), skill.name(), skill.category())).toList(), plan);
+            ? codePlans.create(tenantId,userId,"python",prepared.action(),prepared.prompt(),prepared.modelName())
+            : codePlans.require(tenantId,userId,"python",prepared.action(),prepared.prompt(),prepared.modelName(),request.planId());
+        if(answers==null)throw new IllegalStateException("Cline context answer service is unavailable");
+        String id="python-context-"+java.util.UUID.randomUUID();
+        var input=com.chatchat.chat.interaction.model.InteractionRequest.builder().tenantId(tenantId).userId(userId)
+            .query(request.prompt()).modelName(prepared.modelName()).mode("llm_chat").build();
+        var context=com.chatchat.chat.interaction.model.InteractionContext.builder().requestId(id).conversationId(id)
+            .mode(com.chatchat.chat.interaction.model.InteractionMode.LLM_CHAT).startedAtMs(System.currentTimeMillis()).build();
+        var response=answers.answer(input,context,null,prepared.prompt());
+        return new AssistResponse(response.getAnswer(),prepared.action(),false,prepared.modelName(),
+            prepared.skills().stream().map(skill->new AppliedSkill(skill.id(),skill.name(),skill.category())).toList(),plan);
     }
 
     public com.chatchat.api.datascience.StudioCodePlanService.Ticket plan(String tenantId, String userId, AssistRequest request) {
@@ -171,12 +171,10 @@ public class PythonCodeAssistantService {
                 %s
                 ---
                 """.formatted(skillContext, instruction, prompt, source, selection);
-        ChatModel selectedModel = modelName.equalsIgnoreCase(text(modelResources.defaultChatModel()).trim())
-                ? chatModel : chatModelFactory.create(modelName);
-        return new Prepared(action, modelName, selectedModel, modelPrompt, selection, appliedSkills);
+        return new Prepared(action, modelName, modelPrompt, selection, appliedSkills);
     }
 
-    private record Prepared(String action, String modelName, ChatModel model, String prompt, String selection,
+    private record Prepared(String action, String modelName, String prompt, String selection,
                             List<DomainSkillRuntimePort.DomainSkillContent> skills) { }
 
     private List<DomainSkillRuntimePort.DomainSkillContent> resolveSkills(String tenantId, String userId,

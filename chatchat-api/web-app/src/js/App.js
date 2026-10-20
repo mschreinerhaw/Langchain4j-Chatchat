@@ -383,6 +383,7 @@ export default {
         setWorkspaceContext({ tenantId: this.tenantId, userId: identity, workspaceId: id, configVersion: manifest.configVersion });
         this.setHashRoute(`w/${id}/${selected}`);
         saveWorkspacePreferences({ lastWorkspaceId: id }).catch(() => {});
+        if(from!==id)this.loadConversationHistory?.({suppressError:true});
       } catch (error) {
         if (serial === this.workspaceNavigationSerial) {
           this.workspaceError = errorMessage(error, "工作空间切换失败");

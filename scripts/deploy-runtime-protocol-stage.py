@@ -41,6 +41,7 @@ def web_hashes(path):
 
 
 def main():
+    studio=len(sys.argv)>4 and sys.argv[4]=='studio'
     service = sys.argv[2] if len(sys.argv) > 2 else 'api'
     if service not in {'api', 'mcp'}:
         raise RuntimeError('Unexpected service')
@@ -52,7 +53,9 @@ def main():
     current = before[PROJECT + '-' + service + '-1']
     original = EVIDENCE / ('pre-deploy.jar' if service == 'api' else 'mcp-pre-deploy.jar')
     run('docker', 'cp', PROJECT + '-' + service + '-1:/srv/app/app.jar', str(original))
-    if not web_hashes(jar) or web_hashes(jar) != web_hashes(original):
+    expected_web=json.loads((EVIDENCE/'web-files.json').read_text()) if studio else web_hashes(original)
+    actual_web=web_hashes(jar)
+    if not actual_web or any(actual_web.get(key)!=value for key,value in expected_web.items()) or (not studio and actual_web!=expected_web):
         raise RuntimeError('Deployed UI must be preserved byte for byte')
     active = run('docker', 'exec', '-u', 'postgres', 'postgres', 'psql', '-At', '-d', 'runtime_os_acceptance_api', '-c',
                  "SELECT count(*) FROM agent_task_latest WHERE canonical_state IS NULL OR canonical_state NOT IN ('SUCCEEDED','PARTIAL','FAILED','CANCELLED','REJECTED')")
@@ -62,7 +65,8 @@ def main():
     context = EVIDENCE / ('image-context' if service == 'api' else 'mcp-image-context')
     context.mkdir(exist_ok=True)
     shutil.copy2(jar, context / 'app.jar')
-    (context / 'Dockerfile').write_text('FROM ' + current['Config']['Image'] + '\nCOPY app.jar /srv/app/app.jar\n')
+    base='runtime-os-api:studio-parser-sqlglot-30.23.0' if studio else current['Config']['Image']
+    (context / 'Dockerfile').write_text('FROM ' + base + '\nCOPY app.jar /srv/app/app.jar\n')
     run('docker', 'build', '--network=none', '-t', tag, str(context))
     backup = EVIDENCE / ('backup-' + str(int(time.time())))
     backup.mkdir(mode=0o700)
@@ -75,6 +79,14 @@ def main():
     image_key = service.upper() + '_IMAGE='
     try:
         paths[0].write_text(json.dumps(config, indent=2))
+        if studio:
+            environment=config['services'][service].setdefault('environment',{})
+            if not isinstance(environment,dict):raise RuntimeError('Expected structured stage environment')
+            settings=json.loads(environment.get('SPRING_APPLICATION_JSON','{}'))
+            settings['chatchat.coding.workspace.enabled']=True
+            settings['chatchat.coding.workspace.sqlglot-python']='/usr/bin/python3'
+            environment['SPRING_APPLICATION_JSON']=json.dumps(settings)
+            paths[0].write_text(json.dumps(config,indent=2))
         env = [line for line in paths[1].read_text().splitlines() if not line.startswith(image_key)]
         paths[1].write_text('\n'.join(env + [image_key + tag]) + '\n')
         compose('up', '-d', '--no-deps', '--force-recreate', service)
@@ -120,7 +132,7 @@ def main():
         if any(after.get(name, {}).get('Id') != item['Id'] for name, item in before.items() if name not in changed):
             raise RuntimeError('Unrelated container changed')
         report = {'status': 'DEPLOYED', 'image': tag, 'jarSha256': digest, 'backup': str(backup),
-                  'webUnchanged': True, 'unrelatedContainersUnchanged': True, 'gatewayReloadedInPlace': True}
+                  'webUnchanged': not studio,'studioWebVerified':studio, 'unrelatedContainersUnchanged': True, 'gatewayReloadedInPlace': True}
         (EVIDENCE / ('deployment.json' if service == 'api' else 'mcp-deployment.json')).write_text(json.dumps(report, indent=2))
         print(json.dumps(report), flush=True)
     except Exception:

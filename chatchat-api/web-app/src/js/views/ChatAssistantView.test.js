@@ -6,6 +6,15 @@ vi.mock("../../services/api", async (importOriginal) => ({
 }));
 afterEach(() => vi.resetAllMocks());
 
+it('does not resume a Studio Coding history item through the Agent task endpoint', () => {
+  const context={loading:false,runningContexts:{}};
+  ChatAssistantView.methods.resumeRestoredConversationRun.call(context,{id:'session'},[
+    {role:'assistant',taskId:'coding-task',status:'running',memoryContext:{taskOrigin:'studio-coding'}}]);
+  expect(context.loading).toBe(false);
+  expect(context.runningContexts).toEqual({});
+  expect(apiRequest).not.toHaveBeenCalled();
+});
+
 import ChatAssistantView, {
   collapseDuplicateAssistantResults,
   finalizeExecutionUi,

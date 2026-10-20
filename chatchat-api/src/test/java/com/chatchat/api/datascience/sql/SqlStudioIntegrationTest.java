@@ -55,7 +55,12 @@ class SqlStudioIntegrationTest {
     @MockBean SqlStudioMetadataGateway metadataGateway;
     @MockBean com.chatchat.api.datascience.StudioCodePlanService codePlans;
     String token, tenant;
+    com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService codingFixture;
+
     @BeforeEach void setup() {
+        codingFixture=mock(com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService.class);
+        studio.setCoding(codingFixture);
+
         when(codePlans.create(any(),any(),eq("sql"),any(),any(),any())).thenReturn(new com.chatchat.api.datascience.StudioCodePlanService.Ticket("studio-code-test",null,"READY"));
         when(codePlans.context(any())).thenReturn("\nAccepted code InterpretationPlan before exploration");
         when(license.workspaceEntitlement()).thenReturn(new com.chatchat.common.mcp.license.McpLicenseEntitlementPort.WorkspaceEntitlement(true,Set.of("zhice","data-science"),"VALID"));
@@ -74,6 +79,20 @@ class SqlStudioIntegrationTest {
             .andExpect(status().isOk()).andReturn());
     }
     String run(String id,JsonNode prepared,List<Map<String,String>> files) throws Exception {
+        if("SQL_WORKSPACE_V2".equals(prepared.path("taskRequest").path("toolInput").path("codingWorkspaceProfile").asText())) {
+            String task="sql-coding-"+prepared.path("generationId").asText();
+            var outcome=mock(com.chatchat.common.runtime.coding.CodingTaskOutcome.class);
+            when(outcome.taskId()).thenReturn(task);when(outcome.status()).thenReturn(com.chatchat.common.runtime.coding.CodingTaskOutcome.Status.COMPLETED);
+            when(outcome.createdAt()).thenReturn(java.time.Instant.now());when(outcome.updatedAt()).thenReturn(java.time.Instant.now());
+            when(outcome.endedAt()).thenReturn(java.time.Instant.now());
+            when(codingFixture.submit(any(),eq(task),anyString(),anyString(),nullable(String.class),anyMap())).thenReturn(outcome);
+            when(codingFixture.get(any(),eq(task))).thenReturn(outcome);when(codingFixture.events(any(),eq(task))).thenReturn(List.of());
+            when(codingFixture.output(any(),eq(task),eq(outcome))).thenReturn(Map.of("files",files,"notes","SQL analysis and assumptions",
+                "validation",Map.of("fieldValidation","NOT_EVALUATED")));
+            mvc.perform(post(ROOT+"/"+id+"/generations/"+prepared.path("generationId").asText()+"/coding")
+                .header("Authorization","Bearer "+token)).andExpect(status().isOk());
+            return task;
+        }
         String answer=json(Map.of("schemaVersion","sql-studio.output.v1","files",files,"notes","SQL analysis and assumptions"));
         doAnswer(call -> InteractionResponse.builder()
             .conversationId(call.getArgument(0,com.chatchat.chat.interaction.model.InteractionRequest.class).getConversationId()).answer(answer).mode("agent_chat").build()).when(orchestration).chat(any());
@@ -95,7 +114,7 @@ class SqlStudioIntegrationTest {
         String p=project(); var mapping=save(p,"mapping/customer.json","MAPPING","{\"source\":\"stg_customer\",\"target\":\"dim_customer\"}",0);
         var prepared=prepare(p,List.of(mapping.path("id").asText()),List.of());
         String task=run(p,prepared,List.of(Map.of("path","sql/customer.sql","content","INSERT OVERWRITE TABLE dim_customer SELECT * FROM stg_customer;")));
-        var view=result(p,prepared); assertThat(view.path("files").size()).isEqualTo(1); assertThat(view.path("validation").asText()).isEqualTo("NOT_RUN");
+        var view=result(p,prepared); assertThat(view.path("files").size()).isEqualTo(1); assertThat(view.path("validation").asText()).contains("PARSED","SQL_NOT_EXECUTED");
         assertThat(jdbc.queryForObject("select count(*) from ds_sql_file where project_id=? and kind='SQL'",Integer.class,p)).isZero();
         var saved=data(mvc.perform(post(applyUrl(p,prepared)).header("Authorization","Bearer "+token).contentType("application/json").content("{\"paths\":[\"sql/customer.sql\"]}")).andExpect(status().isOk()).andReturn()).get(0);
         assertThat(saved.path("sourceTaskId").asText()).isEqualTo(task);
@@ -222,7 +241,7 @@ class SqlStudioIntegrationTest {
         String task=run(p,prepared,List.of(Map.of("path","sql/a.sql","content","SELECT 1;")));
         mvc.perform(put("/api/v1/workspaces/preferences").header("Authorization","Bearer "+token).contentType("application/json").content("{\"lastWorkspaceId\":\"zhice\"}")).andExpect(status().isOk());
         mvc.perform(get(ROOT+"/"+p+"/generations/"+prepared.path("generationId").asText()).header("Authorization","Bearer "+token).header("X-Workspace-Id","zhice")).andExpect(status().isOk()).andExpect(jsonPath("$.data.task.taskId").value(task));
-        assertThat(tasks.findById(task).orElseThrow().getSessionId()).isEqualTo(prepared.path("taskRequest").path("sessionId").asText());
+        assertThat(result(p,prepared).path("task").path("sessionId").asText()).isEqualTo(prepared.path("taskRequest").path("sessionId").asText());
     }
     @Test void additiveMigrationIsRepeatableAndLeavesCustomWorkspaceConfigurationIntact() throws Exception {
         String original=jdbc.queryForObject("select manifest_json from workspace_registry where id='data-science'",String.class);
@@ -243,7 +262,7 @@ class SqlStudioIntegrationTest {
         String originalToken=token;token=otherUser(true);
         try {
             String other=project();var own=save(other,"mapping/a.txt","MAPPING","c to d",0);var context=prepare(other,List.of(own.path("id").asText()),List.of());
-            mvc.perform(put(ROOT+"/"+other+"/generations/"+context.path("generationId").asText()+"/task").header("Authorization","Bearer "+token).contentType("application/json").content(json(Map.of("taskId",task)))).andExpect(status().isForbidden());
+            mvc.perform(put(ROOT+"/"+other+"/generations/"+context.path("generationId").asText()+"/task").header("Authorization","Bearer "+token).contentType("application/json").content(json(Map.of("taskId",task)))).andExpect(status().isBadRequest());
             mvc.perform(get(ROOT+"/"+p+"/generations/"+prepared.path("generationId").asText()).header("Authorization","Bearer "+token)).andExpect(status().isForbidden());
             mvc.perform(post(applyUrl(p,prepared)).header("Authorization","Bearer "+token).contentType("application/json").content("{\"paths\":[\"sql/a.sql\"]}")).andExpect(status().isForbidden());
         } finally {token=originalToken;}
@@ -461,17 +480,39 @@ class SqlStudioIntegrationTest {
         assertThat(result(p,first).path("task").path("taskId").asText()).isEqualTo(task);
         assertThat(result(p,first).path("files").get(0).path("path").asText()).isEqualTo("sql/first.sql");
     }
-    @Test void modelOnlyGenerationsUseNativeToolFreeRuntimeEntry() throws Exception {
+    @Test void modelOnlyGenerationsAreDeliveredToClineWithoutRuntimeTools() throws Exception {
         String p=project(); var mapping=save(p,"mapping/a.txt","MAPPING","source target",0);
         var defaultRequest=prepare(p,List.of(mapping.path("id").asText()),List.of()).path("taskRequest");
         assertThat(defaultRequest.path("mode").asText()).isEqualTo("llm_chat");
+        assertThat(defaultRequest.path("toolInput").path("codingWorkspaceProfile").asText()).isEqualTo("SQL_WORKSPACE_V2");
         assertThat(defaultRequest.path("systemPrompt").asText()).contains("sql-studio.output.v1", "untrusted");
-        for (String selected : List.of("modelName", "agentId")) {
+        for (String selected : List.of("modelName")) {
             var prepared=data(mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token).contentType("application/json")
                 .content(json(Map.of("prompt","Generate", "dialect","spark", "mappingIds",List.of(mapping.path("id").asText()),
                     "referenceIds",List.of(),selected,"chosen")))).andExpect(status().isOk()).andReturn());
             assertThat(prepared.path("taskRequest").path("mode").asText()).isEqualTo(selected.equals("modelName") ? "llm_chat" : "agent_chat");
             assertThat(prepared.path("taskRequest").path(selected).asText()).isEqualTo("chosen");
         }
+    }
+    @Test void agentModeStillUsesClineAndInheritsTheAuthorizedAgentModel() throws Exception {
+        var skill=mock(com.chatchat.chat.skills.model.SkillDefinition.class);
+        when(skill.modelName()).thenReturn("configured-agent-model");when(catalog.resolve("chosen")).thenReturn(skill);
+        String p=project();
+        for(String action:List.of("generate","fix","optimize")) {
+            var prepared=data(mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token)
+                .contentType("application/json").content(json(Map.of("prompt","Modify authorized source","dialect","spark",
+                    "action",action,"agentId","chosen")))).andExpect(status().isOk()).andReturn());
+            assertThat(prepared.path("taskRequest").path("modelName").asText()).isEqualTo("configured-agent-model");
+            assertThat(prepared.path("taskRequest").path("toolInput").path("codingWorkspaceProfile").asText()).isEqualTo("SQL_WORKSPACE_V2");
+        }
+        verifyNoInteractions(orchestration);
+    }
+    @Test void missingClineCannotSilentlySelectLegacyGeneration() throws Exception {
+        String p=project();studio.setCoding(null);
+        mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token)
+            .contentType("application/json").content(json(Map.of("prompt","Generate source","dialect","mysql"))))
+            .andExpect(status().isBadRequest());
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_generation where project_id=?",Integer.class,p)).isZero();
+        verifyNoInteractions(orchestration,codePlans);
     }
 }

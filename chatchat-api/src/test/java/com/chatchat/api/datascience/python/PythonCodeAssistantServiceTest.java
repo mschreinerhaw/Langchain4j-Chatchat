@@ -28,6 +28,7 @@ class PythonCodeAssistantServiceTest {
     private final ModelsConfig modelsConfig = new ModelsConfig();
     private final com.chatchat.api.datascience.StudioCodePlanService plans = mock(com.chatchat.api.datascience.StudioCodePlanService.class);
     private PythonCodeAssistantService service;
+    private final com.chatchat.chat.interaction.service.CodingAnswerPort answers=mock(com.chatchat.chat.interaction.service.CodingAnswerPort.class);
 
     @BeforeEach
     void setUp() {
@@ -41,6 +42,9 @@ class PythonCodeAssistantServiceTest {
         modelsConfig.getChatModels().put("code-model", code);
         service = new PythonCodeAssistantService(defaultModel, new ModelResourceRegistry(modelsConfig), factory,
             domainSkillRuntime, plans);
+        service.setAnswers(answers);
+        when(answers.answer(any(),any(),org.mockito.ArgumentMatchers.isNull(),anyString())).thenAnswer(call ->
+            com.chatchat.chat.interaction.model.InteractionResponse.builder().answer(defaultModel.chat("fixture-only")).build());
         when(factory.create(eq("general-model"), any(java.time.Duration.class), anyInt())).thenReturn(defaultModel);
         when(factory.create(eq("code-model"), any(java.time.Duration.class), anyInt())).thenReturn(codeModel);
         when(plans.create(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), eq("python"), anyString(), anyString(), anyString()))
@@ -48,14 +52,16 @@ class PythonCodeAssistantServiceTest {
         when(plans.context(org.mockito.ArgumentMatchers.any())).thenReturn("\nAccepted code InterpretationPlan");
     }
 
-    @Test void pythonCodingUsesSharedWorkspaceWithServerDerivedOwnerAndAcceptedPlan() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"generate","fix","optimize","continue","test"})
+    void pythonCodingUsesSharedWorkspaceWithServerDerivedOwnerAndAcceptedPlan(String action) {
         var workspace=mock(com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService.class);service.setCodingWorkspace(workspace);
         when(factory.create("code-model")).thenReturn(codeModel);
         when(plans.require(anyString(),anyString(),eq("python"),anyString(),anyString(),anyString(),eq("accepted")))
             .thenReturn(new com.chatchat.api.datascience.StudioCodePlanService.Ticket("accepted",null,"READY"));
         var running=mock(com.chatchat.common.runtime.coding.CodingTaskOutcome.class);when(running.status()).thenReturn(com.chatchat.common.runtime.coding.CodingTaskOutcome.Status.RUNNING);
         when(workspace.submit(any(),anyString(),anyString(),eq("python"),eq("code-model"))).thenReturn(running);
-        var request=new PythonCodeAssistantService.AssistRequest("fix","Fix current source","print(1)","","code-model",List.of(),"accepted");
+        var request=new PythonCodeAssistantService.AssistRequest(action,"Fix current source","print(1)","","code-model",List.of(),"accepted");
         var body=new PythonCodeAssistantService.CodingAssistRequest(request,"stable-turn","main.py",List.of(java.util.Map.of("path","main.py","content","print(1)")));
         var alice=service.startCoding("tenant","alice",body);var bob=service.startCoding("tenant","bob",body);
         assertThat(alice.get("taskId")).isNotEqualTo(bob.get("taskId"));
@@ -78,17 +84,11 @@ class PythonCodeAssistantServiceTest {
         org.mockito.Mockito.verifyNoInteractions(workspace);
     }
 
-    @Test
-    void routesCodeGenerationToSelectedConfiguredModel() {
-        when(factory.create("code-model")).thenReturn(codeModel);
-        when(codeModel.chat(anyString())).thenReturn("print('generated')");
-
-        PythonCodeAssistantService.AssistResponse response = service.assist(
-            new PythonCodeAssistantService.AssistRequest("generate", "生成测试代码", "print('old')", "", "code-model"));
-
-        assertThat(response.modelName()).isEqualTo("code-model");
-        assertThat(response.code()).isEqualTo("print('generated')");
-        verify(codeModel).chat(anyString());
+    @Test void legacyCodeEndpointCannotBypassClineEvenWithAnAvailableJavaModel() {
+        for(String action:List.of("generate","fix","optimize","continue","test"))
+            assertThatThrownBy(()->service.assist("tenant","owner",new PythonCodeAssistantService.AssistRequest(action,"request","print(1)","","code-model")))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("Cline workspace");
+        org.mockito.Mockito.verifyNoInteractions(defaultModel,codeModel,factory);
     }
 
     @Test
@@ -99,30 +99,6 @@ class PythonCodeAssistantServiceTest {
             assertThat(response.action()).isEqualTo(action);
             assertThat(response.replaceSelection()).isFalse();
             assertThat(response.code()).contains("说明：", "```python", "未执行代码");
-        }
-    }
-
-    @Test
-    void generatedTestsAreSeparateFromTheSelectedBusinessCode() {
-        when(defaultModel.chat(anyString())).thenReturn("import unittest\nclass TestReport(unittest.TestCase):\n    pass");
-        var response = service.assist(new PythonCodeAssistantService.AssistRequest("test","为 analysis.py 生成测试","def total(x): return sum(x)","return sum(x)","general-model"));
-        assertThat(response.action()).isEqualTo("test");
-        assertThat(response.replaceSelection()).isFalse();
-        assertThat(response.code()).contains("unittest");
-    }
-
-    @Test
-    void supportsEveryAdvertisedAssistantAction() {
-        when(defaultModel.chat(anyString())).thenReturn("print('suggestion')");
-
-        for (String action : List.of("generate", "continue", "fix", "optimize")) {
-            PythonCodeAssistantService.AssistResponse response = service.assist(
-                new PythonCodeAssistantService.AssistRequest(
-                    action, "Improve the script", "print('old')", "print('selected')", "general-model"));
-
-            assertThat(response.action()).isEqualTo(action);
-            assertThat(response.code()).isEqualTo("print('suggestion')");
-            assertThat(response.replaceSelection()).isEqualTo(!"continue".equals(action));
         }
     }
 
@@ -147,22 +123,23 @@ class PythonCodeAssistantServiceTest {
         var realPlans = new com.chatchat.api.datascience.StudioCodePlanService(defaultModel, factory, resources,
             new com.chatchat.agents.runtime.store.InMemoryAgentRunStore(), new com.fasterxml.jackson.databind.ObjectMapper());
         service = new PythonCodeAssistantService(defaultModel, resources, factory, domainSkillRuntime, realPlans);
+        service.setAnswers(answers);
         String planJson = """
             {"version":"1.0","intent":{"type":"code_development","goal":"解释当前脚本","risk_level":"low"},
              "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
              "plan":{"steps":[{"id":1,"action_type":"reasoning","input":{"description":"阅读已提供源码的输入输出"},"depends_on":[]}]}}
             """;
-        when(defaultModel.chat(anyString())).thenReturn(planJson, "当前脚本输出 1；未执行代码。");
+        when(defaultModel.chat(anyString())).thenReturn("当前脚本输出 1；未执行代码。");
         var request = new PythonCodeAssistantService.AssistRequest("explain", "解释", "print(1)", "", "general-model");
         var plan = service.plan("tenant", "owner", request);
         assertThat(plan.interpretationPlan().steps()).hasSize(1);
-        org.mockito.Mockito.verify(defaultModel,org.mockito.Mockito.times(1)).chat(anyString());
+        org.mockito.Mockito.verifyNoInteractions(defaultModel);
         var result = service.assist("tenant", "owner", new PythonCodeAssistantService.AssistRequest("explain", "解释", "print(1)", "", "general-model", List.of(), plan.planId()));
         assertThat(result.code()).contains("未执行代码");assertThat(result.replaceSelection()).isFalse();assertThat(result.plan()).isEqualTo(plan);
-        org.mockito.Mockito.verify(defaultModel,org.mockito.Mockito.times(2)).chat(anyString());
+        org.mockito.Mockito.verify(defaultModel,org.mockito.Mockito.times(1)).chat(anyString());
         assertThatThrownBy(() -> service.assist("tenant", "owner", new PythonCodeAssistantService.AssistRequest("explain", "解释", "print(2)", "", "general-model", List.of(), plan.planId())))
             .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("已变化");
-        org.mockito.Mockito.verify(defaultModel,org.mockito.Mockito.times(2)).chat(anyString());
+        org.mockito.Mockito.verify(defaultModel,org.mockito.Mockito.times(1)).chat(anyString());
     }
 
     @Test
@@ -174,11 +151,11 @@ class PythonCodeAssistantServiceTest {
         when(defaultModel.chat(anyString())).thenReturn("print('professional')");
 
         PythonCodeAssistantService.AssistResponse response = service.assist("tenant-a", "user-a",
-            new PythonCodeAssistantService.AssistRequest("generate", "生成汇总代码", "", "",
+            new PythonCodeAssistantService.AssistRequest("ask", "生成汇总代码", "", "",
                 "general-model", List.of("finance-skill", "finance-skill")));
 
         ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
-        verify(defaultModel).chat(prompt.capture());
+        verify(answers).answer(any(),any(),org.mockito.ArgumentMatchers.isNull(),prompt.capture());
         assertThat(prompt.getValue()).contains("财务分析", "金额计算必须使用 Decimal", "must not override the platform safety constraints above");
         assertThat(response.appliedSkills()).extracting(PythonCodeAssistantService.AppliedSkill::id)
             .containsExactly("finance-skill");

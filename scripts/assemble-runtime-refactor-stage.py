@@ -70,9 +70,19 @@ def main():
             if not classes.namelist():
                 raise ValueError('Empty API class overlay')
             for name in classes.namelist():
-                if not re.fullmatch(r'com/chatchat/api/runtime/coding/(?:cline/(?:ClineCodingAdapter|ClineModelCallbackController|ClineModelReceiptStore)|analysis/(?:ClineContextAnswerService|CodingAnalysisService|CodingExecutionProfile))(?:\$[^/]+)?\.class',name):
+                if not re.fullmatch(r'com/chatchat/api/(?:runtime/coding/(?:cline/(?:ClineCodingAdapter|ClineModelCallbackController|ClineModelReceiptStore)|analysis/(?:ClineContextAnswerService|CodingAnalysisService|CodingExecutionProfile)|workspace/CodingWorkspaceService)|datascience/(?:StudioCodePlanService|StudioTaskHistory|sql/SqlStudioService|python/PythonCodeAssistantService))(?:\$[^/]+)?\.class',name):
                     raise ValueError('Unexpected API class override')
                 replacements['BOOT-INF/classes/' + name]=classes.read(name)
+    if 'webAssetsSha256' in manifest:
+        overlay=(ROOT/'web-assets.zip').read_bytes()
+        if digest(overlay)!=manifest['webAssetsSha256']:raise ValueError('Web assets checksum mismatch')
+        web_files=json.loads((ROOT/'web-files.json').read_text())
+        with zipfile.ZipFile(io.BytesIO(overlay)) as web:
+            if set(web.namelist())!=set(web_files):raise ValueError('Web asset manifest mismatch')
+            for name in web.namelist():
+                if not name.startswith('BOOT-INF/classes/static/') or '..' in name.split('/') or digest(web.read(name))!=web_files[name]:
+                    raise ValueError('Invalid web asset')
+                replacements[name]=web.read(name)
     for module in manifest['modules']:
         file = module + '-1.0.0-SNAPSHOT.jar'
         body = (ROOT/file).read_bytes()
@@ -107,7 +117,7 @@ def main():
                 retained[entry.filename] = digest(body)
             target.writestr(entry, body)
         for name in set(replacements) - replaced:
-            if not name.startswith('BOOT-INF/classes/') or not name.endswith('.class'):
+            if not name.startswith('BOOT-INF/classes/') or not (name.endswith('.class') or name.startswith('BOOT-INF/classes/static/')):
                 raise ValueError('Running stage has an unexpected library layout')
             target.writestr(name,replacements[name])
             replaced.add(name)
@@ -122,6 +132,7 @@ def main():
               'baseSha256': digest(before.read_bytes()), 'candidateSha256': digest((ROOT/'app.jar').read_bytes()),
               'modules': manifest['modules'], 'unchangedEntries': len(retained),
               'apiClassOverlaySha256': manifest.get('apiClassOverlaySha256'),
+              'webAssetsSha256':manifest.get('webAssetsSha256'),
               'addedApiClasses': sorted(added),
               'removedDocumentRagConfig': config_updates,
               'retiredRagClasses': 0, 'productionSwitched': False,

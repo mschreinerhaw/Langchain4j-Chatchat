@@ -51,6 +51,21 @@ class CodingWorkspaceServiceTest {
         lease=actor(()->tasks.claim(scope,"task","cline-adapter:test",Duration.ofMinutes(2),tasks.get(scope,"task").revision()));
     }
     @AfterEach void close(){timer.shutdownNow();}
+    @Test void projectsDurableHistoryAfterServiceRestartAndDeduplicatesPolling(){
+        var request=new com.chatchat.api.datascience.StudioTaskHistory.Request(null,"sql","Generate source","model",Map.of());
+        service.captureHistory(scope,"task",request);
+        actor(()->service.propose(contract,lease,operation('a'),proposal("SELECT 1;")));
+        actor(()->service.complete(contract,lease,operation('a')));
+        var beans=new DefaultListableBeanFactory();beans.registerSingleton("codingAgent",tasks);
+        var restarted=new CodingWorkspaceService(tasks,identity,evidence,beans.getBeanProvider(CodingAgentSPI.class),
+            new SqlGlotToolchain(System.getProperty("coding.sqlglotPython"),json),json,120);
+        var history=mock(com.chatchat.api.datascience.StudioTaskHistory.class);restarted.setHistory(history);
+        restarted.get(scope,"task");restarted.get(scope,"task");
+        verify(history,times(1)).project(eq(scope),eq("task"),eq(request),any(),argThat(value->value.containsKey("files")),anyList());
+        assertThatThrownBy(()->restarted.captureHistory(scope,"task",
+            new com.chatchat.api.datascience.StudioTaskHistory.Request(null,"sql","Different source","model",Map.of())))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
     String operation(char suffix){return "workspace-"+String.valueOf(suffix).repeat(64);}
     Map<String,Object> proposal(String source){return Map.of("schemaVersion","sql-studio.output.v1","files",List.of(
         Map.of("path","sql/a.sql","content",source),Map.of("path","etl/b.sql","content","SELECT 2;")),"notes","Preserved unrelated files");}

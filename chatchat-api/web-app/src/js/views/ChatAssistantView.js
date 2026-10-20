@@ -152,7 +152,7 @@ export function normalizeMessages(messages, status = "") {
       ].includes(rawMessageStatus);
       const responseFailed = message.role === "assistant"
         && String((message.uiResponse || message.metadata?.uiResponse)?.status || "").toUpperCase() === "FAILED";
-      const streaming = !responseFailed && !waitingConfirmation && !conversationTerminal
+      const streaming = message.memoryContext?.taskOrigin !== 'studio-coding' && !responseFailed && !waitingConfirmation && !conversationTerminal
         && (!!message.streaming || message.status === "streaming" || message.status === "running");
       const messageStatus = responseFailed ? "failed" : waitingConfirmation
         ? "waiting"
@@ -172,6 +172,7 @@ export function normalizeMessages(messages, status = "") {
         visualizationSpec: waitingConfirmation ? null : normalizeMessageVisualization(message),
         uiResponse: waitingConfirmation ? null : (message.uiResponse || message.metadata?.uiResponse || null),
         evidencePremises: waitingConfirmation ? [] : firstArray(message.evidencePremises, message.metadata?.evidencePremises),
+        memoryContext: message.memoryContext || null,
         agentName: message.agentName || message.metadata?.agentName || "",
         modelName: message.modelName || message.model || message.metadata?.modelName || "",
         analysisNodeId: message.analysisNodeId || message.metadata?.analysisNodeId || "",
@@ -3535,6 +3536,9 @@ export default {
       if (!assistantMessage) {
         return;
       }
+      // Studio history is a projection of its own durable Coding task. The Agent
+      // task polling endpoint cannot resume it or create a second generation.
+      if (assistantMessage.memoryContext?.taskOrigin === 'studio-coding') return;
       const runContext = {
         runId: uid(),
         historyId: conversation.id || this.historyId,

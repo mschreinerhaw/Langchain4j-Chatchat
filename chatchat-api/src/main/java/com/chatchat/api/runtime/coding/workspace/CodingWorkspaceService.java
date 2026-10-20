@@ -24,6 +24,9 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(prefix="chatchat.coding",name="enabled",havingValue="true")
 @ConditionalOnProperty(prefix="chatchat.coding.cline",name="enabled",havingValue="true")
 public final class CodingWorkspaceService {
+    private com.chatchat.api.datascience.StudioTaskHistory history;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setHistory(com.chatchat.api.datascience.StudioTaskHistory value){history=value;}
     public static final String INPUT_TYPE="CODING_WORKSPACE_INPUT";
     private final DurableCodingTaskService tasks;
     private final CodingInvocationContext identity;
@@ -87,19 +90,23 @@ public final class CodingWorkspaceService {
                 if(!evidence.compareAndSetExecutionCheckpoint(scope,key,null,encoded))
                     contract=decode(evidence.readExecutionCheckpoint(scope,key).orElseThrow(),CodingTaskContract.class);
             }
-            return agents.getObject().submit(contract);
+            var admitted=agents.getObject().submit(contract);
+            projectHistory(scope,task,admitted);
+            return admitted;
         });
     }
     public CodingTaskOutcome get(KernelDataScope scope,String task){
         return identity.as(scope,EnumSet.allOf(CodingTaskAccess.Action.class),()->{
             var agent=agents.getObject();var current=agent.get(scope,task);
             if(!current.status().terminal() && !Instant.now().isBefore(tasks.contract(scope,task).budget().deadlineAt()))
-                return agent.resume(scope,task);
+                current=agent.resume(scope,task);
+            projectHistory(scope,task,current);
             return current;
         });
     }
     public CodingTaskOutcome cancel(KernelDataScope scope,String task){
-        return identity.as(scope,EnumSet.allOf(CodingTaskAccess.Action.class),()->agents.getObject().cancel(scope,task,"SQL Studio user cancelled"));
+        return identity.as(scope,EnumSet.allOf(CodingTaskAccess.Action.class),()->{
+            var result=agents.getObject().cancel(scope,task,"Studio user cancelled");projectHistory(scope,task,result);return result;});
     }
     public CodingTaskOutcome resume(KernelDataScope scope,String task){
         return identity.as(scope,EnumSet.allOf(CodingTaskAccess.Action.class),()->agents.getObject().resume(scope,task));
@@ -246,7 +253,32 @@ public final class CodingWorkspaceService {
             (String)response.get("codeArtifactRef"),(String)response.get("executionReceiptRef"),(String)response.get("resultDatasetRef"),
             (String)response.get("validationRecordRef"),bundle,CodingTaskOutcome.ValidationStatus.INCONCLUSIVE,
             current.reproducibility(),current.usage(),new CodingTaskOutcome.ExecutionControl(null,null,true,false),null,null,Map.of());
-        return tasks.commitOutcome(contract.scope(),contract.taskId(),lease,current.revision(),next);
+        var committed=tasks.commitOutcome(contract.scope(),contract.taskId(),lease,current.revision(),next);
+        projectHistory(contract.scope(),contract.taskId(),committed);
+        return committed;
+    }
+    public void captureHistory(KernelDataScope scope,String task,com.chatchat.api.datascience.StudioTaskHistory.Request request){
+        identity.as(scope,EnumSet.allOf(CodingTaskAccess.Action.class),()->{
+            String key="coding:workspace-history:"+task, value=encode(request);
+            boolean created=evidence.compareAndSetExecutionCheckpoint(scope,key,null,value);
+            if(!created && !value.equals(evidence.readExecutionCheckpoint(scope,key).orElseThrow()))
+                throw new IllegalArgumentException("Studio history request identity conflict");
+            return null;
+        });
+    }
+    private synchronized void projectHistory(KernelDataScope scope,String task,CodingTaskOutcome outcome){
+        if(history==null)return;
+        String projectedKey="coding:workspace-history-revision:"+task;
+        var projected=evidence.readExecutionCheckpoint(scope,projectedKey);
+        if(projected.isPresent() && Long.parseLong(projected.get())>=outcome.revision())return;
+        evidence.readExecutionCheckpoint(scope,"coding:workspace-history:"+task).ifPresent(saved->{
+            var request=decode(saved,com.chatchat.api.datascience.StudioTaskHistory.Request.class);
+            Map<String,Object> output=outcome.status()==CodingTaskOutcome.Status.COMPLETED?output(scope,task,outcome):Map.of();
+            var trace=events(scope,task).stream().map(event->Map.<String,Object>of("type",event.type().name(),
+                "status",event.status().name(),"summary",Objects.toString(event.summary(),""),"sequence",event.sequence())).toList();
+            history.project(scope,task,request,outcome,output,trace);
+            evidence.mutateExecutionCheckpoint(scope,projectedKey,ignored->Long.toString(outcome.revision()));
+        });
     }
     public CodingTaskOutcome recover(CodingTaskContract contract,CodingJournal.Lease lease){
         var latest=evidence.readExecutionCheckpoint(contract.scope(),latestKey(contract));

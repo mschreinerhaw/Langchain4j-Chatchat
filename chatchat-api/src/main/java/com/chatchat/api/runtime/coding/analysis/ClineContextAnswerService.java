@@ -36,12 +36,13 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
         InteractionExecution.checkCancellation(request);
         var internal = request.getToolInput() == null ? Map.<String,Object>of() : request.getToolInput();
         Object run = internal.get("__agentRunId");
-        if (!(run instanceof String runId) || runId.isBlank())
-            throw new SecurityException("Authenticated task run is required for Coding answers");
+        String runId = run instanceof String value && !value.isBlank() ? value : context.requestId();
+        if (runId == null || runId.isBlank())
+            throw new SecurityException("Authenticated Runtime request is required for Coding answers");
         for (String value : new String[]{request.getTenantId(), request.getUserId(), context.requestId()})
             if (value == null || value.isBlank() || Set.of("default", "anonymous", "unknown-request").contains(value))
                 throw new SecurityException("Authenticated request identity is required for Coding answers");
-        String alias = agent.modelName() == null || agent.modelName().isBlank() ? request.getModelName() : agent.modelName();
+        String alias = agent == null || agent.modelName() == null || agent.modelName().isBlank() ? request.getModelName() : agent.modelName();
         var model = models.resolveChatModel(alias);
         var attrs = new LinkedHashMap<String,Object>();
         attrs.put("checkpointModelConfig", models.checkpointModelConfiguration(alias, model));
@@ -59,22 +60,29 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
         var input = new LinkedHashMap<String,Object>();
         input.put("question", Objects.toString(request.getQuery(), ""));
         input.put("history", context.history() == null ? List.of() : context.history().stream()
-            .skip(Math.max(0, context.history().size() - 8))
-            .map(message -> Map.of("role", message.role(), "content", message.content())).toList());
+            .skip(Math.max(0, context.history().size() - 8)).filter(Objects::nonNull)
+            .map(message -> Map.of("role", Objects.toString(message.role(),""), "content", Objects.toString(message.content(),""))).toList());
         input.put("conversationSummary", Objects.toString(context.conversationSummary(), ""));
-        input.put("maintainedInstructions", Objects.toString(agent.systemPrompt(), ""));
+        input.put("conversationEvidence", Objects.toString(context.conversationEvidence(), ""));
+        input.put("historicalContextIsCurrentEvidence", false);
+        input.put("maintainedInstructions", agent == null ? "" : Objects.toString(agent.systemPrompt(), ""));
         input.put("requestInstructions", Objects.toString(request.getSystemPrompt(), ""));
         input.put("suppliedContext", Objects.toString(suppliedContext, ""));
         String reference = "runtime-context:" + runId;
         var sources = new LinkedHashMap<String,Dataset>();
         sources.put(reference, new Dataset(reference, Map.of("recordMeaning", "SUPPLIED_CONTEXT_NOT_OBSERVATIONS",
-            "externalDataAcquired", false), List.of(input)));
+            "currentBusinessDataAcquired", false), List.of(input)));
         String instruction;
         try {
             instruction = "Answer the supplied user objective as the configured assistant. You own all reasoning, design, "
                 + "code generation and review. The input is conversation/instructions, NOT measured business data. "
-                + "No business templates, databases or external tools have been executed. Do not claim otherwise. "
+                + "This context-only route executes no business templates or database operations. Supplied metadata and documents "
+                + "are declarations, not current business measurements; do not claim otherwise. "
                 + "Use general knowledge and authorized context; state assumptions and unavailable evidence explicitly. "
+                + "For designs, declare the exact row grain, dimensions and units, and verify that candidate/unique keys match that grain. "
+                + "Distinguish proposed example codes and defaults from verified standards. Review formulas against their declared scope, "
+                + "units and missing components; a sum over a partial population is not a complete aggregate. State zero-denominator and "
+                + "unknown-value rules when applicable. Repair unsupported claims or inconsistent definitions during your own result review. "
                 + "For source-code or schema designs, provide the requested complete code and explanations in reportMarkdown; "
                 + "these are proposals, never execute them against external resources. Python only serializes/checks the report. "
                 + "Produce exactly one JSONL report row with reportMarkdown, evidenceReferences and limitations. "
@@ -90,7 +98,7 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
                     throw new SecurityException("Context run identity conflict");
             } else runs.start(AgentRunRequest.builder().runId(runId).tenantId(request.getTenantId())
                 .userId(request.getUserId()).requestId(context.requestId()).conversationId(context.conversationId())
-                .query(request.getQuery()).skillId(agent.id()).modelName(alias)
+                .query(request.getQuery()).skillId(agent == null ? request.getSkillId() : agent.id()).modelName(alias)
                 .attributes(Map.of("workflowFamily", "DIRECT_ANSWER", "codingOwnedAnalysisActive", true)).build());
             var receipt = coding.executeObserved(invocation, Map.of("operation", "RUN_CODING",
                 "requestId", "context-answer-v1", "datasetReference", reference, "instruction", instruction,
@@ -112,7 +120,7 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
                 "inputKind", "SUPPLIED_CONTEXT", "modelCalls", 0, "resultAdmissionScope", "STRUCTURE_AND_AUTHORIZED_REFERENCES");
             runs.recordObservation(runId, new AgentObservation("final_summary", "runtime", "Published Coding context report", publication));
             var responseMetadata = Map.<String,Object>of("handler", "ClineContextAnswerService", "workflow", "coding_owned_context_answer",
-                    "javaAnalysisModelCalls", 0, "codingReceipt", receipt, "externalDataAcquired", false,
+                    "javaAnalysisModelCalls", 0, "codingReceipt", receipt, "currentBusinessDataAcquired", false,
                     WorkflowOutcome.METADATA_KEY, new WorkflowOutcome(WorkflowOutcome.Type.READY_TO_ANSWER,
                         "CODING_CONTEXT_ANSWER_COMPLETED", List.of(), List.of(), true));
             runs.complete(runId, AgentRunResult.builder().runId(runId).answer(report).metadata(responseMetadata).build());

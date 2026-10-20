@@ -35,9 +35,10 @@ class ClineContextAnswerServiceTest {
             assertThat(invocation.isolationScope().tenantId()).isEqualTo("tenant");
             assertThat(invocation.isolationScope().runId()).isEqualTo("run");
             assertThat(invocation.model()).isSameAs(model);
-            assertThat(task.get("instruction").toString()).contains("NOT measured business data", "never execute", "Design a generic table");
+            assertThat(task.get("instruction").toString()).contains("NOT measured business data", "never execute", "Design a generic table",
+                "keys match that grain", "proposed example codes and defaults from verified standards");
             assertThat(task).containsEntry("reviewResult", true);
-            assertThat(sources.get("runtime-context:run").analysisContext()).containsEntry("externalDataAcquired", false);
+            assertThat(sources.get("runtime-context:run").analysisContext()).containsEntry("currentBusinessDataAcquired", false);
             var rows = new ArrayList<Map<String,Object>>();
             for (int i = 0; i < count; i++) rows.add(Map.of("reportMarkdown", report, "evidenceReferences", refs, "limitations", List.of()));
             sources.put("result", new Dataset("result", Map.of(), rows));
@@ -48,13 +49,28 @@ class ClineContextAnswerServiceTest {
         result("Complete proposal\n```sql\nCREATE TABLE example(id bigint);\n```", List.of("runtime-context:run"), 1);
         var response = service.answer(request(), context, skill, "authorized context");
         assertThat(response.getAnswer()).contains("CREATE TABLE example");
-        assertThat(response.getMetadata()).containsEntry("javaAnalysisModelCalls", 0).containsEntry("externalDataAcquired", false);
+        assertThat(response.getMetadata()).containsEntry("javaAnalysisModelCalls", 0).containsEntry("currentBusinessDataAcquired", false);
         verifyNoInteractions(model);
     }
     @Test void missingRuntimeIdentityCannotCreateAChild() {
         assertThatThrownBy(() -> service.answer(InteractionRequest.builder().query("Design").build(), context, skill, ""))
             .isInstanceOf(SecurityException.class);
         verifyNoInteractions(coding, models, model);
+    }
+    @Test void plainModelChatRetainsTheRequestedModelWithoutAnAgent() {
+        result("JSON proposal",List.of("runtime-context:run"),1);
+        var request = request(); request.setModelName("chosen");
+        when(models.resolveChatModel("chosen")).thenReturn(model);
+        when(models.checkpointModelConfiguration("chosen",model)).thenReturn(Map.of("selectedModel","chosen"));
+        assertThat(service.answer(request,context,null,"").getAnswer()).isEqualTo("JSON proposal");
+        verify(models).resolveChatModel("chosen");
+        verifyNoInteractions(model);
+    }
+    @Test void authenticatedInteractiveRequestsUseTheServerGeneratedRequestIdentity() {
+        result("proposal",List.of("runtime-context:run"),1);
+        var request=request(); request.setToolInput(Map.of());
+        assertThat(service.answer(request,context.toBuilder().requestId("run").build(),skill,"").getAnswer()).isEqualTo("proposal");
+        verify(runs).start(argThat(run -> run.getRunId().equals("run") && run.getUserId().equals("user")));
     }
     @Test void foreignCitationIsRejectedWithoutSemanticModelReview() {
         result("report", List.of("other-run"), 1);

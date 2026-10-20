@@ -1,45 +1,50 @@
 package com.chatchat.chat.interaction.service.handler;
 
-import com.chatchat.agents.model.ConfigurableChatModelFactory;
-import com.chatchat.chat.interaction.model.InteractionContext;
-import com.chatchat.chat.interaction.model.InteractionRequest;
-import dev.langchain4j.model.chat.ChatModel;
-import org.junit.jupiter.api.Test;
-import java.util.List;
-import java.util.Map;
+import com.chatchat.chat.interaction.model.*;
+import com.chatchat.chat.interaction.service.CodingAnswerPort;
+import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
+import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class LlmChatModeHandlerTest {
-    private final ChatModel defaultModel = mock(ChatModel.class);
-    private final ConfigurableChatModelFactory models = mock(ConfigurableChatModelFactory.class);
-    private final LlmChatModeHandler handler = new LlmChatModeHandler(defaultModel, models);
+    private final CodingAnswerPort coding = mock(CodingAnswerPort.class);
+    private final LlmChatModeHandler handler = new LlmChatModeHandler(coding);
     private final InteractionContext context = InteractionContext.builder().history(List.of()).build();
-    private InteractionRequest request(String selected) {
-        var request = new InteractionRequest(); request.setModelName(selected); request.setQuery("Generate SQL");
-        request.setSystemPrompt("Return sql-studio.output.v1 JSON"); return request;
+    private InteractionRequest request(String model) {
+        return InteractionRequest.builder().modelName(model).query("Generate SQL")
+            .systemPrompt("Return sql-studio.output.v1 JSON").build();
     }
-    @Test void selectedModelReceivesTheEngineeringContract() {
-        var selected = mock(ChatModel.class); when(models.create("chosen")).thenReturn(selected);
-        when(selected.chat(anyString())).thenReturn("{\"files\":[]}");
-        assertThat(handler.handle(request("chosen"), context).getAnswer()).isEqualTo("{\"files\":[]}");
-        verify(selected).chat(contains("sql-studio.output.v1")); verifyNoInteractions(defaultModel);
+    @Test void engineeringContractAndSelectedModelReachCodingWithoutSelectingAnAgent() {
+        when(coding.answer(any(),any(),isNull(),anyString())).thenAnswer(call -> {
+            assertThat(call.<InteractionRequest>getArgument(0).getModelName()).isEqualTo("chosen");
+            assertThat(call.<InteractionRequest>getArgument(0).getSystemPrompt()).contains("sql-studio.output.v1");
+            assertThat(call.<String>getArgument(3)).isEmpty();
+            return InteractionResponse.builder().answer("{\"files\":[]}").metadata(Map.of("codingReceipt","receipt")).build();
+        });
+        var response = handler.handle(request("chosen"),context);
+        assertThat(response.getAnswer()).isEqualTo("{\"files\":[]}");
+        assertThat(response.getMetadata()).containsEntry("codingReceipt","receipt");
     }
-    @Test void blankModelUsesTheConfiguredDefaultWithoutSelectingAnAgent() {
-        when(defaultModel.chat(anyString())).thenReturn("answer");
-        assertThat(handler.handle(request(""), context).getAnswer()).isEqualTo("answer");
-        verifyNoInteractions(models);
+    @Test void blankModelRemainsAnExplicitRequestForTheConfiguredDefault() {
+        when(coding.answer(any(),any(),isNull(),anyString())).thenAnswer(call -> {
+            assertThat(call.<InteractionRequest>getArgument(0).getModelName()).isEmpty();
+            return InteractionResponse.builder().answer("answer").build();
+        });
+        assertThat(handler.handle(request(""),context).getAnswer()).isEqualTo("answer");
     }
-    @Test void cancelledRequestsDoNotCallTheModelOrDeliverLateAnswers() {
-        AtomicBoolean cancelled = new AtomicBoolean(true);
-        var request = request(""); request.setToolInput(Map.of("__agentCancellation", (BooleanSupplier)cancelled::get));
-        assertThatThrownBy(() -> handler.handle(request, context)).isInstanceOf(CancellationException.class);
-        verifyNoInteractions(defaultModel, models);
+    @Test void cancellationPreventsDeliveryAndRejectsLateResponses() {
+        var cancelled = new AtomicBoolean(true);
+        var request = request(""); request.setToolInput(Map.of("__agentCancellation",(BooleanSupplier)cancelled::get));
+        assertThatThrownBy(() -> handler.handle(request,context)).isInstanceOf(CancellationException.class);
+        verifyNoInteractions(coding);
         cancelled.set(false);
-        when(defaultModel.chat(anyString())).thenAnswer(call -> { cancelled.set(true); return "late answer"; });
-        assertThatThrownBy(() -> handler.handle(request, context)).isInstanceOf(CancellationException.class);
+        when(coding.answer(any(),any(),isNull(),anyString())).thenAnswer(call -> {
+            cancelled.set(true); return InteractionResponse.builder().answer("late").build();
+        });
+        assertThatThrownBy(() -> handler.handle(request,context)).isInstanceOf(CancellationException.class);
     }
 }

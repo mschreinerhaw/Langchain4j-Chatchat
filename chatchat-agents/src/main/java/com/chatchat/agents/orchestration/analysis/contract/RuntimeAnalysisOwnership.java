@@ -7,8 +7,9 @@ public final class RuntimeAnalysisOwnership {
     private RuntimeAnalysisOwnership() { }
 
     public static boolean codingOwnsAnalysis(Map<String, Object> attributes) {
-        return attributes != null && ("DATA_ANALYSIS".equals(attributes.get("workflowFamily"))
-            || "DATA_ANALYSIS".equals(attributes.get("taskType"))
+        return attributes != null && (java.util.Set.of("DATA_ANALYSIS", "DOCUMENT", "DIRECT_ANSWER", "ASSET_GUIDANCE")
+                .contains(String.valueOf(attributes.get("workflowFamily")))
+            || java.util.Set.of("DATA_ANALYSIS", "QA").contains(String.valueOf(attributes.get("taskType")))
             || Boolean.TRUE.equals(attributes.get("codingOwnedAnalysisActive"))
             || "CODING_OWNED_DATA_ANALYSIS".equals(attributes.get("analysisExecutionMode")));
     }

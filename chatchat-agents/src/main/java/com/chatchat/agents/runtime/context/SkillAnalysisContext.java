@@ -57,7 +57,15 @@ public final class SkillAnalysisContext {
     public static Map<String, Object> planningProjection(Object raw, List<String> configuredIds) {
         var context = validate(raw);
         if (context.isEmpty()) return Map.of();
-        List<?> skills = context.get("skills") instanceof List<?> list ? list : List.of();
+        List<?> rawSkills = context.get("skills") instanceof List<?> list ? list : List.of();
+        var skills = new ArrayList<Map<String,Object>>();
+        for (Object item : rawSkills) {
+            if (!(item instanceof Map<?,?> skill)) continue;
+            var provenance = new LinkedHashMap<String,Object>();
+            for (String key : List.of("id","name","category","version","contentSha256","selectionOwner"))
+                if (skill.get(key) != null) provenance.put(key,skill.get(key));
+            skills.add(Map.copyOf(provenance));
+        }
         List<?> activated = "APPLIED".equals(context.get("status")) ? skills : List.of();
         var result = new LinkedHashMap<String, Object>();
         result.put("schemaVersion", "domain_skill_planning.v2");

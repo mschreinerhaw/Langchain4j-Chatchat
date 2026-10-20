@@ -177,24 +177,8 @@ public class RoleChatModeHandler implements InteractionModeHandler {
         }
         appendList(prompt, "Business scenarios", skill.usageScenarios());
         appendList(prompt, "Role tags", skill.skillTags());
-        if (hasText(skill.systemPrompt())) {
-            prompt.append("\nMaintained role instructions:\n").append(skill.systemPrompt().trim()).append("\n");
-        }
-        if (hasText(request.getSystemPrompt())) {
-            prompt.append("\nRequest-specific instructions:\n").append(request.getSystemPrompt().trim()).append("\n");
-        }
-        if (hasText(context.conversationSummary())) {
-            prompt.append("\nConversation summary (continuity only):\n")
-                .append(context.conversationSummary().trim()).append("\n");
-        }
-        if (context.history() != null && !context.history().isEmpty()) {
-            prompt.append("\nRecent conversation:\n")
-                .append(context.history().stream()
-                    .filter(message -> message != null && hasText(message.content()))
-                    .map(this::formatHistoryMessage)
-                    .collect(Collectors.joining("\n")))
-                .append("\n");
-        }
+        // The Coding handoff already supplies maintained instructions, request instructions,
+        // history and the user objective. Only role-specific supplemental context belongs here.
         appendDomainSkills(prompt, domainSkills, domainSkillRouting);
         if (hasText(knowledge.compiledContext())) {
             prompt.append("\n<domain_knowledge>\n")
@@ -212,7 +196,6 @@ public class RoleChatModeHandler implements InteractionModeHandler {
         if (hasText(responseContract)) {
             prompt.append("\nResponse contract:\n").append(responseContract).append("\n");
         }
-        prompt.append("\nCurrent user question:\n").append(request.getQuery());
         return prompt.toString();
     }
 

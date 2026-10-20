@@ -266,7 +266,10 @@ class RoleChatModeHandlerTest {
         verify(defaultModel, never()).chat(org.mockito.ArgumentMatchers.anyString());
         verify(knowledgeRuntime, never()).retrieveKnowledge(org.mockito.ArgumentMatchers.any());
 
-        assertThat(prompt.getValue())
+        var deliveredRequest = ArgumentCaptor.forClass(InteractionRequest.class);
+        verify(coding).answer(deliveredRequest.capture(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString());
+        assertThat(deliveredRequest.getValue().getQuery()).isEqualTo(question);
+        assertThat(prompt.getValue() + deliveredRequest.getValue().getQuery() + role.systemPrompt())
             .contains("ROLE_CHAT mode", "Do not plan, select", "数据表产品顾问")
             .contains("股票期权证券盈亏流水", "不要重点解释表结构")
             .contains("If the supplied subject is unsuitable");

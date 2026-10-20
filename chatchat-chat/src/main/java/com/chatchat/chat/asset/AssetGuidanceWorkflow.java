@@ -145,7 +145,7 @@ public class AssetGuidanceWorkflow implements AssetGuidancePlanningWorkflow {
                 + "\n\n## 3. 当前在哪里使用、效果如何\n暂无可验证的实际使用与质量统计；不能据此判断效果好坏。"
                 + "\n\n## 4. 怎么使用\n已获取的发布元数据（缺失契约不作推断）：\n```json\n" + json(selected.technicalMetadata()) + "\n```"
                 + "\n\n领域建议（推断，未执行或验证）：\n" + recommendation.advice()
-                + "\n\n## 5. 注意事项\n本次仅检索模板和资产元数据，没有执行 API、SQL、模板取数或数据分析。"
+                + "\n\n## 5. 注意事项\n本次只依据已授权元数据提供用途建议，没有执行模板业务取数或验证真实使用效果。"
                 + "实际使用仍需走原有授权、参数校验和受控执行流程。\n\n来源：" + selected.sourceTool()
                 + "；资产/模板 ID：" + selected.assetId();
         }

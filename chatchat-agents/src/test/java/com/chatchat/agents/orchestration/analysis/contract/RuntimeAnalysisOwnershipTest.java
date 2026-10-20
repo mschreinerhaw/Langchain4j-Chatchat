@@ -15,6 +15,8 @@ class RuntimeAnalysisOwnershipTest {
         ChatModel model = mock(ChatModel.class);
         for (Map<String, Object> metadata : List.<Map<String, Object>>of(
                 Map.of("workflowFamily", "DATA_ANALYSIS"), Map.of("taskType", "DATA_ANALYSIS"),
+                Map.of("workflowFamily", "DOCUMENT"), Map.of("taskType", "QA"),
+                Map.of("workflowFamily", "DIRECT_ANSWER"), Map.of("workflowFamily", "ASSET_GUIDANCE"),
                 Map.of("codingOwnedAnalysisActive", true),
                 Map.of("analysisExecutionMode", "CODING_OWNED_DATA_ANALYSIS"))) {
             assertThatThrownBy(() -> new ModelNativeAnalysisHarness(4).execute("Question", List.of(), model,

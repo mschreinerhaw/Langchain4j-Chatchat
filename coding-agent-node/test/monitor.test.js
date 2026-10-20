@@ -13,9 +13,12 @@ const contract = {
   runtimeContext: { model: { selectedModel: 'selected-by-java' }, skills: { status: 'APPLIED', fingerprint: 'approved-guidance',
     skills: [{ skillId: 'authorized-skill' }], stages: { ANALYSIS: ['Use measured values only'] } } },
 };
-test('SDK receives task configuration and chunk bindings; final code receipt references exact returned source', async () => {
+for (const skillStatus of ['APPLIED', 'DELIVERED']) test(`SDK receives ${skillStatus} Skills and configuration; code receipt references exact source`, async () => {
   const source = '\nprint(42)\n'; let turn = 0, received;
-  const run = createCodingRun(contract, {
+  const task = structuredClone(contract);
+  task.runtimeContext.skills.status = skillStatus;
+  task.runtimeContext.skills.skills[0].instructions = ['Original authorized methodology'];
+  const run = createCodingRun(task, {
     reserveModel: async () => {}, settleModel: async () => {}, finish: async () => {},
     executePython: async (_task, value) => { received = value; return { status: 'SUCCEEDED', executorStopped: true,
       resultDatasetRef: 'result', validationRecordRef: 'validation', evidenceBundleRef: 'bundle' }; },
@@ -26,6 +29,8 @@ test('SDK receives task configuration and chunk bindings; final code receipt ref
     assert.doesNotMatch(request.systemPrompt, /analysis agent owns analytical goals, methods/);
     assert.match(JSON.stringify(request.messages), /selected-by-java/);
     assert.match(JSON.stringify(request.messages), /authorized-skill/);
+    assert.match(JSON.stringify(request.messages), /Original authorized methodology/);
+    assert.match(request.systemPrompt, /Select relevant methods yourself inside this Coding task/);
     if (++turn === 1) {
       yield { type: 'tool-call-delta', toolCallId: 'generate-1', toolName: 'python_execute', input: { fileName: 'main.py', source } };
       yield { type: 'finish', reason: 'tool-calls' };
@@ -38,7 +43,7 @@ test('SDK receives task configuration and chunk bindings; final code receipt ref
   assert.equal(result.codeFiles[0].sha256, received.codeSha256);
   assert.ok(result.codeFiles[0].artifactRef.endsWith('/code'));
   assert.ok(run.events.some(e => e.type === 'SKILLS_LOADED'));
-  assert.ok(run.events.some(e => e.type === 'SKILLS_APPLIED'));
+  assert.equal(run.events.some(e => e.type === 'SKILLS_APPLIED'), skillStatus === 'APPLIED');
   assert.ok(run.events.some(e => e.type === 'CODE_READY' && e.codeSha256 === received.codeSha256));
   assert.ok(run.events.every(e => !Object.hasOwn(e, 'source') || e.source === 'NODE_CLINE'));
   assert.equal(JSON.stringify(run.events).includes('print(42)'), false);

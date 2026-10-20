@@ -41,6 +41,22 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentChatModeHandlerTest {
+    @SuppressWarnings("unchecked")
+    private AgentToolPolicyResolver intentAwarePolicy(ToolRegistry registry, SkillCatalogService catalog,
+                                                      McpToolCatalogQueryPort tools) {
+        var repository = mock(com.chatchat.chat.interaction.service.AgentToolIntentBindingRepository.class);
+        var document = new com.chatchat.chat.interaction.service.AgentToolIntentBinding();
+        document.setInputKey("documentWorkflow"); document.setRequestedToolName("document_search");
+        document.setRemoteToolName(""); document.setLocalToolNameSuffix(""); document.setEnabled(true);
+        var web = new com.chatchat.chat.interaction.service.AgentToolIntentBinding();
+        web.setInputKey("webSearch"); web.setRequestedToolName("web_search");
+        web.setRemoteToolName("web_search"); web.setLocalToolNameSuffix("_web_search"); web.setEnabled(true);
+        when(repository.findByEnabledTrueOrderByInputKeyAsc()).thenReturn(List.of(document,web));
+        var bindingProvider = (org.springframework.beans.factory.ObjectProvider<com.chatchat.chat.interaction.service.AgentToolIntentBindingRepository>)mock(org.springframework.beans.factory.ObjectProvider.class);
+        when(bindingProvider.getIfAvailable()).thenReturn(repository);
+        var retrieverProvider = (org.springframework.beans.factory.ObjectProvider<com.chatchat.chat.interaction.service.McpToolCandidateRetriever>)mock(org.springframework.beans.factory.ObjectProvider.class);
+        return new AgentToolPolicyResolver(registry,catalog,tools,retrieverProvider,bindingProvider);
+    }
     @Test void validatedMethodologyReachesRuntimeWithMatchingActivationProjection() {
         var catalog = mock(SkillCatalogService.class);
         var orchestrator = mock(AgentOrchestrator.class);
@@ -480,8 +496,9 @@ class AgentChatModeHandlerTest {
         assertThat(planningContext)
             .containsEntry("schemaVersion", "domain_skill_planning.v2")
             .containsEntry("selectedCount", 1)
-            .containsEntry("activatedCount", 1)
-            .containsKey("compiledContext");
+            .containsEntry("activatedCount", 0)
+            .doesNotContainKey("compiledContext");
+        verify(planningRouter, org.mockito.Mockito.never()).route(anyString(), any(), anyList());
         List<Map<String, Object>> projectedSkills = (List<Map<String, Object>>) planningContext.get("skills");
         assertThat(projectedSkills).singleElement().satisfies(projected -> assertThat(projected)
             .containsEntry("id", "skill-risk")
@@ -919,11 +936,7 @@ class AgentChatModeHandlerTest {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
         McpToolCatalogQueryPort mcpToolRegistryBridge = mock(McpToolCatalogQueryPort.class);
-        AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
-            toolRegistry,
-            skillCatalogService,
-            mcpToolRegistryBridge
-        );
+        AgentToolPolicyResolver toolPolicyResolver = intentAwarePolicy(toolRegistry,skillCatalogService,mcpToolRegistryBridge);
         AgentChatModeHandler handler = new AgentChatModeHandler(
             orchestrator,
             skillCatalogService,
@@ -1009,11 +1022,7 @@ class AgentChatModeHandlerTest {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
         McpToolCatalogQueryPort mcpToolRegistryBridge = mock(McpToolCatalogQueryPort.class);
-        AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
-            toolRegistry,
-            skillCatalogService,
-            mcpToolRegistryBridge
-        );
+        AgentToolPolicyResolver toolPolicyResolver = intentAwarePolicy(toolRegistry,skillCatalogService,mcpToolRegistryBridge);
         AgentChatModeHandler handler = new AgentChatModeHandler(
             orchestrator,
             skillCatalogService,
@@ -1097,11 +1106,7 @@ class AgentChatModeHandlerTest {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
         McpToolCatalogQueryPort mcpToolRegistryBridge = mock(McpToolCatalogQueryPort.class);
-        AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
-            toolRegistry,
-            skillCatalogService,
-            mcpToolRegistryBridge
-        );
+        AgentToolPolicyResolver toolPolicyResolver = intentAwarePolicy(toolRegistry,skillCatalogService,mcpToolRegistryBridge);
         AgentChatModeHandler handler = new AgentChatModeHandler(
             orchestrator,
             skillCatalogService,

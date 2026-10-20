@@ -16,7 +16,7 @@ token = get('/enterprise/auth/login', json.loads((root/'evidence/cline-monitor-2
 for path in sorted(evidence.glob('scenario*-*.json')):
     if path.stem.endswith(('-answer','-runtime')): continue
     data = json.loads(path.read_text())
-    if not data.get('taskId'): continue
+    if not isinstance(data, dict) or not data.get('taskId'): continue
     endpoint = '/published-agents/'+data['agentId']+'/questions/'+data['taskId']
     state = get(endpoint+'/status?eventLimit=5')
     print(json.dumps({'case':path.stem,'taskId':data['taskId'],'state':state['canonicalState'],

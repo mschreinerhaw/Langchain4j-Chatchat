@@ -215,8 +215,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         String modelName = skill.modelName() != null && !skill.modelName().isBlank()
             ? skill.modelName()
             : request.getModelName();
-        DomainSkillPlanningRouter.RoutingResult domainSkillRouting = domainSkillPlanningRouter == null
-            ? null : domainSkillPlanningRouter.route(request.getQuery(), modelName, domainSkills);
+        DomainSkillPlanningRouter.RoutingResult domainSkillRouting = null;
         String systemPrompt = appendResponseContract(
             appendDefaultDataAssetPolicy(
                 appendMcpExecutionContext(
@@ -234,6 +233,14 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             systemPrompt += "\nProblem analysis plan (planning context, not authorization or evidence):\n" + understanding;
         Map<String, Object> runtimeAttributes = new LinkedHashMap<>(runtimeAttributes(request, skill, executionContext));
         var skillContext = com.chatchat.agents.runtime.context.SkillAnalysisContext.validate(context.skillAnalysisContext());
+        if (skillContext.isEmpty() && !domainSkills.isEmpty()) {
+            var delivered = domainSkills.stream().map(item -> Map.<String,Object>of(
+                "id",item.id(),"name",item.name(),"category",item.category(),"version","UNVERSIONED",
+                "contentSha256",com.chatchat.agents.protocol.ModelProtocolJson.sha256Hex(item.markdownContent()),
+                "selectionOwner","CLINE","instructions",
+                com.chatchat.chat.skills.runtime.SkillAnalysisContextService.contentChunks(item.markdownContent()))).toList();
+            skillContext = com.chatchat.agents.runtime.context.SkillAnalysisContext.create("DELIVERED_WITH_LIMITS",delivered,Map.of());
+        }
         runtimeAttributes.put(com.chatchat.agents.runtime.context.SkillAnalysisContext.ATTRIBUTE, skillContext);
         systemPrompt += com.chatchat.agents.runtime.context.SkillAnalysisContext.prompt(skillContext, "AGENT_RUN");
         runtimeAttributes.put("authorizationAgentId", resolvedSkillId);

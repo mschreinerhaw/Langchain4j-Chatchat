@@ -24,7 +24,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AnalysisCoverageCoordinatorTest {
-    @Test void dataAnalysisDelegatesTheWholeAnalysisToCodingWithoutCallingTheJavaModel() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"DATA_ANALYSIS","DOCUMENT","DIRECT_ANSWER","ASSET_GUIDANCE"})
+    void dataAnalysisDelegatesTheWholeAnalysisToCodingWithoutCallingTheJavaModel(String family) {
         var evidence = mock(AnalysisEvidenceCoordinator.class);
         var datasets = List.of(
             new AnalysisEvidenceCoordinator.Dataset("source-1", Map.of(), List.of(Map.of("key", "A", "value", 1))),
@@ -55,7 +57,7 @@ class AnalysisCoverageCoordinatorTest {
         var base = request(metadata);
 
         var coverage = coordinator.analyze(new AnalysisCoverageCoordinator.Request(model, "Question", base.result(),
-            Map.of("workflowFamily", "DATA_ANALYSIS", "modelAnalysisProtocol", "model_native_analysis.v2"), metadata,
+            Map.of("workflowFamily", family, "modelAnalysisProtocol", "model_native_analysis.v2"), metadata,
             () -> false, () -> {}, base.isolationScope(), base.summaryProtocol()));
 
         assertThat(calls).hasValue(1);

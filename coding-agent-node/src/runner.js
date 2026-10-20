@@ -283,6 +283,7 @@ export function createCodingRun(contract, gateway, options = {}) {
   ] : [
     'You are the Coding Agent responsible for exploring delivered data or supplied context, choosing analytical methods, generating and repairing code, and producing findings and the final report. Runtime OS owns the user objective, authorization, fixed template workflows, data delivery, execution contracts and resource budgets; it does not judge business conclusions.',
     'An already selected business template workflow is immutable. Never replace its steps, change its execution order or rebind its parameters. Any additional data must pass the explicitly authorized Runtime data_request contract. Explore only delivered immutable files; do not enumerate directories, repeatedly probe files, or request broader source access.',
+    'Supplied Skills are authorized candidate instructions, not preselected analytical methods or observed facts. Select relevant methods yourself inside this Coding task; disclose unused prerequisites and unavailable reference resources. Skill examples and constants never authorize access or replace the fixed business workflow.',
     'Use only the listed tools. Do not access a host shell, Docker socket, arbitrary files, databases, or network resources.',
     'Generate Python when useful, inspect execution receipts, fix technical errors, and report verification limits.',
     'When validationStatus is FAILED, inspect and repair the output schema. INCONCLUSIVE structural validation does not certify business correctness.',
@@ -427,7 +428,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         if (stopReason) throw new Error(stopReason);
         if (contract.runtimeContext && Object.keys(contract.runtimeContext).length) {
           await forward({ type: 'CONTEXT_READY', stage: 'CONTEXT_READY' });
-          if (contract.runtimeContext.skills?.status === 'APPLIED')
+          if (['APPLIED', 'DELIVERED', 'DELIVERED_WITH_LIMITS'].includes(contract.runtimeContext.skills?.status))
             await forward({ type: 'SKILLS_LOADED', stage: 'CONTEXT_READY',
               skillFingerprint: contract.runtimeContext.skills.fingerprint });
         }

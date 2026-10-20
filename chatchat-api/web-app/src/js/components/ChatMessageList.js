@@ -819,6 +819,12 @@ export default {
       return `完成（${this.runtimeToolCalls(message).length} 项）`;
     },
     renderMarkdown(content, message = {}, fragment = false) {
+      const sourceContext=message.memoryContext || {};
+      if(sourceContext.codingTaskProtocol==='runtime_os.coding.v2' && sourceContext.codingResultFormat==='WORKSPACE_FILES') {
+        // Literal artifacts must retain indentation, parameters, and string values.
+        // MarkdownIt still escapes HTML and rejects unsafe link protocols.
+        return markdown.render(String(content ?? ''));
+      }
       const prepared = this.prepareMarkdownContent(String(content ?? ""), message);
       const uiContract = fragment ? null : this.uiRenderContract(message, prepared.content);
       if (uiContract) {

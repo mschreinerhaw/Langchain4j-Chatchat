@@ -42,7 +42,12 @@ token=auth['token'];user=auth['user']
 private=root/(args.label+'-private.json')
 start=time.monotonic()
 if private.exists():
-    saved=json.loads(private.read_text());task=saved['taskId'];endpoint=saved['endpoint'];session=saved.get('conversationId')
+    saved=json.loads(private.read_text())
+    if not saved.get('taskId') and saved.get('submitBody'):
+        submitted=http('/data-science/python/assist/coding',saved['submitBody'])
+        saved['taskId']=submitted['taskId'];saved['endpoint']='/data-science/python/assist/coding/'+saved['taskId']
+        private.write_text(json.dumps(saved,ensure_ascii=False,indent=2))
+    task=saved['taskId'];endpoint=saved['endpoint'];session=saved.get('conversationId')
 else:
     if args.language=='sql':
         project=http('/data-science/sql/projects',{'name':'Cline acceptance '+str(uuid.uuid4())[:8],'dialect':'mysql'})
@@ -66,13 +71,12 @@ else:
         plan=http('/data-science/python/assist/plan',request)
         request['planId']=plan['planId']
         request_id=str(uuid.uuid4())
-        expected='python-coding-'+hashlib.sha256((user['tenantId']+'\0'+user['id']+'\0'+request_id).encode()).hexdigest()
-        expected_session=str(uuid.UUID(bytes=hashlib.md5((user['tenantId']+'\0'+user['id']+'\0'+expected).encode()).digest(),version=3))
-        private.write_text(json.dumps({'language':'python','taskId':expected,'endpoint':'/data-science/python/assist/coding/'+expected,
-            'conversationId':expected_session,'plan':plan,'request':request,'requestId':request_id},ensure_ascii=False))
-        submitted=http('/data-science/python/assist/coding',{'request':request,'requestId':request_id,'entryPath':'main.py','files':[{'path':'main.py','content':source}]})
+        submit_body={'request':request,'requestId':request_id,'entryPath':'main.py','files':[{'path':'main.py','content':source}]}
+        private.write_text(json.dumps({'language':'python','taskId':None,'conversationId':None,
+            'plan':plan,'request':request,'requestId':request_id,'submitBody':submit_body},ensure_ascii=False))
+        submitted=http('/data-science/python/assist/coding',submit_body)
         task=submitted['taskId'];endpoint='/data-science/python/assist/coding/'+task
-        session=str(uuid.UUID(bytes=hashlib.md5((user['tenantId']+'\0'+user['id']+'\0'+task).encode()).digest(),version=3))
+        session=None # Discover the authorized server identity mapping through the official history API.
         saved={'language':'python','taskId':task,'endpoint':endpoint,'conversationId':session,'plan':plan,'request':request}
     private.write_text(json.dumps(saved,ensure_ascii=False,indent=2))
     if 'analysisDecisionOwner=CLINE' not in plan['interpretationPlan']['context']['constraints']:

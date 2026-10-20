@@ -22,14 +22,35 @@ try {
   });
   await page.addInitScript(value=>localStorage.setItem('chatchat.auth.session',JSON.stringify(value)),auth);
   await page.goto('http://127.0.0.1:18281/#/w/zhice/chat',{waitUntil:'domcontentloaded'});
+  await page.locator('.recent-card').first().waitFor({state:'visible',timeout:60000});
+  const headers=await page.evaluate(async user=>{
+    const session=JSON.parse(localStorage.getItem('chatchat.auth.session'));
+    const response=await fetch(`/api/v1/conversations/user/${encodeURIComponent(user)}/summaries?limit=100`,
+      {headers:{Authorization:`Bearer ${session.token}`}});
+    return (await response.json()).data;
+  },auth.user.id);
   const checked=[];
   for(const [index,label] of ['SQLStudio:','PythonStudio:'].entries()) {
-    const card=page.locator('.recent-card').filter({has:page.locator('.recent-title').filter({hasText:label})}).first();
-    await card.waitFor({state:'visible',timeout:60000});await card.click();
     const report=reports[index];
+    const header=headers.find(item=>item.id===report.conversationId);
+    assert.ok(header,'The accepted task must be in the real recent-session index');
+    await page.getByPlaceholder('搜索历史会话',{exact:true}).fill(label);
+    const created=new Date(header.createdAt).toISOString();
+    const card=page.locator('.recent-card').filter({has:page.locator(`time[datetime="${created}"]`)});
+    await card.waitFor({state:'visible',timeout:60000});await card.click();
     await page.waitForFunction(path=>document.body.innerText.includes(path),report.artifacts[0].path,{timeout:30000});
     const blocks=await page.locator('pre').allTextContents();
     assert.ok(blocks.some(text=>text.length>40),'Archived code must be rendered');
+    for(const [number,artifact] of report.artifacts.entries()) {
+      const extension=artifact.path.slice(artifact.path.lastIndexOf('.'));
+      const source=await readFile(`${root}/studio-${report.language}-source-${number+1}${extension}`,'utf8');
+      if(!blocks.some(text=>text.includes(source))) {
+        await writeFile(`${root}/studio-browser-source-diagnostic-private.json`,JSON.stringify({language:report.language,
+          artifact:artifact.path,source,blocks,detailReads:[...detailReads],body:await page.locator('body').innerText()},null,2));
+        await page.screenshot({path:`${root}/studio-browser-source-diagnostic.png`,fullPage:true});
+      }
+      assert.ok(blocks.some(text=>text.includes(source)),'Rendered history must retain the complete archived source');
+    }
     checked.push({language:report.language,conversationId:report.conversationId,recentCardVisible:true,archivedCodeRendered:true});
     await page.screenshot({path:`${root}/studio-history-${report.language}.png`,fullPage:true});
   }

@@ -7,6 +7,15 @@ import { renderArtifactHtml, renderArtifactMarkdownHtml } from "../ui-artifact/r
 
 const markdown = new MarkdownIt({ breaks: true });
 const methods = ChatMessageList.methods;
+it('renders archived workspace code verbatim without report cleanup and keeps HTML inert',()=>{
+  const source="def total(values):\n    label = 'keep : literal [evidence:literal]'\n    return sum(values)\n";
+  const content=`main.py\n\`\`\`\`python\n${source}\`\`\`\`\n<script>window.injected=true</script>`;
+  const html=methods.renderMarkdown.call({},content,{memoryContext:{codingTaskProtocol:'runtime_os.coding.v2',codingResultFormat:'WORKSPACE_FILES'}});
+  const body=new DOMParser().parseFromString(html,'text/html').body;
+  expect(body.querySelector('pre code').textContent).toBe(source);
+  expect(body.querySelector('script')).toBeNull();
+  expect(body.textContent).toContain('<script>window.injected=true</script>');
+});
 const context = Object.fromEntries(
   Object.entries(methods).map(([name, method]) => [name, method])
 );

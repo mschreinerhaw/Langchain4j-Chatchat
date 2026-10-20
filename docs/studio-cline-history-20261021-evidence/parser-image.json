@@ -1,0 +1,8 @@
+{
+  "status": "BUILT",
+  "baseImage": "runtime-os-api:protocol-recovery-1cba3b32e5ba",
+  "image": "runtime-os-api:studio-parser-sqlglot-30.23.0",
+  "wheelSha256": "b5a645722cb4c6b649e9131b94830d9df9a557e87be63713179d848320f2baa1",
+  "sqlExecuted": false,
+  "modelCodeExecuted": false
+}

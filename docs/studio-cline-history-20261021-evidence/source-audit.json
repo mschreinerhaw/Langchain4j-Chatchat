@@ -1,0 +1,1472 @@
+{
+  "schemaVersion": "runtime_os.refactor.audit.v1",
+  "capturedAt": "2026-10-20T18:15:14.479Z",
+  "commit": "de7f78e8c4b100710d47c4e85ee661328976f3b1",
+  "branch": "feature/runtime-os-coding-refactor",
+  "backupCommit": "4bd002584151cc2423ed6b08f377782243477e4b",
+  "tagCommit": "4bd002584151cc2423ed6b08f377782243477e4b",
+  "status": "M chatchat-api/web-app/scripts/verify-studio-history-live.mjs\n M scripts/collect-studio-release-stage.py\n?? scripts/refresh-studio-browser-auth-stage.py",
+  "modules": [
+    {
+      "path": "chatchat-agents/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "org.bsc.langgraph4j",
+          "artifactId": "langgraph4j-core",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-common",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-platform-spring",
+          "scope": "compile"
+        },
+        {
+          "groupId": "dev.langchain4j",
+          "artifactId": "langchain4j-core",
+          "scope": "compile"
+        },
+        {
+          "groupId": "dev.langchain4j",
+          "artifactId": "langchain4j-open-ai",
+          "scope": "compile"
+        },
+        {
+          "groupId": "dev.langchain4j",
+          "artifactId": "langchain4j-http-client-jdk",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-webflux",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.fasterxml.jackson.core",
+          "artifactId": "jackson-databind",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.google.code.gson",
+          "artifactId": "gson",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.yaml",
+          "artifactId": "snakeyaml",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.projectlombok",
+          "artifactId": "lombok",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.apache.commons",
+          "artifactId": "commons-lang3",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.rocksdb",
+          "artifactId": "rocksdbjni",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-test",
+          "scope": "test"
+        }
+      ]
+    },
+    {
+      "path": "chatchat-api/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "com.fasterxml.jackson.dataformat",
+          "artifactId": "jackson-dataformat-csv",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.apache.parquet",
+          "artifactId": "parquet-hadoop",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.apache.hadoop",
+          "artifactId": "hadoop-common",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.apache.hadoop",
+          "artifactId": "hadoop-mapreduce-client-core",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-common",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-mcp-grpc",
+          "scope": "compile"
+        },
+        {
+          "groupId": "io.grpc",
+          "artifactId": "grpc-netty-shaded",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-platform-spring",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-agents",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-mcp-server",
+          "scope": "test"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-runtime-skill",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-runtime-temporal",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-knowledge-base",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-integration",
+          "scope": "runtime"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-enterprise",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-chat",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-web",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-webflux",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-validation",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-data-jpa",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.h2database",
+          "artifactId": "h2",
+          "scope": "runtime"
+        },
+        {
+          "groupId": "org.hibernate.orm",
+          "artifactId": "hibernate-community-dialects",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.postgresql",
+          "artifactId": "postgresql",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.mysql",
+          "artifactId": "mysql-connector-j",
+          "scope": "runtime"
+        },
+        {
+          "groupId": "org.springdoc",
+          "artifactId": "springdoc-openapi-starter-webmvc-ui",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-websocket",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.fasterxml.jackson.core",
+          "artifactId": "jackson-databind",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.fasterxml.jackson.core",
+          "artifactId": "jackson-annotations",
+          "scope": "compile"
+        },
+        {
+          "groupId": "dev.langchain4j",
+          "artifactId": "langchain4j-http-client-jdk",
+          "scope": "compile"
+        },
+        {
+          "groupId": "dev.langchain4j",
+          "artifactId": "langchain4j-open-ai",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.fasterxml.uuid",
+          "artifactId": "java-uuid-generator",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-test",
+          "scope": "test"
+        }
+      ]
+    },
+    {
+      "path": "chatchat-chat/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "com.google.adk",
+          "artifactId": "google-adk-langchain4j",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-platform-spring",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-common",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-runtime-skill",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-agents",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-knowledge-base",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-enterprise",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-data-jpa",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework",
+          "artifactId": "spring-jdbc",
+          "scope": "compile"
+        },
+        {
+          "groupId": "jakarta.validation",
+          "artifactId": "jakarta.validation-api",
+          "scope": "compile"
+        },
+        {
+          "groupId": "dev.langchain4j",
+          "artifactId": "langchain4j-core",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.rocksdb",
+          "artifactId": "rocksdbjni",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.opensearch.client",
+          "artifactId": "opensearch-rest-client",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.fasterxml.jackson.core",
+          "artifactId": "jackson-databind",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.yaml",
+          "artifactId": "snakeyaml",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.commonmark",
+          "artifactId": "commonmark",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.commonmark",
+          "artifactId": "commonmark-ext-gfm-tables",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-configuration-processor",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-test",
+          "scope": "test"
+        },
+        {
+          "groupId": "com.h2database",
+          "artifactId": "h2",
+          "scope": "test"
+        }
+      ]
+    },
+    {
+      "path": "chatchat-common/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "com.fasterxml.jackson.core",
+          "artifactId": "jackson-annotations",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.slf4j",
+          "artifactId": "slf4j-api",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.junit.jupiter",
+          "artifactId": "junit-jupiter",
+          "scope": "test"
+        },
+        {
+          "groupId": "org.assertj",
+          "artifactId": "assertj-core",
+          "scope": "test"
+        },
+        {
+          "groupId": "com.fasterxml.jackson.core",
+          "artifactId": "jackson-databind",
+          "scope": "test"
+        },
+        {
+          "groupId": "com.fasterxml.jackson.datatype",
+          "artifactId": "jackson-datatype-jsr310",
+          "scope": "test"
+        },
+        {
+          "groupId": "com.networknt",
+          "artifactId": "json-schema-validator",
+          "scope": "test"
+        }
+      ]
+    },
+    {
+      "path": "chatchat-data-migration/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "com.mysql",
+          "artifactId": "mysql-connector-j",
+          "scope": "runtime"
+        },
+        {
+          "groupId": "org.postgresql",
+          "artifactId": "postgresql",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.junit.jupiter",
+          "artifactId": "junit-jupiter",
+          "scope": "test"
+        }
+      ]
+    },
+    {
+      "path": "chatchat-e2e-tests/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-platform-spring",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-agents",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-runtime-temporal",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-api",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-mcp-server",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-runtime-news",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-runtime-market",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-enterprise",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-test",
+          "scope": "test"
+        }
+      ]
+    },
+    {
+      "path": "chatchat-enterprise/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-common",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-platform-spring",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-data-jpa",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.fasterxml.jackson.core",
+          "artifactId": "jackson-databind",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.projectlombok",
+          "artifactId": "lombok",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-test",
+          "scope": "test"
+        },
+        {
+          "groupId": "com.h2database",
+          "artifactId": "h2",
+          "scope": "test"
+        }
+      ]
+    },
+    {
+      "path": "chatchat-integration/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-common",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-platform-spring",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-agents",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-runtime-mcp",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-runtime-skill",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-mcp-grpc",
+          "scope": "compile"
+        },
+        {
+          "groupId": "io.grpc",
+          "artifactId": "grpc-netty-shaded",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.a2aproject.sdk",
+          "artifactId": "a2a-java-sdk-client",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.a2aproject.sdk",
+          "artifactId": "a2a-java-sdk-client-transport-rest",
+          "scope": "compile"
+        },
+        {
+          "groupId": "io.github.erdtman",
+          "artifactId": "java-json-canonicalization",
+          "scope": "compile"
+        },
+        {
+          "groupId": "dev.langchain4j",
+          "artifactId": "langchain4j-core",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-webflux",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-data-jpa",
+          "scope": "compile"
+        },
+        {
+          "groupId": "io.modelcontextprotocol.sdk",
+          "artifactId": "mcp",
+          "scope": "compile"
+        },
+        {
+          "groupId": "io.modelcontextprotocol.sdk",
+          "artifactId": "mcp-json-jackson2",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-configuration-processor",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.squareup.okhttp3",
+          "artifactId": "okhttp",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-test",
+          "scope": "test"
+        }
+      ]
+    },
+    {
+      "path": "chatchat-knowledge-base/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-common",
+          "scope": "compile"
+        },
+        {
+          "groupId": "dev.langchain4j",
+          "artifactId": "langchain4j-core",
+          "scope": "compile"
+        },
+        {
+          "groupId": "dev.langchain4j",
+          "artifactId": "langchain4j-skills",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework",
+          "artifactId": "spring-web",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-data-jpa",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.apache.tika",
+          "artifactId": "tika-core",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.apache.tika",
+          "artifactId": "tika-parsers-standard-package",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.rocksdb",
+          "artifactId": "rocksdbjni",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.huaban",
+          "artifactId": "jieba-analysis",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.apache.lucene",
+          "artifactId": "lucene-core",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.apache.lucene",
+          "artifactId": "lucene-analysis-common",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.fasterxml.jackson.core",
+          "artifactId": "jackson-databind",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.opensearch.client",
+          "artifactId": "opensearch-rest-client",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-test",
+          "scope": "test"
+        }
+      ]
+    },
+    {
+      "path": "chatchat-license/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-web",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-security",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-jdbc",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.h2database",
+          "artifactId": "h2",
+          "scope": "runtime"
+        },
+        {
+          "groupId": "com.fasterxml.jackson.core",
+          "artifactId": "jackson-databind",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.fasterxml.jackson.datatype",
+          "artifactId": "jackson-datatype-jsr310",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.junit.jupiter",
+          "artifactId": "junit-jupiter",
+          "scope": "test"
+        },
+        {
+          "groupId": "org.springframework.security",
+          "artifactId": "spring-security-test",
+          "scope": "test"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-test",
+          "scope": "test"
+        }
+      ]
+    },
+    {
+      "path": "chatchat-mcp-grpc/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-common",
+          "scope": "compile"
+        },
+        {
+          "groupId": "io.grpc",
+          "artifactId": "grpc-protobuf",
+          "scope": "compile"
+        },
+        {
+          "groupId": "io.grpc",
+          "artifactId": "grpc-stub",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.google.protobuf",
+          "artifactId": "protobuf-java",
+          "scope": "compile"
+        },
+        {
+          "groupId": "javax.annotation",
+          "artifactId": "javax.annotation-api",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-test",
+          "scope": "test"
+        }
+      ]
+    },
+    {
+      "path": "chatchat-mcp-server/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-common",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-platform-spring",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-license",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-agents",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-tools",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-runtime-mcp",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-mcp-grpc",
+          "scope": "compile"
+        },
+        {
+          "groupId": "io.grpc",
+          "artifactId": "grpc-netty-shaded",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-integration",
+          "scope": "runtime"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-runtime-market",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-knowledge-base",
+          "scope": "compile"
+        },
+        {
+          "groupId": "dev.langchain4j",
+          "artifactId": "langchain4j-core",
+          "scope": "compile"
+        },
+        {
+          "groupId": "io.modelcontextprotocol.sdk",
+          "artifactId": "mcp",
+          "scope": "compile"
+        },
+        {
+          "groupId": "io.modelcontextprotocol.sdk",
+          "artifactId": "mcp-json-jackson2",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-web",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-data-jpa",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-data-redis",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-mail",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.commonmark",
+          "artifactId": "commonmark",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.commonmark",
+          "artifactId": "commonmark-ext-gfm-tables",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.h2database",
+          "artifactId": "h2",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.mysql",
+          "artifactId": "mysql-connector-j",
+          "scope": "runtime"
+        },
+        {
+          "groupId": "org.postgresql",
+          "artifactId": "postgresql",
+          "scope": "runtime"
+        },
+        {
+          "groupId": "org.rocksdb",
+          "artifactId": "rocksdbjni",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.apache.sshd",
+          "artifactId": "sshd-core",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.github.jsqlparser",
+          "artifactId": "jsqlparser",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.apache.lucene",
+          "artifactId": "lucene-core",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.apache.lucene",
+          "artifactId": "lucene-analysis-common",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.apache.lucene",
+          "artifactId": "lucene-queryparser",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.belerweb",
+          "artifactId": "pinyin4j",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.apache.poi",
+          "artifactId": "poi-ooxml",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.opensearch.client",
+          "artifactId": "opensearch-rest-client",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.elasticsearch.client",
+          "artifactId": "elasticsearch-rest-client",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.neo4j.driver",
+          "artifactId": "neo4j-java-driver",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.fasterxml.jackson.core",
+          "artifactId": "jackson-databind",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.projectlombok",
+          "artifactId": "lombok",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-test",
+          "scope": "test"
+        }
+      ]
+    },
+    {
+      "path": "chatchat-platform-spring/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-common",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-test",
+          "scope": "test"
+        }
+      ]
+    },
+    {
+      "path": "chatchat-runtime-market/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-common",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-jdbc",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.fasterxml.jackson.core",
+          "artifactId": "jackson-databind",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.h2database",
+          "artifactId": "h2",
+          "scope": "test"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-test",
+          "scope": "test"
+        }
+      ]
+    },
+    {
+      "path": "chatchat-runtime-mcp/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-common",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-configuration-processor",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-test",
+          "scope": "test"
+        }
+      ]
+    },
+    {
+      "path": "chatchat-runtime-news/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-common",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-platform-spring",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-data-jpa",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-web",
+          "scope": "compile"
+        },
+        {
+          "groupId": "io.temporal",
+          "artifactId": "temporal-sdk",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.h2database",
+          "artifactId": "h2",
+          "scope": "runtime"
+        },
+        {
+          "groupId": "com.mysql",
+          "artifactId": "mysql-connector-j",
+          "scope": "runtime"
+        },
+        {
+          "groupId": "us.codecraft",
+          "artifactId": "webmagic-core",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.rometools",
+          "artifactId": "rome",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.apache.tika",
+          "artifactId": "tika-core",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.apache.tika",
+          "artifactId": "tika-parsers-standard-package",
+          "scope": "compile"
+        },
+        {
+          "groupId": "commons-io",
+          "artifactId": "commons-io",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.opensearch.client",
+          "artifactId": "opensearch-java",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.opensearch.client",
+          "artifactId": "opensearch-rest-client",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-test",
+          "scope": "test"
+        },
+        {
+          "groupId": "io.temporal",
+          "artifactId": "temporal-testing",
+          "scope": "compile"
+        }
+      ]
+    },
+    {
+      "path": "chatchat-runtime-skill/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-common",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.junit.jupiter",
+          "artifactId": "junit-jupiter",
+          "scope": "test"
+        },
+        {
+          "groupId": "org.assertj",
+          "artifactId": "assertj-core",
+          "scope": "test"
+        }
+      ]
+    },
+    {
+      "path": "chatchat-runtime-temporal/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-agents",
+          "scope": "compile"
+        },
+        {
+          "groupId": "io.temporal",
+          "artifactId": "temporal-sdk",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter",
+          "scope": "compile"
+        },
+        {
+          "groupId": "io.temporal",
+          "artifactId": "temporal-testing",
+          "scope": "test"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-test",
+          "scope": "test"
+        }
+      ]
+    },
+    {
+      "path": "chatchat-tools/pom.xml",
+      "dependencies": [
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-common",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-platform-spring",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-agents",
+          "scope": "compile"
+        },
+        {
+          "groupId": "dev.langchain4j",
+          "artifactId": "langchain4j-core",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.projectlombok",
+          "artifactId": "lombok",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-webflux",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-jdbc",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.apache.commons",
+          "artifactId": "commons-lang3",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-starter-test",
+          "scope": "test"
+        }
+      ]
+    },
+    {
+      "path": "pom.xml",
+      "dependencies": [
+        {
+          "groupId": "org.springframework.boot",
+          "artifactId": "spring-boot-dependencies",
+          "scope": "import"
+        },
+        {
+          "groupId": "dev.langchain4j",
+          "artifactId": "langchain4j-bom",
+          "scope": "import"
+        },
+        {
+          "groupId": "io.modelcontextprotocol.sdk",
+          "artifactId": "mcp-bom",
+          "scope": "import"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-common",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-platform-spring",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-mcp-grpc",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-license",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-runtime-skill",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-agents",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-runtime-temporal",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-tools",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-runtime-mcp",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-runtime-news",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-runtime-market",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-knowledge-base",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-chat",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-integration",
+          "scope": "compile"
+        },
+        {
+          "groupId": "com.chatchat",
+          "artifactId": "chatchat-enterprise",
+          "scope": "compile"
+        },
+        {
+          "groupId": "org.projectlombok",
+          "artifactId": "lombok",
+          "scope": "provided"
+        }
+      ]
+    }
+  ],
+  "matches": {
+    "ragImports": [],
+    "documentVector": [
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/python/PythonTemplateIndexService.java",
+        "line": 45
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/python/PythonTemplateIndexService.java",
+        "line": 77
+      },
+      {
+        "path": "chatchat-chat/src/main/java/com/chatchat/chat/skills/domain/indexing/DomainSkillIndexService.java",
+        "line": 70
+      },
+      {
+        "path": "chatchat-chat/src/main/java/com/chatchat/chat/skills/domain/indexing/DomainSkillIndexService.java",
+        "line": 136
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/search/engine/OpenSearchMcpSearchService.java",
+        "line": 108
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/search/engine/OpenSearchMcpSearchService.java",
+        "line": 122
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/search/engine/OpenSearchMcpSearchService.java",
+        "line": 361
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/search/engine/OpenSearchMcpSearchService.java",
+        "line": 533
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/search/engine/OpenSearchMcpSearchService.java",
+        "line": 537
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/search/engine/OpenSearchMcpSearchService.java",
+        "line": 538
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/search/engine/OpenSearchMcpSearchService.java",
+        "line": 561
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/search/engine/OpenSearchMcpSearchService.java",
+        "line": 684
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/search/engine/OpenSearchMcpSearchService.java",
+        "line": 1222
+      },
+      {
+        "path": "chatchat-runtime-news/src/main/java/com/chatchat/runtime/news/store/opensearch/OpenSearchNewsDocumentStore.java",
+        "line": 186
+      }
+    ],
+    "javaExploration": [
+      {
+        "path": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrationEngine.java",
+        "line": 5099
+      },
+      {
+        "path": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrator.java",
+        "line": 141
+      },
+      {
+        "path": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrator.java",
+        "line": 146
+      },
+      {
+        "path": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/InterpretationAnalysisSession.java",
+        "line": 361
+      },
+      {
+        "path": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/InterpretationAnalysisSession.java",
+        "line": 792
+      },
+      {
+        "path": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinator.java",
+        "line": 337
+      }
+    ],
+    "indirectRegistration": [
+      {
+        "path": "chatchat-agents/src/main/java/com/chatchat/agents/runtime/analysis/McpResultAnalysisBridge.java",
+        "line": 125
+      },
+      {
+        "path": "chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/InterpretationPlanOptimizer.java",
+        "line": 55
+      },
+      {
+        "path": "chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/InterpretationPlanValidator.java",
+        "line": 34
+      },
+      {
+        "path": "chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/template/TemplateWorkflowPluginRegistry.java",
+        "line": 35
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/metadata/MetadataIndexService.java",
+        "line": 572
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/metadata/TrinoMetadataCollector.java",
+        "line": 70
+      },
+      {
+        "path": "chatchat-platform-spring/src/main/java/com/chatchat/common/migration/H2ToMySqlDataMigrationRunner.java",
+        "line": 42
+      },
+      {
+        "path": "chatchat-tools/src/main/java/com/chatchat/tools/builtin/DynamicJdbcDriverLoader.java",
+        "line": 165
+      },
+      {
+        "path": "chatchat-tools/src/main/java/com/chatchat/tools/builtin/DynamicJdbcDriverLoader.java",
+        "line": 289
+      }
+    ]
+  },
+  "note": "Static matches require call-site review; an embedding used by Skills/MCP is not automatically legacy RAG."
+}

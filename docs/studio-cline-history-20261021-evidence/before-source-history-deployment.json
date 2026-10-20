@@ -1,0 +1,10 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:protocol-recovery-d5408838d6bf",
+  "jarSha256": "d5408838d6bf601d34825cd9b310554ca75288db681781c9dbb11b1feadfc30a",
+  "backup": "/opt/runtime-os-docker-stage/evidence/runtime-os-studios-20261021/backup-1792518043",
+  "webUnchanged": false,
+  "studioWebVerified": true,
+  "unrelatedContainersUnchanged": true,
+  "gatewayReloadedInPlace": true
+}

@@ -11,10 +11,13 @@ for(const file of ['C:/Program Files/Google/Chrome/Application/chrome.exe','C:/P
 }
 assert.ok(executablePath,'Chromium is required');
 const browser=await chromium.launch({executablePath,headless:true});
+let page;
+const errors=[],networkFailures=[];
 try {
-  const page=await browser.newPage({viewport:{width:1560,height:1000}});
-  const errors=[];let submissions=0;const detailReads=new Set();
+  page=await browser.newPage({viewport:{width:1560,height:1000}});
+  let submissions=0;const detailReads=new Set();
   page.on('pageerror',error=>errors.push(error.message));
+  page.on('response',response=>{if(response.status()>=400)networkFailures.push({path:new URL(response.url()).pathname,status:response.status()});});
   page.on('request',request=>{
     const path=new URL(request.url()).pathname;
     if(request.method()==='POST' && (/\/agent\/tasks$/.test(path)||/\/assist(?:\/coding)?$/.test(path)))submissions++;
@@ -37,8 +40,11 @@ try {
     await page.getByPlaceholder('搜索历史会话',{exact:true}).fill(label);
     const created=new Date(header.createdAt).toISOString();
     const card=page.locator('.recent-card').filter({has:page.locator(`time[datetime="${created}"]`)});
-    await card.waitFor({state:'visible',timeout:60000});await card.click();
-    await page.waitForFunction(path=>document.body.innerText.includes(path),report.artifacts[0].path,{timeout:30000});
+    const detailReady=page.waitForResponse(response=>new URL(response.url()).pathname===`/api/v1/conversations/${report.conversationId}` && response.status()===200);
+    await card.waitFor({state:'visible',timeout:60000});await card.click();await detailReady;
+    const firstExtension=report.artifacts[0].path.slice(report.artifacts[0].path.lastIndexOf('.'));
+    const firstSource=await readFile(`${root}/studio-${report.language}-source-1${firstExtension}`,'utf8');
+    await page.waitForFunction(source=>[...document.querySelectorAll('pre')].some(node=>node.textContent.includes(source)),firstSource,{timeout:30000});
     const blocks=await page.locator('pre').allTextContents();
     assert.ok(blocks.some(text=>text.length>40),'Archived code must be rendered');
     for(const [number,artifact] of report.artifacts.entries()) {
@@ -60,4 +66,8 @@ try {
   const result={status:'PASSED',httpFixtures:false,checks:checked,historyTriggeredGenerationRequests:submissions,pageErrors:errors};
   await writeFile(`${root}/studio-history-browser.json`,JSON.stringify(result,null,2));
   console.log(JSON.stringify(result));
+} catch(error) {
+  await writeFile(`${root}/studio-browser-failure-private.json`,JSON.stringify({url:page?.url(),errors,networkFailures,
+    body:page?await page.locator('body').innerText():''},null,2));
+  throw error;
 } finally {await browser.close();}

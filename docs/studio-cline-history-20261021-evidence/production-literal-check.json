@@ -1,0 +1,15 @@
+{
+  "scope": "Added production source lines d4844ff3..de7f78e8",
+  "matches": {
+    "worker11": 0,
+    "测试服务器CDH DataNode": 0,
+    "证券持仓": 0,
+    "trade_events": 0,
+    "qwen3.7-plus": 0
+  },
+  "fixturesExcluded": true,
+  "studioDirectJavaModelCalls": {
+    "chatchat-api\\src\\main\\java\\com\\chatchat\\api\\datascience\\StudioCodePlanService.java": 0,
+    "chatchat-api\\src\\main\\java\\com\\chatchat\\api\\datascience\\python\\PythonCodeAssistantService.java": 0
+  }
+}

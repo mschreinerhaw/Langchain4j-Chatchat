@@ -75,11 +75,21 @@ if node['sessions']['active']!=0:raise RuntimeError('SDK sessions remain active'
 report={'status':'PASSED','activeNodeSessions':0,'finalTasksCompleted':len(final_ids),
     'allAcceptedTestTasksStopped':True,'reconciliationRequired':False,'generatedSourceExecuted':False,
     'oldInterruptedPythonTaskRecovered':True,'productionSwitched':False,'tasks':tasks}
+current=json.loads((root/'module-package.json').read_text())
+generated=json.loads((root/'before-literal-render-module-package.json').read_text())
+if current['modules']!=generated['modules'] or current['apiClassOverlaySha256']!=generated['apiClassOverlaySha256']:
+    raise RuntimeError('Execution components changed after the real-model run; rerun generation before acceptance')
+report.update({'generationSourceCommit':generated['sourceCommit'],'observedDeploymentCommit':current['sourceCommit'],
+    'executionComponentsUnchangedAfterGeneration':True})
 (root/'post-validation.json').write_text(json.dumps(report,indent=2))
 names=['sql-verified-acceptance.json','python-verified-acceptance.json','post-validation.json',
     'module-manifest.json','module-package.json','deployment.json','parser-image.json','web-files.json',
     'first-candidate-module-package.json','first-candidate-deployment.json',
-    'before-source-history-module-package.json','before-source-history-deployment.json','boundary.json']
+    'before-source-history-module-package.json','before-source-history-deployment.json','boundary.json',
+    'before-literal-render-module-package.json','before-literal-render-deployment.json','studio-history-browser.json']
+browser=json.loads((root/'studio-history-browser.json').read_text())
+if browser['status']!='PASSED' or browser['httpFixtures'] or browser['historyTriggeredGenerationRequests']:
+    raise RuntimeError('Real browser history validation has not passed')
 for name in names:
     json.loads((root/name).read_text())
 with tarfile.open(root/'sanitized-studio-evidence.tar.gz','w:gz') as archive:

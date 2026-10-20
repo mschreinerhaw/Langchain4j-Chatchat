@@ -1,0 +1,20 @@
+{
+  "status": "PASSED",
+  "httpFixtures": false,
+  "checks": [
+    {
+      "language": "sql",
+      "conversationId": "595ca946-4806-4fdf-bacc-02a01a44d7fd",
+      "recentCardVisible": true,
+      "archivedCodeRendered": true
+    },
+    {
+      "language": "python",
+      "conversationId": "ea21b619-9d39-3f4e-abbb-76d571fd00ac",
+      "recentCardVisible": true,
+      "archivedCodeRendered": true
+    }
+  ],
+  "historyTriggeredGenerationRequests": 0,
+  "pageErrors": []
+}

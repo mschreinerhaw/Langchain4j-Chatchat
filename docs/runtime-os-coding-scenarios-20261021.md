@@ -1,5 +1,7 @@
 # Runtime OS / Cline 补充场景联机验证（2026-10-21）
 
+> 后续 SQLStudio / PythonStudio 的 Cline 生成、最近会话持久化和浏览器源码保真修复，见 [Studio 专项验收](studio-cline-history-validation-20261021.md)。本页保留证券设计、主机运维和知识问答的原始版本观测。
+
 本记录承接 [2026-10-20 改造交付记录](runtime-os-coding-refactor-20261020.md)，说明本轮新增问题、修复及最终部署。代码版本为 `eb571d57758866aaf85de33de844285d86dcba11`，开发分支为 `feature/runtime-os-coding-refactor`。验证环境为 `192.168.195.221:5221` 上的隔离项目 `runtime-os-app-stage`；生产版本未替换。
 
 两个指定场景和补充知识问答均通过真实模型、Cline、Parquet、Python Sandbox、代码归档与最终发布闭环。生产发布门禁仍关闭：全量回归报告 1155 个测试、52 个失败、39 个错误、0 个 JUnit 跳过，另有 RocksDB JNI 崩溃，导致部分依赖模块未运行。不能把定向测试或联机闭环成功当作全量验收通过。

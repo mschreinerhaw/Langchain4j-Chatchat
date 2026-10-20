@@ -1,0 +1,114 @@
+{
+  "status": "PASSED",
+  "javaUnique": {
+    "tests": 132,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "javaClasses": {
+    "com.chatchat.api.controller.chat.ConversationControllerTest": {
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "com.chatchat.api.controller.chat.ConversationHistoryOwnerAliasTest": {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "com.chatchat.api.datascience.python.PythonCodeAssistantServiceTest": {
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "com.chatchat.api.datascience.sql.SqlStudioGenerationToolPolicyTest": {
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "com.chatchat.api.datascience.sql.SqlStudioIntegrationTest": {
+      "tests": 32,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "com.chatchat.api.datascience.sql.SqlStudioMetadataGatewayTest": {
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "com.chatchat.api.datascience.sql.SqlStudioMetadataServiceTest": {
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "com.chatchat.api.datascience.StudioCodePlanServiceTest": {
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "com.chatchat.api.datascience.StudioTaskHistoryTest": {
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "com.chatchat.api.runtime.coding.analysis.ClineContextAnswerServiceTest": {
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "com.chatchat.api.runtime.coding.cline.CodingWorkspaceNodeIntegrationTest": {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "com.chatchat.api.runtime.coding.workspace.CodingWorkspaceServiceTest": {
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "com.chatchat.api.runtime.coding.cline.ClineRuntimeModelBridgeTest": {
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "com.chatchat.chat.conversation.service.ConversationServiceResultDeduplicationTest": {
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "com.chatchat.chat.presentation.UserFacingContentSanitizerTest": {
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "overlappingRunsDeduplicated": true,
+  "frontendUniqueTests": 103,
+  "frontendTestFiles": 10,
+  "frontendFailures": 0,
+  "nodeSdkCrossProcessCases": 2,
+  "nodeSdkCasesIncludedInJavaCount": true,
+  "nodeSdkProviderFixture": true,
+  "sqlEditorBrowserFixture": "PASSED; authenticated HTTP fixtures, not live-provider evidence",
+  "scripts": {
+    "passed": 3
+  },
+  "browserLive": "See studio-history-browser.json",
+  "generatedPythonTestsExecuted": false
+}

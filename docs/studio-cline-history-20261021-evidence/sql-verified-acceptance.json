@@ -1,0 +1,70 @@
+{
+  "status": "PASSED",
+  "label": "sql-verified",
+  "sourceCommit": "db6edb6aef472d645177a5d9fda0a0670913f907",
+  "jarSha256": "86799c654a0b93457fd999f784474f1745c59ef03e70d79cf1f2fd0b21ba16c8",
+  "language": "sql",
+  "taskId": "sql-coding-5f8a0e61-ff3e-4fb5-950f-6566cf4b4c0c",
+  "conversationId": "595ca946-4806-4fdf-bacc-02a01a44d7fd",
+  "observedDurationMs": 40099,
+  "modelCalls": 3,
+  "modelTelemetry": [
+    {
+      "selectedModel": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "durationMs": 12732,
+      "usage": {
+        "cacheReadTokens": 1152,
+        "inputTokens": 2440,
+        "outputTokens": 747,
+        "reasoningTokens": 366
+      }
+    },
+    {
+      "selectedModel": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "durationMs": 1954,
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 668,
+        "outputTokens": 51,
+        "reasoningTokens": 34
+      }
+    },
+    {
+      "selectedModel": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "durationMs": 19457,
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 1358,
+        "outputTokens": 1137,
+        "reasoningTokens": 551
+      }
+    }
+  ],
+  "javaPlanModelCalls": 0,
+  "analysisDecisionOwner": "CLINE",
+  "historyVisible": true,
+  "historyContainsSource": true,
+  "historyDuplicateMessages": false,
+  "messageCount": 2,
+  "artifacts": [
+    {
+      "path": "sql/trade_account_summary.sql",
+      "sha256": "d7b75a9066e1c9d60e9b2db750809c77c95671643f79018e69b33adb8d5a9fc0",
+      "characters": 1091
+    }
+  ],
+  "generatedCodeExecuted": false,
+  "sqlExecuted": false,
+  "projectAutomaticallyChanged": false,
+  "eventTypes": [
+    "BUDGET_UPDATED",
+    "RECOVERY_RECONCILED",
+    "TASK_CREATED",
+    "TASK_FINISHED",
+    "TASK_STARTED"
+  ],
+  "productionSwitched": false
+}

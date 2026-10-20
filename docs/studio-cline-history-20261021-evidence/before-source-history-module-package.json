@@ -1,0 +1,21 @@
+{
+  "status": "ASSEMBLED",
+  "sourceCommit": "5ffc420e6fd507d405b21ea14ddc8fbe387e428a",
+  "assemblyScriptSha256": "69bbb92caa72fb1317d48eb72683d7c800f81a52f0f254c9299d1eeee04e07e9",
+  "baseSha256": "c8969002d234e52b1eb3be421abd39f15bdfc38f22cf7c9c5185816586721c7c",
+  "candidateSha256": "d5408838d6bf601d34825cd9b310554ca75288db681781c9dbb11b1feadfc30a",
+  "modules": {
+    "chatchat-agents": "4acb3943658f15b01729e8b8652f6358cb1fe42fdf073bb0e3e9834eb380b857",
+    "chatchat-knowledge-base": "05362a687d069166eda89cfbee7df2006fc2cdeb5cfeaa8bd2bee807a09f24b6",
+    "chatchat-common": "72d22ca31ee32440670af67b5e001f01fc6ed8cab8a2b910a880b880019f8df2",
+    "chatchat-chat": "caa13c6f377140cd9f3c49e8375fe793ec9378788ad1ff3d594b217543b633b2"
+  },
+  "unchangedEntries": 1105,
+  "apiClassOverlaySha256": "3a8ded0f247ccc3f45ce9122e16cf70c807063d29070d1c769b129278d11ebec",
+  "webAssetsSha256": "3dd9230b1e48f6011c6e4868f8b29b575525d925e0b7e7f53cef8f2e1dde86dc",
+  "addedApiClasses": [],
+  "removedDocumentRagConfig": {},
+  "retiredRagClasses": 0,
+  "productionSwitched": false,
+  "configuration": "Only retired chatchat.search RAG keys removed; model/API/Skills/MCP and all other configuration text retained."
+}

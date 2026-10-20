@@ -1,0 +1,24 @@
+{
+  "testedCommit": "c4c643442944657971f7c16e2fb201a6267ab0a2",
+  "comparedWith": "eb571d57 full regression evidence",
+  "before": {
+    "tests": 1155,
+    "failures": 52,
+    "errors": 39,
+    "skipped": 0
+  },
+  "after": {
+    "tests": 1155,
+    "failures": 52,
+    "errors": 39,
+    "skipped": 0
+  },
+  "addedFailureFingerprints": [],
+  "removedFailureFingerprints": [],
+  "unchangedFailureFingerprints": 91,
+  "completeBackendPass": false,
+  "nativeCrash": "EXCEPTION_ILLEGAL_INSTRUCTION in librocksdbjni; HarnessToolRecoveryTest",
+  "nativeCrashEvidence": "chatchat-agents/hs_err_pid92.log, 2026-10-21 01:33:05 Asia/Shanghai",
+  "dependentModulesIncomplete": true,
+  "latestApiFixesCoveredByDirectedTests": true
+}

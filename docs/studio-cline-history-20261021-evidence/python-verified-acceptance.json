@@ -1,0 +1,75 @@
+{
+  "status": "PASSED",
+  "label": "python-verified",
+  "sourceCommit": "db6edb6aef472d645177a5d9fda0a0670913f907",
+  "jarSha256": "86799c654a0b93457fd999f784474f1745c59ef03e70d79cf1f2fd0b21ba16c8",
+  "language": "python",
+  "taskId": "python-coding-77d0ed023fd799baf2a51b4e26c3006681d2b12b1d22ef9695625a286b9a8d82",
+  "conversationId": "ea21b619-9d39-3f4e-abbb-76d571fd00ac",
+  "observedDurationMs": 83454,
+  "modelCalls": 3,
+  "modelTelemetry": [
+    {
+      "selectedModel": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "durationMs": 1927,
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 661,
+        "outputTokens": 48,
+        "reasoningTokens": 31
+      }
+    },
+    {
+      "selectedModel": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "durationMs": 67767,
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 1591,
+        "outputTokens": 4158,
+        "reasoningTokens": 1902
+      }
+    },
+    {
+      "selectedModel": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "durationMs": 7995,
+      "usage": {
+        "cacheReadTokens": 1152,
+        "inputTokens": 4355,
+        "outputTokens": 449,
+        "reasoningTokens": 178
+      }
+    }
+  ],
+  "javaPlanModelCalls": 0,
+  "analysisDecisionOwner": "CLINE",
+  "historyVisible": true,
+  "historyContainsSource": true,
+  "historyDuplicateMessages": false,
+  "messageCount": 2,
+  "artifacts": [
+    {
+      "path": "main.py",
+      "sha256": "8d9c948386198bc883c490f6778837c11223f9ada088e9886e41d9fb87a4a255",
+      "characters": 2055
+    },
+    {
+      "path": "test_main.py",
+      "sha256": "4fa3be4ed1d73f57a4d21fd0539bd2793bc748618cc29e573dd9b23aaa418a01",
+      "characters": 5268
+    }
+  ],
+  "generatedCodeExecuted": false,
+  "sqlExecuted": false,
+  "projectAutomaticallyChanged": false,
+  "eventTypes": [
+    "BUDGET_UPDATED",
+    "RECOVERY_RECONCILED",
+    "TASK_CREATED",
+    "TASK_FINISHED",
+    "TASK_STARTED"
+  ],
+  "productionSwitched": false
+}

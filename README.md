@@ -25,9 +25,9 @@
 
 两条产品线共同构成灵动体系：灵动智联提供企业智能能力的连接与治理底座，灵动智策基于这些可信能力完成企业洞察与辅助决策。
 
-LangChain4j ChatChat 是一个基于 Spring Boot、LangChain4j、Vue 3 与 MCP 的企业级 AI Chat 和 Agent Runtime。Java Runtime 负责需求分类、授权、固定模板工作流、数据交付和任务生命周期；分析、设计和上下文作答交由 Node/Cline，代码通过受控 Python Sandbox 执行。Skills 原文经授权交付，由 Cline 选择分析方法。知识问答保留无需业务取数的独立路径；通用文档处理、Skills、MCP 与业务元数据访问继续保留。
+LangChain4j ChatChat 是一个基于 Spring Boot、LangChain4j、Vue 3 与 MCP 的企业级 AI Chat 和 Agent Runtime。Java Runtime 负责需求分类、授权、固定模板工作流、数据交付和任务生命周期；分析、设计和上下文作答交由 Node/Cline，数据分析计算通过受控 Python Sandbox 执行。SQLStudio / PythonStudio 代码生成也进入同一 Cline 框架，提案经语法校验后等待审查，生成任务不自动执行代码或 SQL。Skills 原文经授权交付，由 Cline 选择分析方法。知识问答保留无需业务取数的独立路径；通用文档处理、Skills、MCP 与业务元数据访问继续保留。
 
-本轮职责边界、文档 RAG 清理、任务契约、验证结果及回退方式见 [改造交付记录](docs/runtime-os-coding-refactor-20261020.md) 和 [补充场景联机验证](docs/runtime-os-coding-scenarios-20261021.md)。该候选的全量回归尚未通过，不作为生产替换依据。
+本轮职责边界、文档 RAG 清理、任务契约、验证结果及回退方式见 [改造交付记录](docs/runtime-os-coding-refactor-20261020.md)、[补充场景联机验证](docs/runtime-os-coding-scenarios-20261021.md) 和 [Studio 生成与最近会话验收](docs/studio-cline-history-validation-20261021.md)。该候选的全量回归尚未通过，不作为生产替换依据。
 
 > 核心目标：**RUN**。单个节点失败、模型计划漂移或某次工具调用异常，不应直接终止整个任务；只要仍存在可执行路径或可用证据，Runtime 就应恢复流程、继续执行并如实交付结果。
 

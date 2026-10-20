@@ -1,0 +1,281 @@
+{
+  "status": "PASSED",
+  "activeNodeSessions": 0,
+  "finalTasksCompleted": 2,
+  "allAcceptedTestTasksStopped": true,
+  "reconciliationRequired": false,
+  "generatedSourceExecuted": false,
+  "oldInterruptedPythonTaskRecovered": true,
+  "productionSwitched": false,
+  "tasks": [
+    {
+      "label": "sql-final",
+      "taskId": "sql-coding-9d2e0687-a0fa-47fe-8e44-3f64fadac6bc",
+      "status": "BUDGET_EXCEEDED",
+      "executionControl": {
+        "stopReason": "BUDGET_EXCEEDED",
+        "stopRequestedAt": "2026-10-20T17:31:41.610Z",
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "usage": {
+        "budgetId": "workspace-budget:sql-coding-9d2e0687-a0fa-47fe-8e44-3f64fadac6bc",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 716,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 32052,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "budget": {
+        "maxModelTokens": 32768,
+        "maxModelCalls": 8,
+        "maxCodeExecutions": 0
+      },
+      "networkPolicy": "NONE",
+      "allowedTools": [
+        "workspace_propose",
+        "workspace_read"
+      ]
+    },
+    {
+      "label": "sql-fixed",
+      "taskId": "sql-coding-199423da-fbc1-4735-8e0b-08741c7a0daf",
+      "status": "COMPLETED",
+      "executionControl": {
+        "stopReason": null,
+        "stopRequestedAt": null,
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "usage": {
+        "budgetId": "workspace-budget:sql-coding-199423da-fbc1-4735-8e0b-08741c7a0daf",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 3,
+          "modelTokens": 6669,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 1660,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 42483,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.375"
+        },
+        "meteringComplete": false
+      },
+      "budget": {
+        "maxModelTokens": 262144,
+        "maxModelCalls": 8,
+        "maxCodeExecutions": 0
+      },
+      "networkPolicy": "NONE",
+      "allowedTools": [
+        "workspace_propose",
+        "workspace_read"
+      ]
+    },
+    {
+      "label": "python-fixed",
+      "taskId": "python-coding-f695603a92af09e769f64886203c00502c57bd5bdec03c1d8bc2cdbe1a467f68",
+      "status": "COMPLETED",
+      "executionControl": {
+        "stopReason": null,
+        "stopRequestedAt": null,
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-f695603a92af09e769f64886203c00502c57bd5bdec03c1d8bc2cdbe1a467f68",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 3,
+          "modelTokens": 12975,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 10866,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 36177,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.375"
+        },
+        "meteringComplete": false
+      },
+      "budget": {
+        "maxModelTokens": 262144,
+        "maxModelCalls": 8,
+        "maxCodeExecutions": 0
+      },
+      "networkPolicy": "NONE",
+      "allowedTools": [
+        "workspace_propose",
+        "workspace_read"
+      ]
+    },
+    {
+      "label": "sql-verified",
+      "taskId": "sql-coding-5f8a0e61-ff3e-4fb5-950f-6566cf4b4c0c",
+      "status": "COMPLETED",
+      "executionControl": {
+        "stopReason": null,
+        "stopRequestedAt": null,
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "usage": {
+        "budgetId": "workspace-budget:sql-coding-5f8a0e61-ff3e-4fb5-950f-6566cf4b4c0c",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 3,
+          "modelTokens": 6401,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 1495,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 42751,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.375"
+        },
+        "meteringComplete": false
+      },
+      "budget": {
+        "maxModelTokens": 262144,
+        "maxModelCalls": 8,
+        "maxCodeExecutions": 0
+      },
+      "networkPolicy": "NONE",
+      "allowedTools": [
+        "workspace_propose",
+        "workspace_read"
+      ]
+    },
+    {
+      "label": "python-verified",
+      "taskId": "python-coding-77d0ed023fd799baf2a51b4e26c3006681d2b12b1d22ef9695625a286b9a8d82",
+      "status": "COMPLETED",
+      "executionControl": {
+        "stopReason": null,
+        "stopRequestedAt": null,
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-77d0ed023fd799baf2a51b4e26c3006681d2b12b1d22ef9695625a286b9a8d82",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 3,
+          "modelTokens": 11262,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 8200,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 37890,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.375"
+        },
+        "meteringComplete": false
+      },
+      "budget": {
+        "maxModelTokens": 262144,
+        "maxModelCalls": 8,
+        "maxCodeExecutions": 0
+      },
+      "networkPolicy": "NONE",
+      "allowedTools": [
+        "workspace_propose",
+        "workspace_read"
+      ]
+    },
+    {
+      "label": "python-initial-http-500",
+      "taskId": "python-coding-673704788f5c2ded8ca296617d2be07bebb8fd104e454765d4f7318055487c1f",
+      "status": "BUDGET_EXCEEDED",
+      "executionControl": {
+        "stopReason": "BUDGET_EXCEEDED",
+        "stopRequestedAt": "2026-10-20T17:31:41.386Z",
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-673704788f5c2ded8ca296617d2be07bebb8fd104e454765d4f7318055487c1f",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 699,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 32069,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      }
+    }
+  ],
+  "generationSourceCommit": "db6edb6aef472d645177a5d9fda0a0670913f907",
+  "observedDeploymentCommit": "de7f78e8c4b100710d47c4e85ee661328976f3b1",
+  "executionComponentsUnchangedAfterGeneration": true
+}

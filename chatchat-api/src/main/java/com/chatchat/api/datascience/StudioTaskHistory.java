@@ -51,7 +51,9 @@ public class StudioTaskHistory {
         var assistant=Conversation.Message.builder().id(messageId(messageIdentity+"assistant")).role("assistant").content(answer)
             .timestamp(now).taskId(task).status(status).streaming(false).modelName(request.modelName())
             .agentName(label).steps(steps).traces(events)
-            .memoryContext(Map.of("taskOrigin","studio-coding","codingTaskId",task,"language",request.language())).build();
+            .memoryContext(Map.of("taskOrigin","studio-coding","codingTaskId",task,"language",request.language(),
+                "codingTaskProtocol",com.chatchat.common.runtime.coding.CodingProtocol.WORKSPACE_VERSION,
+                "codingResultFormat","WORKSPACE_FILES")).build();
         conversations.updateConversationSummary(scope.tenantId(),session,scope.userId(),
             label+": "+request.question(),status,null,request.modelName(),"llm_chat",label);
         conversations.mergeMessages(scope.tenantId(),session,scope.userId(),List.of(user,assistant));

@@ -284,7 +284,7 @@ public final class CodingWorkspaceService {
         }
     }
     private void projectHistoryChecked(KernelDataScope scope,String task,CodingTaskOutcome outcome){
-        String projectedKey="coding:workspace-history-revision:"+task;
+        String projectedKey="coding:workspace-history-revision:v2:"+task;
         var projected=evidence.readExecutionCheckpoint(scope,projectedKey);
         if(projected.isPresent() && Long.parseLong(projected.get())>=outcome.revision())return;
         evidence.readExecutionCheckpoint(scope,"coding:workspace-history:"+task).ifPresent(saved->{

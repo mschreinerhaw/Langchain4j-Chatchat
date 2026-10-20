@@ -9,6 +9,13 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class UserFacingContentSanitizerTest {
+    @Test void literalWorkspaceSourceRequiresBothVersionAndFileFormat(){
+        assertThat(UserFacingContentSanitizer.workspaceSourceContent(Map.of("codingTaskProtocol","runtime_os.coding.v2",
+            "codingResultFormat","WORKSPACE_FILES"))).isTrue();
+        assertThat(UserFacingContentSanitizer.workspaceSourceContent(Map.of("codingTaskProtocol","unrelated",
+            "codingResultFormat","WORKSPACE_FILES"))).isFalse();
+        assertThat(UserFacingContentSanitizer.workspaceSourceContent(Map.of("codingTaskProtocol","runtime_os.coding.v2"))).isFalse();
+    }
     @Test void modelNativeProvenancePreservesCitationsAndCodeBlocksWithoutChangingLegacyCleanup() {
         String text="Source `mcp_server_tool` [SQL-1], #chunk-2.\n```text\nLiteral payload\n```";
         var nativeResponse=Map.<String,Object>of("modelAnalysisProtocol","model_native_analysis.v2","answer",text,

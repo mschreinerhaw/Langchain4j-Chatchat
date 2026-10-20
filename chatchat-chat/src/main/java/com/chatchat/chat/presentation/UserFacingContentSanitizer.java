@@ -23,6 +23,11 @@ public final class UserFacingContentSanitizer {
         return version.equals(context.get("modelAnalysisProtocol"))
             || context.get("agent") instanceof Map<?,?> agent && version.equals(agent.get("modelAnalysisProtocol"));
     }
+    /** Source files are literal artifacts. Text punctuation cleanup changes code and string literals. */
+    public static boolean workspaceSourceContent(Map<?,?> context){
+        return context!=null && com.chatchat.common.runtime.coding.CodingProtocol.WORKSPACE_VERSION.equals(context.get("codingTaskProtocol"))
+            && "WORKSPACE_FILES".equals(context.get("codingResultFormat"));
+    }
 
     public static String removeInternalEvidenceMarkers(String value, Map<?,?> context) {
         return modelNativeContent(context) ? (value == null ? "" : value) : removeInternalEvidenceMarkers(value);

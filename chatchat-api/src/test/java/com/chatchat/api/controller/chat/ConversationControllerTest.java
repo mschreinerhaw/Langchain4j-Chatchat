@@ -27,6 +27,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 public class ConversationControllerTest {
+    @Test void studioHistoryPreservesSourceBytesAndParametersThroughTheRealPersistenceReadPath() throws Exception {
+        String source="sql/report.sql\n````sql\nSELECT 'keep : literal [evidence:literal]' AS label, amount\nFROM entries WHERE event_date >= :start_date AND event_date < :end_date ;\n````";
+        var session=conversationService.createConversation("studio-reader","Studio source");
+        var message=com.chatchat.chat.conversation.model.Conversation.Message.builder()
+            .id(java.util.UUID.randomUUID().toString()).role("assistant").content(source)
+            .memoryContext(java.util.Map.of("codingTaskProtocol","runtime_os.coding.v2","codingResultFormat","WORKSPACE_FILES"))
+            .build();
+        conversationService.mergeMessages("default",session.getId(),"studio-reader",List.of(message));
+        mockMvc.perform(get("/api/v1/conversations/"+session.getId())).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.messages[0].content").value(source));
+    }
 
     @Autowired
     private MockMvc mockMvc;

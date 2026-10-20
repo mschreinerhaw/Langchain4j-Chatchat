@@ -101,6 +101,7 @@ export function compactMessageForPersistence(message = {}) {
       : null,
     uiResponse: message.uiResponse ? compactPersistenceValue(message.uiResponse) : null,
     evidencePremises: compactPersistenceValue(message.evidencePremises || []),
+    memoryContext: message.memoryContext ? compactPersistenceValue(message.memoryContext) : null,
     agentName: truncateString(message.agentName, 1024, "agent name"),
     modelName: truncateString(message.modelName, 1024, "model name"),
     analysisNodeId: truncateString(message.analysisNodeId, 1024, "analysis node id"),

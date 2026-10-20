@@ -31,6 +31,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class ConversationServiceResultDeduplicationTest {
+    @Test void equivalentOlderDisplaySnapshotCannotStripLiteralWorkspaceSourceProvenance(){
+        var literal=Conversation.Message.builder().id("message").taskId("task").role("assistant")
+            .content("SELECT 'keep : space' WHERE day >= :start_date ;")
+            .memoryContext(java.util.Map.of("codingTaskProtocol","runtime_os.coding.v2","codingResultFormat","WORKSPACE_FILES")).build();
+        var display=Conversation.Message.builder().id("message").taskId("task").role("assistant")
+            .content("SELECT 'keep: space' WHERE day >=:start_date;").build();
+        var projected=ConversationService.mergeMessageSnapshots(java.util.List.of(display),java.util.List.of(literal));
+        assertThat(projected).hasSize(1);
+        assertThat(projected.get(0).getContent()).isEqualTo(literal.getContent());
+        assertThat(projected.get(0).getMemoryContext()).containsEntry("codingResultFormat","WORKSPACE_FILES");
+    }
     @Test void restoredModelNativeConversationKeepsTheModelTextAndItsProvenance() throws Exception {
         var service=new ConversationService(mock(ChatSessionRepository.class),mock(ChatMessageIndexRepository.class),
             mock(ConversationSummaryRepository.class),mock(ChatMessageDetailStore.class));

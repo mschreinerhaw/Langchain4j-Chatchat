@@ -104,8 +104,17 @@ else:
     validation=state['output']['validation']
     if not validation.get('valid') or validation.get('codeExecuted') is not False:raise RuntimeError('Python parser evidence invalid')
 
-detail=http('/conversations/'+session)
 summary=http('/conversations/user/'+user['id']+'/summaries?limit=100')
+if args.language=='python':
+    matching=[]
+    for header in summary:
+        if header.get('agentName')!='PythonStudio':continue
+        candidate=http('/conversations/'+header['id'])
+        if any(message.get('taskId')==task for message in candidate.get('messages',[])):matching.append(candidate)
+    if len(matching)!=1:raise RuntimeError('Cannot uniquely locate the authenticated Python task history')
+    detail=matching[0];session=detail['id'];saved['conversationId']=session
+    private.write_text(json.dumps(saved,ensure_ascii=False,indent=2))
+else:detail=http('/conversations/'+session)
 if not any(item['id']==session and item['status']=='completed' for item in summary):raise RuntimeError('Studio missing from recent sessions')
 messages=detail.get('messages',[])
 assistant=[message for message in messages if message.get('role')=='assistant' and message.get('taskId')==task]

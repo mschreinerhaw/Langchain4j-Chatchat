@@ -632,6 +632,11 @@ public class ConversationService {
 
     private static void preserveCompleteMessageFields(Conversation.Message previous,
                                                       Conversation.Message incoming) {
+        if (UserFacingContentSanitizer.workspaceSourceContent(previous.getMemoryContext())
+                && !UserFacingContentSanitizer.workspaceSourceContent(incoming.getMemoryContext())) {
+            incoming.setContent(previous.getContent());
+            incoming.setMemoryContext(new LinkedHashMap<>(previous.getMemoryContext()));
+        }
         if (isTruncatedText(incoming.getContent()) && !isTruncatedText(previous.getContent())) {
             incoming.setContent(previous.getContent());
         }
@@ -1088,7 +1093,8 @@ public class ConversationService {
         return Conversation.Message.builder()
             .id(detail.getMessageId())
             .role(detail.getRole())
-            .content(UserFacingContentSanitizer.modelNativeContent(detail.getMemoryContext())
+            .content(UserFacingContentSanitizer.workspaceSourceContent(detail.getMemoryContext())
+                || UserFacingContentSanitizer.modelNativeContent(detail.getMemoryContext())
                 || UserFacingContentSanitizer.modelNativeContent(detail.getUiResponse()) ? detail.getContent()
                 : UserFacingContentSanitizer.removeInternalEvidenceMarkers(detail.getContent()))
             .timestamp(toLocalDateTime(detail.getCreatedAt()))

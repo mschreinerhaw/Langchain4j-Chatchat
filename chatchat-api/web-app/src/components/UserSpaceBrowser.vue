@@ -11,7 +11,7 @@
       <main class="space-main">
         <div class="space-toolbar"><nav class="space-breadcrumb" aria-label="文件夹路径"><button @click="openFolder('all')"><HardDrive :size="15" />用户空间</button><template v-for="folder in breadcrumb" :key="folder.id"><ChevronRight :size="13" /><button @click="openFolder(folder.id)">{{ folder.name }}</button></template><span v-if="currentFolder==='all'">/ 全部文件</span></nav><div class="space-view-tools"><button class="icon-button" aria-label="刷新用户空间" title="刷新" :disabled="busy" @click="refreshAll"><RefreshCw :size="16" :class="{spinning:loading}" /></button><button class="icon-button" aria-label="列表视图" title="列表视图" :aria-pressed="viewMode==='list'" @click="viewMode='list'"><List :size="16" /></button><button class="icon-button" aria-label="网格视图" title="网格视图" :aria-pressed="viewMode==='grid'" @click="viewMode='grid'"><LayoutGrid :size="16" /></button></div></div>
         <div class="space-filter"><label class="space-search"><Search :size="17" /><input v-model="query" type="search" aria-label="搜索用户空间文件" placeholder="搜索文件名称、用途或状态" @input="hits=null" @keydown.enter.prevent="knowledgeEnabled && searchContent()" /></label><button v-if="knowledgeEnabled" class="ghost-button" :disabled="busy || !query.trim()" @click="searchContent"><Search :size="15" />检索内容</button><select v-model="sortBy" aria-label="文件排序"><option value="updated">最近更新</option><option value="name">文件名称</option><option value="size">文件大小</option></select></div>
-        <div v-if="selected.length" class="space-selection"><span>已选择 {{ selected.length }} 个文件</span><button class="ghost-button compact-button" :disabled="busy" @click="moveTarget=currentFolder==='all'?'documents':currentFolder;moveDialog=true"><FolderInput :size="15" />移动到</button><button class="primary-button compact-button" :disabled="busy || !selectedEntries.every(canAnalyze)" @click="openAnalysis"><Sparkles :size="15" />分析选中文件</button><button class="ghost-button compact-button" :disabled="busy" @click="selected=[]">取消选择</button></div>
+        <div v-if="selected.length" class="space-selection"><span>已选择 {{ selected.length }} 个文件</span><button class="ghost-button compact-button" :disabled="busy" @click="moveTarget=currentFolder==='all'?'root':currentFolder;moveDialog=true"><FolderInput :size="15" />移动到</button><button class="primary-button compact-button" :disabled="busy || !selectedEntries.every(canAnalyze)" @click="openAnalysis"><Sparkles :size="15" />分析选中文件</button><button class="ghost-button compact-button" :disabled="busy" @click="selected=[]">取消选择</button></div>
         <div v-if="childFolders.length && !query && !hits" class="space-folder-grid"><button v-for="folder in childFolders" :key="folder.id" @dblclick="openFolder(folder.id)" @click="openFolder(folder.id)"><Folder :size="30" /><div><strong>{{ folder.name }}</strong><small>{{ countFolder(folder.id) }} 个文件</small></div><ChevronRight :size="16" /></button></div>
         <div class="space-list-heading"><strong>{{ hits ? '知识检索结果' : folderNameLabel }}</strong><span>{{ resultTotal }} 个文件{{ loading?' · 正在加载…':'' }}</span><button v-if="isCustomFolder" class="space-text-action" :disabled="busy" @click="removeCurrentFolder">删除空文件夹</button></div>
         <div v-if="!visible.length" class="space-empty"><FolderOpen :size="46" /><h2>{{ query?'没有找到匹配文件':'此文件夹还没有文件' }}</h2><p>{{ query?'调整关键词，或使用内容检索查找资料。':'上传文件，或将已有文件移动到这里；脚本和分析记录会按用途显示。' }}</p><button v-if="!query" class="primary-button" :disabled="busy" @click="uploadInput.click()"><Upload :size="16" />上传文件</button></div>
@@ -31,19 +31,22 @@ import {Folder,FolderPlus,FolderInput,FolderOpen,Files,FileText,FileCode2,Image,
 import AppNotice from './AppNotice.vue';import AppConfirmDialog from './AppConfirmDialog.vue';import ReportMarkdown from './ReportMarkdown.vue';
 import {apiRequest,getStoredAuthSession,fetchPythonCodeModels} from '../services/api';
 import {workspaceHeaders} from '../js/utils/workspaceContext';
-import {PURPOSE_FOLDERS,userSpaceEntries,folderTrail,canAnalyze,canDelete,validateAnalysisFiles} from '../js/utils/userSpaceFiles';
+import {userSpaceEntries,folderTrail,canAnalyze,canDelete,validateAnalysisFiles} from '../js/utils/userSpaceFiles';
 const props=defineProps({workspaceContext:Object,dataFiles:{type:Array,default:()=>[]},scripts:{type:Array,default:()=>[]},canCreateScript:Boolean});
 const emit=defineEmits(['open-script','new-script','download-data','remove-data','remove-script','refresh','python-data-ready','open-python-draft']);
 const page=ref(1),pageSize=ref(25),total=ref(0),totalFiles=ref(0),folderCounts=ref({}),pageItems=ref([]);
 let loadTicket=0;
 const files=ref([]),organization=ref({folders:[],locations:[]}),space=ref(null),selected=ref([]),currentFolder=ref('all'),query=ref(''),viewMode=ref('list'),sortBy=ref('updated');
 const busy=ref(false),loading=ref(false),analyzing=ref(false),error=ref(''),status=ref(''),uploadInput=ref(null);
-const folderDialog=ref(false),folderName=ref(''),moveDialog=ref(false),moveTarget=ref('documents'),preview=ref(null),confirmation=ref(null);
+const folderDialog=ref(false),folderName=ref(''),moveDialog=ref(false),moveTarget=ref('root'),preview=ref(null),confirmation=ref(null);
 const analysisOpen=ref(false),instruction=ref(''),models=ref([]),modelName=ref(''),report=ref(''),analysisStatus=ref(''),knowledgeEnabled=ref(false),hits=ref(null);
 let disposed=false,confirmResolve;
 const accept='.pdf,.docx,.xlsx,.xls,.csv,.parquet,.orc,.zip,.txt,.log,.md,.json,.jsonl,.py,.sql,.png,.jpg,.jpeg,.webp,.gif';
 const options=()=>({workspaceContext:props.workspaceContext});
-const folders=computed(()=>[...PURPOSE_FOLDERS.map(folder=>({...folder,parentId:'root'})),...organization.value.folders]);
+const folders=computed(()=>{
+  const customIds=new Set(organization.value.folders.map(folder=>folder.id));
+  return organization.value.folders.map(folder=>({...folder,parentId:customIds.has(folder.parentId)?folder.parentId:'root'}));
+});
 const entries=computed(()=>hits.value?userSpaceEntries(files.value,[],[],organization.value.locations):pageItems.value.flatMap(item=>
   userSpaceEntries(item.source==='asset'?[item.original]:[],item.source==='python-data'?[item.original]:[],item.source==='python-script'?[item.original]:[],[{source:item.source,sourceId:item.sourceId,folderId:item.folderId}])));
 const selectedEntries=computed(()=>entries.value.filter(file=>selected.value.includes(file.key)));

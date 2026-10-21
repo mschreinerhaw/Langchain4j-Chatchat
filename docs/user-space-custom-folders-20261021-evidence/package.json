@@ -1,0 +1,10 @@
+{
+  "path": "target\\assets-local\\user-space-custom-folders-app.jar",
+  "sha256": "7fed1f613de8398c9aa4dd77ede71aa41abf732ad3132994366f87d7ed0dc13a",
+  "consoleFiles": 83,
+  "testedBackendSha256": "00cc7921269058ae2143e6814e362d8dcb211b68f519192ea50a5fd5ea194311",
+  "unchangedBackendEntries": 1149,
+  "backendBytesMatch": true,
+  "frontendTests": 10,
+  "viteBuild": "PASSED"
+}

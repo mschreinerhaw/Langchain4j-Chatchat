@@ -59,7 +59,7 @@ describe('user space file browser',()=>{
     expect(apiRequest.mock.calls.filter(([path])=>path.includes('/browser/files?')).at(-1)[0]).toContain('q=rules');
   });
   it('renders one file surface with purpose folders, theme buttons and preserved script/data actions',async()=>{
-    const events=await mount();expect(host.textContent).toContain('用户空间');expect(host.textContent).toContain('参考文档');
+    const events=await mount();expect(host.textContent).toContain('用户空间');expect(host.querySelectorAll('.space-folders>button')).toHaveLength(1);expect(host.querySelector('.space-folder-grid')).toBeNull();
     expect(host.querySelectorAll('tbody tr')).toHaveLength(3);expect(host.querySelector('.primary-button').textContent).toContain('上传文件');
     host.querySelector('[aria-label="打开 analysis.py"]').click();await flush();expect(events.open).toHaveBeenCalledWith(expect.objectContaining({id:'script'}));
     host.querySelector('[aria-label="下载 old.csv"]').click();await flush();expect(events.data).toHaveBeenCalledWith(expect.objectContaining({id:'legacy'}));
@@ -73,10 +73,10 @@ describe('user space file browser',()=>{
     expect(apiRequest).toHaveBeenCalledWith('/data-science/user-assets/browser/folders',expect.objectContaining({body:JSON.stringify({parentId:'root',name:'Rules'})}));
     host.querySelector('.space-folders>button').click();await flush();host.querySelector('[aria-label="选择 rules.md"]').click();await flush();
     [...host.querySelectorAll('button')].find(button=>button.textContent==='移动到').click();await flush();
-    const move=document.querySelector('[aria-label="移动文件"]');const select=move.querySelector('select');select.value='documents';select.dispatchEvent(new Event('change'));
+    const move=document.querySelector('[aria-label="移动文件"]');const select=move.querySelector('select');select.value='root';select.dispatchEvent(new Event('change'));
     move.querySelector('form').dispatchEvent(new Event('submit',{cancelable:true}));await flush();
     const call=apiRequest.mock.calls.find(([path,options])=>path.endsWith('/locations')&&options.method==='PUT');
-    expect(JSON.parse(call[1].body)).toEqual({folderId:'documents',entries:[{source:'asset',sourceId:native.id}]});
+    expect(JSON.parse(call[1].body)).toEqual({folderId:'root',entries:[{source:'asset',sourceId:native.id}]});
   });
   it('keeps native file analysis on explicit IDs and does not auto-select history',async()=>{
     await mount();host.querySelector('[aria-label="选择 rules.md"]').click();await flush();

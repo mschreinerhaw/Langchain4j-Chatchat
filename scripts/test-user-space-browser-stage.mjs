@@ -23,6 +23,9 @@ try{
  const ui=page.locator('.user-space-browser');await ui.waitFor({timeout:45000});
  await ui.locator('.space-quota').waitFor();
  await ready();
+ const customFolders=(await api('/browser')).folders;
+ assert.deepEqual((await ui.locator('.space-folders>button>span').allTextContents()).sort(),['全部文件',...customFolders.map(folder=>folder.name)].sort());
+ checks.onlyCustomFoldersVisible=true;
  assert.equal(await page.locator('.user-asset-library').count(),0);
  checks.unifiedMenu=!(await page.locator('aside').allTextContents()).join('').match(/我的数据|我的脚本/);
  assert.ok(checks.unifiedMenu);

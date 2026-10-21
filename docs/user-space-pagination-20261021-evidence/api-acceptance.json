@@ -1,0 +1,19 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "serverPagesHaveExactTotal": true,
+    "pagesHaveNoDuplicatesOrMissingFiles": true,
+    "globalSortBeforePaging": true,
+    "folderTotalsAndPaginationMatch": true,
+    "runtimeHiddenFromAllPagesAndTotal": true,
+    "onlyUserOriginalsInBrowser": true,
+    "defaultCatalogHidesRuntime": true,
+    "runtimeMetadataRetained": true,
+    "runtimeOriginalBytesRetained": true,
+    "personalKnowledgeSearchHidesRuntime": true
+  },
+  "runtimeFilesChecked": 91,
+  "temporaryResourcesRemoved": true,
+  "modelCallsSubmitted": 0,
+  "scriptsExecuted": 0
+}

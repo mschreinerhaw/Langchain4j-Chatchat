@@ -1,0 +1,20 @@
+{
+  "checks": {
+    "unifiedMenu": true,
+    "uploadAndPreview": true,
+    "folderMoveSurvivesReload": true,
+    "gridView": true,
+    "search": true,
+    "serverPagination": true,
+    "pageSizeResetsToFirstPage": true,
+    "runtimeFilesAbsent": true,
+    "paginationVisibleWithoutPageScroll": true,
+    "oldScriptBookmarkOpensBrowser": true,
+    "compactFileNamesRemainReadable": true,
+    "noPageErrors": true
+  },
+  "errors": [],
+  "temporaryResourcesRemoved": true,
+  "modelCallsSubmitted": 0,
+  "scriptsExecuted": 0
+}

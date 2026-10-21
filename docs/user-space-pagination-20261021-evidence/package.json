@@ -1,0 +1,8 @@
+{
+  "path": "target\\assets-local\\user-space-pagination-app.jar",
+  "sha256": "91391ed7d8102ab08487c56a73f3081edeb2b24d09dbdf7bee0b4c98d5736952",
+  "consoleFiles": 83,
+  "testedBackendSha256": "00cc7921269058ae2143e6814e362d8dcb211b68f519192ea50a5fd5ea194311",
+  "unchangedBackendEntries": 1149,
+  "backendBytesMatch": true
+}

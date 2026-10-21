@@ -12,6 +12,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -61,5 +62,14 @@ class UserAssetControllerHttpTest {
         var ordered=assets.list(alice,null,null,10);
         mvc.perform(get(route).param("limit","1").param("offset","1").accept("application/json").header("X-Test-Principal","alice"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1)).andExpect(jsonPath("$.data[0].id").value(ordered.get(1).id()));
+    }
+    @Test void defaultCatalogHidesRuntimeEvidenceWithoutDeletingOrBreakingExplicitTaskReads()throws Exception{
+        var alice=new UserAssetService.Owner("tenant","alice");var upload=assets.upload(alice,"user.md",new byte[]{65});
+        var runtime=assets.store(alice,UserAssetService.Kind.DOCUMENT,"task","run","snapshot","input.md","text/plain",new byte[]{66});
+        mvc.perform(get(route).accept("application/json").header("X-Test-Principal","alice"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1)).andExpect(jsonPath("$.data[0].id").value(upload.id()));
+        mvc.perform(get(route).param("personalOnly","false").param("taskId","task").accept("application/json").header("X-Test-Principal","alice"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].id").value(runtime.id()));
+        assertThat(assets.read(alice,runtime.id())).isEqualTo(new byte[]{66});
     }
 }

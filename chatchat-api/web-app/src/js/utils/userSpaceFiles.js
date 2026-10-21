@@ -7,6 +7,8 @@ export const PURPOSE_FOLDERS=[
   {id:'logs',name:'运行日志',description:'任务过程与诊断记录'}
 ];
 export const entryKey=file=>`${file.source}:${file.sourceId}`;
+export const isUserManagedAsset=file=>file.kind==='DOCUMENT'&&!file.taskId&&!file.runId
+  &&(file.sourceRef==='upload'||file.sourceRef?.startsWith('upload:'));
 export function defaultPurpose(file){
   if(file.source==='python-data')return 'data';
   if(file.source==='python-script'||file.kind==='CODE'||/\.(py|sql)$/i.test(file.name))return 'scripts';
@@ -19,7 +21,7 @@ export function defaultPurpose(file){
 export function userSpaceEntries(assets=[],data=[],scripts=[],locations=[]){
   const assigned=new Map(locations.map(item=>[`${item.source}:${item.sourceId}`,item.folderId]));
   return [
-    ...assets.map(file=>({source:'asset',sourceId:file.id,name:file.fileName,kind:file.kind,size:file.size,state:file.state,
+    ...assets.filter(isUserManagedAsset).map(file=>({source:'asset',sourceId:file.id,name:file.fileName,kind:file.kind,size:file.size,state:file.state,
       updatedAt:file.createdAt,taskId:file.taskId,sha256:file.sha256,contentType:file.contentType,original:file})),
     ...data.filter(file=>file.status!=='DELETED'&&!file.sourceAssetId).map(file=>({source:'python-data',sourceId:file.id,name:file.fileName,kind:'DOCUMENT',size:file.fileSize,
       state:file.status,updatedAt:file.updatedAt||file.createdAt,original:file})),

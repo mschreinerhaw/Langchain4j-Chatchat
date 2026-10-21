@@ -3,7 +3,7 @@ import {userSpaceEntries,defaultPurpose,folderTrail,validateAnalysisFiles} from 
 import {parseWorkspaceRoute} from './workspaceContext';
 describe('unified user space',()=>{
   it('groups facts by purpose and keeps legacy scripts/data visible without duplicating execution copies',()=>{
-    const entries=userSpaceEntries([{id:'doc',fileName:'rules.md',kind:'DOCUMENT',size:1,state:'AVAILABLE'}],
+    const entries=userSpaceEntries([{id:'doc',fileName:'rules.md',kind:'DOCUMENT',sourceRef:'upload',size:1,state:'AVAILABLE'}],
       [{id:'data',fileName:'input.csv',fileSize:3,status:'AVAILABLE'},{id:'cache',sourceAssetId:'doc',fileName:'rules.md',status:'AVAILABLE'}],
       [{id:'script',fileName:'analysis.py',sourceCode:'print(1)',currentVersion:2}],
       [{source:'asset',sourceId:'doc',folderId:'custom'}]);
@@ -11,6 +11,12 @@ describe('unified user space',()=>{
     expect(entries[2].size).toBe(8);expect(entries[2].version).toBe(2);
     expect(defaultPurpose({name:'query.sql',kind:'DOCUMENT'})).toBe('scripts');
     expect(defaultPurpose({name:'result.json',kind:'CONTEXT'})).toBe('history');
+  });
+  it('hides runtime facts even if they were assigned to a user folder',()=>{
+    const base={id:'user',kind:'DOCUMENT',fileName:'user.csv',sourceRef:'upload',taskId:'',runId:''};
+    const runtime=[{...base,id:'task-document',taskId:'task'}, {...base,id:'run-document',runId:'run'},
+      {...base,id:'internal',sourceRef:'input-snapshot'},...['CODE','DATASET','CONTEXT','LOG','ARTIFACT'].map(kind=>({...base,id:kind,kind}))];
+    expect(userSpaceEntries([base,...runtime],[],[],runtime.map(file=>({source:'asset',sourceId:file.id,folderId:'custom'})))).toHaveLength(1);
   });
   it('keeps a bounded ancestry when data contains a cycle',()=>{
     expect(folderTrail('a',[{id:'a',parentId:'b'},{id:'b',parentId:'a'}])).toHaveLength(2);

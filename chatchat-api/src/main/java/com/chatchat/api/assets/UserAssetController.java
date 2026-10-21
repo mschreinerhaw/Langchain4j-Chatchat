@@ -23,7 +23,8 @@ public class UserAssetController {
     @GetMapping("/space") public ApiResponse<?> space(HttpServletRequest request){return ApiResponse.success(assets.space(owner(request)));}
     @GetMapping public ApiResponse<?> list(HttpServletRequest request,
         @RequestParam(value="kind",required=false) UserAssetService.Kind kind,@RequestParam(value="taskId",required=false) String taskId,
-        @RequestParam(value="limit",defaultValue="50") int limit,@RequestParam(value="offset",defaultValue="0") int offset){return ApiResponse.success(assets.listPage(owner(request),kind,taskId,limit,offset));}
+        @RequestParam(value="limit",defaultValue="50") int limit,@RequestParam(value="offset",defaultValue="0") int offset,
+        @RequestParam(value="personalOnly",defaultValue="true") boolean personalOnly){return ApiResponse.success(assets.listPage(owner(request),kind,taskId,limit,offset,personalOnly));}
     @PostMapping(consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<?> upload(HttpServletRequest request,@RequestParam("file") MultipartFile file)throws java.io.IOException {
         var owner=owner(request);

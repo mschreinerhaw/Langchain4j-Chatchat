@@ -30,6 +30,14 @@ class AssetKnowledgeServiceTest {
     }
     AssetKnowledgeService service(){return new AssetKnowledgeService(jdbc,tx,assets,new DocumentTextExtractor(),index,new ObjectMapper());}
     UserAssetService.File upload(UserAssetService.Owner owner){return assets.upload(owner,"sales.csv","name,amount\nalpha,12.50".getBytes(StandardCharsets.UTF_8));}
+    @Test void personalSearchExcludesRuntimeHistoryEvenWhenIndexReturnsIt(){
+        var file=upload(alice);
+        var history=assets.store(alice,UserAssetService.Kind.CONTEXT,"task","run","user-analysis-result","history.json","application/json","{}".getBytes(StandardCharsets.UTF_8));
+        knowledge.drain();
+        when(index.search(anyString(),anyInt(),any(),anyList())).thenReturn(List.of(hit(history.id()),hit(file.id())));
+        assertThat(knowledge.search(alice,"sales",10,false,true)).extracting(AssetKnowledgeService.Hit::fileId).containsExactly(file.id());
+        assertThat(knowledge.search(alice,"sales",10,false,false)).extracting(AssetKnowledgeService.Hit::fileId).contains(history.id(),file.id());
+    }
     LuceneSearchHit hit(String id){return new LuceneSearchHit(id,"untrusted title","","text","chunk",0,"sales excerpt",0,1,"tenant","alice","private",List.of());}
     @Test void indexesExactOriginalWithExistingParserAndCanRebuildAfterRestart(){
         var file=upload(alice);assertThat(knowledge.status(alice,file.id()).state()).isEqualTo("PENDING");knowledge.drain();

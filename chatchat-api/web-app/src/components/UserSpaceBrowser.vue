@@ -4,7 +4,7 @@
     <AppNotice v-if="error" kind="error" dismissible @close="error=''">{{ error }}</AppNotice>
     <AppNotice v-if="status" kind="success" dismissible @close="status=''">{{ status }}</AppNotice>
     <div class="space-layout">
-      <aside class="space-folders" aria-label="用户空间文件夹"><button :class="{active:currentFolder==='all'}" @click="openFolder('all')"><Files :size="17" /><span>全部文件</span><small>{{ entries.length }}</small></button>
+      <aside class="space-folders" aria-label="用户空间文件夹"><button :class="{active:currentFolder==='all'}" @click="openFolder('all')"><Files :size="17" /><span>全部文件</span><small>{{ totalFiles }}</small></button>
         <button v-for="folder in folders" :key="folder.id" :class="{active:currentFolder===folder.id}" :style="{'padding-left':`${14+Math.max(0,folderTrail(folder.id,folders).length-1)*14}px`}" @click="openFolder(folder.id)"><Folder :size="17" /><span>{{ folder.name }}</span><small>{{ countFolder(folder.id) }}</small></button>
         <div v-if="space" class="space-quota"><span>用户文件空间</span><strong>{{ formatBytes(space.usedBytes) }} / {{ formatBytes(space.quotaBytes) }}</strong><progress :value="space.usedBytes" :max="space.quotaBytes" aria-label="用户文件空间用量"></progress></div>
       </aside>
@@ -13,11 +13,11 @@
         <div class="space-filter"><label class="space-search"><Search :size="17" /><input v-model="query" type="search" aria-label="搜索用户空间文件" placeholder="搜索文件名称、用途或状态" @input="hits=null" @keydown.enter.prevent="knowledgeEnabled && searchContent()" /></label><button v-if="knowledgeEnabled" class="ghost-button" :disabled="busy || !query.trim()" @click="searchContent"><Search :size="15" />检索内容</button><select v-model="sortBy" aria-label="文件排序"><option value="updated">最近更新</option><option value="name">文件名称</option><option value="size">文件大小</option></select></div>
         <div v-if="selected.length" class="space-selection"><span>已选择 {{ selected.length }} 个文件</span><button class="ghost-button compact-button" :disabled="busy" @click="moveTarget=currentFolder==='all'?'documents':currentFolder;moveDialog=true"><FolderInput :size="15" />移动到</button><button class="primary-button compact-button" :disabled="busy || !selectedEntries.every(canAnalyze)" @click="openAnalysis"><Sparkles :size="15" />分析选中文件</button><button class="ghost-button compact-button" :disabled="busy" @click="selected=[]">取消选择</button></div>
         <div v-if="childFolders.length && !query && !hits" class="space-folder-grid"><button v-for="folder in childFolders" :key="folder.id" @dblclick="openFolder(folder.id)" @click="openFolder(folder.id)"><Folder :size="30" /><div><strong>{{ folder.name }}</strong><small>{{ countFolder(folder.id) }} 个文件</small></div><ChevronRight :size="16" /></button></div>
-        <div class="space-list-heading"><strong>{{ hits ? '知识检索结果' : folderNameLabel }}</strong><span>{{ visible.length }} 个文件{{ loading?' · 正在加载…':'' }}</span><button v-if="isCustomFolder" class="space-text-action" :disabled="busy" @click="removeCurrentFolder">删除空文件夹</button></div>
+        <div class="space-list-heading"><strong>{{ hits ? '知识检索结果' : folderNameLabel }}</strong><span>{{ resultTotal }} 个文件{{ loading?' · 正在加载…':'' }}</span><button v-if="isCustomFolder" class="space-text-action" :disabled="busy" @click="removeCurrentFolder">删除空文件夹</button></div>
         <div v-if="!visible.length" class="space-empty"><FolderOpen :size="46" /><h2>{{ query?'没有找到匹配文件':'此文件夹还没有文件' }}</h2><p>{{ query?'调整关键词，或使用内容检索查找资料。':'上传文件，或将已有文件移动到这里；脚本和分析记录会按用途显示。' }}</p><button v-if="!query" class="primary-button" :disabled="busy" @click="uploadInput.click()"><Upload :size="16" />上传文件</button></div>
         <div v-else-if="viewMode==='list'" class="space-table-wrap"><table><thead><tr><th class="space-check"><input type="checkbox" aria-label="选择当前文件" :checked="allSelected" @change="toggleAll" /></th><th>名称</th><th>用途</th><th>大小</th><th>状态</th><th>更新时间</th><th class="space-actions-column">操作</th></tr></thead><tbody><tr v-for="file in visible" :key="file.key" :class="{selected:selected.includes(file.key)}" @dblclick="openFile(file)"><td><input type="checkbox" :aria-label="'选择 '+file.name" :checked="selected.includes(file.key)" @change="toggle(file.key)" /></td><td><button class="space-file-name" @click="openFile(file)"><component :is="fileIcon(file)" :size="20" /><span><strong>{{ file.name }}</strong><small v-if="file.version">v{{ file.version }}</small><small v-if="hitFor(file)">{{ hitFor(file).excerpt }}</small></span></button></td><td>{{ folderLabel(file.folderId) }}</td><td>{{ formatBytes(file.size) }}</td><td><span class="space-state" :class="{available:['AVAILABLE','PUBLISHED'].includes(file.state)}">{{ stateLabel(file.state) }}</span></td><td>{{ formatTime(file.updatedAt) }}</td><td><div class="space-row-actions"><button class="icon-button" :aria-label="'打开 '+file.name" title="打开" @click="openFile(file)"><Eye :size="15" /></button><button class="icon-button" :aria-label="'下载 '+file.name" title="下载" :disabled="busy || !readable(file)" @click="download(file)"><Download :size="15" /></button><button v-if="canDelete(file)" class="icon-button space-danger" :aria-label="'删除 '+file.name" title="删除" :disabled="busy" @click="remove(file)"><Trash2 :size="15" /></button></div></td></tr></tbody></table></div>
         <div v-else class="space-file-grid"><article v-for="file in visible" :key="file.key" :class="{selected:selected.includes(file.key)}" @dblclick="openFile(file)"><div><input type="checkbox" :aria-label="'选择 '+file.name" :checked="selected.includes(file.key)" @change="toggle(file.key)" /><span class="space-state">{{ stateLabel(file.state) }}</span></div><button class="space-grid-open" @click="openFile(file)"><component :is="fileIcon(file)" :size="38" /><strong>{{ file.name }}</strong></button><small>{{ formatBytes(file.size) }} · {{ folderLabel(file.folderId) }}</small><footer><button class="space-text-action" @click="openFile(file)">打开</button><button class="space-text-action" :disabled="busy || !readable(file)" @click="download(file)">下载</button><button v-if="canDelete(file)" class="space-text-action space-danger" :disabled="busy" @click="remove(file)">删除</button></footer></article></div>
-        <footer class="space-footer"><span>已加载 {{ entries.length }} 个文件<span v-if="hasMore"> · 还有更早的文件</span></span><button v-if="hasMore" class="ghost-button compact-button" :disabled="busy" @click="loadMore">加载更多文件</button><span>文件按用途归类，分析只使用明确选择的资料</span></footer>
+        <footer class="space-footer"><span>共 {{ resultTotal }} 个文件</span><nav class="space-pagination" aria-label="文件分页"><button class="ghost-button compact-button" :disabled="busy || page<=1" @click="goPage(1)">首页</button><button class="ghost-button compact-button" :disabled="busy || page<=1" @click="goPage(page-1)">上一页</button><label>第 <select :value="page" aria-label="选择页码" :disabled="busy" @change="goPage(Number($event.target.value))"><option v-for="number in pageCount" :key="number" :value="number">{{ number }}</option></select> / {{ pageCount }} 页</label><button class="ghost-button compact-button" :disabled="busy || page>=pageCount" @click="goPage(page+1)">下一页</button><button class="ghost-button compact-button" :disabled="busy || page>=pageCount" @click="goPage(pageCount)">末页</button><select v-model.number="pageSize" aria-label="每页文件数" :disabled="busy"><option :value="10">10 条/页</option><option :value="25">25 条/页</option><option :value="50">50 条/页</option><option :value="100">100 条/页</option></select></nav></footer>
       </main>
     </div>
     <section v-if="analysisOpen" class="space-analysis" aria-label="选中文件分析"><header><h2><Sparkles :size="19" />分析选中文件</h2><button class="icon-button" aria-label="关闭文件分析" :disabled="busy" @click="analysisOpen=false"><X :size="17" /></button></header><p>已选 {{ selected.length }} 个文件。历史分析记录只作为待核对的参考。</p><label>分析模型<select v-model="modelName" :disabled="busy"><option v-for="model in models" :key="model.value" :value="model.value">{{ model.label || model.value }}</option></select></label><label>分析目标<textarea v-model="instruction" :disabled="busy" maxlength="16000" placeholder="说明计算指标、业务口径和需要回答的问题"></textarea></label><button class="primary-button" :disabled="busy || !instruction.trim()" @click="analyze"><Sparkles :size="16" />{{ analyzing?'正在分析…':'开始分析' }}</button><p v-if="analysisStatus" role="status">{{ analysisStatus }}</p><ReportMarkdown v-if="report" :content="report" /></section>
@@ -26,7 +26,7 @@
   </section>
 </template>
 <script setup>
-import {computed,onMounted,onBeforeUnmount,ref} from 'vue';
+import {computed,onMounted,onBeforeUnmount,ref,watch} from 'vue';
 import {Folder,FolderPlus,FolderInput,FolderOpen,Files,FileText,FileCode2,Image,Database,Upload,Download,Trash2,Search,RefreshCw,LayoutGrid,List,ChevronRight,HardDrive,Eye,Sparkles,X} from '@lucide/vue';
 import AppNotice from './AppNotice.vue';import AppConfirmDialog from './AppConfirmDialog.vue';import ReportMarkdown from './ReportMarkdown.vue';
 import {apiRequest,getStoredAuthSession,fetchPythonCodeModels} from '../services/api';
@@ -34,31 +34,33 @@ import {workspaceHeaders} from '../js/utils/workspaceContext';
 import {PURPOSE_FOLDERS,userSpaceEntries,folderTrail,canAnalyze,canDelete,validateAnalysisFiles} from '../js/utils/userSpaceFiles';
 const props=defineProps({workspaceContext:Object,dataFiles:{type:Array,default:()=>[]},scripts:{type:Array,default:()=>[]},canCreateScript:Boolean});
 const emit=defineEmits(['open-script','new-script','download-data','remove-data','remove-script','refresh','python-data-ready','open-python-draft']);
-const assetOffset=ref(0);
+const page=ref(1),pageSize=ref(25),total=ref(0),totalFiles=ref(0),folderCounts=ref({}),pageItems=ref([]);
+let loadTicket=0;
 const files=ref([]),organization=ref({folders:[],locations:[]}),space=ref(null),selected=ref([]),currentFolder=ref('all'),query=ref(''),viewMode=ref('list'),sortBy=ref('updated');
-const busy=ref(false),loading=ref(false),analyzing=ref(false),error=ref(''),status=ref(''),hasMore=ref(false),uploadInput=ref(null);
+const busy=ref(false),loading=ref(false),analyzing=ref(false),error=ref(''),status=ref(''),uploadInput=ref(null);
 const folderDialog=ref(false),folderName=ref(''),moveDialog=ref(false),moveTarget=ref('documents'),preview=ref(null),confirmation=ref(null);
 const analysisOpen=ref(false),instruction=ref(''),models=ref([]),modelName=ref(''),report=ref(''),analysisStatus=ref(''),knowledgeEnabled=ref(false),hits=ref(null);
 let disposed=false,confirmResolve;
 const accept='.pdf,.docx,.xlsx,.xls,.csv,.parquet,.orc,.zip,.txt,.log,.md,.json,.jsonl,.py,.sql,.png,.jpg,.jpeg,.webp,.gif';
 const options=()=>({workspaceContext:props.workspaceContext});
 const folders=computed(()=>[...PURPOSE_FOLDERS.map(folder=>({...folder,parentId:'root'})),...organization.value.folders]);
-const entries=computed(()=>userSpaceEntries(files.value,props.dataFiles,props.scripts,organization.value.locations));
+const entries=computed(()=>hits.value?userSpaceEntries(files.value,[],[],organization.value.locations):pageItems.value.flatMap(item=>
+  userSpaceEntries(item.source==='asset'?[item.original]:[],item.source==='python-data'?[item.original]:[],item.source==='python-script'?[item.original]:[],[{source:item.source,sourceId:item.sourceId,folderId:item.folderId}])));
 const selectedEntries=computed(()=>entries.value.filter(file=>selected.value.includes(file.key)));
 const breadcrumb=computed(()=>folderTrail(currentFolder.value,folders.value));
 const folderLabel=id=>folders.value.find(folder=>folder.id===id)?.name||'用户空间';
 const folderNameLabel=computed(()=>currentFolder.value==='all'?'全部文件':folderLabel(currentFolder.value));
 const childFolders=computed(()=>folders.value.filter(folder=>folder.parentId===(currentFolder.value==='all'?'root':currentFolder.value)));
 const isCustomFolder=computed(()=>organization.value.folders.some(folder=>folder.id===currentFolder.value));
-const visible=computed(()=>{
-  const term=query.value.trim().toLowerCase();const matched=hits.value?new Set(hits.value.map(item=>item.fileId)):null;
-  return entries.value.filter(file=>(currentFolder.value==='all'||file.folderId===currentFolder.value)
-    &&(matched?file.source==='asset'&&matched.has(file.sourceId):!term||`${file.name} ${folderLabel(file.folderId)} ${stateLabel(file.state)}`.toLowerCase().includes(term)))
-    .sort((a,b)=>sortBy.value==='name'?a.name.localeCompare(b.name,'zh-CN'):sortBy.value==='size'?b.size-a.size:new Date(b.updatedAt||0)-new Date(a.updatedAt||0));
-});
+const visible=computed(()=>hits.value?entries.value.slice((page.value-1)*pageSize.value,page.value*pageSize.value):entries.value);
+const resultTotal=computed(()=>hits.value?entries.value.length:total.value);
+const pageCount=computed(()=>Math.max(1,Math.ceil(resultTotal.value/pageSize.value)));
 const allSelected=computed(()=>visible.value.length>0&&visible.value.every(file=>selected.value.includes(file.key)));
-function countFolder(id){return entries.value.filter(file=>file.folderId===id||folderTrail(file.folderId,folders.value).some(folder=>folder.id===id)).length;}
+function countFolder(id){return Object.entries(folderCounts.value).reduce((sum,[folder,count])=>sum+(folder===id||folderTrail(folder,folders.value).some(item=>item.id===id)?count:0),0);}
 function openFolder(id){if(busy.value)return;currentFolder.value=id;selected.value=[];query.value='';hits.value=null;}
+function goPage(value){if(busy.value)return;page.value=Math.max(1,Math.min(value,pageCount.value));selected.value=[];if(!hits.value)refresh();}
+watch([currentFolder,query,sortBy,pageSize],()=>{page.value=1;selected.value=[];if(!hits.value)refresh();});
+watch([()=>props.dataFiles,()=>props.scripts],()=>{if(!disposed)refresh();});
 function toggle(key){if(selected.value.includes(key))selected.value=selected.value.filter(item=>item!==key);else if(selected.value.length<100)selected.value.push(key);else error.value='每次最多选择 100 个文件';}
 function toggleAll(){if(allSelected.value)selected.value=selected.value.filter(key=>!visible.value.some(file=>file.key===key));else selected.value=Array.from(new Set([...selected.value,...visible.value.map(file=>file.key)])).slice(0,100);}
 const formatBytes=n=>n>=1048576?`${(n/1048576).toFixed(1)} MB`:n>=1024?`${(n/1024).toFixed(1)} KB`:`${n||0} B`;
@@ -73,14 +75,14 @@ async function usePythonData(file){busy.value=true;error.value='';try{
 function openPythonDraft(){const draft={fileName:preview.value.file.name,sourceCode:preview.value.text};closeDialog();emit('open-python-draft',draft);}
 const fileIcon=file=>file.kind==='CODE'||/\.(py|sql)$/i.test(file.name)?FileCode2:file.contentType?.startsWith('image/')?Image:file.folderId==='data'?Database:FileText;
 const hitFor=file=>hits.value?.find(item=>file.source==='asset'&&item.fileId===file.sourceId);
-async function refresh(){busy.value=true;loading.value=true;error.value='';try{
-  const [loaded,tree,quota]=await Promise.all([apiRequest('/data-science/user-assets?limit=100',options()),apiRequest('/data-science/user-assets/browser',options()),apiRequest('/data-science/user-assets/space',options())]);
-  if(disposed)return;files.value=loaded;assetOffset.value=loaded.length;hasMore.value=loaded.length===100;organization.value=tree;space.value=quota;
+async function refresh(){const ticket=++loadTicket;busy.value=true;loading.value=true;error.value='';try{
+  const params=new URLSearchParams({folder:currentFolder.value,q:query.value,sort:sortBy.value,page:String(page.value),pageSize:String(pageSize.value)});
+  const [loaded,tree,quota]=await Promise.all([apiRequest(`/data-science/user-assets/browser/files?${params}`,options()),apiRequest('/data-science/user-assets/browser',options()),apiRequest('/data-science/user-assets/space',options())]);
+  if(disposed||ticket!==loadTicket)return;pageItems.value=loaded.items;page.value=loaded.page;total.value=loaded.total;totalFiles.value=loaded.totalFiles;folderCounts.value=loaded.folderCounts;organization.value=tree;space.value=quota;
   selected.value=selected.value.filter(key=>entries.value.some(file=>file.key===key));
   try{await apiRequest('/data-science/user-assets/knowledge',options());knowledgeEnabled.value=true;}catch{knowledgeEnabled.value=false;}
-}catch(ex){if(!disposed)error.value=ex.message;}finally{if(!disposed){busy.value=false;loading.value=false;}}}
-async function refreshAll(){emit('refresh');await refresh();}
-async function loadMore(){busy.value=true;try{const next=await apiRequest(`/data-science/user-assets?limit=100&offset=${assetOffset.value}`,options());if(disposed)return;assetOffset.value+=next.length;hasMore.value=next.length===100;files.value.push(...next.filter(file=>!files.value.some(old=>old.id===file.id)));}catch(ex){error.value=ex.message;}finally{busy.value=false;}}
+}catch(ex){if(!disposed&&ticket===loadTicket)error.value=ex.message;}finally{if(!disposed&&ticket===loadTicket){busy.value=false;loading.value=false;}}}
+async function refreshAll(){emit('refresh');hits.value=null;files.value=[];await refresh();}
 function dragOver(event){if(Array.from(event.dataTransfer?.types||[]).includes('Files'))event.preventDefault();}
 function dropFiles(event){if(!event.dataTransfer?.files?.length)return;event.preventDefault();if(!busy.value)upload(Array.from(event.dataTransfer.files));}
 function uploadFiles(event){const incoming=Array.from(event.target.files||[]);event.target.value='';if(incoming.length)upload(incoming);}
@@ -110,9 +112,9 @@ async function analyze(){busy.value=true;analyzing.value=true;error.value='';rep
   const selectedFiles=validateAnalysisFiles(selectedEntries.value);const receipt=await apiRequest('/data-science/user-assets/analyses',{...options(),method:'POST',body:JSON.stringify({...selectedFiles,requestId:globalThis.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(36).slice(2)}`,instruction:instruction.value,modelName:modelName.value||undefined})});if(disposed)return;
   report.value=receipt.results?.[0]?.reportMarkdown||'';analysisStatus.value=receipt.resultAvailable?'分析完成，代码与结果已归档。':`分析未完成：${receipt.summary||receipt.status||'请查看任务记录'}`;await refresh();
 }catch(ex){error.value=ex.message;analysisStatus.value='请求未完成，请先核查任务和归档记录。';}finally{busy.value=false;analyzing.value=false;}}
-async function searchContent(){busy.value=true;error.value='';try{const results=await apiRequest(`/data-science/user-assets/knowledge/search?q=${encodeURIComponent(query.value)}`,options());
-  for(const hit of results)if(!files.value.some(file=>file.id===hit.fileId))files.value.push(await apiRequest(`/data-science/user-assets/${hit.fileId}`,options()));
-  hits.value=results;currentFolder.value='all';selected.value=[];
+async function searchContent(){busy.value=true;error.value='';try{const results=await apiRequest(`/data-science/user-assets/knowledge/search?q=${encodeURIComponent(query.value)}&personalOnly=true`,options());
+  const originals=await Promise.all(results.map(hit=>apiRequest(`/data-science/user-assets/${hit.fileId}`,options())));
+  if(disposed)return;files.value=originals;hits.value=results;currentFolder.value='all';page.value=1;selected.value=[];
 }catch(ex){error.value=ex.message;}finally{busy.value=false;}}
 onMounted(refresh);onBeforeUnmount(()=>{disposed=true;closeDialog();resolveConfirm(false);});
 </script>

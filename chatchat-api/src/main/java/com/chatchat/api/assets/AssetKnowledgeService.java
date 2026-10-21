@@ -154,11 +154,14 @@ public class AssetKnowledgeService {
     }
 
     public List<Hit> search(UserAssetService.Owner owner,String query,int limit,boolean historyOnly) {
+        return search(owner,query,limit,historyOnly,false);
+    }
+    public List<Hit> search(UserAssetService.Owner owner,String query,int limit,boolean historyOnly,boolean personalOnly) {
         if(query==null || query.isBlank() || query.length()>2000)throw new IllegalArgumentException("Provide a query of 1–2000 characters");
         // Fail closed: the old index API treats an empty allowed list as unrestricted.
         var allowed=jdbc.queryForList("select f.id from runtime_workspace_file f join runtime_asset_knowledge_job j on j.file_id=f.id "
             +"where f.workspace_id=? and f.state='AVAILABLE' and j.state='INDEXED' and j.indexed_sha256=f.sha256 "
-            +(historyOnly?"and f.kind='CONTEXT' ":"")+"order by f.id limit 1025",String.class,owner.id());
+            +(historyOnly?"and f.kind='CONTEXT' ":"")+(personalOnly?"and "+UserAssetService.userManagedSql("f.")+" ":"")+"order by f.id limit 1025",String.class,owner.id());
         if(allowed.isEmpty())return List.of();
         if(allowed.size()>1024)throw new ResponseStatusException(HttpStatus.CONFLICT,"Narrow the file search scope before searching more than 1024 indexed files");
         if(!index.isAvailable())throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Knowledge search is unavailable");
@@ -171,6 +174,7 @@ public class AssetKnowledgeService {
                 +"where f.id=? and f.workspace_id=? and f.state='AVAILABLE' and j.state='INDEXED' and j.indexed_sha256=f.sha256",hit.docId(),owner.id());
             if(current.isEmpty())continue;
             var file=assets.get(owner,hit.docId());
+            if(personalOnly && !UserAssetService.isUserManaged(file))continue;
             result.add(new Hit(file.id(),file.fileName(),file.sha256(),file.taskId(),file.runId(),file.kind(),bounded(hit.chunkText(),4000),hit.score(),
                 "CONTEXT".equals(file.kind())?"HISTORICAL_MODEL_OUTPUT_REQUIRES_SOURCE_VALIDATION":"SOURCE_DOCUMENT"));
         }

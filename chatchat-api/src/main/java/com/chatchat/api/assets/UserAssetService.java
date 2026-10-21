@@ -55,10 +55,20 @@ public class UserAssetService {
     public List<File> list(Owner owner, Kind kind, String task, int limit) {
         return listPage(owner,kind,task,limit,0);
     }
+    static String userManagedSql(String prefix){
+        return prefix+"kind='DOCUMENT' and "+prefix+"task_id='' and "+prefix+"run_id='' and ("+prefix+"source_ref='upload' or "+prefix+"source_ref like 'upload:%')";
+    }
+    public static boolean isUserManaged(File file){
+        return "DOCUMENT".equals(file.kind()) && "".equals(file.taskId()) && "".equals(file.runId())
+            && ("upload".equals(file.sourceRef()) || file.sourceRef()!=null && file.sourceRef().startsWith("upload:"));
+    }
     public List<File> listPage(Owner owner, Kind kind, String task, int limit,int offset) {
+        return listPage(owner,kind,task,limit,offset,false);
+    }
+    public List<File> listPage(Owner owner, Kind kind, String task, int limit,int offset,boolean personalOnly) {
         ensure(owner);
         return jdbc.query("select * from runtime_workspace_file where workspace_id=? and state<>'DELETED' "
-            +"and (?='' or kind=?) and (?='' or task_id=?) order by created_at desc,id limit ? offset ?",
+            +"and (?='' or kind=?) and (?='' or task_id=?) "+(personalOnly?"and "+userManagedSql("")+" ":"")+"order by created_at desc,id limit ? offset ?",
             UserAssetService::file, owner.id(),kind==null?"":kind.name(),kind==null?"":kind.name(),
             task==null?"":task,task==null?"":task,Math.max(1,Math.min(limit,100)),Math.max(0,offset));
     }

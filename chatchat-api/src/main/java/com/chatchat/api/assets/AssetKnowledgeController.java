@@ -18,8 +18,9 @@ public class AssetKnowledgeController {
     private UserAssetService.Owner owner(HttpServletRequest request){return new UserAssetService.Owner(access.tenant(request),access.user(request));}
     @GetMapping public ApiResponse<?> statuses(HttpServletRequest request){return ApiResponse.success(knowledge.statuses(owner(request)));}
     @GetMapping("/search") public ApiResponse<?> search(HttpServletRequest request,@RequestParam("q") String query,
-        @RequestParam(value="limit",defaultValue="10") int limit,@RequestParam(value="historyOnly",defaultValue="false") boolean historyOnly){
-        return ApiResponse.success(knowledge.search(owner(request),query,limit,historyOnly));
+        @RequestParam(value="limit",defaultValue="10") int limit,@RequestParam(value="historyOnly",defaultValue="false") boolean historyOnly,
+        @RequestParam(value="personalOnly",defaultValue="true") boolean personalOnly){
+        return ApiResponse.success(knowledge.search(owner(request),query,limit,historyOnly,personalOnly));
     }
     @GetMapping("/{id}/status") public ApiResponse<?> status(HttpServletRequest request,@PathVariable("id") String id){return ApiResponse.success(knowledge.status(owner(request),id));}
     @PostMapping("/{id}/retry") public ApiResponse<?> retry(HttpServletRequest request,@PathVariable("id") String id){return ApiResponse.success(knowledge.retry(owner(request),id));}

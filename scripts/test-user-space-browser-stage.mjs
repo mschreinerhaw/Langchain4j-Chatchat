@@ -16,8 +16,8 @@ const api=async(path,method='GET',data)=>{
  const response=await context.request.fetch(base+'/api/v1/data-science/user-assets'+path,{headers,method,data});
  assert.equal(response.status(),200);return (await response.json()).data;
 };
-let uploaded,folder;
-const name='browser-check-'+Date.now()+'.csv',folderName='销售分析-'+Date.now().toString().slice(-6);
+let uploaded,folder;const additional=[];
+const prefix='browser-check-'+Date.now(),name=prefix+'.csv',folderName='销售分析-'+Date.now().toString().slice(-6);
 try{
  await page.goto(base+'/#/w/data-science/dataScienceData');
  const ui=page.locator('.user-space-browser');await ui.waitFor({timeout:45000});
@@ -56,8 +56,33 @@ try{
  await ui.getByRole('searchbox').fill('no-such-file');await ui.locator('.space-empty').waitFor();
  await ui.getByRole('searchbox').fill(name);await ui.locator('.space-file-grid article').waitFor();checks.search=true;
  await ui.getByRole('button',{name:'列表视图',exact:true}).click();
- await ui.getByRole('searchbox').fill('');
+ await ui.getByRole('searchbox').fill('');await ready();
  await ui.locator('.space-folders').getByRole('button',{name:/全部文件/}).click();
+ await ready();
+ for(let i=1;i<=12;i++){
+   const response=await context.request.post(base+'/api/v1/data-science/user-assets',{headers,multipart:{file:{name:prefix+'-'+String(i).padStart(2,'0')+'.csv',mimeType:'text/csv',buffer:Buffer.from('value\n1\n')}}});
+   assert.equal(response.status(),200);additional.push((await response.json()).data);
+ }
+ await ui.getByRole('searchbox').fill(prefix);await ready();
+ await ui.getByLabel('每页文件数').selectOption('10');await ready();
+ assert.equal(await ui.locator('tbody tr').count(),10);
+ const firstNames=await ui.locator('.space-file-name strong').allTextContents();
+ const secondPage=page.waitForResponse(r=>r.url().includes('/browser/files?')&&new URL(r.url()).searchParams.get('page')==='2');
+ await ui.getByRole('button',{name:'下一页',exact:true}).click();
+ const second=(await (await secondPage).json()).data;await ready();
+ assert.equal(second.total,13);assert.equal(second.items.length,3);assert.equal(await ui.locator('tbody tr').count(),3);
+ assert.ok((await ui.locator('.space-file-name strong').allTextContents()).every(name=>!firstNames.includes(name)));
+ checks.serverPagination=true;
+ await ui.getByLabel('每页文件数').selectOption('25');await ready();
+ assert.equal(await ui.locator('tbody tr').count(),13);assert.equal(await ui.getByLabel('选择页码').inputValue(),'1');
+ checks.pageSizeResetsToFirstPage=true;
+ await ui.getByRole('searchbox').fill('');await ready();
+ const catalog=await api('/browser/files?pageSize=100');
+ assert.ok(catalog.items.every(item=>item.source!=='asset'||item.original.kind==='DOCUMENT'&&!item.original.taskId&&!item.original.runId));
+ checks.runtimeFilesAbsent=true;
+ const footerBounds=await ui.locator('.space-footer').boundingBox();
+ assert.ok(footerBounds.y>=0&&footerBounds.y+footerBounds.height<=1050);
+ checks.paginationVisibleWithoutPageScroll=true;
  await page.screenshot({path:output+'/desktop.png',fullPage:true});
  await page.goto(base+'/#/w/data-science/dataScienceScripts');await ui.locator('.space-quota').waitFor();await ready();
  checks.oldScriptBookmarkOpensBrowser=true;
@@ -68,6 +93,7 @@ try{
  checks.noPageErrors=errors.length===0;assert.ok(checks.noPageErrors,errors.join('\n'));
  console.log(JSON.stringify({checks,errors}));
 }finally{
+ for(const file of additional)await api('/'+file.id,'DELETE');
  if(uploaded)await api('/'+uploaded.id,'DELETE');
  if(folder)await api('/browser/folders/'+folder.id,'DELETE');
  writeFileSync(output+'/browser-acceptance.json',JSON.stringify({checks,errors,temporaryResourcesRemoved:true,modelCallsSubmitted:0,scriptsExecuted:0},null,2));

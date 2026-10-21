@@ -1,19 +1,26 @@
 // @vitest-environment jsdom
-import {createApp,h,nextTick} from 'vue';
+import {createApp,h,nextTick,ref} from 'vue';
 import {afterEach,describe,expect,it,vi} from 'vitest';
 import UserSpaceBrowser from './UserSpaceBrowser.vue';
 import {apiRequest,fetchPythonCodeModels} from '../services/api';
 vi.mock('../services/api',()=>({apiRequest:vi.fn(),getStoredAuthSession:()=>({token:'test-token'}),fetchPythonCodeModels:vi.fn()}));
 vi.mock('./ReportMarkdown.vue',()=>({default:{props:['content'],render(){return null;}}}));
 let app,host;
-const native={id:'a'.repeat(64),fileName:'rules.md',kind:'DOCUMENT',size:5,state:'AVAILABLE',createdAt:1,taskId:''};
+const native={id:'a'.repeat(64),fileName:'rules.md',kind:'DOCUMENT',size:5,state:'AVAILABLE',createdAt:1,taskId:'',runId:'',sourceRef:'upload'};
 const flush=async()=>{for(let i=0;i<15;i++){await Promise.resolve();await nextTick();}};
 function respond(path,options){
   if(path.includes('/browser/folders')&&options?.method==='POST')return {id:'folder',parentId:'root',name:'Rules'};
   if(path.endsWith('/browser'))return {folders:[],locations:[]};
   if(path.endsWith('/space'))return {usedBytes:5,quotaBytes:100};
   if(path.endsWith('/knowledge'))throw new Error('disabled');
-  if(path.includes('?limit='))return [native];
+  if(path.includes('/browser/files?')){
+    const params=new URLSearchParams(path.split('?')[1]);
+    let items=[{source:'asset',sourceId:native.id,folderId:'documents',original:native},
+      {source:'python-data',sourceId:'legacy',folderId:'data',original:{id:'legacy',fileName:'old.csv',fileSize:8,status:'AVAILABLE'}},
+      {source:'python-script',sourceId:'script',folderId:'scripts',original:{id:'script',fileName:'analysis.py',sourceCode:'print(1)',status:'DRAFT'}}];
+    const filtered=items.filter(item=>params.get('folder')==='all'||params.get('folder')===item.folderId);
+    return {items:filtered,total:filtered.length,totalFiles:3,page:1,pageSize:Number(params.get('pageSize')),folderCounts:{documents:1,data:1,scripts:1}};
+  }
   return null;
 }
 async function mount(values={},responder=respond){
@@ -21,24 +28,35 @@ async function mount(values={},responder=respond){
   host=document.createElement('div');document.body.append(host);const events={open:vi.fn(),data:vi.fn()};
   app=createApp({render:()=>h(UserSpaceBrowser,{workspaceContext:{tenantId:'tenant',userId:'alice',workspaceId:'data-science'},
     dataFiles:[{id:'legacy',fileName:'old.csv',fileSize:8,status:'AVAILABLE'}],scripts:[{id:'script',fileName:'analysis.py',sourceCode:'print(1)',status:'DRAFT'}],canCreateScript:true,
-    'onOpen-script':events.open,'onDownload-data':events.data,...values})});app.mount(host);await flush();return events;
+    'onOpen-script':events.open,'onDownload-data':events.data,...(values?.value||values)})});app.mount(host);await flush();return events;
 }
 afterEach(()=>{app?.unmount();host?.remove();vi.resetAllMocks();vi.unstubAllGlobals();});
 describe('user space file browser',()=>{
-  it('keeps the server pagination offset independent of files added by knowledge search',async()=>{
-    await mount({},(path,options)=>{
-      if(path.includes('offset=100'))return [];
-      if(path.endsWith('/knowledge'))return [];
-      if(path.includes('/knowledge/search'))return [{fileId:'older',excerpt:'match'}];
-      if(path.endsWith('/older'))return {...native,id:'older',fileName:'older.md'};
-      if(path.includes('?limit='))return Array.from({length:100},(_,index)=>({...native,id:`file-${index}`,fileName:`file-${index}.md`}));
-      return respond(path,options);
+  it('refreshes the server page and totals after the parent deletes a legacy file',async()=>{
+    const values=ref({});let removed=false;
+    await mount(values,(path,options)=>{
+      const result=respond(path,options);
+      return removed&&path.includes('/browser/files?')?{...result,items:result.items.filter(item=>item.source!=='python-data'),total:2,totalFiles:2,folderCounts:{documents:1,scripts:1}}:result;
     });
-    const input=host.querySelector('[aria-label="搜索用户空间文件"]');input.value='match';input.dispatchEvent(new Event('input'));await flush();
-    [...host.querySelectorAll('button')].find(button=>button.textContent==='检索内容').click();await flush();
-    [...host.querySelectorAll('button')].find(button=>button.textContent==='加载更多文件').click();await flush();
-    expect(apiRequest).toHaveBeenCalledWith('/data-science/user-assets?limit=100&offset=100',expect.any(Object));
-    expect(host.textContent).not.toContain('还有更早的文件');
+    expect(host.querySelector('[aria-label="下载 old.csv"]')).not.toBeNull();
+    removed=true;values.value={dataFiles:[]};await flush();
+    expect(host.querySelector('[aria-label="下载 old.csv"]')).toBeNull();expect(host.querySelectorAll('tbody tr')).toHaveLength(2);
+  });
+  it('requests actual server pages and resets the page after a filter or page size change',async()=>{
+    await mount({},(path,options)=>{
+      if(path.includes('/browser/files?')){
+        const params=new URLSearchParams(path.split('?')[1]);const page=Number(params.get('page')),size=Number(params.get('pageSize'));
+        return {items:Array.from({length:Math.min(size,56-(page-1)*size)},(_,i)=>({source:'asset',sourceId:`file-${(page-1)*size+i}`,folderId:'documents',original:{...native,id:`file-${(page-1)*size+i}`,fileName:`file-${(page-1)*size+i}.md`}})),total:56,totalFiles:56,page,pageSize:size,folderCounts:{documents:56}};
+      }return respond(path,options);
+    });
+    expect(host.querySelectorAll('tbody tr')).toHaveLength(25);
+    [...host.querySelectorAll('button')].find(button=>button.textContent==='下一页').click();await flush();
+    expect(host.querySelector('[aria-label="打开 file-25.md"]')).not.toBeNull();
+    const size=host.querySelector('[aria-label="每页文件数"]');size.value='10';size.dispatchEvent(new Event('change'));await flush();
+    expect(host.querySelectorAll('tbody tr')).toHaveLength(10);
+    expect(apiRequest.mock.calls.filter(([path])=>path.includes('/browser/files?')).at(-1)[0]).toContain('page=1&pageSize=10');
+    const input=host.querySelector('input[type=search]');input.value='rules';input.dispatchEvent(new Event('input'));await flush();
+    expect(apiRequest.mock.calls.filter(([path])=>path.includes('/browser/files?')).at(-1)[0]).toContain('q=rules');
   });
   it('renders one file surface with purpose folders, theme buttons and preserved script/data actions',async()=>{
     const events=await mount();expect(host.textContent).toContain('用户空间');expect(host.textContent).toContain('参考文档');

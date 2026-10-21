@@ -883,20 +883,36 @@
 }
 
 .sql-chat-composer {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   margin: 8px;
   border: 1px solid #cbdaf0;
   border-radius: 9px;
   background: #fff;
 }
 
-.sql-chat-composer textarea {
+.sql-studio .sql-chat-composer textarea {
+  display: block;
+  box-sizing: border-box;
   width: 100%;
   min-height: 72px;
   max-height: 180px;
   padding: 10px;
   border: 0;
+  border-radius: 0;
+  background: transparent;
   resize: vertical;
   line-height: 1.55;
+}
+
+.sql-studio .sql-chat-composer textarea:focus-visible {
+  outline: none;
+}
+
+.sql-ide .sql-chat-composer:focus-within {
+  border-color: #76a8f4;
+  box-shadow: 0 0 0 2px #76a8f433;
 }
 
 .sql-chat-mention-list {

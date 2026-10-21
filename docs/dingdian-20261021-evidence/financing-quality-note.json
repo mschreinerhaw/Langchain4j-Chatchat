@@ -1,0 +1,21 @@
+{
+  "source": "https://stock.quote.stockstar.com/info/financing_603383.shtml",
+  "asOf": "2026-10-20",
+  "sourceDiscrepancy": {
+    "date": "2026-09-21",
+    "buy10kCny": "684.57",
+    "repay10kCnyDisplayed": "1178",
+    "reportedNet10kCny": "-494.10",
+    "arithmeticDifference10kCny": "0.67"
+  },
+  "note": "保留公开页面原值，不补造偿还精确值。分析投影仅使用买入额、披露净买入及约数余额，累计净买入直接汇总披露列。余额和各金额为页面显示值，未认证原始成交精度。",
+  "selectedColumns": [
+    "trade_date",
+    "stock_code",
+    "stock_name",
+    "financing_buy_10k_cny",
+    "reported_net_buy_10k_cny",
+    "reported_balance_100m_cny_approx",
+    "source_url"
+  ]
+}

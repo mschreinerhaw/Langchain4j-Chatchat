@@ -1,0 +1,16 @@
+{
+  "status": "PASSED",
+  "apiJarSha256": "6f855412f79c868e9320911de8280b1427c615ed3ead55f6e74c27d9c002681f",
+  "authenticatedHealth": 200,
+  "gatewayResourcesVerified": 7,
+  "changedClassesVerified": 14,
+  "queryClauseLimit": 512,
+  "activeTasks": 0,
+  "latestPython": {
+    "task_id": "analysis-coding-d123b653983787a4058288305f2c751a889737664eb9ede28f540addec3752b3",
+    "status": "SUCCEEDED",
+    "environment_version": 5,
+    "image_digest": "sha256:12efcec7c7752423a55a4ef0bf426cefb9b303357838689f481ac448a713ae44"
+  },
+  "latestPythonStderrBytes": 0
+}

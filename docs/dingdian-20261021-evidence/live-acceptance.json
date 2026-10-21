@@ -1,0 +1,22 @@
+{
+  "status": "PASSED",
+  "realDeployment": true,
+  "httpFixtures": false,
+  "realStockAnalysis": true,
+  "stockNames": [
+    "顶点软件"
+  ],
+  "referenceBodyHidden": true,
+  "staticCharts": 2,
+  "interactiveCharts": 0,
+  "distinctCharts": 2,
+  "reportModePreserved": true,
+  "historyRestored": false,
+  "analysisSubmissions": 1,
+  "pdfBytes": 1038071,
+  "pdfPages": 4,
+  "pdfIndependentlyRendered": true,
+  "desktopAndMobile": true,
+  "pageErrors": [],
+  "httpFailures": []
+}

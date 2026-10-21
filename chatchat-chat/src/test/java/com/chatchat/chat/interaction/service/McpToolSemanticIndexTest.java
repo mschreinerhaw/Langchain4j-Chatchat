@@ -21,6 +21,32 @@ import static org.mockito.ArgumentMatchers.anyString;
 
 class McpToolSemanticIndexTest {
     @Test
+    void negatedAnalysisInstructionsUseOnlyDatabaseAllowedToolsWithoutIssuingAnUnsafeSearch() throws Exception {
+        HttpServer server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
+        var searches=new java.util.concurrent.atomic.AtomicInteger();
+        server.createContext("/",exchange->{
+            String path=exchange.getRequestURI().getPath();
+            boolean head="HEAD".equals(exchange.getRequestMethod());
+            exchange.getRequestBody().readAllBytes();
+            if(path.endsWith("/_search"))searches.incrementAndGet();
+            byte[] response=(path.equals("/_bulk")?"{\"errors\":false}":"{}").getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(head?404:200,head?-1:response.length);
+            if(!head)exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        server.start();
+        SearchProperties properties=new SearchProperties();
+        properties.getOpenSearch().setUrl("http://127.0.0.1:"+server.getAddress().getPort());
+        var index=new McpToolSemanticIndex(properties,mock(OpenSearchEmbeddingClient.class),new SearchTokenizer(),new ObjectMapper(),new MockEnvironment());
+        McpToolAsset allowed=new McpToolAsset();allowed.setId("allowed-id");allowed.setLocalToolName("market_query");allowed.setRemoteToolName("market_query");allowed.setDescription("顶点软件 股票行情 融资买入");
+        String question="分析顶点软件（603383），不得把缺少数据判断为没有融资买入。"+"行情、融资买入、融资偿还、融资余额、投资机会。".repeat(7);
+        try {
+            assertThat(index.rank(question,List.of(allowed),3)).containsExactly("market_query");
+            assertThat(searches.get()).isZero();
+        } finally {index.close();server.stop(0);}
+    }
+
+    @Test
     void writesAndQueriesTheCompatibleIndexChosenBySchemaNegotiation() throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         AtomicReference<String> bulkBody = new AtomicReference<>();

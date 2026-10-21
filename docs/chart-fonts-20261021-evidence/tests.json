@@ -1,0 +1,18 @@
+{
+  "status": "PASSED",
+  "date": "2026-10-21",
+  "frontendVitest": {
+    "files": 4,
+    "tests": 48
+  },
+  "historyBudgetNodeTests": 3,
+  "deploymentArchiveTests": 3,
+  "frontendBuild": true,
+  "vueStructureComponents": 64,
+  "fontGlyphsChecked": 28,
+  "originalStockReplayCharts": 4,
+  "missingGlyphWarnings": 0,
+  "realDeployment": true,
+  "httpFixtures": false,
+  "scope": "Chart rendering, history persistence and PDF export; not investment analysis accuracy validation"
+}

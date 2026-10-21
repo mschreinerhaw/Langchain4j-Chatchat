@@ -1,0 +1,20 @@
+{
+  "status": "PASSED",
+  "realDeployment": true,
+  "httpFixtures": false,
+  "realStockAnalysis": true,
+  "stockNames": [
+    "九阳股份",
+    "雪龙集团",
+    "兴业股份"
+  ],
+  "staticCharts": 4,
+  "historyRestored": true,
+  "analysisSubmissions": 0,
+  "pdfBytes": 2331728,
+  "pdfPages": 7,
+  "pdfIndependentlyRendered": true,
+  "desktopAndMobile": true,
+  "pageErrors": [],
+  "httpFailures": []
+}

@@ -3,6 +3,7 @@
 Usage: python3 deploy-report-presentation.py app.jar SHA256 BASELINE_SHA256
 """
 import hashlib
+from html.parser import HTMLParser
 import json
 import os
 from pathlib import Path
@@ -11,11 +12,37 @@ import subprocess
 import sys
 import time
 import urllib.request
+from urllib.parse import urlsplit, unquote
 import zipfile
 
 ROOT = Path('/opt/runtime-os-docker-stage')
 PROJECT = 'runtime-os-app-stage'
 API = PROJECT + '-api-1'
+
+
+def frontend_resources(archive):
+    """Reject broken resource archives before replacing a running application."""
+    prefix = 'BOOT-INF/classes/static/'
+    assert not any('\\' in name for name in archive.namelist() if name.startswith(prefix)), 'Static archive paths must use forward slashes'
+    resources = {}
+
+    class IndexParser(HTMLParser):
+        def handle_starttag(self, tag, attrs):
+            attributes = dict(attrs)
+            value = attributes.get('src') if tag == 'script' else attributes.get('href') if tag == 'link' else None
+            if not value:
+                return
+            parsed = urlsplit(value)
+            if parsed.scheme or parsed.netloc or not parsed.path:
+                return
+            path = unquote(parsed.path).removeprefix('./').lstrip('/')
+            assert '..' not in path.split('/') and '\\' not in path, 'Unsafe frontend resource path'
+            assert prefix + path in archive.namelist(), 'Missing frontend resource: ' + path
+            resources[path] = archive.read(prefix + path)
+
+    IndexParser().feed(archive.read(prefix + 'index.html').decode('utf-8'))
+    assert resources, 'Frontend index has no local resources'
+    return resources
 
 
 def run(*args):
@@ -96,6 +123,7 @@ def main():
         old_index = archive.read('BOOT-INF/classes/static/index.html')
     with zipfile.ZipFile(jar) as archive:
         assert archive.testzip() is None
+        expected_resources = frontend_resources(archive)
         new_index = archive.read('BOOT-INF/classes/static/index.html')
     config = json.loads(config_file.read_text())
     old_image = config['services']['api']['image']
@@ -117,6 +145,9 @@ def main():
         assert jar_hash() == expected
         with urllib.request.urlopen('http://127.0.0.1:18100/', timeout=10) as response:
             assert response.read() == new_index, 'Gateway serves stale frontend'
+        for path, expected_bytes in expected_resources.items():
+            with urllib.request.urlopen('http://127.0.0.1:18100/' + path, timeout=20) as response:
+                assert response.read() == expected_bytes, 'Gateway frontend resource mismatch: ' + path
         after = {item['Name']: item['Id'] for item in json.loads(run('docker', 'inspect', *run('docker', 'ps', '-q').split()))}
         assert all(after.get(name) == identity for name, identity in before.items()
                    if name not in ('/' + API, '/' + PROJECT + '-node-proxy-1')), 'Unrelated container changed'
@@ -130,6 +161,7 @@ def main():
     proof = {'status': 'DEPLOYED', 'image': image, 'jarSha256': expected,
              'baselineSha256': baseline, 'backup': str(evidence), 'authenticatedHealthVerified': authenticated,
              'gatewayIndexMatchesPackage': True, 'unrelatedContainersUnchanged': True}
+    proof['gatewayResourcesVerified'] = len(expected_resources)
     (evidence / 'deployment.json').write_text(json.dumps(proof, indent=2))
     print(json.dumps(proof))
 

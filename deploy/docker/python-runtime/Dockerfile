@@ -8,6 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
     MPLCONFIGDIR=/tmp/matplotlib \
+    MATPLOTLIBRC=/opt/chatchat/matplotlib \
     TZ=Asia/Shanghai \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8
@@ -18,6 +19,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
+        fontconfig \
+        fonts-noto-cjk \
         curl \
         wget \
         git \
@@ -48,6 +51,7 @@ RUN groupadd --gid "${RUNTIME_GID}" runner \
 # Python dependencies
 # ============================================================
 COPY requirements.lock /opt/chatchat/requirements.lock
+COPY matplotlibrc /opt/chatchat/matplotlib/matplotlibrc
 
 RUN python -m pip install --upgrade pip setuptools wheel \
     && pip install \

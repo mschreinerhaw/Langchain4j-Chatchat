@@ -52,8 +52,7 @@
   margin-top: 16px;
   overflow-wrap: anywhere;
 }
-.report-provenance summary,
-.report-full-text summary {
+.report-provenance summary {
   cursor: pointer;
 }
 .python-visual-report :deep(.python-report-table) {
@@ -157,12 +156,6 @@
 .report-narrative {
   line-height: 1.95;
   color: #334155;
-}
-.report-full-text {
-  margin-top: 24px;
-  padding: 14px 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
 }
 .python-visual-report :deep(th) {
   background: #f1f5fa;

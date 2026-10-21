@@ -1,0 +1,11 @@
+{
+  "source": "https://stock.quote.stockstar.com/info/financing_603383.shtml",
+  "asOf": "2026-10-20",
+  "observations": 20,
+  "buyMean20TradingDays10kCny": 526.63,
+  "buyMean5TradingDays10kCny": 695.28,
+  "latestBuyTo20DayMean": 1.55,
+  "netBuy5TradingDays10kCny": -39.63,
+  "netBuy20TradingDays10kCny": -59.99,
+  "amountsRoundedAtSource": true
+}

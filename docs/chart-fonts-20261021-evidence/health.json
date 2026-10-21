@@ -1,0 +1,15 @@
+{
+  "status": "PASSED",
+  "authenticatedHealth": 200,
+  "gatewayResourcesVerified": 7,
+  "publishedEnvironmentsVerified": 2,
+  "activeTasks": 0,
+  "latestEnvironmentVersion": 5,
+  "latestRuntimeImageDigest": "sha256:12efcec7c7752423a55a4ef0bf426cefb9b303357838689f481ac448a713ae44",
+  "latestPythonStatus": "SUCCEEDED",
+  "latestOperationsStderrBytes": [
+    0,
+    0
+  ],
+  "apiJarSha256": "78d205db77399797e08a563fbe0fb9a7efc8217cbb281ebe7eeaf80d8dec1cbb"
+}

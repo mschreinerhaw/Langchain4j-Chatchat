@@ -47,7 +47,8 @@ function compactNested(value, depth = 0, seen = new WeakSet()) {
   }
   seen.add(value);
   if (Array.isArray(value)) {
-    const result = value.slice(0, MAX_COLLECTION_ENTRIES)
+    const result = value
+      .slice(0, MAX_COLLECTION_ENTRIES)
       .map((item) => compactNested(item, depth + 1, seen));
     if (value.length > MAX_COLLECTION_ENTRIES) {
       result.push({ truncated: true, omittedEntries: value.length - MAX_COLLECTION_ENTRIES });
@@ -83,8 +84,33 @@ export function compactPersistenceValue(value, maxBytes = MAX_STRUCTURED_FIELD_B
   return {
     persistenceTruncated: true,
     originalBytes: serializedBytes,
-    preview: truncateString(serialized, Math.max(1024, maxBytes - 128), "structured field")
+    preview: truncateString(serialized, Math.max(1024, maxBytes - 128), "structured field"),
   };
+}
+
+function compactUiResponseForPersistence(response) {
+  if (!response) return null;
+  const artifact = response.uiArtifact;
+  if (artifact && typeof artifact.artifactId === "string" && artifact.artifactId) {
+    // The artifact owns the complete charts/tables. Persist its small reference instead
+    // of losing it when duplicate inline visualizations exceed the history field budget.
+    return compactPersistenceValue({
+      contractVersion: response.contractVersion,
+      sourceContractVersion: response.sourceContractVersion,
+      status: response.status,
+      answer: response.answer,
+      renderMode: response.renderMode,
+      uiArtifact: {
+        contractVersion: artifact.contractVersion,
+        artifactId: artifact.artifactId,
+        revision: artifact.revision,
+        catalogVersion: artifact.catalogVersion,
+        manifestUrl: artifact.manifestUrl,
+        renderMode: artifact.renderMode,
+      },
+    });
+  }
+  return compactPersistenceValue(response);
 }
 
 export function compactMessageForPersistence(message = {}) {
@@ -99,17 +125,31 @@ export function compactMessageForPersistence(message = {}) {
     visualizationSpec: message.visualizationSpec
       ? compactPersistenceValue(message.visualizationSpec, MAX_ANALYSIS_TREE_BYTES)
       : null,
-    uiResponse: message.uiResponse ? compactPersistenceValue(message.uiResponse) : null,
+    uiResponse: compactUiResponseForPersistence(message.uiResponse),
     evidencePremises: compactPersistenceValue(message.evidencePremises || []),
     memoryContext: message.memoryContext ? compactPersistenceValue(message.memoryContext) : null,
     agentName: truncateString(message.agentName, 1024, "agent name"),
     modelName: truncateString(message.modelName, 1024, "model name"),
     analysisNodeId: truncateString(message.analysisNodeId, 1024, "analysis node id"),
-    analysisParentNodeId: truncateString(message.analysisParentNodeId, 1024, "analysis parent node id"),
-    analysisSourceMessageId: truncateString(message.analysisSourceMessageId, 1024, "analysis source message id"),
-    analysisSelection: message.analysisSelection ? compactPersistenceValue(message.analysisSelection, 32 * 1024) : null,
+    analysisParentNodeId: truncateString(
+      message.analysisParentNodeId,
+      1024,
+      "analysis parent node id"
+    ),
+    analysisSourceMessageId: truncateString(
+      message.analysisSourceMessageId,
+      1024,
+      "analysis source message id"
+    ),
+    analysisSelection: message.analysisSelection
+      ? compactPersistenceValue(message.analysisSelection, 32 * 1024)
+      : null,
     streaming: !!message.streaming,
-    status: truncateString(message.status || (message.streaming ? "streaming" : "completed"), 128, "status"),
+    status: truncateString(
+      message.status || (message.streaming ? "streaming" : "completed"),
+      128,
+      "status"
+    ),
     taskId: truncateString(message.taskId, 1024, "task id"),
     feedbackTime: truncateString(message.feedbackTime, 128, "feedback time"),
     feedbackAction: truncateString(message.feedbackAction, 128, "feedback action"),
@@ -117,7 +157,11 @@ export function compactMessageForPersistence(message = {}) {
     feedbackAdopted: message.feedbackAdopted,
     feedbackResolved: message.feedbackResolved,
     feedbackComment: truncateString(message.feedbackComment, 4000, "feedback comment"),
-    feedbackReasonCategory: truncateString(message.feedbackReasonCategory, 64, "feedback reason category")
+    feedbackReasonCategory: truncateString(
+      message.feedbackReasonCategory,
+      64,
+      "feedback reason category"
+    ),
   };
 }
 
@@ -137,25 +181,27 @@ export function boundMessagesForPersistence(messages = []) {
   const retained = retainedNewestFirst.reverse();
   if (retained.length === 0 && projected.length > 0) {
     const latest = projected.at(-1);
-    return [{
-      ...latest,
-      sources: [],
-      traces: [],
-      steps: [],
-      visualizationSpec: null,
-      uiResponse: null,
-      evidencePremises: [],
-      analysisSelection: null,
-      persistenceHistoryTruncated: true,
-      omittedOlderMessages: projected.length - 1,
-      persistenceRichFieldsOmitted: true
-    }];
+    return [
+      {
+        ...latest,
+        sources: [],
+        traces: [],
+        steps: [],
+        visualizationSpec: null,
+        uiResponse: null,
+        evidencePremises: [],
+        analysisSelection: null,
+        persistenceHistoryTruncated: true,
+        omittedOlderMessages: projected.length - 1,
+        persistenceRichFieldsOmitted: true,
+      },
+    ];
   }
   if (retained.length < projected.length && retained.length > 0) {
     retained[0] = {
       ...retained[0],
       persistenceHistoryTruncated: true,
-      omittedOlderMessages: projected.length - retained.length
+      omittedOlderMessages: projected.length - retained.length,
     };
   }
   return retained;

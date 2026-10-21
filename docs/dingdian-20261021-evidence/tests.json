@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-21",
+  "status": "PASSED",
+  "frontend": {
+    "files": 4,
+    "tests": 49,
+    "build": true,
+    "vueStructureComponents": 64
+  },
+  "backend": {
+    "optimizerTests": 20,
+    "toolRecallIntegrationTests": 3
+  },
+  "historyBudgetNodeTests": 3,
+  "deploymentArchiveTests": 3,
+  "clauseLimit": 512,
+  "authorizationFiltersPreserved": true,
+  "referenceBodyRemoved": true,
+  "reportPolicyReactorCompile": {
+    "status": "PASSED",
+    "modules": 17,
+    "date": "2026-10-22",
+    "latestIncludesReturnBaselinePolicy": true
+  }
+}

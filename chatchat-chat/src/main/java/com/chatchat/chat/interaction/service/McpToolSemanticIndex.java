@@ -103,6 +103,13 @@ public class McpToolSemanticIndex {
                 .map(Map.Entry::getKey).limit(bounded).toList();
             return ranked.isEmpty() ? fallback : ranked;
         } catch (QueryOptimizationException diagnosed) {
+            // This is tool relevance ranking, not execution of the user's data query.
+            // Negated task instructions cannot be compressed safely; rank the already
+            // authorized tool set locally while the planner retains the full question.
+            if ("QUERY_REQUIRES_STRUCTURED_CONSTRAINTS".equals(diagnosed.code())) {
+                log.debug("MCP tool recall uses DB-scoped local ranking for constrained task text");
+                return fallback;
+            }
             throw diagnosed;
         } catch (Exception ex) {
             if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;

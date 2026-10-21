@@ -1,0 +1,18 @@
+{
+  "stock": "顶点软件",
+  "code": "603383",
+  "source": "Platform immutable market results, exported without altering original inputs",
+  "rows": 20,
+  "firstDate": "2026-09-16",
+  "latestDate": "2026-10-21",
+  "latestCloseCny": 27.54,
+  "lowestCloseCny": 26.11,
+  "highestCloseCny": 27.77,
+  "lowestIntradayCny": 25.81,
+  "highestIntradayCny": 28.08,
+  "closeChangePct": 2.46,
+  "amountMean5To20Ratio": 1.23,
+  "volumeExcluded": "No explicit unit in delivered quote records; no volume or lot conversion is claimed",
+  "latestAlignedFinancingDate": "2026-10-20",
+  "latestAlignedFinancingBuyShareOfTurnoverPct": 14.52
+}

@@ -1,0 +1,30 @@
+{
+  "status": "PASSED",
+  "scope": "Independent CSV arithmetic and displayed values; narrative reviewed separately. No certification of missing fundamentals or future returns.",
+  "priceWindow": {
+    "first": "2026-09-16",
+    "last": "2026-10-21",
+    "observations": 20,
+    "adjacentReturnIntervals": 19
+  },
+  "financingWindow": {
+    "first": "2026-09-15",
+    "last": "2026-10-20",
+    "observations": 20
+  },
+  "facts": {
+    "latestCloseCny": "27.54",
+    "periodReturnPct": "2.46",
+    "latestBuy10kCny": "818.78",
+    "buyMean5TradingDays10kCny": "695.28",
+    "buyMean20TradingDays10kCny": "526.63",
+    "netBuy5TradingDays10kCny": "-39.63",
+    "netBuy20TradingDays10kCny": "-59.99",
+    "latestBalance100mCnyApprox": "2.29"
+  },
+  "reportSources": [
+    "user-asset",
+    "user-asset"
+  ],
+  "sourceValuesPreserved": true
+}

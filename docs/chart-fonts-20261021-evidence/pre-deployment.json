@@ -1,0 +1,12 @@
+{
+  "status": "PASSED",
+  "image": "chatchat-python-runtime:3.11-v1.2-cjk-20261021",
+  "imageId": "sha256:12efcec7c7752423a55a4ef0bf426cefb9b303357838689f481ac448a713ae44",
+  "originalTaskId": "analysis-coding-8dac07c89722a3b3be269872470fc2f8dcffbb1b2d12ddc35595489c55235544",
+  "originalScriptUnchanged": true,
+  "originalInputsUnchanged": true,
+  "originalArtifactsUnchanged": true,
+  "generatedStockCharts": 4,
+  "missingGlyphWarnings": false,
+  "readOnlyNonRootNetworkDisabled": true
+}

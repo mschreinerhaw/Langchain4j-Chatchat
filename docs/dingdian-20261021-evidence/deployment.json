@@ -1,0 +1,26 @@
+{
+  "status": "DEPLOYED",
+  "apiJarSha256": "6f855412f79c868e9320911de8280b1427c615ed3ead55f6e74c27d9c002681f",
+  "baseline": "78d205db77399797e08a563fbe0fb9a7efc8217cbb281ebe7eeaf80d8dec1cbb",
+  "nonStaticEntriesUnchanged": false,
+  "referenceBodyRemoved": true,
+  "queryBudgetFixDeployed": true,
+  "clauseLimitUnchanged": 512,
+  "constrainedToolRecallUsesAllowedLocalRanking": true,
+  "changedLibraries": [
+    "BOOT-INF/lib/chatchat-common-1.0.0-SNAPSHOT.jar",
+    "BOOT-INF/lib/chatchat-chat-1.0.0-SNAPSHOT.jar"
+  ],
+  "reportFontAndColumnPolicyDeployed": true,
+  "policyClasses": [
+    "com/chatchat/common/runtime/coding/VisualReportMode.class",
+    "com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.class",
+    "com/chatchat/api/runtime/coding/analysis/ClineContextAnswerService.class"
+  ],
+  "returnBaselinePolicyDeployed": true,
+  "changedApiClasses": [
+    "com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.class",
+    "com/chatchat/api/runtime/coding/analysis/ClineContextAnswerService.class"
+  ],
+  "gatewayResourcesVerified": 7
+}

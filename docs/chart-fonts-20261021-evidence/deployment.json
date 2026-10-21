@@ -1,0 +1,25 @@
+{
+  "status": "DEPLOYED",
+  "runtimeImage": "chatchat-python-runtime:3.11-v1.2-cjk-20261021",
+  "environments": [
+    {
+      "id": "b1068ad2-7b8d-4fb0-9230-316c86c596a4",
+      "docker_image": "chatchat-python-runtime:3.11-v1.2-cjk-20261021",
+      "version_number": 5,
+      "status": "PUBLISHED"
+    },
+    {
+      "id": "7fcc3804-45c8-4a3e-9ff6-5a7b8a9e993c",
+      "docker_image": "chatchat-python-runtime:3.11-v1.2-cjk-20261021",
+      "version_number": 5,
+      "status": "PUBLISHED"
+    }
+  ],
+  "apiJarSha256": "78d205db77399797e08a563fbe0fb9a7efc8217cbb281ebe7eeaf80d8dec1cbb",
+  "nonStaticJarEntriesIdentical": true,
+  "fontSha256": "2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b",
+  "fontSource": "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf",
+  "backup": "/opt/runtime-os-docker-stage/evidence/chart-fonts-20261021/environments-before-private.json",
+  "archivePathsNormalized": true,
+  "historyArtifactReferencePreserved": true
+}

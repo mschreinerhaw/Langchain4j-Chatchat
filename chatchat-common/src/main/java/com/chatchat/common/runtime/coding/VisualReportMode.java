@@ -25,11 +25,15 @@ public final class VisualReportMode {
         tables: [{id,title,columns:[string],rows:[[scalar]],scope}]; use bounded summary tables, not the complete input dataset.
         charts: [{id,title,kind:'png'|'svg'|'plotly',fileName,caption}]. Write each file directly in /workspace/output/results with a safe basename.
         Use installed Matplotlib for static PNG/SVG and Plotly fig.write_json for interactive plots (use ordinary JSON arrays, not binary/base64 ndarray transport; set template=None to omit unused default map/image templates).
+        Preserve the Runtime's configured Unicode font defaults. Never replace font.sans-serif with guessed fonts such as SimHei. If choosing a font explicitly, verify it is installed and supports every chart label before rendering.
         Do not generate HTML or JavaScript. Plotly figures must be offline: no external URLs, image/map layers, custom scripts or credentials.
         sections: [{title,narrative,chartIds:[string],tableIds:[string]}]; narrative and summary must describe the same computed values, units, scope and missing-data treatment.
         dataSources: [exact delivered dataset references actually used]. validation: {checks:[{name,status:'PASSED'|'FAILED',detail}],warnings:[string]}.
         Include timings:{analysisMs:number,chartMs:number} measured with time.perf_counter; never invent unavailable timings.
         Build every metric, table, plot and narrative from the SAME computed Python objects; assert consistency before writing results.
+        For changes and returns, state the actual baseline and end date. N observed prices span N-1 adjacent return intervals; do not label a window's first-to-last change as an N-period return without the required baseline observation.
+        Map delivered columns explicitly after inspecting their actual schema. Similar names are not interchangeable: precision, rounding and uncertainty metadata are not measured values. Do not use positional or substring guesses that can silently replace a value column with metadata.
+        A PASSED check must reflect a condition actually satisfied by the data. Disclosed rounding inconsistencies and missing business inputs belong in limitations; never relabel an unsuccessful computation check as PASSED.
         Do not invent absent values or claim statistical/business validation that was not performed. Record empty inputs and dependency/plot failures honestly.
         If a chart fails, keep valid textual/computed results, omit the broken chart, set PARTIAL and include the actual failure in warnings; do not fail the whole report unnecessarily.
         reportMarkdown remains the complete authored text fallback. Never put local absolute paths or raw source collections into user-facing text.

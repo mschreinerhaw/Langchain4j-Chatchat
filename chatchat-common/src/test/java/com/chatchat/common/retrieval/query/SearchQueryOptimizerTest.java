@@ -7,6 +7,27 @@ import java.util.concurrent.atomic.*;
 import static org.assertj.core.api.Assertions.*;
 
 class SearchQueryOptimizerTest {
+    @Test void shortChineseTextIsOptimizedWhenFieldExpansionExceedsTheClauseBudget() {
+        var budget=new QueryOptimizationBudget();
+        budget.setProtectedTerms(List.of("顶点软件", "融资买入"));
+        String text="顶点软件（603383），"+"行情、融资买入、融资偿还、融资余额、投资机会。".repeat(8);
+        var filter=List.of(Map.of("terms",Map.of("toolId",List.of("allowed-id"))));
+        var original=Map.<String,Object>of("size",10,"query",Map.of("bool",Map.of("must",List.of(Map.of("multi_match",Map.of(
+            "query",text,"fields",List.of("name^5","description^3","schema^2","serviceName")))),"filter",filter)));
+        assertThat(text.codePointCount(0,text.length())).isLessThan(budget.getLongTextThreshold());
+        try(var optimizer=new SearchQueryOptimizer(budget,null)) {
+            assertThatThrownBy(()->optimizer.prepare(original,SearchQueryOptimizer.Mode.DSL))
+                .isInstanceOf(QueryOptimizationException.class).hasMessageContaining("QUERY_DSL_BUDGET_EXCEEDED");
+            var prepared=optimizer.prepare(original,SearchQueryOptimizer.Mode.TEXT);
+            optimizer.validate(prepared.body());
+            assertThat(prepared.transformations()).hasSize(1);
+            assertThat(prepared.transformations().get(0).get("optimizedQuery").toString()).contains("603383","顶点软件","融资买入");
+            assertThat(((Map<?,?>)((Map<?,?>)prepared.body().get("query")).get("bool")).get("filter")).isEqualTo(filter);
+            assertThat(budget.getMaxEstimatedClauses()).isEqualTo(512);
+            assertThat(original.toString()).contains(text);
+        }
+    }
+
     @Test void independentUnitFailureReportsTheActualConfiguredLimitWithoutRelaxingIt() {
         var budget=new QueryOptimizationBudget();budget.setMaxBatches(3);
         try(var optimizer=new SearchQueryOptimizer(budget,null)) {

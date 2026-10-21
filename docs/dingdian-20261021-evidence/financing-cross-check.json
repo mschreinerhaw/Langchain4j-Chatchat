@@ -1,0 +1,51 @@
+{
+  "stock": "顶点软件",
+  "code": "603383",
+  "asOf": "2026-10-20",
+  "source": "https://stock.quote.stockstar.com/info/financing_603383.shtml",
+  "unit": "万元",
+  "columns": [
+    "交易日期",
+    "融资买入额",
+    "融资偿还额",
+    "融资净买入额"
+  ],
+  "rows": [
+    [
+      "2026-10-20",
+      818.78,
+      661.02,
+      157.76
+    ],
+    [
+      "2026-10-19",
+      535.48,
+      897.54,
+      -362.06
+    ],
+    [
+      "2026-10-16",
+      971.69,
+      664.81,
+      306.87
+    ],
+    [
+      "2026-10-15",
+      648.56,
+      646.43,
+      2.13
+    ],
+    [
+      "2026-10-14",
+      501.88,
+      646.21,
+      -144.33
+    ]
+  ],
+  "latestFinancingBalanceCny": 229000000,
+  "latestBalanceRounded": true,
+  "fiveReportedTradingDayBuyMean": 695.28,
+  "fiveReportedTradingDayNetBuyTotal": -39.63,
+  "latestBuyToFiveDayMean": 1.18,
+  "scope": "公开披露数据交叉核对，融资数据截至2026年10月20日，不作为10月21日实时融资数据，不以普通资金流入替代融资买入。"
+}

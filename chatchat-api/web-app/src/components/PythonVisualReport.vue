@@ -37,11 +37,11 @@
         @status="chartStatus"
       />
       <ReportTable v-for="table in looseTables" :key="table.id" :table="table" />
-      <details v-if="report.sections?.length && markdown" class="report-full-text"
-        ><summary>完整分析正文</summary
-        ><ReportMarkdown :content="markdown" :render-markdown="renderMarkdown"
-      /></details>
-      <ReportMarkdown v-else-if="markdown" :content="markdown" :render-markdown="renderMarkdown" />
+      <ReportMarkdown
+        v-if="!report.sections?.length && markdown"
+        :content="markdown"
+        :render-markdown="renderMarkdown"
+      />
       <section v-if="report.limitations?.length" class="report-notice" aria-label="分析限制"
         ><h3>解读提示</h3
         ><ul

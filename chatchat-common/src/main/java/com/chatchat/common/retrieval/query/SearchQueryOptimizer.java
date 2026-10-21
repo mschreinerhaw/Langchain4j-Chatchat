@@ -245,10 +245,10 @@ public final class SearchQueryOptimizer implements AutoCloseable {
                 if (fixed || !(map.get(key) instanceof Map<?,?>)) continue;
                 var clause = (Map<String,Object>) map.get(key);
                 if (!"multi_match".equals(key)) for (String field : new ArrayList<>(clause.keySet()))
-                    if (clause.get(field) instanceof String text && text.codePointCount(0, text.length()) > budget.getLongTextThreshold())
+                    if (clause.get(field) instanceof String text && needsTextRewrite(text, Map.of("query", text)))
                         clause.put(field, new LinkedHashMap<>(Map.of("query", text)));
                 var targets = "multi_match".equals(key) ? List.of(clause) : clause.values().stream().filter(Map.class::isInstance).map(v -> (Map<String,Object>)v).toList();
-                for (var target : targets) if (target.get("query") instanceof String original && original.codePointCount(0, original.length()) > budget.getLongTextThreshold()) {
+                for (var target : targets) if (target.get("query") instanceof String original && needsTextRewrite(original, target)) {
                     if ("match_phrase".equals(key)) throw new QueryOptimizationException("QUERY_PHRASE_BUDGET_EXCEEDED", "A long exact phrase cannot be compressed safely");
                     if ("and".equalsIgnoreCase(String.valueOf(target.get("operator"))) || target.containsKey("minimum_should_match"))
                         throw new QueryOptimizationException("QUERY_REQUIRES_STRUCTURED_CONSTRAINTS", "Conjunctive text must not be compressed");
@@ -262,6 +262,14 @@ public final class SearchQueryOptimizer implements AutoCloseable {
             }
             for (var entry : map.entrySet()) rewrite(entry.getValue(), fixed || Set.of("filter", "must_not").contains(entry.getKey()), transformations, scope);
         } else if (value instanceof List<?> list) for (Object item : list) rewrite(item, fixed, transformations, scope);
+    }
+
+    private boolean needsTextRewrite(String text, Map<String,Object> target) {
+        // Chinese text can exceed the analyzer/field clause budget below the character
+        // threshold. TEXT queries may use the same protected extraction in that case;
+        // explicit DSL and authorization filters remain immutable.
+        return text.codePointCount(0, text.length()) > budget.getLongTextThreshold()
+            || complexity(target) > Math.max(1, budget.getMaxEstimatedClauses() - budget.getClauseHeadroom());
     }
 
     public void validate(Map<String,Object> body) {

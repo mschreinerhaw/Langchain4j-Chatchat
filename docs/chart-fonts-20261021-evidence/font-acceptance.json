@@ -1,0 +1,13 @@
+{
+  "status": "PASSED",
+  "font": "Noto Sans CJK SC",
+  "glyphsChecked": 28,
+  "missingGlyphs": [],
+  "glyphWarnings": [],
+  "formats": [
+    "png",
+    "svg",
+    "pdf"
+  ],
+  "syntheticRegressionData": true
+}

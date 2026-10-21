@@ -67,6 +67,29 @@ class SqlStudioIntegrationTest {
         var auth=identities.login("admin","123456"); token=auth.token(); tenant=auth.user().tenantId();
     }
     JsonNode data(MvcResult result) throws Exception { return mapper.readTree(result.getResponse().getContentAsString(StandardCharsets.UTF_8)).path("data"); }
+    @Test void deletingCodingProjectsChecksNativeTaskStateAndKeepsActiveProjectsIntact() throws Exception {
+        for (var state : com.chatchat.common.runtime.coding.CodingTaskOutcome.Status.values()) {
+            String p = project();
+            var file = save(p, "sql/query.sql", "SQL", "SELECT 1;", 0);
+            var prepared = prepare(p, List.of(), List.of());
+            String generation = prepared.path("generationId").asText(), task = "sql-coding-" + generation;
+            jdbc.update("update ds_sql_generation set task_id=? where id=?", task, generation);
+            var outcome = mock(com.chatchat.common.runtime.coding.CodingTaskOutcome.class);
+            when(outcome.status()).thenReturn(state);
+            when(codingFixture.get(any(), eq(task))).thenReturn(outcome);
+            assertThat(tasks.findById(task)).isEmpty();
+            var deletion = mvc.perform(delete(ROOT + "/" + p).header("Authorization", "Bearer " + token));
+            deletion.andExpect(state.terminal() ? status().isOk() : status().isConflict());
+            int remaining = state.terminal() ? 0 : 1;
+            for (String table : List.of("ds_sql_project", "ds_sql_file", "ds_sql_generation")) {
+                String column = table.equals("ds_sql_project") ? "id" : "project_id";
+                assertThat(jdbc.queryForObject("select count(*) from " + table + " where " + column + "=?", Integer.class, p)).isEqualTo(remaining);
+            }
+            assertThat(jdbc.queryForObject("select count(*) from ds_sql_file_version where file_id=?", Integer.class, file.path("id").asText())).isEqualTo(remaining);
+            verify(codingFixture).get(argThat(scope -> scope.tenantId().equals(tenant)
+                && scope.runId().equals("sql-generation-" + generation)), eq(task));
+        }
+    }
     String json(Object value) throws Exception { return mapper.writeValueAsString(value); }
     String project() throws Exception { return data(mvc.perform(post(ROOT).header("Authorization","Bearer "+token).header("X-Workspace-Id","data-science").contentType("application/json").content("{\"name\":\"ETL test\",\"dialect\":\"spark\"}")).andExpect(status().isOk()).andReturn()).path("id").asText(); }
     JsonNode save(String id,String path,String kind,String content,int version) throws Exception {

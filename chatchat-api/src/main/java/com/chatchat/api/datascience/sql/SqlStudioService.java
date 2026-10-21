@@ -177,8 +177,15 @@ public class SqlStudioService {
     @Transactional
     public void deleteProject(HttpServletRequest request, String id) {
         Project current = project(request, id);
-        var pending = jdbc.queryForList("select task_id from ds_sql_generation where project_id=? and task_id is not null", String.class, id);
-        for (String taskId : pending) {
+        var pending = jdbc.query("select * from ds_sql_generation where project_id=? and task_id is not null", this::generationRow, id);
+        for (Generation generation : pending) {
+            String taskId = generation.taskId();
+            if (isCoding(generation)) {
+                if (coding == null) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "代码生成服务暂不可用，请稍后重试删除工程");
+                if (!coding.get(codingScope(current, generation.id()), taskId).status().terminal())
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "工程仍有代码生成任务正在运行，请等待完成或停止任务后再删除");
+                continue;
+            }
             var task = tasks.get(current.tenantId(), taskId).orElse(null);
             if (task != null && !Set.of("SUCCESS", "PARTIAL", "PARTIAL_SUCCESS", "FAILED", "CANCELLED", "KILLED", "REJECTED", "EMPTY", "NO_PRESENTABLE_RESULT", "TIME_BUDGET_EXHAUSTED", "MODEL_BUDGET_EXHAUSTED", "TIMEOUT_CANCELLED", "DLQ").contains(task.status()))
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Wait for the running task before deleting its project");

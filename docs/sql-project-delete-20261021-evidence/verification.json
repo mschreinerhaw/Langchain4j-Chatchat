@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-21",
+  "before": {
+    "reproduced": true,
+    "deleteStatus": 400,
+    "message": "Task not found: sql-coding-636bc894-e88d-48c0-9dd4-d8e1b80e6f7e",
+    "projectStillPresent": true
+  },
+  "deployment": {
+    "status": "DEPLOYED",
+    "image": "runtime-os-api:report-presentation-524d7812e169",
+    "jarSha256": "524d7812e1699ea61bb8a6f5f15469b5c3b0c53efb1f37fbe8bc811491b0082f",
+    "baselineSha256": "7f76b06485b0b3337ab052569954b0f6014bda6841df40a3202debb3e492c463",
+    "backup": "/opt/runtime-os-docker-stage/evidence/report-presentation-1792589829",
+    "authenticatedHealthVerified": false,
+    "gatewayIndexMatchesPackage": true,
+    "unrelatedContainersUnchanged": true
+  },
+  "after": {
+    "status": "PASSED",
+    "realDeployment": true,
+    "httpFixtures": false,
+    "realClineGeneration": true,
+    "projectId": "bd1649b7-1af9-4b56-b483-a7bcd3796d19",
+    "taskId": "sql-coding-636bc894-e88d-48c0-9dd4-d8e1b80e6f7e",
+    "deleteHttpStatus": 200,
+    "otherProjectsPreserved": true,
+    "deletedTaskResultCleared": true,
+    "staleGenerationPolls": 0,
+    "pageErrors": [],
+    "httpFailures": []
+  },
+  "databaseAfterDeletion": {
+    "projects": 0,
+    "files": 0,
+    "folders": 0,
+    "generations": 0
+  },
+  "authenticatedLogin": 200,
+  "authenticatedHealth": 200,
+  "tests": {
+    "frontend": 19,
+    "backendIntegration": 37,
+    "failures": 0
+  },
+  "codingStatesCovered": {
+    "deletionBlocked": [
+      "CREATED",
+      "RUNNING"
+    ],
+    "deletionAllowed": [
+      "COMPLETED",
+      "PARTIAL",
+      "FAILED",
+      "CANCELLED",
+      "BUDGET_EXCEEDED"
+    ]
+  },
+  "patchSha256": "4d977819afdc6ab78ba190dce42ac8b8e30f2f0729ba85b59d6e542b76dea047"
+}

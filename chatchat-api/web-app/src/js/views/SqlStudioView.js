@@ -172,9 +172,15 @@ async function deleteProject() {
   if (!current || !await confirmDelete('删除工程', `删除工程「${current.name}」及其中全部文件夹、文件和生成记录？此操作无法撤销。${files.value.some(dirtySqlFile) ? '\n工程包含未保存的编辑内容。' : ''}`)) return;
   await action(async () => {
     await sql.deleteSqlProject(current.id);
+    clearTimeout(pollTimer); clearTimeout(draftTimer); ++loadSerial;
     projects.value = projects.value.filter(item => item.id !== current.id);
     userDocuments.value=[]; documentsUploading.value=false; projectId.value = ''; folders.value = []; files.value = []; references.value = []; generations.value = [];
     openIds.value = []; activeId.value = ''; mappingDocuments.value = []; mappingIds.value = []; referenceIds.value = []; preview.value = null;
+    generationId.value = ''; result.value = null; chatTurns.value = []; prompt.value = ''; selectedCode.value = null;
+    reviewOpen.value = false; reviewPath.value = ''; pollError.value = ''; pendingPhase.value = ''; pendingStartedAt.value = 0;
+    versions.value = []; versionFile.value = null; newFileFolder.value = '';
+    saveWorkspaceDraft(namespace(current.id), props.workspaceContext, null);
+    saveWorkspaceDraft('sql-studio-selection', props.workspaceContext, { projectId: '' });
     const next = projects.value[0]; if (next) await selectProject(next.id);
     message.value = '工程已删除';
   });

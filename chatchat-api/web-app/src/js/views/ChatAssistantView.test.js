@@ -13,6 +13,18 @@ function composerContext(){
 }
 
 describe('user-space chat attachments',()=>{
+  it('passes visual attachments through the Agent API with the report preference and owned file references',async()=>{
+    apiRequest.mockRejectedValue(new Error('submission boundary'));
+    const context={createAssistantMessage:values=>({...values}),reuseWaitingAssistantMessage:()=>null,
+      isActiveRun:()=>false,effectiveTenantId:()=> 'tenant'};
+    const run={messages:[],assetFileIds:['owned-file'],submissionQuery:'analyze\n\n附件：rows.csv'};
+    await expect(ChatAssistantView.methods.requestAssistantAnswer.call(context,'analyze',
+      {mode:'llm_chat',toolInput:{reportMode:'visual',webSearch:false}},run)).rejects.toThrow('submission boundary');
+    expect(apiRequest.mock.calls[0][0]).toBe('/agent/tasks');
+    expect(JSON.parse(apiRequest.mock.calls[0][1].body).toolInput).toEqual({reportMode:'visual',webSearch:false,__userAssetIds:['owned-file']});
+    expect(JSON.parse(apiRequest.mock.calls[0][1].body).query).toBe(run.submissionQuery);
+    expect(apiRequest).toHaveBeenCalledTimes(1);
+  });
   it('releases the composer after history callbacks replay a stale running state',async()=>{
     const context=composerContext();const file={clientId:'ready',name:'data.csv',state:'ready',asset:{id:'file-id'}};
     context.composerAttachments=[file];context.effectiveTenantId=()=> 'tenant';

@@ -1,0 +1,56 @@
+{
+  "status": "PASSED",
+  "parentTaskId": "f89441ee-b1e4-42bd-b67e-1b66d7667a5d",
+  "nativeTaskId": "analysis-coding-7f89466dd5dbda48479dc3d69d11e994bf7125b2592db3d8efd5c9c0dd794e61",
+  "runId": "att-1-7bc25f0f-12c5-4d81-b0c9-66c1e27eb6f0",
+  "evidenceCounts": {
+    "CODING_CODE_SUBMISSION": 2,
+    "CODING_CODE_ARTIFACT": 2,
+    "CODING_EXECUTION_RECEIPT": 2,
+    "CODING_STRUCTURED_DATASET": 2,
+    "CODING_COMPUTATION_VALIDATION": 2,
+    "CODING_VISUAL_REPORT": 2,
+    "CODING_MODEL_RESPONSE_RECEIPT": 6,
+    "CODING_INPUT_SNAPSHOT": 1,
+    "CODING_VALIDATION_PLAN": 1
+  },
+  "oneImmutableInputSnapshot": true,
+  "selectedModelPreserved": true,
+  "finalResultMatchesAuthorizedUiReport": true,
+  "modelCalls": [
+    {
+      "durationMs": 2660,
+      "tools": [
+        "artifact_read"
+      ]
+    },
+    {
+      "durationMs": 52697,
+      "tools": [
+        "python_execute"
+      ]
+    },
+    {
+      "durationMs": 34261,
+      "tools": [
+        "python_execute"
+      ]
+    },
+    {
+      "durationMs": 3021,
+      "tools": [
+        "artifact_read"
+      ]
+    },
+    {
+      "durationMs": 14128,
+      "tools": []
+    },
+    {
+      "durationMs": 43181,
+      "tools": [
+        "python_execute"
+      ]
+    }
+  ]
+}

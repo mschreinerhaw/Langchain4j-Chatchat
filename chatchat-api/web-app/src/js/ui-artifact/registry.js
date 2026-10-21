@@ -4,6 +4,7 @@ import { defineRegistry } from "@json-render/vue";
 import VisualizationRenderer from "../../components/VisualizationRenderer.vue";
 import { enterpriseUiCatalog } from "./catalog.js";
 import AnalyticalReport from "../../components/AnalyticalReport.vue";
+import PythonVisualReport from "../../components/PythonVisualReport.vue";
 import ReportMarkdown from "../../components/ReportMarkdown.vue";
 import { enhanceResultTables } from "../utils/resultTableEnhancer.js";
 import { normalizeArtifactHtml } from "../utils/artifactHtmlNormalizer.js";
@@ -110,6 +111,7 @@ const AnalyticalReportResource = resourceComponent("ArtifactAnalyticalReport", (
     onDrillDown: (event) => dispatchArtifactEvent?.("drill-down", event, { resourceId: props.resourceId }) })
 );
 
+const VisualReportResource=resourceComponent("ArtifactVisualReport",value=>h(PythonVisualReport,{report:value}));
 const HtmlResource = resourceComponent("ArtifactHtml", (value) =>
   h("section", {
     class: "artifact-html-document message-markdown",
@@ -208,6 +210,7 @@ export const { registry: enterpriseUiRegistry } = defineRegistry(enterpriseUiCat
     }, children),
     Html: ({ props }) => h(HtmlResource, props),
     Markdown: ({ props }) => h(MarkdownResource, props),
+    VisualReport: ({props})=>h(VisualReportResource,props),
     AnalyticalReport: ({ props }) => h(AnalyticalReportResource, props),
     Notice: ({ props }) => h(NoticeResource, props),
     Visualization: ({ props }) => h(VisualizationResource, props),

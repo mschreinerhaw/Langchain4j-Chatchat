@@ -57,6 +57,11 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
         attrs.put("checkpointModelConfig", models.checkpointModelConfiguration(alias, model));
         attrs.put(SkillAnalysisContext.ATTRIBUTE, SkillAnalysisContext.validate(context.skillAnalysisContext()));
         attrs.put("codingOwnedAnalysisActive", true);
+        var taskType=context.taskType()!=null?context.taskType():context.problemAnalysisPlan()==null?null:
+            context.problemAnalysisPlan().tasks().stream().anyMatch(task->task.taskType()==com.chatchat.common.runtime.capability.ProblemAnalysisPlan.TaskType.DATA_ANALYSIS)
+                ?com.chatchat.common.runtime.capability.ProblemAnalysisPlan.TaskType.DATA_ANALYSIS:com.chatchat.common.runtime.capability.ProblemAnalysisPlan.TaskType.QA;
+        if(taskType!=null)attrs.put("taskType",taskType.name());
+        if(com.chatchat.common.runtime.coding.VisualReportMode.active(internal))attrs.put("reportMode","visual");
         for (String key : List.of("__agentRunId", "__agentCancellation", "__agentDeadlineAt"))
             if (internal.get(key) != null) attrs.put(key, internal.get(key));
         var metadata = new LinkedHashMap<String,Object>();
@@ -115,6 +120,12 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
             + "reportMarkdown, evidenceReferences and limitations. Cite exact delivered dataset references actually used, "
             + "including at least one user-asset reference. Verify calculations in Python and review the report with artifact_read. "
             + "User objective: " + request.getQuery();
+        boolean conditionalVisual=taskType==null&&com.chatchat.common.runtime.coding.VisualReportMode.active(attrs);
+        boolean visual=conditionalVisual||com.chatchat.common.runtime.coding.VisualReportMode.analysisRequested(attrs);
+        if(visual)instruction+="\n"+(conditionalVisual?"This context-only route has no preclassified analytical task. The report preference NEVER changes the user's task. "
+            +"For ordinary knowledge questions, explanations, writing, translations or proposed code/schema designs, OMIT visualReport entirely and answer normally; do not create charts or invent data to satisfy the preference. "
+            +"ONLY if the actual request requires calculations on supplied data, apply the following visual-output contract. An optional output field is not a requirement to perform analysis.\n":"")
+            +com.chatchat.common.runtime.coding.VisualReportMode.INSTRUCTION;
         try {
             var existing = runs.find(runId);
             if (existing.isPresent()) {
@@ -127,8 +138,8 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
                 .query(request.getQuery()).skillId(agent == null ? request.getSkillId() : agent.id()).modelName(alias)
                 .attributes(Map.of("workflowFamily", "DIRECT_ANSWER", "codingOwnedAnalysisActive", true)).build());
             var receipt = coding.executeObserved(invocation, Map.of("operation", "RUN_CODING",
-                "requestId", withAttachments?"attachment-answer-v1":"context-answer-v1", "datasetReferences", List.copyOf(sources.keySet()), "instruction", instruction,
-                "outputSchema", CodingAnalysisService.primaryReportSchema(), "reviewResult", true), sources,
+                "requestId", visual?"visual-answer-v1":withAttachments?"attachment-answer-v1":"context-answer-v1", "datasetReferences", List.copyOf(sources.keySet()), "instruction", instruction,
+                "outputSchema", CodingAnalysisService.primaryReportSchema(visual,!conditionalVisual), "reviewResult", true), sources,
                 event -> runs.recordObservation(runId, new AgentObservation("coding", "coding_agent", "Coding task progress", event)));
             if (!Boolean.TRUE.equals(receipt.get("resultAvailable")))
                 throw new IllegalStateException("Context Coding answer unavailable: " + receipt.get("status"));
@@ -146,11 +157,12 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
             var publication = Map.<String,Object>of("type", "final_summary", "workflow", "coding_owned_analysis",
                 "inputKind", withAttachments?"USER_ATTACHMENTS":"SUPPLIED_CONTEXT", "modelCalls", 0, "resultAdmissionScope", "STRUCTURE_AND_AUTHORIZED_REFERENCES");
             runs.recordObservation(runId, new AgentObservation("final_summary", "runtime", "Published Coding context report", publication));
-            var responseMetadata = Map.<String,Object>of("handler", "ClineContextAnswerService", "workflow", "coding_owned_context_answer",
+            var responseMetadata = new LinkedHashMap<String,Object>(Map.<String,Object>of("handler", "ClineContextAnswerService", "workflow", "coding_owned_context_answer",
                     "javaAnalysisModelCalls", 0, "codingReceipt", receipt, "currentBusinessDataAcquired", false,
                     "attachmentReferences", authorizedReferences.stream().filter(ref->ref.startsWith("user-asset:")).toList(),
                     WorkflowOutcome.METADATA_KEY, new WorkflowOutcome(WorkflowOutcome.Type.READY_TO_ANSWER,
-                        "CODING_CONTEXT_ANSWER_COMPLETED", List.of(), List.of(), true));
+                        "CODING_CONTEXT_ANSWER_COMPLETED", List.of(), List.of(), true)));
+            if(visual && receipt.get("visualReport") instanceof Map<?,?> reportView)responseMetadata.put("visualReport",reportView);
             runs.complete(runId, AgentRunResult.builder().runId(runId).answer(report).metadata(responseMetadata).build());
             return InteractionResponse.builder().answer(report).toolTraces(List.of()).metadata(responseMetadata).build();
         } catch (java.util.concurrent.CancellationException cancelled) {

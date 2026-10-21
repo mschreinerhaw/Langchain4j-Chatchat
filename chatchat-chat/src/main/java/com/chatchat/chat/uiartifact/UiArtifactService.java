@@ -74,12 +74,19 @@ public class UiArtifactService {
             // Findings are an evidence resource, never a substitute report body.
             addResource(resources, resourceCatalog, artifactId, "analytical-report", analyticalReport, "application/json");
         }
+        Object visualReport=uiResponse.get("visualReport");
+        boolean hasVisualReport=visualReport instanceof Map<?,?> visual && com.chatchat.common.runtime.coding.VisualReportMode.SCHEMA.equals(visual.get("schemaVersion"));
+        if(hasVisualReport){
+            addResource(resources,resourceCatalog,artifactId,"visual-report",visualReport,"application/json");
+            elements.put("visual-report",element("VisualReport",Map.of("resourceId","visual-report"),List.of()));reportChildren.add("visual-report");
+        }
         if (!answer.isBlank()) {
             // Keep authored Markdown as the canonical report resource. Converting it to an opaque
             // HTML blob here loses semantics and makes evidence/report styling much harder to control.
             addResource(resources, resourceCatalog, artifactId, "answer", answer, "text/markdown");
             elements.put("answer", element("Markdown", Map.of("resourceId", "answer"), List.of()));
-            reportChildren.add("answer");
+            // A rejected visual manifest still retains the valid authored text resource.
+            if(!hasVisualReport || !(visualReport instanceof Map<?,?> visual && visual.get("markdown") instanceof String body && !body.isBlank()))reportChildren.add("answer");
         } else if (!explicitHtml.isBlank()) {
             addResource(resources, resourceCatalog, artifactId, "report", explicitHtml, "text/html");
             elements.put("report-html", element("Html", Map.of("resourceId", "report"), List.of()));

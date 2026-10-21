@@ -17,6 +17,11 @@ class InteractionRequestGuardTest {
 
     private final ConversationContextProperties limits = new ConversationContextProperties();
 
+
+    @Test void validatesReportModeWithoutChangingUnrelatedToolFlags(){
+        for(String mode:List.of("off","visual"))assertThatCode(()->InteractionRequestGuard.validate(InteractionRequest.builder().query("hello").toolInput(Map.of("reportMode",mode,"webSearch",true)).build(),limits)).doesNotThrowAnyException();
+        for(Object invalid:List.of("automatic",true,1,Map.of()))assertThatThrownBy(()->InteractionRequestGuard.validate(InteractionRequest.builder().query("hello").toolInput(Map.of("reportMode",invalid)).build(),limits)).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("reportMode");
+    }
     @Test
     void acceptsMultilingualEmojiAndBidirectionalUserTextWithinBudget() {
         String query = "中文 English العربية עברית हिन्दी 🚨👩🏽‍💻 \u202Eabc\u202C\nline two";

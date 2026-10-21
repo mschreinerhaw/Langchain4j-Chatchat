@@ -1,0 +1,10 @@
+{
+  "status": "PASSED",
+  "apiState": "running",
+  "authenticatedApiReadiness": 200,
+  "deployedJarSha256": "0d4ee1853baeb21b6f53d3c4459502133b830caf415331e3d3669556c198e7d1",
+  "activeNodeSessions": 0,
+  "activeParentTasks": 0,
+  "activePythonContainers": 0,
+  "url": "http://192.168.195.221:18100"
+}

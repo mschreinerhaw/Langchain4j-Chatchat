@@ -1,0 +1,26 @@
+{
+  "removedOnlyOwnedTemporaryChatConversations": [
+    {
+      "conversationId": "1792573091203-d6db9b76af0ad",
+      "taskId": "a4f8f896-67f8-4983-919b-f5a1d5d1a146"
+    },
+    {
+      "conversationId": "1792573682092-0dcb964e9946e8",
+      "taskId": "2b461c27-d98a-435e-9c3c-7cc7da22043f"
+    },
+    {
+      "conversationId": "1792574005270-d00676ec09b8a",
+      "taskId": "7d4a8ad9-a1ab-443d-884a-70a0e1eaef5d"
+    },
+    {
+      "conversationId": "1792574408096-493ba9e28a2948",
+      "taskId": "417ed966-1a00-4b00-b3e9-f4d4a5935faa"
+    },
+    {
+      "conversationId": "1792575247447-6e47b97a9468d",
+      "taskId": "25a85307-ea6a-414c-ac52-c3887cc7ebd7"
+    }
+  ],
+  "keptFinalDeliveryConversation": true,
+  "keptTaskAuditAndRuntimeArtifacts": true
+}

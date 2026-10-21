@@ -37,6 +37,7 @@ public final class AnalysisCoverageCoordinator {
         this.spillStore = store == null ? AnalysisEvidenceSpillStore.disabled() : store;
     }
     public CoverageBundle analyze(Request request) {
+        request.metadata().remove("visualReport");
         // QA also uses this evidence coordinator. Enforce Python only for model-classified analysis.
         boolean codingOwned = isDataAnalysis(request);
         if (codingOwned)
@@ -238,6 +239,9 @@ public final class AnalysisCoverageCoordinator {
             "resultAvailable", receipt.getOrDefault("resultAvailable", false),
             "usage", receipt.getOrDefault("usage", Map.of())));
         request.metadata().put("primaryCodingReceipt", Map.copyOf(receipt));
+        request.metadata().remove("visualReport");
+        if(com.chatchat.common.runtime.coding.VisualReportMode.analysisRequested(request.runtimeAttributes())
+            && receipt.get("visualReport") instanceof Map<?,?> report)request.metadata().put("visualReport",report);
         if (!Boolean.TRUE.equals(receipt.get("resultAvailable")))
             throw new IllegalStateException("PRIMARY_CODING_ANALYSIS_FAILED: status="
                 + receipt.getOrDefault("status", "UNKNOWN") + ", reason="

@@ -8,7 +8,8 @@ public final class CodingRuntimeContext {
     public static Map<String, Object> validate(Map<String, Object> value) {
         if (value == null || value.isEmpty()) return Map.of();
         CodingProtocol.require(value.keySet().stream().allMatch(Set.of("schemaVersion", "capturedAt",
-            "consistency", "model", "skills", "configuredSkillIds", "inputFiles", "executionProfile")::contains), "Unknown Coding context field");
+            "consistency", "model", "skills", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode")::contains), "Unknown Coding context field");
+        VisualReportMode.read(value);
         if(value.containsKey("executionProfile")) {
             CodingProtocol.require(value.get("executionProfile") instanceof Map<?,?>,"Coding execution profile required");
             var profile=(Map<?,?>)value.get("executionProfile");

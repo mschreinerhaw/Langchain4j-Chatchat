@@ -114,6 +114,9 @@ public final class ClineModelCallbackController {
                 throw new IllegalStateException("Analysis review requires exactly one complete report row");
             var response=new java.util.LinkedHashMap<String,Object>();
             response.put("reference",reference);response.put("rows",page.rows());response.put("complete",true);
+            if(com.chatchat.common.runtime.coding.VisualReportMode.active(contract.runtimeContext()))collector.visualReport(call.scope(),call.taskId(),reference).ifPresent(report->
+                response.put("visualReportValidation",Map.of("status",report.getOrDefault("status","FAILED"),"validation",report.getOrDefault("validation",Map.of()),
+                    "availableChartCount",report.get("charts") instanceof List<?> charts?charts.size():0)));
             var row=page.rows().get(0);
             if(row.containsKey("reportMarkdown") && row.containsKey("evidenceReferences")) {
                 var input=inputs.requireAuthorized(contract);

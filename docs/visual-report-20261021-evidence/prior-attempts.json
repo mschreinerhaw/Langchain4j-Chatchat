@@ -1,0 +1,33 @@
+{
+  "attempts": [
+    {
+      "taskId": "a4f8f896-67f8-4983-919b-f5a1d5d1a146",
+      "status": "FAILED",
+      "model": "qwen3.8-max",
+      "modelDurationMs": 431197,
+      "generatedSourceLines": 725,
+      "reason": "Model response exceeded existing 300000 ms callback timeout"
+    },
+    {
+      "taskId": "2b461c27-d98a-435e-9c3c-7cc7da22043f",
+      "status": "CANCELLED",
+      "model": "qwen3.8-max",
+      "modelDurationMs": 692889,
+      "reason": "Stopped test after callback timeout; late provider receipt retained"
+    },
+    {
+      "taskId": "7d4a8ad9-a1ab-443d-884a-70a0e1eaef5d",
+      "status": "CANCELLED",
+      "model": "qwen3.8-flash",
+      "reason": "No completed Coding session; test cancelled"
+    },
+    {
+      "taskId": "417ed966-1a00-4b00-b3e9-f4d4a5935faa",
+      "status": "FAILED",
+      "model": "qwen3.6-plus",
+      "pythonVisualReportStatus": "SUCCESS",
+      "charts": 2,
+      "reason": "Final repeated collection changed immutable evidence admission timing; fixed and protected by byte equality/replay tests"
+    }
+  ]
+}

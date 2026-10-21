@@ -119,4 +119,15 @@ class ClineContextAnswerServiceTest {
             .isInstanceOf(IllegalStateException.class).hasMessageContaining("must be enabled");
         verifyNoInteractions(models,model,coding);
     }
+    @Test void visualPreferenceDoesNotTurnKnowledgeQuestionsIntoVisualAnalysis(){
+        result("answer",List.of("runtime-context:run"),1);var request=request();request.setToolInput(Map.of("__agentRunId","run","reportMode","visual"));
+        service.answer(request,context.toBuilder().taskType(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.TaskType.QA).build(),skill,"");
+        verify(coding).executeObserved(any(),argThat(task->!((Map<?,?>)((Map<?,?>)task.get("outputSchema")).get("properties")).containsKey("visualReport")&&!task.get("instruction").toString().contains("Visual report mode")),anyMap(),any());
+    }
+    @Test void classifiedAnalysisCarriesVisualRequirementsAndPublishesOnlyTheAdmittedReport(){
+        result("answer",List.of("runtime-context:run"),1);var request=request();request.setToolInput(Map.of("__agentRunId","run","reportMode","visual"));
+        service.answer(request,context.toBuilder().taskType(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.TaskType.DATA_ANALYSIS).build(),skill,"");
+        verify(coding).executeObserved(argThat(call->"visual".equals(call.runtimeAttributes().get("reportMode"))),argThat(task->((Map<?,?>)((Map<?,?>)task.get("outputSchema")).get("properties")).containsKey("visualReport")&&task.get("instruction").toString().contains("Visual report mode")),anyMap(),any());
+    }
+
 }

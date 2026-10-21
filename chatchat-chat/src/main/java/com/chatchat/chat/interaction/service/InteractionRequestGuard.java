@@ -43,6 +43,7 @@ final class InteractionRequestGuard {
         validateRange("maxResults", request.getMaxResults(), 1,
             positive(limits.getMaxResults(), 1_000));
         validateToolInput(request.getToolInput(), limits, identifierLimit);
+        com.chatchat.common.runtime.coding.VisualReportMode.read(request.getToolInput());
     }
 
     private static void validateText(String field, String value, int maximumChars, boolean blankAllowed) {

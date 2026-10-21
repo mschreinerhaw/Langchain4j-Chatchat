@@ -46,6 +46,7 @@
             </select>
           </label>
         </div>
+        <button type="button" role="switch" aria-label="图文报告" :aria-checked="reportMode==='visual'" class="tool-button visual-report-toggle" :class="{active:reportMode==='visual'}" :disabled="loading" title="本次数据分析生成图文报告，发送后自动关闭" @click="reportMode=reportMode==='visual'?'off':'visual'"><FileText :size="15" />图文报告<span class="report-toggle-state">{{ reportMode==='visual'?'开':'关' }}</span></button>
         <div v-if="documentWorkflowActive" class="composer-toolbar-group tool-group">
           <span v-if="documentWorkflowActive" class="workflow-badge">
             <FileText :size="14" stroke-width="2" />
@@ -72,4 +73,5 @@
 <script src="../js/components/PromptComposer.js"></script>
 <style scoped>
 .composer-attachments{list-style:none;padding:0 48px 0 0;margin:8px 0;max-height:150px;overflow:auto}.composer-attachments li{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px}.composer-attachments [role=alert]{color:#a12929}.composer-file-notice{font-size:12px;color:#526479}
+.visual-report-toggle{display:inline-flex;align-items:center;gap:5px}.report-toggle-state{font-size:10px;opacity:.75}
 </style>

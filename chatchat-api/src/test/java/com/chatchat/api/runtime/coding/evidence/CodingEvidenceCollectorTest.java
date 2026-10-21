@@ -35,7 +35,7 @@ class CodingEvidenceCollectorTest {
     ScheduledExecutorService timer;
     CodingTaskContract contract;
 
-    @BeforeEach void setup() throws Exception {
+    @BeforeEach void setup(TestInfo test) throws Exception {
         dataSource = new DriverManagerDataSource("jdbc:h2:mem:c-evidence-" + UUID.randomUUID()
                 + ";DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE", "sa", "");
         new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(dataSource);
@@ -63,10 +63,24 @@ class CodingEvidenceCollectorTest {
                 "10", "USD", 10000, 1024 * 1024, 1024 * 1024), "env", "validation:fixed",
             new CodingTaskContract.OutputContract(CodingTaskContract.ResultFormat.JSON_LINES,
                 "schema:amount", "schema:validation", List.of("rows.jsonl"),
-                List.of("application/x-ndjson"), 100, 10000, List.of(CodingTaskContract.RequiredEvidence.values())));
+                List.of("application/x-ndjson"), 100, 10000, List.of(CodingTaskContract.RequiredEvidence.values())),
+            test.getTags().contains("visual-report")?Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","reportMode","visual"):Map.of());
         tasks.submit(contract);
     }
     @AfterEach void shutdown() { timer.shutdownNow(); workers.shutdownNow(); }
+    @Test @Tag("visual-report") void visualReportEvidenceRemainsReplayableAcrossFinalCollectionAndRestart()throws Exception{
+        var report=Map.of("schemaVersion","python_visual_report.v1","title","Replayed report","status","SUCCESS",
+            "dataSources",List.of("prices"),"validation",Map.of("checks",List.of(Map.of("name","computed","status","PASSED"))));
+        fixture(json.writeValueAsString(Map.of("visualReport",report,"reportMarkdown","Valid text","evidenceReferences",List.of("prices")))+"\n","PRESENT",true,
+            "{\"evidenceReferences\":\"ARRAY\",\"reportMarkdown\":\"STRING\",\"visualReport\":\"OBJECT\"}",1);
+        var firstCollector=collector(store);firstCollector.setVisualReports(new VisualReportArtifacts(json));
+        var files=List.of(new CodingEvidenceCollector.InputFile("prices","prices.csv",sha("amount\n12.50\n")));
+        var first=firstCollector.collect(scope,contract,"op","main.py","rows.jsonl",files,rows->new CodingEvidenceCollector.Validation(true,Map.of()));
+        var resumed=collector(reopen());resumed.setVisualReports(new VisualReportArtifacts(json));
+        var replay=resumed.collect(scope,contract,"op","main.py","rows.jsonl",files,rows->new CodingEvidenceCollector.Validation(true,Map.of()));
+        assertThat(replay).isEqualTo(first);
+        assertThat(resumed.visualReport(scope,"task",replay.resultDatasetRef())).contains(firstCollector.visualReport(scope,"task",first.resultDatasetRef()).orElseThrow());
+    }
     @Test void aSchemaValidCopyOfArchivedSourceCannotBecomeAnAdmittedAnalysis() throws Exception {
         String source = "private diagnostic source\n".repeat(100);
         String result = json.writeValueAsString(Map.of("finding",source))+"\n";

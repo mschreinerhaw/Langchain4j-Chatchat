@@ -15,6 +15,7 @@ export const enterpriseUiCatalog = defineCatalog(schema, {
       props: z.object({ resourceId: z.string() }),
       description: "Safe Markdown loaded from an artifact resource"
     },
+    VisualReport: {props:z.object({resourceId:z.string()}),description:"Python-computed report with authorized static and interactive artifacts"},
     AnalyticalReport: {
       props: z.object({ resourceId: z.string() }),
       description: "Runtime composed insight blocks with bound data, charts, judgments and evidence"

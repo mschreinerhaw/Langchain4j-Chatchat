@@ -1,0 +1,168 @@
+{
+  "checks": {
+    "originalUploaded": true,
+    "resetAfterSend": true,
+    "exactComputedValues": true,
+    "realPythonStaticImage": true,
+    "realPlotlyInteractionAndOpaqueOrigin": true,
+    "executedCodeAccessible": true,
+    "mobileRendered": true,
+    "actualAgentApiAttachmentAndMode": true,
+    "unspecifiedUnitsAreNotInvented": true,
+    "reportUsesUserLanguage": true,
+    "authorizedArtifactSizesAndHashes": true,
+    "historyRestoredWithToggleOff": true,
+    "plotlyValuesMatchDecimalSummaries": true,
+    "historyMatchesVerifiedExecution": true,
+    "noBrowserErrorsOrNewAnalysisOnHistoryRestore": true,
+    "anonymousArtifactDownloadDenied": true
+  },
+  "errors": [],
+  "parentTaskId": "f89441ee-b1e4-42bd-b67e-1b66d7667a5d",
+  "artifactId": "ui_1991ca584c1b42cca2f1eb84503a599a",
+  "modelName": "qwen3.6-plus",
+  "scope": "ACTUAL_UPLOAD_AGENT_API_CLINE_PYTHON_SILO_AND_BROWSER_HISTORY",
+  "report": {
+    "schemaVersion": "python_visual_report.v1",
+    "status": "SUCCESS",
+    "metrics": [
+      {
+        "calculation": "sum(Decimal(value)) for non-empty value",
+        "id": "total_value",
+        "label": "value 总额",
+        "unit": "",
+        "value": "100.00"
+      },
+      {
+        "calculation": "count of empty/null value fields",
+        "id": "missing_count",
+        "label": "缺失数",
+        "unit": "条",
+        "value": "1"
+      },
+      {
+        "calculation": "count of non-empty parsable value fields",
+        "id": "valid_count",
+        "label": "有效记录数",
+        "unit": "条",
+        "value": "5"
+      }
+    ],
+    "tables": [
+      {
+        "columns": [
+          "segment",
+          "value_sum"
+        ],
+        "id": "seg_table",
+        "rows": [
+          [
+            "A",
+            "30.75"
+          ],
+          [
+            "B",
+            "30.75"
+          ],
+          [
+            "C",
+            "38.50"
+          ]
+        ],
+        "scope": "all non-missing values grouped by segment",
+        "title": "Segment 汇总表"
+      }
+    ],
+    "charts": [
+      {
+        "id": "seg_bar",
+        "kind": "png",
+        "artifact": {
+          "fileId": "7078c9faa681098e3282dbecafe6a8483fb3ea610b8d8e5e09344aa2cf0b51c0",
+          "fileName": "segment_bar.png",
+          "mediaType": "image/png",
+          "sha256": "8588cfc78da88ff752b54765e00b16787f58b32f213949d2d3e436e29e04a00f",
+          "size": 19485
+        }
+      },
+      {
+        "id": "seg_plotly",
+        "kind": "plotly",
+        "artifact": {
+          "fileId": "49f6ecc53fa24471a40ec5e95271264b99d74bf5b4cd1f739788338bef611f18",
+          "fileName": "segment_interactive.json",
+          "mediaType": "application/json",
+          "sha256": "77e3d071d908d9b00e339b36833f438ea7324e03e97ef02bbf549bf7bc1fefb8",
+          "size": 305
+        }
+      }
+    ],
+    "execution": {
+      "codeArtifact": {
+        "fileId": "cf69fafb551751a4a4c82b8ea685d6ae304749d6ecae8cb8f4ead6605386ce52",
+        "fileName": "main.py",
+        "mediaType": "text/x-python",
+        "sha256": "ed6c9812e8083bc2e36102cc0fb9824f456dcbd78c5bc96ddfd3697824c3ed74",
+        "size": 6019
+      },
+      "codeSha256": "ed6c9812e8083bc2e36102cc0fb9824f456dcbd78c5bc96ddfd3697824c3ed74",
+      "executorStopped": true,
+      "operationId": "cline-a2289ea33889877a9653699de7c034413f2ea042bc1c393afa5a31f981a0e86d",
+      "receiptSha256": "0f74e1c5803e1e2442b100417c714b2cc79cf201ba4db264711ccb39ab654d46",
+      "resultDatasetRef": "runtime-evidence:coding:72c561c80a706528e7533d63461c32b2e91e32efaf99ac3668401a6f24e6efd1:result",
+      "resultSha256": "605c80c7002c1708ac2a5faeddb651f5c46d8a0d28ac8a8c2255c9a475987d9a",
+      "status": "SUCCEEDED",
+      "taskId": "analysis-coding-7f89466dd5dbda48479dc3d69d11e994bf7125b2592db3d8efd5c9c0dd794e61"
+    },
+    "dataSources": [
+      "user-asset:bf64c5f7924418377b0cb1da2659164d07e65572b662185251ec8baeb26bc360:044d11a8901b26a1a79dc54414daadf9471a3c6ef0878a5b0bd90811a3e7eac3"
+    ],
+    "validation": {
+      "checks": [
+        {
+          "detail": "CSV content SHA-256 matches declared",
+          "name": "sha256_verify",
+          "status": "PASSED"
+        },
+        {
+          "detail": "Size 128 matches declared 128",
+          "name": "size_verify",
+          "status": "PASSED"
+        },
+        {
+          "detail": "Base64 decoded successfully",
+          "name": "base64_decode",
+          "status": "PASSED"
+        }
+      ],
+      "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+      "status": "ARTIFACTS_VERIFIED",
+      "warnings": []
+    },
+    "timings": {
+      "analysisMs": 1560,
+      "chartMs": 354
+    }
+  },
+  "verifiedArtifacts": [
+    {
+      "fileId": "cf69fafb551751a4a4c82b8ea685d6ae304749d6ecae8cb8f4ead6605386ce52",
+      "sha256": "ed6c9812e8083bc2e36102cc0fb9824f456dcbd78c5bc96ddfd3697824c3ed74",
+      "size": 6019
+    },
+    {
+      "fileId": "7078c9faa681098e3282dbecafe6a8483fb3ea610b8d8e5e09344aa2cf0b51c0",
+      "sha256": "8588cfc78da88ff752b54765e00b16787f58b32f213949d2d3e436e29e04a00f",
+      "size": 19485
+    },
+    {
+      "fileId": "49f6ecc53fa24471a40ec5e95271264b99d74bf5b4cd1f739788338bef611f18",
+      "sha256": "77e3d071d908d9b00e339b36833f438ea7324e03e97ef02bbf549bf7bc1fefb8",
+      "size": 305
+    }
+  ],
+  "status": "PASSED",
+  "anonymousArtifactHttpStatus": 401,
+  "finalPackageSha256": "0d4ee1853baeb21b6f53d3c4459502133b830caf415331e3d3669556c198e7d1",
+  "validationSequence": "Actual upload/Cline/Python on final backend, then frontend-only request-text alignment regression and history verification on deployed final package."
+}

@@ -1,0 +1,34 @@
+{
+  "status": "PASSED",
+  "scope": "ACTUAL_AGENT_API_CLINE_AND_PYTHON; ORDINARY_QA_WITH_OFF_AND_VISUAL",
+  "cases": [
+    {
+      "mode": "off",
+      "taskId": "a901b9dd-c727-4cd3-9453-2e4e6eedf602",
+      "runId": "att-1-80d5986f-6971-4be2-b5e8-33ae06c1ecd8",
+      "status": "SUCCESS",
+      "codingTaskIds": [
+        "analysis-coding-2a4d01796555b57970fdeb9b693ad1c585ed55db9627176ef8b31731feacace0"
+      ],
+      "visualReportCount": 0,
+      "chartCount": 0,
+      "archivedFileCounts": [
+        32
+      ]
+    },
+    {
+      "mode": "visual",
+      "taskId": "a5ccb29e-8463-40ba-b44b-fa9ee17c3276",
+      "runId": "att-1-1e2ffd2c-1a22-449f-bf0c-2d0fb58b76da",
+      "status": "SUCCESS",
+      "codingTaskIds": [
+        "analysis-coding-cdbeefe75e00d80766dab0522b94ae470f8f1a2036cd5f622c86051a7ca6a6b5"
+      ],
+      "visualReportCount": 0,
+      "chartCount": 0,
+      "archivedFileCounts": [
+        25
+      ]
+    }
+  ]
+}

@@ -145,6 +145,7 @@ public class AgentTaskService {
     private AgentTaskResponse submit(AgentTaskSubmitRequest request,
                                      AgentExecutionIdentity retryIdentity) {
         validate(request);
+        com.chatchat.common.runtime.coding.VisualReportMode.read(request.getToolInput());
         AgentTaskSubmitRequest normalized = normalize(request);
         if (normalized.getResumeTaskId() != null && !normalized.getResumeTaskId().isBlank()) {
             return confirm(normalized.getTenantId(), normalized.getResumeTaskId(), normalized);
@@ -2897,6 +2898,7 @@ public class AgentTaskService {
             "",
             Map.of("type", "none"),
             null,
+            null,
             null
         );
         Map<String, Object> debug = new LinkedHashMap<>();
@@ -2959,7 +2961,9 @@ public class AgentTaskService {
             visualization,
             visualizationSpec,
             responseMetadata.get("analyticalReport") != null ? responseMetadata.get("analyticalReport")
-                : asStringMap(responseMetadata.get("agent")).get("analyticalReport")
+                : asStringMap(responseMetadata.get("agent")).get("analyticalReport"),
+            responseMetadata.get("visualReport") != null ? responseMetadata.get("visualReport")
+                : asStringMap(responseMetadata.get("agent")).get("visualReport")
         );
     }
 
@@ -4406,7 +4410,8 @@ public class AgentTaskService {
         String evidenceSummary,
         Map<String, Object> visualization,
         Object visualizationSpec,
-        Object analyticalReport
+        Object analyticalReport,
+        Object visualReport
     ) {
 
         private Map<String, Object> asMap() {
@@ -4429,6 +4434,7 @@ public class AgentTaskService {
                 && "analytical_report.v1".equals(report.get("schemaVersion"))) {
                 values.put("analyticalReport", report);
             }
+            if(visualReport instanceof Map<?,?> report && com.chatchat.common.runtime.coding.VisualReportMode.SCHEMA.equals(report.get("schemaVersion")))values.put("visualReport",report);
             return values;
         }
 

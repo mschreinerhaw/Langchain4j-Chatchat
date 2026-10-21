@@ -47,6 +47,15 @@ class CodingAnalysisServiceTest {
         assertThat(((Map<?,?>)contract.runtimeContext().get("model")).get("selectedModel")).isEqualTo("request-model");
         verify(parent.model(),never()).chat(anyString());
     }
+
+    @Test void visualOutputExtendsTheExistingPrimaryTaskWithoutChangingDataAcquisition(){
+        var service=spy(service());doReturn(Map.of("status","COMPLETED")).when(service).executeObserved(any(),anyMap(),anyMap(),any());
+        var original=context("tenant");var request=new AnalysisCoverageCoordinator.Request(original.model(),original.query(),null,Map.of("taskType","DATA_ANALYSIS","reportMode","visual"),original.metadata(),()->false,()->{},original.isolationScope(),null);
+        var sources=new LinkedHashMap<String,Dataset>();sources.put("dataset",new Dataset("dataset",Map.of(),List.of(Map.of("value",1))));
+        service.executePrimaryAnalysis(request,sources,event->{});
+        verify(service).executeObserved(same(request),argThat(task->"primary-data-analysis-visual-v1".equals(task.get("requestId"))&&task.get("instruction").toString().contains("SAME computed Python objects")&&((Map<?,?>)((Map<?,?>)task.get("outputSchema")).get("properties")).containsKey("visualReport")),same(sources),any());
+        verifyNoInteractions(agent,python,inputs,plans,collector);
+    }
     @Test void primaryAnalysisBatchesNineAuthorizedDatasetsIntoOneGenericCodingAssignment() {
         var service = spy(service());
         doReturn(Map.of("status", "COMPLETED")).when(service).executeObserved(

@@ -24,6 +24,9 @@ import org.springframework.stereotype.Service;
 @Service
 @ConditionalOnProperty(prefix = "chatchat.coding", name = "enabled", havingValue = "true")
 public class CodingEvidenceCollector {
+    private VisualReportArtifacts visualReports;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setVisualReports(VisualReportArtifacts value){visualReports=value;}
     private com.chatchat.api.assets.RuntimeAssetArchive assets;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setAssets(com.chatchat.api.assets.RuntimeAssetArchive value){assets=value;}
@@ -105,6 +108,8 @@ public class CodingEvidenceCollector {
         JsonNode manifest = parse(manifestBytes);
         if (!manifest.path("artifacts").isArray()) throw new IllegalStateException("Artifact manifest is invalid");
         Map<String, JsonNode> entries = new HashMap<>();
+        boolean visual=com.chatchat.common.runtime.coding.VisualReportMode.active(contract.runtimeContext());
+        Map<String,byte[]> reportFiles=visual?new HashMap<>():null;
         for (JsonNode entry : manifest.path("artifacts")) {
             String channel = entry.path("channel").asText();
             String name = entry.path("fileName").asText();
@@ -113,6 +118,7 @@ public class CodingEvidenceCollector {
                 throw new IllegalStateException("Artifact manifest has an invalid or repeated entry");
             byte[] bytes = artifact(scope, contract.taskId(), operationId, channel, name);
             verifyArtifact(entry, bytes);
+            if(visual&&"results".equals(channel)&&name.matches(".*\\.(png|svg|json)"))reportFiles.put(channel+"/"+name,bytes);
             if(assets!=null)assets.save(scope,contract.taskId(),"logs".equals(channel)?com.chatchat.api.assets.UserAssetService.Kind.LOG
                 :com.chatchat.api.assets.UserAssetService.Kind.ARTIFACT,"execution:"+operationId+":"+channel+":"+name,name,bytes);
             if ("results".equals(channel) && name.endsWith(".jsonl")) rows(bytes, entry);
@@ -134,7 +140,7 @@ public class CodingEvidenceCollector {
             throw new IllegalStateException("Result is incomplete");
         byte[] code = artifact(scope, contract.taskId(), operationId, "code", codeFile);
         if (!sha(code).equals(operation.codeHash())) throw new IllegalStateException("Executed code hash mismatch");
-        if(assets!=null)assets.save(scope,contract.taskId(),com.chatchat.api.assets.UserAssetService.Kind.CODE,
+        com.chatchat.api.assets.UserAssetService.File codeAsset=assets==null?null:assets.save(scope,contract.taskId(),com.chatchat.api.assets.UserAssetService.Kind.CODE,
             "execution:"+operationId+":code:"+codeFile,codeFile,code);
         byte[] receipt = artifact(scope, contract.taskId(), operationId, "logs", "receipt.json");
         JsonNode receiptJson = parse(receipt);
@@ -219,6 +225,14 @@ public class CodingEvidenceCollector {
                 "verifierId", validation.verifierId(), "ruleVersion", validation.ruleVersion(),
                 "validationPlanRef", contract.validationPlanRef(), "resultDatasetRef", "runtime-evidence:" + resultId),
             List.of(resultId), contract.taskId(), occurredAt);
+        if(visual && validation.passed() && resultRows.size()==1 && resultRows.get(0).containsKey("visualReport")) {
+            if(visualReports==null)throw new IllegalStateException("Visual report admission unavailable");
+            var execution=new LinkedHashMap<String,Object>(Map.of("taskId",contract.taskId(),"operationId",operationId,"codeSha256",sha(code),"receiptSha256",sha(receipt),
+                    "resultSha256",sha(resultBytes),"resultDatasetRef","runtime-evidence:"+resultId,"executorStopped",true,"status",operation.status()));
+            if(codeAsset!=null)execution.put("codeArtifact",Map.of("fileId",codeAsset.id(),"fileName",codeAsset.fileName(),"sha256",codeAsset.sha256(),"size",codeAsset.size(),"mediaType","text/x-python"));
+            var report=visualReports.collect(scope,contract.taskId(),operationId,resultRows,reportFiles,execution);
+            add(records,lineages,scope,stem+":visual-report","CODING_VISUAL_REPORT",report,List.of(resultId,validationId,receiptId,codeId),contract.taskId(),occurredAt);
+        }
         Map<String, Object> bundleMetadata = Map.of("taskId", contract.taskId(), "operationId", operationId,
             "manifestSha256", sha(manifestBytes), "validationPassed", validation.passed(),
             "businessEvaluated", validation.businessEvaluated());
@@ -360,6 +374,14 @@ public class CodingEvidenceCollector {
         return checks instanceof Map<?, ?> values && Boolean.TRUE.equals(values.get("copiedSourceContentDetected"));
     }
 
+    public Optional<Map<String,Object>> visualReport(KernelDataScope scope,String task,String resultReference) {
+        String result=id(resultReference);
+        if(!result.endsWith(":result"))return Optional.empty();
+        var record=evidence.find(scope,result.substring(0,result.length()-7)+":visual-report");
+        return record.filter(value->"CODING_VISUAL_REPORT".equals(value.evidenceType())
+            && value.payload().get("execution") instanceof Map<?,?> execution && task.equals(execution.get("taskId")))
+            .map(EvidenceRecord::payload);
+    }
     /** Existing analysis workspace registration shape; callers decide whether to admit it into an Analysis Loop. */
     public AnalysisEvidenceCoordinator.Dataset registeredResult(KernelDataScope scope, String taskId, String resultRef) {
         EvidenceRecord record = resolve(scope, taskId, resultRef);

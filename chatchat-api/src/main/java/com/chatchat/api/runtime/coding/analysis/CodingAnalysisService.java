@@ -107,17 +107,28 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             + "limitations must record material data or method limits. Do not delegate calculations back to Runtime OS.\n"
             + "User objective:\n" + context.query();
         var request = new LinkedHashMap<String,Object>();
+        boolean visual=VisualReportMode.analysisRequested(context.runtimeAttributes());
+        if(visual)objective+="\n"+VisualReportMode.INSTRUCTION;
         request.put("operation", "RUN_CODING");
-        request.put("requestId", "primary-data-analysis-v1");
+        request.put("requestId", visual?"primary-data-analysis-visual-v1":"primary-data-analysis-v1");
         request.put("datasetReferences", List.copyOf(sources.keySet()));
         request.put("instruction", objective);
-        request.put("outputSchema", primaryReportSchema());
+        request.put("outputSchema", primaryReportSchema(visual));
         request.put("reviewResult", true);
         return executeObserved(context, request, sources, observer);
     }
 
     static Map<String,Object> primaryReportSchema() {
+        return primaryReportSchema(false);
+    }
+    static Map<String,Object> primaryReportSchema(boolean visual) {
+        return primaryReportSchema(visual,true);
+    }
+    static Map<String,Object> primaryReportSchema(boolean visual,boolean required) {
         Map<String,Object> stringArray = Map.of("type", "array", "items", Map.of("type", "string"));
+        if(visual)return Map.of("type","object","properties",Map.of("reportMarkdown",Map.of("type","string"),
+            "evidenceReferences",stringArray,"limitations",stringArray,"visualReport",Map.of("type","object","additionalProperties",true)),
+            "required",required?List.of("reportMarkdown","evidenceReferences","limitations","visualReport"):List.of("reportMarkdown","evidenceReferences","limitations"),"additionalProperties",false);
         return Map.of(
             "type", "object",
             "properties", Map.of(
@@ -261,6 +272,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             }
             var configuration=new LinkedHashMap<String,Object>(com.chatchat.api.runtime.coding.CodingConfigurationSnapshot.capture(
                 context.runtimeAttributes(),context.metadata()));
+            if(VisualReportMode.active(context.runtimeAttributes()) && WorkspaceResultSchema.object(schema.get("properties")).containsKey("visualReport"))configuration.put("reportMode","visual");
             if(dynamic)configuration.put("executionProfile",freezeExecutionProfile(sourceCount,input.rowCount()));
             contract=new CodingTaskContract(dynamic?CodingProtocol.ANALYSIS_VERSION:CodingProtocol.VERSION,taskId,scope,
                 new CodingTaskContract.Objective(goal,List.of("rows.jsonl"),List.of(plan)),input.reference(),List.copyOf(metadataRefs),workspace,
@@ -368,6 +380,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                     "businessValidation","NOT_EVALUATED","limitations",outcome.limitations(),"evidenceRefs",refs));
                 sources.put(result.reference(),new Dataset(result.reference(),resultContext,result.handle()));
                 receipt.put("resultAvailable",true);
+                if(VisualReportMode.active(accepted.runtimeContext()))collector.visualReport(scope,taskId,outcome.resultDatasetRef()).ifPresent(report->receipt.put("visualReport",report));
                 receipt.put("datasetReference",result.reference());receipt.put("rowCount",result.recordCount());
                 receipt.put("evidenceRefs",refs);
                 var authorizedReferences = new LinkedHashSet<String>(selectedReferences);

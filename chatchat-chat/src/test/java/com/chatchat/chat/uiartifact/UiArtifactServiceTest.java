@@ -30,6 +30,17 @@ class UiArtifactServiceTest {
         assertThat(fixture.service().resource("tenant-b",id,"answer")).isEmpty();
     }
 
+
+    @Test void externalizedVisualReportRetainsTheAuthoredTextAndAuthorizedArtifactReferences(){
+        var fixture=fixture(64);var report=Map.of("schemaVersion","python_visual_report.v1","status","SUCCESS","title","Computed report","charts",List.of(Map.of("artifact",Map.of("fileId","opaque-file-id"))));
+        var presentation=fixture.service().externalizeIfNeeded("tenant-a","task-visual",Map.of("answer","Complete Python-authored text","visualReport",report,"status","SUCCESS"));
+        String id=presentation.reference().get("artifactId").toString();
+        assertThat(fixture.service().resource("tenant-a",id,"visual-report")).hasValue(report);
+        assertThat(fixture.service().resource("tenant-a",id,"answer")).hasValue("Complete Python-authored text");
+        assertThat(fixture.service().manifest("tenant-a",id).orElseThrow().toString()).contains("VisualReport");
+        assertThat(fixture.service().manifest("tenant-a",id).orElseThrow().toString()).contains("answer");
+        assertThat(fixture.service().resource("other-tenant",id,"visual-report")).isEmpty();
+    }
     @TempDir
     Path temporaryDirectory;
 

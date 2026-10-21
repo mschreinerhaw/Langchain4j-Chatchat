@@ -1,0 +1,8 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Python 图文报告验收夹具</title><style>body{margin:0;background:#f5f7fc;font:14px Arial,sans-serif}#app{max-width:1050px;margin:auto;padding:16px;box-sizing:border-box}button{font:inherit}iframe{max-width:100%}.fixture-note{padding:10px;background:#fff8e8}</style></head><body><div id="app"></div><script type="module">
+import {createApp,h,reactive} from 'vue';
+import PythonVisualReport from '/src/components/PythonVisualReport.vue';
+import EnterpriseUiArtifactRenderer from '/src/components/EnterpriseUiArtifactRenderer.vue';
+import PromptComposer from '/src/components/PromptComposer.vue';
+const state=reactive({report:null,archived:false,query:'分析测试数据',conversationKey:'first'});window.visualTestState=state;window.visualTestSends=[];
+createApp({render:()=>h('main',{},[h('p',{class:'fixture-note'},'测试夹具：图表由现有 Python Sandbox 生成；本页不代表完整 Cline 任务验收。'),h(PromptComposer,{modelValue:state.query,conversationKey:state.conversationKey,onSend:value=>window.visualTestSends.push(value)}),state.archived?h(EnterpriseUiArtifactRenderer,{artifact:{artifactId:'visual-test'}}):h(PythonVisualReport,{report:state.report,fallbackMarkdown:'测试分析正文'})])}).mount('#app');
+</script></body></html>

@@ -164,6 +164,7 @@
     <div class="chat-input-dock">
       <PromptComposer
         ref="promptComposer"
+        :conversation-key="[composerGeneration,tenantId,userId].join(':')"
         v-model="question"
         v-model:selected-agent-id="selectedAgentId"
         :agents="agents"

@@ -1,0 +1,41 @@
+{
+  "status": "PASSED",
+  "notes": "Backend final suites overlap the initial 144 tests. Browser fixture checks are not Cline E2E.",
+  "runs": [
+    {
+      "name": "backend-first",
+      "passed": 144,
+      "logSha256": "d9919a55836550949d5df74adeee03fe40bfa74e4d57de26012f93d0b02defcd"
+    },
+    {
+      "name": "backend-replay",
+      "passed": 39,
+      "logSha256": "5e203e1bf893c1bce7d8b0f5b14e22f224e8d3e44ecc2040f08af461c2cbe479"
+    },
+    {
+      "name": "backend-final",
+      "passed": 76,
+      "logSha256": "a722f61f7d158230c9b1572669c5814ec14c6d8363fff475f669950b2be84685"
+    },
+    {
+      "name": "frontend-report",
+      "passed": 11,
+      "logSha256": "7adc8700bbbab24449564fa089b5133a883adbe6f88bc44838286049ef529065"
+    },
+    {
+      "name": "frontend-regression",
+      "passed": 302,
+      "logSha256": "780739b8caafa7aad5b68b3a3229528e6cc88734a328c6033a36988813003614"
+    },
+    {
+      "name": "browser-fixtures",
+      "passed": 7,
+      "logSha256": "7a709820bdd06c29952dcf3816e830eb14b8b2f4046ccae761a17a9f26d4091a"
+    },
+    {
+      "name": "vite-build",
+      "passed": null,
+      "logSha256": "43815a1fa587ff687705059c1edf72b019695337b4179225165bfb406f21fb4c"
+    }
+  ]
+}

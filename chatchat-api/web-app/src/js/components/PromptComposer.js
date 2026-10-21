@@ -10,6 +10,7 @@ export default {
     XCircle
   },
   props: {
+    conversationKey: {type:String,default:""},
     attachments: {type:Array,default:()=>[]},
     suggestions: {
       type: Array,
@@ -51,6 +52,7 @@ export default {
   emits: ["clear", "files", "retry-file", "remove-file", "pick", "send", "stop", "update:modelValue", "update:selectedAgentId"],
   data() {
     return {
+      reportMode: "off",
       draft: this.modelValue
     };
   },
@@ -92,6 +94,7 @@ export default {
     }
   },
   watch: {
+    conversationKey(){this.reportMode="off";},
     modelValue(value) {
       this.draft = value;
       this.$nextTick(this.adjustTextareaHeight);
@@ -123,8 +126,10 @@ export default {
         query: value,
         agentId: this.selectedAgentId,
         agentName: this.selectedAgent?.name || "",
-        documentWorkflow: this.documentWorkflowActive
+        documentWorkflow: this.documentWorkflowActive,
+        reportMode: this.reportMode
       });
+      this.reportMode="off";
     },
     handlePaste(event){const files=pastedFiles(event.clipboardData);if(!files.length)return;event.preventDefault();if(!this.loading)this.$emit('files',files);},
     handleEnter(event){if(event.isComposing||event.keyCode===229)return;event.preventDefault();this.send();},

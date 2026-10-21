@@ -2070,11 +2070,12 @@ export default {
       this.errorMessage = "";
       this.conversationStatus = "running";
       const analysisNode = this.createAnalysisNode(query, payload?.drillDown || null);
+      const displayedQuery=query+(prepared.files.length?'\n\n附件：'+prepared.files.map(file=>file.name).join('、'):'');
       if (!this.isDuplicatePendingUserQuestion(query)) {
         this.messages.push({
           id: uid(),
           role: "user",
-          content: query+(prepared.files.length?'\n\n附件：'+prepared.files.map(file=>file.name).join('、'):''),
+          content: displayedQuery,
           memoryContext: {userAssetFiles:prepared.files.map(file=>({id:file.asset.id,name:file.name,sha256:file.asset.sha256}))},
           timestamp: Date.now(),
           status: "completed",
@@ -2087,6 +2088,7 @@ export default {
       }
       const runContext = this.createRunContext(query, analysisNode);
       runContext.assetFileIds=prepared.documentIds;
+      runContext.submissionQuery=displayedQuery;
       this.runningContexts[runContext.historyId] = runContext;
       this.question = "";
       this.loading = true;
@@ -2112,6 +2114,7 @@ export default {
           agentName: payload?.agentName || "",
           documentWorkflow: !!payload?.documentWorkflow,
           webSearch: false,
+          reportMode: payload?.reportMode === 'visual' ? 'visual' : 'off',
           imageAnalysisIds,
           responseContract: RESPONSE_RENDER_CONTRACT,
           visualizationSupportedTypes: visualizationCapabilities.map(capability => capability.type),
@@ -2302,7 +2305,7 @@ export default {
       }
     },
     async requestAssistantAnswer(query, requestPayload, runContext) {
-      if(runContext.assetFileIds?.length){
+      if(runContext.assetFileIds?.length && requestPayload.toolInput?.reportMode!=='visual'){
         const message=this.createAssistantMessage({content:'正在分析用户空间中的文件…',streaming:true,status:'running',
           modelName:runContext.modelName,analysisNodeId:runContext.analysisNodeId,
           memoryContext:{taskOrigin:'studio-coding',userAssetFileIds:runContext.assetFileIds}});
@@ -2345,7 +2348,7 @@ export default {
         userId: requestPayload.userId,
         agentId: requestPayload.skillId || "general",
         sessionId: requestPayload.conversationId,
-        query,
+        query: runContext.assetFileIds?.length ? runContext.submissionQuery || query : query,
         mode: requestPayload.mode,
         skillId: requestPayload.skillId,
         modelName: requestPayload.modelName,
@@ -2354,7 +2357,8 @@ export default {
         stream: false,
         availableTools: requestPayload.availableTools || [],
         imageAnalysisIds: requestPayload.imageAnalysisIds || [],
-        toolInput: requestPayload.toolInput || {}
+        toolInput: {...requestPayload.toolInput,
+          ...(runContext.assetFileIds?.length ? {__userAssetIds:runContext.assetFileIds} : {})}
       });
       runContext.taskId = task?.taskId || "";
       assistantMessage.taskId = runContext.taskId;

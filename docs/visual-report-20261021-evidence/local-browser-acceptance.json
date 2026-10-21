@@ -1,0 +1,14 @@
+{
+  "checks": {
+    "requestToggle": true,
+    "pythonPngAndSvgDisplayed": true,
+    "opaqueSandbox": true,
+    "plotlyInteraction": true,
+    "valuesMatchPythonFacts": true,
+    "externalizedReportUsesSameRenderer": true,
+    "noExternalNetworkOrPageErrors": true
+  },
+  "errors": [],
+  "external": [],
+  "scope": "REAL_PYTHON_ARTIFACTS_WITH_API_FIXTURES; NOT_CLINE_E2E"
+}

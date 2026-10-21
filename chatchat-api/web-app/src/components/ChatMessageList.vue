@@ -145,6 +145,7 @@
           @preference-change="handleVisualizationPreference(message, $event)"
           @table-chart="openChartAnalysisModal($event, message)"
         />
+        <PythonVisualReport v-else-if="message.role==='assistant' && !message.streaming && messageVisualReport(message)" :report="messageVisualReport(message)" :fallback-markdown="message.content || ''" />
         <ReportMarkdown
           v-else-if="messageHasRenderableContent(message)"
           class="message-markdown"

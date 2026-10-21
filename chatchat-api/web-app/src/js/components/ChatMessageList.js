@@ -25,6 +25,7 @@ const markdown = new MarkdownIt({
   typographer: true,
   breaks: true
 });
+const PythonVisualReport=defineAsyncComponent(()=>import("../../components/PythonVisualReport.vue"));
 const EnterpriseUiArtifactRenderer = defineAsyncComponent(() => import("../../components/EnterpriseUiArtifactRenderer.vue"));
 const FENCE_RE = /^(\s*)(`{3,}|~{3,})(\s*)([A-Za-z0-9_-]*)\s*$/;
 const SQL_START_RE = /^\s*(CREATE|WITH|SELECT|INSERT|UPDATE|DELETE|MERGE|ALTER|DROP|TRUNCATE|SET)\b/i;
@@ -104,6 +105,7 @@ export default {
   name: "ChatMessageList",
   mixins: [chartAnalysisMixin],
   components: {
+    PythonVisualReport,
     ReportMarkdown,
     Check,
     ChevronDown,
@@ -843,6 +845,7 @@ export default {
         this.collapseToolEvidenceHtml(this.enhanceResultTables(rendered))
       );
     },
+    messageVisualReport(message = {}) {const report=this.extractUiResponse(message)?.visualReport || message.metadata?.visualReport || message.metadata?.agent?.visualReport;return report?.schemaVersion==='python_visual_report.v1'?report:null;},
     messageAnalyticalReport(message = {}) {
       const report = this.extractUiResponse(message)?.analyticalReport || message.metadata?.analyticalReport
         || message.metadata?.agent?.analyticalReport;

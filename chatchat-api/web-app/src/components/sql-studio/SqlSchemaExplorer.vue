@@ -16,7 +16,7 @@
     </div>
     <div v-if="context" ref="tableList" class="sql-schema-tables" role="tree" aria-label="授权库表" :aria-busy="busy">
       <div v-for="table in tables" :key="table.tableRef" class="sql-schema-table" role="treeitem" :aria-expanded="Boolean(expanded[table.tableRef])">
-        <div><button type="button" :aria-label="'展开 '+table.tableName" @click="expand(table)">{{ expanded[table.tableRef]?'▾':'▸' }} {{ table.tableName }}</button><button type="button" :disabled="busy" :aria-label="'插入表名 '+table.tableName" @click="insert(table)">插入</button></div>
+        <div><input type="checkbox" :aria-label="'选择生成表 '+table.tableName" :checked="isSelected(table)" :disabled="busy" @change="toggleSelection(table)" /><button class="sql-schema-table-name" type="button" :aria-label="'展开 '+table.tableName" @click="expand(table)">{{ expanded[table.tableRef]?'▾':'▸' }} {{ table.tableName }}</button><button type="button" :disabled="busy" :aria-label="'插入表名 '+table.tableName" @click="insert(table)">插入</button></div>
         <small>{{ [table.database,table.schema].filter((v,i,a)=>v&&a.indexOf(v)===i).join(' / ') }}<template v-if="table.comment"> · {{ table.comment }}</template></small>
         <ul v-if="expanded[table.tableRef]" role="group"><li v-for="column in fields[table.tableRef] || []" :key="column.name"><button type="button" :disabled="busy" @click="insert(table,column)">{{ column.name }}</button><small>{{ column.columnType || column.dataType }}{{ column.columnKey?' · '+column.columnKey:'' }}</small></li><li v-if="!fields[table.tableRef]?.length">未取得可见字段，不能视为结构已核验。</li></ul>
       </div>
@@ -26,6 +26,11 @@
       <div class="sql-schema-page-summary"><span>共 {{ total }} 张表</span><label class="sql-schema-page-size">每页<select v-model.number="tablePageSize" aria-label="每页表数量" :disabled="busy" @change="loadTables()"><option :value="20">20</option><option :value="50">50</option><option :value="100">100</option></select>条</label></div>
       <nav aria-label="库表翻页"><button type="button" :disabled="busy||tablePage<=1" @click="loadTables(tablePage-1)">上一页</button><span aria-live="polite">{{ tablePage }} / {{ tablePages }} 页</span><button type="button" :disabled="busy||!tablesMore" @click="loadTables(tablePage+1)">下一页</button></nav>
     </footer>
+    <section v-if="selectedTables.length" class="sql-schema-selection" aria-label="本次生成选表">
+      <header><strong>已选 {{ selectedTables.length }} / 16 张表</strong><button type="button" @click="selectedTables=[]">清空</button></header>
+      <ul><li v-for="item in selectedTables" :key="item.key"><span :title="item.label">{{ item.label }}</span><button type="button" :aria-label="'移除 '+item.label" @click="removeSelection(item.key)">移除</button></li></ul>
+      <small>可跨数据库选择。生成时重新校验权限并读取元数据。</small>
+    </section>
     <small class="sql-schema-evidence">来源：平台注册元数据 · 未进行本轮联机核验。推断关系和业务口径不作为已确认 Schema。</small>
   </section>
 </template>
@@ -35,10 +40,12 @@ import * as api from '../../services/sqlStudioApi';
 import {SqlMetadataSession,StaleMetadataRequest} from '../../js/utils/sqlMetadataSession';
 import {namespaceKey,qualifiedSqlTable,quoteSqlIdentifier,schemaSuggestions} from '../../js/editor/sqlSchemaCompletion';
 const props=defineProps({projectId:String,identity:Object,dialect:{type:String,default:'spark'}});
-const emit=defineEmits(['insert','dialect']);
+const emit=defineEmits(['insert','dialect','selection-count']);
 const providers=ref([]),serviceId=ref(''),assets=ref([]),assetRef=ref(''),namespaces=ref([]),selectedNamespace=ref('');
 const context=ref(null),sourceDialect=ref(''),tables=ref([]),fields=ref({}),expanded=ref({});
 const busy=ref(false),error=ref(''),query=ref(''),total=ref(0),tablesMore=ref(false),tablePage=ref(1),assetsMore=ref(false),namespacesMore=ref(false);
+const selectedTables=ref([]);
+watch(selectedTables,value=>emit('selection-count',value.length));
 const tablePageSize=ref(50),tableList=ref(null),submittedQuery=ref('');
 const tablePages=computed(()=>Math.max(1,Math.ceil(total.value/tablePageSize.value)));
 let serial=0,assetPage=1,assetSnapshot,namespacePage=1,active=true;
@@ -49,7 +56,7 @@ function scopeOf(value){return {identity:JSON.stringify(props.identity||{}),proj
 function bind(value){context.value=value;const binding=value?.bindings?.[0];sourceDialect.value=binding?.sourceDialect||'';
   session.bind(binding?{identity:JSON.stringify(props.identity||{}),projectId:props.projectId,discoveryId:value.discoveryId,...binding}:null);clearRows();}
 async function run(action){const turn=serial;error.value='';busy.value=true;try{await action(turn);}catch(ex){if(turn===serial && !(ex instanceof StaleMetadataRequest)){error.value=ex.message||'元数据读取失败';session.invalidate();}}finally{if(turn===serial)busy.value=false;}}
-async function initialize(){serial++;session.bind(null);namespaceSession.bind(null);context.value=null;providers.value=[];serviceId.value='';assets.value=[];assetRef.value='';namespaces.value=[];selectedNamespace.value='';query.value='';submittedQuery.value='';clearRows();
+async function initialize(){selectedTables.value=[];serial++;session.bind(null);namespaceSession.bind(null);context.value=null;providers.value=[];serviceId.value='';assets.value=[];assetRef.value='';namespaces.value=[];selectedNamespace.value='';query.value='';submittedQuery.value='';clearRows();
   if(!props.projectId)return;
   await run(async turn=>{const values=await api.sqlMetadataProviders(props.projectId);if(turn!==serial)return;providers.value=values;
     if(values.length===1){serviceId.value=values[0].serviceId;await fetchAssets(turn,false);}});
@@ -94,13 +101,41 @@ window.addEventListener('blur',suspend);window.addEventListener('focus',resume);
 watch([()=>props.projectId,()=>JSON.stringify(props.identity||{})],initialize,{immediate:true});
 onDeactivated(suspend);onActivated(()=>{if(!active)resume();});
 onBeforeUnmount(()=>{serial++;session.bind(null);namespaceSession.bind(null);window.removeEventListener('blur',suspend);window.removeEventListener('focus',resume);document.removeEventListener('visibilitychange',visibility);});
-function codingSelection(){
-  const chosen=tables.value.filter(table=>expanded.value[table.tableRef] && fields.value[table.tableRef]?.length);
-  if(!context.value || !session.snapshot || !chosen.length)return null;
-  if(chosen.length>16)throw new Error('单次生成最多使用 16 张已展开的元数据表。');
-  return {discoveryId:context.value.discoveryId,bindingId:context.value.bindings[0].bindingId,expectedSnapshotId:session.snapshot,
-    tables:chosen.map(({tableName,database,schema})=>({tableName,database,schema}))};
+function tableKey(table){const binding=context.value?.bindings?.[0];return JSON.stringify([binding?.serviceId,binding?.assetRef,table.database??'',table.schema??'',table.tableName]);}
+function isSelected(table){return selectedTables.value.some(item=>item.key===tableKey(table));}
+function removeSelection(key){selectedTables.value=selectedTables.value.filter(item=>item.key!==key);}
+async function toggleSelection(table){
+  const key=tableKey(table);if(isSelected(table)){removeSelection(key);return;}
+  if(busy.value)return;
+  await run(async turn=>{
+    if(selectedTables.value.length>=16)throw new Error('单次最多选择 16 张表');
+    const binding=context.value.bindings[0];
+    const sources=new Set(selectedTables.value.map(item=>JSON.stringify([item.serviceId,item.assetRef])));
+    sources.add(JSON.stringify([binding.serviceId,binding.assetRef]));
+    if(sources.size>8)throw new Error('单次最多选择 8 个数据源');
+    const args={operation:'DESCRIBE',tableName:table.tableName,page:1,pageSize:1};
+    if(table.database!=null)args.database=table.database;if(table.schema!=null)args.schema=table.schema;
+    const result=await session.read(args);if(turn!==serial)return;
+    const described=result.items?.[0];
+    if(described?.tableName!==table.tableName || (table.database!=null&&described.database!==table.database) || (table.schema!=null&&described.schema!==table.schema) || !described.columns?.length)throw new Error('无法确认所选表的可见结构');
+    const asset=assets.value.find(item=>item.assetRef===binding.assetRef);
+    selectedTables.value=[...selectedTables.value,{key,serviceId:binding.serviceId,assetRef:binding.assetRef,
+      label:[asset?.displayName||asset?.name||binding.assetRef,table.database,table.schema,table.tableName].filter(Boolean).join(' / '),
+      discoveryId:context.value.discoveryId,bindingId:binding.bindingId,expectedSnapshotId:session.snapshot,
+      table:{tableName:table.tableName,database:table.database,schema:table.schema}}];
+  });
 }
+function codingSelection(){
+  if(!selectedTables.value.length)return null;
+  const groups=new Map();
+  for(const item of selectedTables.value){
+    const key=JSON.stringify([item.discoveryId,item.bindingId,item.expectedSnapshotId]);
+    if(!groups.has(key))groups.set(key,{discoveryId:item.discoveryId,bindingId:item.bindingId,expectedSnapshotId:item.expectedSnapshotId,tables:[]});
+    groups.get(key).tables.push(item.table);
+  }
+  return {sources:[...groups.values()]};
+}
+
 defineExpose({complete,codingSelection});
 </script>
 <style scoped>
@@ -116,7 +151,7 @@ defineExpose({complete,codingSelection});
 .sql-schema-explorer form{display:flex;gap:5px}
 .sql-schema-tables{flex:1 1 0;min-height:0;overflow:auto;overscroll-behavior:contain}
 .sql-schema-table{padding:7px 0;border-bottom:1px solid #edf1f7}
-.sql-schema-table>div>button:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:0;background:none;flex:1}
+.sql-schema-table-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:0;background:none;flex:1}
 .sql-schema-explorer small{color:#7c8ba2;font-size:11px;overflow-wrap:anywhere}
 .sql-schema-table ul{list-style:none;padding:4px 0 0 12px;margin:0}
 .sql-schema-table li{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:3px 0}
@@ -127,4 +162,9 @@ defineExpose({complete,codingSelection});
 .sql-schema-explorer .sql-schema-page-size{flex-direction:row;align-items:center;white-space:nowrap}
 .sql-schema-page-size select{width:auto;padding:3px}
 .sql-schema-evidence{flex:none;border-top:1px solid #e6edf7;padding-top:8px;line-height:1.6}
+.sql-schema-explorer input[type=checkbox]{width:14px;height:14px;flex:none;padding:0}
+.sql-schema-selection{flex:0 1 auto;max-height:180px;overflow:auto;border-top:1px solid #e6edf7;padding-top:8px}
+.sql-schema-selection ul{list-style:none;padding:0;margin:5px 0}
+.sql-schema-selection li{display:flex;align-items:center;gap:5px;padding:3px 0}
+.sql-schema-selection li span{flex:1;min-width:0;overflow-wrap:anywhere}
 </style>

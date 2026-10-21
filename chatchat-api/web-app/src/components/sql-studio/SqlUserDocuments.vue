@@ -2,7 +2,8 @@
   <details class="sql-user-documents">
     <summary>文档与参考脚本 <small>{{ modelValue.length }} 个已选</small></summary>
     <p>选择本次生成要引用的文档，并指定用途。</p>
-    <div class="sql-document-actions"><label>上传文档<input aria-label="上传用户空间文档" type="file" multiple :accept="accept" :disabled="busy || uploading" @change="uploadFiles" /></label><button type="button" :disabled="busy || uploading || loading" @click="refresh">选择已有文档 / 刷新</button></div>
+    <div class="sql-document-actions"><input ref="uploadInput" class="sql-document-file-input" aria-label="上传用户空间文档" type="file" multiple :accept="accept" :disabled="busy || uploading" @change="uploadFiles" /><button type="button" :disabled="busy || uploading" @click="uploadInput?.click()">上传文档</button><button type="button" :disabled="busy || uploading || loading" @click="refresh">选择已有文档</button><slot name="actions" /></div>
+    <slot />
     <input v-model="query" type="search" aria-label="搜索用户空间文档" placeholder="搜索文档名称" />
     <p v-if="uploading" role="status">正在保存到用户空间…</p><p v-if="error" role="alert">{{ error }}</p>
     <p v-if="!loading && !documents.length">暂无可用文档，可上传规范、字段说明、分析资料或 SQL 文件。</p>
@@ -19,6 +20,7 @@ import {computed,nextTick,onMounted,onBeforeUnmount,ref} from 'vue';
 import {apiRequest} from '../../services/api';
 const props=defineProps({modelValue:{type:Array,default:()=>[]},busy:Boolean});
 const emit=defineEmits(['update:modelValue','uploading']);
+const uploadInput=ref(null);
 const documents=ref([]),query=ref(''),loading=ref(false),uploading=ref(false),error=ref('');let disposed=false;
 const accept='.pdf,.docx,.xlsx,.csv,.txt,.md,.json,.jsonl,.sql';
 const supported=file=>file.kind==='DOCUMENT' && /\.(pdf|docx|xlsx|csv|txt|md|json|jsonl|sql)$/i.test(file.fileName);
@@ -62,5 +64,5 @@ async function uploadFiles(event){
 onMounted(refresh);onBeforeUnmount(()=>{disposed=true;emit('uploading',false);});
 </script>
 <style scoped>
-.sql-user-documents{margin:12px 8px;font-size:12px}.sql-user-documents summary{cursor:pointer;font-weight:600}.sql-user-documents p,.sql-user-documents small{color:#64748b}.sql-document-actions{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.sql-document-actions label{cursor:pointer;border:1px solid #cbd5e1;border-radius:4px;padding:5px}.sql-document-actions input{display:block;max-width:185px;font-size:11px}.sql-user-documents>input{box-sizing:border-box;width:100%;margin:4px 0;padding:5px}.sql-user-document{padding:6px 0;border-bottom:1px solid #e2e8f0}.sql-user-document label{display:flex;align-items:center;gap:5px}.sql-user-document span{overflow-wrap:anywhere}.sql-user-document select{margin:4px 0 0 22px;max-width:150px}.sql-user-documents [role=alert]{color:#b91c1c}
+.sql-user-documents{margin:12px 8px;font-size:12px}.sql-user-documents summary{cursor:pointer;font-weight:600}.sql-user-documents p,.sql-user-documents small{color:#64748b}.sql-document-actions{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.sql-document-actions .sql-document-file-input{display:none}.sql-document-actions :deep(button){width:auto;min-height:0;flex:none;margin:0;padding:2px 4px;border:0;background:transparent;box-shadow:none;color:#376bb5;font-size:12px;line-height:20px;border-radius:3px;cursor:pointer}.sql-document-actions :deep(button:hover){background:#edf3ff}.sql-document-actions :deep(button:disabled){opacity:.5;cursor:default}.sql-user-documents>input{box-sizing:border-box;width:100%;margin:4px 0;padding:5px}.sql-user-document{padding:6px 0;border-bottom:1px solid #e2e8f0}.sql-user-document label{display:flex;align-items:center;gap:5px}.sql-user-document span{overflow-wrap:anywhere}.sql-user-document select{margin:4px 0 0 22px;max-width:150px}.sql-user-documents [role=alert]{color:#b91c1c}
 </style>

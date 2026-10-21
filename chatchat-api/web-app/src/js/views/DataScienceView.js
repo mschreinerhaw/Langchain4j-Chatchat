@@ -29,6 +29,7 @@ import { pythonCompletionItems } from "../utils/pythonCompletions";
 import { getLanguageAdapter, editorPreferences, editorLanguageOptions, applyFormatIfUnchanged, pythonBlockIndent } from "../editor/codeIntelligence";
 import { buildPythonLineDiff } from "../utils/pythonCodeDiff";
 import PythonCodeDiff from "../../components/PythonCodeDiff.vue";
+import AppConfirmDialog from "../../components/AppConfirmDialog.vue";
 import UserSpaceBrowser from "../../components/UserSpaceBrowser.vue";
 import CodeChangeReview from "../../components/editor/CodeChangeReview.vue";
 import StudioCodePlan from "../../components/editor/StudioCodePlan.vue";
@@ -83,7 +84,7 @@ const workspaceLayoutStorageKey = "chatchat.python-studio.layout.v1";
 
 export default {
   name: "DataScienceView",
-  components: { UserSpaceBrowser, StudioCodePlan, CodeChangeReview, PythonCodeDiff, EditorPreferences, Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X,
+  components: { AppConfirmDialog, UserSpaceBrowser, StudioCodePlan, CodeChangeReview, PythonCodeDiff, EditorPreferences, Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X,
     Play, Save, Settings2, PanelLeft, PanelRight, PanelBottom, Maximize2, Minimize2, Sparkles, Send,
     RefreshCw, ListTree, Box, Terminal, CircleCheck, CircleAlert, LoaderCircle, Trash2, Code2, BookOpen, FlaskConical, WandSparkles },
   props: {
@@ -1167,7 +1168,7 @@ export default {
       });
     },
     async removeFolder(folder) {
-      if (folder.virtual || !await this.openIdeConfirm({ title: "删除逻辑文件夹", message: `确认删除空文件夹“${folder.name}”？`, confirmText: "删除", danger: true })) return;
+      if (folder.virtual || !await this.openIdeConfirm({ title: "删除逻辑文件夹", message: `确认删除文件夹“${folder.name}”？其中的脚本和子文件夹将保留并移到上级目录。`, confirmText: "删除", danger: true })) return;
       await this.action(async () => { await deletePythonScriptFolder(folder.id); await this.load(true); });
     },
     openIdePrompt(options = {}) { return this.openIdeDialog({ ...options, mode: "prompt" }); },

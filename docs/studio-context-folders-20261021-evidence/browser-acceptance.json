@@ -1,0 +1,16 @@
+{
+  "checks": {
+    "folderRenamePreservesIdentity": true,
+    "folderDeletePromotesContents": true,
+    "unifiedDeleteDialog": true,
+    "compactDocumentActionsTogether": true,
+    "defaultAtReferenceButtonsRemoved": true,
+    "referencesRequireExplicitSelection": true,
+    "crossDatabaseSelectionRetained": true,
+    "explicitSelectionSentToRuntime": true,
+    "noPageErrors": true
+  },
+  "errors": [],
+  "modelCallsSubmitted": 0,
+  "sqlExecuted": false
+}

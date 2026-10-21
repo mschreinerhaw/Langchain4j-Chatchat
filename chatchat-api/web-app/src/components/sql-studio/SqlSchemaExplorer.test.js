@@ -4,7 +4,7 @@ import {describe,it,expect,vi,beforeEach,afterEach} from 'vitest';
 import SqlSchemaExplorer from './SqlSchemaExplorer.vue';
 import * as api from '../../services/sqlStudioApi';
 vi.mock('../../services/sqlStudioApi',()=>({sqlMetadataProviders:vi.fn(),sqlMetadataAssets:vi.fn(),createSqlMetadataContext:vi.fn(),sqlMetadataOperation:vi.fn()}));
-let app,host;
+let app,host,explorer;
 const tick=async()=>{await new Promise(resolve=>setTimeout(resolve,0));await nextTick();};
 const table={database:'catalog',schema:'public',tableName:'orders',tableRef:'public-orders'};
 const result=items=>({metadata:{contractVersion:'sql-studio.metadata.v2',status:'SUCCEEDED',snapshotId:'v1',doesNotExecuteSql:true,items,totalMatched:items.length,hasMore:false}});
@@ -16,7 +16,7 @@ beforeEach(()=>{
   host=document.createElement('div');document.body.append(host);
 });
 afterEach(()=>{app?.unmount();host.remove();});
-async function mount(){const props=reactive({projectId:'project',identity:{tenantId:'t',userId:'u'},dialect:'trino'});app=createApp({render:()=>h(SqlSchemaExplorer,props)});app.mount(host);await tick();return props;}
+async function mount(){const props=reactive({projectId:'project',identity:{tenantId:'t',userId:'u'},dialect:'trino'});app=createApp({render:()=>h(SqlSchemaExplorer,{...props,ref:value=>explorer=value})});app.mount(host);await tick();return props;}
 async function select(index,value){const input=host.querySelectorAll('select')[index];input.value=value;input.dispatchEvent(new Event('change',{bubbles:true}));await tick();}
 describe('Schema Explorer API integration',()=>{
   it('lists actual authorized tables and fetches fields only on expansion',async()=>{
@@ -100,4 +100,38 @@ describe('Schema Explorer API integration',()=>{
     expect(reads().at(-1)[3]).toMatchObject({query:'orders',page:1,pageSize:20});
     expect(host.querySelector('footer').textContent).toContain('1 / 7 页');
   });
+  it('keeps explicit selections across sources and clears them on identity change',async()=>{
+    const props=await mount();await select(1,'a');
+    host.querySelector('[aria-label="展开 orders"]').click();await tick();
+    expect(explorer.codingSelection()).toBeNull();
+    host.querySelector('input[type=checkbox]').click();await tick();
+    expect(explorer.codingSelection().sources[0].tables).toEqual([{tableName:'orders',database:'catalog',schema:'public'}]);
+    await select(1,'b');expect(host.querySelector('input[type=checkbox]').checked).toBe(false);
+    host.querySelector('input[type=checkbox]').click();await tick();
+    expect(explorer.codingSelection().sources.map(item=>item.discoveryId)).toEqual(['d-a','d-b']);
+    expect(host.querySelector('[aria-label="本次生成选表"]').textContent).toContain('Other source');
+    await select(1,'a');expect(host.querySelector('input[type=checkbox]').checked).toBe(true);
+    host.querySelector('input[type=checkbox]').click();await tick();
+    expect(explorer.codingSelection().sources).toHaveLength(1);
+    props.identity={tenantId:'t',userId:'another'};await tick();expect(explorer.codingSelection()).toBeNull();
+  });
+  it('rejects selections after grants are revoked',async()=>{
+    await mount();await select(1,'a');api.sqlMetadataOperation.mockRejectedValue(new Error('Forbidden'));
+    host.querySelector('input[type=checkbox]').click();await tick();
+    expect(explorer.codingSelection()).toBeNull();expect(host.querySelector('[role=alert]').textContent).toBe('Forbidden');
+  });
+
+  it('retains explicit tables across pages independently of expansion',async()=>{
+    api.sqlMetadataOperation.mockImplementation(async(_p,_d,_b,args)=>{
+      const item={...table,tableName:args.page===2?'invoices':args.tableName||'orders',tableRef:args.page===2?'invoices':'orders'};
+      if(args.operation==='LIST_NAMESPACES')return result([]);
+      if(args.operation==='DESCRIBE')return result([{...item,columns:[{name:'id'}]}]);
+      return {metadata:{...result([item]).metadata,totalMatched:51,hasMore:args.page===1}};
+    });
+    await mount();await select(1,'a');host.querySelector('input[type=checkbox]').click();await tick();
+    [...host.querySelectorAll('footer button')].find(item=>item.textContent==='下一页').click();await tick();
+    host.querySelector('input[type=checkbox]').click();await tick();
+    expect(explorer.codingSelection().sources[0].tables.map(item=>item.tableName)).toEqual(['orders','invoices']);
+  });
+
 });

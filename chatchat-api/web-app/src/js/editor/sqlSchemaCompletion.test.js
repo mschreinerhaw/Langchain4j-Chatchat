@@ -6,7 +6,7 @@ describe('Schema completion scope',()=>{
     const context=await sqlCompletionContext(source,{lineNumber:1,column:10},'postgresql');
     expect(context.supported).toBe(true);
     expect(context.tables.some(e=>e.text==='public.users' && e._alias?.text==='u')).toBe(true);
-  });
+  },15000); // First use loads the SQL grammar modules; allow for cold imports in CI.
 });
 const users={database:'warehouse',schema:'public',tableName:'users',tableRef:'public-users'};
 const other={...users,schema:'private',tableRef:'private-users'};

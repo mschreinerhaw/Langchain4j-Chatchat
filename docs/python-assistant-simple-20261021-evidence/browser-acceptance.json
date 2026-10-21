@@ -1,0 +1,13 @@
+{
+  "checks": {
+    "modeSelectorsRemoved": true,
+    "singlePublishedSkillsTextButton": true,
+    "skillPickerStillOpens": true,
+    "modelSelectorAvailable": true,
+    "conversationLayoutFillsPanel": true,
+    "noPageErrors": true
+  },
+  "errors": [],
+  "modelCallsSubmitted": 0,
+  "scriptsExecuted": 0
+}

@@ -12,6 +12,10 @@
     <div v-if="contextOpen" class="sql-explorer-context" :style="{ top: contextY + 'px', left: contextX + 'px' }" role="menu" @contextmenu.prevent>
       <button role="menuitem" @click="beginCreateFolder">新建文件夹…</button>
       <button role="menuitem" :disabled="busy || !folders.length" @click="beginCreate">新建 SQL 文件…</button>
+      <template v-if="contextIsFolder">
+        <button role="menuitem" :disabled="busy" @click="$emit('edit-folder',contextFolder); closeContext()">修改 / 重命名文件夹…</button>
+        <button role="menuitem" :disabled="busy" class="sql-danger-action" @click="$emit('delete-folder',contextFolder); closeContext()">删除文件夹…</button>
+      </template>
       <template v-if="contextFile">
         <button role="menuitem" @click="$emit('open', contextFile.id); closeContext()">打开</button>
         <button role="menuitem" @click="copyPath">复制路径</button>

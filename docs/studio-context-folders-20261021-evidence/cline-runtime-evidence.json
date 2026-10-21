@@ -1,0 +1,11 @@
+{
+  "status": "PASSED",
+  "workspaceInputTables": 2,
+  "workspaceReadReceipts": 1,
+  "readSchemaMatchesAuthorizedSnapshot": true,
+  "realModelCalls": 3,
+  "providerModels": [
+    "qwen3.8-max"
+  ],
+  "sqlExecuted": false
+}

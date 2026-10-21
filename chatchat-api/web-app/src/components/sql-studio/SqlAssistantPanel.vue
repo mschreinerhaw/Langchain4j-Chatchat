@@ -33,12 +33,9 @@
     </div>
     <div class="sql-chat-context">
       <details class="sql-chat-settings"><summary>工程上下文与执行设置</summary>
-      <div v-for="item in mappingDocuments" :key="item.docId" class="sql-selection-chip">{{ item.fileName }}<button type="button" :aria-label="'移除 Mapping ' + item.fileName" @click="$emit('remove-mapping-document', item.docId)">×</button></div>
       <div v-if="selectedCode" class="sql-selection-chip">已选代码：{{ selectedCode.path }} · {{ selectedCode.text.length }} 字<button aria-label="移除代码引用" @click="$emit('clear-selection')">×</button></div>
       <div v-for="document in userDocuments" :key="document.fileId" class="sql-selection-chip">{{ document.fileName }} · {{ document.purpose==='EVIDENCE'?'分析依据':'参考规则' }}</div>
         <slot name="context-documents" />
-        <button type="button" class="sql-context-library" :disabled="busy || taskRunning" @click="$emit('choose-library', 'MAPPING')">选择 Mapping 文档</button>
-        <div class="sql-chat-file-picks"><button v-for="file in projectFiles" :key="file.id" type="button" @click="$emit('reference-file', file)">@{{ file.path }}</button><button v-for="file in references.filter(item => !projectFiles.some(projectFile => projectFile.id === item.id))" :key="file.id" type="button" @click="$emit('reference-file', file)">@{{ file.path }}</button></div>
         <div v-if="availableAgents.length" class="sql-execution-modes" role="group" aria-label="执行方式"><button type="button" :class="{ active: executionMode === 'agent' }" :aria-pressed="executionMode === 'agent'" @click="$emit('execution-mode', 'agent')">Agent</button><button type="button" :class="{ active: executionMode === 'model' }" :aria-pressed="executionMode === 'model'" @click="$emit('execution-mode', 'model')">模型</button></div>
         <label v-if="availableAgents.length && executionMode === 'agent'" class="sql-agent-choice">Agent<select :value="agentId" @change="$emit('agent', $event.target.value)"><option value="" disabled>选择已发布 Agent</option><option v-for="agent in availableAgents" :key="agent.id" :value="agent.id">{{ agent.name }}</option></select></label>
         <label v-else class="sql-agent-choice">模型<select :value="modelName" @change="$emit('model', $event.target.value)"><option value="">系统默认模型</option><option v-for="model in models" :key="model.value" :value="model.value">{{ model.label || model.value }}</option></select></label>

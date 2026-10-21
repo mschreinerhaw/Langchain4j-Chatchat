@@ -100,4 +100,22 @@ class SqlStudioMetadataServiceTest {
         when(gateway.invoke(eq(request),any(),anyMap())).thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN));
         assertThatThrownBy(()->service.captureCoding(request,"project",selection)).isInstanceOf(ResponseStatusException.class);
     }
+    @Test void groupedSelectionPreservesCrossDatabaseIdentitiesAndRejectsDuplicatesOrWidening(){
+        var first=service.create(request,"project",input());
+        var second=service.create(request,"project",new SqlStudioMetadataService.Create("QUERY","spark",List.of(new SqlStudioMetadataService.BindingInput("registered-mcp","other","SOURCE","warehouse","public"))));
+        when(gateway.invoke(eq(request),any(),argThat(args->args!=null && "DESCRIBE".equals(args.get("operation")))))
+            .thenAnswer(call->{Map<String,Object> args=call.getArgument(2);return new SqlStudioMetadataGateway.Result("registered-mcp",Map.of("status","SUCCEEDED","snapshotId","v1","doesNotExecuteSql",true,"items",List.of(Map.of("tableName","orders","database",args.get("database"),"schema","public","columns",List.of(Map.of("name","id","dataType","bigint","comment","key","nullable",false)),"password","hidden"))));});
+        var a=new SqlStudioMetadataService.CodingSelection(first.discoveryId(),first.bindings().get(0).bindingId(),"v1",List.of(new SqlStudioMetadataService.CodingTable("orders","db","public")));
+        var b=new SqlStudioMetadataService.CodingSelection(second.discoveryId(),second.bindings().get(0).bindingId(),"v1",List.of(new SqlStudioMetadataService.CodingTable("orders","warehouse","public")));
+        var group=new SqlStudioMetadataService.CodingSelection(null,null,null,null,List.of(a,b));
+        var captured=service.captureCoding(request,"project",group);
+        assertThat((List<?>)captured.get("tables")).hasSize(2);
+        assertThat(captured.toString()).contains("warehouse","db","assetRef=other","type=bigint","nullable=false").doesNotContain("password","hidden");
+        assertThatThrownBy(()->service.captureCoding(request,"project",new SqlStudioMetadataService.CodingSelection(null,null,null,null,List.of(a,a)))).isInstanceOf(ResponseStatusException.class);
+        var widened=new SqlStudioMetadataService.CodingSelection(a.discoveryId(),a.bindingId(),"v1",List.of(new SqlStudioMetadataService.CodingTable("orders","warehouse","public")));
+        assertThatThrownBy(()->service.captureCoding(request,"project",widened)).isInstanceOf(ResponseStatusException.class);
+        when(gateway.invoke(eq(request),any(),anyMap())).thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN));
+        assertThatThrownBy(()->service.captureCoding(request,"project",group)).isInstanceOf(ResponseStatusException.class);
+    }
+
 }

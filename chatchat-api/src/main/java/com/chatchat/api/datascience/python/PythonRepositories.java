@@ -31,6 +31,7 @@ interface PythonScriptRepository extends JpaRepository<PythonScriptEntity, Strin
 interface PythonScriptFolderRepository extends JpaRepository<PythonScriptFolderEntity, String> {
     List<PythonScriptFolderEntity> findByTenantIdAndOwnerIdOrderBySortOrderAscNameAsc(String tenantId, String ownerId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<PythonScriptFolderEntity> findByIdAndTenantIdAndOwnerId(String id, String tenantId, String ownerId);
 
     Optional<PythonScriptFolderEntity> findByTenantIdAndOwnerIdAndParentIdAndNameIgnoreCase(String tenantId, String ownerId, String parentId, String name);

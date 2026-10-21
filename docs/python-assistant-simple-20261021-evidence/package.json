@@ -1,0 +1,9 @@
+{
+  "path": "target\\assets-local\\studio-release-app.jar",
+  "sha256": "797990ab777e8a73db9b90a33bfc1e037ce8f1c0f7f44402eb09ac28ed34f914",
+  "consoleFiles": 83,
+  "testedBackendSha256": "946d0720c418466fe27cc3c93d868bc505860ae77cf4a3bd369440bb0d205852",
+  "unchangedBackendEntries": 1151,
+  "backendBytesMatch": true,
+  "viteBuild": "PASSED"
+}

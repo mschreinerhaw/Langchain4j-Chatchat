@@ -1,0 +1,20 @@
+{
+  "backendTests": {
+    "passed": 54,
+    "failed": 0
+  },
+  "sqlFrontendTests": {
+    "passed": 70,
+    "failed": 0
+  },
+  "pythonViewTests": {
+    "passed": 6,
+    "failed": 0
+  },
+  "mavenPackage": "PASSED",
+  "viteBuild": "PASSED",
+  "deployedJarSha256": "797990ab777e8a73db9b90a33bfc1e037ce8f1c0f7f44402eb09ac28ed34f914",
+  "temporarySqlProjectsAndConversationsRemoved": true,
+  "runtimeEvidenceRetained": true,
+  "businessSqlExecuted": false
+}

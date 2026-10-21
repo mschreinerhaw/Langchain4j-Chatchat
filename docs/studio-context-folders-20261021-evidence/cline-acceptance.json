@@ -1,0 +1,26 @@
+{
+  "status": "PASSED",
+  "taskId": "sql-coding-d99e8946-232f-424e-82a0-f023e4813543",
+  "metadataTables": 2,
+  "distinctSources": 2,
+  "distinctDatabases": 2,
+  "metadataSnapshotSha256": "3cca18044be5c1b4bdfe223b66facc74d4fbc9e1131af0c0f100d797bc976b25",
+  "generatedFiles": [
+    {
+      "path": "sql/metadata_examples.sql",
+      "sha256": "6ce2b7c9c18f718adc76368b6fa37db20103d62d237c2cc56ce6eaacb289d55f",
+      "characters": 1939
+    }
+  ],
+  "validation": "PARSED; FIELDS_CHECKED; SQL_NOT_EXECUTED",
+  "eventTypes": [
+    "BUDGET_UPDATED",
+    "RECOVERY_RECONCILED",
+    "TASK_CREATED",
+    "TASK_FINISHED",
+    "TASK_STARTED"
+  ],
+  "projectAutomaticallyChanged": false,
+  "sqlExecuted": false,
+  "testedJarSha256": "3b40cd2fd059ea435161fa9efe2006206925c4ade95da9963e11be03453ca12a"
+}

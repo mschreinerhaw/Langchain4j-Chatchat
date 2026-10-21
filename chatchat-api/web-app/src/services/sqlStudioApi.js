@@ -61,3 +61,5 @@ export async function readSqlFileBlob(projectId, file) {
   if (!response.ok) throw new Error('文件下载失败或无权访问');
   return response.blob();
 }
+
+export const changeSqlFolder = (id, value, remove=false) => apiRequest(`${project(id)}/folders`, {method:remove?'DELETE':'PUT',body:body(value)});

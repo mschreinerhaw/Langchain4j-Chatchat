@@ -103,7 +103,7 @@
 .python-studio .ide-statusbar button { padding: 0; border: 0; background: transparent; color: #7288ae; font-size: 9px; }
 .python-studio .ide-statusbar i { flex: 1; }
 .python-studio .ide-statusbar .studio-save-state { color: #658b80; }
-.python-studio .ai-panel { display: grid; grid-template-rows: 42px 35px minmax(0,1fr) auto; min-height: 0; background: linear-gradient(140deg,#fafcff,#f7f9ff); border-left: 1px solid var(--studio-line); transition: none; }
+.python-studio .ai-panel { display: grid; grid-template-rows: 42px minmax(0,1fr) auto; min-height: 0; background: linear-gradient(140deg,#fafcff,#f7f9ff); border-left: 1px solid var(--studio-line); transition: none; }
 .python-studio .ai-panel > header { padding: 0 14px; border-bottom: 0; }
 .python-studio .ai-panel > header > div { gap: 7px; color: #3b6bd1; }
 .python-studio .ai-panel > header strong { color: #273751; font-size: 13px; }

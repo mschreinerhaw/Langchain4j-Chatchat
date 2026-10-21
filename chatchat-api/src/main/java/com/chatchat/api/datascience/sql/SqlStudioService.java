@@ -224,6 +224,57 @@ public class SqlStudioService {
         } catch (DataIntegrityViolationException ex) { conflict(); }
         return path;
     }
+    public record FolderWrite(String path, String newPath, Map<String,Integer> expectedVersions) { }
+
+    /** Folder paths are logical: move the whole subtree without changing file identities or contents. */
+    @Transactional
+    public void changeFolder(HttpServletRequest request, String projectId, FolderWrite body, boolean delete) {
+        project(request, projectId);
+        require(body != null, "Folder information is required");
+        String from = SqlOutputBundle.path(body.path());
+        jdbc.queryForObject("select id from ds_sql_project where id=? for update", String.class, projectId);
+        var directories = folders(request, projectId);
+        require(directories.contains(from), "Folder not found");
+        var all = files(request, projectId);
+        var affected = all.stream().filter(file -> below(file.path(), from)).toList();
+        var versions = new TreeMap<String,Integer>();
+        affected.forEach(file -> versions.put(file.id(), file.version()));
+        if (!versions.equals(body.expectedVersions())) conflict();
+        String to = delete ? (from.contains("/") ? from.substring(0,from.lastIndexOf('/')) : "") : SqlOutputBundle.path(body.newPath());
+        require(delete || (!from.equals(to) && !below(to, from)), "Choose a different folder outside its own subtree");
+        int slash = to.lastIndexOf('/');
+        require(slash < 0 || directories.contains(to.substring(0, slash)), "Create the parent folder first");
+        var movingDirs = directories.stream().filter(path -> path.equals(from) || below(path, from)).toList();
+        var targetDirs = movingDirs.stream().filter(path -> !delete || !path.equals(from)).map(path -> folderTarget(path,from,to)).toList();
+        var outsideDirs = directories.stream().filter(path -> !movingDirs.contains(path)).map(path -> path.toLowerCase(Locale.ROOT)).toList();
+        var outsideFiles = all.stream().filter(file -> !affected.contains(file)).map(file -> file.path().toLowerCase(Locale.ROOT)).toList();
+        for (String target : targetDirs) {
+            String key = target.toLowerCase(Locale.ROOT);
+            require(!outsideDirs.contains(key), "Folder already exists");
+            require(outsideFiles.stream().noneMatch(file -> file.equals(key) || key.startsWith(file + "/")), "File and folder paths conflict");
+        }
+        for (var file : affected) {
+            String key = folderTarget(file.path(),from,to).toLowerCase(Locale.ROOT);
+            require(!outsideDirs.contains(key) && outsideFiles.stream().noneMatch(existing -> existing.equals(key) || existing.startsWith(key + "/") || key.startsWith(existing + "/")), "File and folder paths conflict");
+        }
+        // Remove old explicit folder rows first; also materialize implicit directories derived from files.
+        for (String path : movingDirs) jdbc.update("delete from ds_sql_folder where project_id=? and path_key=?", projectId, path.toLowerCase(Locale.ROOT));
+        for (String path : targetDirs) jdbc.update("insert into ds_sql_folder (id,project_id,path,path_key,created_at) values (?,?,?,?,CURRENT_TIMESTAMP)", UUID.randomUUID().toString(), projectId, path, path.toLowerCase(Locale.ROOT));
+        // Promotion may target another moving file's old key (a/a/x.sql -> a/x.sql).
+        // Reserve disjoint keys inside this transaction before assigning final paths.
+        String temporaryPrefix = "@folder-move/" + UUID.randomUUID() + "/";
+        for (var file : affected) {
+            if (jdbc.update("update ds_sql_file set path_key=? where id=? and project_id=? and version=?", temporaryPrefix + file.id(), file.id(), projectId, file.version()) != 1) conflict();
+        }
+        for (var file : affected) {
+            String path = folderTarget(file.path(),from,to);
+            if (jdbc.update("update ds_sql_file set path=?,path_key=?,version=version+1,updated_at=CURRENT_TIMESTAMP where id=? and project_id=? and version=?", path, path.toLowerCase(Locale.ROOT), file.id(), projectId, file.version()) != 1) conflict();
+            jdbc.update("insert into ds_sql_file_version (id,file_id,version,content,original_base64,source_task_id,created_at) select ?,id,version,content,original_base64,source_task_id,CURRENT_TIMESTAMP from ds_sql_file where id=?", UUID.randomUUID().toString(), file.id());
+        }
+    }
+    private String folderTarget(String path, String from, String to) { return (to + path.substring(from.length())).replaceFirst("^/", ""); }
+    private boolean below(String path, String parent) { return path.toLowerCase(Locale.ROOT).startsWith(parent.toLowerCase(Locale.ROOT) + "/"); }
+
     private void requireFilePath(String projectId, String path) {
         jdbc.queryForObject("select id from ds_sql_project where id=? for update", String.class, projectId);
         String key = path.toLowerCase(Locale.ROOT);
@@ -388,8 +439,8 @@ public class SqlStudioService {
             Mapping snapshots (path, content, version): %s
             Optional library Mapping snapshots: %s
             Historical SQL style references: %s
-            Current project SQL source snapshots: %s
-            """.formatted(dialect, operationInstruction, body.prompt(), json(mappings), json(documentMappings), json(references), json(files(request, projectId).stream().filter(f -> "SQL".equals(f.kind())).toList()));
+            Project source references are opt-in; no unselected project file content is supplied.
+            """.formatted(dialect, operationInstruction, body.prompt(), json(mappings), json(documentMappings), json(references));
         require(query.length() <= 250_000, "Project context exceeds 250000 characters; select smaller inputs");
         Map<String, Object> applicationContext = new LinkedHashMap<>();
         if(!documents.isEmpty()) {

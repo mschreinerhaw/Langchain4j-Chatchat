@@ -1,0 +1,8 @@
+{
+  "checks": {
+    "renameFromFolderAction": true,
+    "deletePreservesAndPromotesChildren": true,
+    "uniformDeleteConfirmation": true
+  },
+  "temporaryFoldersRemoved": true
+}

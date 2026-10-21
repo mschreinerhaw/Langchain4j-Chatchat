@@ -1,0 +1,7 @@
+{
+  "status": "PASSED",
+  "overlappingPathsPromotedWithoutOverwrite": true,
+  "outsideCollisionRejected": true,
+  "sourceContentsPreserved": true,
+  "sqlExecuted": false
+}

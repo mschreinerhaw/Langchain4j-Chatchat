@@ -25,11 +25,31 @@ public class SqlStudioMetadataService {
     public record Binding(String bindingId, String serviceId, String assetRef, String role, String database, String schema, String sourceDialect) { }
     public record Context(String discoveryId, String projectId, String purpose, String targetDialect, List<Binding> bindings, String state) { }
     public record Operation(String bindingId, Map<String, Object> arguments) { }
-    public record CodingSelection(String discoveryId,String bindingId,String expectedSnapshotId,List<CodingTable> tables) { }
+    public record CodingSelection(String discoveryId,String bindingId,String expectedSnapshotId,List<CodingTable> tables,List<CodingSelection> sources) {
+        public CodingSelection(String discoveryId,String bindingId,String expectedSnapshotId,List<CodingTable> tables){this(discoveryId,bindingId,expectedSnapshotId,tables,null);}
+    }
     public record CodingTable(String tableName,String database,String schema) { }
     /** Re-fetch only explicitly selected table structures using the existing MCP grant checks. */
     public Map<String,Object> captureCoding(HttpServletRequest request,String project,CodingSelection selection){
-        get(request,project,selection.discoveryId());
+        require(selection!=null,"Choose metadata tables");
+        if(selection.sources()!=null){
+            require(selection.discoveryId()==null&&selection.bindingId()==null&&selection.expectedSnapshotId()==null&&selection.tables()==null,"Choose either grouped or single metadata selection");
+            require(!selection.sources().isEmpty()&&selection.sources().size()<=16,"Choose 1 to 16 metadata groups");
+            var merged=new ArrayList<Map<String,Object>>();var identities=new HashSet<List<String>>();var assets=new HashSet<List<String>>();
+            for(var source:selection.sources()){
+                require(source!=null&&source.sources()==null,"Nested metadata groups are not supported");
+                require(source.tables()!=null&&merged.size()+source.tables().size()<=16,"Choose at most 16 metadata tables");
+                @SuppressWarnings("unchecked") var captured=(List<Map<String,Object>>)captureCoding(request,project,source).get("tables");
+                for(var table:captured){
+                    var identity=List.of(Objects.toString(table.get("serviceId"),""),Objects.toString(table.get("assetRef"),""),Objects.toString(table.get("database"),""),Objects.toString(table.get("schema"),""),table.get("tableName").toString());
+                    require(identities.add(identity),"Duplicate selected metadata table");assets.add(identity.subList(0,2));merged.add(table);
+                }
+            }
+            require(assets.size()<=8,"Choose at most 8 metadata sources");return Map.of("tables",merged);
+        }
+        var context=get(request,project,selection.discoveryId());
+        var binding=context.bindings().stream().filter(value->value.bindingId().equals(selection.bindingId())).findFirst()
+            .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Metadata binding not found"));
         require(selection.tables()!=null && !selection.tables().isEmpty() && selection.tables().size()<=16,"Choose 1 to 16 metadata tables");
         require(selection.expectedSnapshotId()!=null && !selection.expectedSnapshotId().isBlank(),"Metadata snapshot identity is required");
         List<Map<String,Object>> tables=new ArrayList<>();
@@ -45,15 +65,20 @@ public class SqlStudioMetadataService {
             require(result.get("items") instanceof List<?> items && items.size()==1,"Selected table metadata is unavailable");
             var table=(Map<?,?>)((List<?>)result.get("items")).get(0);
             require(selected.tableName().equals(table.get("tableName")),"Metadata table identity changed");
+            if(selected.database()!=null)require(selected.database().equals(table.get("database")),"Metadata database identity changed");
+            if(selected.schema()!=null)require(selected.schema().equals(table.get("schema")),"Metadata schema identity changed");
             require(table.get("columns") instanceof List<?> columns && !columns.isEmpty(),"Selected table has no visible columns");
             List<Map<String,String>> columns=new ArrayList<>();
             for(Object raw:(List<?>)table.get("columns")){
                 require(raw instanceof Map<?,?> column && column.get("name") instanceof String name && !name.isBlank(),"Invalid metadata column");
-                var column=(Map<?,?>)raw;columns.add(Map.of("name",column.get("name").toString(),"type",Objects.toString(column.get("columnType"),"UNKNOWN")));
+                var column=(Map<?,?>)raw;var value=new LinkedHashMap<String,String>();value.put("name",column.get("name").toString());value.put("type",Objects.toString(column.get("columnType"),Objects.toString(column.get("dataType"),"UNKNOWN")));
+                for(String key:List.of("comment","columnKey","nullable"))if(column.get(key)!=null)value.put(key,column.get(key).toString());columns.add(value);
             }
             var captured=new LinkedHashMap<String,Object>();captured.put("tableName",selected.tableName());
             if(table.get("database")!=null)captured.put("database",table.get("database"));
             if(table.get("schema")!=null)captured.put("schema",table.get("schema"));
+            if(table.get("comment")!=null)captured.put("comment",table.get("comment").toString());
+            captured.put("serviceId",binding.serviceId());captured.put("assetRef",binding.assetRef());captured.put("sourceDialect",binding.sourceDialect());
             captured.put("columns",columns);captured.put("snapshotId",selection.expectedSnapshotId());tables.add(captured);
         }
         return Map.of("tables",tables);

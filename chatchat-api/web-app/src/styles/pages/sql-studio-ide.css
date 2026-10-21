@@ -1078,3 +1078,5 @@
 .sql-chat-composer > .sql-composer-actions { justify-content: flex-end; }
 .sql-chat-settings > .sql-user-documents { margin: 10px 0; font-size: 12px; }
 .sql-context-library { margin-top: 8px; }
+
+.sql-script-references{margin:8px 0;font-size:12px}.sql-script-references label{display:flex;align-items:center;gap:5px;padding:4px 0}.sql-script-references input[type=checkbox]{width:14px;flex:none}.sql-script-references span{overflow-wrap:anywhere}

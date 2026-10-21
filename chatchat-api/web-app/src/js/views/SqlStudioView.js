@@ -25,6 +25,7 @@ export default {
   setup(props, { emit: emitEvent }) {
 
 const dialects = [{ value:'spark',label:'Spark SQL' },{ value:'hive',label:'Hive' },{ value:'postgresql',label:'PostgreSQL' },{ value:'mysql',label:'MySQL' },{ value:'oracle',label:'Oracle' },{ value:'tsql',label:'T-SQL' },{ value:'trino',label:'Trino' },{ value:'ansi',label:'ANSI SQL' }];
+const folderOriginal=ref(''), metadataTableCount=ref(0);
 const folders = ref([]), folderOpen = ref(false), folderPath = ref(''), newFileFolder = ref('');
 const confirmation = ref(null);
 let confirmResolve;
@@ -192,8 +193,20 @@ async function deleteFile(file) {
     message.value = '文件已删除';
   });
 }
-async function createFolder() { await action(async () => { await sql.createSqlFolder(projectId.value, folderPath.value.trim()); folders.value = await sql.sqlFolders(projectId.value); folderOpen.value = false; message.value = '文件夹已创建，可以在其中新建文件'; }); }
-function openNewFolder(parent = '') { folderPath.value = parent ? parent + '/' : ''; folderOpen.value = true; }
+function folderVersions(path){return Object.fromEntries(files.value.filter(file=>file.path.toLowerCase().startsWith(path.toLowerCase()+'/')).map(file=>[file.id,file.version]));}
+function requireFolderSaved(path){if(files.value.some(file=>file.path.toLowerCase().startsWith(path.toLowerCase()+'/')&&dirtySqlFile(file)))throw new Error('请先保存文件夹中的编辑内容');}
+async function createFolder() { await action(async () => {
+  const path=folderPath.value.trim();
+  if(folderOriginal.value){requireFolderSaved(folderOriginal.value);await sql.changeSqlFolder(projectId.value,{path:folderOriginal.value,newPath:path,expectedVersions:folderVersions(folderOriginal.value)});await refreshFiles();newFileFolder.value=path;}
+  else {await sql.createSqlFolder(projectId.value,path);folders.value=await sql.sqlFolders(projectId.value);}
+  folderOpen.value=false;message.value='文件夹已保存';persist();
+}); }
+function openNewFolder(parent = '') { folderOriginal.value='';folderPath.value = parent ? parent + '/' : ''; folderOpen.value = true; }
+function editFolder(path){folderOriginal.value=path;folderPath.value=path;folderOpen.value=true;}
+async function deleteFolder(path){
+  if(!await confirmDelete('删除逻辑文件夹',`确认删除文件夹「${path}」？其中的文件和子文件夹将保留并移到上级目录；同名冲突时会停止删除。`))return;
+  await action(async()=>{requireFolderSaved(path);await sql.changeSqlFolder(projectId.value,{path,expectedVersions:folderVersions(path)},true);await refreshFiles();if(newFileFolder.value===path)newFileFolder.value='';message.value='文件夹已删除';persist();});
+}
 async function createFile() { await action(async () => {
   if (!folders.value.includes(newFileFolder.value)) throw new Error('请先创建并选择目标文件夹');
   const name = newFilePath.value.trim();
@@ -230,7 +243,7 @@ async function generate() { if(documentsUploading.value)return; await action(asy
   prompt.value = '';
   pendingPhase.value = 'PREPARING'; pendingStartedAt.value = Date.now(); pollError.value = ''; result.value = null;
   try {
-    const prepared = await sql.prepareSqlGeneration(id, { action:aiAction.value, prompt:request, dialect:dialect.value, mappingDocumentIds:mappingDocumentIds.value, mappingIds:mappingIds.value, referenceIds:[], userDocuments:userDocuments.value.map(({fileId,purpose})=>({fileId,purpose})), agentId:executionMode.value === 'agent' ? agentId.value || null : null, modelName:executionMode.value === 'model' ? modelName.value || null : null,
+    const prepared = await sql.prepareSqlGeneration(id, { action:aiAction.value, prompt:request, dialect:dialect.value, mappingDocumentIds:mappingDocumentIds.value, mappingIds:mappingIds.value, referenceIds:referenceIds.value, userDocuments:userDocuments.value.map(({fileId,purpose})=>({fileId,purpose})), agentId:executionMode.value === 'agent' ? agentId.value || null : null, modelName:executionMode.value === 'model' ? modelName.value || null : null,
       codingMetadataSelection:schemaExplorer.value?.codingSelection?.() || null });
     if (id !== projectId.value || !active) return;
     for (const turn of chatTurns.value.filter(turn => turn.id.endsWith(localId))) {
@@ -340,7 +353,7 @@ onMounted(async () => {
 onActivated(() => { active = true; if (initialized) refreshGeneration(); });
 onDeactivated(() => { active = false; clearTimeout(pollTimer); persist(); });
 onBeforeUnmount(() => { resolveConfirm(false); active = false; resizeCleanup?.(); clearTimeout(pollTimer); clearTimeout(draftTimer); persist(); window.removeEventListener('beforeunload', beforeUnload); });
-  return { userDocuments, documentsUploading, schemaExplorer, explorerTab, completeSchema, useSourceDialect, reviewTitle, reviewBlockedReason, reviewOpen, reviewPath, reviewFiles, reviewGeneration, chooseAiAction, aiAction, newConversation, taskStatusLabel, pendingPhase, pendingStartedAt, pollError, confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
+  return { metadataTableCount, folderOriginal, editFolder, deleteFolder, userDocuments, documentsUploading, schemaExplorer, explorerTab, completeSchema, useSourceDialect, reviewTitle, reviewBlockedReason, reviewOpen, reviewPath, reviewFiles, reviewGeneration, chooseAiAction, aiAction, newConversation, taskStatusLabel, pendingPhase, pendingStartedAt, pollError, confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
 
   }
 };

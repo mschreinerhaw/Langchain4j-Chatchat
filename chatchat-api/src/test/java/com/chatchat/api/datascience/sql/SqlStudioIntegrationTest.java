@@ -310,6 +310,35 @@ class SqlStudioIntegrationTest {
         mvc.perform(delete(ROOT+"/"+p).header("Authorization","Bearer "+token)).andExpect(status().isOk());
         assertThat(jdbc.queryForObject("select count(*) from ds_sql_folder where project_id=?",Integer.class,p)).isZero();
     }
+
+    @Test void folderRenameMovesSubtreeAtomicallyAndRejectsStaleOrUnsafeChanges() throws Exception {
+        String p=project(),url=ROOT+"/"+p+"/folders";
+        var file=save(p,"legacy/nested/query.sql","SQL","SELECT 1;",0);String f=file.path("id").asText();
+        var body=new SqlStudioService.FolderWrite("legacy","renamed",Map.of(f,1));
+        mvc.perform(put(url).header("Authorization","Bearer "+token).contentType("application/json").content(json(new SqlStudioService.FolderWrite("legacy","renamed",Map.of())))).andExpect(status().isConflict());
+        mvc.perform(put(url).header("Authorization","Bearer "+token).contentType("application/json").content(json(new SqlStudioService.FolderWrite("legacy","legacy/nested/loop",Map.of(f,1))))).andExpect(status().isBadRequest());
+        mvc.perform(put(url).header("Authorization","Bearer "+otherUser(true)).contentType("application/json").content(json(body))).andExpect(status().isForbidden());
+        mvc.perform(put(url).header("Authorization","Bearer "+token).contentType("application/json").content(json(body))).andExpect(status().isOk());
+        mvc.perform(get(ROOT+"/"+p+"/files/"+f).header("Authorization","Bearer "+token)).andExpect(status().isOk()).andExpect(jsonPath("$.data.path").value("renamed/nested/query.sql")).andExpect(jsonPath("$.data.version").value(2)).andExpect(jsonPath("$.data.content").value("SELECT 1;"));
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_file_version where file_id=?",Integer.class,f)).isEqualTo(2);
+        mvc.perform(delete(url).header("Authorization","Bearer "+token).contentType("application/json").content(json(new SqlStudioService.FolderWrite("renamed/nested",null,Map.of(f,2))))).andExpect(status().isOk());
+        mvc.perform(get(ROOT+"/"+p+"/files/"+f).header("Authorization","Bearer "+token)).andExpect(status().isOk()).andExpect(jsonPath("$.data.path").value("renamed/query.sql"));
+        save(p,"occupied.sql","SQL","SELECT 2;",0);
+        mvc.perform(put(url).header("Authorization","Bearer "+token).contentType("application/json").content(json(new SqlStudioService.FolderWrite("renamed","occupied.sql/child",Map.of(f,3))))).andExpect(status().isBadRequest());
+        mvc.perform(post(url).header("Authorization","Bearer "+token).contentType("application/json").content(json(Map.of("path","empty")))).andExpect(status().isOk());
+        mvc.perform(delete(url).header("Authorization","Bearer "+token).contentType("application/json").content(json(new SqlStudioService.FolderWrite("empty",null,Map.of())))).andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_folder where project_id=? and path='empty'",Integer.class,p)).isZero();
+    }
+    @Test void folderDeletionPromotesOverlappingPathsWithoutOverwritingAndRejectsOutsideCollisions() throws Exception {
+        String p=project(),url=ROOT+"/"+p+"/folders";
+        var nested=save(p,"a/a/query.sql","SQL","SELECT 'nested';",0);
+        var direct=save(p,"a/query.sql","SQL","SELECT 'direct';",0);
+        mvc.perform(delete(url).header("Authorization","Bearer "+token).contentType("application/json").content(json(new SqlStudioService.FolderWrite("a",null,Map.of(nested.path("id").asText(),1,direct.path("id").asText(),1))))).andExpect(status().isOk());
+        mvc.perform(get(ROOT+"/"+p+"/files/"+nested.path("id").asText()).header("Authorization","Bearer "+token)).andExpect(status().isOk()).andExpect(jsonPath("$.data.path").value("a/query.sql")).andExpect(jsonPath("$.data.content").value("SELECT 'nested';"));
+        mvc.perform(get(ROOT+"/"+p+"/files/"+direct.path("id").asText()).header("Authorization","Bearer "+token)).andExpect(status().isOk()).andExpect(jsonPath("$.data.path").value("query.sql")).andExpect(jsonPath("$.data.content").value("SELECT 'direct';"));
+        mvc.perform(delete(url).header("Authorization","Bearer "+token).contentType("application/json").content(json(new SqlStudioService.FolderWrite("a",null,Map.of(nested.path("id").asText(),2))))).andExpect(status().isBadRequest());
+        assertThat(jdbc.queryForObject("select path from ds_sql_file where id=?",String.class,nested.path("id").asText())).isEqualTo("a/query.sql");
+    }
     @Test void folderAndFileNamesCannotCollideAndLegacyFoldersRemainUsable() throws Exception {
         String p=project();
         save(p,"legacy/query.sql","SQL","SELECT 1;",0);
@@ -436,6 +465,42 @@ class SqlStudioIntegrationTest {
         migration.migrate();
         assertThat(jdbc.queryForObject("select count(*) from ds_sql_metadata_context where id=?",Integer.class,d)).isEqualTo(1);
     }
+
+
+    @Test void referenceScriptsAreOptInAndUnselectedSourceIsNotSentToCline() throws Exception {
+        String p=project();var chosen=save(p,"sql/chosen.sql","SQL","SELECT 'chosen marker';",0);
+        save(p,"sql/private.sql","SQL","SELECT 'unselected marker';",0);
+        var none=prepare(p,List.of(),List.of());
+        assertThat(none.path("taskRequest").path("query").asText()).doesNotContain("chosen marker","unselected marker");
+        var selected=prepare(p,List.of(),List.of(chosen.path("id").asText()));
+        assertThat(selected.path("taskRequest").path("query").asText()).contains("chosen marker").doesNotContain("unselected marker");
+    }
+    @Test void crossDatabaseSelectionIsCapturedInClineSchemaAndRevocationBlocksSubmission() throws Exception {
+        String p=project();
+        when(metadataGateway.invoke(any(),any(),anyMap())).thenAnswer(call->{
+            Map<String,Object> args=call.getArgument(2);
+            return new SqlStudioMetadataGateway.Result("registered", "DESCRIBE".equals(args.get("operation"))
+                ?Map.of("status","SUCCEEDED","snapshotId","v1","doesNotExecuteSql",true,"items",List.of(Map.of("tableName","orders","database",args.get("database"),"schema","public","columns",List.of(Map.of("name","id","columnType","BIGINT")))))
+                :Map.of("items",List.of(Map.of("assetRef",args.get("assetId"),"sourceDialect","mysql"))));
+        });
+        var selections=new ArrayList<SqlStudioMetadataService.CodingSelection>();
+        for(String database:List.of("sales","warehouse")){
+            var context=data(mvc.perform(post(ROOT+"/"+p+"/metadata/contexts").header("Authorization","Bearer "+token).contentType("application/json").content(json(Map.of("purpose","QUERY","targetDialect","spark","bindings",List.of(Map.of("assetRef","source","role","SOURCE","database",database)))))).andExpect(status().isOk()).andReturn());
+            selections.add(new SqlStudioMetadataService.CodingSelection(context.path("discoveryId").asText(),context.path("bindings").get(0).path("bindingId").asText(),"v1",List.of(new SqlStudioMetadataService.CodingTable("orders",database,"public"))));
+        }
+        var prepared=data(mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token).contentType("application/json").content(json(Map.of("prompt","Join sales orders to warehouse orders","dialect","spark","codingMetadataSelection",new SqlStudioMetadataService.CodingSelection(null,null,null,null,selections))))).andExpect(status().isOk()).andReturn());
+        var schema=prepared.path("taskRequest").path("toolInput").path("sqlCodingMetadata");
+        assertThat(schema.path("tables").size()).isEqualTo(2);
+        assertThat(prepared.path("taskRequest").path("query").asText()).contains("sales","warehouse","BIGINT");
+        String generation=prepared.path("generationId").asText();
+        var outcome=mock(com.chatchat.common.runtime.coding.CodingTaskOutcome.class);
+        when(outcome.taskId()).thenReturn("captured");when(outcome.status()).thenReturn(com.chatchat.common.runtime.coding.CodingTaskOutcome.Status.COMPLETED);
+        when(codingFixture.submit(any(),anyString(),anyString(),anyString(),nullable(String.class),anyMap())).thenReturn(outcome);
+        mvc.perform(post(ROOT+"/"+p+"/generations/"+generation+"/coding").header("Authorization","Bearer "+token)).andExpect(status().isOk());
+        verify(codingFixture).submit(any(),anyString(),contains("warehouse"),eq("spark"),nullable(String.class),argThat(value->((List<?>)value.get("tables")).size()==2));
+        doThrow(new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN)).when(metadataGateway).invoke(any(),any(),anyMap());
+        mvc.perform(post(ROOT+"/"+p+"/generations/"+generation+"/coding/resume").header("Authorization","Bearer "+token)).andExpect(status().isForbidden());
+    }
     @Test void metadataOperationHttpRejectsExecutionAndContextSubstitution() throws Exception {
         String p=project();
         when(metadataGateway.invoke(any(),any(),anyMap())).thenReturn(new SqlStudioMetadataGateway.Result("registered", Map.of(
@@ -496,6 +561,7 @@ class SqlStudioIntegrationTest {
     }
     @Test void agentModeStillUsesClineAndInheritsTheAuthorizedAgentModel() throws Exception {
         var skill=mock(com.chatchat.chat.skills.model.SkillDefinition.class);
+        when(skill.id()).thenReturn("chosen");when(skill.marketStatus()).thenReturn("published");when(catalog.list()).thenReturn(List.of(skill));
         when(skill.modelName()).thenReturn("configured-agent-model");when(catalog.resolve("chosen")).thenReturn(skill);
         String p=project();
         for(String action:List.of("generate","fix","optimize")) {

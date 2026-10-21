@@ -324,6 +324,7 @@ public class PythonDataScienceService {
         }
     }
 
+    @Transactional
     public PythonScriptFolderEntity saveFolder(String tenant, String owner, FolderRequest request) {
         if (request == null) throw new IllegalArgumentException("文件夹信息不能为空");
         String name = trim(request.name());
@@ -333,6 +334,11 @@ public class PythonDataScienceService {
         if (!parentId.isBlank()) ownedFolder(parentId, tenant, owner);
         PythonScriptFolderEntity folder = trim(request.id()).isBlank() ? new PythonScriptFolderEntity() : ownedFolder(request.id(), tenant, owner);
         String currentId = folder.getId();
+        var visitedParents = new java.util.HashSet<String>();
+        for (String ancestor = parentId; !ancestor.isBlank();) {
+            if (ancestor.equals(currentId) || !visitedParents.add(ancestor)) throw new IllegalArgumentException("文件夹不能移动到自身或子文件夹中");
+            ancestor = trim(ownedFolder(ancestor, tenant, owner).getParentId());
+        }
         folderRepository.findByTenantIdAndOwnerIdAndParentIdAndNameIgnoreCase(tenant, owner, parentId.isBlank() ? null : parentId, name).filter(existing -> !existing.getId().equals(currentId)).ifPresent(existing -> {
             throw new IllegalArgumentException("当前目录已存在同名文件夹");
         });
@@ -344,10 +350,21 @@ public class PythonDataScienceService {
         return folderRepository.save(folder);
     }
 
+    @Transactional
     public void deleteFolder(String tenant, String owner, String id) {
         PythonScriptFolderEntity folder = ownedFolder(id, tenant, owner);
-        if (scriptRepository.existsByFolderId(id) || folderRepository.existsByParentId(id))
-            throw new IllegalArgumentException("文件夹非空，请先移动其中的脚本或子文件夹");
+        String parent = folder.getParentId();
+        if (parent != null) ownedFolder(parent, tenant, owner);
+        var folders = folderRepository.findByTenantIdAndOwnerIdOrderBySortOrderAscNameAsc(tenant, owner);
+        var children = folders.stream().filter(item -> id.equals(item.getParentId())).toList();
+        for (var child : children) {
+            if (folders.stream().anyMatch(item -> !item.getId().equals(id) && Objects.equals(parent,item.getParentId()) && item.getName().equalsIgnoreCase(child.getName())))
+                throw new IllegalArgumentException("上级目录存在同名文件夹，请先重命名后再删除");
+        }
+        for (var child : children) { child.setParentId(parent); folderRepository.save(child); }
+        for (var script : scriptRepository.findByTenantIdAndOwnerIdOrderByUpdatedAtDesc(tenant, owner)) {
+            if (id.equals(script.getFolderId())) { script.setFolderId(parent); scriptRepository.save(script); }
+        }
         folderRepository.delete(folder);
     }
 

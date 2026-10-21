@@ -16,6 +16,13 @@ export function runtimeObservationPresentation(runtimePayload = {}) {
   const eventState = upper(metadata.eventState);
   const type = upper(metadata.type);
   const stage = upper(metadata.stage);
+  if (eventKind === 'FILE_ANALYSIS') {
+    const titles = { FILE_REFERENCES_PREPARING: '准备授权文件引用', CLINE_SUBMITTING: '提交 Cline 编程任务',
+      RESULT_VALIDATING: '校验分析结果' };
+    return { title: titles[stage] || '文件分析任务', toolName: 'runtime',
+      status: eventState === 'FAILED' ? 'error' : eventState === 'CANCELLED' ? 'cancelled'
+        : eventState === 'COMPLETED' ? 'done' : 'active' };
+  }
   if (eventKind === 'CODING_TRACE') {
     const titles = { TASK_CREATED: '创建 Python 分析任务', TASK_STARTED: '开始自主编程',
       CODE_COMMITTED: 'Python 代码已归档', EXECUTION_STARTED: '执行 Python 程序',

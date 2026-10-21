@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "taskId": "4c11ff49-73b7-42dc-85af-a07ddb598dc9",
+  "state": "SUCCEEDED",
+  "requestCount": 1,
+  "reportMode": "off",
+  "fileIds": [
+    "9cbefddd2ea974d789e786653e1f97d758b5a852932821e27b2a310cbb1191d6"
+  ],
+  "errors": [],
+  "actualBrowserDropAndBackendAnalysis": true,
+  "historyRestoration": {
+    "errors": [],
+    "posts": [],
+    "histories": 1,
+    "restoredWithoutSubmission": true
+  }
+}

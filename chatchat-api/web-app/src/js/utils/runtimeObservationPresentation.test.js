@@ -6,6 +6,14 @@ import {
 } from "./runtimeObservationPresentation.js";
 
 describe("runtime observation presentation", () => {
+  it('shows preparation and submission without claiming Cline has started',()=>{
+    for(const stage of ['FILE_REFERENCES_PREPARING','CLINE_SUBMITTING','RESULT_VALIDATING']) {
+      const progress=runtimeObservationPresentation({metadata:{eventKind:'FILE_ANALYSIS',stage,eventState:'RUNNING'}});
+      expect(progress.status).toBe('active');expect(progress.title).not.toContain('正在分析文件');
+      expect(runtimeObservationPresentation({metadata:{eventKind:'FILE_ANALYSIS',stage,eventState:'FAILED'}}).status).toBe('error');
+      expect(runtimeObservationPresentation({metadata:{eventKind:'FILE_ANALYSIS',stage,eventState:'COMPLETED'}}).status).toBe('done');
+    }
+  });
   it('preserves every Coding event identity across replay and distinguishes attempts',()=>{
     const metadata={eventKind:'CODING_TRACE',taskId:'task',eventId:'event-1',sequence:1,
       codingEventType:'EXECUTION_STARTED',eventState:'RUNNING'};

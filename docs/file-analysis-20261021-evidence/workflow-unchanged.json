@@ -1,0 +1,10 @@
+{
+  "agentId": "financial_indicator",
+  "workflowSha256Before": "d7274c89683b72d2e412a9199d00c6aa10a05ac2dbbe322f51e085751818be91",
+  "workflowSha256After": "d7274c89683b72d2e412a9199d00c6aa10a05ac2dbbe322f51e085751818be91",
+  "requiredStepsBefore": 3,
+  "requiredStepsAfter": 3,
+  "modelNameBefore": "qwen3.7-plus",
+  "modelNameAfter": "qwen3.7-plus",
+  "unchanged": true
+}

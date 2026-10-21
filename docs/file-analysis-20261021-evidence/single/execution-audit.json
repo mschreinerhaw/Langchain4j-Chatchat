@@ -1,0 +1,175 @@
+{
+  "runId": "att-1-b8edc87a-6e30-43f2-a979-c20082f98e55",
+  "counts": {
+    "CODING_COMPUTATION_VALIDATION": 1,
+    "CODING_CODE_SUBMISSION": 2,
+    "CODING_MODEL_RESPONSE_RECEIPT": 4,
+    "CODING_INPUT_SNAPSHOT": 1,
+    "CODING_VALIDATION_PLAN": 1,
+    "CODING_CODE_ARTIFACT": 1,
+    "CODING_EXECUTION_RECEIPT": 1,
+    "CODING_STRUCTURED_DATASET": 1
+  },
+  "inputReferences": [
+    "runtime-context:att-1-b8edc87a-6e30-43f2-a979-c20082f98e55",
+    "user-asset:49da0f8c5c273b27298e839115de80a4d2d1ffb917c9164b140171affec25129:78bb65d7119d9b35baf9aa5bc509508a2ccadea4a2a8cbe3d21cb9fcf9ff351c"
+  ],
+  "expectedFileReferences": [
+    "user-asset:49da0f8c5c273b27298e839115de80a4d2d1ffb917c9164b140171affec25129:78bb65d7119d9b35baf9aa5bc509508a2ccadea4a2a8cbe3d21cb9fcf9ff351c"
+  ],
+  "checkedFromDatabase": true,
+  "snapshots": [
+    {
+      "taskId": "analysis-coding-b6c630c1cdc1b398b0f2cd34bfe2c3da1850d3db78a80e335724b32559d19d54",
+      "sourceDatasetRef": "coding-input-set:b3ee316d6fc2292f1e123749236d9f90d664893e900e49454b52740095880d1a",
+      "sha256": "a5e317d733432f94a7b075b3c47e540292ac0b0657ff900ab9f856ba9e877fda",
+      "delivery": "SHARED_DIRECTORY",
+      "inputVersions": [
+        {
+          "contentSha256": "16f1132a755adf13b5118665890046fe4c8ec534a07e1ebcb6e06a859594cf44",
+          "datasetReference": "runtime-context:att-1-b8edc87a-6e30-43f2-a979-c20082f98e55",
+          "fieldSchema": {
+            "conversationEvidence": [
+              "STRING"
+            ],
+            "conversationSummary": [
+              "STRING"
+            ],
+            "fileAnalysis": [
+              "OBJECT"
+            ],
+            "historicalContextIsCurrentEvidence": [
+              "BOOLEAN"
+            ],
+            "history": [
+              "ARRAY"
+            ],
+            "maintainedInstructions": [
+              "STRING"
+            ],
+            "question": [
+              "STRING"
+            ],
+            "requestInstructions": [
+              "STRING"
+            ],
+            "suppliedContext": [
+              "STRING"
+            ]
+          },
+          "rowCount": 1,
+          "schemaCoverage": "BOUNDED_STRUCTURAL_ONLY",
+          "sourceRepresentation": {}
+        },
+        {
+          "contentSha256": "8dfac2537e6659f162d3da88e7f6ae6ffbddd753956a8474da3dee5379c57a52",
+          "datasetReference": "user-asset:49da0f8c5c273b27298e839115de80a4d2d1ffb917c9164b140171affec25129:78bb65d7119d9b35baf9aa5bc509508a2ccadea4a2a8cbe3d21cb9fcf9ff351c",
+          "fieldSchema": {
+            "assetId": [
+              "STRING"
+            ],
+            "chunkCount": [
+              "NUMBER"
+            ],
+            "chunkIndex": [
+              "NUMBER"
+            ],
+            "chunkSha256": [
+              "STRING"
+            ],
+            "contentBase64": [
+              "STRING"
+            ],
+            "contentType": [
+              "STRING"
+            ],
+            "fileName": [
+              "STRING"
+            ],
+            "role": [
+              "STRING"
+            ],
+            "sha256": [
+              "STRING"
+            ],
+            "size": [
+              "NUMBER"
+            ]
+          },
+          "rowCount": 1,
+          "schemaCoverage": "BOUNDED_STRUCTURAL_ONLY",
+          "sourceRepresentation": {}
+        }
+      ]
+    }
+  ],
+  "executions": [
+    {
+      "artifactSha256": "7e3ac6d3bdbd83b9b03531e4c50d586ebb42cc7ff49dfc96c367c39140c7cb63",
+      "channel": "logs",
+      "fileName": "receipt.json",
+      "operationId": "cline-190e9bed376df6a4be0549a3181708bbb7ac0010d8f66f87dbb223ea1a378827",
+      "size": 1047
+    }
+  ],
+  "code": [
+    {
+      "content": "#!/usr/bin/env python3\n\"\"\"\nExcel data quality analysis: record count, amount missing/non-numeric/negative counts,\nduplicate id, valid numeric sum (Decimal). Single file from user-asset.\n\"\"\"\nimport json\nimport hashlib\nimport base64\nimport os\nfrom decimal import Decimal, InvalidOperation\nfrom pathlib import Path\nfrom runtime_input import load_rows\n\nMANIFEST_PATH = \"/data/input/c130a9dcbe9c968ba4b2cfc13aa2490ca6f61c91fd3d1a9b10a10cc30c604870/manifest.json\"\nEXPECTED_MANIFEST_SHA = \"a5e317d733432f94a7b075b3c47e540292ac0b0657ff900ab9f856ba9e877fda\"\n\n# Load manifest rows\nrows = list(load_rows(MANIFEST_PATH, EXPECTED_MANIFEST_SHA))\n\n# Separate runtime-context and user-asset rows\nctx_rows = [r for r in rows if \"runtime-context\" in r.get(\"datasetReference\", \"\")]\nasset_rows = [r for r in rows if \"user-asset\" in r.get(\"datasetReference\", \"\")]\n\nassert len(asset_rows) == 1, f\"Expected 1 user-asset row, got {len(asset_rows)}\"\nasset_row = asset_rows[0][\"record\"]\n\nasset_id = asset_row[\"assetId\"]\nchunk_count = asset_row[\"chunkCount\"]\nchunk_index = asset_row[\"chunkIndex\"]\nchunk_sha = asset_row[\"chunkSha256\"]\ncontent_b64 = asset_row[\"contentBase64\"]\nfile_name = asset_row[\"fileName\"]\ncontent_type = asset_row[\"contentType\"]\ndeclared_sha = asset_row[\"sha256\"]\ndeclared_size = asset_row[\"size\"]\n\n# Verify chunk assembly\nassert chunk_count == 1, f\"Expected chunkCount=1, got {chunk_count}\"\nassert chunk_index == 0, f\"Expected chunkIndex=0, got {chunk_index}\"\n\n# Decode base64\nraw_bytes = base64.b64decode(content_b64)\n\n# Verify chunk sha256\nchunk_hash = hashlib.sha256(raw_bytes).hexdigest()\nassert chunk_hash == chunk_sha, f\"Chunk sha256 mismatch: {chunk_hash} != {chunk_sha}\"\n\n# Verify complete sha256 and size\nfull_hash = hashlib.sha256(raw_bytes).hexdigest()\nassert full_hash == declared_sha, f\"File sha256 mismatch: {full_hash} != {declared_sha}\"\nassert len(raw_bytes) == declared_size, f\"Size mismatch: {len(raw_bytes)} != {declared_size}\"\n\nprint(f\"File verified: {file_name}, {content_type}, {declared_size} bytes, sha256={declared_sha[:16]}...\")\n\n# Parse Excel file\nimport openpyxl\n\nwb = openpyxl.load_workbook(filename=\"/tmp/temp_input.xlsx\", read_only=True, data_only=True)\n\n# Write raw bytes to temp file for openpyxl\nimport tempfile\ntmp_path = \"/tmp/temp_input.xlsx\"\nwith open(tmp_path, \"wb\") as f:\n    f.write(raw_bytes)\n\nwb = openpyxl.load_workbook(tmp_path, read_only=True, data_only=True)\n\nprint(f\"Sheet names: {wb.sheetnames}\")\n\n# Get first sheet\nws = wb.active\nprint(f\"Active sheet: {ws.title}\")\n\n# Read all rows\nall_rows = []\nfor row in ws.iter_rows():\n    all_rows.append([cell.value for cell in row])\n\nwb.close()\n\n# Remove temp file\nos.remove(tmp_path)\n\nprint(f\"Total rows read: {len(all_rows)}\")\n\n# Identify header row (first row)\nif len(all_rows) == 0:\n    raise ValueError(\"No data rows found\")\n\nheader = all_rows[0]\ndata_rows = all_rows[1:]\nprint(f\"Header: {header}\")\nprint(f\"Data rows: {len(data_rows)}\")\n\n# Map column names to indices\ncol_map = {str(h).strip().lower(): i for i, h in enumerate(header) if h is not None}\nprint(f\"Column map: {col_map}\")\n\n# Find 'id' and 'amount' columns\nid_col = None\namount_col = None\nfor key, idx in col_map.items():\n    if key == \"id\":\n        id_col = idx\n    elif key == \"amount\":\n        amount_col = idx\n\nif id_col is None:\n    raise ValueError(f\"No 'id' column found. Available: {list(col_map.keys())}\")\nif amount_col is None:\n    raise ValueError(f\"No 'amount' column found. Available: {list(col_map.keys())}\")\n\nprint(f\"id column index: {id_col}, amount column index: {amount_col}\")\n\n# Analysis\nrecord_count = len(data_rows)\nid_values = []\namount_missing = 0\namount_non_numeric = 0\namount_negative = 0\namount_valid_sum = Decimal(\"0\")\nvalid_amount_count = 0\n\nfor row in data_rows:\n    # Extract id\n    id_val = row[id_col] if id_col < len(row) else None\n    id_values.append(id_val)\n    \n    # Extract amount\n    amt_val = row[amount_col] if amount_col < len(row) else None\n    \n    if amt_val is None or (isinstance(amt_val, str) and amt_val.strip() == \"\"):\n        amount_missing += 1\n        continue\n    \n    # Try to convert to Decimal\n    try:\n        if isinstance(amt_val, (int, float)):\n            d = Decimal(str(amt_val))\n        elif isinstance(amt_val, str):\n            d = Decimal(amt_val.strip())\n        elif isinstance(amt_val, Decimal):\n            d = amt_val\n        else:\n            amount_non_numeric += 1\n            continue\n        \n        # Check if negative\n        if d < 0:\n            amount_negative += 1\n        \n        amount_valid_sum += d\n        valid_amount_count += 1\n        \n    except (InvalidOperation, ValueError, TypeError):\n        amount_non_numeric += 1\n\n# Check duplicate ids\nfrom collections import Counter\nid_counts = Counter(id_values)\nduplicate_ids = {k: v for k, v in id_counts.items() if v > 1}\nduplicate_count = sum(1 for v in id_counts.values() if v > 1)\n\nprint(f\"\\n--- Results ---\")\nprint(f\"Record count: {record_count}\")\nprint(f\"Amount missing: {amount_missing}\")\nprint(f\"Amount non-numeric: {amount_non_numeric}\")\nprint(f\"Amount negative: {amount_negative}\")\nprint(f\"Duplicate ids: {duplicate_count}\")\nif duplicate_ids:\n    print(f\"Duplicate id details: {duplicate_ids}\")\nprint(f\"Valid amount count: {valid_amount_count}\")\nprint(f\"Valid amount sum: {amount_valid_sum}\")\n\n# Since only 1 file, no cross-file comparison needed\n\n# Build report\nreport_lines = []\nreport_lines.append(f\"**数据质量分析报告**\")\nreport_lines.append(f\"\")\nreport_lines.append(f\"- **记录数**: {record_count}\")\nreport_lines.append(f\"- **amount 缺失数**: {amount_missing}\")\nreport_lines.append(f\"- **amount 非数值数**: {amount_non_numeric}\")\nreport_lines.append(f\"- **amount 负数数**: {amount_negative}\")\nreport_lines.append(f\"- **重复 id 数**: {duplicate_count}\")\nif duplicate_ids:\n    for did, cnt in duplicate_ids.items():\n        report_lines.append(f\"  - id={did} 出现 {cnt} 次\")\nreport_lines.append(f\"- **有效数值合计**: {amount_valid_sum}\")\nreport_lines.append(f\"\")\nreport_lines.append(f\"注：仅 1 份文件，无需跨文件比较。合计使用 Decimal 精确计算。\")\n\nreport_markdown = \"\\n\".join(report_lines)\n\nevidence_refs = [\n    \"user-asset:49da0f8c5c273b27298e839115de80a4d2d1ffb917c9164b140171affec25129:78bb65d7119d9b35baf9aa5bc509508a2ccadea4a2a8cbe3d21cb9fcf9ff351c\"\n]\n\nlimitations = [\n    \"仅解析第一个 sheet 的数据，其他 sheet 未纳入分析\",\n    \"id 和 amount 列按表头名称小写匹配，如存在多列同名仅取首次出现\",\n    \"非数值判断基于 Decimal 转换，科学计数法等有效数值格式应可正常解析\",\n    \"负数判定基于 Decimal 值 < 0，不含零\"\n]\n\nresult = {\n    \"reportMarkdown\": report_markdown,\n    \"evidenceReferences\": evidence_refs,\n    \"limitations\": limitations\n}\n\n# Write output\nos.makedirs(\"/workspace/output/results\", exist_ok=True)\nwith open(\"/workspace/output/results/rows.jsonl\", \"w\") as f:\n    f.write(json.dumps(result, ensure_ascii=False) + \"\\n\")\n\nprint(\"\\nOutput written successfully.\")\nprint(json.dumps(result, ensure_ascii=False, indent=2))\n",
+      "fileName": "main.py",
+      "operationId": "cline-47c2bfcbe93d03f4f1a79861f70960427a782296471aa547b15f5455415d15f3",
+      "sha256": "33bd47ff82dc4540764f318fe1f4e97c3ac24a2c07fafbcfdf01b18e684c354c",
+      "sourceBytes": 7075,
+      "taskId": "analysis-coding-b6c630c1cdc1b398b0f2cd34bfe2c3da1850d3db78a80e335724b32559d19d54"
+    },
+    {
+      "content": "#!/usr/bin/env python3\n\"\"\"\nExcel data quality analysis: record count, amount missing/non-numeric/negative counts,\nduplicate id, valid numeric sum (Decimal). Single file from user-asset.\n\"\"\"\nimport json\nimport hashlib\nimport base64\nimport os\nfrom decimal import Decimal, InvalidOperation\nfrom collections import Counter\nfrom runtime_input import load_rows\n\nMANIFEST_PATH = \"/data/input/c130a9dcbe9c968ba4b2cfc13aa2490ca6f61c91fd3d1a9b10a10cc30c604870/manifest.json\"\nEXPECTED_MANIFEST_SHA = \"a5e317d733432f94a7b075b3c47e540292ac0b0657ff900ab9f856ba9e877fda\"\n\n# Load manifest rows\nrows = list(load_rows(MANIFEST_PATH, EXPECTED_MANIFEST_SHA))\n\n# Separate runtime-context and user-asset rows\nctx_rows = [r for r in rows if \"runtime-context\" in r.get(\"datasetReference\", \"\")]\nasset_rows = [r for r in rows if \"user-asset\" in r.get(\"datasetReference\", \"\")]\n\nassert len(asset_rows) == 1, f\"Expected 1 user-asset row, got {len(asset_rows)}\"\nasset_row = asset_rows[0][\"record\"]\n\nasset_id = asset_row[\"assetId\"]\nchunk_count = asset_row[\"chunkCount\"]\nchunk_index = asset_row[\"chunkIndex\"]\nchunk_sha = asset_row[\"chunkSha256\"]\ncontent_b64 = asset_row[\"contentBase64\"]\nfile_name = asset_row[\"fileName\"]\ncontent_type = asset_row[\"contentType\"]\ndeclared_sha = asset_row[\"sha256\"]\ndeclared_size = asset_row[\"size\"]\n\n# Verify chunk assembly\nassert chunk_count == 1, f\"Expected chunkCount=1, got {chunk_count}\"\nassert chunk_index == 0, f\"Expected chunkIndex=0, got {chunk_index}\"\n\n# Decode base64\nraw_bytes = base64.b64decode(content_b64)\n\n# Verify chunk sha256\nchunk_hash = hashlib.sha256(raw_bytes).hexdigest()\nassert chunk_hash == chunk_sha, f\"Chunk sha256 mismatch: {chunk_hash} != {chunk_sha}\"\n\n# Verify complete sha256 and size\nfull_hash = hashlib.sha256(raw_bytes).hexdigest()\nassert full_hash == declared_sha, f\"File sha256 mismatch: {full_hash} != {declared_sha}\"\nassert len(raw_bytes) == declared_size, f\"Size mismatch: {len(raw_bytes)} != {declared_size}\"\n\nprint(f\"File verified: {file_name}, {content_type}, {declared_size} bytes, sha256={declared_sha[:16]}...\")\n\n# Write raw bytes to temp file for openpyxl\ntmp_path = \"/tmp/temp_input.xlsx\"\nwith open(tmp_path, \"wb\") as f:\n    f.write(raw_bytes)\n\n# Parse Excel file\nimport openpyxl\nwb = openpyxl.load_workbook(tmp_path, read_only=True, data_only=True)\n\nprint(f\"Sheet names: {wb.sheetnames}\")\n\n# Get first sheet\nws = wb.active\nprint(f\"Active sheet: {ws.title}\")\n\n# Read all rows\nall_rows = []\nfor row in ws.iter_rows():\n    all_rows.append([cell.value for cell in row])\n\nwb.close()\nos.remove(tmp_path)\n\nprint(f\"Total rows read: {len(all_rows)}\")\n\n# Identify header row (first row)\nif len(all_rows) == 0:\n    raise ValueError(\"No data rows found\")\n\nheader = all_rows[0]\ndata_rows = all_rows[1:]\nprint(f\"Header: {header}\")\nprint(f\"Data rows: {len(data_rows)}\")\n\n# Map column names to indices (lowercase strip)\ncol_map = {}\nfor i, h in enumerate(header):\n    if h is not None:\n        key = str(h).strip().lower()\n        if key not in col_map:  # first occurrence wins\n            col_map[key] = i\n\nprint(f\"Column map: {col_map}\")\n\n# Find 'id' and 'amount' columns\nid_col = col_map.get(\"id\")\namount_col = col_map.get(\"amount\")\n\nif id_col is None:\n    raise ValueError(f\"No 'id' column found. Available: {list(col_map.keys())}\")\nif amount_col is None:\n    raise ValueError(f\"No 'amount' column found. Available: {list(col_map.keys())}\")\n\nprint(f\"id column index: {id_col}, amount column index: {amount_col}\")\n\n# Analysis\nrecord_count = len(data_rows)\nid_values = []\namount_missing = 0\namount_non_numeric = 0\namount_negative = 0\namount_valid_sum = Decimal(\"0\")\nvalid_amount_count = 0\n\nfor row in data_rows:\n    # Extract id\n    id_val = row[id_col] if id_col < len(row) else None\n    id_values.append(id_val)\n    \n    # Extract amount\n    amt_val = row[amount_col] if amount_col < len(row) else None\n    \n    if amt_val is None or (isinstance(amt_val, str) and amt_val.strip() == \"\"):\n        amount_missing += 1\n        continue\n    \n    # Try to convert to Decimal\n    try:\n        if isinstance(amt_val, Decimal):\n            d = amt_val\n        elif isinstance(amt_val, (int, float)):\n            d = Decimal(str(amt_val))\n        elif isinstance(amt_val, str):\n            d = Decimal(amt_val.strip())\n        else:\n            amount_non_numeric += 1\n            continue\n        \n        # Check if negative\n        if d < 0:\n            amount_negative += 1\n        \n        amount_valid_sum += d\n        valid_amount_count += 1\n        \n    except (InvalidOperation, ValueError, TypeError):\n        amount_non_numeric += 1\n\n# Check duplicate ids\nid_counts = Counter(id_values)\nduplicate_ids = {k: v for k, v in id_counts.items() if v > 1}\nduplicate_count = sum(1 for v in id_counts.values() if v > 1)\n\nprint(f\"\\n--- Results ---\")\nprint(f\"Record count: {record_count}\")\nprint(f\"Amount missing: {amount_missing}\")\nprint(f\"Amount non-numeric: {amount_non_numeric}\")\nprint(f\"Amount negative: {amount_negative}\")\nprint(f\"Duplicate ids: {duplicate_count}\")\nif duplicate_ids:\n    print(f\"Duplicate id details: {duplicate_ids}\")\nprint(f\"Valid amount count: {valid_amount_count}\")\nprint(f\"Valid amount sum: {amount_valid_sum}\")\n\n# Build report\nreport_lines = []\nreport_lines.append(\"**数据质量分析报告**\")\nreport_lines.append(\"\")\nreport_lines.append(f\"- **记录数**: {record_count}\")\nreport_lines.append(f\"- **amount 缺失数**: {amount_missing}\")\nreport_lines.append(f\"- **amount 非数值数**: {amount_non_numeric}\")\nreport_lines.append(f\"- **amount 负数数**: {amount_negative}\")\nreport_lines.append(f\"- **重复 id 数**: {duplicate_count}\")\nif duplicate_ids:\n    for did, cnt in sorted(duplicate_ids.items(), key=lambda x: str(x[0])):\n        report_lines.append(f\"  - id={did} 出现 {cnt} 次\")\nreport_lines.append(f\"- **有效数值合计**: {amount_valid_sum}\")\nreport_lines.append(\"\")\nreport_lines.append(\"注：仅 1 份文件，无需跨文件比较。合计使用 Decimal 精确计算。\")\n\nreport_markdown = \"\\n\".join(report_lines)\n\nevidence_refs = [\n    \"user-asset:49da0f8c5c273b27298e839115de80a4d2d1ffb917c9164b140171affec25129:78bb65d7119d9b35baf9aa5bc509508a2ccadea4a2a8cbe3d21cb9fcf9ff351c\"\n]\n\nlimitations = [\n    \"仅解析第一个 sheet（活动 sheet）的数据，其他 sheet 未纳入分析\",\n    \"id 和 amount 列按表头名称小写精确匹配，如存在多列同名仅取首次出现\",\n    \"非数值判断基于 Decimal 转换失败，Excel 错误值等非标量类型计为非数值\",\n    \"负数判定基于 Decimal 值 < 0，零值不计为负数\",\n    \"文件通过 base64 解码、chunkSha256、完整 sha256 和 size 四重校验\"\n]\n\nresult = {\n    \"reportMarkdown\": report_markdown,\n    \"evidenceReferences\": evidence_refs,\n    \"limitations\": limitations\n}\n\n# Write output\nos.makedirs(\"/workspace/output/results\", exist_ok=True)\nwith open(\"/workspace/output/results/rows.jsonl\", \"w\") as f:\n    f.write(json.dumps(result, ensure_ascii=False) + \"\\n\")\n\nprint(\"\\nOutput written successfully.\")\nprint(json.dumps(result, ensure_ascii=False, indent=2))\n",
+      "fileName": "main.py",
+      "operationId": "cline-190e9bed376df6a4be0549a3181708bbb7ac0010d8f66f87dbb223ea1a378827",
+      "sha256": "160ba41a52df66cf0e1d4cb176296492581ec878c759dd4265f9c3e78f702148",
+      "sourceBytes": 7042,
+      "taskId": "analysis-coding-b6c630c1cdc1b398b0f2cd34bfe2c3da1850d3db78a80e335724b32559d19d54"
+    }
+  ],
+  "models": [
+    {
+      "complexity": "SIMPLE",
+      "durationMs": 37880,
+      "finishedAt": "2026-10-21T10:34:45.363363070Z",
+      "maxOutputTokens": 16384,
+      "protocol": "openai",
+      "providerModel": "qwen3.6-plus",
+      "selectedModel": "qwen3.6-plus",
+      "startedAt": "2026-10-21T10:34:07.483101300Z"
+    },
+    {
+      "complexity": "SIMPLE",
+      "durationMs": 56727,
+      "finishedAt": "2026-10-21T10:34:02.684261123Z",
+      "maxOutputTokens": 16384,
+      "protocol": "openai",
+      "providerModel": "qwen3.6-plus",
+      "selectedModel": "qwen3.6-plus",
+      "startedAt": "2026-10-21T10:33:05.956974284Z"
+    },
+    {
+      "complexity": "SIMPLE",
+      "durationMs": 19929,
+      "finishedAt": "2026-10-21T10:35:12.566928010Z",
+      "maxOutputTokens": 16384,
+      "protocol": "openai",
+      "providerModel": "qwen3.6-plus",
+      "selectedModel": "qwen3.6-plus",
+      "startedAt": "2026-10-21T10:34:52.637281343Z"
+    },
+    {
+      "complexity": "SIMPLE",
+      "durationMs": 2808,
+      "finishedAt": "2026-10-21T10:34:51.838747419Z",
+      "maxOutputTokens": 16384,
+      "protocol": "openai",
+      "providerModel": "qwen3.6-plus",
+      "selectedModel": "qwen3.6-plus",
+      "startedAt": "2026-10-21T10:34:49.030541369Z"
+    }
+  ]
+}

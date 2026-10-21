@@ -66,21 +66,33 @@ describe('user-space chat attachments',()=>{
     expect(context.composerAttachments[0].state).toBe('ready');
     expect((await context.prepareComposerSubmission('analyze')).documentIds).toEqual(['file-id']);
   });
-  it('routes selected file IDs through the existing analysis endpoint and renders its real report',async()=>{
-    apiRequest.mockResolvedValue({resultAvailable:true,taskId:'task',results:[{reportMarkdown:'actual computed report'}]});
-    const context={createAssistantMessage:values=>({...values}),isActiveRun:()=>true,scrollMessages:vi.fn()};
-    const run={runId:'stable-request',messages:[],assetFileIds:['file-id'],modelName:'chosen',workspaceContext:{workspaceId:'analysis'}};
-    await ChatAssistantView.methods.requestAssistantAnswer.call(context,'objective',{},run);
-    expect(apiRequest).toHaveBeenCalledWith('/interactions/user-assets/analyses',expect.objectContaining({body:JSON.stringify({requestId:'chat-file-stable-request',fileIds:['file-id'],contextIds:[],instruction:'objective',modelName:'chosen'})}));
-    expect(run.messages[0].content).toBe('actual computed report');expect(run.messages[0].streaming).toBe(false);
-    expect(run.messages[0].memoryContext.taskOrigin).toBe('studio-coding');expect(submitAgentTask).not.toHaveBeenCalled();
+  it.each(['off', 'visual'])('submits attachments once and renders the real asynchronous report (%s)', async(reportMode)=>{
+    apiRequest.mockResolvedValue({taskId:'analysis-task'});
+    const run={messages:[],assetFileIds:['file-id'],lastResponse:{},submissionQuery:'objective with registered filenames'};
+    const context={reuseWaitingAssistantMessage:()=>null,createAssistantMessage:values=>({...values,id:'answer'}),
+      isActiveRun:()=>true,scrollMessages:vi.fn(),effectiveTenantId:()=> 'tenant',
+      emitActiveConversationSnapshot:vi.fn(),saveHistory:vi.fn(),refreshAgentTaskSteps:vi.fn(),
+      applyResponseMetadata:vi.fn(),captureMcpConfirmation:vi.fn(),bufferResultPresentation:vi.fn(),waitForAgentTaskEventStream:vi.fn().mockResolvedValue({
+        type:'COMPLETE',status:'SUCCESS',payload:JSON.stringify({answer:'actual computed report',status:'SUCCESS'})})};
+    await ChatAssistantView.methods.requestAssistantAnswer.call(context,'objective',{mode:'agent_chat',skillId:'published',toolInput:{reportMode}},run);
+    expect(apiRequest).toHaveBeenCalledTimes(1);
+    expect(apiRequest.mock.calls[0][0]).toBe('/agent/tasks');
+    const submitted=JSON.parse(apiRequest.mock.calls[0][1].body);
+    expect(submitted.toolInput.__userAssetIds).toEqual(['file-id']);expect(submitted.skillId).toBe('published');
+    expect(run.taskId).toBe('analysis-task');expect(run.messages[0].content).toBe('actual computed report');
+    expect(run.messages[0].streaming).toBe(false);
+    expect(context.refreshAgentTaskSteps).toHaveBeenCalled();
   });
-  it('does not call a failed file analysis a completed answer',async()=>{
-    apiRequest.mockResolvedValue({resultAvailable:false,summary:'execution failed'});
-    const run={runId:'stable-request',messages:[],assetFileIds:['file-id']};
-    const context={createAssistantMessage:values=>({...values}),isActiveRun:()=>true,scrollMessages:vi.fn()};
-    await expect(ChatAssistantView.methods.requestAssistantAnswer.call(context,'objective',{},run)).rejects.toThrow('execution failed');
+  it('terminates an attachment task on a real backend failure',async()=>{
+    apiRequest.mockResolvedValue({taskId:'failed-task'});
+    const run={messages:[],assetFileIds:['file-id'],lastResponse:{}};
+    const context={reuseWaitingAssistantMessage:()=>null,createAssistantMessage:values=>({...values,id:'answer'}),
+      isActiveRun:()=>true,scrollMessages:vi.fn(),effectiveTenantId:()=> 'tenant',
+      emitActiveConversationSnapshot:vi.fn(),saveHistory:vi.fn(),refreshAgentTaskSteps:vi.fn(),applyResponseMetadata:vi.fn(),
+      waitForAgentTaskEventStream:vi.fn().mockResolvedValue({type:'ERROR',status:'FAILED',payload:JSON.stringify({status:'FAILED',answer:'object read failed'})})};
+    await expect(ChatAssistantView.methods.requestAssistantAnswer.call(context,'objective',{},run)).rejects.toThrow('object read failed');
     expect(run.messages[0].status).toBe('failed');expect(run.messages[0].streaming).toBe(false);
+    expect(apiRequest).toHaveBeenCalledTimes(1);
   });
 });
 

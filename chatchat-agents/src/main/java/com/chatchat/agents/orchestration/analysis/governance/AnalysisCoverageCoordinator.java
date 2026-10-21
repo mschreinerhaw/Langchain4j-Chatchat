@@ -50,6 +50,24 @@ public final class AnalysisCoverageCoordinator {
         request.metadata().put("analysisDatasetProjectionCompleted", true);
         List<AnalysisEvidenceCoordinator.Dataset> datasets = externalizeLargeDatasets(
             projection.datasets(), request);
+        var filePlan = FileAnalysisDependencies.files(request.runtimeAttributes());
+        if (codingOwned && filePlan != null) {
+            boolean optionalEmpty = FileAnalysisDependencies.optionalEmpty(request.runtimeAttributes(), request.result());
+            boolean acquired = request.result() != null && request.result().success()
+                && datasets.stream().anyMatch(dataset -> dataset.recordCount() > 0)
+                && projection.excludedDatasets().isEmpty();
+            if (!acquired && !optionalEmpty)
+                throw new IllegalStateException("REQUIRED_MCP_DATA_UNAVAILABLE: file analysis cannot bypass missing, failed or unconfirmed business evidence");
+            if (coding == null) throw new IllegalStateException("File analysis requires Coding");
+            var combined = new ArrayList<>(datasets);
+            var fileSources = coding.prepareFileSources(request);
+            if (fileSources.isEmpty()) throw new IllegalStateException("Authorized file inputs are unavailable");
+            combined.addAll(fileSources.values());
+            datasets = List.copyOf(combined);
+            request.metadata().put("fileAnalysis", filePlan);
+            request.metadata().put("optionalToolDataEmpty", optionalEmpty);
+            request.metadata().put("attachmentReferences", filePlan.inputs().stream().map(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.FileInput::reference).toList());
+        }
         request.metadata().put("analysisEvidenceSnapshotFingerprint",
             ModelProtocolJson.sha256Hex(datasets.stream().map(dataset -> Map.of(
                 "reference", dataset.reference(),

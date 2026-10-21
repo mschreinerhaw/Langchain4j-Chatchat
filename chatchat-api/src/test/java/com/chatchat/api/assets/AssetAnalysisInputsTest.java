@@ -7,6 +7,18 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class AssetAnalysisInputsTest {
+    @Test void twoRegisteredExcelReferencesAreDescribedWithoutReadingTheirContents() {
+        byte[] first={1,2},second={3,4};
+        when(assets.get(owner,id)).thenReturn(new UserAssetService.File(id,"DATASET","first.xlsx","application/xlsx",UserAssetService.hash(first),2,"AVAILABLE","","","upload",1));
+        when(assets.get(owner,other)).thenReturn(new UserAssetService.File(other,"DATASET","second.xlsx","application/xlsx",UserAssetService.hash(second),2,"AVAILABLE","","","upload",1));
+        var manifest=inputs.describe(owner,List.of(id,other));
+        assertThat(manifest).extracting(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.FileInput::fileName).containsExactly("first.xlsx","second.xlsx");
+        assertThat(manifest).extracting(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.FileInput::reference)
+            .containsExactly("user-asset:"+id+":"+UserAssetService.hash(first),"user-asset:"+other+":"+UserAssetService.hash(second));
+        verify(assets,never()).read(any(),anyString());
+        when(assets.read(owner,id)).thenReturn(first);when(assets.read(owner,other)).thenReturn(second);
+        assertThat(inputs.load(owner,List.of(id,other))).containsOnlyKeys(manifest.get(0).reference(),manifest.get(1).reference());
+    }
     final UserAssetService assets=mock(UserAssetService.class);
     final AssetAnalysisInputs inputs=new AssetAnalysisInputs(assets);
     final UserAssetService.Owner owner=new UserAssetService.Owner("tenant","alice");

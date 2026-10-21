@@ -7,6 +7,10 @@ import java.util.Map;
 /** Optional Runtime-owned calculation boundary. It grants no discovery, template or business-source access. */
 public interface AnalysisCodingPort {
     Map<String, String> capabilities();
+    /** Original, authorized user files only; no Java data exploration or new business access. */
+    default Map<String, Dataset> prepareFileSources(AnalysisCoverageCoordinator.Request context) {
+        return Map.of();
+    }
     Map<String, Object> execute(AnalysisCoverageCoordinator.Request context,
         Map<String, Object> request, Map<String, Dataset> deliveredSources);
     default Map<String, Object> executeObserved(AnalysisCoverageCoordinator.Request context,

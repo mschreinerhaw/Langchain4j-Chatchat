@@ -6,6 +6,17 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class CodingInputObservationTest {
+    @org.junit.jupiter.params.ParameterizedTest @org.junit.jupiter.params.provider.ValueSource(booleans={true,false})
+    void originalFileContentsNeverEnterTheModelPreview(boolean batched) throws Exception {
+        var json=new ObjectMapper();String reference="user-asset:registered:hash";
+        var observation=new CodingInputObservation(json,reference,batched);
+        var file=Map.<String,Object>of("role","SOURCE_FILE","fileName","input.xlsx","sha256","hash",
+            "contentBase64","UEsDBAAAAFJFRkVSUkVEX0VYQ0VMX0NPTlRFTlQ=");
+        observation.accept(batched?Map.of("datasetReference",reference,"record",file):file);
+        assertThat(json.writeValueAsString(observation.snapshot())).contains("input.xlsx","IMMUTABLE_INPUT_FILE_ONLY")
+            .doesNotContain("contentBase64","UEsDB");
+        assertThat(file).containsKey("contentBase64");
+    }
     @Test void boundedPrefixesRemainUntrustedIncompleteAndSeparateByExactSource() throws Exception {
         var json=new ObjectMapper();var observation=new CodingInputObservation(json,"set",true);
         for(int i=0;i<12;i++) {

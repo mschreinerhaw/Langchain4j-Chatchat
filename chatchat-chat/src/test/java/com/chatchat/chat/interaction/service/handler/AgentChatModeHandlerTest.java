@@ -51,10 +51,22 @@ class AgentChatModeHandlerTest {
         var request=InteractionRequest.builder().skillId("ops").query("analyze attachments")
             .toolInput(Map.of("__userAssetIds",List.of("a".repeat(64)))).build();
         var context=InteractionContext.builder().requestId("attachment-request").build();
+        var file = new com.chatchat.common.runtime.capability.ProblemAnalysisPlan.FileInput("data.xlsx", "user-asset:"+"a".repeat(64)+":"+"b".repeat(64),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 100, "b".repeat(64));
+        when(coding.describeFiles(request)).thenReturn(List.of(file));
+        var planner=mock(com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler,"problemAnalysisPlanner",planner);
+        when(policies.planningSnapshot(request,agent)).thenReturn(WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.GOVERNED_RUNTIME,"MAINTAINED_DAG"));
+        var plan=new com.chatchat.common.runtime.capability.ProblemAnalysisPlan(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.Status.READY,
+            "analyze", "files", "data", "independent files", List.of(new com.chatchat.common.runtime.capability.ProblemAnalysisPlan.Task("analyze",
+                com.chatchat.common.runtime.capability.ProblemAnalysisPlan.Intent.DATA_ANALYSIS,List.of("originals"),"quality report")), "",
+            new com.chatchat.common.runtime.capability.ProblemAnalysisPlan.FileAnalysis(List.of(file),com.chatchat.common.runtime.capability.ProblemAnalysisPlan.ToolDataDependency.NONE));
+        when(planner.analyzeFiles(eq(request),eq(context),eq(agent),anyList(),eq(List.of(file)))).thenReturn(plan);
         var response=com.chatchat.chat.interaction.model.InteractionResponse.builder().answer("computed report").build();
-        when(coding.answer(request,context,agent,"")).thenReturn(response);
+        when(coding.answer(eq(request),any(),eq(agent),eq(""))).thenReturn(response);
         assertThat(handler.handle(request,context)).isSameAs(response);
-        org.mockito.Mockito.verifyNoInteractions(orchestrator,policies);
+        org.mockito.Mockito.verifyNoInteractions(orchestrator);
+        verify(coding).answer(eq(request),org.mockito.ArgumentMatchers.argThat(planned -> planned.problemAnalysisPlan()==plan),eq(agent),eq(""));
     }
     @SuppressWarnings("unchecked")
     private AgentToolPolicyResolver intentAwarePolicy(ToolRegistry registry, SkillCatalogService catalog,

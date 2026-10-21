@@ -2305,23 +2305,6 @@ export default {
       }
     },
     async requestAssistantAnswer(query, requestPayload, runContext) {
-      if(runContext.assetFileIds?.length && requestPayload.toolInput?.reportMode!=='visual'){
-        const message=this.createAssistantMessage({content:'正在分析用户空间中的文件…',streaming:true,status:'running',
-          modelName:runContext.modelName,analysisNodeId:runContext.analysisNodeId,
-          memoryContext:{taskOrigin:'studio-coding',userAssetFileIds:runContext.assetFileIds}});
-        runContext.messages.push(message);
-        if(this.isActiveRun(runContext)){this.messages=runContext.messages;this.scrollMessages();}
-        try {
-          const receipt=await apiRequest('/interactions/user-assets/analyses',{method:'POST',workspaceContext:runContext.workspaceContext,
-            body:JSON.stringify({requestId:`chat-file-${runContext.runId}`,fileIds:runContext.assetFileIds,contextIds:[],instruction:query,modelName:runContext.modelName||undefined})});
-          message.taskId=receipt.taskId||'';
-          if(!receipt.resultAvailable)throw new Error(receipt.summary||'文件分析未完成，请核查任务和已归档资料。');
-          message.content=receipt.results?.[0]?.reportMarkdown||JSON.stringify(receipt.results||[],null,2);
-          message.status='completed';
-          return {};
-        }catch(error){message.content=error.message||'文件分析失败，原文件已保存在用户空间。';message.status='failed';throw error;}
-        finally{message.streaming=false;if(this.isActiveRun(runContext)){this.messages=[...runContext.messages];this.scrollMessages();}}
-      }
       const assistantMessage = this.reuseWaitingAssistantMessage(runContext) || this.createAssistantMessage({
         content: "",
         streaming: true,

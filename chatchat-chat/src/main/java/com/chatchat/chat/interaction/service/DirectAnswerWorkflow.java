@@ -9,6 +9,9 @@ import org.springframework.stereotype.Component;
 public class DirectAnswerWorkflow {
     private final CodingAnswerPort coding;
     public DirectAnswerWorkflow(CodingAnswerPort coding) { this.coding = coding; }
+    public java.util.List<com.chatchat.common.runtime.capability.ProblemAnalysisPlan.FileInput> describeFiles(InteractionRequest request) {
+        return coding.describeFiles(request);
+    }
     public InteractionResponse execute(InteractionRequest request, InteractionContext context, SkillDefinition agent) {
         InteractionExecution.checkCancellation(request);
         var response = coding.answer(request, context, agent, "");

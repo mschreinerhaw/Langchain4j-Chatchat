@@ -13,6 +13,29 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class InteractionWorkflowCoordinatorTest {
+    @org.junit.jupiter.params.ParameterizedTest @org.junit.jupiter.params.provider.ValueSource(strings={"OPTIONAL","REQUIRED"})
+    void mixedSourcesKeepTheGovernedWorkflowAndBothAuthorizedFileReferences(String dependency) {
+        var policy=mock(AgentToolPolicyResolver.class);var planner=mock(ProblemAnalysisPlanner.class);
+        var direct=mock(DirectAnswerWorkflow.class);var governed=mock(InteractionWorkflowCoordinator.GovernedExecution.class);
+        var agent=mock(SkillDefinition.class);when(agent.boundMcpToolNames()).thenReturn(List.of("opaque"));
+        var request=InteractionRequest.builder().query("compare").toolInput(Map.of("__userAssetIds",List.of("a".repeat(64),"c".repeat(64)))).build();
+        var context=InteractionContext.builder().build();
+        var first=new ProblemAnalysisPlan.FileInput("one.xlsx","user-asset:"+"a".repeat(64)+":"+"b".repeat(64),"application/xlsx",100,"b".repeat(64));
+        var second=new ProblemAnalysisPlan.FileInput("two.xlsx","user-asset:"+"c".repeat(64)+":"+"d".repeat(64),"application/xlsx",200,"d".repeat(64));
+        var files=List.of(first,second);when(direct.describeFiles(request)).thenReturn(files);
+        when(policy.planningSnapshot(request,agent)).thenReturn(WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.GOVERNED_RUNTIME,"MAINTAINED_DAG"));
+        var plan=new ProblemAnalysisPlan(ProblemAnalysisPlan.Status.READY,"compare","files","data","mixed evidence",
+            List.of(new ProblemAnalysisPlan.Task("compare",ProblemAnalysisPlan.Intent.DATA_ANALYSIS,List.of("originals","business source"),"comparison report")),"",
+            new ProblemAnalysisPlan.FileAnalysis(files,ProblemAnalysisPlan.ToolDataDependency.valueOf(dependency)));
+        when(planner.analyzeFiles(eq(request),eq(context),eq(agent),anyList(),eq(files))).thenReturn(plan);
+        when(governed.execute(any(),eq(plan))).thenAnswer(call->{
+            InteractionContext planned=call.getArgument(0);assertThat(planned.problemAnalysisPlan().fileAnalysis().inputs()).containsExactly(first,second);
+            return InteractionResponse.builder().answer("business evidence required or optional according to plan").build();
+        });
+        new InteractionWorkflowCoordinator(policy,planner,direct,null).execute(request,context,agent,governed);
+        verify(governed,times(1)).execute(any(),eq(plan));verify(direct,never()).execute(any(),any(),any());
+        verify(planner,never()).classify(any(),any(),any(),anyList());
+    }
     @Test void modelClassifiedKnowledgeQuestionDoesNotRunADataAcquisitionWorkflow() {
         var policy = mock(AgentToolPolicyResolver.class);
         var planner = mock(ProblemAnalysisPlanner.class);

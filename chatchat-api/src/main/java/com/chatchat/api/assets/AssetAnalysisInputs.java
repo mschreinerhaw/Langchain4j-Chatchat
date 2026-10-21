@@ -23,6 +23,11 @@ public class AssetAnalysisInputs {
     private org.springframework.beans.factory.ObjectProvider<com.chatchat.chat.image.ImageUnderstandingService> images;
     public AssetAnalysisInputs(UserAssetService assets) { this.assets=assets; }
 
+    public List<com.chatchat.common.runtime.capability.ProblemAnalysisPlan.FileInput> describe(UserAssetService.Owner owner,List<String> ids) {
+        return validate(owner,ids).stream().map(file -> new com.chatchat.common.runtime.capability.ProblemAnalysisPlan.FileInput(
+            file.fileName(), "user-asset:"+file.id()+":"+file.sha256(), file.contentType(), file.size(), file.sha256())).toList();
+    }
+
     public List<UserAssetService.File> validate(UserAssetService.Owner owner,List<String> ids) {
         if(ids==null || ids.isEmpty() || ids.size()>8 || new HashSet<>(ids).size()!=ids.size()
                 || ids.stream().anyMatch(id->id==null || !id.matches("[a-f0-9]{64}")))

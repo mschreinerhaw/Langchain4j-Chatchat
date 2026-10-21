@@ -25,6 +25,45 @@ import static org.mockito.Mockito.when;
 
 class AnalysisCoverageCoordinatorTest {
     @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"OPTIONAL,true,false,true", "REQUIRED,true,false,false", "OPTIONAL,false,false,false", "REQUIRED,false,false,false",
+        "REQUIRED,true,true,true", "OPTIONAL,true,true,true"})
+    void businessSourceDependencyControlsFileAnalysis(String dependency, boolean success, boolean hasData, boolean continues) {
+        var evidence=mock(AnalysisEvidenceCoordinator.class);
+        var businessRows=hasData?List.<Map<String,Object>>of(Map.of("id",1)):List.<Map<String,Object>>of();
+        when(evidence.project(any(),any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(hasData?
+            List.of(new AnalysisEvidenceCoordinator.Dataset("mcp-data",Map.of(),businessRows)):List.of(),List.of()));
+        var coordinator=coordinator(evidence);var coding=mock(AnalysisCodingPort.class);coordinator.setCodingPort(coding);
+        var file=new com.chatchat.common.runtime.capability.ProblemAnalysisPlan.FileInput("one.xlsx","user-asset:"+"a".repeat(64)+":"+"b".repeat(64),"application/xlsx",42,"b".repeat(64));
+        var plan=new com.chatchat.common.runtime.capability.ProblemAnalysisPlan(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.Status.READY,
+            "analyze", "files", "data", "file evidence", List.of(new com.chatchat.common.runtime.capability.ProblemAnalysisPlan.Task("analyze",
+                com.chatchat.common.runtime.capability.ProblemAnalysisPlan.Intent.DATA_ANALYSIS,List.of("original"),"report")),"",
+            new com.chatchat.common.runtime.capability.ProblemAnalysisPlan.FileAnalysis(List.of(file),
+                com.chatchat.common.runtime.capability.ProblemAnalysisPlan.ToolDataDependency.valueOf(dependency)));
+        var step=new InterpretationPlanRuntime.StepExecution(1,"tool_call","opaque",success,Map.of("rows",businessRows),
+            success?null:"read failed",null,null,1);
+        var result=new InterpretationPlanRuntime.ExecutionResult(success?"completed":"failed",success,false,null,null,List.of(step),Map.of(),1);
+        var metadata=new LinkedHashMap<String,Object>();var base=request(metadata);
+        var request=new AnalysisCoverageCoordinator.Request(null,"compare originals",result,Map.of("taskType","DATA_ANALYSIS","problemAnalysisPlan",plan),
+            metadata,()->false,()->{},base.isolationScope(),base.summaryProtocol());
+        if (!continues) {
+            assertThatThrownBy(()->coordinator.analyze(request)).hasMessageContaining("REQUIRED_MCP_DATA_UNAVAILABLE");
+            org.mockito.Mockito.verifyNoInteractions(coding);
+        } else {
+            when(coding.prepareFileSources(any())).thenReturn(Map.of(file.reference(),new AnalysisEvidenceCoordinator.Dataset(file.reference(),Map.of(),List.of(Map.of("fileName","one.xlsx")))));
+            when(coding.executePrimaryAnalysis(any(),any(),any())).thenAnswer(call->{
+                Map<String,AnalysisEvidenceCoordinator.Dataset> sources=call.getArgument(1);
+                assertThat(sources).containsKey(file.reference());
+                if (hasData) assertThat(sources).containsKey("mcp-data");
+                sources.put("result",new AnalysisEvidenceCoordinator.Dataset("result",Map.of(),List.of(Map.of("reportMarkdown","computed quality report",
+                    "evidenceReferences",List.of(file.reference()),"limitations",List.of("Optional MCP returned no rows")))));
+                return Map.of("resultAvailable",true,"datasetReference","result");
+            });
+            coordinator.analyze(request);
+            assertThat(metadata).containsEntry("optionalToolDataEmpty",!hasData).containsEntry("modelNativeReportDraft","computed quality report");
+            org.mockito.Mockito.verify(coding,org.mockito.Mockito.times(1)).executePrimaryAnalysis(any(),any(),any());
+        }
+    }
+    @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings={"DATA_ANALYSIS","DOCUMENT","DIRECT_ANSWER","ASSET_GUIDANCE"})
     void dataAnalysisDelegatesTheWholeAnalysisToCodingWithoutCallingTheJavaModel(String family) {
         var evidence = mock(AnalysisEvidenceCoordinator.class);

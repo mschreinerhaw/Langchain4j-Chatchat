@@ -1,0 +1,31 @@
+{
+  "taskId": "608da455-3943-3147-aec4-8216af487cf8",
+  "case": "two",
+  "state": "SUCCEEDED",
+  "states": [
+    {
+      "state": "PLANNING",
+      "elapsedSeconds": 0.03
+    },
+    {
+      "state": "SUCCEEDED",
+      "elapsedSeconds": 193.07
+    }
+  ],
+  "codingTaskIds": [
+    "analysis-coding-b4f0db0ed1ee8fd460d868c305ea12a47802695d26904e33ce75e4fe819353e2"
+  ],
+  "workflowUnchanged": true,
+  "expectedSourceReferences": [
+    "user-asset:6a9f9c90e7f016f48adcb771795ec1c6f5d1cc4c692498a2ff8317e5a7556ede:336360c735218bb3dffe7f98a08bb0f4368691eefc7c8faea84c2ad160bc799a",
+    "user-asset:15f6beca59c5c11348a16755c972cbb464de516e28505296262ac8d18389c589:8443d6b86cc903381b38ce18e4db314f3d6ad8f59486e02dd725595ba9df6880"
+  ],
+  "visibleResponseAttachmentReferences": [],
+  "persistedCodingInputReferences": [
+    "runtime-context:att-1-fec0f57e-a701-444f-b3dd-34c874083279",
+    "user-asset:6a9f9c90e7f016f48adcb771795ec1c6f5d1cc4c692498a2ff8317e5a7556ede:336360c735218bb3dffe7f98a08bb0f4368691eefc7c8faea84c2ad160bc799a",
+    "user-asset:15f6beca59c5c11348a16755c972cbb464de516e28505296262ac8d18389c589:8443d6b86cc903381b38ce18e4db314f3d6ad8f59486e02dd725595ba9df6880"
+  ],
+  "oneImmutableSnapshot": true,
+  "everyOriginalDeliveredToCoding": true
+}

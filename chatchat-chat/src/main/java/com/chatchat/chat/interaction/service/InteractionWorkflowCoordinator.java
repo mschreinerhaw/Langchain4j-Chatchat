@@ -28,6 +28,24 @@ public final class InteractionWorkflowCoordinator {
     public InteractionResponse execute(InteractionRequest request, InteractionContext context, SkillDefinition skill,
                                        GovernedExecution governed) {
         var execution = new InteractionExecution(request);
+        if (request.getToolInput() != null && request.getToolInput().get("__userAssetIds") instanceof java.util.List<?> ids && !ids.isEmpty()) {
+            var files = execution.call("FILE_REFERENCES_PREPARING", () -> direct.describeFiles(request));
+            var purposes = AgentToolPolicyResolver.hasSelectedCapabilities(request, skill)
+                ? policies.planningSnapshot(request, skill).toolPurposes() : java.util.List.<java.util.Map<String,Object>>of();
+            // A supplied/client plan cannot authorize a file reference or waive a business dependency.
+            var plan = planner == null ? ProblemAnalysisPlan.unavailable()
+                : execution.call("PROBLEM_ANALYSIS_PLAN", () -> planner.analyzeFiles(request, context, skill, purposes, files));
+            if (!ProblemAnalysisPlanner.executable(plan) || plan.fileAnalysis() == null)
+                return execution.complete(ProblemAnalysisPlanner.blockedResponse(plan),
+                    WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.PROBLEM_ANALYSIS, "USER_FILE_ANALYSIS"));
+            var planned = context.toBuilder().problemAnalysisPlan(plan)
+                .taskType(ProblemAnalysisPlan.TaskType.DATA_ANALYSIS).build();
+            var response = plan.fileAnalysis().toolDataDependency() == ProblemAnalysisPlan.ToolDataDependency.NONE
+                ? execution.call("CLINE_SUBMITTING", () -> direct.execute(request, planned, skill))
+                : execution.call("GOVERNED_RUNTIME", () -> governed.execute(planned, plan));
+            return execution.complete(ProblemAnalysisPlanner.attach(response, plan),
+                WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.PROBLEM_ANALYSIS, "USER_FILE_ANALYSIS"));
+        }
         WorkflowEntryPlan entry = execution.call("SELECT_PLANNING_OWNER", () -> {
             if (context.problemAnalysisPlan() != null)
                 return WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.PROVIDED_PLAN, "EXISTING_PROBLEM_PLAN");

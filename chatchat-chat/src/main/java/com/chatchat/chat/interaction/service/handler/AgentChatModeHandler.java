@@ -150,7 +150,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     @Override
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
         SkillDefinition skill = skillCatalogService.resolve(request.getSkillId());
-        if (InteractionMode.fromAgentConfiguration(skill.defaultMode()).isRoleConversation()
+        boolean attached = request.getToolInput() != null && request.getToolInput().get("__userAssetIds") instanceof List<?> ids && !ids.isEmpty();
+        if (!attached && InteractionMode.fromAgentConfiguration(skill.defaultMode()).isRoleConversation()
             && roleChatModeHandler != null) {
             log.info("agentChatCompatibilityRoute skillId={} configuredMode={} resolvedMode=role_chat",
                 skill.id(), skill.defaultMode());
@@ -159,10 +160,6 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         var preparedContext = skillAnalysisContexts == null ? context : context.toBuilder()
             .skillAnalysisContext(skillAnalysisContexts.prepare(request, skill,
                 resolveSkillScope(request, skill, resolvedSkillId(request, skill)).roles(), context)).build();
-        // Explicit uploaded evidence is analyzed with this Agent's maintained role and Skills.
-        if (request.getToolInput() != null && request.getToolInput().get("__userAssetIds") instanceof List<?> ids && !ids.isEmpty()) {
-            return directAnswerWorkflow.execute(request, preparedContext, skill);
-        }
         var response = new com.chatchat.chat.interaction.service.InteractionWorkflowCoordinator(
             toolPolicyResolver, problemAnalysisPlanner, directAnswerWorkflow, assetGuidance)
             .execute(request, preparedContext, skill,
@@ -236,6 +233,9 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         if (understanding != null)
             systemPrompt += "\nProblem analysis plan (planning context, not authorization or evidence):\n" + understanding;
         Map<String, Object> runtimeAttributes = new LinkedHashMap<>(runtimeAttributes(request, skill, executionContext));
+        if (context.problemAnalysisPlan() != null && context.problemAnalysisPlan().fileAnalysis() != null)
+            runtimeAttributes.put("__userAssetIds", context.problemAnalysisPlan().fileAnalysis().inputs().stream()
+                .map(file -> file.reference().split(":")[1]).toList());
         var skillContext = com.chatchat.agents.runtime.context.SkillAnalysisContext.validate(context.skillAnalysisContext());
         if (skillContext.isEmpty() && !domainSkills.isEmpty()) {
             var delivered = domainSkills.stream().map(item -> Map.<String,Object>of(

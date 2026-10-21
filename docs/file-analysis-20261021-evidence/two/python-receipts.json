@@ -1,0 +1,76 @@
+[
+  {
+    "file": {
+      "id": "32ea77a920bc429394cdb48b59128fad5957c2729cd4b7787c2e3b2a7e25478f",
+      "kind": "LOG",
+      "fileName": "receipt.json",
+      "contentType": "application/octet-stream",
+      "sha256": "7519c5f608be87564bf11075b3493d3e98ac9d04003b94ea9b54ec236b75282a",
+      "size": 1047,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-b4f0db0ed1ee8fd460d868c305ea12a47802695d26904e33ce75e4fe819353e2",
+      "runId": "att-1-fec0f57e-a701-444f-b3dd-34c874083279",
+      "sourceRef": "execution:cline-9264cf4980e62b12117ce166dc765994ad166c2173688eeb9d09d4d6275998dd:logs:receipt.json",
+      "createdAt": 1792578995818
+    },
+    "receipt": {
+      "operationId": "cline-9264cf4980e62b12117ce166dc765994ad166c2173688eeb9d09d4d6275998dd",
+      "containerName": "chatchat-py-12177a4dfd72d6d01abf93e06205fcc8df4bede7",
+      "environmentId": "b1068ad2-7b8d-4fb0-9230-316c86c596a4",
+      "imageDigest": "sha256:0419feebb2143c116828a03d26b0c2c509f7da04bd287cbad8c05b21d6983cea",
+      "deadlineAt": "2026-10-21T10:53:58.593Z",
+      "timeoutSeconds": 300,
+      "fencingToken": 1,
+      "budgetReservationRef": "coding-budget:analysis-coding-tool-budget:analysis-coding-b4f0db0ed1ee8fd460d868c305ea12a47802695d26904e33ce75e4fe819353e2:cline-9264cf4980e62b12117ce166dc765994ad166c2173688eeb9d09d4d6275998dd",
+      "codeHash": "c4a0faf02b89b351ad4be227c846ee5071def4e3ffc67d73103f5f7e69a6cd96",
+      "inputSnapshotHash": "ffb4a4d5cf597cdad00b26b3a5ba0740f5f24b62753c12025cbf736237596f43",
+      "startedAt": "2026-10-21T10:36:34.161082495Z",
+      "finishedAt": "2026-10-21T10:36:35.564809300Z",
+      "exitCode": 0,
+      "oomKilled": false,
+      "stopConfirmed": true,
+      "cancelRequested": false,
+      "fenceSuperseded": false,
+      "cpuMillisMetered": false,
+      "diskHardLimitEnforced": false,
+      "outputBytesHardLimitEnforced": false
+    }
+  },
+  {
+    "file": {
+      "id": "66ed913e09eebc42993802be5066d4d1c385c5759dfca8bc16e233ab75bfd495",
+      "kind": "LOG",
+      "fileName": "receipt.json",
+      "contentType": "application/octet-stream",
+      "sha256": "cf671bb54067285c1f067f92335caf75c6edf6e0cfe44d1236cfb92b5ae6313e",
+      "size": 1047,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-b4f0db0ed1ee8fd460d868c305ea12a47802695d26904e33ce75e4fe819353e2",
+      "runId": "att-1-fec0f57e-a701-444f-b3dd-34c874083279",
+      "sourceRef": "execution:cline-5b9afec070ce3fef2aeb59e8c233262d85d4b09a4aed83520f0d872ba481ed2d:logs:receipt.json",
+      "createdAt": 1792578910534
+    },
+    "receipt": {
+      "operationId": "cline-5b9afec070ce3fef2aeb59e8c233262d85d4b09a4aed83520f0d872ba481ed2d",
+      "containerName": "chatchat-py-aa413b344ba86ad4bd66a7de6fcb1969879b491f",
+      "environmentId": "b1068ad2-7b8d-4fb0-9230-316c86c596a4",
+      "imageDigest": "sha256:0419feebb2143c116828a03d26b0c2c509f7da04bd287cbad8c05b21d6983cea",
+      "deadlineAt": "2026-10-21T10:53:58.593Z",
+      "timeoutSeconds": 300,
+      "fencingToken": 1,
+      "budgetReservationRef": "coding-budget:analysis-coding-tool-budget:analysis-coding-b4f0db0ed1ee8fd460d868c305ea12a47802695d26904e33ce75e4fe819353e2:cline-5b9afec070ce3fef2aeb59e8c233262d85d4b09a4aed83520f0d872ba481ed2d",
+      "codeHash": "635f0b36630e7a09384f784da423be8891d3b62059dd047659bfa258ee0d9081",
+      "inputSnapshotHash": "c82212546ec09764e6f0f1b054787000767d8d092be38e2d8f243ca62d86aeac",
+      "startedAt": "2026-10-21T10:35:09.089205616Z",
+      "finishedAt": "2026-10-21T10:35:10.299096462Z",
+      "exitCode": 0,
+      "oomKilled": false,
+      "stopConfirmed": true,
+      "cancelRequested": false,
+      "fenceSuperseded": false,
+      "cpuMillisMetered": false,
+      "diskHardLimitEnforced": false,
+      "outputBytesHardLimitEnforced": false
+    }
+  }
+]

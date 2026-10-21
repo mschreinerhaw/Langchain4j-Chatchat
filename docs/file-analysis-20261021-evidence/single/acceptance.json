@@ -1,0 +1,29 @@
+{
+  "taskId": "47281dd5-8d13-3731-9494-88b6532dfd73",
+  "case": "single",
+  "state": "SUCCEEDED",
+  "states": [
+    {
+      "state": "PLANNING",
+      "elapsedSeconds": 0.05
+    },
+    {
+      "state": "SUCCEEDED",
+      "elapsedSeconds": 132.39
+    }
+  ],
+  "codingTaskIds": [
+    "analysis-coding-b6c630c1cdc1b398b0f2cd34bfe2c3da1850d3db78a80e335724b32559d19d54"
+  ],
+  "workflowUnchanged": true,
+  "expectedSourceReferences": [
+    "user-asset:49da0f8c5c273b27298e839115de80a4d2d1ffb917c9164b140171affec25129:78bb65d7119d9b35baf9aa5bc509508a2ccadea4a2a8cbe3d21cb9fcf9ff351c"
+  ],
+  "visibleResponseAttachmentReferences": [],
+  "persistedCodingInputReferences": [
+    "runtime-context:att-1-b8edc87a-6e30-43f2-a979-c20082f98e55",
+    "user-asset:49da0f8c5c273b27298e839115de80a4d2d1ffb917c9164b140171affec25129:78bb65d7119d9b35baf9aa5bc509508a2ccadea4a2a8cbe3d21cb9fcf9ff351c"
+  ],
+  "oneImmutableSnapshot": true,
+  "everyOriginalDeliveredToCoding": true
+}

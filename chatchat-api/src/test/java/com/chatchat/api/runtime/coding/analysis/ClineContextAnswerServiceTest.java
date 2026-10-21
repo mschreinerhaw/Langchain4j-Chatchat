@@ -14,6 +14,24 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineContextAnswerServiceTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"FILE_NOT_FOUND","ACCESS_DENIED","OBJECT_READ_FAILED"})
+    void filePreparationFailuresTerminateTheRunBeforeAnyCodingSubmission(String reason) {
+        var store=new com.chatchat.agents.runtime.store.InMemoryAgentRunStore();
+        var service=new ClineContextAnswerService(coding,models,new ObjectMapper(),store);
+        var assets=mock(com.chatchat.api.assets.UserAssetService.class);
+        String id="a".repeat(64);byte[] bytes={1,2};String hash=com.chatchat.api.assets.UserAssetService.hash(bytes);
+        when(assets.get(any(),eq(id))).thenReturn(new com.chatchat.api.assets.UserAssetService.File(id,"DATASET","one.xlsx","application/xlsx",hash,2,"AVAILABLE","","","upload",1));
+        if ("OBJECT_READ_FAILED".equals(reason)) when(assets.read(any(),eq(id))).thenThrow(new IllegalStateException(reason));
+        else when(assets.get(any(),eq(id))).thenThrow(new SecurityException(reason));
+        var beans=new org.springframework.beans.factory.support.DefaultListableBeanFactory();beans.registerSingleton("inputs",new com.chatchat.api.assets.AssetAnalysisInputs(assets));
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"attachmentInputs",beans.getBeanProvider(com.chatchat.api.assets.AssetAnalysisInputs.class));
+        var request=request();request.setToolInput(Map.of("__agentRunId","run","__userAssetIds",List.of(id)));
+        assertThatThrownBy(()->service.answer(request,context,null,"")).hasMessageContaining(reason);
+        assertThat(store.find("run").orElseThrow().status().name()).isEqualTo("FAILED");
+        assertThat(store.observations("run")).anySatisfy(observation -> assertThat(observation.metadata()).containsEntry("stage","FILE_REFERENCES_PREPARING"));
+        verifyNoInteractions(coding);
+    }
     final CodingAnalysisService coding = mock(CodingAnalysisService.class);
     final AgentChatModelResolver models = mock(AgentChatModelResolver.class);
     final ChatModel model = mock(ChatModel.class);

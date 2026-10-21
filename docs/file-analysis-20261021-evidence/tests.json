@@ -1,0 +1,210 @@
+{
+  "backend": {
+    "scope": "SELECTED_REGRESSIONS_NOT_FULL_REPOSITORY",
+    "suites": [
+      {
+        "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinatorTest",
+        "tests": 19,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.agents.orchestration.analysis.governance.FileAnalysisDependenciesTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.agents.orchestration.analysis.graph.AnalysisFinalizationPolicyTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.agents.orchestration.workflow.MandatoryWorkflowRecoveryCoordinatorTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.agents.orchestration.workflow.MandatoryWorkflowRecoveryPolicyTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.agents.orchestration.workflow.MandatoryWorkflowTopologyTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+        "tests": 160,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest",
+        "tests": 28,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.chat.interaction.service.handler.LlmChatModeHandlerTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.chat.interaction.service.handler.RoleChatModeHandlerTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.chat.interaction.service.handler.ToolDirectReportModeTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.chat.interaction.service.InteractionWorkflowCoordinatorTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.chat.interaction.service.ProblemAnalysisPlannerTest",
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.api.agent.published.PublishedAgentApiControllerTest",
+        "tests": 12,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.api.assets.AssetAnalysisControllerTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.api.assets.AssetAnalysisInputsTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.api.assets.UserAssetControllerHttpTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.api.assets.UserAssetServiceTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.api.runtime.coding.analysis.ClineContextAnswerServiceTest",
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+        "tests": 25,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.api.runtime.coding.data.CodingInputFilePublisherTest",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.api.runtime.coding.data.CodingInputObservationTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ],
+    "tests": 344,
+    "failures": 0,
+    "errors": 0,
+    "agentOrchestratorMethodSelection": "optionalEmptyMandatoryWorkflowContinuesOneFileAnalysisWithoutInvokingBlockedDescendants (OPTIONAL and REQUIRED)"
+  },
+  "frontend": {
+    "command": "npm.cmd run test:ui-artifact",
+    "files": 29,
+    "tests": 304,
+    "failures": 0,
+    "build": "PASSED"
+  },
+  "controlledEmptyWorkflow": {
+    "realComponents": [
+      "AgentOrchestrator",
+      "InterpretationPlanRuntime",
+      "ToolRuntimeService",
+      "AnalysisCoverageCoordinator",
+      "AgentOutcomeProjection"
+    ],
+    "testDoubles": [
+      "MCP tool registry",
+      "Coding analysis port"
+    ],
+    "optional": {
+      "assetQueryCalls": 1,
+      "dependentTemplateCalls": 0,
+      "codingCalls": 1,
+      "runStatus": "COMPLETED",
+      "mandatoryWorkflowCompleted": false
+    },
+    "required": {
+      "assetQueryCalls": 1,
+      "dependentTemplateCalls": 0,
+      "codingCalls": 0,
+      "failure": "REQUIRED_MCP_DATA_UNAVAILABLE"
+    }
+  },
+  "knownLegacyFailure": {
+    "test": "AgentOrchestratorTest.authoritativeFallbackStopsAtEmptyAssetInsteadOfRunningTemplateDiscovery",
+    "error": "IllegalArgumentException: Chat model name must not be blank",
+    "originalTestUnchanged": true
+  }
+}

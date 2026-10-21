@@ -1,0 +1,53 @@
+{
+  "onlyOwnFailedAcceptanceUploadsRemoved": true,
+  "files": [
+    {
+      "id": "8709d2cd9b166d4c3450e036e69ecbc31e4e28978cacacbd33b3267e41cc3a61",
+      "fileName": "file-analysis-acceptance-optional-1.xlsx"
+    },
+    {
+      "id": "b0a0bb731b0e2f9ddf3e66e78857b6075e783216c5851f4f7a330b5cdcd3abe2",
+      "fileName": "file-analysis-acceptance-optional-2.xlsx"
+    },
+    {
+      "id": "bb89a41f6a9142098b37f2e88e15a281019c6cba55dff7d95f462730a1c93c0c",
+      "fileName": "file-analysis-acceptance-required-1.xlsx"
+    },
+    {
+      "id": "a95b04746029c31eae5426b601518558b35d5f40b28351564d84384f3c02ec6f",
+      "fileName": "file-analysis-acceptance-required-2.xlsx"
+    },
+    {
+      "id": "3250b29bdb9f46c56eeeb2dfec7fe9621b6352bc2ea6226a554e578230e00a42",
+      "fileName": "file-analysis-acceptance-optional-1.xlsx"
+    },
+    {
+      "id": "217caef66303c761f281e0e9b1233dea695e6fb19304f6cf89b33fd1ca37cb0a",
+      "fileName": "file-analysis-acceptance-optional-2.xlsx"
+    },
+    {
+      "id": "fb52a7b86b85280b619de7575168c71b140dd3e3e4fb26d6c9e6effd5611b96c",
+      "fileName": "file-analysis-acceptance-required-1.xlsx"
+    },
+    {
+      "id": "a822bfb40f9d2dd0dd5ddaae1ae7253caeb1b0ddb2b75bc3e21fbcd3bce60a30",
+      "fileName": "file-analysis-acceptance-required-2.xlsx"
+    },
+    {
+      "id": "007a9776c5e80f706fb9b21441fcad8aeeaa672c0c7aea07d3680e1cd3a25c86",
+      "fileName": "file-analysis-acceptance-optional-1.xlsx"
+    },
+    {
+      "id": "260fca7cb1ac89b7b9d03ac84eff95a34841d5c75ebd1d5ffe5aa664af1ca4f1",
+      "fileName": "file-analysis-acceptance-optional-2.xlsx"
+    },
+    {
+      "id": "dfa4e6b9586376aa9fac88b18cf711561008fc8597e107d22f951c7589532370",
+      "fileName": "file-analysis-acceptance-required-1.xlsx"
+    },
+    {
+      "id": "9a165855cd8285ef6977435a76f437cfcf3a3ecbc14665281c08b324d9766572",
+      "fileName": "file-analysis-acceptance-required-2.xlsx"
+    }
+  ]
+}

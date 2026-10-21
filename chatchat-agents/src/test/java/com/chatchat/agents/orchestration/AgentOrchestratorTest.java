@@ -6081,6 +6081,64 @@ class AgentOrchestratorTest {
             .containsExactly(templateTool);
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value=com.chatchat.common.runtime.capability.ProblemAnalysisPlan.ToolDataDependency.class,names={"OPTIONAL","REQUIRED"})
+    @SuppressWarnings("unchecked")
+    void optionalEmptyMandatoryWorkflowContinuesOneFileAnalysisWithoutInvokingBlockedDescendants(
+            com.chatchat.common.runtime.capability.ProblemAnalysisPlan.ToolDataDependency dependency) {
+        String assetTool="mcp_chatchat_mcp_server_database_asset_search",templateTool="mcp_chatchat_mcp_server_database_ops_template_search";
+        var model=new StrictDocumentReviewChatModel(interpretationPlan("file report",assetTool,templateTool));
+        var registry=mock(ToolRegistry.class);
+        for(String tool:List.of(assetTool,templateTool)) {
+            when(registry.hasTool(tool)).thenReturn(true);
+            when(registry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder().id(tool).title(tool).description("Discovery")
+                .metadata(fileAnalysisFixtureToolRole(tool.equals(assetTool))).build());
+            when(registry.getWorkflowRole(tool)).thenReturn(tool.equals(assetTool)
+                ? com.chatchat.common.tool.ToolWorkflowRole.ASSET_DISCOVERY : com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        }
+        when(registry.executeEnhancedTool(eq(assetTool),any())).thenReturn(ToolOutput.success(Map.of("schemaVersion","tool_result_summary.v1",
+            "preview",Map.of("schemaVersion","asset_query_result.v1","success",true,"returnedCount",0,"assets",List.of()))));
+        var orchestrator=new AgentOrchestrator(model,registry,new ToolRuntimeService(registry,new ObjectMapper(),toolRuntimeProperties(),List.of(),List.of()),new ObjectMapper(),fileAnalysisFixtureModels());
+        var coding=mock(com.chatchat.agents.orchestration.analysis.graph.AnalysisCodingPort.class);orchestrator.setAnalysisCodingPort(coding);
+        var file=new com.chatchat.common.runtime.capability.ProblemAnalysisPlan.FileInput("one.xlsx","user-asset:"+"a".repeat(64)+":"+"b".repeat(64),"application/xlsx",42,"b".repeat(64));
+        var plan=new com.chatchat.common.runtime.capability.ProblemAnalysisPlan(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.Status.READY,"analyze files","files","data","optional source",
+            List.of(new com.chatchat.common.runtime.capability.ProblemAnalysisPlan.Task("analyze files",com.chatchat.common.runtime.capability.ProblemAnalysisPlan.Intent.DATA_ANALYSIS,List.of("original"),"quality report")),"",
+            new com.chatchat.common.runtime.capability.ProblemAnalysisPlan.FileAnalysis(List.of(file),dependency));
+        when(coding.prepareFileSources(any())).thenReturn(Map.of(file.reference(),new com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Dataset(file.reference(),Map.of(),List.of(Map.of("fileName","one.xlsx")))));
+        when(coding.executePrimaryAnalysis(any(),any(),any())).thenAnswer(call->{
+            Map<String,com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Dataset> sources=call.getArgument(1);
+            sources.put("result",new com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Dataset("result",Map.of(),List.of(Map.of("reportMarkdown","FILE_ANALYSIS_COMPLETED_WITH_OPTIONAL_EMPTY_SOURCE","evidenceReferences",List.of(file.reference()),"limitations",List.of("Optional asset query returned no candidates")))));
+            return Map.of("resultAvailable",true,"datasetReference","result");
+        });
+        var workflow=Map.of("enabled",true,"workflow","fixture","steps",List.of(Map.of("step",1,"tool",assetTool,"required",true),Map.of("step",2,"tool",templateTool,"required",true,"dependsOn",List.of(assetTool))));
+        java.util.function.Supplier<AgentOrchestrator.AgentExecutionResult> execute=()->orchestrator.executeAgent("Analyze uploaded Excel; business source is optional.","tenant-1",List.of(assetTool,templateTool),"Follow maintained workflow.",null,List.of(),List.of(),"fixture","req-file","conv-file","user-1",10,List.of(),true,
+            Map.of("mcpWorkflow",workflow,"workflowFamily","DATA_ANALYSIS","taskType","DATA_ANALYSIS","problemAnalysisPlan",plan));
+        if (dependency==com.chatchat.common.runtime.capability.ProblemAnalysisPlan.ToolDataDependency.OPTIONAL) {
+            var result=execute.get();
+            assertThat(result.answer()).contains("FILE_ANALYSIS_COMPLETED_WITH_OPTIONAL_EMPTY_SOURCE");
+            assertThat(result.metadata()).containsEntry("optionalToolDataEmpty",true).containsEntry("mandatoryWorkflowCompleted",false);
+            assertThat(new com.chatchat.agents.runtime.run.AgentOutcomeProjection().project(result.metadata(),result.answer()).runStatus())
+                .isEqualTo("COMPLETED");
+            verify(coding,times(1)).executePrimaryAnalysis(any(),any(),any());
+        } else {
+            org.assertj.core.api.Assertions.assertThatThrownBy(execute::get).hasMessageContaining("REQUIRED_MCP_DATA_UNAVAILABLE");
+            org.mockito.Mockito.verifyNoInteractions(coding);
+        }
+        verify(registry,times(1)).executeEnhancedTool(eq(assetTool),any());verify(registry,never()).executeEnhancedTool(eq(templateTool),any());
+    }
+
+    private static ModelsConfig fileAnalysisFixtureModels() {
+        var config=new ModelsConfig();config.setDefaultChatModel("file-fixture-model");
+        var connection=new ModelsConfig.ModelConnectionConfig();connection.setBaseUrl("http://127.0.0.1:1/v1");
+        config.getChatModels().put("file-fixture-model",connection);
+        return config;
+    }
+    private static Map<String,Object> fileAnalysisFixtureToolRole(boolean asset) {
+        return Map.of(com.chatchat.common.tool.ToolWorkflowContract.METADATA_KEY,
+            com.chatchat.common.tool.ToolWorkflowContract.declaration(asset?com.chatchat.common.tool.ToolWorkflowRole.ASSET_DISCOVERY
+                :com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY,"fixture.v1","filters"));
+    }
+
     @Test
     @SuppressWarnings("unchecked")
     void workflowConditionCanShortCircuitMandatoryStepAndContinueDependentFlow() {

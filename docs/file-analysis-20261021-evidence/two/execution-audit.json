@@ -1,0 +1,233 @@
+{
+  "runId": "att-1-fec0f57e-a701-444f-b3dd-34c874083279",
+  "counts": {
+    "CODING_INPUT_SNAPSHOT": 1,
+    "CODING_VALIDATION_PLAN": 1,
+    "CODING_CODE_SUBMISSION": 2,
+    "CODING_MODEL_RESPONSE_RECEIPT": 5,
+    "CODING_CODE_ARTIFACT": 2,
+    "CODING_EXECUTION_RECEIPT": 2,
+    "CODING_STRUCTURED_DATASET": 2,
+    "CODING_COMPUTATION_VALIDATION": 2
+  },
+  "inputReferences": [
+    "runtime-context:att-1-fec0f57e-a701-444f-b3dd-34c874083279",
+    "user-asset:6a9f9c90e7f016f48adcb771795ec1c6f5d1cc4c692498a2ff8317e5a7556ede:336360c735218bb3dffe7f98a08bb0f4368691eefc7c8faea84c2ad160bc799a",
+    "user-asset:15f6beca59c5c11348a16755c972cbb464de516e28505296262ac8d18389c589:8443d6b86cc903381b38ce18e4db314f3d6ad8f59486e02dd725595ba9df6880"
+  ],
+  "expectedFileReferences": [
+    "user-asset:6a9f9c90e7f016f48adcb771795ec1c6f5d1cc4c692498a2ff8317e5a7556ede:336360c735218bb3dffe7f98a08bb0f4368691eefc7c8faea84c2ad160bc799a",
+    "user-asset:15f6beca59c5c11348a16755c972cbb464de516e28505296262ac8d18389c589:8443d6b86cc903381b38ce18e4db314f3d6ad8f59486e02dd725595ba9df6880"
+  ],
+  "checkedFromDatabase": true,
+  "snapshots": [
+    {
+      "taskId": "analysis-coding-b4f0db0ed1ee8fd460d868c305ea12a47802695d26904e33ce75e4fe819353e2",
+      "sourceDatasetRef": "coding-input-set:e98edad8b90819fa85d99df6023f60f6ef7147656b8c55568fe54dec8a94bfcb",
+      "sha256": "399aa01b54249dcd63d4add7da61be59e2f2698ec16e0d59750a3109bf1e2c82",
+      "delivery": "SHARED_DIRECTORY",
+      "inputVersions": [
+        {
+          "contentSha256": "df4d1cbd7151ba1d970ec366f02f90d7b83fe34f2d9fde57995fc7e06b5e5534",
+          "datasetReference": "runtime-context:att-1-fec0f57e-a701-444f-b3dd-34c874083279",
+          "fieldSchema": {
+            "conversationEvidence": [
+              "STRING"
+            ],
+            "conversationSummary": [
+              "STRING"
+            ],
+            "fileAnalysis": [
+              "OBJECT"
+            ],
+            "historicalContextIsCurrentEvidence": [
+              "BOOLEAN"
+            ],
+            "history": [
+              "ARRAY"
+            ],
+            "maintainedInstructions": [
+              "STRING"
+            ],
+            "question": [
+              "STRING"
+            ],
+            "requestInstructions": [
+              "STRING"
+            ],
+            "suppliedContext": [
+              "STRING"
+            ]
+          },
+          "rowCount": 1,
+          "schemaCoverage": "BOUNDED_STRUCTURAL_ONLY",
+          "sourceRepresentation": {}
+        },
+        {
+          "contentSha256": "1820d2fde5526b73c5ba27cc04b61e0e63773033d6dc9a31cfa18b0c417ce4be",
+          "datasetReference": "user-asset:6a9f9c90e7f016f48adcb771795ec1c6f5d1cc4c692498a2ff8317e5a7556ede:336360c735218bb3dffe7f98a08bb0f4368691eefc7c8faea84c2ad160bc799a",
+          "fieldSchema": {
+            "assetId": [
+              "STRING"
+            ],
+            "chunkCount": [
+              "NUMBER"
+            ],
+            "chunkIndex": [
+              "NUMBER"
+            ],
+            "chunkSha256": [
+              "STRING"
+            ],
+            "contentBase64": [
+              "STRING"
+            ],
+            "contentType": [
+              "STRING"
+            ],
+            "fileName": [
+              "STRING"
+            ],
+            "role": [
+              "STRING"
+            ],
+            "sha256": [
+              "STRING"
+            ],
+            "size": [
+              "NUMBER"
+            ]
+          },
+          "rowCount": 1,
+          "schemaCoverage": "BOUNDED_STRUCTURAL_ONLY",
+          "sourceRepresentation": {}
+        },
+        {
+          "contentSha256": "c0dde74ec161f321b7bbe7f087dd4c8e88638f0f98dbb915781bed886002ce8a",
+          "datasetReference": "user-asset:15f6beca59c5c11348a16755c972cbb464de516e28505296262ac8d18389c589:8443d6b86cc903381b38ce18e4db314f3d6ad8f59486e02dd725595ba9df6880",
+          "fieldSchema": {
+            "assetId": [
+              "STRING"
+            ],
+            "chunkCount": [
+              "NUMBER"
+            ],
+            "chunkIndex": [
+              "NUMBER"
+            ],
+            "chunkSha256": [
+              "STRING"
+            ],
+            "contentBase64": [
+              "STRING"
+            ],
+            "contentType": [
+              "STRING"
+            ],
+            "fileName": [
+              "STRING"
+            ],
+            "role": [
+              "STRING"
+            ],
+            "sha256": [
+              "STRING"
+            ],
+            "size": [
+              "NUMBER"
+            ]
+          },
+          "rowCount": 1,
+          "schemaCoverage": "BOUNDED_STRUCTURAL_ONLY",
+          "sourceRepresentation": {}
+        }
+      ]
+    }
+  ],
+  "executions": [
+    {
+      "artifactSha256": "cf671bb54067285c1f067f92335caf75c6edf6e0cfe44d1236cfb92b5ae6313e",
+      "channel": "logs",
+      "fileName": "receipt.json",
+      "operationId": "cline-5b9afec070ce3fef2aeb59e8c233262d85d4b09a4aed83520f0d872ba481ed2d",
+      "size": 1047
+    },
+    {
+      "artifactSha256": "7519c5f608be87564bf11075b3493d3e98ac9d04003b94ea9b54ec236b75282a",
+      "channel": "logs",
+      "fileName": "receipt.json",
+      "operationId": "cline-9264cf4980e62b12117ce166dc765994ad166c2173688eeb9d09d4d6275998dd",
+      "size": 1047
+    }
+  ],
+  "code": [
+    {
+      "content": "import os, json, hashlib, base64, io\nfrom decimal import Decimal, InvalidOperation\nfrom collections import defaultdict\n\n# 1. Load manifest rows via SDK\nfrom runtime_input import load_rows\n\nmanifest_path = \"/data/input/ca459194918ab93f32846b2c04a80f4290d5c8fdb914ae9469697885a6557001/manifest.json\"\nexpected_manifest_sha = \"399aa01b54249dcd63d4add7da61be59e2f2698ec16e0d59750a3109bf1e2c82\"\n\nrows = list(load_rows(manifest_path, expected_manifest_sha))\nprint(f\"Loaded {len(rows)} rows\")\n\n# 2. Separate user-asset rows (the Excel files)\nuser_asset_rows = [r for r in rows if r['datasetReference'].startswith('user-asset:')]\nprint(f\"User-asset rows: {len(user_asset_rows)}\")\n\n# 3. Group by assetId, verify chunks\nassets = defaultdict(list)\nfor r in user_asset_rows:\n    rec = r['record']\n    assets[rec['assetId']].append(rec)\n\ndiagnostics = []\nassembled_files = {}\n\nfor asset_id, chunks in assets.items():\n    chunk_count = chunks[0]['chunkCount']\n    expected_indices = set(range(chunk_count))\n    actual_indices = [c['chunkIndex'] for c in chunks]\n    if set(actual_indices) != expected_indices:\n        diagnostics.append(f\"assetId={asset_id}: chunk indices mismatch: {actual_indices} vs {expected_indices}\")\n        continue\n    if len(actual_indices) != chunk_count:\n        diagnostics.append(f\"assetId={asset_id}: duplicate chunkIndex\")\n        continue\n    # Sort by chunkIndex\n    chunks_sorted = sorted(chunks, key=lambda c: c['chunkIndex'])\n    \n    # Verify each chunk sha256 and decode\n    full_bytes = b''\n    for c in chunks_sorted:\n        chunk_bytes = base64.b64decode(c['contentBase64'])\n        computed_chunk_sha = hashlib.sha256(chunk_bytes).hexdigest()\n        if computed_chunk_sha != c['chunkSha256']:\n            diagnostics.append(f\"assetId={asset_id} chunk {c['chunkIndex']}: sha256 mismatch {computed_chunk_sha} vs {c['chunkSha256']}\")\n            break\n        full_bytes += chunk_bytes\n    \n    # Verify complete sha256 and size\n    complete_sha = hashlib.sha256(full_bytes).hexdigest()\n    if complete_sha != chunks_sorted[0]['sha256']:\n        diagnostics.append(f\"assetId={asset_id}: complete sha256 mismatch {complete_sha} vs {chunks_sorted[0]['sha256']}\")\n        continue\n    if len(full_bytes) != chunks_sorted[0]['size']:\n        diagnostics.append(f\"assetId={asset_id}: size mismatch {len(full_bytes)} vs {chunks_sorted[0]['size']}\")\n        continue\n    \n    assembled_files[asset_id] = {\n        'fileName': chunks_sorted[0]['fileName'],\n        'data': full_bytes,\n        'ref': next(r['datasetReference'] for r in user_asset_rows if r['record']['assetId'] == asset_id),\n        'size': len(full_bytes),\n        'sha256': complete_sha\n    }\n    diagnostics.append(f\"assetId={asset_id}: assembled {chunks_sorted[0]['fileName']} size={len(full_bytes)} sha256={complete_sha}\")\n\nprint(\"Diagnostics:\", diagnostics)\nprint(\"Assembled files:\", list(assembled_files.keys()))\n\n# 4. Parse Excel files\nimport openpyxl\n\ndef analyze_excel(data, file_name):\n    wb = openpyxl.load_workbook(io.BytesIO(data), data_only=True)\n    ws = wb.active\n    all_rows = list(ws.iter_rows(values_only=True))\n    if not all_rows:\n        return {'records': 0, 'headers': [], 'rows': []}\n    headers = [str(h) if h is not None else None for h in all_rows[0]]\n    data_rows = all_rows[1:]\n    return {'records': len(data_rows), 'headers': headers, 'rows': data_rows, 'sheet_names': wb.sheetnames}\n\nresults_per_file = {}\nfor asset_id, info in assembled_files.items():\n    parsed = analyze_excel(info['data'], info['fileName'])\n    results_per_file[asset_id] = {\n        'fileName': info['fileName'],\n        'ref': info['ref'],\n        'size': info['size'],\n        'sha256': info['sha256'],\n        'parsed': parsed\n    }\n    print(f\"\\nFile: {info['fileName']}\")\n    print(f\"  Records: {parsed['records']}\")\n    print(f\"  Headers: {parsed['headers']}\")\n    if parsed['rows']:\n        print(f\"  First row: {parsed['rows'][0]}\")\n        print(f\"  Last row: {parsed['rows'][-1]}\")\n\n# 5. Compute data quality metrics per file\ndef compute_quality(parsed):\n    headers = parsed['headers']\n    rows = parsed['rows']\n    \n    # Find amount column (case-insensitive)\n    amount_col_idx = None\n    id_col_idx = None\n    for i, h in enumerate(headers):\n        if h is None:\n            continue\n        hl = h.lower().strip()\n        if hl == 'amount':\n            amount_col_idx = i\n        if hl == 'id':\n            id_col_idx = i\n    \n    total_records = len(rows)\n    amount_missing = 0\n    amount_non_numeric = 0\n    amount_negative = 0\n    valid_sum = Decimal('0')\n    valid_count = 0\n    ids = []\n    \n    for row in rows:\n        # id\n        if id_col_idx is not None and id_col_idx < len(row):\n            ids.append(row[id_col_idx])\n        \n        # amount\n        if amount_col_idx is not None:\n            if amount_col_idx >= len(row):\n                amount_missing += 1\n                continue\n            val = row[amount_col_idx]\n            if val is None or (isinstance(val, str) and val.strip() == ''):\n                amount_missing += 1\n                continue\n            # Try to parse as Decimal\n            try:\n                if isinstance(val, (int, float)):\n                    d = Decimal(str(val))\n                else:\n                    d = Decimal(str(val).strip())\n                if d < 0:\n                    amount_negative += 1\n                else:\n                    valid_sum += d\n                    valid_count += 1\n            except (InvalidOperation, ValueError):\n                amount_non_numeric += 1\n        else:\n            # No amount column found\n            pass\n    \n    # Duplicate ids\n    from collections import Counter\n    id_counts = Counter(ids)\n    duplicate_ids = {k: v for k, v in id_counts.items() if v > 1}\n    \n    return {\n        'total_records': total_records,\n        'amount_missing': amount_missing,\n        'amount_non_numeric': amount_non_numeric,\n        'amount_negative': amount_negative,\n        'valid_count': valid_count,\n        'valid_sum': valid_sum,\n        'duplicate_ids': duplicate_ids,\n        'headers': headers,\n        'id_col_idx': id_col_idx,\n        'amount_col_idx': amount_col_idx,\n        'rows': rows\n    }\n\nquality_per_file = {}\nfor asset_id, info in results_per_file.items():\n    q = compute_quality(info['parsed'])\n    quality_per_file[asset_id] = q\n    print(f\"\\nQuality for {info['fileName']}:\")\n    print(f\"  total_records: {q['total_records']}\")\n    print(f\"  amount_missing: {q['amount_missing']}\")\n    print(f\"  amount_non_numeric: {q['amount_non_numeric']}\")\n    print(f\"  amount_negative: {q['amount_negative']}\")\n    print(f\"  valid_count: {q['valid_count']}\")\n    print(f\"  valid_sum: {q['valid_sum']}\")\n    print(f\"  duplicate_ids: {q['duplicate_ids']}\")\n\n# 6. Compare two files by id if both exist\nasset_ids = list(assembled_files.keys())\ncomparison = None\nif len(asset_ids) == 2:\n    a1, a2 = asset_ids[0], asset_ids[1]\n    q1, q2 = quality_per_file[a1], quality_per_file[a2]\n    \n    def build_id_map(q):\n        m = {}\n        id_idx = q['id_col_idx']\n        amt_idx = q['amount_col_idx']\n        if id_idx is None:\n            return m\n        for row in q['rows']:\n            if id_idx < len(row):\n                id_val = row[id_idx]\n                amt_val = row[amt_idx] if amt_idx is not None and amt_idx < len(row) else None\n                m[id_val] = amt_val\n        return m\n    \n    map1 = build_id_map(q1)\n    map2 = build_id_map(q2)\n    \n    only_in_1 = set(map1.keys()) - set(map2.keys())\n    only_in_2 = set(map2.keys()) - set(map1.keys())\n    common = set(map1.keys()) & set(map2.keys())\n    diffs = []\n    for id_val in sorted(common, key=lambda x: str(x)):\n        v1 = map1[id_val]\n        v2 = map2[id_val]\n        # Compare as Decimal if possible\n        try:\n            d1 = Decimal(str(v1)) if v1 is not None else None\n        except:\n            d1 = v1\n        try:\n            d2 = Decimal(str(v2)) if v2 is not None else None\n        except:\n            d2 = v2\n        if d1 != d2:\n            diffs.append({'id': id_val, 'file1_amount': str(v1), 'file2_amount': str(v2)})\n    \n    comparison = {\n        'only_in_file1': sorted([str(x) for x in only_in_1]),\n        'only_in_file2': sorted([str(x) for x in only_in_2]),\n        'common_ids_count': len(common),\n        'diffs': diffs\n    }\n    print(f\"\\nComparison:\")\n    print(f\"  only_in_file1: {comparison['only_in_file1']}\")\n    print(f\"  only_in_file2: {comparison['only_in_file2']}\")\n    print(f\"  common_ids_count: {comparison['common_ids_count']}\")\n    print(f\"  diffs: {comparison['diffs']}\")\n\n# 7. Build report markdown\nfile_list = list(results_per_file.values())\nfile1 = file_list[0]\nfile2 = file_list[1] if len(file_list) > 1 else None\nq1 = quality_per_file[asset_ids[0]]\nq2 = quality_per_file[asset_ids[1]] if len(asset_ids) > 1 else None\n\nmd_parts = []\nmd_parts.append(\"# Excel 数据质量分析报告\\n\")\nmd_parts.append(\"## 概述\\n\")\nmd_parts.append(f\"共收到 **{len(assembled_files)}** 份 Excel 文件，均为合成验收数据，不涉及业务金额单位。\\n\")\n\nfor i, (aid, info) in enumerate(results_per_file.items()):\n    q = quality_per_file[aid]\n    fn = info['fileName']\n    ref = info['ref']\n    md_parts.append(f\"## 文件 {i+1}：{fn}\\n\")\n    md_parts.append(f\"- 数据集引用：`{ref}`\\n\")\n    md_parts.append(f\"- SHA-256：`{info['sha256']}`\\n\")\n    md_parts.append(f\"- 大小：{info['size']} 字节\\n\")\n    md_parts.append(f\"- 表头：{q['headers']}\\n\")\n    md_parts.append(f\"- 记录数：{q['total_records']}\\n\")\n    md_parts.append(f\"- amount 缺失数：{q['amount_missing']}\\n\")\n    md_parts.append(f\"- amount 非数值数：{q['amount_non_numeric']}\\n\")\n    md_parts.append(f\"- amount 负数数：{q['amount_negative']}\\n\")\n    md_parts.append(f\"- 有效数值个数：{q['valid_count']}\\n\")\n    md_parts.append(f\"- 有效数值合计（Decimal）：`{q['valid_sum']}`\\n\")\n    if q['duplicate_ids']:\n        dup_str = ', '.join(f\"{k}(出现{v}次)\" for k, v in q['duplicate_ids'].items())\n        md_parts.append(f\"- 重复 id：{dup_str}\\n\")\n    else:\n        md_parts.append(f\"- 重复 id：无\\n\")\n    md_parts.append(\"\\n\")\n\nif comparison is not None:\n    md_parts.append(\"## 两份文件按 id 比较差异\\n\")\n    md_parts.append(f\"- 共同 id 数：{comparison['common_ids_count']}\\n\")\n    if comparison['only_in_file1']:\n        md_parts.append(f\"- 仅在文件 1 中出现的 id：{', '.join(comparison['only_in_file1'])}\\n\")\n    else:\n        md_parts.append(f\"- 仅在文件 1 中出现的 id：无\\n\")\n    if comparison['only_in_file2']:\n        md_parts.append(f\"- 仅在文件 2 中出现的 id：{', '.join(comparison['only_in_file2'])}\\n\")\n    else:\n        md_parts.append(f\"- 仅在文件 2 中出现的 id：无\\n\")\n    if comparison['diffs']:\n        md_parts.append(\"\\n### 相同 id 但 amount 不同的记录\\n\")\n        md_parts.append(\"| id | 文件1 amount | 文件2 amount |\\n\")\n        md_parts.append(\"|---|---|---|\\n\")\n        for d in comparison['diffs']:\n            md_parts.append(f\"| {d['id']} | {d['file1_amount']} | {d['file2_amount']} |\\n\")\n    else:\n        md_parts.append(\"- 相同 id 的 amount 值完全一致，无差异。\\n\")\n\nmd_parts.append(\"\\n## 说明\\n\")\nmd_parts.append(\"- 所有数值合计使用 Python `Decimal` 精确计算，避免浮点误差。\\n\")\nmd_parts.append(\"- 负数仍计入有效数值合计（按原值累加）。\\n\")\nmd_parts.append(\"- 缺失值包括空单元格、空字符串及行中缺失该列。\\n\")\nmd_parts.append(\"- 非数值指无法解析为 Decimal 的字符串。\\n\")\n\nreport_md = ''.join(md_parts)\nprint(\"\\n=== REPORT ===\")\nprint(report_md)\n\n# 8. Write results.jsonl\nos.makedirs(\"/workspace/output/results\", exist_ok=True)\nevidence_refs = [info['ref'] for info in results_per_file.values()]\nlimitations = [\n    \"仅解析了活动工作表（active sheet），如有多个工作表则未覆盖\",\n    \"amount 列按列名 'amount'（不区分大小写）识别，若实际列名不同则统计不适用\",\n    \"id 列按列名 'id'（不区分大小写）识别\",\n    \"合成验收数据，不涉及业务金额单位\"\n]\n\nresult_row = {\n    \"reportMarkdown\": report_md,\n    \"evidenceReferences\": evidence_refs,\n    \"limitations\": limitations\n}\n\nwith open(\"/workspace/output/results/rows.jsonl\", \"w\", encoding=\"utf-8\") as f:\n    f.write(json.dumps(result_row, ensure_ascii=False) + \"\\n\")\n\nprint(\"\\nWrote rows.jsonl\")",
+      "fileName": "main.py",
+      "operationId": "cline-5b9afec070ce3fef2aeb59e8c233262d85d4b09a4aed83520f0d872ba481ed2d",
+      "sha256": "635f0b36630e7a09384f784da423be8891d3b62059dd047659bfa258ee0d9081",
+      "sourceBytes": 12457,
+      "taskId": "analysis-coding-b4f0db0ed1ee8fd460d868c305ea12a47802695d26904e33ce75e4fe819353e2"
+    },
+    {
+      "content": "import os, json, hashlib, base64, io\nfrom decimal import Decimal, InvalidOperation\nfrom collections import defaultdict, Counter\n\n# 1. Load manifest rows via SDK\nfrom runtime_input import load_rows\n\nmanifest_path = \"/data/input/ca459194918ab93f32846b2c04a80f4290d5c8fdb914ae9469697885a6557001/manifest.json\"\nexpected_manifest_sha = \"399aa01b54249dcd63d4add7da61be59e2f2698ec16e0d59750a3109bf1e2c82\"\n\nrows = list(load_rows(manifest_path, expected_manifest_sha))\n\n# 2. Separate user-asset rows (the Excel files)\nuser_asset_rows = [r for r in rows if r['datasetReference'].startswith('user-asset:')]\n\n# 3. Group by assetId, verify chunks\nassets = defaultdict(list)\nfor r in user_asset_rows:\n    rec = r['record']\n    assets[rec['assetId']].append(rec)\n\nassembled_files = {}\n\nfor asset_id, chunks in assets.items():\n    chunk_count = chunks[0]['chunkCount']\n    expected_indices = set(range(chunk_count))\n    actual_indices = [c['chunkIndex'] for c in chunks]\n    assert set(actual_indices) == expected_indices, f\"chunk indices mismatch for {asset_id}\"\n    assert len(actual_indices) == chunk_count, f\"duplicate chunkIndex for {asset_id}\"\n    \n    chunks_sorted = sorted(chunks, key=lambda c: c['chunkIndex'])\n    \n    full_bytes = b''\n    for c in chunks_sorted:\n        chunk_bytes = base64.b64decode(c['contentBase64'])\n        computed_chunk_sha = hashlib.sha256(chunk_bytes).hexdigest()\n        assert computed_chunk_sha == c['chunkSha256'], f\"chunk sha256 mismatch for {asset_id} chunk {c['chunkIndex']}\"\n        full_bytes += chunk_bytes\n    \n    complete_sha = hashlib.sha256(full_bytes).hexdigest()\n    assert complete_sha == chunks_sorted[0]['sha256'], f\"complete sha256 mismatch for {asset_id}\"\n    assert len(full_bytes) == chunks_sorted[0]['size'], f\"size mismatch for {asset_id}\"\n    \n    assembled_files[asset_id] = {\n        'fileName': chunks_sorted[0]['fileName'],\n        'data': full_bytes,\n        'ref': next(r['datasetReference'] for r in user_asset_rows if r['record']['assetId'] == asset_id),\n        'size': len(full_bytes),\n        'sha256': complete_sha\n    }\n\n# 4. Parse Excel files\nimport openpyxl\n\ndef analyze_excel(data):\n    wb = openpyxl.load_workbook(io.BytesIO(data), data_only=True)\n    ws = wb.active\n    all_rows = list(ws.iter_rows(values_only=True))\n    if not all_rows:\n        return {'records': 0, 'headers': [], 'rows': []}\n    headers = [str(h) if h is not None else None for h in all_rows[0]]\n    data_rows = all_rows[1:]\n    return {'records': len(data_rows), 'headers': headers, 'rows': data_rows}\n\nresults_per_file = {}\nfor asset_id, info in assembled_files.items():\n    parsed = analyze_excel(info['data'])\n    results_per_file[asset_id] = {\n        'fileName': info['fileName'],\n        'ref': info['ref'],\n        'size': info['size'],\n        'sha256': info['sha256'],\n        'parsed': parsed\n    }\n\n# 5. Compute data quality metrics per file\ndef compute_quality(parsed):\n    headers = parsed['headers']\n    rows = parsed['rows']\n    \n    amount_col_idx = None\n    id_col_idx = None\n    for i, h in enumerate(headers):\n        if h is None:\n            continue\n        hl = h.lower().strip()\n        if hl == 'amount':\n            amount_col_idx = i\n        if hl == 'id':\n            id_col_idx = i\n    \n    total_records = len(rows)\n    amount_missing = 0\n    amount_non_numeric = 0\n    amount_negative = 0\n    valid_sum = Decimal('0')\n    valid_count = 0\n    ids = []\n    negative_values = []\n    \n    for row in rows:\n        if id_col_idx is not None and id_col_idx < len(row):\n            ids.append(row[id_col_idx])\n        \n        if amount_col_idx is not None:\n            if amount_col_idx >= len(row):\n                amount_missing += 1\n                continue\n            val = row[amount_col_idx]\n            if val is None or (isinstance(val, str) and val.strip() == ''):\n                amount_missing += 1\n                continue\n            try:\n                if isinstance(val, (int, float)):\n                    d = Decimal(str(val))\n                else:\n                    d = Decimal(str(val).strip())\n                # Negatives are valid numeric values; count them separately but include in sum\n                if d < 0:\n                    amount_negative += 1\n                    negative_values.append(d)\n                valid_sum += d\n                valid_count += 1\n            except (InvalidOperation, ValueError):\n                amount_non_numeric += 1\n    \n    id_counts = Counter(ids)\n    duplicate_ids = {k: v for k, v in id_counts.items() if v > 1}\n    \n    return {\n        'total_records': total_records,\n        'amount_missing': amount_missing,\n        'amount_non_numeric': amount_non_numeric,\n        'amount_negative': amount_negative,\n        'negative_values': negative_values,\n        'valid_count': valid_count,\n        'valid_sum': valid_sum,\n        'duplicate_ids': duplicate_ids,\n        'headers': headers,\n        'id_col_idx': id_col_idx,\n        'amount_col_idx': amount_col_idx,\n        'rows': rows\n    }\n\nquality_per_file = {}\nfor asset_id, info in results_per_file.items():\n    q = compute_quality(info['parsed'])\n    quality_per_file[asset_id] = q\n\n# 6. Compare two files by id if both exist\nasset_ids = list(assembled_files.keys())\ncomparison = None\nif len(asset_ids) == 2:\n    a1, a2 = asset_ids[0], asset_ids[1]\n    q1, q2 = quality_per_file[a1], quality_per_file[a2]\n    \n    def build_id_map(q):\n        m = {}\n        id_idx = q['id_col_idx']\n        amt_idx = q['amount_col_idx']\n        if id_idx is None:\n            return m\n        for row in q['rows']:\n            if id_idx < len(row):\n                id_val = row[id_idx]\n                amt_val = row[amt_idx] if amt_idx is not None and amt_idx < len(row) else None\n                m[id_val] = amt_val\n        return m\n    \n    map1 = build_id_map(q1)\n    map2 = build_id_map(q2)\n    \n    only_in_1 = set(map1.keys()) - set(map2.keys())\n    only_in_2 = set(map2.keys()) - set(map1.keys())\n    common = set(map1.keys()) & set(map2.keys())\n    diffs = []\n    for id_val in sorted(common, key=lambda x: str(x)):\n        v1 = map1[id_val]\n        v2 = map2[id_val]\n        try:\n            d1 = Decimal(str(v1)) if v1 is not None else None\n        except:\n            d1 = v1\n        try:\n            d2 = Decimal(str(v2)) if v2 is not None else None\n        except:\n            d2 = v2\n        if d1 != d2:\n            diffs.append({'id': id_val, 'file1_amount': str(v1), 'file2_amount': str(v2)})\n    \n    comparison = {\n        'only_in_file1': sorted([str(x) for x in only_in_1]),\n        'only_in_file2': sorted([str(x) for x in only_in_2]),\n        'common_ids_count': len(common),\n        'diffs': diffs\n    }\n\n# 7. Build report markdown\nfile_list = list(results_per_file.values())\n\nmd_parts = []\nmd_parts.append(\"# Excel 数据质量分析报告\\n\\n\")\nmd_parts.append(\"## 概述\\n\\n\")\nmd_parts.append(f\"共收到 **{len(assembled_files)}** 份 Excel 文件，均为合成验收数据，不涉及业务金额单位。使用 Python `Decimal` 进行精确计算。\\n\\n\")\n\nfor i, (aid, info) in enumerate(results_per_file.items()):\n    q = quality_per_file[aid]\n    fn = info['fileName']\n    ref = info['ref']\n    md_parts.append(f\"## 文件 {i+1}：{fn}\\n\\n\")\n    md_parts.append(f\"- 数据集引用：`{ref}`\\n\")\n    md_parts.append(f\"- SHA-256：`{info['sha256']}`\\n\")\n    md_parts.append(f\"- 大小：{info['size']} 字节\\n\")\n    md_parts.append(f\"- 表头：{q['headers']}\\n\")\n    md_parts.append(f\"- 记录数：{q['total_records']}\\n\")\n    md_parts.append(f\"- amount 缺失数：{q['amount_missing']}\\n\")\n    md_parts.append(f\"- amount 非数值数：{q['amount_non_numeric']}\\n\")\n    md_parts.append(f\"- amount 负数数：{q['amount_negative']}\\n\")\n    md_parts.append(f\"- 有效数值个数（含负数）：{q['valid_count']}\\n\")\n    md_parts.append(f\"- 有效数值合计（Decimal）：`{q['valid_sum']}`\\n\")\n    if q['duplicate_ids']:\n        dup_str = ', '.join(f\"id={k}（出现{v}次）\" for k, v in q['duplicate_ids'].items())\n        md_parts.append(f\"- 重复 id：{dup_str}\\n\")\n    else:\n        md_parts.append(f\"- 重复 id：无\\n\")\n    md_parts.append(\"\\n\")\n\nif comparison is not None:\n    md_parts.append(\"## 两份文件按 id 比较差异\\n\\n\")\n    md_parts.append(f\"- 共同 id 数：{comparison['common_ids_count']}\\n\")\n    if comparison['only_in_file1']:\n        md_parts.append(f\"- 仅在文件 1 中出现的 id：{', '.join(comparison['only_in_file1'])}\\n\")\n    else:\n        md_parts.append(f\"- 仅在文件 1 中出现的 id：无\\n\")\n    if comparison['only_in_file2']:\n        md_parts.append(f\"- 仅在文件 2 中出现的 id：{', '.join(comparison['only_in_file2'])}\\n\")\n    else:\n        md_parts.append(f\"- 仅在文件 2 中出现的 id：无\\n\")\n    if comparison['diffs']:\n        md_parts.append(\"\\n### 相同 id 但 amount 不同的记录\\n\\n\")\n        md_parts.append(\"| id | 文件1 amount | 文件2 amount |\\n\")\n        md_parts.append(\"|---|---|---|\\n\")\n        for d in comparison['diffs']:\n            md_parts.append(f\"| {d['id']} | {d['file1_amount']} | {d['file2_amount']} |\\n\")\n    else:\n        md_parts.append(\"\\n- 相同 id 的 amount 值完全一致，无差异。\\n\")\n\nmd_parts.append(\"\\n## 方法说明\\n\\n\")\nmd_parts.append(\"- 所有数值合计使用 Python `Decimal` 精确计算，避免浮点误差。\\n\")\nmd_parts.append(\"- 有效数值包括正数、零和负数；负数单独计数但仍纳入合计。\\n\")\nmd_parts.append(\"- 缺失值包括空单元格、空字符串及行中缺失该列。\\n\")\nmd_parts.append(\"- 非数值指无法解析为 Decimal 的字符串（如文本）。\\n\")\nmd_parts.append(\"- 文件 1 的有效数值合计由 Python 实际计算得出（非人工估算）。\\n\")\n\nreport_md = ''.join(md_parts)\n\n# 8. Write results.jsonl\nos.makedirs(\"/workspace/output/results\", exist_ok=True)\nevidence_refs = [info['ref'] for info in results_per_file.values()]\nlimitations = [\n    \"仅解析了活动工作表（active sheet），如有多个工作表则未覆盖\",\n    \"amount 列按列名 'amount'（不区分大小写）识别，若实际列名不同则统计不适用\",\n    \"id 列按列名 'id'（不区分大小写）识别\",\n    \"合成验收数据，不涉及业务金额单位\",\n    \"重复 id 在比较时仅取首次出现的 amount 值\"\n]\n\nresult_row = {\n    \"reportMarkdown\": report_md,\n    \"evidenceReferences\": evidence_refs,\n    \"limitations\": limitations\n}\n\nwith open(\"/workspace/output/results/rows.jsonl\", \"w\", encoding=\"utf-8\") as f:\n    f.write(json.dumps(result_row, ensure_ascii=False) + \"\\n\")\n\nprint(\"Wrote rows.jsonl successfully\")\nprint(f\"File 1 valid_sum: {quality_per_file[asset_ids[0]]['valid_sum']}\")\nprint(f\"File 2 valid_sum: {quality_per_file[asset_ids[1]]['valid_sum']}\")\nprint(f\"File 1 valid_count: {quality_per_file[asset_ids[0]]['valid_count']}\")\nprint(f\"File 2 valid_count: {quality_per_file[asset_ids[1]]['valid_count']}\")\nprint(f\"File 1 negative_values: {quality_per_file[asset_ids[0]]['negative_values']}\")\nprint(f\"Comparison: {comparison}\")",
+      "fileName": "main.py",
+      "operationId": "cline-9264cf4980e62b12117ce166dc765994ad166c2173688eeb9d09d4d6275998dd",
+      "sha256": "c4a0faf02b89b351ad4be227c846ee5071def4e3ffc67d73103f5f7e69a6cd96",
+      "sourceBytes": 11055,
+      "taskId": "analysis-coding-b4f0db0ed1ee8fd460d868c305ea12a47802695d26904e33ce75e4fe819353e2"
+    }
+  ],
+  "models": [
+    {
+      "complexity": "COMPLEX",
+      "durationMs": 2790,
+      "finishedAt": "2026-10-21T10:35:14.323931942Z",
+      "maxOutputTokens": 16384,
+      "protocol": "openai",
+      "providerModel": "qwen3.7-plus",
+      "selectedModel": "qwen3.7-plus",
+      "startedAt": "2026-10-21T10:35:11.533139223Z"
+    },
+    {
+      "complexity": "COMPLEX",
+      "durationMs": 67647,
+      "finishedAt": "2026-10-21T10:35:06.892821946Z",
+      "maxOutputTokens": 16384,
+      "protocol": "openai",
+      "providerModel": "qwen3.7-plus",
+      "selectedModel": "qwen3.7-plus",
+      "startedAt": "2026-10-21T10:33:59.245000681Z"
+    },
+    {
+      "complexity": "COMPLEX",
+      "durationMs": 77253,
+      "finishedAt": "2026-10-21T10:36:32.386207383Z",
+      "maxOutputTokens": 16384,
+      "protocol": "openai",
+      "providerModel": "qwen3.7-plus",
+      "selectedModel": "qwen3.7-plus",
+      "startedAt": "2026-10-21T10:35:15.133152267Z"
+    },
+    {
+      "complexity": "COMPLEX",
+      "durationMs": 2624,
+      "finishedAt": "2026-10-21T10:36:39.453477293Z",
+      "maxOutputTokens": 16384,
+      "protocol": "openai",
+      "providerModel": "qwen3.7-plus",
+      "selectedModel": "qwen3.7-plus",
+      "startedAt": "2026-10-21T10:36:36.829283684Z"
+    },
+    {
+      "complexity": "COMPLEX",
+      "durationMs": 24244,
+      "finishedAt": "2026-10-21T10:37:04.730117667Z",
+      "maxOutputTokens": 16384,
+      "protocol": "openai",
+      "providerModel": "qwen3.7-plus",
+      "selectedModel": "qwen3.7-plus",
+      "startedAt": "2026-10-21T10:36:40.486047233Z"
+    }
+  ]
+}

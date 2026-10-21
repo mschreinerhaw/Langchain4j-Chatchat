@@ -14,6 +14,31 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class ProblemAnalysisPlannerTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(ProblemAnalysisPlan.ToolDataDependency.class)
+    @SuppressWarnings("unchecked")
+    void filePlanningUsesRegisteredReferencesAndRequiresExplicitDependency(ProblemAnalysisPlan.ToolDataDependency dependency) {
+        var model=mock(ChatModel.class);
+        String json=READY.replace("ASSET_USAGE_GUIDANCE","DATA_ANALYSIS").strip();
+        when(model.chat(anyString())).thenReturn(json.substring(0,json.length()-1)+",\"toolDataDependency\":\""+dependency+"\"}");
+        var planner=new ProblemAnalysisPlanner(model,mock(ConfigurableChatModelFactory.class),new ObjectMapper(),mock(ObjectProvider.class));
+        var file=new ProblemAnalysisPlan.FileInput("registered.xlsx","user-asset:"+"a".repeat(64)+":"+"b".repeat(64),"application/xlsx",123,"b".repeat(64));
+        var plan=planner.analyzeFiles(InteractionRequest.builder().query("compare files and optional business data").build(),
+            InteractionContext.builder().build(),mock(SkillDefinition.class),List.of(),List.of(file));
+        assertThat(plan.fileAnalysis().inputs()).containsExactly(file);
+        assertThat(plan.fileAnalysis().toolDataDependency()).isEqualTo(dependency);
+        verify(model).chat(argThat((String prompt)->prompt.contains("registered.xlsx") && prompt.contains(file.reference())
+            && prompt.contains("OPTIONAL") && !prompt.contains("contentBase64")));
+    }
+    @Test @SuppressWarnings("unchecked") void missingOrInventedFileDependencyFailsClosed() {
+        for(String answer:List.of(READY,READY.strip().replaceFirst("\\{","{\"fileAnalysis\":{},"))) {
+            var model=mock(ChatModel.class);when(model.chat(anyString())).thenReturn(answer);
+            var planner=new ProblemAnalysisPlanner(model,mock(ConfigurableChatModelFactory.class),new ObjectMapper(),mock(ObjectProvider.class));
+            var file=new ProblemAnalysisPlan.FileInput("registered.xlsx","user-asset:"+"a".repeat(64)+":"+"b".repeat(64),"application/xlsx",123,"b".repeat(64));
+            assertThat(planner.analyzeFiles(InteractionRequest.builder().query("analyze").build(),InteractionContext.builder().build(),
+                mock(SkillDefinition.class),List.of(),List.of(file)).status()).isEqualTo(ProblemAnalysisPlan.Status.PLANNING_FAILED);
+        }
+    }
     @Test @SuppressWarnings("unchecked") void classificationReplyBudgetIsConfigurableForTheSelectedModel() {
         var model=mock(ChatModel.class);var factory=mock(ConfigurableChatModelFactory.class);
         var agent=mock(SkillDefinition.class);when(agent.modelName()).thenReturn("registered-model");

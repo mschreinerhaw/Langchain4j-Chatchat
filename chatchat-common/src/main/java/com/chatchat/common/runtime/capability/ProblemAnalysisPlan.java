@@ -4,7 +4,30 @@ import java.util.List;
 
 /** Workflow-independent public task plan, not private model reasoning or an authorization grant. */
 public record ProblemAnalysisPlan(Status status, String objective, String subject, String domain,
-                                  String explanation, List<Task> tasks, String clarificationQuestion) {
+                                  String explanation, List<Task> tasks, String clarificationQuestion,
+                                  @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+                                  FileAnalysis fileAnalysis) {
+    public ProblemAnalysisPlan(Status status, String objective, String subject, String domain,
+                               String explanation, List<Task> tasks, String clarificationQuestion) {
+        this(status, objective, subject, domain, explanation, tasks, clarificationQuestion, null);
+    }
+    /** Registered references only. Neither the planner nor the client can manufacture file locations. */
+    public record FileInput(String fileName, String reference, String contentType, long size, String sha256) {
+        public FileInput {
+            if (fileName == null || fileName.isBlank() || contentType == null || size < 0
+                || sha256 == null || !sha256.matches("[a-f0-9]{64}") || reference == null
+                || !reference.matches("user-asset:[a-f0-9]{64}:" + sha256))
+                throw new IllegalArgumentException("Invalid registered file reference");
+        }
+    }
+    public enum ToolDataDependency { NONE, OPTIONAL, REQUIRED }
+    public record FileAnalysis(List<FileInput> inputs, ToolDataDependency toolDataDependency) {
+        public FileAnalysis {
+            inputs = List.copyOf(inputs);
+            if (inputs.isEmpty() || inputs.size() > 8 || toolDataDependency == null)
+                throw new IllegalArgumentException("File inputs and data dependency are required");
+        }
+    }
     public static final String METADATA_KEY = "problemAnalysisPlan";
     public enum Status { READY, NEEDS_CLARIFICATION, PLANNING_FAILED }
     public enum Intent { DIRECT_ANSWER, DOCUMENT_UNDERSTANDING, DATA_ANALYSIS, ASSET_USAGE_GUIDANCE, ACTION_EXECUTION }

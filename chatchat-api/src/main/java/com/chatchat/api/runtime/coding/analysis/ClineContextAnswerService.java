@@ -28,6 +28,35 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
     private final AgentRunStore runs;
     @org.springframework.beans.factory.annotation.Autowired
     private org.springframework.beans.factory.ObjectProvider<com.chatchat.api.assets.AssetAnalysisInputs> attachmentInputs;
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.beans.factory.ObjectProvider<com.chatchat.agents.runtime.event.AgentRunEventPublisher> publishers;
+
+    @Override public List<com.chatchat.common.runtime.capability.ProblemAnalysisPlan.FileInput> describeFiles(InteractionRequest request) {
+        var resolver = attachmentInputs == null ? null : attachmentInputs.getIfAvailable();
+        if (resolver == null) throw new IllegalStateException("User assets must be enabled for attachments");
+        Object raw = request.getToolInput() == null ? null : request.getToolInput().get(com.chatchat.api.assets.AssetAnalysisInputs.IDS);
+        if (!(raw instanceof List<?> ids) || ids.stream().anyMatch(id -> !(id instanceof String)))
+            throw new IllegalArgumentException("Invalid attachment IDs");
+        Object run = request.getToolInput().get("__agentRunId");
+        try {
+            filePreparationEvent(run, "RUNNING");
+            var files = resolver.describe(new com.chatchat.api.assets.UserAssetService.Owner(request.getTenantId(),request.getUserId()),
+                ids.stream().map(String.class::cast).toList());
+            filePreparationEvent(run, "COMPLETED");
+            return files;
+        } catch (RuntimeException failure) { filePreparationEvent(run, "FAILED"); throw failure; }
+    }
+    private void filePreparationEvent(Object run, String state) {
+        if (publishers != null && run instanceof String id && !id.isBlank())
+            publishers.orderedStream().forEach(publisher -> publisher.publish(com.chatchat.agents.runtime.event.AgentRunEvent.of(id,
+                com.chatchat.agents.runtime.event.AgentRunEventType.OBSERVATION_RECORDED, "Preparing authorized file references",
+                Map.of("stage", "FILE_REFERENCES_PREPARING", "status", state,
+                    "metadata", Map.of("eventKind", "FILE_ANALYSIS", "stage", "FILE_REFERENCES_PREPARING", "eventState", state)))));
+    }
+    private void phase(String runId, String stage, String state) {
+        runs.recordObservation(runId, new AgentObservation("file_analysis", "runtime", stage,
+            Map.of("eventKind", "FILE_ANALYSIS", "stage", stage, "eventState", state)));
+    }
 
     public ClineContextAnswerService(CodingAnalysisService coding, AgentChatModelResolver models, ObjectMapper json, AgentRunStore runs) {
         this.codingServices = ()->coding; this.models = models; this.json = json; this.runs = runs;
@@ -84,10 +113,28 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
         input.put("suppliedContext", Objects.toString(suppliedContext, ""));
         String reference = "runtime-context:" + runId;
         var sources = new LinkedHashMap<String,Dataset>();
+        try {
+            var existing = runs.find(runId);
+            if (existing.isPresent()) {
+                var original = existing.get().request();
+                if (original == null || !request.getTenantId().equals(original.getTenantId())
+                        || !request.getUserId().equals(original.getUserId()) || !request.getQuery().equals(original.getQuery()))
+                    throw new SecurityException("Context run identity conflict");
+            } else runs.start(AgentRunRequest.builder().runId(runId).tenantId(request.getTenantId())
+                .userId(request.getUserId()).requestId(context.requestId()).conversationId(context.conversationId())
+                .query(request.getQuery()).skillId(agent == null ? request.getSkillId() : agent.id()).modelName(alias)
+                .attributes(Map.of("workflowFamily", "DIRECT_ANSWER", "codingOwnedAnalysisActive", true)).build());
         sources.put(reference, new Dataset(reference, Map.of("recordMeaning", "SUPPLIED_CONTEXT_NOT_OBSERVATIONS",
             "currentBusinessDataAcquired", false), List.of(input)));
         boolean withAttachments = internal.get(com.chatchat.api.assets.AssetAnalysisInputs.IDS) instanceof List<?> ids && !ids.isEmpty();
         if (withAttachments) {
+            phase(runId, "FILE_REFERENCES_PREPARING", "RUNNING");
+            var manifest = describeFiles(request);
+            var plan = context.problemAnalysisPlan();
+            if (plan != null && plan.fileAnalysis() != null && !manifest.equals(plan.fileAnalysis().inputs()))
+                throw new SecurityException("File references changed since planning");
+            input.put("fileAnalysis", plan == null ? Map.of("inputs", manifest, "toolDataDependency", "NONE") : plan);
+            attrs.put("taskType", "DATA_ANALYSIS");
             var resolver=attachmentInputs==null?null:attachmentInputs.getIfAvailable();
             if(resolver==null)throw new IllegalStateException("User assets must be enabled for attachments");
             var raw=(List<?>)internal.get(com.chatchat.api.assets.AssetAnalysisInputs.IDS);
@@ -95,6 +142,9 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
             sources.putAll(resolver.load(new com.chatchat.api.assets.UserAssetService.Owner(request.getTenantId(),request.getUserId()),
                 raw.stream().map(String.class::cast).toList(),alias,request.getQuery()));
         }
+        if (withAttachments) phase(runId, "FILE_REFERENCES_PREPARING", "COMPLETED");
+        sources.put(reference, new Dataset(reference, Map.of("recordMeaning", "SUPPLIED_CONTEXT_NOT_OBSERVATIONS",
+            "currentBusinessDataAcquired", false), List.of(input)));
         var authorizedReferences=Set.copyOf(sources.keySet());
         String instruction;
         try {
@@ -120,29 +170,24 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
             + "reportMarkdown, evidenceReferences and limitations. Cite exact delivered dataset references actually used, "
             + "including at least one user-asset reference. Verify calculations in Python and review the report with artifact_read. "
             + "User objective: " + request.getQuery();
-        boolean conditionalVisual=taskType==null&&com.chatchat.common.runtime.coding.VisualReportMode.active(attrs);
+        boolean conditionalVisual=!withAttachments&&taskType==null&&com.chatchat.common.runtime.coding.VisualReportMode.active(attrs);
         boolean visual=conditionalVisual||com.chatchat.common.runtime.coding.VisualReportMode.analysisRequested(attrs);
         if(visual)instruction+="\n"+(conditionalVisual?"This context-only route has no preclassified analytical task. The report preference NEVER changes the user's task. "
             +"For ordinary knowledge questions, explanations, writing, translations or proposed code/schema designs, OMIT visualReport entirely and answer normally; do not create charts or invent data to satisfy the preference. "
             +"ONLY if the actual request requires calculations on supplied data, apply the following visual-output contract. An optional output field is not a requirement to perform analysis.\n":"")
             +com.chatchat.common.runtime.coding.VisualReportMode.INSTRUCTION;
-        try {
-            var existing = runs.find(runId);
-            if (existing.isPresent()) {
-                var original = existing.get().request();
-                if (original == null || !request.getTenantId().equals(original.getTenantId())
-                        || !request.getUserId().equals(original.getUserId()) || !request.getQuery().equals(original.getQuery()))
-                    throw new SecurityException("Context run identity conflict");
-            } else runs.start(AgentRunRequest.builder().runId(runId).tenantId(request.getTenantId())
-                .userId(request.getUserId()).requestId(context.requestId()).conversationId(context.conversationId())
-                .query(request.getQuery()).skillId(agent == null ? request.getSkillId() : agent.id()).modelName(alias)
-                .attributes(Map.of("workflowFamily", "DIRECT_ANSWER", "codingOwnedAnalysisActive", true)).build());
+            phase(runId, "CLINE_SUBMITTING", "RUNNING");
             var receipt = coding.executeObserved(invocation, Map.of("operation", "RUN_CODING",
                 "requestId", visual?"visual-answer-v1":withAttachments?"attachment-answer-v1":"context-answer-v1", "datasetReferences", List.copyOf(sources.keySet()), "instruction", instruction,
                 "outputSchema", CodingAnalysisService.primaryReportSchema(visual,!conditionalVisual), "reviewResult", true), sources,
-                event -> runs.recordObservation(runId, new AgentObservation("coding", "coding_agent", "Coding task progress", event)));
+                event -> {
+                    if ("TASK_CREATED".equals(event.get("codingEventType"))) phase(runId, "CLINE_SUBMITTING", "COMPLETED");
+                    runs.recordObservation(runId, new AgentObservation("coding", "coding_agent", "Coding task progress", event));
+                });
+            phase(runId, "RESULT_VALIDATING", "RUNNING");
             if (!Boolean.TRUE.equals(receipt.get("resultAvailable")))
-                throw new IllegalStateException("Context Coding answer unavailable: " + receipt.get("status"));
+                throw new IllegalStateException("Context Coding answer unavailable: " + receipt.get("status")
+                    + ", reason=" + receipt.getOrDefault("reasonCode", receipt.getOrDefault("summary", "result unavailable")));
             var result = sources.get(receipt.get("datasetReference"));
             if (result == null || !result.handle().recordCountExact() || result.recordCount() != 1)
                 throw new IllegalStateException("Context Coding answer must contain one registered report row");
@@ -153,6 +198,7 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
             if (!(citations instanceof List<?> refs) || refs.isEmpty() || !refs.stream().allMatch(authorizedReferences::contains)
                     || withAttachments && refs.stream().noneMatch(ref->ref instanceof String text && text.startsWith("user-asset:")))
                 throw new SecurityException("Context report cites unauthorized inputs");
+            phase(runId, "RESULT_VALIDATING", "COMPLETED");
             InteractionExecution.checkCancellation(request);
             var publication = Map.<String,Object>of("type", "final_summary", "workflow", "coding_owned_analysis",
                 "inputKind", withAttachments?"USER_ATTACHMENTS":"SUPPLIED_CONTEXT", "modelCalls", 0, "resultAdmissionScope", "STRUCTURE_AND_AUTHORIZED_REFERENCES");
@@ -162,6 +208,7 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
                     "attachmentReferences", authorizedReferences.stream().filter(ref->ref.startsWith("user-asset:")).toList(),
                     WorkflowOutcome.METADATA_KEY, new WorkflowOutcome(WorkflowOutcome.Type.READY_TO_ANSWER,
                         "CODING_CONTEXT_ANSWER_COMPLETED", List.of(), List.of(), true)));
+            if (withAttachments) responseMetadata.put("fileAnalysis", input.get("fileAnalysis"));
             if(visual && receipt.get("visualReport") instanceof Map<?,?> reportView)responseMetadata.put("visualReport",reportView);
             runs.complete(runId, AgentRunResult.builder().runId(runId).answer(report).metadata(responseMetadata).build());
             return InteractionResponse.builder().answer(report).toolTraces(List.of()).metadata(responseMetadata).build();

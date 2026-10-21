@@ -44,6 +44,22 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
     private final McpPythonControlPlanePort python;
     private final ObjectMapper json;
     private final Semaphore capacity;
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.beans.factory.ObjectProvider<com.chatchat.api.assets.AssetAnalysisInputs> attachmentInputs;
+    @Override public Map<String,Dataset> prepareFileSources(AnalysisCoverageCoordinator.Request context) {
+        var resolver = attachmentInputs == null ? null : attachmentInputs.getIfAvailable();
+        if (resolver == null) throw new IllegalStateException("User assets must be enabled for attachments");
+        var plan = com.chatchat.agents.orchestration.analysis.governance.FileAnalysisDependencies.files(context.runtimeAttributes());
+        if (plan == null) throw new SecurityException("Accepted file analysis plan is required");
+        var owner = new com.chatchat.api.assets.UserAssetService.Owner(context.isolationScope().tenantId(), context.isolationScope().userId());
+        var ids = plan.inputs().stream().map(file -> file.reference().split(":")[1]).toList();
+        if (!resolver.describe(owner, ids).equals(plan.inputs())) throw new SecurityException("File references changed since planning");
+        var sources = resolver.load(owner, ids, String.valueOf(context.metadata().getOrDefault("modelName", "")), context.query());
+        String ref = "runtime-file-plan:" + context.isolationScope().runId();
+        sources.put(ref, new Dataset(ref, Map.of("recordMeaning", "PLAN_NOT_BUSINESS_DATA"),
+            List.of(Map.of("question", context.query(), "fileAnalysis", plan))));
+        return sources;
+    }
     private CodingDataSupplyService dataSupply;
     private CodingAnalysisSqlService analysisSql;
     private com.chatchat.agents.orchestration.model.AgentChatModelResolver profileModels;
@@ -106,6 +122,11 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             + "evidenceReferences must list the exact delivered dataset references actually used; do not invent or shorten them. "
             + "limitations must record material data or method limits. Do not delegate calculations back to Runtime OS.\n"
             + "User objective:\n" + context.query();
+        if (com.chatchat.agents.orchestration.analysis.governance.FileAnalysisDependencies.files(context.runtimeAttributes()) != null)
+            objective += "\n" + com.chatchat.api.assets.AssetAnalysisInputs.INSTRUCTION
+                + "The runtime-file-plan dataset is planning context only. Inspect original workbooks and sheets in Python, "
+                + "validate calculations and cross-file comparisons, and cite every original file used. "
+                + "Optional empty MCP observations are not measured data and must be disclosed as unavailable. ";
         var request = new LinkedHashMap<String,Object>();
         boolean visual=VisualReportMode.analysisRequested(context.runtimeAttributes());
         if(visual)objective+="\n"+VisualReportMode.INSTRUCTION;

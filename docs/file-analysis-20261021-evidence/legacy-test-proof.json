@@ -1,0 +1,6 @@
+{
+  "unchangedMethodSha256": "d30b4a734f0a07f4bf55b3930cbd21c608996bbdd9a828418e28256d20b5fbbd",
+  "error": "Chat model name must not be blank",
+  "failureLocation": "ModelsConfig.requireUsableChatModelConnection -> AgentChatModelResolver.resolveChatModel",
+  "test": "AgentOrchestratorTest.authoritativeFallbackStopsAtEmptyAssetInsteadOfRunningTemplateDiscovery"
+}

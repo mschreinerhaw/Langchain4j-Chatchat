@@ -1,0 +1,80 @@
+[
+  {
+    "case": "optional",
+    "taskId": "116a2ee8-e3cc-3360-b6ec-ab1d6fb3f679",
+    "runId": "att-1-66b33857-3bbb-4ee2-ab0c-c4b6b3f16683",
+    "status": "NO_PRESENTABLE_RESULT",
+    "answer": "问题分析计划包含多个工作流目标，当前尚不支持安全编排执行。请确认本次优先处理哪个目标：分析两份Excel附件的数据质量并生成校验报告；查询指定资产名称的业务数据作为可选补充",
+    "errorCode": null,
+    "observations": [],
+    "proofScope": "NOT_A_SUCCESSFUL_EMPTY_MCP_LIVE_TEST",
+    "workflowUnchanged": true
+  },
+  {
+    "case": "required",
+    "taskId": "14961a27-af68-3403-83c7-8a89e7f9853b",
+    "runId": "att-1-40d61a63-d725-4e80-b2d6-cde02635e1ca",
+    "status": "NO_PRESENTABLE_RESULT",
+    "answer": "问题分析计划包含多个工作流目标，当前尚不支持安全编排执行。请确认本次优先处理哪个目标：分析两份附件Excel的数据质量并按id比较差异；查询指定资产的实际业务数据；将附件数据与指定资产的实际业务数据进行核对",
+    "errorCode": null,
+    "observations": [],
+    "proofScope": "NOT_A_SUCCESSFUL_EMPTY_MCP_LIVE_TEST",
+    "workflowUnchanged": true
+  },
+  {
+    "case": "optional-v2",
+    "taskId": "93ecc42c-2d0b-3c72-8275-751161054f46",
+    "runId": "att-1-d9bd426d-888f-4053-adf6-0285d040ae9f",
+    "status": "FAILED",
+    "answer": "本次执行失败，但失败信息已被捕获并返回。\n\n失败类型：QueryOptimizationException\n失败原因：QUERY_REQUIRES_STRUCTURED_CONSTRAINTS: Long natural-language negation must be supplied as explicit exclusion filters before compression\n\n已将该失败作为本次任务结果反馈给用户端。请根据工具执行日志、权限配置、参数绑定或模型服务状态继续排查。",
+    "errorCode": "QueryOptimizationException",
+    "observations": [],
+    "proofScope": "NOT_A_SUCCESSFUL_EMPTY_MCP_LIVE_TEST",
+    "workflowUnchanged": true
+  },
+  {
+    "case": "required-v2",
+    "taskId": "ea87d4ce-bfc1-3371-9a01-c6e62cb8cff5",
+    "runId": "att-1-f1f8c4b1-a9c7-4e2a-b543-31400aa775aa",
+    "status": "FAILED",
+    "answer": "本次执行失败，但失败信息已被捕获并返回。\n\n失败类型：QueryOptimizationException\n失败原因：QUERY_REQUIRES_STRUCTURED_CONSTRAINTS: Long natural-language negation must be supplied as explicit exclusion filters before compression\n\n已将该失败作为本次任务结果反馈给用户端。请根据工具执行日志、权限配置、参数绑定或模型服务状态继续排查。",
+    "errorCode": "QueryOptimizationException",
+    "observations": [],
+    "proofScope": "NOT_A_SUCCESSFUL_EMPTY_MCP_LIVE_TEST",
+    "workflowUnchanged": true
+  },
+  {
+    "case": "optional-v3",
+    "taskId": "9240a420-6fa5-330d-b955-df7e9e9e3d15",
+    "runId": "att-1-0aa91a5a-6e7e-45af-8e65-bca21bbd8a78",
+    "status": "FAILED",
+    "answer": "REQUIRED_MCP_DATA_UNAVAILABLE: file analysis cannot bypass missing, failed or unconfirmed business evidence",
+    "errorCode": null,
+    "observations": [
+      {
+        "toolName": "mcp_chatchat_mcp_server_api_service_query",
+        "errorMessage": "Tool result rejected by semantic candidate review: the model did not select an asset id from the returned candidate set",
+        "assetDiscoveryReturnedCount": 1
+      }
+    ],
+    "proofScope": "NOT_A_SUCCESSFUL_EMPTY_MCP_LIVE_TEST",
+    "workflowUnchanged": true
+  },
+  {
+    "case": "required-v3",
+    "taskId": "ea66e8e5-996f-3753-b99c-2d4eabf2f4f9",
+    "runId": "att-1-f05e59e0-13e6-492c-a8c1-22165bc42252",
+    "status": "FAILED",
+    "answer": "REQUIRED_MCP_DATA_UNAVAILABLE: file analysis cannot bypass missing, failed or unconfirmed business evidence",
+    "errorCode": null,
+    "observations": [
+      {
+        "toolName": "mcp_chatchat_mcp_server_api_service_query",
+        "errorMessage": "Tool result rejected by semantic candidate review: the model did not select an asset id from the returned candidate set",
+        "assetDiscoveryReturnedCount": 1
+      }
+    ],
+    "proofScope": "NOT_A_SUCCESSFUL_EMPTY_MCP_LIVE_TEST",
+    "workflowUnchanged": true
+  }
+]

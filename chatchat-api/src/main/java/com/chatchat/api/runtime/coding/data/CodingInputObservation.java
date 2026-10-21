@@ -19,7 +19,16 @@ public final class CodingInputObservation {
         String ref=batched && row.get("datasetReference") instanceof String value ? value : source;
         if (observed.size()>=8 || !observed.add(ref)) return;
         try {
-            String value=json.writeValueAsString(row);
+            Map<String,Object> visible = row;
+            Object transported = batched ? row.get("record") : row;
+            if (ref.startsWith("user-asset:") && transported instanceof Map<?,?> file && "SOURCE_FILE".equals(file.get("role"))) {
+                var metadata = new LinkedHashMap<String,Object>();
+                for (String key : List.of("assetId","fileName","contentType","size","sha256","role","chunkIndex","chunkCount","chunkSha256"))
+                    if (file.get(key) != null) metadata.put(key,file.get(key));
+                metadata.put("contentDelivery", "IMMUTABLE_INPUT_FILE_ONLY");
+                visible = batched ? Map.of("datasetReference",ref,"record",metadata) : metadata;
+            }
+            String value=json.writeValueAsString(visible);
             String prefix=value.codePoints().limit(1024).collect(StringBuilder::new,
                 StringBuilder::appendCodePoint,StringBuilder::append).toString();
             var sample=Map.<String,Object>of("datasetReference",ref,"rowJsonPrefix",prefix,

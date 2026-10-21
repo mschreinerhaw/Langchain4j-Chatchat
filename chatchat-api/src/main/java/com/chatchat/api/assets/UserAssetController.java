@@ -17,11 +17,13 @@ public class UserAssetController {
     private final UserAssetService assets;
     private final ObjectAccessService access;
     private final AssetStorageProperties limits;
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.beans.factory.ObjectProvider<com.chatchat.api.datascience.python.PythonDataScienceService> python;
     private UserAssetService.Owner owner(HttpServletRequest request){return new UserAssetService.Owner(access.tenant(request),access.user(request));}
     @GetMapping("/space") public ApiResponse<?> space(HttpServletRequest request){return ApiResponse.success(assets.space(owner(request)));}
     @GetMapping public ApiResponse<?> list(HttpServletRequest request,
         @RequestParam(value="kind",required=false) UserAssetService.Kind kind,@RequestParam(value="taskId",required=false) String taskId,
-        @RequestParam(value="limit",defaultValue="50") int limit){return ApiResponse.success(assets.list(owner(request),kind,taskId,limit));}
+        @RequestParam(value="limit",defaultValue="50") int limit,@RequestParam(value="offset",defaultValue="0") int offset){return ApiResponse.success(assets.listPage(owner(request),kind,taskId,limit,offset));}
     @PostMapping(consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<?> upload(HttpServletRequest request,@RequestParam("file") MultipartFile file)throws java.io.IOException {
         var owner=owner(request);
@@ -38,5 +40,11 @@ public class UserAssetController {
                 ContentDisposition.attachment().filename(file.fileName(),java.nio.charset.StandardCharsets.UTF_8).build().toString())
             .body(assets.read(owner,id));
     }
-    @DeleteMapping("/{id}") public ApiResponse<?> delete(HttpServletRequest request,@PathVariable("id") String id){assets.delete(owner(request),id);return ApiResponse.success(null);}
+    @DeleteMapping("/{id}") public ApiResponse<?> delete(HttpServletRequest request,@PathVariable("id") String id){
+        var owner=owner(request);var file=assets.get(owner,id);
+        if(file.taskId()==null || file.taskId().isBlank()){
+            var service=python==null?null:python.getIfAvailable();if(service!=null)service.removeUserSpaceData(owner.tenant(),access.legacyUser(request),id);
+        }
+        assets.delete(owner,id);return ApiResponse.success(null);
+    }
 }

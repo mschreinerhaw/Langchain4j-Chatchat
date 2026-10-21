@@ -29,7 +29,7 @@ import { pythonCompletionItems } from "../utils/pythonCompletions";
 import { getLanguageAdapter, editorPreferences, editorLanguageOptions, applyFormatIfUnchanged, pythonBlockIndent } from "../editor/codeIntelligence";
 import { buildPythonLineDiff } from "../utils/pythonCodeDiff";
 import PythonCodeDiff from "../../components/PythonCodeDiff.vue";
-import UserAssetLibrary from "../../components/UserAssetLibrary.vue";
+import UserSpaceBrowser from "../../components/UserSpaceBrowser.vue";
 import CodeChangeReview from "../../components/editor/CodeChangeReview.vue";
 import StudioCodePlan from "../../components/editor/StudioCodePlan.vue";
 import { requestPlannedPythonAssist } from '../../services/studioCodePlanning';
@@ -83,7 +83,7 @@ const workspaceLayoutStorageKey = "chatchat.python-studio.layout.v1";
 
 export default {
   name: "DataScienceView",
-  components: { UserAssetLibrary, StudioCodePlan, CodeChangeReview, PythonCodeDiff, EditorPreferences, Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X,
+  components: { UserSpaceBrowser, StudioCodePlan, CodeChangeReview, PythonCodeDiff, EditorPreferences, Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X,
     Play, Save, Settings2, PanelLeft, PanelRight, PanelBottom, Maximize2, Minimize2, Sparkles, Send,
     RefreshCw, ListTree, Box, Terminal, CircleCheck, CircleAlert, LoaderCircle, Trash2, Code2, BookOpen, FlaskConical, WandSparkles },
   props: {
@@ -275,8 +275,8 @@ export default {
       return {
         environment: "Python 环境",
         develop: "Python 开发",
-        data: "我的数据",
-        scripts: "我的脚本"
+        data: "用户空间",
+        scripts: "用户空间"
       }[this.tab] || "Python 环境";
     },
     readyAssets() {
@@ -601,11 +601,23 @@ export default {
         environment: "dataScienceEnvironment",
         develop: "dataScienceDevelop",
         data: "dataScienceData",
-        scripts: "dataScienceScripts"
+        scripts: "dataScienceData"
       };
       if (!routes[section]) return;
       this.tab = section;
       this.$emit("navigate", routes[section]);
+    },
+    useUserSpaceData(file) {
+      if(!this.dataFiles.some(item=>item.id===file.id))this.dataFiles.push(file);
+      this.selectedDataFileId=file.id;
+      this.navigateToSection('develop');
+      this.showTransientMessage(`已选择用户空间数据 ${file.fileName}，可在运行参数中绑定`);
+    },
+    openUserSpaceScript(file) {
+      this.newScript();
+      if(/^[A-Za-z0-9][A-Za-z0-9_.-]{0,170}\.py$/.test(file.fileName))this.form.fileName=file.fileName;
+      this.form.sourceCode=file.sourceCode;
+      this.showTransientMessage('已在 Python 开发中打开副本，保存后成为开发脚本');
     },
     async load(silent = false) {
       const background = silent === true;
@@ -1208,7 +1220,7 @@ export default {
         const dataFile = await importPythonSystemExampleData(example.id);
         await this.load(true);
         this.selectedDataFileId = dataFile.id;
-        this.showTransientMessage(`示例数据 ${dataFile.fileName} 已导入“我的数据”`);
+        this.showTransientMessage(`示例数据 ${dataFile.fileName} 已导入“用户空间”`);
       });
     },
     async run() {
@@ -1741,7 +1753,7 @@ export default {
         (file) => file.status === "AVAILABLE" && file.id === this.selectedDataFileId
       ) || this.dataFiles.find((file) => file.status === "AVAILABLE" && file.id);
       if (!availableFile) {
-        this.showTransientError("请先在“我的数据”中上传一个可用文件");
+        this.showTransientError("请先在“用户空间”中选择一个可用数据文件");
         return;
       }
       this.parametersText = JSON.stringify(

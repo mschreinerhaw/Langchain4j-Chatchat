@@ -54,4 +54,12 @@ class UserAssetControllerHttpTest {
         mvc.perform(get("/api/v1/interactions/user-assets/"+file.id()+"/content").header("X-Test-Principal","bob"))
             .andExpect(status().isNotFound());
     }
+    @Test void paginationStaysWithinTheAuthenticatedOwner()throws Exception{
+        var alice=new UserAssetService.Owner("tenant","alice");
+        var first=assets.upload(alice,"first.md",new byte[]{65});var second=assets.upload(alice,"second.md",new byte[]{66});
+        assets.upload(new UserAssetService.Owner("tenant","bob"),"private.md",new byte[]{67});
+        var ordered=assets.list(alice,null,null,10);
+        mvc.perform(get(route).param("limit","1").param("offset","1").accept("application/json").header("X-Test-Principal","alice"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1)).andExpect(jsonPath("$.data[0].id").value(ordered.get(1).id()));
+    }
 }

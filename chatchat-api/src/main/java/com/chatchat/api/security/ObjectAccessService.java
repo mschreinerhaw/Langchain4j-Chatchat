@@ -19,6 +19,13 @@ public class ObjectAccessService {
 
     public String user(HttpServletRequest request) { return attribute(request, ApiAuthenticationFilter.CURRENT_USER_ID); }
     public String tenant(HttpServletRequest request) { return attribute(request, ApiAuthenticationFilter.CURRENT_TENANT_ID); }
+    /** Bridge to the maintained Python/MCP username scope, after ruling out identity collisions. */
+    public String legacyUser(HttpServletRequest request) {
+        String username=attribute(request,ApiAuthenticationFilter.CURRENT_USERNAME);
+        if(username==null || username.isBlank())return user(request);
+        if(!ownerAliases(request).contains(username))denied();
+        return username;
+    }
     public Set<String> ownerAliases(HttpServletRequest request) {
         Set<String> aliases = new LinkedHashSet<>();
         if (user(request) != null) aliases.add(user(request));

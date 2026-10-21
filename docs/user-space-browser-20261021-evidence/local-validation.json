@@ -1,0 +1,77 @@
+{
+  "java": [
+    {
+      "name": "com.chatchat.api.assets.UserSpaceOrganizationTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.assets.UserAssetPythonBridgeTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.workspace.UserSpaceNavigationMigrationTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.assets.UserAssetServiceTest",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.assets.UserAssetControllerHttpTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.datascience.python.PythonDataScienceScriptDeletionTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.datascience.python.PythonUserSpaceDataTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.security.ApiPermissionAuthorizationFilterTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.workspace.WorkspaceMigrationTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.security.LegacyUserScopeTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ],
+  "javaTotal": 34,
+  "frontendTests": 45,
+  "viteBuild": "PASSED"
+}

@@ -1,0 +1,8 @@
+{
+  "path": "target\\assets-local\\user-space-browser-final-app.jar",
+  "sha256": "f2676174dda36b7085e40426dc970110feeb3439166a4216798cb7c1b52d0654",
+  "consoleFiles": 83,
+  "testedBackendSha256": "ff613d31b282deea4562d7c30bb771f8a1c1d5eb1a7b845166fdf25cbbee9aec",
+  "unchangedBackendEntries": 1146,
+  "backendBytesMatch": true
+}

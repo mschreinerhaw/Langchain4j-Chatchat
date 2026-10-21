@@ -17,6 +17,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
         @Index(name = "idx_python_data_expiry", columnList = "status,expire_at")
 })
 public class PythonDataFileEntity {
+    /** Origin relation for execution copies; never used to authorize access to an original. */
+    public String getSourceAssetId(){return purpose!=null && purpose.matches("user-space:[a-f0-9]{64}")?purpose.substring(11):null;}
     @Id
     @Column(length = 64)
     private String id;

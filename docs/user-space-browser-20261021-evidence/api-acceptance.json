@@ -1,0 +1,28 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "logicalFolderPersisted": true,
+    "otherOwnerFolderInvisible": true,
+    "foreignFolderRejected": true,
+    "foreignFileMoveRejected": true,
+    "foreignOriginalRejected": true,
+    "nonemptyFolderProtected": true,
+    "pathTraversalRejected": true,
+    "chatCannotManageFolders": true,
+    "chatCannotPreparePython": true,
+    "chatAliasHasNoPythonBridge": true,
+    "anonymousFolderAccessRejected": true,
+    "foreignPythonPreparationRejected": true,
+    "executionCopyDeduplicated": true,
+    "executionCopyScopedToOriginal": true,
+    "executionCopyExactBytes": true,
+    "legacyUsernameFolderMove": true,
+    "foreignLegacyFileMoveRejected": true,
+    "siloOriginalUnchanged": true,
+    "deletingOriginalRevokesExecutionCopy": true,
+    "emptyFolderRemovable": true
+  },
+  "temporaryResourcesRemoved": true,
+  "modelCallsSubmitted": 0,
+  "scriptsExecuted": 0
+}

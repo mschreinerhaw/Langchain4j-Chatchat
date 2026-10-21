@@ -1,6 +1,6 @@
 # Runtime OS 存储分层现状与实施边界
 
-最新补充：[对话与 Agent API 分析附件](agent-analysis-attachments.md)、[SQL Studio 用户空间文档参考](sql-studio-user-documents.md)。公开 Agent API 通过附件 ID 选择用户原件；SQL Studio 通过文档用途选择参考规则与分析依据，均复用现有资产存储和 Cline 流程。
+最新补充：[用户空间文件浏览器](user-space-browser.md)、[对话与 Agent API 分析附件](agent-analysis-attachments.md)、[SQL Studio 用户空间文档参考](sql-studio-user-documents.md)。数据车间统一数据与脚本入口，按用途持久化逻辑文件夹；公开 Agent API 通过附件 ID 选择用户原件，SQL Studio 通过文档用途选择参考规则与分析依据，均复用现有资产存储和 Cline 流程。
 
 审查日期：2026-10-21。基线提交：`87c354fbd0478afcda498052ff42560e2494eadd`；基线 Tag：`baseline/runtime-os-silo-workspace-20261021`；实施分支：`feature/runtime-os-silo-workspace`。开始时工作区干净，不覆盖主分支或既有 Tag。
 

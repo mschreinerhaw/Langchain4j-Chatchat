@@ -1,6 +1,6 @@
 {
   "schemaVersion": "workspace-manifest.v1",
-  "configVersion": 4,
+  "configVersion": 5,
   "workspaceId": "data-science",
   "appVersion": "1.0.0",
   "name": "数据车间",
@@ -31,12 +31,6 @@
       "id": "dataScienceData",
       "menuCode": "dataScienceData",
       "componentKey": "dataScienceData",
-      "props": {}
-    },
-    {
-      "id": "dataScienceScripts",
-      "menuCode": "dataScienceScripts",
-      "componentKey": "dataScienceScripts",
       "props": {}
     },
     {

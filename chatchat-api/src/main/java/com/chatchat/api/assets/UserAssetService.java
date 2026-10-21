@@ -53,11 +53,14 @@ public class UserAssetService {
             (rs,n)->new Space(rs.getLong(1),rs.getLong(2)),owner.id());
     }
     public List<File> list(Owner owner, Kind kind, String task, int limit) {
+        return listPage(owner,kind,task,limit,0);
+    }
+    public List<File> listPage(Owner owner, Kind kind, String task, int limit,int offset) {
         ensure(owner);
         return jdbc.query("select * from runtime_workspace_file where workspace_id=? and state<>'DELETED' "
-            +"and (?='' or kind=?) and (?='' or task_id=?) order by created_at desc,id limit ?",
+            +"and (?='' or kind=?) and (?='' or task_id=?) order by created_at desc,id limit ? offset ?",
             UserAssetService::file, owner.id(),kind==null?"":kind.name(),kind==null?"":kind.name(),
-            task==null?"":task,task==null?"":task,Math.max(1,Math.min(limit,100)));
+            task==null?"":task,task==null?"":task,Math.max(1,Math.min(limit,100)),Math.max(0,offset));
     }
     public File upload(Owner owner, String name, byte[] data) {
         String type=documentType(name,data);
@@ -168,8 +171,9 @@ public class UserAssetService {
     private static String documentType(String file,byte[] bytes) {
         name(file);String ext=file.substring(file.lastIndexOf('.')+1).toLowerCase(Locale.ROOT);
         String type=switch(ext){case "pdf"->"application/pdf";case "docx"->"application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-            case "xlsx"->"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";case "csv"->"text/csv";
-            case "parquet"->"application/vnd.apache.parquet";case "txt","md","sql"->"text/plain";case "json","jsonl"->"application/json";
+            case "xlsx"->"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";case "xls"->"application/vnd.ms-excel";case "csv"->"text/csv";
+            case "parquet"->"application/vnd.apache.parquet";case "orc"->"application/octet-stream";case "zip"->"application/zip";
+            case "py"->"text/x-python";case "txt","md","sql","log"->"text/plain";case "json","jsonl"->"application/json";
             case "png"->"image/png";case "jpg","jpeg"->"image/jpeg";case "webp"->"image/webp";case "gif"->"image/gif";
             default->throw new IllegalArgumentException("Unsupported user document format");};
         if(bytes.length==0)throw new IllegalArgumentException("Empty document");

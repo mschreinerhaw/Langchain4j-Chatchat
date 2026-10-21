@@ -37,3 +37,18 @@ CREATE TABLE IF NOT EXISTS runtime_asset_knowledge_job (
     updated_at BIGINT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_runtime_asset_knowledge_pending ON runtime_asset_knowledge_job(state,next_attempt_at);
+CREATE TABLE IF NOT EXISTS runtime_user_asset_folder (
+    id VARCHAR(64) PRIMARY KEY,
+    workspace_id VARCHAR(64) NOT NULL REFERENCES runtime_user_workspace(id),
+    parent_id VARCHAR(64) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    created_at BIGINT NOT NULL,
+    UNIQUE(workspace_id,parent_id,name)
+);
+CREATE TABLE IF NOT EXISTS runtime_user_asset_location (
+    workspace_id VARCHAR(64) NOT NULL REFERENCES runtime_user_workspace(id),
+    source VARCHAR(24) NOT NULL,
+    source_id VARCHAR(64) NOT NULL,
+    folder_id VARCHAR(64) NOT NULL,
+    PRIMARY KEY(workspace_id,source,source_id)
+);

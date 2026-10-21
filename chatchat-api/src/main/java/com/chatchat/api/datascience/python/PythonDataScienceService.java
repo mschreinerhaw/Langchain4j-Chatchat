@@ -277,6 +277,19 @@ public class PythonDataScienceService {
         return storeDataFile(tenant, owner, example.dataFileName(), example.format(), content, "系统示例数据：" + example.name(), "PERMANENT");
     }
 
+    /** User-space originals remain authoritative; MCP receives a scoped execution copy on explicit selection. */
+    public PythonDataFileEntity prepareUserSpaceData(String tenant,String owner,String assetId,String name,byte[] content){
+        if(assetId==null || !assetId.matches("[a-f0-9]{64}"))throw new IllegalArgumentException("Invalid user space file");
+        name=safeDataFileName(name);String type=fileType(name),hash=sha256(content),source="user-space:"+assetId;
+        for(var file:dataFileRepository.findByTenantIdAndOwnerIdOrderByCreatedAtDesc(tenant,owner))
+            if(source.equals(file.getPurpose()) && "AVAILABLE".equals(file.getStatus()) && hash.equals(file.getFileHash()))return file;
+        return storeDataFile(tenant,owner,name,type,content,source,"PERMANENT");
+    }
+    public void removeUserSpaceData(String tenant,String owner,String assetId){
+        for(var file:dataFileRepository.findByTenantIdAndOwnerIdOrderByCreatedAtDesc(tenant,owner))
+            if(("user-space:"+assetId).equals(file.getPurpose()))deleteDataFile(tenant,owner,file.getId());
+    }
+
     private PythonDataFileEntity storeDataFile(String tenant, String owner, String name, String type, byte[] content, String purpose, String retention) {
         if (content.length > properties.getMaxDataFileBytes())
             throw new IllegalArgumentException("数据文件不能超过 " + (properties.getMaxDataFileBytes() / 1024 / 1024) + " MB");

@@ -10,6 +10,12 @@ async function mount(values={}) {
   app=createApp({render:()=>h(SqlAssistantPanel,props)});app.mount(host);await nextTick();return props;
 }
 describe('SQL assistant conversation',()=>{
+  it('shows selected user documents and their actual purpose instead of a legacy case count',async()=>{
+    await mount({mappingCount:0,userDocuments:[{fileId:'rules',fileName:'rules.md',purpose:'RULES'},{fileId:'facts',fileName:'facts.json',purpose:'EVIDENCE'}]});
+    const context=host.querySelector('.sql-chat-context');
+    expect(context.textContent).toContain('2 文档');expect(context.textContent).toContain('参考规则');expect(context.textContent).toContain('分析依据');
+    expect(context.textContent).not.toContain('案例');expect(context.textContent).not.toContain('????');
+  });
   it('shows pending planning inside the assistant reply without an overlay or fabricated plan',async()=>{
     const props=await mount({pendingPhase:'PREPARING',pendingStartedAt:Date.now(),busy:true,
       messages:[{id:'user:r',role:'user',text:'生成 ETL'},{id:'assistant:r',role:'assistant',text:'等待计划',status:'planning'}]});

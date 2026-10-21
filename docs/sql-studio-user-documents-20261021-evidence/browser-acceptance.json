@@ -1,0 +1,38 @@
+{
+  "status": "PASSED",
+  "projectId": "8c294b98-06ef-4aef-942f-40100971ee17",
+  "generationId": "0a6b0b55-682a-430e-9244-0176869155db",
+  "taskId": "sql-coding-0a6b0b55-682a-430e-9244-0176869155db",
+  "marker": "policy_7333698ddf",
+  "uploads": [
+    {
+      "id": "4ff05b757cb30911ab6be005eb7c829d7ca3f3fd6d8c12763b1057ee880719e8",
+      "fileName": "reference-rules-policy_7333698ddf.md",
+      "sha256": "731294a36f893dea87728ca60dce8a909d83f42d5f7879493ed49111241229c1",
+      "size": 227
+    },
+    {
+      "id": "d429c149978c7f8522d61352a8eac432598a50e9bd2c130c570fa2e2cf596052",
+      "fileName": "analysis-definitions-policy_7333698ddf.json",
+      "sha256": "0e3acbb7a00c73195d6c50bdb78f336551aff786409fb9bce762d3eed8ebceb0",
+      "size": 250
+    }
+  ],
+  "purposes": [
+    "RULES",
+    "EVIDENCE"
+  ],
+  "selectedDocumentsFrozen": true,
+  "originalHashesMatch": true,
+  "ruleMarkerApplied": true,
+  "evidenceDefinitionsApplied": true,
+  "sqlParsed": true,
+  "sqlExecuted": false,
+  "filesApplied": false,
+  "noProjectDocumentCopies": true,
+  "unselectRetainsOriginal": true,
+  "proposedPaths": [
+    "sql/net_sales_by_currency.sql"
+  ],
+  "pageErrors": []
+}

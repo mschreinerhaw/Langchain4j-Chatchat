@@ -1,0 +1,8 @@
+{
+  "path": "target\\assets-local\\sql-user-documents-final-app.jar",
+  "sha256": "ee69dddfc6215389b30d34863eac55ad2ffbe4b008b09d3531d6980347a1c96a",
+  "consoleFiles": 82,
+  "testedBackendSha256": "90ece14aaa4c060f9bcf70820698b67741986ad69d9e8339a260f16a663f3355",
+  "unchangedBackendEntries": 1136,
+  "backendBytesMatch": true
+}

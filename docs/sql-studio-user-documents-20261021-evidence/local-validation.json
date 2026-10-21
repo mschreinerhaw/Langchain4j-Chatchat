@@ -1,0 +1,44 @@
+{
+  "java": [
+    {
+      "name": "com.chatchat.api.assets.SqlStudioUserDocumentsTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.assets.UserAssetServiceTest",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.datascience.sql.SqlStudioGenerationToolPolicyTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.datascience.sql.SqlStudioUserDocumentContractTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.workspace.CodingWorkspaceServiceTest",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "8"
+    }
+  ],
+  "javaPassed": 17,
+  "javaSkipped": 8,
+  "skipReason": "CodingWorkspaceServiceTest requires coding.sqlglotPython; local Python has no SQLGlot",
+  "frontendTests": 23,
+  "viteBuild": "PASSED"
+}

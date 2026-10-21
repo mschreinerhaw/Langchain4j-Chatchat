@@ -10,7 +10,7 @@ import { Sparkles, FileCode2, BookOpen, Send, AtSign, TrendingUp, CircleHelp, Lo
 
 export default {
   components: { StudioCodePlan, AppNotice, Sparkles, FileCode2, BookOpen, Send, AtSign, TrendingUp, CircleHelp, LoaderCircle, CircleCheck, Clock3, Plus },
-  props: { mappingDocuments: { type:Array, default:() => [] }, mappingCount: Number, projectFiles: Array, references: Array, referenceIds: Array, models: Array, agents: Array,
+  props: { userDocuments: { type:Array, default:()=>[] }, mappingDocuments: { type:Array, default:() => [] }, mappingCount: Number, projectFiles: Array, references: Array, referenceIds: Array, models: Array, agents: Array,
     agentId: String, modelName: String, executionMode: String, prompt: String, messages: Array, busy: Boolean, generations: Array,
     generationId: String, result: Object, selectedCode: Object, currentFile: Object, dialectLabel: String, taskRunning: Boolean,
     pendingPhase: String, pendingStartedAt: Number, pollError: String, aiAction: String },
@@ -48,7 +48,7 @@ export default {
     const stopClock = () => clearInterval(clock);
     onMounted(startClock); onActivated(startClock); onDeactivated(stopClock); onBeforeUnmount(stopClock);
     const quickActions = ['基于 Mapping 生成目标表建表与 ETL SQL', '解释这段 SQL 的作用', '帮我优化这段 SQL，提升性能',
-      '参照已有 SQL 案例生成相同风格的脚本', '检查 SQL 是否有潜在问题'];
+      '依据用户空间参考规则生成 SQL 脚本', '检查 SQL 是否有潜在问题'];
     const resources = computed(() => (props.projectFiles || []).filter(file => file.id !== props.currentFile?.id && ['MAPPING', 'REFERENCE', 'SQL'].includes(file.kind)));
     const shownResources = computed(() => allResources.value ? resources.value : resources.value.slice(0, 3));
     function useQuickAction(text) {

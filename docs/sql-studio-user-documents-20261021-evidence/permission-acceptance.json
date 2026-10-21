@@ -1,0 +1,15 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "sqlOriginalAccepted": true,
+    "sqlExactOriginal": true,
+    "foreignDocumentRejected": true,
+    "duplicateDocumentsRejected": true,
+    "invalidPurposeRejected": true,
+    "crossOwnerProjectDenied": true,
+    "anonymousDenied": true,
+    "noGenerationOrPlanCreated": true
+  },
+  "modelCallsSubmitted": 0,
+  "temporaryResourcesRemoved": true
+}

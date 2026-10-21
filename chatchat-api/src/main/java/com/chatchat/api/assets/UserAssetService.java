@@ -169,7 +169,7 @@ public class UserAssetService {
         name(file);String ext=file.substring(file.lastIndexOf('.')+1).toLowerCase(Locale.ROOT);
         String type=switch(ext){case "pdf"->"application/pdf";case "docx"->"application/vnd.openxmlformats-officedocument.wordprocessingml.document";
             case "xlsx"->"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";case "csv"->"text/csv";
-            case "parquet"->"application/vnd.apache.parquet";case "txt","md"->"text/plain";case "json","jsonl"->"application/json";
+            case "parquet"->"application/vnd.apache.parquet";case "txt","md","sql"->"text/plain";case "json","jsonl"->"application/json";
             case "png"->"image/png";case "jpg","jpeg"->"image/jpeg";case "webp"->"image/webp";case "gif"->"image/gif";
             default->throw new IllegalArgumentException("Unsupported user document format");};
         if(bytes.length==0)throw new IllegalArgumentException("Empty document");

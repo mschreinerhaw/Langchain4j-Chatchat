@@ -1,0 +1,8 @@
+{
+  "path": "target\\assets-local\\sql-assistant-simple-app.jar",
+  "sha256": "f8a848ace50b46f87892988e39707253ecac750dc7df80d3e0bab2c125244d33",
+  "consoleFiles": 83,
+  "testedBackendSha256": "cf0e38feca52d785b1f63e37a08511a1a950eacd8aca135b024e1fad70924db0",
+  "unchangedBackendEntries": 1150,
+  "backendBytesMatch": true
+}

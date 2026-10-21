@@ -1,6 +1,6 @@
 <template>
-  <details class="sql-user-documents" open>
-    <summary>用户空间文档 <small>{{ modelValue.length }} 个已选</small></summary>
+  <details class="sql-user-documents">
+    <summary>文档与参考脚本 <small>{{ modelValue.length }} 个已选</small></summary>
     <p>选择本次生成要引用的文档，并指定用途。</p>
     <div class="sql-document-actions"><label>上传文档<input aria-label="上传用户空间文档" type="file" multiple :accept="accept" :disabled="busy || uploading" @change="uploadFiles" /></label><button type="button" :disabled="busy || uploading || loading" @click="refresh">选择已有文档 / 刷新</button></div>
     <input v-model="query" type="search" aria-label="搜索用户空间文档" placeholder="搜索文档名称" />

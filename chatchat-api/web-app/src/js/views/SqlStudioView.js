@@ -11,7 +11,7 @@ import CodeChangeReview from '../../components/editor/CodeChangeReview.vue';
 import { studioAiLabels, sqlGenerationAction } from '../utils/studioAi';
 import { FolderTree, PanelBottom, Sparkles, Plus, Save, WandSparkles, FileCode2, CircleCheck } from '@lucide/vue';
 import * as sql from '../../services/sqlStudioApi';
-import { fetchPythonCodeModels, fetchAgentOptions, cancelAgentTask } from '../../services/api';
+import { fetchPythonCodeModels, cancelAgentTask } from '../../services/api';
 import { saveWorkspaceDraft, readWorkspaceDraft } from '../utils/workspaceDrafts';
 import { dirtySqlFile, mergeSqlFiles, restoreSqlDrafts, assertSqlApplySafe, mergeAppliedSqlFile, terminalSqlTask } from '../utils/sqlStudioState';
 import { mappingSchemaColumns } from '../editor/codeIntelligence';
@@ -104,7 +104,7 @@ function startResize(panel, event) {
 }
 async function action(fn) { if (busy.value) return; busy.value = true; error.value = ''; try { return await fn(); } catch (ex) { error.value = ex.message || '操作失败'; } finally { busy.value = false; } }
 function toggle(list, id) { const index = list.indexOf(id); index < 0 ? list.push(id) : list.splice(index, 1); }
-function chooseExecutionMode(mode) { executionMode.value = mode; agentId.value = ''; modelName.value = ''; }
+function chooseExecutionMode(mode) { executionMode.value = mode === 'agent' && agents.value.length ? 'agent' : 'model'; agentId.value = ''; modelName.value = ''; }
 async function chooseLibrary() { await action(async () => { libraryKind.value = 'MAPPING'; libraryItems.value = await sql.sqlLibraryFiles('MAPPING'); librarySelected.value = [...mappingDocumentIds.value]; libraryOpen.value = true; }); }
 function importLibrary() {
   mappingDocuments.value = libraryItems.value.filter(item => librarySelected.value.includes(item.docId)).map(item => ({ docId:item.docId, fileName:item.fileName || item.title }));
@@ -151,7 +151,7 @@ async function selectProject(id) {
     documentsUploading.value = false;
     if (!stored) { const first = files.value.find(file => file.kind === 'SQL') || files.value[0]; if (first) openFile(first.id); }
     prompt.value = stored?.prompt || ''; chatTurns.value = Array.isArray(stored?.chatTurns) ? stored.chatTurns.slice(-30) : [];
-    aiAction.value = ['generate','explain','fix','optimize'].includes(stored?.aiAction) ? stored.aiAction : 'generate'; reviewOpen.value=false;
+    aiAction.value = 'generate'; reviewOpen.value=false;
     selectedCode.value = null; preview.value = null; generations.value = history;
     generationId.value = stored && Object.hasOwn(stored, 'conversationGenerationId')
       ? history.find(item => item.id === stored.conversationGenerationId)?.id || '' : history[0]?.id || '';
@@ -219,6 +219,7 @@ async function saveActive() {
 }
 async function upload({ files:uploads, kind }) { await action(async () => { for (const file of uploads) { const fileKind = kind === 'AUTO' ? file.name.toLowerCase().endsWith('.sql') ? 'REFERENCE' : 'MAPPING' : kind; const saved = await sql.uploadSqlInput(projectId.value, file, fileKind); files.value.push({ ...saved, draft:saved.content, draftBaseVersion:saved.version }); if (fileKind === 'MAPPING') mappingIds.value.push(saved.id); openFile(saved.id); } references.value = await sql.sqlReferences(); }); }
 async function generate() { if(documentsUploading.value)return; await action(async () => {
+  if(executionMode.value==='agent'&&!agents.value.some(agent=>agent.id===agentId.value))throw new Error('\u8bf7\u9009\u62e9\u5df2\u53d1\u5e03\u4e14\u6709\u6743\u4f7f\u7528\u7684 Agent');
   if (taskRunning.value) throw new Error('当前任务仍在运行，请等待结果或取消后再发送。');
   if (files.value.some(dirtySqlFile)) throw new Error('请先保存工程中的编辑内容，让生成任务读取一致的文件版本。');
   const id = projectId.value, text = prompt.value.trim();
@@ -268,7 +269,7 @@ function newConversation() {
   if (busy.value || taskRunning.value || pendingPhase.value || !projectId.value) return;
   clearTimeout(pollTimer); clearTimeout(draftTimer);
   reviewOpen.value=false;
-  chatTurns.value = []; prompt.value = ''; selectedCode.value = null;
+  chatTurns.value = []; prompt.value = ''; selectedCode.value = null; aiAction.value='generate';
   generationId.value = ''; result.value = null; pendingStartedAt.value = 0; pollError.value = '';
   if (preview.value && !preview.value.reference) preview.value = null;
   error.value = ''; message.value = ''; persist();
@@ -327,10 +328,10 @@ async function renameFile({ file, path }) { await action(async () => {
 onMounted(async () => {
   window.addEventListener('beforeunload', beforeUnload);
   await action(async () => {
-    const loaded = await Promise.allSettled([sql.sqlProjects(), fetchPythonCodeModels(), fetchAgentOptions()]);
+    const loaded = await Promise.allSettled([sql.sqlProjects(), fetchPythonCodeModels(), sql.sqlAgentOptions()]);
     if (loaded[0].status !== 'fulfilled') throw loaded[0].reason;
     projects.value = loaded[0].value; models.value = loaded[1].status === 'fulfilled' ? loaded[1].value : [];
-    agents.value = loaded[2].status === 'fulfilled' ? loaded[2].value : [];
+    agents.value = loaded[2].status === 'fulfilled' ? loaded[2].value.filter(agent=>agent.marketStatus?.toLowerCase()==='published') : [];
     const stored = readWorkspaceDraft('sql-studio-selection', props.workspaceContext);
     const id = projects.value.find(project => project.id === stored?.projectId)?.id || projects.value[0]?.id;
     if (id) await selectProject(id); initialized = true;

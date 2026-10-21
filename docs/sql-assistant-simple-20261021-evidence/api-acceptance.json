@@ -1,0 +1,19 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "noGrantReturnsNoOptions": true,
+    "onlyGrantedPublishedAgentReturned": true,
+    "otherUserRemainsIsolated": true,
+    "adminOptionsPublishedOnly": true,
+    "forgedUngrantAgentRejected": true,
+    "unknownAgentRejected": true,
+    "draftRejectedEvenWithRoleBinding": true,
+    "revokedGrantImmediatelyHidden": true,
+    "revokedAgentCannotPrepare": true,
+    "rejectionsCreateNoGeneration": true,
+    "anonymousOptionsDenied": true
+  },
+  "modelCallsSubmitted": 0,
+  "scriptsExecuted": 0,
+  "temporaryResourcesRemoved": true
+}

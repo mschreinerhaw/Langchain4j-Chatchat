@@ -23,6 +23,7 @@ public class SqlStudioController {
     public record RenameFile(String path, Integer expectedVersion) { }
     public record BindTask(String taskId) { }
     public record ApplyFiles(List<String> paths) { }
+    @GetMapping("/agent-options") public ApiResponse<?> agents(HttpServletRequest request){gate(request);return ApiResponse.success(service.agentOptions(request));}
     @GetMapping("/library-files") public ApiResponse<?> libraryFiles(@RequestParam("kind") String kind, HttpServletRequest request) { gate(request); return ApiResponse.success(service.libraryFiles(request, kind)); }
     @GetMapping("/projects") public ApiResponse<?> projects(HttpServletRequest request) { gate(request); return ApiResponse.success(service.projects(request)); }
     @GetMapping("/reference-files") public ApiResponse<?> references(HttpServletRequest request) { gate(request); return ApiResponse.success(service.references(request)); }

@@ -1,0 +1,16 @@
+{
+  "checks": {
+    "scriptExplorerAndSimpleComposer": true,
+    "grantedPublishedAgentOnly": true,
+    "documentsAndReferenceScriptsInSettings": true,
+    "projectReferenceInSettings": true,
+    "settingsCollapsedByDefault": true,
+    "noAgentPermissionHidesAgentOption": true,
+    "modelConversationStillAvailable": true,
+    "noPageErrors": true
+  },
+  "errors": [],
+  "temporaryUploadsRemoved": true,
+  "modelCallsSubmitted": 0,
+  "scriptsExecuted": 0
+}

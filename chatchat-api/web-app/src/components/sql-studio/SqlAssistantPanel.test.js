@@ -13,8 +13,19 @@ describe('SQL assistant conversation',()=>{
   it('shows selected user documents and their actual purpose instead of a legacy case count',async()=>{
     await mount({mappingCount:0,userDocuments:[{fileId:'rules',fileName:'rules.md',purpose:'RULES'},{fileId:'facts',fileName:'facts.json',purpose:'EVIDENCE'}]});
     const context=host.querySelector('.sql-chat-context');
-    expect(context.textContent).toContain('2 文档');expect(context.textContent).toContain('参考规则');expect(context.textContent).toContain('分析依据');
+    expect(context.querySelector('.sql-chat-settings').textContent).toContain('参考规则');expect(context.querySelector('.sql-chat-settings').textContent).toContain('分析依据');
+    expect(host.querySelector('.sql-ai-modes')).toBeNull();expect(host.querySelector('.sql-composer-tools')).toBeNull();
+    expect(host.querySelector('.sql-chat-settings').open).toBe(false);
     expect(context.textContent).not.toContain('案例');expect(context.textContent).not.toContain('????');
+  });
+  it('hides Agent execution without usable published options and filters out draft options',async()=>{
+    const props=await mount({executionMode:'agent',agents:[{id:'draft',name:'Draft',marketStatus:'draft'}]});
+    expect(host.querySelector('.sql-execution-modes')).toBeNull();
+    expect(host.querySelector('select').textContent).not.toContain('Draft');
+    props.agents=[{id:'published',name:'Published',marketStatus:'published'},{id:'draft',name:'Draft',marketStatus:'draft'}];await nextTick();
+    expect(host.querySelector('.sql-execution-modes')).not.toBeNull();
+    const choices=[...host.querySelector('.sql-agent-choice select').options].map(option=>option.value);
+    expect(choices).toEqual(['','published']);expect(host.querySelector('option[value=""]').disabled).toBe(true);
   });
   it('shows pending planning inside the assistant reply without an overlay or fabricated plan',async()=>{
     const props=await mount({pendingPhase:'PREPARING',pendingStartedAt:Date.now(),busy:true,

@@ -4,6 +4,7 @@ const root = '/data-science/sql';
 const project = id => `${root}/projects/${encodeURIComponent(id)}`;
 const body = value => JSON.stringify(value);
 export const sqlProjects = () => apiRequest(`${root}/projects`);
+export const sqlAgentOptions = () => apiRequest(`${root}/agent-options`);
 export const createSqlProject = value => apiRequest(`${root}/projects`, { method: 'POST', body: body(value) });
 export const deleteSqlProject = id => apiRequest(project(id), { method: 'DELETE' });
 export const sqlLibraryFiles = kind => apiRequest(`${root}/library-files?kind=${encodeURIComponent(kind)}`);

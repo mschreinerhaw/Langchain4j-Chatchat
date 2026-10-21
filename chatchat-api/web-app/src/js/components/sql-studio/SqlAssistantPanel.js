@@ -6,19 +6,20 @@ import { terminalSqlTask } from '../../utils/sqlStudioState';
 import { studioAiLabels, sqlGenerationAction } from '../../utils/studioAi';
 import { buildPythonLineDiff } from '../../utils/pythonCodeDiff';
 import { sqlAssistantAnswer } from '../../utils/sqlIdeState';
-import { Sparkles, FileCode2, BookOpen, Send, AtSign, TrendingUp, CircleHelp, LoaderCircle, CircleCheck, Clock3, Plus } from '@lucide/vue';
+import { Sparkles, FileCode2, Send, CircleHelp, LoaderCircle, CircleCheck, Clock3, Plus } from '@lucide/vue';
 
 export default {
-  components: { StudioCodePlan, AppNotice, Sparkles, FileCode2, BookOpen, Send, AtSign, TrendingUp, CircleHelp, LoaderCircle, CircleCheck, Clock3, Plus },
+  components: { StudioCodePlan, AppNotice, Sparkles, FileCode2, Send, CircleHelp, LoaderCircle, CircleCheck, Clock3, Plus },
   props: { userDocuments: { type:Array, default:()=>[] }, mappingDocuments: { type:Array, default:() => [] }, mappingCount: Number, projectFiles: Array, references: Array, referenceIds: Array, models: Array, agents: Array,
     agentId: String, modelName: String, executionMode: String, prompt: String, messages: Array, busy: Boolean, generations: Array,
     generationId: String, result: Object, selectedCode: Object, currentFile: Object, dialectLabel: String, taskRunning: Boolean,
     pendingPhase: String, pendingStartedAt: Number, pollError: String, aiAction: String },
   emits: ['action', 'new-conversation', 'reference-file', 'open-resource', 'remove-mapping-document', 'choose-library', 'agent', 'model', 'execution-mode', 'prompt', 'send', 'generation', 'resume', 'cancel', 'preview', 'apply', 'clear-selection'],
   setup(props, { emit }) {
+    const availableAgents=computed(()=>(props.agents||[]).filter(agent=>agent.marketStatus?.toLowerCase()==='published'));
     const terminal = computed(() => terminalSqlTask(props.result?.task?.status));
     const scroll = ref(null);
-    const allResources = ref(false), composer = ref(null), followOutput = ref(true), now = ref(Date.now());
+    const composer = ref(null), followOutput = ref(true), now = ref(Date.now());
     const resultAction = computed(() => sqlGenerationAction(props.result));
     const codePlan = computed(() => props.result?.generation?.prepared?.taskRequest?.toolInput?.studioCodePlan?.interpretationPlan);
     const codePlanState = computed(() => props.pendingPhase==='PREPARING' ? 'planning' : terminal.value
@@ -47,16 +48,6 @@ export default {
     const startClock = () => { clearInterval(clock); now.value = Date.now(); clock = setInterval(() => { now.value = Date.now(); }, 1000); };
     const stopClock = () => clearInterval(clock);
     onMounted(startClock); onActivated(startClock); onDeactivated(stopClock); onBeforeUnmount(stopClock);
-    const quickActions = ['基于 Mapping 生成目标表建表与 ETL SQL', '解释这段 SQL 的作用', '帮我优化这段 SQL，提升性能',
-      '依据用户空间参考规则生成 SQL 脚本', '检查 SQL 是否有潜在问题'];
-    const resources = computed(() => (props.projectFiles || []).filter(file => file.id !== props.currentFile?.id && ['MAPPING', 'REFERENCE', 'SQL'].includes(file.kind)));
-    const shownResources = computed(() => allResources.value ? resources.value : resources.value.slice(0, 3));
-    function useQuickAction(text) {
-      emit('action',text.includes('解释') ? 'explain' : text.includes('优化') ? 'optimize' : text.includes('检查') ? 'fix' : 'generate');
-      emit('prompt', `${props.currentFile ? '@' + props.currentFile.path + ' ' : ''}${text}`);
-      nextTick(() => composer.value?.focus());
-    }
-    function insertMention() { emit('prompt', `${props.prompt || ''}${props.prompt && !/\s$/.test(props.prompt) ? ' ' : ''}@`); nextTick(() => composer.value?.focus()); }
     function newConversation() {
       if (props.busy || props.taskRunning || props.pendingPhase) return;
       emit('new-conversation'); followOutput.value = true;
@@ -66,15 +57,7 @@ export default {
     watch(() => [props.messages?.length, props.messages?.at(-1)?.text, props.result?.files?.length, props.pendingPhase, progress.value.steps.length], () => nextTick(() => {
       if (scroll.value && followOutput.value) scroll.value.scrollTop = scroll.value.scrollHeight;
     }));
-    const mentionOptions = computed(() => {
-      const query = /(?:^|\s)@([^\s]*)$/.exec(props.prompt || '')?.[1];
-      if (query === undefined) return [];
-      return [...(props.projectFiles || []), ...(props.references || [])]
-        .filter((file, index, all) => all.findIndex(item => item.id === file.id) === index)
-        .filter(file => file.path.toLowerCase().includes(query.toLowerCase())).slice(0, 6);
-    });
-    function chooseMention(file) { emit('reference-file', file); }
     function send(event) { if (event?.isComposing) return; if (!props.busy && !props.taskRunning && props.prompt.trim()) { followOutput.value=true;emit('send'); } }
-    return { displayMessages, isCurrentTurn, codePlan, codePlanState, studioAiLabels, resultAction, resultNotes, operationLabel, fileDiff, newConversation, terminal, progress, trackScroll, mentionOptions, chooseMention, send, scroll, allResources, composer, quickActions, shownResources, resources, useQuickAction, insertMention };
+    return { availableAgents, displayMessages, isCurrentTurn, codePlan, codePlanState, studioAiLabels, resultAction, resultNotes, operationLabel, fileDiff, newConversation, terminal, progress, trackScroll, send, scroll, composer, };
   }
 };

@@ -1,0 +1,44 @@
+{
+  "java": [
+    {
+      "name": "com.chatchat.api.datascience.sql.SqlStudioAgentAccessTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.datascience.sql.SqlStudioUserDocumentContractTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.datascience.sql.SqlStudioGenerationToolPolicyTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.datascience.sql.SqlStudioMetadataServiceTest",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.security.ApiPermissionAuthorizationFilterTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ],
+  "javaTotal": 20,
+  "frontendTests": 66,
+  "frontendTestTimeoutMs": 20000,
+  "viteBuild": "PASSED",
+  "finalPanelComponentTests": 8
+}

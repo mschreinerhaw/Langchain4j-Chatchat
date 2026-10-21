@@ -1074,3 +1074,7 @@
 .sql-ide .sql-editor-pane { min-height: 0; }
 .sql-ide-shell > .sql-ide-assistant { grid-column: 5; grid-row: 1; min-height: 0; overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .sql-progress-spinner { animation: none; } }
+
+.sql-chat-composer > .sql-composer-actions { justify-content: flex-end; }
+.sql-chat-settings > .sql-user-documents { margin: 10px 0; font-size: 12px; }
+.sql-context-library { margin-top: 8px; }

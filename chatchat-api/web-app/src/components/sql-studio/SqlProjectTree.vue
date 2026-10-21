@@ -7,7 +7,6 @@
       <SqlFileTreeNode :nodes="tree" :active-id="activeId" :mapping-ids="mappingIds" @folder-select="$emit('folder-select', $event)" @open="$emit('open', $event)" @mapping="$emit('mapping', $event)" @context="openContext" />
       <p v-if="!folders.length && !files.length" class="sql-empty-copy">先新建文件夹，再在文件夹内新建 SQL 文件。也可以直接描述需求生成脚本。</p>
       <p v-else-if="!filteredFiles.length" class="sql-empty-copy">没有匹配的工程文件。</p>
-      <slot name="documents" />
     </div>
     <footer>{{ files.length }} 个文件 · {{ mappingIds.length }} 个 Mapping 已关联</footer>
     <div v-if="contextOpen" class="sql-explorer-context" :style="{ top: contextY + 'px', left: contextX + 'px' }" role="menu" @contextmenu.prevent>

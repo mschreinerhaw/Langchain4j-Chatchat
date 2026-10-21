@@ -18,7 +18,9 @@
 
       <section class="license-hero" :class="`is-${statusTone}`">
         <div class="license-hero-main">
-          <div class="license-status-icon"><el-icon><Key /></el-icon></div>
+          <div class="license-status-icon"
+            ><el-icon><Key /></el-icon
+          ></div>
           <div>
             <div class="license-eyebrow">授权状态</div>
             <div class="license-status-line">
@@ -29,31 +31,66 @@
           </div>
         </div>
         <div class="license-hero-meta">
-          <div><span>授权对象编码</span><strong>{{ customerCode }}</strong></div>
-          <div><span>License 编号</span><strong class="license-number">{{ license.licenseNo || '未签发' }}</strong><small>签发于 {{ formatDate(license.issuedTime) }}</small></div>
+          <div
+            ><span>授权对象编码</span><strong>{{ customerCode }}</strong></div
+          >
+          <div
+            ><span>License 编号</span
+            ><strong class="license-number">{{ license.licenseNo || "未签发" }}</strong
+            ><small>签发于 {{ formatDate(license.issuedTime) }}</small></div
+          >
         </div>
       </section>
 
       <div class="license-metric-grid">
         <section class="license-metric">
-          <div class="license-metric-icon product"><el-icon><Cpu /></el-icon></div>
-          <div><span>产品与版本</span><strong>灵动智联</strong><small>LingDong Nexus · {{ editionLabel }}</small></div>
+          <div class="license-metric-icon product"
+            ><el-icon><Cpu /></el-icon
+          ></div>
+          <div
+            ><span>产品与版本</span><strong>灵动智联</strong
+            ><small>LingDong Nexus · {{ editionLabel }}</small></div
+          >
         </section>
         <section class="license-metric">
-          <div class="license-metric-icon expiry"><el-icon><Tickets /></el-icon></div>
-          <div><span>授权有效期</span><strong>{{ formatDate(license.expireTime) }}</strong><small :class="{ 'is-danger': daysRemaining !== null && daysRemaining < 0 }">{{ expiryHint }}</small></div>
+          <div class="license-metric-icon expiry"
+            ><el-icon><Tickets /></el-icon
+          ></div>
+          <div
+            ><span>授权有效期</span><strong>{{ formatDate(license.expireTime) }}</strong
+            ><small :class="{ 'is-danger': daysRemaining !== null && daysRemaining < 0 }">{{
+              expiryHint
+            }}</small></div
+          >
         </section>
         <section class="license-metric">
-          <div class="license-metric-icon users"><el-icon><User /></el-icon></div>
-          <div><span>用户数量上限</span><strong>{{ quotaValue(license.maxUsers) }}</strong><small>可纳入授权的用户总数</small></div>
+          <div class="license-metric-icon users"
+            ><el-icon><User /></el-icon
+          ></div>
+          <div
+            ><span>用户数量上限</span><strong>{{ quotaValue(license.maxUsers) }}</strong
+            ><small>可纳入授权的用户总数</small></div
+          >
         </section>
         <section class="license-metric license-metric-highlight">
-          <div class="license-metric-icon agents"><el-icon><Share /></el-icon></div>
-          <div><span>Agent 发布上限</span><strong>{{ publicationQuotaValue(license.maxAgents) }}</strong><small>{{ publicationQuotaHint(license.maxAgents) }}</small></div>
+          <div class="license-metric-icon agents"
+            ><el-icon><Share /></el-icon
+          ></div>
+          <div
+            ><span>Agent 发布上限</span
+            ><strong>{{ publicationQuotaValue(license.maxAgents) }}</strong
+            ><small>{{ publicationQuotaHint(license.maxAgents) }}</small></div
+          >
         </section>
         <section class="license-metric license-metric-highlight">
-          <div class="license-metric-icon agents"><el-icon><CollectionTag /></el-icon></div>
-          <div><span>领域 Skill 发布上限</span><strong>{{ publicationQuotaValue(license.maxSkills) }}</strong><small>{{ publicationQuotaHint(license.maxSkills) }}</small></div>
+          <div class="license-metric-icon agents"
+            ><el-icon><CollectionTag /></el-icon
+          ></div>
+          <div
+            ><span>领域 Skill 发布上限</span
+            ><strong>{{ publicationQuotaValue(license.maxSkills) }}</strong
+            ><small>{{ publicationQuotaHint(license.maxSkills) }}</small></div
+          >
         </section>
       </div>
 
@@ -73,13 +110,23 @@
 
         <section class="license-section license-capabilities">
           <div class="license-section-heading">
-            <div><h3>已授权 MCP 功能模块</h3><p>当前 License 可使用的资产、模板、索引与工具能力。</p></div>
+            <div
+              ><h3>已授权 MCP 功能模块</h3
+              ><p>当前 License 可使用的资产、模板、索引与工具能力。</p></div
+            >
             <span class="license-count">{{ authorizedCapabilities.length }} 项</span>
           </div>
           <div v-if="authorizedCapabilities.length" class="license-feature-list">
-            <div v-for="item in authorizedCapabilities" :key="item.key" class="license-feature-item">
+            <div
+              v-for="item in authorizedCapabilities"
+              :key="item.key"
+              class="license-feature-item"
+            >
               <span class="license-feature-check">✓</span>
-              <div><strong>{{ item.label }}</strong><small>{{ item.key }}</small></div>
+              <div
+                ><strong>{{ item.label }}</strong
+                ><small>{{ item.key }}</small></div
+              >
             </div>
           </div>
           <div v-else class="license-empty">当前 License 未配置 MCP 功能模块</div>
@@ -88,26 +135,37 @@
 
       <section class="license-section license-binding">
         <div class="license-section-heading">
-          <div><h3>部署绑定信息</h3><p>用于授权申请、续期及部署环境核验，请勿随意变更服务器硬件环境。</p></div>
+          <div
+            ><h3>部署绑定信息</h3
+            ><p>用于授权申请、续期及部署环境核验，请勿随意变更服务器硬件环境。</p></div
+          >
           <el-tag :type="status.enforcementEnabled ? 'success' : 'info'" effect="plain">
-            {{ status.enforcementEnabled ? '授权校验已启用' : '授权校验未启用' }}
+            {{ status.enforcementEnabled ? "授权校验已启用" : "授权校验未启用" }}
           </el-tag>
         </div>
 
         <div class="license-binding-grid">
           <div class="license-binding-item">
-            <div class="license-binding-label"><el-icon><Cpu /></el-icon><span>服务器机器码</span></div>
+            <div class="license-binding-label"
+              ><el-icon><Cpu /></el-icon><span>服务器机器码</span></div
+            >
             <div class="license-code-row">
-              <code>{{ status.serverId || '未读取到机器码' }}</code>
-              <el-button link type="primary" @click="copyValue(status.serverId, '机器码已复制')">复制</el-button>
+              <code>{{ status.serverId || "未读取到机器码" }}</code>
+              <el-button link type="primary" @click="copyValue(status.serverId, '机器码已复制')"
+                >复制</el-button
+              >
             </div>
           </div>
           <div class="license-binding-item">
-            <div class="license-binding-label"><el-icon><Connection /></el-icon><span>物理网卡 MAC 地址</span></div>
+            <div class="license-binding-label"
+              ><el-icon><Connection /></el-icon><span>物理网卡 MAC 地址</span></div
+            >
             <div v-if="(status.macAddresses || []).length" class="license-mac-list">
               <div v-for="mac in status.macAddresses" :key="mac" class="license-code-row">
                 <code>{{ mac }}</code>
-                <el-button link type="primary" @click="copyValue(mac, 'MAC 地址已复制')">复制</el-button>
+                <el-button link type="primary" @click="copyValue(mac, 'MAC 地址已复制')"
+                  >复制</el-button
+                >
               </div>
             </div>
             <div v-else class="license-empty compact">未读取到可用的物理网卡地址</div>

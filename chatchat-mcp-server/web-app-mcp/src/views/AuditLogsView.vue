@@ -16,10 +16,20 @@
 
     <el-row :gutter="12">
       <el-col :xs="24" :md="6">
-        <el-input v-model.trim="filters.toolName" clearable placeholder="工具名称" @keyup.enter="search" />
+        <el-input
+          v-model.trim="filters.toolName"
+          clearable
+          placeholder="工具名称"
+          @keyup.enter="search"
+        />
       </el-col>
       <el-col :xs="24" :md="6">
-        <el-input v-model.trim="filters.targetName" clearable placeholder="目标/服务名称" @keyup.enter="search" />
+        <el-input
+          v-model.trim="filters.targetName"
+          clearable
+          placeholder="目标/服务名称"
+          @keyup.enter="search"
+        />
       </el-col>
       <el-col :xs="24" :md="6">
         <el-select v-model="filters.success" clearable placeholder="状态" class="w-100">
@@ -28,29 +38,47 @@
         </el-select>
       </el-col>
       <el-col :xs="24" :md="6">
-        <el-input v-model.trim="filters.keyword" clearable placeholder="关键字" @keyup.enter="search" />
+        <el-input
+          v-model.trim="filters.keyword"
+          clearable
+          placeholder="关键字"
+          @keyup.enter="search"
+        />
       </el-col>
     </el-row>
 
-    <el-table class="settings-table" :data="logs" border stripe v-loading="busy" empty-text="暂无审计记录">
+    <el-table
+      class="settings-table"
+      :data="logs"
+      border
+      stripe
+      v-loading="busy"
+      empty-text="暂无审计记录"
+    >
       <el-table-column label="时间" min-width="170">
-        <template #default="{ row }">{{ formatDateTime(row.createdAt || row.invokeTime) }}</template>
+        <template #default="{ row }">{{
+          formatDateTime(row.createdAt || row.invokeTime)
+        }}</template>
       </el-table-column>
       <el-table-column label="工具" min-width="180">
-        <template #default="{ row }"><code>{{ row.toolName || '-' }}</code></template>
+        <template #default="{ row }"
+          ><code>{{ row.toolName || "-" }}</code></template
+        >
       </el-table-column>
       <el-table-column label="目标/服务" min-width="180">
-        <template #default="{ row }">{{ row.targetName || row.serviceName || row.clientName || '-' }}</template>
+        <template #default="{ row }">{{
+          row.targetName || row.serviceName || row.clientName || "-"
+        }}</template>
       </el-table-column>
       <el-table-column label="状态" width="100">
         <template #default="{ row }">
           <el-tag :type="row.success === false ? 'danger' : 'success'" effect="light">
-            {{ row.success === false ? '失败' : '成功' }}
+            {{ row.success === false ? "失败" : "成功" }}
           </el-tag>
         </template>
       </el-table-column>
       <el-table-column label="耗时" width="120">
-        <template #default="{ row }">{{ row.durationMs ?? '-' }} ms</template>
+        <template #default="{ row }">{{ row.durationMs ?? "-" }} ms</template>
       </el-table-column>
       <el-table-column fixed="right" label="操作" width="90">
         <template #default="{ row }">
@@ -60,7 +88,10 @@
     </el-table>
 
     <footer class="pagination-row">
-      <el-text type="info">共 {{ pageInfo.filteredCount }} 条，当前第 {{ pageInfo.page }} / {{ pageInfo.totalPages }} 页</el-text>
+      <el-text type="info"
+        >共 {{ pageInfo.filteredCount }} 条，当前第 {{ pageInfo.page }} /
+        {{ pageInfo.totalPages }} 页</el-text
+      >
       <el-pagination
         background
         layout="sizes, prev, pager, next, jumper"

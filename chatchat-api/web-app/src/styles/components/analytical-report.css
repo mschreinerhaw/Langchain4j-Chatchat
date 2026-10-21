@@ -1,0 +1,93 @@
+.analytical-report {
+  color: #1e293b;
+  line-height: 1.7;
+  min-width: 0;
+}
+.analytical-report h2,
+.analytical-report h3 {
+  margin: 0.4rem 0 1rem;
+}
+.analytical-insight {
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #fff;
+}
+.analytical-insight header span,
+.insight-scope {
+  color: #64748b;
+  font-size: 0.85rem;
+}
+.insight-observation,
+.analytical-insight section p {
+  white-space: pre-wrap;
+}
+.insight-executive {
+  padding: 1rem 1.25rem;
+  border-left: 4px solid #2563eb;
+  background: #eff6ff;
+}
+.insight-state,
+.insight-caveats {
+  background: #fffbeb;
+  color: #854d0e;
+  padding: 0.75rem 1.25rem;
+}
+.insight-data {
+  overflow-x: auto;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+th,
+td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+td:last-child {
+  text-align: right;
+}
+caption {
+  text-align: left;
+  font-weight: 600;
+  margin: 0.75rem 0;
+}
+.insight-metric dd {
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 0;
+}
+.insight-evidence {
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+  color: #64748b;
+}
+.insight-evidence summary {
+  cursor: pointer;
+}
+:deep(.visualization-echart) {
+  min-width: 0;
+  height: var(--insight-chart-height, 300px);
+}
+:deep(.visualization-tabs button.active) {
+  background: #2563eb;
+  color: #fff;
+}
+@media (max-width: 640px) {
+  .analytical-insight {
+    padding: 0.75rem;
+  }
+  :deep(.visualization-header) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  :deep(.visualization-actions) {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+}

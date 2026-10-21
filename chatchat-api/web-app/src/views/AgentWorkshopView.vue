@@ -3,7 +3,10 @@
     <header class="agent-workshop-header">
       <div>
         <p>Agent管理</p>
-        <span class="agent-management-intro">统一管理自建 Agent 与接入的专业 Agent；自建 Agent 可用于对话与任务，专业 Agent 可在联合分析中使用。</span>
+        <span class="agent-management-intro"
+          >统一管理自建 Agent 与接入的专业 Agent；自建 Agent 可用于对话与任务，专业 Agent
+          可在联合分析中使用。</span
+        >
       </div>
     </header>
 
@@ -38,19 +41,43 @@
       <header>
         <div>
           <strong>Agent列表</strong>
-          <span>{{ agentTotal + matchingRemoteAgents.length }} / {{ (summary.agentCount || 0) + remoteAgents.length }} 个</span>
+          <span
+            >{{ agentTotal + matchingRemoteAgents.length }} /
+            {{ (summary.agentCount || 0) + remoteAgents.length }} 个</span
+          >
         </div>
         <div class="agent-light-actions">
           <button type="button" class="primary-button" @click="openCreateDialog">新增Agent</button>
-          <button v-if="isPlatformAdmin" type="button" class="light-button" @click="openRemoteDialog">接入专有分析 Agent</button>
+          <button
+            v-if="isPlatformAdmin"
+            type="button"
+            class="light-button"
+            @click="openRemoteDialog"
+            >接入专有分析 Agent</button
+          >
           <button type="button" class="light-button" @click="openImportDialog">批量导入</button>
-          <button type="button" class="light-button" :disabled="selectedAgentCount === 0" @click="exportAgentsAsJson">
+          <button
+            type="button"
+            class="light-button"
+            :disabled="selectedAgentCount === 0"
+            @click="exportAgentsAsJson"
+          >
             导出已选JSON（{{ selectedAgentCount }}）
           </button>
-          <button type="button" class="light-button" :disabled="selectedAgentCount === 0" @click="exportAgentsAsTable">
+          <button
+            type="button"
+            class="light-button"
+            :disabled="selectedAgentCount === 0"
+            @click="exportAgentsAsTable"
+          >
             导出已选表格（{{ selectedAgentCount }}）
           </button>
-          <button v-if="selectedAgentCount" type="button" class="light-button" @click="clearAgentExportSelection">
+          <button
+            v-if="selectedAgentCount"
+            type="button"
+            class="light-button"
+            @click="clearAgentExportSelection"
+          >
             清除勾选
           </button>
           <button type="button" class="light-button" :disabled="loading" @click="refreshAgentList">
@@ -62,12 +89,16 @@
       <div class="agent-list-filters">
         <label class="agent-search-field">
           <span>检索Agent</span>
-          <input v-model.trim="searchQuery" type="search" placeholder="名称、场景、标签或工具">
+          <input v-model.trim="searchQuery" type="search" placeholder="名称、场景、标签或工具" />
         </label>
         <label>
           <span>分类</span>
           <select v-model="agentCategoryFilter">
-            <option v-for="option in agentCategoryOptions" :key="option.value" :value="option.value">
+            <option
+              v-for="option in agentCategoryOptions"
+              :key="option.value"
+              :value="option.value"
+            >
               {{ option.label }}
             </option>
           </select>
@@ -88,7 +119,12 @@
             </option>
           </select>
         </label>
-        <button v-if="hasActiveAgentFilters" type="button" class="light-button" @click="resetAgentFilters">
+        <button
+          v-if="hasActiveAgentFilters"
+          type="button"
+          class="light-button"
+          @click="resetAgentFilters"
+        >
           重置筛选
         </button>
       </div>
@@ -96,16 +132,56 @@
 
     <p v-if="error" class="agent-error">{{ error }}</p>
     <p v-else-if="loading && agents.length === 0" class="agent-empty">正在加载后端Agent配置...</p>
-    <p v-else-if="(summary.agentCount || 0) + remoteAgents.length === 0" class="agent-empty">暂无Agent配置，请先新增或接入一个。</p>
-    <p v-else-if="agentTotal + matchingRemoteAgents.length === 0" class="agent-empty">没有匹配的Agent，请换一个关键词。</p>
+    <p v-else-if="(summary.agentCount || 0) + remoteAgents.length === 0" class="agent-empty"
+      >暂无Agent配置，请先新增或接入一个。</p
+    >
+    <p v-else-if="agentTotal + matchingRemoteAgents.length === 0" class="agent-empty"
+      >没有匹配的Agent，请换一个关键词。</p
+    >
 
     <div v-else class="feature-grid">
-      <article v-for="agent in visibleRemoteAgents" :key="`remote:${agent.agentId}`" class="feature-card agent-card remote-agent-card">
+      <article
+        v-for="agent in visibleRemoteAgents"
+        :key="`remote:${agent.agentId}`"
+        class="feature-card agent-card remote-agent-card"
+      >
         <span class="remote-card-source">专有分析算力</span>
-        <div class="agent-card-head"><span>专</span><div><h2>{{ agent.metadata?.displayName || agent.agentId }}</h2><small>{{ agent.origin === 'GROUP' ? '集团内部平台' : '第三方平台' }}</small></div><strong :class="{ off: !agent.enabled }">{{ agent.enabled ? '已接入' : '已停用' }}</strong></div>
-        <p>{{ agent.metadata?.professionalCapabilities?.join('、') || '尚未填写专业能力描述。' }}</p>
-        <dl class="agent-meta"><div><dt>模式</dt><dd>专有分析</dd></div><div><dt>Skill</dt><dd>{{ agent.metadata?.analysisGrants?.skillIds?.length || 0 }} 个</dd></div><div><dt>文档</dt><dd>{{ agent.metadata?.analysisGrants?.documentIds?.length || 0 }} 份</dd></div><div><dt>MCP</dt><dd>{{ agent.metadata?.analysisGrants?.mcpToolNames?.length || 0 }} 个</dd></div></dl>
-        <div class="agent-card-actions"><button type="button" class="secondary-button" @click="apiExampleAgentId = agent.agentId">分析 API</button><button v-if="analysisAvailable" type="button" class="secondary-button" @click="$emit('analyze-with-agent', agent.agentId)">使用此 Agent 分析</button></div>
+        <div class="agent-card-head"
+          ><span>专</span
+          ><div
+            ><h2>{{ agent.metadata?.displayName || agent.agentId }}</h2
+            ><small>{{ agent.origin === "GROUP" ? "集团内部平台" : "第三方平台" }}</small></div
+          ><strong :class="{ off: !agent.enabled }">{{
+            agent.enabled ? "已接入" : "已停用"
+          }}</strong></div
+        >
+        <p>{{
+          agent.metadata?.professionalCapabilities?.join("、") || "尚未填写专业能力描述。"
+        }}</p>
+        <dl class="agent-meta"
+          ><div><dt>模式</dt><dd>专有分析</dd></div
+          ><div
+            ><dt>Skill</dt
+            ><dd>{{ agent.metadata?.analysisGrants?.skillIds?.length || 0 }} 个</dd></div
+          ><div
+            ><dt>文档</dt
+            ><dd>{{ agent.metadata?.analysisGrants?.documentIds?.length || 0 }} 份</dd></div
+          ><div
+            ><dt>MCP</dt
+            ><dd>{{ agent.metadata?.analysisGrants?.mcpToolNames?.length || 0 }} 个</dd></div
+          ></dl
+        >
+        <div class="agent-card-actions"
+          ><button type="button" class="secondary-button" @click="apiExampleAgentId = agent.agentId"
+            >分析 API</button
+          ><button
+            v-if="analysisAvailable"
+            type="button"
+            class="secondary-button"
+            @click="$emit('analyze-with-agent', agent.agentId)"
+            >使用此 Agent 分析</button
+          ></div
+        >
       </article>
       <article
         v-for="agent in paginatedAgents"
@@ -120,7 +196,7 @@
             :aria-label="`选择导出 ${agent.name || agent.id}`"
             :title="`选择导出 ${agent.name || agent.id}`"
             @change="setAgentExportSelection(agent, $event.target.checked)"
-          >
+          />
         </label>
         <div class="agent-card-head">
           <span>{{ agent.shortName || agentBadge(agent) }}</span>
@@ -128,20 +204,28 @@
             <h2>{{ agent.name }}</h2>
             <small>{{ agent.status }}</small>
           </div>
-          <strong :class="{ off: agent.marketStatus !== 'published' }">{{ agent.marketStatusLabel || "未发布" }}</strong>
+          <strong :class="{ off: agent.marketStatus !== 'published' }">{{
+            agent.marketStatusLabel || "未发布"
+          }}</strong>
         </div>
         <p>{{ agent.description || "暂无业务描述。" }}</p>
 
         <section v-if="previewList(agent.usageScenarios, 3).length" class="agent-block">
           <strong>业务场景</strong>
           <ul>
-            <li v-for="scenario in previewList(agent.usageScenarios, 3)" :key="`${agent.id}-${scenario}`">
+            <li
+              v-for="scenario in previewList(agent.usageScenarios, 3)"
+              :key="`${agent.id}-${scenario}`"
+            >
               {{ scenario }}
             </li>
           </ul>
         </section>
 
-        <div v-if="agent.defaultAgent || agent.defaultDataAsset?.enabled || agent.skillTags?.length" class="agent-tags">
+        <div
+          v-if="agent.defaultAgent || agent.defaultDataAsset?.enabled || agent.skillTags?.length"
+          class="agent-tags"
+        >
           <span v-if="agent.defaultAgent" class="agent-default-tag">默认Agent</span>
           <span v-if="agent.defaultDataAsset?.enabled" class="agent-default-asset-tag">
             绑定资产：{{ agent.defaultDataAsset.assetName || agent.defaultDataAsset.assetId }}
@@ -173,12 +257,26 @@
         </dl>
 
         <div v-if="previewList(agent.resolvedToolNames, 4).length" class="agent-tool-list">
-          <span v-for="tool in previewList(agent.resolvedToolNames, 4)" :key="`${agent.id}-${tool}`">{{ tool }}</span>
+          <span
+            v-for="tool in previewList(agent.resolvedToolNames, 4)"
+            :key="`${agent.id}-${tool}`"
+            >{{ tool }}</span
+          >
         </div>
 
         <div class="agent-card-actions">
-          <button v-if="chatAvailable && agent.marketStatus === 'published'" type="button" class="secondary-button" @click="$emit('select-agent', { agentId: agent.id, title: agent.name, newSession: true })">对话使用</button>
-          <button type="button" class="secondary-button" @click="openEditDialog(agent)">设置</button>
+          <button
+            v-if="chatAvailable && agent.marketStatus === 'published'"
+            type="button"
+            class="secondary-button"
+            @click="
+              $emit('select-agent', { agentId: agent.id, title: agent.name, newSession: true })
+            "
+            >对话使用</button
+          >
+          <button type="button" class="secondary-button" @click="openEditDialog(agent)"
+            >设置</button
+          >
           <button
             v-if="!agent.defaultAgent"
             type="button"
@@ -215,12 +313,7 @@
           >
             API
           </button>
-          <button
-            v-if="agent.defaultAgent"
-            type="button"
-            class="secondary-button"
-            disabled
-          >
+          <button v-if="agent.defaultAgent" type="button" class="secondary-button" disabled>
             默认不可删
           </button>
           <button
@@ -239,7 +332,12 @@
     <nav v-if="agentTotal > agentPageSize" class="agent-pagination" aria-label="Agent分页">
       <span>第 {{ agentPage }} / {{ totalAgentPages }} 页，每页 {{ agentPageSize }} 个</span>
       <div>
-        <button type="button" class="light-button" :disabled="agentPage <= 1" @click="goAgentPage(agentPage - 1)">
+        <button
+          type="button"
+          class="light-button"
+          :disabled="agentPage <= 1"
+          @click="goAgentPage(agentPage - 1)"
+        >
           上一页
         </button>
         <button
@@ -252,32 +350,67 @@
         >
           {{ page }}
         </button>
-        <button type="button" class="light-button" :disabled="agentPage >= totalAgentPages" @click="goAgentPage(agentPage + 1)">
+        <button
+          type="button"
+          class="light-button"
+          :disabled="agentPage >= totalAgentPages"
+          @click="goAgentPage(agentPage + 1)"
+        >
           下一页
         </button>
       </div>
     </nav>
 
     <section v-if="apiExampleAgent" class="agent-list-controls" aria-label="专有分析 API 调用方式">
-      <header><div><strong>{{ apiExampleAgent.metadata?.displayName || apiExampleAgent.agentId }} · 分析 API</strong><span>同步返回分析结果</span></div><button type="button" class="light-button" @click="apiExampleAgentId = ''">收起</button></header>
+      <header
+        ><div
+          ><strong
+            >{{ apiExampleAgent.metadata?.displayName || apiExampleAgent.agentId }} · 分析
+            API</strong
+          ><span>同步返回分析结果</span></div
+        ><button type="button" class="light-button" @click="apiExampleAgentId = ''"
+          >收起</button
+        ></header
+      >
       <p><code>POST /api/v1/agent/analysis/domain-intelligence</code></p>
-      <p>请求头：<code>Authorization: Bearer &lt;登录会话令牌&gt;</code>，<code>Content-Type: application/json</code>。使用有权访问所选 Skill 和证据的账号；Agent API Token 不能调用此接口。</p>
+      <p
+        >请求头：<code>Authorization: Bearer &lt;登录会话令牌&gt;</code>，<code
+          >Content-Type: application/json</code
+        >。使用有权访问所选 Skill 和证据的账号；Agent API Token 不能调用此接口。</p
+      >
       <pre class="remote-api-example">{{ domainAnalysisApiRequest }}</pre>
-      <p>响应中的 <code>data.synthesis</code> 为分析文本，<code>data.verification</code> 为校验信息。示例里的 Skill、文档和工具均须在调用者与该 Agent 的授权范围内；如果没有可用文档，请改为提供已授权的只读 MCP 工具证据。</p>
+      <p
+        >响应中的 <code>data.synthesis</code> 为分析文本，<code>data.verification</code>
+        为校验信息。示例里的 Skill、文档和工具均须在调用者与该 Agent
+        的授权范围内；如果没有可用文档，请改为提供已授权的只读 MCP 工具证据。</p
+      >
     </section>
 
     <div v-if="curlExampleOpen" class="agent-dialog-backdrop">
-      <section class="agent-dialog agent-curl-dialog" role="dialog" aria-modal="true" aria-labelledby="agent-curl-title">
+      <section
+        class="agent-dialog agent-curl-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="agent-curl-title"
+      >
         <header class="agent-curl-header">
           <div class="agent-curl-title-wrap">
             <span class="agent-curl-brand-mark" aria-hidden="true">API</span>
             <div>
               <p>已发布 Agent · API 调用</p>
-            <h2 id="agent-curl-title">{{ curlExample?.agentName || "curl 请求示例" }}</h2>
+              <h2 id="agent-curl-title">{{ curlExample?.agentName || "curl 请求示例" }}</h2>
               <span>复制示例后，即可在终端管理问答任务的完整生命周期</span>
             </div>
           </div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="curlExampleLoading" @click="closeCurlExample">×</button>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            title="关闭"
+            :disabled="curlExampleLoading"
+            @click="closeCurlExample"
+            >×</button
+          >
         </header>
         <div class="dialog-body agent-curl-body">
           <div class="agent-curl-capabilities" aria-label="示例包含的调用步骤">
@@ -293,7 +426,9 @@
             <span class="agent-curl-notice-icon" aria-hidden="true">!</span>
             <p>
               <strong>调用前准备</strong>
-              将示例中的 <code>&lt;paste-agent-api-token&gt;</code> 替换为“系统管理 → 用户管理 → token”中生成的令牌。示例统一使用环境变量 <code>AGENT_TOKEN</code>，任务编号会在提交成功后自动从 <code>data.taskId</code> 提取。
+              将示例中的 <code>&lt;paste-agent-api-token&gt;</code> 替换为“系统管理 → 用户管理 →
+              token”中生成的令牌。示例统一使用环境变量
+              <code>AGENT_TOKEN</code>，任务编号会在提交成功后自动从 <code>data.taskId</code> 提取。
             </p>
           </div>
           <div v-if="curlExampleLoading" class="agent-curl-loading">
@@ -312,8 +447,19 @@
         </div>
         <footer class="agent-curl-footer">
           <span>令牌仅在请求时使用，请勿提交到代码仓库</span>
-          <button type="button" class="secondary-button" :disabled="curlExampleLoading" @click="closeCurlExample">关闭</button>
-          <button type="button" class="primary-button" :disabled="curlExampleLoading || !curlExample?.completeExample" @click="copyCurlExample">
+          <button
+            type="button"
+            class="secondary-button"
+            :disabled="curlExampleLoading"
+            @click="closeCurlExample"
+            >关闭</button
+          >
+          <button
+            type="button"
+            class="primary-button"
+            :disabled="curlExampleLoading || !curlExample?.completeExample"
+            @click="copyCurlExample"
+          >
             {{ curlExampleCopied ? "✓ 已复制到剪贴板" : "复制完整示例" }}
           </button>
         </footer>
@@ -352,7 +498,8 @@
             title="关闭"
             :disabled="saving"
             @click="closeDeleteConfirm"
-          >×</button>
+            >×</button
+          >
         </header>
 
         <div class="agent-recall-body agent-delete-body">
@@ -368,10 +515,20 @@
         </div>
 
         <footer class="agent-recall-actions">
-          <button type="button" class="agent-recall-cancel" :disabled="saving" @click="closeDeleteConfirm">
+          <button
+            type="button"
+            class="agent-recall-cancel"
+            :disabled="saving"
+            @click="closeDeleteConfirm"
+          >
             取消
           </button>
-          <button type="button" class="agent-delete-submit" :disabled="saving" @click="confirmDeleteAgent">
+          <button
+            type="button"
+            class="agent-delete-submit"
+            :disabled="saving"
+            @click="confirmDeleteAgent"
+          >
             <span v-if="saving" class="agent-recall-spinner" aria-hidden="true"></span>
             {{ saving ? "正在删除" : "确认删除" }}
           </button>
@@ -379,11 +536,7 @@
       </section>
     </div>
 
-    <div
-      v-if="recallConfirmOpen"
-      class="agent-recall-backdrop"
-      @click.self="closeRecallConfirm"
-    >
+    <div v-if="recallConfirmOpen" class="agent-recall-backdrop" @click.self="closeRecallConfirm">
       <section
         class="agent-recall-dialog"
         role="alertdialog"
@@ -409,7 +562,8 @@
             title="关闭"
             :disabled="saving"
             @click="closeRecallConfirm"
-          >×</button>
+            >×</button
+          >
         </header>
 
         <div class="agent-recall-body">
@@ -425,10 +579,20 @@
         </div>
 
         <footer class="agent-recall-actions">
-          <button type="button" class="agent-recall-cancel" :disabled="saving" @click="closeRecallConfirm">
+          <button
+            type="button"
+            class="agent-recall-cancel"
+            :disabled="saving"
+            @click="closeRecallConfirm"
+          >
             取消
           </button>
-          <button type="button" class="agent-recall-submit" :disabled="saving" @click="confirmRecallAgent">
+          <button
+            type="button"
+            class="agent-recall-submit"
+            :disabled="saving"
+            @click="confirmRecallAgent"
+          >
             <span v-if="saving" class="agent-recall-spinner" aria-hidden="true"></span>
             {{ saving ? "正在回收" : "确认回收" }}
           </button>
@@ -440,85 +604,356 @@
       <form class="agent-dialog remote-agent-dialog" @submit.prevent="saveRemoteAgent">
         <header>
           <div><p>Agent Runtime OS · 专有分析</p><h2>接入专有分析 Agent</h2></div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" @click="remoteDialogOpen = false">×</button>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            @click="remoteDialogOpen = false"
+            >×</button
+          >
         </header>
         <div class="dialog-body remote-dialog-body">
-          <p class="remote-intro">将集团或第三方 Agent 作为专业分析算力使用。Runtime 负责准备已授权的知识与业务数据，Agent 负责按要求进行专业推理。</p>
-          <button v-if="isPlatformAdmin" type="button" class="remote-advanced-toggle" :aria-expanded="remoteAdvancedOpen" @click="remoteAdvancedOpen = !remoteAdvancedOpen">{{ remoteAdvancedOpen ? '收起高级接入配置' : '高级接入配置' }} {{ remoteAdvancedOpen ? '⌃' : '⌄' }}</button>
+          <p class="remote-intro"
+            >将集团或第三方 Agent 作为专业分析算力使用。Runtime
+            负责准备已授权的知识与业务数据，Agent 负责按要求进行专业推理。</p
+          >
+          <button
+            v-if="isPlatformAdmin"
+            type="button"
+            class="remote-advanced-toggle"
+            :aria-expanded="remoteAdvancedOpen"
+            @click="remoteAdvancedOpen = !remoteAdvancedOpen"
+            >{{ remoteAdvancedOpen ? "收起高级接入配置" : "高级接入配置" }}
+            {{ remoteAdvancedOpen ? "⌃" : "⌄" }}</button
+          >
           <section v-if="isPlatformAdmin && remoteAdvancedOpen" class="remote-advanced-panel">
-            <p>仅供平台管理员配置发布方身份和必要的请求参数。租户、能力及证据授权由 Runtime 自动确定；远端不能直接调用本地 Skill 或数据源。</p>
+            <p
+              >仅供平台管理员配置发布方身份和必要的请求参数。租户、能力及证据授权由 Runtime
+              自动确定；远端不能直接调用本地 Skill 或数据源。</p
+            >
             <div class="remote-field-grid">
-              <label><span>发布方签名 Key ID</span><input v-model.trim="remoteForm.cardKeyId" placeholder="由发布方提供" @input="invalidateRemotePreview"></label>
-              <label><span>凭据引用</span><input v-model.trim="remoteForm.credentialRef" placeholder="env:GROUP_AGENT_TOKEN" @input="invalidateRemotePreview"></label>
-              <label class="wide-field"><span>发布方验签公钥（PEM）</span><textarea v-model.trim="remoteForm.cardPublicKeyPem" rows="3" placeholder="-----BEGIN PUBLIC KEY-----" @input="invalidateRemotePreview"></textarea></label>
-              <label><span>URL 查询参数（每行 名称=值）</span><textarea v-model="remoteForm.requestQueryParameters" rows="2" @input="invalidateRemotePreview"></textarea></label>
-              <label><span>A2A 消息参数（JSON 对象）</span><textarea v-model="remoteForm.requestBodyParameters" rows="2" placeholder="{}"></textarea></label>
+              <label
+                ><span>发布方签名 Key ID</span
+                ><input
+                  v-model.trim="remoteForm.cardKeyId"
+                  placeholder="由发布方提供"
+                  @input="invalidateRemotePreview"
+              /></label>
+              <label
+                ><span>凭据引用</span
+                ><input
+                  v-model.trim="remoteForm.credentialRef"
+                  placeholder="env:GROUP_AGENT_TOKEN"
+                  @input="invalidateRemotePreview"
+              /></label>
+              <label class="wide-field"
+                ><span>发布方验签公钥（PEM）</span
+                ><textarea
+                  v-model.trim="remoteForm.cardPublicKeyPem"
+                  rows="3"
+                  placeholder="-----BEGIN PUBLIC KEY-----"
+                  @input="invalidateRemotePreview"
+                ></textarea>
+              </label>
+              <label
+                ><span>URL 查询参数（每行 名称=值）</span
+                ><textarea
+                  v-model="remoteForm.requestQueryParameters"
+                  rows="2"
+                  @input="invalidateRemotePreview"
+                ></textarea>
+              </label>
+              <label
+                ><span>A2A 消息参数（JSON 对象）</span
+                ><textarea
+                  v-model="remoteForm.requestBodyParameters"
+                  rows="2"
+                  placeholder="{}"
+                ></textarea>
+              </label>
             </div>
           </section>
           <section class="remote-step">
             <h3><span>1</span> 基本信息</h3>
             <div class="remote-field-grid">
-              <label><span>Agent 名称</span><input v-model.trim="remoteForm.displayName" placeholder="例如：集团客户投资分析 Agent"></label>
-              <label><span>接入来源</span><select v-model="remoteForm.origin" @change="invalidateRemotePreview"><option value="GROUP">集团内部平台</option><option value="EXTERNAL">第三方平台</option></select></label>
-              <label class="wide-field"><span>服务地址</span><input v-model.trim="remoteForm.endpoint" type="url" placeholder="https://agent.example.com/a2a" @input="invalidateRemotePreview"></label>
+              <label
+                ><span>Agent 名称</span
+                ><input
+                  v-model.trim="remoteForm.displayName"
+                  placeholder="例如：集团客户投资分析 Agent"
+              /></label>
+              <label
+                ><span>接入来源</span
+                ><select v-model="remoteForm.origin" @change="invalidateRemotePreview"
+                  ><option value="GROUP">集团内部平台</option
+                  ><option value="EXTERNAL">第三方平台</option></select
+                ></label
+              >
+              <label class="wide-field"
+                ><span>服务地址</span
+                ><input
+                  v-model.trim="remoteForm.endpoint"
+                  type="url"
+                  placeholder="https://agent.example.com/a2a"
+                  @input="invalidateRemotePreview"
+              /></label>
             </div>
-            <p class="remote-hint">测试连接会自动检查服务、身份与协议。首次接入时，请平台管理员配置发布方身份信息。</p>
-            <button type="button" class="secondary-button" :disabled="remoteBusy" @click="previewRemoteAgent">{{ remoteBusy ? '正在测试连接…' : '测试连接' }}</button>
-            <div v-if="remotePreview" class="remote-connection-status" aria-live="polite">✓ 连接成功　✓ 身份验证通过　✓ 协议兼容</div>
+            <p class="remote-hint"
+              >测试连接会自动检查服务、身份与协议。首次接入时，请平台管理员配置发布方身份信息。</p
+            >
+            <button
+              type="button"
+              class="secondary-button"
+              :disabled="remoteBusy"
+              @click="previewRemoteAgent"
+              >{{ remoteBusy ? "正在测试连接…" : "测试连接" }}</button
+            >
+            <div v-if="remotePreview" class="remote-connection-status" aria-live="polite"
+              >✓ 连接成功　✓ 身份验证通过　✓ 协议兼容</div
+            >
           </section>
           <section class="remote-step">
             <h3><span>2</span> 专业能力</h3>
-            <p>请用业务语言描述这个 Agent 擅长的分析任务，每行一项。Runtime 会将其作为对外展示的能力描述，调用所需的技术能力仍从已验证的 Agent Card 获取。</p>
-            <textarea v-model.trim="remoteForm.professionalCapabilities" rows="4" maxlength="1000" aria-label="专业能力描述" placeholder="客户投资分析&#10;收益归因&#10;交易行为分析&#10;风险分析"></textarea>
+            <p
+              >请用业务语言描述这个 Agent 擅长的分析任务，每行一项。Runtime
+              会将其作为对外展示的能力描述，调用所需的技术能力仍从已验证的 Agent Card 获取。</p
+            >
+            <textarea
+              v-model.trim="remoteForm.professionalCapabilities"
+              rows="4"
+              maxlength="1000"
+              aria-label="专业能力描述"
+              placeholder="客户投资分析&#10;收益归因&#10;交易行为分析&#10;风险分析"
+            ></textarea>
           </section>
           <section class="remote-step">
             <h3><span>3</span> 允许使用的知识</h3>
-            <p>知识文档和 Skills 分开管理，仅展示当前账号有权访问的资源。至少选择一个已发布的 Skill；实际调用仍会校验用户权限。</p>
+            <p
+              >知识文档和 Skills 分开管理，仅展示当前账号有权访问的资源。至少选择一个已发布的
+              Skill；实际调用仍会校验用户权限。</p
+            >
             <div class="remote-grant-grid">
               <section class="remote-grant-section">
                 <div class="agent-resource-selector">
-                  <div class="agent-resource-selector-copy"><strong>知识文档</strong><span>按知识库中的文档逐项选择。</span></div>
+                  <div class="agent-resource-selector-copy"
+                    ><strong>知识文档</strong><span>按知识库中的文档逐项选择。</span></div
+                  >
                   <div class="agent-resource-selector-action">
-                    <span :class="{ 'is-selected': remoteForm.selectedDocumentIds.length }">{{ remoteForm.selectedDocumentIds.length ? `已选 ${remoteForm.selectedDocumentIds.length} 份` : '未选择文档' }}</span>
-                    <button type="button" class="agent-picker-text-button" :aria-expanded="remoteDocumentPickerOpen" @click="openRemoteDocumentPicker">{{ remoteForm.selectedDocumentIds.length ? '调整选择' : '选择文档' }} <span aria-hidden="true">›</span></button>
+                    <span :class="{ 'is-selected': remoteForm.selectedDocumentIds.length }">{{
+                      remoteForm.selectedDocumentIds.length
+                        ? `已选 ${remoteForm.selectedDocumentIds.length} 份`
+                        : "未选择文档"
+                    }}</span>
+                    <button
+                      type="button"
+                      class="agent-picker-text-button"
+                      :aria-expanded="remoteDocumentPickerOpen"
+                      @click="openRemoteDocumentPicker"
+                      >{{ remoteForm.selectedDocumentIds.length ? "调整选择" : "选择文档" }}
+                      <span aria-hidden="true">›</span></button
+                    >
                   </div>
                 </div>
               </section>
               <section class="remote-grant-section">
                 <div class="agent-resource-selector">
-                  <div class="agent-resource-selector-copy"><strong>Skills</strong><span>选择已发布的分析 Skill。</span></div>
+                  <div class="agent-resource-selector-copy"
+                    ><strong>Skills</strong><span>选择已发布的分析 Skill。</span></div
+                  >
                   <div class="agent-resource-selector-action">
-                    <span :class="{ 'is-selected': remoteForm.selectedSkillIds.length }">{{ remoteForm.selectedSkillIds.length ? `已选 ${remoteForm.selectedSkillIds.length} 个` : '未选择 Skill' }}</span>
-                    <button type="button" class="agent-picker-text-button" :aria-expanded="remoteSkillPickerOpen" @click="openRemoteSkillPicker">{{ remoteForm.selectedSkillIds.length ? '调整选择' : '选择 Skill' }} <span aria-hidden="true">›</span></button>
+                    <span :class="{ 'is-selected': remoteForm.selectedSkillIds.length }">{{
+                      remoteForm.selectedSkillIds.length
+                        ? `已选 ${remoteForm.selectedSkillIds.length} 个`
+                        : "未选择 Skill"
+                    }}</span>
+                    <button
+                      type="button"
+                      class="agent-picker-text-button"
+                      :aria-expanded="remoteSkillPickerOpen"
+                      @click="openRemoteSkillPicker"
+                      >{{ remoteForm.selectedSkillIds.length ? "调整选择" : "选择 Skill" }}
+                      <span aria-hidden="true">›</span></button
+                    >
                   </div>
                 </div>
               </section>
             </div>
-            <label class="remote-choice remote-supplement-choice"><input v-model="remoteForm.allowDocumentSupplement" type="checkbox"><span>资料不足时，允许 Runtime 查询其他已授权文档</span></label>
+            <label class="remote-choice remote-supplement-choice"
+              ><input v-model="remoteForm.allowDocumentSupplement" type="checkbox" /><span
+                >资料不足时，允许 Runtime 查询其他已授权文档</span
+              ></label
+            >
           </section>
           <section class="remote-step">
             <h3><span>4</span> MCP 工具</h3>
             <div class="agent-resource-selector">
-              <div class="agent-resource-selector-copy"><strong>已注册 MCP 工具</strong><span>选择 Runtime 为分析准备证据时可编排的工具；实际调用仍受 Skill 和角色授权约束。</span></div>
-              <div class="agent-resource-selector-action"><span :class="{ 'is-selected': remoteSelectedToolNames.length }">{{ remoteSelectedToolNames.length ? `已选 ${remoteSelectedToolNames.length} 个工具` : '未选择工具' }}</span><button type="button" class="agent-picker-text-button" @click="openRemoteToolPicker">{{ remoteSelectedToolNames.length ? '调整选择' : '选择工具' }} <span aria-hidden="true">›</span></button></div>
+              <div class="agent-resource-selector-copy"
+                ><strong>已注册 MCP 工具</strong
+                ><span
+                  >选择 Runtime 为分析准备证据时可编排的工具；实际调用仍受 Skill
+                  和角色授权约束。</span
+                ></div
+              >
+              <div class="agent-resource-selector-action"
+                ><span :class="{ 'is-selected': remoteSelectedToolNames.length }">{{
+                  remoteSelectedToolNames.length
+                    ? `已选 ${remoteSelectedToolNames.length} 个工具`
+                    : "未选择工具"
+                }}</span
+                ><button
+                  type="button"
+                  class="agent-picker-text-button"
+                  @click="openRemoteToolPicker"
+                  >{{ remoteSelectedToolNames.length ? "调整选择" : "选择工具" }}
+                  <span aria-hidden="true">›</span></button
+                ></div
+              >
             </div>
-            <div v-if="remoteSelectedToolNames.length" class="agent-workflow-builder remote-mcp-workflow">
-              <div class="agent-tool-picker-head"><div><strong>MCP 工具编排</strong><span>由 Runtime 按步骤准备证据，远端 Agent 不直接调用工具。</span></div><label class="workflow-enable"><input v-model="remoteForm.autoMcp" type="checkbox"><span>启用</span></label></div>
+            <div
+              v-if="remoteSelectedToolNames.length"
+              class="agent-workflow-builder remote-mcp-workflow"
+            >
+              <div class="agent-tool-picker-head"
+                ><div
+                  ><strong>MCP 工具编排</strong
+                  ><span>由 Runtime 按步骤准备证据，远端 Agent 不直接调用工具。</span></div
+                ><label class="workflow-enable"
+                  ><input v-model="remoteForm.autoMcp" type="checkbox" /><span>启用</span></label
+                ></div
+              >
               <div v-if="remoteForm.autoMcp" class="workflow-strategy">
-                <label><span>执行模式</span><select v-model="remoteForm.workflowConfig.executionStrategy.mode"><option value="sequential">顺序执行</option><option value="hybrid">混合执行</option><option value="parallel">并行优先</option></select></label>
-                <label><span>最大步骤（上限）</span><input v-model.number="remoteForm.workflowConfig.executionStrategy.maxSteps" type="number" min="1" max="50"></label>
-                <label><span>成本预算上限（额度）</span><input v-model.number="remoteForm.workflowConfig.executionStrategy.costBudget" type="number" min="0" max="1000000" step="0.1"></label>
-                <label><span>时延预算上限（毫秒）</span><input v-model.number="remoteForm.workflowConfig.executionStrategy.latencyBudgetMs" type="number" min="1000" max="3600000" step="1000"></label>
-                <label><span>工具失败重试次数</span><input v-model.number="remoteForm.workflowConfig.executionStrategy.toolRetryAttempts" type="number" min="0" max="5"></label>
-                <label class="checkbox-row"><input v-model="remoteForm.workflowConfig.executionStrategy.stopOnError" type="checkbox"><span>失败后停止</span></label>
-                <label class="checkbox-row"><input v-model="remoteForm.workflowConfig.executionStrategy.allowParallel" type="checkbox"><span>允许并行</span></label>
+                <label
+                  ><span>执行模式</span
+                  ><select v-model="remoteForm.workflowConfig.executionStrategy.mode"
+                    ><option value="sequential">顺序执行</option
+                    ><option value="hybrid">混合执行</option
+                    ><option value="parallel">并行优先</option></select
+                  ></label
+                >
+                <label
+                  ><span>最大步骤（上限）</span
+                  ><input
+                    v-model.number="remoteForm.workflowConfig.executionStrategy.maxSteps"
+                    type="number"
+                    min="1"
+                    max="50"
+                /></label>
+                <label
+                  ><span>成本预算上限（额度）</span
+                  ><input
+                    v-model.number="remoteForm.workflowConfig.executionStrategy.costBudget"
+                    type="number"
+                    min="0"
+                    max="1000000"
+                    step="0.1"
+                /></label>
+                <label
+                  ><span>时延预算上限（毫秒）</span
+                  ><input
+                    v-model.number="remoteForm.workflowConfig.executionStrategy.latencyBudgetMs"
+                    type="number"
+                    min="1000"
+                    max="3600000"
+                    step="1000"
+                /></label>
+                <label
+                  ><span>工具失败重试次数</span
+                  ><input
+                    v-model.number="remoteForm.workflowConfig.executionStrategy.toolRetryAttempts"
+                    type="number"
+                    min="0"
+                    max="5"
+                /></label>
+                <label class="checkbox-row"
+                  ><input
+                    v-model="remoteForm.workflowConfig.executionStrategy.stopOnError"
+                    type="checkbox"
+                  /><span>失败后停止</span></label
+                >
+                <label class="checkbox-row"
+                  ><input
+                    v-model="remoteForm.workflowConfig.executionStrategy.allowParallel"
+                    type="checkbox"
+                  /><span>允许并行</span></label
+                >
               </div>
               <div v-if="remoteForm.autoMcp" class="workflow-step-list">
-                <article v-for="(step, index) in remoteWorkflowSteps" :key="step.tool" class="workflow-step-row">
-                  <div class="workflow-step-order"><strong>{{ index + 1 }}</strong><div><button type="button" :disabled="index === 0" title="上移" @click="moveRemoteWorkflowStep(index, -1)">↑</button><button type="button" :disabled="index === remoteWorkflowSteps.length - 1" title="下移" @click="moveRemoteWorkflowStep(index, 1)">↓</button></div></div>
-                  <div class="workflow-step-main"><header><strong>{{ step.tool }}</strong><label><input v-model="step.required" type="checkbox"><span>必需</span></label></header>
-                    <div class="workflow-step-controls"><label><span>确认策略</span><select v-model="step.confirmation"><option value="inherit_policy">继承策略</option><option value="auto_execute">自动执行</option><option value="ask_before_execute">执行前确认</option><option value="deny">禁止执行</option></select></label><label><span>条件表达式</span><input v-model.trim="step.condition" placeholder="例如 asset_total &gt; 1000000"></label></div>
-                    <div v-if="remoteSelectedToolNames.length > 1" class="workflow-dependencies"><span>前置依赖</span><div class="workflow-dependency-picker"><select value="" @change="addRemoteWorkflowDependency(step, $event.target.value); $event.target.value = ''"><option value="">选择前置依赖</option><option v-for="name in availableRemoteWorkflowDependencies(step)" :key="`${step.tool}-${name}`" :value="name">{{ name }}</option></select><div v-if="workflowStepDependencies(step).length" class="workflow-dependency-tags"><button v-for="name in workflowStepDependencies(step)" :key="`${step.tool}-${name}-dependency`" type="button" title="移除前置依赖" @click="removeRemoteWorkflowDependency(step, name)"><span>{{ name }}</span><strong>x</strong></button></div></div></div>
+                <article
+                  v-for="(step, index) in remoteWorkflowSteps"
+                  :key="step.tool"
+                  class="workflow-step-row"
+                >
+                  <div class="workflow-step-order"
+                    ><strong>{{ index + 1 }}</strong
+                    ><div
+                      ><button
+                        type="button"
+                        :disabled="index === 0"
+                        title="上移"
+                        @click="moveRemoteWorkflowStep(index, -1)"
+                        >↑</button
+                      ><button
+                        type="button"
+                        :disabled="index === remoteWorkflowSteps.length - 1"
+                        title="下移"
+                        @click="moveRemoteWorkflowStep(index, 1)"
+                        >↓</button
+                      ></div
+                    ></div
+                  >
+                  <div class="workflow-step-main"
+                    ><header
+                      ><strong>{{ step.tool }}</strong
+                      ><label
+                        ><input v-model="step.required" type="checkbox" /><span>必需</span></label
+                      ></header
+                    >
+                    <div class="workflow-step-controls"
+                      ><label
+                        ><span>确认策略</span
+                        ><select v-model="step.confirmation"
+                          ><option value="inherit_policy">继承策略</option
+                          ><option value="auto_execute">自动执行</option
+                          ><option value="ask_before_execute">执行前确认</option
+                          ><option value="deny">禁止执行</option></select
+                        ></label
+                      ><label
+                        ><span>条件表达式</span
+                        ><input
+                          v-model.trim="step.condition"
+                          placeholder="例如 asset_total &gt; 1000000" /></label
+                    ></div>
+                    <div v-if="remoteSelectedToolNames.length > 1" class="workflow-dependencies"
+                      ><span>前置依赖</span
+                      ><div class="workflow-dependency-picker"
+                        ><select
+                          value=""
+                          @change="
+                            addRemoteWorkflowDependency(step, $event.target.value);
+                            $event.target.value = '';
+                          "
+                          ><option value="">选择前置依赖</option
+                          ><option
+                            v-for="name in availableRemoteWorkflowDependencies(step)"
+                            :key="`${step.tool}-${name}`"
+                            :value="name"
+                            >{{ name }}</option
+                          ></select
+                        ><div
+                          v-if="workflowStepDependencies(step).length"
+                          class="workflow-dependency-tags"
+                          ><button
+                            v-for="name in workflowStepDependencies(step)"
+                            :key="`${step.tool}-${name}-dependency`"
+                            type="button"
+                            title="移除前置依赖"
+                            @click="removeRemoteWorkflowDependency(step, name)"
+                            ><span>{{ name }}</span
+                            ><strong>x</strong></button
+                          ></div
+                        ></div
+                      ></div
+                    >
                   </div>
                 </article>
               </div>
@@ -527,51 +962,272 @@
           </section>
           <section class="remote-step">
             <h3><span>5</span> 默认分析要求</h3>
-            <textarea v-model.trim="remoteForm.defaultInstruction" rows="4" maxlength="1000" aria-label="默认分析要求"></textarea>
+            <textarea
+              v-model.trim="remoteForm.defaultInstruction"
+              rows="4"
+              maxlength="1000"
+              aria-label="默认分析要求"
+            ></textarea>
           </section>
           <p v-if="remoteError" class="agent-error" role="alert">{{ remoteError }}</p>
-          <details v-if="remoteDiagnostic && isPlatformAdmin" class="remote-tool-details"><summary>查看诊断详情</summary><p>{{ remoteDiagnostic }}</p></details>
+          <details v-if="remoteDiagnostic && isPlatformAdmin" class="remote-tool-details"
+            ><summary>查看诊断详情</summary><p>{{ remoteDiagnostic }}</p></details
+          >
         </div>
         <footer>
-          <button type="button" class="secondary-button" :disabled="remoteBusy" @click="remoteDialogOpen = false">取消</button>
-          <button type="submit" class="primary-button" :disabled="remoteBusy || !remotePreview">{{ remoteBusy ? '正在保存…' : '保存并启用' }}</button>
+          <button
+            type="button"
+            class="secondary-button"
+            :disabled="remoteBusy"
+            @click="remoteDialogOpen = false"
+            >取消</button
+          >
+          <button type="submit" class="primary-button" :disabled="remoteBusy || !remotePreview">{{
+            remoteBusy ? "正在保存…" : "保存并启用"
+          }}</button>
         </footer>
       </form>
     </div>
 
-    <div v-if="remoteDocumentPickerOpen" class="agent-resource-dialog-backdrop" role="presentation" @click.self="closeRemoteDocumentPicker" @keydown.esc="closeRemoteDocumentPicker">
-      <section class="agent-resource-dialog" role="dialog" aria-modal="true" aria-labelledby="remote-document-picker-title">
-        <header><div><p>接入专有分析 Agent</p><h2 id="remote-document-picker-title">选择知识文档</h2><span>仅展示当前账号有权访问的文档；支持跨页选择，保存接入配置后生效。</span></div><button type="button" class="app-dialog-close" aria-label="关闭文档选择" @click="closeRemoteDocumentPicker">×</button></header>
+    <div
+      v-if="remoteDocumentPickerOpen"
+      class="agent-resource-dialog-backdrop"
+      role="presentation"
+      @click.self="closeRemoteDocumentPicker"
+      @keydown.esc="closeRemoteDocumentPicker"
+    >
+      <section
+        class="agent-resource-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="remote-document-picker-title"
+      >
+        <header
+          ><div
+            ><p>接入专有分析 Agent</p><h2 id="remote-document-picker-title">选择知识文档</h2
+            ><span>仅展示当前账号有权访问的文档；支持跨页选择，保存接入配置后生效。</span></div
+          ><button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭文档选择"
+            @click="closeRemoteDocumentPicker"
+            >×</button
+          ></header
+        >
         <div class="agent-resource-dialog-body">
           <div v-if="normalizedKnowledgeDocuments.length" class="agent-document-searchbar">
-            <label><span>搜索已有文档</span><input v-model.trim="remoteDocSearch" type="search" placeholder="搜索文档名称、标签、来源或 ID" autofocus></label>
-            <label><span>业务分类</span><select v-model="remoteDocumentCategoryFilter"><option v-for="option in documentCategoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></label>
-            <label><span>文档类型</span><select v-model="remoteDocumentTypeFilter"><option v-for="option in documentTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></label>
+            <label
+              ><span>搜索已有文档</span
+              ><input
+                v-model.trim="remoteDocSearch"
+                type="search"
+                placeholder="搜索文档名称、标签、来源或 ID"
+                autofocus
+            /></label>
+            <label
+              ><span>业务分类</span
+              ><select v-model="remoteDocumentCategoryFilter"
+                ><option
+                  v-for="option in documentCategoryOptions"
+                  :key="option.value"
+                  :value="option.value"
+                  >{{ option.label }}</option
+                ></select
+              ></label
+            >
+            <label
+              ><span>文档类型</span
+              ><select v-model="remoteDocumentTypeFilter"
+                ><option
+                  v-for="option in documentTypeOptions"
+                  :key="option.value"
+                  :value="option.value"
+                  >{{ option.label }}</option
+                ></select
+              ></label
+            >
           </div>
-          <div v-if="normalizedKnowledgeDocuments.length" class="agent-document-batchbar"><label class="agent-document-select-current"><input type="checkbox" :checked="remoteDocumentPageFullySelected" @change="toggleRemoteDocumentPage($event.target.checked)"><span>选择本页</span></label><strong>{{ remoteDocumentResultLabel }}</strong></div>
+          <div v-if="normalizedKnowledgeDocuments.length" class="agent-document-batchbar"
+            ><label class="agent-document-select-current"
+              ><input
+                type="checkbox"
+                :checked="remoteDocumentPageFullySelected"
+                @change="toggleRemoteDocumentPage($event.target.checked)"
+              /><span>选择本页</span></label
+            ><strong>{{ remoteDocumentResultLabel }}</strong></div
+          >
           <div v-if="pagedRemoteDocuments.length" class="agent-document-checklist">
-            <label v-for="document in pagedRemoteDocuments" :key="document.resourceKey" class="agent-document-check" :class="{ active: remoteForm.selectedDocumentIds.includes(document.docId) }" :title="document.title">
-              <input type="checkbox" :checked="remoteForm.selectedDocumentIds.includes(document.docId)" @change="toggleRemoteDocument(document)"><span><strong>{{ document.title }}</strong><small>{{ document.category }} · {{ document.documentType }} · {{ documentStatusLabel(document.lifecycleStatus) }}</small><em>{{ document.source || document.fileName || document.docId }} · {{ documentUpdatedLabel(document) }}</em></span>
+            <label
+              v-for="document in pagedRemoteDocuments"
+              :key="document.resourceKey"
+              class="agent-document-check"
+              :class="{ active: remoteForm.selectedDocumentIds.includes(document.docId) }"
+              :title="document.title"
+            >
+              <input
+                type="checkbox"
+                :checked="remoteForm.selectedDocumentIds.includes(document.docId)"
+                @change="toggleRemoteDocument(document)"
+              /><span
+                ><strong>{{ document.title }}</strong
+                ><small
+                  >{{ document.category }} · {{ document.documentType }} ·
+                  {{ documentStatusLabel(document.lifecycleStatus) }}</small
+                ><em
+                  >{{ document.source || document.fileName || document.docId }} ·
+                  {{ documentUpdatedLabel(document) }}</em
+                ></span
+              >
             </label>
           </div>
-          <p v-else-if="normalizedKnowledgeDocuments.length" class="agent-tool-empty">没有匹配的知识文档，请调整关键词或筛选条件。</p><p v-else class="agent-tool-empty">暂无有权访问的知识文档。</p>
-          <nav v-if="remoteDocumentOptions.length" class="agent-resource-pagination" aria-label="专有分析知识文档分页"><button type="button" :disabled="remoteDocumentPickerPage <= 1" @click="changeRemoteDocumentPickerPage(remoteDocumentPickerPage - 1)">上一页</button><span>第 {{ remoteDocumentPickerPage }} / {{ remoteDocumentPickerPageCount }} 页，共 {{ remoteDocumentOptions.length }} 份</span><button type="button" :disabled="remoteDocumentPickerPage >= remoteDocumentPickerPageCount" @click="changeRemoteDocumentPickerPage(remoteDocumentPickerPage + 1)">下一页</button></nav>
+          <p v-else-if="normalizedKnowledgeDocuments.length" class="agent-tool-empty"
+            >没有匹配的知识文档，请调整关键词或筛选条件。</p
+          ><p v-else class="agent-tool-empty">暂无有权访问的知识文档。</p>
+          <nav
+            v-if="remoteDocumentOptions.length"
+            class="agent-resource-pagination"
+            aria-label="专有分析知识文档分页"
+            ><button
+              type="button"
+              :disabled="remoteDocumentPickerPage <= 1"
+              @click="changeRemoteDocumentPickerPage(remoteDocumentPickerPage - 1)"
+              >上一页</button
+            ><span
+              >第 {{ remoteDocumentPickerPage }} / {{ remoteDocumentPickerPageCount }} 页，共
+              {{ remoteDocumentOptions.length }} 份</span
+            ><button
+              type="button"
+              :disabled="remoteDocumentPickerPage >= remoteDocumentPickerPageCount"
+              @click="changeRemoteDocumentPickerPage(remoteDocumentPickerPage + 1)"
+              >下一页</button
+            ></nav
+          >
         </div>
-        <footer><button v-if="remoteForm.selectedDocumentIds.length" type="button" class="agent-resource-clear-button" @click="clearRemoteDocuments">清空已选</button><span v-else></span><button type="button" class="primary-button" @click="closeRemoteDocumentPicker">完成（已选 {{ remoteForm.selectedDocumentIds.length }} 份）</button></footer>
+        <footer
+          ><button
+            v-if="remoteForm.selectedDocumentIds.length"
+            type="button"
+            class="agent-resource-clear-button"
+            @click="clearRemoteDocuments"
+            >清空已选</button
+          ><span v-else></span
+          ><button type="button" class="primary-button" @click="closeRemoteDocumentPicker"
+            >完成（已选 {{ remoteForm.selectedDocumentIds.length }} 份）</button
+          ></footer
+        >
       </section>
     </div>
 
-    <div v-if="remoteSkillPickerOpen" class="agent-resource-dialog-backdrop" role="presentation" @click.self="closeRemoteSkillPicker" @keydown.esc="closeRemoteSkillPicker">
-      <section class="agent-resource-dialog" role="dialog" aria-modal="true" aria-labelledby="remote-skill-picker-title">
-        <header><div><p>接入专有分析 Agent</p><h2 id="remote-skill-picker-title">选择 Skills</h2><span>仅展示权限设置允许访问的已发布 Skills；支持跨页选择，保存接入配置后生效。</span></div><button type="button" class="app-dialog-close" aria-label="关闭 Skill 选择" @click="closeRemoteSkillPicker">×</button></header>
+    <div
+      v-if="remoteSkillPickerOpen"
+      class="agent-resource-dialog-backdrop"
+      role="presentation"
+      @click.self="closeRemoteSkillPicker"
+      @keydown.esc="closeRemoteSkillPicker"
+    >
+      <section
+        class="agent-resource-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="remote-skill-picker-title"
+      >
+        <header
+          ><div
+            ><p>接入专有分析 Agent</p><h2 id="remote-skill-picker-title">选择 Skills</h2
+            ><span
+              >仅展示权限设置允许访问的已发布 Skills；支持跨页选择，保存接入配置后生效。</span
+            ></div
+          ><button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭 Skill 选择"
+            @click="closeRemoteSkillPicker"
+            >×</button
+          ></header
+        >
         <div class="agent-resource-dialog-body">
-          <div v-if="normalizedDomainSkills.length" class="agent-skill-searchbar"><label><span>搜索 Skills</span><input v-model.trim="remoteSkillSearch" type="search" placeholder="搜索 Skill 名称、分类、说明或 ID" autofocus></label><label><span>技能分类</span><select v-model="remoteSkillCategoryFilter"><option v-for="option in skillCategoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></label></div>
-          <div v-if="normalizedDomainSkills.length" class="agent-document-batchbar"><label class="agent-document-select-current"><input type="checkbox" :checked="remoteSkillPageFullySelected" @change="toggleRemoteSkillPage($event.target.checked)"><span>选择本页</span></label><strong>{{ remoteSkillResultLabel }}</strong></div>
-          <div v-if="pagedRemoteSkills.length" class="agent-document-checklist"><label v-for="skill in pagedRemoteSkills" :key="skill.resourceKey" class="agent-document-check" :class="{ active: remoteForm.selectedSkillIds.includes(skill.docId) }" :title="skill.title"><input type="checkbox" :checked="remoteForm.selectedSkillIds.includes(skill.docId)" @change="toggleRemoteSkill(skill)"><span><strong>{{ skill.title }}</strong><small>{{ skill.category }} · 已发布</small><em>{{ skill.description || skill.docId }}</em></span></label></div>
-          <p v-else-if="normalizedDomainSkills.length" class="agent-tool-empty">没有匹配的 Skill，请调整关键词或分类。</p><p v-else class="agent-tool-empty">暂无有权访问的已发布 Skill。</p>
-          <nav v-if="remoteSkillOptions.length" class="agent-resource-pagination" aria-label="专有分析 Skills 分页"><button type="button" :disabled="remoteSkillPickerPage <= 1" @click="changeRemoteSkillPickerPage(remoteSkillPickerPage - 1)">上一页</button><span>第 {{ remoteSkillPickerPage }} / {{ remoteSkillPickerPageCount }} 页，共 {{ remoteSkillOptions.length }} 个</span><button type="button" :disabled="remoteSkillPickerPage >= remoteSkillPickerPageCount" @click="changeRemoteSkillPickerPage(remoteSkillPickerPage + 1)">下一页</button></nav>
+          <div v-if="normalizedDomainSkills.length" class="agent-skill-searchbar"
+            ><label
+              ><span>搜索 Skills</span
+              ><input
+                v-model.trim="remoteSkillSearch"
+                type="search"
+                placeholder="搜索 Skill 名称、分类、说明或 ID"
+                autofocus /></label
+            ><label
+              ><span>技能分类</span
+              ><select v-model="remoteSkillCategoryFilter"
+                ><option
+                  v-for="option in skillCategoryOptions"
+                  :key="option.value"
+                  :value="option.value"
+                  >{{ option.label }}</option
+                ></select
+              ></label
+            ></div
+          >
+          <div v-if="normalizedDomainSkills.length" class="agent-document-batchbar"
+            ><label class="agent-document-select-current"
+              ><input
+                type="checkbox"
+                :checked="remoteSkillPageFullySelected"
+                @change="toggleRemoteSkillPage($event.target.checked)"
+              /><span>选择本页</span></label
+            ><strong>{{ remoteSkillResultLabel }}</strong></div
+          >
+          <div v-if="pagedRemoteSkills.length" class="agent-document-checklist"
+            ><label
+              v-for="skill in pagedRemoteSkills"
+              :key="skill.resourceKey"
+              class="agent-document-check"
+              :class="{ active: remoteForm.selectedSkillIds.includes(skill.docId) }"
+              :title="skill.title"
+              ><input
+                type="checkbox"
+                :checked="remoteForm.selectedSkillIds.includes(skill.docId)"
+                @change="toggleRemoteSkill(skill)"
+              /><span
+                ><strong>{{ skill.title }}</strong
+                ><small>{{ skill.category }} · 已发布</small
+                ><em>{{ skill.description || skill.docId }}</em></span
+              ></label
+            ></div
+          >
+          <p v-else-if="normalizedDomainSkills.length" class="agent-tool-empty"
+            >没有匹配的 Skill，请调整关键词或分类。</p
+          ><p v-else class="agent-tool-empty">暂无有权访问的已发布 Skill。</p>
+          <nav
+            v-if="remoteSkillOptions.length"
+            class="agent-resource-pagination"
+            aria-label="专有分析 Skills 分页"
+            ><button
+              type="button"
+              :disabled="remoteSkillPickerPage <= 1"
+              @click="changeRemoteSkillPickerPage(remoteSkillPickerPage - 1)"
+              >上一页</button
+            ><span
+              >第 {{ remoteSkillPickerPage }} / {{ remoteSkillPickerPageCount }} 页，共
+              {{ remoteSkillOptions.length }} 个</span
+            ><button
+              type="button"
+              :disabled="remoteSkillPickerPage >= remoteSkillPickerPageCount"
+              @click="changeRemoteSkillPickerPage(remoteSkillPickerPage + 1)"
+              >下一页</button
+            ></nav
+          >
         </div>
-        <footer><button v-if="remoteForm.selectedSkillIds.length" type="button" class="agent-resource-clear-button" @click="clearRemoteSkills">清空已选</button><span v-else></span><button type="button" class="primary-button" @click="closeRemoteSkillPicker">完成（已选 {{ remoteForm.selectedSkillIds.length }} 个）</button></footer>
+        <footer
+          ><button
+            v-if="remoteForm.selectedSkillIds.length"
+            type="button"
+            class="agent-resource-clear-button"
+            @click="clearRemoteSkills"
+            >清空已选</button
+          ><span v-else></span
+          ><button type="button" class="primary-button" @click="closeRemoteSkillPicker"
+            >完成（已选 {{ remoteForm.selectedSkillIds.length }} 个）</button
+          ></footer
+        >
       </section>
     </div>
 
@@ -582,12 +1238,28 @@
             <p>{{ dialogMode === "create" ? "新增Agent" : "Agent设置" }}</p>
             <h2>{{ dialogMode === "create" ? "创建自研 Agent" : form.name || form.id }}</h2>
           </div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="saving" @click="closeDialog">×</button>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            title="关闭"
+            :disabled="saving"
+            @click="closeDialog"
+            >×</button
+          >
         </header>
 
         <div class="dialog-body">
           <section v-if="dialogMode === 'create'" class="wide-field">
-            <button v-if="isPlatformAdmin" type="button" class="agent-picker-text-button" @click="dialogOpen = false; openRemoteDialog()">
+            <button
+              v-if="isPlatformAdmin"
+              type="button"
+              class="agent-picker-text-button"
+              @click="
+                dialogOpen = false;
+                openRemoteDialog();
+              "
+            >
               切换到接入专有分析 Agent <span aria-hidden="true">›</span>
             </button>
           </section>
@@ -599,11 +1271,11 @@
               pattern="[a-z0-9_-]{2,64}"
               placeholder="industry_research"
               required
-            >
+            />
           </label>
           <label>
             <span>Agent名称</span>
-            <input v-model.trim="form.name" placeholder="行业研究助手" required>
+            <input v-model.trim="form.name" placeholder="行业研究助手" required />
           </label>
           <label>
             <span>运行模式</span>
@@ -613,7 +1285,7 @@
             </select>
           </label>
           <label class="checkbox-row default-agent-row">
-            <input v-model="form.defaultAgent" type="checkbox">
+            <input v-model="form.defaultAgent" type="checkbox" />
             <span>设为默认Agent</span>
           </label>
           <label>
@@ -638,7 +1310,7 @@
           </label>
           <label>
             <span>标签</span>
-            <input v-model="form.skillTags" placeholder="投研, 风控, 财报">
+            <input v-model="form.skillTags" placeholder="投研, 风控, 财报" />
           </label>
           <label class="wide-field">
             <span>业务描述</span>
@@ -667,7 +1339,11 @@
             </div>
             <div class="agent-resource-selector-action">
               <span :class="{ 'is-selected': selectedDocumentIds.length }">
-                {{ selectedDocumentIds.length ? `已选 ${selectedDocumentIds.length} 份` : "未选择文档" }}
+                {{
+                  selectedDocumentIds.length
+                    ? `已选 ${selectedDocumentIds.length} 份`
+                    : "未选择文档"
+                }}
               </span>
               <button type="button" class="agent-picker-text-button" @click="openDocumentPicker">
                 {{ selectedDocumentIds.length ? "调整文档" : "选择文档" }}
@@ -682,7 +1358,11 @@
             </div>
             <div class="agent-resource-selector-action">
               <span :class="{ 'is-selected': selectedDomainSkillIds.length }">
-                {{ selectedDomainSkillIds.length ? `已选 ${selectedDomainSkillIds.length} 个` : "未选择 Skill" }}
+                {{
+                  selectedDomainSkillIds.length
+                    ? `已选 ${selectedDomainSkillIds.length} 个`
+                    : "未选择 Skill"
+                }}
               </span>
               <button type="button" class="agent-picker-text-button" @click="openSkillPicker">
                 {{ selectedDomainSkillIds.length ? "调整 Skills" : "选择 Skills" }}
@@ -690,13 +1370,19 @@
               </button>
             </div>
           </section>
-          <section v-if="form.defaultMode === 'agent_chat'" class="default-data-asset-settings wide-field">
+          <section
+            v-if="form.defaultMode === 'agent_chat'"
+            class="default-data-asset-settings wide-field"
+          >
             <div class="default-data-asset-heading">
               <strong>数据库资产绑定</strong>
-              <span>仅支持绑定数据库资产；启用后，Agent 的数据库检索与执行将固定使用该资产，不会切换到其他数据库。</span>
+              <span
+                >仅支持绑定数据库资产；启用后，Agent
+                的数据库检索与执行将固定使用该资产，不会切换到其他数据库。</span
+              >
             </div>
             <label class="checkbox-row">
-              <input v-model="form.defaultDataAssetEnabled" type="checkbox">
+              <input v-model="form.defaultDataAssetEnabled" type="checkbox" />
               <span>启用数据库资产绑定</span>
             </label>
             <label>
@@ -705,17 +1391,24 @@
                 v-model.trim="form.defaultDataAssetName"
                 :disabled="!form.defaultDataAssetEnabled"
                 placeholder="例如：客户经营分析数据库"
-              >
+              />
             </label>
           </section>
-          <section v-if="form.defaultMode === 'agent_chat'" class="agent-resource-selector wide-field">
+          <section
+            v-if="form.defaultMode === 'agent_chat'"
+            class="agent-resource-selector wide-field"
+          >
             <div class="agent-resource-selector-copy">
               <strong>已注册 MCP 工具</strong>
               <span>按当前 Agent 的业务范围选择可调用工具。</span>
             </div>
             <div class="agent-resource-selector-action">
               <span :class="{ 'is-selected': selectedToolNames.length }">
-                {{ selectedToolNames.length ? `已选 ${selectedToolNames.length} 个工具` : "未选择工具" }}
+                {{
+                  selectedToolNames.length
+                    ? `已选 ${selectedToolNames.length} 个工具`
+                    : "未选择工具"
+                }}
               </span>
               <button type="button" class="agent-picker-text-button" @click="openToolPicker">
                 {{ selectedToolNames.length ? "调整选择" : "选择工具" }}
@@ -724,14 +1417,17 @@
             </div>
           </section>
 
-          <section v-if="form.defaultMode === 'agent_chat' && selectedToolNames.length" class="agent-workflow-builder wide-field">
+          <section
+            v-if="form.defaultMode === 'agent_chat' && selectedToolNames.length"
+            class="agent-workflow-builder wide-field"
+          >
             <div class="agent-tool-picker-head">
               <div>
                 <strong>MCP 工具编排</strong>
                 <span>按当前 Agent 的勾选工具配置执行顺序、依赖和确认节点</span>
               </div>
               <label class="workflow-enable">
-                <input v-model="form.workflowConfig.enabled" type="checkbox">
+                <input v-model="form.workflowConfig.enabled" type="checkbox" />
                 <span>启用</span>
               </label>
             </div>
@@ -749,7 +1445,13 @@
               </label>
               <label>
                 <span>最大步骤（上限）</span>
-                <input v-model.number="form.workflowConfig.executionStrategy.maxSteps" type="number" min="1" max="50" step="1">
+                <input
+                  v-model.number="form.workflowConfig.executionStrategy.maxSteps"
+                  type="number"
+                  min="1"
+                  max="50"
+                  step="1"
+                />
               </label>
               <label>
                 <span>成本预算上限（额度）</span>
@@ -759,7 +1461,7 @@
                   min="0"
                   max="1000000"
                   step="0.1"
-                >
+                />
               </label>
               <label>
                 <span>时延预算上限（毫秒）</span>
@@ -769,7 +1471,7 @@
                   min="1000"
                   max="3600000"
                   step="1000"
-                >
+                />
               </label>
               <label>
                 <span>工具失败重试次数</span>
@@ -778,31 +1480,53 @@
                   type="number"
                   min="0"
                   max="5"
-                >
+                />
               </label>
               <label class="checkbox-row">
-                <input v-model="form.workflowConfig.executionStrategy.stopOnError" type="checkbox">
+                <input
+                  v-model="form.workflowConfig.executionStrategy.stopOnError"
+                  type="checkbox"
+                />
                 <span>失败后停止</span>
               </label>
               <label class="checkbox-row">
-                <input v-model="form.workflowConfig.executionStrategy.allowParallel" type="checkbox">
+                <input
+                  v-model="form.workflowConfig.executionStrategy.allowParallel"
+                  type="checkbox"
+                />
                 <span>允许并行</span>
               </label>
             </div>
             <div class="workflow-step-list">
-              <article v-for="(step, index) in workflowSteps" :key="step.tool" class="workflow-step-row">
+              <article
+                v-for="(step, index) in workflowSteps"
+                :key="step.tool"
+                class="workflow-step-row"
+              >
                 <div class="workflow-step-order">
                   <strong>{{ index + 1 }}</strong>
                   <div>
-                    <button type="button" :disabled="index === 0" title="上移" @click="moveWorkflowStep(index, -1)">↑</button>
-                    <button type="button" :disabled="index === workflowSteps.length - 1" title="下移" @click="moveWorkflowStep(index, 1)">↓</button>
+                    <button
+                      type="button"
+                      :disabled="index === 0"
+                      title="上移"
+                      @click="moveWorkflowStep(index, -1)"
+                      >↑</button
+                    >
+                    <button
+                      type="button"
+                      :disabled="index === workflowSteps.length - 1"
+                      title="下移"
+                      @click="moveWorkflowStep(index, 1)"
+                      >↓</button
+                    >
                   </div>
                 </div>
                 <div class="workflow-step-main">
                   <header>
                     <strong>{{ step.tool }}</strong>
                     <label>
-                      <input v-model="step.required" type="checkbox">
+                      <input v-model="step.required" type="checkbox" />
                       <span>必需</span>
                     </label>
                   </header>
@@ -827,7 +1551,10 @@
                     </label>
                     <label>
                       <span>条件表达式</span>
-                      <input v-model.trim="step.condition" placeholder="例如 asset_total &gt; 1000000">
+                      <input
+                        v-model.trim="step.condition"
+                        placeholder="例如 asset_total &gt; 1000000"
+                      />
                     </label>
                   </div>
                   <div v-if="selectedToolNames.length > 1" class="workflow-dependencies">
@@ -835,7 +1562,10 @@
                     <div class="workflow-dependency-picker">
                       <select
                         value=""
-                        @change="addWorkflowDependency(step, $event.target.value); $event.target.value = ''"
+                        @change="
+                          addWorkflowDependency(step, $event.target.value);
+                          $event.target.value = '';
+                        "
                       >
                         <option value="">选择前置依赖</option>
                         <option
@@ -846,7 +1576,10 @@
                           {{ toolName }}
                         </option>
                       </select>
-                      <div v-if="workflowStepDependencies(step).length" class="workflow-dependency-tags">
+                      <div
+                        v-if="workflowStepDependencies(step).length"
+                        class="workflow-dependency-tags"
+                      >
                         <button
                           v-for="toolName in workflowStepDependencies(step)"
                           :key="`${step.tool}-${toolName}-dependency`"
@@ -867,20 +1600,30 @@
 
           <section v-if="form.defaultMode === 'agent_chat'" class="routing-settings wide-field">
             <label class="checkbox-row">
-              <input v-model="form.routingSettings.smartSelectionEnabled" type="checkbox">
+              <input v-model="form.routingSettings.smartSelectionEnabled" type="checkbox" />
               <span>启用智能工具选择</span>
             </label>
             <label class="checkbox-row">
-              <input v-model="form.routingSettings.limitParallelCalls" type="checkbox">
+              <input v-model="form.routingSettings.limitParallelCalls" type="checkbox" />
               <span>限制并行调用</span>
             </label>
             <label>
               <span>最大并行数</span>
-              <input v-model.number="form.routingSettings.maxParallelCalls" type="number" min="1" max="10">
+              <input
+                v-model.number="form.routingSettings.maxParallelCalls"
+                type="number"
+                min="1"
+                max="10"
+              />
             </label>
             <label>
               <span>最大相关 MCP 工具数</span>
-              <input v-model.number="form.routingSettings.maxRelevantMcpTools" type="number" min="1" max="20">
+              <input
+                v-model.number="form.routingSettings.maxRelevantMcpTools"
+                type="number"
+                min="1"
+                max="20"
+              />
             </label>
           </section>
         </div>
@@ -888,7 +1631,9 @@
         <p v-if="dialogError" class="agent-error">{{ dialogError }}</p>
 
         <footer>
-          <button type="button" class="secondary-button" :disabled="saving" @click="closeDialog">取消</button>
+          <button type="button" class="secondary-button" :disabled="saving" @click="closeDialog"
+            >取消</button
+          >
           <button type="submit" class="primary-button" :disabled="saving">
             {{ saving ? "保存中" : "保存" }}
           </button>
@@ -914,7 +1659,14 @@
               <h2 id="agent-document-picker-title">选择知识文档</h2>
               <span>仅展示当前账号有权访问的文档；选择会在保存 Agent 后生效。</span>
             </div>
-            <button type="button" class="app-dialog-close" aria-label="关闭文档选择" title="关闭" @click="closeDocumentPicker">×</button>
+            <button
+              type="button"
+              class="app-dialog-close"
+              aria-label="关闭文档选择"
+              title="关闭"
+              @click="closeDocumentPicker"
+              >×</button
+            >
           </header>
 
           <div class="agent-resource-dialog-body">
@@ -926,12 +1678,16 @@
                   type="search"
                   placeholder="搜索文档名称、标签、来源或 ID"
                   autofocus
-                >
+                />
               </label>
               <label>
                 <span>业务分类</span>
                 <select v-model="documentCategoryFilter">
-                  <option v-for="option in documentCategoryOptions" :key="option.value" :value="option.value">
+                  <option
+                    v-for="option in documentCategoryOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
                     {{ option.label }}
                   </option>
                 </select>
@@ -939,7 +1695,11 @@
               <label>
                 <span>文档类型</span>
                 <select v-model="documentTypeFilter">
-                  <option v-for="option in documentTypeOptions" :key="option.value" :value="option.value">
+                  <option
+                    v-for="option in documentTypeOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
                     {{ option.label }}
                   </option>
                 </select>
@@ -947,7 +1707,11 @@
             </div>
             <div v-if="normalizedKnowledgeDocuments.length" class="agent-document-batchbar">
               <label class="agent-document-select-current">
-                <input type="checkbox" :checked="documentPageFullySelected" @change="toggleDocumentPage($event.target.checked)">
+                <input
+                  type="checkbox"
+                  :checked="documentPageFullySelected"
+                  @change="toggleDocumentPage($event.target.checked)"
+                />
                 <span>选择本页</span>
               </label>
               <strong>{{ documentResultLabel }}</strong>
@@ -957,7 +1721,10 @@
                 v-for="document in pagedDocuments"
                 :key="document.resourceKey"
                 class="agent-document-check"
-                :class="{ active: resourceSelected(document), disabled: !documentSelectable(document) }"
+                :class="{
+                  active: resourceSelected(document),
+                  disabled: !documentSelectable(document),
+                }"
                 :title="document.title"
               >
                 <input
@@ -965,20 +1732,45 @@
                   :checked="resourceSelected(document)"
                   :disabled="!documentSelectable(document)"
                   @change="toggleDocument(document)"
-                >
+                />
                 <span>
                   <strong>{{ document.title }}</strong>
-                  <small>{{ document.category }} · {{ document.documentType }} · {{ documentStatusLabel(document.lifecycleStatus) }}</small>
-                  <em>{{ document.source || document.fileName || document.docId }} · {{ documentUpdatedLabel(document) }}</em>
+                  <small
+                    >{{ document.category }} · {{ document.documentType }} ·
+                    {{ documentStatusLabel(document.lifecycleStatus) }}</small
+                  >
+                  <em
+                    >{{ document.source || document.fileName || document.docId }} ·
+                    {{ documentUpdatedLabel(document) }}</em
+                  >
                 </span>
               </label>
             </div>
-            <p v-else-if="normalizedKnowledgeDocuments.length" class="agent-tool-empty">没有匹配的知识文档，请调整关键词或筛选条件。</p>
+            <p v-else-if="normalizedKnowledgeDocuments.length" class="agent-tool-empty"
+              >没有匹配的知识文档，请调整关键词或筛选条件。</p
+            >
             <p v-else class="agent-tool-empty">暂无有权访问的知识文档。</p>
-            <nav v-if="filteredDocuments.length" class="agent-resource-pagination" aria-label="知识文档分页">
-              <button type="button" :disabled="documentPickerPage <= 1" @click="changeDocumentPickerPage(documentPickerPage - 1)">上一页</button>
-              <span>第 {{ documentPickerPage }} / {{ documentPickerPageCount }} 页，共 {{ filteredDocuments.length }} 份</span>
-              <button type="button" :disabled="documentPickerPage >= documentPickerPageCount" @click="changeDocumentPickerPage(documentPickerPage + 1)">下一页</button>
+            <nav
+              v-if="filteredDocuments.length"
+              class="agent-resource-pagination"
+              aria-label="知识文档分页"
+            >
+              <button
+                type="button"
+                :disabled="documentPickerPage <= 1"
+                @click="changeDocumentPickerPage(documentPickerPage - 1)"
+                >上一页</button
+              >
+              <span
+                >第 {{ documentPickerPage }} / {{ documentPickerPageCount }} 页，共
+                {{ filteredDocuments.length }} 份</span
+              >
+              <button
+                type="button"
+                :disabled="documentPickerPage >= documentPickerPageCount"
+                @click="changeDocumentPickerPage(documentPickerPage + 1)"
+                >下一页</button
+              >
             </nav>
           </div>
 
@@ -1006,32 +1798,58 @@
         @click.self="closeSkillPicker"
         @keydown.esc="closeSkillPicker"
       >
-        <section class="agent-resource-dialog" role="dialog" aria-modal="true" aria-labelledby="agent-skill-picker-title">
+        <section
+          class="agent-resource-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="agent-skill-picker-title"
+        >
           <header>
             <div>
               <p>Agent 设置</p>
               <h2 id="agent-skill-picker-title">选择 Skills</h2>
               <span>仅展示权限设置允许访问的已发布 Skills；选择会在保存 Agent 后生效。</span>
             </div>
-            <button type="button" class="app-dialog-close" aria-label="关闭 Skill 选择" title="关闭" @click="closeSkillPicker">×</button>
+            <button
+              type="button"
+              class="app-dialog-close"
+              aria-label="关闭 Skill 选择"
+              title="关闭"
+              @click="closeSkillPicker"
+              >×</button
+            >
           </header>
 
           <div class="agent-resource-dialog-body">
             <div v-if="normalizedDomainSkills.length" class="agent-skill-searchbar">
               <label>
                 <span>搜索 Skills</span>
-                <input v-model.trim="skillSearchQuery" type="search" placeholder="搜索 Skill 名称、分类、说明或 ID" autofocus>
+                <input
+                  v-model.trim="skillSearchQuery"
+                  type="search"
+                  placeholder="搜索 Skill 名称、分类、说明或 ID"
+                  autofocus
+                />
               </label>
               <label>
                 <span>技能分类</span>
                 <select v-model="skillCategoryFilter">
-                  <option v-for="option in skillCategoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                  <option
+                    v-for="option in skillCategoryOptions"
+                    :key="option.value"
+                    :value="option.value"
+                    >{{ option.label }}</option
+                  >
                 </select>
               </label>
             </div>
             <div v-if="normalizedDomainSkills.length" class="agent-document-batchbar">
               <label class="agent-document-select-current">
-                <input type="checkbox" :checked="skillPageFullySelected" @change="toggleSkillPage($event.target.checked)">
+                <input
+                  type="checkbox"
+                  :checked="skillPageFullySelected"
+                  @change="toggleSkillPage($event.target.checked)"
+                />
                 <span>选择本页</span>
               </label>
               <strong>{{ skillResultLabel }}</strong>
@@ -1044,7 +1862,11 @@
                 :class="{ active: resourceSelected(skill) }"
                 :title="skill.title"
               >
-                <input type="checkbox" :checked="resourceSelected(skill)" @change="toggleDocument(skill)">
+                <input
+                  type="checkbox"
+                  :checked="resourceSelected(skill)"
+                  @change="toggleDocument(skill)"
+                />
                 <span>
                   <strong>{{ skill.title }}</strong>
                   <small>{{ skill.category }} · 已发布</small>
@@ -1052,136 +1874,198 @@
                 </span>
               </label>
             </div>
-            <p v-else-if="normalizedDomainSkills.length" class="agent-tool-empty">没有匹配的 Skill，请调整关键词或分类。</p>
+            <p v-else-if="normalizedDomainSkills.length" class="agent-tool-empty"
+              >没有匹配的 Skill，请调整关键词或分类。</p
+            >
             <p v-else class="agent-tool-empty">暂无有权访问的已发布 Skill。</p>
-            <nav v-if="filteredDomainSkills.length" class="agent-resource-pagination" aria-label="Skills 分页">
-              <button type="button" :disabled="skillPickerPage <= 1" @click="changeSkillPickerPage(skillPickerPage - 1)">上一页</button>
-              <span>第 {{ skillPickerPage }} / {{ skillPickerPageCount }} 页，共 {{ filteredDomainSkills.length }} 个</span>
-              <button type="button" :disabled="skillPickerPage >= skillPickerPageCount" @click="changeSkillPickerPage(skillPickerPage + 1)">下一页</button>
+            <nav
+              v-if="filteredDomainSkills.length"
+              class="agent-resource-pagination"
+              aria-label="Skills 分页"
+            >
+              <button
+                type="button"
+                :disabled="skillPickerPage <= 1"
+                @click="changeSkillPickerPage(skillPickerPage - 1)"
+                >上一页</button
+              >
+              <span
+                >第 {{ skillPickerPage }} / {{ skillPickerPageCount }} 页，共
+                {{ filteredDomainSkills.length }} 个</span
+              >
+              <button
+                type="button"
+                :disabled="skillPickerPage >= skillPickerPageCount"
+                @click="changeSkillPickerPage(skillPickerPage + 1)"
+                >下一页</button
+              >
             </nav>
           </div>
 
           <footer>
-            <button v-if="selectedDomainSkillIds.length" type="button" class="agent-resource-clear-button" @click="clearSelectedSkills">清空已选</button>
-            <span v-else></span>
-            <button type="button" class="primary-button" @click="closeSkillPicker">完成（已选 {{ selectedDomainSkillIds.length }} 个）</button>
-          </footer>
-        </section>
-      </div>
-
-    </div>
-
-      <div
-        v-if="toolPickerOpen"
-        class="agent-resource-dialog-backdrop"
-        role="presentation"
-        @click.self="closeToolPicker"
-        @keydown.esc="closeToolPicker"
-      >
-        <section
-          class="agent-resource-dialog agent-tool-selection-dialog"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="agent-tool-picker-title"
-        >
-          <header>
-            <div>
-              <p>{{ remoteToolPickerOpen ? '专有分析 Agent' : 'Agent 设置' }}</p>
-              <h2 id="agent-tool-picker-title">选择已注册 MCP 工具</h2>
-              <span>可按服务类型、分组和关键词快速筛选。</span>
-            </div>
-            <button type="button" class="app-dialog-close" aria-label="关闭工具选择" title="关闭" @click="closeToolPicker">×</button>
-          </header>
-
-          <div class="agent-resource-dialog-body">
-            <div v-if="registeredMcpTools.length" class="agent-tool-searchbar">
-              <label>
-                <span>检索工具</span>
-                <input
-                  v-model.trim="toolSearchQuery"
-                  type="search"
-                  placeholder="搜索名称、服务、描述、参数、分类或标签"
-                  autofocus
-                >
-              </label>
-              <label>
-                <span>后端服务类型</span>
-                <select v-model="toolBackendServiceTypeFilter">
-                  <option v-for="option in mcpBackendServiceTypeOptions" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
-              </label>
-              <label>
-                <span>分组方式</span>
-                <select v-model="toolGroupMode">
-                  <option v-for="option in mcpToolGroupOptions" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
-              </label>
-              <strong>{{ mcpToolGroupSummary }}</strong>
-            </div>
-            <div v-if="registeredMcpTools.length && filteredMcpTools.length" class="agent-tool-group-list">
-              <section v-for="group in mcpToolGroups" :key="group.key" class="agent-tool-group">
-                <header>
-                  <div>
-                    <strong>{{ group.label }}</strong>
-                    <span>{{ group.selectedCount }} / {{ group.tools.length }} 已选 · {{ group.subtitle }}</span>
-                  </div>
-                  <button type="button" class="secondary-button compact-button" @click="toggleToolGroup(group)">
-                    {{ isToolGroupFullySelected(group) ? "取消本组" : "选择本组" }}
-                  </button>
-                </header>
-                <div class="agent-tool-checklist">
-                  <label
-                    v-for="tool in group.tools"
-                    :key="tool.localToolName"
-                    class="agent-tool-check"
-                    :class="{ active: pickerSelectedToolNames.includes(tool.localToolName) }"
-                    :title="applicabilityTooltip(tool)"
-                  >
-                    <input
-                      type="checkbox"
-                      :checked="pickerSelectedToolNames.includes(tool.localToolName)"
-                      @change="toggleTool(tool.localToolName)"
-                    >
-                    <span>
-                      <strong>{{ tool.chineseAlias || tool.displayName || tool.remoteToolName || tool.localToolName }}</strong>
-                      <small v-if="tool.chineseAlias" class="agent-tool-english-name">{{ tool.remoteToolName || tool.localToolName }}</small>
-                      <small>
-                        {{ tool.serviceName || tool.serviceId || "未归属服务" }}
-                        · {{ backendServiceTypesLabel(tool) }}
-                      </small>
-                      <small v-if="tool.applicabilitySummary" class="agent-tool-applicability">
-                        适用范围：{{ tool.applicabilitySummary }}
-                      </small>
-                      <em v-if="!tool.chineseAlias || tool.localToolName !== tool.remoteToolName">{{ tool.localToolName }}</em>
-                    </span>
-                  </label>
-                </div>
-              </section>
-            </div>
-            <p v-else-if="registeredMcpTools.length" class="agent-tool-empty">没有匹配的 MCP 工具，请调整关键词或筛选条件。</p>
-            <p v-else class="agent-tool-empty">请先在 MCP 服务完成服务接入和工具注册。</p>
-          </div>
-
-          <footer>
             <button
-              v-if="pickerSelectedToolNames.length"
+              v-if="selectedDomainSkillIds.length"
               type="button"
               class="agent-resource-clear-button"
-              @click="clearSelectedTools"
+              @click="clearSelectedSkills"
+              >清空已选</button
             >
-              清空已选
-            </button>
             <span v-else></span>
-            <button type="button" class="primary-button" @click="closeToolPicker">
-              完成（已选 {{ pickerSelectedToolNames.length }} 个）
-            </button>
+            <button type="button" class="primary-button" @click="closeSkillPicker"
+              >完成（已选 {{ selectedDomainSkillIds.length }} 个）</button
+            >
           </footer>
         </section>
       </div>
+    </div>
+
+    <div
+      v-if="toolPickerOpen"
+      class="agent-resource-dialog-backdrop"
+      role="presentation"
+      @click.self="closeToolPicker"
+      @keydown.esc="closeToolPicker"
+    >
+      <section
+        class="agent-resource-dialog agent-tool-selection-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="agent-tool-picker-title"
+      >
+        <header>
+          <div>
+            <p>{{ remoteToolPickerOpen ? "专有分析 Agent" : "Agent 设置" }}</p>
+            <h2 id="agent-tool-picker-title">选择已注册 MCP 工具</h2>
+            <span>可按服务类型、分组和关键词快速筛选。</span>
+          </div>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭工具选择"
+            title="关闭"
+            @click="closeToolPicker"
+            >×</button
+          >
+        </header>
+
+        <div class="agent-resource-dialog-body">
+          <div v-if="registeredMcpTools.length" class="agent-tool-searchbar">
+            <label>
+              <span>检索工具</span>
+              <input
+                v-model.trim="toolSearchQuery"
+                type="search"
+                placeholder="搜索名称、服务、描述、参数、分类或标签"
+                autofocus
+              />
+            </label>
+            <label>
+              <span>后端服务类型</span>
+              <select v-model="toolBackendServiceTypeFilter">
+                <option
+                  v-for="option in mcpBackendServiceTypeOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
+              </select>
+            </label>
+            <label>
+              <span>分组方式</span>
+              <select v-model="toolGroupMode">
+                <option
+                  v-for="option in mcpToolGroupOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
+              </select>
+            </label>
+            <strong>{{ mcpToolGroupSummary }}</strong>
+          </div>
+          <div
+            v-if="registeredMcpTools.length && filteredMcpTools.length"
+            class="agent-tool-group-list"
+          >
+            <section v-for="group in mcpToolGroups" :key="group.key" class="agent-tool-group">
+              <header>
+                <div>
+                  <strong>{{ group.label }}</strong>
+                  <span
+                    >{{ group.selectedCount }} / {{ group.tools.length }} 已选 ·
+                    {{ group.subtitle }}</span
+                  >
+                </div>
+                <button
+                  type="button"
+                  class="secondary-button compact-button"
+                  @click="toggleToolGroup(group)"
+                >
+                  {{ isToolGroupFullySelected(group) ? "取消本组" : "选择本组" }}
+                </button>
+              </header>
+              <div class="agent-tool-checklist">
+                <label
+                  v-for="tool in group.tools"
+                  :key="tool.localToolName"
+                  class="agent-tool-check"
+                  :class="{ active: pickerSelectedToolNames.includes(tool.localToolName) }"
+                  :title="applicabilityTooltip(tool)"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="pickerSelectedToolNames.includes(tool.localToolName)"
+                    @change="toggleTool(tool.localToolName)"
+                  />
+                  <span>
+                    <strong>{{
+                      tool.chineseAlias ||
+                      tool.displayName ||
+                      tool.remoteToolName ||
+                      tool.localToolName
+                    }}</strong>
+                    <small v-if="tool.chineseAlias" class="agent-tool-english-name">{{
+                      tool.remoteToolName || tool.localToolName
+                    }}</small>
+                    <small>
+                      {{ tool.serviceName || tool.serviceId || "未归属服务" }}
+                      · {{ backendServiceTypesLabel(tool) }}
+                    </small>
+                    <small v-if="tool.applicabilitySummary" class="agent-tool-applicability">
+                      适用范围：{{ tool.applicabilitySummary }}
+                    </small>
+                    <em v-if="!tool.chineseAlias || tool.localToolName !== tool.remoteToolName">{{
+                      tool.localToolName
+                    }}</em>
+                  </span>
+                </label>
+              </div>
+            </section>
+          </div>
+          <p v-else-if="registeredMcpTools.length" class="agent-tool-empty"
+            >没有匹配的 MCP 工具，请调整关键词或筛选条件。</p
+          >
+          <p v-else class="agent-tool-empty">请先在 MCP 服务完成服务接入和工具注册。</p>
+        </div>
+
+        <footer>
+          <button
+            v-if="pickerSelectedToolNames.length"
+            type="button"
+            class="agent-resource-clear-button"
+            @click="clearSelectedTools"
+          >
+            清空已选
+          </button>
+          <span v-else></span>
+          <button type="button" class="primary-button" @click="closeToolPicker">
+            完成（已选 {{ pickerSelectedToolNames.length }} 个）
+          </button>
+        </footer>
+      </section>
+    </div>
 
     <div v-if="importDialogOpen" class="agent-dialog-backdrop">
       <form class="agent-dialog agent-import-dialog" @submit.prevent="importAgents">
@@ -1190,20 +2074,33 @@
             <p>批量导入</p>
             <h2>导入 Agent 配置</h2>
           </div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="importing" @click="closeImportDialog">×</button>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            title="关闭"
+            :disabled="importing"
+            @click="closeImportDialog"
+            >×</button
+          >
         </header>
 
         <div class="dialog-body agent-import-body">
           <section class="wide-field agent-import-tools">
             <label class="agent-file-button">
-              <input type="file" accept=".json,.csv,.tsv,.xlsx,.xls" @change="handleImportFile">
+              <input type="file" accept=".json,.csv,.tsv,.xlsx,.xls" @change="handleImportFile" />
               <span>{{ importFileName || "选择 JSON / 表格文件" }}</span>
             </label>
-            <button type="button" class="secondary-button" :disabled="!importText.trim()" @click="refreshImportPreview">
+            <button
+              type="button"
+              class="secondary-button"
+              :disabled="!importText.trim()"
+              @click="refreshImportPreview"
+            >
               解析预览
             </button>
             <label class="checkbox-row">
-              <input v-model="importOverwriteExisting" type="checkbox">
+              <input v-model="importOverwriteExisting" type="checkbox" />
               <span>覆盖已有自定义 Agent</span>
             </label>
           </section>
@@ -1232,7 +2129,9 @@
                 <em>{{ agent.skillTags.join(" / ") || "未设置标签" }}</em>
               </article>
             </div>
-            <p v-if="importItems.length > 8" class="agent-tool-empty">仅展示前 8 个，确认导入时会处理全部 Agent。</p>
+            <p v-if="importItems.length > 8" class="agent-tool-empty"
+              >仅展示前 8 个，确认导入时会处理全部 Agent。</p
+            >
           </section>
 
           <section v-if="importResults.length" class="wide-field agent-import-results">
@@ -1252,8 +2151,18 @@
         <p v-if="importError" class="agent-error">{{ importError }}</p>
 
         <footer>
-          <button type="button" class="secondary-button" :disabled="importing" @click="closeImportDialog">关闭</button>
-          <button type="submit" class="primary-button" :disabled="importing || importItems.length === 0">
+          <button
+            type="button"
+            class="secondary-button"
+            :disabled="importing"
+            @click="closeImportDialog"
+            >关闭</button
+          >
+          <button
+            type="submit"
+            class="primary-button"
+            :disabled="importing || importItems.length === 0"
+          >
             {{ importing ? "导入中" : "确认导入" }}
           </button>
         </footer>
@@ -1261,22 +2170,38 @@
     </div>
 
     <div v-if="importNotice.open" class="agent-dialog-backdrop agent-import-notice-backdrop">
-      <section class="agent-import-notice" role="dialog" aria-modal="true" aria-labelledby="agent-import-notice-title">
+      <section
+        class="agent-import-notice"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="agent-import-notice-title"
+      >
         <header>
           <div>
             <p>批量导入提示</p>
             <h2 id="agent-import-notice-title">{{ importNotice.title }}</h2>
           </div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeImportNotice">×</button>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            title="关闭"
+            @click="closeImportNotice"
+            >×</button
+          >
         </header>
         <div class="agent-import-notice-body" :class="`is-${importNotice.tone}`">
           <span class="agent-import-notice-icon" aria-hidden="true">
-            {{ importNotice.tone === "success" ? "✓" : importNotice.tone === "warning" ? "!" : "×" }}
+            {{
+              importNotice.tone === "success" ? "✓" : importNotice.tone === "warning" ? "!" : "×"
+            }}
           </span>
           <div>
             <strong>{{ importNotice.message }}</strong>
             <ul v-if="importNotice.details.length">
-              <li v-for="(detail, index) in importNotice.details" :key="`${index}-${detail}`">{{ detail }}</li>
+              <li v-for="(detail, index) in importNotice.details" :key="`${index}-${detail}`">{{
+                detail
+              }}</li>
             </ul>
           </div>
         </div>

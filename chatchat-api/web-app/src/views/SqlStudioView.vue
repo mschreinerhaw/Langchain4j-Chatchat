@@ -2,57 +2,479 @@
   <section class="sql-studio sql-ide">
     <header class="sql-studio-bar sql-ide-titlebar">
       <div class="sql-studio-brand"><FileCode2 :size="22" /><strong>SQL Studio</strong></div>
-      <select aria-label="SQL 工程" :value="projectId" :disabled="busy" @change="selectProject($event.target.value)"><option value="" disabled>选择工程</option><option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option></select>
-      <button type="button" :disabled="busy || !projectId" @click="openNewFile"><Plus :size="15" />新建文件</button>
-      <button type="button" :disabled="busy" @click="newProjectOpen = true"><Plus :size="15" />新建工程</button>
-      <button type="button" class="sql-delete-project" :disabled="busy || !projectId" @click="deleteProject">删除工程</button>
+      <select
+        aria-label="SQL 工程"
+        :value="projectId"
+        :disabled="busy"
+        @change="selectProject($event.target.value)"
+        ><option value="" disabled>选择工程</option
+        ><option v-for="project in projects" :key="project.id" :value="project.id">{{
+          project.name
+        }}</option></select
+      >
+      <button type="button" :disabled="busy || !projectId" @click="openNewFile"
+        ><Plus :size="15" />新建文件</button
+      >
+      <button type="button" :disabled="busy" @click="newProjectOpen = true"
+        ><Plus :size="15" />新建工程</button
+      >
+      <button
+        type="button"
+        class="sql-delete-project"
+        :disabled="busy || !projectId"
+        @click="deleteProject"
+        >删除工程</button
+      >
       <nav class="sql-activity-bar" aria-label="SQL Studio 面板">
-        <button type="button" title="工程文件" aria-label="切换工程文件" :aria-pressed="layout.explorer" :class="{ active: layout.explorer }" @click="togglePanel('explorer')"><FolderTree :size="18" /></button>
-        <button type="button" title="AI 工程助手" aria-label="切换 AI 工程助手" :aria-pressed="layout.assistant" :class="{ active: layout.assistant }" @click="togglePanel('assistant')"><Sparkles :size="18" /></button>
-        <button type="button" title="问题和任务" aria-label="切换底部面板" :aria-pressed="layout.bottom" :class="{ active: layout.bottom }" @click="togglePanel('bottom')"><PanelBottom :size="18" /></button>
+        <button
+          type="button"
+          title="工程文件"
+          aria-label="切换工程文件"
+          :aria-pressed="layout.explorer"
+          :class="{ active: layout.explorer }"
+          @click="togglePanel('explorer')"
+          ><FolderTree :size="18"
+        /></button>
+        <button
+          type="button"
+          title="AI 工程助手"
+          aria-label="切换 AI 工程助手"
+          :aria-pressed="layout.assistant"
+          :class="{ active: layout.assistant }"
+          @click="togglePanel('assistant')"
+          ><Sparkles :size="18"
+        /></button>
+        <button
+          type="button"
+          title="问题和任务"
+          aria-label="切换底部面板"
+          :aria-pressed="layout.bottom"
+          :class="{ active: layout.bottom }"
+          @click="togglePanel('bottom')"
+          ><PanelBottom :size="18"
+        /></button>
       </nav>
       <span class="sql-ide-titlebar-spacer"></span>
-      <button type="button" :disabled="busy || activeFile?.kind !== 'SQL' || !activeFile?.editable || !!preview" @click="formatActive"><WandSparkles :size="15" />格式化</button>
-      <label class="sql-dialect">方言<select v-model="dialect" aria-label="SQL 方言"><option v-for="option in dialects" :key="option.value" :value="option.value">{{ option.label }}</option></select></label>
-      <button class="sql-primary" type="button" :disabled="busy || !activeFile?.editable || !!preview" @click="saveActive"><Save :size="15" />保存文件</button>
+      <button
+        type="button"
+        :disabled="busy || activeFile?.kind !== 'SQL' || !activeFile?.editable || !!preview"
+        @click="formatActive"
+        ><WandSparkles :size="15" />格式化</button
+      >
+      <label class="sql-dialect"
+        >方言<select v-model="dialect" aria-label="SQL 方言"
+          ><option v-for="option in dialects" :key="option.value" :value="option.value">{{
+            option.label
+          }}</option></select
+        ></label
+      >
+      <button
+        class="sql-primary"
+        type="button"
+        :disabled="busy || !activeFile?.editable || !!preview"
+        @click="saveActive"
+        ><Save :size="15" />保存文件</button
+      >
     </header>
-    <AppNotice v-if="error" class="sql-page-notice" kind="error" dismissible @close="error = ''">{{ error }}</AppNotice>
-    <AppNotice v-if="message" class="sql-page-notice" kind="success" dismissible @close="message = ''">{{ message }}</AppNotice>
+    <AppNotice v-if="error" class="sql-page-notice" kind="error" dismissible @close="error = ''">{{
+      error
+    }}</AppNotice>
+    <AppNotice
+      v-if="message"
+      class="sql-page-notice"
+      kind="success"
+      dismissible
+      @close="message = ''"
+      >{{ message }}</AppNotice
+    >
     <div class="sql-ide-shell" :style="ideStyle">
-      <aside v-if="projectId" v-show="layout.explorer" class="sql-project-tree sql-resource-sidebar">
-      <nav class="sql-resource-tabs" aria-label="资源浏览"><button type="button" :aria-pressed="explorerTab==='files'" @click="explorerTab='files'">工程文件</button><button type="button" :aria-pressed="explorerTab==='schema'" @click="explorerTab='schema'">数据库<span v-if="metadataTableCount">（{{ metadataTableCount }}）</span></button></nav>
-      <SqlProjectTree v-show="explorerTab==='files'" :folders="folders" :selected-folder="newFileFolder" :files="files" :references="references" :reference-ids="referenceIds" :project-name="projects.find(item => item.id === projectId)?.name" :active-id="activeId" :mapping-ids="mappingIds" :busy="busy"
-        @open="openFile" @mapping="toggle(mappingIds, $event)" @reference="toggle(referenceIds, $event)" @reference-open="openReference" @choose-library="chooseLibrary" @folder-select="newFileFolder = $event" @edit-folder="editFolder" @delete-folder="deleteFolder" @create-folder="openNewFolder" @create="openNewFile" @delete="deleteFile" @refresh="action(refreshFiles)" @versions="showVersions" @download="download" @rename="renameFile"></SqlProjectTree>
-      <SqlSchemaExplorer v-show="explorerTab==='schema'" ref="schemaExplorer" :project-id="projectId" :identity="{...workspaceContext,tenantId,userId}" :dialect="dialect" @insert="editorPane?.insertIdentifier($event)" @dialect="useSourceDialect" @selection-count="metadataTableCount=$event" />
+      <aside
+        v-if="projectId"
+        v-show="layout.explorer"
+        class="sql-project-tree sql-resource-sidebar"
+      >
+        <nav class="sql-resource-tabs" aria-label="资源浏览"
+          ><button
+            type="button"
+            :aria-pressed="explorerTab === 'files'"
+            @click="explorerTab = 'files'"
+            >工程文件</button
+          ><button
+            type="button"
+            :aria-pressed="explorerTab === 'schema'"
+            @click="explorerTab = 'schema'"
+            >数据库<span v-if="metadataTableCount">（{{ metadataTableCount }}）</span></button
+          ></nav
+        >
+        <SqlProjectTree
+          v-show="explorerTab === 'files'"
+          :folders="folders"
+          :selected-folder="newFileFolder"
+          :files="files"
+          :references="references"
+          :reference-ids="referenceIds"
+          :project-name="projects.find((item) => item.id === projectId)?.name"
+          :active-id="activeId"
+          :mapping-ids="mappingIds"
+          :busy="busy"
+          @open="openFile"
+          @mapping="toggle(mappingIds, $event)"
+          @reference="toggle(referenceIds, $event)"
+          @reference-open="openReference"
+          @choose-library="chooseLibrary"
+          @folder-select="newFileFolder = $event"
+          @edit-folder="editFolder"
+          @delete-folder="deleteFolder"
+          @create-folder="openNewFolder"
+          @create="openNewFile"
+          @delete="deleteFile"
+          @refresh="action(refreshFiles)"
+          @versions="showVersions"
+          @download="download"
+          @rename="renameFile"
+        ></SqlProjectTree>
+        <SqlSchemaExplorer
+          v-show="explorerTab === 'schema'"
+          ref="schemaExplorer"
+          :project-id="projectId"
+          :identity="{ ...workspaceContext, tenantId, userId }"
+          :dialect="dialect"
+          @insert="editorPane?.insertIdentifier($event)"
+          @dialect="useSourceDialect"
+          @selection-count="metadataTableCount = $event"
+        />
       </aside>
-      <aside v-else-if="layout.explorer" class="sql-project-tree sql-ide-no-project"><strong>工程资源</strong><p>新建或选择工程后查看文件。</p></aside>
-      <div v-if="layout.explorer" class="sql-panel-resizer" role="separator" aria-orientation="vertical" aria-label="调整工程文件宽度" @pointerdown="startResize('explorer', $event)" @dblclick="resetSize('explorer')"></div>
+      <aside v-else-if="layout.explorer" class="sql-project-tree sql-ide-no-project"
+        ><strong>工程资源</strong><p>新建或选择工程后查看文件。</p></aside
+      >
+      <div
+        v-if="layout.explorer"
+        class="sql-panel-resizer"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="调整工程文件宽度"
+        @pointerdown="startResize('explorer', $event)"
+        @dblclick="resetSize('explorer')"
+      ></div>
       <main class="sql-ide-main">
-        <SqlEditorPane v-if="projectId" ref="editorPane" :project-id="projectId" :files="files" :open-ids="openIds" :active-id="activeId" :preview="preview" :dialect="dialect" :schema-columns="schemaColumns" :schema-completion="completeSchema" :workspace-context="workspaceContext"
-          @open="openFile" @close="closeFile" @edit="editFile" @save="saveActive" @versions="showVersions" @download="download" @preview-close="preview = null" @selection="useSelection" @mapping-reference="useMappingReference" @diagnostics="problemCount = $event" @cursor="cursor = $event" />
-        <div v-else class="sql-ide-welcome"><div class="sql-ide-welcome-mark">SQL</div><h1>开始一个 SQL 工程</h1><p>将 Mapping 与 SQL 文件放在工程中，引用用户空间文档辅助 Cline 生成代码。</p><button class="sql-primary" @click="newProjectOpen = true">新建工程</button></div>
-        <div v-if="layout.bottom" class="sql-bottom-resizer" role="separator" aria-orientation="horizontal" aria-label="调整底部面板高度" @pointerdown="startResize('bottom', $event)" @dblclick="resetSize('bottom')"></div>
-        <SqlBottomPanel v-if="layout.bottom" :style="{ height: layout.bottomHeight + 'px' }" :tab="layout.bottomTab" :problem-count="problemCount" :error="error" :message="message" :result="result" :generations="generations" @tab="layout.bottomTab = $event" @close="layout.bottom = false" @generation="selectGeneration" />
+        <SqlEditorPane
+          v-if="projectId"
+          ref="editorPane"
+          :project-id="projectId"
+          :files="files"
+          :open-ids="openIds"
+          :active-id="activeId"
+          :preview="preview"
+          :dialect="dialect"
+          :schema-columns="schemaColumns"
+          :schema-completion="completeSchema"
+          :workspace-context="workspaceContext"
+          @open="openFile"
+          @close="closeFile"
+          @edit="editFile"
+          @save="saveActive"
+          @versions="showVersions"
+          @download="download"
+          @preview-close="preview = null"
+          @selection="useSelection"
+          @mapping-reference="useMappingReference"
+          @diagnostics="problemCount = $event"
+          @cursor="cursor = $event"
+        />
+        <div v-else class="sql-ide-welcome"
+          ><div class="sql-ide-welcome-mark">SQL</div><h1>开始一个 SQL 工程</h1
+          ><p>将 Mapping 与 SQL 文件放在工程中，引用用户空间文档辅助 Cline 生成代码。</p
+          ><button class="sql-primary" @click="newProjectOpen = true">新建工程</button></div
+        >
+        <div
+          v-if="layout.bottom"
+          class="sql-bottom-resizer"
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label="调整底部面板高度"
+          @pointerdown="startResize('bottom', $event)"
+          @dblclick="resetSize('bottom')"
+        ></div>
+        <SqlBottomPanel
+          v-if="layout.bottom"
+          :style="{ height: layout.bottomHeight + 'px' }"
+          :tab="layout.bottomTab"
+          :problem-count="problemCount"
+          :error="error"
+          :message="message"
+          :result="result"
+          :generations="generations"
+          @tab="layout.bottomTab = $event"
+          @close="layout.bottom = false"
+          @generation="selectGeneration"
+        />
       </main>
-      <div v-if="layout.assistant" class="sql-panel-resizer" role="separator" aria-orientation="vertical" aria-label="调整 AI 助手宽度" @pointerdown="startResize('assistant', $event)" @dblclick="resetSize('assistant')"></div>
-      <SqlAssistantPanel v-if="layout.assistant && projectId" :ai-action="aiAction" @action="chooseAiAction" :current-file="activeFile" :dialect-label="dialects.find(item => item.value === dialect)?.label" :task-running="taskRunning" :pending-phase="pendingPhase" :pending-started-at="pendingStartedAt" :poll-error="pollError" :mapping-documents="mappingDocuments" :mapping-count="mappingIds.length + mappingDocuments.length" :project-files="files" :references="[]" :reference-ids="[]" :user-documents="userDocuments" :models="models" :agents="agents" :agent-id="agentId" :model-name="modelName" :execution-mode="executionMode" :prompt="prompt" :messages="chatTurns" :busy="busy || documentsUploading" :generations="generations" :generation-id="generationId" :result="result" :selected-code="selectedCode"
-        @remove-mapping-document="removeMappingDocument" @reference="toggle(referenceIds, $event)" @open-resource="openReference" @choose-library="chooseLibrary" @agent="agentId = $event" @model="modelName = $event" @execution-mode="chooseExecutionMode" @prompt="prompt = $event" @new-conversation="newConversation" @send="generate" @generation="selectGeneration" @resume="resume" @cancel="cancel" @preview="reviewGeneration" @apply="reviewGeneration" @clear-selection="selectedCode = null" @reference-file="addFileMention"><template #context-documents><button type="button" class="sql-context-library" @click="explorerTab='schema'; layout.explorer=true">选择数据库表（{{ metadataTableCount }}）</button><SqlUserDocuments :key="tenantId+':'+userId+':'+projectId" v-model="userDocuments" :busy="busy || taskRunning" @uploading="documentsUploading = $event"><template #actions><button type="button" :disabled="busy || taskRunning" @click="chooseLibrary">选择知识库文档</button></template><div v-for="item in mappingDocuments" :key="item.docId" class="sql-selection-chip">{{ item.fileName }}<button type="button" :aria-label="'移除知识库文档 '+item.fileName" @click="removeMappingDocument(item.docId)">×</button></div><details class="sql-script-references"><summary>选择参考脚本（{{ referenceIds.length }}）</summary><label v-for="file in references" :key="file.id"><input type="checkbox" :aria-label="'参考脚本 '+file.path" :checked="referenceIds.includes(file.id)" :disabled="busy || taskRunning" @change="toggle(referenceIds,file.id)" /><span>{{ file.path }}</span></label><small v-if="!references.length">暂无可选脚本</small></details></SqlUserDocuments></template></SqlAssistantPanel>
-      <aside v-else-if="layout.assistant" class="sql-assistant-panel sql-ide-no-project"><strong>AI 工程助手</strong><p>选择工程后开始协作。</p></aside>
-      <footer class="sql-ide-status"><CircleCheck :size="13" /><span>{{ projects.find(item => item.id === projectId)?.name || '未选择工程' }}</span><span>{{ dirtyCount ? dirtyCount + ' 个文件未保存' : '文件已保存' }}</span><span class="sql-ide-status-spacer"></span><span :class="{ 'sql-status-running': taskRunning }">{{ result?.task?.status || '就绪' }}</span><button type="button" @click="layout.bottom = true; layout.bottomTab = 'problems'">{{ problemCount }} 个问题</button><span v-if="cursor">行 {{ cursor.line }}，列 {{ cursor.column }}</span><span>UTF-8</span><span>{{ dialects.find(item => item.value === dialect)?.label || dialect }}</span></footer>
+      <div
+        v-if="layout.assistant"
+        class="sql-panel-resizer"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="调整 AI 助手宽度"
+        @pointerdown="startResize('assistant', $event)"
+        @dblclick="resetSize('assistant')"
+      ></div>
+      <SqlAssistantPanel
+        v-if="layout.assistant && projectId"
+        :ai-action="aiAction"
+        @action="chooseAiAction"
+        :current-file="activeFile"
+        :dialect-label="dialects.find((item) => item.value === dialect)?.label"
+        :task-running="taskRunning"
+        :pending-phase="pendingPhase"
+        :pending-started-at="pendingStartedAt"
+        :poll-error="pollError"
+        :mapping-documents="mappingDocuments"
+        :mapping-count="mappingIds.length + mappingDocuments.length"
+        :project-files="files"
+        :references="[]"
+        :reference-ids="[]"
+        :user-documents="userDocuments"
+        :models="models"
+        :agents="agents"
+        :agent-id="agentId"
+        :model-name="modelName"
+        :execution-mode="executionMode"
+        :prompt="prompt"
+        :messages="chatTurns"
+        :busy="busy || documentsUploading"
+        :generations="generations"
+        :generation-id="generationId"
+        :result="result"
+        :selected-code="selectedCode"
+        @remove-mapping-document="removeMappingDocument"
+        @reference="toggle(referenceIds, $event)"
+        @open-resource="openReference"
+        @choose-library="chooseLibrary"
+        @agent="agentId = $event"
+        @model="modelName = $event"
+        @execution-mode="chooseExecutionMode"
+        @prompt="prompt = $event"
+        @new-conversation="newConversation"
+        @send="generate"
+        @generation="selectGeneration"
+        @resume="resume"
+        @cancel="cancel"
+        @preview="reviewGeneration"
+        @apply="reviewGeneration"
+        @clear-selection="selectedCode = null"
+        @reference-file="addFileMention"
+        ><template #context-documents
+          ><button
+            type="button"
+            class="sql-context-library"
+            @click="
+              explorerTab = 'schema';
+              layout.explorer = true;
+            "
+            >选择数据库表（{{ metadataTableCount }}）</button
+          ><SqlUserDocuments
+            :key="tenantId + ':' + userId + ':' + projectId"
+            v-model="userDocuments"
+            :busy="busy || taskRunning"
+            @uploading="documentsUploading = $event"
+            ><template #actions
+              ><button type="button" :disabled="busy || taskRunning" @click="chooseLibrary"
+                >选择知识库文档</button
+              ></template
+            ><div v-for="item in mappingDocuments" :key="item.docId" class="sql-selection-chip"
+              >{{ item.fileName
+              }}<button
+                type="button"
+                :aria-label="'移除知识库文档 ' + item.fileName"
+                @click="removeMappingDocument(item.docId)"
+                >×</button
+              ></div
+            ><details class="sql-script-references"
+              ><summary>选择参考脚本（{{ referenceIds.length }}）</summary
+              ><label v-for="file in references" :key="file.id"
+                ><input
+                  type="checkbox"
+                  :aria-label="'参考脚本 ' + file.path"
+                  :checked="referenceIds.includes(file.id)"
+                  :disabled="busy || taskRunning"
+                  @change="toggle(referenceIds, file.id)"
+                /><span>{{ file.path }}</span></label
+              ><small v-if="!references.length">暂无可选脚本</small></details
+            ></SqlUserDocuments
+          ></template
+        ></SqlAssistantPanel
+      >
+      <aside v-else-if="layout.assistant" class="sql-assistant-panel sql-ide-no-project"
+        ><strong>AI 工程助手</strong><p>选择工程后开始协作。</p></aside
+      >
+      <footer class="sql-ide-status"
+        ><CircleCheck :size="13" /><span>{{
+          projects.find((item) => item.id === projectId)?.name || "未选择工程"
+        }}</span
+        ><span>{{ dirtyCount ? dirtyCount + " 个文件未保存" : "文件已保存" }}</span
+        ><span class="sql-ide-status-spacer"></span
+        ><span :class="{ 'sql-status-running': taskRunning }">{{
+          result?.task?.status || "就绪"
+        }}</span
+        ><button
+          type="button"
+          @click="
+            layout.bottom = true;
+            layout.bottomTab = 'problems';
+          "
+          >{{ problemCount }} 个问题</button
+        ><span v-if="cursor">行 {{ cursor.line }}，列 {{ cursor.column }}</span
+        ><span>UTF-8</span
+        ><span>{{
+          dialects.find((item) => item.value === dialect)?.label || dialect
+        }}</span></footer
+      >
     </div>
-    <Teleport to="body"><div v-if="newProjectOpen" class="sql-dialog-backdrop" @mousedown.self="newProjectOpen = false"><form class="sql-dialog" @submit.prevent="createProject"><h2>新建 SQL 工程</h2><label>工程名称<input v-model="projectName" maxlength="180" autofocus placeholder="例如：销售明细 ETL" /></label><footer><button type="button" @click="newProjectOpen = false">取消</button><button class="sql-primary" :disabled="busy || !projectName.trim()">创建工程</button></footer></form></div></Teleport>
-    <AppConfirmDialog v-if="confirmation" :title="confirmation.title" :message="confirmation.message" @cancel="resolveConfirm(false)" @confirm="resolveConfirm(true)" />
-    <Teleport to="body"><div v-if="folderOpen" class="sql-dialog-backdrop" @mousedown.self="folderOpen = false" @keydown.esc="folderOpen = false"><form class="sql-dialog" role="dialog" aria-modal="true" aria-labelledby="sql-folder-title" @submit.prevent="createFolder"><h2 id="sql-folder-title">{{ folderOriginal ? '修改 / 重命名文件夹' : '新建文件夹' }}</h2><label>文件夹路径<input v-model="folderPath" aria-label="文件夹路径" maxlength="240" autofocus placeholder="例如 scripts" /></label><AppNotice v-if="error" kind="error">{{ error }}</AppNotice><footer><button type="button" @click="folderOpen = false">取消</button><button class="sql-primary" :disabled="busy || !folderPath.trim()">保存文件夹</button></footer></form></div></Teleport>
-    <Teleport to="body"><div v-if="newFileOpen" class="sql-dialog-backdrop" @mousedown.self="newFileOpen = false" @keydown.esc="newFileOpen = false"><form class="sql-dialog" role="dialog" aria-modal="true" aria-labelledby="sql-new-file-title" @submit.prevent="createFile"><h2 id="sql-new-file-title">新建 SQL 文件</h2><label>目标文件夹<select v-model="newFileFolder" aria-label="目标文件夹"><option v-for="folder in folders" :key="folder" :value="folder">{{ folder }}</option></select></label><label>文件名<input v-model="newFilePath" aria-label="SQL 文件名" maxlength="180" autofocus placeholder="query.sql" /></label><AppNotice v-if="error" kind="error">{{ error }}</AppNotice><footer><button type="button" @click="newFileOpen = false">取消</button><button class="sql-primary" :disabled="busy || !newFilePath.trim() || !newFileFolder">创建并打开</button></footer></form></div></Teleport>
-    <Teleport to="body"><div v-if="libraryOpen" class="sql-dialog-backdrop" @mousedown.self="libraryOpen = false">
-      <section class="sql-dialog sql-library-dialog">
-        <h2>选择知识库文档（可选）</h2>
-        <p>仅列出当前身份有权访问的文档，用于生成代码时提供参考上下文。</p>
-        <div class="sql-library-list"><label v-for="item in libraryItems" :key="item.docId"><input type="checkbox" :checked="librarySelected.includes(item.docId)" @change="toggle(librarySelected, item.docId)" /><span>{{ item.fileName || item.title }}</span><small>v{{ item.version }}</small></label><p v-if="!libraryItems.length">文档库中暂无可用文件。</p></div>
-        <footer><button type="button" @click="libraryOpen = false">取消</button><button type="button" class="sql-primary" :disabled="busy" @click="importLibrary">确认上下文</button></footer>
-      </section></div></Teleport>
-    <Teleport to="body"><div v-if="versionFile" class="sql-dialog-backdrop" @mousedown.self="versionFile = null"><section class="sql-dialog sql-version-dialog"><h2>{{ versionFile.path }} · 保存版本</h2><p>历史版本只供查看，不覆盖当前编辑。</p><details v-for="version in versions" :key="version.version"><summary>v{{ version.version }}{{ version.sourceTaskId ? ' · Agent 产物' : ' · 用户保存' }}</summary><pre>{{ version.content }}</pre></details><footer><button @click="versionFile = null">关闭</button></footer></section></div></Teleport>
-    <CodeChangeReview v-if="reviewOpen" :files="reviewFiles" language="sql" :title="reviewTitle" :initial-path="reviewPath" :blocked-reason="reviewBlockedReason || error" :busy="busy" :apply-label="'确认并保存 '+reviewFiles.length+' 个文件'" hint="绿色为新增，红色为删除。确认后保存到工程，并保留文件版本历史；不会执行 SQL。" @close="reviewOpen=false" @apply="apply" />
+    <Teleport to="body"
+      ><div
+        v-if="newProjectOpen"
+        class="sql-dialog-backdrop"
+        @mousedown.self="newProjectOpen = false"
+        ><form class="sql-dialog" @submit.prevent="createProject"
+          ><h2>新建 SQL 工程</h2
+          ><label
+            >工程名称<input
+              v-model="projectName"
+              maxlength="180"
+              autofocus
+              placeholder="例如：销售明细 ETL" /></label
+          ><footer
+            ><button type="button" @click="newProjectOpen = false">取消</button
+            ><button class="sql-primary" :disabled="busy || !projectName.trim()"
+              >创建工程</button
+            ></footer
+          ></form
+        ></div
+      ></Teleport
+    >
+    <AppConfirmDialog
+      v-if="confirmation"
+      :title="confirmation.title"
+      :message="confirmation.message"
+      @cancel="resolveConfirm(false)"
+      @confirm="resolveConfirm(true)"
+    />
+    <Teleport to="body"
+      ><div
+        v-if="folderOpen"
+        class="sql-dialog-backdrop"
+        @mousedown.self="folderOpen = false"
+        @keydown.esc="folderOpen = false"
+        ><form
+          class="sql-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sql-folder-title"
+          @submit.prevent="createFolder"
+          ><h2 id="sql-folder-title">{{ folderOriginal ? "修改 / 重命名文件夹" : "新建文件夹" }}</h2
+          ><label
+            >文件夹路径<input
+              v-model="folderPath"
+              aria-label="文件夹路径"
+              maxlength="240"
+              autofocus
+              placeholder="例如 scripts" /></label
+          ><AppNotice v-if="error" kind="error">{{ error }}</AppNotice
+          ><footer
+            ><button type="button" @click="folderOpen = false">取消</button
+            ><button class="sql-primary" :disabled="busy || !folderPath.trim()"
+              >保存文件夹</button
+            ></footer
+          ></form
+        ></div
+      ></Teleport
+    >
+    <Teleport to="body"
+      ><div
+        v-if="newFileOpen"
+        class="sql-dialog-backdrop"
+        @mousedown.self="newFileOpen = false"
+        @keydown.esc="newFileOpen = false"
+        ><form
+          class="sql-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sql-new-file-title"
+          @submit.prevent="createFile"
+          ><h2 id="sql-new-file-title">新建 SQL 文件</h2
+          ><label
+            >目标文件夹<select v-model="newFileFolder" aria-label="目标文件夹"
+              ><option v-for="folder in folders" :key="folder" :value="folder">{{
+                folder
+              }}</option></select
+            ></label
+          ><label
+            >文件名<input
+              v-model="newFilePath"
+              aria-label="SQL 文件名"
+              maxlength="180"
+              autofocus
+              placeholder="query.sql" /></label
+          ><AppNotice v-if="error" kind="error">{{ error }}</AppNotice
+          ><footer
+            ><button type="button" @click="newFileOpen = false">取消</button
+            ><button class="sql-primary" :disabled="busy || !newFilePath.trim() || !newFileFolder"
+              >创建并打开</button
+            ></footer
+          ></form
+        ></div
+      ></Teleport
+    >
+    <Teleport to="body"
+      ><div v-if="libraryOpen" class="sql-dialog-backdrop" @mousedown.self="libraryOpen = false">
+        <section class="sql-dialog sql-library-dialog">
+          <h2>选择知识库文档（可选）</h2>
+          <p>仅列出当前身份有权访问的文档，用于生成代码时提供参考上下文。</p>
+          <div class="sql-library-list"
+            ><label v-for="item in libraryItems" :key="item.docId"
+              ><input
+                type="checkbox"
+                :checked="librarySelected.includes(item.docId)"
+                @change="toggle(librarySelected, item.docId)"
+              /><span>{{ item.fileName || item.title }}</span
+              ><small>v{{ item.version }}</small></label
+            ><p v-if="!libraryItems.length">文档库中暂无可用文件。</p></div
+          >
+          <footer
+            ><button type="button" @click="libraryOpen = false">取消</button
+            ><button type="button" class="sql-primary" :disabled="busy" @click="importLibrary"
+              >确认上下文</button
+            ></footer
+          >
+        </section></div
+      ></Teleport
+    >
+    <Teleport to="body"
+      ><div v-if="versionFile" class="sql-dialog-backdrop" @mousedown.self="versionFile = null"
+        ><section class="sql-dialog sql-version-dialog"
+          ><h2>{{ versionFile.path }} · 保存版本</h2><p>历史版本只供查看，不覆盖当前编辑。</p
+          ><details v-for="version in versions" :key="version.version"
+            ><summary
+              >v{{ version.version
+              }}{{ version.sourceTaskId ? " · Agent 产物" : " · 用户保存" }}</summary
+            ><pre>{{ version.content }}</pre></details
+          ><footer><button @click="versionFile = null">关闭</button></footer></section
+        ></div
+      ></Teleport
+    >
+    <CodeChangeReview
+      v-if="reviewOpen"
+      :files="reviewFiles"
+      language="sql"
+      :title="reviewTitle"
+      :initial-path="reviewPath"
+      :blocked-reason="reviewBlockedReason || error"
+      :busy="busy"
+      :apply-label="'确认并保存 ' + reviewFiles.length + ' 个文件'"
+      hint="绿色为新增，红色为删除。确认后保存到工程，并保留文件版本历史；不会执行 SQL。"
+      @close="reviewOpen = false"
+      @apply="apply"
+    />
   </section>
 </template>
 <script src="../js/views/SqlStudioView.js"></script>

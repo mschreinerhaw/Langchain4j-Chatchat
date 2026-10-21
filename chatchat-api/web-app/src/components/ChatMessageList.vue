@@ -9,15 +9,16 @@
         {
           streaming: message.streaming,
           executing: isExecutionRunning(message),
-          'streaming-has-content': message.streaming && message.content
-        }
+          'streaming-has-content': message.streaming && message.content,
+        },
       ]"
     >
       <div
         class="message-avatar"
         :title="message.role === 'user' ? displayUserId : assistantName(message)"
         :aria-label="message.role === 'user' ? displayUserId : assistantName(message)"
-      >{{ message.role === "user" ? userAvatarLabel : runtimeAvatarLabel(message) }}</div>
+        >{{ message.role === "user" ? userAvatarLabel : runtimeAvatarLabel(message) }}</div
+      >
       <div class="message-bubble">
         <div class="message-meta">
           <strong>{{ message.role === "user" ? displayUserId : assistantName(message) }}</strong>
@@ -50,7 +51,12 @@
         <section
           v-if="shouldShowSteps(message) || (message.role === 'assistant' && message.streaming)"
           class="runtime-execution-panel"
-          :class="{ compact: !!message.content, running: isExecutionRunning(message) || message.streaming, completed: runtimeStatusLabel(message) === '完成', collapsed: !executionStepsExpanded(message) }"
+          :class="{
+            compact: !!message.content,
+            running: isExecutionRunning(message) || message.streaming,
+            completed: runtimeStatusLabel(message) === '完成',
+            collapsed: !executionStepsExpanded(message),
+          }"
         >
           <header class="runtime-execution-header">
             <div class="runtime-run-mark" aria-hidden="true">
@@ -61,7 +67,9 @@
               <strong>{{ runtimeRunId(message) }}</strong>
             </div>
             <div class="runtime-run-meta">
-              <small v-if="!executionStepsExpanded(message)" class="runtime-step-summary">{{ executionStepSummary(message) }}</small>
+              <small v-if="!executionStepsExpanded(message)" class="runtime-step-summary">{{
+                executionStepSummary(message)
+              }}</small>
               <small v-if="runtimeElapsed(message)">{{ runtimeElapsed(message) }}</small>
               <b>{{ runtimeStatusLabel(message) }}</b>
               <button
@@ -78,63 +86,61 @@
             </div>
           </header>
           <div v-show="executionStepsExpanded(message)" class="runtime-execution-details">
-          <div class="runtime-progress-track" aria-hidden="true">
-            <span :style="{ width: `${runtimeProgress(message)}%` }"></span>
-          </div>
-          <div v-if="runtimeProcessSteps(message).length" class="runtime-execution-body">
-            <ol class="runtime-stage-grid" aria-label="后端执行过程">
-              <li
-                v-for="step in runtimeProcessSteps(message)"
-                :key="step.id"
-                :class="stepStatusClass(step)"
-              >
-                <span class="runtime-step-glyph" aria-hidden="true"></span>
-                <div>
-                  <span class="runtime-step-heading">
-                    <b>{{ step.title }}</b>
-                    <code v-if="step.type" class="runtime-event-identity">
-                      {{ step.sequence ? `#${step.sequence} ` : '' }}{{ step.type }}
-                    </code>
-                    <time>{{ step.displayTime }}</time>
-                  </span>
-                  <small v-if="step.detail">{{ step.detail }}</small>
-                  <details
-                    v-if="step.children && step.children.length"
-                    class="runtime-stage-children"
-                    :open="isExecutionRunning(message) || step.status === 'active'"
-                  >
-                    <summary>{{ step.children.length }} 个执行明细</summary>
-                    <ol>
-                      <li v-for="child in step.children" :key="child.id">
-                        <time>{{ child.displayTime }}</time>
-                        <span>
-                          <b>{{ child.title }}</b>
-                          <small v-if="child.detail">{{ child.detail }}</small>
-                        </span>
-                        <em>{{ runtimeStageStatusText(child, message) }}</em>
-                      </li>
-                    </ol>
-                  </details>
-                </div>
-                <em>{{ runtimeStageStatusText(step, message) }}</em>
-              </li>
-            </ol>
-          </div>
-          <div
-            v-if="isResultFinalizing(message)"
-            class="result-finalizing"
-            role="status"
-            aria-live="polite"
-          >
-            <div class="result-finalizing-mark" aria-hidden="true">
-              <i></i><i></i><i></i>
+            <div class="runtime-progress-track" aria-hidden="true">
+              <span :style="{ width: `${runtimeProgress(message)}%` }"></span>
             </div>
-            <div>
-              <strong>任务已完成，正在整理结果</strong>
-              <small>校验结果结构 · 提炼业务重点 · 准备清晰呈现</small>
+            <div v-if="runtimeProcessSteps(message).length" class="runtime-execution-body">
+              <ol class="runtime-stage-grid" aria-label="后端执行过程">
+                <li
+                  v-for="step in runtimeProcessSteps(message)"
+                  :key="step.id"
+                  :class="stepStatusClass(step)"
+                >
+                  <span class="runtime-step-glyph" aria-hidden="true"></span>
+                  <div>
+                    <span class="runtime-step-heading">
+                      <b>{{ step.title }}</b>
+                      <code v-if="step.type" class="runtime-event-identity">
+                        {{ step.sequence ? `#${step.sequence} ` : "" }}{{ step.type }}
+                      </code>
+                      <time>{{ step.displayTime }}</time>
+                    </span>
+                    <small v-if="step.detail">{{ step.detail }}</small>
+                    <details
+                      v-if="step.children && step.children.length"
+                      class="runtime-stage-children"
+                      :open="isExecutionRunning(message) || step.status === 'active'"
+                    >
+                      <summary>{{ step.children.length }} 个执行明细</summary>
+                      <ol>
+                        <li v-for="child in step.children" :key="child.id">
+                          <time>{{ child.displayTime }}</time>
+                          <span>
+                            <b>{{ child.title }}</b>
+                            <small v-if="child.detail">{{ child.detail }}</small>
+                          </span>
+                          <em>{{ runtimeStageStatusText(child, message) }}</em>
+                        </li>
+                      </ol>
+                    </details>
+                  </div>
+                  <em>{{ runtimeStageStatusText(step, message) }}</em>
+                </li>
+              </ol>
             </div>
-            <span class="result-finalizing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
-          </div>
+            <div
+              v-if="isResultFinalizing(message)"
+              class="result-finalizing"
+              role="status"
+              aria-live="polite"
+            >
+              <div class="result-finalizing-mark" aria-hidden="true"> <i></i><i></i><i></i> </div>
+              <div>
+                <strong>任务已完成，正在整理结果</strong>
+                <small>校验结果结构 · 提炼业务重点 · 准备清晰呈现</small>
+              </div>
+              <span class="result-finalizing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            </div>
           </div>
         </section>
         <EnterpriseUiArtifactRenderer
@@ -145,20 +151,32 @@
           @preference-change="handleVisualizationPreference(message, $event)"
           @table-chart="openChartAnalysisModal($event, message)"
         />
-        <PythonVisualReport v-else-if="message.role==='assistant' && !message.streaming && messageVisualReport(message)" :report="messageVisualReport(message)" :fallback-markdown="message.content || ''" />
+        <PythonVisualReport
+          v-else-if="
+            message.role === 'assistant' && !message.streaming && messageVisualReport(message)
+          "
+          :report="messageVisualReport(message)"
+          :fallback-markdown="message.content || ''"
+        />
         <ReportMarkdown
           v-else-if="messageHasRenderableContent(message)"
           class="message-markdown"
           :content="message.content || ''"
           :collapse-thinking="message.role === 'assistant'"
-          :render-markdown="(content) => renderMarkdown(content, message, content !== String(message.content || ''))"
+          :render-markdown="
+            (content) => renderMarkdown(content, message, content !== String(message.content || ''))
+          "
           @drill-down="handleVisualizationDrillDown(message, $event)"
           :preferences="visualizationPreferences(message)"
           @preference-change="handleVisualizationPreference(message, $event)"
           @click="handleMarkdownClick($event, message)"
         />
         <section
-          v-if="message.role === 'assistant' && !message.streaming && metadataTableCatalog(message).rows.length"
+          v-if="
+            message.role === 'assistant' &&
+            !message.streaming &&
+            metadataTableCatalog(message).rows.length
+          "
           class="metadata-catalog-section"
           :class="{ expanded: metadataCatalogExpanded(message) }"
         >
@@ -174,8 +192,11 @@
                 <strong>工具命中的物理表</strong>
               </span>
               <small>
-                共命中 {{ metadataTableCatalog(message).totalMatched }} 张，当前展示 {{ metadataTableCatalog(message).rows.length }} 张
-                <template v-if="metadataTableCatalog(message).catalogTruncated">，结果已截断</template>
+                共命中 {{ metadataTableCatalog(message).totalMatched }} 张，当前展示
+                {{ metadataTableCatalog(message).rows.length }} 张
+                <template v-if="metadataTableCatalog(message).catalogTruncated"
+                  >，结果已截断</template
+                >
               </small>
             </button>
           </header>
@@ -196,7 +217,9 @@
                   <td>{{ row.index }}</td>
                   <td>{{ row.database || "-" }}</td>
                   <td>{{ row.schema || "-" }}</td>
-                  <td><code>{{ row.tableName }}</code></td>
+                  <td
+                    ><code>{{ row.tableName }}</code></td
+                  >
                   <td>{{ row.tableComment || "-" }}</td>
                   <td>{{ row.score || "-" }}</td>
                 </tr>
@@ -205,7 +228,11 @@
           </div>
         </section>
         <div
-          v-if="message.role === 'assistant' && !message.streaming && metadataColumnSections(message).length"
+          v-if="
+            message.role === 'assistant' &&
+            !message.streaming &&
+            metadataColumnSections(message).length
+          "
           class="metadata-column-sections"
         >
           <section
@@ -235,7 +262,9 @@
                 <tbody>
                   <tr v-for="column in section.columns" :key="column.id">
                     <td>{{ column.ordinal }}</td>
-                    <td><code>{{ column.name }}</code></td>
+                    <td
+                      ><code>{{ column.name }}</code></td
+                    >
                     <td>{{ column.type || "-" }}</td>
                     <td>{{ column.key || "-" }}</td>
                     <td>{{ column.nullable }}</td>
@@ -247,33 +276,60 @@
           </section>
         </div>
         <details
-          v-if="message.role === 'assistant' && messageVisualizationSpec(message) && !message.streaming && !hasComposedAnalysisReport(message) && isCollapsibleRawDataVisualization(messageVisualizationSpec(message))"
+          v-if="
+            message.role === 'assistant' &&
+            messageVisualizationSpec(message) &&
+            !message.streaming &&
+            !hasComposedAnalysisReport(message) &&
+            isCollapsibleRawDataVisualization(messageVisualizationSpec(message))
+          "
           class="supporting-dataset-attachment"
           :open="messageVisualizationSpec(message)?.ui?.defaultCollapsed === false"
         >
-          <summary>{{ rawDataVisualizationToggleLabel(messageVisualizationSpec(message)) }}</summary>
+          <summary>{{
+            rawDataVisualizationToggleLabel(messageVisualizationSpec(message))
+          }}</summary>
           <VisualizationRenderer
             :spec="messageVisualizationSpec(message)"
             :preference="visualizationPreference(message, 'attachment')"
             @drill-down="handleVisualizationDrillDown(message, $event)"
-            @preference-change="handleVisualizationPreference(message, { slot: 'attachment', preference: $event })"
+            @preference-change="
+              handleVisualizationPreference(message, { slot: 'attachment', preference: $event })
+            "
           />
         </details>
         <VisualizationRenderer
-          v-else-if="message.role === 'assistant' && messageVisualizationSpec(message) && !message.streaming && !hasComposedAnalysisReport(message)"
+          v-else-if="
+            message.role === 'assistant' &&
+            messageVisualizationSpec(message) &&
+            !message.streaming &&
+            !hasComposedAnalysisReport(message)
+          "
           :spec="messageVisualizationSpec(message)"
           :preference="visualizationPreference(message, 'attachment')"
           @drill-down="handleVisualizationDrillDown(message, $event)"
-          @preference-change="handleVisualizationPreference(message, { slot: 'attachment', preference: $event })"
+          @preference-change="
+            handleVisualizationPreference(message, { slot: 'attachment', preference: $event })
+          "
         />
         <div v-if="message.latencyMs" class="message-extra">耗时 {{ message.latencyMs }}ms</div>
         <ResponseReferences
-          v-if="message.role === 'assistant' && !message.streaming && !isExecutionRunning(message) && message.status !== 'waiting'"
+          v-if="
+            message.role === 'assistant' &&
+            !message.streaming &&
+            !isExecutionRunning(message) &&
+            message.status !== 'waiting'
+          "
           :sources="message.sources || []"
           :citations="[...(message.uiResponse?.citations || []), ...(message.citations || [])]"
           :evidence-premises="message.evidencePremises || []"
           :tool-traces="message.traces || []"
-          :conflicts="message.evidenceConflicts || message.evidenceManifest?.conflicts || message.uiResponse?.evidenceConflicts || []"
+          :conflicts="
+            message.evidenceConflicts ||
+            message.evidenceManifest?.conflicts ||
+            message.uiResponse?.evidenceConflicts ||
+            []
+          "
           :knowledge-context="message.knowledgeContext || {}"
           compact
         />
@@ -311,7 +367,9 @@
           </button>
         </div>
         <p v-if="message.feedbackTime" class="message-feedback-done">感谢评价</p>
-        <p v-if="message.feedbackError" class="message-feedback-error">{{ message.feedbackError }}</p>
+        <p v-if="message.feedbackError" class="message-feedback-error">{{
+          message.feedbackError
+        }}</p>
         <p v-if="pdfExportErrorMessageId === message.id" class="message-feedback-error">
           PDF 导出失败，请稍后重试
         </p>
@@ -338,18 +396,21 @@
       </div>
     </article>
 
-    <div
-      v-if="reasoningModal"
-      class="reasoning-modal-backdrop"
-      role="presentation"
-    >
+    <div v-if="reasoningModal" class="reasoning-modal-backdrop" role="presentation">
       <section class="reasoning-modal" role="dialog" aria-modal="true" aria-label="Reasoning path">
         <header>
           <div>
             <span>Reasoning Path</span>
             <h2>{{ reasoningModal.title }}</h2>
           </div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeReasoningModal">×</button>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            title="关闭"
+            @click="closeReasoningModal"
+            >×</button
+          >
         </header>
 
         <div class="reasoning-modal-metrics">
@@ -372,7 +433,10 @@
         <section class="reasoning-modal-section">
           <strong>Path edges</strong>
           <ul>
-            <li v-for="edge in reasoningModal.pathEdges" :key="`${edge.from}-${edge.to}-${edge.type}`">
+            <li
+              v-for="edge in reasoningModal.pathEdges"
+              :key="`${edge.from}-${edge.to}-${edge.type}`"
+            >
               <span>{{ edge.from }} -> {{ edge.to }}</span>
               <small>{{ edge.type }} / {{ edge.confidence }}</small>
               <p v-if="edge.reasoning">{{ edge.reasoning }}</p>
@@ -389,7 +453,9 @@
               <small>{{ item.confidence }}</small>
               <p>{{ item.decision }}</p>
             </li>
-            <li v-if="!reasoningModal.conflicts.length" class="empty">No conflict evidence participated in the selected path.</li>
+            <li v-if="!reasoningModal.conflicts.length" class="empty"
+              >No conflict evidence participated in the selected path.</li
+            >
           </ul>
         </section>
 
@@ -444,13 +510,23 @@
               <Minimize2 v-if="chartAnalysisFullscreen" :size="16" />
               <Maximize2 v-else :size="16" />
             </button>
-            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeChartAnalysisModal">
+            <button
+              type="button"
+              class="app-dialog-close"
+              aria-label="关闭"
+              title="关闭"
+              @click="closeChartAnalysisModal"
+            >
               <X :size="18" />
             </button>
           </div>
         </header>
 
-        <nav v-if="chartAnalysisDatasetCount() > 1" class="result-chart-dataset-tabs" aria-label="数据集切换">
+        <nav
+          v-if="chartAnalysisDatasetCount() > 1"
+          class="result-chart-dataset-tabs"
+          aria-label="数据集切换"
+        >
           <button
             v-for="dataset in chartAnalysisModal.datasets"
             :key="dataset.id"
@@ -464,7 +540,11 @@
         </nav>
 
         <section class="result-chart-collapsible" :class="{ open: chartAnalysisSettingsOpen }">
-          <button type="button" class="result-chart-collapsible-toggle" @click="toggleChartAnalysisSettings">
+          <button
+            type="button"
+            class="result-chart-collapsible-toggle"
+            @click="toggleChartAnalysisSettings"
+          >
             <span>
               <ChevronDown v-if="chartAnalysisSettingsOpen" :size="16" />
               <ChevronRight v-else :size="16" />
@@ -479,7 +559,11 @@
                 :value="chartAnalysisActiveDataset()?.chartType"
                 @change="setChartField('chartType', $event.target.value)"
               >
-                <option v-for="option in chartTypeOptions()" :key="option.value" :value="option.value">
+                <option
+                  v-for="option in chartTypeOptions()"
+                  :key="option.value"
+                  :value="option.value"
+                >
                   {{ option.label }}
                 </option>
               </select>
@@ -490,7 +574,11 @@
                 :value="chartAnalysisActiveDataset()?.xKey"
                 @change="setChartField('xKey', $event.target.value)"
               >
-                <option v-for="column in chartAnalysisActiveDataset()?.columns || []" :key="column" :value="column">
+                <option
+                  v-for="column in chartAnalysisActiveDataset()?.columns || []"
+                  :key="column"
+                  :value="column"
+                >
                   {{ column }}
                 </option>
               </select>
@@ -501,7 +589,11 @@
                 :value="chartAnalysisActiveDataset()?.yKey"
                 @change="setChartField('yKey', $event.target.value)"
               >
-                <option v-for="column in chartAnalysisActiveDataset()?.columns || []" :key="column" :value="column">
+                <option
+                  v-for="column in chartAnalysisActiveDataset()?.columns || []"
+                  :key="column"
+                  :value="column"
+                >
                   {{ column }}
                 </option>
               </select>
@@ -513,7 +605,11 @@
                 @change="setChartField('groupKey', $event.target.value)"
               >
                 <option value="">不分组</option>
-                <option v-for="column in chartAnalysisActiveDataset()?.columns || []" :key="column" :value="column">
+                <option
+                  v-for="column in chartAnalysisActiveDataset()?.columns || []"
+                  :key="column"
+                  :value="column"
+                >
                   {{ column }}
                 </option>
               </select>
@@ -521,14 +617,25 @@
           </div>
         </section>
 
-        <section class="result-chart-collapsible result-chart-column-picker" :class="{ open: chartAnalysisColumnsOpen }" aria-label="下钻数据列">
-          <button type="button" class="result-chart-collapsible-toggle" @click="toggleChartAnalysisColumnsPanel">
+        <section
+          class="result-chart-collapsible result-chart-column-picker"
+          :class="{ open: chartAnalysisColumnsOpen }"
+          aria-label="下钻数据列"
+        >
+          <button
+            type="button"
+            class="result-chart-collapsible-toggle"
+            @click="toggleChartAnalysisColumnsPanel"
+          >
             <span>
               <ChevronDown v-if="chartAnalysisColumnsOpen" :size="16" />
               <ChevronRight v-else :size="16" />
               下钻数据列
             </span>
-            <small>已选 {{ chartAnalysisActiveDataset()?.selectedColumns?.length || 0 }} / {{ chartAnalysisActiveDataset()?.columns?.length || 0 }}</small>
+            <small
+              >已选 {{ chartAnalysisActiveDataset()?.selectedColumns?.length || 0 }} /
+              {{ chartAnalysisActiveDataset()?.columns?.length || 0 }}</small
+            >
           </button>
           <div v-if="chartAnalysisColumnsOpen" class="result-chart-column-body">
             <div class="result-chart-column-actions">
@@ -541,27 +648,43 @@
                   type="checkbox"
                   :checked="chartAnalysisActiveDataset()?.selectedColumns?.includes(column)"
                   @change="toggleChartAnalysisColumn(column)"
-                >
+                />
                 <span>{{ column }}</span>
               </label>
             </div>
           </div>
         </section>
-        <p v-if="chartAnalysisSemanticSummary() && chartAnalysisSettingsOpen" class="result-chart-semantics">
+        <p
+          v-if="chartAnalysisSemanticSummary() && chartAnalysisSettingsOpen"
+          class="result-chart-semantics"
+        >
           {{ chartAnalysisSemanticSummary() }}
         </p>
 
         <VisualizationRenderer
           v-if="chartAnalysisSpec()"
           :spec="chartAnalysisSpec()"
-          :preference="{ view: chartAnalysisActiveDataset()?.view, chartType: chartAnalysisActiveDataset()?.chartType }"
+          :preference="{
+            view: chartAnalysisActiveDataset()?.view,
+            chartType: chartAnalysisActiveDataset()?.chartType,
+          }"
           @drill-down="handleChartAnalysisDrillDown"
           @preference-change="handleChartAnalysisPreference"
         />
 
         <footer>
-          <span>{{ chartAnalysisActiveDataset()?.rows?.length || 0 }} 行，{{ chartAnalysisActiveDataset()?.columns?.length || 0 }} 个字段</span>
-          <button type="button" :disabled="!(chartAnalysisActiveDataset()?.selectedColumns?.length)" @click="drillDownChartAnalysis">下钻分析</button>
+          <span
+            >{{ chartAnalysisActiveDataset()?.rows?.length || 0 }} 行，{{
+              chartAnalysisActiveDataset()?.columns?.length || 0
+            }}
+            个字段</span
+          >
+          <button
+            type="button"
+            :disabled="!chartAnalysisActiveDataset()?.selectedColumns?.length"
+            @click="drillDownChartAnalysis"
+            >下钻分析</button
+          >
           <button type="button" @click="closeChartAnalysisModal">关闭</button>
         </footer>
         <span class="result-chart-resize-grip" aria-hidden="true"></span>

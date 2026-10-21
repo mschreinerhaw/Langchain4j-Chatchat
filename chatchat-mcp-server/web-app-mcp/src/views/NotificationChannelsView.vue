@@ -40,17 +40,20 @@
       >
         <div class="notification-card-main">
           <h3>{{ channel.title || channel.toolName }}</h3>
-          <p>{{ channel.description || '-' }}</p>
+          <p>{{ channel.description || "-" }}</p>
         </div>
         <div class="notification-meta">
           <el-tag type="primary" effect="light">{{ channel.channel }}</el-tag>
           <el-tag :type="channel.enabled ? 'success' : 'info'" effect="light">
-            {{ channel.enabled ? '启用' : '下线' }}
+            {{ channel.enabled ? "启用" : "下线" }}
           </el-tag>
-          <el-tag :type="channel.runtimeAction === 'forbidden' ? 'danger' : 'warning'" effect="light">
-            {{ channel.runtimeAction || 'confirm_required' }}
+          <el-tag
+            :type="channel.runtimeAction === 'forbidden' ? 'danger' : 'warning'"
+            effect="light"
+          >
+            {{ channel.runtimeAction || "confirm_required" }}
           </el-tag>
-          <el-tag effect="plain">{{ channel.deliveryMode || 'HTTP' }}</el-tag>
+          <el-tag effect="plain">{{ channel.deliveryMode || "HTTP" }}</el-tag>
           <el-tag effect="plain">{{ channel.toolName }}</el-tag>
         </div>
         <div class="notification-endpoint">{{ channelEndpoint(channel) }}</div>
@@ -58,7 +61,7 @@
           <el-button size="small" type="primary" plain @click="openTest(channel)">测试</el-button>
           <el-button size="small" plain @click="openEdit(channel)">编辑</el-button>
           <el-button size="small" plain @click="toggleEnabled(channel)">
-            {{ channel.enabled ? '下线' : '启用' }}
+            {{ channel.enabled ? "下线" : "启用" }}
           </el-button>
           <el-button
             size="small"
@@ -66,7 +69,7 @@
             plain
             @click="togglePolicy(channel)"
           >
-            {{ channel.runtimeAction === 'forbidden' ? '恢复确认' : '禁用调用' }}
+            {{ channel.runtimeAction === "forbidden" ? "恢复确认" : "禁用调用" }}
           </el-button>
         </div>
       </article>
@@ -74,7 +77,13 @@
       <el-empty v-if="!busy && filteredChannels.length === 0" description="暂无匹配的通知渠道" />
     </div>
 
-    <ModalPanel :open="formOpen" :title="formTitle" subtitle="配置通知 MCP 工具、投递参数和测试消息。" wide @close="closeForm">
+    <ModalPanel
+      :open="formOpen"
+      :title="formTitle"
+      subtitle="配置通知 MCP 工具、投递参数和测试消息。"
+      wide
+      @close="closeForm"
+    >
       <el-form class="entity-form" label-position="top">
         <section class="notification-type-guide">
           <div>
@@ -83,7 +92,9 @@
           </div>
           <p>{{ channelGuide.description }}</p>
           <div class="notification-param-tags">
-            <el-tag v-for="param in channelGuide.params" :key="param" effect="light">{{ param }}</el-tag>
+            <el-tag v-for="param in channelGuide.params" :key="param" effect="light">{{
+              param
+            }}</el-tag>
           </div>
         </section>
         <div class="notification-form-shell">
@@ -135,307 +146,400 @@
             </button>
           </nav>
           <div class="notification-form-content">
-        <el-row :gutter="14">
-          <el-col v-show="notificationSectionOpen.basic" :xs="24">
-            <div
-              class="notification-form-heading"
-              :class="{ collapsed: !notificationSectionOpen.basic }"
-              role="button"
-              @click="toggleNotificationSection('basic')"
-            >
-              <strong>基础信息</strong>
-              <span>定义 MCP 通知工具的类型、名称和展示描述。</span>
-            </div>
-          </el-col>
-          <el-col v-show="notificationSectionOpen.basic" :xs="24" :md="8">
-            <el-form-item label="通知类型" required>
-              <el-select v-model="form.channel" class="w-100" :disabled="!isNew" @change="channelChanged">
-                <el-option
-                  v-for="option in channelOptions"
-                  :key="option.value"
-                  :label="option.label"
-                  :value="option.value"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col v-show="notificationSectionOpen.basic" :xs="24" :md="8">
-            <el-form-item label="工具名称" required>
-              <el-input v-model.trim="form.toolName" placeholder="notify_dingtalk_xxx" />
-            </el-form-item>
-          </el-col>
-          <el-col v-show="notificationSectionOpen.basic" :xs="24" :md="8">
-            <el-form-item label="显示名称" required>
-              <el-input v-model.trim="form.title" placeholder="HTTP 告警" />
-            </el-form-item>
-          </el-col>
-
-          <el-col v-show="notificationSectionOpen.policy" :xs="24">
-            <div
-              class="notification-form-heading"
-              :class="{ collapsed: !notificationSectionOpen.policy }"
-              role="button"
-              @click="toggleNotificationSection('policy')"
-            >
-              <strong>发布与调用策略</strong>
-              <span>控制工具是否发布、调用前是否确认，以及失败重试和超时。</span>
-            </div>
-          </el-col>
-
-          <el-col v-show="notificationSectionOpen.policy" :xs="24" :md="6">
-            <el-form-item label="发布状态">
-              <el-select v-model="form.enabled" class="w-100">
-                <el-option label="启用" :value="true" />
-                <el-option label="下线" :value="false" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col v-show="notificationSectionOpen.policy" :xs="24" :md="6">
-            <el-form-item label="运行策略">
-              <el-select v-model="form.runtimeAction" class="w-100">
-                <el-option
-                  v-for="option in runtimeActionOptions"
-                  :key="option.value"
-                  :label="option.label"
-                  :value="option.value"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col v-show="notificationSectionOpen.policy" :xs="24" :md="6">
-            <el-form-item label="发送模式">
-              <el-select v-model="form.deliveryMode" class="w-100" :disabled="isNew">
-                <el-option
-                  v-for="option in deliveryModeOptions"
-                  :key="option.value"
-                  :label="option.label"
-                  :value="option.value"
-                />
-              </el-select>
-              <div class="field-hint">新增告警固定使用 HTTP / Webhook。</div>
-            </el-form-item>
-          </el-col>
-          <el-col v-show="notificationSectionOpen.policy" :xs="24" :md="3">
-            <el-form-item label="HTTP 方法">
-              <el-select v-model="form.method" class="w-100">
-                <el-option v-for="method in methodOptions" :key="method" :label="method" :value="method" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col v-show="notificationSectionOpen.policy" :xs="24" :md="3">
-            <el-form-item label="失败重试次数">
-              <el-input-number v-model="form.maxRetries" class="w-100" :min="0" :max="5" controls-position="right" />
-            </el-form-item>
-          </el-col>
-
-          <el-col v-show="notificationSectionOpen.policy" :xs="24" :md="6">
-            <el-form-item label="超时毫秒">
-              <el-input-number v-model="form.timeoutMs" class="w-100" :min="1000" :step="1000" controls-position="right" />
-            </el-form-item>
-          </el-col>
-          <el-col v-show="notificationSectionOpen.policy" :xs="24">
-            <el-form-item label="工具描述">
-              <el-input v-model="form.description" type="textarea" :rows="2" />
-            </el-form-item>
-          </el-col>
-
-          <el-col v-if="isHttpMode" v-show="notificationSectionOpen.http" :xs="24">
-            <div
-              class="notification-form-heading"
-              :class="{ collapsed: !notificationSectionOpen.http }"
-              role="button"
-              @click="toggleNotificationSection('http')"
-            >
-              <strong>HTTP / Webhook 投递参数</strong>
-              <span>配置目标地址、请求头、密钥和消息体模板。</span>
-            </div>
-          </el-col>
-
-          <template v-if="isHttpMode">
-            <el-col v-show="notificationSectionOpen.http" :xs="24">
-              <el-form-item label="Endpoint / Webhook URL" required>
-                <el-input v-model.trim="form.endpointUrl" placeholder="https://example.com/webhook?token={{channelSecret}}" />
-              </el-form-item>
-            </el-col>
-            <el-col v-show="notificationSectionOpen.http" :xs="24" :lg="12">
-              <el-form-item label="请求头 JSON">
-                <el-input v-model="headersJson" class="codebox" type="textarea" :rows="6" spellcheck="false" />
-              </el-form-item>
-            </el-col>
-            <el-col v-show="notificationSectionOpen.http" :xs="24" :lg="12">
-              <el-form-item label="渠道密钥">
-                <el-input
-                  v-model="form.secret"
-                  type="password"
-                  autocomplete="new-password"
-                  show-password
-                  placeholder="可在 URL/Header/Body 中用 {{channelSecret}}"
-                />
-              </el-form-item>
-            </el-col>
-            <el-col v-show="notificationSectionOpen.http" :xs="24">
-              <el-form-item label="告警内容 / 请求体模板" required>
-                <el-input
-                  v-model="form.bodyTemplate"
-                  class="codebox"
-                  type="textarea"
-                  :rows="7"
-                  spellcheck="false"
-                  placeholder="{&quot;title&quot;:&quot;{{title}}&quot;,&quot;content&quot;:&quot;{{content}}&quot;,&quot;level&quot;:&quot;{{level}}&quot;}"
-                />
-                <div class="template-helper-row">
-                  <el-button size="small" text type="primary" @click="variableHelpOpen = true">查看可用变量</el-button>
-                  <span class="legacy-variable-text" hidden>
-                  <el-popover placement="top-start" trigger="click" width="520">
-                    <template #reference>
-                      <el-button size="small" text type="primary">查看可用变量</el-button>
-                    </template>
-                    <div class="template-variable-help">
-                      <strong>请求体模板变量</strong>
-                      <el-table :data="templateVariableRows" size="small" border>
-                        <el-table-column prop="name" label="参数名称" width="170" />
-                        <el-table-column prop="usage" label="使用说明" />
-                      </el-table>
-                    </div>
-                  </el-popover>
-                  </span>
-                  可用变量：{{ variableText }}
+            <el-row :gutter="14">
+              <el-col v-show="notificationSectionOpen.basic" :xs="24">
+                <div
+                  class="notification-form-heading"
+                  :class="{ collapsed: !notificationSectionOpen.basic }"
+                  role="button"
+                  @click="toggleNotificationSection('basic')"
+                >
+                  <strong>基础信息</strong>
+                  <span>定义 MCP 通知工具的类型、名称和展示描述。</span>
                 </div>
-              </el-form-item>
-            </el-col>
-          </template>
+              </el-col>
+              <el-col v-show="notificationSectionOpen.basic" :xs="24" :md="8">
+                <el-form-item label="通知类型" required>
+                  <el-select
+                    v-model="form.channel"
+                    class="w-100"
+                    :disabled="!isNew"
+                    @change="channelChanged"
+                  >
+                    <el-option
+                      v-for="option in channelOptions"
+                      :key="option.value"
+                      :label="option.label"
+                      :value="option.value"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col v-show="notificationSectionOpen.basic" :xs="24" :md="8">
+                <el-form-item label="工具名称" required>
+                  <el-input v-model.trim="form.toolName" placeholder="notify_dingtalk_xxx" />
+                </el-form-item>
+              </el-col>
+              <el-col v-show="notificationSectionOpen.basic" :xs="24" :md="8">
+                <el-form-item label="显示名称" required>
+                  <el-input v-model.trim="form.title" placeholder="HTTP 告警" />
+                </el-form-item>
+              </el-col>
 
-          <el-col v-if="form.channel === 'SMS'" v-show="notificationSectionOpen.sms" :xs="24">
-            <section class="form-subsection" :class="{ collapsed: !notificationSectionOpen.sms }">
-              <button class="subsection-toggle" type="button" @click="toggleNotificationSection('sms')">
-                <strong>短信接收配置</strong>
-                <span>{{ notificationSectionOpen.sms ? '收起' : '展开' }}</span>
-              </button>
-              <h3>短信接收配置</h3>
-              <el-row v-show="notificationSectionOpen.sms" :gutter="14">
-                <el-col :xs="24" :md="12">
-                  <el-form-item label="短信网关账号">
-                    <el-input v-model.trim="form.smsAccount" placeholder="xzxz" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="12">
-                  <el-form-item label="返回类型">
-                    <el-input v-model.trim="form.smsReturnType" placeholder="text" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24">
-                  <el-form-item label="短信接口 Token">
-                    <el-input v-model="form.smsToken" type="password" autocomplete="new-password" show-password placeholder="留空则不修改" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24">
-                  <el-checkbox v-model="form.smsPasswordMd5">密码已是 MD5 密文</el-checkbox>
-                </el-col>
-                <el-col :xs="24" :md="12">
-                  <el-form-item label="短信网关明文密码">
-                    <el-input v-model="form.smsPlainPassword" type="password" autocomplete="new-password" show-password placeholder="留空则不修改" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="12">
-                  <el-form-item label="短信网关 MD5 密码">
-                    <el-input v-model.trim="form.smsMd5Password" placeholder="751CB3F4AA17C36186F4856C8982BF27" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24">
-                  <el-form-item label="短信扩展码">
-                    <el-input v-model.trim="form.smsExtendCode" placeholder="不需要时留空" />
-                  </el-form-item>
-                </el-col>
-              </el-row>
-            </section>
-          </el-col>
+              <el-col v-show="notificationSectionOpen.policy" :xs="24">
+                <div
+                  class="notification-form-heading"
+                  :class="{ collapsed: !notificationSectionOpen.policy }"
+                  role="button"
+                  @click="toggleNotificationSection('policy')"
+                >
+                  <strong>发布与调用策略</strong>
+                  <span>控制工具是否发布、调用前是否确认，以及失败重试和超时。</span>
+                </div>
+              </el-col>
 
-          <el-col v-if="form.deliveryMode === 'SMTP'" v-show="notificationSectionOpen.smtp" :xs="24">
-            <section class="form-subsection" :class="{ collapsed: !notificationSectionOpen.smtp }">
-              <button class="subsection-toggle" type="button" @click="toggleNotificationSection('smtp')">
-                <strong>SMTP 邮件参数</strong>
-                <span>{{ notificationSectionOpen.smtp ? '收起' : '展开' }}</span>
-              </button>
-              <h3>SMTP 邮件参数</h3>
-              <el-row v-show="notificationSectionOpen.smtp" :gutter="14">
-                <el-col :xs="24" :md="8">
-                  <el-form-item label="SMTP Host">
-                    <el-input v-model.trim="form.smtpHost" placeholder="smtp.example.com" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="4">
-                  <el-form-item label="端口">
-                    <el-input-number v-model="form.smtpPort" class="w-100" :min="1" controls-position="right" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="6">
-                  <el-form-item label="用户名">
-                    <el-input v-model.trim="form.smtpUsername" autocomplete="off" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="6">
-                  <el-form-item label="密码">
-                    <el-input v-model="form.smtpPassword" type="password" autocomplete="new-password" show-password />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24">
-                  <el-form-item label="发件人">
-                    <el-input v-model.trim="form.smtpFrom" placeholder="alerts@example.com" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="8">
-                  <el-checkbox v-model="form.smtpAuthEnabled">请求认证</el-checkbox>
-                </el-col>
-                <el-col :xs="24" :md="8">
-                  <el-checkbox v-model="form.smtpStarttlsEnabled">STARTTLS 连接</el-checkbox>
-                </el-col>
-                <el-col :xs="24" :md="8">
-                  <el-checkbox v-model="form.smtpSslEnabled">SSL 连接</el-checkbox>
-                </el-col>
-                <el-col :xs="24">
-                  <el-form-item label="SSL 证书信任">
-                    <el-input v-model.trim="form.smtpSslTrust" placeholder="smtp.example.com 或 *" />
-                  </el-form-item>
-                </el-col>
-              </el-row>
-            </section>
-          </el-col>
+              <el-col v-show="notificationSectionOpen.policy" :xs="24" :md="6">
+                <el-form-item label="发布状态">
+                  <el-select v-model="form.enabled" class="w-100">
+                    <el-option label="启用" :value="true" />
+                    <el-option label="下线" :value="false" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col v-show="notificationSectionOpen.policy" :xs="24" :md="6">
+                <el-form-item label="运行策略">
+                  <el-select v-model="form.runtimeAction" class="w-100">
+                    <el-option
+                      v-for="option in runtimeActionOptions"
+                      :key="option.value"
+                      :label="option.label"
+                      :value="option.value"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col v-show="notificationSectionOpen.policy" :xs="24" :md="6">
+                <el-form-item label="发送模式">
+                  <el-select v-model="form.deliveryMode" class="w-100" :disabled="isNew">
+                    <el-option
+                      v-for="option in deliveryModeOptions"
+                      :key="option.value"
+                      :label="option.label"
+                      :value="option.value"
+                    />
+                  </el-select>
+                  <div class="field-hint">新增告警固定使用 HTTP / Webhook。</div>
+                </el-form-item>
+              </el-col>
+              <el-col v-show="notificationSectionOpen.policy" :xs="24" :md="3">
+                <el-form-item label="HTTP 方法">
+                  <el-select v-model="form.method" class="w-100">
+                    <el-option
+                      v-for="method in methodOptions"
+                      :key="method"
+                      :label="method"
+                      :value="method"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col v-show="notificationSectionOpen.policy" :xs="24" :md="3">
+                <el-form-item label="失败重试次数">
+                  <el-input-number
+                    v-model="form.maxRetries"
+                    class="w-100"
+                    :min="0"
+                    :max="5"
+                    controls-position="right"
+                  />
+                </el-form-item>
+              </el-col>
 
-          <el-col v-show="notificationSectionOpen.test" :xs="24">
-            <div
-              class="notification-form-heading"
-              :class="{ collapsed: !notificationSectionOpen.test }"
-              role="button"
-              @click="toggleNotificationSection('test')"
-            >
-              <strong>测试消息</strong>
-              <span>用于验证当前通知工具能否成功发送。</span>
-            </div>
-          </el-col>
+              <el-col v-show="notificationSectionOpen.policy" :xs="24" :md="6">
+                <el-form-item label="超时毫秒">
+                  <el-input-number
+                    v-model="form.timeoutMs"
+                    class="w-100"
+                    :min="1000"
+                    :step="1000"
+                    controls-position="right"
+                  />
+                </el-form-item>
+              </el-col>
+              <el-col v-show="notificationSectionOpen.policy" :xs="24">
+                <el-form-item label="工具描述">
+                  <el-input v-model="form.description" type="textarea" :rows="2" />
+                </el-form-item>
+              </el-col>
 
-          <el-col v-show="notificationSectionOpen.test" :xs="24">
-            <el-form-item :label="testReceiverLabel" required>
-              <el-input v-model.trim="testReceiver" :placeholder="testReceiverPlaceholder" clearable />
-              <div class="field-hint">
-                仅用于本次测试发送，不会保存到告警渠道配置；正式调用时仍由 API 传入接收人。
-              </div>
-            </el-form-item>
-          </el-col>
+              <el-col v-if="isHttpMode" v-show="notificationSectionOpen.http" :xs="24">
+                <div
+                  class="notification-form-heading"
+                  :class="{ collapsed: !notificationSectionOpen.http }"
+                  role="button"
+                  @click="toggleNotificationSection('http')"
+                >
+                  <strong>HTTP / Webhook 投递参数</strong>
+                  <span>配置目标地址、请求头、密钥和消息体模板。</span>
+                </div>
+              </el-col>
 
-          <el-col v-show="notificationSectionOpen.test" :xs="24">
-            <el-form-item label="测试消息内容 JSON（不含接收人）">
-              <el-input v-model="testPayloadJson" class="codebox" type="textarea" :rows="6" spellcheck="false" />
-            </el-form-item>
-          </el-col>
-        </el-row>
+              <template v-if="isHttpMode">
+                <el-col v-show="notificationSectionOpen.http" :xs="24">
+                  <el-form-item label="Endpoint / Webhook URL" required>
+                    <el-input
+                      v-model.trim="form.endpointUrl"
+                      placeholder="https://example.com/webhook?token={{channelSecret}}"
+                    />
+                  </el-form-item>
+                </el-col>
+                <el-col v-show="notificationSectionOpen.http" :xs="24" :lg="12">
+                  <el-form-item label="请求头 JSON">
+                    <el-input
+                      v-model="headersJson"
+                      class="codebox"
+                      type="textarea"
+                      :rows="6"
+                      spellcheck="false"
+                    />
+                  </el-form-item>
+                </el-col>
+                <el-col v-show="notificationSectionOpen.http" :xs="24" :lg="12">
+                  <el-form-item label="渠道密钥">
+                    <el-input
+                      v-model="form.secret"
+                      type="password"
+                      autocomplete="new-password"
+                      show-password
+                      placeholder="可在 URL/Header/Body 中用 {{channelSecret}}"
+                    />
+                  </el-form-item>
+                </el-col>
+                <el-col v-show="notificationSectionOpen.http" :xs="24">
+                  <el-form-item label="告警内容 / 请求体模板" required>
+                    <el-input
+                      v-model="form.bodyTemplate"
+                      class="codebox"
+                      type="textarea"
+                      :rows="7"
+                      spellcheck="false"
+                      placeholder='{"title":"{{title}}","content":"{{content}}","level":"{{level}}"}'
+                    />
+                    <div class="template-helper-row">
+                      <el-button size="small" text type="primary" @click="variableHelpOpen = true"
+                        >查看可用变量</el-button
+                      >
+                      <span class="legacy-variable-text" hidden>
+                        <el-popover placement="top-start" trigger="click" width="520">
+                          <template #reference>
+                            <el-button size="small" text type="primary">查看可用变量</el-button>
+                          </template>
+                          <div class="template-variable-help">
+                            <strong>请求体模板变量</strong>
+                            <el-table :data="templateVariableRows" size="small" border>
+                              <el-table-column prop="name" label="参数名称" width="170" />
+                              <el-table-column prop="usage" label="使用说明" />
+                            </el-table>
+                          </div>
+                        </el-popover>
+                      </span>
+                      可用变量：{{ variableText }}
+                    </div>
+                  </el-form-item>
+                </el-col>
+              </template>
+
+              <el-col v-if="form.channel === 'SMS'" v-show="notificationSectionOpen.sms" :xs="24">
+                <section
+                  class="form-subsection"
+                  :class="{ collapsed: !notificationSectionOpen.sms }"
+                >
+                  <button
+                    class="subsection-toggle"
+                    type="button"
+                    @click="toggleNotificationSection('sms')"
+                  >
+                    <strong>短信接收配置</strong>
+                    <span>{{ notificationSectionOpen.sms ? "收起" : "展开" }}</span>
+                  </button>
+                  <h3>短信接收配置</h3>
+                  <el-row v-show="notificationSectionOpen.sms" :gutter="14">
+                    <el-col :xs="24" :md="12">
+                      <el-form-item label="短信网关账号">
+                        <el-input v-model.trim="form.smsAccount" placeholder="xzxz" />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :xs="24" :md="12">
+                      <el-form-item label="返回类型">
+                        <el-input v-model.trim="form.smsReturnType" placeholder="text" />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :xs="24">
+                      <el-form-item label="短信接口 Token">
+                        <el-input
+                          v-model="form.smsToken"
+                          type="password"
+                          autocomplete="new-password"
+                          show-password
+                          placeholder="留空则不修改"
+                        />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :xs="24">
+                      <el-checkbox v-model="form.smsPasswordMd5">密码已是 MD5 密文</el-checkbox>
+                    </el-col>
+                    <el-col :xs="24" :md="12">
+                      <el-form-item label="短信网关明文密码">
+                        <el-input
+                          v-model="form.smsPlainPassword"
+                          type="password"
+                          autocomplete="new-password"
+                          show-password
+                          placeholder="留空则不修改"
+                        />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :xs="24" :md="12">
+                      <el-form-item label="短信网关 MD5 密码">
+                        <el-input
+                          v-model.trim="form.smsMd5Password"
+                          placeholder="751CB3F4AA17C36186F4856C8982BF27"
+                        />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :xs="24">
+                      <el-form-item label="短信扩展码">
+                        <el-input v-model.trim="form.smsExtendCode" placeholder="不需要时留空" />
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+                </section>
+              </el-col>
+
+              <el-col
+                v-if="form.deliveryMode === 'SMTP'"
+                v-show="notificationSectionOpen.smtp"
+                :xs="24"
+              >
+                <section
+                  class="form-subsection"
+                  :class="{ collapsed: !notificationSectionOpen.smtp }"
+                >
+                  <button
+                    class="subsection-toggle"
+                    type="button"
+                    @click="toggleNotificationSection('smtp')"
+                  >
+                    <strong>SMTP 邮件参数</strong>
+                    <span>{{ notificationSectionOpen.smtp ? "收起" : "展开" }}</span>
+                  </button>
+                  <h3>SMTP 邮件参数</h3>
+                  <el-row v-show="notificationSectionOpen.smtp" :gutter="14">
+                    <el-col :xs="24" :md="8">
+                      <el-form-item label="SMTP Host">
+                        <el-input v-model.trim="form.smtpHost" placeholder="smtp.example.com" />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :xs="24" :md="4">
+                      <el-form-item label="端口">
+                        <el-input-number
+                          v-model="form.smtpPort"
+                          class="w-100"
+                          :min="1"
+                          controls-position="right"
+                        />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :xs="24" :md="6">
+                      <el-form-item label="用户名">
+                        <el-input v-model.trim="form.smtpUsername" autocomplete="off" />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :xs="24" :md="6">
+                      <el-form-item label="密码">
+                        <el-input
+                          v-model="form.smtpPassword"
+                          type="password"
+                          autocomplete="new-password"
+                          show-password
+                        />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :xs="24">
+                      <el-form-item label="发件人">
+                        <el-input v-model.trim="form.smtpFrom" placeholder="alerts@example.com" />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :xs="24" :md="8">
+                      <el-checkbox v-model="form.smtpAuthEnabled">请求认证</el-checkbox>
+                    </el-col>
+                    <el-col :xs="24" :md="8">
+                      <el-checkbox v-model="form.smtpStarttlsEnabled">STARTTLS 连接</el-checkbox>
+                    </el-col>
+                    <el-col :xs="24" :md="8">
+                      <el-checkbox v-model="form.smtpSslEnabled">SSL 连接</el-checkbox>
+                    </el-col>
+                    <el-col :xs="24">
+                      <el-form-item label="SSL 证书信任">
+                        <el-input
+                          v-model.trim="form.smtpSslTrust"
+                          placeholder="smtp.example.com 或 *"
+                        />
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+                </section>
+              </el-col>
+
+              <el-col v-show="notificationSectionOpen.test" :xs="24">
+                <div
+                  class="notification-form-heading"
+                  :class="{ collapsed: !notificationSectionOpen.test }"
+                  role="button"
+                  @click="toggleNotificationSection('test')"
+                >
+                  <strong>测试消息</strong>
+                  <span>用于验证当前通知工具能否成功发送。</span>
+                </div>
+              </el-col>
+
+              <el-col v-show="notificationSectionOpen.test" :xs="24">
+                <el-form-item :label="testReceiverLabel" required>
+                  <el-input
+                    v-model.trim="testReceiver"
+                    :placeholder="testReceiverPlaceholder"
+                    clearable
+                  />
+                  <div class="field-hint">
+                    仅用于本次测试发送，不会保存到告警渠道配置；正式调用时仍由 API 传入接收人。
+                  </div>
+                </el-form-item>
+              </el-col>
+
+              <el-col v-show="notificationSectionOpen.test" :xs="24">
+                <el-form-item label="测试消息内容 JSON（不含接收人）">
+                  <el-input
+                    v-model="testPayloadJson"
+                    class="codebox"
+                    type="textarea"
+                    :rows="6"
+                    spellcheck="false"
+                  />
+                </el-form-item>
+              </el-col>
+            </el-row>
           </div>
         </div>
       </el-form>
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button plain :disabled="!form.id" :loading="busyAction === 'test'" @click="testForm">测试发送</el-button>
-          <el-button type="primary" :loading="busyAction === 'save'" @click="save">保存配置</el-button>
+          <el-button plain :disabled="!form.id" :loading="busyAction === 'test'" @click="testForm"
+            >测试发送</el-button
+          >
+          <el-button type="primary" :loading="busyAction === 'save'" @click="save"
+            >保存配置</el-button
+          >
         </div>
       </template>
     </ModalPanel>

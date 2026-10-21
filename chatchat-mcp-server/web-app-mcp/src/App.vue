@@ -4,13 +4,23 @@
     <div v-else class="app-shell">
       <aside class="sidebar">
         <div class="sidebar-brand">
-          <img class="brand-mark product-mark" :src="`${publicPath}lingdong-mark.svg`" alt="" aria-hidden="true" />
+          <img
+            class="brand-mark product-mark"
+            :src="`${publicPath}lingdong-mark.svg`"
+            alt=""
+            aria-hidden="true"
+          />
           <div>
             <div class="sidebar-title">灵动智联</div>
             <small>LingDong Nexus</small>
           </div>
         </div>
-        <el-menu ref="sidebarMenu" class="sidebar-menu" :default-active="activeView" @select="activeView = $event">
+        <el-menu
+          ref="sidebarMenu"
+          class="sidebar-menu"
+          :default-active="activeView"
+          @select="activeView = $event"
+        >
           <template v-for="item in navItems" :key="item.key">
             <el-sub-menu v-if="item.children?.length" :index="item.key">
               <template #title>
@@ -38,17 +48,26 @@
         <header class="topbar" :class="{ 'is-compact': isSystemSettingsView }">
           <div v-if="!isSystemSettingsView">
             <h1>{{ activeNav.label }}</h1>
-            <p>MCP Endpoint: <code>{{ mcpEndpoint }}</code></p>
+            <p
+              >MCP Endpoint: <code>{{ mcpEndpoint }}</code></p
+            >
           </div>
           <div v-else class="topbar-context">系统设置 <span>/</span> {{ activeNav.label }}</div>
-          <p v-if="isSystemSettingsView" class="topbar-endpoint">MCP Endpoint: <code>{{ mcpEndpoint }}</code></p>
+          <p v-if="isSystemSettingsView" class="topbar-endpoint"
+            >MCP Endpoint: <code>{{ mcpEndpoint }}</code></p
+          >
         </header>
 
-        <KeepAlive include="ApiServicesView,AssetCenterView,DatabaseMcpView,TemplateQueryPublicationsView">
+        <KeepAlive
+          include="ApiServicesView,AssetCenterView,DatabaseMcpView,TemplateQueryPublicationsView"
+        >
           <component
             :is="activeNav.component"
             :key="activeView"
-            v-bind="{ ...(activeNav.section ? { section: activeNav.section } : {}), ...(activeNav.queryFamily ? { queryFamily: activeNav.queryFamily } : {}) }"
+            v-bind="{
+              ...(activeNav.section ? { section: activeNav.section } : {}),
+              ...(activeNav.queryFamily ? { queryFamily: activeNav.queryFamily } : {}),
+            }"
             @notify="notify"
             @error="handleError"
             @result="showResult"

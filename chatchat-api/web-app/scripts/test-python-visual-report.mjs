@@ -4,6 +4,7 @@ const fixture=resolve(process.env.VISUAL_REPORT_FIXTURES||'../../target/assets-l
 const output=resolve('../../target/assets-local/visual-report-local-browser');await mkdir(output,{recursive:true});
 const png=await readFile(resolve(fixture,'sample.png')),svg=await readFile(resolve(fixture,'sample.svg')),plotly=await readFile(resolve(fixture,'sample.plotly.json'));
 const facts=JSON.parse(await readFile(resolve(fixture,'facts.json'),'utf8'));
+const composerStyles=(await Promise.all(['src/styles/base.css','src/styles/pages/chat-assistant.css'].map(path=>readFile(resolve(path),'utf8')))).join('\n')+'\nbody{overflow:auto;height:auto}#app{height:auto}';
 const ref=(fileId,bytes,mediaType)=>({fileId,size:bytes.length,mediaType});
 const report={schemaVersion:'python_visual_report.v1',reportMode:'visual',status:'SUCCESS',title:'Python 真实计算产物测试',summary:`测试样本合计 ${facts.total}，使用同批计算结果绘图。`,
  metrics:[{id:'total',label:'样本合计',value:facts.total,unit:'测试单位',calculation:'Python Decimal sum'}],
@@ -22,7 +23,12 @@ try{
  await page.route(/\/api\/v1\/ui-artifacts\/visual-test(?:\/.*)?$/,route=>route.fulfill({contentType:'application/json',body:JSON.stringify(route.request().url().includes('/resources/')?report:manifest)}));
  for(const [name,width] of [['desktop',1280],['mobile',390]]){
   await page.setViewportSize({width,height:1000});await page.goto(origin+'/tests/python-visual-report.html');
-  const toggle=page.getByRole('switch',{name:'图文报告'});assert.equal(await toggle.getAttribute('aria-checked'),'false');await toggle.click();await page.getByRole('button',{name:'发送问题'}).click();assert.equal((await page.evaluate(()=>window.visualTestSends))[0].reportMode,'visual');assert.equal(await toggle.getAttribute('aria-checked'),'false');checks.requestToggle=true;
+  await page.addStyleTag({content:composerStyles});
+  const toggle=page.getByRole('switch',{name:'图文报告'});assert.equal(await toggle.getAttribute('aria-checked'),'false');await toggle.click();await page.getByRole('button',{name:'发送问题'}).click();assert.equal((await page.evaluate(()=>window.visualTestSends))[0].reportMode,'visual');assert.equal(await toggle.getAttribute('aria-checked'),'true');
+  await page.evaluate(()=>window.visualTestState.conversationKey='created-conversation');
+  await page.getByRole('button',{name:'发送问题'}).click();assert.equal((await page.evaluate(()=>window.visualTestSends))[1].reportMode,'visual');assert.equal(await toggle.getAttribute('aria-checked'),'true');
+  assert.ok(await toggle.evaluate(element=>getComputedStyle(element).backgroundColor!=='rgba(0, 0, 0, 0)'));await page.screenshot({path:resolve(output,name+'-report-selected.png')});
+  await toggle.click();await page.getByRole('button',{name:'发送问题'}).click();assert.equal((await page.evaluate(()=>window.visualTestSends))[2].reportMode,'off');assert.equal(await toggle.getAttribute('aria-checked'),'false');checks.persistentReportToggle=true;
   await page.evaluate(value=>window.visualTestState.report=value,report);
   if(name==='desktop'){
    const downloaded=page.waitForEvent('download');

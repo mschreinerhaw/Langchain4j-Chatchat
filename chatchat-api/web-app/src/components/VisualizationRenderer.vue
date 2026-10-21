@@ -1,5 +1,9 @@
 <template>
-  <section v-if="panelSpec" class="visualization-renderer visualization-panel" :class="`layout-${panelSpec.layout}`">
+  <section
+    v-if="panelSpec"
+    class="visualization-renderer visualization-panel"
+    :class="`layout-${panelSpec.layout}`"
+  >
     <header class="visualization-header">
       <div>
         <p>{{ panelSpec.analysisType || "分析面板" }}</p>
@@ -12,7 +16,10 @@
         <details
           v-if="isRawDataPanelBlock(block)"
           class="visualization-panel-block visualization-raw-data"
-          :open="block.spec?.ui?.defaultCollapsed === false || panelSpec.rawDataDefaultCollapsed === false"
+          :open="
+            block.spec?.ui?.defaultCollapsed === false ||
+            panelSpec.rawDataDefaultCollapsed === false
+          "
         >
           <summary>{{ rawDataBlockToggleLabel(block) }}</summary>
           <VisualizationRenderer
@@ -58,7 +65,11 @@
             </option>
           </select>
         </label>
-        <nav v-if="availableViews.length > 1" class="visualization-tabs" aria-label="可视化视图切换">
+        <nav
+          v-if="availableViews.length > 1"
+          class="visualization-tabs"
+          aria-label="可视化视图切换"
+        >
           <button
             v-for="view in availableViews"
             :key="view"
@@ -103,21 +114,28 @@
         </article>
       </div>
 
-      <div v-else ref="chartCanvas" class="visualization-echart" role="img" :aria-label="title"></div>
+      <div
+        v-else
+        ref="chartCanvas"
+        class="visualization-echart"
+        role="img"
+        :aria-label="title"
+      ></div>
     </div>
 
     <div v-else-if="activeView === 'table'" class="visualization-table">
       <table>
         <thead>
           <tr>
-            <th
-              v-for="column in columns"
-              :key="column"
-            >{{ column }}</th>
+            <th v-for="column in columns" :key="column">{{ column }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, index) in rows" :key="index" @click="emitDrillDown({ row, rowIndex: index })">
+          <tr
+            v-for="(row, index) in rows"
+            :key="index"
+            @click="emitDrillDown({ row, rowIndex: index })"
+          >
             <td v-for="column in columns" :key="column">{{ row[column] }}</td>
           </tr>
         </tbody>

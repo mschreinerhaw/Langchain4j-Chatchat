@@ -1,5 +1,5 @@
 import { Bot, FileText, Send, XCircle } from "@lucide/vue";
-import { exceedsChatTextLimit, pastedFiles } from '../utils/chatUserAssets';
+import { exceedsChatTextLimit, pastedFiles } from "../utils/chatUserAssets";
 
 export default {
   name: "PromptComposer",
@@ -7,53 +7,63 @@ export default {
     Bot,
     FileText,
     Send,
-    XCircle
+    XCircle,
   },
   props: {
-    conversationKey: {type:String,default:""},
-    attachments: {type:Array,default:()=>[]},
+    conversationKey: { type: String, default: "" },
+    attachments: { type: Array, default: () => [] },
     suggestions: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     modelValue: {
       type: String,
-      default: ""
+      default: "",
     },
     loading: {
       type: Boolean,
-      default: false
+      default: false,
     },
     agents: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     selectedAgentId: {
       type: String,
-      default: ""
+      default: "",
     },
     agentsLoading: {
       type: Boolean,
-      default: false
+      default: false,
     },
     defaultModelName: {
       type: String,
-      default: ""
+      default: "",
     },
     showSuggestions: {
       type: Boolean,
-      default: true
+      default: true,
     },
     stopAvailable: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
-  emits: ["clear", "files", "retry-file", "remove-file", "pick", "send", "stop", "update:modelValue", "update:selectedAgentId"],
+  emits: [
+    "clear",
+    "files",
+    "retry-file",
+    "remove-file",
+    "pick",
+    "send",
+    "stop",
+    "update:modelValue",
+    "update:selectedAgentId",
+  ],
   data() {
     return {
       reportMode: "off",
-      draft: this.modelValue
+      draft: this.modelValue,
     };
   },
   computed: {
@@ -63,18 +73,20 @@ export default {
           id: "",
           name: this.defaultModelName || "通用对话",
           description: this.defaultModelName ? "默认模型" : "不绑定 Agent 设置",
-          documentWorkflow: false
+          documentWorkflow: false,
         },
         ...this.agents
           .filter((agent) => agent?.marketStatus === "published")
           .map((agent) => ({
             ...agent,
-            documentWorkflow: this.isDocumentWorkflowAgent(agent)
-          }))
+            documentWorkflow: this.isDocumentWorkflowAgent(agent),
+          })),
       ];
     },
     selectedAgent() {
-      return this.agentOptions.find((agent) => agent.id === this.selectedAgentId) || this.agentOptions[0];
+      return (
+        this.agentOptions.find((agent) => agent.id === this.selectedAgentId) || this.agentOptions[0]
+      );
     },
     agentSelectLabel() {
       if (this.agentsLoading) {
@@ -85,16 +97,20 @@ export default {
     documentWorkflowActive() {
       return !!this.selectedAgent?.documentWorkflow;
     },
-    longText(){return exceedsChatTextLimit(this.draft);},
+    longText() {
+      return exceedsChatTextLimit(this.draft);
+    },
     primaryButtonDisabled() {
-      return this.loading ? !this.stopAvailable : (!this.draft.trim() && !this.attachments.length) || this.attachments.some(file=>file.state==='uploading');
+      return this.loading
+        ? !this.stopAvailable
+        : (!this.draft.trim() && !this.attachments.length) ||
+            this.attachments.some((file) => file.state === "uploading");
     },
     primaryButtonLabel() {
       return this.loading && this.stopAvailable ? "停止当前任务" : "发送问题";
-    }
+    },
   },
   watch: {
-    conversationKey(){this.reportMode="off";},
     modelValue(value) {
       this.draft = value;
       this.$nextTick(this.adjustTextareaHeight);
@@ -102,7 +118,7 @@ export default {
     draft(value) {
       this.$emit("update:modelValue", value);
       this.$nextTick(this.adjustTextareaHeight);
-    }
+    },
   },
   mounted() {
     this.adjustTextareaHeight();
@@ -119,7 +135,11 @@ export default {
     },
     send() {
       const value = this.draft;
-      if ((!value.trim() && !this.attachments.length) || this.loading || this.attachments.some(file=>file.state==='uploading')) {
+      if (
+        (!value.trim() && !this.attachments.length) ||
+        this.loading ||
+        this.attachments.some((file) => file.state === "uploading")
+      ) {
         return;
       }
       this.$emit("send", {
@@ -127,14 +147,28 @@ export default {
         agentId: this.selectedAgentId,
         agentName: this.selectedAgent?.name || "",
         documentWorkflow: this.documentWorkflowActive,
-        reportMode: this.reportMode
+        reportMode: this.reportMode,
       });
-      this.reportMode="off";
     },
-    handlePaste(event){const files=pastedFiles(event.clipboardData);if(!files.length)return;event.preventDefault();if(!this.loading)this.$emit('files',files);},
-    handleEnter(event){if(event.isComposing||event.keyCode===229)return;event.preventDefault();this.send();},
-    handleDragOver(event){if(Array.from(event.dataTransfer?.types||[]).includes('Files'))event.preventDefault();},
-    handleDrop(event){if(!event.dataTransfer?.files?.length)return;event.preventDefault();if(!this.loading)this.$emit('files',Array.from(event.dataTransfer.files));},
+    handlePaste(event) {
+      const files = pastedFiles(event.clipboardData);
+      if (!files.length) return;
+      event.preventDefault();
+      if (!this.loading) this.$emit("files", files);
+    },
+    handleEnter(event) {
+      if (event.isComposing || event.keyCode === 229) return;
+      event.preventDefault();
+      this.send();
+    },
+    handleDragOver(event) {
+      if (Array.from(event.dataTransfer?.types || []).includes("Files")) event.preventDefault();
+    },
+    handleDrop(event) {
+      if (!event.dataTransfer?.files?.length) return;
+      event.preventDefault();
+      if (!this.loading) this.$emit("files", Array.from(event.dataTransfer.files));
+    },
     updateSelectedAgent(event) {
       this.$emit("update:selectedAgentId", event.target.value);
     },
@@ -165,12 +199,14 @@ export default {
       const toolNames = [
         ...(agent?.resolvedToolNames || []),
         ...(agent?.boundMcpToolNames || []),
-        ...(agent?.toolConfigs || []).map((config) => config?.toolName)
+        ...(agent?.toolConfigs || []).map((config) => config?.toolName),
       ];
-      return !!agent?.boundDocumentCount
-        || (agent?.boundDocumentIds || []).length > 0
-        || (agent?.boundDocumentTags || []).length > 0
-        || toolNames.includes("document_search");
-    }
-  }
+      return (
+        !!agent?.boundDocumentCount ||
+        (agent?.boundDocumentIds || []).length > 0 ||
+        (agent?.boundDocumentTags || []).length > 0 ||
+        toolNames.includes("document_search")
+      );
+    },
+  },
 };

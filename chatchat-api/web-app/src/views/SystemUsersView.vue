@@ -2,6 +2,4 @@
   <SystemManagementView section="users" />
 </template>
 
-<script setup>
-import SystemManagementView from "./SystemManagementView.vue";
-</script>
+<script src="../js/views/SystemUsersView.js"></script>

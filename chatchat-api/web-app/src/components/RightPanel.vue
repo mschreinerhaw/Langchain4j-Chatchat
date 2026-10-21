@@ -35,11 +35,20 @@
         <p v-if="error" class="right-panel-error">{{ error }}</p>
         <section class="right-module todo-module">
           <header>
-            <button type="button" class="module-collapse-toggle right-module-title" :aria-expanded="!collapsedModules.todos" @click="toggleModule('todos')">
+            <button
+              type="button"
+              class="module-collapse-toggle right-module-title"
+              :aria-expanded="!collapsedModules.todos"
+              @click="toggleModule('todos')"
+            >
               <ClipboardList :size="16" stroke-width="2" />
               <strong>我的待办</strong>
               <span v-if="activeTodoCount" class="module-count">{{ activeTodoCount }}</span>
-              <ChevronDown :class="{ collapsed: collapsedModules.todos }" :size="15" stroke-width="2" />
+              <ChevronDown
+                :class="{ collapsed: collapsedModules.todos }"
+                :size="15"
+                stroke-width="2"
+              />
             </button>
             <span class="right-module-actions">
               <button
@@ -65,30 +74,41 @@
           </header>
           <div v-show="!collapsedModules.todos" class="right-module-body">
             <p v-if="todoError" class="todo-error">{{ todoError }}</p>
-            <p v-else-if="!todoLoading && activeTodoCount === 0" class="todo-empty">暂无便签，点击右上角 ＋ 新建</p>
+            <p v-else-if="!todoLoading && activeTodoCount === 0" class="todo-empty"
+              >暂无便签，点击右上角 ＋ 新建</p
+            >
             <article
               v-for="todo in visibleTodos"
               :key="todo.id"
               class="personal-todo-item"
               :class="{ important: todo.important }"
             >
-              <button class="todo-check" type="button" :aria-label="`完成：${todo.title}`" @click="toggleTodo(todo)">
+              <button
+                class="todo-check"
+                type="button"
+                :aria-label="`完成：${todo.title}`"
+                @click="toggleTodo(todo)"
+              >
                 <Circle :size="18" stroke-width="2" />
               </button>
               <button class="todo-content" type="button" @click="editTodo(todo)">
                 <strong>{{ todo.title }}</strong>
                 <small v-if="todo.notes">{{ todo.notes }}</small>
-                <time v-if="todo.dueAt" :class="{ overdue: isOverdue(todo) }">{{ todoDueLabel(todo) }}</time>
+                <time v-if="todo.dueAt" :class="{ overdue: isOverdue(todo) }">{{
+                  todoDueLabel(todo)
+                }}</time>
               </button>
-              <button class="todo-star" type="button" :class="{ active: todo.important }" aria-label="切换重要标记" @click="toggleImportant(todo)">
+              <button
+                class="todo-star"
+                type="button"
+                :class="{ active: todo.important }"
+                aria-label="切换重要标记"
+                @click="toggleImportant(todo)"
+              >
                 <Star :size="16" stroke-width="2" />
               </button>
             </article>
-            <button
-              type="button"
-              class="todo-detail-link todo-more-link"
-              @click="openTodoManager"
-            >
+            <button type="button" class="todo-detail-link todo-more-link" @click="openTodoManager">
               查看全部{{ activeTodoCount ? ` ${activeTodoCount} 条` : "" }}
             </button>
           </div>
@@ -96,10 +116,19 @@
 
         <section class="right-module">
           <header>
-            <button type="button" class="module-collapse-toggle right-module-title" :aria-expanded="!collapsedModules.reports" @click="toggleModule('reports')">
+            <button
+              type="button"
+              class="module-collapse-toggle right-module-title"
+              :aria-expanded="!collapsedModules.reports"
+              @click="toggleModule('reports')"
+            >
               <FileText :size="16" stroke-width="2" />
               <strong>最近文档</strong>
-              <ChevronDown :class="{ collapsed: collapsedModules.reports }" :size="15" stroke-width="2" />
+              <ChevronDown
+                :class="{ collapsed: collapsedModules.reports }"
+                :size="15"
+                stroke-width="2"
+              />
             </button>
             <span class="right-module-actions">
               <button
@@ -116,8 +145,14 @@
             </span>
           </header>
           <div v-show="!collapsedModules.reports" class="right-module-body">
-            <article v-for="document in recentDocuments" :key="`${document.targetId}-${document.createdAt}`" class="report-item shortcut-item">
-              <span class="file-badge" :class="docBadgeClass(document)">{{ docMark(document) }}</span>
+            <article
+              v-for="document in recentDocuments"
+              :key="`${document.targetId}-${document.createdAt}`"
+              class="report-item shortcut-item"
+            >
+              <span class="file-badge" :class="docBadgeClass(document)">{{
+                docMark(document)
+              }}</span>
               <div>
                 <strong>{{ document.title || document.targetId }}</strong>
                 <time>{{ shortcutTime(document.createdAt) }}</time>
@@ -134,16 +169,27 @@
                 </div>
               </div>
             </article>
-            <p v-if="!loading && recentDocuments.length === 0" class="right-panel-empty">暂无最近文档</p>
+            <p v-if="!loading && recentDocuments.length === 0" class="right-panel-empty"
+              >暂无最近文档</p
+            >
           </div>
         </section>
 
         <section class="right-module">
           <header>
-            <button type="button" class="module-collapse-toggle right-module-title" :aria-expanded="!collapsedModules.favorites" @click="toggleModule('favorites')">
+            <button
+              type="button"
+              class="module-collapse-toggle right-module-title"
+              :aria-expanded="!collapsedModules.favorites"
+              @click="toggleModule('favorites')"
+            >
               <Star :size="16" stroke-width="2" />
               <strong>收藏夹</strong>
-              <ChevronDown :class="{ collapsed: collapsedModules.favorites }" :size="15" stroke-width="2" />
+              <ChevronDown
+                :class="{ collapsed: collapsedModules.favorites }"
+                :size="15"
+                stroke-width="2"
+              />
             </button>
             <span class="right-module-actions">
               <button
@@ -160,7 +206,11 @@
             </span>
           </header>
           <div v-show="!collapsedModules.favorites" class="right-module-body">
-            <article v-for="favorite in favorites" :key="favorite.id || favorite.targetId" class="simple-row shortcut-item">
+            <article
+              v-for="favorite in favorites"
+              :key="favorite.id || favorite.targetId"
+              class="simple-row shortcut-item"
+            >
               <span class="favorite-star"></span>
               <div>
                 <strong>{{ favorite.title || favorite.targetId }}</strong>
@@ -184,10 +234,19 @@
 
         <section class="right-module">
           <header>
-            <button type="button" class="module-collapse-toggle right-module-title" :aria-expanded="!collapsedModules.agents" @click="toggleModule('agents')">
+            <button
+              type="button"
+              class="module-collapse-toggle right-module-title"
+              :aria-expanded="!collapsedModules.agents"
+              @click="toggleModule('agents')"
+            >
               <Bot :size="16" stroke-width="2" />
               <strong>最近使用Agent</strong>
-              <ChevronDown :class="{ collapsed: collapsedModules.agents }" :size="15" stroke-width="2" />
+              <ChevronDown
+                :class="{ collapsed: collapsedModules.agents }"
+                :size="15"
+                stroke-width="2"
+              />
             </button>
             <span class="right-module-actions">
               <button
@@ -204,7 +263,11 @@
             </span>
           </header>
           <div v-show="!collapsedModules.agents" class="right-module-body">
-            <article v-for="agent in recentAgents" :key="agent.targetId" class="agent-row shortcut-item">
+            <article
+              v-for="agent in recentAgents"
+              :key="agent.targetId"
+              class="agent-row shortcut-item"
+            >
               <span>{{ agentShortName(agent) }}</span>
               <div>
                 <strong>{{ agent.title || agent.targetId }}</strong>
@@ -215,43 +278,97 @@
                 </div>
               </div>
             </article>
-            <p v-if="!loading && recentAgents.length === 0" class="right-panel-empty">暂无最近使用Agent</p>
+            <p v-if="!loading && recentAgents.length === 0" class="right-panel-empty"
+              >暂无最近使用Agent</p
+            >
           </div>
         </section>
       </template>
     </section>
 
     <div v-if="todoManagerOpen" class="todo-detail-backdrop" @click.self="closeTodoManager">
-      <section class="todo-detail-panel personal-todo-dialog" role="dialog" aria-modal="true" aria-label="我的待办">
+      <section
+        class="todo-detail-panel personal-todo-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="我的待办"
+      >
         <header>
           <div>
             <span class="todo-dialog-kicker">个人便签</span>
-            <h2>{{ todoEditorMode === "create" ? "新建便签" : todoEditorMode === "edit" ? "编辑便签" : "我的便签" }}</h2>
+            <h2>{{
+              todoEditorMode === "create"
+                ? "新建便签"
+                : todoEditorMode === "edit"
+                  ? "编辑便签"
+                  : "我的便签"
+            }}</h2>
           </div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeTodoManager">
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            title="关闭"
+            @click="closeTodoManager"
+          >
             <XCircle :size="18" stroke-width="2" />
           </button>
         </header>
         <form v-if="todoEditorMode !== 'list'" class="todo-editor" @submit.prevent="saveTodoEditor">
-          <label>便签内容<input ref="todoTitleInput" v-model="todoDraft.title" maxlength="300" placeholder="写下要做的事情" required /></label>
-          <label>备注<textarea v-model="todoDraft.notes" maxlength="2000" rows="4" placeholder="补充说明（可选）"></textarea></label>
+          <label
+            >便签内容<input
+              ref="todoTitleInput"
+              v-model="todoDraft.title"
+              maxlength="300"
+              placeholder="写下要做的事情"
+              required
+          /></label>
+          <label
+            >备注<textarea
+              v-model="todoDraft.notes"
+              maxlength="2000"
+              rows="4"
+              placeholder="补充说明（可选）"
+            ></textarea>
+          </label>
           <label>截止日期<input v-model="todoDraft.dueAt" type="datetime-local" /></label>
-          <label class="todo-important-field"><input v-model="todoDraft.important" type="checkbox" /> 标记为重要</label>
+          <label class="todo-important-field"
+            ><input v-model="todoDraft.important" type="checkbox" /> 标记为重要</label
+          >
           <p v-if="todoError" class="todo-error">{{ todoError }}</p>
           <div class="todo-editor-actions">
-            <button v-if="todoEditorMode === 'edit'" type="button" class="danger" @click="removeTodo(editingTodo)"><Trash2 :size="15" />删除</button>
+            <button
+              v-if="todoEditorMode === 'edit'"
+              type="button"
+              class="danger"
+              @click="removeTodo(editingTodo)"
+              ><Trash2 :size="15" />删除</button
+            >
             <span v-else></span>
             <span></span>
             <button type="button" @click="returnToTodoList">返回列表</button>
-            <button type="submit" class="primary" :disabled="todoSaving || !todoDraft.title.trim()">{{ todoSaving ? "保存中" : "保存" }}</button>
+            <button
+              type="submit"
+              class="primary"
+              :disabled="todoSaving || !todoDraft.title.trim()"
+              >{{ todoSaving ? "保存中" : "保存" }}</button
+            >
           </div>
         </form>
         <div v-else class="todo-manager-list">
           <div class="todo-manager-tabs">
-            <button type="button" :class="{ active: !showCompleted }" @click="showCompleted = false">未完成</button>
-            <button type="button" :class="{ active: showCompleted }" @click="showCompleted = true">已完成</button>
+            <button type="button" :class="{ active: !showCompleted }" @click="showCompleted = false"
+              >未完成</button
+            >
+            <button type="button" :class="{ active: showCompleted }" @click="showCompleted = true"
+              >已完成</button
+            >
           </div>
-          <article v-for="todo in managerTodos" :key="todo.id" class="personal-todo-item manager-row">
+          <article
+            v-for="todo in managerTodos"
+            :key="todo.id"
+            class="personal-todo-item manager-row"
+          >
             <button class="todo-check" type="button" @click="toggleTodo(todo)">
               <CheckCircle2 v-if="todo.completed" :size="19" />
               <Circle v-else :size="19" />
@@ -260,9 +377,17 @@
               <strong :class="{ completed: todo.completed }">{{ todo.title }}</strong>
               <small v-if="todo.notes">{{ todo.notes }}</small>
             </button>
-            <button class="todo-star" type="button" :class="{ active: todo.important }" @click="toggleImportant(todo)"><Star :size="17" /></button>
+            <button
+              class="todo-star"
+              type="button"
+              :class="{ active: todo.important }"
+              @click="toggleImportant(todo)"
+              ><Star :size="17"
+            /></button>
           </article>
-          <p v-if="managerTodos.length === 0" class="todo-empty">{{ showCompleted ? "暂无已完成任务" : "暂无未完成任务" }}</p>
+          <p v-if="managerTodos.length === 0" class="todo-empty">{{
+            showCompleted ? "暂无已完成任务" : "暂无未完成任务"
+          }}</p>
         </div>
       </section>
     </div>

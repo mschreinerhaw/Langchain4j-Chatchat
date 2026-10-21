@@ -9,11 +9,7 @@
     <section class="library-toolbar">
       <label class="library-search-field">
         <span>文档检索</span>
-        <input
-          v-model="titleKeyword"
-          placeholder="按文档标题检索"
-          @keyup.enter="searchByTitle"
-        >
+        <input v-model="titleKeyword" placeholder="按文档标题检索" @keyup.enter="searchByTitle" />
       </label>
       <button type="button" @click="searchByTitle">检索</button>
     </section>
@@ -42,7 +38,10 @@
         <div
           v-if="openCategoryActionName || openDocumentActionId"
           class="category-action-backdrop"
-          @click="closeCategoryActions(); closeDocumentActions()"
+          @click="
+            closeCategoryActions();
+            closeDocumentActions();
+          "
         ></div>
 
         <div
@@ -51,10 +50,14 @@
           class="category-row"
           :class="{
             active: activeCategory === category.name,
-            'menu-open': openCategoryActionName === category.name
+            'menu-open': openCategoryActionName === category.name,
           }"
         >
-          <button type="button" class="category-select-button" @click="selectCategory(category.name)">
+          <button
+            type="button"
+            class="category-select-button"
+            @click="selectCategory(category.name)"
+          >
             <span :title="categoryLabel(category.name)">{{ categoryLabel(category.name) }}</span>
             <strong>{{ category.count }}</strong>
           </button>
@@ -81,14 +84,26 @@
                 :title="categoryReindexButtonTitle(category)"
                 @click="openCategoryReindexDialog(category)"
               >
-                <RefreshCw :size="14" :class="{ 'spin-icon': isCategoryReindexTarget(category.name) }" />
+                <RefreshCw
+                  :size="14"
+                  :class="{ 'spin-icon': isCategoryReindexTarget(category.name) }"
+                />
                 <span>{{ categoryReindexButtonLabel(category) }}</span>
               </button>
-              <button v-if="isMutableCategory(category.name)" type="button" @click="renameCategory(category)">
+              <button
+                v-if="isMutableCategory(category.name)"
+                type="button"
+                @click="renameCategory(category)"
+              >
                 <Pencil :size="14" />
                 <span>修改分类</span>
               </button>
-              <button v-if="isMutableCategory(category.name)" type="button" class="danger-action" @click="deleteCategory(category)">
+              <button
+                v-if="isMutableCategory(category.name)"
+                type="button"
+                class="danger-action"
+                @click="deleteCategory(category)"
+              >
                 <Trash2 :size="14" />
                 <span>删除分类</span>
               </button>
@@ -104,10 +119,16 @@
               type="checkbox"
               :checked="allVisibleDocumentsSelected"
               @change="toggleAllVisibleDocuments($event.target.checked)"
-            >
-            <span>{{ selectedDocumentCount ? `已选 ${selectedDocumentCount} 个` : "选择本页" }}</span>
+            />
+            <span>{{
+              selectedDocumentCount ? `已选 ${selectedDocumentCount} 个` : "选择本页"
+            }}</span>
           </label>
-          <span>{{ loading ? "加载中" : `共 ${documentCount} 份文档，匹配 ${total} 份，当前显示 ${pageStart}-${pageEnd} 份` }}</span>
+          <span>{{
+            loading
+              ? "加载中"
+              : `共 ${documentCount} 份文档，匹配 ${total} 份，当前显示 ${pageStart}-${pageEnd} 份`
+          }}</span>
           <button
             v-if="canDeleteDocuments && pagedDocuments.length"
             type="button"
@@ -127,7 +148,7 @@
           :class="{
             selected: selectedDocumentIdSet.has(item.docId),
             'no-delete': !canDeleteDocuments,
-            'menu-open': openDocumentActionId === item.docId
+            'menu-open': openDocumentActionId === item.docId,
           }"
         >
           <label v-if="canDeleteDocuments" class="library-document-select" @click.stop>
@@ -136,12 +157,16 @@
               :checked="selectedDocumentIdSet.has(item.docId)"
               :aria-label="`选择文档 ${item.title || item.docId}`"
               @change="toggleDocumentSelection(item.docId, $event.target.checked)"
-            >
+            />
           </label>
           <div>
             <strong>{{ item.title }}</strong>
             <p>{{ item.summary }}</p>
-            <span>{{ item.source }} · {{ item.date }} · {{ categoryLabel(item.category) }} · v{{ item.version || 1 }}</span>
+            <span
+              >{{ item.source }} · {{ item.date }} · {{ categoryLabel(item.category) }} · v{{
+                item.version || 1
+              }}</span
+            >
           </div>
           <div class="library-document-actions">
             <button
@@ -152,7 +177,11 @@
             >
               查看
             </button>
-            <button type="button" :disabled="favoriteSavingIds[item.docId]" @click="favoriteDocument(item)">
+            <button
+              type="button"
+              :disabled="favoriteSavingIds[item.docId]"
+              @click="favoriteDocument(item)"
+            >
               {{ favoriteSavingIds[item.docId] ? "收藏中" : "收藏" }}
             </button>
             <div class="document-more-actions">
@@ -170,14 +199,20 @@
                 class="document-action-menu"
                 @click.stop
               >
-                <button v-if="canEditDocument(item)" type="button" @click="openDocumentEditDialog(item)">
+                <button
+                  v-if="canEditDocument(item)"
+                  type="button"
+                  @click="openDocumentEditDialog(item)"
+                >
                   <Pencil :size="14" />
                   <span>编辑信息</span>
                 </button>
                 <button
                   v-if="canEditDocument(item)"
                   type="button"
-                  :disabled="documentCategorySavingIds[item.docId] || editableCategories.length === 0"
+                  :disabled="
+                    documentCategorySavingIds[item.docId] || editableCategories.length === 0
+                  "
                   :title="editableCategories.length ? '修改文档分类' : '请先创建分类'"
                   @click="openDocumentCategoryDialog(item)"
                 >
@@ -193,7 +228,12 @@
                   <RefreshCw :size="14" />
                   <span>{{ documentReindexingIds[item.docId] ? "重建中" : "重建索引" }}</span>
                 </button>
-                <button v-if="canEditDocument(item)" type="button" class="danger-action" @click="removeDocument(item)">
+                <button
+                  v-if="canEditDocument(item)"
+                  type="button"
+                  class="danger-action"
+                  @click="removeDocument(item)"
+                >
                   <Trash2 :size="14" />
                   <span>删除</span>
                 </button>
@@ -222,7 +262,14 @@
       <form class="category-dialog document-form-dialog" @submit.prevent="submitDocumentUpload">
         <header>
           <div><p>文档管理</p><h2>新增文档</h2></div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" :disabled="documentUploadSubmitting" @click="closeDocumentUploadDialog">×</button>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            :disabled="documentUploadSubmitting"
+            @click="closeDocumentUploadDialog"
+            >×</button
+          >
         </header>
         <label>
           <span>文件（最大 55MB）</span>
@@ -233,7 +280,7 @@
               accept=".txt,.md,.sql,.csv,.pdf,.doc,.docx,.xls,.xlsx"
               :disabled="documentUploadSubmitting"
               @change="onDocumentUploadFileChange"
-            >
+            />
             <button
               type="button"
               class="document-file-picker-button"
@@ -242,23 +289,50 @@
             >
               选择文件
             </button>
-            <span class="document-file-picker-name" :title="documentUploadFile?.name || '未选择文件'">
+            <span
+              class="document-file-picker-name"
+              :title="documentUploadFile?.name || '未选择文件'"
+            >
               {{ documentUploadFile?.name || "未选择文件" }}
             </span>
           </div>
         </label>
-        <label><span>标题</span><input v-model="documentUploadTitle" required maxlength="255" :disabled="documentUploadSubmitting"></label>
-        <label><span>分类</span>
+        <label
+          ><span>标题</span
+          ><input
+            v-model="documentUploadTitle"
+            required
+            maxlength="255"
+            :disabled="documentUploadSubmitting"
+        /></label>
+        <label
+          ><span>分类</span>
           <select v-model="documentUploadCategory" :disabled="documentUploadSubmitting">
             <option value="">未分类</option>
-            <option v-for="category in editableCategories" :key="category.name" :value="category.name">{{ categoryLabel(category.name) }}</option>
+            <option
+              v-for="category in editableCategories"
+              :key="category.name"
+              :value="category.name"
+              >{{ categoryLabel(category.name) }}</option
+            >
           </select>
         </label>
-        <label><span>其他标签（逗号分隔）</span><input v-model="documentUploadTags" :disabled="documentUploadSubmitting"></label>
+        <label
+          ><span>其他标签（逗号分隔）</span
+          ><input v-model="documentUploadTags" :disabled="documentUploadSubmitting"
+        /></label>
         <p v-if="error" class="library-error">{{ error }}</p>
         <footer>
-          <button type="button" class="secondary-button" :disabled="documentUploadSubmitting" @click="closeDocumentUploadDialog">取消</button>
-          <button type="submit" :disabled="documentUploadSubmitting">{{ documentUploadSubmitting ? "上传并建索引中" : "上传并建索引" }}</button>
+          <button
+            type="button"
+            class="secondary-button"
+            :disabled="documentUploadSubmitting"
+            @click="closeDocumentUploadDialog"
+            >取消</button
+          >
+          <button type="submit" :disabled="documentUploadSubmitting">{{
+            documentUploadSubmitting ? "上传并建索引中" : "上传并建索引"
+          }}</button>
         </footer>
       </form>
     </div>
@@ -267,17 +341,50 @@
       <form class="category-dialog document-form-dialog" @submit.prevent="submitDocumentEdit">
         <header>
           <div><p>文档管理</p><h2>编辑文档信息</h2></div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" :disabled="documentEditSubmitting" @click="closeDocumentEditDialog">×</button>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            :disabled="documentEditSubmitting"
+            @click="closeDocumentEditDialog"
+            >×</button
+          >
         </header>
-        <label><span>标题</span><input v-model="documentEditForm.title" required maxlength="255" :disabled="documentEditSubmitting"></label>
-        <label><span>来源</span><input v-model="documentEditForm.source" :disabled="documentEditSubmitting"></label>
-        <label><span>日期</span><input v-model="documentEditForm.date" :disabled="documentEditSubmitting"></label>
-        <label><span>其他标签（逗号分隔）</span><input v-model="documentEditForm.tags" :disabled="documentEditSubmitting"></label>
-        <p class="document-form-note">修改文件内容时，请上传同名新文件作为新版本；分类可通过“改分类”调整。</p>
+        <label
+          ><span>标题</span
+          ><input
+            v-model="documentEditForm.title"
+            required
+            maxlength="255"
+            :disabled="documentEditSubmitting"
+        /></label>
+        <label
+          ><span>来源</span
+          ><input v-model="documentEditForm.source" :disabled="documentEditSubmitting"
+        /></label>
+        <label
+          ><span>日期</span
+          ><input v-model="documentEditForm.date" :disabled="documentEditSubmitting"
+        /></label>
+        <label
+          ><span>其他标签（逗号分隔）</span
+          ><input v-model="documentEditForm.tags" :disabled="documentEditSubmitting"
+        /></label>
+        <p class="document-form-note"
+          >修改文件内容时，请上传同名新文件作为新版本；分类可通过“改分类”调整。</p
+        >
         <p v-if="error" class="library-error">{{ error }}</p>
         <footer>
-          <button type="button" class="secondary-button" :disabled="documentEditSubmitting" @click="closeDocumentEditDialog">取消</button>
-          <button type="submit" :disabled="documentEditSubmitting">{{ documentEditSubmitting ? "保存中" : "保存并更新索引" }}</button>
+          <button
+            type="button"
+            class="secondary-button"
+            :disabled="documentEditSubmitting"
+            @click="closeDocumentEditDialog"
+            >取消</button
+          >
+          <button type="submit" :disabled="documentEditSubmitting">{{
+            documentEditSubmitting ? "保存中" : "保存并更新索引"
+          }}</button>
         </footer>
       </form>
     </div>
@@ -289,7 +396,15 @@
             <p>分类操作</p>
             <h2>删除分类</h2>
           </div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="categoryDeleteSubmitting" @click="closeCategoryDeleteDialog">×</button>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            title="关闭"
+            :disabled="categoryDeleteSubmitting"
+            @click="closeCategoryDeleteDialog"
+            >×</button
+          >
         </header>
 
         <div class="reindex-confirm-body delete-confirm-body">
@@ -301,7 +416,8 @@
               确认删除分类「{{ categoryLabel(categoryDeleteItem?.name) }}」？
             </p>
             <p class="reindex-confirm-text">
-              删除分类后，{{ categoryDeleteItem?.count || 0 }} 份关联文档会移除该分类标记，文档本身不会被删除。
+              删除分类后，{{ categoryDeleteItem?.count || 0 }}
+              份关联文档会移除该分类标记，文档本身不会被删除。
             </p>
           </div>
         </div>
@@ -312,8 +428,19 @@
         </div>
 
         <footer>
-          <button type="button" class="secondary-button" :disabled="categoryDeleteSubmitting" @click="closeCategoryDeleteDialog">取消</button>
-          <button type="button" class="danger-confirm-button" :disabled="categoryDeleteSubmitting" @click="submitCategoryDelete">
+          <button
+            type="button"
+            class="secondary-button"
+            :disabled="categoryDeleteSubmitting"
+            @click="closeCategoryDeleteDialog"
+            >取消</button
+          >
+          <button
+            type="button"
+            class="danger-confirm-button"
+            :disabled="categoryDeleteSubmitting"
+            @click="submitCategoryDelete"
+          >
             {{ categoryDeleteSubmitting ? "删除中" : "确认删除" }}
           </button>
         </footer>
@@ -327,7 +454,15 @@
             <p>文档操作</p>
             <h2>批量删除文档</h2>
           </div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="documentBatchDeleteSubmitting" @click="closeDocumentBatchDeleteDialog">×</button>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            title="关闭"
+            :disabled="documentBatchDeleteSubmitting"
+            @click="closeDocumentBatchDeleteDialog"
+            >×</button
+          >
         </header>
 
         <div class="reindex-confirm-body delete-confirm-body">
@@ -335,9 +470,7 @@
             <Trash2 :size="22" />
           </div>
           <div>
-            <p class="reindex-confirm-title">
-              确认删除已选 {{ selectedDocumentCount }} 个文档？
-            </p>
+            <p class="reindex-confirm-title"> 确认删除已选 {{ selectedDocumentCount }} 个文档？ </p>
             <p class="reindex-confirm-text">
               删除后这些文档会从知识库文档列表和检索索引中移除，此操作不可恢复。
             </p>
@@ -350,8 +483,19 @@
         </div>
 
         <footer>
-          <button type="button" class="secondary-button" :disabled="documentBatchDeleteSubmitting" @click="closeDocumentBatchDeleteDialog">取消</button>
-          <button type="button" class="danger-confirm-button" :disabled="documentBatchDeleteSubmitting || !selectedDocumentCount" @click="submitDocumentBatchDelete">
+          <button
+            type="button"
+            class="secondary-button"
+            :disabled="documentBatchDeleteSubmitting"
+            @click="closeDocumentBatchDeleteDialog"
+            >取消</button
+          >
+          <button
+            type="button"
+            class="danger-confirm-button"
+            :disabled="documentBatchDeleteSubmitting || !selectedDocumentCount"
+            @click="submitDocumentBatchDelete"
+          >
             {{ documentBatchDeleteSubmitting ? "删除中" : "确认删除" }}
           </button>
         </footer>
@@ -365,7 +509,15 @@
             <p>文档操作</p>
             <h2>删除文档</h2>
           </div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="documentDeleteSubmitting" @click="closeDocumentDeleteDialog">×</button>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            title="关闭"
+            :disabled="documentDeleteSubmitting"
+            @click="closeDocumentDeleteDialog"
+            >×</button
+          >
         </header>
 
         <div class="reindex-confirm-body delete-confirm-body">
@@ -374,7 +526,9 @@
           </div>
           <div>
             <p class="reindex-confirm-title">
-              确认删除文档「{{ documentDeleteItem?.title || documentDeleteItem?.docId || "未命名文档" }}」？
+              确认删除文档「{{
+                documentDeleteItem?.title || documentDeleteItem?.docId || "未命名文档"
+              }}」？
             </p>
             <p class="reindex-confirm-text">
               删除后该文档将从知识库文档列表和检索索引中移除，此操作不可恢复。
@@ -388,8 +542,19 @@
         </div>
 
         <footer>
-          <button type="button" class="secondary-button" :disabled="documentDeleteSubmitting" @click="closeDocumentDeleteDialog">取消</button>
-          <button type="button" class="danger-confirm-button" :disabled="documentDeleteSubmitting" @click="submitDocumentDelete">
+          <button
+            type="button"
+            class="secondary-button"
+            :disabled="documentDeleteSubmitting"
+            @click="closeDocumentDeleteDialog"
+            >取消</button
+          >
+          <button
+            type="button"
+            class="danger-confirm-button"
+            :disabled="documentDeleteSubmitting"
+            @click="submitDocumentDelete"
+          >
             {{ documentDeleteSubmitting ? "删除中" : "确认删除" }}
           </button>
         </footer>
@@ -403,7 +568,15 @@
             <p>索引维护</p>
             <h2>重建分类索引</h2>
           </div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="categoryReindexSubmitting" @click="closeCategoryReindexDialog">×</button>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            title="关闭"
+            :disabled="categoryReindexSubmitting"
+            @click="closeCategoryReindexDialog"
+            >×</button
+          >
         </header>
 
         <div class="reindex-confirm-body">
@@ -415,7 +588,9 @@
               确认重建分类「{{ categoryLabel(categoryReindexItem?.name) }}」的索引？
             </p>
             <p class="reindex-confirm-text">
-              本次会在后台逐个重建该分类下 {{ categoryReindexItem?.count || 0 }} 份文档的检索索引。任务运行期间，其他分类重建会被暂时禁用。
+              本次会在后台逐个重建该分类下
+              {{ categoryReindexItem?.count || 0 }}
+              份文档的检索索引。任务运行期间，其他分类重建会被暂时禁用。
             </p>
           </div>
         </div>
@@ -426,8 +601,18 @@
         </div>
 
         <footer>
-          <button type="button" class="secondary-button" :disabled="categoryReindexSubmitting" @click="closeCategoryReindexDialog">取消</button>
-          <button type="button" :disabled="categoryReindexSubmitting || categoryReindexRunning" @click="submitCategoryReindex">
+          <button
+            type="button"
+            class="secondary-button"
+            :disabled="categoryReindexSubmitting"
+            @click="closeCategoryReindexDialog"
+            >取消</button
+          >
+          <button
+            type="button"
+            :disabled="categoryReindexSubmitting || categoryReindexRunning"
+            @click="submitCategoryReindex"
+          >
             {{ categoryReindexSubmitting ? "提交中" : "确认重建" }}
           </button>
         </footer>
@@ -441,7 +626,14 @@
             <p>文档分类</p>
             <h2>修改文档分类</h2>
           </div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeDocumentCategoryDialog">×</button>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            title="关闭"
+            @click="closeDocumentCategoryDialog"
+            >×</button
+          >
         </header>
 
         <div class="document-category-current">
@@ -477,7 +669,9 @@
           </button>
           <button
             type="button"
-            :disabled="documentCategorySavingIds[documentCategoryItem?.docId] || !selectedDocumentCategory"
+            :disabled="
+              documentCategorySavingIds[documentCategoryItem?.docId] || !selectedDocumentCategory
+            "
             @click="submitDocumentCategory"
           >
             {{ documentCategorySavingIds[documentCategoryItem?.docId] ? "保存中" : "保存" }}
@@ -493,7 +687,14 @@
             <p>文档分类</p>
             <h2>{{ categoryDialogTitle }}</h2>
           </div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeCategoryDialog">×</button>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            title="关闭"
+            @click="closeCategoryDialog"
+            >×</button
+          >
         </header>
 
         <label>
@@ -503,11 +704,17 @@
             v-model="newCategoryName"
             placeholder="例如：半导体、宏观策略"
             @keyup.enter="createCategory"
-          >
+          />
         </label>
 
         <footer>
-          <button type="button" class="secondary-button" :disabled="creatingCategory" @click="closeCategoryDialog">取消</button>
+          <button
+            type="button"
+            class="secondary-button"
+            :disabled="creatingCategory"
+            @click="closeCategoryDialog"
+            >取消</button
+          >
           <button type="button" :disabled="creatingCategory" @click="createCategory">
             {{ categorySubmitLabel }}
           </button>
@@ -519,10 +726,20 @@
       <section class="document-viewer">
         <header>
           <div>
-            <p>{{ documentTypeLabel(viewerType) }} <span v-if="viewerVersionSummary">· {{ viewerVersionSummary }}</span></p>
+            <p
+              >{{ documentTypeLabel(viewerType) }}
+              <span v-if="viewerVersionSummary">· {{ viewerVersionSummary }}</span></p
+            >
             <h2>{{ viewerDocument?.title || "文档详情" }}</h2>
           </div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeDocument">×</button>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            title="关闭"
+            @click="closeDocument"
+            >×</button
+          >
         </header>
 
         <p v-if="viewerLoading" class="library-empty">正在加载文档...</p>

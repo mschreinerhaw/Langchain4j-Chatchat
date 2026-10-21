@@ -36,8 +36,4 @@
 
 <script src="../scripts/components/AuditCleanupDialog.js"></script>
 
-<style scoped>
-.audit-cleanup-warning {
-  margin-bottom: 18px;
-}
-</style>
+<style scoped src="../styles/components/audit-cleanup-dialog.css"></style>

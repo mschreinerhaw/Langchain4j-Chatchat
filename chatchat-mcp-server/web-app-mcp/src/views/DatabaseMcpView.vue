@@ -13,12 +13,15 @@
         <div class="panel-heading">
           <div>
             <h2>{{ pageTitle }}</h2>
-            <p v-if="section === 'queries'">父模板 {{ parentTemplateName }} 默认不发布。通过“子模板发布”继承，限定角色、用户及可用查询模板。</p>
+            <p v-if="section === 'queries'"
+              >父模板
+              {{ parentTemplateName }}
+              默认不发布。通过“子模板发布”继承，限定角色、用户及可用查询模板。</p
+            >
             <p v-else>沿用原有交易日历和批量导入配置流程。</p>
           </div>
         </div>
       </template>
-
     </el-card>
 
     <CrudCatalog
@@ -32,7 +35,20 @@
       :query-sources="querySources"
       :query-family="queryFamily"
       :defaults="defaults"
-      :searchable-fields="['toolName', 'title', 'capabilityCategory', 'businessGroupName', 'domain', 'businessScope', 'description', 'implementationSteps', 'tags', 'indexTags', 'sqlSteps', 'datasourceId']"
+      :searchable-fields="[
+        'toolName',
+        'title',
+        'capabilityCategory',
+        'businessGroupName',
+        'domain',
+        'businessScope',
+        'description',
+        'implementationSteps',
+        'tags',
+        'indexTags',
+        'sqlSteps',
+        'datasourceId',
+      ]"
       :list-action="listQueries"
       :save-action="api.save"
       :remove-action="api.remove"
@@ -58,9 +74,15 @@
           <p>用于 trade_date 等动态日期参数解析。</p>
         </div>
         <div class="panel-actions">
-          <el-button plain size="small" :disabled="busy" @click="loadTradingCalendar">刷新</el-button>
-          <el-button plain type="primary" size="small" :disabled="busy" @click="testCalendar">测试查询</el-button>
-          <el-button type="primary" size="small" :disabled="busy" @click="saveCalendar">保存</el-button>
+          <el-button plain size="small" :disabled="busy" @click="loadTradingCalendar"
+            >刷新</el-button
+          >
+          <el-button plain type="primary" size="small" :disabled="busy" @click="testCalendar"
+            >测试查询</el-button
+          >
+          <el-button type="primary" size="small" :disabled="busy" @click="saveCalendar"
+            >保存</el-button
+          >
         </div>
       </header>
       <el-row :gutter="12" class="database-calendar-form">
@@ -88,8 +110,17 @@
         </el-col>
         <el-col :xs="24">
           <label class="form-label">日历 SQL</label>
-          <el-input v-model="calendar.sqlTemplate" class="codebox" type="textarea" :rows="5" spellcheck="false" @input="resetCalendarFunctionTestState" />
-          <p class="field-help">SQL 必须返回两列：自然日 yyyyMMdd 和交易日 yyyyMMdd；只允许 SELECT。</p>
+          <el-input
+            v-model="calendar.sqlTemplate"
+            class="codebox"
+            type="textarea"
+            :rows="5"
+            spellcheck="false"
+            @input="resetCalendarFunctionTestState"
+          />
+          <p class="field-help"
+            >SQL 必须返回两列：自然日 yyyyMMdd 和交易日 yyyyMMdd；只允许 SELECT。</p
+          >
         </el-col>
         <el-col :xs="24" :md="10">
           <label class="form-label">动态日期函数</label>
@@ -107,10 +138,20 @@
               :value="option.value"
             />
           </el-select>
-          <el-button plain :disabled="busy || !calendarQueryTestPassed" @click="testCalendarFunction">测试函数</el-button>
+          <el-button
+            plain
+            :disabled="busy || !calendarQueryTestPassed"
+            @click="testCalendarFunction"
+            >测试函数</el-button
+          >
         </el-col>
         <el-col v-if="false" :xs="24" :md="6" class="form-action-col">
-          <el-button plain :disabled="busy || !calendarQueryTestPassed" @click="testCalendarFunction">测试函数</el-button>
+          <el-button
+            plain
+            :disabled="busy || !calendarQueryTestPassed"
+            @click="testCalendarFunction"
+            >测试函数</el-button
+          >
         </el-col>
       </el-row>
     </section>

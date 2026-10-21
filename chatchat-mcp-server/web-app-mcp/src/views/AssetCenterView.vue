@@ -8,10 +8,26 @@
             <p>服务器、数据库和 API 网关资产会自动发布为 MCP Tool。</p>
           </div>
           <div class="panel-actions">
-            <el-button plain :loading="busyAction === 'ops'" @click="refreshOpsTools">刷新运维/API网关工具</el-button>
-            <el-button plain :loading="busyAction === 'sql'" @click="refreshSqlTools">刷新数据库工具</el-button>
-            <el-button plain type="primary" :loading="busyAction === 'asset-index'" @click="openAssetIndexRebuild">重建资产索引</el-button>
-            <el-button plain type="primary" :loading="busyAction === 'template-index'" @click="rebuildTemplateIndex">重建模板索引</el-button>
+            <el-button plain :loading="busyAction === 'ops'" @click="refreshOpsTools"
+              >刷新运维/API网关工具</el-button
+            >
+            <el-button plain :loading="busyAction === 'sql'" @click="refreshSqlTools"
+              >刷新数据库工具</el-button
+            >
+            <el-button
+              plain
+              type="primary"
+              :loading="busyAction === 'asset-index'"
+              @click="openAssetIndexRebuild"
+              >重建资产索引</el-button
+            >
+            <el-button
+              plain
+              type="primary"
+              :loading="busyAction === 'template-index'"
+              @click="rebuildTemplateIndex"
+              >重建模板索引</el-button
+            >
           </div>
         </div>
       </template>
@@ -35,7 +51,16 @@
       :form-fields="sshFields"
       :defaults="sshDefaults"
       :list-filters="assetEnabledListFilters"
-      :searchable-fields="['name', 'toolName', 'title', 'description', 'hostname', 'username', 'environment', 'tags']"
+      :searchable-fields="[
+        'name',
+        'toolName',
+        'title',
+        'description',
+        'hostname',
+        'username',
+        'environment',
+        'tags',
+      ]"
       :list-action="api.listSsh"
       :save-action="api.saveSsh"
       :remove-action="api.deleteSsh"
@@ -60,7 +85,16 @@
       :form-fields="sqlFields"
       :defaults="sqlDefaults"
       :list-filters="assetEnabledListFilters"
-      :searchable-fields="['name', 'toolName', 'title', 'description', 'jdbcUrl', 'username', 'databaseType', 'environment']"
+      :searchable-fields="[
+        'name',
+        'toolName',
+        'title',
+        'description',
+        'jdbcUrl',
+        'username',
+        'databaseType',
+        'environment',
+      ]"
       :list-action="api.listSql"
       :save-action="api.saveSql"
       :remove-action="api.deleteSql"
@@ -87,7 +121,18 @@
       :defaults="httpDefaults"
       :list-filters="httpListFilters"
       stacked-header-actions
-      :searchable-fields="['name', 'toolName', 'title', 'description', 'urlTemplate', 'environment', 'method', 'technicalType', 'category', 'tags']"
+      :searchable-fields="[
+        'name',
+        'toolName',
+        'title',
+        'description',
+        'urlTemplate',
+        'environment',
+        'method',
+        'technicalType',
+        'category',
+        'tags',
+      ]"
       :list-action="api.listHttp"
       :save-action="api.saveHttp"
       :remove-action="api.deleteHttp"
@@ -102,14 +147,20 @@
       @result="$emit('result', $event)"
     />
 
-    <section v-if="visitedTabs.includes('templates')" v-show="activeTab === 'templates'" class="workspace-panel">
+    <section
+      v-if="visitedTabs.includes('templates')"
+      v-show="activeTab === 'templates'"
+      class="workspace-panel"
+    >
       <header class="panel-heading">
         <div>
           <h2>执行模板</h2>
           <p>统一维护 SSH 命令模板、SQL 运维模板和 JMX 协议监控模板。</p>
         </div>
         <div class="panel-actions">
-          <el-button plain :loading="busyAction === 'template-index'" @click="rebuildTemplateIndex">重建模板索引</el-button>
+          <el-button plain :loading="busyAction === 'template-index'" @click="rebuildTemplateIndex"
+            >重建模板索引</el-button
+          >
           <el-button type="primary" plain @click="openTemplateImport">导入模板</el-button>
         </div>
       </header>
@@ -126,19 +177,26 @@
             :form-fields="commandTemplateFields"
             :defaults="commandTemplateDefaults"
             :list-filters="commandTemplateListFilters"
-            :searchable-fields="['code', 'title', 'description', 'category', 'riskLevel', 'intentSignalsJson']"
+            :searchable-fields="[
+              'code',
+              'title',
+              'description',
+              'category',
+              'riskLevel',
+              'intentSignalsJson',
+            ]"
             :list-action="api.listCommandTemplates"
             :initial-items="sshCommandTemplates"
             :load-on-mount="false"
             :save-action="api.saveCommandTemplate"
-              :remove-action="api.deleteCommandTemplate"
-              :rebuild-action="api.rebuildSelectedCommandTemplateIndexes"
-              rebuild-requires-selection
-              rebuild-label="重建模板索引"
-              @loaded="sshCommandTemplates = $event"
-              @notify="$emit('notify', $event)"
-              @error="$emit('error', $event)"
-            />
+            :remove-action="api.deleteCommandTemplate"
+            :rebuild-action="api.rebuildSelectedCommandTemplateIndexes"
+            rebuild-requires-selection
+            rebuild-label="重建模板索引"
+            @loaded="sshCommandTemplates = $event"
+            @notify="$emit('notify', $event)"
+            @error="$emit('error', $event)"
+          />
         </el-tab-pane>
         <el-tab-pane label="SQL 运维模板" name="sql-template" lazy>
           <CrudCatalog
@@ -151,7 +209,15 @@
             :form-fields="sqlTemplateFields"
             :defaults="sqlTemplateDefaults"
             :list-filters="sqlTemplateListFilters"
-            :searchable-fields="['code', 'title', 'description', 'category', 'databaseType', 'datasourceId', 'intentSignalsJson']"
+            :searchable-fields="[
+              'code',
+              'title',
+              'description',
+              'category',
+              'databaseType',
+              'datasourceId',
+              'intentSignalsJson',
+            ]"
             :list-action="api.listSqlTemplates"
             :initial-items="sqlOpsTemplates"
             :load-on-mount="false"
@@ -176,7 +242,14 @@
             :form-fields="jmxTemplateFields"
             :defaults="jmxTemplateDefaults"
             :list-filters="jmxTemplateListFilters"
-            :searchable-fields="['code', 'title', 'description', 'serviceUrl', 'category', 'intentSignalsJson']"
+            :searchable-fields="[
+              'code',
+              'title',
+              'description',
+              'serviceUrl',
+              'category',
+              'intentSignalsJson',
+            ]"
             :list-action="api.listJmxTemplates"
             :save-action="api.saveJmxTemplate"
             :remove-action="api.deleteJmxTemplate"
@@ -194,7 +267,11 @@
       </el-tabs>
     </section>
 
-    <section v-if="visitedTabs.includes('index-search')" v-show="activeTab === 'index-search'" class="workspace-panel">
+    <section
+      v-if="visitedTabs.includes('index-search')"
+      v-show="activeTab === 'index-search'"
+      class="workspace-panel"
+    >
       <header class="panel-heading">
         <div>
           <h2>索引检索测试</h2>
@@ -218,7 +295,12 @@
           <el-col :xs="24" :md="8" :lg="4">
             <el-form-item label="索引">
               <el-select v-model="search.indexType" class="w-100">
-                <el-option v-for="option in searchIndexOptions" :key="option.value" :label="option.label" :value="option.value" />
+                <el-option
+                  v-for="option in searchIndexOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
               </el-select>
             </el-form-item>
           </el-col>
@@ -228,13 +310,21 @@
             </el-form-item>
           </el-col>
           <el-col :xs="24" :md="8" :lg="4">
-            <el-form-item :label="search.indexType === 'datasource_metadata' ? '对象名 / 路径' : '表名'">
-              <el-input v-model.trim="search.tableName" placeholder="表、节点标签、关系类型或索引" />
+            <el-form-item
+              :label="search.indexType === 'datasource_metadata' ? '对象名 / 路径' : '表名'"
+            >
+              <el-input
+                v-model.trim="search.tableName"
+                placeholder="表、节点标签、关系类型或索引"
+              />
             </el-form-item>
           </el-col>
           <el-col :xs="24" :md="8" :lg="4">
             <el-form-item label="命名空间">
-              <el-input v-model.trim="search.database" placeholder="库、Catalog.Schema、Database 或索引" />
+              <el-input
+                v-model.trim="search.database"
+                placeholder="库、Catalog.Schema、Database 或索引"
+              />
             </el-form-item>
           </el-col>
           <el-col :xs="24" :md="8" :lg="5">
@@ -258,7 +348,12 @@
             <el-form-item label="环境">
               <el-select v-model="search.env" class="w-100">
                 <el-option label="全部" value="" />
-                <el-option v-for="option in environmentOptions" :key="option.value" :label="option.label" :value="option.value" />
+                <el-option
+                  v-for="option in environmentOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
               </el-select>
             </el-form-item>
           </el-col>
@@ -266,7 +361,12 @@
             <el-form-item label="数据库类型">
               <el-select v-model="search.databaseType" class="w-100" filterable>
                 <el-option label="全部" value="" />
-                <el-option v-for="option in databaseTypeOptions" :key="option.value" :label="option.label" :value="option.value" />
+                <el-option
+                  v-for="option in databaseTypeOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
               </el-select>
             </el-form-item>
           </el-col>
@@ -300,7 +400,13 @@
           </el-col>
           <el-col :xs="24" :md="8" :lg="4">
             <el-form-item label="Limit">
-              <el-input-number v-model="search.limit" class="w-100" :min="1" :max="50" controls-position="right" />
+              <el-input-number
+                v-model="search.limit"
+                class="w-100"
+                :min="1"
+                :max="50"
+                controls-position="right"
+              />
             </el-form-item>
           </el-col>
           <el-col :xs="24" :md="8" :lg="4">
@@ -319,7 +425,13 @@
         </el-row>
       </el-form>
 
-      <el-table v-if="searchRows.length && search.indexType === 'news'" class="settings-table" :data="searchRows" border stripe>
+      <el-table
+        v-if="searchRows.length && search.indexType === 'news'"
+        class="settings-table"
+        :data="searchRows"
+        border
+        stripe
+      >
         <el-table-column prop="title" label="标题" min-width="240" />
         <el-table-column prop="sourceName" label="来源" min-width="140" />
         <el-table-column prop="url" label="证据地址" min-width="280" show-overflow-tooltip />
@@ -336,28 +448,63 @@
       >
         <el-table-column prop="metadataType" label="类型" width="150" />
         <el-table-column prop="name" label="中文名称" min-width="180" />
-        <el-table-column prop="technicalName" label="技术名称" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="scenarioNames" label="业务场景" min-width="180" show-overflow-tooltip />
+        <el-table-column
+          prop="technicalName"
+          label="技术名称"
+          min-width="180"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="scenarioNames"
+          label="业务场景"
+          min-width="180"
+          show-overflow-tooltip
+        />
         <el-table-column prop="dataType" label="数据类型" width="110" />
         <el-table-column prop="retrievalMode" label="召回方式" width="150" />
         <el-table-column prop="status" label="状态" width="90" />
         <el-table-column prop="score" label="分数" width="100" />
-        <el-table-column prop="description" label="标准说明" min-width="240" show-overflow-tooltip />
+        <el-table-column
+          prop="description"
+          label="标准说明"
+          min-width="240"
+          show-overflow-tooltip
+        />
         <el-table-column prop="source" label="来源" min-width="240" show-overflow-tooltip />
       </el-table>
-      <el-table v-else-if="searchRows.length" class="settings-table" :data="searchRows" border stripe>
+      <el-table
+        v-else-if="searchRows.length"
+        class="settings-table"
+        :data="searchRows"
+        border
+        stripe
+      >
         <el-table-column prop="kind" label="类型" width="100" />
         <el-table-column prop="name" label="名称" min-width="180" />
         <el-table-column prop="assetType" label="资产类型" min-width="140" />
-        <el-table-column :prop="search.indexType === 'datasource_metadata' ? 'namespace' : 'database'" label="命名空间" min-width="130" />
-        <el-table-column :prop="search.indexType === 'datasource_metadata' ? 'qualifiedName' : 'table'" label="对象路径" min-width="150" />
+        <el-table-column
+          :prop="search.indexType === 'datasource_metadata' ? 'namespace' : 'database'"
+          label="命名空间"
+          min-width="130"
+        />
+        <el-table-column
+          :prop="search.indexType === 'datasource_metadata' ? 'qualifiedName' : 'table'"
+          label="对象路径"
+          min-width="150"
+        />
         <el-table-column prop="score" label="分数" width="100" />
         <el-table-column prop="description" label="描述" min-width="220" />
       </el-table>
       <pre v-if="searchResult" class="json-block mt-3"><code>{{ searchResult }}</code></pre>
     </section>
 
-    <ModalPanel :open="templateImportOpen" title="导入模板" subtitle="粘贴模板 DSL，先验证再导入。" wide @close="templateImportOpen = false">
+    <ModalPanel
+      :open="templateImportOpen"
+      title="导入模板"
+      subtitle="粘贴模板 DSL，先验证再导入。"
+      wide
+      @close="templateImportOpen = false"
+    >
       <el-form class="entity-form" label-position="top" @submit.prevent="validateTemplateDsl">
         <el-form-item label="模板类型">
           <el-select v-model="templateImport.templateType" class="w-100">
@@ -367,28 +514,59 @@
           </el-select>
         </el-form-item>
         <el-form-item label="模板 DSL">
-          <el-input v-model="templateImport.dsl" class="codebox" type="textarea" :rows="14" spellcheck="false" />
+          <el-input
+            v-model="templateImport.dsl"
+            class="codebox"
+            type="textarea"
+            :rows="14"
+            spellcheck="false"
+          />
         </el-form-item>
       </el-form>
-      <pre v-if="templateImportResult" class="json-block"><code>{{ templateImportResult }}</code></pre>
+      <pre
+        v-if="templateImportResult"
+        class="json-block"
+      ><code>{{ templateImportResult }}</code></pre>
       <template #footer>
         <el-button @click="templateImportOpen = false">取消</el-button>
-        <el-button plain :loading="busyAction === 'template-validate'" @click="validateTemplateDsl">验证</el-button>
-        <el-button type="primary" :loading="busyAction === 'template-import'" @click="importTemplateDsl">导入</el-button>
+        <el-button plain :loading="busyAction === 'template-validate'" @click="validateTemplateDsl"
+          >验证</el-button
+        >
+        <el-button
+          type="primary"
+          :loading="busyAction === 'template-import'"
+          @click="importTemplateDsl"
+          >导入</el-button
+        >
       </template>
     </ModalPanel>
 
-    <ModalPanel :open="assetIndexRebuildOpen" title="重建资产索引" subtitle="选择要重建的资产索引范围。" @close="assetIndexRebuildOpen = false">
+    <ModalPanel
+      :open="assetIndexRebuildOpen"
+      title="重建资产索引"
+      subtitle="选择要重建的资产索引范围。"
+      @close="assetIndexRebuildOpen = false"
+    >
       <el-form class="entity-form" label-position="top" @submit.prevent="submitAssetIndexRebuild">
         <el-form-item label="重建类型">
           <el-select v-model="assetIndexRebuildType" class="w-100">
-            <el-option v-for="option in assetIndexRebuildOptions" :key="option.value" :label="option.label" :value="option.value" />
+            <el-option
+              v-for="option in assetIndexRebuildOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
           </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="assetIndexRebuildOpen = false">取消</el-button>
-        <el-button type="primary" :loading="busyAction === 'asset-index'" @click="submitAssetIndexRebuild">重建</el-button>
+        <el-button
+          type="primary"
+          :loading="busyAction === 'asset-index'"
+          @click="submitAssetIndexRebuild"
+          >重建</el-button
+        >
       </template>
     </ModalPanel>
   </div>

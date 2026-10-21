@@ -1,0 +1,39 @@
+.studio-code-plan {
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid #dbe5f5;
+  border-radius: 9px;
+  background: #f7faff;
+  color: #334764;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.studio-code-plan header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.studio-code-plan header span,
+.studio-code-plan small {
+  color: #72829a;
+  font-size: 11px;
+}
+.studio-code-plan p {
+  margin: 8px 0;
+}
+.studio-code-plan ol,
+.studio-code-plan ul {
+  padding-left: 20px;
+  margin: 6px 0;
+}
+.studio-code-plan li + li {
+  margin-top: 4px;
+}
+.studio-code-plan small {
+  display: block;
+  margin-top: 8px;
+}
+.studio-code-plan summary {
+  cursor: pointer;
+}

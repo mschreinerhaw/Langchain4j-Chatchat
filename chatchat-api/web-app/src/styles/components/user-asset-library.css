@@ -1,0 +1,53 @@
+.user-asset-library {
+  margin: 12px;
+  padding: 16px;
+  background: var(--panel-bg, #fff);
+  border: 1px solid #dce3eb;
+  border-radius: 10px;
+  color: #243447;
+}
+.user-asset-library summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.asset-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.user-asset-library ul {
+  max-height: 300px;
+  overflow: auto;
+  padding: 0;
+  list-style: none;
+}
+.user-asset-library li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+.user-asset-library li label {
+  flex: 1;
+}
+.user-asset-library textarea {
+  display: block;
+  width: 100%;
+  min-height: 80px;
+  margin: 8px 0;
+}
+.asset-report {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 600px;
+  overflow: auto;
+  font: inherit;
+}
+.user-asset-library button {
+  cursor: pointer;
+  padding: 6px 10px;
+}
+.user-asset-library [role="alert"] {
+  color: #a12929;
+}

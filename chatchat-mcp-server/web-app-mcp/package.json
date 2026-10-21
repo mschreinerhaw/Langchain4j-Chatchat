@@ -4,8 +4,11 @@
   "private": true,
   "scripts": {
     "serve": "vite --host 0.0.0.0 --port 5178",
-    "build": "vite build",
-    "postbuild": "node scripts/sync-admin-static.js"
+    "build": "npm run check:vue-structure && vite build",
+    "postbuild": "node scripts/sync-admin-static.js",
+    "check:vue-structure": "node ../../scripts/check-vue-structure.mjs .",
+    "format:vue": "prettier --write \"src/**/*.vue\"",
+    "format:vue:check": "prettier --check \"src/**/*.vue\""
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
@@ -17,6 +20,7 @@
     "@vitejs/plugin-vue": "^6.0.1",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.5.23",
+    "prettier": "3.6.2",
     "tailwindcss": "^3.4.19",
     "vite": "^7.3.1"
   },

@@ -18,11 +18,23 @@
           <Plus :size="15" stroke-width="2" />
           <span>创建规则</span>
         </button>
-        <button type="button" class="light-button" :disabled="rulesLoading" title="发布全部规则" @click="publishAllRules">
+        <button
+          type="button"
+          class="light-button"
+          :disabled="rulesLoading"
+          title="发布全部规则"
+          @click="publishAllRules"
+        >
           <Send :size="14" stroke-width="2" />
           <span>发布全部</span>
         </button>
-        <button type="button" class="light-button" :disabled="rulesLoading" title="刷新规则缓存" @click="refreshRules">
+        <button
+          type="button"
+          class="light-button"
+          :disabled="rulesLoading"
+          title="刷新规则缓存"
+          @click="refreshRules"
+        >
           <RefreshCw :size="14" stroke-width="2" />
           <span>刷新</span>
         </button>
@@ -88,25 +100,33 @@
               <GripVertical class="row-grip" :size="16" stroke-width="2" />
               <div class="row-main">
                 <h2>{{ row.title }}</h2>
-                <p>{{ row.detailLabel }}: <span>{{ row.detail }}</span></p>
-                <small>优先级：{{ row.priority }} <i></i> 创建时间：{{ formatDateTime(row.createdAt) }}</small>
+                <p
+                  >{{ row.detailLabel }}: <span>{{ row.detail }}</span></p
+                >
+                <small
+                  >优先级：{{ row.priority }} <i></i> 创建时间：{{
+                    formatDateTime(row.createdAt)
+                  }}</small
+                >
               </div>
               <span :class="['row-status', row.statusClass]">
                 {{ row.statusText }}
               </span>
               <div class="row-actions">
-              <button type="button" title="编辑规则" @click="openEditRule(row.kind, row.raw)">
-                <Pencil :size="16" stroke-width="2" />
-              </button>
-              <button
-                type="button"
-                :disabled="row.kind === 'lexicon' && row.raw.builtin"
-                :title="row.kind === 'lexicon' && row.raw.builtin ? '默认词库条目不能删除' : '删除规则'"
-                @click="deleteRule(row.kind, row.raw)"
-              >
-                <Trash2 :size="16" stroke-width="2" />
-              </button>
-            </div>
+                <button type="button" title="编辑规则" @click="openEditRule(row.kind, row.raw)">
+                  <Pencil :size="16" stroke-width="2" />
+                </button>
+                <button
+                  type="button"
+                  :disabled="row.kind === 'lexicon' && row.raw.builtin"
+                  :title="
+                    row.kind === 'lexicon' && row.raw.builtin ? '默认词库条目不能删除' : '删除规则'
+                  "
+                  @click="deleteRule(row.kind, row.raw)"
+                >
+                  <Trash2 :size="16" stroke-width="2" />
+                </button>
+              </div>
             </article>
 
             <p v-if="!rulesLoading && pagedRuleRows.length === 0" class="agent-runtime-empty">
@@ -115,13 +135,26 @@
           </div>
 
           <footer class="keyword-rule-pagination">
-            <span>显示第 {{ paginationStart }}-{{ paginationEnd }} 条，共 {{ filteredRuleRows.length }} 条</span>
+            <span
+              >显示第 {{ paginationStart }}-{{ paginationEnd }} 条，共
+              {{ filteredRuleRows.length }} 条</span
+            >
             <div>
-              <button type="button" title="上一页" :disabled="currentPage <= 1" @click="currentPage -= 1">
+              <button
+                type="button"
+                title="上一页"
+                :disabled="currentPage <= 1"
+                @click="currentPage -= 1"
+              >
                 <ChevronLeft :size="16" stroke-width="2" />
               </button>
               <strong>{{ currentPage }}</strong>
-              <button type="button" title="下一页" :disabled="currentPage >= totalPages" @click="currentPage += 1">
+              <button
+                type="button"
+                title="下一页"
+                :disabled="currentPage >= totalPages"
+                @click="currentPage += 1"
+              >
                 <ChevronRight :size="16" stroke-width="2" />
               </button>
               <select v-model.number="pageSize" title="每页条数">
@@ -140,12 +173,19 @@
             <h2>关键词词频 <Info :size="13" stroke-width="2" /></h2>
           </header>
           <div class="signal-list">
-            <div v-for="item in topKeywordFrequencies" :key="item.key" class="signal-row" :title="item.types">
+            <div
+              v-for="item in topKeywordFrequencies"
+              :key="item.key"
+              class="signal-row"
+              :title="item.types"
+            >
               <span>{{ item.label }}</span>
               <i><b :style="{ width: item.ratio + '%' }"></b></i>
               <strong>{{ formatCount(item.value) }}</strong>
             </div>
-            <p v-if="!topKeywordFrequencies.length" class="agent-runtime-empty">暂无已发布关键词。</p>
+            <p v-if="!topKeywordFrequencies.length" class="agent-runtime-empty"
+              >暂无已发布关键词。</p
+            >
           </div>
         </article>
 
@@ -208,7 +248,13 @@
             <p>规则编辑器</p>
             <h2>{{ ruleDialogTitle }}</h2>
           </div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeRuleDialog">
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            title="关闭"
+            @click="closeRuleDialog"
+          >
             <X :size="18" stroke-width="2" />
           </button>
         </header>
@@ -216,7 +262,11 @@
         <section class="keyword-rule-modal-body">
           <label>
             <span>规则类型</span>
-            <select v-model="ruleDialogKind" :disabled="!!currentRuleForm.id" @change="resetRuleForm(ruleDialogKind)">
+            <select
+              v-model="ruleDialogKind"
+              :disabled="!!currentRuleForm.id"
+              @change="resetRuleForm(ruleDialogKind)"
+            >
               <option value="intent">意图规则</option>
               <option value="expand">扩展规则</option>
               <option value="chunk">分片规则</option>
@@ -235,11 +285,19 @@
             </label>
             <label class="wide">
               <span>关键词</span>
-              <textarea v-model.trim="ruleForms.intent.keywords" rows="4" placeholder="错误, 失败, 超时"></textarea>
+              <textarea
+                v-model.trim="ruleForms.intent.keywords"
+                rows="4"
+                placeholder="错误, 失败, 超时"
+              ></textarea>
             </label>
             <label class="wide">
               <span>正则表达式</span>
-              <input v-model.trim="ruleForms.intent.regex" type="text" placeholder=".*(error|exception|fail).*" />
+              <input
+                v-model.trim="ruleForms.intent.regex"
+                type="text"
+                placeholder=".*(error|exception|fail).*"
+              />
             </label>
           </template>
 
@@ -250,11 +308,19 @@
             </label>
             <label class="wide">
               <span>关键词</span>
-              <textarea v-model.trim="ruleForms.chunk.keywords" rows="4" placeholder="故障, 重试, 根因"></textarea>
+              <textarea
+                v-model.trim="ruleForms.chunk.keywords"
+                rows="4"
+                placeholder="故障, 重试, 根因"
+              ></textarea>
             </label>
             <label class="wide">
               <span>正则表达式</span>
-              <input v-model.trim="ruleForms.chunk.pattern" type="text" placeholder="\\b(ERROR|WARN)\\b" />
+              <input
+                v-model.trim="ruleForms.chunk.pattern"
+                type="text"
+                placeholder="\\b(ERROR|WARN)\\b"
+              />
             </label>
           </template>
 
@@ -285,7 +351,11 @@
             </label>
             <label class="wide">
               <span>别名</span>
-              <textarea v-model.trim="ruleForms.lexicon.aliases" rows="4" placeholder="收入, 销售额, 营业额"></textarea>
+              <textarea
+                v-model.trim="ruleForms.lexicon.aliases"
+                rows="4"
+                placeholder="收入, 销售额, 营业额"
+              ></textarea>
             </label>
           </template>
 
@@ -300,7 +370,11 @@
             </label>
             <label class="wide">
               <span>扩展词</span>
-              <textarea v-model.trim="ruleForms.expand.expandWords" rows="4" placeholder="认证, 登录, 访问"></textarea>
+              <textarea
+                v-model.trim="ruleForms.expand.expandWords"
+                rows="4"
+                placeholder="认证, 登录, 访问"
+              ></textarea>
             </label>
           </template>
 

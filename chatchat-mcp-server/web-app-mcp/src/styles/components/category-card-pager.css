@@ -1,0 +1,45 @@
+.category-card-pager {
+  min-width: 0;
+}
+
+.capability-category-grid {
+  grid-template-columns: repeat(var(--category-columns), minmax(0, 1fr));
+}
+
+.capability-category-card {
+  min-width: 0;
+  align-content: start;
+}
+
+.capability-category-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capability-category-card small {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.category-card-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  min-height: 40px;
+  padding-top: 10px;
+  color: #667085;
+  font-size: 13px;
+}
+
+@media (max-width: 560px) {
+  .category-card-pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

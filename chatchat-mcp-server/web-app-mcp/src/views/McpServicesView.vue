@@ -40,17 +40,42 @@
     </el-tab-pane>
   </el-tabs>
 
-  <el-dialog v-model="templatesOpen" :title="`${selectedService?.name || ''} · 工具模板`" width="min(900px, 94vw)">
-    <p>归属父类：{{ parentTitle(selectedService?.parentToolName) }} · 执行工作流：{{ selectedService?.workflowId }}</p>
-    <el-table :data="selectedService?.templates || []" border stripe empty-text="尚未发现工具，请先点击“发现工具”">
+  <el-dialog
+    v-model="templatesOpen"
+    :title="`${selectedService?.name || ''} · 工具模板`"
+    width="min(900px, 94vw)"
+  >
+    <p
+      >归属父类：{{ parentTitle(selectedService?.parentToolName) }} · 执行工作流：{{
+        selectedService?.workflowId
+      }}</p
+    >
+    <el-table
+      :data="selectedService?.templates || []"
+      border
+      stripe
+      empty-text="尚未发现工具，请先点击“发现工具”"
+    >
       <el-table-column prop="title" label="模板名称" min-width="170" />
       <el-table-column prop="name" label="远端工具名" min-width="180" />
       <el-table-column prop="description" label="说明" min-width="220" show-overflow-tooltip />
       <el-table-column label="运行策略" width="110">
-        <template #default="{ row }"><el-tag :type="row.readOnly ? 'success' : 'warning'">{{ row.readOnly ? '只读可调用' : '不自动调用' }}</el-tag></template>
+        <template #default="{ row }"
+          ><el-tag :type="row.readOnly ? 'success' : 'warning'">{{
+            row.readOnly ? "只读可调用" : "不自动调用"
+          }}</el-tag></template
+        >
       </el-table-column>
       <el-table-column label="操作" width="80">
-        <template #default="{ row }"><el-button link type="primary" :disabled="!selectedService?.enabled || !row.readOnly" @click="selectTemplate(row)">测试</el-button></template>
+        <template #default="{ row }"
+          ><el-button
+            link
+            type="primary"
+            :disabled="!selectedService?.enabled || !row.readOnly"
+            @click="selectTemplate(row)"
+            >测试</el-button
+          ></template
+        >
       </el-table-column>
     </el-table>
     <template v-if="selectedTemplate">
@@ -63,4 +88,3 @@
 </template>
 
 <script src="../scripts/views/McpServicesView.js"></script>
-

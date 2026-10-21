@@ -76,7 +76,12 @@
               >
                 token
               </button>
-              <button type="button" class="icon-button" title="编辑账户" @click="openUserModal(user)">
+              <button
+                type="button"
+                class="icon-button"
+                title="编辑账户"
+                @click="openUserModal(user)"
+              >
                 <Pencil :size="15" />
               </button>
               <button
@@ -94,7 +99,10 @@
         </div>
       </aside>
 
-      <aside v-else-if="activeManagementTab === 'organizations'" class="rbac-panel organization-panel system-tab-panel">
+      <aside
+        v-else-if="activeManagementTab === 'organizations'"
+        class="rbac-panel organization-panel system-tab-panel"
+      >
         <div class="panel-head">
           <div>
             <p>组织机构</p>
@@ -127,13 +135,18 @@
             <span>{{ org.parentId ? orgName(org.parentId) : "根组织" }}</span>
             <span>{{ org.level + 1 }}</span>
             <span>{{ orgUserCounts[org.id] || 0 }}</span>
-            <span><em :class="['status-pill', org.status]">{{ statusLabel(org.status) }}</em></span>
+            <span
+              ><em :class="['status-pill', org.status]">{{ statusLabel(org.status) }}</em></span
+            >
           </div>
           <div v-if="orgTree.length === 0" class="empty-state">暂无组织机构，请先同步组织</div>
         </div>
       </aside>
 
-      <aside v-else-if="activeManagementTab === 'roles'" class="rbac-panel role-panel system-tab-panel">
+      <aside
+        v-else-if="activeManagementTab === 'roles'"
+        class="rbac-panel role-panel system-tab-panel"
+      >
         <div class="panel-head">
           <div>
             <p>角色</p>
@@ -178,10 +191,20 @@
             <span>{{ role.id === selectedRoleId ? selectedAgentIds.length : "-" }}</span>
             <span>{{ role.id === selectedRoleId ? selectedUserIds.length : "-" }}</span>
             <span class="entity-row-actions">
-              <button type="button" class="icon-button" title="编辑角色" @click.stop="openRoleModal(role)">
+              <button
+                type="button"
+                class="icon-button"
+                title="编辑角色"
+                @click.stop="openRoleModal(role)"
+              >
                 <Pencil :size="15" />
               </button>
-              <button type="button" class="icon-button" title="删除角色" @click.stop="removeRole(role)">
+              <button
+                type="button"
+                class="icon-button"
+                title="删除角色"
+                @click.stop="removeRole(role)"
+              >
                 <Trash2 :size="15" />
               </button>
             </span>
@@ -209,7 +232,12 @@
             <h2>登录行为</h2>
           </div>
           <div class="mini-actions">
-            <button type="button" title="刷新登录审计" @click="searchLoginAuditLogs" :disabled="loading">
+            <button
+              type="button"
+              title="刷新登录审计"
+              @click="searchLoginAuditLogs"
+              :disabled="loading"
+            >
               <RefreshCw :size="14" />
               刷新
             </button>
@@ -240,7 +268,13 @@
             <option value="success">成功</option>
             <option value="failure">失败</option>
           </select>
-          <button type="button" class="ghost-button compact-button" @click="searchLoginAuditLogs" :disabled="loading">查询</button>
+          <button
+            type="button"
+            class="ghost-button compact-button"
+            @click="searchLoginAuditLogs"
+            :disabled="loading"
+            >查询</button
+          >
         </div>
 
         <div class="login-audit-table">
@@ -258,18 +292,30 @@
             <span :title="audit.loginTime">{{ audit.loginTime }}</span>
             <span
               class="login-audit-detail-cell"
-              :title="[audit.loginUser, audit.detailData.displayName || audit.actorId].filter(Boolean).join('\n')"
+              :title="
+                [audit.loginUser, audit.detailData.displayName || audit.actorId]
+                  .filter(Boolean)
+                  .join('\n')
+              "
             >
               <strong>{{ audit.loginUser }}</strong>
               <small>{{ audit.detailData.displayName || audit.actorId || "未识别账户" }}</small>
             </span>
-            <span class="login-audit-detail-cell" :title="audit.tenantName">{{ audit.tenantName }}</span>
-            <span class="login-audit-detail-cell" :title="audit.loginAction">{{ audit.loginAction }}</span>
+            <span class="login-audit-detail-cell" :title="audit.tenantName">{{
+              audit.tenantName
+            }}</span>
+            <span class="login-audit-detail-cell" :title="audit.loginAction">{{
+              audit.loginAction
+            }}</span>
             <span>
               <em :class="['status-pill', audit.result]">{{ audit.loginResult }}</em>
             </span>
-            <span class="login-audit-detail-cell" :title="audit.ipAddress">{{ audit.ipAddress }}</span>
-            <span class="login-audit-detail-cell" :title="audit.macAddress">{{ audit.macAddress }}</span>
+            <span class="login-audit-detail-cell" :title="audit.ipAddress">{{
+              audit.ipAddress
+            }}</span>
+            <span class="login-audit-detail-cell" :title="audit.macAddress">{{
+              audit.macAddress
+            }}</span>
             <span
               class="login-audit-detail-cell"
               :title="[audit.failureReason, audit.userAgent].filter(Boolean).join('\n')"
@@ -281,14 +327,22 @@
         </div>
 
         <nav class="login-audit-pagination" aria-label="登录审计分页">
-          <span>显示 {{ loginAuditPageStart }}-{{ loginAuditPageEnd }} 条，共 {{ loginAuditTotal }} 条</span>
+          <span
+            >显示 {{ loginAuditPageStart }}-{{ loginAuditPageEnd }} 条，共
+            {{ loginAuditTotal }} 条</span
+          >
           <select :value="loginAuditPageSize" @change="changeLoginAuditPageSize">
             <option :value="10">10 条/页</option>
             <option :value="20">20 条/页</option>
             <option :value="50">50 条/页</option>
             <option :value="100">100 条/页</option>
           </select>
-          <button type="button" :disabled="loginAuditPage <= 1 || loading" @click="changeLoginAuditPage(loginAuditPage - 1)">上一页</button>
+          <button
+            type="button"
+            :disabled="loginAuditPage <= 1 || loading"
+            @click="changeLoginAuditPage(loginAuditPage - 1)"
+            >上一页</button
+          >
           <button
             v-for="pageNumber in loginAuditPageButtons"
             :key="pageNumber"
@@ -299,10 +353,14 @@
           >
             {{ pageNumber }}
           </button>
-          <button type="button" :disabled="loginAuditPage >= loginAuditPageCount || loading" @click="changeLoginAuditPage(loginAuditPage + 1)">下一页</button>
+          <button
+            type="button"
+            :disabled="loginAuditPage >= loginAuditPageCount || loading"
+            @click="changeLoginAuditPage(loginAuditPage + 1)"
+            >下一页</button
+          >
         </nav>
       </aside>
-
     </div>
 
     <Teleport to="body">
@@ -313,7 +371,13 @@
               <p>组织档案</p>
               <h2>{{ orgForm.id ? "编辑组织" : "新增组织" }}</h2>
             </div>
-            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeOrgModal">
+            <button
+              type="button"
+              class="app-dialog-close"
+              aria-label="关闭"
+              title="关闭"
+              @click="closeOrgModal"
+            >
               <X :size="18" />
             </button>
           </div>
@@ -371,7 +435,13 @@
               <p>账户档案</p>
               <h2>{{ userForm.id ? "编辑账户" : "新增账户" }}</h2>
             </div>
-            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeUserModal">
+            <button
+              type="button"
+              class="app-dialog-close"
+              aria-label="关闭"
+              title="关闭"
+              @click="closeUserModal"
+            >
               <X :size="18" />
             </button>
           </div>
@@ -387,14 +457,20 @@
             </label>
             <label>
               <span>密码</span>
-              <input v-model="userForm.password" type="password" :placeholder="userForm.id ? '留空不修改' : '默认 123456'" />
+              <input
+                v-model="userForm.password"
+                type="password"
+                :placeholder="userForm.id ? '留空不修改' : '默认 123456'"
+              />
             </label>
             <label>
               <span>所属组织</span>
               <select v-model="userForm.orgId">
                 <option value="">未分配组织</option>
                 <option v-for="org in selectableOrgTree" :key="org.id" :value="org.id">
-                  {{ `${"　".repeat(org.level)}${org.orgName}${org.status === "enabled" ? "" : "（已停用）"}` }}
+                  {{
+                    `${"　".repeat(org.level)}${org.orgName}${org.status === "enabled" ? "" : "（已停用）"}`
+                  }}
                 </option>
               </select>
             </label>
@@ -442,7 +518,13 @@
               <p>安全设置</p>
               <h2>修改 admin 密码</h2>
             </div>
-            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeAdminPasswordModal">
+            <button
+              type="button"
+              class="app-dialog-close"
+              aria-label="关闭"
+              title="关闭"
+              @click="closeAdminPasswordModal"
+            >
               <X :size="18" />
             </button>
           </div>
@@ -450,20 +532,34 @@
           <div class="entity-form modal-entity-form">
             <label class="full-span">
               <span>当前密码</span>
-              <input v-model="adminPasswordForm.currentPassword" type="password" autocomplete="current-password" />
+              <input
+                v-model="adminPasswordForm.currentPassword"
+                type="password"
+                autocomplete="current-password"
+              />
             </label>
             <label>
               <span>新密码</span>
-              <input v-model="adminPasswordForm.newPassword" type="password" autocomplete="new-password" />
+              <input
+                v-model="adminPasswordForm.newPassword"
+                type="password"
+                autocomplete="new-password"
+              />
             </label>
             <label>
               <span>确认新密码</span>
-              <input v-model="adminPasswordForm.confirmPassword" type="password" autocomplete="new-password" />
+              <input
+                v-model="adminPasswordForm.confirmPassword"
+                type="password"
+                autocomplete="new-password"
+              />
             </label>
           </div>
 
           <div class="modal-actions">
-            <button type="button" class="ghost-button" @click="closeAdminPasswordModal">取消</button>
+            <button type="button" class="ghost-button" @click="closeAdminPasswordModal"
+              >取消</button
+            >
             <button type="submit" class="primary-button" :disabled="savingAdminPassword">
               <Save :size="16" />
               <span>保存新密码</span>
@@ -483,13 +579,21 @@
                 <span>为应用和自动化服务创建安全访问凭证</span>
               </div>
             </div>
-            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeApiTokenModal">
+            <button
+              type="button"
+              class="app-dialog-close"
+              aria-label="关闭"
+              title="关闭"
+              @click="closeApiTokenModal"
+            >
               <X :size="18" />
             </button>
           </div>
 
           <div class="api-token-owner">
-            <span class="api-token-owner-avatar">{{ (apiTokenTargetUser?.displayName || apiTokenTargetUser?.username || "U").slice(0, 1) }}</span>
+            <span class="api-token-owner-avatar">{{
+              (apiTokenTargetUser?.displayName || apiTokenTargetUser?.username || "U").slice(0, 1)
+            }}</span>
             <span>
               <strong>{{ apiTokenTargetUser?.displayName }}</strong>
               <small>{{ apiTokenTargetUser?.username }} · 继承当前角色与 Agent 权限</small>
@@ -499,22 +603,39 @@
 
           <div class="api-token-create-card">
             <div class="api-token-section-title">
-              <span><strong>创建新令牌</strong><small>令牌生成后可立即用于已授权的 Agent API</small></span>
+              <span
+                ><strong>创建新令牌</strong
+                ><small>令牌生成后可立即用于已授权的 Agent API</small></span
+              >
             </div>
             <div class="api-token-create-form">
               <label>
                 <span>令牌名称</span>
-                <input v-model.trim="apiTokenName" type="text" maxlength="128" placeholder="例如：生产环境数据助手" />
+                <input
+                  v-model.trim="apiTokenName"
+                  type="text"
+                  maxlength="128"
+                  placeholder="例如：生产环境数据助手"
+                />
               </label>
               <label>
                 <span>有效期</span>
                 <select v-model.number="apiTokenDuration">
-                  <option v-for="option in apiTokenDurations" :key="option.value" :value="option.value">
+                  <option
+                    v-for="option in apiTokenDurations"
+                    :key="option.value"
+                    :value="option.value"
+                  >
                     {{ option.label }}
                   </option>
                 </select>
               </label>
-              <button type="button" class="primary-button api-token-create-button" :disabled="apiTokenSaving || !apiTokenName" @click="createApiToken">
+              <button
+                type="button"
+                class="primary-button api-token-create-button"
+                :disabled="apiTokenSaving || !apiTokenName"
+                @click="createApiToken"
+              >
                 <Plus :size="16" />
                 <span>{{ apiTokenSaving ? "处理中..." : "创建令牌" }}</span>
               </button>
@@ -528,7 +649,11 @@
               <small>出于安全考虑，关闭窗口后将无法再次查看完整令牌。</small>
               <code>{{ apiTokenLatestSecret }}</code>
             </span>
-            <button type="button" class="primary-button api-token-copy-button" @click="copyApiTokenSecret(apiTokenLatestSecret)">
+            <button
+              type="button"
+              class="primary-button api-token-copy-button"
+              @click="copyApiTokenSecret(apiTokenLatestSecret)"
+            >
               <Copy :size="14" />
               复制
             </button>
@@ -536,55 +661,60 @@
 
           <div class="api-token-list-section">
             <div class="api-token-section-title api-token-list-title">
-              <span><strong>已创建的令牌</strong><small>管理有效期、使用情况和访问状态</small></span>
+              <span
+                ><strong>已创建的令牌</strong><small>管理有效期、使用情况和访问状态</small></span
+              >
               <em>{{ apiTokens.length }} 个</em>
             </div>
             <div class="api-token-table">
-            <div class="api-token-head">
-              <span>名称 / Token</span>
-              <span>状态</span>
-              <span>有效期</span>
-              <span>最后使用</span>
-              <span>次数</span>
-              <span>操作</span>
-            </div>
-            <div v-for="token in apiTokens" :key="token.id" class="api-token-row">
-              <span class="api-token-name"><strong>{{ token.tokenName }}</strong><small>{{ token.tokenPreview }}</small></span>
-              <em :class="['status-pill', isApiTokenInactive(token) ? 'disabled' : '']">
-                {{ apiTokenStatusLabel(token) }}
-              </em>
-              <span>{{ apiTokenExpiryLabel(token) }}</span>
-              <span>{{ token.lastUsedAt ? formatDateTime(token.lastUsedAt) : "-" }}</span>
-              <span>{{ token.usedCount || 0 }}</span>
-              <span class="entity-row-actions">
-                <button
-                  type="button"
-                  class="api-token-action"
-                  title="重置令牌"
-                  :disabled="apiTokenSaving"
-                  @click="resetApiToken(token)"
+              <div class="api-token-head">
+                <span>名称 / Token</span>
+                <span>状态</span>
+                <span>有效期</span>
+                <span>最后使用</span>
+                <span>次数</span>
+                <span>操作</span>
+              </div>
+              <div v-for="token in apiTokens" :key="token.id" class="api-token-row">
+                <span class="api-token-name"
+                  ><strong>{{ token.tokenName }}</strong
+                  ><small>{{ token.tokenPreview }}</small></span
                 >
-                  <RotateCcw :size="15" />
-                  <span>重置</span>
-                </button>
-                <button
-                  type="button"
-                  class="api-token-action danger"
-                  title="吊销令牌"
-                  :disabled="isApiTokenInactive(token) || apiTokenSaving"
-                  @click="revokeApiToken(token)"
-                >
-                  <Trash2 :size="15" />
-                  <span>吊销</span>
-                </button>
-              </span>
-            </div>
-            <div v-if="!apiTokenLoading && apiTokens.length === 0" class="empty-state">
-              <KeyRound :size="22" />
-              <strong>还没有 API 令牌</strong>
-              <span>创建后即可安全调用已授权的 Agent</span>
-            </div>
-            <div v-if="apiTokenLoading" class="empty-state">加载中...</div>
+                <em :class="['status-pill', isApiTokenInactive(token) ? 'disabled' : '']">
+                  {{ apiTokenStatusLabel(token) }}
+                </em>
+                <span>{{ apiTokenExpiryLabel(token) }}</span>
+                <span>{{ token.lastUsedAt ? formatDateTime(token.lastUsedAt) : "-" }}</span>
+                <span>{{ token.usedCount || 0 }}</span>
+                <span class="entity-row-actions">
+                  <button
+                    type="button"
+                    class="api-token-action"
+                    title="重置令牌"
+                    :disabled="apiTokenSaving"
+                    @click="resetApiToken(token)"
+                  >
+                    <RotateCcw :size="15" />
+                    <span>重置</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="api-token-action danger"
+                    title="吊销令牌"
+                    :disabled="isApiTokenInactive(token) || apiTokenSaving"
+                    @click="revokeApiToken(token)"
+                  >
+                    <Trash2 :size="15" />
+                    <span>吊销</span>
+                  </button>
+                </span>
+              </div>
+              <div v-if="!apiTokenLoading && apiTokens.length === 0" class="empty-state">
+                <KeyRound :size="22" />
+                <strong>还没有 API 令牌</strong>
+                <span>创建后即可安全调用已授权的 Agent</span>
+              </div>
+              <div v-if="apiTokenLoading" class="empty-state">加载中...</div>
             </div>
           </div>
         </div>
@@ -609,12 +739,21 @@
               <small>安全复制</small>
               <h3 id="api-token-copy-title">复制 Agent API 令牌</h3>
             </span>
-            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeApiTokenCopyDialog">
+            <button
+              type="button"
+              class="app-dialog-close"
+              aria-label="关闭"
+              title="关闭"
+              @click="closeApiTokenCopyDialog"
+            >
               <X :size="17" />
             </button>
           </header>
           <div class="api-token-copy-dialog-body">
-            <p>浏览器未授予自动复制权限。令牌已为你选中，可以点击下方按钮或按 <kbd>Ctrl</kbd> + <kbd>C</kbd> 复制。</p>
+            <p
+              >浏览器未授予自动复制权限。令牌已为你选中，可以点击下方按钮或按 <kbd>Ctrl</kbd> +
+              <kbd>C</kbd> 复制。</p
+            >
             <label>
               <span>完整令牌</span>
               <input
@@ -633,7 +772,9 @@
             </div>
           </div>
           <footer>
-            <button type="button" class="secondary-button" @click="closeApiTokenCopyDialog">取消</button>
+            <button type="button" class="secondary-button" @click="closeApiTokenCopyDialog"
+              >取消</button
+            >
             <button type="button" class="primary-button" @click="copyApiTokenFromDialog">
               <Copy :size="15" />
               复制令牌
@@ -649,7 +790,13 @@
               <p>角色权限配置</p>
               <h2>{{ roleForm.id ? "修改角色" : "新建角色" }}</h2>
             </div>
-            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeRoleModal">
+            <button
+              type="button"
+              class="app-dialog-close"
+              aria-label="关闭"
+              title="关闭"
+              @click="closeRoleModal"
+            >
               <X :size="18" />
             </button>
           </div>
@@ -680,7 +827,9 @@
                     <input
                       type="checkbox"
                       :checked="group.selectedCount === group.totalCount"
-                      :indeterminate.prop="group.selectedCount > 0 && group.selectedCount < group.totalCount"
+                      :indeterminate.prop="
+                        group.selectedCount > 0 && group.selectedCount < group.totalCount
+                      "
                       @click.stop
                       @change="togglePermissionGroup(group, $event.target.checked)"
                     />
@@ -688,8 +837,12 @@
                       <strong>{{ permissionDisplayName(group.root) }}</strong>
                       <small>{{ group.root.permissionCode }}</small>
                     </span>
-                    <em class="permission-category-type">{{ typeLabel(group.root.permissionType) }}</em>
-                    <span class="permission-category-count">{{ group.selectedCount }} / {{ group.totalCount }}</span>
+                    <em class="permission-category-type">{{
+                      typeLabel(group.root.permissionType)
+                    }}</em>
+                    <span class="permission-category-count"
+                      >{{ group.selectedCount }} / {{ group.totalCount }}</span
+                    >
                   </summary>
                   <div v-if="group.children.length" class="permission-category-items">
                     <div class="permission-category-columns" aria-hidden="true">
@@ -706,8 +859,12 @@
                       <span class="permission-item-content">
                         <i class="permission-level-line" aria-hidden="true"></i>
                         <span>
-                          <strong :title="permissionDisplayName(permission)">{{ permissionDisplayName(permission) }}</strong>
-                          <small :title="permission.permissionCode">{{ permission.permissionCode }}</small>
+                          <strong :title="permissionDisplayName(permission)">{{
+                            permissionDisplayName(permission)
+                          }}</strong>
+                          <small :title="permission.permissionCode">{{
+                            permission.permissionCode
+                          }}</small>
                         </span>
                       </span>
                       <em>{{ typeLabel(permission.permissionType) }}</em>
@@ -839,11 +996,18 @@
                       <small v-if="user.phone">电话：{{ user.phone }}</small>
                     </span>
                     <em :class="['status-pill', user.status]">{{ statusLabel(user.status) }}</em>
-                    <button type="button" class="icon-button" title="移除用户" @click.stop="removeDraftUser(user.id)">
+                    <button
+                      type="button"
+                      class="icon-button"
+                      title="移除用户"
+                      @click.stop="removeDraftUser(user.id)"
+                    >
                       <Trash2 :size="15" />
                     </button>
                   </div>
-                  <div v-if="selectedDraftUsers.length === 0" class="empty-state">当前角色未绑定用户，点击添加</div>
+                  <div v-if="selectedDraftUsers.length === 0" class="empty-state"
+                    >当前角色未绑定用户，点击添加</div
+                  >
                 </div>
               </details>
             </div>
@@ -866,7 +1030,13 @@
               <p>Agent绑定</p>
               <h2>搜索并选择可用Agent</h2>
             </div>
-            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeAgentPicker">
+            <button
+              type="button"
+              class="app-dialog-close"
+              aria-label="关闭"
+              title="关闭"
+              @click="closeAgentPicker"
+            >
               <X :size="18" />
             </button>
           </div>
@@ -874,15 +1044,27 @@
           <div class="user-picker-tools agent-picker-tools">
             <label>
               <span>搜索Agent</span>
-              <input v-model.trim="agentPickerQuery" type="search" placeholder="名称、ID、分类或状态" />
+              <input
+                v-model.trim="agentPickerQuery"
+                type="search"
+                placeholder="名称、ID、分类或状态"
+              />
             </label>
-            <button type="button" class="ghost-button compact-button" @click="selectAllPickerAgents">全选当前结果</button>
-            <button type="button" class="ghost-button compact-button" @click="clearPickerAgents">清空</button>
+            <button type="button" class="ghost-button compact-button" @click="selectAllPickerAgents"
+              >全选当前结果</button
+            >
+            <button type="button" class="ghost-button compact-button" @click="clearPickerAgents"
+              >清空</button
+            >
             <span>{{ tempPickerAgentIds.length }} / {{ agentOptions.length }}</span>
           </div>
 
           <div class="agent-picker-list">
-            <label v-for="agent in filteredAgentOptions" :key="agent.id" class="agent-picker-record">
+            <label
+              v-for="agent in filteredAgentOptions"
+              :key="agent.id"
+              class="agent-picker-record"
+            >
               <input v-model="tempPickerAgentIds" type="checkbox" :value="agent.id" />
               <span>
                 <strong>{{ agent.name || agent.id }}</strong>
@@ -909,14 +1091,24 @@
               <p>添加用户</p>
               <h2>批量选择已创建用户</h2>
             </div>
-            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeUserPicker">
+            <button
+              type="button"
+              class="app-dialog-close"
+              aria-label="关闭"
+              title="关闭"
+              @click="closeUserPicker"
+            >
               <X :size="18" />
             </button>
           </div>
 
           <div class="user-picker-tools">
-            <button type="button" class="ghost-button compact-button" @click="selectAllPickerUsers">全选</button>
-            <button type="button" class="ghost-button compact-button" @click="clearPickerUsers">清空</button>
+            <button type="button" class="ghost-button compact-button" @click="selectAllPickerUsers"
+              >全选</button
+            >
+            <button type="button" class="ghost-button compact-button" @click="clearPickerUsers"
+              >清空</button
+            >
             <span>{{ tempPickerUserIds.length }} / {{ scopedUsers.length }}</span>
           </div>
 
@@ -935,7 +1127,9 @@
               <span>{{ orgName(user.orgId) }}</span>
               <em :class="['status-pill', user.status]">{{ statusLabel(user.status) }}</em>
             </label>
-            <div v-if="scopedUsers.length === 0" class="empty-state">当前组织范围内暂无已创建用户</div>
+            <div v-if="scopedUsers.length === 0" class="empty-state"
+              >当前组织范围内暂无已创建用户</div
+            >
           </div>
 
           <div class="modal-actions">

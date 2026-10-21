@@ -31,7 +31,12 @@
         <RefreshCw :class="{ spinning: activeAction === 'refresh' }" :size="16" stroke-width="2" />
         <span>{{ activeAction === "refresh" ? "刷新中" : "刷新" }}</span>
       </button>
-      <button class="primary" type="submit" :class="{ loading: activeAction === 'run' }" :disabled="loading || !form.query">
+      <button
+        class="primary"
+        type="submit"
+        :class="{ loading: activeAction === 'run' }"
+        :disabled="loading || !form.query"
+      >
         <Search :class="{ pulse: activeAction === 'run' }" :size="17" stroke-width="2" />
         <span>{{ activeAction === "run" ? "运行中" : "运行" }}</span>
       </button>
@@ -88,7 +93,11 @@
           </div>
 
           <div class="evidence-node-list">
-            <article v-for="node in evidenceNodes" :key="node.nodeId" :class="['evidence-node', nodeClass(node)]">
+            <article
+              v-for="node in evidenceNodes"
+              :key="node.nodeId"
+              :class="['evidence-node', nodeClass(node)]"
+            >
               <header>
                 <strong>{{ node.type }}</strong>
                 <span>{{ node.evidenceGrade }} · {{ percent(node.confidence) }}</span>
@@ -155,7 +164,10 @@
           <article v-for="step in reasoningSteps" :key="step.key">
             <strong>{{ step.step }}</strong>
             <p>{{ step.description }}</p>
-            <small>{{ percent(step.confidence) }} · {{ (step.evidenceNodeIds || []).join(", ") || "no evidence node" }}</small>
+            <small
+              >{{ percent(step.confidence) }} ·
+              {{ (step.evidenceNodeIds || []).join(", ") || "no evidence node" }}</small
+            >
           </article>
           <p v-if="!reasoningSteps.length" class="debugger-empty">暂无推理链路</p>
         </div>

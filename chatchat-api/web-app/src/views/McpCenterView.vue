@@ -73,11 +73,23 @@
           <span>{{ toolFilterSummary }}</span>
         </div>
         <div class="mcp-actions">
-          <button type="button" class="light-button" :disabled="loading || syncing" title="刷新 MCP 数据" @click="loadMcpCenter">
+          <button
+            type="button"
+            class="light-button"
+            :disabled="loading || syncing"
+            title="刷新 MCP 数据"
+            @click="loadMcpCenter"
+          >
             <RefreshCw :size="17" />
             <span>{{ loading ? "刷新中" : "刷新" }}</span>
           </button>
-          <button type="button" class="primary-button" :disabled="syncing || loading" title="从独立 MCP 服务同步" @click="syncCenter">
+          <button
+            type="button"
+            class="primary-button"
+            :disabled="syncing || loading"
+            title="从独立 MCP 服务同步"
+            @click="syncCenter"
+          >
             <DownloadCloud :size="17" />
             <span>{{ syncing ? "同步中" : "同步中心" }}</span>
           </button>
@@ -93,13 +105,17 @@
               v-model="toolSearchQuery"
               type="search"
               placeholder="搜索名称、服务、描述、参数或标签"
-            >
+            />
           </div>
         </label>
         <label>
           <span>来源服务</span>
           <select v-model="toolServiceFilter">
-            <option v-for="service in toolServiceOptions" :key="service.value" :value="service.value">
+            <option
+              v-for="service in toolServiceOptions"
+              :key="service.value"
+              :value="service.value"
+            >
               {{ service.label }}（{{ service.count }}）
             </option>
           </select>
@@ -107,7 +123,11 @@
         <label>
           <span>能力分类</span>
           <select v-model="toolCategoryFilter">
-            <option v-for="category in toolCategoryOptions" :key="category.value" :value="category.value">
+            <option
+              v-for="category in toolCategoryOptions"
+              :key="category.value"
+              :value="category.value"
+            >
               {{ category.label }}（{{ category.count }}）
             </option>
           </select>
@@ -139,7 +159,11 @@
                   <span>{{ toolBadge(tool) }}</span>
                   <div>
                     <h3>{{ tool.chineseAlias || tool.displayName }}</h3>
-                    <small :title="tool.remoteToolName || tool.displayName || tool.localToolName">{{ tool.chineseAlias ? (tool.remoteToolName || tool.displayName || tool.localToolName) : tool.localToolName }}</small>
+                    <small :title="tool.remoteToolName || tool.displayName || tool.localToolName">{{
+                      tool.chineseAlias
+                        ? tool.remoteToolName || tool.displayName || tool.localToolName
+                        : tool.localToolName
+                    }}</small>
                   </div>
                   <strong>MCP工具</strong>
                 </div>
@@ -163,8 +187,17 @@
                     <span v-if="toolMetaLabel(tool)">{{ toolMetaLabel(tool) }}</span>
                     <span v-if="tool.remoteToolName">远端：{{ tool.remoteToolName }}</span>
                   </div>
-                  <div v-if="previewList([...(tool.categories || []), ...(tool.tags || [])], 5).length" class="mcp-tool-tags">
-                    <span v-for="tag in previewList([...(tool.categories || []), ...(tool.tags || [])], 5)" :key="`${tool.localToolName}-${tag}`">
+                  <div
+                    v-if="previewList([...(tool.categories || []), ...(tool.tags || [])], 5).length"
+                    class="mcp-tool-tags"
+                  >
+                    <span
+                      v-for="tag in previewList(
+                        [...(tool.categories || []), ...(tool.tags || [])],
+                        5
+                      )"
+                      :key="`${tool.localToolName}-${tag}`"
+                    >
                       {{ tag }}
                     </span>
                   </div>
@@ -187,7 +220,9 @@
           @change="setToolPage"
         />
       </template>
-      <p v-else>{{ mcpToolTotal ? "没有匹配的工具，请换一个关键词。" : "暂无已注册 MCP 工具，请先同步中心。" }}</p>
+      <p v-else>{{
+        mcpToolTotal ? "没有匹配的工具，请换一个关键词。" : "暂无已注册 MCP 工具，请先同步中心。"
+      }}</p>
     </section>
 
     <div v-if="activeTool" class="mcp-tool-detail-backdrop" @mousedown.self="closeToolDetail">
@@ -203,10 +238,23 @@
         <header>
           <div>
             <p>工具详情</p>
-            <h2 id="mcp-tool-detail-title">{{ activeTool.chineseAlias || activeTool.displayName || activeTool.localToolName }}</h2>
-            <span>{{ activeTool.chineseAlias ? (activeTool.remoteToolName || activeTool.displayName || activeTool.localToolName) : activeTool.localToolName }}</span>
+            <h2 id="mcp-tool-detail-title">{{
+              activeTool.chineseAlias || activeTool.displayName || activeTool.localToolName
+            }}</h2>
+            <span>{{
+              activeTool.chineseAlias
+                ? activeTool.remoteToolName || activeTool.displayName || activeTool.localToolName
+                : activeTool.localToolName
+            }}</span>
           </div>
-          <button type="button" class="app-dialog-close" aria-label="关闭详情" title="关闭详情" @click="closeToolDetail">×</button>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭详情"
+            title="关闭详情"
+            @click="closeToolDetail"
+            >×</button
+          >
         </header>
 
         <div class="mcp-tool-detail-body">
@@ -230,10 +278,21 @@
             </dl>
           </section>
 
-          <section v-if="previewList([...(activeTool.categories || []), ...(activeTool.tags || [])], 20).length" class="mcp-tool-detail-section">
+          <section
+            v-if="
+              previewList([...(activeTool.categories || []), ...(activeTool.tags || [])], 20).length
+            "
+            class="mcp-tool-detail-section"
+          >
             <h3>分类标签</h3>
             <div class="mcp-tool-detail-tags">
-              <span v-for="tag in previewList([...(activeTool.categories || []), ...(activeTool.tags || [])], 20)" :key="`${activeTool.localToolName}-detail-${tag}`">
+              <span
+                v-for="tag in previewList(
+                  [...(activeTool.categories || []), ...(activeTool.tags || [])],
+                  20
+                )"
+                :key="`${activeTool.localToolName}-detail-${tag}`"
+              >
                 {{ tag }}
               </span>
             </div>

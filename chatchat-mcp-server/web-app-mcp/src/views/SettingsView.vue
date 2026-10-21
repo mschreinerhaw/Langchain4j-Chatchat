@@ -27,7 +27,12 @@
             <p>查看 MCP 本地管理员和远端同步用户，点击行操作修改用户密码。</p>
           </div>
           <div class="panel-actions">
-            <el-input v-model.trim="userKeyword" class="settings-search" clearable placeholder="搜索用户、租户、角色">
+            <el-input
+              v-model.trim="userKeyword"
+              class="settings-search"
+              clearable
+              placeholder="搜索用户、租户、角色"
+            >
               <template #prefix>
                 <el-icon><Search /></el-icon>
               </template>
@@ -43,13 +48,15 @@
           <el-table-column label="用户" min-width="180">
             <template #default="{ row }">
               <strong>{{ row.displayName || row.username || row.id }}</strong>
-              <div class="table-subtle">账号：{{ row.username || '-' }}</div>
-              <div class="table-subtle">用户 ID：{{ row.id || '-' }}</div>
+              <div class="table-subtle">账号：{{ row.username || "-" }}</div>
+              <div class="table-subtle">用户 ID：{{ row.id || "-" }}</div>
             </template>
           </el-table-column>
           <el-table-column prop="sourceLabel" label="来源" width="150" />
           <el-table-column prop="tenantNo" label="租户编号（同租户共享）" min-width="190">
-            <template #default="{ row }"><code>{{ row.tenantNo || '-' }}</code></template>
+            <template #default="{ row }"
+              ><code>{{ row.tenantNo || "-" }}</code></template
+            >
           </el-table-column>
           <el-table-column label="角色" min-width="220">
             <template #default="{ row }">
@@ -61,14 +68,22 @@
           </el-table-column>
           <el-table-column prop="status" label="状态" width="120">
             <template #default="{ row }">
-              <el-tag :type="row.status === 'enabled' || row.status === 'active' ? 'success' : 'info'" effect="light">
-                {{ row.status || 'enabled' }}
+              <el-tag
+                :type="row.status === 'enabled' || row.status === 'active' ? 'success' : 'info'"
+                effect="light"
+              >
+                {{ row.status || "enabled" }}
               </el-tag>
             </template>
           </el-table-column>
           <el-table-column fixed="right" label="操作" width="150">
             <template #default="{ row }">
-              <el-button v-if="canChangeUserPassword(row)" link type="primary" @click="openUserPasswordDialog(row)">
+              <el-button
+                v-if="canChangeUserPassword(row)"
+                link
+                type="primary"
+                @click="openUserPasswordDialog(row)"
+              >
                 修改密码
               </el-button>
               <el-tag v-else type="info" effect="plain">仅查看</el-tag>
@@ -106,16 +121,22 @@
           </el-table-column>
           <el-table-column prop="roleType" label="类型" width="140" />
           <el-table-column prop="tenantId" label="租户" min-width="220">
-            <template #default="{ row }"><code>{{ row.tenantId || '-' }}</code></template>
+            <template #default="{ row }"
+              ><code>{{ row.tenantId || "-" }}</code></template
+            >
           </el-table-column>
           <el-table-column prop="status" label="状态" width="120">
             <template #default="{ row }">
-              <el-tag :type="row.status === 'enabled' ? 'success' : 'info'" effect="light">{{ row.status || '-' }}</el-tag>
+              <el-tag :type="row.status === 'enabled' ? 'success' : 'info'" effect="light">{{
+                row.status || "-"
+              }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column fixed="right" label="操作" width="150">
             <template #default="{ row }">
-              <el-button link type="primary" @click.stop="openAuthorizationDialog(row)">管理授权</el-button>
+              <el-button link type="primary" @click.stop="openAuthorizationDialog(row)"
+                >管理授权</el-button
+              >
             </template>
           </el-table-column>
         </el-table>
@@ -144,7 +165,11 @@
               <el-icon><Refresh /></el-icon>
               <span>刷新授权明细</span>
             </el-button>
-            <el-button plain :disabled="!filteredPermissions.length" @click="selectFilteredPermissions">
+            <el-button
+              plain
+              :disabled="!filteredPermissions.length"
+              @click="selectFilteredPermissions"
+            >
               全选匹配项
             </el-button>
             <el-button plain :disabled="!selectedPermissionCount" @click="clearSelectedPermissions">
@@ -161,7 +186,13 @@
           </div>
         </div>
 
-        <el-table class="settings-table" :data="pagedPermissions" border stripe empty-text="请选择角色或暂无匹配权限">
+        <el-table
+          class="settings-table"
+          :data="pagedPermissions"
+          border
+          stripe
+          empty-text="请选择角色或暂无匹配权限"
+        >
           <el-table-column width="54" align="center">
             <template #header>
               <el-checkbox
@@ -177,34 +208,45 @@
                 :model-value="isPermissionSelected(row)"
                 :disabled="!row.id"
                 :aria-label="`选择权限 ${row.id || ''}`"
-                @change="checked => togglePermission(row, checked)"
+                @change="(checked) => togglePermission(row, checked)"
               />
             </template>
           </el-table-column>
           <el-table-column prop="id" label="权限 ID" min-width="220">
-            <template #default="{ row }"><code>{{ row.id }}</code></template>
+            <template #default="{ row }"
+              ><code>{{ row.id }}</code></template
+            >
           </el-table-column>
           <el-table-column label="授权工具" min-width="190">
-            <template #default="{ row }">{{ row.localToolName || row.toolId || row.scopeExpression || '-' }}</template>
+            <template #default="{ row }">{{
+              row.localToolName || row.toolId || row.scopeExpression || "-"
+            }}</template>
           </el-table-column>
           <el-table-column prop="targetId" label="角色" min-width="140" />
           <el-table-column prop="tenantId" label="租户" min-width="160">
-            <template #default="{ row }">{{ row.tenantId || '-' }}</template>
+            <template #default="{ row }">{{ row.tenantId || "-" }}</template>
           </el-table-column>
           <el-table-column prop="effect" label="策略" width="110">
             <template #default="{ row }">
-              <el-tag :type="row.effect === 'deny' ? 'danger' : 'success'" effect="light">{{ row.effect || 'allow' }}</el-tag>
+              <el-tag :type="row.effect === 'deny' ? 'danger' : 'success'" effect="light">{{
+                row.effect || "allow"
+              }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column fixed="right" label="操作" width="90">
             <template #default="{ row }">
-              <el-button link type="danger" :disabled="!row.id" @click="removeRolePermission(row)">删除</el-button>
+              <el-button link type="danger" :disabled="!row.id" @click="removeRolePermission(row)"
+                >删除</el-button
+              >
             </template>
           </el-table-column>
         </el-table>
 
         <footer v-if="permissions.length" class="pagination-row">
-          <el-text type="info">共 {{ permissions.length }} 条，匹配 {{ filteredPermissions.length }} 条，已选 {{ selectedPermissionCount }} 条</el-text>
+          <el-text type="info"
+            >共 {{ permissions.length }} 条，匹配 {{ filteredPermissions.length }} 条，已选
+            {{ selectedPermissionCount }} 条</el-text
+          >
           <el-pagination
             background
             layout="sizes, prev, pager, next, jumper"
@@ -236,11 +278,21 @@
                 <el-icon><Search /></el-icon>
               </template>
             </el-input>
-            <el-select v-model="loginAuditAction" class="login-audit-filter" placeholder="方式" @change="searchLoginAudits">
+            <el-select
+              v-model="loginAuditAction"
+              class="login-audit-filter"
+              placeholder="方式"
+              @change="searchLoginAudits"
+            >
               <el-option label="全部方式" value="" />
               <el-option label="管理员登录" value="admin-login" />
             </el-select>
-            <el-select v-model="loginAuditResult" class="login-audit-filter" placeholder="结果" @change="searchLoginAudits">
+            <el-select
+              v-model="loginAuditResult"
+              class="login-audit-filter"
+              placeholder="结果"
+              @change="searchLoginAudits"
+            >
               <el-option label="全部结果" value="" />
               <el-option label="成功" value="success" />
               <el-option label="失败" value="failure" />
@@ -252,11 +304,17 @@
           </div>
         </div>
 
-        <el-table class="settings-table" :data="loginAuditRows" border stripe empty-text="暂无登录审计">
+        <el-table
+          class="settings-table"
+          :data="loginAuditRows"
+          border
+          stripe
+          empty-text="暂无登录审计"
+        >
           <el-table-column prop="createdAtText" label="时间" min-width="170" />
           <el-table-column label="用户" min-width="150">
             <template #default="{ row }">
-              <strong>{{ row.username || 'anonymous' }}</strong>
+              <strong>{{ row.username || "anonymous" }}</strong>
               <div class="table-subtle">{{ row.reason || row.id }}</div>
             </template>
           </el-table-column>
@@ -270,7 +328,7 @@
           </el-table-column>
           <el-table-column prop="ipAddress" label="IP" min-width="150" />
           <el-table-column prop="macAddress" label="MAC" min-width="160">
-            <template #default="{ row }">{{ row.macAddress || '-' }}</template>
+            <template #default="{ row }">{{ row.macAddress || "-" }}</template>
           </el-table-column>
           <el-table-column label="终端" min-width="260" show-overflow-tooltip>
             <template #default="{ row }">{{ row.userAgentText }}</template>
@@ -293,7 +351,6 @@
           />
         </footer>
       </section>
-
     </div>
 
     <el-dialog
@@ -305,19 +362,36 @@
     >
       <el-form class="settings-form" label-position="top" @submit.prevent="saveUserPassword">
         <el-form-item label="当前密码">
-          <el-input v-model="passwordForm.currentPassword" type="password" show-password autocomplete="current-password" />
+          <el-input
+            v-model="passwordForm.currentPassword"
+            type="password"
+            show-password
+            autocomplete="current-password"
+          />
         </el-form-item>
         <el-form-item label="新密码">
-          <el-input v-model="passwordForm.newPassword" type="password" show-password autocomplete="new-password" />
+          <el-input
+            v-model="passwordForm.newPassword"
+            type="password"
+            show-password
+            autocomplete="new-password"
+          />
         </el-form-item>
         <el-form-item label="确认新密码">
-          <el-input v-model="passwordForm.confirmPassword" type="password" show-password autocomplete="new-password" />
+          <el-input
+            v-model="passwordForm.confirmPassword"
+            type="password"
+            show-password
+            autocomplete="new-password"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="userPasswordDialogVisible = false">取消</el-button>
-          <el-button type="primary" :loading="passwordSaving" @click="saveUserPassword">保存密码</el-button>
+          <el-button type="primary" :loading="passwordSaving" @click="saveUserPassword"
+            >保存密码</el-button
+          >
         </div>
       </template>
     </el-dialog>
@@ -330,7 +404,13 @@
       :title="authorizationDialogTitle"
     >
       <div class="authorization-toolbar">
-        <el-select v-model="assetTypeFilter" class="authorization-filter" placeholder="类型" size="small" @change="resetAuthorizationPage">
+        <el-select
+          v-model="assetTypeFilter"
+          class="authorization-filter"
+          placeholder="类型"
+          size="small"
+          @change="resetAuthorizationPage"
+        >
           <el-option label="MCP 工具" value="mcp_tool" />
           <el-option label="全部类型" value="all" />
           <el-option label="数据查询" value="database_query" />
@@ -339,10 +419,30 @@
           <el-option label="主机资产" value="ssh_host" />
           <el-option label="SQL 数据源" value="sql_datasource" />
         </el-select>
-        <el-select v-model="assetGroupFilter" class="authorization-filter" clearable filterable placeholder="分类" size="small" @change="resetAuthorizationPage">
-          <el-option v-for="group in assetGroups" :key="group.value" :label="group.label" :value="group.value" />
+        <el-select
+          v-model="assetGroupFilter"
+          class="authorization-filter"
+          clearable
+          filterable
+          placeholder="分类"
+          size="small"
+          @change="resetAuthorizationPage"
+        >
+          <el-option
+            v-for="group in assetGroups"
+            :key="group.value"
+            :label="group.label"
+            :value="group.value"
+          />
         </el-select>
-        <el-input v-model.trim="assetKeyword" class="authorization-search" clearable size="small" placeholder="搜索名称、工具名、描述" @input="resetAuthorizationPage">
+        <el-input
+          v-model.trim="assetKeyword"
+          class="authorization-search"
+          clearable
+          size="small"
+          placeholder="搜索名称、工具名、描述"
+          @input="resetAuthorizationPage"
+        >
           <template #prefix>
             <el-icon><Search /></el-icon>
           </template>
@@ -352,8 +452,20 @@
       <div class="authorization-actions">
         <span>已选择 {{ selectedAssetKeys.length }} / {{ authorizationAssets.length }} 个资产</span>
         <div>
-          <el-button plain size="small" :disabled="authorizationLoading" @click="selectFilteredAssets">全选当前结果</el-button>
-          <el-button plain size="small" :disabled="authorizationLoading" @click="clearFilteredAssets">清空当前结果</el-button>
+          <el-button
+            plain
+            size="small"
+            :disabled="authorizationLoading"
+            @click="selectFilteredAssets"
+            >全选当前结果</el-button
+          >
+          <el-button
+            plain
+            size="small"
+            :disabled="authorizationLoading"
+            @click="clearFilteredAssets"
+            >清空当前结果</el-button
+          >
         </div>
       </div>
 
@@ -368,7 +480,11 @@
       >
         <el-table-column label="" width="54" align="center">
           <template #default="{ row }">
-            <el-checkbox :model-value="isAssetSelected(row)" :disabled="!row.enabled" @change="checked => toggleAsset(row, checked)" />
+            <el-checkbox
+              :model-value="isAssetSelected(row)"
+              :disabled="!row.enabled"
+              @change="(checked) => toggleAsset(row, checked)"
+            />
           </template>
         </el-table-column>
         <el-table-column label="资产" min-width="230">
@@ -379,25 +495,31 @@
         </el-table-column>
         <el-table-column prop="typeLabel" label="类型" width="120" />
         <el-table-column label="分类" min-width="170">
-          <template #default="{ row }">{{ row.groupName || row.groupCode || 'default' }}</template>
+          <template #default="{ row }">{{ row.groupName || row.groupCode || "default" }}</template>
         </el-table-column>
         <el-table-column
           label="描述"
           min-width="220"
-          :show-overflow-tooltip="{ popperClass: 'authorization-description-tooltip', placement: 'top' }"
+          :show-overflow-tooltip="{
+            popperClass: 'authorization-description-tooltip',
+            placement: 'top',
+          }"
         >
-          <template #default="{ row }">{{ row.description || '-' }}</template>
+          <template #default="{ row }">{{ row.description || "-" }}</template>
         </el-table-column>
         <el-table-column prop="enabled" label="状态" width="110">
           <template #default="{ row }">
-            <el-tag :type="row.enabled ? 'success' : 'info'" effect="light">{{ row.enabled ? 'enabled' : 'disabled' }}</el-tag>
+            <el-tag :type="row.enabled ? 'success' : 'info'" effect="light">{{
+              row.enabled ? "enabled" : "disabled"
+            }}</el-tag>
           </template>
         </el-table-column>
       </el-table>
 
       <footer class="pagination-row authorization-pagination">
         <el-text type="info">
-          共 {{ authorizationAssets.length }} 个资产，当前筛选 {{ filteredAuthorizationAssets.length }} 个
+          共 {{ authorizationAssets.length }} 个资产，当前筛选
+          {{ filteredAuthorizationAssets.length }} 个
         </el-text>
         <el-pagination
           background

@@ -2,6 +2,4 @@
   <SystemManagementView section="resources" />
 </template>
 
-<script setup>
-import SystemManagementView from "./SystemManagementView.vue";
-</script>
+<script src="../js/views/SystemResourceAuthorizationView.js"></script>

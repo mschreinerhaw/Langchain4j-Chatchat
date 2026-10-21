@@ -1,146 +1,1142 @@
 <template>
-  <section class="ds-page" :class="{'develop-mode':tab==='develop'}">
-    <UserSpaceBrowser v-if="tab==='data'||tab==='scripts'" :key="[workspaceContext?.tenantId,workspaceContext?.userId,workspaceContext?.workspaceId].join(':')" :workspace-context="workspaceContext" :data-files="dataFiles" :scripts="scripts" :can-create-script="readyAssets.length>0" @open-script="selectScript" @new-script="newScript" @download-data="downloadData" @remove-data="removeData" @remove-script="removeScript" @refresh="load(true)" @python-data-ready="useUserSpaceData" @open-python-draft="openUserSpaceScript" />
-    <header v-if="tab!=='develop'&&tab!=='data'&&tab!=='scripts'" class="ds-header">
-      <div><span>数据车间 / {{ currentSectionLabel }}</span></div>
-      <button v-if="tab==='environment'" class="ds-primary ds-header-action" @click="openAssetDialog">＋ 添加 Python 环境</button>
+  <section class="ds-page" :class="{ 'develop-mode': tab === 'develop' }">
+    <UserSpaceBrowser
+      v-if="tab === 'data' || tab === 'scripts'"
+      :key="
+        [workspaceContext?.tenantId, workspaceContext?.userId, workspaceContext?.workspaceId].join(
+          ':'
+        )
+      "
+      :workspace-context="workspaceContext"
+      :data-files="dataFiles"
+      :scripts="scripts"
+      :can-create-script="readyAssets.length > 0"
+      @open-script="selectScript"
+      @new-script="newScript"
+      @download-data="downloadData"
+      @remove-data="removeData"
+      @remove-script="removeScript"
+      @refresh="load(true)"
+      @python-data-ready="useUserSpaceData"
+      @open-python-draft="openUserSpaceScript"
+    />
+    <header v-if="tab !== 'develop' && tab !== 'data' && tab !== 'scripts'" class="ds-header">
+      <div
+        ><span>数据车间 / {{ currentSectionLabel }}</span></div
+      >
+      <button
+        v-if="tab === 'environment'"
+        class="ds-primary ds-header-action"
+        @click="openAssetDialog"
+        >＋ 添加 Python 环境</button
+      >
     </header>
-    <p v-if="error" class="ds-alert error">{{ error }}</p><p v-if="message&&tab!=='develop'" class="ds-alert success">{{ message }}</p>
+    <p v-if="error" class="ds-alert error">{{ error }}</p
+    ><p v-if="message && tab !== 'develop'" class="ds-alert success">{{ message }}</p>
 
-    <div v-if="loading&&tab!=='data'&&tab!=='scripts'" class="ds-empty">正在加载数据车间工作台…</div>
-    <section v-show="!loading&&tab==='environment'" class="ds-environment-pane">
-      <div v-if="!assets.length" class="ds-empty"><strong>当前没有可用的数据车间环境</strong><p>请先添加 Python 环境。只有 READY 环境才允许创建、运行和发布脚本。</p><button class="ds-primary" @click="openAssetDialog">添加环境</button></div>
-      <template v-else><div class="ds-list-toolbar"><label class="ds-list-search"><span>⌕</span><input v-model.trim="environmentQuery" placeholder="检索环境名称、描述或状态"></label><span>共 {{ filteredEnvironmentAssets.length }} 个环境</span></div><div v-if="!filteredEnvironmentAssets.length" class="ds-empty"><strong>没有匹配的环境</strong><p>请调整检索关键词后重试。</p></div><div v-else class="ds-card-grid"><article v-for="asset in pagedEnvironmentAssets" :key="asset.id" class="ds-card ds-environment-card"><div class="ds-card-head"><div><span class="environment-eyebrow">数据车间环境</span><strong>{{ asset.name }}</strong></div><span :class="['ds-status', statusClass(asset.status)]">{{ assetStatusLabel(asset.status) }}</span></div><p>{{ asset.description || '用于 Python 数据分析、脚本调试与能力发布。' }}</p><div class="environment-capabilities"><span>Python {{ asset.pythonVersion || '3.11' }}</span><span>独立运行环境</span><span>支持开发、测试与发布</span></div><footer><span :class="['environment-dot',statusClass(asset.status)]"></span>{{ environmentStatusMessage(asset.status) }}</footer></article></div><nav v-if="filteredEnvironmentAssets.length" class="ds-pagination"><button :disabled="environmentCurrentPage<=1" @click="environmentPage=environmentCurrentPage-1">上一页</button><span>第 {{ environmentCurrentPage }} / {{ environmentPageCount }} 页</span><button :disabled="environmentCurrentPage>=environmentPageCount" @click="environmentPage=environmentCurrentPage+1">下一页</button></nav></template>
+    <div v-if="loading && tab !== 'data' && tab !== 'scripts'" class="ds-empty"
+      >正在加载数据车间工作台…</div
+    >
+    <section v-show="!loading && tab === 'environment'" class="ds-environment-pane">
+      <div v-if="!assets.length" class="ds-empty"
+        ><strong>当前没有可用的数据车间环境</strong
+        ><p>请先添加 Python 环境。只有 READY 环境才允许创建、运行和发布脚本。</p
+        ><button class="ds-primary" @click="openAssetDialog">添加环境</button></div
+      >
+      <template v-else
+        ><div class="ds-list-toolbar"
+          ><label class="ds-list-search"
+            ><span>⌕</span
+            ><input v-model.trim="environmentQuery" placeholder="检索环境名称、描述或状态" /></label
+          ><span>共 {{ filteredEnvironmentAssets.length }} 个环境</span></div
+        ><div v-if="!filteredEnvironmentAssets.length" class="ds-empty"
+          ><strong>没有匹配的环境</strong><p>请调整检索关键词后重试。</p></div
+        ><div v-else class="ds-card-grid"
+          ><article
+            v-for="asset in pagedEnvironmentAssets"
+            :key="asset.id"
+            class="ds-card ds-environment-card"
+            ><div class="ds-card-head"
+              ><div
+                ><span class="environment-eyebrow">数据车间环境</span
+                ><strong>{{ asset.name }}</strong></div
+              ><span :class="['ds-status', statusClass(asset.status)]">{{
+                assetStatusLabel(asset.status)
+              }}</span></div
+            ><p>{{ asset.description || "用于 Python 数据分析、脚本调试与能力发布。" }}</p
+            ><div class="environment-capabilities"
+              ><span>Python {{ asset.pythonVersion || "3.11" }}</span
+              ><span>独立运行环境</span><span>支持开发、测试与发布</span></div
+            ><footer
+              ><span :class="['environment-dot', statusClass(asset.status)]"></span
+              >{{ environmentStatusMessage(asset.status) }}</footer
+            ></article
+          ></div
+        ><nav v-if="filteredEnvironmentAssets.length" class="ds-pagination"
+          ><button
+            :disabled="environmentCurrentPage <= 1"
+            @click="environmentPage = environmentCurrentPage - 1"
+            >上一页</button
+          ><span>第 {{ environmentCurrentPage }} / {{ environmentPageCount }} 页</span
+          ><button
+            :disabled="environmentCurrentPage >= environmentPageCount"
+            @click="environmentPage = environmentCurrentPage + 1"
+            >下一页</button
+          ></nav
+        ></template
+      >
     </section>
 
-    <div v-show="!loading&&tab==='develop'" class="ds-develop-pane">
-      <div v-if="!readyAssets.length" class="ds-empty"><strong>开发入口已锁定</strong><p>当前用户没有 READY 状态的 Python Asset，请先发布并成功创建隔离环境。</p><button class="ds-primary" @click="navigateToSection('environment')">前往 Python 环境</button></div>
-      <div v-else ref="workspace" class="ds-ide python-studio" :class="{'explorer-collapsed':!explorerOpen,'ai-collapsed':!aiOpen,fullscreen:isFullscreen,resizing:!!resizeState}" :style="workspaceStyle">
+    <div v-show="!loading && tab === 'develop'" class="ds-develop-pane">
+      <div v-if="!readyAssets.length" class="ds-empty"
+        ><strong>开发入口已锁定</strong
+        ><p>当前用户没有 READY 状态的 Python Asset，请先发布并成功创建隔离环境。</p
+        ><button class="ds-primary" @click="navigateToSection('environment')"
+          >前往 Python 环境</button
+        ></div
+      >
+      <div
+        v-else
+        ref="workspace"
+        class="ds-ide python-studio"
+        :class="{
+          'explorer-collapsed': !explorerOpen,
+          'ai-collapsed': !aiOpen,
+          fullscreen: isFullscreen,
+          resizing: !!resizeState,
+        }"
+        :style="workspaceStyle"
+      >
         <header class="ide-commandbar">
           <div class="ide-brand"><FileCode2 :size="21" /><strong>Python Studio</strong></div>
-          <select v-model="form.assetId" class="studio-workspace-select" aria-label="Python 运行环境" :disabled="busy"><option v-for="asset in readyAssets" :value="asset.id" :key="asset.id">{{ asset.name }}</option></select>
-          <button type="button" class="studio-global-search" @click="openStudioSearch()"><Search :size="15" /><span>搜索文件、函数、内容…</span><kbd>Ctrl K</kbd></button>
-          <div class="ide-actions"><button title="保存文件 · Ctrl/Cmd + S" aria-label="保存 Python 文件" @click="save" :disabled="busy"><Save :size="15" /><span>保存</span></button><button title="运行脚本 · Ctrl/Cmd + Enter" @click="run" :disabled="busy||!form.id" class="run"><LoaderCircle v-if="runState==='running'" :size="15" class="studio-spinner" /><Play v-else :size="15" />{{ runState==='running'?'执行中':'运行' }}</button><span class="studio-version" :title="'当前环境：'+assetName(form.assetId)">Python {{ pythonVersionLabel }}</span><button class="publish" @click="openPublishDialog" :disabled="busy||publishBusy||!canPublish">{{ publishBusy?'发布中…':'发布模板' }}</button><button class="studio-icon-button" :aria-pressed="explorerOpen" aria-label="切换资源管理器" @click="toggleExplorer"><PanelLeft :size="17" /></button><button class="studio-icon-button" :aria-pressed="aiOpen" aria-label="切换 AI 助手" @click="toggleAi"><PanelRight :size="17" /></button><button class="studio-icon-button" aria-label="编辑器设置" :aria-expanded="studioSettingsOpen" @click="studioSettingsOpen=!studioSettingsOpen"><Settings2 :size="17" /></button><button class="studio-icon-button" :aria-label="isFullscreen?'退出沉浸编辑':'沉浸编辑'" @click="toggleFullscreen"><Minimize2 v-if="isFullscreen" :size="17" /><Maximize2 v-else :size="17" /></button></div>
-          <section v-if="studioSettingsOpen" class="studio-settings" aria-label="编辑器设置"><header><strong>编辑器设置</strong><button aria-label="关闭编辑器设置" @click="studioSettingsOpen=false"><X :size="15" /></button></header><EditorPreferences :workspace-context="workspaceContext" language="python" @change="applyEditorPreferences" /><label>字号<select v-model.number="editorFontSize" @change="updateStudioEditor"><option v-for="size in [12,14,16,18]" :key="size" :value="size">{{ size }} px</option></select></label><label><input v-model="editorMinimap" type="checkbox" @change="updateStudioEditor">显示代码缩略图</label><small>Ctrl P 打开文件 · Ctrl Shift P 命令<br>Ctrl S 保存 · Ctrl Enter 运行<br>Shift Alt F 格式化 · Ctrl Space 补全</small></section>
+          <select
+            v-model="form.assetId"
+            class="studio-workspace-select"
+            aria-label="Python 运行环境"
+            :disabled="busy"
+            ><option v-for="asset in readyAssets" :value="asset.id" :key="asset.id">{{
+              asset.name
+            }}</option></select
+          >
+          <button type="button" class="studio-global-search" @click="openStudioSearch()"
+            ><Search :size="15" /><span>搜索文件、函数、内容…</span><kbd>Ctrl K</kbd></button
+          >
+          <div class="ide-actions"
+            ><button
+              title="保存文件 · Ctrl/Cmd + S"
+              aria-label="保存 Python 文件"
+              @click="save"
+              :disabled="busy"
+              ><Save :size="15" /><span>保存</span></button
+            ><button
+              title="运行脚本 · Ctrl/Cmd + Enter"
+              @click="run"
+              :disabled="busy || !form.id"
+              class="run"
+              ><LoaderCircle v-if="runState === 'running'" :size="15" class="studio-spinner" /><Play
+                v-else
+                :size="15"
+              />{{ runState === "running" ? "执行中" : "运行" }}</button
+            ><span class="studio-version" :title="'当前环境：' + assetName(form.assetId)"
+              >Python {{ pythonVersionLabel }}</span
+            ><button
+              class="publish"
+              @click="openPublishDialog"
+              :disabled="busy || publishBusy || !canPublish"
+              >{{ publishBusy ? "发布中…" : "发布模板" }}</button
+            ><button
+              class="studio-icon-button"
+              :aria-pressed="explorerOpen"
+              aria-label="切换资源管理器"
+              @click="toggleExplorer"
+              ><PanelLeft :size="17" /></button
+            ><button
+              class="studio-icon-button"
+              :aria-pressed="aiOpen"
+              aria-label="切换 AI 助手"
+              @click="toggleAi"
+              ><PanelRight :size="17" /></button
+            ><button
+              class="studio-icon-button"
+              aria-label="编辑器设置"
+              :aria-expanded="studioSettingsOpen"
+              @click="studioSettingsOpen = !studioSettingsOpen"
+              ><Settings2 :size="17" /></button
+            ><button
+              class="studio-icon-button"
+              :aria-label="isFullscreen ? '退出沉浸编辑' : '沉浸编辑'"
+              @click="toggleFullscreen"
+              ><Minimize2 v-if="isFullscreen" :size="17" /><Maximize2 v-else :size="17" /></button
+          ></div>
+          <section v-if="studioSettingsOpen" class="studio-settings" aria-label="编辑器设置"
+            ><header
+              ><strong>编辑器设置</strong
+              ><button aria-label="关闭编辑器设置" @click="studioSettingsOpen = false"
+                ><X :size="15" /></button></header
+            ><EditorPreferences
+              :workspace-context="workspaceContext"
+              language="python"
+              @change="applyEditorPreferences"
+            /><label
+              >字号<select v-model.number="editorFontSize" @change="updateStudioEditor"
+                ><option v-for="size in [12, 14, 16, 18]" :key="size" :value="size"
+                  >{{ size }} px</option
+                ></select
+              ></label
+            ><label
+              ><input
+                v-model="editorMinimap"
+                type="checkbox"
+                @change="updateStudioEditor"
+              />显示代码缩略图</label
+            ><small
+              >Ctrl P 打开文件 · Ctrl Shift P 命令<br />Ctrl S 保存 · Ctrl Enter 运行<br />Shift Alt
+              F 格式化 · Ctrl Space 补全</small
+            ></section
+          >
         </header>
 
         <aside class="ide-explorer">
-          <div class="panel-heading"><div><strong>资源管理器</strong></div><span class="panel-heading-actions"><button title="新建 Python 文件" aria-label="新建 Python 文件" :disabled="busy" @click="newScript"><Plus :size="15" /></button><button title="新建逻辑文件夹" aria-label="新建逻辑文件夹" @click="createFolder"><Folder :size="15" /></button><button title="收起资源管理器" aria-label="收起资源管理器" @click="toggleExplorer"><X :size="14" /></button></span></div>
-          <div class="explorer-search"><Search :size="14" /><input v-model="explorerQuery" placeholder="筛选脚本" aria-label="筛选 Python 脚本"></div><div class="studio-tree-root"><ChevronDown :size="13" />WORKSPACE<span>{{ assetName(form.assetId) }}</span></div>
+          <div class="panel-heading"
+            ><div><strong>资源管理器</strong></div
+            ><span class="panel-heading-actions"
+              ><button
+                title="新建 Python 文件"
+                aria-label="新建 Python 文件"
+                :disabled="busy"
+                @click="newScript"
+                ><Plus :size="15" /></button
+              ><button title="新建逻辑文件夹" aria-label="新建逻辑文件夹" @click="createFolder"
+                ><Folder :size="15" /></button
+              ><button title="收起资源管理器" aria-label="收起资源管理器" @click="toggleExplorer"
+                ><X :size="14" /></button></span
+          ></div>
+          <div class="explorer-search"
+            ><Search :size="14" /><input
+              v-model="explorerQuery"
+              placeholder="筛选脚本"
+              aria-label="筛选 Python 脚本" /></div
+          ><div class="studio-tree-root"
+            ><ChevronDown :size="13" />WORKSPACE<span>{{ assetName(form.assetId) }}</span></div
+          >
           <div class="explorer-files">
-            <section v-for="folder in explorerFolders" :key="folder.id||'unfiled'" class="script-folder">
-              <header @click="toggleFolder(folder)" @dblclick.stop="renameFolder(folder)"><button class="folder-toggle" :title="folderExpanded(folder)?'收起':'展开'">{{ folderExpanded(folder)?'⌄':'›' }}</button><span class="folder-icon">▰</span><strong>{{ folder.name }}</strong><small>{{ folder.scripts.length }}</small><span class="folder-actions" v-if="!folder.virtual"><button title="在此文件夹中新建脚本" @click.stop="newScriptInFolder(folder)">＋</button><button title="重命名文件夹" @click.stop="renameFolder(folder)">✎</button><button title="删除文件夹并保留内容" @click.stop="removeFolder(folder)">×</button></span></header>
-              <div v-show="folderExpanded(folder)"><div v-for="script in folder.scripts" :key="script.id" class="script-entry" :class="{active:form.id===script.id}"><button class="script-open" @click="!busy&&selectScript(script)"><span class="py-file"><FileCode2 :size="15" /></span><span><strong>{{ script.fileName }}</strong><small>{{ script.title || '未命名脚本' }}</small></span><i :class="statusClass(script.status)"></i></button><span class="script-actions"><button title="重命名脚本" @click="renameScript(script)">✎</button><button class="danger" title="删除脚本" @click="removeScript(script)">×</button></span></div></div>
+            <section
+              v-for="folder in explorerFolders"
+              :key="folder.id || 'unfiled'"
+              class="script-folder"
+            >
+              <header @click="toggleFolder(folder)" @dblclick.stop="renameFolder(folder)"
+                ><button class="folder-toggle" :title="folderExpanded(folder) ? '收起' : '展开'">{{
+                  folderExpanded(folder) ? "⌄" : "›"
+                }}</button
+                ><span class="folder-icon">▰</span><strong>{{ folder.name }}</strong
+                ><small>{{ folder.scripts.length }}</small
+                ><span class="folder-actions" v-if="!folder.virtual"
+                  ><button title="在此文件夹中新建脚本" @click.stop="newScriptInFolder(folder)"
+                    >＋</button
+                  ><button title="重命名文件夹" @click.stop="renameFolder(folder)">✎</button
+                  ><button title="删除文件夹并保留内容" @click.stop="removeFolder(folder)"
+                    >×</button
+                  ></span
+                ></header
+              >
+              <div v-show="folderExpanded(folder)"
+                ><div
+                  v-for="script in folder.scripts"
+                  :key="script.id"
+                  class="script-entry"
+                  :class="{ active: form.id === script.id }"
+                  ><button class="script-open" @click="!busy && selectScript(script)"
+                    ><span class="py-file"><FileCode2 :size="15" /></span
+                    ><span
+                      ><strong>{{ script.fileName }}</strong
+                      ><small>{{ script.title || "未命名脚本" }}</small></span
+                    ><i :class="statusClass(script.status)"></i></button
+                  ><span class="script-actions"
+                    ><button title="重命名脚本" @click="renameScript(script)">✎</button
+                    ><button class="danger" title="删除脚本" @click="removeScript(script)"
+                      >×</button
+                    ></span
+                  ></div
+                ></div
+              >
             </section>
             <div v-if="!filteredScripts.length" class="explorer-empty">没有匹配的脚本</div>
-            <section class="script-folder system-examples"><header @click="systemExamplesOpen=!systemExamplesOpen"><button class="folder-toggle">{{ systemExamplesOpen?'⌄':'›' }}</button><span class="folder-icon">◆</span><strong>系统示例</strong><small>{{ systemExamples.length }}</small></header><div v-show="systemExamplesOpen"><article v-for="example in systemExamples" :key="example.id" class="system-example"><button class="example-open" :title="example.description+'；依赖：'+(example.requirements.join(', ')||'Python 标准库')" @click="useSystemExample(example)"><span class="py-file">{{ example.format.slice(0,2) }}</span><span><strong>{{ example.scriptFileName }}</strong><small>{{ example.format }} · {{ example.requirements.join(', ')||'标准库' }}</small></span></button><button class="example-data" :title="'导入 '+example.dataFileName" @click="importExampleData(example)">导入数据</button></article></div></section>
+            <section class="script-folder system-examples"
+              ><header @click="systemExamplesOpen = !systemExamplesOpen"
+                ><button class="folder-toggle">{{ systemExamplesOpen ? "⌄" : "›" }}</button
+                ><span class="folder-icon">◆</span><strong>系统示例</strong
+                ><small>{{ systemExamples.length }}</small></header
+              ><div v-show="systemExamplesOpen"
+                ><article v-for="example in systemExamples" :key="example.id" class="system-example"
+                  ><button
+                    class="example-open"
+                    :title="
+                      example.description +
+                      '；依赖：' +
+                      (example.requirements.join(', ') || 'Python 标准库')
+                    "
+                    @click="useSystemExample(example)"
+                    ><span class="py-file">{{ example.format.slice(0, 2) }}</span
+                    ><span
+                      ><strong>{{ example.scriptFileName }}</strong
+                      ><small
+                        >{{ example.format }} ·
+                        {{ example.requirements.join(", ") || "标准库" }}</small
+                      ></span
+                    ></button
+                  ><button
+                    class="example-data"
+                    :title="'导入 ' + example.dataFileName"
+                    @click="importExampleData(example)"
+                    >导入数据</button
+                  ></article
+                ></div
+              ></section
+            >
           </div>
-          <section class="studio-outline"><header><button :aria-expanded="outlineOpen" @click="outlineOpen=!outlineOpen"><ChevronDown v-if="outlineOpen" :size="13" /><ChevronRight v-else :size="13" />大纲</button><span>{{ scriptOutline.length }}</span></header><div v-show="outlineOpen" class="studio-outline-list"><button v-for="symbol in scriptOutline" :key="symbol.line" :style="{paddingLeft:(12+Math.min(symbol.indent,12)*2)+'px'}" :title="'跳转到第 '+symbol.line+' 行'" @click="jumpToPythonLine(symbol.line)"><Box :size="13" :class="symbol.kind" /><span>{{ symbol.name }}{{ symbol.kind==='function'?'()':'' }}</span><small>{{ symbol.line }}</small></button><p v-if="!scriptOutline.length">当前文件暂无函数或类定义</p></div></section>
-          <footer><span>{{ scripts.length }} 个脚本</span><nav class="explorer-pagination"><span>{{ folders.length }} 个文件夹</span><button title="刷新资源管理器" aria-label="刷新资源管理器" :disabled="explorerRefreshing" @click="refreshExplorer"><RefreshCw :size="13" :class="{'studio-spinner':explorerRefreshing}" /></button></nav></footer>
+          <section class="studio-outline"
+            ><header
+              ><button :aria-expanded="outlineOpen" @click="outlineOpen = !outlineOpen"
+                ><ChevronDown v-if="outlineOpen" :size="13" /><ChevronRight
+                  v-else
+                  :size="13"
+                />大纲</button
+              ><span>{{ scriptOutline.length }}</span></header
+            ><div v-show="outlineOpen" class="studio-outline-list"
+              ><button
+                v-for="symbol in scriptOutline"
+                :key="symbol.line"
+                :style="{ paddingLeft: 12 + Math.min(symbol.indent, 12) * 2 + 'px' }"
+                :title="'跳转到第 ' + symbol.line + ' 行'"
+                @click="jumpToPythonLine(symbol.line)"
+                ><Box :size="13" :class="symbol.kind" /><span
+                  >{{ symbol.name }}{{ symbol.kind === "function" ? "()" : "" }}</span
+                ><small>{{ symbol.line }}</small></button
+              ><p v-if="!scriptOutline.length">当前文件暂无函数或类定义</p></div
+            ></section
+          >
+          <footer
+            ><span>{{ scripts.length }} 个脚本</span
+            ><nav class="explorer-pagination"
+              ><span>{{ folders.length }} 个文件夹</span
+              ><button
+                title="刷新资源管理器"
+                aria-label="刷新资源管理器"
+                :disabled="explorerRefreshing"
+                @click="refreshExplorer"
+                ><RefreshCw
+                  :size="13"
+                  :class="{ 'studio-spinner': explorerRefreshing }" /></button></nav
+          ></footer>
         </aside>
-        <div v-if="explorerOpen" class="pane-resizer pane-resizer-vertical explorer-resizer" role="separator" aria-orientation="vertical" title="拖动调整脚本栏宽度，双击恢复默认" @pointerdown="startPaneResize('explorer',$event)" @dblclick="resetPaneSize('explorer')"></div>
+        <div
+          v-if="explorerOpen"
+          class="pane-resizer pane-resizer-vertical explorer-resizer"
+          role="separator"
+          aria-orientation="vertical"
+          title="拖动调整脚本栏宽度，双击恢复默认"
+          @pointerdown="startPaneResize('explorer', $event)"
+          @dblclick="resetPaneSize('explorer')"
+        ></div>
 
-        <main class="ide-main" :class="{'bottom-collapsed':!bottomOpen}">
-          <div class="editor-tabs"><div class="editor-tab-strip" role="tablist" aria-label="Python 文件标签">
-            <div v-for="item in editorTabs" :key="item.key" class="editor-tab" role="tab" tabindex="0" :aria-selected="item.key===activeEditorTabKey" @keydown.enter.prevent="!busy&&activateEditorTab(item)" :class="{active:item.key===activeEditorTabKey}" :title="item.form.fileName" @click="!busy&&activateEditorTab(item)"><span class="py-file"><FileCode2 :size="15" /></span><span class="tab-name">{{ item.form.fileName || '未命名脚本' }}</span><i v-if="editorTabDirty(item)" title="代码或分类有未保存修改"></i><button class="tab-close" title="关闭页签" :disabled="busy" @click.stop="closeEditorTab(item)"><X :size="12" /></button></div><button class="new-tab" title="新建脚本页签" :disabled="busy" @click="newScript"><Plus :size="15" /></button>
-          </div><div class="editor-tools"><button title="格式化代码" aria-label="格式化 Python 代码" @click="formatDocument"><WandSparkles :size="14" /></button><button :aria-pressed="aiOpen" aria-label="切换 AI 助手面板" @click="toggleAi"><Sparkles :size="15" /></button><button aria-label="打开命令面板" @click="openStudioSearch('commands')">···</button></div></div>
-          <div class="editor-breadcrumb"><span>workspace</span><b>›</b><select v-model="form.folderId" title="移动到逻辑文件夹"><option value="">未分类</option><option v-for="folder in folders" :key="folder.id" :value="folder.id">{{ folder.name }}</option></select><b>›</b><span>{{ form.fileName }}</span><b>›</b><strong>Python</strong></div>
+        <main class="ide-main" :class="{ 'bottom-collapsed': !bottomOpen }">
+          <div class="editor-tabs"
+            ><div class="editor-tab-strip" role="tablist" aria-label="Python 文件标签">
+              <div
+                v-for="item in editorTabs"
+                :key="item.key"
+                class="editor-tab"
+                role="tab"
+                tabindex="0"
+                :aria-selected="item.key === activeEditorTabKey"
+                @keydown.enter.prevent="!busy && activateEditorTab(item)"
+                :class="{ active: item.key === activeEditorTabKey }"
+                :title="item.form.fileName"
+                @click="!busy && activateEditorTab(item)"
+                ><span class="py-file"><FileCode2 :size="15" /></span
+                ><span class="tab-name">{{ item.form.fileName || "未命名脚本" }}</span
+                ><i v-if="editorTabDirty(item)" title="代码或分类有未保存修改"></i
+                ><button
+                  class="tab-close"
+                  title="关闭页签"
+                  :disabled="busy"
+                  @click.stop="closeEditorTab(item)"
+                  ><X :size="12" /></button></div
+              ><button class="new-tab" title="新建脚本页签" :disabled="busy" @click="newScript"
+                ><Plus :size="15"
+              /></button> </div
+            ><div class="editor-tools"
+              ><button title="格式化代码" aria-label="格式化 Python 代码" @click="formatDocument"
+                ><WandSparkles :size="14" /></button
+              ><button :aria-pressed="aiOpen" aria-label="切换 AI 助手面板" @click="toggleAi"
+                ><Sparkles :size="15" /></button
+              ><button aria-label="打开命令面板" @click="openStudioSearch('commands')"
+                >···</button
+              ></div
+            ></div
+          >
+          <div class="editor-breadcrumb"
+            ><span>workspace</span><b>›</b
+            ><select v-model="form.folderId" title="移动到逻辑文件夹"
+              ><option value="">未分类</option
+              ><option v-for="folder in folders" :key="folder.id" :value="folder.id">{{
+                folder.name
+              }}</option></select
+            ><b>›</b><span>{{ form.fileName }}</span
+            ><b>›</b><strong>Python</strong></div
+          >
           <div ref="codeEditor" class="monaco-host" aria-label="Python 脚本编辑器"></div>
-          <div class="pane-resizer pane-resizer-horizontal bottom-resizer" role="separator" aria-orientation="horizontal" :aria-hidden="!bottomOpen" title="拖动调整运行面板高度，双击恢复默认" @pointerdown="bottomOpen&&startPaneResize('bottom',$event)" @dblclick="bottomOpen&&resetPaneSize('bottom')"></div>
+          <div
+            class="pane-resizer pane-resizer-horizontal bottom-resizer"
+            role="separator"
+            aria-orientation="horizontal"
+            :aria-hidden="!bottomOpen"
+            title="拖动调整运行面板高度，双击恢复默认"
+            @pointerdown="bottomOpen && startPaneResize('bottom', $event)"
+            @dblclick="bottomOpen && resetPaneSize('bottom')"
+          ></div>
           <section class="ide-bottom">
-            <nav aria-label="Python 运行面板"><button :class="{active:bottomOpen&&bottomTab==='console'}" @click="bottomTab='console';bottomOpen=true"><Terminal :size="13" />运行日志 <em v-if="runState!=='idle'" :class="runState">●</em></button><button :class="{active:bottomOpen&&bottomTab==='output'}" @click="bottomTab='output';bottomOpen=true">输出</button><button :class="{active:bottomOpen&&bottomTab==='problems'}" @click="bottomTab='problems';bottomOpen=true">问题<span class="studio-problem-count">{{ pythonProblems.length }}</span></button><button :class="{active:bottomOpen&&bottomTab==='parameters'}" @click="bottomTab='parameters';bottomOpen=true">运行参数</button><span></span><small v-if="bottomOpen" class="studio-runtime-label">隔离 Python Runtime</small><button v-if="bottomOpen&&['console','output'].includes(bottomTab)" title="清空运行输出" aria-label="清空运行输出" @click="clearConsole"><Trash2 :size="14" /></button><button class="bottom-toggle" :title="bottomOpen?'收起底部面板':'展开底部面板'" aria-label="切换 Python 底部面板" @click="toggleBottom"><ChevronDown v-if="bottomOpen" :size="15" /><PanelBottom v-else :size="15" /></button></nav>
-            <div v-show="bottomOpen&&bottomTab==='console'" class="terminal"><div><b>Python Runtime</b><span :class="['run-state',runState]"><i></i>{{ runStateLabel }}</span><small v-if="runFeedback?.durationMs!=null">{{ runFeedback.durationMs }} ms</small><small v-if="runFeedback?.exitCode!=null">退出码 {{ runFeedback.exitCode }}</small></div><pre :class="{failed:runState==='failed'}">{{ consoleText || '$ 点击“运行”执行当前脚本，stdout / stderr 和执行状态会显示在这里。' }}</pre></div>
-            <div v-show="bottomOpen&&bottomTab==='output'" class="studio-output"><header>标准输出 <small>{{ form.fileName }}{{ runFeedback?.durationMs!=null?' · '+runFeedback.durationMs+' ms':'' }}</small></header><pre>{{ runFeedback?.stdout || '本次脚本尚无标准输出。' }}</pre><header v-if="runFeedback?.stderr">标准错误</header><pre v-if="runFeedback?.stderr" class="failed">{{ runFeedback.stderr }}</pre></div>
-            <div v-show="bottomOpen&&bottomTab==='problems'" class="studio-problems"><p v-if="lintState==='checking'"><LoaderCircle :size="14" class="studio-spinner" />正在运行 Ruff 检查…</p><p v-else-if="lintState==='unavailable'"><CircleAlert :size="14" />当前环境的代码检查暂不可用。</p><p v-else-if="!pythonProblems.length"><CircleCheck :size="14" />Ruff 检查未发现问题。</p><button v-for="(problem,index) in pythonProblems" :key="index" @click="jumpToPythonLine(problem.location.row)"><CircleAlert :size="13" /><span>{{ problem.code }} · {{ problem.message }}</span><small>{{ form.fileName }}:{{ problem.location.row }}</small></button></div>
-            <div v-show="bottomOpen&&bottomTab==='parameters'" class="parameter-editor">
-              <header class="parameter-heading"><div><strong>动态文件参数规范</strong><small>有运行参数时覆盖默认值；没有参数时脚本使用 Schema 或代码中的默认值继续运行。</small></div><div><select v-model="selectedDataFileId" title="选择后自动绑定为本次调试文件" @change="useParameterExample"><option value="">选择我的数据</option><option v-for="file in dataFiles.filter(item=>item.status==='AVAILABLE')" :key="file.id" :value="file.id">{{ file.fileName }}</option></select><button @click="useParameterExample">绑定到 source_file</button><button @click="insertParameterReaderExample">插入 Python 读取代码</button></div></header>
-              <div class="parameter-contract"><div><b>① 外部运行参数</b><code>{ "source_file": "fileId", "limit": 100 }</code></div><span>FILE Schema 解析 →</span><div><b>② Python 收到动态路径</b><code>params = json.loads(os.environ.get("CHATCHAT_INPUT_JSON", "{}"))<br>source_file = params.get("source_file")<br>df = pd.read_csv(source_file)</code></div><span>→</span><div><b>③ 输出分析结果</b><code>print(json.dumps(result, ensure_ascii=False))</code></div></div>
-              <label class="parameter-input"><span>本次运行参数</span><textarea v-model="parametersText" spellcheck="false" placeholder='推荐：{"source_file":"文件ID","limit":100}；调试时也可填写复制的 /data/input 路径'></textarea><small :class="['parameter-validation',{invalid:!parameterValidation.valid}]">{{ parameterValidation.valid?'✓':'!' }} {{ parameterValidation.text }}</small></label>
-              <details class="parameter-schema"><summary>输入参数 Schema（FILE 字段会把 fileId 安全解析为路径）</summary><textarea v-model="inputSchemaText" spellcheck="false"></textarea></details>
+            <nav aria-label="Python 运行面板"
+              ><button
+                :class="{ active: bottomOpen && bottomTab === 'console' }"
+                @click="
+                  bottomTab = 'console';
+                  bottomOpen = true;
+                "
+                ><Terminal :size="13" />运行日志
+                <em v-if="runState !== 'idle'" :class="runState">●</em></button
+              ><button
+                :class="{ active: bottomOpen && bottomTab === 'output' }"
+                @click="
+                  bottomTab = 'output';
+                  bottomOpen = true;
+                "
+                >输出</button
+              ><button
+                :class="{ active: bottomOpen && bottomTab === 'problems' }"
+                @click="
+                  bottomTab = 'problems';
+                  bottomOpen = true;
+                "
+                >问题<span class="studio-problem-count">{{ pythonProblems.length }}</span></button
+              ><button
+                :class="{ active: bottomOpen && bottomTab === 'parameters' }"
+                @click="
+                  bottomTab = 'parameters';
+                  bottomOpen = true;
+                "
+                >运行参数</button
+              ><span></span
+              ><small v-if="bottomOpen" class="studio-runtime-label">隔离 Python Runtime</small
+              ><button
+                v-if="bottomOpen && ['console', 'output'].includes(bottomTab)"
+                title="清空运行输出"
+                aria-label="清空运行输出"
+                @click="clearConsole"
+                ><Trash2 :size="14" /></button
+              ><button
+                class="bottom-toggle"
+                :title="bottomOpen ? '收起底部面板' : '展开底部面板'"
+                aria-label="切换 Python 底部面板"
+                @click="toggleBottom"
+                ><ChevronDown v-if="bottomOpen" :size="15" /><PanelBottom
+                  v-else
+                  :size="15" /></button
+            ></nav>
+            <div v-show="bottomOpen && bottomTab === 'console'" class="terminal"
+              ><div
+                ><b>Python Runtime</b
+                ><span :class="['run-state', runState]"><i></i>{{ runStateLabel }}</span
+                ><small v-if="runFeedback?.durationMs != null"
+                  >{{ runFeedback.durationMs }} ms</small
+                ><small v-if="runFeedback?.exitCode != null"
+                  >退出码 {{ runFeedback.exitCode }}</small
+                ></div
+              ><pre :class="{ failed: runState === 'failed' }">{{
+                consoleText || "$ 点击“运行”执行当前脚本，stdout / stderr 和执行状态会显示在这里。"
+              }}</pre>
+            </div>
+            <div v-show="bottomOpen && bottomTab === 'output'" class="studio-output"
+              ><header
+                >标准输出
+                <small
+                  >{{ form.fileName
+                  }}{{
+                    runFeedback?.durationMs != null ? " · " + runFeedback.durationMs + " ms" : ""
+                  }}</small
+                ></header
+              ><pre>{{ runFeedback?.stdout || "本次脚本尚无标准输出。" }}</pre
+              ><header v-if="runFeedback?.stderr">标准错误</header
+              ><pre v-if="runFeedback?.stderr" class="failed">{{ runFeedback.stderr }}</pre>
+            </div>
+            <div v-show="bottomOpen && bottomTab === 'problems'" class="studio-problems"
+              ><p v-if="lintState === 'checking'"
+                ><LoaderCircle :size="14" class="studio-spinner" />正在运行 Ruff 检查…</p
+              ><p v-else-if="lintState === 'unavailable'"
+                ><CircleAlert :size="14" />当前环境的代码检查暂不可用。</p
+              ><p v-else-if="!pythonProblems.length"
+                ><CircleCheck :size="14" />Ruff 检查未发现问题。</p
+              ><button
+                v-for="(problem, index) in pythonProblems"
+                :key="index"
+                @click="jumpToPythonLine(problem.location.row)"
+                ><CircleAlert :size="13" /><span>{{ problem.code }} · {{ problem.message }}</span
+                ><small>{{ form.fileName }}:{{ problem.location.row }}</small></button
+              ></div
+            >
+            <div v-show="bottomOpen && bottomTab === 'parameters'" class="parameter-editor">
+              <header class="parameter-heading"
+                ><div
+                  ><strong>动态文件参数规范</strong
+                  ><small
+                    >有运行参数时覆盖默认值；没有参数时脚本使用 Schema
+                    或代码中的默认值继续运行。</small
+                  ></div
+                ><div
+                  ><select
+                    v-model="selectedDataFileId"
+                    title="选择后自动绑定为本次调试文件"
+                    @change="useParameterExample"
+                    ><option value="">选择我的数据</option
+                    ><option
+                      v-for="file in dataFiles.filter((item) => item.status === 'AVAILABLE')"
+                      :key="file.id"
+                      :value="file.id"
+                      >{{ file.fileName }}</option
+                    ></select
+                  ><button @click="useParameterExample">绑定到 source_file</button
+                  ><button @click="insertParameterReaderExample">插入 Python 读取代码</button></div
+                ></header
+              >
+              <div class="parameter-contract"
+                ><div
+                  ><b>① 外部运行参数</b><code>{ "source_file": "fileId", "limit": 100 }</code></div
+                ><span>FILE Schema 解析 →</span
+                ><div
+                  ><b>② Python 收到动态路径</b
+                  ><code
+                    >params = json.loads(os.environ.get("CHATCHAT_INPUT_JSON", "{}"))<br />source_file
+                    = params.get("source_file")<br />df = pd.read_csv(source_file)</code
+                  ></div
+                ><span>→</span
+                ><div
+                  ><b>③ 输出分析结果</b
+                  ><code>print(json.dumps(result, ensure_ascii=False))</code></div
+                ></div
+              >
+              <label class="parameter-input"
+                ><span>本次运行参数</span
+                ><textarea
+                  v-model="parametersText"
+                  spellcheck="false"
+                  placeholder='推荐：{"source_file":"文件ID","limit":100}；调试时也可填写复制的 /data/input 路径'
+                ></textarea
+                ><small :class="['parameter-validation', { invalid: !parameterValidation.valid }]"
+                  >{{ parameterValidation.valid ? "✓" : "!" }} {{ parameterValidation.text }}</small
+                ></label
+              >
+              <details class="parameter-schema"
+                ><summary>输入参数 Schema（FILE 字段会把 fileId 安全解析为路径）</summary
+                ><textarea v-model="inputSchemaText" spellcheck="false"></textarea>
+              </details>
             </div>
           </section>
         </main>
-        <div v-if="aiOpen" class="pane-resizer pane-resizer-vertical ai-resizer" role="separator" aria-orientation="vertical" title="拖动调整 AI 助手宽度，双击恢复默认" @pointerdown="startPaneResize('ai',$event)" @dblclick="resetPaneSize('ai')"></div>
+        <div
+          v-if="aiOpen"
+          class="pane-resizer pane-resizer-vertical ai-resizer"
+          role="separator"
+          aria-orientation="vertical"
+          title="拖动调整 AI 助手宽度，双击恢复默认"
+          @pointerdown="startPaneResize('ai', $event)"
+          @dblclick="resetPaneSize('ai')"
+        ></div>
 
         <aside class="ai-panel">
-          <header><div><Sparkles :size="17" /><strong>AI 工程助手</strong></div><div class="studio-ai-header-actions"><button type="button" aria-label="新建 Python 会话" title="新建会话" :disabled="aiBusy" @click="newPythonConversation"><Plus :size="17" /></button><button aria-label="收起 AI 助手" @click="toggleAi"><X :size="15" /></button></div></header>
+          <header
+            ><div><Sparkles :size="17" /><strong>AI 工程助手</strong></div
+            ><div class="studio-ai-header-actions"
+              ><button
+                type="button"
+                aria-label="新建 Python 会话"
+                title="新建会话"
+                :disabled="aiBusy"
+                @click="newPythonConversation"
+                ><Plus :size="17" /></button
+              ><button aria-label="收起 AI 助手" @click="toggleAi"><X :size="15" /></button></div
+          ></header>
 
-          <section ref="aiMessagesScroll" class="ai-body" role="log" aria-label="Python AI 协作记录" @scroll="trackAiScroll">
-            <template v-if="!aiMessages.length&&!aiSuggestion&&!aiBusy"><div class="ai-intro"><span class="studio-ai-avatar"><FileCode2 :size="28" /></span><strong>你好，我是 AI 编程助手</strong><p>围绕当前文件，协助你完成开发。</p><ul><li>理解代码逻辑与输入输出</li><li>优化代码、定位潜在问题</li><li>生成 Python 脚本与单元测试</li><li>结合已选领域 Skills 回答问题</li></ul></div><div class="ai-examples"><button v-for="example in ['解释当前代码的逻辑','优化当前代码的异常处理','为当前脚本生成 unittest 测试','根据需求生成一个数据分析脚本']" :key="example" @click="useAiExample(example)"><span>/</span>{{ example }}</button></div></template>
-            <article v-for="(turn,index) in aiConversationMessages" :key="turn.id||index" class="studio-ai-turn" :class="turn.role" :aria-label="turn.role==='user'?'用户消息':'AI 助手消息'">
-              <small>{{ turn.role==='user'?'我':'AI 工程助手' }}{{ turn.action ? ' · '+({generate:'代码生成',explain:'代码解释',fix:'代码修复',ask:'上下文问答',test:'生成测试',optimize:'代码优化',continue:'代码续写'})[turn.action] : '' }}{{ turn.fileName ? ' · '+turn.fileName : '' }}</small>
-              <p v-if="turn.id!==aiCurrentTurn?.id||(!aiBusy&&!aiSuggestion)" :class="{'studio-ai-error':turn.status==='failed'}" :role="turn.status==='failed'?'alert':undefined">{{ turn.text }}</p>
-              <div v-if="turn.id===aiCurrentTurn?.id&&aiBusy" class="ai-progress" role="status"><LoaderCircle :size="18" class="studio-spinner" /><strong>{{ turn.status==='planning'?'正在制定代码协作计划':aiProgressLabel }}</strong><p>{{ selectedAiModelLabel }} · {{ Math.floor(aiElapsedMs/1000) }} 秒</p><small v-if="aiElapsedMs>=30000">当前阶段仍在等待模型返回结果。</small></div>
-              <StudioCodePlan v-if="turn.plan" :plan="turn.plan.interpretationPlan||turn.plan" :state="turn.status==='failed'?'failed':turn.id===aiCurrentTurn?.id&&aiBusy?'exploring':'complete'" />
-              <ol v-if="turn.activity?.length" class="studio-message-activity" aria-label="请求处理记录"><li v-for="entry in turn.activity" :key="entry.id" :data-status="entry.status">{{ entry.title }}</li></ol>
-              <small v-if="turn.planId" class="studio-message-id">计划编号：{{ turn.planId }}</small>
-            <div v-if="turn.id===aiCurrentTurn?.id&&aiSuggestion&&!aiBusy" class="ai-result" :class="{applied:aiStage==='applied','is-answer':aiIsTextAnswer}">
-              <div class="ai-result-head"><strong>{{ aiOperationLabel }} · {{ aiIsTextAnswer?'回答完成':aiStage==='applied'?'已应用修改':'待审查' }}</strong><span :title="aiSuggestion.modelName">{{ aiSuggestion.modelName || selectedAiModelLabel }} · {{ (aiElapsedMs/1000).toFixed(1) }}s</span></div>
-              <p v-if="aiSuggestion.appliedSkills?.length" class="ai-skill-applied">专业增强：{{ aiSuggestion.appliedSkills.map(skill=>skill.name).join('、') }}</p>
-              <p v-if="aiIsTextAnswer" class="studio-text-answer">{{ aiSuggestion.code }}</p>
-              <template v-else><p v-if="aiAppliedInfo" class="ai-applied-notice"><b>已{{ aiAppliedInfo.verb }}{{ aiAppliedInfo.mode }}</b><span>{{ aiAppliedInfo.lines }} 行代码已写入，当前修改尚未保存。</span></p><p v-if="aiSuggestionStale" class="studio-ai-error" role="alert">文件或内容已变化，请基于当前版本重新生成，避免覆盖已有编辑。</p><PythonCodeDiff v-if="aiShowsDiff" :diff="aiDiff" :action="aiSuggestion.action" :request="aiChangeRequest" :scope="aiChangeScope" /><footer><button @click="resetAiSuggestion">{{ aiStage==='applied'?'继续生成':'放弃' }}</button><button class="apply" :disabled="aiStage==='applied'||aiSuggestionStale||!aiDiff?.changed" @click="aiReviewOpen=true">{{ aiStage==='applied'?'已应用':'审查代码变更' }}</button></footer></template>
-            </div>
+          <section
+            ref="aiMessagesScroll"
+            class="ai-body"
+            role="log"
+            aria-label="Python AI 协作记录"
+            @scroll="trackAiScroll"
+          >
+            <template v-if="!aiMessages.length && !aiSuggestion && !aiBusy"
+              ><div class="ai-intro"
+                ><span class="studio-ai-avatar"><FileCode2 :size="28" /></span
+                ><strong>你好，我是 AI 编程助手</strong><p>围绕当前文件，协助你完成开发。</p
+                ><ul
+                  ><li>理解代码逻辑与输入输出</li
+                  ><li>优化代码、定位潜在问题</li
+                  ><li>生成 Python 脚本与单元测试</li
+                  ><li>结合已选领域 Skills 回答问题</li></ul
+                ></div
+              ><div class="ai-examples"
+                ><button
+                  v-for="example in [
+                    '解释当前代码的逻辑',
+                    '优化当前代码的异常处理',
+                    '为当前脚本生成 unittest 测试',
+                    '根据需求生成一个数据分析脚本',
+                  ]"
+                  :key="example"
+                  @click="useAiExample(example)"
+                  ><span>/</span>{{ example }}</button
+                ></div
+              ></template
+            >
+            <article
+              v-for="(turn, index) in aiConversationMessages"
+              :key="turn.id || index"
+              class="studio-ai-turn"
+              :class="turn.role"
+              :aria-label="turn.role === 'user' ? '用户消息' : 'AI 助手消息'"
+            >
+              <small
+                >{{ turn.role === "user" ? "我" : "AI 工程助手"
+                }}{{
+                  turn.action
+                    ? " · " +
+                      {
+                        generate: "代码生成",
+                        explain: "代码解释",
+                        fix: "代码修复",
+                        ask: "上下文问答",
+                        test: "生成测试",
+                        optimize: "代码优化",
+                        continue: "代码续写",
+                      }[turn.action]
+                    : ""
+                }}{{ turn.fileName ? " · " + turn.fileName : "" }}</small
+              >
+              <p
+                v-if="turn.id !== aiCurrentTurn?.id || (!aiBusy && !aiSuggestion)"
+                :class="{ 'studio-ai-error': turn.status === 'failed' }"
+                :role="turn.status === 'failed' ? 'alert' : undefined"
+                >{{ turn.text }}</p
+              >
+              <div v-if="turn.id === aiCurrentTurn?.id && aiBusy" class="ai-progress" role="status"
+                ><LoaderCircle :size="18" class="studio-spinner" /><strong>{{
+                  turn.status === "planning" ? "正在制定代码协作计划" : aiProgressLabel
+                }}</strong
+                ><p>{{ selectedAiModelLabel }} · {{ Math.floor(aiElapsedMs / 1000) }} 秒</p
+                ><small v-if="aiElapsedMs >= 30000">当前阶段仍在等待模型返回结果。</small></div
+              >
+              <StudioCodePlan
+                v-if="turn.plan"
+                :plan="turn.plan.interpretationPlan || turn.plan"
+                :state="
+                  turn.status === 'failed'
+                    ? 'failed'
+                    : turn.id === aiCurrentTurn?.id && aiBusy
+                      ? 'exploring'
+                      : 'complete'
+                "
+              />
+              <ol
+                v-if="turn.activity?.length"
+                class="studio-message-activity"
+                aria-label="请求处理记录"
+                ><li v-for="entry in turn.activity" :key="entry.id" :data-status="entry.status">{{
+                  entry.title
+                }}</li></ol
+              >
+              <small v-if="turn.planId" class="studio-message-id"
+                >计划编号：{{ turn.planId }}</small
+              >
+              <div
+                v-if="turn.id === aiCurrentTurn?.id && aiSuggestion && !aiBusy"
+                class="ai-result"
+                :class="{ applied: aiStage === 'applied', 'is-answer': aiIsTextAnswer }"
+              >
+                <div class="ai-result-head"
+                  ><strong
+                    >{{ aiOperationLabel }} ·
+                    {{
+                      aiIsTextAnswer ? "回答完成" : aiStage === "applied" ? "已应用修改" : "待审查"
+                    }}</strong
+                  ><span :title="aiSuggestion.modelName"
+                    >{{ aiSuggestion.modelName || selectedAiModelLabel }} ·
+                    {{ (aiElapsedMs / 1000).toFixed(1) }}s</span
+                  ></div
+                >
+                <p v-if="aiSuggestion.appliedSkills?.length" class="ai-skill-applied"
+                  >专业增强：{{
+                    aiSuggestion.appliedSkills.map((skill) => skill.name).join("、")
+                  }}</p
+                >
+                <p v-if="aiIsTextAnswer" class="studio-text-answer">{{ aiSuggestion.code }}</p>
+                <template v-else
+                  ><p v-if="aiAppliedInfo" class="ai-applied-notice"
+                    ><b>已{{ aiAppliedInfo.verb }}{{ aiAppliedInfo.mode }}</b
+                    ><span>{{ aiAppliedInfo.lines }} 行代码已写入，当前修改尚未保存。</span></p
+                  ><p v-if="aiSuggestionStale" class="studio-ai-error" role="alert"
+                    >文件或内容已变化，请基于当前版本重新生成，避免覆盖已有编辑。</p
+                  ><PythonCodeDiff
+                    v-if="aiShowsDiff"
+                    :diff="aiDiff"
+                    :action="aiSuggestion.action"
+                    :request="aiChangeRequest"
+                    :scope="aiChangeScope"
+                  /><footer
+                    ><button @click="resetAiSuggestion">{{
+                      aiStage === "applied" ? "继续生成" : "放弃"
+                    }}</button
+                    ><button
+                      class="apply"
+                      :disabled="aiStage === 'applied' || aiSuggestionStale || !aiDiff?.changed"
+                      @click="aiReviewOpen = true"
+                      >{{ aiStage === "applied" ? "已应用" : "审查代码变更" }}</button
+                    ></footer
+                  ></template
+                >
+              </div>
             </article>
           </section>
           <footer class="ai-composer">
-            <div v-if="aiCodingTask" role="status">AI Coding · {{ aiCodingProgress?.status || 'RUNNING' }}
+            <div v-if="aiCodingTask" role="status"
+              >AI Coding · {{ aiCodingProgress?.status || "RUNNING" }}
               <button v-if="aiBusy" type="button" @click="cancelAiCoding">取消任务</button>
-              <button v-else-if="aiStage==='failed'" type="button" @click="resumeAiCoding">恢复任务</button>
-              <span v-if="aiCodingProgress?.outcome?.usage">模型 {{ aiCodingProgress.outcome.usage.consumed.modelCalls }} 轮 · 工具 {{ aiCodingProgress.outcome.usage.consumed.toolCalls }} 次</span>
+              <button v-else-if="aiStage === 'failed'" type="button" @click="resumeAiCoding"
+                >恢复任务</button
+              >
+              <span v-if="aiCodingProgress?.outcome?.usage"
+                >模型 {{ aiCodingProgress.outcome.usage.consumed.modelCalls }} 轮 · 工具
+                {{ aiCodingProgress.outcome.usage.consumed.toolCalls }} 次</span
+              >
             </div>
-            <div class="studio-ai-context"><FileCode2 :size="12" /><span :title="form.fileName">{{ form.fileName }}</span><span>{{ aiSkillIds.length }} 个 Skill</span></div>
-            <textarea ref="aiPrompt" v-model.trim="aiPrompt" :disabled="aiBusy" maxlength="4000" aria-label="Python AI 提示词" placeholder="描述需求，或针对当前文件提问…" @keydown.ctrl.enter.prevent="askAi" @keydown.meta.enter.prevent="askAi"></textarea>
-            <div class="studio-ai-send"><small>Ctrl / ⌘ + Enter 发送</small><button aria-label="发送 Python AI 请求" @click="askAi" :disabled="aiBusy||!aiPrompt||!aiModel"><LoaderCircle v-if="aiBusy" :size="16" class="studio-spinner" /><Send v-else :size="16" /></button></div>
-            <div class="ai-composer-options"><select v-model="aiModel" class="ai-model-select" aria-label="Python AI 模型" :disabled="aiBusy||!aiModels.length"><option v-if="!aiModels.length" value="">暂无可用模型</option><option v-for="model in aiModels" :key="model.value" :value="model.value">{{ model.label }}{{ model.defaultModel?'（默认）':'' }}</option></select></div>
-            <button type="button" class="ai-skill-text-button" :disabled="aiBusy" :title="selectedAiSkills.map(skill=>skill.name).join('、') || '选择参与协作的已发布领域技能'" @click="openAiSkillPicker"><span>已发布技能</span><span v-if="aiSkillIds.length">（{{ aiSkillIds.length }}）</span></button>
+            <div class="studio-ai-context"
+              ><FileCode2 :size="12" /><span :title="form.fileName">{{ form.fileName }}</span
+              ><span>{{ aiSkillIds.length }} 个 Skill</span></div
+            >
+            <textarea
+              ref="aiPrompt"
+              v-model.trim="aiPrompt"
+              :disabled="aiBusy"
+              maxlength="4000"
+              aria-label="Python AI 提示词"
+              placeholder="描述需求，或针对当前文件提问…"
+              @keydown.ctrl.enter.prevent="askAi"
+              @keydown.meta.enter.prevent="askAi"
+            ></textarea>
+            <div class="studio-ai-send"
+              ><small>Ctrl / ⌘ + Enter 发送</small
+              ><button
+                aria-label="发送 Python AI 请求"
+                @click="askAi"
+                :disabled="aiBusy || !aiPrompt || !aiModel"
+                ><LoaderCircle v-if="aiBusy" :size="16" class="studio-spinner" /><Send
+                  v-else
+                  :size="16" /></button
+            ></div>
+            <div class="ai-composer-options"
+              ><select
+                v-model="aiModel"
+                class="ai-model-select"
+                aria-label="Python AI 模型"
+                :disabled="aiBusy || !aiModels.length"
+                ><option v-if="!aiModels.length" value="">暂无可用模型</option
+                ><option v-for="model in aiModels" :key="model.value" :value="model.value"
+                  >{{ model.label }}{{ model.defaultModel ? "（默认）" : "" }}</option
+                ></select
+              ></div
+            >
+            <button
+              type="button"
+              class="ai-skill-text-button"
+              :disabled="aiBusy"
+              :title="
+                selectedAiSkills.map((skill) => skill.name).join('、') ||
+                '选择参与协作的已发布领域技能'
+              "
+              @click="openAiSkillPicker"
+              ><span>已发布技能</span
+              ><span v-if="aiSkillIds.length">（{{ aiSkillIds.length }}）</span></button
+            >
           </footer>
         </aside>
-        <footer class="ide-statusbar"><button @click="bottomTab='problems';bottomOpen=true"><CircleAlert v-if="pythonProblems.length" :size="12" /><CircleCheck v-else :size="12" />{{ pythonProblems.length }} 个问题</button><span class="studio-lint-status">{{ lintState==='checking'?'检查中':lintState==='unavailable'?'检查不可用':lintState==='ready'?'Ruff 已检查':'尚未检查' }}</span><span><Box :size="12" />Python {{ pythonVersionLabel }}</span><span class="studio-save-state"><CircleCheck v-if="!dirty" :size="12" /><CircleAlert v-else :size="12" />{{ dirty?'有未保存修改':'已保存' }}</span><i></i><span>行 {{ cursorPosition.lineNumber }}，列 {{ cursorPosition.column }}</span><span>{{ codeLines }} 行</span><span>UTF-8</span><span>LF</span><span>Python</span><button aria-label="切换 Python 底部面板状态" @click="toggleBottom"><PanelBottom :size="13" /></button></footer>
+        <footer class="ide-statusbar"
+          ><button
+            @click="
+              bottomTab = 'problems';
+              bottomOpen = true;
+            "
+            ><CircleAlert v-if="pythonProblems.length" :size="12" /><CircleCheck
+              v-else
+              :size="12"
+            />{{ pythonProblems.length }} 个问题</button
+          ><span class="studio-lint-status">{{
+            lintState === "checking"
+              ? "检查中"
+              : lintState === "unavailable"
+                ? "检查不可用"
+                : lintState === "ready"
+                  ? "Ruff 已检查"
+                  : "尚未检查"
+          }}</span
+          ><span><Box :size="12" />Python {{ pythonVersionLabel }}</span
+          ><span class="studio-save-state"
+            ><CircleCheck v-if="!dirty" :size="12" /><CircleAlert v-else :size="12" />{{
+              dirty ? "有未保存修改" : "已保存"
+            }}</span
+          ><i></i><span>行 {{ cursorPosition.lineNumber }}，列 {{ cursorPosition.column }}</span
+          ><span>{{ codeLines }} 行</span><span>UTF-8</span><span>LF</span><span>Python</span
+          ><button aria-label="切换 Python 底部面板状态" @click="toggleBottom"
+            ><PanelBottom :size="13" /></button
+        ></footer>
       </div>
     </div>
 
-    <Teleport to="body"><div v-if="studioSearchOpen" class="studio-palette-backdrop" @mousedown.self="studioSearchOpen=false" @keydown.esc.prevent="studioSearchOpen=false">
-      <section class="studio-palette" role="dialog" aria-modal="true" aria-label="Python Studio 快捷搜索">
-        <header><Search :size="18" /><input ref="studioSearch" v-model="studioSearchQuery" aria-label="搜索文件、函数或命令" placeholder="搜索文件、函数、内容；输入 > 查找命令" @input="studioSearchIndex=0" @keydown.down.prevent="moveStudioSearch(1)" @keydown.up.prevent="moveStudioSearch(-1)" @keydown.enter.prevent="chooseStudioResult(studioSearchResults[studioSearchIndex])" /><button aria-label="关闭快捷搜索" @click="studioSearchOpen=false">Esc</button></header>
-        <div class="studio-palette-results"><button v-for="(item,index) in studioSearchResults" :key="index" :class="{active:index===studioSearchIndex}" :disabled="busy" @mouseenter="studioSearchIndex=index" @click="chooseStudioResult(item)"><Code2 v-if="item.kind==='command'" :size="16" /><FileCode2 v-else :size="16" /><span><strong>{{ item.label }}</strong><small>{{ item.detail }}</small></span><kbd v-if="item.shortcut">{{ item.shortcut }}</kbd></button><p v-if="!studioSearchResults.length">没有匹配结果，请尝试其他关键词。</p></div>
-        <footer><span>↑ ↓ 选择　Enter 打开</span><span>仅搜索当前已授权的脚本</span></footer>
-      </section>
-    </div></Teleport>
+    <Teleport to="body"
+      ><div
+        v-if="studioSearchOpen"
+        class="studio-palette-backdrop"
+        @mousedown.self="studioSearchOpen = false"
+        @keydown.esc.prevent="studioSearchOpen = false"
+      >
+        <section
+          class="studio-palette"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Python Studio 快捷搜索"
+        >
+          <header
+            ><Search :size="18" /><input
+              ref="studioSearch"
+              v-model="studioSearchQuery"
+              aria-label="搜索文件、函数或命令"
+              placeholder="搜索文件、函数、内容；输入 > 查找命令"
+              @input="studioSearchIndex = 0"
+              @keydown.down.prevent="moveStudioSearch(1)"
+              @keydown.up.prevent="moveStudioSearch(-1)"
+              @keydown.enter.prevent="chooseStudioResult(studioSearchResults[studioSearchIndex])"
+            /><button aria-label="关闭快捷搜索" @click="studioSearchOpen = false"
+              >Esc</button
+            ></header
+          >
+          <div class="studio-palette-results"
+            ><button
+              v-for="(item, index) in studioSearchResults"
+              :key="index"
+              :class="{ active: index === studioSearchIndex }"
+              :disabled="busy"
+              @mouseenter="studioSearchIndex = index"
+              @click="chooseStudioResult(item)"
+              ><Code2 v-if="item.kind === 'command'" :size="16" /><FileCode2
+                v-else
+                :size="16"
+              /><span
+                ><strong>{{ item.label }}</strong
+                ><small>{{ item.detail }}</small></span
+              ><kbd v-if="item.shortcut">{{ item.shortcut }}</kbd></button
+            ><p v-if="!studioSearchResults.length">没有匹配结果，请尝试其他关键词。</p></div
+          >
+          <footer><span>↑ ↓ 选择　Enter 打开</span><span>仅搜索当前已授权的脚本</span></footer>
+        </section>
+      </div></Teleport
+    >
 
-    <CodeChangeReview v-if="aiReviewOpen" :files="aiReviewFiles" language="python" :title="aiOperationLabel" :blocked-reason="aiSuggestionStale?'文件或内容已变化，请重新生成建议。':''" :apply-label="aiApplyLabel" :busy="aiBusy" @close="aiReviewOpen=false" @apply="confirmAiReview" />
-    <div v-if="aiSkillPickerOpen" class="ai-skill-dialog-backdrop" role="presentation" tabindex="-1" @mousedown.self="closeAiSkillPicker" @keydown.esc.prevent="closeAiSkillPicker">
-      <section class="ai-skill-dialog" role="dialog" aria-modal="true" aria-labelledby="ai-skill-dialog-title">
+    <CodeChangeReview
+      v-if="aiReviewOpen"
+      :files="aiReviewFiles"
+      language="python"
+      :title="aiOperationLabel"
+      :blocked-reason="aiSuggestionStale ? '文件或内容已变化，请重新生成建议。' : ''"
+      :apply-label="aiApplyLabel"
+      :busy="aiBusy"
+      @close="aiReviewOpen = false"
+      @apply="confirmAiReview"
+    />
+    <div
+      v-if="aiSkillPickerOpen"
+      class="ai-skill-dialog-backdrop"
+      role="presentation"
+      tabindex="-1"
+      @mousedown.self="closeAiSkillPicker"
+      @keydown.esc.prevent="closeAiSkillPicker"
+    >
+      <section
+        class="ai-skill-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ai-skill-dialog-title"
+      >
         <header>
-          <div><p>Python 开发</p><h2 id="ai-skill-dialog-title">选择领域 Skills</h2><span>选择已发布的专业规则和工作流程，应用后将直接参与本次代码生成。</span></div>
-          <button type="button" class="app-dialog-close" aria-label="关闭领域技能选择" title="关闭" @click="closeAiSkillPicker">×</button>
+          <div
+            ><p>Python 开发</p><h2 id="ai-skill-dialog-title">选择领域 Skills</h2
+            ><span>选择已发布的专业规则和工作流程，应用后将直接参与本次代码生成。</span></div
+          >
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭领域技能选择"
+            title="关闭"
+            @click="closeAiSkillPicker"
+            >×</button
+          >
         </header>
         <div class="ai-skill-dialog-body">
           <div class="ai-skill-searchbar">
-            <label><span>搜索领域技能</span><input ref="aiSkillSearch" v-model.trim="aiSkillSearchQuery" type="search" placeholder="搜索名称、分类或说明"></label>
-            <label><span>业务分类</span><select v-model="aiSkillCategoryFilter"><option value="ALL">全部分类</option><option v-for="category in aiSkillCategoryOptions" :key="category" :value="category">{{ category }}</option></select></label>
+            <label
+              ><span>搜索领域技能</span
+              ><input
+                ref="aiSkillSearch"
+                v-model.trim="aiSkillSearchQuery"
+                type="search"
+                placeholder="搜索名称、分类或说明"
+            /></label>
+            <label
+              ><span>业务分类</span
+              ><select v-model="aiSkillCategoryFilter"
+                ><option value="ALL">全部分类</option
+                ><option
+                  v-for="category in aiSkillCategoryOptions"
+                  :key="category"
+                  :value="category"
+                  >{{ category }}</option
+                ></select
+              ></label
+            >
           </div>
-          <div class="ai-skill-batchbar"><span>仅展示已经发布的领域技能，最多选择 8 个。</span><strong>当前结果 {{ filteredAiSkills.length }} 个 · 已选 {{ aiSkillDraftIds.length }} 个</strong></div>
+          <div class="ai-skill-batchbar"
+            ><span>仅展示已经发布的领域技能，最多选择 8 个。</span
+            ><strong
+              >当前结果 {{ filteredAiSkills.length }} 个 · 已选
+              {{ aiSkillDraftIds.length }} 个</strong
+            ></div
+          >
           <div v-if="filteredAiSkills.length" class="ai-skill-checklist">
-            <label v-for="skill in filteredAiSkills" :key="skill.id" class="ai-skill-check" :class="{active:aiSkillDraftIds.includes(skill.id),disabled:!aiSkillDraftIds.includes(skill.id)&&aiSkillDraftIds.length>=8}" :title="skill.description || skill.name">
-              <input type="checkbox" :checked="aiSkillDraftIds.includes(skill.id)" :disabled="!aiSkillDraftIds.includes(skill.id)&&aiSkillDraftIds.length>=8" @change="toggleAiSkillDraft(skill.id)">
-              <span><strong>{{ skill.name }}</strong><small>{{ skill.category || '未分类' }} · 已发布</small><em>{{ skill.description || '暂无说明' }}</em></span>
+            <label
+              v-for="skill in filteredAiSkills"
+              :key="skill.id"
+              class="ai-skill-check"
+              :class="{
+                active: aiSkillDraftIds.includes(skill.id),
+                disabled: !aiSkillDraftIds.includes(skill.id) && aiSkillDraftIds.length >= 8,
+              }"
+              :title="skill.description || skill.name"
+            >
+              <input
+                type="checkbox"
+                :checked="aiSkillDraftIds.includes(skill.id)"
+                :disabled="!aiSkillDraftIds.includes(skill.id) && aiSkillDraftIds.length >= 8"
+                @change="toggleAiSkillDraft(skill.id)"
+              />
+              <span
+                ><strong>{{ skill.name }}</strong
+                ><small>{{ skill.category || "未分类" }} · 已发布</small
+                ><em>{{ skill.description || "暂无说明" }}</em></span
+              >
             </label>
           </div>
-          <p v-else-if="aiSkills.length" class="ai-skill-empty">没有匹配的领域技能，请调整关键词或分类。</p>
+          <p v-else-if="aiSkills.length" class="ai-skill-empty"
+            >没有匹配的领域技能，请调整关键词或分类。</p
+          >
           <p v-else class="ai-skill-empty">暂无已发布的领域技能。</p>
         </div>
         <footer>
-          <button v-if="aiSkillDraftIds.length" type="button" class="ai-skill-clear-button" @click="clearAiSkillDraft">清空已选</button><span v-else></span>
-          <div><button type="button" @click="closeAiSkillPicker">取消</button><button type="button" class="ds-primary" @click="applyAiSkillSelection">应用（已选 {{ aiSkillDraftIds.length }} 项）</button></div>
+          <button
+            v-if="aiSkillDraftIds.length"
+            type="button"
+            class="ai-skill-clear-button"
+            @click="clearAiSkillDraft"
+            >清空已选</button
+          ><span v-else></span>
+          <div
+            ><button type="button" @click="closeAiSkillPicker">取消</button
+            ><button type="button" class="ds-primary" @click="applyAiSkillSelection"
+              >应用（已选 {{ aiSkillDraftIds.length }} 项）</button
+            ></div
+          >
         </footer>
       </section>
     </div>
 
-    <AppConfirmDialog v-if="ideDialog.open && ideDialog.mode==='confirm' && ideDialog.confirmText==='删除'" :title="ideDialog.title" :message="ideDialog.message" @confirm="finishIdeDialog(true)" @cancel="finishIdeDialog(false)" />
-    <div v-if="ideDialog.open && (ideDialog.mode==='prompt' || ideDialog.confirmText!=='删除')" ref="ideDialogBackdrop" class="ide-dialog-backdrop" tabindex="-1" @mousedown.self="finishIdeDialog(false)" @keydown.esc.prevent="finishIdeDialog(false)"><form class="ide-dialog" role="dialog" aria-modal="true" :aria-label="ideDialog.title" @submit.prevent="submitIdeDialog"><header><span :class="['ide-dialog-symbol',{danger:ideDialog.danger}]">{{ ideDialog.danger?'!':'⌁' }}</span><div><h2>{{ ideDialog.title }}</h2><p>{{ ideDialog.message }}</p></div><button type="button" aria-label="关闭" title="关闭" @click="finishIdeDialog(false)">×</button></header><label v-if="ideDialog.mode==='prompt'" class="ide-dialog-field"><span>名称</span><input ref="ideDialogInput" v-model="ideDialog.value" :placeholder="ideDialog.placeholder" maxlength="120" autocomplete="off" @keydown.esc.prevent="finishIdeDialog(false)"><small>{{ ideDialog.value.trim().length }}/120</small></label><footer><button type="button" class="ide-dialog-cancel" @click="finishIdeDialog(false)">取消</button><button type="submit" :class="['ide-dialog-confirm',{danger:ideDialog.danger}]" :disabled="ideDialog.mode==='prompt'&&!ideDialog.value.trim()">{{ ideDialog.confirmText }}</button></footer></form></div>
-    <div v-if="assetOpen" class="ds-modal" @mousedown.self="assetOpen=false"><form @submit.prevent="createAsset"><h2>添加 Python 运行环境</h2><p>只能选择 MCP 管理端已发布的环境；镜像和资源边界由 MCP 统一治理。</p><label>环境名称 *<input v-model="assetForm.name" required></label><label>环境描述<textarea v-model="assetForm.description"></textarea></label><label>MCP 已发布环境 *<select v-model="assetForm.environmentId" required><option disabled value="">请选择环境</option><option v-for="env in environmentCatalog" :key="env.id" :value="env.id">{{ env.name }} · Python {{ env.pythonVersion }} · v{{ env.versionNumber }}</option></select></label><div v-if="selectedEnvironment" class="ds-alert"><strong>{{ selectedEnvironment.dockerImage }}</strong><br>{{ selectedEnvironment.cpuLimit }} CPU / {{ selectedEnvironment.memoryLimit }} / 网络{{ selectedEnvironment.networkEnabled?'开启':'禁用' }} / 超时 {{ selectedEnvironment.timeoutSeconds }}s</div><p v-if="!environmentCatalog.length" class="ds-alert error">MCP 尚未发布 Python 环境，请先到 MCP 管理端的 Python 管理页面发布。</p><footer><button type="button" @click="assetOpen=false">取消</button><button class="ds-primary" :disabled="busy||!environmentCatalog.length">{{ busy?'添加中…':'添加环境' }}</button></footer></form></div>
-    <div v-if="dataUploadOpen" class="ds-modal" @mousedown.self="dataUploadOpen=false"><form @submit.prevent="uploadData"><h2>上传数据</h2><p>文件将通过 AES-GCM 加密传输到 MCP，并以只读卷挂载到 Python 沙箱。</p><label class="data-drop" @dragover.prevent @drop.prevent="dropDataFile"><input type="file" accept=".csv,.xls,.xlsx,.json,.txt,.log,.parquet,.orc,.zip" @change="chooseDataFile"><strong>{{ dataUploadFile?.name || '拖拽文件到此处，或点击选择文件' }}</strong><small>支持 CSV、XLS、XLSX、JSON、TXT、LOG、PARQUET、ORC、ZIP，最大 50 MB</small></label><label>数据用途（可选）<textarea v-model="dataUploadForm.purpose" placeholder="例如：客户交易数据，用于交易行为分析"></textarea></label><label>保留期限<select v-model="dataUploadForm.retention"><option value="PERMANENT">永久保留</option><option value="7_DAYS">7 天</option><option value="30_DAYS">30 天</option></select></label><footer><button type="button" @click="dataUploadOpen=false">取消</button><button class="ds-primary" :disabled="busy||!dataUploadFile">{{ busy?'加密传输中…':'上传' }}</button></footer></form></div>
-    <div v-if="publishOpen" class="ds-modal" @mousedown.self="!publishBusy&&(publishOpen=false)"><form @submit.prevent="publish"><h2>{{ publishUpdating?'更新 Python 模板':'发布 Python 模板' }}</h2><p>{{ publishUpdating?'已加载当前发布配置；提交后将更新同一个 MCP 模板，不会创建重复模板。':'场景描述将同时参与 BM25 与向量检索；输入 Schema 中声明为 FILE 的参数由 Agent 传入 fileId，MCP 执行时安全解析为只读路径。' }}</p><div v-if="publishBusy" class="publish-progress" role="progressbar" aria-label="模板发布进度"><div class="publish-progress-track"><i></i></div><strong>{{ publishUpdating?'正在更新并同步到 MCP…':'正在发布并同步到 MCP…' }}</strong><small>编辑器和当前页面会保持原状</small></div><label>模板名称 *<input v-model="publishForm.templateName" :disabled="publishBusy" required></label><label>场景描述 *<textarea v-model="publishForm.scenario" :disabled="publishBusy" required placeholder="说明适用业务场景和用户可能提出的问题"></textarea></label><label>功能描述 *<textarea v-model="publishForm.description" :disabled="publishBusy" required></textarea></label><div class="ds-form-row"><label>关键词<input v-model="publishForm.keywords" :disabled="publishBusy"></label><label>所属领域<input v-model="publishForm.domain" :disabled="publishBusy"></label></div><div class="ds-form-row"><label>输入 Schema<textarea v-model="publishForm.inputSchema" :disabled="publishBusy"></textarea></label><label>输出 Schema<textarea v-model="publishForm.outputSchema" :disabled="publishBusy"></textarea></label></div><footer><button type="button" :disabled="publishBusy" @click="publishOpen=false">取消</button><button class="ds-primary" :disabled="publishBusy">{{ publishBusy?(publishUpdating?'更新中…':'发布中…'):(publishUpdating?'更新到 MCP':'发布到 MCP') }}</button></footer></form></div>
+    <AppConfirmDialog
+      v-if="ideDialog.open && ideDialog.mode === 'confirm' && ideDialog.confirmText === '删除'"
+      :title="ideDialog.title"
+      :message="ideDialog.message"
+      @confirm="finishIdeDialog(true)"
+      @cancel="finishIdeDialog(false)"
+    />
+    <div
+      v-if="ideDialog.open && (ideDialog.mode === 'prompt' || ideDialog.confirmText !== '删除')"
+      ref="ideDialogBackdrop"
+      class="ide-dialog-backdrop"
+      tabindex="-1"
+      @mousedown.self="finishIdeDialog(false)"
+      @keydown.esc.prevent="finishIdeDialog(false)"
+      ><form
+        class="ide-dialog"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="ideDialog.title"
+        @submit.prevent="submitIdeDialog"
+        ><header
+          ><span :class="['ide-dialog-symbol', { danger: ideDialog.danger }]">{{
+            ideDialog.danger ? "!" : "⌁"
+          }}</span
+          ><div
+            ><h2>{{ ideDialog.title }}</h2
+            ><p>{{ ideDialog.message }}</p></div
+          ><button type="button" aria-label="关闭" title="关闭" @click="finishIdeDialog(false)"
+            >×</button
+          ></header
+        ><label v-if="ideDialog.mode === 'prompt'" class="ide-dialog-field"
+          ><span>名称</span
+          ><input
+            ref="ideDialogInput"
+            v-model="ideDialog.value"
+            :placeholder="ideDialog.placeholder"
+            maxlength="120"
+            autocomplete="off"
+            @keydown.esc.prevent="finishIdeDialog(false)"
+          /><small>{{ ideDialog.value.trim().length }}/120</small></label
+        ><footer
+          ><button type="button" class="ide-dialog-cancel" @click="finishIdeDialog(false)"
+            >取消</button
+          ><button
+            type="submit"
+            :class="['ide-dialog-confirm', { danger: ideDialog.danger }]"
+            :disabled="ideDialog.mode === 'prompt' && !ideDialog.value.trim()"
+            >{{ ideDialog.confirmText }}</button
+          ></footer
+        ></form
+      ></div
+    >
+    <div v-if="assetOpen" class="ds-modal" @mousedown.self="assetOpen = false"
+      ><form @submit.prevent="createAsset"
+        ><h2>添加 Python 运行环境</h2
+        ><p>只能选择 MCP 管理端已发布的环境；镜像和资源边界由 MCP 统一治理。</p
+        ><label>环境名称 *<input v-model="assetForm.name" required /></label
+        ><label>环境描述<textarea v-model="assetForm.description"></textarea></label
+        ><label
+          >MCP 已发布环境 *<select v-model="assetForm.environmentId" required
+            ><option disabled value="">请选择环境</option
+            ><option v-for="env in environmentCatalog" :key="env.id" :value="env.id"
+              >{{ env.name }} · Python {{ env.pythonVersion }} · v{{ env.versionNumber }}</option
+            ></select
+          ></label
+        ><div v-if="selectedEnvironment" class="ds-alert"
+          ><strong>{{ selectedEnvironment.dockerImage }}</strong
+          ><br />{{ selectedEnvironment.cpuLimit }} CPU / {{ selectedEnvironment.memoryLimit }} /
+          网络{{ selectedEnvironment.networkEnabled ? "开启" : "禁用" }} / 超时
+          {{ selectedEnvironment.timeoutSeconds }}s</div
+        ><p v-if="!environmentCatalog.length" class="ds-alert error"
+          >MCP 尚未发布 Python 环境，请先到 MCP 管理端的 Python 管理页面发布。</p
+        ><footer
+          ><button type="button" @click="assetOpen = false">取消</button
+          ><button class="ds-primary" :disabled="busy || !environmentCatalog.length">{{
+            busy ? "添加中…" : "添加环境"
+          }}</button></footer
+        ></form
+      ></div
+    >
+    <div v-if="dataUploadOpen" class="ds-modal" @mousedown.self="dataUploadOpen = false"
+      ><form @submit.prevent="uploadData"
+        ><h2>上传数据</h2><p>文件将通过 AES-GCM 加密传输到 MCP，并以只读卷挂载到 Python 沙箱。</p
+        ><label class="data-drop" @dragover.prevent @drop.prevent="dropDataFile"
+          ><input
+            type="file"
+            accept=".csv,.xls,.xlsx,.json,.txt,.log,.parquet,.orc,.zip"
+            @change="chooseDataFile"
+          /><strong>{{ dataUploadFile?.name || "拖拽文件到此处，或点击选择文件" }}</strong
+          ><small>支持 CSV、XLS、XLSX、JSON、TXT、LOG、PARQUET、ORC、ZIP，最大 50 MB</small></label
+        ><label
+          >数据用途（可选）<textarea
+            v-model="dataUploadForm.purpose"
+            placeholder="例如：客户交易数据，用于交易行为分析"
+          ></textarea></label
+        ><label
+          >保留期限<select v-model="dataUploadForm.retention"
+            ><option value="PERMANENT">永久保留</option
+            ><option value="7_DAYS">7 天</option
+            ><option value="30_DAYS">30 天</option></select
+          ></label
+        ><footer
+          ><button type="button" @click="dataUploadOpen = false">取消</button
+          ><button class="ds-primary" :disabled="busy || !dataUploadFile">{{
+            busy ? "加密传输中…" : "上传"
+          }}</button></footer
+        ></form
+      ></div
+    >
+    <div v-if="publishOpen" class="ds-modal" @mousedown.self="!publishBusy && (publishOpen = false)"
+      ><form @submit.prevent="publish"
+        ><h2>{{ publishUpdating ? "更新 Python 模板" : "发布 Python 模板" }}</h2
+        ><p>{{
+          publishUpdating
+            ? "已加载当前发布配置；提交后将更新同一个 MCP 模板，不会创建重复模板。"
+            : "场景描述将同时参与 BM25 与向量检索；输入 Schema 中声明为 FILE 的参数由 Agent 传入 fileId，MCP 执行时安全解析为只读路径。"
+        }}</p
+        ><div
+          v-if="publishBusy"
+          class="publish-progress"
+          role="progressbar"
+          aria-label="模板发布进度"
+          ><div class="publish-progress-track"><i></i></div
+          ><strong>{{ publishUpdating ? "正在更新并同步到 MCP…" : "正在发布并同步到 MCP…" }}</strong
+          ><small>编辑器和当前页面会保持原状</small></div
+        ><label
+          >模板名称 *<input
+            v-model="publishForm.templateName"
+            :disabled="publishBusy"
+            required /></label
+        ><label
+          >场景描述 *<textarea
+            v-model="publishForm.scenario"
+            :disabled="publishBusy"
+            required
+            placeholder="说明适用业务场景和用户可能提出的问题"
+          ></textarea></label
+        ><label
+          >功能描述 *<textarea
+            v-model="publishForm.description"
+            :disabled="publishBusy"
+            required
+          ></textarea></label
+        ><div class="ds-form-row"
+          ><label>关键词<input v-model="publishForm.keywords" :disabled="publishBusy" /></label
+          ><label
+            >所属领域<input v-model="publishForm.domain" :disabled="publishBusy" /></label></div
+        ><div class="ds-form-row"
+          ><label
+            >输入 Schema<textarea
+              v-model="publishForm.inputSchema"
+              :disabled="publishBusy"
+            ></textarea></label
+          ><label
+            >输出 Schema<textarea
+              v-model="publishForm.outputSchema"
+              :disabled="publishBusy"
+            ></textarea></label></div
+        ><footer
+          ><button type="button" :disabled="publishBusy" @click="publishOpen = false">取消</button
+          ><button class="ds-primary" :disabled="publishBusy">{{
+            publishBusy
+              ? publishUpdating
+                ? "更新中…"
+                : "发布中…"
+              : publishUpdating
+                ? "更新到 MCP"
+                : "发布到 MCP"
+          }}</button></footer
+        ></form
+      ></div
+    >
   </section>
 </template>
 <script src="../js/views/DataScienceView.js"></script>

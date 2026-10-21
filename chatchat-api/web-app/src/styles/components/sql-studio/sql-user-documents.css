@@ -1,0 +1,68 @@
+.sql-user-documents {
+  margin: 12px 8px;
+  font-size: 12px;
+}
+.sql-user-documents summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.sql-user-documents p,
+.sql-user-documents small {
+  color: #64748b;
+}
+.sql-document-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+.sql-document-actions .sql-document-file-input {
+  display: none;
+}
+.sql-document-actions :deep(button) {
+  width: auto;
+  min-height: 0;
+  flex: none;
+  margin: 0;
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #376bb5;
+  font-size: 12px;
+  line-height: 20px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.sql-document-actions :deep(button:hover) {
+  background: #edf3ff;
+}
+.sql-document-actions :deep(button:disabled) {
+  opacity: 0.5;
+  cursor: default;
+}
+.sql-user-documents > input {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 4px 0;
+  padding: 5px;
+}
+.sql-user-document {
+  padding: 6px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+.sql-user-document label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.sql-user-document span {
+  overflow-wrap: anywhere;
+}
+.sql-user-document select {
+  margin: 4px 0 0 22px;
+  max-width: 150px;
+}
+.sql-user-documents [role="alert"] {
+  color: #b91c1c;
+}

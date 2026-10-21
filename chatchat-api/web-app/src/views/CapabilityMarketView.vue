@@ -13,7 +13,7 @@
           v-model.trim="searchQuery"
           type="search"
           placeholder="搜索能力名称、业务场景、标签或工具"
-        >
+        />
       </label>
       <div class="toolbar-summary">
         <strong>{{ skillTotal }}</strong>
@@ -43,19 +43,23 @@
         @click="toggleCategories"
       >
         <span v-if="categoriesExpanded" class="category-collapse-label">收起</span>
-        <span v-else class="category-more-dots" aria-hidden="true">
-          <i></i><i></i><i></i>
-        </span>
+        <span v-else class="category-more-dots" aria-hidden="true"> <i></i><i></i><i></i> </span>
       </button>
     </section>
 
     <p v-if="error" class="market-error">{{ error }}</p>
     <p v-else-if="loading && allSkillCount === 0" class="market-empty">正在加载后端能力配置...</p>
-    <p v-else-if="allSkillCount === 0" class="market-empty">暂无已发布能力，请先在 Agent管理 发布能力。</p>
+    <p v-else-if="allSkillCount === 0" class="market-empty"
+      >暂无已发布能力，请先在 Agent管理 发布能力。</p
+    >
     <p v-else-if="skillTotal === 0" class="market-empty">没有匹配的能力，请换一个关键词。</p>
 
     <div v-else class="feature-grid">
-      <article v-for="skill in pagedSkills" :key="skill.value" class="feature-card market-agent-card">
+      <article
+        v-for="skill in pagedSkills"
+        :key="skill.value"
+        class="feature-card market-agent-card"
+      >
         <div class="card-head">
           <div class="skill-identity">
             <span>{{ skillBadge(skill) }}</span>
@@ -66,12 +70,16 @@
           </div>
           <span class="card-kind">已发布</span>
         </div>
-        <p class="business-summary">{{ skill.description || "暂无业务说明，请在设置中补充这个能力的适用范围。" }}</p>
+        <p class="business-summary">{{
+          skill.description || "暂无业务说明，请在设置中补充这个能力的适用范围。"
+        }}</p>
 
         <section v-if="businessScenarios(skill).length" class="business-block">
           <strong>适用业务场景</strong>
           <ul>
-            <li v-for="scenario in businessScenarios(skill)" :key="`${skill.value}-${scenario}`">{{ scenario }}</li>
+            <li v-for="scenario in businessScenarios(skill)" :key="`${skill.value}-${scenario}`">{{
+              scenario
+            }}</li>
           </ul>
         </section>
 
@@ -100,7 +108,11 @@
     </div>
 
     <nav class="market-pagination" aria-label="能力分页">
-      <span>{{ skillTotal ? `显示 ${pageStart}-${pageEnd} 个，共 ${skillTotal} 个` : `暂无匹配能力，每页 ${pageSize} 个` }}</span>
+      <span>{{
+        skillTotal
+          ? `显示 ${pageStart}-${pageEnd} 个，共 ${skillTotal} 个`
+          : `暂无匹配能力，每页 ${pageSize} 个`
+      }}</span>
       <div>
         <button type="button" :disabled="page <= 1" @click="goPage(page - 1)">上一页</button>
         <button
@@ -112,7 +124,9 @@
         >
           {{ pageNumber }}
         </button>
-        <button type="button" :disabled="page >= pageCount" @click="goPage(page + 1)">下一页</button>
+        <button type="button" :disabled="page >= pageCount" @click="goPage(page + 1)"
+          >下一页</button
+        >
       </div>
     </nav>
 
@@ -123,7 +137,15 @@
             <p>{{ dialogMode === "create" ? "新增能力" : "能力设置" }}</p>
             <h2>{{ dialogMode === "create" ? "创建后端 Skill" : form.label || form.value }}</h2>
           </div>
-          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="saving" @click="closeSettingsDialog">×</button>
+          <button
+            type="button"
+            class="app-dialog-close"
+            aria-label="关闭"
+            title="关闭"
+            :disabled="saving"
+            @click="closeSettingsDialog"
+            >×</button
+          >
         </header>
 
         <div class="dialog-body">
@@ -135,15 +157,19 @@
               placeholder="例如 industry_research"
               pattern="[a-z0-9_-]{2,64}"
               required
-            >
+            />
           </label>
           <label>
             <span>能力名称</span>
-            <input v-model.trim="form.label" placeholder="例如 行业分析" required>
+            <input v-model.trim="form.label" placeholder="例如 行业分析" required />
           </label>
           <label class="wide-field">
             <span>能力描述</span>
-            <textarea v-model.trim="form.description" rows="2" placeholder="一句话说明能力适用范围"></textarea>
+            <textarea
+              v-model.trim="form.description"
+              rows="2"
+              placeholder="一句话说明能力适用范围"
+            ></textarea>
           </label>
           <label>
             <span>默认模式</span>
@@ -155,7 +181,7 @@
           </label>
           <label>
             <span>技能标签</span>
-            <input v-model="form.skillTags" placeholder="投研, 风控, 财报">
+            <input v-model="form.skillTags" placeholder="投研, 风控, 财报" />
           </label>
           <label class="wide-field">
             <span>使用场景</span>
@@ -171,7 +197,11 @@
           </label>
           <label class="wide-field">
             <span>快捷问题</span>
-            <textarea v-model="form.quickQuestions" rows="3" placeholder="每行一个快捷问题"></textarea>
+            <textarea
+              v-model="form.quickQuestions"
+              rows="3"
+              placeholder="每行一个快捷问题"
+            ></textarea>
           </label>
           <label>
             <span>工具前缀</span>
@@ -179,15 +209,19 @@
               v-model="form.preferredToolPrefixes"
               :disabled="activeSkill?.builtin"
               placeholder="工具前缀"
-            >
+            />
           </label>
           <label>
             <span>MCP 服务 ID</span>
-            <input v-model="form.boundMcpServiceIds" placeholder="server-a, server-b">
+            <input v-model="form.boundMcpServiceIds" placeholder="server-a, server-b" />
           </label>
           <label class="wide-field">
             <span>绑定工具名</span>
-            <textarea v-model="form.boundMcpToolNames" rows="2" placeholder="每行一个后端工具名"></textarea>
+            <textarea
+              v-model="form.boundMcpToolNames"
+              rows="2"
+              placeholder="每行一个后端工具名"
+            ></textarea>
           </label>
 
           <section class="tool-picker wide-field">
@@ -210,16 +244,21 @@
 
           <section class="routing-settings wide-field">
             <label class="checkbox-row">
-              <input v-model="form.routingSettings.smartSelectionEnabled" type="checkbox">
+              <input v-model="form.routingSettings.smartSelectionEnabled" type="checkbox" />
               <span>启用智能工具选择</span>
             </label>
             <label class="checkbox-row">
-              <input v-model="form.routingSettings.limitParallelCalls" type="checkbox">
+              <input v-model="form.routingSettings.limitParallelCalls" type="checkbox" />
               <span>限制并行调用</span>
             </label>
             <label>
               <span>最大并行数</span>
-              <input v-model.number="form.routingSettings.maxParallelCalls" type="number" min="1" max="10">
+              <input
+                v-model.number="form.routingSettings.maxParallelCalls"
+                type="number"
+                min="1"
+                max="10"
+              />
             </label>
           </section>
 
@@ -245,7 +284,13 @@
         <p v-if="dialogError" class="market-error">{{ dialogError }}</p>
 
         <footer>
-          <button type="button" class="secondary-button" :disabled="saving" @click="closeSettingsDialog">取消</button>
+          <button
+            type="button"
+            class="secondary-button"
+            :disabled="saving"
+            @click="closeSettingsDialog"
+            >取消</button
+          >
           <button type="submit" class="primary-button" :disabled="saving">
             {{ saving ? "保存中" : "保存设置" }}
           </button>

@@ -4,7 +4,11 @@
 
     <header class="login-topbar">
       <div class="login-brand-mini">
-        <img class="login-product-logo" :src="`${publicPath}lingdong-nexus-logo.svg`" alt="灵动智联 LingDong Nexus" />
+        <img
+          class="login-product-logo"
+          :src="`${publicPath}lingdong-nexus-logo.svg`"
+          alt="灵动智联 LingDong Nexus"
+        />
       </div>
       <span>Enterprise AI Capability Platform · v1.0.0</span>
     </header>
@@ -12,9 +16,7 @@
     <section class="login-shell">
       <section class="login-hero" aria-label="灵动智联平台能力">
         <h1>企业级智能能力 <span>连接中心</span></h1>
-        <p>
-          统一管理数据、知识、工具与智能服务，让企业系统安全、可信地接入 AI Agent。
-        </p>
+        <p> 统一管理数据、知识、工具与智能服务，让企业系统安全、可信地接入 AI Agent。 </p>
 
         <div class="runtime-stage">
           <div class="runtime-stage-head">
@@ -29,7 +31,12 @@
             <span>安全接入</span>
           </div>
           <div class="runtime-orbit">
-            <svg viewBox="0 0 620 410" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+            <svg
+              viewBox="0 0 620 410"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+              focusable="false"
+            >
               <path d="M310 62 C514 62 538 205 408 328" />
               <path d="M408 328 C290 390 118 345 132 182" />
               <path d="M132 182 C138 66 252 38 310 62" />
@@ -46,7 +53,12 @@
 
       <aside class="login-card">
         <div class="login-card-head">
-            <img class="brand-mark product-mark large" :src="`${publicPath}lingdong-mark.svg`" alt="" aria-hidden="true" />
+          <img
+            class="brand-mark product-mark large"
+            :src="`${publicPath}lingdong-mark.svg`"
+            alt=""
+            aria-hidden="true"
+          />
           <div>
             <h2>灵动智联</h2>
             <p>LingDong Nexus · 企业智能能力统一入口</p>
@@ -55,13 +67,31 @@
 
         <el-form class="login-form" label-position="top" @submit.prevent="submit">
           <el-form-item label="用户名">
-            <el-input v-model.trim="username" autocomplete="username" size="large" placeholder="请输入用户名" required>
-              <template #prefix><el-icon><User /></el-icon></template>
+            <el-input
+              v-model.trim="username"
+              autocomplete="username"
+              size="large"
+              placeholder="请输入用户名"
+              required
+            >
+              <template #prefix
+                ><el-icon><User /></el-icon
+              ></template>
             </el-input>
           </el-form-item>
           <el-form-item label="密码">
-            <el-input v-model="password" type="password" autocomplete="current-password" size="large" placeholder="请输入密码" show-password required>
-              <template #prefix><el-icon><Lock /></el-icon></template>
+            <el-input
+              v-model="password"
+              type="password"
+              autocomplete="current-password"
+              size="large"
+              placeholder="请输入密码"
+              show-password
+              required
+            >
+              <template #prefix
+                ><el-icon><Lock /></el-icon
+              ></template>
             </el-input>
           </el-form-item>
 
@@ -70,15 +100,30 @@
             <button class="login-link" type="button">忘记密码？</button>
           </div>
 
-          <el-alert v-if="error" class="login-alert" type="error" :title="error" show-icon :closable="false" />
-          <el-button class="login-submit" type="primary" size="large" native-type="submit" :loading="busy">
+          <el-alert
+            v-if="error"
+            class="login-alert"
+            type="error"
+            :title="error"
+            show-icon
+            :closable="false"
+          />
+          <el-button
+            class="login-submit"
+            type="primary"
+            size="large"
+            native-type="submit"
+            :loading="busy"
+          >
             登录
           </el-button>
         </el-form>
       </aside>
     </section>
 
-    <footer class="login-copyright">© 1996-2026 LingDong by Apexsoft Technology. All Rights Reserved.</footer>
+    <footer class="login-copyright"
+      >© 1996-2026 LingDong by Apexsoft Technology. All Rights Reserved.</footer
+    >
   </main>
 </template>
 

@@ -1,16 +1,29 @@
 <template>
   <section class="news-admin-view">
     <el-card shadow="never" class="news-hero">
-      <div><h2>资讯采集后台</h2><p>配置资讯网站、采集周期、限速与精确抽取规则。这里只管理采集，Agent 仅能调用已发布的查询工具。</p></div>
+      <div
+        ><h2>资讯采集后台</h2
+        ><p
+          >配置资讯网站、采集周期、限速与精确抽取规则。这里只管理采集，Agent
+          仅能调用已发布的查询工具。</p
+        ></div
+      >
       <div class="news-hero-actions">
-        <el-button :loading="loading" @click="refreshSources"><el-icon><Refresh /></el-icon>刷新</el-button>
+        <el-button :loading="loading" @click="refreshSources"
+          ><el-icon><Refresh /></el-icon>刷新</el-button
+        >
         <el-button @click="openTasks">任务队列</el-button>
         <el-button @click="openLogs">采集日志</el-button>
         <el-button type="primary" @click="createSource">新增资讯源</el-button>
       </div>
     </el-card>
 
-    <el-alert title="所有资讯源在启用和采集前都会检测 robots.txt。明确禁止或无法可靠确认许可时将停止采集并提示原因；robots.txt 检测不替代网站使用条款及法律审查。" type="warning" :closable="false" show-icon />
+    <el-alert
+      title="所有资讯源在启用和采集前都会检测 robots.txt。明确禁止或无法可靠确认许可时将停止采集并提示原因；robots.txt 检测不替代网站使用条款及法律审查。"
+      type="warning"
+      :closable="false"
+      show-icon
+    />
     <section class="news-list-toolbar">
       <el-input
         v-model="filters.keyword"
@@ -18,10 +31,17 @@
         placeholder="搜索名称、编码、地址、采集内容或域名"
         @input="resetPage"
       >
-        <template #prefix><el-icon><Search /></el-icon></template>
+        <template #prefix
+          ><el-icon><Search /></el-icon
+        ></template>
       </el-input>
       <el-select v-model="filters.sourceType" clearable placeholder="全部类型" @change="resetPage">
-        <el-option v-for="option in sourceTypeOptions" :key="option.value" :label="option.label" :value="option.value" />
+        <el-option
+          v-for="option in sourceTypeOptions"
+          :key="option.value"
+          :label="option.label"
+          :value="option.value"
+        />
       </el-select>
       <el-select v-model="filters.enabled" clearable placeholder="全部状态" @change="resetPage">
         <el-option label="已启用" :value="true" />
@@ -31,7 +51,14 @@
       <span class="news-list-count">共 {{ filteredSources.length }} 条</span>
     </section>
 
-    <el-table v-loading="loading" :data="pagedSources" border stripe class="news-table" empty-text="暂无匹配的资讯源">
+    <el-table
+      v-loading="loading"
+      :data="pagedSources"
+      border
+      stripe
+      class="news-table"
+      empty-text="暂无匹配的资讯源"
+    >
       <el-table-column prop="sourceName" label="资讯源" min-width="190">
         <template #default="{ row }">
           <div class="news-source-name">
@@ -42,34 +69,76 @@
               effect="plain"
               size="small"
               title="该资讯源已被标记为存在法律风险"
-            >法律风险</el-tag>
+              >法律风险</el-tag
+            >
           </div>
           <small>{{ row.sourceCode }}</small>
         </template>
       </el-table-column>
-      <el-table-column label="类型" width="140"><template #default="{ row }">{{ sourceTypeLabel(row.sourceType) }}</template></el-table-column>
+      <el-table-column label="类型" width="140"
+        ><template #default="{ row }">{{
+          sourceTypeLabel(row.sourceType)
+        }}</template></el-table-column
+      >
       <el-table-column prop="entryUrl" label="入口地址" min-width="300" show-overflow-tooltip />
       <el-table-column label="调度计划" width="190">
         <template #default="{ row }">
           <span class="schedule-table-label">{{ describeCron(row.scheduleCron) }}</span>
-          <small v-if="row.configuration?.scheduleWindowEnabled" class="schedule-window-label">{{ describeScheduleWindow(row.configuration) }}</small>
+          <small v-if="row.configuration?.scheduleWindowEnabled" class="schedule-window-label">{{
+            describeScheduleWindow(row.configuration)
+          }}</small>
           <small>{{ row.scheduleCron }}</small>
         </template>
       </el-table-column>
       <el-table-column prop="collectedRecords" label="记录" width="85" />
       <el-table-column prop="collectionDescription" label="采集内容" min-width="320">
-        <template #default="{ row }"><span class="collection-description">{{ row.collectionDescription || '—' }}</span></template>
+        <template #default="{ row }"
+          ><span class="collection-description">{{
+            row.collectionDescription || "—"
+          }}</span></template
+        >
       </el-table-column>
-      <el-table-column label="状态" width="90"><template #default="{ row }"><el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '启用' : '停用' }}</el-tag></template></el-table-column>
-      <el-table-column label="操作" width="430" fixed="right"><template #default="{ row }">
-        <el-button link type="primary" @click="editSource(row)">配置</el-button>
-        <el-button link @click="toggle(row)">{{ row.enabled ? '停用' : '启用' }}</el-button>
-        <el-button link type="warning" :loading="checkingRobotsId === row.id" @click="checkRobots(row)">协议检测</el-button>
-        <el-button v-if="!robotsOverrideActive(row)" link type="warning" @click="openRobotsOverride(row)">忽略检测</el-button>
-        <el-button v-else link type="danger" @click="cancelRobotsOverride(row)">取消忽略</el-button>
-        <el-button link type="success" :disabled="!row.enabled" :loading="collectingIds.includes(row.id)" @click="collect(row)">{{ collectingIds.includes(row.id) ? '采集中' : '立即采集' }}</el-button>
-        <el-button link type="danger" :disabled="row.collectedRecords > 0" @click="remove(row)">删除</el-button>
-      </template></el-table-column>
+      <el-table-column label="状态" width="90"
+        ><template #default="{ row }"
+          ><el-tag :type="row.enabled ? 'success' : 'info'">{{
+            row.enabled ? "启用" : "停用"
+          }}</el-tag></template
+        ></el-table-column
+      >
+      <el-table-column label="操作" width="430" fixed="right"
+        ><template #default="{ row }">
+          <el-button link type="primary" @click="editSource(row)">配置</el-button>
+          <el-button link @click="toggle(row)">{{ row.enabled ? "停用" : "启用" }}</el-button>
+          <el-button
+            link
+            type="warning"
+            :loading="checkingRobotsId === row.id"
+            @click="checkRobots(row)"
+            >协议检测</el-button
+          >
+          <el-button
+            v-if="!robotsOverrideActive(row)"
+            link
+            type="warning"
+            @click="openRobotsOverride(row)"
+            >忽略检测</el-button
+          >
+          <el-button v-else link type="danger" @click="cancelRobotsOverride(row)"
+            >取消忽略</el-button
+          >
+          <el-button
+            link
+            type="success"
+            :disabled="!row.enabled"
+            :loading="collectingIds.includes(row.id)"
+            @click="collect(row)"
+            >{{ collectingIds.includes(row.id) ? "采集中" : "立即采集" }}</el-button
+          >
+          <el-button link type="danger" :disabled="row.collectedRecords > 0" @click="remove(row)"
+            >删除</el-button
+          >
+        </template></el-table-column
+      >
     </el-table>
 
     <div class="news-pagination">
@@ -84,7 +153,12 @@
       />
     </div>
 
-    <el-dialog v-model="dialogOpen" :title="form.id ? '编辑资讯源' : '新增资讯源'" width="900px" destroy-on-close>
+    <el-dialog
+      v-model="dialogOpen"
+      :title="form.id ? '编辑资讯源' : '新增资讯源'"
+      width="900px"
+      destroy-on-close
+    >
       <el-form label-position="top" class="news-form">
         <section v-if="!form.id" class="collection-template-picker">
           <el-form-item label="采集流程模板">
@@ -122,22 +196,97 @@
         <div class="news-form-grid">
           <el-form-item label="来源编码"><el-input v-model.trim="form.sourceCode" /></el-form-item>
           <el-form-item label="来源名称"><el-input v-model.trim="form.sourceName" /></el-form-item>
-          <el-form-item label="来源类型"><el-select v-model="form.sourceType"><el-option label="交易所首页（内置）" value="EXCHANGE_HOME" disabled /><el-option label="深交所首页（内置）" value="SZSE_HOME" disabled /><el-option label="香港交易所首页（内置）" value="HKEX_HOME" disabled /><el-option label="中证指数首页指数图（内置）" value="CSINDEX_HOME" disabled /><el-option label="中国债券信息网数据分析（内置）" value="CHINABOND_HOME" disabled /><el-option label="交易所市场表现数据（内置）" value="EXCHANGE_MARKET_DATA" disabled /><el-option label="交易所每日市场快照（内置）" value="EXCHANGE_DAILY_SNAPSHOT" disabled /><el-option label="深交所披露栏目（内置）" value="SZSE_DISCLOSURE" disabled /><el-option label="证券时报信息披露（内置）" value="STCN_DISCLOSURES" disabled /><el-option label="资讯首页（内置）" value="NEWS_HOME" disabled /><el-option label="巨潮资讯首页（内置）" value="CNINFO_HOME" disabled /><el-option label="财联社电报（兼容类型）" value="CLS_TELEGRAPH" disabled /><el-option label="东方财富 7×24 快讯（兼容类型）" value="EASTMONEY_724" disabled /><el-option label="结构化快讯模板（内置）" value="STRUCTURED_FLASH" disabled /><el-option label="巨潮公告（内置）" value="CNINFO_ANNOUNCEMENTS" disabled /><el-option label="上交所公告（内置）" value="SSE_ANNOUNCEMENTS" disabled /><el-option label="网页列表" value="WEB_LIST" /><el-option label="固定网页" value="WEB_SINGLE_PAGE" /><el-option label="RSS/Atom" value="RSS" /><el-option label="JSON API" value="API" /></el-select></el-form-item>
-          <el-form-item class="wide" label="入口地址"><el-input v-model.trim="form.entryUrl" @blur="fillAllowedDomainFromEntryUrl" /></el-form-item>
+          <el-form-item label="来源类型"
+            ><el-select v-model="form.sourceType"
+              ><el-option label="交易所首页（内置）" value="EXCHANGE_HOME" disabled /><el-option
+                label="深交所首页（内置）"
+                value="SZSE_HOME"
+                disabled /><el-option
+                label="香港交易所首页（内置）"
+                value="HKEX_HOME"
+                disabled /><el-option
+                label="中证指数首页指数图（内置）"
+                value="CSINDEX_HOME"
+                disabled /><el-option
+                label="中国债券信息网数据分析（内置）"
+                value="CHINABOND_HOME"
+                disabled /><el-option
+                label="交易所市场表现数据（内置）"
+                value="EXCHANGE_MARKET_DATA"
+                disabled /><el-option
+                label="交易所每日市场快照（内置）"
+                value="EXCHANGE_DAILY_SNAPSHOT"
+                disabled /><el-option
+                label="深交所披露栏目（内置）"
+                value="SZSE_DISCLOSURE"
+                disabled /><el-option
+                label="证券时报信息披露（内置）"
+                value="STCN_DISCLOSURES"
+                disabled /><el-option
+                label="资讯首页（内置）"
+                value="NEWS_HOME"
+                disabled /><el-option
+                label="巨潮资讯首页（内置）"
+                value="CNINFO_HOME"
+                disabled /><el-option
+                label="财联社电报（兼容类型）"
+                value="CLS_TELEGRAPH"
+                disabled /><el-option
+                label="东方财富 7×24 快讯（兼容类型）"
+                value="EASTMONEY_724"
+                disabled /><el-option
+                label="结构化快讯模板（内置）"
+                value="STRUCTURED_FLASH"
+                disabled /><el-option
+                label="巨潮公告（内置）"
+                value="CNINFO_ANNOUNCEMENTS"
+                disabled /><el-option
+                label="上交所公告（内置）"
+                value="SSE_ANNOUNCEMENTS"
+                disabled /><el-option label="网页列表" value="WEB_LIST" /><el-option
+                label="固定网页"
+                value="WEB_SINGLE_PAGE" /><el-option label="RSS/Atom" value="RSS" /><el-option
+                label="JSON API"
+                value="API" /></el-select
+          ></el-form-item>
+          <el-form-item class="wide" label="入口地址"
+            ><el-input v-model.trim="form.entryUrl" @blur="fillAllowedDomainFromEntryUrl"
+          /></el-form-item>
           <el-form-item class="wide" label="采集内容说明">
-            <el-input v-model="form.collectionDescription" type="textarea" :rows="3" maxlength="2000" show-word-limit placeholder="说明该 URL 采集的栏目、页面范围、日期范围和正文/附件范围" />
+            <el-input
+              v-model="form.collectionDescription"
+              type="textarea"
+              :rows="3"
+              maxlength="2000"
+              show-word-limit
+              placeholder="说明该 URL 采集的栏目、页面范围、日期范围和正文/附件范围"
+            />
           </el-form-item>
-          <el-form-item label="允许域名"><el-input v-model.trim="form.allowedDomain" /></el-form-item>
+          <el-form-item label="允许域名"
+            ><el-input v-model.trim="form.allowedDomain"
+          /></el-form-item>
           <el-form-item label="启用"><el-switch v-model="form.enabled" /></el-form-item>
           <el-form-item label="法律风险标签">
-            <el-switch v-model="form.configuration.legalRisk" active-text="存在法律风险" inactive-text="无风险标记" />
+            <el-switch
+              v-model="form.configuration.legalRisk"
+              active-text="存在法律风险"
+              inactive-text="无风险标记"
+            />
           </el-form-item>
-          <el-form-item label="请求间隔(ms)"><el-input-number v-model="form.configuration.sleepMillis" :min="0" :max="60000" /></el-form-item>
-          <el-form-item label="超时(ms)"><el-input-number v-model="form.configuration.timeoutMillis" :min="1000" :max="120000" /></el-form-item>
+          <el-form-item label="请求间隔(ms)"
+            ><el-input-number v-model="form.configuration.sleepMillis" :min="0" :max="60000"
+          /></el-form-item>
+          <el-form-item label="超时(ms)"
+            ><el-input-number v-model="form.configuration.timeoutMillis" :min="1000" :max="120000"
+          /></el-form-item>
         </div>
         <el-divider content-position="left">采集日历</el-divider>
         <section class="schedule-builder">
-          <el-radio-group v-model="scheduleEditor.mode" class="schedule-mode" @change="applyVisualSchedule">
+          <el-radio-group
+            v-model="scheduleEditor.mode"
+            class="schedule-mode"
+            @change="applyVisualSchedule"
+          >
             <el-radio-button label="interval">固定间隔</el-radio-button>
             <el-radio-button label="daily">每天</el-radio-button>
             <el-radio-button label="weekly">每周</el-radio-button>
@@ -147,26 +296,56 @@
 
           <div v-if="scheduleEditor.mode === 'interval'" class="schedule-config-row">
             <span>每隔</span>
-            <el-select v-model="scheduleEditor.intervalCron" class="schedule-interval-select" @change="applyVisualSchedule">
-              <el-option v-for="option in intervalOptions" :key="option.cron" :label="option.label" :value="option.cron" />
+            <el-select
+              v-model="scheduleEditor.intervalCron"
+              class="schedule-interval-select"
+              @change="applyVisualSchedule"
+            >
+              <el-option
+                v-for="option in intervalOptions"
+                :key="option.cron"
+                :label="option.label"
+                :value="option.cron"
+              />
             </el-select>
             <span>执行一次</span>
           </div>
 
           <div v-else-if="scheduleEditor.mode === 'daily'" class="schedule-config-row">
             <span>每天</span>
-            <el-time-picker v-model="scheduleEditor.time" format="HH:mm" value-format="HH:mm" :clearable="false" @change="applyVisualSchedule" />
+            <el-time-picker
+              v-model="scheduleEditor.time"
+              format="HH:mm"
+              value-format="HH:mm"
+              :clearable="false"
+              @change="applyVisualSchedule"
+            />
             <span>开始采集</span>
           </div>
 
           <div v-else-if="scheduleEditor.mode === 'weekly'" class="schedule-calendar-block">
             <span class="schedule-field-label">选择星期</span>
-            <el-checkbox-group v-model="scheduleEditor.weekdays" class="weekday-picker" @change="applyVisualSchedule">
-              <el-checkbox-button v-for="day in weekdayOptions" :key="day.value" :label="day.value">{{ day.label }}</el-checkbox-button>
+            <el-checkbox-group
+              v-model="scheduleEditor.weekdays"
+              class="weekday-picker"
+              @change="applyVisualSchedule"
+            >
+              <el-checkbox-button
+                v-for="day in weekdayOptions"
+                :key="day.value"
+                :label="day.value"
+                >{{ day.label }}</el-checkbox-button
+              >
             </el-checkbox-group>
             <div class="schedule-config-row">
               <span>执行时间</span>
-              <el-time-picker v-model="scheduleEditor.time" format="HH:mm" value-format="HH:mm" :clearable="false" @change="applyVisualSchedule" />
+              <el-time-picker
+                v-model="scheduleEditor.time"
+                format="HH:mm"
+                value-format="HH:mm"
+                :clearable="false"
+                @change="applyVisualSchedule"
+              />
             </div>
           </div>
 
@@ -179,19 +358,22 @@
                 type="button"
                 :class="{ active: scheduleEditor.monthDays.includes(day.value) }"
                 @click="toggleMonthDay(day.value)"
-              >{{ day.label }}</button>
+                >{{ day.label }}</button
+              >
             </div>
             <div class="schedule-config-row">
               <span>执行时间</span>
-              <el-time-picker v-model="scheduleEditor.time" format="HH:mm" value-format="HH:mm" :clearable="false" @change="applyVisualSchedule" />
+              <el-time-picker
+                v-model="scheduleEditor.time"
+                format="HH:mm"
+                value-format="HH:mm"
+                :clearable="false"
+                @change="applyVisualSchedule"
+              />
             </div>
           </div>
 
-          <el-input
-            v-else
-            v-model.trim="form.scheduleCron"
-            placeholder="例如：0 */10 * * * *"
-          >
+          <el-input v-else v-model.trim="form.scheduleCron" placeholder="例如：0 */10 * * * *">
             <template #prepend>Cron</template>
           </el-input>
 
@@ -205,18 +387,35 @@
             </div>
             <div v-if="form.configuration.scheduleWindowEnabled" class="schedule-config-row">
               <span>每天</span>
-              <el-time-picker v-model="form.configuration.scheduleWindowStart" format="HH:mm" value-format="HH:mm" :clearable="false" />
+              <el-time-picker
+                v-model="form.configuration.scheduleWindowStart"
+                format="HH:mm"
+                value-format="HH:mm"
+                :clearable="false"
+              />
               <span>至</span>
-              <el-time-picker v-model="form.configuration.scheduleWindowEnd" format="HH:mm" value-format="HH:mm" :clearable="false" />
-              <small>开始时间包含、结束时间不包含；例如 09:00–12:00。也支持 22:00–02:00 跨夜时段。</small>
+              <el-time-picker
+                v-model="form.configuration.scheduleWindowEnd"
+                format="HH:mm"
+                value-format="HH:mm"
+                :clearable="false"
+              />
+              <small
+                >开始时间包含、结束时间不包含；例如 09:00–12:00。也支持 22:00–02:00
+                跨夜时段。</small
+              >
             </div>
           </div>
 
           <div class="schedule-preview">
             <strong>{{ describeCron(form.scheduleCron) }}</strong>
             <code>{{ form.scheduleCron }}</code>
-            <el-tag v-if="form.configuration.scheduleWindowEnabled" type="success" effect="plain">{{ describeScheduleWindow(form.configuration) }}</el-tag>
-            <span class="schedule-timezone">时区：{{ form.configuration.zoneId || 'Asia/Shanghai' }}</span>
+            <el-tag v-if="form.configuration.scheduleWindowEnabled" type="success" effect="plain">{{
+              describeScheduleWindow(form.configuration)
+            }}</el-tag>
+            <span class="schedule-timezone"
+              >时区：{{ form.configuration.zoneId || "Asia/Shanghai" }}</span
+            >
           </div>
         </section>
         <template v-if="form.sourceType === 'STRUCTURED_FLASH'">
@@ -238,30 +437,90 @@
                 placeholder="配置 request、response、mapping、compliance 和游标翻页参数"
               />
             </el-form-item>
-            <small>保存前会校验 request.url、response.itemsPath、mapping.sourceUrl；法律风险、请求间隔、超时和采集时段仍以上方表单为准。</small>
+            <small
+              >保存前会校验
+              request.url、response.itemsPath、mapping.sourceUrl；法律风险、请求间隔、超时和采集时段仍以上方表单为准。</small
+            >
           </section>
         </template>
-        <el-divider v-if="['WEB_LIST','WEB_SINGLE_PAGE'].includes(form.sourceType)" content-position="left">网页抽取规则</el-divider>
-        <div v-if="['WEB_LIST','WEB_SINGLE_PAGE'].includes(form.sourceType)" class="news-form-grid">
-          <el-form-item v-if="form.sourceType === 'WEB_LIST'" class="wide" label="详情链接选择器"><el-input v-model.trim="form.rule.linkSelector" /></el-form-item>
+        <el-divider
+          v-if="['WEB_LIST', 'WEB_SINGLE_PAGE'].includes(form.sourceType)"
+          content-position="left"
+          >网页抽取规则</el-divider
+        >
+        <div
+          v-if="['WEB_LIST', 'WEB_SINGLE_PAGE'].includes(form.sourceType)"
+          class="news-form-grid"
+        >
+          <el-form-item v-if="form.sourceType === 'WEB_LIST'" class="wide" label="详情链接选择器"
+            ><el-input v-model.trim="form.rule.linkSelector"
+          /></el-form-item>
           <el-form-item label="标题选择器">
-            <el-select v-model="form.rule.titleSelector" filterable allow-create default-first-option clearable placeholder="选择常用项或输入 CSS Selector">
-              <el-option v-for="option in selectorPresets.title" :key="option.value" :label="option.label" :value="option.value" />
+            <el-select
+              v-model="form.rule.titleSelector"
+              filterable
+              allow-create
+              default-first-option
+              clearable
+              placeholder="选择常用项或输入 CSS Selector"
+            >
+              <el-option
+                v-for="option in selectorPresets.title"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="发布时间选择器">
-            <el-select v-model="form.rule.publishTimeSelector" filterable allow-create default-first-option clearable placeholder="选择常用项或输入 CSS Selector">
-              <el-option v-for="option in selectorPresets.publishTime" :key="option.value" :label="option.label" :value="option.value" />
+            <el-select
+              v-model="form.rule.publishTimeSelector"
+              filterable
+              allow-create
+              default-first-option
+              clearable
+              placeholder="选择常用项或输入 CSS Selector"
+            >
+              <el-option
+                v-for="option in selectorPresets.publishTime"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="作者/来源选择器">
-            <el-select v-model="form.rule.authorSelector" filterable allow-create default-first-option clearable placeholder="选择常用项或输入 CSS Selector">
-              <el-option v-for="option in selectorPresets.author" :key="option.value" :label="option.label" :value="option.value" />
+            <el-select
+              v-model="form.rule.authorSelector"
+              filterable
+              allow-create
+              default-first-option
+              clearable
+              placeholder="选择常用项或输入 CSS Selector"
+            >
+              <el-option
+                v-for="option in selectorPresets.author"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
             </el-select>
           </el-form-item>
           <el-form-item class="wide" label="正文选择器">
-            <el-select v-model="form.rule.contentSelector" filterable allow-create default-first-option clearable placeholder="选择常用项或输入 CSS Selector">
-              <el-option v-for="option in selectorPresets.content" :key="option.value" :label="option.label" :value="option.value" />
+            <el-select
+              v-model="form.rule.contentSelector"
+              filterable
+              allow-create
+              default-first-option
+              clearable
+              placeholder="选择常用项或输入 CSS Selector"
+            >
+              <el-option
+                v-for="option in selectorPresets.content"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
             </el-select>
           </el-form-item>
           <el-form-item class="wide" label="详情页 URL 正则（可选模板或自定义）">
@@ -279,22 +538,49 @@
                 :label="preset.name"
                 :value="preset.regex"
               >
-                <div class="pattern-option"><strong>{{ preset.name }}</strong><small>{{ preset.description }}</small></div>
+                <div class="pattern-option"
+                  ><strong>{{ preset.name }}</strong
+                  ><small>{{ preset.description }}</small></div
+                >
               </el-option>
             </el-select>
           </el-form-item>
           <el-form-item class="wide" label="附件链接选择器（可留空自动识别 PDF/Word/Excel/CSV）">
-            <el-select v-model="form.configuration.attachmentSelector" filterable allow-create default-first-option clearable placeholder="选择常用项、输入 CSS Selector，或留空自动识别">
-              <el-option v-for="option in selectorPresets.attachment" :key="option.value" :label="option.label" :value="option.value" />
+            <el-select
+              v-model="form.configuration.attachmentSelector"
+              filterable
+              allow-create
+              default-first-option
+              clearable
+              placeholder="选择常用项、输入 CSS Selector，或留空自动识别"
+            >
+              <el-option
+                v-for="option in selectorPresets.attachment"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
             </el-select>
           </el-form-item>
-          <el-form-item class="wide" label="附件额外允许域名"><el-input v-model.trim="form.configuration.attachmentAllowedDomains" placeholder="多个域名用逗号分隔；默认允许资讯源域名及其子域名" /></el-form-item>
+          <el-form-item class="wide" label="附件额外允许域名"
+            ><el-input
+              v-model.trim="form.configuration.attachmentAllowedDomains"
+              placeholder="多个域名用逗号分隔；默认允许资讯源域名及其子域名"
+          /></el-form-item>
         </div>
       </el-form>
-      <template #footer><el-button @click="dialogOpen = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
+      <template #footer
+        ><el-button @click="dialogOpen = false">取消</el-button
+        ><el-button type="primary" :loading="saving" @click="save">保存</el-button></template
+      >
     </el-dialog>
 
-    <el-dialog v-model="robotsOverrideDialogOpen" title="临时忽略 robots.txt 检测" width="620px" destroy-on-close>
+    <el-dialog
+      v-model="robotsOverrideDialogOpen"
+      title="临时忽略 robots.txt 检测"
+      width="620px"
+      destroy-on-close
+    >
       <el-alert
         title="此操作不会关闭检测：系统仍会保留原始检测结果，但会在有效期内允许该资讯源继续采集。robots.txt 豁免不代表已获得版权、数据使用或网站条款授权。"
         type="warning"
@@ -303,34 +589,86 @@
       />
       <el-form label-position="top" class="news-form robots-override-form">
         <el-form-item label="忽略原因（必填）">
-          <el-input v-model="robotsOverrideForm.reason" type="textarea" :rows="5" maxlength="500" show-word-limit placeholder="请填写授权依据、业务负责人、临时处置背景或后续处理计划，至少 10 个字符。" />
+          <el-input
+            v-model="robotsOverrideForm.reason"
+            type="textarea"
+            :rows="5"
+            maxlength="500"
+            show-word-limit
+            placeholder="请填写授权依据、业务负责人、临时处置背景或后续处理计划，至少 10 个字符。"
+          />
         </el-form-item>
         <el-form-item label="有效时长">
           <el-input-number v-model="robotsOverrideForm.hours" :min="1" :max="168" />
-          <span style="margin-left: 8px">小时（最长 7 天，到期自动恢复强制拦截）</span>
+          <span class="news-override-duration-hint">小时（最长 7 天，到期自动恢复强制拦截）</span>
         </el-form-item>
-        <el-checkbox v-model="robotsOverrideForm.acknowledged">我已确认具备相应授权，并理解该操作不能替代网站条款、版权及法律审查。</el-checkbox>
+        <el-checkbox v-model="robotsOverrideForm.acknowledged"
+          >我已确认具备相应授权，并理解该操作不能替代网站条款、版权及法律审查。</el-checkbox
+        >
       </el-form>
       <template #footer>
         <el-button @click="robotsOverrideDialogOpen = false">取消</el-button>
-        <el-button type="warning" :loading="robotsOverrideSaving" @click="saveRobotsOverride">确认临时忽略</el-button>
+        <el-button type="warning" :loading="robotsOverrideSaving" @click="saveRobotsOverride"
+          >确认临时忽略</el-button
+        >
       </template>
     </el-dialog>
 
     <el-dialog v-model="taskDialogOpen" title="采集任务队列" width="1200px" destroy-on-close>
       <div class="news-log-toolbar">
         <span>手工与自动调度共用同一队列；同一资讯源不会重复排队。</span>
-        <el-button :loading="tasksLoading" @click="loadTasks"><el-icon><Refresh /></el-icon>刷新队列</el-button>
+        <el-button :loading="tasksLoading" @click="loadTasks"
+          ><el-icon><Refresh /></el-icon>刷新队列</el-button
+        >
       </div>
-      <el-table v-loading="tasksLoading" :data="collectionTasks" border stripe empty-text="暂无采集任务" max-height="560">
-        <el-table-column label="资讯源" min-width="170"><template #default="{ row }">{{ taskSourceName(row.sourceId) }}</template></el-table-column>
-        <el-table-column label="触发方式" width="100"><template #default="{ row }">{{ row.trigger === 'SCHEDULED' ? '自动调度' : '手工触发' }}</template></el-table-column>
-        <el-table-column label="状态" width="100"><template #default="{ row }"><el-tag :type="taskStatusType(row.status)">{{ taskStatusLabel(row.status) }}</el-tag></template></el-table-column>
-        <el-table-column label="发现/接收/失败" width="150"><template #default="{ row }">{{ row.result ? `${row.result.discoveredCount || 0} / ${row.result.acceptedCount || 0} / ${row.result.failedCount || 0}` : '-' }}</template></el-table-column>
-        <el-table-column label="排队时间" width="180"><template #default="{ row }">{{ formatTime(row.createdAt) }}</template></el-table-column>
-        <el-table-column label="开始时间" width="180"><template #default="{ row }">{{ formatTime(row.startedAt) }}</template></el-table-column>
-        <el-table-column label="完成时间" width="180"><template #default="{ row }">{{ formatTime(row.completedAt) }}</template></el-table-column>
-        <el-table-column label="错误信息" min-width="220" show-overflow-tooltip><template #default="{ row }">{{ row.errorMessage || row.result?.errorMessage || '-' }}</template></el-table-column>
+      <el-table
+        v-loading="tasksLoading"
+        :data="collectionTasks"
+        border
+        stripe
+        empty-text="暂无采集任务"
+        max-height="560"
+      >
+        <el-table-column label="资讯源" min-width="170"
+          ><template #default="{ row }">{{
+            taskSourceName(row.sourceId)
+          }}</template></el-table-column
+        >
+        <el-table-column label="触发方式" width="100"
+          ><template #default="{ row }">{{
+            row.trigger === "SCHEDULED" ? "自动调度" : "手工触发"
+          }}</template></el-table-column
+        >
+        <el-table-column label="状态" width="100"
+          ><template #default="{ row }"
+            ><el-tag :type="taskStatusType(row.status)">{{
+              taskStatusLabel(row.status)
+            }}</el-tag></template
+          ></el-table-column
+        >
+        <el-table-column label="发现/接收/失败" width="150"
+          ><template #default="{ row }">{{
+            row.result
+              ? `${row.result.discoveredCount || 0} / ${row.result.acceptedCount || 0} / ${row.result.failedCount || 0}`
+              : "-"
+          }}</template></el-table-column
+        >
+        <el-table-column label="排队时间" width="180"
+          ><template #default="{ row }">{{ formatTime(row.createdAt) }}</template></el-table-column
+        >
+        <el-table-column label="开始时间" width="180"
+          ><template #default="{ row }">{{ formatTime(row.startedAt) }}</template></el-table-column
+        >
+        <el-table-column label="完成时间" width="180"
+          ><template #default="{ row }">{{
+            formatTime(row.completedAt)
+          }}</template></el-table-column
+        >
+        <el-table-column label="错误信息" min-width="220" show-overflow-tooltip
+          ><template #default="{ row }">{{
+            row.errorMessage || row.result?.errorMessage || "-"
+          }}</template></el-table-column
+        >
       </el-table>
       <template #footer><el-button @click="taskDialogOpen = false">关闭</el-button></template>
     </el-dialog>
@@ -338,17 +676,50 @@
     <el-dialog v-model="logDialogOpen" title="采集日志" width="1100px" destroy-on-close>
       <div class="news-log-toolbar">
         <el-select v-model="logSourceId" clearable placeholder="全部资讯源" @change="reloadLogs">
-          <el-option v-for="source in sources" :key="source.id" :label="source.sourceName" :value="source.id" />
+          <el-option
+            v-for="source in sources"
+            :key="source.id"
+            :label="source.sourceName"
+            :value="source.id"
+          />
         </el-select>
-        <el-button :loading="logsLoading" @click="loadLogs"><el-icon><Refresh /></el-icon>刷新日志</el-button>
+        <el-button :loading="logsLoading" @click="loadLogs"
+          ><el-icon><Refresh /></el-icon>刷新日志</el-button
+        >
       </div>
-      <el-table v-loading="logsLoading" :data="logs" border stripe empty-text="暂无采集日志" max-height="520">
+      <el-table
+        v-loading="logsLoading"
+        :data="logs"
+        border
+        stripe
+        empty-text="暂无采集日志"
+        max-height="520"
+      >
         <el-table-column prop="sourceName" label="资讯源" min-width="150" />
         <el-table-column prop="sourceUrl" label="来源地址" min-width="280" show-overflow-tooltip />
-        <el-table-column label="采集状态" width="110"><template #default="{ row }"><el-tag :type="recordStatusType(row.collectStatus)">{{ recordStatusLabel(row.collectStatus) }}</el-tag></template></el-table-column>
-        <el-table-column label="分析状态" width="110"><template #default="{ row }">{{ analysisStatusLabel(row.analysisStatus) }}</template></el-table-column>
-        <el-table-column label="采集时间" width="180"><template #default="{ row }">{{ formatTime(row.collectedAt) }}</template></el-table-column>
-        <el-table-column prop="errorMessage" label="错误信息" min-width="220" show-overflow-tooltip />
+        <el-table-column label="采集状态" width="110"
+          ><template #default="{ row }"
+            ><el-tag :type="recordStatusType(row.collectStatus)">{{
+              recordStatusLabel(row.collectStatus)
+            }}</el-tag></template
+          ></el-table-column
+        >
+        <el-table-column label="分析状态" width="110"
+          ><template #default="{ row }">{{
+            analysisStatusLabel(row.analysisStatus)
+          }}</template></el-table-column
+        >
+        <el-table-column label="采集时间" width="180"
+          ><template #default="{ row }">{{
+            formatTime(row.collectedAt)
+          }}</template></el-table-column
+        >
+        <el-table-column
+          prop="errorMessage"
+          label="错误信息"
+          min-width="220"
+          show-overflow-tooltip
+        />
       </el-table>
       <div class="news-pagination news-log-pagination">
         <el-pagination

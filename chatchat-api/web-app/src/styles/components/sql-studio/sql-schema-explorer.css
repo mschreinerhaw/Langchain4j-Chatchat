@@ -1,0 +1,172 @@
+.sql-schema-explorer button {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.sql-schema-explorer {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 12px;
+  overflow: hidden;
+  min-height: 0;
+  min-width: 0;
+  box-sizing: border-box;
+  color: #334764;
+  font-size: 12px;
+}
+.sql-schema-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 55%;
+  overflow-y: auto;
+}
+.sql-schema-controls > * {
+  flex-shrink: 0;
+}
+.sql-schema-explorer header,
+.sql-schema-table > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+}
+.sql-schema-explorer label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sql-schema-explorer select,
+.sql-schema-explorer input {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #dce5f2;
+  border-radius: 5px;
+  padding: 6px;
+  background: white;
+  color: inherit;
+}
+.sql-schema-explorer button {
+  font-size: 11px;
+  color: #2563eb;
+  background: #f6f9ff;
+  border: 1px solid #dce5f2;
+  border-radius: 4px;
+  padding: 4px 7px;
+  cursor: pointer;
+}
+.sql-schema-explorer button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.sql-schema-explorer form {
+  display: flex;
+  gap: 5px;
+}
+.sql-schema-tables {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.sql-schema-table {
+  padding: 7px 0;
+  border-bottom: 1px solid #edf1f7;
+}
+.sql-schema-table-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  border: 0;
+  background: none;
+  flex: 1;
+}
+.sql-schema-explorer small {
+  color: #7c8ba2;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.sql-schema-table ul {
+  list-style: none;
+  padding: 4px 0 0 12px;
+  margin: 0;
+}
+.sql-schema-table li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 3px 0;
+}
+.sql-schema-table li button {
+  border: 0;
+  background: none;
+}
+.sql-schema-error {
+  color: #b44343;
+}
+.sql-schema-pagination {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid #e6edf7;
+  padding-top: 8px;
+}
+.sql-schema-page-summary,
+.sql-schema-pagination nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.sql-schema-explorer .sql-schema-page-size {
+  flex-direction: row;
+  align-items: center;
+  white-space: nowrap;
+}
+.sql-schema-page-size select {
+  width: auto;
+  padding: 3px;
+}
+.sql-schema-evidence {
+  flex: none;
+  border-top: 1px solid #e6edf7;
+  padding-top: 8px;
+  line-height: 1.6;
+}
+.sql-schema-explorer input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  padding: 0;
+}
+.sql-schema-selection {
+  flex: 0 1 auto;
+  max-height: 180px;
+  overflow: auto;
+  border-top: 1px solid #e6edf7;
+  padding-top: 8px;
+}
+.sql-schema-selection ul {
+  list-style: none;
+  padding: 0;
+  margin: 5px 0;
+}
+.sql-schema-selection li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 0;
+}
+.sql-schema-selection li span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

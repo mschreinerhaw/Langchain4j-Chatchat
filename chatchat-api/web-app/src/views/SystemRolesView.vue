@@ -2,6 +2,4 @@
   <SystemManagementView section="roles" />
 </template>
 
-<script setup>
-import SystemManagementView from "./SystemManagementView.vue";
-</script>
+<script src="../js/views/SystemRolesView.js"></script>

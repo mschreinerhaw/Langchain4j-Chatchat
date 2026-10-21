@@ -2,6 +2,4 @@
   <SystemManagementView section="logins" />
 </template>
 
-<script setup>
-import SystemManagementView from "./SystemManagementView.vue";
-</script>
+<script src="../js/views/SystemLoginAuditView.js"></script>

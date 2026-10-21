@@ -1,0 +1,14 @@
+.parameter-alert {
+  margin-bottom: 18px;
+}
+
+.required-mark {
+  color: var(--el-color-danger);
+}
+
+.parameter-description {
+  display: block;
+  margin-top: 3px;
+  color: var(--el-text-color-secondary);
+  font-weight: 400;
+}

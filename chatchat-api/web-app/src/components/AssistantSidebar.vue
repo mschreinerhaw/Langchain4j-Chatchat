@@ -1,7 +1,7 @@
 <template>
   <aside class="assistant-sidebar">
     <div class="brand-block">
-      <img class="brand-logo" :src="agentRuntimeLogo" alt="灵动智策 LingDong Insight">
+      <img class="brand-logo" :src="agentRuntimeLogo" alt="灵动智策 LingDong Insight" />
       <button
         class="sidebar-toggle"
         type="button"
@@ -34,7 +34,11 @@
           </button>
           <div v-show="!isGroupCollapsed(group)" class="nav-group-list">
             <template v-for="item in group.items" :key="item.id">
-              <div v-if="item.children?.length" class="nav-submenu" :class="{ active: isNavItemActive(item) }">
+              <div
+                v-if="item.children?.length"
+                class="nav-submenu"
+                :class="{ active: isNavItemActive(item) }"
+              >
                 <button
                   class="nav-submenu-trigger"
                   type="button"
@@ -42,7 +46,12 @@
                   :aria-expanded="!isNavItemCollapsed(item)"
                   @click="activateNavItem(item)"
                 >
-                  <component :is="iconComponent(item.icon)" class="nav-symbol" :size="18" stroke-width="2" />
+                  <component
+                    :is="iconComponent(item.icon)"
+                    class="nav-symbol"
+                    :size="18"
+                    stroke-width="2"
+                  />
                   <span>{{ item.label }}</span>
                   <ChevronDown
                     v-if="!collapsed"
@@ -60,7 +69,12 @@
                     type="button"
                     @click="$emit('navigate', child.id)"
                   >
-                    <component :is="iconComponent(child.icon)" class="nav-symbol" :size="16" stroke-width="2" />
+                    <component
+                      :is="iconComponent(child.icon)"
+                      class="nav-symbol"
+                      :size="16"
+                      stroke-width="2"
+                    />
                     <span>{{ child.label }}</span>
                   </button>
                 </div>
@@ -72,7 +86,12 @@
                 :title="collapsed ? item.label : ''"
                 @click="$emit('navigate', item.id)"
               >
-                <component :is="iconComponent(item.icon)" class="nav-symbol" :size="18" stroke-width="2" />
+                <component
+                  :is="iconComponent(item.icon)"
+                  class="nav-symbol"
+                  :size="18"
+                  stroke-width="2"
+                />
                 <span>{{ item.label }}</span>
               </button>
             </template>
@@ -83,14 +102,20 @@
       <section v-if="showConversationHistory" class="recent-block">
         <div class="recent-head">
           <span>最近对话</span>
-          <span>{{ historyLoading ? "加载中" : `${filteredConversations.length}/${recentConversations.length}${historyHasMore ? '+' : ''}` }}</span>
+          <span>{{
+            historyLoading
+              ? "加载中"
+              : `${filteredConversations.length}/${recentConversations.length}${historyHasMore ? "+" : ""}`
+          }}</span>
         </div>
         <label class="history-search">
           <Search :size="15" stroke-width="2" />
           <input v-model="historyKeyword" type="search" placeholder="搜索历史会话" />
         </label>
         <p v-if="historyError" class="recent-error">{{ historyError }}</p>
-        <p v-else-if="!historyLoading && filteredConversations.length === 0" class="recent-empty">暂无匹配的历史会话</p>
+        <p v-else-if="!historyLoading && filteredConversations.length === 0" class="recent-empty"
+          >暂无匹配的历史会话</p
+        >
         <article
           v-for="conversation in visibleConversations"
           :key="conversationKey(conversation)"
@@ -100,7 +125,7 @@
             unfinished: isUnfinished(conversation),
             running: resolveStatus(conversation) === 'running',
             failed: resolveStatus(conversation) === 'failed',
-            'menu-open': conversationMenuOpen(conversation)
+            'menu-open': conversationMenuOpen(conversation),
           }"
           role="button"
           tabindex="0"
@@ -121,7 +146,10 @@
           </span>
           <span
             class="recent-favorite"
-            :class="{ active: isConversationFavorited(conversation), saving: isFavoriteSaving(conversation) }"
+            :class="{
+              active: isConversationFavorited(conversation),
+              saving: isFavoriteSaving(conversation),
+            }"
             role="button"
             tabindex="0"
             :title="isConversationFavorited(conversation) ? '取消收藏' : '收藏会话'"
@@ -129,7 +157,11 @@
             @click.stop="favoriteConversation(conversation)"
             @keydown.enter.stop.prevent="favoriteConversation(conversation)"
           >
-            <Star :size="13" stroke-width="2" :fill="isConversationFavorited(conversation) ? 'currentColor' : 'none'" />
+            <Star
+              :size="13"
+              stroke-width="2"
+              :fill="isConversationFavorited(conversation) ? 'currentColor' : 'none'"
+            />
           </span>
           <span
             class="recent-more"
@@ -144,8 +176,17 @@
           >
             <MoreHorizontal :size="16" stroke-width="2" />
           </span>
-          <div v-if="conversationMenuOpen(conversation)" class="recent-action-menu" role="menu" @click.stop>
-            <button type="button" role="menuitem" @click="openRenameConversationDialog(conversation)">
+          <div
+            v-if="conversationMenuOpen(conversation)"
+            class="recent-action-menu"
+            role="menu"
+            @click.stop
+          >
+            <button
+              type="button"
+              role="menuitem"
+              @click="openRenameConversationDialog(conversation)"
+            >
               <Pencil :size="14" stroke-width="2" />
               重命名
             </button>
@@ -197,7 +238,8 @@
           <slot name="workspace-switcher" />
         </div>
       </details>
-      <button v-if="showConversationHistory"
+      <button
+        v-if="showConversationHistory"
         type="button"
         aria-label="管理历史记录"
         title="管理历史记录"
@@ -207,7 +249,13 @@
         <MessageCircle :size="17" stroke-width="1.9" />
         <span class="history-count-badge">{{ historyCountLabel }}</span>
       </button>
-      <button type="button" aria-label="退出登录" title="退出登录" class="user-more" @click="$emit('logout')">
+      <button
+        type="button"
+        aria-label="退出登录"
+        title="退出登录"
+        class="user-more"
+        @click="$emit('logout')"
+      >
         <LogOut :size="17" stroke-width="2" />
       </button>
     </div>
@@ -231,7 +279,12 @@
               <h2 id="history-manager-title">历史记录</h2>
               <p>共 {{ historyManagerTotal }} 条记录，每页 {{ historyManagerPageSize }} 条</p>
             </div>
-            <button type="button" aria-label="关闭历史记录弹窗" title="关闭" @click="closeHistoryManager">
+            <button
+              type="button"
+              aria-label="关闭历史记录弹窗"
+              title="关闭"
+              @click="closeHistoryManager"
+            >
               <X :size="19" stroke-width="2" />
             </button>
           </header>
@@ -251,7 +304,11 @@
                 type="checkbox"
                 :checked="allManagerConversationsSelected"
                 :indeterminate.prop="someManagerConversationsSelected"
-                :disabled="deletableManagerConversations.length === 0 || historyDeleting || historyManagerLoading"
+                :disabled="
+                  deletableManagerConversations.length === 0 ||
+                  historyDeleting ||
+                  historyManagerLoading
+                "
                 @change="toggleAllManagerConversations"
               />
               <span>全选本页</span>
@@ -259,9 +316,14 @@
           </div>
 
           <div class="history-manager-content" :aria-busy="historyManagerLoading">
-            <span v-if="historyManagerLoading" class="history-manager-loading" role="status">正在加载…</span>
+            <span v-if="historyManagerLoading" class="history-manager-loading" role="status"
+              >正在加载…</span
+            >
             <div ref="historyManagerList" class="history-manager-list">
-              <p v-if="!historyManagerLoading && managerPageConversations.length === 0" class="history-manager-state">
+              <p
+                v-if="!historyManagerLoading && managerPageConversations.length === 0"
+                class="history-manager-state"
+              >
                 {{ managerKeyword.trim() ? "没有匹配的历史记录" : "暂无历史记录" }}
               </p>
               <label
@@ -270,14 +332,18 @@
                 class="history-manager-item"
                 :class="{
                   active: isConversationActive(conversation),
-                  locked: isConversationInProgress(conversation)
+                  locked: isConversationInProgress(conversation),
                 }"
               >
                 <input
                   type="checkbox"
                   :value="conversationKey(conversation)"
                   v-model="selectedHistoryKeys"
-                  :disabled="historyDeleting || historyManagerLoading || isConversationInProgress(conversation)"
+                  :disabled="
+                    historyDeleting ||
+                    historyManagerLoading ||
+                    isConversationInProgress(conversation)
+                  "
                   :title="isConversationInProgress(conversation) ? '进行中的会话不能删除' : ''"
                 />
                 <span class="history-manager-item-copy">
@@ -304,15 +370,27 @@
           <footer class="history-manager-footer">
             <span>已选择 {{ selectedManagerConversations.length }} 条</span>
             <div>
-              <button type="button" class="history-manager-cancel" :disabled="historyDeleting" @click="closeHistoryManager">取消</button>
+              <button
+                type="button"
+                class="history-manager-cancel"
+                :disabled="historyDeleting"
+                @click="closeHistoryManager"
+                >取消</button
+              >
               <button
                 type="button"
                 class="history-manager-delete"
-                :disabled="selectedManagerConversations.length === 0 || historyDeleting || historyManagerLoading"
+                :disabled="
+                  selectedManagerConversations.length === 0 ||
+                  historyDeleting ||
+                  historyManagerLoading
+                "
                 @click="deleteSelectedHistory"
               >
                 <Trash2 :size="15" stroke-width="2" />
-                {{ historyDeleting ? "删除中…" : `删除所选（${selectedManagerConversations.length}）` }}
+                {{
+                  historyDeleting ? "删除中…" : `删除所选（${selectedManagerConversations.length}）`
+                }}
               </button>
             </div>
           </footer>
@@ -352,7 +430,8 @@
               class="conversation-delete-cancel"
               :disabled="historyDeleting"
               @click="closeSelectedHistoryDeleteDialog"
-            >取消</button>
+              >取消</button
+            >
             <button
               type="button"
               class="conversation-delete-confirm"
@@ -400,7 +479,11 @@
             >
               取消
             </button>
-            <button type="button" class="conversation-delete-confirm" @click="confirmDeleteConversation">
+            <button
+              type="button"
+              class="conversation-delete-confirm"
+              @click="confirmDeleteConversation"
+            >
               <Trash2 :size="15" stroke-width="2" />
               确认删除
             </button>
@@ -441,13 +524,20 @@
               />
             </label>
             <footer class="conversation-delete-actions">
-              <button type="button" class="conversation-delete-cancel" @click="closeRenameConversationDialog">
+              <button
+                type="button"
+                class="conversation-delete-cancel"
+                @click="closeRenameConversationDialog"
+              >
                 取消
               </button>
               <button
                 type="submit"
                 class="conversation-rename-confirm"
-                :disabled="!renameConversationTitle.trim() || renameConversationTitle.trim() === conversationTitle(renameConversationCandidate)"
+                :disabled="
+                  !renameConversationTitle.trim() ||
+                  renameConversationTitle.trim() === conversationTitle(renameConversationCandidate)
+                "
               >
                 确认修改
               </button>

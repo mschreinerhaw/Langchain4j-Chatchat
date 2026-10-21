@@ -1,2 +1,13 @@
 *.sh text eol=lf
+chatchat-api/web-app/**/*.vue text eol=lf
+chatchat-api/web-app/**/*.js text eol=lf
+chatchat-api/web-app/**/*.ts text eol=lf
+chatchat-api/web-app/**/*.css text eol=lf
+chatchat-api/web-app/package*.json text eol=lf
+chatchat-mcp-server/web-app-mcp/**/*.vue text eol=lf
+chatchat-mcp-server/web-app-mcp/**/*.js text eol=lf
+chatchat-mcp-server/web-app-mcp/**/*.css text eol=lf
+chatchat-mcp-server/web-app-mcp/package*.json text eol=lf
+.prettierrc.json text eol=lf
+scripts/check-vue-structure.mjs text eol=lf
 

@@ -6,7 +6,10 @@
           <h2>{{ title }}</h2>
           <p v-if="subtitle">{{ subtitle }}</p>
         </div>
-        <div class="panel-actions catalog-header-actions" :class="{ 'is-stacked': stackedHeaderActions }">
+        <div
+          class="panel-actions catalog-header-actions"
+          :class="{ 'is-stacked': stackedHeaderActions }"
+        >
           <div class="catalog-query-actions">
             <el-select
               v-for="filter in listFilters"
@@ -24,8 +27,15 @@
                 :value="option.value"
               />
             </el-select>
-            <el-input v-model.trim="keyword" class="search-input" clearable :placeholder="searchPlaceholder">
-              <template #prefix><el-icon><Search /></el-icon></template>
+            <el-input
+              v-model.trim="keyword"
+              class="search-input"
+              clearable
+              :placeholder="searchPlaceholder"
+            >
+              <template #prefix
+                ><el-icon><Search /></el-icon
+              ></template>
             </el-input>
           </div>
           <div class="catalog-command-actions">
@@ -53,11 +63,20 @@
     </template>
 
     <div class="bulk-row">
-      <el-text type="info">共 {{ items.length }} 条，匹配 {{ filtered.length }} 条，已选择 {{ selectedIds.size }} 条</el-text>
+      <el-text type="info"
+        >共 {{ items.length }} 条，匹配 {{ filtered.length }} 条，已选择
+        {{ selectedIds.size }} 条</el-text
+      >
       <el-button-group>
         <el-button plain @click="selectVisible">选择当前页</el-button>
         <el-button plain @click="clearSelection">清空选择</el-button>
-        <el-button v-if="batchRemove" type="danger" plain :disabled="!selectedIds.size || busy" @click="removeSelected">
+        <el-button
+          v-if="batchRemove"
+          type="danger"
+          plain
+          :disabled="!selectedIds.size || busy"
+          @click="removeSelected"
+        >
           删除选中
         </el-button>
       </el-button-group>
@@ -74,7 +93,13 @@
       @selection-change="handleSelectionChange"
     >
       <el-table-column type="selection" width="48" />
-      <el-table-column v-for="column in columns" :key="column.key" :prop="column.key" :label="column.label" min-width="140">
+      <el-table-column
+        v-for="column in columns"
+        :key="column.key"
+        :prop="column.key"
+        :label="column.label"
+        min-width="140"
+      >
         <template #default="{ row }">
           <el-tag v-if="column.type === 'badge'" :type="tagType(row[column.key])" effect="light">
             {{ formatColumn(row, column) }}
@@ -85,7 +110,13 @@
       </el-table-column>
       <el-table-column fixed="right" label="操作" width="230">
         <template #default="{ row }">
-          <el-button link type="primary" :disabled="busy || Boolean(rowOperation)" @click="openEdit(row)">编辑</el-button>
+          <el-button
+            link
+            type="primary"
+            :disabled="busy || Boolean(rowOperation)"
+            @click="openEdit(row)"
+            >编辑</el-button
+          >
           <el-button
             v-if="testAction"
             link
@@ -93,7 +124,8 @@
             :loading="isRowOperation('test', row)"
             :disabled="rowActionDisabled('test', row)"
             @click="testItem(row)"
-          >测试</el-button>
+            >测试</el-button
+          >
           <el-button
             v-for="action in extraActions"
             :key="action.key || extraActionLabel(action, row)"
@@ -105,10 +137,23 @@
           >
             {{ extraActionLabel(action, row) }}
           </el-button>
-          <el-button v-if="toggleAction && row.id" link type="warning" :disabled="busy || Boolean(rowOperation)" @click="toggleItem(row)">
-            {{ row.enabled === false ? '启用' : '停用' }}
+          <el-button
+            v-if="toggleAction && row.id"
+            link
+            type="warning"
+            :disabled="busy || Boolean(rowOperation)"
+            @click="toggleItem(row)"
+          >
+            {{ row.enabled === false ? "启用" : "停用" }}
           </el-button>
-          <el-button v-if="removeAction && row.id" link type="danger" :disabled="busy || Boolean(rowOperation)" @click="removeItem(row)">删除</el-button>
+          <el-button
+            v-if="removeAction && row.id"
+            link
+            type="danger"
+            :disabled="busy || Boolean(rowOperation)"
+            @click="removeItem(row)"
+            >删除</el-button
+          >
         </template>
       </el-table-column>
     </el-table>
@@ -125,7 +170,15 @@
       />
     </footer>
 
-    <ModalPanel :open="formOpen" :title="formTitle" :subtitle="formSubtitle" wide :workbench="hasDatabaseWorkflowField" :maximizable="hasDatabaseWorkflowField" @close="formOpen = false">
+    <ModalPanel
+      :open="formOpen"
+      :title="formTitle"
+      :subtitle="formSubtitle"
+      wide
+      :workbench="hasDatabaseWorkflowField"
+      :maximizable="hasDatabaseWorkflowField"
+      @close="formOpen = false"
+    >
       <el-form class="entity-form" label-position="top" @submit.prevent="saveForm">
         <div class="entity-form-layout">
           <section
@@ -144,450 +197,1122 @@
                 <strong>{{ section.title }}</strong>
                 <small v-if="section.subtitle">{{ section.subtitle }}</small>
               </span>
-              <span class="form-section-count">{{ renderedSectionFields(section).length }} 个配置区</span>
+              <span class="form-section-count"
+                >{{ renderedSectionFields(section).length }} 个配置区</span
+              >
             </button>
-            <el-row v-show="!isFormSectionCollapsed(section.key)" class="form-section-grid" :gutter="12">
+            <el-row
+              v-show="!isFormSectionCollapsed(section.key)"
+              class="form-section-grid"
+              :gutter="12"
+            >
               <template v-for="field in renderedSectionFields(section)" :key="field.key">
                 <el-col :xs="24" :md="fieldColSpan(field)">
-              <el-form-item :label="fieldText(field, 'label')" :required="isFieldRequired(field)">
-                <el-select
-                  v-if="field.type === 'select'"
-                  v-model="form[field.key]"
-                  class="w-100"
-                  filterable
-                  clearable
-                  :allow-create="field.allowCreate"
-                  :default-first-option="field.allowCreate"
-                  :reserve-keyword="false"
-                  :placeholder="field.placeholder"
-                  :required="isFieldRequired(field)"
-                  @change="onFieldChange(field, $event)"
-                >
-                  <el-option v-for="option in fieldOptions(field)" :key="String(option.value)" :label="option.label" :value="option.value" />
-                </el-select>
-                <div v-else-if="field.type === 'textarea'" class="text-template-field">
-                  <el-input
-                    v-model="form[field.key]"
-                    type="textarea"
-                    :rows="field.rows || 3"
-                    :placeholder="field.placeholder"
+                  <el-form-item
+                    :label="fieldText(field, 'label')"
                     :required="isFieldRequired(field)"
-                  />
-                  <div v-if="field.textPresets?.length" class="text-template-presets">
-                    <span>快速模板</span>
-                    <el-button
-                      v-for="preset in field.textPresets"
-                      :key="`${field.key}-${preset.label}`"
-                      plain
-                      size="small"
-                      @click="applyTextPreset(field, preset)"
-                    >{{ preset.label }}</el-button>
-                  </div>
-                </div>
-                <el-input
-                  v-else-if="field.type === 'json'"
-                  v-model="jsonDraft[field.key]"
-                  class="codebox"
-                  type="textarea"
-                  :rows="field.rows || 7"
-                  spellcheck="false"
-                />
-                <div v-else-if="field.type === 'jsonStringList'" class="tag-field">
-                  <div class="tag-field-box">
-                    <el-tag
-                      v-for="(entry, index) in listDraft[field.key]"
-                      :key="`${field.key}-${entry}-${index}`"
-                      closable
-                      effect="light"
-                      @close="removeListEntry(field.key, index)"
-                    >
-                      {{ entry }}
-                    </el-tag>
-                    <el-text v-if="!listDraft[field.key]?.length" type="info">暂无配置</el-text>
-                  </div>
-                  <div class="visual-list-input">
-                    <el-input
-                      v-model.trim="listInput[field.key]"
-                      class="tag-field-input"
-                      :placeholder="field.placeholder || '输入后回车添加'"
-                      @keyup.enter="addListEntry(field)"
-                      @blur="addListEntry(field)"
-                    />
-                    <el-button plain @click="addListEntry(field)">添加</el-button>
-                  </div>
-                </div>
-                <div v-else-if="field.type === 'templatePicker'" class="template-select-field">
-                  <div class="visual-list-tags">
-                    <el-tag
-                      v-for="entry in listDraft[field.key]"
-                      :key="`${field.key}-${entry}`"
-                      closable
-                      effect="light"
-                      @close="removeTemplateSelection(field.key, entry)"
-                    >
-                      {{ entry }}
-                    </el-tag>
-                    <el-text v-if="!listDraft[field.key]?.length" type="info">暂未选择模板</el-text>
-                  </div>
-                  <div class="visual-list-input">
-                    <el-button type="primary" plain @click="openTemplatePicker(field)">选择模板</el-button>
-                    <el-button plain :disabled="!listDraft[field.key]?.length" @click="clearTemplateSelection(field.key)">清空选择</el-button>
-                  </div>
-                </div>
-                <div v-else-if="field.type === 'metadataScopePicker'" class="metadata-scope-editor">
-                  <div class="metadata-scope-input-row">
-                    <el-input
-                      v-model.trim="form[field.key]"
-                      :placeholder="fieldText(field, 'placeholder') || '可手动输入，多个值用逗号分隔'"
-                    />
-                    <el-button plain @click="toggleMetadataScopePanel(field.key)">选择索引范围</el-button>
-                  </div>
-                  <div class="visual-list-tags">
-                    <el-tag
-                      v-for="entry in metadataScopeSelected(field.key)"
-                      :key="`${field.key}-${entry}`"
-                      closable
-                      effect="light"
-                      @close="removeMetadataScopeValue(field.key, entry)"
-                    >
-                      {{ entry }}
-                    </el-tag>
-                    <el-text v-if="!metadataScopeSelected(field.key).length" type="info">未选择</el-text>
-                  </div>
-                  <div v-if="metadataScopeOpenKey === field.key" class="metadata-scope-panel">
-                    <el-input v-model.trim="metadataScopeKeyword" clearable size="small" placeholder="搜索库名/Schema" />
-                    <div class="metadata-scope-options">
-                      <el-button
-                        v-for="option in metadataScopeVisibleOptions(field.key)"
-                        :key="`${field.key}-${option}`"
-                        :type="metadataScopeSelected(field.key).includes(option) ? 'primary' : 'default'"
-                        plain
-                        size="small"
-                        @click="toggleMetadataScopeValue(field.key, option)"
-                      >
-                        {{ option }}
-                      </el-button>
-                      <el-text v-if="!metadataScopeVisibleOptions(field.key).length" type="info">
-                        测试连接后可选择库名，也可直接手动输入。
-                      </el-text>
-                    </div>
-                  </div>
-                </div>
-                <div v-else-if="field.type === 'databaseParamConfig'" class="database-param-editor">
-                  <div class="database-param-toolbar">
-                    <div>
-                      <strong>{{ field.tableTitle || '查询参数配置' }}</strong>
-                      <p>{{ field.tableSubtitle || '维护模型入参和页面测试值。日期参数可在默认来源中选择。' }}</p>
-                    </div>
-                    <div class="database-param-actions">
-                      <el-button plain @click="syncDatabaseParamsFromSql(field, true)">同步参数</el-button>
-                      <el-button type="primary" plain @click="addDatabaseParamEntry(field)">新增参数</el-button>
-                    </div>
-                  </div>
-                  <div v-if="databaseParamNodeSummaries(field).length" class="database-param-summary database-param-node-summary">
-                    <div v-for="summary in databaseParamNodeSummaries(field)" :key="summary.code">
-                      <strong>{{ summary.name }}</strong>
-                      <span v-if="summary.userInput.length">用户输入：{{ summary.userInput.join('、') }}</span>
-                      <span v-if="summary.upstream.length">上游结果：{{ summary.upstream.join('、') }}</span>
-                      <span v-if="summary.fixed.length">固定值：{{ summary.fixed.join('、') }}</span>
-                      <span v-if="summary.dynamic.length">系统动态：{{ summary.dynamic.join('、') }}</span>
-                      <span v-if="summary.unconfigured.length" class="database-param-unconfigured">待配置：{{ summary.unconfigured.join('、') }}</span>
-                    </div>
-                  </div>
-                  <div class="database-param-table">
-                    <div class="database-param-head">
-                      <span>参数名</span>
-                      <span>类型</span>
-                      <span>必填</span>
-                      <span>默认来源</span>
-                      <span>测试值</span>
-                      <span>示例值</span>
-                      <span>说明</span>
-                      <span>操作</span>
-                    </div>
-                    <div
-                      v-for="(entry, index) in schemaDraft[field.key]"
-                      :key="`${field.key}-db-param-${index}`"
-                      class="database-param-row"
-                    >
-                      <el-input v-model.trim="entry.name" placeholder="status" />
-                      <el-select v-model="entry.type" class="w-100">
-                        <el-option v-for="option in schemaTypeOptions" :key="option.value" :label="option.label" :value="option.value" />
-                      </el-select>
-                      <el-checkbox v-model="entry.required" />
-                      <el-select
-                        v-model="entry.defaultSource"
-                        class="w-100"
-                        filterable
-                        allow-create
-                        default-first-option
-                        :reserve-keyword="false"
-                        @change="handleDatabaseParamSourceChange(entry)"
-                      >
-                        <el-option
-                          v-for="option in databaseParamSourceOptions"
-                          :key="option.value"
-                          :label="option.label"
-                          :value="option.value"
-                        />
-                      </el-select>
-                      <el-input v-model="entry.testValue" :disabled="entry.defaultSource && entry.defaultSource !== 'user_input'" placeholder="页面测试值" />
-                      <el-input v-model="entry.exampleValue" placeholder="模型示例值" />
-                      <el-input v-model="entry.description" placeholder="参数业务含义" />
-                      <el-button plain type="danger" @click="removeDatabaseParamEntry(field, index)">删除</el-button>
-                    </div>
-                    <div v-if="!schemaDraft[field.key]?.length" class="database-param-empty">
-                      暂无参数，可从查询语句同步生成。
-                    </div>
-                  </div>
-                </div>
-                <div v-else-if="field.type === 'databaseSqlSteps'" class="database-flow-workspace">
-                  <header class="database-flow-toolbar">
-                    <div>
-                      <strong>查询流程工作台</strong>
-                      <p>按“添加步骤—配置当前步骤—检查执行关系—测试流程”的顺序完成查询。</p>
-                    </div>
-                    <div class="database-flow-toolbar-actions">
-                      <span>{{ databaseSqlSteps(field).length }} 个步骤</span>
-                      <label>依赖执行</label>
-                      <el-switch :model-value="databaseSqlWorkflowEnabled(field)" @change="setDatabaseSqlWorkflowEnabled(field, $event)" />
-                      <el-button v-if="formTestAction" plain :loading="busy" @click="testFormDraft">测试流程</el-button>
-                    </div>
-                  </header>
-
-                  <div v-if="databaseSqlSteps(field).length" class="database-flow-columns">
-                    <aside class="database-flow-steps">
-                      <div class="database-flow-column-head">
-                        <div><strong>执行步骤</strong><small>展示顺序不等于执行顺序</small></div>
-                        <el-button text type="primary" @click="addDatabaseSqlStep(field)">＋ 添加</el-button>
-                      </div>
-                      <button
-                        v-for="(step, index) in databaseSqlSteps(field)"
-                        :key="`${field.key}-flow-step-${index}`"
-                        type="button"
-                        class="database-flow-step"
-                        :class="{ active: databaseSelectedSqlStepIndex(field) === index, disabled: step.enabled === false }"
-                        @click="selectDatabaseSqlStep(field, index)"
-                      >
-                        <span class="database-flow-step-number">{{ index + 1 }}</span>
-                        <span class="database-flow-step-copy">
-                          <strong>{{ step.sqlName || `步骤 ${index + 1}` }}</strong>
-                          <code>{{ step.sqlCode }}</code>
-                          <small v-if="step.dependencies?.length">依赖：{{ step.dependencies.join('、') }}</small>
-                          <small v-else>{{ index === 0 ? '起始步骤' : '无前置依赖，可并行' }}</small>
-                        </span>
-                      </button>
-                    </aside>
-
-                    <section class="database-flow-detail">
-                      <template v-for="entry in [databaseSelectedSqlStep(field)]" :key="entry?.sqlCode || 'selected-step'">
-                        <div v-if="entry" class="database-flow-detail-inner">
-                          <header class="database-flow-detail-head">
-                            <div>
-                              <span>步骤 {{ databaseSelectedSqlStepIndex(field) + 1 }}</span>
-                              <strong>{{ entry.sqlName || entry.sqlCode }}</strong>
-                            </div>
-                            <div class="database-flow-step-actions">
-                              <el-switch v-model="entry.enabled" active-text="启用" />
-                              <el-button plain size="small" :disabled="databaseSelectedSqlStepIndex(field) === 0" @click="moveDatabaseSqlStep(field, databaseSelectedSqlStepIndex(field), -1)">上移</el-button>
-                              <el-button plain size="small" :disabled="databaseSelectedSqlStepIndex(field) >= databaseSqlSteps(field).length - 1" @click="moveDatabaseSqlStep(field, databaseSelectedSqlStepIndex(field), 1)">下移</el-button>
-                              <el-button plain size="small" @click="copyDatabaseSqlStep(field, databaseSelectedSqlStepIndex(field))">复制</el-button>
-                              <el-button plain type="danger" size="small" @click="removeDatabaseSqlStep(field, databaseSelectedSqlStepIndex(field))">删除</el-button>
-                            </div>
-                          </header>
-
-                          <nav class="database-flow-tabs">
-                            <button v-for="tab in [{ key: 'basic', label: '基础信息' }, { key: 'sql', label: databaseQueryProfile.language + ' 语句' }, { key: 'inputs', label: '输入参数' }, { key: 'output', label: '输出定义' }, { key: 'rules', label: '执行规则' }]" :key="tab.key" type="button" :class="{ active: databaseSqlActiveTabs[field.key] === tab.key }" @click="databaseSqlActiveTabs[field.key] = tab.key">{{ tab.label }}</button>
-                          </nav>
-
-                          <div v-if="databaseSqlActiveTabs[field.key] === 'basic'" class="database-flow-tab-panel">
-                            <div class="database-flow-form-grid two">
-                              <el-form-item label="步骤名称" required><el-input v-model.trim="entry.sqlName" placeholder="例如：查询客户资产" /></el-form-item>
-                              <el-form-item label="步骤编码" required><el-input v-model.trim="entry.sqlCode" placeholder="QUERY_CUSTOMER_ASSET" /></el-form-item>
-                            </div>
-                            <el-form-item label="步骤说明" required><el-input v-model="entry.sqlDescription" type="textarea" :rows="4" placeholder="说明这一步查询什么，以及结果将用于什么分析。" /></el-form-item>
-                          </div>
-
-                          <div v-else-if="databaseSqlActiveTabs[field.key] === 'sql'" class="database-flow-tab-panel">
-                            <div class="database-sql-editor-head"><div><strong>{{ databaseQueryProfile.title }}</strong><small>{{ databaseQueryProfile.hint }}</small></div><div><el-button v-if="databaseQueryProfile.jsonBody" plain size="small" @click="formatDslQuery(entry)">格式化 JSON</el-button><el-button plain size="small" @click="syncDatabaseSqlStepParams(entry)">扫描参数</el-button><el-button v-if="formTestAction" type="primary" plain size="small" :loading="busy" @click="testFormDraft">试运行流程</el-button></div></div>
-                            <div v-if="databaseQueryProfile.type === 'TRINO'" class="database-flow-form-grid two">
-                              <el-form-item label="Catalog"><el-input v-model.trim="entry.queryOptions.catalog" placeholder="可选；使用连接默认值" /></el-form-item>
-                              <el-form-item label="Schema"><el-input v-model.trim="entry.queryOptions.schema" placeholder="可选；使用连接默认值" /></el-form-item>
-                            </div>
-                            <el-form-item v-if="databaseQueryProfile.type === 'GRAPH'" label="Neo4j 数据库"><el-input v-model.trim="entry.queryOptions.database" placeholder="neo4j" /></el-form-item>
-                            <el-form-item v-if="databaseQueryProfile.type === 'UNSTRUCTURED'" label="检索索引" required><el-input v-model.trim="entry.queryOptions.index" placeholder="填写资产中的目标索引名称" /></el-form-item>
-                            <el-form-item :label="databaseQueryProfile.queryLabel" required>
-                              <el-input v-model="entry.sqlContent" class="codebox database-flow-codebox" type="textarea" :rows="16" spellcheck="false" :aria-label="databaseQueryProfile.queryLabel" :placeholder="databaseQueryProfile.placeholder" />
-                            </el-form-item>
-                            <p class="database-flow-tip">{{ databaseQueryProfile.parameterHint }}</p>
-                          </div>
-
-                          <div v-else-if="databaseSqlActiveTabs[field.key] === 'inputs'" class="database-flow-tab-panel">
-                            <div class="database-node-config-block">
-                              <div class="database-node-config-head"><div><strong>参数来源</strong><p>扫描得到的普通参数默认归当前步骤独立管理；需要对外开放时，再选择用户添加的流程输入。</p></div><div class="database-node-config-actions"><el-button plain type="primary" size="small" @click="syncDatabaseSqlStepParams(entry)">同步参数</el-button><el-button plain size="small" @click="addDatabaseSqlParameterMapping(entry)">新增来源</el-button></div></div>
-                              <div v-for="(mapping, mappingIndex) in entry.parameterMappings" :key="`${entry.sqlCode}-mapping-${mappingIndex}`" class="database-node-mapping-row">
-                                <el-input v-model.trim="mapping.parameter" placeholder="参数名" @change="reconcileDatabaseFlowInputs(databaseParamConfigField())" />
-                                <el-select v-model="mapping.sourceType" @change="handleDatabaseSqlMappingSourceChange(mapping)"><el-option label="当前步骤独立参数" value="STATIC" /><el-option label="流程输入" value="USER_INPUT" /><el-option label="系统变量" value="SYSTEM_CONTEXT" /><el-option label="上游步骤结果" value="UPSTREAM_RESULT" /></el-select>
-                                <el-select v-if="mapping.sourceType === 'UPSTREAM_RESULT'" v-model="mapping.sourceNode" placeholder="选择上游步骤"><el-option v-for="option in databaseSqlDependencyOptions(field, entry)" :key="option.value" :label="option.label" :value="option.value" /></el-select>
-                                <el-select v-else-if="mapping.sourceType === 'SYSTEM_CONTEXT'" v-model="mapping.sourceKey" filterable placeholder="选择系统内置参数"><el-option v-for="option in databaseSystemParamSourceOptions" :key="option.value" :label="option.label" :value="option.value" /></el-select>
-                                <el-select v-else-if="mapping.sourceType === 'USER_INPUT'" v-model="mapping.sourceKey" placeholder="选择已添加的流程输入" @change="reconcileDatabaseFlowInputs(databaseParamConfigField())"><el-option v-for="option in databaseFlowInputOptions()" :key="option.value" :label="option.label" :value="option.value" /></el-select>
-                                <el-input v-if="mapping.sourceType === 'UPSTREAM_RESULT'" v-model.trim="mapping.sourceExpression" placeholder="$.rows[0].customer_id" />
-                                <el-input v-else :model-value="databaseMappingValue(mapping)" @update:model-value="setDatabaseMappingValue(mapping, $event)" :placeholder="mapping.sourceType === 'STATIC' ? '当前步骤参数值；数组和对象填写 JSON' : '默认值'" />
-                                <el-checkbox v-model="mapping.required" @change="reconcileDatabaseFlowInputs(databaseParamConfigField())">必填</el-checkbox>
-                                <el-button plain type="danger" size="small" @click="removeDatabaseSqlParameterMapping(entry, mappingIndex)">删除</el-button>
-                              </div>
-                              <div v-if="!entry.parameterMappings?.length" class="database-compact-empty">尚无参数来源，点击“同步参数”从查询语句自动识别。</div>
-                            </div>
-                          </div>
-
-                          <div v-else-if="databaseSqlActiveTabs[field.key] === 'output'" class="database-flow-tab-panel">
-                            <div class="database-output-switch"><div><strong>参与最终输出</strong><small>关闭后仍可供下游步骤使用，但不会直接返回给模型。</small></div><el-switch v-model="entry.returnToModel" /></div>
-                            <div class="database-flow-form-grid three"><el-input v-model.trim="entry.resultSemantic.resultSetName" placeholder="结果名称，如 customer_asset" /><el-input v-model.trim="entry.resultSemantic.businessEntity" placeholder="业务对象，如 客户" /><el-input v-model.trim="entry.resultSemantic.dataGranularity" placeholder="数据粒度，如 客户-日期" /><el-input v-model.trim="entry.primaryKeysText" placeholder="关联主键，逗号分隔" /><el-input v-model.trim="entry.resultSemantic.timeField" placeholder="时间字段" /><el-input v-model.trim="entry.resultSemantic.emptyMeaning" placeholder="空结果含义" /></div>
-                            <el-input v-model.trim="entry.resultSemantic.modelUsage" type="textarea" :rows="3" placeholder="说明模型应如何理解和使用这个结果集" />
-                            <div class="database-result-units-head"><span>字段业务单位</span><el-button plain size="small" @click="addDatabaseResultUnit(entry)">新增字段</el-button></div>
-                            <div v-for="(unit, unitIndex) in entry.unitDescriptionEntries" :key="`${entry.sqlCode}-unit-${unitIndex}`" class="database-result-unit-row"><el-input v-model.trim="unit.field" placeholder="字段名" /><el-input v-model.trim="unit.unit" placeholder="单位或业务说明" /><el-button plain type="danger" size="small" @click="removeDatabaseResultUnit(entry, unitIndex)">删除</el-button></div>
-                          </div>
-
-                          <div v-else class="database-flow-tab-panel">
-                            <el-form-item v-if="databaseSqlWorkflowEnabled(field)" label="等待哪些步骤完成后执行"><el-select v-model="entry.dependencies" class="w-100" multiple clearable collapse-tags placeholder="不选择则为起始步骤，可与其他起始步骤并行"><el-option v-for="option in databaseSqlDependencyOptions(field, entry)" :key="option.value" :label="option.label" :value="option.value" /></el-select></el-form-item>
-                            <div class="database-flow-form-grid two"><el-form-item label="超时时间（秒）"><el-input-number v-model="entry.timeoutSeconds" class="w-100" :min="1" :max="300" controls-position="right" /></el-form-item><el-form-item label="最大返回行数"><el-input-number v-model="entry.maxResultRows" class="w-100" :min="1" controls-position="right" /></el-form-item><el-form-item label="执行失败时"><el-select v-model="entry.failureStrategy"><el-option label="终止整个流程" value="STOP" /><el-option label="跳过并继续" value="CONTINUE" /></el-select></el-form-item><el-form-item label="没有数据时"><el-select v-model="entry.emptyResultStrategy"><el-option label="正常继续" value="CONTINUE" /><el-option label="跳过依赖它的步骤" value="SKIP_DEPENDENTS" /><el-option label="终止整个流程" value="STOP" /></el-select></el-form-item></div>
-                          </div>
-                        </div>
-                      </template>
-                    </section>
-
-                    <aside class="database-flow-inspector">
-                      <nav class="database-flow-side-tabs"><button type="button" :class="{ active: databaseSqlSideTabs[field.key] === 'inputs' }" @click="databaseSqlSideTabs[field.key] = 'inputs'">流程输入</button><button type="button" :class="{ active: databaseSqlSideTabs[field.key] === 'plan' }" @click="databaseSqlSideTabs[field.key] = 'plan'">执行预览</button><button type="button" :class="{ active: databaseSqlSideTabs[field.key] === 'test' }" @click="databaseSqlSideTabs[field.key] = 'test'">测试结果</button></nav>
-                      <div v-if="databaseSqlSideTabs[field.key] === 'inputs'" class="database-flow-side-panel">
-                        <template v-for="paramField in [databaseParamConfigField()]" :key="paramField?.key || 'flow-inputs'">
-                          <template v-if="paramField">
-                            <div class="database-flow-side-head">
-                              <div><strong>对外输入参数</strong><small>统一维护流程测试入参；可从所有启用步骤自动汇总</small></div>
-                              <div class="database-node-config-actions"><el-button plain size="small" @click="syncDatabaseFlowInputsFromSql(paramField)">同步参数</el-button><el-button type="primary" plain size="small" @click="addDatabaseFlowInput(paramField)">新增参数</el-button></div>
-                            </div>
-                            <div
-                              v-for="(param, paramIndex) in schemaDraft[paramField.key]"
-                              :key="`flow-param-${paramIndex}`"
-                              class="database-flow-input-card"
-                              :class="{
-                                'is-required': databaseParamRequiresTestValue(param),
-                                'is-invalid': databaseParameterValidationAttempted && databaseParamTestValueMissing(param)
-                              }"
-                            >
-                              <div class="database-flow-input-label"><span><i>*</i> 参数名称</span><em v-if="databaseParamRequiresTestValue(param)">必填参数</em></div>
-                              <div><el-input v-model.trim="param.name" placeholder="功能参数名" @change="handleDatabaseFlowInputNameChange(param)" /><el-select v-model="param.type" :disabled="databaseParamIsBuiltInDate(param)"><el-option v-for="option in schemaTypeOptions" :key="option.value" :label="option.label" :value="option.value" /></el-select></div>
-                              <el-select v-model="param.defaultSource" placeholder="选择参数来源" @change="handleDatabaseParamSourceChange(param)"><el-option v-for="option in databaseParamSourceOptions" :key="option.value" :label="option.label" :value="option.value" /></el-select>
-                              <template v-if="databaseParamIsBuiltInDate(param)">
-                                <small class="database-flow-input-hint">{{ databaseBuiltinDateHint(param) }}</small>
-                                <div><el-tag type="success" effect="plain">内置日期变量</el-tag><el-button plain type="danger" size="small" @click="removeDatabaseParamEntry(paramField, paramIndex)">删除</el-button></div>
-                              </template>
-                              <template v-else>
-                                <el-autocomplete v-model="param.testValue" class="w-100" :fetch-suggestions="databaseDateFunctionSuggestions" clearable :placeholder="databaseParamRequiresTestValue(param) ? '流程测试值（试运行必填）' : '流程测试值（选填）'" />
-                                <small class="database-flow-input-hint">此值仅用于页面试运行，不会写入“当前步骤独立参数”；也可使用 ${today}、${month_start}、${trade_date-1} 等系统日期函数。</small>
-                                <small v-if="databaseParameterValidationAttempted && databaseParamTestValueMissing(param)" class="database-flow-input-error">请填写该必填参数的流程测试值</small>
-                                <div><el-checkbox v-model="param.required" @change="handleDatabaseFlowInputRequiredChange(param)">设为必填</el-checkbox><el-button plain type="danger" size="small" @click="removeDatabaseParamEntry(paramField, paramIndex)">删除</el-button></div>
-                              </template>
-                            </div>
-                            <div v-if="!schemaDraft[paramField.key]?.length" class="database-compact-empty">尚未添加流程输入。点击“同步参数”可汇总所有启用步骤的占位参数。</div>
-                          </template>
-                        </template>
-                      </div>
-                      <div v-else-if="databaseSqlSideTabs[field.key] === 'plan'" class="database-flow-side-panel">
-                        <div class="database-flow-side-head"><div><strong>执行层级</strong><small>{{ databaseSqlWorkflowEnabled(field) ? '同一层步骤可并行执行' : '当前按展示顺序依次执行' }}</small></div></div>
-                        <div v-for="(level, levelIndex) in databaseSqlDisplayLevels(field)" :key="`side-level-${levelIndex}`" class="database-flow-plan-level"><span>第 {{ levelIndex + 1 }} 层<i v-if="level.length > 1">并行</i></span><div v-for="node in level" :key="node.sqlCode"><strong>{{ node.sqlName || node.sqlCode }}</strong><small v-if="node.dependencies?.length">等待：{{ node.dependencies.join('、') }}</small><small v-else>直接执行</small></div></div>
-                      </div>
-                      <div v-else class="database-flow-side-panel">
-                        <div class="database-flow-side-head"><div><strong>流程测试</strong><small>保存前使用当前配置进行整体试运行</small></div><el-button type="primary" plain size="small" :loading="busy" @click="testFormDraft">运行</el-button></div>
-                        <div v-if="busy" class="database-compact-empty">正在执行查询流程…</div>
-                        <div v-else-if="!formTestResult" class="database-compact-empty">尚未运行测试。</div>
-                        <div v-else class="database-flow-test-overview" :class="{ 'is-failed': formTestResult.success === false }">
-                          <div><el-tag :type="formTestResult.success === false ? 'danger' : 'success'">{{ formTestResult.success === false ? '执行失败' : '执行成功' }}</el-tag><strong>{{ formTestResult.success === false ? '查询流程未完成' : '查询流程已完成' }}</strong></div>
-                          <dl>
-                            <div><dt>执行流程</dt><dd>{{ databaseTestExecutedSteps || '当前查询流程' }}</dd></div>
-                            <div><dt>返回记录</dt><dd>{{ databaseTestTotalRows }} 条</dd></div>
-                            <div v-if="databaseTestDurationMs !== null"><dt>执行耗时</dt><dd>{{ databaseTestDurationMs }} ms</dd></div>
-                          </dl>
-                          <p v-if="formTestResult.success === false">{{ databaseTestErrorSummary || '请在下方预览结果中查看详细错误。' }}</p>
-                          <small>查询语句、数据表和完整错误请查看下方“预览结果”。</small>
-                        </div>
-                      </div>
-                    </aside>
-                  </div>
-
-                  <div v-else class="database-flow-empty">
-                    <span>1</span><strong>添加第一个执行步骤</strong><p>先说明这一步要查询什么，再填写查询语句；系统会引导配置输入、输出和执行规则。</p><el-button type="primary" @click="addDatabaseSqlStep(field)">添加查询步骤</el-button>
-                  </div>
-                </div>
-                <div v-else-if="field.type === 'jsonObjectString' || field.type === 'jsonObject'" class="visual-object-editor">
-                  <div v-if="objectPresetOptions(field).length" class="visual-object-preset-toolbar">
+                  >
                     <el-select
-                      v-model="objectPresetSelection[field.key]"
-                      clearable
+                      v-if="field.type === 'select'"
+                      v-model="form[field.key]"
+                      class="w-100"
                       filterable
-                      placeholder="选择常用项"
+                      clearable
+                      :allow-create="field.allowCreate"
+                      :default-first-option="field.allowCreate"
+                      :reserve-keyword="false"
+                      :placeholder="field.placeholder"
+                      :required="isFieldRequired(field)"
+                      @change="onFieldChange(field, $event)"
                     >
                       <el-option
-                        v-for="option in objectPresetOptions(field)"
-                        :key="`${field.key}-preset-${option.id || option.key}`"
-                        :label="option.label || option.key"
-                        :value="option.id || option.key"
+                        v-for="option in fieldOptions(field)"
+                        :key="String(option.value)"
+                        :label="option.label"
+                        :value="option.value"
                       />
                     </el-select>
-                    <el-button plain @click="addObjectPreset(field)">添加常用项</el-button>
-                  </div>
-                  <el-text v-if="!objectDraft[field.key]?.length" type="info">
-                    {{ field.emptyText || '暂无键值，点击下方按钮新增。' }}
-                  </el-text>
-                  <div
-                    v-for="(entry, index) in objectDraft[field.key]"
-                    :key="`${field.key}-object-${index}`"
-                    class="visual-object-row"
-                  >
-                    <el-input v-model.trim="entry.key" :placeholder="field.keyPlaceholder || '名称'" />
-                    <el-input v-model="entry.value" :placeholder="field.valuePlaceholder || '值'" />
-                    <el-button plain type="danger" @click="removeObjectEntry(field.key, index)">删除</el-button>
-                  </div>
-                  <el-button plain @click="addObjectEntry(field.key)">新增键值</el-button>
-                </div>
-                <div v-else-if="field.type === 'jsonSchemaString' || field.type === 'jsonSchema'" class="visual-schema-editor">
-                  <el-text v-if="!schemaDraft[field.key]?.length" type="info">
-                    {{ field.emptyText || '暂无参数，点击下方按钮新增。' }}
-                  </el-text>
-                  <div
-                    v-for="(entry, index) in schemaDraft[field.key]"
-                    :key="`${field.key}-schema-${index}`"
-                    class="visual-schema-row"
-                  >
-                    <el-input v-model.trim="entry.name" :placeholder="field.namePlaceholder || '参数名'" />
-                    <el-select v-model="entry.type" class="w-100">
-                      <el-option v-for="option in schemaTypeOptions" :key="option.value" :label="option.label" :value="option.value" />
-                    </el-select>
-                    <el-input v-model="entry.defaultValue" placeholder="默认值（选填）" />
-                    <el-checkbox v-model="entry.required">必填</el-checkbox>
-                    <el-input v-model="entry.description" :placeholder="field.descriptionPlaceholder || '说明'" />
-                    <el-button plain type="danger" @click="removeSchemaEntry(field.key, index)">删除</el-button>
-                  </div>
-                  <el-button plain @click="addSchemaEntry(field.key)">新增参数</el-button>
-                </div>
-                <el-switch v-else-if="field.type === 'checkbox'" v-model="form[field.key]" />
-                <el-input-number
-                  v-else-if="field.type === 'number'"
-                  v-model="form[field.key]"
-                  class="w-100"
-                  :min="field.min || 0"
-                  :step="field.step || 1"
-                  :placeholder="field.placeholder"
-                  controls-position="right"
-                />
-                <el-input
-                  v-else
-                  v-model="form[field.key]"
-                  :type="field.type || 'text'"
-                  :placeholder="field.placeholder"
-                  :required="isFieldRequired(field)"
-                />
-                <div v-if="field.help" class="form-text">{{ fieldText(field, 'help') }}</div>
-              </el-form-item>
+                    <div v-else-if="field.type === 'textarea'" class="text-template-field">
+                      <el-input
+                        v-model="form[field.key]"
+                        type="textarea"
+                        :rows="field.rows || 3"
+                        :placeholder="field.placeholder"
+                        :required="isFieldRequired(field)"
+                      />
+                      <div v-if="field.textPresets?.length" class="text-template-presets">
+                        <span>快速模板</span>
+                        <el-button
+                          v-for="preset in field.textPresets"
+                          :key="`${field.key}-${preset.label}`"
+                          plain
+                          size="small"
+                          @click="applyTextPreset(field, preset)"
+                          >{{ preset.label }}</el-button
+                        >
+                      </div>
+                    </div>
+                    <el-input
+                      v-else-if="field.type === 'json'"
+                      v-model="jsonDraft[field.key]"
+                      class="codebox"
+                      type="textarea"
+                      :rows="field.rows || 7"
+                      spellcheck="false"
+                    />
+                    <div v-else-if="field.type === 'jsonStringList'" class="tag-field">
+                      <div class="tag-field-box">
+                        <el-tag
+                          v-for="(entry, index) in listDraft[field.key]"
+                          :key="`${field.key}-${entry}-${index}`"
+                          closable
+                          effect="light"
+                          @close="removeListEntry(field.key, index)"
+                        >
+                          {{ entry }}
+                        </el-tag>
+                        <el-text v-if="!listDraft[field.key]?.length" type="info">暂无配置</el-text>
+                      </div>
+                      <div class="visual-list-input">
+                        <el-input
+                          v-model.trim="listInput[field.key]"
+                          class="tag-field-input"
+                          :placeholder="field.placeholder || '输入后回车添加'"
+                          @keyup.enter="addListEntry(field)"
+                          @blur="addListEntry(field)"
+                        />
+                        <el-button plain @click="addListEntry(field)">添加</el-button>
+                      </div>
+                    </div>
+                    <div v-else-if="field.type === 'templatePicker'" class="template-select-field">
+                      <div class="visual-list-tags">
+                        <el-tag
+                          v-for="entry in listDraft[field.key]"
+                          :key="`${field.key}-${entry}`"
+                          closable
+                          effect="light"
+                          @close="removeTemplateSelection(field.key, entry)"
+                        >
+                          {{ entry }}
+                        </el-tag>
+                        <el-text v-if="!listDraft[field.key]?.length" type="info"
+                          >暂未选择模板</el-text
+                        >
+                      </div>
+                      <div class="visual-list-input">
+                        <el-button type="primary" plain @click="openTemplatePicker(field)"
+                          >选择模板</el-button
+                        >
+                        <el-button
+                          plain
+                          :disabled="!listDraft[field.key]?.length"
+                          @click="clearTemplateSelection(field.key)"
+                          >清空选择</el-button
+                        >
+                      </div>
+                    </div>
+                    <div
+                      v-else-if="field.type === 'metadataScopePicker'"
+                      class="metadata-scope-editor"
+                    >
+                      <div class="metadata-scope-input-row">
+                        <el-input
+                          v-model.trim="form[field.key]"
+                          :placeholder="
+                            fieldText(field, 'placeholder') || '可手动输入，多个值用逗号分隔'
+                          "
+                        />
+                        <el-button plain @click="toggleMetadataScopePanel(field.key)"
+                          >选择索引范围</el-button
+                        >
+                      </div>
+                      <div class="visual-list-tags">
+                        <el-tag
+                          v-for="entry in metadataScopeSelected(field.key)"
+                          :key="`${field.key}-${entry}`"
+                          closable
+                          effect="light"
+                          @close="removeMetadataScopeValue(field.key, entry)"
+                        >
+                          {{ entry }}
+                        </el-tag>
+                        <el-text v-if="!metadataScopeSelected(field.key).length" type="info"
+                          >未选择</el-text
+                        >
+                      </div>
+                      <div v-if="metadataScopeOpenKey === field.key" class="metadata-scope-panel">
+                        <el-input
+                          v-model.trim="metadataScopeKeyword"
+                          clearable
+                          size="small"
+                          placeholder="搜索库名/Schema"
+                        />
+                        <div class="metadata-scope-options">
+                          <el-button
+                            v-for="option in metadataScopeVisibleOptions(field.key)"
+                            :key="`${field.key}-${option}`"
+                            :type="
+                              metadataScopeSelected(field.key).includes(option)
+                                ? 'primary'
+                                : 'default'
+                            "
+                            plain
+                            size="small"
+                            @click="toggleMetadataScopeValue(field.key, option)"
+                          >
+                            {{ option }}
+                          </el-button>
+                          <el-text
+                            v-if="!metadataScopeVisibleOptions(field.key).length"
+                            type="info"
+                          >
+                            测试连接后可选择库名，也可直接手动输入。
+                          </el-text>
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      v-else-if="field.type === 'databaseParamConfig'"
+                      class="database-param-editor"
+                    >
+                      <div class="database-param-toolbar">
+                        <div>
+                          <strong>{{ field.tableTitle || "查询参数配置" }}</strong>
+                          <p>{{
+                            field.tableSubtitle ||
+                            "维护模型入参和页面测试值。日期参数可在默认来源中选择。"
+                          }}</p>
+                        </div>
+                        <div class="database-param-actions">
+                          <el-button plain @click="syncDatabaseParamsFromSql(field, true)"
+                            >同步参数</el-button
+                          >
+                          <el-button type="primary" plain @click="addDatabaseParamEntry(field)"
+                            >新增参数</el-button
+                          >
+                        </div>
+                      </div>
+                      <div
+                        v-if="databaseParamNodeSummaries(field).length"
+                        class="database-param-summary database-param-node-summary"
+                      >
+                        <div
+                          v-for="summary in databaseParamNodeSummaries(field)"
+                          :key="summary.code"
+                        >
+                          <strong>{{ summary.name }}</strong>
+                          <span v-if="summary.userInput.length"
+                            >用户输入：{{ summary.userInput.join("、") }}</span
+                          >
+                          <span v-if="summary.upstream.length"
+                            >上游结果：{{ summary.upstream.join("、") }}</span
+                          >
+                          <span v-if="summary.fixed.length"
+                            >固定值：{{ summary.fixed.join("、") }}</span
+                          >
+                          <span v-if="summary.dynamic.length"
+                            >系统动态：{{ summary.dynamic.join("、") }}</span
+                          >
+                          <span
+                            v-if="summary.unconfigured.length"
+                            class="database-param-unconfigured"
+                            >待配置：{{ summary.unconfigured.join("、") }}</span
+                          >
+                        </div>
+                      </div>
+                      <div class="database-param-table">
+                        <div class="database-param-head">
+                          <span>参数名</span>
+                          <span>类型</span>
+                          <span>必填</span>
+                          <span>默认来源</span>
+                          <span>测试值</span>
+                          <span>示例值</span>
+                          <span>说明</span>
+                          <span>操作</span>
+                        </div>
+                        <div
+                          v-for="(entry, index) in schemaDraft[field.key]"
+                          :key="`${field.key}-db-param-${index}`"
+                          class="database-param-row"
+                        >
+                          <el-input v-model.trim="entry.name" placeholder="status" />
+                          <el-select v-model="entry.type" class="w-100">
+                            <el-option
+                              v-for="option in schemaTypeOptions"
+                              :key="option.value"
+                              :label="option.label"
+                              :value="option.value"
+                            />
+                          </el-select>
+                          <el-checkbox v-model="entry.required" />
+                          <el-select
+                            v-model="entry.defaultSource"
+                            class="w-100"
+                            filterable
+                            allow-create
+                            default-first-option
+                            :reserve-keyword="false"
+                            @change="handleDatabaseParamSourceChange(entry)"
+                          >
+                            <el-option
+                              v-for="option in databaseParamSourceOptions"
+                              :key="option.value"
+                              :label="option.label"
+                              :value="option.value"
+                            />
+                          </el-select>
+                          <el-input
+                            v-model="entry.testValue"
+                            :disabled="entry.defaultSource && entry.defaultSource !== 'user_input'"
+                            placeholder="页面测试值"
+                          />
+                          <el-input v-model="entry.exampleValue" placeholder="模型示例值" />
+                          <el-input v-model="entry.description" placeholder="参数业务含义" />
+                          <el-button
+                            plain
+                            type="danger"
+                            @click="removeDatabaseParamEntry(field, index)"
+                            >删除</el-button
+                          >
+                        </div>
+                        <div v-if="!schemaDraft[field.key]?.length" class="database-param-empty">
+                          暂无参数，可从查询语句同步生成。
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      v-else-if="field.type === 'databaseSqlSteps'"
+                      class="database-flow-workspace"
+                    >
+                      <header class="database-flow-toolbar">
+                        <div>
+                          <strong>查询流程工作台</strong>
+                          <p>按“添加步骤—配置当前步骤—检查执行关系—测试流程”的顺序完成查询。</p>
+                        </div>
+                        <div class="database-flow-toolbar-actions">
+                          <span>{{ databaseSqlSteps(field).length }} 个步骤</span>
+                          <label>依赖执行</label>
+                          <el-switch
+                            :model-value="databaseSqlWorkflowEnabled(field)"
+                            @change="setDatabaseSqlWorkflowEnabled(field, $event)"
+                          />
+                          <el-button
+                            v-if="formTestAction"
+                            plain
+                            :loading="busy"
+                            @click="testFormDraft"
+                            >测试流程</el-button
+                          >
+                        </div>
+                      </header>
+
+                      <div v-if="databaseSqlSteps(field).length" class="database-flow-columns">
+                        <aside class="database-flow-steps">
+                          <div class="database-flow-column-head">
+                            <div
+                              ><strong>执行步骤</strong><small>展示顺序不等于执行顺序</small></div
+                            >
+                            <el-button text type="primary" @click="addDatabaseSqlStep(field)"
+                              >＋ 添加</el-button
+                            >
+                          </div>
+                          <button
+                            v-for="(step, index) in databaseSqlSteps(field)"
+                            :key="`${field.key}-flow-step-${index}`"
+                            type="button"
+                            class="database-flow-step"
+                            :class="{
+                              active: databaseSelectedSqlStepIndex(field) === index,
+                              disabled: step.enabled === false,
+                            }"
+                            @click="selectDatabaseSqlStep(field, index)"
+                          >
+                            <span class="database-flow-step-number">{{ index + 1 }}</span>
+                            <span class="database-flow-step-copy">
+                              <strong>{{ step.sqlName || `步骤 ${index + 1}` }}</strong>
+                              <code>{{ step.sqlCode }}</code>
+                              <small v-if="step.dependencies?.length"
+                                >依赖：{{ step.dependencies.join("、") }}</small
+                              >
+                              <small v-else>{{
+                                index === 0 ? "起始步骤" : "无前置依赖，可并行"
+                              }}</small>
+                            </span>
+                          </button>
+                        </aside>
+
+                        <section class="database-flow-detail">
+                          <template
+                            v-for="entry in [databaseSelectedSqlStep(field)]"
+                            :key="entry?.sqlCode || 'selected-step'"
+                          >
+                            <div v-if="entry" class="database-flow-detail-inner">
+                              <header class="database-flow-detail-head">
+                                <div>
+                                  <span>步骤 {{ databaseSelectedSqlStepIndex(field) + 1 }}</span>
+                                  <strong>{{ entry.sqlName || entry.sqlCode }}</strong>
+                                </div>
+                                <div class="database-flow-step-actions">
+                                  <el-switch v-model="entry.enabled" active-text="启用" />
+                                  <el-button
+                                    plain
+                                    size="small"
+                                    :disabled="databaseSelectedSqlStepIndex(field) === 0"
+                                    @click="
+                                      moveDatabaseSqlStep(
+                                        field,
+                                        databaseSelectedSqlStepIndex(field),
+                                        -1
+                                      )
+                                    "
+                                    >上移</el-button
+                                  >
+                                  <el-button
+                                    plain
+                                    size="small"
+                                    :disabled="
+                                      databaseSelectedSqlStepIndex(field) >=
+                                      databaseSqlSteps(field).length - 1
+                                    "
+                                    @click="
+                                      moveDatabaseSqlStep(
+                                        field,
+                                        databaseSelectedSqlStepIndex(field),
+                                        1
+                                      )
+                                    "
+                                    >下移</el-button
+                                  >
+                                  <el-button
+                                    plain
+                                    size="small"
+                                    @click="
+                                      copyDatabaseSqlStep(
+                                        field,
+                                        databaseSelectedSqlStepIndex(field)
+                                      )
+                                    "
+                                    >复制</el-button
+                                  >
+                                  <el-button
+                                    plain
+                                    type="danger"
+                                    size="small"
+                                    @click="
+                                      removeDatabaseSqlStep(
+                                        field,
+                                        databaseSelectedSqlStepIndex(field)
+                                      )
+                                    "
+                                    >删除</el-button
+                                  >
+                                </div>
+                              </header>
+
+                              <nav class="database-flow-tabs">
+                                <button
+                                  v-for="tab in [
+                                    { key: 'basic', label: '基础信息' },
+                                    { key: 'sql', label: databaseQueryProfile.language + ' 语句' },
+                                    { key: 'inputs', label: '输入参数' },
+                                    { key: 'output', label: '输出定义' },
+                                    { key: 'rules', label: '执行规则' },
+                                  ]"
+                                  :key="tab.key"
+                                  type="button"
+                                  :class="{ active: databaseSqlActiveTabs[field.key] === tab.key }"
+                                  @click="databaseSqlActiveTabs[field.key] = tab.key"
+                                  >{{ tab.label }}</button
+                                >
+                              </nav>
+
+                              <div
+                                v-if="databaseSqlActiveTabs[field.key] === 'basic'"
+                                class="database-flow-tab-panel"
+                              >
+                                <div class="database-flow-form-grid two">
+                                  <el-form-item label="步骤名称" required
+                                    ><el-input
+                                      v-model.trim="entry.sqlName"
+                                      placeholder="例如：查询客户资产"
+                                  /></el-form-item>
+                                  <el-form-item label="步骤编码" required
+                                    ><el-input
+                                      v-model.trim="entry.sqlCode"
+                                      placeholder="QUERY_CUSTOMER_ASSET"
+                                  /></el-form-item>
+                                </div>
+                                <el-form-item label="步骤说明" required
+                                  ><el-input
+                                    v-model="entry.sqlDescription"
+                                    type="textarea"
+                                    :rows="4"
+                                    placeholder="说明这一步查询什么，以及结果将用于什么分析。"
+                                /></el-form-item>
+                              </div>
+
+                              <div
+                                v-else-if="databaseSqlActiveTabs[field.key] === 'sql'"
+                                class="database-flow-tab-panel"
+                              >
+                                <div class="database-sql-editor-head"
+                                  ><div
+                                    ><strong>{{ databaseQueryProfile.title }}</strong
+                                    ><small>{{ databaseQueryProfile.hint }}</small></div
+                                  ><div
+                                    ><el-button
+                                      v-if="databaseQueryProfile.jsonBody"
+                                      plain
+                                      size="small"
+                                      @click="formatDslQuery(entry)"
+                                      >格式化 JSON</el-button
+                                    ><el-button
+                                      plain
+                                      size="small"
+                                      @click="syncDatabaseSqlStepParams(entry)"
+                                      >扫描参数</el-button
+                                    ><el-button
+                                      v-if="formTestAction"
+                                      type="primary"
+                                      plain
+                                      size="small"
+                                      :loading="busy"
+                                      @click="testFormDraft"
+                                      >试运行流程</el-button
+                                    ></div
+                                  ></div
+                                >
+                                <div
+                                  v-if="databaseQueryProfile.type === 'TRINO'"
+                                  class="database-flow-form-grid two"
+                                >
+                                  <el-form-item label="Catalog"
+                                    ><el-input
+                                      v-model.trim="entry.queryOptions.catalog"
+                                      placeholder="可选；使用连接默认值"
+                                  /></el-form-item>
+                                  <el-form-item label="Schema"
+                                    ><el-input
+                                      v-model.trim="entry.queryOptions.schema"
+                                      placeholder="可选；使用连接默认值"
+                                  /></el-form-item>
+                                </div>
+                                <el-form-item
+                                  v-if="databaseQueryProfile.type === 'GRAPH'"
+                                  label="Neo4j 数据库"
+                                  ><el-input
+                                    v-model.trim="entry.queryOptions.database"
+                                    placeholder="neo4j"
+                                /></el-form-item>
+                                <el-form-item
+                                  v-if="databaseQueryProfile.type === 'UNSTRUCTURED'"
+                                  label="检索索引"
+                                  required
+                                  ><el-input
+                                    v-model.trim="entry.queryOptions.index"
+                                    placeholder="填写资产中的目标索引名称"
+                                /></el-form-item>
+                                <el-form-item :label="databaseQueryProfile.queryLabel" required>
+                                  <el-input
+                                    v-model="entry.sqlContent"
+                                    class="codebox database-flow-codebox"
+                                    type="textarea"
+                                    :rows="16"
+                                    spellcheck="false"
+                                    :aria-label="databaseQueryProfile.queryLabel"
+                                    :placeholder="databaseQueryProfile.placeholder"
+                                  />
+                                </el-form-item>
+                                <p class="database-flow-tip">{{
+                                  databaseQueryProfile.parameterHint
+                                }}</p>
+                              </div>
+
+                              <div
+                                v-else-if="databaseSqlActiveTabs[field.key] === 'inputs'"
+                                class="database-flow-tab-panel"
+                              >
+                                <div class="database-node-config-block">
+                                  <div class="database-node-config-head"
+                                    ><div
+                                      ><strong>参数来源</strong
+                                      ><p
+                                        >扫描得到的普通参数默认归当前步骤独立管理；需要对外开放时，再选择用户添加的流程输入。</p
+                                      ></div
+                                    ><div class="database-node-config-actions"
+                                      ><el-button
+                                        plain
+                                        type="primary"
+                                        size="small"
+                                        @click="syncDatabaseSqlStepParams(entry)"
+                                        >同步参数</el-button
+                                      ><el-button
+                                        plain
+                                        size="small"
+                                        @click="addDatabaseSqlParameterMapping(entry)"
+                                        >新增来源</el-button
+                                      ></div
+                                    ></div
+                                  >
+                                  <div
+                                    v-for="(mapping, mappingIndex) in entry.parameterMappings"
+                                    :key="`${entry.sqlCode}-mapping-${mappingIndex}`"
+                                    class="database-node-mapping-row"
+                                  >
+                                    <el-input
+                                      v-model.trim="mapping.parameter"
+                                      placeholder="参数名"
+                                      @change="
+                                        reconcileDatabaseFlowInputs(databaseParamConfigField())
+                                      "
+                                    />
+                                    <el-select
+                                      v-model="mapping.sourceType"
+                                      @change="handleDatabaseSqlMappingSourceChange(mapping)"
+                                      ><el-option
+                                        label="当前步骤独立参数"
+                                        value="STATIC" /><el-option
+                                        label="流程输入"
+                                        value="USER_INPUT" /><el-option
+                                        label="系统变量"
+                                        value="SYSTEM_CONTEXT" /><el-option
+                                        label="上游步骤结果"
+                                        value="UPSTREAM_RESULT"
+                                    /></el-select>
+                                    <el-select
+                                      v-if="mapping.sourceType === 'UPSTREAM_RESULT'"
+                                      v-model="mapping.sourceNode"
+                                      placeholder="选择上游步骤"
+                                      ><el-option
+                                        v-for="option in databaseSqlDependencyOptions(field, entry)"
+                                        :key="option.value"
+                                        :label="option.label"
+                                        :value="option.value"
+                                    /></el-select>
+                                    <el-select
+                                      v-else-if="mapping.sourceType === 'SYSTEM_CONTEXT'"
+                                      v-model="mapping.sourceKey"
+                                      filterable
+                                      placeholder="选择系统内置参数"
+                                      ><el-option
+                                        v-for="option in databaseSystemParamSourceOptions"
+                                        :key="option.value"
+                                        :label="option.label"
+                                        :value="option.value"
+                                    /></el-select>
+                                    <el-select
+                                      v-else-if="mapping.sourceType === 'USER_INPUT'"
+                                      v-model="mapping.sourceKey"
+                                      placeholder="选择已添加的流程输入"
+                                      @change="
+                                        reconcileDatabaseFlowInputs(databaseParamConfigField())
+                                      "
+                                      ><el-option
+                                        v-for="option in databaseFlowInputOptions()"
+                                        :key="option.value"
+                                        :label="option.label"
+                                        :value="option.value"
+                                    /></el-select>
+                                    <el-input
+                                      v-if="mapping.sourceType === 'UPSTREAM_RESULT'"
+                                      v-model.trim="mapping.sourceExpression"
+                                      placeholder="$.rows[0].customer_id"
+                                    />
+                                    <el-input
+                                      v-else
+                                      :model-value="databaseMappingValue(mapping)"
+                                      @update:model-value="setDatabaseMappingValue(mapping, $event)"
+                                      :placeholder="
+                                        mapping.sourceType === 'STATIC'
+                                          ? '当前步骤参数值；数组和对象填写 JSON'
+                                          : '默认值'
+                                      "
+                                    />
+                                    <el-checkbox
+                                      v-model="mapping.required"
+                                      @change="
+                                        reconcileDatabaseFlowInputs(databaseParamConfigField())
+                                      "
+                                      >必填</el-checkbox
+                                    >
+                                    <el-button
+                                      plain
+                                      type="danger"
+                                      size="small"
+                                      @click="
+                                        removeDatabaseSqlParameterMapping(entry, mappingIndex)
+                                      "
+                                      >删除</el-button
+                                    >
+                                  </div>
+                                  <div
+                                    v-if="!entry.parameterMappings?.length"
+                                    class="database-compact-empty"
+                                    >尚无参数来源，点击“同步参数”从查询语句自动识别。</div
+                                  >
+                                </div>
+                              </div>
+
+                              <div
+                                v-else-if="databaseSqlActiveTabs[field.key] === 'output'"
+                                class="database-flow-tab-panel"
+                              >
+                                <div class="database-output-switch"
+                                  ><div
+                                    ><strong>参与最终输出</strong
+                                    ><small
+                                      >关闭后仍可供下游步骤使用，但不会直接返回给模型。</small
+                                    ></div
+                                  ><el-switch v-model="entry.returnToModel"
+                                /></div>
+                                <div class="database-flow-form-grid three"
+                                  ><el-input
+                                    v-model.trim="entry.resultSemantic.resultSetName"
+                                    placeholder="结果名称，如 customer_asset" /><el-input
+                                    v-model.trim="entry.resultSemantic.businessEntity"
+                                    placeholder="业务对象，如 客户" /><el-input
+                                    v-model.trim="entry.resultSemantic.dataGranularity"
+                                    placeholder="数据粒度，如 客户-日期" /><el-input
+                                    v-model.trim="entry.primaryKeysText"
+                                    placeholder="关联主键，逗号分隔" /><el-input
+                                    v-model.trim="entry.resultSemantic.timeField"
+                                    placeholder="时间字段" /><el-input
+                                    v-model.trim="entry.resultSemantic.emptyMeaning"
+                                    placeholder="空结果含义"
+                                /></div>
+                                <el-input
+                                  v-model.trim="entry.resultSemantic.modelUsage"
+                                  type="textarea"
+                                  :rows="3"
+                                  placeholder="说明模型应如何理解和使用这个结果集"
+                                />
+                                <div class="database-result-units-head"
+                                  ><span>字段业务单位</span
+                                  ><el-button
+                                    plain
+                                    size="small"
+                                    @click="addDatabaseResultUnit(entry)"
+                                    >新增字段</el-button
+                                  ></div
+                                >
+                                <div
+                                  v-for="(unit, unitIndex) in entry.unitDescriptionEntries"
+                                  :key="`${entry.sqlCode}-unit-${unitIndex}`"
+                                  class="database-result-unit-row"
+                                  ><el-input
+                                    v-model.trim="unit.field"
+                                    placeholder="字段名"
+                                  /><el-input
+                                    v-model.trim="unit.unit"
+                                    placeholder="单位或业务说明"
+                                  /><el-button
+                                    plain
+                                    type="danger"
+                                    size="small"
+                                    @click="removeDatabaseResultUnit(entry, unitIndex)"
+                                    >删除</el-button
+                                  ></div
+                                >
+                              </div>
+
+                              <div v-else class="database-flow-tab-panel">
+                                <el-form-item
+                                  v-if="databaseSqlWorkflowEnabled(field)"
+                                  label="等待哪些步骤完成后执行"
+                                  ><el-select
+                                    v-model="entry.dependencies"
+                                    class="w-100"
+                                    multiple
+                                    clearable
+                                    collapse-tags
+                                    placeholder="不选择则为起始步骤，可与其他起始步骤并行"
+                                    ><el-option
+                                      v-for="option in databaseSqlDependencyOptions(field, entry)"
+                                      :key="option.value"
+                                      :label="option.label"
+                                      :value="option.value" /></el-select
+                                ></el-form-item>
+                                <div class="database-flow-form-grid two"
+                                  ><el-form-item label="超时时间（秒）"
+                                    ><el-input-number
+                                      v-model="entry.timeoutSeconds"
+                                      class="w-100"
+                                      :min="1"
+                                      :max="300"
+                                      controls-position="right" /></el-form-item
+                                  ><el-form-item label="最大返回行数"
+                                    ><el-input-number
+                                      v-model="entry.maxResultRows"
+                                      class="w-100"
+                                      :min="1"
+                                      controls-position="right" /></el-form-item
+                                  ><el-form-item label="执行失败时"
+                                    ><el-select v-model="entry.failureStrategy"
+                                      ><el-option label="终止整个流程" value="STOP" /><el-option
+                                        label="跳过并继续"
+                                        value="CONTINUE" /></el-select></el-form-item
+                                  ><el-form-item label="没有数据时"
+                                    ><el-select v-model="entry.emptyResultStrategy"
+                                      ><el-option label="正常继续" value="CONTINUE" /><el-option
+                                        label="跳过依赖它的步骤"
+                                        value="SKIP_DEPENDENTS" /><el-option
+                                        label="终止整个流程"
+                                        value="STOP" /></el-select></el-form-item
+                                ></div>
+                              </div>
+                            </div>
+                          </template>
+                        </section>
+
+                        <aside class="database-flow-inspector">
+                          <nav class="database-flow-side-tabs"
+                            ><button
+                              type="button"
+                              :class="{ active: databaseSqlSideTabs[field.key] === 'inputs' }"
+                              @click="databaseSqlSideTabs[field.key] = 'inputs'"
+                              >流程输入</button
+                            ><button
+                              type="button"
+                              :class="{ active: databaseSqlSideTabs[field.key] === 'plan' }"
+                              @click="databaseSqlSideTabs[field.key] = 'plan'"
+                              >执行预览</button
+                            ><button
+                              type="button"
+                              :class="{ active: databaseSqlSideTabs[field.key] === 'test' }"
+                              @click="databaseSqlSideTabs[field.key] = 'test'"
+                              >测试结果</button
+                            ></nav
+                          >
+                          <div
+                            v-if="databaseSqlSideTabs[field.key] === 'inputs'"
+                            class="database-flow-side-panel"
+                          >
+                            <template
+                              v-for="paramField in [databaseParamConfigField()]"
+                              :key="paramField?.key || 'flow-inputs'"
+                            >
+                              <template v-if="paramField">
+                                <div class="database-flow-side-head">
+                                  <div
+                                    ><strong>对外输入参数</strong
+                                    ><small
+                                      >统一维护流程测试入参；可从所有启用步骤自动汇总</small
+                                    ></div
+                                  >
+                                  <div class="database-node-config-actions"
+                                    ><el-button
+                                      plain
+                                      size="small"
+                                      @click="syncDatabaseFlowInputsFromSql(paramField)"
+                                      >同步参数</el-button
+                                    ><el-button
+                                      type="primary"
+                                      plain
+                                      size="small"
+                                      @click="addDatabaseFlowInput(paramField)"
+                                      >新增参数</el-button
+                                    ></div
+                                  >
+                                </div>
+                                <div
+                                  v-for="(param, paramIndex) in schemaDraft[paramField.key]"
+                                  :key="`flow-param-${paramIndex}`"
+                                  class="database-flow-input-card"
+                                  :class="{
+                                    'is-required': databaseParamRequiresTestValue(param),
+                                    'is-invalid':
+                                      databaseParameterValidationAttempted &&
+                                      databaseParamTestValueMissing(param),
+                                  }"
+                                >
+                                  <div class="database-flow-input-label"
+                                    ><span><i>*</i> 参数名称</span
+                                    ><em v-if="databaseParamRequiresTestValue(param)"
+                                      >必填参数</em
+                                    ></div
+                                  >
+                                  <div
+                                    ><el-input
+                                      v-model.trim="param.name"
+                                      placeholder="功能参数名"
+                                      @change="
+                                        handleDatabaseFlowInputNameChange(param)
+                                      " /><el-select
+                                      v-model="param.type"
+                                      :disabled="databaseParamIsBuiltInDate(param)"
+                                      ><el-option
+                                        v-for="option in schemaTypeOptions"
+                                        :key="option.value"
+                                        :label="option.label"
+                                        :value="option.value" /></el-select
+                                  ></div>
+                                  <el-select
+                                    v-model="param.defaultSource"
+                                    placeholder="选择参数来源"
+                                    @change="handleDatabaseParamSourceChange(param)"
+                                    ><el-option
+                                      v-for="option in databaseParamSourceOptions"
+                                      :key="option.value"
+                                      :label="option.label"
+                                      :value="option.value"
+                                  /></el-select>
+                                  <template v-if="databaseParamIsBuiltInDate(param)">
+                                    <small class="database-flow-input-hint">{{
+                                      databaseBuiltinDateHint(param)
+                                    }}</small>
+                                    <div
+                                      ><el-tag type="success" effect="plain">内置日期变量</el-tag
+                                      ><el-button
+                                        plain
+                                        type="danger"
+                                        size="small"
+                                        @click="removeDatabaseParamEntry(paramField, paramIndex)"
+                                        >删除</el-button
+                                      ></div
+                                    >
+                                  </template>
+                                  <template v-else>
+                                    <el-autocomplete
+                                      v-model="param.testValue"
+                                      class="w-100"
+                                      :fetch-suggestions="databaseDateFunctionSuggestions"
+                                      clearable
+                                      :placeholder="
+                                        databaseParamRequiresTestValue(param)
+                                          ? '流程测试值（试运行必填）'
+                                          : '流程测试值（选填）'
+                                      "
+                                    />
+                                    <small class="database-flow-input-hint"
+                                      >此值仅用于页面试运行，不会写入“当前步骤独立参数”；也可使用
+                                      ${today}、${month_start}、${trade_date-1}
+                                      等系统日期函数。</small
+                                    >
+                                    <small
+                                      v-if="
+                                        databaseParameterValidationAttempted &&
+                                        databaseParamTestValueMissing(param)
+                                      "
+                                      class="database-flow-input-error"
+                                      >请填写该必填参数的流程测试值</small
+                                    >
+                                    <div
+                                      ><el-checkbox
+                                        v-model="param.required"
+                                        @change="handleDatabaseFlowInputRequiredChange(param)"
+                                        >设为必填</el-checkbox
+                                      ><el-button
+                                        plain
+                                        type="danger"
+                                        size="small"
+                                        @click="removeDatabaseParamEntry(paramField, paramIndex)"
+                                        >删除</el-button
+                                      ></div
+                                    >
+                                  </template>
+                                </div>
+                                <div
+                                  v-if="!schemaDraft[paramField.key]?.length"
+                                  class="database-compact-empty"
+                                  >尚未添加流程输入。点击“同步参数”可汇总所有启用步骤的占位参数。</div
+                                >
+                              </template>
+                            </template>
+                          </div>
+                          <div
+                            v-else-if="databaseSqlSideTabs[field.key] === 'plan'"
+                            class="database-flow-side-panel"
+                          >
+                            <div class="database-flow-side-head"
+                              ><div
+                                ><strong>执行层级</strong
+                                ><small>{{
+                                  databaseSqlWorkflowEnabled(field)
+                                    ? "同一层步骤可并行执行"
+                                    : "当前按展示顺序依次执行"
+                                }}</small></div
+                              ></div
+                            >
+                            <div
+                              v-for="(level, levelIndex) in databaseSqlDisplayLevels(field)"
+                              :key="`side-level-${levelIndex}`"
+                              class="database-flow-plan-level"
+                              ><span
+                                >第 {{ levelIndex + 1 }} 层<i v-if="level.length > 1">并行</i></span
+                              ><div v-for="node in level" :key="node.sqlCode"
+                                ><strong>{{ node.sqlName || node.sqlCode }}</strong
+                                ><small v-if="node.dependencies?.length"
+                                  >等待：{{ node.dependencies.join("、") }}</small
+                                ><small v-else>直接执行</small></div
+                              ></div
+                            >
+                          </div>
+                          <div v-else class="database-flow-side-panel">
+                            <div class="database-flow-side-head"
+                              ><div
+                                ><strong>流程测试</strong
+                                ><small>保存前使用当前配置进行整体试运行</small></div
+                              ><el-button
+                                type="primary"
+                                plain
+                                size="small"
+                                :loading="busy"
+                                @click="testFormDraft"
+                                >运行</el-button
+                              ></div
+                            >
+                            <div v-if="busy" class="database-compact-empty">正在执行查询流程…</div>
+                            <div v-else-if="!formTestResult" class="database-compact-empty"
+                              >尚未运行测试。</div
+                            >
+                            <div
+                              v-else
+                              class="database-flow-test-overview"
+                              :class="{ 'is-failed': formTestResult.success === false }"
+                            >
+                              <div
+                                ><el-tag
+                                  :type="formTestResult.success === false ? 'danger' : 'success'"
+                                  >{{
+                                    formTestResult.success === false ? "执行失败" : "执行成功"
+                                  }}</el-tag
+                                ><strong>{{
+                                  formTestResult.success === false
+                                    ? "查询流程未完成"
+                                    : "查询流程已完成"
+                                }}</strong></div
+                              >
+                              <dl>
+                                <div
+                                  ><dt>执行流程</dt
+                                  ><dd>{{ databaseTestExecutedSteps || "当前查询流程" }}</dd></div
+                                >
+                                <div
+                                  ><dt>返回记录</dt><dd>{{ databaseTestTotalRows }} 条</dd></div
+                                >
+                                <div v-if="databaseTestDurationMs !== null"
+                                  ><dt>执行耗时</dt><dd>{{ databaseTestDurationMs }} ms</dd></div
+                                >
+                              </dl>
+                              <p v-if="formTestResult.success === false">{{
+                                databaseTestErrorSummary || "请在下方预览结果中查看详细错误。"
+                              }}</p>
+                              <small>查询语句、数据表和完整错误请查看下方“预览结果”。</small>
+                            </div>
+                          </div>
+                        </aside>
+                      </div>
+
+                      <div v-else class="database-flow-empty">
+                        <span>1</span><strong>添加第一个执行步骤</strong
+                        ><p
+                          >先说明这一步要查询什么，再填写查询语句；系统会引导配置输入、输出和执行规则。</p
+                        ><el-button type="primary" @click="addDatabaseSqlStep(field)"
+                          >添加查询步骤</el-button
+                        >
+                      </div>
+                    </div>
+                    <div
+                      v-else-if="field.type === 'jsonObjectString' || field.type === 'jsonObject'"
+                      class="visual-object-editor"
+                    >
+                      <div
+                        v-if="objectPresetOptions(field).length"
+                        class="visual-object-preset-toolbar"
+                      >
+                        <el-select
+                          v-model="objectPresetSelection[field.key]"
+                          clearable
+                          filterable
+                          placeholder="选择常用项"
+                        >
+                          <el-option
+                            v-for="option in objectPresetOptions(field)"
+                            :key="`${field.key}-preset-${option.id || option.key}`"
+                            :label="option.label || option.key"
+                            :value="option.id || option.key"
+                          />
+                        </el-select>
+                        <el-button plain @click="addObjectPreset(field)">添加常用项</el-button>
+                      </div>
+                      <el-text v-if="!objectDraft[field.key]?.length" type="info">
+                        {{ field.emptyText || "暂无键值，点击下方按钮新增。" }}
+                      </el-text>
+                      <div
+                        v-for="(entry, index) in objectDraft[field.key]"
+                        :key="`${field.key}-object-${index}`"
+                        class="visual-object-row"
+                      >
+                        <el-input
+                          v-model.trim="entry.key"
+                          :placeholder="field.keyPlaceholder || '名称'"
+                        />
+                        <el-input
+                          v-model="entry.value"
+                          :placeholder="field.valuePlaceholder || '值'"
+                        />
+                        <el-button plain type="danger" @click="removeObjectEntry(field.key, index)"
+                          >删除</el-button
+                        >
+                      </div>
+                      <el-button plain @click="addObjectEntry(field.key)">新增键值</el-button>
+                    </div>
+                    <div
+                      v-else-if="field.type === 'jsonSchemaString' || field.type === 'jsonSchema'"
+                      class="visual-schema-editor"
+                    >
+                      <el-text v-if="!schemaDraft[field.key]?.length" type="info">
+                        {{ field.emptyText || "暂无参数，点击下方按钮新增。" }}
+                      </el-text>
+                      <div
+                        v-for="(entry, index) in schemaDraft[field.key]"
+                        :key="`${field.key}-schema-${index}`"
+                        class="visual-schema-row"
+                      >
+                        <el-input
+                          v-model.trim="entry.name"
+                          :placeholder="field.namePlaceholder || '参数名'"
+                        />
+                        <el-select v-model="entry.type" class="w-100">
+                          <el-option
+                            v-for="option in schemaTypeOptions"
+                            :key="option.value"
+                            :label="option.label"
+                            :value="option.value"
+                          />
+                        </el-select>
+                        <el-input v-model="entry.defaultValue" placeholder="默认值（选填）" />
+                        <el-checkbox v-model="entry.required">必填</el-checkbox>
+                        <el-input
+                          v-model="entry.description"
+                          :placeholder="field.descriptionPlaceholder || '说明'"
+                        />
+                        <el-button plain type="danger" @click="removeSchemaEntry(field.key, index)"
+                          >删除</el-button
+                        >
+                      </div>
+                      <el-button plain @click="addSchemaEntry(field.key)">新增参数</el-button>
+                    </div>
+                    <el-switch v-else-if="field.type === 'checkbox'" v-model="form[field.key]" />
+                    <el-input-number
+                      v-else-if="field.type === 'number'"
+                      v-model="form[field.key]"
+                      class="w-100"
+                      :min="field.min || 0"
+                      :step="field.step || 1"
+                      :placeholder="field.placeholder"
+                      controls-position="right"
+                    />
+                    <el-input
+                      v-else
+                      v-model="form[field.key]"
+                      :type="field.type || 'text'"
+                      :placeholder="field.placeholder"
+                      :required="isFieldRequired(field)"
+                    />
+                    <div v-if="field.help" class="form-text">{{ fieldText(field, "help") }}</div>
+                  </el-form-item>
                 </el-col>
               </template>
             </el-row>
@@ -610,9 +1335,9 @@
         <div v-else class="database-preview-result">
           <div class="database-preview-summary">
             <el-tag :type="formTestResult.success === false ? 'danger' : 'success'" effect="light">
-              {{ formTestResult.success === false ? '失败' : '成功' }}
+              {{ formTestResult.success === false ? "失败" : "成功" }}
             </el-tag>
-            <span>{{ formTestResult.message || '查询完成' }}</span>
+            <span>{{ formTestResult.message || "查询完成" }}</span>
             <span>查询 {{ databasePreviewResultSets.length }} 条</span>
             <span>合计返回 {{ databaseTestTotalRows }} 行</span>
           </div>
@@ -640,24 +1365,49 @@
                 </span>
               </template>
 
-              <div v-if="databasePreviewActiveTab === resultSet.previewKey" class="database-preview-tab-content">
+              <div
+                v-if="databasePreviewActiveTab === resultSet.previewKey"
+                class="database-preview-tab-content"
+              >
                 <div class="database-preview-summary database-preview-result-summary">
-                  <el-tag :type="resultSet.success === false ? 'danger' : 'success'" size="small" effect="plain">
-                    {{ resultSet.success === false ? '执行失败' : '执行成功' }}
+                  <el-tag
+                    :type="resultSet.success === false ? 'danger' : 'success'"
+                    size="small"
+                    effect="plain"
+                  >
+                    {{ resultSet.success === false ? "执行失败" : "执行成功" }}
                   </el-tag>
-                  <el-tag v-if="databasePreviewData.dataAvailable === false" type="warning" size="small" effect="plain">
+                  <el-tag
+                    v-if="databasePreviewData.dataAvailable === false"
+                    type="warning"
+                    size="small"
+                    effect="plain"
+                  >
                     数据集尚未就绪
                   </el-tag>
-                  <span>返回 {{ databasePreviewData.rowCount ?? databasePreviewRows.length }} 行</span>
-                  <span>上限 {{ databasePreviewData.maxRows ?? '-' }} 行</span>
-                  <span v-if="databasePreviewData.durationMs != null">耗时 {{ databasePreviewData.durationMs }} ms</span>
-                  <el-tag v-if="databasePreviewData.possiblyTruncated" type="warning" size="small" effect="light">可能已截断</el-tag>
+                  <span
+                    >返回 {{ databasePreviewData.rowCount ?? databasePreviewRows.length }} 行</span
+                  >
+                  <span>上限 {{ databasePreviewData.maxRows ?? "-" }} 行</span>
+                  <span v-if="databasePreviewData.durationMs != null"
+                    >耗时 {{ databasePreviewData.durationMs }} ms</span
+                  >
+                  <el-tag
+                    v-if="databasePreviewData.possiblyTruncated"
+                    type="warning"
+                    size="small"
+                    effect="light"
+                    >可能已截断</el-tag
+                  >
                 </div>
 
                 <el-alert
                   v-if="databasePreviewData.success === false"
                   type="error"
-                  :title="databasePreviewData.errorMessage || databaseQueryProfile.language + ' 查询执行失败'"
+                  :title="
+                    databasePreviewData.errorMessage ||
+                    databaseQueryProfile.language + ' 查询执行失败'
+                  "
                   :closable="false"
                   show-icon
                 />
@@ -666,20 +1416,35 @@
                   v-else-if="databasePreviewData.dataAvailable === false"
                   type="warning"
                   title="对应金融数据集尚未采集，或字段尚未同步到 H2 查询库"
-                  :description="databasePreviewData.availabilityMessage || '模板本身可执行；完成该数据集采集后即可返回结果。'"
+                  :description="
+                    databasePreviewData.availabilityMessage ||
+                    '模板本身可执行；完成该数据集采集后即可返回结果。'
+                  "
                   :closable="false"
                   show-icon
                 />
 
                 <details v-if="databasePreviewResolvedSql" class="database-resolved-sql" open>
-                  <summary>{{ databasePreviewData.previewName }} · {{ databaseQueryProfile.previewLabel }}</summary>
+                  <summary
+                    >{{ databasePreviewData.previewName }} ·
+                    {{ databaseQueryProfile.previewLabel }}</summary
+                  >
                   <pre><code>{{ databasePreviewResolvedSql }}</code></pre>
                 </details>
 
                 <div v-if="databasePreviewColumns.length" class="database-preview-fields">
                   <div class="database-preview-fields-head">
                     <span>从查询结果列名生成参数</span>
-                    <el-button plain size="small" @click="appendDatabasePreviewParams(databasePreviewColumns, databasePreviewRows[0] || {})">
+                    <el-button
+                      plain
+                      size="small"
+                      @click="
+                        appendDatabasePreviewParams(
+                          databasePreviewColumns,
+                          databasePreviewRows[0] || {}
+                        )
+                      "
+                    >
                       全部字段
                     </el-button>
                   </div>
@@ -714,7 +1479,11 @@
                     <template #default="{ row }">{{ formatPreviewCell(row[column]) }}</template>
                   </el-table-column>
                 </el-table>
-                <div v-else-if="databasePreviewData.success !== false" class="database-preview-empty">查询成功，但没有返回列。</div>
+                <div
+                  v-else-if="databasePreviewData.success !== false"
+                  class="database-preview-empty"
+                  >查询成功，但没有返回列。</div
+                >
               </div>
             </el-tab-pane>
           </el-tabs>
@@ -727,7 +1496,9 @@
       </section>
 
       <template #footer>
-        <el-button v-if="formTestAction" plain :loading="busy" @click="testFormDraft">{{ formTestLabel }}</el-button>
+        <el-button v-if="formTestAction" plain :loading="busy" @click="testFormDraft">{{
+          formTestLabel
+        }}</el-button>
         <el-button @click="formOpen = false">取消</el-button>
         <el-button type="primary" :loading="busy" @click="saveForm">保存</el-button>
       </template>
@@ -740,7 +1511,10 @@
       wide
       @close="templatePickerOpen = false"
     >
-      <div class="template-picker-toolbar" :class="{ 'has-filter': templatePickerFilterOptions.length }">
+      <div
+        class="template-picker-toolbar"
+        :class="{ 'has-filter': templatePickerFilterOptions.length }"
+      >
         <el-select
           v-if="templatePickerFilterOptions.length"
           v-model="templatePickerFilterValue"
@@ -754,8 +1528,14 @@
             :value="String(option.value)"
           />
         </el-select>
-        <el-input v-model.trim="templatePickerKeyword" clearable placeholder="搜索模板编号、名称、分类或描述">
-          <template #prefix><el-icon><Search /></el-icon></template>
+        <el-input
+          v-model.trim="templatePickerKeyword"
+          clearable
+          placeholder="搜索模板编号、名称、分类或描述"
+        >
+          <template #prefix
+            ><el-icon><Search /></el-icon
+          ></template>
         </el-input>
         <el-button plain @click="selectTemplatePickerVisible">选择当前页</el-button>
         <el-button plain @click="selectTemplatePickerFiltered">选择全部匹配</el-button>
@@ -763,41 +1543,65 @@
         <el-button plain @click="clearTemplatePickerFiltered">清除全部匹配</el-button>
       </div>
 
-      <el-table class="template-picker-table" :data="templatePickerVisibleItems" border stripe empty-text="暂无可选模板">
+      <el-table
+        class="template-picker-table"
+        :data="templatePickerVisibleItems"
+        border
+        stripe
+        empty-text="暂无可选模板"
+      >
         <el-table-column label="" width="56" align="center">
           <template #default="{ row }">
-            <el-checkbox :model-value="templatePickerSelected.includes(templatePickerItemKey(row))" @change="toggleTemplatePickerItem(row)" />
+            <el-checkbox
+              :model-value="templatePickerSelected.includes(templatePickerItemKey(row))"
+              @change="toggleTemplatePickerItem(row)"
+            />
           </template>
         </el-table-column>
         <el-table-column label="模板编号" min-width="150">
-          <template #default="{ row }"><code>{{ templatePickerItemKey(row) || '-' }}</code></template>
+          <template #default="{ row }"
+            ><code>{{ templatePickerItemKey(row) || "-" }}</code></template
+          >
         </el-table-column>
         <el-table-column label="模板名称" min-width="180">
-          <template #default="{ row }">{{ row.title || row.name || '-' }}</template>
+          <template #default="{ row }">{{ row.title || row.name || "-" }}</template>
         </el-table-column>
-        <el-table-column v-if="templatePickerFilterOptions.length" :label="templatePickerFilterLabel" min-width="120">
-          <template #default="{ row }">{{ row[templatePickerField.filterKey] || '-' }}</template>
+        <el-table-column
+          v-if="templatePickerFilterOptions.length"
+          :label="templatePickerFilterLabel"
+          min-width="120"
+        >
+          <template #default="{ row }">{{ row[templatePickerField.filterKey] || "-" }}</template>
         </el-table-column>
         <el-table-column label="分类" min-width="140">
-          <template #default="{ row }">{{ row.category || '-' }}</template>
+          <template #default="{ row }">{{ row.category || "-" }}</template>
         </el-table-column>
         <el-table-column label="风险" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.riskLevel === 'LOW' ? 'success' : 'warning'" effect="light">{{ row.riskLevel || '-' }}</el-tag>
+            <el-tag :type="row.riskLevel === 'LOW' ? 'success' : 'warning'" effect="light">{{
+              row.riskLevel || "-"
+            }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.enabled === false ? 'info' : 'success'" effect="light">{{ row.enabled === false ? '停用' : '启用' }}</el-tag>
+            <el-tag :type="row.enabled === false ? 'info' : 'success'" effect="light">{{
+              row.enabled === false ? "停用" : "启用"
+            }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="描述" min-width="220">
-          <template #default="{ row }">{{ row.description || row.commandTemplate || '-' }}</template>
+          <template #default="{ row }">{{
+            row.description || row.commandTemplate || "-"
+          }}</template>
         </el-table-column>
       </el-table>
 
       <footer class="pagination-row">
-        <el-text type="info">已选择 {{ templatePickerSelected.length }} 个，第 {{ templatePickerPage }} / {{ templatePickerPageCount }} 页</el-text>
+        <el-text type="info"
+          >已选择 {{ templatePickerSelected.length }} 个，第 {{ templatePickerPage }} /
+          {{ templatePickerPageCount }} 页</el-text
+        >
         <el-pagination
           background
           layout="prev, pager, next"

@@ -44,8 +44,15 @@
             <el-button plain :disabled="busy" :loading="busy" @click="syncLivedataParameters">
               同步已注册参数
             </el-button>
-            <el-button plain :disabled="busy" :loading="busy" @click="loadLivedata">加载 API</el-button>
-            <el-button type="primary" :disabled="busy || !selectedLivedata.size" :loading="busy" @click="registerSelected">
+            <el-button plain :disabled="busy" :loading="busy" @click="loadLivedata"
+              >加载 API</el-button
+            >
+            <el-button
+              type="primary"
+              :disabled="busy || !selectedLivedata.size"
+              :loading="busy"
+              @click="registerSelected"
+            >
               注册选中
             </el-button>
           </div>
@@ -66,7 +73,13 @@
           <el-checkbox v-model="overwriteExisting">覆盖同名工具</el-checkbox>
         </div>
 
-        <el-table class="settings-table" :data="paginatedLivedata" border stripe empty-text="暂无 LiveData API">
+        <el-table
+          class="settings-table"
+          :data="paginatedLivedata"
+          border
+          stripe
+          empty-text="暂无 LiveData API"
+        >
           <el-table-column label="" width="54" align="center">
             <template #header>
               <el-checkbox
@@ -87,29 +100,36 @@
             </template>
           </el-table-column>
           <el-table-column label="API" min-width="180">
-            <template #default="{ row }">{{ row.name || row.title || '-' }}</template>
+            <template #default="{ row }">{{ row.name || row.title || "-" }}</template>
           </el-table-column>
           <el-table-column label="工具名称" min-width="180">
-            <template #default="{ row }"><code>{{ row.toolName || '-' }}</code></template>
+            <template #default="{ row }"
+              ><code>{{ row.toolName || "-" }}</code></template
+            >
           </el-table-column>
           <el-table-column label="服务" min-width="160">
-            <template #default="{ row }">{{ row.serviceName || row.namespace || '-' }}</template>
+            <template #default="{ row }">{{ row.serviceName || row.namespace || "-" }}</template>
           </el-table-column>
           <el-table-column label="状态" width="120">
             <template #default="{ row }">
               <el-tag
-                :type="row.registered ? 'success' : (row.canRegister ? 'info' : 'danger')"
+                :type="row.registered ? 'success' : row.canRegister ? 'info' : 'danger'"
                 effect="light"
                 :title="row.error || ''"
               >
-                {{ row.registered ? '已注册' : (row.canRegister ? '可注册' : '不可注册') }}
+                {{ row.registered ? "已注册" : row.canRegister ? "可注册" : "不可注册" }}
               </el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="version" label="版本" width="120" />
           <el-table-column label="操作" width="110" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" :disabled="busy || !row.canRegister" @click="testLivedata(row)">
+              <el-button
+                link
+                type="primary"
+                :disabled="busy || !row.canRegister"
+                @click="testLivedata(row)"
+              >
                 请求测试
               </el-button>
             </template>
@@ -131,9 +151,14 @@
         </footer>
       </section>
 
-      <el-dialog v-model="livedataDatasourceDialogOpen" title="选择 LiveData 数据源和网关" width="680px">
+      <el-dialog
+        v-model="livedataDatasourceDialogOpen"
+        title="选择 LiveData 数据源和网关"
+        width="680px"
+      >
         <p class="form-dialog-subtitle">
-          从数据资产中心选择已维护并启用的数据库资产和 API 网关资产。网关地址取自所选网关资产，确认后保存绑定关系并加载可注册的 API。
+          从数据资产中心选择已维护并启用的数据库资产和 API
+          网关资产。网关地址取自所选网关资产，确认后保存绑定关系并加载可注册的 API。
         </p>
         <el-form label-position="top">
           <el-form-item label="数据库资产" required>

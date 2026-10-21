@@ -1,0 +1,225 @@
+.interactive-plan-dag {
+  min-width: 0;
+  border: 1px solid #dbe5f2;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f8fbff;
+}
+.plan-flow-toolbar {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #dbe5f2;
+  background: rgba(255, 255, 255, 0.96);
+}
+.plan-flow-toolbar > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.plan-flow-toolbar strong {
+  color: #172033;
+  font-size: 13px;
+}
+.plan-flow-toolbar span {
+  color: #667085;
+  font-size: 11px;
+}
+.plan-flow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+.plan-flow-actions button {
+  height: 32px;
+  border: 1px solid #cfdced;
+  border-radius: 8px;
+  padding: 0 11px;
+  background: #fff;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 700;
+}
+.plan-flow-actions button:hover {
+  border-color: #2f7cf6;
+  color: #175cd3;
+  background: #f5f9ff;
+}
+.plan-flow {
+  width: 100%;
+  height: 650px;
+  background: #f5f7fa;
+}
+.plan-flow-node {
+  --node-accent: #2f6fa9;
+  --node-border: #8eb6d9;
+  --node-bg: #edf6fd;
+  --node-chip-bg: #dcecf8;
+  --status-accent: #507da5;
+  width: 300px;
+  min-height: 126px;
+  box-sizing: border-box;
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--node-border);
+  border-left: 5px solid #1f5f99;
+  border-radius: 7px;
+  padding: 11px 14px 11px 13px;
+  background: linear-gradient(145deg, #f7fbff 0%, var(--node-bg) 100%);
+  box-shadow: 0 3px 10px rgba(35, 83, 126, 0.13);
+  cursor: grab;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.15s;
+}
+.plan-flow-node:active {
+  cursor: grabbing;
+}
+.plan-flow-node.selected {
+  border-color: var(--node-accent);
+  box-shadow:
+    0 0 0 3px rgba(63, 120, 168, 0.2),
+    0 7px 18px rgba(44, 62, 80, 0.14);
+  transform: translateY(-1px);
+}
+.plan-flow-node.success {
+  --status-accent: #278653;
+}
+.plan-flow-node.failed {
+  --status-accent: #c2414b;
+}
+.plan-flow-node.running {
+  --status-accent: #1976c9;
+}
+.plan-flow-node.waiting {
+  --status-accent: #b7791f;
+}
+.plan-flow-node.final {
+  --status-accent: #6554a5;
+}
+.plan-flow-node header,
+.plan-flow-node footer {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.plan-flow-node header small {
+  border-radius: 4px;
+  padding: 2px 6px;
+  background: var(--node-chip-bg);
+  color: #3f4c59;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.plan-flow-node header code {
+  margin-left: auto;
+  max-width: 120px;
+  overflow: hidden;
+  color: #6b7d8f;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plan-flow-status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--status-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-accent) 16%, transparent);
+}
+.plan-flow-node > strong {
+  min-width: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  color: #25313d;
+  font-size: 14px;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+.plan-flow-node > p {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #536475;
+  font-size: 11px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plan-flow-node footer {
+  border-top: 1px solid color-mix(in srgb, var(--node-border) 72%, transparent);
+  padding-top: 7px;
+  color: #6b7d8f;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+:deep(.vue-flow__edge-path) {
+  stroke: #6f96b8;
+  stroke-width: 1.8;
+}
+:deep(.vue-flow__edge.selected .vue-flow__edge-path) {
+  stroke: #1f66a5;
+  stroke-width: 2.8;
+}
+:deep(.vue-flow__edge-text) {
+  fill: #3f4c59;
+  font-size: 11px;
+  font-weight: 800;
+}
+:deep(.vue-flow__edge-textbg) {
+  fill: rgba(248, 250, 252, 0.96);
+  stroke: #c8d2dc;
+  stroke-width: 1;
+}
+:deep(.vue-flow__handle) {
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--node-bg);
+  background: var(--node-accent);
+}
+:deep(.vue-flow__minimap) {
+  border: 1px solid #d8e1ee;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.92);
+}
+:deep(.vue-flow__controls) {
+  border: 1px solid #d8e1ee;
+  border-radius: 9px;
+  overflow: hidden;
+  box-shadow: 0 5px 15px rgba(15, 23, 42, 0.08);
+}
+:deep(.vue-flow__controls-button) {
+  line-height: 0;
+}
+:deep(.vue-flow__controls-button svg) {
+  display: block;
+  flex: 0 0 auto;
+}
+:deep(.vue-flow__controls-zoomout svg) {
+  width: 12px;
+  height: 12px;
+  transform: translateY(-1px);
+}
+@media (max-width: 720px) {
+  .plan-flow-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .plan-flow-actions {
+    justify-content: flex-start;
+  }
+  .plan-flow {
+    height: 560px;
+  }
+}

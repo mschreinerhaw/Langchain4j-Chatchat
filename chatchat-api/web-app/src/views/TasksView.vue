@@ -52,13 +52,19 @@
       <div class="runtime-toolbar">
         <label class="runtime-search-field">
           <Search :size="16" stroke-width="2" />
-          <input v-model.trim="taskSearchQuery" type="text" placeholder="搜索任务编号、问题、租户或状态" />
+          <input
+            v-model.trim="taskSearchQuery"
+            type="text"
+            placeholder="搜索任务编号、问题、租户或状态"
+          />
         </label>
         <label class="runtime-select-field">
           <ListFilter :size="15" stroke-width="2" />
           <select v-model="statusFilter">
             <option value="">全部状态</option>
-            <option v-for="status in statusOptions" :key="status" :value="status">{{ formatTaskStatus(status) }}</option>
+            <option v-for="status in statusOptions" :key="status" :value="status">{{
+              formatTaskStatus(status)
+            }}</option>
           </select>
         </label>
       </div>
@@ -141,23 +147,38 @@
       </div>
 
       <div v-if="reasonMetrics.length > 0" class="reason-metrics">
-        <article v-for="reason in pagedRows(reasonMetrics, 'reasonMetrics')" :key="reason.reasonCategory">
+        <article
+          v-for="reason in pagedRows(reasonMetrics, 'reasonMetrics')"
+          :key="reason.reasonCategory"
+        >
           <strong>{{ reason.label }}</strong>
           <span>{{ reason.total }} 条</span>
           <small>{{ formatPercent(reason.share) }}</small>
         </article>
       </div>
 
-      <nav v-if="showRuntimePager(reasonMetrics.length)" class="runtime-pagination" aria-label="效果原因分页">
+      <nav
+        v-if="showRuntimePager(reasonMetrics.length)"
+        class="runtime-pagination"
+        aria-label="效果原因分页"
+      >
         <span>
-          显示第 {{ runtimePageStart('reasonMetrics', reasonMetrics.length) }}-{{ runtimePageEnd('reasonMetrics', reasonMetrics.length) }} 条，
-          共 {{ reasonMetrics.length }} 条，每页 {{ pageSize }} 条
+          显示第 {{ runtimePageStart("reasonMetrics", reasonMetrics.length) }}-{{
+            runtimePageEnd("reasonMetrics", reasonMetrics.length)
+          }}
+          条， 共 {{ reasonMetrics.length }} 条，每页 {{ pageSize }} 条
         </span>
         <div>
           <button
             type="button"
             :disabled="clampedRuntimePage('reasonMetrics', reasonMetrics.length) <= 1"
-            @click="goRuntimePage('reasonMetrics', clampedRuntimePage('reasonMetrics', reasonMetrics.length) - 1, reasonMetrics.length)"
+            @click="
+              goRuntimePage(
+                'reasonMetrics',
+                clampedRuntimePage('reasonMetrics', reasonMetrics.length) - 1,
+                reasonMetrics.length
+              )
+            "
           >
             上一页
           </button>
@@ -165,15 +186,26 @@
             v-for="pageNumber in runtimePageButtons('reasonMetrics', reasonMetrics.length)"
             :key="`reason-metrics-${pageNumber}`"
             type="button"
-            :class="{ active: pageNumber === clampedRuntimePage('reasonMetrics', reasonMetrics.length) }"
+            :class="{
+              active: pageNumber === clampedRuntimePage('reasonMetrics', reasonMetrics.length),
+            }"
             @click="goRuntimePage('reasonMetrics', pageNumber, reasonMetrics.length)"
           >
             {{ pageNumber }}
           </button>
           <button
             type="button"
-            :disabled="clampedRuntimePage('reasonMetrics', reasonMetrics.length) >= runtimePageCount(reasonMetrics.length)"
-            @click="goRuntimePage('reasonMetrics', clampedRuntimePage('reasonMetrics', reasonMetrics.length) + 1, reasonMetrics.length)"
+            :disabled="
+              clampedRuntimePage('reasonMetrics', reasonMetrics.length) >=
+              runtimePageCount(reasonMetrics.length)
+            "
+            @click="
+              goRuntimePage(
+                'reasonMetrics',
+                clampedRuntimePage('reasonMetrics', reasonMetrics.length) + 1,
+                reasonMetrics.length
+              )
+            "
           >
             下一页
           </button>
@@ -196,16 +228,28 @@
           </article>
           <p v-if="agentEffectRows.length === 0" class="runtime-empty">暂无智能体效果数据。</p>
         </div>
-        <nav v-if="showRuntimePager(agentEffectRows.length)" class="runtime-pagination" aria-label="智能体效果分页">
+        <nav
+          v-if="showRuntimePager(agentEffectRows.length)"
+          class="runtime-pagination"
+          aria-label="智能体效果分页"
+        >
           <span>
-            显示第 {{ runtimePageStart('agentEffects', agentEffectRows.length) }}-{{ runtimePageEnd('agentEffects', agentEffectRows.length) }} 条，
-            共 {{ agentEffectRows.length }} 条，每页 {{ pageSize }} 条
+            显示第 {{ runtimePageStart("agentEffects", agentEffectRows.length) }}-{{
+              runtimePageEnd("agentEffects", agentEffectRows.length)
+            }}
+            条， 共 {{ agentEffectRows.length }} 条，每页 {{ pageSize }} 条
           </span>
           <div>
             <button
               type="button"
               :disabled="clampedRuntimePage('agentEffects', agentEffectRows.length) <= 1"
-              @click="goRuntimePage('agentEffects', clampedRuntimePage('agentEffects', agentEffectRows.length) - 1, agentEffectRows.length)"
+              @click="
+                goRuntimePage(
+                  'agentEffects',
+                  clampedRuntimePage('agentEffects', agentEffectRows.length) - 1,
+                  agentEffectRows.length
+                )
+              "
             >
               上一页
             </button>
@@ -213,15 +257,26 @@
               v-for="pageNumber in runtimePageButtons('agentEffects', agentEffectRows.length)"
               :key="`agent-effects-${pageNumber}`"
               type="button"
-              :class="{ active: pageNumber === clampedRuntimePage('agentEffects', agentEffectRows.length) }"
+              :class="{
+                active: pageNumber === clampedRuntimePage('agentEffects', agentEffectRows.length),
+              }"
               @click="goRuntimePage('agentEffects', pageNumber, agentEffectRows.length)"
             >
               {{ pageNumber }}
             </button>
             <button
               type="button"
-              :disabled="clampedRuntimePage('agentEffects', agentEffectRows.length) >= runtimePageCount(agentEffectRows.length)"
-              @click="goRuntimePage('agentEffects', clampedRuntimePage('agentEffects', agentEffectRows.length) + 1, agentEffectRows.length)"
+              :disabled="
+                clampedRuntimePage('agentEffects', agentEffectRows.length) >=
+                runtimePageCount(agentEffectRows.length)
+              "
+              @click="
+                goRuntimePage(
+                  'agentEffects',
+                  clampedRuntimePage('agentEffects', agentEffectRows.length) + 1,
+                  agentEffectRows.length
+                )
+              "
             >
               下一页
             </button>
@@ -235,12 +290,18 @@
           <span>{{ lowScoreTasks.length }} 条</span>
         </header>
         <div class="low-score-list">
-          <button v-for="task in pagedRows(lowScoreTasks, 'lowScores')" :key="task.taskId" type="button" @click="inspectTask(task)">
+          <button
+            v-for="task in pagedRows(lowScoreTasks, 'lowScores')"
+            :key="task.taskId"
+            type="button"
+            @click="inspectTask(task)"
+          >
             <span class="task-id">{{ shortId(task.taskId) }}</span>
             <strong>{{ task.question || "未命名任务" }}</strong>
             <small>
-              有用 {{ task.feedbackUseful ? "是" : "否" }} / 采纳 {{ task.feedbackAdopted ? "是" : "否" }} /
-              解决 {{ task.feedbackResolved ? "是" : "否" }}
+              有用 {{ task.feedbackUseful ? "是" : "否" }} / 采纳
+              {{ task.feedbackAdopted ? "是" : "否" }} / 解决
+              {{ task.feedbackResolved ? "是" : "否" }}
             </small>
             <small v-if="task.feedbackReasonCategory">
               原因 {{ formatFeedbackReason(task.feedbackReasonCategory) }}
@@ -249,16 +310,28 @@
           </button>
           <p v-if="lowScoreTasks.length === 0" class="runtime-empty">暂无低分任务。</p>
         </div>
-        <nav v-if="showRuntimePager(lowScoreTasks.length)" class="runtime-pagination" aria-label="低分任务分页">
+        <nav
+          v-if="showRuntimePager(lowScoreTasks.length)"
+          class="runtime-pagination"
+          aria-label="低分任务分页"
+        >
           <span>
-            显示第 {{ runtimePageStart('lowScores', lowScoreTasks.length) }}-{{ runtimePageEnd('lowScores', lowScoreTasks.length) }} 条，
-            共 {{ lowScoreTasks.length }} 条，每页 {{ pageSize }} 条
+            显示第 {{ runtimePageStart("lowScores", lowScoreTasks.length) }}-{{
+              runtimePageEnd("lowScores", lowScoreTasks.length)
+            }}
+            条， 共 {{ lowScoreTasks.length }} 条，每页 {{ pageSize }} 条
           </span>
           <div>
             <button
               type="button"
               :disabled="clampedRuntimePage('lowScores', lowScoreTasks.length) <= 1"
-              @click="goRuntimePage('lowScores', clampedRuntimePage('lowScores', lowScoreTasks.length) - 1, lowScoreTasks.length)"
+              @click="
+                goRuntimePage(
+                  'lowScores',
+                  clampedRuntimePage('lowScores', lowScoreTasks.length) - 1,
+                  lowScoreTasks.length
+                )
+              "
             >
               上一页
             </button>
@@ -266,15 +339,26 @@
               v-for="pageNumber in runtimePageButtons('lowScores', lowScoreTasks.length)"
               :key="`low-scores-${pageNumber}`"
               type="button"
-              :class="{ active: pageNumber === clampedRuntimePage('lowScores', lowScoreTasks.length) }"
+              :class="{
+                active: pageNumber === clampedRuntimePage('lowScores', lowScoreTasks.length),
+              }"
               @click="goRuntimePage('lowScores', pageNumber, lowScoreTasks.length)"
             >
               {{ pageNumber }}
             </button>
             <button
               type="button"
-              :disabled="clampedRuntimePage('lowScores', lowScoreTasks.length) >= runtimePageCount(lowScoreTasks.length)"
-              @click="goRuntimePage('lowScores', clampedRuntimePage('lowScores', lowScoreTasks.length) + 1, lowScoreTasks.length)"
+              :disabled="
+                clampedRuntimePage('lowScores', lowScoreTasks.length) >=
+                runtimePageCount(lowScoreTasks.length)
+              "
+              @click="
+                goRuntimePage(
+                  'lowScores',
+                  clampedRuntimePage('lowScores', lowScoreTasks.length) + 1,
+                  lowScoreTasks.length
+                )
+              "
             >
               下一页
             </button>
@@ -319,201 +403,294 @@
       </div>
 
       <section v-if="experienceActiveTab === 'scenarios'" class="experience-tab-panel">
-      <header class="subsection-head experience-subsection-head">
-        <strong>场景概览</strong>
-        <span>{{ experienceScenarios.length }} 条</span>
-      </header>
-      <div class="experience-scenarios">
-        <article v-for="scenario in pagedRows(experienceScenarios, 'experienceScenarios')" :key="scenario.scenarioKey || scenario.scenarioName">
-          <strong>{{ scenario.scenarioName || scenario.scenarioKey || "-" }}</strong>
-          <span>{{ scenario.scenarioKey || "通用" }} / {{ scenario.total || 0 }} 个样本</span>
-          <small>平均分 {{ scenario.averageScore || 0 }}</small>
-        </article>
-        <p v-if="experienceScenarios.length === 0" class="runtime-empty">暂无结构化经验索引。</p>
-      </div>
-      <nav v-if="showRuntimePagination(experienceScenarios.length)" class="runtime-pagination" aria-label="经验场景分页">
-        <span>
-          显示第 {{ runtimePageStart('experienceScenarios', experienceScenarios.length) }}-{{ runtimePageEnd('experienceScenarios', experienceScenarios.length) }} 条，
-          共 {{ experienceScenarios.length }} 条，每页 {{ pageSize }} 条
-        </span>
-        <div>
-          <button
-            type="button"
-            :disabled="clampedRuntimePage('experienceScenarios', experienceScenarios.length) <= 1"
-            @click="goRuntimePage('experienceScenarios', clampedRuntimePage('experienceScenarios', experienceScenarios.length) - 1, experienceScenarios.length)"
+        <header class="subsection-head experience-subsection-head">
+          <strong>场景概览</strong>
+          <span>{{ experienceScenarios.length }} 条</span>
+        </header>
+        <div class="experience-scenarios">
+          <article
+            v-for="scenario in pagedRows(experienceScenarios, 'experienceScenarios')"
+            :key="scenario.scenarioKey || scenario.scenarioName"
           >
-            上一页
-          </button>
-          <button
-            v-for="pageNumber in runtimePageButtons('experienceScenarios', experienceScenarios.length)"
-            :key="`experience-scenarios-${pageNumber}`"
-            type="button"
-            :class="{ active: pageNumber === clampedRuntimePage('experienceScenarios', experienceScenarios.length) }"
-            @click="goRuntimePage('experienceScenarios', pageNumber, experienceScenarios.length)"
-          >
-            {{ pageNumber }}
-          </button>
-          <button
-            type="button"
-            :disabled="clampedRuntimePage('experienceScenarios', experienceScenarios.length) >= runtimePageCount(experienceScenarios.length)"
-            @click="goRuntimePage('experienceScenarios', clampedRuntimePage('experienceScenarios', experienceScenarios.length) + 1, experienceScenarios.length)"
-          >
-            下一页
-          </button>
+            <strong>{{ scenario.scenarioName || scenario.scenarioKey || "-" }}</strong>
+            <span>{{ scenario.scenarioKey || "通用" }} / {{ scenario.total || 0 }} 个样本</span>
+            <small>平均分 {{ scenario.averageScore || 0 }}</small>
+          </article>
+          <p v-if="experienceScenarios.length === 0" class="runtime-empty">暂无结构化经验索引。</p>
         </div>
-      </nav>
+        <nav
+          v-if="showRuntimePagination(experienceScenarios.length)"
+          class="runtime-pagination"
+          aria-label="经验场景分页"
+        >
+          <span>
+            显示第 {{ runtimePageStart("experienceScenarios", experienceScenarios.length) }}-{{
+              runtimePageEnd("experienceScenarios", experienceScenarios.length)
+            }}
+            条， 共 {{ experienceScenarios.length }} 条，每页 {{ pageSize }} 条
+          </span>
+          <div>
+            <button
+              type="button"
+              :disabled="clampedRuntimePage('experienceScenarios', experienceScenarios.length) <= 1"
+              @click="
+                goRuntimePage(
+                  'experienceScenarios',
+                  clampedRuntimePage('experienceScenarios', experienceScenarios.length) - 1,
+                  experienceScenarios.length
+                )
+              "
+            >
+              上一页
+            </button>
+            <button
+              v-for="pageNumber in runtimePageButtons(
+                'experienceScenarios',
+                experienceScenarios.length
+              )"
+              :key="`experience-scenarios-${pageNumber}`"
+              type="button"
+              :class="{
+                active:
+                  pageNumber ===
+                  clampedRuntimePage('experienceScenarios', experienceScenarios.length),
+              }"
+              @click="goRuntimePage('experienceScenarios', pageNumber, experienceScenarios.length)"
+            >
+              {{ pageNumber }}
+            </button>
+            <button
+              type="button"
+              :disabled="
+                clampedRuntimePage('experienceScenarios', experienceScenarios.length) >=
+                runtimePageCount(experienceScenarios.length)
+              "
+              @click="
+                goRuntimePage(
+                  'experienceScenarios',
+                  clampedRuntimePage('experienceScenarios', experienceScenarios.length) + 1,
+                  experienceScenarios.length
+                )
+              "
+            >
+              下一页
+            </button>
+          </div>
+        </nav>
       </section>
 
       <section v-else-if="experienceActiveTab === 'indexes'" class="experience-tab-panel">
-      <header class="subsection-head experience-subsection-head">
-        <strong>结构化索引</strong>
-        <span>{{ experienceIndexes.length }} 条</span>
-      </header>
-      <div class="experience-index-list">
-        <article v-for="index in pagedRows(experienceIndexes, 'experienceIndexes')" :key="`index-${index.id}`">
-          <header>
-            <strong>{{ index.agentId || "默认智能体" }}</strong>
-            <span>{{ index.scenario }} / {{ index.intentType || "通用" }}</span>
-            <b>{{ formatPercent(index.successRate) }}</b>
-          </header>
-          <dl>
-            <div>
-              <dt>工具链</dt>
-              <dd>{{ index.toolChain || "-" }}</dd>
-            </div>
-            <div>
-              <dt>关键词</dt>
-              <dd>{{ index.keywords || "-" }}</dd>
-            </div>
-            <div>
-              <dt>统计</dt>
-              <dd>
-                有用 {{ index.usefulCount }} / 采纳 {{ index.adoptedCount }} / 解决 {{ index.resolvedCount }} / 失败
-                {{ index.failedCount }}
-              </dd>
-            </div>
-          </dl>
-          <p v-if="index.bestPractice">最佳实践：{{ index.bestPractice }}</p>
-          <p v-if="index.avoidPattern">规避模式：{{ index.avoidPattern }}</p>
-        </article>
-      </div>
-      <nav v-if="showRuntimePagination(experienceIndexes.length)" class="runtime-pagination" aria-label="经验索引分页">
-        <span>
-          显示第 {{ runtimePageStart('experienceIndexes', experienceIndexes.length) }}-{{ runtimePageEnd('experienceIndexes', experienceIndexes.length) }} 条，
-          共 {{ experienceIndexes.length }} 条，每页 {{ pageSize }} 条
-        </span>
-        <div>
-          <button
-            type="button"
-            :disabled="clampedRuntimePage('experienceIndexes', experienceIndexes.length) <= 1"
-            @click="goRuntimePage('experienceIndexes', clampedRuntimePage('experienceIndexes', experienceIndexes.length) - 1, experienceIndexes.length)"
+        <header class="subsection-head experience-subsection-head">
+          <strong>结构化索引</strong>
+          <span>{{ experienceIndexes.length }} 条</span>
+        </header>
+        <div class="experience-index-list">
+          <article
+            v-for="index in pagedRows(experienceIndexes, 'experienceIndexes')"
+            :key="`index-${index.id}`"
           >
-            上一页
-          </button>
-          <button
-            v-for="pageNumber in runtimePageButtons('experienceIndexes', experienceIndexes.length)"
-            :key="`experience-indexes-${pageNumber}`"
-            type="button"
-            :class="{ active: pageNumber === clampedRuntimePage('experienceIndexes', experienceIndexes.length) }"
-            @click="goRuntimePage('experienceIndexes', pageNumber, experienceIndexes.length)"
-          >
-            {{ pageNumber }}
-          </button>
-          <button
-            type="button"
-            :disabled="clampedRuntimePage('experienceIndexes', experienceIndexes.length) >= runtimePageCount(experienceIndexes.length)"
-            @click="goRuntimePage('experienceIndexes', clampedRuntimePage('experienceIndexes', experienceIndexes.length) + 1, experienceIndexes.length)"
-          >
-            下一页
-          </button>
+            <header>
+              <strong>{{ index.agentId || "默认智能体" }}</strong>
+              <span>{{ index.scenario }} / {{ index.intentType || "通用" }}</span>
+              <b>{{ formatPercent(index.successRate) }}</b>
+            </header>
+            <dl>
+              <div>
+                <dt>工具链</dt>
+                <dd>{{ index.toolChain || "-" }}</dd>
+              </div>
+              <div>
+                <dt>关键词</dt>
+                <dd>{{ index.keywords || "-" }}</dd>
+              </div>
+              <div>
+                <dt>统计</dt>
+                <dd>
+                  有用 {{ index.usefulCount }} / 采纳 {{ index.adoptedCount }} / 解决
+                  {{ index.resolvedCount }} / 失败
+                  {{ index.failedCount }}
+                </dd>
+              </div>
+            </dl>
+            <p v-if="index.bestPractice">最佳实践：{{ index.bestPractice }}</p>
+            <p v-if="index.avoidPattern">规避模式：{{ index.avoidPattern }}</p>
+          </article>
         </div>
-      </nav>
+        <nav
+          v-if="showRuntimePagination(experienceIndexes.length)"
+          class="runtime-pagination"
+          aria-label="经验索引分页"
+        >
+          <span>
+            显示第 {{ runtimePageStart("experienceIndexes", experienceIndexes.length) }}-{{
+              runtimePageEnd("experienceIndexes", experienceIndexes.length)
+            }}
+            条， 共 {{ experienceIndexes.length }} 条，每页 {{ pageSize }} 条
+          </span>
+          <div>
+            <button
+              type="button"
+              :disabled="clampedRuntimePage('experienceIndexes', experienceIndexes.length) <= 1"
+              @click="
+                goRuntimePage(
+                  'experienceIndexes',
+                  clampedRuntimePage('experienceIndexes', experienceIndexes.length) - 1,
+                  experienceIndexes.length
+                )
+              "
+            >
+              上一页
+            </button>
+            <button
+              v-for="pageNumber in runtimePageButtons(
+                'experienceIndexes',
+                experienceIndexes.length
+              )"
+              :key="`experience-indexes-${pageNumber}`"
+              type="button"
+              :class="{
+                active:
+                  pageNumber === clampedRuntimePage('experienceIndexes', experienceIndexes.length),
+              }"
+              @click="goRuntimePage('experienceIndexes', pageNumber, experienceIndexes.length)"
+            >
+              {{ pageNumber }}
+            </button>
+            <button
+              type="button"
+              :disabled="
+                clampedRuntimePage('experienceIndexes', experienceIndexes.length) >=
+                runtimePageCount(experienceIndexes.length)
+              "
+              @click="
+                goRuntimePage(
+                  'experienceIndexes',
+                  clampedRuntimePage('experienceIndexes', experienceIndexes.length) + 1,
+                  experienceIndexes.length
+                )
+              "
+            >
+              下一页
+            </button>
+          </div>
+        </nav>
       </section>
 
       <section v-else class="experience-tab-panel">
-      <header class="subsection-head experience-subsection-head">
-        <strong>经验记录</strong>
-        <span>{{ experienceItems.length }} 条</span>
-      </header>
-      <div class="experience-list">
-        <article v-for="experience in pagedRows(experienceItems, 'experiences')" :key="experience.experienceId">
-          <header>
-            <div>
-              <strong>{{ experience.scenarioName || experience.scenarioKey }}</strong>
-              <span>{{ experience.agentId || "默认智能体" }} / {{ shortId(experience.taskId) }}</span>
-            </div>
-            <b>{{ experience.feedbackScore || 0 }}</b>
-          </header>
-          <p>{{ experience.attributionSummary || experience.question }}</p>
-          <dl>
-            <div>
-              <dt>归因</dt>
-              <dd>{{ formatAttributionSource(experience.attributionSource) }}</dd>
-            </div>
-            <div>
-              <dt>原因</dt>
-              <dd>{{ formatFeedbackReason(experience.feedbackReasonCategory) }}</dd>
-            </div>
-            <div>
-              <dt>反馈</dt>
-              <dd>
-                有用 {{ experience.feedbackUseful ? "是" : "否" }} / 采纳
-                {{ experience.feedbackAdopted ? "是" : "否" }} / 解决
-                {{ experience.feedbackResolved ? "是" : "否" }}
-              </dd>
-            </div>
-          </dl>
-          <div class="experience-patterns">
-            <section>
-              <strong>成功模式</strong>
-              <span v-for="item in experience.successPattern" :key="`success-${experience.experienceId}-${item}`">
-                {{ item }}
-              </span>
-            </section>
-            <section>
-              <strong>改进建议</strong>
-              <span
-                v-for="item in experience.improvementSuggestions"
-                :key="`improve-${experience.experienceId}-${item}`"
-              >
-                {{ item }}
-              </span>
-            </section>
-          </div>
-        </article>
-        <p v-if="experienceItems.length === 0" class="runtime-empty">暂无经验记录。</p>
-      </div>
-      <nav v-if="showRuntimePagination(experienceItems.length)" class="runtime-pagination" aria-label="经验记录分页">
-        <span>
-          显示第 {{ runtimePageStart('experiences', experienceItems.length) }}-{{ runtimePageEnd('experiences', experienceItems.length) }} 条，
-          共 {{ experienceItems.length }} 条，每页 {{ pageSize }} 条
-        </span>
-        <div>
-          <button
-            type="button"
-            :disabled="clampedRuntimePage('experiences', experienceItems.length) <= 1"
-            @click="goRuntimePage('experiences', clampedRuntimePage('experiences', experienceItems.length) - 1, experienceItems.length)"
+        <header class="subsection-head experience-subsection-head">
+          <strong>经验记录</strong>
+          <span>{{ experienceItems.length }} 条</span>
+        </header>
+        <div class="experience-list">
+          <article
+            v-for="experience in pagedRows(experienceItems, 'experiences')"
+            :key="experience.experienceId"
           >
-            上一页
-          </button>
-          <button
-            v-for="pageNumber in runtimePageButtons('experiences', experienceItems.length)"
-            :key="`experiences-${pageNumber}`"
-            type="button"
-            :class="{ active: pageNumber === clampedRuntimePage('experiences', experienceItems.length) }"
-            @click="goRuntimePage('experiences', pageNumber, experienceItems.length)"
-          >
-            {{ pageNumber }}
-          </button>
-          <button
-            type="button"
-            :disabled="clampedRuntimePage('experiences', experienceItems.length) >= runtimePageCount(experienceItems.length)"
-            @click="goRuntimePage('experiences', clampedRuntimePage('experiences', experienceItems.length) + 1, experienceItems.length)"
-          >
-            下一页
-          </button>
+            <header>
+              <div>
+                <strong>{{ experience.scenarioName || experience.scenarioKey }}</strong>
+                <span
+                  >{{ experience.agentId || "默认智能体" }} / {{ shortId(experience.taskId) }}</span
+                >
+              </div>
+              <b>{{ experience.feedbackScore || 0 }}</b>
+            </header>
+            <p>{{ experience.attributionSummary || experience.question }}</p>
+            <dl>
+              <div>
+                <dt>归因</dt>
+                <dd>{{ formatAttributionSource(experience.attributionSource) }}</dd>
+              </div>
+              <div>
+                <dt>原因</dt>
+                <dd>{{ formatFeedbackReason(experience.feedbackReasonCategory) }}</dd>
+              </div>
+              <div>
+                <dt>反馈</dt>
+                <dd>
+                  有用 {{ experience.feedbackUseful ? "是" : "否" }} / 采纳
+                  {{ experience.feedbackAdopted ? "是" : "否" }} / 解决
+                  {{ experience.feedbackResolved ? "是" : "否" }}
+                </dd>
+              </div>
+            </dl>
+            <div class="experience-patterns">
+              <section>
+                <strong>成功模式</strong>
+                <span
+                  v-for="item in experience.successPattern"
+                  :key="`success-${experience.experienceId}-${item}`"
+                >
+                  {{ item }}
+                </span>
+              </section>
+              <section>
+                <strong>改进建议</strong>
+                <span
+                  v-for="item in experience.improvementSuggestions"
+                  :key="`improve-${experience.experienceId}-${item}`"
+                >
+                  {{ item }}
+                </span>
+              </section>
+            </div>
+          </article>
+          <p v-if="experienceItems.length === 0" class="runtime-empty">暂无经验记录。</p>
         </div>
-      </nav>
+        <nav
+          v-if="showRuntimePagination(experienceItems.length)"
+          class="runtime-pagination"
+          aria-label="经验记录分页"
+        >
+          <span>
+            显示第 {{ runtimePageStart("experiences", experienceItems.length) }}-{{
+              runtimePageEnd("experiences", experienceItems.length)
+            }}
+            条， 共 {{ experienceItems.length }} 条，每页 {{ pageSize }} 条
+          </span>
+          <div>
+            <button
+              type="button"
+              :disabled="clampedRuntimePage('experiences', experienceItems.length) <= 1"
+              @click="
+                goRuntimePage(
+                  'experiences',
+                  clampedRuntimePage('experiences', experienceItems.length) - 1,
+                  experienceItems.length
+                )
+              "
+            >
+              上一页
+            </button>
+            <button
+              v-for="pageNumber in runtimePageButtons('experiences', experienceItems.length)"
+              :key="`experiences-${pageNumber}`"
+              type="button"
+              :class="{
+                active: pageNumber === clampedRuntimePage('experiences', experienceItems.length),
+              }"
+              @click="goRuntimePage('experiences', pageNumber, experienceItems.length)"
+            >
+              {{ pageNumber }}
+            </button>
+            <button
+              type="button"
+              :disabled="
+                clampedRuntimePage('experiences', experienceItems.length) >=
+                runtimePageCount(experienceItems.length)
+              "
+              @click="
+                goRuntimePage(
+                  'experiences',
+                  clampedRuntimePage('experiences', experienceItems.length) + 1,
+                  experienceItems.length
+                )
+              "
+            >
+              下一页
+            </button>
+          </div>
+        </nav>
       </section>
     </section>
 
@@ -523,7 +700,12 @@
           <p>事件库</p>
           <h2>事件链路</h2>
         </div>
-        <button type="button" class="light-button" :disabled="!selectedTask || eventsLoading" @click="reloadEvents">
+        <button
+          type="button"
+          class="light-button"
+          :disabled="!selectedTask || eventsLoading"
+          @click="reloadEvents"
+        >
           <Database :size="15" stroke-width="2" />
           <span>{{ eventsLoading ? "加载中" : "加载" }}</span>
         </button>
@@ -543,12 +725,18 @@
           <ListFilter :size="15" stroke-width="2" />
           <select v-model="eventTypeFilter">
             <option value="">全部事件</option>
-            <option v-for="type in eventTypeOptions" :key="type" :value="type">{{ formatEventType(type) }}</option>
+            <option v-for="type in eventTypeOptions" :key="type" :value="type">{{
+              formatEventType(type)
+            }}</option>
           </select>
         </label>
         <label class="runtime-search-field">
           <Search :size="16" stroke-width="2" />
-          <input v-model.trim="eventSearchQuery" type="text" placeholder="搜索事件类型、状态、工具或错误" />
+          <input
+            v-model.trim="eventSearchQuery"
+            type="text"
+            placeholder="搜索事件类型、状态、工具或错误"
+          />
         </label>
       </div>
 
@@ -564,43 +752,67 @@
         <div class="event-task-context">
           <p>{{ selectedTaskDisplay.description }}</p>
           <div class="task-feedback">
-          <label>
-            <input v-model="feedbackDraft.useful" type="checkbox" :disabled="!canRecordFeedback || feedbackSubmitting" />
-            有用
-          </label>
-          <label>
-            <input v-model="feedbackDraft.adopted" type="checkbox" :disabled="!canRecordFeedback || feedbackSubmitting" />
-            采纳
-          </label>
-          <label>
-            <input v-model="feedbackDraft.resolved" type="checkbox" :disabled="!canRecordFeedback || feedbackSubmitting" />
-            解决
-          </label>
-          <input
-            v-model.trim="feedbackDraft.comment"
-            type="text"
-            :disabled="!canRecordFeedback || feedbackSubmitting"
-            maxlength="1000"
-            placeholder="反馈备注"
-          />
-          <select
-            v-model="feedbackDraft.reasonCategory"
-            :disabled="!canRecordFeedback || feedbackSubmitting"
-            aria-label="反馈原因分类"
-          >
-            <option v-for="option in feedbackReasonOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-          <button type="button" :disabled="!canRecordFeedback || feedbackSubmitting" @click="saveTaskFeedback">
-            <ShieldCheck :size="14" stroke-width="2" />
-            <span>{{ feedbackSubmitting ? "保存中" : "保存反馈" }}</span>
-          </button>
+            <label>
+              <input
+                v-model="feedbackDraft.useful"
+                type="checkbox"
+                :disabled="!canRecordFeedback || feedbackSubmitting"
+              />
+              有用
+            </label>
+            <label>
+              <input
+                v-model="feedbackDraft.adopted"
+                type="checkbox"
+                :disabled="!canRecordFeedback || feedbackSubmitting"
+              />
+              采纳
+            </label>
+            <label>
+              <input
+                v-model="feedbackDraft.resolved"
+                type="checkbox"
+                :disabled="!canRecordFeedback || feedbackSubmitting"
+              />
+              解决
+            </label>
+            <input
+              v-model.trim="feedbackDraft.comment"
+              type="text"
+              :disabled="!canRecordFeedback || feedbackSubmitting"
+              maxlength="1000"
+              placeholder="反馈备注"
+            />
+            <select
+              v-model="feedbackDraft.reasonCategory"
+              :disabled="!canRecordFeedback || feedbackSubmitting"
+              aria-label="反馈原因分类"
+            >
+              <option
+                v-for="option in feedbackReasonOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </option>
+            </select>
+            <button
+              type="button"
+              :disabled="!canRecordFeedback || feedbackSubmitting"
+              @click="saveTaskFeedback"
+            >
+              <ShieldCheck :size="14" stroke-width="2" />
+              <span>{{ feedbackSubmitting ? "保存中" : "保存反馈" }}</span>
+            </button>
           </div>
         </div>
       </details>
 
-      <CodingTaskMonitor v-if="selectedTask?.attemptId" :key="selectedTask.attemptId" :run-id="selectedTask.attemptId" />
+      <CodingTaskMonitor
+        v-if="selectedTask?.attemptId"
+        :key="selectedTask.attemptId"
+        :run-id="selectedTask.attemptId"
+      />
       <div class="event-timeline">
         <button
           v-for="event in pagedRows(filteredEvents, 'events')"
@@ -617,18 +829,32 @@
           <b aria-hidden="true">›</b>
         </button>
         <p v-if="!selectedTask" class="runtime-empty">请先在任务页或任务选择器中选择任务。</p>
-        <p v-else-if="!eventsLoading && filteredEvents.length === 0" class="runtime-empty">没有匹配的事件记录。</p>
+        <p v-else-if="!eventsLoading && filteredEvents.length === 0" class="runtime-empty"
+          >没有匹配的事件记录。</p
+        >
       </div>
-      <nav v-if="showRuntimePager(filteredEvents.length)" class="runtime-pagination" aria-label="事件分页">
+      <nav
+        v-if="showRuntimePager(filteredEvents.length)"
+        class="runtime-pagination"
+        aria-label="事件分页"
+      >
         <span>
-          显示第 {{ runtimePageStart('events', filteredEvents.length) }}-{{ runtimePageEnd('events', filteredEvents.length) }} 条，
-          共 {{ filteredEvents.length }} 条，每页 {{ pageSize }} 条
+          显示第 {{ runtimePageStart("events", filteredEvents.length) }}-{{
+            runtimePageEnd("events", filteredEvents.length)
+          }}
+          条， 共 {{ filteredEvents.length }} 条，每页 {{ pageSize }} 条
         </span>
         <div>
           <button
             type="button"
             :disabled="clampedRuntimePage('events', filteredEvents.length) <= 1"
-            @click="goRuntimePage('events', clampedRuntimePage('events', filteredEvents.length) - 1, filteredEvents.length)"
+            @click="
+              goRuntimePage(
+                'events',
+                clampedRuntimePage('events', filteredEvents.length) - 1,
+                filteredEvents.length
+              )
+            "
           >
             上一页
           </button>
@@ -643,8 +869,17 @@
           </button>
           <button
             type="button"
-            :disabled="clampedRuntimePage('events', filteredEvents.length) >= runtimePageCount(filteredEvents.length)"
-            @click="goRuntimePage('events', clampedRuntimePage('events', filteredEvents.length) + 1, filteredEvents.length)"
+            :disabled="
+              clampedRuntimePage('events', filteredEvents.length) >=
+              runtimePageCount(filteredEvents.length)
+            "
+            @click="
+              goRuntimePage(
+                'events',
+                clampedRuntimePage('events', filteredEvents.length) + 1,
+                filteredEvents.length
+              )
+            "
           >
             下一页
           </button>
@@ -652,20 +887,37 @@
       </nav>
 
       <div v-if="selectedEventDetail" class="event-detail-backdrop" @click.self="closeEventDetail">
-        <section class="event-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="event-detail-title">
+        <section
+          class="event-detail-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="event-detail-title"
+        >
           <header>
             <div>
               <p>事件详情</p>
               <h3 id="event-detail-title">{{ formatEventType(selectedEventDetail.type) }}</h3>
             </div>
-            <button type="button" aria-label="关闭事件详情" title="关闭" @click="closeEventDetail">×</button>
+            <button type="button" aria-label="关闭事件详情" title="关闭" @click="closeEventDetail"
+              >×</button
+            >
           </header>
           <dl>
-            <div><dt>状态</dt><dd>{{ formatTaskStatus(selectedEventDetail.status) }}</dd></div>
-            <div><dt>发生时间</dt><dd>{{ formatAuditTime(selectedEventDetail.createTime) }}</dd></div>
-            <div v-if="selectedEventDetail.toolName"><dt>工具</dt><dd>{{ selectedEventDetail.toolName }}</dd></div>
-            <div v-if="selectedEventDetail.errorCode"><dt>错误码</dt><dd>{{ selectedEventDetail.errorCode }}</dd></div>
-            <div v-if="selectedEventDetail.errorMessage"><dt>错误信息</dt><dd>{{ selectedEventDetail.errorMessage }}</dd></div>
+            <div
+              ><dt>状态</dt><dd>{{ formatTaskStatus(selectedEventDetail.status) }}</dd></div
+            >
+            <div
+              ><dt>发生时间</dt><dd>{{ formatAuditTime(selectedEventDetail.createTime) }}</dd></div
+            >
+            <div v-if="selectedEventDetail.toolName"
+              ><dt>工具</dt><dd>{{ selectedEventDetail.toolName }}</dd></div
+            >
+            <div v-if="selectedEventDetail.errorCode"
+              ><dt>错误码</dt><dd>{{ selectedEventDetail.errorCode }}</dd></div
+            >
+            <div v-if="selectedEventDetail.errorMessage"
+              ><dt>错误信息</dt><dd>{{ selectedEventDetail.errorMessage }}</dd></div
+            >
           </dl>
           <section class="event-detail-payload">
             <strong>事件载荷</strong>
@@ -681,7 +933,16 @@
           <p>模型探索 · 执行观察 · 证据关联</p>
           <h2>链路探索</h2>
         </div>
-        <button type="button" class="light-button" :disabled="!selectedTask || planLoading || explorationLoading" @click="loadPlanDag(); loadExplorationTimeline(); reloadEvents()">
+        <button
+          type="button"
+          class="light-button"
+          :disabled="!selectedTask || planLoading || explorationLoading"
+          @click="
+            loadPlanDag();
+            loadExplorationTimeline();
+            reloadEvents();
+          "
+        >
           <GitBranch :size="15" stroke-width="2" />
           <span>{{ planLoading ? "加载中" : "加载" }}</span>
         </button>
@@ -697,14 +958,42 @@
             </option>
           </select>
         </label>
-        <button type="button" class="light-button" :aria-pressed="graphMode === 'exploration'" @click="graphMode = 'exploration'; selectedPlanNodeId = ''">探索链路</button>
-        <button type="button" class="light-button" :aria-pressed="graphMode === 'plan'" @click="graphMode = 'plan'; selectedPlanNodeId = ''">计划快照</button>
+        <button
+          type="button"
+          class="light-button"
+          :aria-pressed="graphMode === 'exploration'"
+          @click="
+            graphMode = 'exploration';
+            selectedPlanNodeId = '';
+          "
+          >探索链路</button
+        >
+        <button
+          type="button"
+          class="light-button"
+          :aria-pressed="graphMode === 'plan'"
+          @click="
+            graphMode = 'plan';
+            selectedPlanNodeId = '';
+          "
+          >计划快照</button
+        >
         <span class="runtime-pill">{{ activeGraphNodes.length }} 个节点</span>
         <span class="runtime-pill">{{ activeGraphEdges.length }} 条关联</span>
-        <button v-if="explorationHasMore" type="button" class="light-button" @click="loadExplorationTimeline()">读取后续探索记录</button>
+        <button
+          v-if="explorationHasMore"
+          type="button"
+          class="light-button"
+          @click="loadExplorationTimeline()"
+          >读取后续探索记录</button
+        >
       </div>
 
-      <div v-if="selectedTaskDisplay" class="plan-task-summary" :class="{ open: planTaskDetailsOpen }">
+      <div
+        v-if="selectedTaskDisplay"
+        class="plan-task-summary"
+        :class="{ open: planTaskDetailsOpen }"
+      >
         <button
           type="button"
           class="plan-task-summary-toggle"
@@ -718,7 +1007,9 @@
           <span class="plan-task-summary-status" :class="statusClass(selectedTask.status)">
             {{ formatTaskStatus(selectedTask.status) }}
           </span>
-          <span class="plan-task-summary-action">{{ planTaskDetailsOpen ? "收起" : "查看任务" }}</span>
+          <span class="plan-task-summary-action">{{
+            planTaskDetailsOpen ? "收起" : "查看任务"
+          }}</span>
         </button>
         <div v-if="planTaskDetailsOpen" class="plan-task-summary-detail">
           <section>
@@ -732,13 +1023,18 @@
         </div>
       </div>
 
-      <p v-if="explorationWarning && graphMode === 'exploration'" class="runtime-empty">{{ explorationWarning }}</p>
+      <p v-if="explorationWarning && graphMode === 'exploration'" class="runtime-empty">{{
+        explorationWarning
+      }}</p>
       <div v-if="selectedTask && activeGraphNodes.length > 0" class="plan-dag-layout">
         <aside v-if="graphMode === 'plan' && selectedPlanDag" class="plan-dag-side">
           <div>
             <span>快照</span>
             <strong>{{ selectedPlanDag.planId || "-" }}</strong>
-            <small>{{ formatTaskStatus(selectedPlanDag.status || "GENERATED") }} · {{ formatTime(selectedPlanDag.updatedAt) }}</small>
+            <small
+              >{{ formatTaskStatus(selectedPlanDag.status || "GENERATED") }} ·
+              {{ formatTime(selectedPlanDag.updatedAt) }}</small
+            >
           </div>
           <div>
             <span>版本</span>
@@ -763,15 +1059,24 @@
             :exploration="graphMode === 'exploration'"
             :title="graphMode === 'exploration' ? '自主探索链路' : '计划快照'"
             :selected-node-id="selectedPlanNodeId"
-            :layout-key="graphMode === 'exploration' ? `exploration-${selectedTask?.attemptId || selectedTaskId}` : `${selectedPlanDag?.planId || selectedTaskId}-${selectedPlanDag?.version || 'snapshot'}`"
+            :layout-key="
+              graphMode === 'exploration'
+                ? `exploration-${selectedTask?.attemptId || selectedTaskId}`
+                : `${selectedPlanDag?.planId || selectedTaskId}-${selectedPlanDag?.version || 'snapshot'}`
+            "
             :download-name="planDownloadName()"
             @node-select="handlePlanNodeSelect"
             @export-json="downloadPlanDagJson"
           />
         </div>
 
-        <aside v-if="graphMode === 'exploration' && selectedExplorationNode" class="exploration-detail">
-          <strong>{{ selectedExplorationNode.actionText }} · {{ selectedExplorationNode.label }}</strong>
+        <aside
+          v-if="graphMode === 'exploration' && selectedExplorationNode"
+          class="exploration-detail"
+        >
+          <strong
+            >{{ selectedExplorationNode.actionText }} · {{ selectedExplorationNode.label }}</strong
+          >
           <p>仅展示实际记录或模型显式声明；模型假设与发现不代表 Runtime 审核结论。</p>
           <pre>{{ JSON.stringify(selectedExplorationNode.detail, null, 2) }}</pre>
         </aside>
@@ -780,7 +1085,10 @@
             v-for="node in activeGraphNodes"
             :key="`${node.id}-detail`"
             :data-plan-node-id="node.id"
-            :class="[String(node.statusText || '').toLowerCase(), { selected: selectedPlanNodeId === node.id }]"
+            :class="[
+              String(node.statusText || '').toLowerCase(),
+              { selected: selectedPlanNodeId === node.id },
+            ]"
             role="button"
             tabindex="0"
             :aria-pressed="selectedPlanNodeId === node.id"
@@ -792,14 +1100,19 @@
             <span>{{ node.statusLabel }}</span>
             <div>
               <strong>{{ node.fullLabelText }}</strong>
-              <small>{{ node.toolName || node.actionText }} · {{ formatDuration(node.durationMs) }}</small>
+              <small
+                >{{ node.toolName || node.actionText }} ·
+                {{ formatDuration(node.durationMs) }}</small
+              >
               <p v-if="node.detailText">{{ node.detailText }}</p>
             </div>
           </article>
         </div>
       </div>
       <p v-if="!selectedTask" class="runtime-empty">请先在任务页或任务选择器中选择任务。</p>
-      <p v-else-if="!planLoading && activeGraphNodes.length === 0" class="runtime-empty">当前视图暂无运行记录。</p>
+      <p v-else-if="!planLoading && activeGraphNodes.length === 0" class="runtime-empty"
+        >当前视图暂无运行记录。</p
+      >
     </section>
 
     <section v-else-if="activeTab === 'tools'" class="runtime-panel">
@@ -849,16 +1162,28 @@
         </article>
         <p v-if="filteredTopTools.length === 0" class="runtime-empty">没有匹配的工具运行记录。</p>
       </div>
-      <nav v-if="showRuntimePagination(filteredTopTools.length)" class="runtime-pagination" aria-label="工具运行态分页">
+      <nav
+        v-if="showRuntimePagination(filteredTopTools.length)"
+        class="runtime-pagination"
+        aria-label="工具运行态分页"
+      >
         <span>
-          显示第 {{ runtimePageStart('tools', filteredTopTools.length) }}-{{ runtimePageEnd('tools', filteredTopTools.length) }} 条，
-          共 {{ filteredTopTools.length }} 条，每页 {{ pageSize }} 条
+          显示第 {{ runtimePageStart("tools", filteredTopTools.length) }}-{{
+            runtimePageEnd("tools", filteredTopTools.length)
+          }}
+          条， 共 {{ filteredTopTools.length }} 条，每页 {{ pageSize }} 条
         </span>
         <div>
           <button
             type="button"
             :disabled="clampedRuntimePage('tools', filteredTopTools.length) <= 1"
-            @click="goRuntimePage('tools', clampedRuntimePage('tools', filteredTopTools.length) - 1, filteredTopTools.length)"
+            @click="
+              goRuntimePage(
+                'tools',
+                clampedRuntimePage('tools', filteredTopTools.length) - 1,
+                filteredTopTools.length
+              )
+            "
           >
             上一页
           </button>
@@ -873,8 +1198,17 @@
           </button>
           <button
             type="button"
-            :disabled="clampedRuntimePage('tools', filteredTopTools.length) >= runtimePageCount(filteredTopTools.length)"
-            @click="goRuntimePage('tools', clampedRuntimePage('tools', filteredTopTools.length) + 1, filteredTopTools.length)"
+            :disabled="
+              clampedRuntimePage('tools', filteredTopTools.length) >=
+              runtimePageCount(filteredTopTools.length)
+            "
+            @click="
+              goRuntimePage(
+                'tools',
+                clampedRuntimePage('tools', filteredTopTools.length) + 1,
+                filteredTopTools.length
+              )
+            "
           >
             下一页
           </button>
@@ -893,7 +1227,11 @@
       <div class="runtime-toolbar">
         <label class="runtime-search-field">
           <Search :size="16" stroke-width="2" />
-          <input v-model.trim="governanceSearchQuery" type="text" placeholder="搜索工具、服务、等级或策略" />
+          <input
+            v-model.trim="governanceSearchQuery"
+            type="text"
+            placeholder="搜索工具、服务、等级或策略"
+          />
         </label>
         <label class="runtime-select-field">
           <ListFilter :size="15" stroke-width="2" />
@@ -907,30 +1245,53 @@
       </div>
 
       <div class="governance-table">
-        <article v-for="tool in pagedRows(filteredGovernanceTools, 'governance')" :key="tool.toolName">
+        <article
+          v-for="tool in pagedRows(filteredGovernanceTools, 'governance')"
+          :key="tool.toolName"
+        >
           <div>
             <strong>{{ tool.displayName || tool.toolName }}</strong>
             <small>{{ tool.toolName }} / {{ tool.sourceType }}</small>
           </div>
-          <span :class="statusClass(tool.disabled ? 'denied' : tool.confirmationRequired ? 'waiting' : 'success')">
+          <span
+            :class="
+              statusClass(
+                tool.disabled ? 'denied' : tool.confirmationRequired ? 'waiting' : 'success'
+              )
+            "
+          >
             {{ formatRuntimeLevel(tool.runtimeLevel) }}
           </span>
           <small>{{ formatRuntimeAction(tool.defaultAction) }}</small>
           <small>{{ tool.mcpSynchronized ? "MCP 已同步" : "本地工具" }}</small>
           <small>{{ tool.totalCalls }} 次调用 / {{ tool.deniedCalls }} 次拒绝</small>
         </article>
-        <p v-if="filteredGovernanceTools.length === 0" class="runtime-empty">没有匹配的工具治理记录。</p>
+        <p v-if="filteredGovernanceTools.length === 0" class="runtime-empty"
+          >没有匹配的工具治理记录。</p
+        >
       </div>
-      <nav v-if="showRuntimePager(filteredGovernanceTools.length)" class="runtime-pagination" aria-label="工具治理分页">
+      <nav
+        v-if="showRuntimePager(filteredGovernanceTools.length)"
+        class="runtime-pagination"
+        aria-label="工具治理分页"
+      >
         <span>
-          显示第 {{ runtimePageStart('governance', filteredGovernanceTools.length) }}-{{ runtimePageEnd('governance', filteredGovernanceTools.length) }} 条，
-          共 {{ filteredGovernanceTools.length }} 条，每页 {{ pageSize }} 条
+          显示第 {{ runtimePageStart("governance", filteredGovernanceTools.length) }}-{{
+            runtimePageEnd("governance", filteredGovernanceTools.length)
+          }}
+          条， 共 {{ filteredGovernanceTools.length }} 条，每页 {{ pageSize }} 条
         </span>
         <div>
           <button
             type="button"
             :disabled="clampedRuntimePage('governance', filteredGovernanceTools.length) <= 1"
-            @click="goRuntimePage('governance', clampedRuntimePage('governance', filteredGovernanceTools.length) - 1, filteredGovernanceTools.length)"
+            @click="
+              goRuntimePage(
+                'governance',
+                clampedRuntimePage('governance', filteredGovernanceTools.length) - 1,
+                filteredGovernanceTools.length
+              )
+            "
           >
             上一页
           </button>
@@ -938,15 +1299,27 @@
             v-for="pageNumber in runtimePageButtons('governance', filteredGovernanceTools.length)"
             :key="`governance-${pageNumber}`"
             type="button"
-            :class="{ active: pageNumber === clampedRuntimePage('governance', filteredGovernanceTools.length) }"
+            :class="{
+              active:
+                pageNumber === clampedRuntimePage('governance', filteredGovernanceTools.length),
+            }"
             @click="goRuntimePage('governance', pageNumber, filteredGovernanceTools.length)"
           >
             {{ pageNumber }}
           </button>
           <button
             type="button"
-            :disabled="clampedRuntimePage('governance', filteredGovernanceTools.length) >= runtimePageCount(filteredGovernanceTools.length)"
-            @click="goRuntimePage('governance', clampedRuntimePage('governance', filteredGovernanceTools.length) + 1, filteredGovernanceTools.length)"
+            :disabled="
+              clampedRuntimePage('governance', filteredGovernanceTools.length) >=
+              runtimePageCount(filteredGovernanceTools.length)
+            "
+            @click="
+              goRuntimePage(
+                'governance',
+                clampedRuntimePage('governance', filteredGovernanceTools.length) + 1,
+                filteredGovernanceTools.length
+              )
+            "
           >
             下一页
           </button>
@@ -965,7 +1338,11 @@
       <div class="runtime-toolbar">
         <label class="runtime-search-field">
           <Search :size="16" stroke-width="2" />
-          <input v-model.trim="auditSearchQuery" type="text" placeholder="搜索工具、用户、模式、服务或错误" />
+          <input
+            v-model.trim="auditSearchQuery"
+            type="text"
+            placeholder="搜索工具、用户、模式、服务或错误"
+          />
         </label>
         <label class="runtime-select-field">
           <ListFilter :size="15" stroke-width="2" />
@@ -1007,16 +1384,28 @@
         </article>
         <p v-if="filteredAudits.length === 0" class="runtime-empty">没有匹配的治理日志。</p>
       </div>
-      <nav v-if="showRuntimePagination(filteredAudits.length)" class="runtime-pagination" aria-label="审计分页">
+      <nav
+        v-if="showRuntimePagination(filteredAudits.length)"
+        class="runtime-pagination"
+        aria-label="审计分页"
+      >
         <span>
-          显示第 {{ runtimePageStart('audits', filteredAudits.length) }}-{{ runtimePageEnd('audits', filteredAudits.length) }} 条，
-          共 {{ filteredAudits.length }} 条，每页 {{ pageSize }} 条
+          显示第 {{ runtimePageStart("audits", filteredAudits.length) }}-{{
+            runtimePageEnd("audits", filteredAudits.length)
+          }}
+          条， 共 {{ filteredAudits.length }} 条，每页 {{ pageSize }} 条
         </span>
         <div>
           <button
             type="button"
             :disabled="clampedRuntimePage('audits', filteredAudits.length) <= 1"
-            @click="goRuntimePage('audits', clampedRuntimePage('audits', filteredAudits.length) - 1, filteredAudits.length)"
+            @click="
+              goRuntimePage(
+                'audits',
+                clampedRuntimePage('audits', filteredAudits.length) - 1,
+                filteredAudits.length
+              )
+            "
           >
             上一页
           </button>
@@ -1031,8 +1420,17 @@
           </button>
           <button
             type="button"
-            :disabled="clampedRuntimePage('audits', filteredAudits.length) >= runtimePageCount(filteredAudits.length)"
-            @click="goRuntimePage('audits', clampedRuntimePage('audits', filteredAudits.length) + 1, filteredAudits.length)"
+            :disabled="
+              clampedRuntimePage('audits', filteredAudits.length) >=
+              runtimePageCount(filteredAudits.length)
+            "
+            @click="
+              goRuntimePage(
+                'audits',
+                clampedRuntimePage('audits', filteredAudits.length) + 1,
+                filteredAudits.length
+              )
+            "
           >
             下一页
           </button>

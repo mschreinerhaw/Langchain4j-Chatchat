@@ -1,8 +1,5 @@
 <template>
-  <LoginView
-    v-if="!authSession"
-    @login-success="handleLoginSuccess"
-  />
+  <LoginView v-if="!authSession" @login-success="handleLoginSuccess" />
   <AssistantLayout
     v-else
     :class="{ 'workspace-changing': workspaceLoading && workspaceReady }"
@@ -39,25 +36,47 @@
       <div class="workspace-switcher" :class="{ 'is-switching': workspaceLoading }">
         <div class="workspace-switcher-heading">
           <span class="workspace-switcher-title">切换工作空间</span>
-          <span class="workspace-switcher-state" role="status">{{ workspaceLoading ? '切换中…' : '当前环境' }}</span>
+          <span class="workspace-switcher-state" role="status">{{
+            workspaceLoading ? "切换中…" : "当前环境"
+          }}</span>
         </div>
         <div class="workspace-switcher-options" role="group" aria-label="可用工作空间">
-          <button v-for="workspace in workspaceItems" :key="workspace.workspaceId" type="button"
-            class="workspace-switcher-option" :class="{ 'is-active': workspace.workspaceId === currentWorkspace?.workspaceId }"
-            :data-workspace-id="workspace.workspaceId" :aria-pressed="workspace.workspaceId === currentWorkspace?.workspaceId"
-            :disabled="workspaceLoading" @click="switchWorkspaceFromAccount(workspace.workspaceId, $event)">
-            <span class="workspace-switcher-icon"><Layers3 :size="16" stroke-width="2" aria-hidden="true" /></span>
+          <button
+            v-for="workspace in workspaceItems"
+            :key="workspace.workspaceId"
+            type="button"
+            class="workspace-switcher-option"
+            :class="{ 'is-active': workspace.workspaceId === currentWorkspace?.workspaceId }"
+            :data-workspace-id="workspace.workspaceId"
+            :aria-pressed="workspace.workspaceId === currentWorkspace?.workspaceId"
+            :disabled="workspaceLoading"
+            @click="switchWorkspaceFromAccount(workspace.workspaceId, $event)"
+          >
+            <span class="workspace-switcher-icon"
+              ><Layers3 :size="16" stroke-width="2" aria-hidden="true"
+            /></span>
             <span class="workspace-switcher-name">{{ workspace.name }}</span>
-            <Check v-if="workspace.workspaceId === currentWorkspace?.workspaceId" :size="16" stroke-width="2.2" aria-hidden="true" />
+            <Check
+              v-if="workspace.workspaceId === currentWorkspace?.workspaceId"
+              :size="16"
+              stroke-width="2.2"
+              aria-hidden="true"
+            />
           </button>
         </div>
       </div>
     </template>
     <p v-if="workspaceError" class="workspace-error" role="alert">{{ workspaceError }}</p>
-    <WorkspacesView v-if="showWorkspaceSelection || !workspaceReady"
-      :workspaces="workspaceItems" :loading="workspaceLoading || workspaceSaving"
-      :default-workspace-id="workspacePreference.defaultWorkspaceId || ''" :notice="workspaceNotice"
-      @switch-workspace="switchWorkspace" @default-workspace="useDefaultWorkspace" @reload-workspaces="loadWorkspaces()" />
+    <WorkspacesView
+      v-if="showWorkspaceSelection || !workspaceReady"
+      :workspaces="workspaceItems"
+      :loading="workspaceLoading || workspaceSaving"
+      :default-workspace-id="workspacePreference.defaultWorkspaceId || ''"
+      :notice="workspaceNotice"
+      @switch-workspace="switchWorkspace"
+      @default-workspace="useDefaultWorkspace"
+      @reload-workspaces="loadWorkspaces()"
+    />
     <KeepAlive>
       <component
         v-if="workspaceReady && !showWorkspaceSelection"

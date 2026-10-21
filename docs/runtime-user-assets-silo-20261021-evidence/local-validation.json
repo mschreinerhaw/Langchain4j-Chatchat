@@ -1,0 +1,64 @@
+{
+  "status": "PASSED",
+  "classes": [
+    {
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "name": "com.chatchat.api.assets.AssetAnalysisControllerTest"
+    },
+    {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "name": "com.chatchat.api.assets.RuntimePythonAssetArchiverTest"
+    },
+    {
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "name": "com.chatchat.api.assets.SiloAssetIntegrationTest"
+    },
+    {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "name": "com.chatchat.api.assets.UserAssetControllerHttpTest"
+    },
+    {
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "name": "com.chatchat.api.assets.UserAssetServiceTest"
+    },
+    {
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "name": "com.chatchat.api.runtime.coding.data.CodingInputFilePublisherTest"
+    },
+    {
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "name": "com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollectorTest"
+    }
+  ],
+  "tests": 36,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "realSiloContainer": true,
+  "realSiloContainerRestart": true,
+  "backendPackageSucceeded": true,
+  "frontendTests": 18,
+  "frontendBuildSucceeded": true,
+  "fullRepositorySuitePassed": false
+}

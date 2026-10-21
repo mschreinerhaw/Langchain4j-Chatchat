@@ -25,6 +25,9 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(prefix="chatchat.coding",name="enabled",havingValue="true")
 @ConditionalOnProperty(prefix="chatchat.coding.cline",name="enabled",havingValue="true")
 public final class CodingWorkspaceService {
+    private com.chatchat.api.assets.RuntimeAssetArchive assets;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setAssets(com.chatchat.api.assets.RuntimeAssetArchive value){assets=value;}
     private com.chatchat.api.datascience.StudioTaskHistory history;
     @org.springframework.beans.factory.annotation.Autowired
     public void setHistory(com.chatchat.api.datascience.StudioTaskHistory value){history=value;}
@@ -223,6 +226,13 @@ public final class CodingWorkspaceService {
     private void publish(CodingTaskContract contract,String operation,String payloadHash,List<SqlOutputBundle.Candidate> files,
             Map<String,Object> result,String notes,Object normalization){
         if(Boolean.TRUE.equals(result.get("valid"))){
+            if(assets!=null){
+                for(var file:files)assets.code(contract.scope(),contract.taskId(),"workspace:"+operation+":"+file.path(),
+                    java.nio.file.Path.of(file.path()).getFileName().toString(),file.content());
+                assets.context(contract.scope(),contract.taskId(),"workspace-context:"+operation,
+                    Map.of("taskId",contract.taskId(),"operationId",operation,"inputSnapshotRef",contract.inputSnapshotRef(),
+                        "files",files,"notes",notes,"validation",result.get("validation")));
+            }
             String base="coding:workspace:"+operation, receiptId=base+":receipt";
             var validation=new LinkedHashMap<>((Map<String,Object>)result.get("validation"));
             validation.put("normalizedFiles",normalization==null?List.of():normalization);

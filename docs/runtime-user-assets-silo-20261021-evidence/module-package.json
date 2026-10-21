@@ -1,0 +1,8 @@
+{
+  "path": "target\\assets-local\\app-final.jar",
+  "sha256": "c55d91c8abdf2de23c073daeff95009ee1057a7a39cd39d3d9b05204e92f9ecd",
+  "consoleFiles": 82,
+  "backendEntriesUnchanged": 1125,
+  "testedBackendJarSha256": "117203efb33b44b97eb5072428723d934cb48ffd752f381552e2c1c8016e1474",
+  "modelSelectorVerifiedInBundle": true
+}

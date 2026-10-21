@@ -21,6 +21,28 @@ import org.springframework.stereotype.Component;
 @Component
 @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(prefix="chatchat.coding",name="enabled",havingValue="true")
 public final class CodingInputFilePublisher {
+    private com.chatchat.api.assets.RuntimeAssetArchive assets;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setAssets(com.chatchat.api.assets.RuntimeAssetArchive value){assets=value;}
+    public void materialize(com.chatchat.common.runtime.coding.CodingTaskContract contract,CodingInputSnapshotService.Snapshot input){
+        if(assets==null)return;
+        var store=new CodingSharedFiles(Path.of(policy.getSharedRoot()));
+        for(var file:CodingInputSnapshotService.mountedFiles(input)){
+            try{store.verify(contract.scope().tenantId(),contract.scope().userId(),file.fileId(),file.fileName(),file.sha256(),file.size());}
+            catch(IOException unavailable){
+                var bytes=assets.read(contract.scope(),contract.taskId(),"input:"+file.fileId()).orElseThrow(()->new IllegalStateException("Archived task input is unavailable",unavailable));
+                if(bytes.length!=file.size() || !com.chatchat.api.assets.UserAssetService.hash(bytes).equals(file.sha256()))throw new SecurityException("Archived input differs from task manifest");
+                Path staging=null;
+                try{
+                    staging=store.staging(contract.scope().tenantId(),contract.scope().userId());Path part=staging.resolve(file.fileName());Files.write(part,bytes);
+                    store.publish(contract.scope().tenantId(),contract.scope().userId(),file.fileId(),file.fileName(),part,file.sha256(),file.size());
+                    var receipt=python.registerSharedDataFile(contract.scope().tenantId(),contract.scope().userId(),file.fileId(),file.fileName(),file.sha256(),file.size());
+                    if(receipt==null || !"AVAILABLE".equals(receipt.status()) || !file.fileId().equals(receipt.id()) || !file.sha256().equals(receipt.fileHash()) || file.size()!=receipt.fileSize())throw new IllegalStateException("Restored input receipt mismatch");
+                }catch(IOException failure){throw new IllegalStateException("Archived task input cannot be staged",failure);}
+                finally{if(staging!=null)try{Files.deleteIfExists(staging.resolve(file.fileName()));Files.deleteIfExists(staging);}catch(IOException ignored){}}
+            }
+        }
+    }
     private final CodingInputFilesProperties policy;
     private final McpPythonControlPlanePort python;
     private final JdbcRuntimeEvidenceStore evidence;
@@ -94,18 +116,18 @@ public final class CodingInputFilePublisher {
             schema.put("sourceDatasetRef",source);
             String binding=scope.tenantId()+"\0"+scope.userId()+"\0"+scope.runId()+"\0"+task+"\0"+source+"\0"+decision+"\0"+workspace;
             Path schemaPath=staging.resolve("schema.json");Files.write(schemaPath,json.writeValueAsBytes(schema));
-            var chunks=new ArrayList<CodingInputSnapshotService.Chunk>();var schemaFile=publish(store,scope,binding,schemaPath,0,guard);
+            var chunks=new ArrayList<CodingInputSnapshotService.Chunk>();var schemaFile=publish(store,scope,task,binding,schemaPath,0,guard);
             chunks.add(schemaFile);var parts=new ArrayList<Part>();
             try(var reader=Files.newBufferedReader(spool,StandardCharsets.UTF_8)) {
                 var rows=new ArrayList<JsonNode>();long buffered=0;String line;
                 while((line=reader.readLine())!=null) {
                     guard.run();long size=line.getBytes(StandardCharsets.UTF_8).length+1L;
                     if(!rows.isEmpty() && (rows.size()>=partRows || buffered+size>4*1024*1024)) {
-                        encodePart(store,scope,binding,staging,format,columns,rows,parts,chunks,guard);rows.clear();buffered=0;
+                        encodePart(store,scope,task,binding,staging,format,columns,rows,parts,chunks,guard);rows.clear();buffered=0;
                     }
                     rows.add(json.readTree(line));buffered+=size;
                 }
-                if(!rows.isEmpty() || parts.isEmpty())encodePart(store,scope,binding,staging,format,columns,rows,parts,chunks,guard);
+                if(!rows.isEmpty() || parts.isEmpty())encodePart(store,scope,task,binding,staging,format,columns,rows,parts,chunks,guard);
             }
             if(chunks.size()>64)throw new IllegalArgumentException("Input exceeds 64 mounted auxiliary files");
             var manifest=new CodingInputManifest(CodingInputManifest.VERSION,source,format,schemaFile.fileId(),
@@ -114,7 +136,7 @@ public final class CodingInputFilePublisher {
             long stored=Files.size(manifestPath)+chunks.stream().mapToLong(CodingInputSnapshotService.Chunk::size).sum();
             if(stored>maxBytes)throw new IllegalArgumentException("Snapshot physical byte ceiling exceeded");
             // Publish the manifest last. Only committed evidence can authorize a ready task.
-            var root=publish(store,scope,binding,manifestPath,count[0],guard);
+            var root=publish(store,scope,task,binding,manifestPath,count[0],guard);
             String evidenceId="coding:input:"+root.fileId().substring(1);
             var payload=new LinkedHashMap<String,Object>();payload.put("taskId",task);payload.put("sourceDatasetRef",source);
             payload.put("decisionRef",decision);payload.put("workspaceRef",workspace);payload.put("fileId",root.fileId());
@@ -134,18 +156,19 @@ public final class CodingInputFilePublisher {
             catch(IOException cleanup){/* Unpublished staging is never authorized; retained for operator reconciliation. */}
         }
     }
-    private void encodePart(CodingSharedFiles store,KernelDataScope scope,String binding,Path staging,Format format,List<Column> columns,
+    private void encodePart(CodingSharedFiles store,KernelDataScope scope,String task,String binding,Path staging,Format format,List<Column> columns,
             List<JsonNode> rows,List<Part> parts,List<CodingInputSnapshotService.Chunk> chunks,Runnable guard) throws IOException {
         if(parts.size()>=63)throw new IllegalArgumentException("Input part ceiling exceeded");
         String extension=format==Format.PARQUET?"parquet":"csv";
         Path path=staging.resolve(String.format(Locale.ROOT,"part-%05d.%s",parts.size(),extension));
         CodingTableCodec.write(path,format,columns,rows,json);
-        var file=publish(store,scope,binding,path,rows.size(),guard);chunks.add(file);
+        var file=publish(store,scope,task,binding,path,rows.size(),guard);chunks.add(file);
         parts.add(new Part(file.fileId(),file.fileName(),file.sha256(),file.rowCount(),file.size()));
     }
-    private CodingInputSnapshotService.Chunk publish(CodingSharedFiles store,KernelDataScope scope,String binding,Path path,long rows,Runnable guard) throws IOException {
+    private CodingInputSnapshotService.Chunk publish(CodingSharedFiles store,KernelDataScope scope,String task,String binding,Path path,long rows,Runnable guard) throws IOException {
         guard.run();String hash=CodingSharedFiles.hash(path);long size=Files.size(path);
         String id="c"+digest(binding+"\0"+path.getFileName()+"\0"+hash).substring(0,63);
+        if(assets!=null)assets.save(scope,task,com.chatchat.api.assets.UserAssetService.Kind.DATASET,"input:"+id,path.getFileName().toString(),Files.readAllBytes(path));
         store.publish(scope.tenantId(),scope.userId(),id,path.getFileName().toString(),path,hash,size);
         var receipt=python.registerSharedDataFile(scope.tenantId(),scope.userId(),id,path.getFileName().toString(),hash,size);
         if(receipt==null || !"AVAILABLE".equals(receipt.status()) || !id.equals(receipt.id()) || !hash.equals(receipt.fileHash()) || size!=receipt.fileSize())

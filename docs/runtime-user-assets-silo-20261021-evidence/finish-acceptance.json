@@ -1,0 +1,10 @@
+{
+  "status": "PASSED",
+  "temporaryUserDeleted": true,
+  "temporaryRoleDeleted": true,
+  "workerBoundary": {
+    "siloReachable": false,
+    "hasAssetCredentials": false
+  },
+  "apiStorageAdminDenied": true
+}

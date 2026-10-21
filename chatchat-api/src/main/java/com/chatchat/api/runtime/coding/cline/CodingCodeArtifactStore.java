@@ -14,6 +14,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 @Component
 @ConditionalOnProperty(prefix="chatchat.coding",name="enabled",havingValue="true")
 public final class CodingCodeArtifactStore {
+    private com.chatchat.api.assets.RuntimeAssetArchive assets;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setAssets(com.chatchat.api.assets.RuntimeAssetArchive value){assets=value;}
     private final JdbcRuntimeEvidenceStore evidence;
     public CodingCodeArtifactStore(JdbcRuntimeEvidenceStore evidence) { this.evidence = evidence; }
     public String commit(CodingTaskContract contract, String operation, String source, String expectedHash) {
@@ -23,6 +26,7 @@ public final class CodingCodeArtifactStore {
         String hash = sha(bytes);
         if (expectedHash != null && !expectedHash.equals(hash)) throw new IllegalArgumentException("Code hash mismatch");
         String id = id(contract.taskId(), operation);
+        if(assets!=null)assets.code(contract.scope(),contract.taskId(),"code:"+operation,"main.py",source);
         var payload = Map.<String,Object>of("taskId",contract.taskId(),"operationId",operation,"fileName","main.py",
             "sha256",hash,"sourceBytes",bytes.length,"content",source);
         String input = contract.inputSnapshotRef().replaceFirst("^runtime-evidence:", "");

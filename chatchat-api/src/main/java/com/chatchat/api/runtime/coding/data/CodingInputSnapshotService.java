@@ -366,8 +366,10 @@ public final class CodingInputSnapshotService {
                     || !hash.equals(input.get("manifestSha256")) || !manifest.get("format").equals(input.get("format")))
                 throw new SecurityException("Task input capability is not bound to its snapshot");
         }else if(frozen!=null)throw new SecurityException("Legacy input cannot claim a new format");
-        return new Snapshot(ref, fileId, fileName, hash,
+        var snapshot=new Snapshot(ref, fileId, fileName, hash,
             ((Number) value.get("rowCount")).longValue(), ((Number) value.get("size")).longValue(), source,chunks);
+        if(filePublisher!=null && value.containsKey("inputManifest"))filePublisher.materialize(contract,snapshot);
+        return snapshot;
     }
 
     private static String text(Map<String, Object> value, String key) {

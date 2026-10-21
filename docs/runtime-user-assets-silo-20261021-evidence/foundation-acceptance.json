@@ -1,0 +1,18 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "ownerRead": true,
+    "crossOwnerReadDenied": true,
+    "crossOwnerInfoDenied": true,
+    "forgedOwnerDenied": true,
+    "crossOwnerDeleteDenied": true,
+    "anonymousDownloadDenied": true,
+    "differentOwnerDifferentId": true,
+    "foreignNotListed": true,
+    "reuploadAfterDelete": true,
+    "containerRestartRead": true,
+    "privateBucket": true
+  },
+  "fileId": "ef440222dfe56060c814bef23c4084c64c48b5aedecb0c7b5db67df8b804c40f",
+  "sha256": "6ea9e5971c1c57ec46e6d7fbb647820180b697e7f8ba7166da9bffe230024f5a"
+}

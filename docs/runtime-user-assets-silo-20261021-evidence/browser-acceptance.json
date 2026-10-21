@@ -1,0 +1,12 @@
+{
+  "status": "PASSED",
+  "realDeployment": true,
+  "upload": true,
+  "downloadBytesMatch": true,
+  "selection": true,
+  "delete": true,
+  "browserErrors": [],
+  "assetApiFailures": [],
+  "modelSelection": true,
+  "modelSubmitted": false
+}

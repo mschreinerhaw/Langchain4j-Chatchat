@@ -17,6 +17,9 @@ import org.springframework.stereotype.Service;
 @Service
 @ConditionalOnProperty(prefix = "chatchat.coding", name = "enabled", havingValue = "true")
 public class CodingPythonExecutionBridge {
+    private com.chatchat.api.assets.RuntimePythonAssetArchiver assetArchiver;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setAssetArchiver(com.chatchat.api.assets.RuntimePythonAssetArchiver value){assetArchiver=value;}
     private final DurableCodingTaskService tasks;
     private final McpPythonControlPlanePort python;
     private final ObjectMapper mapper;
@@ -83,7 +86,9 @@ public class CodingPythonExecutionBridge {
 
     public McpPythonControlPlanePort.OperationView get(KernelDataScope scope, String taskId, String operationId) {
         tasks.get(scope, taskId); // A2 access check before crossing the process boundary.
-        return python.get(scope.tenantId(), scope.userId(), scope.runId(), taskId, operationId);
+        var operation=python.get(scope.tenantId(), scope.userId(), scope.runId(), taskId, operationId);
+        if(assetArchiver!=null)assetArchiver.stopped(scope,taskId,operation);
+        return operation;
     }
 
     /** B's archived stderr is the only technical diagnostic returned to the Coding loop. */

@@ -24,6 +24,9 @@ import org.springframework.stereotype.Service;
 @Service
 @ConditionalOnProperty(prefix = "chatchat.coding", name = "enabled", havingValue = "true")
 public class CodingEvidenceCollector {
+    private com.chatchat.api.assets.RuntimeAssetArchive assets;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setAssets(com.chatchat.api.assets.RuntimeAssetArchive value){assets=value;}
     public static final class InvalidStructuredResultException extends IllegalStateException {
         public InvalidStructuredResultException(String message){super(message);}
     }
@@ -110,6 +113,8 @@ public class CodingEvidenceCollector {
                 throw new IllegalStateException("Artifact manifest has an invalid or repeated entry");
             byte[] bytes = artifact(scope, contract.taskId(), operationId, channel, name);
             verifyArtifact(entry, bytes);
+            if(assets!=null)assets.save(scope,contract.taskId(),"logs".equals(channel)?com.chatchat.api.assets.UserAssetService.Kind.LOG
+                :com.chatchat.api.assets.UserAssetService.Kind.ARTIFACT,"execution:"+operationId+":"+channel+":"+name,name,bytes);
             if ("results".equals(channel) && name.endsWith(".jsonl")) rows(bytes, entry);
         }
         JsonNode resultEntry = entries.get("results/" + resultFile);
@@ -129,6 +134,8 @@ public class CodingEvidenceCollector {
             throw new IllegalStateException("Result is incomplete");
         byte[] code = artifact(scope, contract.taskId(), operationId, "code", codeFile);
         if (!sha(code).equals(operation.codeHash())) throw new IllegalStateException("Executed code hash mismatch");
+        if(assets!=null)assets.save(scope,contract.taskId(),com.chatchat.api.assets.UserAssetService.Kind.CODE,
+            "execution:"+operationId+":code:"+codeFile,codeFile,code);
         byte[] receipt = artifact(scope, contract.taskId(), operationId, "logs", "receipt.json");
         JsonNode receiptJson = parse(receipt);
         var binding = tasks.verifiedOperation(scope, contract.taskId(), operationId)
@@ -236,6 +243,14 @@ public class CodingEvidenceCollector {
             throw new IllegalStateException("Coding evidence stage or content changed during recovery");
         evidence.commitCodingEvidence(scope, key, verified, committed, records, lineages,
             bundleId, bundleEvidenceIds, bundleMetadata);
+        if(assets!=null){
+            assets.save(scope,contract.taskId(),com.chatchat.api.assets.UserAssetService.Kind.LOG,
+                "execution:"+operationId+":manifest:manifest.json","manifest.json",manifestBytes);
+            assets.context(scope,contract.taskId(),"execution-context:"+operationId,
+                Map.of("taskId",contract.taskId(),"operationId",operationId,"inputSnapshotRef",contract.inputSnapshotRef(),
+                    "codeSha256",sha(code),"manifestSha256",sha(manifestBytes),"evidenceBundleRef","runtime-evidence:"+bundleId,
+                    "validationStatus",validation.status().name(),"resultDatasetRef","runtime-evidence:"+resultId));
+        }
         return new Collected(contract.inputSnapshotRef(), "runtime-evidence:" + codeId,
             "runtime-evidence:" + receiptId, "runtime-evidence:" + resultId,
             "runtime-evidence:" + validationId, "runtime-evidence:" + bundleId,
@@ -287,7 +302,8 @@ public class CodingEvidenceCollector {
                         out.write(value,offset,length);written+=length;
                     }
                 };
-                python.downloadArtifact(scope.tenantId(),scope.userId(),scope.runId(),taskId,
+                boolean copied=assets!=null && assets.copy(scope,taskId,"execution:"+p.get("operationId")+":"+p.get("channel")+":"+p.get("fileName"),bounded);
+                if(!copied)python.downloadArtifact(scope.tenantId(),scope.userId(),scope.runId(),taskId,
                     (String)p.get("operationId"),(String)p.get("channel"),(String)p.get("fileName"),bounded);
             }
             if(java.nio.file.Files.size(spool)!=expectedSize)throw new IllegalStateException("Archived result size changed");
@@ -385,6 +401,7 @@ public class CodingEvidenceCollector {
         lineages.add(new EvidenceLineage(null, id, scope, parents, taskId, "CodingEvidenceCollector", null, Map.of()));
     }
     private byte[] artifact(KernelDataScope scope, String taskId, String operationId, String channel, String name) {
+        if(assets!=null){var archived=assets.read(scope,taskId,"execution:"+operationId+":"+channel+":"+name);if(archived.isPresent())return archived.get();}
         return python.artifact(scope.tenantId(), scope.userId(), scope.runId(), taskId, operationId, channel, name);
     }
     private static Map<String, Object> location(String op, String channel, String name, String hash, long size) {

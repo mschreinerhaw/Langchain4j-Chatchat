@@ -1,5 +1,6 @@
 <template>
   <section class="ds-page" :class="{'develop-mode':tab==='develop'}">
+    <UserAssetLibrary :key="[workspaceContext?.tenantId,workspaceContext?.userId,workspaceContext?.workspaceId].join(':')" :workspace-context="workspaceContext" />
     <header v-if="tab!=='develop'" class="ds-header">
       <div><span>数据车间 / {{ currentSectionLabel }}</span></div>
       <button v-if="tab==='environment'" class="ds-primary ds-header-action" @click="openAssetDialog">＋ 添加 Python 环境</button>

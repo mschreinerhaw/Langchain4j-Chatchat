@@ -29,10 +29,11 @@ class CodingInputFilePublisherTest {
     final CodingInvocationContext access=new CodingInvocationContext();
     final KernelDataScope scope=new KernelDataScope("tenant","owner",null,null,"run",null,Map.of());
     McpPythonControlPlanePort python;CodingInputSnapshotService inputs;CodingInputFilesProperties policy;
+    JdbcRuntimeEvidenceStore evidence;
     @BeforeEach void setup() {
         var db=new DriverManagerDataSource("jdbc:h2:mem:files-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa","");
         new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(db);
-        var evidence=new JdbcRuntimeEvidenceStore(new JdbcTemplate(db),json,new DataSourceTransactionManager(db));
+        evidence=new JdbcRuntimeEvidenceStore(new JdbcTemplate(db),json,new DataSourceTransactionManager(db));
         python=mock(McpPythonControlPlanePort.class);
         when(python.inputCapabilities()).thenReturn(List.of("SHARED_DIRECTORY","PARQUET","CSV"));
         when(python.registerSharedDataFile(anyString(),anyString(),anyString(),anyString(),anyString(),anyLong())).thenAnswer(call->{
@@ -122,6 +123,23 @@ class CodingInputFilePublisherTest {
         var part=snapshot.chunks().get(1);
         Files.write(new CodingSharedFiles(root).directory("tenant","owner",part.fileId()).resolve(part.fileName()),new byte[]{1});
         assertThatThrownBy(()->access.as(scope,grants,()->inputs.observeForCoding(declared))).isInstanceOf(SecurityException.class);
+    }
+    @Test void taskAuthorizedMissingCacheRestoresOnlyHashBoundFilesFromArchive() throws Exception {
+        var archive=mock(com.chatchat.api.assets.RuntimeAssetArchive.class);
+        var saved=new HashMap<String,byte[]>();
+        when(archive.save(any(),eq("task"),any(),anyString(),anyString(),any())).thenAnswer(call->{saved.put(call.getArgument(3),call.getArgument(5));return null;});
+        when(archive.read(eq(scope),eq("task"),anyString())).thenAnswer(call->Optional.ofNullable(saved.get(call.getArgument(2))));
+        var publisher=new CodingInputFilePublisher(policy,python,evidence,access,json);
+        publisher.setAssets(archive);inputs.setFilePublisher(publisher);
+        var snapshot=capture("task",new Dataset("source",Map.of(),List.of(Map.of("value",42))),()->{});
+        var file=snapshot.chunks().get(1);var cache=new CodingSharedFiles(root);
+        Path path=cache.verify("tenant","owner",file.fileId(),file.fileName(),file.sha256(),file.size());
+        Files.delete(path);Files.delete(path.getParent());
+        var grants=EnumSet.of(CodingTaskAccess.Action.READ);
+        var contract=access.as(scope,grants,()->contract(snapshot));
+        access.as(scope,grants,()->inputs.requireAuthorized(contract));
+        assertThat(cache.verify("tenant","owner",file.fileId(),file.fileName(),file.sha256(),file.size())).isRegularFile();
+        verify(archive).read(scope,"task","input:"+file.fileId());
     }
     private CodingInputSnapshotService.Snapshot capture(String task,Dataset dataset,Runnable guard) {
         return access.as(scope,EnumSet.of(CodingTaskAccess.Action.SUBMIT),()->inputs.captureConfigured(scope,task,List.of(dataset),

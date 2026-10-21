@@ -278,6 +278,10 @@ export default {
       }
     },
     shouldShowSteps(message = {}) {
+      if (message.role === "assistant" && !message.streaming && !this.isExecutionRunning(message)
+        && (this.messageVisualReport(message) || this.messageUiArtifact(message))) {
+        return false;
+      }
       return message.role === "assistant"
         && (!!message.taskId || (Array.isArray(message.steps) && message.steps.length > 0));
     },
@@ -447,7 +451,7 @@ export default {
     canExportMessagePdf(message = {}) {
       const status = String(message.status || "").toLowerCase();
       return message.role === "assistant"
-        && this.messageHasRenderableContent(message)
+        && (this.messageHasRenderableContent(message) || this.messageVisualReport(message) || this.messageUiArtifact(message))
         && !message.streaming
         && !["waiting", "streaming", "running"].includes(status);
     },
@@ -2726,7 +2730,7 @@ export default {
       }
       const sourceElement = event?.currentTarget
         ?.closest(".chat-message")
-        ?.querySelector(".message-markdown");
+        ?.querySelector(".python-visual-report, .enterprise-ui-artifact, .message-markdown");
       this.exportingPdfMessageId = message.id;
       this.pdfExportErrorMessageId = "";
       try {

@@ -33,6 +33,9 @@ public final class VisualReportMode {
         Do not invent absent values or claim statistical/business validation that was not performed. Record empty inputs and dependency/plot failures honestly.
         If a chart fails, keep valid textual/computed results, omit the broken chart, set PARTIAL and include the actual failure in warnings; do not fail the whole report unnecessarily.
         reportMarkdown remains the complete authored text fallback. Never put local absolute paths or raw source collections into user-facing text.
+        User-facing title, summary, sections, captions and reportMarkdown must focus on analysis findings, supporting business data, implications and recommendations.
+        Keep code, Python/library names, execution steps, task IDs, file references, hashes and technical validation receipts out of user-facing prose; retain these only in internal evidence and validation fields.
+        Explain material data gaps, sample limits, uncertainty and business calculation assumptions in the narrative, using plain language. Never hide a limitation that affects a conclusion.
         Generate rows and all charts in the SAME program, then use artifact_read to inspect visualReportValidation and repair technical artifact failures before finishing. Preserve partial output if a failure cannot be repaired within the existing permissions and budget.
         These output requirements do not change permissions, resource limits, task classification or controlled asset-template rules.
         """;

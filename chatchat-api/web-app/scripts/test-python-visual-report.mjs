@@ -24,6 +24,20 @@ try{
   await page.setViewportSize({width,height:1000});await page.goto(origin+'/tests/python-visual-report.html');
   const toggle=page.getByRole('switch',{name:'图文报告'});assert.equal(await toggle.getAttribute('aria-checked'),'false');await toggle.click();await page.getByRole('button',{name:'发送问题'}).click();assert.equal((await page.evaluate(()=>window.visualTestSends))[0].reportMode,'visual');assert.equal(await toggle.getAttribute('aria-checked'),'false');checks.requestToggle=true;
   await page.evaluate(value=>window.visualTestState.report=value,report);
+  if(name==='desktop'){
+   const downloaded=page.waitForEvent('download');
+   await page.evaluate(async()=>{const {exportRenderedAnswerToPdf}=await import('/src/js/utils/answerPdfExport.js');await exportRenderedAnswerToPdf({sourceElement:document.querySelector('.python-visual-report'),message:{agentName:'报告验收'},fileName:'visual-report.pdf'});});
+   const pdf=await downloaded;await pdf.saveAs(resolve(output,'visual-report.pdf'));const bytes=await readFile(resolve(output,'visual-report.pdf'));assert.ok(bytes.subarray(0,5).toString()==='%PDF-');assert.ok(bytes.length>30000);checks.pdfDownloadedWithLazyCharts=true;
+   const pdfCheck=await page.evaluate(async raw=>{
+    const pdfjs=await import('/node_modules/pdfjs-dist/build/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc='/node_modules/pdfjs-dist/build/pdf.worker.mjs';
+    const document=await pdfjs.getDocument({data:Uint8Array.from(raw)}).promise;
+    const first=await document.getPage(1),canvas=window.document.createElement('canvas'),viewport=first.getViewport({scale:1});canvas.width=viewport.width;canvas.height=viewport.height;
+    await first.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+    return {pages:document.numPages,image:canvas.toDataURL('image/png')};
+   },[...bytes]);
+   assert.ok(pdfCheck.pages>=2);await writeFile(resolve(output,'pdf-first-page.png'),Buffer.from(pdfCheck.image.split(',')[1],'base64'));checks.pdfParsedAndRendered=true;
+   assert.equal(await page.locator('.report-code,.report-provenance').count(),0);checks.internalDetailsHidden=true;
+  }
   const images=page.locator('.python-report-chart img');await images.first().waitFor();for(let i=0;i<2;i++){await images.nth(i).scrollIntoViewIfNeeded();await page.waitForFunction(element=>element.complete&&element.naturalWidth>0,await images.nth(i).elementHandle());}checks.pythonPngAndSvgDisplayed=true;
   const iframe=page.locator('.python-report-chart iframe');await page.locator('[data-chart-id="plotly"]').scrollIntoViewIfNeeded();await iframe.waitFor();const frame=page.frameLocator('.python-report-chart iframe');await frame.locator('.main-svg').first().waitFor({timeout:30000});
   assert.equal(await iframe.getAttribute('sandbox'),'allow-scripts');assert.equal(await iframe.evaluate(element=>{try{return Boolean(element.contentWindow.document);}catch{return false;}}),false);checks.opaqueSandbox=true;

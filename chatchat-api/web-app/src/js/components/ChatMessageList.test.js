@@ -7,6 +7,22 @@ import { renderArtifactHtml, renderArtifactMarkdownHtml } from "../ui-artifact/r
 
 const markdown = new MarkdownIt({ breaks: true });
 const methods = ChatMessageList.methods;
+it('keeps completed reports focused on results and retains progress while analysis runs',()=>{
+  const context={isExecutionRunning:()=>false,messageVisualReport:()=>({status:'SUCCESS'}),messageUiArtifact:()=>null};
+  const message={role:'assistant',taskId:'internal-task',status:'completed'};
+  expect(methods.shouldShowSteps.call(context,message)).toBe(false);
+  context.isExecutionRunning=()=>true;
+  expect(methods.shouldShowSteps.call(context,message)).toBe(true);
+  context.isExecutionRunning=()=>false;context.messageVisualReport=()=>null;
+  expect(methods.shouldShowSteps.call(context,message)).toBe(true);
+});
+it('allows exporting a completed report even when the text fallback is empty',()=>{
+  const context={messageHasRenderableContent:()=>false,messageVisualReport:()=>({schemaVersion:'python_visual_report.v1'}),messageUiArtifact:()=>null};
+  expect(methods.canExportMessagePdf.call(context,{role:'assistant',status:'completed'})).toBeTruthy();
+  expect(methods.canExportMessagePdf.call(context,{role:'assistant',streaming:true})).toBeFalsy();
+  context.messageVisualReport=()=>null;context.messageUiArtifact=()=>({artifactId:'archived-report'});
+  expect(methods.canExportMessagePdf.call(context,{role:'assistant',status:'completed'})).toBeTruthy();
+});
 it('renders archived workspace code verbatim without report cleanup and keeps HTML inert',()=>{
   const source="def total(values):\n    label = 'keep : literal [evidence:literal]'\n    return sum(values)\n";
   const content=`main.py\n\`\`\`\`python\n${source}\`\`\`\`\n<script>window.injected=true</script>`;

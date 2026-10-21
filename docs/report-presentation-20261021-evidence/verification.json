@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-21",
+  "branch": "main",
+  "mergedBranchTips": [
+    "origin/feature/runtime-unified-assets-silo",
+    "origin/feature/runtime-os-silo-workspace",
+    "origin/feature/runtime-visual-report",
+    "origin/fix/runtime-file-analysis-routing",
+    "origin/fix/sql-studio-composer-layout",
+    "origin/fix/model-management-confirm"
+  ],
+  "mergedHead": "3a34299d3d0eeb780696e78156840ea52eec91fb",
+  "deployment": {
+    "status": "DEPLOYED",
+    "image": "runtime-os-api:report-presentation-7f76b06485b0",
+    "jarSha256": "7f76b06485b0b3337ab052569954b0f6014bda6841df40a3202debb3e492c463",
+    "baselineSha256": "ae37ce46b304cc441eee4f618d2c597506f692da4b5c8685b3bc6b7a3931a83c",
+    "backup": "/opt/runtime-os-docker-stage/evidence/report-presentation-1792588953",
+    "authenticatedHealthVerified": false,
+    "gatewayIndexMatchesPackage": true,
+    "unrelatedContainersUnchanged": true
+  },
+  "postDeployment": {
+    "login": 200,
+    "health": 200,
+    "reportUnchanged": true
+  },
+  "browser": {
+    "status": "PASSED",
+    "realDeployment": true,
+    "httpFixtures": false,
+    "conversationId": "1792575953051-c4e1279a2ff1a",
+    "exactTotal": "100.00",
+    "internalDetailsHidden": true,
+    "executionPanelHidden": true,
+    "pdfDownloaded": true,
+    "pdfBytes": 461737,
+    "pdfPages": 3,
+    "pdfIndependentlyRendered": true,
+    "staticAndInteractiveCharts": true,
+    "desktopAndMobile": true,
+    "historyTriggeredAnalysisRequests": 0,
+    "pageErrors": [],
+    "httpFailures": []
+  },
+  "tests": {
+    "frontendFullSuite": 429,
+    "finalChatFocused": 18,
+    "backendTargeted": 93,
+    "pdfPagination": 3,
+    "failures": 0
+  },
+  "webArchiveSha256": "b1ea0fc256b4232c2b48c91b7b9a8242e90bb6c6f9763d5f4c7e229a39bffd5d",
+  "scope": "REAL_DEPLOYED_HISTORY_REPORT_AND_EXPORT; NO_NEW_MODEL_TASK_SUBMITTED"
+}

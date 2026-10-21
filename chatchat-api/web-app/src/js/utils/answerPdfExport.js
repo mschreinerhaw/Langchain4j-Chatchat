@@ -65,11 +65,35 @@ function createExportHost(sourceElement, title, subtitle) {
   const subtitleElement = document.createElement("small");
   subtitleElement.textContent = subtitle || "";
   subtitleElement.style.cssText = "display:block;margin-top:7px;color:#64748b;font-size:12px";
-  header.append(titleElement, subtitleElement);
+  const hasReportHeader = sourceElement.matches('.python-visual-report, .analytical-report')
+    || sourceElement.querySelector('.python-visual-report, .analytical-report');
+  if (!hasReportHeader) header.append(titleElement);
+  header.append(subtitleElement);
 
   const answer = sourceElement.cloneNode(true);
+  const copiedCanvases = [...answer.querySelectorAll('canvas')];
+  sourceElement.querySelectorAll('canvas').forEach((canvas, index) => {
+    const copy = copiedCanvases[index];
+    if (copy) {
+      const picture = document.createElement('img');
+      picture.src = canvas.toDataURL('image/png');
+      picture.style.cssText = 'display:block;width:100%;height:auto';
+      copy.replaceWith(picture);
+    }
+  });
+  answer.querySelectorAll('iframe').forEach((frame) => {
+    if (!frame.dataset.pdfImage) throw new Error('图表尚未准备完成，请稍后重试');
+    const picture = document.createElement('img');
+    picture.src = frame.dataset.pdfImage;
+    picture.alt = frame.title;
+    picture.style.cssText = 'display:block;width:100%;height:auto';
+    frame.replaceWith(picture);
+  });
   answer.removeAttribute("id");
   answer.style.cssText = "width:100%;max-width:none;overflow:visible";
+  if (sourceElement.matches('.python-visual-report, .analytical-report')) {
+    answer.style.cssText += ';border:0;border-radius:0;box-shadow:none;padding:0';
+  }
   answer.querySelectorAll("button, [data-source-tags-toggle]").forEach((element) => element.remove());
   answer.querySelectorAll("details").forEach((element) => { element.open = true; });
   answer.querySelectorAll(".source-tag-overflow-hidden").forEach((element) => {
@@ -83,7 +107,7 @@ function createExportHost(sourceElement, title, subtitle) {
 function contentBreakpoints(host, canvas) {
   const hostRect = host.getBoundingClientRect();
   const canvasScale = canvas.width / Math.max(1, hostRect.width);
-  return [...host.querySelectorAll("h1, h2, h3, h4, h5, h6, p, table, pre, blockquote, ul, ol, section")]
+  return [...host.querySelectorAll("h1, h2, h3, h4, h5, h6, p, table, pre, blockquote, ul, ol, section, figure")]
     .filter((element) => !(
       element.matches("p")
       && element.previousElementSibling?.matches("h1, h2, h3, h4, h5, h6")
@@ -96,6 +120,11 @@ export async function exportRenderedAnswerToPdf({ sourceElement, message = {}, f
   if (!sourceElement) {
     throw new Error("未找到可导出的回答内容");
   }
+  const tasks = [];
+  sourceElement.querySelectorAll('.python-report-chart').forEach((chart) => {
+    chart.dispatchEvent(new CustomEvent('report:prepare-export', { detail: { tasks } }));
+  });
+  await Promise.all(tasks);
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
     import("html2canvas"),
     import("jspdf")
@@ -109,6 +138,10 @@ export async function exportRenderedAnswerToPdf({ sourceElement, message = {}, f
     if (document.fonts?.ready) {
       await document.fonts.ready;
     }
+    await Promise.all([...host.querySelectorAll('img')].map(async (picture) => {
+      picture.loading = 'eager';
+      await picture.decode();
+    }));
     const canvas = await html2canvas(host, {
       backgroundColor: "#ffffff",
       logging: false,

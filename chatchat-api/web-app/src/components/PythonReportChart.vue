@@ -1,8 +1,8 @@
 <template>
   <figure ref="container" class="python-report-chart" :data-chart-id="chart.id" :aria-busy="loading">
-    <figcaption><strong>{{ chart.title }}</strong><small>{{ chart.kind==='plotly'?'交互图表':'Python 图表' }}</small></figcaption>
+    <figcaption><strong>{{ chart.title }}</strong></figcaption>
     <p v-if="error" role="alert">{{ error }} <button type="button" @click="load">重试</button></p>
-    <p v-else-if="loading" role="status">正在读取已校验图表…</p>
+    <p v-else-if="loading" role="status">正在加载图表…</p>
     <button v-else-if="!imageUrl&&!frameDocument" type="button" @click="load">加载图表</button>
     <img v-if="imageUrl" :src="imageUrl" :alt="chart.title" loading="lazy" @error="error='静态图表渲染失败，文字分析仍保留'" />
     <iframe v-if="frameDocument" ref="frame" :srcdoc="frameDocument" :title="chart.title" sandbox="allow-scripts" referrerpolicy="no-referrer" @load="sendFigure"></iframe>
@@ -33,7 +33,10 @@ async function load(){
   }catch(ex){if(turn===serial&&ex.name!=='AbortError'){error.value=ex.message||'图表读取失败';loading.value=false;}}
 }
 function sendFigure(){if(!figure)return;frame.value?.contentWindow?.postMessage({type:'runtime-plotly-figure',figure},'*');clearTimeout(renderTimeout);renderTimeout=setTimeout(()=>{if(loading.value){error.value='交互图渲染超时，原始分析结果仍保留';loading.value=false;}},20000);}
-function rendered(event){if(event.source!==frame.value?.contentWindow)return;if(event.data?.type==='runtime-plotly-rendered'){clearTimeout(renderTimeout);loading.value=false;recordTiming();}if(event.data?.type==='runtime-plotly-failed'){clearTimeout(renderTimeout);error.value='交互图渲染失败，原始分析结果仍保留';loading.value=false;}}
+function rendered(event){if(event.source!==frame.value?.contentWindow)return;if(event.data?.type==='runtime-plotly-rendered'){clearTimeout(renderTimeout);loading.value=false;recordTiming();}if(event.data?.type==='runtime-plotly-snapshot' && /^data:image\/png;base64,/.test(event.data.image||'')){frame.value.dataset.pdfImage=event.data.image;}if(event.data?.type==='runtime-plotly-failed'){clearTimeout(renderTimeout);error.value='交互图渲染失败，原始分析结果仍保留';loading.value=false;}}
+function prepareExport(event){event.detail.tasks.push((async()=>{if(!imageUrl.value&&!frameDocument.value)await load();const deadline=Date.now()+25000;while(loading.value||(frameDocument.value&&!frame.value?.dataset.pdfImage)){if(error.value||Date.now()>deadline)throw new Error('图表暂时无法导出，请重试');await new Promise(resolve=>setTimeout(resolve,100));}if(error.value)throw new Error('图表暂时无法导出，请重试');})());}
+onMounted(()=>container.value?.addEventListener('report:prepare-export',prepareExport));
+onBeforeUnmount(()=>container.value?.removeEventListener('report:prepare-export',prepareExport));
 onMounted(()=>{window.addEventListener('message',rendered);if(typeof IntersectionObserver==='function'){observer=new IntersectionObserver(entries=>{if(entries.some(item=>item.isIntersecting)){observer.disconnect();void load();}},{rootMargin:'120px'});observer.observe(container.value);}else void load();});
 watch(()=>props.chart.artifact?.fileId,()=>{clear();void load();});
 onBeforeUnmount(()=>{clear();observer?.disconnect();window.removeEventListener('message',rendered);});

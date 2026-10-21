@@ -1,0 +1,13 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:user-assets-9fec2ad8ab03",
+  "jarSha256": "9fec2ad8ab031c22a0c9222d16e19e6f4c53727fc51ea66a39c92728900def2a",
+  "siloImage": "docker.io/pgsty/silo:RELEASE.2026-10-18T00-00-00Z",
+  "siloDigest": "sha256:2636fc4155d9a7e41ff58cdb65ddd13ba9304e67184e13c25bc5cb34016269d7",
+  "siloVerifiedImageId": "sha256:c676f34789e6598af571b590a782499df279d0d1cca41600752826634420d0bb",
+  "offlineImageImport": true,
+  "backup": "/opt/runtime-os-docker-stage/evidence/user-assets-silo-20261021/backup-1792552824",
+  "bucket": "runtime-assets",
+  "ports": "127.0.0.1:9000/9001",
+  "schemaSha256": "b1569cd425c7707de8ee0911ddc63f4af4567579365032fbf728cd44f6341b1e"
+}

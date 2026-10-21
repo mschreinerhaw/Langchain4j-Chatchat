@@ -23,6 +23,18 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ApiPermissionAuthorizationFilterTest {
 
+    @Test
+    void chatAttachmentsUseChatPermissionWithoutGrantingDataScienceApis() throws Exception {
+        var permission=new SysPermission();permission.setPermissionCode("workspace:chat:interact");
+        permission.setResourcePath("/api/v1/interactions/**");permission.setHttpMethod("*");permission.setStatus("enabled");
+        var request=new MockHttpServletRequest("POST","/api/v1/interactions/user-assets/analyses");
+        request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID,"user-1");
+        when(adminService.listPermissions()).thenReturn(List.of(permission,dataSciencePermission()));
+        when(adminService.getUserView("user-1")).thenReturn(user(List.of("workspace:chat:interact")));
+        var response=new MockHttpServletResponse();filter.doFilterInternal(request,response,chain);
+        verify(chain).doFilter(request,response);
+    }
+
     @Mock private EnterpriseAdminService adminService;
     @Mock private FilterChain chain;
 

@@ -24,6 +24,22 @@ import static org.mockito.Mockito.when;
 
 class ImageUnderstandingServiceTest {
 
+    @Test
+    void workspaceBytesUseExistingVisionPipelineWithoutCreatingLocalOriginal() {
+        var assets=mock(ImageAssetRepository.class);var results=mock(ImageAnalysisResultRepository.class);
+        var parser=mock(DocumentTextExtractor.class);var resolver=mock(AgentChatModelResolver.class);var model=mock(ChatModel.class);
+        var response=mock(ChatResponse.class);
+        when(response.aiMessage()).thenReturn(AiMessage.from("{\"imageType\":\"screenshot\",\"summary\":\"Image summary\",\"extractedText\":\"source text\",\"confidence\":0.9}"));
+        when(resolver.resolveChatModel("vision")).thenReturn(model);when(model.chat(any(ChatMessage[].class))).thenReturn(response);
+        when(results.save(any())).thenAnswer(call->call.getArgument(0));
+        byte[] bytes=java.util.Base64.getDecoder().decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aY5cAAAAASUVORK5CYII=");
+        var service=new ImageUnderstandingService(assets,results,new ObjectMapper(),parser,resolver);
+        var result=service.analyzeStoredBytes("stable-asset","tenant","owner","pasted.png","image/png","hash",bytes,"read image","vision");
+        assertThat(result.getFileId()).isEqualTo("stable-asset");assertThat(result.getExtractedText()).isEqualTo("source text");
+        assertThat(result.getAnalysisSource()).isEqualTo("multimodal_llm");org.mockito.Mockito.verifyNoInteractions(assets);
+        org.mockito.Mockito.verifyNoInteractions(results);
+    }
+
     @TempDir
     Path tempDir;
 

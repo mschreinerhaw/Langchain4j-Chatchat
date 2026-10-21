@@ -35,6 +35,7 @@ import {
 import { isTerminalAgentEvent, terminalEventFromEvents } from "../utils/agentTaskTerminalEvents";
 import { runtimeObservationIdentity, runtimeObservationPresentation } from "../utils/runtimeObservationPresentation";
 import { validateDocumentUploadSelection } from "../utils/documentUploadPolicy";
+import { exceedsChatTextLimit, chatTextFile, validateChatFiles, CHAT_FILE_ANALYSIS_OBJECTIVE } from '../utils/chatUserAssets';
 import {
   boundMessagesForPersistence,
   boundQuestionForPersistence,
@@ -1653,6 +1654,9 @@ export default {
     return {
       question: "",
       loading: false,
+      composerAttachments: [],
+      preparingComposer: false,
+      composerGeneration: 0,
       errorMessage: "",
       historyId: "",
       conversationId: "",
@@ -1811,7 +1815,7 @@ export default {
       return this.heroQuickQuestions.length ? this.heroQuickQuestions : this.suggestions;
     },
     composerBusy() {
-      return this.loading || isRunningStatus(this.conversationStatus);
+      return this.loading || this.preparingComposer || this.composerAttachments.some(file=>file.state==='uploading') || isRunningStatus(this.conversationStatus);
     },
     activeRunContext() {
       return this.runningContexts[this.historyId] || null;
@@ -1824,7 +1828,7 @@ export default {
       return String(latestAssistantMessage?.status || "").toLowerCase() === "finalizing";
     },
     canKillActiveRun() {
-      return !this.resultPresentationActive
+      return !this.activeRunContext?.assetFileIds?.length && !this.resultPresentationActive
         && (this.loading || !!this.activeRunContext?.taskId || !!this.pendingMcpTaskId);
     },
     pendingMcpRemainingMs() {
@@ -1881,6 +1885,52 @@ export default {
     }
   },
   methods: {
+    async uploadComposerAttachment(item) {
+      item.state='uploading';item.error='';
+      try {
+        const body=new FormData();body.append('file',item.file);
+        item.asset=await apiRequest('/interactions/user-assets',{method:'POST',body,workspaceContext:item.workspaceContext});
+        item.state='ready';
+      } catch(error){item.state='failed';item.error=error.message||'上传失败，原文件仍保留，可重试。';}
+    },
+    async handleComposerFiles(files) {
+      if(this.loading)return false;
+      try {
+        validateChatFiles(files,this.composerAttachments.map(item=>item.file));
+        const items=files.map(file=>({clientId:uid(),name:file.name,file,state:'uploading',asset:null,error:'',workspaceContext:this.workspaceContext?{...this.workspaceContext}:null}));
+        this.composerAttachments.push(...items);
+        const activeItems=this.composerAttachments.filter(item=>items.some(added=>added.clientId===item.clientId));
+        for(const item of activeItems)await this.uploadComposerAttachment(item);
+        return activeItems;
+      }catch(error){this.errorMessage=error.message;return false;}
+    },
+    async retryComposerFile(id){const item=this.composerAttachments.find(file=>file.clientId===id);if(item&&!this.loading&&item.state==='failed')await this.uploadComposerAttachment(item);},
+    removeComposerFile(id){if(!this.loading)this.composerAttachments=this.composerAttachments.filter(file=>file.clientId!==id);},
+    async prepareComposerSubmission(raw) {
+      let query=raw.trim();
+      if(exceedsChatTextLimit(raw)) {
+        let item=this.composerAttachments.find(file=>file.originalText===raw);
+        if(!item){const items=await this.handleComposerFiles([chatTextFile(raw)]);if(!items)throw new Error(this.errorMessage);item=items[0];item.originalText=raw;}
+        query=CHAT_FILE_ANALYSIS_OBJECTIVE;
+      }
+      if(this.composerAttachments.some(file=>file.state!=='ready'))throw new Error('请先重试或移除上传失败的附件，完整资料尚未保存。');
+      const files=[...new Map(this.composerAttachments.map(file=>[file.asset.id,file])).values()];
+      const images=[],documentIds=[];
+      for(const item of files){
+        if(item.asset.contentType.startsWith('image/')) {
+          const analysis=await apiRequest(`/interactions/user-assets/${item.asset.id}/image-analysis`,{method:'POST',
+            workspaceContext:item.workspaceContext,body:JSON.stringify({question:(query||'请识别并分析这张图片。').slice(0,2000),modelName:this.selectedAgent?.modelName||this.defaultModelName||undefined})});
+          images.push({asset:item.asset,analysis});
+        }else documentIds.push(item.asset.id);
+      }
+      if(images.length){
+        const content=images.map(({asset,analysis})=>`# 图片解析（模型输出，需核对原图）\n来源文件 ID：${asset.id}\nSHA-256：${asset.sha256}\n解析来源：${analysis.analysisSource||'unknown'}\n置信度：${analysis.confidence??'unknown'}\n\n${analysis.summary||''}\n\n${analysis.extractedText||''}`).join('\n\n');
+        const body=new FormData();body.append('file',new File([content],`图片解析-${Date.now()}.md`,{type:'text/markdown'}));
+        const derived=await apiRequest('/interactions/user-assets',{method:'POST',body,workspaceContext:this.workspaceContext});
+        documentIds.push(derived.id);
+      }
+      return {query:query||'请分析所附文件，说明主要内容、发现和需要进一步验证的问题。',files,documentIds,imageAnalyses:[]};
+    },
     effectiveTenantId() {
       return this.tenantId || this.userId;
     },
@@ -1991,14 +2041,21 @@ export default {
       runContext.analysisTree = tree;
     },
     async handleSend(payload) {
-      const query = typeof payload === "string" ? payload.trim() : payload?.query?.trim();
-      if (!query || this.loading) {
+      const raw = typeof payload === "string" ? payload : payload?.query || '';
+      if ((!raw.trim() && !this.composerAttachments.length) || this.loading || this.preparingComposer) {
         return;
       }
-      if (!await this.refreshSelectedAgentForSend()) {
-        return;
-      }
-      const attachedImageAnalyses = [...this.contextImageAnalyses];
+      let prepared;
+      const composerGeneration=this.composerGeneration;
+      this.preparingComposer=true;
+      try {
+        if(!await this.refreshSelectedAgentForSend())return;
+        prepared=await this.prepareComposerSubmission(raw);
+        if(composerGeneration!==this.composerGeneration)return;
+      }catch(error){this.errorMessage=error.message;return;}
+      finally{this.preparingComposer=false;}
+      const query=prepared.query;
+      const attachedImageAnalyses = [...this.contextImageAnalyses,...prepared.imageAnalyses];
       const imageAnalysisIds = attachedImageAnalyses
         .map((item) => item?.id)
         .filter(Boolean);
@@ -2017,7 +2074,8 @@ export default {
         this.messages.push({
           id: uid(),
           role: "user",
-          content: query,
+          content: query+(prepared.files.length?'\n\n附件：'+prepared.files.map(file=>file.name).join('、'):''),
+          memoryContext: {userAssetFiles:prepared.files.map(file=>({id:file.asset.id,name:file.name,sha256:file.asset.sha256}))},
           timestamp: Date.now(),
           status: "completed",
           streaming: false,
@@ -2028,6 +2086,7 @@ export default {
         });
       }
       const runContext = this.createRunContext(query, analysisNode);
+      runContext.assetFileIds=prepared.documentIds;
       this.runningContexts[runContext.historyId] = runContext;
       this.question = "";
       this.loading = true;
@@ -2040,7 +2099,7 @@ export default {
         conversationId: this.conversationId || undefined,
         tenantId: this.effectiveTenantId(),
         userId: this.userId,
-        mode: runContext.selectedAgentId ? runContext.mode : (payload?.webSearch ? "agent_chat" : "llm_chat"),
+        mode: runContext.selectedAgentId ? runContext.mode : "llm_chat",
         skillId: runContext.selectedAgentId || undefined,
         modelName: runContext.modelName || undefined,
         query,
@@ -2048,11 +2107,11 @@ export default {
         historyWindow: 8,
         stream: true,
         imageAnalysisIds,
-        availableTools: !this.selectedAgentId && payload?.webSearch ? ["web_search"] : [],
+        availableTools: [],
         toolInput: {
           agentName: payload?.agentName || "",
           documentWorkflow: !!payload?.documentWorkflow,
-          webSearch: !!payload?.webSearch,
+          webSearch: false,
           imageAnalysisIds,
           responseContract: RESPONSE_RENDER_CONTRACT,
           visualizationSupportedTypes: visualizationCapabilities.map(capability => capability.type),
@@ -2123,6 +2182,9 @@ export default {
           this.removeRunContext(runContext);
         }
         if (this.isActiveRun(runContext)) {
+          // History restoration can replay RUNNING while the terminal file receipt is being saved.
+          if(runContext.assetFileIds?.length)this.conversationStatus=runContext.status;
+          if(runContext.status==='completed')this.composerAttachments=this.composerAttachments.filter(file=>!prepared.files.some(sent=>sent.asset.id===file.asset?.id));
           this.loading = false;
           this.activeRunId = "";
           this.scrollMessages();
@@ -2240,6 +2302,23 @@ export default {
       }
     },
     async requestAssistantAnswer(query, requestPayload, runContext) {
+      if(runContext.assetFileIds?.length){
+        const message=this.createAssistantMessage({content:'正在分析用户空间中的文件…',streaming:true,status:'running',
+          modelName:runContext.modelName,analysisNodeId:runContext.analysisNodeId,
+          memoryContext:{taskOrigin:'studio-coding',userAssetFileIds:runContext.assetFileIds}});
+        runContext.messages.push(message);
+        if(this.isActiveRun(runContext)){this.messages=runContext.messages;this.scrollMessages();}
+        try {
+          const receipt=await apiRequest('/interactions/user-assets/analyses',{method:'POST',workspaceContext:runContext.workspaceContext,
+            body:JSON.stringify({requestId:`chat-file-${runContext.runId}`,fileIds:runContext.assetFileIds,contextIds:[],instruction:query,modelName:runContext.modelName||undefined})});
+          message.taskId=receipt.taskId||'';
+          if(!receipt.resultAvailable)throw new Error(receipt.summary||'文件分析未完成，请核查任务和已归档资料。');
+          message.content=receipt.results?.[0]?.reportMarkdown||JSON.stringify(receipt.results||[],null,2);
+          message.status='completed';
+          return {};
+        }catch(error){message.content=error.message||'文件分析失败，原文件已保存在用户空间。';message.status='failed';throw error;}
+        finally{message.streaming=false;if(this.isActiveRun(runContext)){this.messages=[...runContext.messages];this.scrollMessages();}}
+      }
       const assistantMessage = this.reuseWaitingAssistantMessage(runContext) || this.createAssistantMessage({
         content: "",
         streaming: true,
@@ -2913,6 +2992,7 @@ export default {
       this.lastResponse = nextResponse;
     },
     clearChat() {
+      this.composerGeneration=(this.composerGeneration||0)+1;
       if (this.loading) {
         const lastUserMessage = [...this.messages].reverse().find((message) => message.role === "user");
         const backgroundContext = this.runningContexts[this.historyId];
@@ -2923,6 +3003,7 @@ export default {
         this.loading = false;
       }
       this.question = "";
+      this.composerAttachments=[];
       this.messages = [];
       this.analysisTree = emptyAnalysisTree();
       this.historyId = "";
@@ -3449,6 +3530,8 @@ export default {
       }
     },
     restoreConversation(conversation) {
+      this.composerGeneration=(this.composerGeneration||0)+1;
+      this.composerAttachments=[];
       conversation = mergeChatRuntimeState(conversation || {}, this.workspaceContext);
       const runningContext = conversation?.id ? this.runningContexts[conversation.id] : null;
       if (runningContext) {

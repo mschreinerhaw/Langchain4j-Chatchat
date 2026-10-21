@@ -1,0 +1,14 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "chatOnlyUpload": true,
+    "chatOnlyExactDownload": true,
+    "dataScienceNotGranted": true,
+    "crossOwnerDownloadDenied": true,
+    "crossOwnerAnalysisDeniedBeforeModel": true,
+    "crossOwnerImageAnalysisDeniedBeforeModel": true,
+    "anonymousDenied": true
+  },
+  "temporaryResourcesRemoved": true,
+  "modelCallsSubmitted": 0
+}

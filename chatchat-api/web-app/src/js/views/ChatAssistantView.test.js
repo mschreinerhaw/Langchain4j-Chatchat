@@ -6,6 +6,72 @@ vi.mock("../../services/api", async (importOriginal) => ({
 }));
 afterEach(() => vi.resetAllMocks());
 
+function composerContext(){
+  const context={...ChatAssistantView.data(),workspaceContext:{workspaceId:'analysis'},selectedAgent:null};
+  for(const [name,method] of Object.entries(ChatAssistantView.methods))context[name]=method.bind(context);
+  return context;
+}
+
+describe('user-space chat attachments',()=>{
+  it('releases the composer after history callbacks replay a stale running state',async()=>{
+    const context=composerContext();const file={clientId:'ready',name:'data.csv',state:'ready',asset:{id:'file-id'}};
+    context.composerAttachments=[file];context.effectiveTenantId=()=> 'tenant';
+    context.refreshSelectedAgentForSend=async()=>true;
+    context.prepareComposerSubmission=async()=>({query:'analyze',files:[file],documentIds:['file-id'],imageAnalyses:[]});
+    context.createAnalysisNode=()=>({id:'node'});context.scrollMessages=vi.fn();context.emitActiveConversationSnapshot=vi.fn();
+    context.requestAssistantAnswer=async()=>({});
+    context.saveHistory=async(_query,status)=>{if(status==='completed')context.conversationStatus='running';};
+    await context.handleSend({query:'analyze'});
+    expect(context.conversationStatus).toBe('completed');expect(context.loading).toBe(false);expect(context.composerAttachments).toEqual([]);
+  });
+  it('keeps image interpretations scoped to the owned original and passes the derived file to analysis',async()=>{
+    apiRequest.mockResolvedValueOnce({summary:'visible image observations',extractedText:'text in image',confidence:0.8,analysisSource:'multimodal_llm'})
+      .mockResolvedValueOnce({id:'derived-file',contentType:'text/plain'});
+    const context=composerContext();context.composerAttachments=[{clientId:'image',name:'pasted.png',state:'ready',workspaceContext:{workspaceId:'analysis'},
+      asset:{id:'owned-image',sha256:'source-hash',contentType:'image/png'}}];
+    const prepared=await context.prepareComposerSubmission('read image');
+    expect(apiRequest.mock.calls[0][0]).toBe('/interactions/user-assets/owned-image/image-analysis');
+    expect(prepared.documentIds).toEqual(['derived-file']);expect(prepared.imageAnalyses).toEqual([]);
+    const derived=await apiRequest.mock.calls[1][1].body.get('file').text();
+    expect(derived).toContain('owned-image');expect(derived).toContain('source-hash');expect(derived).toContain('模型输出，需核对原图');
+  });
+  it('uploads long text as a complete Markdown file and submits only its stable reference',async()=>{
+    const original='  # 完整原文\n'+('原始资料😀\n'.repeat(2000))+'\n  ';
+    apiRequest.mockResolvedValue({id:'file-id',sha256:'hash',contentType:'text/plain'});
+    const context=composerContext();const prepared=await context.prepareComposerSubmission(original);
+    expect(prepared.documentIds).toEqual(['file-id']);expect(prepared.query).not.toContain(original);
+    const body=apiRequest.mock.calls[0][1].body;const file=body.get('file');
+    const stored=await file.text();
+    expect(stored).toBe(original);expect(file.name).toMatch(/\.md$/);
+    await context.prepareComposerSubmission(original);expect(apiRequest).toHaveBeenCalledTimes(1);
+  });
+  it('keeps failed files and blocks analysis until upload is retried',async()=>{
+    apiRequest.mockRejectedValueOnce(new Error('network unavailable')).mockResolvedValue({id:'file-id',contentType:'text/plain'});
+    const context=composerContext();await context.handleComposerFiles([new File(['data'],'rows.csv')]);
+    expect(context.composerAttachments[0].state).toBe('failed');
+    await expect(context.prepareComposerSubmission('analyze')).rejects.toThrow('重试');
+    await context.retryComposerFile(context.composerAttachments[0].clientId);
+    expect(context.composerAttachments[0].state).toBe('ready');
+    expect((await context.prepareComposerSubmission('analyze')).documentIds).toEqual(['file-id']);
+  });
+  it('routes selected file IDs through the existing analysis endpoint and renders its real report',async()=>{
+    apiRequest.mockResolvedValue({resultAvailable:true,taskId:'task',results:[{reportMarkdown:'actual computed report'}]});
+    const context={createAssistantMessage:values=>({...values}),isActiveRun:()=>true,scrollMessages:vi.fn()};
+    const run={runId:'stable-request',messages:[],assetFileIds:['file-id'],modelName:'chosen',workspaceContext:{workspaceId:'analysis'}};
+    await ChatAssistantView.methods.requestAssistantAnswer.call(context,'objective',{},run);
+    expect(apiRequest).toHaveBeenCalledWith('/interactions/user-assets/analyses',expect.objectContaining({body:JSON.stringify({requestId:'chat-file-stable-request',fileIds:['file-id'],contextIds:[],instruction:'objective',modelName:'chosen'})}));
+    expect(run.messages[0].content).toBe('actual computed report');expect(run.messages[0].streaming).toBe(false);
+    expect(run.messages[0].memoryContext.taskOrigin).toBe('studio-coding');expect(submitAgentTask).not.toHaveBeenCalled();
+  });
+  it('does not call a failed file analysis a completed answer',async()=>{
+    apiRequest.mockResolvedValue({resultAvailable:false,summary:'execution failed'});
+    const run={runId:'stable-request',messages:[],assetFileIds:['file-id']};
+    const context={createAssistantMessage:values=>({...values}),isActiveRun:()=>true,scrollMessages:vi.fn()};
+    await expect(ChatAssistantView.methods.requestAssistantAnswer.call(context,'objective',{},run)).rejects.toThrow('execution failed');
+    expect(run.messages[0].status).toBe('failed');expect(run.messages[0].streaming).toBe(false);
+  });
+});
+
 it('does not resume a Studio Coding history item through the Agent task endpoint', () => {
   const context={loading:false,runningContexts:{}};
   ChatAssistantView.methods.resumeRestoredConversationRun.call(context,{id:'session'},[

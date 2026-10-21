@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 /** Explicit owner-selected files enter the existing Cline/Python analysis pipeline, never a new executor. */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/data-science/user-assets/analyses")
+@RequestMapping({"/api/v1/data-science/user-assets/analyses","/api/v1/interactions/user-assets/analyses"})
 @ConditionalOnProperty(prefix="chatchat.assets",name="enabled",havingValue="true")
 @ConditionalOnProperty(prefix="chatchat.coding.analysis",name="enabled",havingValue="true")
 public class AssetAnalysisController {

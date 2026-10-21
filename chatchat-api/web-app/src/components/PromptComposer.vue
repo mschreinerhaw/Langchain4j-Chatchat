@@ -18,10 +18,22 @@
         v-model="draft"
         rows="2"
         :disabled="loading"
-        placeholder="输入问题，或使用 @ 调用能力，Shift + Enter 换行"
+        placeholder="输入问题或直接粘贴文件，Shift + Enter 换行"
         @input="adjustTextareaHeight"
-        @keydown.enter.exact.prevent="send"
+        @paste="handlePaste"
+        @dragover.prevent
+        @drop.prevent="handleDrop"
+        @keydown.enter.exact="handleEnter"
       ></textarea>
+      <p v-if="longText" class="composer-file-notice">超过 8,000 字，发送时将完整内容保存为 Markdown 文件并分析。</p>
+      <ul v-if="attachments.length" class="composer-attachments" aria-label="本次分析附件">
+        <li v-for="file in attachments" :key="file.clientId">
+          <span>{{ file.name }} · {{ file.state==='uploading'?'正在保存到用户空间':file.state==='failed'?'上传失败':'已保存到用户空间' }}</span>
+          <span v-if="file.error" role="alert">{{ file.error }}</span>
+          <button v-if="file.state==='failed'" type="button" :disabled="loading" @click="$emit('retry-file',file.clientId)">重试</button>
+          <button type="button" :disabled="loading" aria-label="移除附件" @click="$emit('remove-file',file.clientId)">×</button>
+        </li>
+      </ul>
 
       <div class="composer-toolbar">
         <div class="composer-toolbar-group mode-group">
@@ -36,31 +48,11 @@
             </select>
           </label>
         </div>
-        <div class="composer-toolbar-group tool-group">
-          <span class="toolbar-group-label">工具</span>
+        <div v-if="documentWorkflowActive" class="composer-toolbar-group tool-group">
           <span v-if="documentWorkflowActive" class="workflow-badge">
             <FileText :size="14" stroke-width="2" />
             文档工作流
           </span>
-          <button
-            type="button"
-            class="tool-button"
-            :class="{ active: webSearch, disabled: !webSearchAvailable }"
-            :disabled="!webSearchAvailable"
-            :title="webSearchAvailable ? '联网搜索' : '当前 Agent 未勾选 web_search'"
-            @click="toggleWebSearch"
-          >
-            <Globe class="tool-icon" :size="16" stroke-width="1.9" />
-            联网搜索
-          </button>
-          <button type="button" class="tool-button" @click="$emit('upload')">
-            <Upload class="tool-icon" :size="16" stroke-width="1.9" />
-            上传文件
-          </button>
-          <button type="button" class="tool-button" @click="$emit('image-upload')">
-            <ImagePlus class="tool-icon" :size="16" stroke-width="1.9" />
-            上传图片
-          </button>
         </div>
       </div>
 
@@ -80,3 +72,6 @@
 </template>
 
 <script src="../js/components/PromptComposer.js"></script>
+<style scoped>
+.composer-attachments{list-style:none;padding:0 48px 0 0;margin:8px 0;max-height:150px;overflow:auto}.composer-attachments li{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px}.composer-attachments [role=alert]{color:#a12929}.composer-file-notice{font-size:12px;color:#526479}
+</style>

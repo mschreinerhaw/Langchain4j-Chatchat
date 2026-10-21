@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -156,8 +155,26 @@ public class ImageUnderstandingService {
         if (!asset.getTenantId().equals(normalizedTenant)) {
             throw new IllegalArgumentException("image file does not belong to tenant");
         }
+        return analyzeContent(asset,question,mode,userId,modelName,null);
+    }
+
+    /** Bytes have already been authorized and integrity-checked by the workspace asset boundary. No local original is written. */
+    @Transactional
+    public ImageAnalysisResultEntity analyzeStoredBytes(String fileId,String tenant,String user,String name,String type,String hash,
+                                                       byte[] bytes,String question,String modelName) {
+        if(bytes==null || bytes.length==0 || bytes.length>10*1024*1024 || !type.startsWith("image/"))
+            throw new IllegalArgumentException("Image must be at most 10 MiB");
+        if(question!=null && question.length()>2000)throw new IllegalArgumentException("Image question exceeds 2000 characters");
+        var info=readImageInfo(bytes);
+        var asset=new ImageAssetEntity();asset.setFileId(fileId);asset.setTenantId(tenant);asset.setUserId(user);
+        asset.setOriginalFileName(name);asset.setContentType(type);asset.setSha256(hash);asset.setSizeBytes((long)bytes.length);
+        asset.setWidth(info.width());asset.setHeight(info.height());
+        return analyzeContent(asset,question,"auto",user,modelName,bytes);
+    }
+
+    private ImageAnalysisResultEntity analyzeContent(ImageAssetEntity asset,String question,String mode,String userId,String modelName,byte[] bytes) {
         String normalizedMode = normalizeMode(mode);
-        VisionAttempt visionAttempt = analyzeWithVisionModel(asset, question, normalizedMode, modelName);
+        VisionAttempt visionAttempt = analyzeWithVisionModel(asset, question, normalizedMode, modelName,bytes);
         VisionAnalysis vision = visionAttempt.analysis();
         String imageType;
         String extractedText;
@@ -175,7 +192,7 @@ public class ImageUnderstandingService {
             analysisSource = "multimodal_llm";
         } else {
             imageType = inferImageType(asset, question, normalizedMode);
-            extractedText = extractOcrText(asset);
+            extractedText = bytes==null?extractOcrText(asset):extractOcrBytes(asset,bytes);
             summary = buildFallbackSummary(asset, question, imageType, normalizedMode, extractedText);
             confidence = fallbackConfidence(normalizedMode, imageType, extractedText);
             structuredData = fallbackStructuredData(
@@ -196,7 +213,11 @@ public class ImageUnderstandingService {
         result.setConfidence(confidence);
         result.setAnalysisSource(analysisSource);
         result.setStatus("COMPLETED");
-        return resultRepository.save(result);
+        if(bytes==null)return resultRepository.save(result);
+        // Workspace callers archive this derived result through their authorized Silo/PG boundary.
+        // Do not create an unscoped legacy image-library record for a workspace asset.
+        result.setId(UUID.randomUUID().toString());result.setCreatedAt(Instant.now());result.setUpdatedAt(Instant.now());
+        return result;
     }
 
     /**
@@ -314,12 +335,14 @@ public class ImageUnderstandingService {
     }
 
     private ImageInfo readImageInfo(byte[] bytes) {
-        try {
-            BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
-            if (image == null) {
-                return new ImageInfo(null, null);
-            }
-            return new ImageInfo(image.getWidth(), image.getHeight());
+        try (var input=ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
+            var readers=ImageIO.getImageReaders(input);if(!readers.hasNext())return new ImageInfo(null,null);
+            var reader=readers.next();
+            try {
+                reader.setInput(input);int width=reader.getWidth(0),height=reader.getHeight(0);
+                if(width<1 || height<1 || (long)width*height>40_000_000L)throw new IllegalArgumentException("Image dimensions exceed supported limits");
+                return new ImageInfo(width,height);
+            }finally{reader.dispose();}
         } catch (IOException ex) {
             return new ImageInfo(null, null);
         }
@@ -360,19 +383,20 @@ public class ImageUnderstandingService {
     private VisionAttempt analyzeWithVisionModel(ImageAssetEntity asset,
                                                  String question,
                                                  String mode,
-                                                 String modelName) {
+                                                 String modelName,byte[] bytes) {
         if (chatModelResolver == null) {
             return new VisionAttempt(null, "multimodal model resolver is unavailable");
         }
         try {
-            Path imagePath = Path.of(requireText(asset.getFilePath(), "image file path"));
-            if (!Files.isRegularFile(imagePath)) {
+            Path imagePath = bytes==null?Path.of(requireText(asset.getFilePath(), "image file path")):null;
+            if (bytes==null && !Files.isRegularFile(imagePath)) {
                 return new VisionAttempt(null, "stored image file is unavailable");
             }
             ChatModel chatModel = chatModelResolver.resolveChatModel(modelName);
             UserMessage message = UserMessage.from(
                 TextContent.from(visionPrompt(question, mode)),
-                ImageContent.from(imagePath, normalize(asset.getContentType(), "image/png"))
+                bytes==null?ImageContent.from(imagePath, normalize(asset.getContentType(), "image/png"))
+                    :ImageContent.from(java.util.Base64.getEncoder().encodeToString(bytes),asset.getContentType())
             );
             ChatResponse response = chatModel.chat(message);
             String responseText = response == null || response.aiMessage() == null
@@ -409,6 +433,11 @@ public class ImageUnderstandingService {
             }
             confidence 取值范围为 0 到 1。必须区分图片中的事实与分析推断。
             """.formatted(mode, firstText(question, "请完整识别并解释图片内容。"));
+    }
+
+    private String extractOcrBytes(ImageAssetEntity asset,byte[] bytes) {
+        if(!documentTextExtractor.supports(asset.getOriginalFileName()))return "";
+        return truncate(documentTextExtractor.extractText(new ByteArrayInputStream(bytes),asset.getOriginalFileName()),16000);
     }
 
     private VisionAnalysis parseVisionResponse(String responseText,

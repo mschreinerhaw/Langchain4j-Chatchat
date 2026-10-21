@@ -1,0 +1,83 @@
+{
+  "status": "PASSED",
+  "taskId": "analysis-coding-53aa54011ddf4c4ecc0928a99fb6090fa1b15bfc4b92ed6e455f4eb18c8f8d8d",
+  "verifiedFiles": [
+    {
+      "id": "5921c198024762cfbc7de3913fd2e88e2127e37dc3980342231f69caa0f50b64",
+      "kind": "CONTEXT",
+      "sha256": "f0bc960551e784ab894e2d801f229d0b9146f8a58060bb04bc31ce6b352e58a9"
+    },
+    {
+      "id": "330d8c71ab9213adf21832b604f861e0e886f3ee33c78f20352624fef7cecd8f",
+      "kind": "CONTEXT",
+      "sha256": "fbfc6b5e40a027af3cb6c9468e6951b205a65808eb319715a9d180e2130665f3"
+    },
+    {
+      "id": "787faab3d840c24ad5c400f250359e9f535dccd9ce7af9be78f760a31734663c",
+      "kind": "CODE",
+      "sha256": "3fd37a49aa44f5f89e0115d68f85a7427baec3e6b832aa84d532994b53f85ed3"
+    },
+    {
+      "id": "e87832b20d85d006893a8425bc84b4b4460bd5c198acd1839f4c3843bd3e978d",
+      "kind": "LOG",
+      "sha256": "c158f6985cb5f536cb118569a7926ddcafd051bbc29f0f579cdea08a01e5d76a"
+    },
+    {
+      "id": "6c5646248cf3ed8d8426e202e7073ad356938547d43969b9c2da14acd420e822",
+      "kind": "CONTEXT",
+      "sha256": "17e2c8977849aa4ac626057a6c3c24f1c99cde03d8f372046b144e981be8d282"
+    },
+    {
+      "id": "cf57d1ab3cdf97af31839642650e5dd381c375d7cb0227484deca41b6bcbc8af",
+      "kind": "LOG",
+      "sha256": "21f7167b05888425fff61fa2a39c72a4332f1eb60656f029c9f5a05f9583304b"
+    },
+    {
+      "id": "9b1b18bf506d8eb47d751907dd758968184de2eb158a75abf5c46831366e564d",
+      "kind": "LOG",
+      "sha256": "16d6babff79a456c2e43de9eb8a253b0c6374695ba6c6626844688624913fdac"
+    },
+    {
+      "id": "c88a2cb061c2e2edd91e5a0473c5aad403f9df46b02e03ac7105c93744988870",
+      "kind": "LOG",
+      "sha256": "756a8c3b9bfcc4bb6ad8b0e986108a08fda9f561aea66133390962fc01bd6d07"
+    },
+    {
+      "id": "44dfa642d216d1ea7c187606979b90e6c33eda3532fd8121817264c0d94c0c14",
+      "kind": "LOG",
+      "sha256": "ecf4d33ccedfcaa07d513d398ffc4201e800b8d5d960483b112e95ab5c0bfb56"
+    },
+    {
+      "id": "dc0156536632d3a81c3c5ab822593d2ff6080d9ff9d2a3aad1c0d52d5ead76f8",
+      "kind": "ARTIFACT",
+      "sha256": "77d5d8d23ab14815b909ae3bf894e5571553c79b8b1892b5952d611589b2d7a4"
+    },
+    {
+      "id": "b6eac93eac84db8ef7afae4efe6dbb2328b1ed9199450e4260e9edc3376e5920",
+      "kind": "CODE",
+      "sha256": "3fd37a49aa44f5f89e0115d68f85a7427baec3e6b832aa84d532994b53f85ed3"
+    },
+    {
+      "id": "5dcfcdafe66a6fb4cf3900208bda2a709bd581d9118bdc6b00c71214090a9268",
+      "kind": "DATASET",
+      "sha256": "0d35013bb805c6deab2a0ba12a4df2903c15c75f66aff98b6d5a33dc97ba3367"
+    },
+    {
+      "id": "ecce3be41aca1976cbe8ff8e86aafe9a1554633b528fe1c5897b416271d8838d",
+      "kind": "DATASET",
+      "sha256": "8ed1a53a0d90fd471fd525ac6c6e1be5cf7cf55bae773ec437e8a851df9e6f2a"
+    },
+    {
+      "id": "34d113b12417d1496a8a8b98612a72c25eed728658e7a559fb4971bfc130e41d",
+      "kind": "DATASET",
+      "sha256": "a32f9e89adb93598e00b765873030b7b25e95d87b2d5902cb2365d363abbe668"
+    }
+  ],
+  "codeUsesDecimal": true,
+  "codeParsesCsv": true,
+  "resultNotHardcodedInCode": true,
+  "unusedImageFixturesRemoved": [
+    "36c0664f2e34bb454f5c177f47595f05ad7a11ea3330bd71a22e37ac44132ab2",
+    "75578e8a9e7ebaeafa467aed6e7cf72794211f9e3f8cbe691a66d485d5c4e21b"
+  ]
+}

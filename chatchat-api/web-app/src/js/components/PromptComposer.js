@@ -1,18 +1,16 @@
-﻿import { Bot, FileText, Globe, ImagePlus, Send, Trash2, Upload, XCircle } from "@lucide/vue";
+import { Bot, FileText, Send, XCircle } from "@lucide/vue";
+import { exceedsChatTextLimit, pastedFiles } from '../utils/chatUserAssets';
 
 export default {
   name: "PromptComposer",
   components: {
     Bot,
     FileText,
-    Globe,
-    ImagePlus,
     Send,
-    Trash2,
-    Upload,
     XCircle
   },
   props: {
+    attachments: {type:Array,default:()=>[]},
     suggestions: {
       type: Array,
       default: () => []
@@ -50,11 +48,10 @@ export default {
       default: false
     }
   },
-  emits: ["clear", "image-upload", "pick", "send", "stop", "update:modelValue", "update:selectedAgentId", "upload"],
+  emits: ["clear", "files", "retry-file", "remove-file", "pick", "send", "stop", "update:modelValue", "update:selectedAgentId"],
   data() {
     return {
-      draft: this.modelValue,
-      webSearch: false
+      draft: this.modelValue
     };
   },
   computed: {
@@ -79,18 +76,16 @@ export default {
     },
     agentSelectLabel() {
       if (this.agentsLoading) {
-        return "鍔犺浇Agent";
+        return "加载 Agent";
       }
-      return this.selectedAgent?.name || "閫氱敤瀵硅瘽";
+      return this.selectedAgent?.name || "通用对话";
     },
     documentWorkflowActive() {
       return !!this.selectedAgent?.documentWorkflow;
     },
-    webSearchAvailable() {
-      return this.isWebSearchAgent(this.selectedAgent);
-    },
+    longText(){return exceedsChatTextLimit(this.draft);},
     primaryButtonDisabled() {
-      return this.loading ? !this.stopAvailable : !this.draft.trim();
+      return this.loading ? !this.stopAvailable : (!this.draft.trim() && !this.attachments.length) || this.attachments.some(file=>file.state==='uploading');
     },
     primaryButtonLabel() {
       return this.loading && this.stopAvailable ? "停止当前任务" : "发送问题";
@@ -104,11 +99,6 @@ export default {
     draft(value) {
       this.$emit("update:modelValue", value);
       this.$nextTick(this.adjustTextareaHeight);
-    },
-    selectedAgentId() {
-      if (!this.webSearchAvailable) {
-        this.webSearch = false;
-      }
     }
   },
   mounted() {
@@ -125,25 +115,20 @@ export default {
       this.send();
     },
     send() {
-      const value = this.draft.trim();
-      if (!value || this.loading) {
+      const value = this.draft;
+      if ((!value.trim() && !this.attachments.length) || this.loading || this.attachments.some(file=>file.state==='uploading')) {
         return;
       }
       this.$emit("send", {
         query: value,
         agentId: this.selectedAgentId,
         agentName: this.selectedAgent?.name || "",
-        documentWorkflow: this.documentWorkflowActive,
-        webSearch: this.webSearch && this.webSearchAvailable
+        documentWorkflow: this.documentWorkflowActive
       });
     },
-    toggleWebSearch() {
-      if (!this.webSearchAvailable) {
-        this.webSearch = false;
-        return;
-      }
-      this.webSearch = !this.webSearch;
-    },
+    handlePaste(event){const files=pastedFiles(event.clipboardData);if(!files.length)return;event.preventDefault();if(!this.loading)this.$emit('files',files);},
+    handleEnter(event){if(event.isComposing||event.keyCode===229)return;event.preventDefault();this.send();},
+    handleDrop(event){if(!this.loading && event.dataTransfer?.files?.length)this.$emit('files',Array.from(event.dataTransfer.files));},
     updateSelectedAgent(event) {
       this.$emit("update:selectedAgentId", event.target.value);
     },
@@ -180,22 +165,6 @@ export default {
         || (agent?.boundDocumentIds || []).length > 0
         || (agent?.boundDocumentTags || []).length > 0
         || toolNames.includes("document_search");
-    },
-    isWebSearchAgent(agent) {
-      if (!agent?.id) {
-        return true;
-      }
-      const toolNames = [
-        ...(agent?.boundMcpToolNames || []),
-        ...(agent?.toolConfigs || [])
-          .filter((config) => config && config.enabled !== false)
-          .map((config) => config?.toolName)
-      ];
-      return toolNames.some((toolName) => this.isWebSearchToolName(toolName));
-    },
-    isWebSearchToolName(toolName) {
-      const value = String(toolName || "").toLowerCase();
-      return value === "web_search" || value.endsWith("_web_search");
     }
   }
 };

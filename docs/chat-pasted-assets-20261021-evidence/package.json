@@ -1,0 +1,8 @@
+{
+  "path": "target\\assets-local\\chat-final-app.jar",
+  "sha256": "9fec2ad8ab031c22a0c9222d16e19e6f4c53727fc51ea66a39c92728900def2a",
+  "consoleFiles": 82,
+  "testedBackendSha256": "5b05e60edbbdf5d88983c8bbb58dec3c5d5355a4ad1c3ac1aad3e701f94890b5",
+  "unchangedBackendEntries": 1131,
+  "backendBytesMatch": true
+}

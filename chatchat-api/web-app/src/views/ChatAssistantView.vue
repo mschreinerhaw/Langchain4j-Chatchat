@@ -171,14 +171,16 @@
         :default-model-name="defaultModelName"
         :suggestions="activeSuggestions"
         :loading="composerBusy"
+        :attachments="composerAttachments"
         :stop-available="canKillActiveRun"
         :show-suggestions="!hasConversation && activeSuggestions.length > 0"
         @pick="question = $event"
         @send="handleSend"
         @stop="killActiveRun"
         @clear="clearChat"
-        @upload="handleUpload"
-        @image-upload="openImageDialog"
+        @files="handleComposerFiles"
+        @retry-file="retryComposerFile"
+        @remove-file="removeComposerFile"
       />
 
       <div v-if="contextImageAnalyses.length" class="image-context-bar">

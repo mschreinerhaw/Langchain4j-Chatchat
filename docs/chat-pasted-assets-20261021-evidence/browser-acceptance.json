@@ -1,0 +1,26 @@
+{
+  "status": "PASSED",
+  "realDeployment": true,
+  "toolbarEntriesRemoved": true,
+  "pasteCsv": true,
+  "pasteImage": true,
+  "imageBytesMatch": true,
+  "longTextMarkdownBytesMatch": true,
+  "longTextCharacters": 9354,
+  "longTextSha256": "66de1090a646761ca591c7fcfa4391ce0939f73202915a694bb9da1d20965282",
+  "originalTextAbsentFromInstruction": true,
+  "actualAnalysis": true,
+  "reportVisible": true,
+  "composerReleased": true,
+  "taskId": "analysis-coding-53aa54011ddf4c4ecc0928a99fb6090fa1b15bfc4b92ed6e455f4eb18c8f8d8d",
+  "result": "42.75 CNY",
+  "assetIds": [
+    "5fc8acba245994dd209aceeb254fb83c86e07dfaf1248efb7cfd8327cb67d2e8",
+    "75578e8a9e7ebaeafa467aed6e7cf72794211f9e3f8cbe691a66d485d5c4e21b",
+    "b6790dab8d746dd371ee0712340c7311c0f36c12c99d55949ffb10bd3d5640ef"
+  ],
+  "browserErrors": [],
+  "assetApiFailures": [],
+  "historyRestored": true,
+  "nativeTaskNotPolledAsParent": true
+}

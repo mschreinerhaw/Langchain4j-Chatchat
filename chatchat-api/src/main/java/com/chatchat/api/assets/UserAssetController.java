@@ -11,7 +11,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/data-science/user-assets")
+@RequestMapping({"/api/v1/data-science/user-assets","/api/v1/interactions/user-assets"})
 @ConditionalOnProperty(prefix="chatchat.assets",name="enabled",havingValue="true")
 public class UserAssetController {
     private final UserAssetService assets;

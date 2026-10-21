@@ -170,8 +170,19 @@ public class UserAssetService {
         String type=switch(ext){case "pdf"->"application/pdf";case "docx"->"application/vnd.openxmlformats-officedocument.wordprocessingml.document";
             case "xlsx"->"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";case "csv"->"text/csv";
             case "parquet"->"application/vnd.apache.parquet";case "txt","md"->"text/plain";case "json","jsonl"->"application/json";
+            case "png"->"image/png";case "jpg","jpeg"->"image/jpeg";case "webp"->"image/webp";case "gif"->"image/gif";
             default->throw new IllegalArgumentException("Unsupported user document format");};
         if(bytes.length==0)throw new IllegalArgumentException("Empty document");
+        if(type.startsWith("image/")) {
+            boolean valid=switch(ext){
+                case "png"->bytes.length>=8 && HexFormat.of().formatHex(bytes,0,8).equals("89504e470d0a1a0a");
+                case "jpg","jpeg"->bytes.length>=4 && (bytes[0]&255)==255 && (bytes[1]&255)==216 && (bytes[2]&255)==255;
+                case "gif"->bytes.length>=6 && Set.of("GIF87a","GIF89a").contains(new String(bytes,0,6,StandardCharsets.US_ASCII));
+                case "webp"->bytes.length>=12 && new String(bytes,0,4,StandardCharsets.US_ASCII).equals("RIFF") && new String(bytes,8,4,StandardCharsets.US_ASCII).equals("WEBP");
+                default->false;
+            };
+            if(!valid)throw new IllegalArgumentException("Invalid image signature");
+        }
         if("pdf".equals(ext) && !new String(bytes,0,Math.min(5,bytes.length),StandardCharsets.US_ASCII).equals("%PDF-"))throw new IllegalArgumentException("Invalid PDF signature");
         if(Set.of("docx","xlsx").contains(ext) && (bytes.length<4 || bytes[0]!='P' || bytes[1]!='K'))throw new IllegalArgumentException("Invalid Office container");
         if("parquet".equals(ext) && (bytes.length<8 || !new String(bytes,0,4,StandardCharsets.US_ASCII).equals("PAR1")

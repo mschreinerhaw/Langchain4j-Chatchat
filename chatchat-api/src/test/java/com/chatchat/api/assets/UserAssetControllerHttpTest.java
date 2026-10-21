@@ -47,4 +47,11 @@ class UserAssetControllerHttpTest {
         mvc.perform(get(route+"/"+file.id()+"/content").param("userId","alice").header("X-Test-Principal","bob")).andExpect(status().isNotFound());
         mvc.perform(get(route+"/"+file.id()+"/content")).andExpect(status().isUnauthorized());
     }
+    @Test void chatAliasUsesTheSameOwnerBoundary()throws Exception{
+        var file=assets.upload(new UserAssetService.Owner("tenant","alice"),"input.md",new byte[]{65});
+        mvc.perform(get("/api/v1/interactions/user-assets/"+file.id()+"/content").header("X-Test-Principal","alice"))
+            .andExpect(status().isOk()).andExpect(content().bytes(new byte[]{65}));
+        mvc.perform(get("/api/v1/interactions/user-assets/"+file.id()+"/content").header("X-Test-Principal","bob"))
+            .andExpect(status().isNotFound());
+    }
 }

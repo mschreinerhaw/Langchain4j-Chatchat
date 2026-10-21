@@ -68,3 +68,25 @@ Silo 版本仍固定为用户指定的 `RELEASE.2026-10-18T00-00-00Z` 和已验�
 - 验证结束时 PostgreSQL 索引状态为 2 条 INDEXED、10 条 DELETED，没有失败或待处理积压。物理 Cline 活动 session 和临时 Python 容器均为 0；上一轮 provider 失败的 1 条核销待办依旧如实保留。[任务控制快照](runtime-storage-layering-20261021-evidence/task-control-summary.json)。
 
 本轮落地的是统一资产的全文/历史投影闭环。旧文档库存储迁移、对话上传归一、团队共享、实际向量查询恢复、Knowledge IR 检索迁移、独立分析的取消入口、对象孤儿补偿与完整审计仍未完成；不能用上述验收替代这些项目的验收。
+
+## 对话粘贴与长文本上传（2026-10-21 后续改造）
+
+已移除对话输入工具栏的“联网搜索”“上传文件”“上传图片”三个入口。输入框支持直接粘贴文件和拖入文件，显示保存状态、失败原因、重试和移除附件；普通文本粘贴保留浏览器的正常编辑行为，中文输入法确认不会触发误发送。
+
+长文本阈值为 **8,000 个 Unicode 字符**。超过阈值时，发送操作把完整原文按 UTF-8 保存为 `.md` 文件，再通过稳定文件 ID 进入原 Cline/Python 分析链；保留换行、首尾空白和全部内容，不截断原文件。上传失败会保留输入与待重试文件，未保存成功不会提交分析。每次最多 8 个附件、原始附件合计 16 MiB，单张图片最多 10 MiB。
+
+个人资产接口增加 `/api/v1/interactions/user-assets` 别名，沿用现有 `workspace:chat:interact` 权限及同一个服务端 owner 校验。原数据车间地址保持兼容。聊天用户无需获得整个数据车间的权限即可保存自己的附件，不能借此读取他人文件或调用数据车间其他接口。未增加全局角色授权或新 S3 客户端。
+
+粘贴图片先写 Silo，再由已鉴权的精确版本字节进入现有 `ImageUnderstandingService` 多模态/OCR 路径。新增字节入口不另写本地原图，也不产生旧图片库的无归属记录；派生解析归档到个人空间。解析来源、置信度、原图 ID 与 hash 随派生 Markdown 交给 Cline，并标明模型输出需要核对原图。支持 PNG/JPEG/WebP/GIF 签名检查，读取图像尺寸时不解码整张图片，限制像素规模。
+
+文件分析的真实报告显示在当前对话，并保存文件引用和历史。修复了会话保存回调回放 RUNNING 时覆盖终态的问题：文件任务结束后输入框恢复可用，成功仅清理当前活动草稿的附件，后台结束不清理新会话草稿。已完成的原生文件任务不作为父 AgentRuntime 任务轮询。
+
+验证记录：
+
+- Java 定向 **61 项通过，0 失败/错误/跳过**；前端相关 **62 项通过**，前端构建完成。[本地验证](chat-pasted-assets-20261021-evidence/local-validation.json)。
+- 服务器聊天权限验收 7 项通过：仅聊天权限可上传和原字节下载；没有获得数据车间权限；越权下载、文件分析和图片分析在模型调用前拒绝；匿名拒绝。临时用户、角色和文件均已清理。[权限验证](chat-pasted-assets-20261021-evidence/permission-acceptance.json)。
+- 真实浏览器完成 CSV/图片粘贴、图片原字节下载、9,354 字输入自动生成 Markdown、Markdown 全字节比对、真实模型及 Python 分析、终态输入框恢复和历史恢复，结果为 **42.75 CNY**。目标请求只携带简短说明及文件引用，不包含完整长文本。[浏览器验证](chat-pasted-assets-20261021-evidence/browser-acceptance.json)。
+- 最终任务 `analysis-coding-53aa54011ddf4c4ecc0928a99fb6090fa1b15bfc4b92ed6e455f4eb18c8f8d8d` 的 14 个归档对象逐一通过大小/hash 校验；实际 Python 源码读取 CSV 并使用 Decimal，代码中没有硬编码 `42.75`。未进入分析的两张测试图片已清理。[归档验证](chat-pasted-assets-20261021-evidence/native-archive-acceptance.json)。
+- 最终镜像 `runtime-os-api:user-assets-9fec2ad8ab03`，Jar SHA-256 `9fec2ad8ab031c22a0c9222d16e19e6f4c53727fc51ea66a39c92728900def2a`。最终前端组包与 Java 测试包的 1,131 个非前端归档项字节完全一致。[组包核对](chat-pasted-assets-20261021-evidence/package.json)、[部署及回退备份](chat-pasted-assets-20261021-evidence/deployment.json)。
+
+真实模型验收使用 CSV 与自动生成的 Markdown；图片语义解析通过服务/HTTP 授权测试，实际浏览器验证图片粘贴和字节保存，未逐一进行所有图片格式的付费模型验收。结束时活动 Node session 和临时 Python 容器均为 0，本次两个实际文件分析任务均完成；早先 provider 失败的核销待办仍保留，不更改其账本状态。[任务快照](chat-pasted-assets-20261021-evidence/task-control-summary.json)。前文清单中的对话文档原文件入口已接入本次统一资产路径；旧知识库迁移、团队共享等其他待办不因此被视为完成。

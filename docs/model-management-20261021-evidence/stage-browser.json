@@ -1,0 +1,8 @@
+{
+  "status": "PASS",
+  "httpStatus": 200,
+  "unifiedDialog": true,
+  "cancelPreservesAllModels": true,
+  "deleteRequests": 0,
+  "errors": []
+}

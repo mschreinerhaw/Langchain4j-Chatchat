@@ -1,0 +1,9 @@
+{
+  "status": "PASS",
+  "unifiedDialog": true,
+  "cancelAndEscapeDoNotDelete": true,
+  "confirmDeletesOnce": true,
+  "failureRetainsModel": true,
+  "nativeDialogs": 0,
+  "errors": []
+}

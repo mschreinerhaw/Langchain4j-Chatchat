@@ -1,0 +1,72 @@
+{
+  "mavenExitCode": 0,
+  "suites": [
+    {
+      "suite": "com.chatchat.common.config.ModelsConfigTest",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.545"
+    },
+    {
+      "suite": "com.chatchat.common.config.ModelResourceRegistryTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.25"
+    },
+    {
+      "suite": "com.chatchat.api.model.PlatformModelCatalogServiceTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.149"
+    },
+    {
+      "suite": "com.chatchat.api.model.NoModelStartupIntegrationTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "24.848"
+    }
+  ],
+  "fullApiStartup": {
+    "chatModels": 0,
+    "embeddingModels": 0,
+    "realAuthenticationAndModelHttpApi": true,
+    "runtimeSemanticPolicy": "official H2 V20261009_01 migration",
+    "providerResponse": "mocked; no inference network call",
+    "scenario": [
+      "empty startup",
+      "explicit error before configuration",
+      "save draft remains unavailable",
+      "publish enables existing ChatModel bean without restart",
+      "delete last model returns to unavailable state"
+    ]
+  },
+  "initialAttempt": "Empty test database lacked required Runtime semantic policy; preserved check and seeded official migration. Final test passes.",
+  "configurationFileRegression": "PlatformModelCatalogServiceTest imports configured model, encrypts credentials, preserves page drafts until publication.",
+  "commandArguments": [
+    "mvn.cmd",
+    "-pl",
+    "chatchat-api",
+    "-am",
+    "test",
+    "-Dtest=NoModelStartupIntegrationTest,PlatformModelCatalogServiceTest,ModelsConfigTest,ModelResourceRegistryTest",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dfrontend.skip=true",
+    "-Dfrontend.install.skip=true",
+    "-DfailIfNoTests=false"
+  ],
+  "frontendBuild": {
+    "command": "npm.cmd run build",
+    "exitCode": 0,
+    "existingWarning": "large chunks"
+  },
+  "existingIsolatedTestWarning": "No local MCP server on port 9091; capability catalog synchronization deferred. Startup and authenticated model management tests passed.",
+  "runtimeBackendChanged": false
+}

@@ -130,12 +130,14 @@
         <div class="feature-modal-actions model-dialog-actions"><button type="button" class="feature-button" @click="editing = false">取消</button><button type="submit" class="feature-button primary" :disabled="saving">{{ saving ? '保存中…' : '保存模型' }}</button></div>
       </form>
     </div>
+    <AppConfirmDialog v-if="pendingDelete" title="删除模型" :message="`确定删除模型「${pendingDelete.alias || pendingDelete.name}」（${pendingDelete.name}）？删除后将无法继续使用此模型。`" @cancel="pendingDelete = null" @confirm="confirmDelete" />
   </section>
 </template>
 
 <script>
 import { Cpu, Database, KeyRound, MessageSquare, Pencil, Plus, Search, Star, Trash2, X } from '@lucide/vue';
 import AppPagination from '../components/AppPagination.vue';
+import AppConfirmDialog from '../components/AppConfirmDialog.vue';
 import { deletePlatformModel, fetchPlatformModels, publishPlatformModel, savePlatformModel, setDefaultPlatformModel } from '../services/api';
 import '../styles/pages/model-management.css';
 
@@ -145,9 +147,9 @@ const emptyForm = () => ({ name: '', alias: '', description: '', type: 'chat', p
 
 export default {
   name: 'ModelManagementView',
-  components: { AppPagination, Cpu, Database, KeyRound, MessageSquare, Pencil, Plus, Search, Star, Trash2, X },
+  components: { AppPagination, AppConfirmDialog, Cpu, Database, KeyRound, MessageSquare, Pencil, Plus, Search, Star, Trash2, X },
   data: () => ({ models: [], loading: false, saving: false, editing: false, isNew: true,
-    form: emptyForm(), message: '', error: false, publishingKey: '', searchQuery: '', typeFilter: '', page: 1, pageSize: 9 }),
+    form: emptyForm(), message: '', error: false, publishingKey: '', pendingDelete: null, searchQuery: '', typeFilter: '', page: 1, pageSize: 9 }),
   computed: {
     filteredModels() {
       const query = this.searchQuery.toLocaleLowerCase();
@@ -205,9 +207,12 @@ export default {
       } catch (error) { this.message = error.message; this.error = true; }
       finally { this.publishingKey = ''; }
     },
-    async remove(model) {
-      if (!window.confirm(`确定删除模型 ${model.name}？`)) return;
-      try { await deletePlatformModel(model.type, model.name); this.message = '模型已删除'; await this.load(); }
+    remove(model) { this.pendingDelete = model; },
+    async confirmDelete() {
+      const model = this.pendingDelete;
+      if (!model) return;
+      this.pendingDelete = null;
+      try { await deletePlatformModel(model.type, model.name); this.message = '模型已删除'; this.error = false; await this.load(); }
       catch (error) { this.message = error.message; this.error = true; }
     }
   }

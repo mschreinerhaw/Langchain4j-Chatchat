@@ -1,0 +1,8 @@
+{
+  "path": "target\\assets-local\\agent-attachments-app.jar",
+  "sha256": "86a05a99a2888835e379c222c9941460537ea6eea31296c4de702a1edda99210",
+  "consoleFiles": 82,
+  "testedBackendSha256": "a1f9ff235536bc87843edc875594818b7229bbf2a128dca0ded457bb7c7eb9c1",
+  "unchangedBackendEntries": 1132,
+  "backendBytesMatch": true
+}

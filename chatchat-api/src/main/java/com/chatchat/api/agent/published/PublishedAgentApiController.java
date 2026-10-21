@@ -76,6 +76,24 @@ public class PublishedAgentApiController {
     private final EnterpriseAdminService enterpriseAdminService;
     private final ObjectMapper objectMapper;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.beans.factory.ObjectProvider<com.chatchat.api.assets.AssetAnalysisInputs> attachmentInputs;
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.beans.factory.ObjectProvider<com.chatchat.api.assets.UserAssetController> assetControllers;
+
+    @PostMapping(value="/{agentId}/attachments", consumes=org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary="Upload a supported analysis attachment to the authenticated caller's user space")
+    public ApiResponse<?> uploadAttachment(@PathVariable("agentId") String agentId,
+        @RequestParam("file") org.springframework.web.multipart.MultipartFile file,HttpServletRequest http) throws java.io.IOException {
+        var identity=requireIdentity(http);
+        requirePublishedAndAuthorized(agentId,identity.userId());
+        var controller=assetControllers==null?null:assetControllers.getIfAvailable();
+        if(controller==null)throw new PublishedAgentApiException(HttpStatus.SERVICE_UNAVAILABLE,"User assets are disabled");
+        if(file.getSize()>com.chatchat.api.assets.AssetAnalysisInputs.MAX_BYTES)
+            throw new PublishedAgentApiException(HttpStatus.PAYLOAD_TOO_LARGE,"Attachment exceeds the 16 MiB analysis limit");
+        return controller.upload(http,file);
+    }
+
     @PostMapping("/{agentId}/questions")
     @Operation(summary = "Submit a question to one published Agent")
     public ResponseEntity<ApiResponse<PublishedAgentSubmission>> submit(
@@ -105,6 +123,12 @@ public class PublishedAgentApiController {
         taskRequest.setToolInput(sanitizeParameters(request.parameters()));
 
         try {
+            if(request.attachmentIds()!=null && !request.attachmentIds().isEmpty()) {
+                var inputs=attachmentInputs==null?null:attachmentInputs.getIfAvailable();
+                if(inputs==null)throw new PublishedAgentApiException(HttpStatus.SERVICE_UNAVAILABLE,"User assets are disabled");
+                inputs.validate(new com.chatchat.api.assets.UserAssetService.Owner(identity.tenantId(),identity.userId()),request.attachmentIds());
+                taskRequest.getToolInput().put(com.chatchat.api.assets.AssetAnalysisInputs.IDS,List.copyOf(request.attachmentIds()));
+            }
             AgentTaskResponse task = taskService.submit(taskRequest);
             return accepted(
                 new PublishedAgentSubmission(
@@ -328,13 +352,23 @@ public class PublishedAgentApiController {
             + escapedAgentId + "/questions/${TASK_ID}/answer\" \\\n"
             + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\" \\\n"
             + "  --header \"Accept: application/json\"";
+        String upload = "curl --silent --show-error --fail --connect-timeout 10 --max-time 60 --request POST \"${AGENT_BASE_URL}/api/v1/published-agents/"
+            + escapedAgentId + "/attachments\" --header \"Authorization: Bearer ${AGENT_TOKEN}\" --form \"file=@${ATTACHMENT_FILE}\"";
         String complete = "export AGENT_BASE_URL=\"" + escapedBaseUrl + "\"\n"
             + "export AGENT_TOKEN=\"<paste-agent-api-token>\"\n\n"
+            + "# Optional: set ATTACHMENT_FILE to a supported local analysis file before running this example.\n"
+            + "QUESTION_JSON='" + body.replace("'", "'\\''") + "'\n"
+            + "if [ -n \"${ATTACHMENT_FILE:-}\" ]; then\n"
+            + "  if ! UPLOAD_RESPONSE=$(" + upload + "); then exit 1; fi\n"
+            + "  ATTACHMENT_ID=$(printf '%s' \"${UPLOAD_RESPONSE}\" | jq -r '.data.id // empty')\n"
+            + "  if [ -z \"${ATTACHMENT_ID}\" ]; then echo \"Attachment upload failed\" >&2; exit 1; fi\n"
+            + "  QUESTION_JSON=$(printf '%s' \"${QUESTION_JSON}\" | jq --arg id \"${ATTACHMENT_ID}\" '. + {attachmentIds: [$id]}')\n"
+            + "fi\n\n"
             + "# Set STOP_AGENT_RUN=true to demonstrate caller-initiated cancellation after the first status query.\n"
             + "STOP_AGENT_RUN=\"${STOP_AGENT_RUN:-false}\"\n\n"
             + "# This example uses jq to read data.taskId from the submit response.\n"
             + "# 1. Submit a question. sessionId uses the same UUID format as ChatChat sessions.\n"
-            + "if ! SUBMIT_RESPONSE=$(" + submit + "); then\n"
+            + "if ! SUBMIT_RESPONSE=$(" + submit.replace("--data '" + body.replace("'", "'\\''") + "'", "--data \"${QUESTION_JSON}\"") + "); then\n"
             + "  echo \"Failed to submit the Agent question. Check the URL, token and HTTP error above.\" >&2\n"
             + "  exit 1\n"
             + "fi\n"
@@ -389,7 +423,7 @@ public class PublishedAgentApiController {
             + "fi";
         return new PublishedAgentCurlExample(
             agent.id(), agent.label(), baseUrl, "AGENT_TOKEN", submit, status, cancel, answer, complete,
-            "Use a dedicated Agent API token issued by an administrator. Tenant, user and role-to-Agent authorization are enforced server-side."
+            "Use a dedicated Agent API token issued by an administrator. Tenant, user and role-to-Agent authorization are enforced server-side.", upload
         );
     }
 
@@ -557,7 +591,8 @@ public class PublishedAgentApiController {
         String idempotencyKey,
         Integer historyWindow,
         List<String> imageAnalysisIds,
-        Map<String, Object> parameters
+        Map<String, Object> parameters,
+        List<String> attachmentIds
     ) {
     }
 
@@ -655,7 +690,8 @@ public class PublishedAgentApiController {
         String cancelCurl,
         String answerCurl,
         String completeExample,
-        String securityNotice
+        String securityNotice,
+        String attachmentUploadCurl
     ) {
     }
 

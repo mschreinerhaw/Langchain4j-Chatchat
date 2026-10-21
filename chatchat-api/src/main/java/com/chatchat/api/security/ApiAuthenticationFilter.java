@@ -148,7 +148,8 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private boolean isAgentApiInvocationPath(String path, String method) {
-        return path.matches("/api/v1/published-agents/[^/]+/questions/?")
+        return ("POST".equalsIgnoreCase(method) && path.matches("/api/v1/published-agents/[^/]+/attachments/?"))
+            || path.matches("/api/v1/published-agents/[^/]+/questions/?")
             || path.matches("/api/v1/published-agents/[^/]+/questions/[^/]+/(status|answer)/?")
             || ("DELETE".equalsIgnoreCase(method)
                 && path.matches("/api/v1/published-agents/[^/]+/questions/[^/]+/?"));

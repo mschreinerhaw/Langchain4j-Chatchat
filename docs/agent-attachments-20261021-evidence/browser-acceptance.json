@@ -1,0 +1,10 @@
+{
+  "status": "PASSED",
+  "dropAcrossComposer": true,
+  "pasteFiles": true,
+  "exactOriginals": true,
+  "removeOnlyCurrentSelection": true,
+  "oldButtonsRemoved": true,
+  "fileCount": 2,
+  "pageErrors": []
+}

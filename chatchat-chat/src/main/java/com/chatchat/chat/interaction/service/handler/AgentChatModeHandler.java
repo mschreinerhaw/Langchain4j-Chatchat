@@ -159,6 +159,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         var preparedContext = skillAnalysisContexts == null ? context : context.toBuilder()
             .skillAnalysisContext(skillAnalysisContexts.prepare(request, skill,
                 resolveSkillScope(request, skill, resolvedSkillId(request, skill)).roles(), context)).build();
+        // Explicit uploaded evidence is analyzed with this Agent's maintained role and Skills.
+        if (request.getToolInput() != null && request.getToolInput().get("__userAssetIds") instanceof List<?> ids && !ids.isEmpty()) {
+            return directAnswerWorkflow.execute(request, preparedContext, skill);
+        }
         var response = new com.chatchat.chat.interaction.service.InteractionWorkflowCoordinator(
             toolPolicyResolver, problemAnalysisPlanner, directAnswerWorkflow, assetGuidance)
             .execute(request, preparedContext, skill,

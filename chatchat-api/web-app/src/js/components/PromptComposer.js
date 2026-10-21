@@ -128,7 +128,8 @@ export default {
     },
     handlePaste(event){const files=pastedFiles(event.clipboardData);if(!files.length)return;event.preventDefault();if(!this.loading)this.$emit('files',files);},
     handleEnter(event){if(event.isComposing||event.keyCode===229)return;event.preventDefault();this.send();},
-    handleDrop(event){if(!this.loading && event.dataTransfer?.files?.length)this.$emit('files',Array.from(event.dataTransfer.files));},
+    handleDragOver(event){if(Array.from(event.dataTransfer?.types||[]).includes('Files'))event.preventDefault();},
+    handleDrop(event){if(!event.dataTransfer?.files?.length)return;event.preventDefault();if(!this.loading)this.$emit('files',Array.from(event.dataTransfer.files));},
     updateSelectedAgent(event) {
       this.$emit("update:selectedAgentId", event.target.value);
     },

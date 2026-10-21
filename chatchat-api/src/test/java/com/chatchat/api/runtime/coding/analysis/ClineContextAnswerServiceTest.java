@@ -24,6 +24,28 @@ class ClineContextAnswerServiceTest {
     InteractionRequest request() { return InteractionRequest.builder().query("Design a generic table")
         .tenantId("tenant").userId("user").toolInput(Map.of("__agentRunId", "run")).build(); }
 
+    @Test void attachedOriginalsUseTheParentRunCancellationAndAuthorizedEvidence() {
+        var assets=mock(com.chatchat.api.assets.UserAssetService.class);
+        var inputs=new com.chatchat.api.assets.AssetAnalysisInputs(assets);
+        var beans=new org.springframework.beans.factory.support.DefaultListableBeanFactory();beans.registerSingleton("inputs",inputs);
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"attachmentInputs",beans.getBeanProvider(com.chatchat.api.assets.AssetAnalysisInputs.class));
+        String id="a".repeat(64);byte[] bytes="amount\n1.25\n2.50".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        String hash=com.chatchat.api.assets.UserAssetService.hash(bytes),ref="user-asset:"+id+":"+hash;
+        when(assets.get(any(),eq(id))).thenReturn(new com.chatchat.api.assets.UserAssetService.File(id,"DOCUMENT","input.csv","text/csv",hash,bytes.length,"AVAILABLE","","","upload",1));
+        when(assets.read(any(),eq(id))).thenReturn(bytes);
+        var request=request();request.setToolInput(Map.of("__agentRunId","run","__userAssetIds",List.of(id)));
+        when(coding.executeObserved(any(),anyMap(),anyMap(),any())).thenAnswer(call->{
+            Map<String,Object> task=call.getArgument(1);Map<String,Dataset> sources=call.getArgument(2);
+            assertThat(task).containsEntry("datasetReferences",List.of("runtime-context:run",ref));
+            assertThat(task.get("instruction").toString()).contains("actual declared file format","untrusted DATA","Python");
+            assertThat(sources.get(ref).handle().readPage(0,1).rows().get(0)).containsEntry("sha256",hash);
+            sources.put("result",new Dataset("result",Map.of(),List.of(Map.of("reportMarkdown","3.75","evidenceReferences",List.of(ref)))));
+            return Map.of("resultAvailable",true,"datasetReference","result");
+        });
+        assertThat(service.answer(request,context,skill,"").getAnswer()).isEqualTo("3.75");
+        verify(runs).complete(eq("run"),any());
+    }
+
     void result(String report, List<String> refs, int count) {
         when(skill.modelName()).thenReturn("configured-model");
         when(models.resolveChatModel("configured-model")).thenReturn(model);

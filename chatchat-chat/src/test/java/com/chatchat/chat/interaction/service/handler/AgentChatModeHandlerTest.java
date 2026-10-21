@@ -41,6 +41,21 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentChatModeHandlerTest {
+    @Test void explicitQuestionAttachmentsReachCodingWithoutUnrelatedToolAcquisition() {
+        var catalog=mock(SkillCatalogService.class);var policies=mock(AgentToolPolicyResolver.class);
+        var orchestrator=mock(AgentOrchestrator.class);var agent=skill(List.of("opaque_query"));
+        when(catalog.resolve("ops")).thenReturn(agent);
+        var handler=new AgentChatModeHandler(orchestrator,catalog,policies);
+        var coding=mock(com.chatchat.chat.interaction.service.CodingAnswerPort.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler,"directAnswerWorkflow",new com.chatchat.chat.interaction.service.DirectAnswerWorkflow(coding));
+        var request=InteractionRequest.builder().skillId("ops").query("analyze attachments")
+            .toolInput(Map.of("__userAssetIds",List.of("a".repeat(64)))).build();
+        var context=InteractionContext.builder().requestId("attachment-request").build();
+        var response=com.chatchat.chat.interaction.model.InteractionResponse.builder().answer("computed report").build();
+        when(coding.answer(request,context,agent,"")).thenReturn(response);
+        assertThat(handler.handle(request,context)).isSameAs(response);
+        org.mockito.Mockito.verifyNoInteractions(orchestrator,policies);
+    }
     @SuppressWarnings("unchecked")
     private AgentToolPolicyResolver intentAwarePolicy(ToolRegistry registry, SkillCatalogService catalog,
                                                       McpToolCatalogQueryPort tools) {

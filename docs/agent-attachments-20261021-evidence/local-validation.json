@@ -1,0 +1,56 @@
+{
+  "java": [
+    {
+      "name": "com.chatchat.api.agent.published.PublishedAgentApiControllerTest",
+      "tests": "12",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.assets.AssetAnalysisInputsTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.assets.AssetImageControllerTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.assets.UserAssetControllerHttpTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.analysis.ClineContextAnswerServiceTest",
+      "tests": "10",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.security.ApiAuthenticationFilterTest",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest",
+      "tests": "28",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ],
+  "frontendTests": 72,
+  "viteBuild": "PASSED",
+  "javaTotal": 68
+}

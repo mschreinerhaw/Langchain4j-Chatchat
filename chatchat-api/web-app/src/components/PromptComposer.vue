@@ -1,5 +1,5 @@
 <template>
-  <section class="prompt-card">
+  <section class="prompt-card" @dragover="handleDragOver" @drop="handleDrop">
     <div v-if="showSuggestions" class="prompt-suggestions">
       <span class="prompt-suggestions-label">快捷问题</span>
       <button
@@ -18,11 +18,9 @@
         v-model="draft"
         rows="2"
         :disabled="loading"
-        placeholder="输入问题或直接粘贴文件，Shift + Enter 换行"
+        placeholder="输入问题，拖拽或粘贴分析附件，Shift + Enter 换行"
         @input="adjustTextareaHeight"
         @paste="handlePaste"
-        @dragover.prevent
-        @drop.prevent="handleDrop"
         @keydown.enter.exact="handleEnter"
       ></textarea>
       <p v-if="longText" class="composer-file-notice">超过 8,000 字，发送时将完整内容保存为 Markdown 文件并分析。</p>

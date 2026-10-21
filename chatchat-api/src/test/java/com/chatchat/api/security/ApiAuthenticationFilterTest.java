@@ -65,10 +65,10 @@ class ApiAuthenticationFilterTest {
         assertThat(body.getRequestId()).isEqualTo("request-401");
     }
 
-    @Test
-    void acceptsAgentApiTokenForPublishedAgentStatusAndSetsIdentity() throws Exception {
-        String path = "/api/v1/published-agents/demo/questions/task-1/status";
-        MockHttpServletRequest request = request("GET", path, "ccat_secret");
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"/api/v1/published-agents/demo/questions/task-1/status","/api/v1/published-agents/demo/attachments"})
+    void acceptsAgentApiTokenForPublishedAgentStatusOrAttachmentAndSetsIdentity(String path) throws Exception {
+        MockHttpServletRequest request = request(path.endsWith("attachments")?"POST":"GET", path, "ccat_secret");
         MockHttpServletResponse response = new MockHttpServletResponse();
         when(tokenService.looksLikeApiToken("ccat_secret")).thenReturn(true);
         when(tokenService.authenticate("ccat_secret", "127.0.0.1", path))

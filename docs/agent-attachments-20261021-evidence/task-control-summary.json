@@ -1,0 +1,98 @@
+{
+  "activeNodeSessions": 0,
+  "activePythonContainers": [],
+  "tasks": [
+    {
+      "taskId": "analysis-coding-849eea783fc2d61f520439da007ded6fb8f0f0ce80de039f7ec79a25549b3a6f",
+      "sdkStatus": "COMPLETED",
+      "sdkError": null,
+      "outcome": {
+        "status": "COMPLETED",
+        "reasonCode": null,
+        "summary": "Coding execution archived; validation INCONCLUSIVE",
+        "cancellationRequested": false,
+        "executionControl": {
+          "stopReason": null,
+          "stopRequestedAt": null,
+          "executorStopped": true,
+          "reconciliationRequired": false
+        },
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-849eea783fc2d61f520439da007ded6fb8f0f0ce80de039f7ec79a25549b3a6f",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 3,
+            "modelTokens": 48791,
+            "toolCalls": 1,
+            "codeExecutions": 1,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 2469,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 49513,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 25000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 347056,
+            "costAmount": "2.499999999999"
+          },
+          "meteringComplete": false
+        },
+        "validationStatus": "INCONCLUSIVE"
+      },
+      "models": [
+        {
+          "ordinal": 1,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-10-21T03:55:27.108920543Z",
+          "finishedAt": "2026-10-21T03:56:01.615396047Z",
+          "durationMs": 34506,
+          "usage": {
+            "inputTokens": 13181,
+            "outputTokens": 2070,
+            "totalCost": null
+          },
+          "selectedModel": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "protocol": "openai"
+        },
+        {
+          "ordinal": 2,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-10-21T03:56:08.100210810Z",
+          "finishedAt": "2026-10-21T03:56:10.708216330Z",
+          "durationMs": 2608,
+          "usage": {
+            "inputTokens": 15905,
+            "outputTokens": 108,
+            "totalCost": null
+          },
+          "selectedModel": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "protocol": "openai"
+        },
+        {
+          "ordinal": 3,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-10-21T03:56:11.548191695Z",
+          "finishedAt": "2026-10-21T03:56:25.505577693Z",
+          "durationMs": 13957,
+          "usage": {
+            "inputTokens": 16725,
+            "outputTokens": 802,
+            "totalCost": null
+          },
+          "selectedModel": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "protocol": "openai"
+        }
+      ],
+      "codeCount": 1
+    }
+  ],
+  "unsettledTaskIds": []
+}

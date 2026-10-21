@@ -40,11 +40,19 @@ class PublishedAgentApiControllerTest {
     private final EnterpriseAdminService enterpriseAdminService = mock(EnterpriseAdminService.class);
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
     private MockMvc mockMvc;
+    private com.chatchat.api.assets.AssetAnalysisInputs inputs;
+    private com.chatchat.api.assets.UserAssetController assets;
 
     @BeforeEach
     void setUp() {
         PublishedAgentApiController controller = new PublishedAgentApiController(
             taskService, skillCatalogService, enterpriseAdminService, objectMapper);
+        inputs=mock(com.chatchat.api.assets.AssetAnalysisInputs.class);
+        assets=mock(com.chatchat.api.assets.UserAssetController.class);
+        var beans=new org.springframework.beans.factory.support.DefaultListableBeanFactory();
+        beans.registerSingleton("inputs",inputs);beans.registerSingleton("assets",assets);
+        org.springframework.test.util.ReflectionTestUtils.setField(controller,"attachmentInputs",beans.getBeanProvider(com.chatchat.api.assets.AssetAnalysisInputs.class));
+        org.springframework.test.util.ReflectionTestUtils.setField(controller,"assetControllers",beans.getBeanProvider(com.chatchat.api.assets.UserAssetController.class));
         mockMvc = standaloneSetup(controller)
             .defaultRequest(get("/").accept(MediaType.APPLICATION_JSON)).build();
         when(skillCatalogService.isPublished("finance-agent")).thenReturn(true);
@@ -54,6 +62,41 @@ class PublishedAgentApiControllerTest {
             org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
             org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyInt()))
             .thenReturn(List.of());
+    }
+
+    @Test void explicitlySelectedAttachmentsAreOwnerCheckedAndStoredWithTheQuestion() throws Exception {
+        when(taskService.submit(org.mockito.ArgumentMatchers.any())).thenReturn(task("user-a","RUNNING","EXECUTING"));
+        String id="a".repeat(64);
+        mockMvc.perform(post("/api/v1/published-agents/finance-agent/questions")
+            .requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID,"tenant-a")
+            .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID,"user-a")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"question\":\"sum amounts\",\"attachmentIds\":[\""+id+"\"],\"parameters\":{\"__userAssetIds\":[\"forged\"]}}"))
+            .andExpect(status().isAccepted());
+        verify(inputs).validate(new com.chatchat.api.assets.UserAssetService.Owner("tenant-a","user-a"),List.of(id));
+        verify(taskService).submit(org.mockito.ArgumentMatchers.argThat(request->
+            request.getToolInput().get("__userAssetIds").equals(List.of(id))));
+    }
+
+    @Test void foreignAttachmentCannotStartAnAgentTask() throws Exception {
+        org.mockito.Mockito.doThrow(new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND))
+            .when(inputs).validate(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.anyList());
+        mockMvc.perform(post("/api/v1/published-agents/finance-agent/questions")
+            .requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID,"tenant-a")
+            .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID,"user-a")
+            .contentType(MediaType.APPLICATION_JSON).content("{\"question\":\"sum\",\"attachmentIds\":[\""+"b".repeat(64)+"\"]}"))
+            .andExpect(status().isNotFound());
+        org.mockito.Mockito.verifyNoInteractions(taskService);
+    }
+
+    @Test void attachmentUploadRequiresPublishedAgentAuthorizationBeforeStorage() throws Exception {
+        when(enterpriseAdminService.canAccessAgent("user-a","finance-agent")).thenReturn(false);
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/v1/published-agents/finance-agent/attachments")
+            .file(new org.springframework.mock.web.MockMultipartFile("file","input.csv","text/csv","a\n1".getBytes()))
+            .requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID,"tenant-a")
+            .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID,"user-a"))
+            .andExpect(status().isForbidden());
+        org.mockito.Mockito.verifyNoInteractions(assets,taskService);
     }
 
     @Test

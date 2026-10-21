@@ -3,6 +3,19 @@ import {exceedsChatTextLimit,chatTextFile,pastedFiles,validateChatFiles} from '.
 import PromptComposer from '../components/PromptComposer';
 const read=file=>file.text();
 describe('chat file input',()=>{
+  it('drops files once, preserves text dragging, and prevents navigation while busy',()=>{
+    const files=[new File(['value\n1'],'drag.csv')];let prevented=0;const emitted=[];
+    const context={loading:false,$emit:(event,value)=>emitted.push({event,value})};
+    const event={dataTransfer:{files,types:['Files']},preventDefault:()=>prevented++};
+    PromptComposer.methods.handleDragOver.call(context,event);
+    PromptComposer.methods.handleDrop.call(context,event);
+    expect(prevented).toBe(2);expect(emitted).toEqual([{event:'files',value:files}]);
+    context.loading=true;PromptComposer.methods.handleDrop.call(context,event);
+    expect(prevented).toBe(3);expect(emitted).toHaveLength(1);
+    const text={dataTransfer:{files:[],types:['text/plain']},preventDefault:()=>prevented++};
+    PromptComposer.methods.handleDragOver.call(context,text);PromptComposer.methods.handleDrop.call(context,text);
+    expect(prevented).toBe(3);
+  });
   it('does not submit while the Chinese IME is confirming composition',()=>{
     let sent=0,prevented=0;const context={send:()=>sent++};
     PromptComposer.methods.handleEnter.call(context,{isComposing:true,preventDefault:()=>prevented++});

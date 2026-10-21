@@ -1,6 +1,7 @@
 package com.chatchat.knowledgebase.search.index.infrastructure.opensearch;
 
 import com.chatchat.common.retrieval.query.SearchQueryOptimizer;
+import com.chatchat.common.retrieval.query.QueryOptimizationException;
 
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.chatchat.knowledgebase.search.index.api.DocumentSearchIndex;
@@ -249,11 +250,14 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
 
     private List<LuceneSearchHit> compactLexicalSearch(String text, int limit,
         SearchPermissionContext permissions, List<String> allowedDocumentIds) {
-        Map<String,Object> body = Map.of("size", limit, "_source", resultSourceFilter(),
+        return parseHits(request("POST", "/" + indexName() + "/_search", compactSearchBody(text,limit,permissions,allowedDocumentIds), false));
+    }
+
+    Map<String,Object> compactSearchBody(String text,int limit,SearchPermissionContext permissions,List<String> allowedDocumentIds) {
+        return Map.of("size", limit, "_source", resultSourceFilter(),
             "query", Map.of("bool", Map.of("must", List.of(Map.of("multi_match", Map.of(
                 "query", text, "analyzer", "standard", "fields", TEXT_SEARCH_FIELDS))),
                 "filter", searchFilters(permissions, allowedDocumentIds))));
-        return parseHits(request("POST", "/" + indexName() + "/_search", body, false));
     }
 
     private List<LuceneSearchHit> lexicalSearch(
@@ -271,6 +275,11 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         JsonNode root;
         try {
             root = request("POST", "/" + indexName() + "/_search", body, false);
+        } catch (QueryOptimizationException ex) {
+            // Generated pinyin/token expansion can exceed the estimate even for a short identifier.
+            // Retry with the full lexical query under the SAME budgets and authorization filters.
+            if(!"QUERY_DSL_BUDGET_EXCEEDED".equals(ex.code()) || !ex.diagnostic().containsKey("estimatedClauses"))throw ex;
+            return compactLexicalSearch(normalizedKeyword,maxHits,permissionContext,allowedDocumentIds);
         } catch (IllegalStateException ex) {
             if (!isClauseOverflow(ex)) {
                 throw ex;

@@ -21,6 +21,19 @@ import static org.mockito.Mockito.mock;
 class OpenSearchDocumentIndexServiceTest {
 
     @Test
+    void compactBudgetFallbackPreservesFullIdentifierAndAuthorizationFilters() {
+        var properties=new SearchProperties();properties.setTenantIsolationEnabled(true);
+        var service=service(properties);
+        String identifier="assetknowledgeac348c6b6a34484f97f3e30510de0e54";
+        var body=service.compactSearchBody(identifier,10,SearchPermissionContext.of("tenant","owner",List.of()),List.of("allowed-doc"));
+        try(var optimizer=new com.chatchat.common.retrieval.query.SearchQueryOptimizer()) {
+            var prepared=optimizer.prepare(body,com.chatchat.common.retrieval.query.SearchQueryOptimizer.Mode.TEXT);
+            assertThat(prepared.body().toString()).contains(identifier,"allowed-doc","tenant");
+            assertThat(prepared.body()).isEqualTo(body);
+        }
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void databaseDocumentScopeIsIncludedInOpenSearchQuery() {
         OpenSearchDocumentIndexService service = service(new SearchProperties());

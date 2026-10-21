@@ -1,0 +1,88 @@
+{
+  "java": [
+    {
+      "name": "com.chatchat.api.assets.AssetAnalysisControllerTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.assets.AssetKnowledgeServiceTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.assets.RuntimePythonAssetArchiverTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.assets.SiloAssetIntegrationTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.assets.UserAssetControllerHttpTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.assets.UserAssetServiceTest",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.data.CodingInputFilePublisherTest",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollectorTest",
+      "tests": "10",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchDocumentIndexServiceTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ],
+  "node": {
+    "tests": 44,
+    "passed": 44
+  },
+  "frontend": {
+    "tests": 18,
+    "passed": 18
+  },
+  "pythonLocal": {
+    "tests": 5,
+    "errors": 1,
+    "reason": "pyarrow missing; package installation blocked by local certificate trust"
+  },
+  "pythonServerIsolatedImage": {
+    "tests": 5,
+    "passed": 5,
+    "image": "chatchat-python-runtime:3.11-v1.1",
+    "network": "none",
+    "rootFilesystem": "read-only"
+  },
+  "frontendBuild": "PASSED"
+}

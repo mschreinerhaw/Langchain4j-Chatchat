@@ -1,0 +1,19 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "durableIndexState": true,
+    "exactSourceSearch": true,
+    "emptyOwnerScopeReturnsNothing": true,
+    "crossOwnerStatusDenied": true,
+    "crossOwnerRetryDenied": true,
+    "anonymousSearchDenied": true,
+    "rebuildFromSilo": true,
+    "sameTenantOwnerIsolation": true,
+    "parseFailureVisible": true,
+    "parseFailureRetryDurable": true,
+    "historySearch": true,
+    "deletedSourceCannotBeRetrieved": true
+  },
+  "temporaryResourcesRemoved": true,
+  "modelCallsSubmitted": 0
+}

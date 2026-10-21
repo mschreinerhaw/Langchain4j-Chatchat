@@ -99,6 +99,8 @@ public class UserAssetService {
             // Verify a read of the exact immutable version before making it visible to tasks.
             verify(blobs.get(key,stored.versionId(),data.length),digest,data.length);
             jdbc.update("update runtime_workspace_file set object_version=?,state='AVAILABLE' where id=?",stored.versionId(),id);
+            if(kind==Kind.DOCUMENT || kind==Kind.CONTEXT && "user-analysis-result".equals(sourceRef))
+                jdbc.update("insert into runtime_asset_knowledge_job(file_id,state,next_attempt_at,updated_at) values(?,'PENDING',0,?)",id,System.currentTimeMillis());
             return get(owner,id);
         });
     }
@@ -139,6 +141,7 @@ public class UserAssetService {
             String version=(String)row.get("object_version");
             if(version!=null)blobs.delete((String)row.get("object_key"),version);
             jdbc.update("update runtime_workspace_file set state='DELETED',deleted_at=? where id=?",System.currentTimeMillis(),id);
+            jdbc.update("update runtime_asset_knowledge_job set state='DELETE_PENDING',attempts=0,error_code=null,next_attempt_at=0,updated_at=? where file_id=?",System.currentTimeMillis(),id);
             jdbc.update("update runtime_user_workspace set used_bytes=used_bytes-? where id=?",row.get("size_bytes"),owner.id());
         });
     }

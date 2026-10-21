@@ -1,0 +1,216 @@
+{
+  "activeNodeSessions": 0,
+  "activePythonContainers": [],
+  "tasks": [
+    {
+      "taskId": "analysis-coding-493d6ca5382c5b9ff407a21b10e40308f03855abf74844bf70ff3d95c8f361c0",
+      "sdkStatus": "COMPLETED",
+      "sdkError": null,
+      "outcome": {
+        "status": "COMPLETED",
+        "reasonCode": null,
+        "summary": "Coding execution archived; validation INCONCLUSIVE",
+        "cancellationRequested": false,
+        "executionControl": {
+          "stopReason": null,
+          "stopRequestedAt": null,
+          "executorStopped": true,
+          "reconciliationRequired": false
+        },
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-493d6ca5382c5b9ff407a21b10e40308f03855abf74844bf70ff3d95c8f361c0",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 3,
+            "modelTokens": 27750,
+            "toolCalls": 1,
+            "codeExecutions": 1,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 3508,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 70554,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 25000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 346017,
+            "costAmount": "2.499999999999"
+          },
+          "meteringComplete": false
+        },
+        "validationStatus": "INCONCLUSIVE"
+      },
+      "models": [
+        {
+          "ordinal": 1,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-10-21T01:49:13.575332228Z",
+          "finishedAt": "2026-10-21T01:49:46.988562821Z",
+          "durationMs": 33413,
+          "usage": {
+            "inputTokens": 6126,
+            "outputTokens": 2004,
+            "totalCost": null
+          },
+          "selectedModel": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "protocol": "openai"
+        },
+        {
+          "ordinal": 2,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-10-21T01:49:51.803108246Z",
+          "finishedAt": "2026-10-21T01:49:54.115476303Z",
+          "durationMs": 2312,
+          "usage": {
+            "inputTokens": 8776,
+            "outputTokens": 107,
+            "totalCost": null
+          },
+          "selectedModel": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "protocol": "openai"
+        },
+        {
+          "ordinal": 3,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-10-21T01:49:54.817483247Z",
+          "finishedAt": "2026-10-21T01:50:10.420829304Z",
+          "durationMs": 15603,
+          "usage": {
+            "inputTokens": 9825,
+            "outputTokens": 912,
+            "totalCost": null
+          },
+          "selectedModel": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "protocol": "openai"
+        }
+      ],
+      "codeCount": 1
+    },
+    {
+      "taskId": "analysis-coding-9a5ce4ee4d19aa665b7cb6b10d5fdff07990888d81abc921b3b315216164d4f4",
+      "sdkStatus": "FAILED",
+      "sdkError": "Runtime model request failed; execution outcome must be reconciled",
+      "outcome": {
+        "status": "RUNNING",
+        "reasonCode": "CANCEL_REQUESTED",
+        "summary": "Cancellation requested: Parent Coding invocation interrupted",
+        "cancellationRequested": true,
+        "executionControl": {
+          "stopReason": "CANCEL_REQUESTED",
+          "stopRequestedAt": "2026-10-21T01:48:31.848Z",
+          "executorStopped": false,
+          "reconciliationRequired": true
+        },
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-9a5ce4ee4d19aa665b7cb6b10d5fdff07990888d81abc921b3b315216164d4f4",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 0,
+            "modelTokens": 0,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 1,
+            "modelTokens": 32768,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0.833333333333"
+          },
+          "meteringComplete": false
+        },
+        "validationStatus": "NOT_RUN"
+      },
+      "models": [
+        {
+          "ordinal": 1,
+          "status": "FAILED",
+          "startedAt": "2026-10-21T01:44:31.069Z",
+          "finishedAt": "2026-10-21T01:44:31.676Z",
+          "durationMs": 607,
+          "usage": {
+            "inputTokens": null,
+            "outputTokens": null,
+            "totalCost": null
+          }
+        }
+      ],
+      "codeCount": 0
+    },
+    {
+      "taskId": "analysis-coding-3d0afcf1866ed99919683e1a2e25cb830cd9bc8f4fc36b7a9183b220a945ab6b",
+      "sdkStatus": "FAILED",
+      "sdkError": "The operation was aborted due to timeout",
+      "outcome": {
+        "status": "FAILED",
+        "reasonCode": "EXECUTION_FAILED",
+        "summary": "Worker session ended without a recoverable result; all started operations reconciled",
+        "cancellationRequested": false,
+        "executionControl": {
+          "stopReason": null,
+          "stopRequestedAt": null,
+          "executorStopped": true,
+          "reconciliationRequired": false
+        },
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-3d0afcf1866ed99919683e1a2e25cb830cd9bc8f4fc36b7a9183b220a945ab6b",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 1,
+            "modelTokens": 25626,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 7142,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0.833333333333"
+          },
+          "meteringComplete": false
+        },
+        "validationStatus": "NOT_RUN"
+      },
+      "models": [
+        {
+          "ordinal": 1,
+          "status": "FAILED",
+          "startedAt": "2026-10-21T01:35:13.287Z",
+          "finishedAt": "2026-10-21T01:40:13.332Z",
+          "durationMs": 300045,
+          "usage": {
+            "inputTokens": null,
+            "outputTokens": null,
+            "totalCost": null
+          }
+        }
+      ],
+      "codeCount": 0
+    }
+  ],
+  "unsettledTaskIds": [
+    "analysis-coding-9a5ce4ee4d19aa665b7cb6b10d5fdff07990888d81abc921b3b315216164d4f4"
+  ]
+}

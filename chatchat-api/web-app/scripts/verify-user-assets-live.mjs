@@ -27,18 +27,33 @@ try{
   await library.getByText(/已用/).waitFor({state:'visible',timeout:30000});
   await library.locator('select').selectOption('qwen3.7-plus');
   assert.equal(await library.locator('select').inputValue(),'qwen3.7-plus');
-  const name='browser-assets-'+Date.now()+'.csv',bytes=Buffer.from('category,amount\nexample,1.25\n');
+  const marker='assetknowledge'+Date.now();
+  const name='browser-assets-'+Date.now()+'.csv',bytes=Buffer.from(`category,amount\n${marker},1.25\n`);
   await library.locator('input[type=file]').setInputFiles({name,mimeType:'text/csv',buffer:bytes});
-  const row=library.locator('li').filter({hasText:name});await row.waitFor({state:'visible',timeout:30000});
+  const row=library.locator('.asset-files > li').filter({hasText:name});await row.waitFor({state:'visible',timeout:30000});
   const [download]=await Promise.all([page.waitForEvent('download'),row.getByRole('button',{name:'下载',exact:true}).click()]);
   const saved=path.join(evidenceDirectory,'downloaded.csv');await download.saveAs(saved);
   assert.deepEqual(await readFile(saved),bytes,'The real object round trip must preserve uploaded bytes');
   await row.locator('input[type=checkbox]').check();await library.locator('textarea').fill('按 category 汇总 amount，保留小数精度。');
   assert.equal(await library.getByRole('button',{name:'分析选中文件',exact:true}).isEnabled(),true);
+  let knowledgeSearch=false;
+  if(process.env.CHECK_ASSET_KNOWLEDGE==='true'){
+    await library.getByPlaceholder('输入主题或关键词').waitFor({state:'visible'});
+    for(let attempt=0;attempt<30;attempt++){
+      if((await row.innerText()).includes('可检索'))break;
+      await page.waitForTimeout(1000);await library.getByRole('button',{name:'刷新',exact:true}).click();
+    }
+    assert.ok((await row.innerText()).includes('可检索'),'Uploaded original must become searchable');
+    await library.getByPlaceholder('输入主题或关键词').fill(marker);
+    await library.getByRole('button',{name:'搜索',exact:true}).click();
+    const hit=library.getByRole('list',{name:'资料检索结果'}).getByRole('listitem').filter({hasText:name});
+    await hit.waitFor({state:'visible',timeout:15000});assert.ok((await hit.innerText()).includes(marker));
+    await hit.getByRole('button',{name:'选入本次分析'}).click();knowledgeSearch=true;
+  }
   await page.screenshot({path:path.join(evidenceDirectory,'user-assets-live.png'),fullPage:true});
   await row.getByRole('button',{name:'删除',exact:true}).click();await row.waitFor({state:'detached',timeout:30000});
   assert.deepEqual(errors,[]);assert.deepEqual(failures,[]);
   const report={status:'PASSED',realDeployment:true,upload:true,downloadBytesMatch:true,selection:true,delete:true,
-    browserErrors:errors,assetApiFailures:failures,modelSelection:true,modelSubmitted:false};
+    browserErrors:errors,assetApiFailures:failures,modelSelection:true,modelSubmitted:false,knowledgeSearch};
   await writeFile(path.join(evidenceDirectory,'browser-acceptance.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report));
 }finally{await browser.close();}

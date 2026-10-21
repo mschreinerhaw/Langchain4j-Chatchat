@@ -1,6 +1,6 @@
 """Deploy the pinned private SILO and an already verified API package to the existing isolated stage.
 
-Run on the authorized host: python3 deploy-user-assets-stage.py app.jar SHA256 schema.sql
+Run on the authorized host: python3 deploy-user-assets-stage.py app.jar SHA256 schema.sql [offline-image-id] [--knowledge]
 Credentials are generated once into root-only stage files and never printed. Backup is taken before mutation.
 """
 import hashlib
@@ -70,7 +70,7 @@ def main():
     if subprocess.run(['docker','image','inspect',IMAGE],capture_output=True).returncode:run('docker','pull',IMAGE)
     inspected=json.loads(run('docker','image','inspect',IMAGE))[0]
     registry_verified=any(item.endswith('@'+DIGEST) for item in inspected.get('RepoDigests',[]))
-    offline_id=sys.argv[4] if len(sys.argv)>4 else None
+    offline_id=next((arg for arg in sys.argv[4:] if not arg.startswith('--')),None)
     if not registry_verified and (not offline_id or inspected['Id']!=offline_id):raise RuntimeError('Pinned SILO content differs')
     silo=ROOT/'silo';silo.mkdir(mode=0o700,exist_ok=True);(silo/'data').mkdir(mode=0o700,exist_ok=True)
     secret=silo/'secrets';secret.mkdir(mode=0o700,exist_ok=True)
@@ -109,6 +109,7 @@ mc admin policy attach store runtime-assets-api --user "$(cat /run/secrets/app-u
     if not isinstance(env,dict):raise RuntimeError('Structured API environment required')
     env.update({'CHATCHAT_ASSETS_ENABLED':'true','CHATCHAT_ASSETS_ENDPOINT':'http://silo:9000','CHATCHAT_ASSETS_BUCKET':'runtime-assets',
         'CHATCHAT_ASSETS_ACCESS_KEY_FILE':'/run/secrets/asset-access-key','CHATCHAT_ASSETS_SECRET_KEY_FILE':'/run/secrets/asset-secret-key'})
+    if '--knowledge' in sys.argv[4:]:env['CHATCHAT_ASSETS_KNOWLEDGE_ENABLED']='true'
     mounts=service.setdefault('volumes',[])
     for source,target in [('app-user','asset-access-key'),('app-password','asset-secret-key')]:
         mount=str(secret/source)+':/run/secrets/'+target+':ro'

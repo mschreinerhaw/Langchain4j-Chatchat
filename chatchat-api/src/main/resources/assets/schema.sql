@@ -27,3 +27,13 @@ CREATE TABLE IF NOT EXISTS runtime_workspace_file (
 );
 CREATE INDEX IF NOT EXISTS idx_runtime_workspace_file_owner ON runtime_workspace_file(workspace_id, state, created_at);
 CREATE INDEX IF NOT EXISTS idx_runtime_workspace_file_task ON runtime_workspace_file(workspace_id, task_id, run_id);
+CREATE TABLE IF NOT EXISTS runtime_asset_knowledge_job (
+    file_id VARCHAR(64) PRIMARY KEY REFERENCES runtime_workspace_file(id),
+    state VARCHAR(24) NOT NULL,
+    indexed_sha256 VARCHAR(64),
+    attempts INTEGER NOT NULL DEFAULT 0,
+    error_code VARCHAR(64),
+    next_attempt_at BIGINT NOT NULL,
+    updated_at BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_runtime_asset_knowledge_pending ON runtime_asset_knowledge_job(state,next_attempt_at);

@@ -1,0 +1,20 @@
+[Unit]
+Description=Recover unhealthy Runtime OS coding-agent
+After=docker.service
+Requisite=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/runtime-os-ops/coding-agent-watchdog.py
+TimeoutStartSec=45
+StateDirectory=runtime-os-coding-agent-watchdog
+StateDirectoryMode=0700
+UMask=0077
+Environment=DOCKER_HOST=unix:///var/run/docker.sock
+Environment=DOCKER_CONFIG=/var/lib/runtime-os-coding-agent-watchdog/docker
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+StandardOutput=journal
+StandardError=journal

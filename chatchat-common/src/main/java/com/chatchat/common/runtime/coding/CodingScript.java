@@ -28,7 +28,8 @@ public record CodingScript(String fileName, String scriptPath, String workingDir
         StringBuilder semantic=new StringBuilder();
         goal.codePoints().limit(96).forEach(cp->{
             if(semantic.codePointCount(0,semantic.length())<24) {
-                if(Character.isLetterOrDigit(cp))semantic.appendCodePoint(Character.toLowerCase(cp));
+                // New generated names are ASCII only; safeFileName still reads historical Unicode versions.
+                if(cp<128 && Character.isLetterOrDigit(cp))semantic.appendCodePoint(Character.toLowerCase(cp));
                 else if(!semantic.isEmpty() && semantic.charAt(semantic.length()-1)!='-')semantic.append('-');
             }
         });

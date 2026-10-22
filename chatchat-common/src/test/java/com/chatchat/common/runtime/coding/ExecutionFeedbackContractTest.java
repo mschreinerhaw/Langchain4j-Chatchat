@@ -47,4 +47,25 @@ class ExecutionFeedbackContractTest {
         assertThatThrownBy(()->new CodingScript(file,"/tmp/"+file,script.workingDirectory(),2)).isInstanceOf(IllegalArgumentException.class);
         assertThat(CodingScript.safeFileName("../customer.py")).isFalse();
     }
+    @Test void newScriptAllocationNeverUsesChineseOrOtherNonAsciiCharacters() throws Exception {
+        String fixture="""
+            {"schemaVersion":"runtime_os.coding.v1","taskId":"ascii-task","scope":{"tenantId":"tenant","userId":"owner","runId":"run"},
+             "objective":{"instruction":"销售汇总分析","deliverables":["rows.jsonl"],"acceptanceCriteriaRefs":["criteria"]},
+             "inputSnapshotRef":"input","metadataRefs":[],"workspaceRef":"workspace",
+             "authorization":{"decisionRef":"decision","allowedTools":[],"allowedDataRefs":[],"readablePathRefs":[],"writablePathRefs":[],"networkPolicy":"NONE","networkAllowlist":[],"allowedSideEffects":[]},
+             "budget":{"budgetId":"budget","deadlineAt":"2026-10-23T00:00:00Z","maxModelCalls":1,"maxModelTokens":100,"maxToolCalls":1,"maxCodeExecutions":1,"maxCostAmount":"1","costCurrency":"USD","maxCpuMillis":1,"maxMemoryBytes":1,"maxOutputBytes":1},
+             "environmentRef":"environment","validationPlanRef":"plan",
+             "outputContract":{"resultFormat":"JSON_LINES","resultSchemaRef":"schema","validationSchemaRef":"validation","requiredFiles":["rows.jsonl"],"acceptedMediaTypes":["application/json"],"maxResultRows":1,"maxResultBytes":1,"requiredEvidence":[]}}
+            """;
+        var mapper=new ObjectMapper().findAndRegisterModules();
+        var at=java.time.Instant.parse("2026-10-22T12:00:00Z");
+        for(String purpose:List.of("销售汇总分析","销售 Python 数据分析 CSV","Sales Summary","日本語分析","résumé 数据")){
+            var value=(com.fasterxml.jackson.databind.node.ObjectNode)mapper.readTree(fixture);
+            ((com.fasterxml.jackson.databind.node.ObjectNode)value.path("objective")).put("instruction",purpose);
+            var script=CodingScript.allocate(mapper.treeToValue(value,CodingTaskContract.class),at,1);
+            assertThat(script.fileName()).matches("[a-z0-9-]+_20261022T120000000Z_[0-9a-f]{12}_v1\\.py");
+            assertThat(script.fileName().chars().allMatch(c->c<128)).isTrue();
+            if(purpose.equals("销售汇总分析"))assertThat(script.fileName()).startsWith("analysis_");
+        }
+    }
 }

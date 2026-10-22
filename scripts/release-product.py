@@ -108,7 +108,15 @@ def wait_ready():
             if code in codes: break
             if time.monotonic() >= deadline: raise RuntimeError('Readiness timeout: ' + name)
             time.sleep(2)
-    run('docker', 'exec', container('api'), 'bash', '-c', 'exec 3<>/dev/tcp/mcp/9091')
+    # Tomcat can accept HTTP before the MCP gRPC lifecycle has bound its port.
+    deadline = time.monotonic() + 120
+    while True:
+        try:
+            run('docker', 'exec', container('api'), 'bash', '-c', 'exec 3<>/dev/tcp/mcp/9091')
+            break
+        except RuntimeError:
+            if time.monotonic() >= deadline: raise
+            time.sleep(2)
     run('docker', 'exec', container('api'), '/usr/bin/python3', '-c',
         "import sqlglot; assert sqlglot.__version__=='30.23.0'; sqlglot.parse_one('select 1')")
 

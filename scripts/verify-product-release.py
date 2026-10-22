@@ -84,7 +84,10 @@ def main():
             previous = json.loads(args.reuse_report.read_text())
             if not previous.get('checks', {}).get('realQaAnswer'): raise RuntimeError('Previous QA did not pass')
             report['qa'] = previous['qa']; report['checks']['realQaAnswer'] = True
-            report['previousAnalysisFailure'] = previous.get('analysis')
+            prior_analysis = previous.get('analysis')
+            if prior_analysis:
+                key = 'previousAnalysis' if prior_analysis.get('canonicalState') == 'SUCCEEDED' else 'previousAnalysisFailure'
+                report[key] = prior_analysis
         else:
             _, answer = question('qa', 'db_ops_assistant',
                 '发布验证：这是知识问答，请简要解释数据库事务 ACID 的四个含义。只回答概念，不查询当前数据库，不执行代码。')

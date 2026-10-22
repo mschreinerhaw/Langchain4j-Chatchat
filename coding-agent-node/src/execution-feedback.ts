@@ -4,6 +4,7 @@ export interface ExecutionFeedback {
   taskId: string; executionId: string; attemptId: string; traceId: string;
   status: string; stage: string; exitCode: number | null; durationMs: number | null; codeHash: string;
   stdout: string; stderr: string; diagnosticPolicy: 'METADATA_ONLY_V1';
+  stdoutBytes: number | null; stderrBytes: number | null;
   error: null | { category: string; exceptionType: string | null; diagnosticCode: string; message: string;
     stack: {file: 'main.py'; line: number; column: number | null}[]; detailRef: string };
   inputDataRefs: string[]; schemaRef: string; artifactRefs: Record<string,string>;

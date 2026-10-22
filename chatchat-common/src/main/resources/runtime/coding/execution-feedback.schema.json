@@ -4,7 +4,7 @@
   "title": "ExecutionFeedback: server-normalized metadata only",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion","taskId","executionId","attemptId","traceId","status","stage","exitCode","durationMs","codeHash","stdout","stderr","error","inputDataRefs","schemaRef","inputFiles","inputSchemaSummary","artifactRefs","validationStatus","resultAvailable","manifestHash","outputStatus","businessValidationPassed","repair","diagnosticPolicy"],
+  "required": ["schemaVersion","taskId","executionId","attemptId","traceId","status","stage","exitCode","durationMs","codeHash","stdout","stderr","stdoutBytes","stderrBytes","error","inputDataRefs","schemaRef","inputFiles","inputSchemaSummary","artifactRefs","validationStatus","resultAvailable","manifestHash","outputStatus","businessValidationPassed","repair","diagnosticPolicy"],
   "properties": {
     "schemaVersion": {"const":"runtime_os.execution_feedback.v1"},
     "taskId": {"type":"string","minLength":1,"maxLength":512},
@@ -18,6 +18,8 @@
     "codeHash": {"type":"string","pattern":"^[0-9a-f]{64}$"},
     "stdout": {"const":"[raw stdout omitted]"},
     "stderr": {"type":"string","maxLength":2000},
+    "stdoutBytes": {"type":["integer","null"],"minimum":0},
+    "stderrBytes": {"type":["integer","null"],"minimum":0},
     "error": {"oneOf":[{"type":"null"},{"$ref":"#/$defs/failure"}]},
     "inputDataRefs": {"type":"array","maxItems":128,"items":{"type":"string"}},
     "schemaRef": {"type":"string","maxLength":512},

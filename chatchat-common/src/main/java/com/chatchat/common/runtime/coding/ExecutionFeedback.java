@@ -6,7 +6,7 @@ import java.util.Map;
 /** Additive tool-result contract. All text is server-normalized; never raw customer streams. */
 public record ExecutionFeedback(String schemaVersion, String taskId, String executionId, String attemptId,
         String traceId, String status, String stage, Integer exitCode, Long durationMs, String codeHash,
-        String stdout, String stderr, Failure error, List<String> inputDataRefs, String schemaRef,
+        String stdout, String stderr, Long stdoutBytes, Long stderrBytes, Failure error, List<String> inputDataRefs, String schemaRef,
         List<InputFile> inputFiles, Map<String,String> inputSchemaSummary,
         Map<String,String> artifactRefs, String validationStatus, boolean resultAvailable,
         String manifestHash, String outputStatus, boolean businessValidationPassed,

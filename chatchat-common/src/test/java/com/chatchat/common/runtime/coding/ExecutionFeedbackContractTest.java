@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.*;
 class ExecutionFeedbackContractTest {
     final ObjectMapper json=new ObjectMapper();
     ExecutionFeedback feedback(){return new ExecutionFeedback(ExecutionFeedback.VERSION,"task","operation","attempt","trace",
-        "FAILED","EXECUTION_FAILED",1,25L,"a".repeat(64),"[raw stdout omitted]","safe diagnostic",
+        "FAILED","EXECUTION_FAILED",1,25L,"a".repeat(64),"[raw stdout omitted]","safe diagnostic",0L,100L,
         new ExecutionFeedback.Failure("SYNTAX","SyntaxError","SYNTAX_ERROR",ExecutionFailureClassifier.guidance("SYNTAX_ERROR"),
             List.of(new ExecutionFeedback.Frame("main.py",4,null)),"execution:operation:diagnostic"),
         List.of("input"),"schema",List.of(),Map.of(),Map.of("diagnosticRef","diagnostic"),"NOT_RUN",false,"b".repeat(64),null,false,

@@ -56,6 +56,8 @@ class CodingExecutionFeedbackServiceTest {
         assertThat(feedback.error().stack()).containsExactly(new ExecutionFeedback.Frame("main.py",430,null));
         assertThat(feedback.durationMs()).isEqualTo(1000);
         assertThat(feedback.repair().allowed()).isTrue();
+        assertThat(service.response(feedback)).containsKeys("diagnostics","stdoutBytes","executionFeedback")
+            .containsEntry("diagnosticPolicy","METADATA_ONLY");
         assertThat(json.valueToTree(feedback).toString()).doesNotContain("secret customer", "private-name");
         assertThat(service.finish(contract,lease,operation("FAILED"),Map.of())).isEqualTo(feedback);
         verify(python,times(1)).diagnosticRecord(scope,"task","operation");

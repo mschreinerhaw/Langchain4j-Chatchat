@@ -115,7 +115,10 @@ public final class ClinePythonCallbackController {
             String operationId = operationId(body.path("operationId").asText(null));
             if(feedback!=null){
                 var cached=feedback.cached(call.scope(),call.taskId(),operationId);
-                if(cached!=null)return feedback.response(cached);
+                if(cached!=null){
+                    var response=feedback.response(cached);var layout=CodingInputLayout.describe(call.contract().runtimeContext());
+                    if(!layout.isEmpty())response.put("inputLayout",layout);return response;
+                }
             }
             var result = python.get(call.scope(), call.taskId(), operationId);
             if (result.executorStopped() && result.manifestHash() != null)
@@ -204,8 +207,10 @@ public final class ClinePythonCallbackController {
                         CodingJournal.Lease lease) { }
 
     private Map<String,Object> withFeedback(Call call,McpPythonControlPlanePort.OperationView operation,Map<String,Object> response){
-        if(feedback!=null&&operation.executorStopped()&&operation.manifestHash()!=null)
-            response.put("executionFeedback",feedback.finish(call.contract(),call.lease(),operation,response));
+        if(feedback!=null&&operation.executorStopped()&&operation.manifestHash()!=null){
+            var completed=feedback.finish(call.contract(),call.lease(),operation,response);
+            response.putAll(feedback.response(completed));
+        }
         return response;
     }
 

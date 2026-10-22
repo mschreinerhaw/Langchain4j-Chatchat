@@ -45,7 +45,14 @@ public class CodingExecutionFeedbackService {
         result.put("validationStatus",feedback.validationStatus());result.put("businessValidationPassed",feedback.businessValidationPassed());
         if(feedback.outputStatus()!=null)result.put("outputStatus",feedback.outputStatus());
         if(feedback.error()!=null)result.put("diagnostic",feedback.error().message());
-        result.put("executionFeedback",feedback);result.put("diagnosticPolicy",feedback.diagnosticPolicy());
+        var diagnostics=new LinkedHashMap<String,Object>();diagnostics.put("archived",true);diagnostics.put("bytes",feedback.stderrBytes());
+        if(feedback.error()!=null){
+            diagnostics.put("exceptionType",feedback.error().exceptionType());diagnostics.put("diagnosticCode",feedback.error().diagnosticCode());
+            diagnostics.put("guidance",feedback.error().message());
+            if(!feedback.error().stack().isEmpty())diagnostics.put("line",feedback.error().stack().get(feedback.error().stack().size()-1).line());
+        }
+        result.put("diagnostics",diagnostics);result.put("stdoutBytes",feedback.stdoutBytes());
+        result.put("executionFeedback",feedback);result.put("diagnosticPolicy","METADATA_ONLY");
         return result;
     }
     /** Gate each new attempt. A replay of the same operation uses A2/MCP idempotency. */
@@ -123,6 +130,7 @@ public class CodingExecutionFeedbackService {
         var feedback=new ExecutionFeedback(ExecutionFeedback.VERSION,contract.taskId(),operation.operationId(),contract.taskId()+":execution-"+attempt,
             contract.scope().runId(),operation.status(),resultAvailable?"VALIDATED":outputFailed?"RESULT_VALIDATION_FAILED":"EXECUTION_FAILED",
             operation.exitCode(),duration,operation.codeHash(),"[raw stdout omitted]",failed?guidance:"[raw stderr omitted]",
+            count(diagnostic,"stdoutBytes"),count(diagnostic,"stderrBytes"),
             failed?new ExecutionFeedback.Failure(category,exception,code,guidance,List.copyOf(frames),detail):null,
             List.of(contract.inputSnapshotRef()),contract.outputContract().resultSchemaRef(),
             List.copyOf(inputFiles),Map.copyOf(inputSchema),Map.copyOf(refs),
@@ -140,6 +148,9 @@ public class CodingExecutionFeedbackService {
     private JsonNode read(java.util.function.Supplier<String> source){
         try{String value=source.get();return value==null?json.createObjectNode():json.readTree(value);}
         catch(Exception missing){return json.createObjectNode();}
+    }
+    private static Long count(JsonNode value,String name){
+        var count=value.path(name);return count.isIntegralNumber()&&count.canConvertToLong()&&count.asLong()>=0?count.asLong():null;
     }
     private void log(String event,KernelDataScope scope,ExecutionFeedback feedback){
         var facts=new LinkedHashMap<String,Object>();facts.put("attemptId",feedback.attemptId());facts.put("status",feedback.status());

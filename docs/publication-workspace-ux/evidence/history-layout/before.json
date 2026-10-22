@@ -1,0 +1,28 @@
+{
+  "manifest": {
+    "schemaVersion": "workspace-manifest.v1",
+    "configVersion": 1,
+    "workspaceId": "mcp-publication",
+    "appVersion": "2.0.0",
+    "name": "MCP 工具发布",
+    "icon": "package",
+    "description": "管理工具定义、测试、发布及版本回滚",
+    "entryPage": "toolPublications",
+    "layoutType": "assistant",
+    "pages": [
+      {
+        "id": "toolPublications",
+        "menuCode": "toolPublications",
+        "componentKey": "toolPublications",
+        "props": {}
+      }
+    ],
+    "requiredCapabilities": [],
+    "optionalCapabilities": [],
+    "defaultSkillIds": []
+  },
+  "status": "enabled",
+  "accessPermissionCode": "workspace:mcp-publication:access",
+  "defaultWorkspace": false,
+  "version": 0
+}

@@ -1,0 +1,11 @@
+{
+  "checks": {
+    "directOpenHasNoConversationHistory": true,
+    "reloadHasNoConversationHistory": true,
+    "chatWorkspaceRetainsHistory": true,
+    "switchFromChatHasNoConversationHistory": true,
+    "threeDesktopWidths": true,
+    "noPageErrors": true
+  },
+  "errors": []
+}

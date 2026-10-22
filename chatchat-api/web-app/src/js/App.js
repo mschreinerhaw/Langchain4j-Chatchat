@@ -597,6 +597,7 @@ export default {
       return user.permissionCodes.includes(permissionCode);
     },
     canAccessView(view) {
+      if (!views[view]) return false;
       if (this.workspaceReady && !this.workspacePages.some((page) => page.id === view))
         return false;
       const contains = (items) =>

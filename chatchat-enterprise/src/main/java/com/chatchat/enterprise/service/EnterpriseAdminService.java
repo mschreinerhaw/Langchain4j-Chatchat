@@ -1903,7 +1903,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new PermissionSeed("platform", "system", "系统管理", "menu", "/index.html#system", null, "settings", 40),
             new PermissionSeed("system", "system:resource-grants:manage", "资源授权管理", "button", "/api/v1/enterprise/resource-grants/**", "*", "shield-check", 44),
             new PermissionSeed("system", "system:skill-resource-scopes:manage", "技能资源范围管理", "button", "/api/v1/enterprise/skill-resource-scopes/**", "*", "shield-check", 45),
-            new PermissionSeed("system", "system:agent-registry:manage", "Agent 计算资源注册管理", "button", "/api/v1/enterprise/agent-registry/**", "*", "shield-check", 45),
+            new PermissionSeed("system", "system:agent-registry:manage", "Runtime 运行配置管理", "button", "/api/v1/enterprise/runtime-adapters/**", "*", "shield-check", 45),
             new PermissionSeed("system", "system:tenant", "租户管理", "menu", "/api/v1/enterprise/tenants", "*", "building", 41),
             new PermissionSeed("system", "system:org", "组织管理", "menu", "/api/v1/enterprise/orgs", "*", "building-2", 42),
             new PermissionSeed("system", "system:user", "用户管理", "menu", "/api/v1/enterprise/users", "*", "users", 43),
@@ -1918,7 +1918,6 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new PermissionSeed("workspace:chat", "workspace:chat:conversation", "会话管理接口", "api", "/api/v1/conversations/**", "*", "message-circle", 11),
             new PermissionSeed("workspace:search", "workspace:search:api", "文档检索接口", "api", "/api/v1/search/**", "*", "search", 12),
             new PermissionSeed("workspace:search", "workspace:search:delete", "文档删除权限", "button", null, null, "trash-2", 12),
-            new PermissionSeed("workspace:search", "workspace:analysis:api", "联合分析接口", "api", "/api/v1/agent/analysis/**", "*", "bot", 13),
             new PermissionSeed("capability:data-science", "capability:data-science:data", "数据能力接口", "api", "/api/v1/data/**", "*", "database", 24),
             new PermissionSeed("capability:data-science", "capability:data-science:images", "图像理解接口", "api", "/api/v1/images/**", "*", "image", 24),
             new PermissionSeed("capability:data-science", "capability:data-science:profiles", "分析配置接口", "api", "/api/v1/analysis-profiles/**", "*", "settings", 24),
@@ -1971,7 +1970,6 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new MenuSeed(null, "workspace", "工作台", "directory", null, null, 10),
             new MenuSeed("workspace", "chat", "智能对话", "menu", "/index.html#chat", "workspace:chat", 11),
             new MenuSeed("workspace", "search", "文档检索", "menu", "/index.html#search", "workspace:search", 12),
-            new MenuSeed("workspace", "domainAnalysis", "联合分析", "menu", "/index.html#domainAnalysis", "workspace:search", 13),
             new MenuSeed(null, "capability", "能力管理", "directory", null, null, 20),
             new MenuSeed("capability", "market", "能力市场", "menu", "/index.html#market", "capability:market", 21),
             new MenuSeed("capability", "favorites", "我的收藏", "menu", "/index.html#favorites", "capability:market", 22),
@@ -2054,7 +2052,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return switch (menuCode) {
             case "chat" -> "chat";
             case "search", "rules" -> "search";
-            case "domainAnalysis", "agents" -> "agent";
+            case "agents" -> "agent";
             case "market" -> "grid";
             case "favorites" -> "star";
             case "library", "dataScienceScripts", "dataScienceSkills" -> "book";

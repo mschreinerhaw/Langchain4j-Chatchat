@@ -7,6 +7,14 @@ import SystemManagementView from "./views/SystemManagementView.js";
 import * as api from "../services/api.js";
 import { setWorkspaceContext } from "./utils/workspaceContext";
 
+describe("removed product routes", () => {
+  it("rejects a removed component even if stale navigation still declares it", () => {
+    const context = { workspaceReady: false, navItems: [{ items: [{ id: "domainAnalysis" }, { id: "chat" }] }] };
+    expect(App.methods.canAccessView.call(context, "domainAnalysis")).toBe(false);
+    expect(App.methods.canAccessView.call(context, "chat")).toBe(true);
+  });
+});
+
 describe("history selected during workspace startup", () => {
   it.each([false, true])("preserves only an initial selection, without leaking it across workspace switches (%s)", async switching => {
     let resolve;

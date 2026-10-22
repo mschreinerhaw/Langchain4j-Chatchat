@@ -22,12 +22,6 @@
       "props": {}
     },
     {
-      "id": "domainAnalysis",
-      "menuCode": "domainAnalysis",
-      "componentKey": "domainAnalysis",
-      "props": {}
-    },
-    {
       "id": "market",
       "menuCode": "market",
       "componentKey": "market",

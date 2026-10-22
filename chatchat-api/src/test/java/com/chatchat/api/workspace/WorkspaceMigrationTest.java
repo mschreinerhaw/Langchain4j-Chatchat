@@ -51,6 +51,12 @@ class WorkspaceMigrationTest {
         var seed = new ResourceDatabasePopulator(new org.springframework.core.io.ClassPathResource("workspace/workspace-seed.sql"),
             new org.springframework.core.io.ClassPathResource("workspace/workspace-navigation.sql"));
         seed.setSqlScriptEncoding("UTF-8"); seed.execute(source);
+        // This test exercises the frozen 2026-10-14 migration against its historical input,
+        // rather than the current seed which intentionally no longer contains retired pages.
+        String historicalSeed = java.nio.file.Files.readString(java.nio.file.Path.of("../database/migration/h2/V20261014_01__workspace_management.sql"));
+        var historicalManifest = java.util.regex.Pattern.compile("manifest_json IN \\('([^']+)'").matcher(historicalSeed);
+        assertThat(historicalManifest.find()).isTrue();
+        jdbc.update("update workspace_registry set manifest_json=? where id='zhice'", historicalManifest.group(1));
         jdbc.update("update workspace_registry set default_workspace = (id = 'data-science')");
         var script = new ResourceDatabasePopulator(new FileSystemResource("../database/migration/h2/V20261014_01__workspace_management.sql"));
         script.setSqlScriptEncoding("UTF-8"); script.execute(source);

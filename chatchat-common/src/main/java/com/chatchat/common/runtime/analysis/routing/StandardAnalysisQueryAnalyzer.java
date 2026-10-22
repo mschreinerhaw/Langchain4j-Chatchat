@@ -31,8 +31,6 @@ public final class StandardAnalysisQueryAnalyzer implements AnalysisQueryAnalyze
                 == com.chatchat.common.runtime.capability.ProblemAnalysisPlan.Intent.ASSET_USAGE_GUIDANCE))
             required.add(AnalysisCapability.ASSET_GUIDANCE);
         if (required.isEmpty()) {
-            if (context.attributes().containsKey(AnalysisContext.AGENT_CAPABILITY_ATTRIBUTE))
-                required.add(AnalysisCapability.DOMAIN_INTELLIGENCE);
             if (containsAny(query, "sql", "database", "dataset", "table", "schema", "数据库", "数据集"))
                 required.add(AnalysisCapability.STRUCTURED_DATA);
             if (containsAny(query, "calculate", "compute", "ratio", "drawdown", "计算", "比率", "回撤"))

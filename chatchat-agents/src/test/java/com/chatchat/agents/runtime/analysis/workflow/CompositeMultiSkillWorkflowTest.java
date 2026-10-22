@@ -27,9 +27,9 @@ class CompositeMultiSkillWorkflowTest {
         var agent = mock(AnalysisWorkflow.class);
         when(document.type()).thenReturn(AnalysisWorkflowType.DOCUMENT);
         when(tool.type()).thenReturn(AnalysisWorkflowType.TOOL);
-        when(agent.type()).thenReturn(AnalysisWorkflowType.DOMAIN_INTELLIGENCE);
+        when(agent.type()).thenReturn(AnalysisWorkflowType.COMPUTATION);
         for (var entry : Map.of(document, AnalysisCapability.DOCUMENT_SEARCH,
-            tool, AnalysisCapability.TOOL_CALL, agent, AnalysisCapability.DOMAIN_INTELLIGENCE).entrySet())
+            tool, AnalysisCapability.TOOL_CALL, agent, AnalysisCapability.COMPUTATION).entrySet())
             when(entry.getKey().supports(any(), any())).thenAnswer(call ->
                 ((AnalysisIntent) call.getArgument(1)).requiredCapabilities().equals(Set.of(entry.getValue())));
         var fact = new DocumentAnalysisEvidence("document-evidence", "doc", "chunk", "document", "section",
@@ -44,9 +44,9 @@ class CompositeMultiSkillWorkflowTest {
             var bundle = (EvidenceBundle) context.attributes().get(AnalysisContext.EVIDENCE_BUNDLE_ATTRIBUTE);
             assertThat(bundle.evidence()).containsExactly(fact);
             assertThat(bundle.limitations()).contains("TIMEOUT");
-            var analysis = new com.chatchat.common.runtime.analysis.evidence.AgentAnalysisEvidence(
-                "claim", "agent", "execution", List.of(fact.evidenceId()), "Model limited conclusion", Map.of());
-            return new AnalysisExecutionOutcome(null, AnalysisWorkflowType.DOMAIN_INTELLIGENCE, null,
+            var analysis = new com.chatchat.common.runtime.analysis.evidence.ComputationEvidence(
+                "claim", "calculation", List.of(fact.evidenceId()), "Model limited conclusion", Map.of());
+            return new AnalysisExecutionOutcome(null, AnalysisWorkflowType.COMPUTATION, null,
                 new VerificationResult(true, List.of(analysis), List.of()),
                 new EvidenceBundle(null, List.of(analysis), List.of(), Map.of()), "Model limited conclusion", Map.of());
         });
@@ -55,7 +55,7 @@ class CompositeMultiSkillWorkflowTest {
         var kernel = new KernelDataScope("tenant", "user", "request", null, "trace", null, Map.of());
         var context = new AnalysisContext("Analyze", kernel, "skill", List.of("doc"), List.of(), List.of(),
             new AnalysisIntent("analysis", List.of(), Set.of(AnalysisCapability.DOCUMENT_SEARCH,
-                AnalysisCapability.TOOL_CALL, AnalysisCapability.DOMAIN_INTELLIGENCE), "UNSPECIFIED", true), Map.of());
+                AnalysisCapability.TOOL_CALL, AnalysisCapability.COMPUTATION), "UNSPECIFIED", true), Map.of());
         var result = new CompositeAnalysisWorkflow(children).execute(context, kernel);
         assertThat(result.synthesis()).contains("Model limited conclusion");
         assertThat(result.evidenceBundle().evidence()).contains(fact);
@@ -79,19 +79,19 @@ class CompositeMultiSkillWorkflowTest {
                 new EvidenceBundle(null, List.of(evidence), List.of(), Map.of()), "", Map.of());
         });
         AnalysisWorkflow agent = mock(AnalysisWorkflow.class);
-        when(agent.type()).thenReturn(AnalysisWorkflowType.DOMAIN_INTELLIGENCE);
+        when(agent.type()).thenReturn(AnalysisWorkflowType.COMPUTATION);
         when(agent.supports(any(), any())).thenAnswer(call ->
             ((AnalysisIntent) call.getArgument(1)).requiredCapabilities()
-                .equals(Set.of(AnalysisCapability.DOMAIN_INTELLIGENCE)));
+                .equals(Set.of(AnalysisCapability.COMPUTATION)));
         when(agent.execute(any(), any())).thenAnswer(call -> {
             AnalysisContext context = call.getArgument(0);
             EvidenceBundle bundle = (EvidenceBundle) context.attributes()
                 .get(AnalysisContext.EVIDENCE_BUNDLE_ATTRIBUTE);
             assertThat(bundle.evidence()).hasSize(2);
-            var claim = new com.chatchat.common.runtime.analysis.evidence.AgentAnalysisEvidence(
-                "claim", "agent", "execution", List.of("one:evidence", "two:evidence"),
+            var claim = new com.chatchat.common.runtime.analysis.evidence.ComputationEvidence(
+                "claim", "calculation", List.of("one:evidence", "two:evidence"),
                 "combined", Map.of());
-            return new AnalysisExecutionOutcome(null, AnalysisWorkflowType.DOMAIN_INTELLIGENCE, null,
+            return new AnalysisExecutionOutcome(null, AnalysisWorkflowType.COMPUTATION, null,
                 new VerificationResult(true, List.of(claim), List.of()),
                 new EvidenceBundle(null, List.of(claim), List.of(), Map.of()), "combined", Map.of());
         });
@@ -104,7 +104,7 @@ class CompositeMultiSkillWorkflowTest {
         AnalysisContext context = new AnalysisContext("Analyze", kernel, "one",
             List.of("doc-one", "doc-two"), List.of(), List.of("role-one"),
             new AnalysisIntent("DOMAIN_ANALYSIS", List.of(), Set.of(AnalysisCapability.DOCUMENT_SEARCH,
-                AnalysisCapability.DOMAIN_INTELLIGENCE), "UNSPECIFIED", true),
+                AnalysisCapability.COMPUTATION), "UNSPECIFIED", true),
             Map.of(AnalysisContext.SKILL_SELECTIONS_ATTRIBUTE, selections));
         AnalysisExecutionOutcome outcome = workflow.execute(context, kernel);
         assertThat(outcome.verification().accepted()).isTrue();

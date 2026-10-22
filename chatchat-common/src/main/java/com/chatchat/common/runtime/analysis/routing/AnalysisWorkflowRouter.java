@@ -27,9 +27,7 @@ public final class AnalysisWorkflowRouter {
     public RoutedWorkflow route(AnalysisContext context) {
         AnalysisIntent intent = context.intent() == null ? analyzer.analyze(context) : context.intent();
         AnalysisContext analyzed = context.withIntent(intent);
-        AnalysisWorkflowType target = analyzed.attributes().containsKey(AnalysisContext.DOMAIN_PROVIDER_ATTRIBUTE)
-            && intent.requiredCapabilities().equals(Set.of(AnalysisCapability.DOMAIN_INTELLIGENCE))
-                ? AnalysisWorkflowType.DOMAIN_INTELLIGENCE : target(intent.requiredCapabilities());
+        AnalysisWorkflowType target = target(intent.requiredCapabilities());
         AnalysisWorkflow workflow = workflows.stream().filter(candidate -> candidate.type() == target)
             .filter(candidate -> candidate.supports(analyzed, intent))
             .max(Comparator.comparingInt(AnalysisWorkflow::priority))
@@ -50,7 +48,6 @@ public final class AnalysisWorkflowRouter {
         values.put(AnalysisCapability.TOOL_CALL, AnalysisWorkflowType.TOOL);
         values.put(AnalysisCapability.COMPUTATION, AnalysisWorkflowType.COMPUTATION);
         values.put(AnalysisCapability.EXTERNAL_RESEARCH, AnalysisWorkflowType.EXTERNAL_RESEARCH);
-        values.put(AnalysisCapability.DOMAIN_INTELLIGENCE, AnalysisWorkflowType.FEDERATED_AGENT);
         return Map.copyOf(values);
     }
 

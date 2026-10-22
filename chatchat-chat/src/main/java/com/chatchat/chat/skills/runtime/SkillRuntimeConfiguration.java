@@ -4,11 +4,9 @@ import com.chatchat.runtime.skill.application.DefaultSkillResolver;
 import com.chatchat.runtime.skill.application.DefaultSkillRouter;
 import com.chatchat.runtime.skill.application.DefaultWorkflowResolver;
 import com.chatchat.runtime.skill.application.DefaultAgentRuntimeDispatcher;
-import com.chatchat.runtime.skill.application.ExternalEngineAgentRuntimeAdapter;
 import com.chatchat.runtime.skill.application.DefaultSkillRuntime;
 import com.chatchat.runtime.skill.port.outbound.AgentRuntimeAdapter;
 import com.chatchat.runtime.skill.port.inbound.AgentRuntimeDispatcher;
-import com.chatchat.runtime.skill.port.outbound.ExternalAgentEngine;
 import com.chatchat.runtime.skill.port.outbound.SkillPolicy;
 import com.chatchat.runtime.skill.port.inbound.SkillResolver;
 import com.chatchat.runtime.skill.port.inbound.SkillRouter;
@@ -46,10 +44,7 @@ public class SkillRuntimeConfiguration {
     @Bean
     WorkflowResolver runtimeSkillWorkflowResolver() { return new DefaultWorkflowResolver(); }
 
-    @Bean
-    AgentRuntimeAdapter externalEngineSkillRuntimeAdapter(List<ExternalAgentEngine> engines) {
-        return new ExternalEngineAgentRuntimeAdapter(engines);
-    }
+
 
     @Bean
     AgentRuntimeDispatcher runtimeSkillAgentDispatcher(List<AgentRuntimeAdapter> adapters) {

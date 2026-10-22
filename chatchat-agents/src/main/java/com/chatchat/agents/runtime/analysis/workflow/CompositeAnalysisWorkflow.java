@@ -171,21 +171,14 @@ public class CompositeAnalysisWorkflow extends AbstractAnalysisWorkflow {
         metadata.put("childCount", context.intent().requiredCapabilities().size());
         metadata.put("executionLimitations", verification.findings());
         metadata.put("executionFacts", execution.outputs().getOrDefault("childResults", Map.of()));
-        if (execution.outputs().get("childResults") instanceof Map<?, ?> children
-            && children.get(AnalysisCapability.DOMAIN_INTELLIGENCE.name()) instanceof AnalysisExecutionOutcome child) {
-            for (String key : List.of("collaboration", "collaborationStatus", "taskStates", "completedTaskCount",
-                "expectedTaskCount", "agentResults", "agentId", "agentStatus", "judgeDecision")) {
-                if (child.metadata().containsKey(key)) metadata.put(key, child.metadata().get(key));
-            }
-        }
+
         return new AnalysisExecutionOutcome(null, type(), plan, verification, bundle, synthesis, metadata);
     }
 
     private List<AnalysisCapability> orderedCapabilities(AnalysisIntent intent) {
         List<AnalysisCapability> order = List.of(AnalysisCapability.STRUCTURED_DATA,
             AnalysisCapability.DOCUMENT_SEARCH, AnalysisCapability.TOOL_CALL,
-            AnalysisCapability.EXTERNAL_RESEARCH, AnalysisCapability.COMPUTATION,
-            AnalysisCapability.DOMAIN_INTELLIGENCE);
+            AnalysisCapability.EXTERNAL_RESEARCH, AnalysisCapability.COMPUTATION);
         return order.stream().filter(intent.requiredCapabilities()::contains).toList();
     }
 }

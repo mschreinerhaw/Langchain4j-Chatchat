@@ -4,7 +4,6 @@ package com.chatchat.runtime.skill.api.workflow;
 public enum WorkflowType {
     DOCUMENT,
     DATA_ANALYSIS,
-    EXTERNAL_AGENT,
     EVIDENCE,
     REMEDIATION
 }

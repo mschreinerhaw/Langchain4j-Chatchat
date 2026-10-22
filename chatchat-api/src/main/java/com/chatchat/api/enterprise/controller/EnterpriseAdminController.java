@@ -1,25 +1,13 @@
 package com.chatchat.api.enterprise.controller;
 
 import com.chatchat.api.enterprise.LoginAuditService;
-import com.chatchat.api.controller.agent.DocumentLibraryReadPort;
 import com.chatchat.api.security.ApiAuthenticationFilter;
-import com.chatchat.chat.skills.domain.catalog.DomainSkillEntity;
-import com.chatchat.chat.skills.domain.application.DomainSkillService;
 import com.chatchat.chat.skills.catalog.SkillCatalogService;
 import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
-import com.chatchat.common.runtime.agent.AgentDescriptor;
-import com.chatchat.common.runtime.agent.AgentRegistryPort;
-import com.chatchat.common.runtime.agent.AgentCredentialResolver;
 import com.chatchat.runtime.skill.api.agent.AgentRuntimeHealthResult;
 import com.chatchat.runtime.skill.port.inbound.AgentRuntimeDispatcher;
-import com.chatchat.common.retrieval.ResourceAuthorizationPort;
-import com.chatchat.knowledgebase.search.document.api.library.LibraryDocumentItem;
-import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
-import com.chatchat.agents.runtime.federation.AgentHealthTracker;
-import com.chatchat.common.runtime.agent.AgentCardDiscoveryPort;
-import org.springframework.beans.factory.ObjectProvider;
 import com.chatchat.enterprise.entity.datasource.DataSourceConfig;
 import com.chatchat.enterprise.entity.mcp.McpToolAsset;
 import com.chatchat.enterprise.entity.mcp.McpToolPermission;
@@ -56,9 +44,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 
 @RestController
 @RequiredArgsConstructor
@@ -76,14 +62,7 @@ public class EnterpriseAdminController {
     private final SysAuditLogRepository auditLogRepository;
     private final SkillCatalogService skillCatalogService;
     private final LoginAuditService loginAuditService;
-    private final AgentRegistryPort agentRegistry;
-    private final AgentCardDiscoveryPort agentCards;
-    private final AgentHealthTracker agentHealth;
     private final AgentRuntimeDispatcher agentRuntimeDispatcher;
-    private final ObjectProvider<AgentCredentialResolver> agentCredentials;
-    private final DocumentLibraryReadPort documentLibrary;
-    private final DomainSkillService domainSkillService;
-    private final ResourceAuthorizationPort resourceAuthorization;
 
     /**
      * Performs the login operation.
@@ -125,43 +104,13 @@ public class EnterpriseAdminController {
         return ApiResponse.success(adminService.summary());
     }
 
-    @GetMapping("/agent-registry")
-    @Operation(summary = "List registered local, group and external agent compute providers")
-    public ApiResponse<List<AgentDescriptor>> listAgentComputeProviders(HttpServletRequest request) {
-        requirePlatformAgentRegistryAdmin(request);
-        return ApiResponse.success(agentRegistry.list());
-    }
 
-    @PostMapping("/agent-registry")
-    @Operation(summary = "Register or update an agent compute provider")
-    public ApiResponse<AgentDescriptor> registerAgentComputeProvider(HttpServletRequest request,
-                                                                      @RequestBody AgentDescriptor descriptor) {
-        requirePlatformAgentRegistryAdmin(request);
-        validateAnalysisGrants(request, descriptor);
-        if (descriptor.protocol() == AgentDescriptor.Protocol.A2A_HTTP_JSON) discoverCard(descriptor);
-        agentRegistry.register(descriptor);
-        return ApiResponse.success(agentRegistry.find(descriptor.agentId()).orElseThrow(), "agent registered");
-    }
 
-    @PostMapping("/agent-registry/discover")
-    @Operation(summary = "Discover and verify a remote A2A Agent Card before registration")
-    public ApiResponse<Map<String, Object>> discoverAgentCard(HttpServletRequest request,
-                                                                @RequestBody AgentDescriptor descriptor) {
-        requirePlatformAgentRegistryAdmin(request);
-        var card = discoverCard(descriptor);
-        return ApiResponse.success(Map.of("name", card.name(), "version", card.version(),
-            "skills", card.skills(), "signatureVerified", card.signatureVerified(),
-            "endpoint", card.endpoint()));
-    }
 
-    @GetMapping("/agent-registry/{agentId}/health")
-    @Operation(summary = "Current local health and SLA signal for a registered compute provider")
-    public ApiResponse<Map<String, Object>> agentComputeHealth(HttpServletRequest request,
-                                                                  @PathVariable String agentId) {
-        requirePlatformAgentRegistryAdmin(request);
-        if (agentRegistry.find(agentId).isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-        return ApiResponse.success(agentHealth.snapshot(agentId));
-    }
+
+
+
+
 
     @GetMapping("/runtime-adapters/{engine}/health")
     @Operation(summary = "Validate an exact runtime adapter against its database configuration")
@@ -171,28 +120,16 @@ public class EnterpriseAdminController {
         @RequestParam(required = false) String agentId,
         @RequestParam(required = false) String modelName
     ) {
-        requirePlatformAgentRegistryAdmin(request);
+        requireRuntimeAdministrator(request);
         Map<String, Object> attributes = new LinkedHashMap<>();
         if (agentId != null && !agentId.isBlank()) attributes.put("agentId", agentId.trim());
         if (modelName != null && !modelName.isBlank()) attributes.put("modelName", modelName.trim());
         return ApiResponse.success(agentRuntimeDispatcher.health(engine, attributes));
     }
 
-    private AgentCardDiscoveryPort.CardSummary discoverCard(AgentDescriptor descriptor) {
-        String token = descriptor.credentialRef().isBlank() ? null : agentCredentials.getObject()
-            .resolveBearerToken(descriptor.credentialRef())
-            .orElseThrow(() -> new IllegalArgumentException("Agent credential reference cannot be resolved"));
-        return agentCards.discoverSummary(descriptor, token);
-    }
 
-    @DeleteMapping("/agent-registry/{agentId}")
-    @Operation(summary = "Remove an agent compute provider")
-    public ApiResponse<Void> removeAgentComputeProvider(HttpServletRequest request,
-                                                         @PathVariable("agentId") String agentId) {
-        requirePlatformAgentRegistryAdmin(request);
-        agentRegistry.remove(agentId);
-        return ApiResponse.success(null, "agent removed");
-    }
+
+
 
     /**
      * Performs the menus operation.
@@ -817,59 +754,22 @@ public class EnterpriseAdminController {
         return userId == null ? "" : String.valueOf(userId);
     }
 
-    private void requirePlatformAgentRegistryAdmin(HttpServletRequest request) {
+    private void requireRuntimeAdministrator(HttpServletRequest request) {
         String userId = currentUserId(request);
         if (userId.isBlank() || !adminService.hasAllAgentAccess(adminService.getUserView(userId))) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                "Agent Registry administration requires the platform administrator");
+                "Runtime administration requires the platform administrator");
         }
-    }
-
-    private void validateAnalysisGrants(HttpServletRequest request, AgentDescriptor descriptor) {
-        if (descriptor == null || !(descriptor.metadata().get("analysisGrants") instanceof Map<?, ?> grants)) {
-            return;
-        }
-        String userId = currentUserId(request);
-        EnterpriseAdminService.UserView user = adminService.getUserView(userId);
-        String requestTenantId = requestAttribute(request, ApiAuthenticationFilter.CURRENT_TENANT_ID);
-        String tenantId = requestTenantId.isBlank() ? user.tenantId() : requestTenantId;
-        Set<String> roleKeys = Set.copyOf(adminService.authorizationRoleKeys(userId));
-
-        Set<String> requestedDocuments = stringSet(grants.get("documentIds"));
-        Set<String> allowedDocuments = documentLibrary.list(
-                SearchPermissionContext.of(tenantId, userId, List.copyOf(roleKeys))).stream()
-            .map(LibraryDocumentItem::docId)
-            .filter(id -> id != null && !id.isBlank())
-            .collect(java.util.stream.Collectors.toSet());
-        if (!allowedDocuments.containsAll(requestedDocuments)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                "Agent contains knowledge documents outside the current user's permissions");
-        }
-
-        Set<String> requestedSkills = stringSet(grants.get("skillIds"));
-        Set<String> publishedSkillIds = domainSkillService.publishedOptions(tenantId).stream()
-            .map(DomainSkillEntity::getId)
-            .filter(id -> id != null && !id.isBlank())
-            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
-        Set<String> allowedSkills = resourceAuthorization.allowedIds(
-            ResourceAuthorizationPort.SKILL, tenantId, userId, roleKeys, publishedSkillIds);
-        if (!allowedSkills.containsAll(requestedSkills)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                "Agent contains domain Skills outside the current user's permissions");
-        }
-    }
-
-    private Set<String> stringSet(Object value) {
-        if (!(value instanceof Iterable<?> values)) return Set.of();
-        LinkedHashSet<String> result = new LinkedHashSet<>();
-        values.forEach(item -> {
-            if (item != null && !String.valueOf(item).isBlank()) result.add(String.valueOf(item).trim());
-        });
-        return Set.copyOf(result);
     }
 
     private String requestAttribute(HttpServletRequest request, String name) {
         Object value = request == null ? null : request.getAttribute(name);
         return value == null ? "" : String.valueOf(value).trim();
     }
+
+
+
+
+
+
 }

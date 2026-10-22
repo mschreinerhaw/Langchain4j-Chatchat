@@ -7,7 +7,7 @@ import java.util.function.Supplier;
 
 /** Compatibility adapters execute existing governed pipelines once, under a common capability plan. */
 public final class CapabilityWorkflowRuntime {
-    public enum ProviderKind { SKILL, MCP_WORKFLOW, DOCUMENT_RETRIEVAL, NATIVE_RUNTIME, EXTERNAL_AGENT }
+    public enum ProviderKind { SKILL, MCP_WORKFLOW, DOCUMENT_RETRIEVAL, NATIVE_RUNTIME }
     public record Provider(String id, ProviderKind kind, Set<String> capabilities, Supplier<InteractionResponse> execute) {
         public Provider { capabilities = Set.copyOf(capabilities); }
     }

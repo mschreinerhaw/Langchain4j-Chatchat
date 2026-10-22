@@ -7,8 +7,6 @@ public enum AnalysisWorkflowType {
     TOOL,
     COMPUTATION,
     EXTERNAL_RESEARCH,
-    FEDERATED_AGENT,
-    DOMAIN_INTELLIGENCE,
     COMPOSITE;
 
     public RuntimeWorkflowFamily family() {

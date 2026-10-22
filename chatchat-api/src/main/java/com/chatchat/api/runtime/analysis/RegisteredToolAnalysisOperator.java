@@ -34,7 +34,7 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
     public static final String TOOL_ARGUMENTS = "runtime.analysis.toolArguments";
     public static final String TOOL_CALLS = "runtime.analysis.toolCalls";
     public static final String CODING_DATA_OPERATION = "runtime.analysis.codingDataOperation";
-    private static final int MAX_EVIDENCE_CHARS = com.chatchat.common.runtime.agent.AgentEvidenceBudget.ITEM_CHARS;
+    private static final int MAX_EVIDENCE_CHARS = 65_536;
 
     private final SkillCatalogService skills;
     private final McpToolCatalogQueryPort catalog;

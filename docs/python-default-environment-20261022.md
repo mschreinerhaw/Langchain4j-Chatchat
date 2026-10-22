@@ -35,6 +35,12 @@ MCP 内部能力接口：`GET /api/v1/python/environments/{id}/runtime`，沿用
 
 本次补丁使用独立目录 `/opt/chatchat-releases/1.2.0-20261022-python-default`，镜像标签 `runtime-os-api:1.2.0-20261022-python-default` 与 `runtime-os-mcp:1.2.0-20261022-python-default`。原始 `1.2.0-20261022` 发布包保持不变。
 
+服务器提供增量部署包 `/opt/chatchat-releases/chatchat-1.2.0-20261022-python-default-hotfix.tar.gz`，附 `.sha256` 文件。此包依赖原 `1.2.0-20261022` 安装目录和 API/MCP、纯运行时基础镜像，不是空机器安装包。只包含校验过的 JAR 增量、迁移、构建模板及部署文档，不包含密码、密钥、业务数据或备份。
+
+在另一台同版本 Linux/amd64 环境应用时，先校验外部 SHA256，再解压到上述独立补丁目录，执行 `bash apply-hotfix.sh`。脚本从原版本镜像提取基线 JAR，按完整 SHA256 验证重建结果后构建并部署；基线不匹配即停止。已有部署记录时拒绝重复执行。当前服务器已完成部署，无需再次运行。
+
+补丁包大小 13,685,401 字节；SHA256：`b95de895eaa8deff3f49a68d22100d32e396c16c4e6abdb7bf159ae9f1e35f0b`。已逐项验证 25 个归档成员的完整性，补丁安装脚本通过 Bash 语法检查。归档保持不可变，其内文档为打包时版本，本节校验值以仓库文档及旁置 `.sha256` 为准。
+
 更新前检查活动任务、备份 PostgreSQL 和 Compose 配置；API 停止后备份 RocksDB。API 使用已有纯运行时基础镜像，MCP 使用纯 Java 基础镜像；不以业务镜像为基础叠加 JAR。每个镜像只允许一个业务 JAR 复制层且小于 1200 MiB。
 
 只更新 API、MCP 并刷新代理。保留数据库、用户文件、环境定义、密钥、现有挂载和无关容器。启动失败恢复备份 Compose/env 并重建原 API/MCP、刷新代理。新增偏好表可保留，回滚旧版本不需要删除表。

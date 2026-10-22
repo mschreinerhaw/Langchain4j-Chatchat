@@ -10,6 +10,14 @@ CREATE TABLE IF NOT EXISTS mcp_tool_release (
 );
 CREATE INDEX IF NOT EXISTS ix_tool_release_tenant ON mcp_tool_release(tenant_id,created_at DESC);
 CREATE INDEX IF NOT EXISTS ix_tool_release_state ON mcp_tool_release(state);
+-- DBA-driven deployments must leave the new table owned by the same application role as its source.
+DO $$
+DECLARE application_owner text;
+BEGIN
+ SELECT pg_get_userbyid(relowner) INTO STRICT application_owner
+ FROM pg_class WHERE oid='mcp_template_query_binding'::regclass;
+ EXECUTE format('ALTER TABLE mcp_tool_release OWNER TO %I', application_owner);
+END $$;
 CREATE OR REPLACE FUNCTION protect_published_tool_release() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
  IF OLD.published_at IS NOT NULL AND (TG_OP = 'DELETE' OR

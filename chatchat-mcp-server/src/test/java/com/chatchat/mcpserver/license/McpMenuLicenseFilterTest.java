@@ -25,6 +25,20 @@ class McpMenuLicenseFilterTest {
     private final McpAdminMenuCatalog catalog = new McpAdminMenuCatalog(objectMapper);
 
     @Test
+    void centralPublicationApiRetainsLicenseGateWithoutDuplicateNavigation() throws Exception {
+        var licenses = mock(McpLicenseService.class);
+        when(licenses.status()).thenReturn(valid(List.of("mcpServices")));
+        var filter = new McpMenuLicenseFilter(licenses, catalog, objectMapper);
+        var response = new MockHttpServletResponse();
+        var calls = new AtomicInteger();
+        filter.doFilter(request("/api/v1/tool-publications", "tenant-a"), response, countingChain(calls));
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(calls).hasValue(1);
+        assertThat(catalog.navigationMenus()).extracting(McpAdminMenuCatalog.MenuDefinition::key)
+            .doesNotContain("templateQueryPublications", "authorizationManagement", "settings");
+    }
+
+    @Test
     void exposesExactlyTheMenusCarriedByLicense() {
         var access = catalog.access(valid(List.of("databaseMcp", "cacheSettings")));
 

@@ -56,16 +56,24 @@ def policy_fingerprints(api_database, mcp_database):
 def ready(port):
     client = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     deadline = time.monotonic() + 300
+    stable_since = None
     while time.monotonic() < deadline:
+        reachable = False
         try:
             with client.open('http://127.0.0.1:' + str(port) + '/api/v1/enterprise/auth/me', timeout=3) as response:
-                if response.status == 200:
-                    return
+                reachable = response.status == 200
         except urllib.error.HTTPError as error:
-            if error.code in (401, 403):
-                return
+            reachable = error.code in (401, 403)
         except OSError:
             pass
+        # Spring opens the listener before ApplicationRunner migrations finish. A transient
+        # 401 must not count as readiness when a runner subsequently terminates the process.
+        if reachable:
+            stable_since = stable_since or time.monotonic()
+            if time.monotonic() - stable_since >= 20:
+                return
+        else:
+            stable_since = None
         time.sleep(2)
     raise RuntimeError('Application readiness timeout on port ' + str(port))
 

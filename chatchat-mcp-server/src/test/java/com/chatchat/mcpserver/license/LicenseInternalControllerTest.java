@@ -33,11 +33,11 @@ class LicenseInternalControllerTest {
             List.of("pythonManagement"), 100, 7, "*", LocalDate.now().plusYears(1), Map.of(), LocalDate.now());
         when(service.status()).thenReturn(LicenseStatus.valid("server", legacy));
         var controller = new LicenseInternalController(service);
-        assertThat(controller.workspaceEntitlement().getData().workspaceIds()).containsExactlyInAnyOrder("zhice", "data-science");
+        assertThat(controller.workspaceEntitlement().getData().workspaceIds()).containsExactlyInAnyOrder("zhice", "data-science", "permissions", "mcp-publication");
         var explicit = new LicensePayload("LIC", "Customer", "C", "LiveMCP", "enterprise",
             List.of("workspaceZhice", "pythonManagement"), 100, 7, "*", LocalDate.now().plusYears(1), Map.of(), LocalDate.now());
         when(service.status()).thenReturn(LicenseStatus.valid("server", explicit));
-        assertThat(controller.workspaceEntitlement().getData().workspaceIds()).containsExactly("zhice");
+        assertThat(controller.workspaceEntitlement().getData().workspaceIds()).containsExactlyInAnyOrder("zhice", "permissions", "mcp-publication");
         var extension = new LicensePayload("LIC", "Customer", "C", "LiveMCP", "enterprise",
             List.of("workspace:research", "workspace:INVALID/ID"), 100, 7, "*",
             LocalDate.now().plusYears(1), Map.of(), LocalDate.now());

@@ -187,10 +187,13 @@ def main():
         if summary['status'] != 'PASSED':
             raise RuntimeError('One or more live acceptance checks failed')
     except Exception:
-        for row in call('/tool-publications', token=token):
-            if any(item['logicalId'] == row['logicalId'] for item in publications) and row['state'] == 'RUNNING':
-                call('/tool-publications/' + row['id'] + '/offline', {}, token)
-        cleanup()
+        try:
+            if publications:
+                for row in call('/tool-publications', token=token):
+                    if any(item['logicalId'] == row['logicalId'] for item in publications) and row['state'] == 'RUNNING':
+                        call('/tool-publications/' + row['id'] + '/offline', {}, token)
+        finally:
+            cleanup()
         raise
 
 

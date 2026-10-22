@@ -1,0 +1,86 @@
+{
+  "sourceCommit": "6b2fc7df661a3cbcb89ec53d860c01f88709ed04",
+  "javaTests": {
+    "passed": 37,
+    "failed": 0,
+    "skipped": 0
+  },
+  "frontendTests": {
+    "passed": 14,
+    "failed": 0
+  },
+  "oldImageNegativeControl": "MISSING_GLYPH_ASSERTION_REPRODUCED",
+  "fontAcceptance": {
+    "status": "PASSED",
+    "defaultAssetPreserved": true,
+    "environmentId": "b1068ad2-7b8d-4fb0-9230-316c86c596a4",
+    "previousVersion": 6,
+    "runtime": {
+      "environmentId": "b1068ad2-7b8d-4fb0-9230-316c86c596a4",
+      "environmentVersion": 7,
+      "dockerImage": "chatchat-python-runtime:3.11-v1.2-fonts-r2-20261022",
+      "imageDigest": "sha256:7c665132dd360b4f84a669a16b53de93c0ff142e1ecf8f56bef1a07d6346fdc8",
+      "pythonVersion": "3.11.16",
+      "packages": {
+        "Pillow": "13.0.0",
+        "pyarrow": "26.0.0",
+        "statsmodels": "0.15.0",
+        "ruff": "0.17.1",
+        "matplotlib": "3.10.0",
+        "pandas": "2.3.3",
+        "scipy": "1.16.3",
+        "duckdb": "1.5.6",
+        "openpyxl": "3.1.5",
+        "seaborn": "0.13.2",
+        "numpy": "2.3.5",
+        "scikit-learn": "1.9.1",
+        "plotly": "7.1.0",
+        "polars": "2.0.0"
+      }
+    },
+    "managedSandbox": {
+      "runId": "validation-chart-fonts-1140750cb8454f4a822af5fb948a6c73",
+      "operationId": "render-fonts",
+      "status": "SUCCEEDED",
+      "verification": {
+        "status": "PASSED",
+        "matplotlib": "3.10.0",
+        "families": [
+          "Noto Sans CJK SC",
+          "DejaVu Sans"
+        ],
+        "glyphCoverage": true,
+        "legacySansOverride": true,
+        "renderedBytes": {
+          "png": 27932,
+          "svg": 30059
+        }
+      },
+      "metadataOnlyDiagnostics": true
+    },
+    "customerInputs": 0,
+    "newModelCalls": 0
+  },
+  "browserAcceptance": {
+    "status": "PASSED",
+    "scope": "REAL_DEPLOYED_PRODUCT_AND_ORIGINAL_HISTORY_WITH_REAL_API_RESPONSES",
+    "taskId": "analysis-coding-53aa13bf2fc92325603ce323936f7b5dd4989f5a3d18efe30507c9b69e584351",
+    "historyRestored": true,
+    "deliveryStatus": "PARTIAL",
+    "loadedChartCount": 5,
+    "unresolvedCheckCount": 2,
+    "authoredTextVisible": false,
+    "hiddenTechnicalSections": true,
+    "pageErrors": [],
+    "reviewResponses": [
+      {
+        "status": 200
+      }
+    ]
+  },
+  "archivedEvidencePreserved": {
+    "rows": 19,
+    "timelineAndUsageUnchanged": true
+  },
+  "historicalPngRerendered": false
+}

@@ -289,7 +289,8 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
                     require(previous.getValue().stopProofRef!=null&&feedback!=null,EXECUTION_OUTCOME_UNKNOWN,
                         "Reconcile and commit previous execution feedback before new code admission");
                     int limit=task.privateState.get("execution-repair-policy").path("maxAutoRepairs").asInt(0);
-                    require(feedback.path("resultAvailable").asBoolean() || codes.size()<=limit&&feedback.path("repair").path("allowed").asBoolean(),
+                    require(feedback.path("resultAvailable").asBoolean() || feedback.path("repair").path("attemptsUsed").asInt() < limit
+                            && feedback.path("repair").path("allowed").asBoolean(),
                         BUDGET_EXCEEDED,"Automatic repair limit or policy prohibits another execution");
                 }
             }

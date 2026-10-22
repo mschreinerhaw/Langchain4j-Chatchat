@@ -75,6 +75,10 @@ class CodingExecutionFeedbackServiceTest {
         }
     }
     @Test void zeroExitWithoutValidatedArtifactIsAnOutputFailureAndRepairLimitStopsAnotherAttempt(){
+        var prior=json.valueToTree(service.finish(contract,lease,operation("SUCCEEDED"),Map.of("outputStatus","INVALID_RESULT_SCHEMA","resultAvailable",false)));
+        ((com.fasterxml.jackson.databind.node.ObjectNode)prior).put("executionId","prior-2");
+        ((com.fasterxml.jackson.databind.node.ObjectNode)prior.path("repair")).put("attemptsUsed",1);
+        state.clear();state.put("feedback:prior-2",prior);
         when(tasks.startedCodeOperations(scope,"task")).thenReturn(List.of("prior-1","prior-2","operation"));
         var feedback=service.finish(contract,lease,operation("SUCCEEDED"),Map.of("outputStatus","INVALID_RESULT_SCHEMA","resultAvailable",false));
         assertThat(feedback.error().category()).isEqualTo("OUTPUT_CONTRACT");assertThat(feedback.exitCode()).isZero();
@@ -93,5 +97,12 @@ class CodingExecutionFeedbackServiceTest {
             "validationStatus","INCONCLUSIVE","resultDatasetRef","result","validationRecordRef","validation","evidenceBundleRef","bundle"));
         assertThat(feedback.stage()).isEqualTo("VALIDATED");assertThat(feedback.error()).isNull();
         assertThat(feedback.businessValidationPassed()).isFalse();assertThat(feedback.repair().action()).isEqualTo("COMPLETE");
+    }
+    @Test void successfulRecalculationDoesNotConsumeTheFailureRepairAllowance(){
+        service.finish(contract,lease,operation("SUCCEEDED"),Map.of("resultAvailable",true,"validationStatus","INCONCLUSIVE"));
+        when(tasks.startedCodeOperations(scope,"task")).thenReturn(List.of("operation","recalculation"));
+        var next=new OperationView("recalculation","SUCCEEDED","container-2",1,false,true,0,"b".repeat(64),"sha256:"+"b".repeat(64),"c".repeat(64),null);
+        var feedback=service.finish(contract,lease,next,Map.of("resultAvailable",true,"validationStatus","INCONCLUSIVE"));
+        assertThat(feedback.attemptId()).endsWith("execution-2");assertThat(feedback.repair().attemptsUsed()).isZero();
     }
 }

@@ -10,6 +10,7 @@ parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('action',choices=['build','deploy','verify','rollback'])
 parser.add_argument('--release-dir',required=True,type=Path)
 parser.add_argument('--revision',required=True)
+parser.add_argument('--api-only',action='store_true',help='Patch API/UI while retaining the verified MCP and Node containers')
 args=parser.parse_args();os.umask(0o077)
 r=args.release_dir.resolve();stage=Path('/opt/runtime-os-docker-stage');project='runtime-os-app-stage'
 if not r.is_relative_to(Path('/opt/chatchat-releases')):raise ValueError('Patch must stay under release root')
@@ -19,7 +20,7 @@ d.release=r;d.stage=stage;d.project=project;d.version='1.2.0-20261022'
 d.base='runtime-os-java-base:temurin17-jammy-20261022';d.manifest={'sourceCommit':args.revision}
 (r/'evidence').mkdir(exist_ok=True)
 tag=r.name
-images={s:'runtime-os-'+s+':'+tag for s in ('api','mcp','coding-agent')}
+images={s:'runtime-os-'+s+':'+tag for s in (('api',) if args.api_only else ('api','mcp','coding-agent'))}
 
 def verify():
     d.wait_ready()
@@ -32,7 +33,10 @@ def verify():
 
 if args.action=='verify':verify();print('VERIFIED');raise SystemExit(0)
 if args.action=='build':
-    for service in ('api','mcp'):d.build_one(service,r/'jars'/f'{service}.jar',images[service])
+    for service in (('api',) if args.api_only else ('api','mcp')):d.build_one(service,r/'jars'/f'{service}.jar',images[service])
+    if args.api_only:
+        d.record('build',{'images':{'api':{'id':d.inspect(images['api'])['Id'],'bytes':d.inspect(images['api'])['Size']}},'revision':args.revision})
+        print('BUILT');raise SystemExit(0)
     context=r/'build/node';context.mkdir(parents=True,exist_ok=True)
     d.run('docker','cp',d.container('coding-agent')+':/srv/coding-agent/node_modules',str(context/'node_modules'))
     shutil.copy2(r/'deploy/docker/application/Dockerfile.coding-agent',context/'Dockerfile')
@@ -49,7 +53,7 @@ if args.action=='build':
 
 def rollback(backup):
     shutil.copy2(backup/'compose.yaml',stage/'compose.yaml');shutil.copy2(backup/'deployment.env',stage/'config/deployment.env')
-    d.compose('up','-d','--no-build','--no-deps','--force-recreate','coding-agent','mcp','api')
+    d.compose('up','-d','--no-build','--no-deps','--force-recreate',*images.keys())
     d.compose('up','-d','--no-build','--no-deps','--force-recreate','node-proxy');verify()
     d.run('bash',str(stage/'evidence/cline-monitor-20261019/restrict-coding-worker.sh'))
     d.run('docker','exec',d.container('gateway'),'nginx','-s','reload')
@@ -63,7 +67,7 @@ if active!='0':raise RuntimeError('Active tasks prevent deployment')
 before={name:d.inspect(name) for name in d.run('docker','ps','--format','{{.Names}}').splitlines()}
 backup=r/'private-backup'/str(int(time.time()));backup.mkdir(parents=True);backup.chmod(0o700)
 for source in (stage/'compose.yaml',stage/'config/deployment.env'):shutil.copy2(source,backup/source.name)
-for database in ('runtime_os_acceptance_api','runtime_os_acceptance_mcp'):
+for database in (('runtime_os_acceptance_api',) if args.api_only else ('runtime_os_acceptance_api','runtime_os_acceptance_mcp')):
     with (backup/(database+'.dump')).open('wb') as output:
         subprocess.run(['docker','exec','-u','postgres','postgres','pg_dump','-Fc',database],stdout=output,check=True)
 config=json.loads((stage/'compose.yaml').read_text());lines=(stage/'config/deployment.env').read_text().splitlines()
@@ -77,11 +81,11 @@ try:
         source=Path(mount['Source'])/name
         if source.is_dir():shutil.copytree(source,backup/name)
     (stage/'compose.yaml').write_text(json.dumps(config,indent=2)+'\n');(stage/'config/deployment.env').write_text('\n'.join(lines)+'\n')
-    d.compose('config','-q');d.compose('up','-d','--no-build','--no-deps','--force-recreate','coding-agent','mcp','api')
+    d.compose('config','-q');d.compose('up','-d','--no-build','--no-deps','--force-recreate',*images.keys())
     d.compose('up','-d','--no-build','--no-deps','--force-recreate','node-proxy');verify()
     d.run('bash',str(stage/'evidence/cline-monitor-20261019/restrict-coding-worker.sh'))
     d.run('docker','exec',d.container('gateway'),'nginx','-t');d.run('docker','exec',d.container('gateway'),'nginx','-s','reload')
-    allowed={d.container(s) for s in ('coding-agent','api','mcp','node-proxy')}
+    allowed={d.container(s) for s in (*images.keys(),'node-proxy')}
     for name,old in before.items():
         if name not in allowed and d.inspect(name)['Id']!=old['Id']:raise RuntimeError('Unrelated container changed: '+name)
     for service in images:

@@ -25,7 +25,8 @@
           <div><dt>创建时间</dt><dd>{{ time(selected.outcome.createdAt) }}</dd></div>
           <div><dt>运行时长</dt><dd>{{ elapsed }} 秒</dd></div>
           <div><dt>失败 / 停止原因</dt><dd>{{ selected.outcome.reasonCode || selected.outcome.executionControl?.stopReason || '无' }}</dd></div>
-          <div><dt>代码修正次数</dt><dd>{{ selected.executions?.length ? Math.max(...selected.executions.map(item => item.repair.attemptsUsed)) : Math.max(0, versions.length - 1) }}</dd></div>
+          <div><dt>代码版本变化</dt><dd>{{ Math.max(0, versions.length - 1) }}</dd></div>
+          <div><dt>自动修复次数</dt><dd>{{ selected.executions?.length ? Math.max(...selected.executions.map(item => item.repair.attemptsUsed)) : '历史任务未记录' }}</dd></div>
         </dl>
         <button v-if="selected.canCancel" @click="cancel" :disabled="cancelling">{{ cancelling ? '取消请求中' : '取消任务' }}</button>
         <button v-if="selected.canResume" @click="resume" :disabled="resuming">{{ resuming ? '核对中' : '核对并恢复' }}</button>

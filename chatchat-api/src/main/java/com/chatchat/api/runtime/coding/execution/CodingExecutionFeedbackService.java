@@ -89,6 +89,11 @@ public class CodingExecutionFeedbackService {
         boolean failed=!resultAvailable;
         var operations=tasks.startedCodeOperations(contract.scope(),contract.taskId());
         int attempt=Math.max(1,operations.indexOf(operation.operationId())+1);
+        int repairsUsed=0;
+        if(attempt>1){
+            var previous=cached(contract.scope(),contract.taskId(),operations.get(attempt-2));
+            if(previous!=null)repairsUsed=previous.repair().attemptsUsed()+(previous.resultAvailable()?0:1);
+        }
         int repairLimit=(int)Math.min(maxRepairs,Math.max(0,contract.budget().maxCodeExecutions()-1));
         var policy=tasks.privateState(contract.scope(),contract.taskId(),"execution-repair-policy");
         if(policy!=null)repairLimit=Math.min(repairLimit,policy.path("maxAutoRepairs").asInt(0));
@@ -101,10 +106,10 @@ public class CodingExecutionFeedbackService {
         boolean timeLeft=contract.budget().deadlineAt().isAfter(Instant.now());
         boolean budgetLeft=state.usage().consumed().modelCalls()+state.usage().reserved().modelCalls()<contract.budget().maxModelCalls()
             &&state.usage().consumed().modelTokens()+state.usage().reserved().modelTokens()<contract.budget().maxModelTokens();
-        boolean allowed=failed&&!stopped&&timeLeft&&budgetLeft&&attempt<=repairLimit&&ExecutionFailureClassifier.repairable(code)
+        boolean allowed=failed&&!stopped&&timeLeft&&budgetLeft&&repairsUsed<repairLimit&&ExecutionFailureClassifier.repairable(code)
             &&!Boolean.TRUE.equals(result.get("replanningRequired"))&&operation.executorStopped()&&operation.manifestHash()!=null;
         String reason=resultAvailable?"RESULT_VERIFIED":stopped?"TASK_STOPPING":!timeLeft?"DEADLINE_EXCEEDED":!budgetLeft?"BUDGET_EXCEEDED":
-            attempt>repairLimit?"REPAIR_LIMIT_REACHED":allowed?"TECHNICAL_REPAIR":"NON_REPAIRABLE";
+            repairsUsed>=repairLimit?"REPAIR_LIMIT_REACHED":allowed?"TECHNICAL_REPAIR":"NON_REPAIRABLE";
         var refs=new LinkedHashMap<String,String>();
         for(String key:List.of("inputSnapshotRef","codeArtifactRef","executionReceiptRef","resultDatasetRef","validationRecordRef","evidenceBundleRef"))
             if(result.get(key) instanceof String ref)refs.put(key,ref);
@@ -137,7 +142,7 @@ public class CodingExecutionFeedbackService {
             outputFailed?"FAILED":String.valueOf(result.getOrDefault("validationStatus","NOT_RUN")),resultAvailable,
             operation.manifestHash(),result.get("outputStatus") instanceof String output?output:null,
             Boolean.TRUE.equals(result.get("businessValidationPassed")),
-            new ExecutionFeedback.Repair(allowed,allowed?"REPAIR_IN_CURRENT_CONTEXT":resultAvailable?"COMPLETE":"STOP",reason,attempt-1,repairLimit,
+            new ExecutionFeedback.Repair(allowed,allowed?"REPAIR_IN_CURRENT_CONTEXT":resultAvailable?"COMPLETE":"STOP",reason,repairsUsed,repairLimit,
                 operation.codeHash(),guidance),"METADATA_ONLY_V1");
         if(archive!=null)try{archive.save(contract.scope(),contract.taskId(),UserAssetService.Kind.LOG,
             "feedback:"+operation.operationId(),"execution-feedback.json",json.writeValueAsBytes(feedback));}

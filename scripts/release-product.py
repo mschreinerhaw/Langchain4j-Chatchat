@@ -231,8 +231,16 @@ def cleanup():
         if 'app.jar' not in history and '/srv/coding-agent' not in history: continue
         try: run('docker', 'image', 'rm', image); dangling_removed.append(image)
         except RuntimeError: failures.append(image)
+    cache_prune = 'Skipped because active build cache was detected'
+    storage = [json.loads(line) for line in run('docker', 'system', 'df', '--format', '{{json .}}').splitlines()]
+    if any(x.get('Type') == 'Build Cache' and str(x.get('Active')) == '0' for x in storage):
+        # Old application layers can remain pinned by BuildKit even after every
+        # old tag is deleted. Remove unused build cache only; images retain their
+        # runtime layers and explicit rollback tags.
+        cache_prune = run('docker', 'builder', 'prune', '--all', '--force')
     # No volume/container deletion and no global system-prune operation.
     record('cleanup', {'removedTags': removed, 'removedDanglingImages': dangling_removed, 'retainedOrFailedTags': failures,
+                       'buildCachePrune': cache_prune,
                        'before': before, 'after': run('docker', 'system', 'df'),
                        'volumesDeleted': False, 'containersDeleted': False})
     print(json.dumps({'removedTags': len(removed), 'retainedOrFailedTags': failures}), flush=True)

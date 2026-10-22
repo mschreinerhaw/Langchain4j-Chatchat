@@ -58,4 +58,3 @@ The gateway redirects legacy Runtime URLs `/admin`, `/admin/` and `/admin/index.
 
 Run `python deploy/docker/application/tests/test_application_deployment.py` with Docker available to validate real Compose expansion, existing-data bind semantics, News network routing and Nginx syntax.
 本版中文产品部署、离线包、升级、回滚和镜像清理步骤见 [1.2 产品部署手册](../../../docs/product-deployment-1.2-20261022.md)。
-

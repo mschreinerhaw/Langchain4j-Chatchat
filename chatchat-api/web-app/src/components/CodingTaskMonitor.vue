@@ -64,7 +64,7 @@
         </article>
         <h4>代码工作区 · {{ version?.fileName || code?.fileName || '待提交' }}</h4>
         <p v-if="!versions.length">尚无完整代码版本。模型请求期间显示 CODING，返回完整工具参数后显示代码。</p>
-        <label v-if="versions.length">版本 <select v-model="selectedOperation"><option v-for="(version, index) in versions" :key="version.operationId" :value="version.operationId">v{{ index + 1 }} · {{ version.state }} · {{ time(version.generatedAt) }}</option></select></label>
+        <label v-if="versions.length">版本 <select v-model="selectedOperation"><option v-for="(version, index) in versions" :key="version.operationId" :value="version.operationId">v{{ version.scriptVersion ?? index + 1 }} · {{ version.fileName }} · {{ version.state }} · {{ time(version.generatedAt) }}</option></select></label>
         <p v-if="version">SHA-256：{{ version.hash }} · {{ version.state }} · 校验 {{ version.validationStatus || '待回执' }} {{ version.outputStatus || '' }}</p>
         <p v-if="codeError" role="alert">{{ codeError }} <button @click="loadCode">重读源码</button></p>
         <nav v-if="code"><button @click="showDiff = false">完整源码</button><button @click="loadDiff" :disabled="!previousVersion">与上一版本对比</button></nav>

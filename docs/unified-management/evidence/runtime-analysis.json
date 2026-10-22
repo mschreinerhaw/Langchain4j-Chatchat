@@ -1,0 +1,41 @@
+{
+  "versionTested": "2.0.0-rc3",
+  "runtimeCodeChangedInRc4": false,
+  "status": "PASSED",
+  "newQueryServiceCreatedAndPublished": true,
+  "originalAgentConfigurationChanged": false,
+  "singleFile": {
+    "taskId": "d76dcb27-c314-356e-af28-8f7c10f0ff45",
+    "status": "SUCCEEDED",
+    "elapsedSeconds": 95.8,
+    "rows": 2,
+    "amountTotal": 30,
+    "codeSha256": "b49b2e32e2a93d64b7b3105133068697d566ecc53bd820a47d7950bcba93258d",
+    "archivedResultSha256": "48441f3d89e39a46588dad1a169fe5bb2cb1cd56ec29da4fa2fcf011715e2104"
+  },
+  "jointFiles": {
+    "taskId": "8eb5b5ce-7dd5-32b9-a4e3-60071b0b3e08",
+    "status": "SUCCEEDED",
+    "elapsedSeconds": 191.3,
+    "rows": [2, 2],
+    "amountTotals": [30, 10],
+    "matchedId": "A",
+    "matchedAmountDifference": 7,
+    "onlyFirst": ["B"],
+    "onlySecond": ["C"],
+    "archivedResultSha256": "b16b2a96d94fcd9a92cdae7c75b75445746f99c39cd8ac6c36f74b089c85904f"
+  },
+  "evidenceChecks": {
+    "durableCodingTaskFinishedWithSixReferences": true,
+    "successfulExecutionFeedbackAndCodeHashes": true,
+    "attachmentHashesVerified": true,
+    "uniqueOperationDirectories": 3,
+    "realNodeClineAndPythonExecuted": true,
+    "archivedRowsRetrievedUnderAuthorizedRootDebugging": true,
+    "numericalResultsComparedWithSyntheticInputs": true
+  },
+  "notes": [
+    "Initial verification used an incorrect observation field and was reconciled against actual durable CODING_TRACE records without resubmitting the tasks.",
+    "Raw stdout is intentionally omitted by the existing boundary policy. Numerical results were checked against archived results/rows.jsonl and submitted code instead."
+  ]
+}

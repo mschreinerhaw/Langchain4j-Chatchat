@@ -1,5 +1,5 @@
 {
-  "scope": "Backend regression plus SDK bootstrap, fresh authorization and RC2 package gates",
+  "scope": "Control-plane, SDK, license, Runtime coding and Python regression",
   "status": "PASSED",
   "suites": [
     {
@@ -93,7 +93,7 @@
     {
       "module": "chatchat-mcp-server",
       "name": "com.chatchat.mcpserver.authorization.McpAuthorizationServiceTest",
-      "tests": 41,
+      "tests": 43,
       "failures": 0,
       "errors": 0,
       "skipped": 0
@@ -177,13 +177,53 @@
       "failures": 0,
       "errors": 0,
       "skipped": 0
+    },
+    {
+      "module": "chatchat-mcp-server",
+      "name": "com.chatchat.mcpserver.license.McpMenuLicenseFilterTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-mcp-server",
+      "name": "com.chatchat.mcpserver.license.LicenseInternalControllerTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-mcp-server",
+      "name": "com.chatchat.mcpserver.python.PythonManagedExecutionServiceTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 2
+    },
+    {
+      "module": "chatchat-mcp-server",
+      "name": "com.chatchat.mcpserver.python.PythonAnalysisBridgeTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.orchestration.analysis.graph.HarnessCodingIntegrationTest",
+      "tests": 19,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
     }
   ],
   "totals": {
-    "tests": 124,
+    "tests": 185,
     "failures": 0,
     "errors": 0,
-    "skipped": 0
+    "skipped": 2
   },
   "frontend": {
     "files": 4,
@@ -193,5 +233,20 @@
     "mcpBuild": "PASSED"
   },
   "package": "PASSED",
-  "remote": "PENDING"
+  "remote": {
+    "version": "2.0.0-rc5",
+    "controlPlaneChecks": 28,
+    "controlPlane": "PASSED",
+    "browserChecks": 6,
+    "browser": "PASSED",
+    "javascriptErrors": 0,
+    "singleFile": "PASSED",
+    "jointFiles": "PASSED",
+    "realPythonErrorAndRepair": "PASSED",
+    "finalRc5RuntimeSmoke": "PASSED",
+    "runtimeSmokeSeconds": 342,
+    "sourceCommit": "f21465306dd9989900a89665269c9e529cdf97c0",
+    "evidenceDirectory": "evidence",
+    "cleanup": "PASSED"
+  }
 }

@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0-rc5",
+  "sourceCommit": "f21465306dd9989900a89665269c9e529cdf97c0",
+  "backup": "/opt/runtime-os-docker-stage/evidence/unified-management-2.0.0-rc5/backup-1792681019",
+  "policyBefore": {
+    "runtime_os_acceptance_api.mcp_tool_permission": "cc610360702deaaf14b4b97358dd5385",
+    "runtime_os_acceptance_api.resource_grant": "cc4ee2677f54e70079b249dc53cc9459",
+    "runtime_os_acceptance_api.sys_user_role": "c2d3c28376690fa6ce6beddd80fd6a50",
+    "runtime_os_acceptance_mcp.mcp_template_query_binding": "966f0b052e49a86a729a9791d6eb72e3"
+  },
+  "policyAfter": {
+    "runtime_os_acceptance_api.mcp_tool_permission": "cc610360702deaaf14b4b97358dd5385",
+    "runtime_os_acceptance_api.resource_grant": "cc4ee2677f54e70079b249dc53cc9459",
+    "runtime_os_acceptance_api.sys_user_role": "c2d3c28376690fa6ce6beddd80fd6a50",
+    "runtime_os_acceptance_mcp.mcp_template_query_binding": "966f0b052e49a86a729a9791d6eb72e3"
+  },
+  "policyUnchanged": true,
+  "status": "DEPLOYED",
+  "artifacts": {
+    "api": {
+      "file": "api.jar",
+      "sha256": "161deed8e0665c2acc0951f9b53d54cbeed2ba63e33e279155c5133146e3859d",
+      "bytes": 429758809
+    },
+    "mcp": {
+      "file": "mcp.jar",
+      "sha256": "e93c768543da80da2431f933d67444e0eeb66044d9ea181111598eb86fd6bfed",
+      "bytes": 256589964
+    }
+  }
+}

@@ -54,8 +54,8 @@ try {
   await form.getByLabel('工具名称', { exact: true }).fill(title);
   await form.getByLabel('使用说明', { exact: true }).fill('Synthetic browser acceptance; retained offline for audit.');
   await form.getByLabel('逻辑名称', { exact: true }).fill('browser_acceptance_' + Date.now());
-  await form.getByLabel('执行能力', { exact: true }).selectOption(parent.toolName);
-  await form.getByLabel('使用角色', { exact: true }).selectOption(role.id);
+  await form.getByRole('combobox', { name: /^执行能力/ }).selectOption(parent.toolName);
+  await form.getByRole('combobox', { name: /^使用角色/ }).selectOption(role.id);
   await form.locator('fieldset input[type=checkbox]').first().waitFor();
   await form.locator('fieldset input[type=checkbox]').first().check();
   const saved = page.waitForResponse(response => response.url().endsWith('/api/v1/tool-publications') && response.request().method() === 'POST');

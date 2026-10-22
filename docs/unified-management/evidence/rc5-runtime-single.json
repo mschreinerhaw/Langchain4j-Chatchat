@@ -1,0 +1,21 @@
+{
+  "status": "PASSED",
+  "case": "single",
+  "exerciseError": false,
+  "taskId": "499b8372-569a-3cb3-b47e-51e527158a44",
+  "states": [
+    "PLANNING",
+    "SUCCEEDED"
+  ],
+  "checks": {
+    "taskSucceeded": true,
+    "publishedWorkflowUnchanged": true,
+    "sandboxExecutionProven": true,
+    "admittedCodingEvidence": true,
+    "attachmentHashesVerified": true
+  },
+  "expectedTotals": [
+    30
+  ],
+  "elapsedSeconds": 342.0
+}

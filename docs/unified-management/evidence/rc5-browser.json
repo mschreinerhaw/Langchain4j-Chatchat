@@ -1,0 +1,14 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "existingRoleEditorReused": true,
+    "scopedGrantWorkspaceLoaded": true,
+    "draftCannotPublishBeforeValidationAndTest": true,
+    "createTestAndPublishThroughUi": true,
+    "offlineThroughUi": true,
+    "readerHasNoManagementActions": true
+  },
+  "javascriptErrors": [],
+  "temporaryToolLogicalId": "00b17b44-b2ab-487c-8fbc-5d0afaf6353e",
+  "temporaryToolState": "OFFLINE"
+}

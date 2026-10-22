@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0-rc5",
+  "services": {
+    "api": {
+      "status": "running",
+      "restartCount": 0
+    },
+    "mcp": {
+      "status": "running",
+      "restartCount": 0
+    },
+    "node-proxy": {
+      "status": "running",
+      "restartCount": 0
+    },
+    "coding-agent": {
+      "status": "running",
+      "restartCount": 0
+    },
+    "gateway": {
+      "status": "running",
+      "restartCount": 0
+    }
+  },
+  "artifactHashesMatch": true,
+  "originalCentralPoliciesRestoredAfterFixtureCleanup": true,
+  "originalTemplateBindingsUnchanged": true,
+  "syntheticPublicationsOffline": true,
+  "publicUiAvailable": true,
+  "status": "PASSED"
+}

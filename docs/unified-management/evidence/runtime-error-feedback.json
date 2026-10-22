@@ -1,0 +1,14 @@
+{
+  "status": "PASSED",
+  "taskId": "b9875093-34a8-3b0a-b450-a1ed55fec545",
+  "failedExecutions": 1,
+  "successfulExecutions": 1,
+  "checks": {
+    "actualFailedExecutionRecorded": true,
+    "subsequentCorrectedExecutionSucceeded": true
+  },
+  "executionIds": [
+    "cline-ffc07d0a7c9fb71e586a73d21067e19f997076b3aa2402226df0f3fbee839c60",
+    "cline-747da5d1339c90604f159b0f9014aa2aebd1d27813491eda272e574260072caa"
+  ]
+}

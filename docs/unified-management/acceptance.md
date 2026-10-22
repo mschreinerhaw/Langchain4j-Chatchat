@@ -17,6 +17,14 @@
 
 ## 验证状态
 
-本地扩大回归已通过 99 个后端测试，0 失败、0 错误、0 跳过；前端四组相关回归 63 项通过，两个前端构建通过。最终目标资源复核的新增测试与最终包验收结果在交付前补充到 validation.json。
+本地回归共 185 项后端测试，183 项通过、0 失败、0 错误；2 项需要显式开启 `coding.realDocker` 的真实 Docker 及进程崩溃恢复测试跳过。前端四组相关回归 63 项通过，两个前端构建通过。完整套件与计数见 validation.json。真实远程分析单独记录，不以这些跳过项代替。
 
-远程验收、运行包 SHA-256、浏览器和真实 Runtime 结果在部署后补充。未执行的检查不得视为通过。
+远程 RC5 控制面 28 项验收通过，覆盖旧会话即时撤权、执行拒绝即时生效、移除拒绝恢复、跨租户隔离、实际固定模板检索、版本发布/回滚/下线及数据库不可变保护，见 [rc5-control-plane.json](evidence/rc5-control-plane.json)。浏览器 6 项验收通过、无 JavaScript 异常，见 [rc5-browser.json](evidence/rc5-browser.json)。
+
+已通过真实新建查询服务的单文件和双文件联合分析：每个文件 2 行，金额合计 30、10，匹配 A 的差值为 7，B、C 分属两份文件。验证了独立执行目录、Node/Cline、Python 容器、代码哈希、归档结果和至少 6 个证据引用，见 [runtime-analysis.json](evidence/runtime-analysis.json)。另外真实触发 KeyError，收到结构化字段错误反馈后修正执行成功，见 [runtime-error-feedback.json](evidence/runtime-error-feedback.json)。
+
+部署版本 `2.0.0-rc5`，源码提交 `f21465306dd9989900a89665269c9e529cdf97c0`，入口 `http://192.168.195.221:18100`。权限空间 `/#/w/permissions/systemRoles`，发布空间 `/#/w/mcp-publication/toolPublications`。迁移前后既有策略和模板绑定指纹一致，制品 SHA-256、备份及迁移核对见 [rc5-deployment.json](evidence/rc5-deployment.json)。
+
+RC5 鉴权修正后再次完成真实文件分析，耗时 342 秒，检查均通过，见 [rc5-runtime-single.json](evidence/rc5-runtime-single.json)。模型响应时间会影响总耗时，不作固定时延承诺。验收临时账号、角色、租户和新建查询服务已清理；临时工具均下线，保留不可变版本与任务审计。最终 API、MCP、Node、代理及网关运行正常且无重启，容器内 JAR 哈希与发布 manifest 一致；原始中央策略和排除临时工具后的原始模板绑定均恢复到初始指纹，见 [rc5-final-health.json](evidence/rc5-final-health.json)。
+
+限制：两个 opt-in Docker 自动化用例未运行，其中包含子 JVM 崩溃恢复，不能以真实分析成功替代该用例。最初将“主动抛错”和“统计附件”作为两个目标的请求被原有多工作流安全规则拒绝；单目标统计任务内的实际错误与修复已验证通过。当前产品工具类型为受控模板，后端通过执行器接口扩展其他受控类型。

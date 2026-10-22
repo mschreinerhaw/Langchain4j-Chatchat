@@ -1,5 +1,5 @@
 {
-  "scope": "Backend regression plus final target-authorization and release-package gates",
+  "scope": "Backend regression plus SDK bootstrap, fresh authorization and RC2 package gates",
   "status": "PASSED",
   "suites": [
     {
@@ -93,7 +93,7 @@
     {
       "module": "chatchat-mcp-server",
       "name": "com.chatchat.mcpserver.authorization.McpAuthorizationServiceTest",
-      "tests": 40,
+      "tests": 41,
       "failures": 0,
       "errors": 0,
       "skipped": 0
@@ -169,10 +169,18 @@
       "failures": 0,
       "errors": 0,
       "skipped": 0
+    },
+    {
+      "module": "chatchat-mcp-server",
+      "name": "com.chatchat.mcpserver.templatepublication.admin.McpSchemaEngineStartupTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
     }
   ],
   "totals": {
-    "tests": 122,
+    "tests": 124,
     "failures": 0,
     "errors": 0,
     "skipped": 0

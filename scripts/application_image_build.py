@@ -11,13 +11,24 @@ def build_application_image(service, jar, tag, context):
     repo = Path(__file__).resolve().parents[1]
     templates = Path(os.environ.get('CHATCHAT_IMAGE_TEMPLATES', repo / 'deploy/docker/application'))
     base = os.environ.get('CHATCHAT_JAVA_RUNTIME_IMAGE', 'eclipse-temurin:17-jre-jammy')
+    offline_api = os.environ.get('CHATCHAT_API_RUNTIME_IMAGE') if service == 'api' else None
+    if offline_api:
+        base = offline_api
     # A named business image (even if retagged as a runtime) cannot be a base.
     history = subprocess.check_output(['docker', 'history', '--no-trunc', '--format', '{{.CreatedBy}}', base], text=True)
     if 'app.jar' in history:
         raise ValueError('Refusing a runtime base containing a business JAR; use a clean Java runtime')
+    if offline_api:
+        # Reuse a previously verified clean dependency layer when package registries are unavailable.
+        # Never derive the new application from the previous business application image.
+        subprocess.run(['docker', 'run', '--rm', '--network', 'none', '--read-only', '--cap-drop', 'ALL',
+                        '--security-opt', 'no-new-privileges', '--entrypoint', '/usr/bin/python3', base,
+                        '-c', "import sqlglot; assert sqlglot.__version__ == '30.23.0'"], check=True)
     context = Path(context); context.mkdir(parents=True, exist_ok=True)
     shutil.copy2(jar, context / 'app.jar')
     name = {'api': 'Dockerfile.api', 'mcp': 'Dockerfile.mcp', 'news': 'Dockerfile'}[service]
+    if offline_api:
+        name = 'Dockerfile.api-offline'
     shutil.copy2(templates / name, context / 'Dockerfile')
     shutil.copy2(templates / '.dockerignore', context / '.dockerignore')
     if service == 'api':

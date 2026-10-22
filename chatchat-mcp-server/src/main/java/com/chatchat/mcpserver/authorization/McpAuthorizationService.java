@@ -394,7 +394,8 @@ public class McpAuthorizationService {
 
     public AuthorizationSyncView refreshNow() {
         try {
-            Snapshot snapshot = fetchSnapshot();
+            // Management validation and rollback must observe revocations, just like execution.
+            Snapshot snapshot = Snapshot.from(fetchExecutionSnapshot());
             snapshotRef.set(snapshot);
         } catch (Exception ex) {
             throw new IllegalStateException("failed to refresh MCP authorization snapshot: " + ex.getMessage(), ex);

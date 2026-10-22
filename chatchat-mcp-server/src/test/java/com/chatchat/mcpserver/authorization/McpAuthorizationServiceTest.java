@@ -36,6 +36,16 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class McpAuthorizationServiceTest {
+    @Test void managementRefreshUsesTheFreshAuthorityPath() throws Exception {
+        var calls=new AtomicInteger();var data=databaseSnapshot(snapshot("[]"));
+        var properties=new McpAuthorizationProperties();properties.setEnabled(true);
+        var local=mock(McpSynchronizedRoleRepository.class);
+        var authority=new McpAuthorizationService(properties,mock(InternalCredentialProperties.class),objectMapper,local) {
+            @Override protected JsonNode fetchExecutionSnapshot(){calls.incrementAndGet();return data;}
+        };
+        authority.refreshNow();assertThat(calls.get()).isEqualTo(1);
+        assertThat(authority.roles("tenant-1")).hasSize(1);org.mockito.Mockito.verifyNoInteractions(local);
+    }
     @Test void resolvedDatasourceCannotUseAnotherResourcesScopeClaim() throws Exception {
         var authority=service(snapshot("""
             [{"tenantId":"tenant-1","targetType":"role","targetId":"role-1","localToolName":"gateway",

@@ -6,7 +6,7 @@ import com.networknt.schema.*;
 /** Local draft-2020-12 contracts only; external references must never trigger outbound I/O. */
 public final class ToolReleaseSchemas {
     private ToolReleaseSchemas() { }
-    public static JsonSchema compile(JsonNode schema) {
+    public static Schema compile(JsonNode schema) {
         if (schema == null || !schema.isObject() || !"object".equals(schema.path("type").asText()))
             throw new IllegalArgumentException("Tool Schema must declare type object");
         checkReferences(schema);
@@ -16,7 +16,7 @@ public final class ToolReleaseSchemas {
             throw new IllegalArgumentException("Schema properties must be an object");
         if (schema.has("additionalProperties") && !schema.get("additionalProperties").isBoolean())
             throw new IllegalArgumentException("Tool additionalProperties must be boolean");
-        JsonSchema result = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012).getSchema(schema);
+        Schema result = SchemaRegistry.withDefaultDialect(com.networknt.schema.dialect.Dialects.getDraft202012()).getSchema(schema);
         result.initializeValidators();
         return result;
     }

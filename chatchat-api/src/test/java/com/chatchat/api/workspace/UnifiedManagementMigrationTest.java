@@ -23,6 +23,7 @@ class UnifiedManagementMigrationTest {
         var migration=new ResourceDatabasePopulator(new ClassPathResource("workspace/unified-management-h2.sql"));migration.setSqlScriptEncoding("UTF-8");
         migration.execute(source);migration.execute(source);
         assertThat(jdbc.queryForObject("select count(*) from workspace_registry",Integer.class)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select manifest_json from workspace_registry where id='permissions'",String.class)).contains("权限管理").doesNotContain("??");
         assertThat(jdbc.queryForObject("select count(*) from sys_role_permission where role_id='ordinary-role'",Integer.class)).isZero();
         assertThat(jdbc.queryForObject("select count(*) from mcp_tool_permission",Integer.class)).isOne();
         assertThat(jdbc.queryForObject("select scope from mcp_tool_permission",String.class)).isEqualTo("exact existing resource scope");

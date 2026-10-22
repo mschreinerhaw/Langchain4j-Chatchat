@@ -1,4 +1,5 @@
-FROM node:24.21.0-bookworm-slim AS build
+ARG NODE_RUNTIME_IMAGE=node:24.21.0-bookworm-slim
+FROM ${NODE_RUNTIME_IMAGE} AS build
 
 WORKDIR /srv/coding-agent
 COPY package.json package-lock.json ./
@@ -9,7 +10,7 @@ COPY scripts/build.mjs ./scripts/build.mjs
 COPY tsconfig.json tsconfig.web.json ./
 RUN npm run build && npm prune --omit=dev --ignore-scripts --no-audit --no-fund
 
-FROM node:24.21.0-bookworm-slim
+FROM ${NODE_RUNTIME_IMAGE}
 
 ARG BUILD_REVISION=development
 LABEL org.opencontainers.image.revision=$BUILD_REVISION

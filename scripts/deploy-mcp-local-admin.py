@@ -40,7 +40,11 @@ def main():
     report={'version':version,'sourceCommit':manifest['sourceCommit'],'backup':str(backup),'previousMcp':previous,'apiImage':config['services']['api']['image'],'policyBefore':before,'artifacts':manifest['artifacts']}
     try:
         idle();stage.compose('stop','mcp')
-        stage.sql(databases['mcp'],(release/'mcp-admin-menu-grants.sql').read_text())
+        # Run additive DDL as the existing account-table owner, never leave a postgres-owned table
+        # inaccessible to the application's least-privilege database role.
+        owner=stage.sql(databases['mcp'],"select pg_get_userbyid(relowner) from pg_class where oid='mcp_admin_user'::regclass")
+        quotedOwner='"'+owner.replace('"','""')+'"'
+        stage.sql(databases['mcp'],'SET ROLE '+quotedOwner+';\n'+(release/'mcp-admin-menu-grants.sql').read_text()+'\nALTER TABLE mcp_admin_menu_grant OWNER TO '+quotedOwner+';\nRESET ROLE;')
         config['services']['mcp']['image']='runtime-os-mcp:'+version
         (root/'compose.yaml').write_text(json.dumps(config,indent=2))
         env=root/'config/deployment.env';env.write_text('\n'.join(line for line in env.read_text().splitlines() if not line.startswith('MCP_IMAGE='))+'\nMCP_IMAGE=runtime-os-mcp:'+version+'\n')

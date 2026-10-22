@@ -14,6 +14,21 @@ class PythonDefaultEnvironmentServiceTest {
     private final McpPythonControlPlanePort python = mock(McpPythonControlPlanePort.class);
     private final PythonDefaultEnvironmentService service = new PythonDefaultEnvironmentService(assets, preferences, python);
 
+    @Test void authenticatedTaskUserIdResolvesWorkshopUsernameWithoutCrossingTenants() {
+        var identities = mock(com.chatchat.enterprise.service.EnterpriseAdminService.class);
+        var user = mock(com.chatchat.enterprise.service.EnterpriseAdminService.UserView.class);
+        when(identities.getUserView("user-id")).thenReturn(user);
+        when(user.tenantId()).thenReturn("tenant"); when(user.username()).thenReturn("owner");
+        service.setIdentities(identities);
+        when(assets.findByTenantIdAndOwnerIdOrderByCreatedAtDesc("tenant", "owner"))
+            .thenReturn(List.of(asset("chosen", "published")));
+        when(python.environment("published")).thenReturn(environment(5, "image", "PUBLISHED"));
+        assertThat(service.resolveForTask("tenant", "user-id", "legacy").assetId()).isEqualTo("chosen");
+        assertThatThrownBy(() -> service.resolveForTask("another-tenant", "user-id", "legacy"))
+            .isInstanceOf(SecurityException.class);
+        verify(assets, never()).findByTenantIdAndOwnerIdOrderByCreatedAtDesc("another-tenant", "owner");
+    }
+
     @Test void workshopSelectionOverridesOldDeploymentEnvironmentAndFollowsPublishedVersions() {
         var asset = asset("asset", "published");
         when(assets.findByTenantIdAndOwnerIdOrderByCreatedAtDesc("tenant", "owner")).thenReturn(List.of(asset));

@@ -12,6 +12,10 @@ public class PythonDefaultEnvironmentService {
     private final PythonAssetRepository assets;
     private final PythonEnvironmentPreferenceRepository preferences;
     private final McpPythonControlPlanePort python;
+    private com.chatchat.enterprise.service.EnterpriseAdminService identities;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setIdentities(com.chatchat.enterprise.service.EnterpriseAdminService value) { identities = value; }
 
     public PythonDefaultEnvironmentService(PythonAssetRepository assets,
             PythonEnvironmentPreferenceRepository preferences, McpPythonControlPlanePort python) {
@@ -33,6 +37,14 @@ public class PythonDefaultEnvironmentService {
     }
 
     /** Resolve once for a new task. Saved contracts keep their original environment. */
+    public Selection resolveForTask(String tenant, String authenticatedUserId, String legacyEnvironmentId) {
+        if (identities == null) throw new IllegalStateException("Authenticated Python environment owner resolver is unavailable");
+        var user = identities.getUserView(authenticatedUserId);
+        if (user == null || !tenant.equals(user.tenantId()) || user.username() == null || user.username().isBlank())
+            throw new SecurityException("Python environment owner does not match the authenticated tenant");
+        return resolve(tenant, user.username(), legacyEnvironmentId);
+    }
+
     public Selection resolve(String tenant, String owner, String legacyEnvironmentId) {
         String selected = defaultAssetId(tenant, owner);
         if (selected != null) {

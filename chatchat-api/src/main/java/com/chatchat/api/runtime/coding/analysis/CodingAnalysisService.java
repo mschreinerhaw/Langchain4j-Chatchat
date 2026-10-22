@@ -221,7 +221,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 return receipt;
             }
             var selectedEnvironment = defaultEnvironments == null ? null
-                : defaultEnvironments.resolve(scope.tenantId(), scope.userId(), policy.getEnvironmentId());
+                : defaultEnvironments.resolveForTask(scope.tenantId(), scope.userId(), policy.getEnvironmentId());
             var env=selectedEnvironment == null ? python.environment(text(policy.getEnvironmentId(),256))
                 : selectedEnvironment.environment();
             if(env==null || !"PUBLISHED".equals(env.status()) || !"NONE".equals(env.networkPolicy()))

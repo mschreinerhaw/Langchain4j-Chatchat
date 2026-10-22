@@ -122,7 +122,7 @@
 
     <p v-if="error" class="agent-error">{{ error }}</p>
     <p v-else-if="loading && agents.length === 0" class="agent-empty">正在加载后端Agent配置...</p>
-    <p v-else-if="summary.agentCount || 0 === 0" class="agent-empty"
+    <p v-else-if="(summary.agentCount || 0) === 0" class="agent-empty"
       >暂无Agent配置，请先新增或接入一个。</p
     >
     <p v-else-if="agentTotal === 0" class="agent-empty">没有匹配的Agent，请换一个关键词。</p>

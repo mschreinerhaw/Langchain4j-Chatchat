@@ -252,6 +252,9 @@ class EnterpriseAdminServiceIntegrationTest {
         permission.setLocalToolName("dynamic_release_tool");
         permission.setScopeExpression("tenantId == '" + tenant.getId() + "'");
         permission.setEffect("allow");
+        assertThatThrownBy(() -> service.saveToolPermission(permission))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Invalid MCP scope");
+        permission.setScopeExpression("mcp:*:*:*@tenant=" + tenant.getId());
         McpToolPermission savedPermission = service.saveToolPermission(permission);
         assertThat(savedPermission.getId()).isNotBlank();
 
@@ -270,9 +273,10 @@ class EnterpriseAdminServiceIntegrationTest {
     void deletesToolPermissionsInOneBatchAndIgnoresDuplicatesAndMissingIds() {
         long initialToolPermissions = ((Number) service.summary().get("toolPermissionCount")).longValue();
         SysTenant tenant = service.saveTenant(tenant("release-batch-permissions"));
-        McpToolPermission first = service.saveToolPermission(toolPermission(tenant.getId(), "batch_tool_1"));
-        McpToolPermission second = service.saveToolPermission(toolPermission(tenant.getId(), "batch_tool_2"));
-        service.saveToolPermission(toolPermission(tenant.getId(), "batch_tool_3"));
+        SysRole batchRole = service.saveRole(role(tenant.getId(), "BATCH"));
+        McpToolPermission first = service.saveToolPermission(toolPermission(tenant.getId(), batchRole.getId(), "batch_tool_1"));
+        McpToolPermission second = service.saveToolPermission(toolPermission(tenant.getId(), batchRole.getId(), "batch_tool_2"));
+        service.saveToolPermission(toolPermission(tenant.getId(), batchRole.getId(), "batch_tool_3"));
 
         int deleted = service.deleteToolPermissions(List.of(first.getId(), second.getId(), first.getId(), "missing-id"));
 
@@ -320,11 +324,11 @@ class EnterpriseAdminServiceIntegrationTest {
         return value;
     }
 
-    private McpToolPermission toolPermission(String tenantId, String toolName) {
+    private McpToolPermission toolPermission(String tenantId, String roleId, String toolName) {
         McpToolPermission value = new McpToolPermission();
         value.setTenantId(tenantId);
         value.setTargetType("role");
-        value.setTargetId("batch-role");
+        value.setTargetId(roleId);
         value.setLocalToolName(toolName);
         value.setEffect("allow");
         value.setEnabled(true);

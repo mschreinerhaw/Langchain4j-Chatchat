@@ -32,7 +32,7 @@
             placeholder="输入名称或变更内容" /></label
         ><label
           >操作<select v-model="action"
-            ><option value="">全部操作</option
+                  ><option value="">全部操作</option><option value="rejected">拒绝或失败</option
             ><option value="role-authorization">角色授权</option
             ><option value="save">工具授权</option
             ><option value="delete">撤销工具授权</option

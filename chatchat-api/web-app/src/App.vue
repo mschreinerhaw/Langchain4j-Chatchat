@@ -19,7 +19,7 @@
     :favorite-saving-ids="favoriteSavingIds"
     :nav-items="visibleNavItems"
     :recent-conversations="recentConversations"
-    :layout-type="currentWorkspace?.layoutType || 'assistant'"
+    :layout-type="activeView==='workspaces' ? 'management' : currentWorkspace?.layoutType || 'assistant'"
     :user-id="userId"
     @navigate="handleNavigate"
     @delete-conversation="deleteConversation"

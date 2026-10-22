@@ -15,7 +15,7 @@ vi.mock("../services/api.js", () => ({
   createRole: vi.fn(),
   updateRole: vi.fn(),
   deleteRole: vi.fn(),
-  getStoredAuthSession: () => ({ user: { permissionCodes: ["system:api:all"] } }),
+  getStoredAuthSession: () => ({ user: { permissionCodes: ["system:role","system:role:authorize","system:permission-center:manage","system:resource-grants:manage"] } }),
 }));
 const role = {
   id: "role",

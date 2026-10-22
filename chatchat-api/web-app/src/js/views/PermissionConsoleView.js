@@ -61,7 +61,7 @@ export default {
       scopeDraft = ref([]),
       orgs = ref([]);
     const codes = getStoredAuthSession()?.user?.permissionCodes || [];
-    const has = (code) => codes.includes(code) || codes.includes("system:api:all");
+    const has = (code) => codes.includes(code);
     const canManageRoles = has("system:role");
     const bulkSelected = ref([]);
     const canEditResource = (row) =>
@@ -97,7 +97,7 @@ export default {
         props.mode === "roles"
           ? catalog.value.roles
           : resources.value.filter((r) => !resourceGroup.value || r.group === resourceGroup.value)
-      ).filter((r) => (r.roleName || r.name || "").toLowerCase().includes(query));
+      ).filter((r) => [r.roleName,r.name,r.code,r.roleCode].filter(Boolean).join(' ').toLowerCase().includes(query));
     });
     const masterPages = computed(() => Math.max(1, Math.ceil(masterItems.value.length / 20)));
     const masterPage = computed(() =>

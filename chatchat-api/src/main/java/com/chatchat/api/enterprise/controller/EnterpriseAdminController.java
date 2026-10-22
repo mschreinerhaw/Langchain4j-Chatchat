@@ -245,10 +245,10 @@ public class EnterpriseAdminController {
      * @return the roles list
      */
     @GetMapping("/roles")
-    public ApiResponse<List<SysRole>> listRoles(@RequestParam(name = "tenantId", required = false) String tenantId) {
-        List<SysRole> data = tenantId == null || tenantId.isBlank()
-            ? roleRepository.findAll()
-            : roleRepository.findByTenantIdOrderByRoleNameAsc(tenantId);
+    public ApiResponse<List<SysRole>> listRoles(@RequestParam(name = "tenantId", required = false) String tenantId,HttpServletRequest request) {
+        String selected=tenantId==null || tenantId.isBlank()?adminService.getUserView(requestAttribute(request,ApiAuthenticationFilter.CURRENT_USER_ID)).tenantId():tenantId;
+        requireRoleTenant(request,selected);
+        List<SysRole> data = roleRepository.findByTenantIdOrderByRoleNameAsc(selected);
         return ApiResponse.success(data);
     }
 
@@ -259,7 +259,9 @@ public class EnterpriseAdminController {
      * @return the created role
      */
     @PostMapping("/roles")
-    public ApiResponse<SysRole> createRole(@RequestBody SysRole input) {
+    public ApiResponse<SysRole> createRole(@RequestBody SysRole input,HttpServletRequest request) {
+        if(input.getTenantId()==null)input.setTenantId(adminService.getUserView(requestAttribute(request,ApiAuthenticationFilter.CURRENT_USER_ID)).tenantId());
+        requireRoleTenant(request,input.getTenantId());
         return ApiResponse.success(adminService.saveRole(input), "role saved");
     }
 
@@ -271,7 +273,9 @@ public class EnterpriseAdminController {
      * @return the updated role
      */
     @PutMapping("/roles/{id}")
-    public ApiResponse<SysRole> updateRole(@PathVariable("id") String id, @RequestBody SysRole input) {
+    public ApiResponse<SysRole> updateRole(@PathVariable("id") String id, @RequestBody SysRole input,HttpServletRequest request) {
+        var stored=roleRepository.findById(id).orElseThrow(()->new IllegalArgumentException("Role not found"));requireRoleTenant(request,stored.getTenantId());
+        if(input.getTenantId()!=null && !stored.getTenantId().equals(input.getTenantId()))throw new SecurityException("Role tenant cannot be changed");input.setTenantId(stored.getTenantId());
         input.setId(id);
         return ApiResponse.success(adminService.saveRole(input), "role saved");
     }
@@ -283,7 +287,8 @@ public class EnterpriseAdminController {
      * @return the operation result
      */
     @DeleteMapping("/roles/{id}")
-    public ApiResponse<Void> deleteRole(@PathVariable("id") String id) {
+    public ApiResponse<Void> deleteRole(@PathVariable("id") String id,HttpServletRequest request) {
+        requireRoleTenant(request,roleRepository.findById(id).orElseThrow(()->new IllegalArgumentException("Role not found")).getTenantId());
         adminService.delete("role", id);
         return ApiResponse.success(null, "role deleted");
     }
@@ -295,8 +300,8 @@ public class EnterpriseAdminController {
      * @return the role authorization
      */
     @GetMapping("/roles/{id}/authorization")
-    public ApiResponse<EnterpriseAdminService.RoleAuthorizationView> getRoleAuthorization(@PathVariable("id") String id) {
-        return ApiResponse.success(adminService.getRoleAuthorization(id));
+    public ApiResponse<EnterpriseAdminService.RoleAuthorizationView> getRoleAuthorization(@PathVariable("id") String id,HttpServletRequest request) {
+        var result=adminService.getRoleAuthorization(id);requireRoleTenant(request,result.role().getTenantId());return ApiResponse.success(result);
     }
 
     /**
@@ -313,6 +318,7 @@ public class EnterpriseAdminController {
         @RequestBody EnterpriseAdminService.RoleAuthorizationRequest request,
         HttpServletRequest servletRequest
     ) {
+        requireRoleTenant(servletRequest,adminService.getRoleAuthorization(id).role().getTenantId());
         var saved=adminService.saveRoleAuthorization(id, request);
         var log=new SysAuditLog();log.setTenantId(saved.role().getTenantId());
         log.setActorId(requestAttribute(servletRequest,ApiAuthenticationFilter.CURRENT_USER_ID));
@@ -772,6 +778,13 @@ public class EnterpriseAdminController {
     private String requestAttribute(HttpServletRequest request, String name) {
         Object value = request == null ? null : request.getAttribute(name);
         return value == null ? "" : String.valueOf(value).trim();
+    }
+    private void requireRoleTenant(HttpServletRequest request,String tenant) {
+        String id=requestAttribute(request,ApiAuthenticationFilter.CURRENT_USER_ID);
+        if(id.isBlank())throw new SecurityException("Authenticated role administrator required");
+        var caller=adminService.getUserView(id);
+        if(!tenant.equals(caller.tenantId()) && (caller.tenantNo()==null || caller.tenantNo()!=com.chatchat.common.constants.TenantConstants.PLATFORM_TENANT_NO))
+            throw new SecurityException("Cross-tenant role management denied");
     }
 
 

@@ -16,6 +16,7 @@ export default {
       notice = ref(""),
       result = ref({ items: [], total: 0, pages: 0 });
     const actionNames = {
+      rejected: "拒绝或失败的授权操作",
       "role-authorization": "角色授权",
       save: "保存工具授权",
       delete: "撤销工具授权",
@@ -24,6 +25,7 @@ export default {
       revoke: "撤销资源授权",
     };
     const typeNames = {
+      PERMISSION_OPERATION: "授权操作",
       ROLE: "角色",
       "mcp-tool-permission": "工具",
       SKILL: "领域技能",

@@ -99,3 +99,19 @@ Python 环境回滚经原 MCP 管理 API，先取消发布，再将同一环境�
 包含完整 Python 字体镜像、API 差分、发布工具、文档、验收记录和 INSTALL.md，不含凭据、私有配置、备份或客户图表。适用于已有 Runtime OS 1.2 安装，API 差分要求基线 JAR 为本文件上方 visual-check-repair-r2 版本；不用于空机器首次安装，也不包含原 Java/API 基础镜像。字体构建无需改动原 Python 依赖，完整离线 Python 镜像占据包的主要体积。
 
 已真实解包并校验 13 份有效载荷，通过包内差分重建出完整目标 JAR、加载包内 Docker 镜像，再以只读无网络非 root 容器运行真实字体绘图检查，全部通过。详见[字体补丁验收](evidence/runtime-chart-fonts-20261022.json)及[包验收](evidence/runtime-chart-fonts-package-20261022.json)。文档中的原旧版增量包仍可用于其对应基线；部署本次补丁应使用此新包。
+
+## 同一报告正文重复展示修复（2026-10-22）
+
+原历史 UI artifact 在外层 Report 节点同时挂载 VisualReport 和 answer/Markdown。此前报告被拒绝且缺少内嵌 markdown 时，UiArtifactService 把全文作为可见回退节点保存；随后图文报告在客户端重新校验成功，外层历史布局仍继续展示全文，因而标题、正文、限制声明出现两次。此前字体补丁检查了 PythonVisualReport 内部的正文开关，漏掉了这个外层节点。
+
+实现提交 `2a343f88131c8da29f6a27310c31c1b98f48b7e8`：新报告继续归档完整 answer/HTML 资源，有 VisualReport 时只挂载图文报告。历史报告在 EnterpriseUiArtifactRenderer 加载布局时使用不修改原对象的展示投影，仅移除同一 Report 下 canonical answer/Markdown 或 report/Html 的重复挂载；独立说明、其他 Report 及普通文字报告不受影响。没有扫描或改写模型正文、没有客户业务词规则，也没有重新执行分析。
+
+新增外层真实 JSON Renderer 组件回归，验证历史布局只展示一份报告且不再请求重复的 answer 资源；保留独立说明及原对象。后端 UiArtifactServiceTest 19 项、前端图文报告相关测试 18 项通过，Maven/Vite 构建成功。它们属于单元和组件测试，真实线上验收另外执行。
+
+已在原服务器部署 `runtime-os-api:1.2.0-20261022-single-report`，镜像 ID `sha256:dcd4112b9233ad48336d74841e6979ecec84019ae233da4eb0032c0e0f04e5fe`，743,682,231 字节、一个应用 JAR 层；JAR SHA-256 `c5fc4c80f0d7fdc856971208b0d3582e33eea0c4ea8fc9044630871ac664404c`。发布目录 `/opt/chatchat-releases/1.2.0-20261022-single-report`，仅替换 API/代理，原 Python 默认字体镜像、MCP、Node 和其自动恢复机制保持原部署。
+
+真实浏览器登录原产品并打开截图对应会话，修复前外层完整正文节点为 1，修复后为 0；图文报告为 1，五张原图仍加载、两项未决检查仍保留，无页面异常。再次通过真实 API 读取原历史 manifest，确认其原 answer 挂载及归档资源仍然存在，页面只做展示投影。验收记录见 [单份报告验收](evidence/runtime-single-report-20261022.json)。
+
+回滚在空闲窗口执行：`python3 /opt/chatchat-releases/1.2.0-20261022-single-report/scripts/deploy-execution-feedback-stage.py rollback --api-only --release-dir /opt/chatchat-releases/1.2.0-20261022-single-report --revision 2a343f88131c8da29f6a27310c31c1b98f48b7e8`；私有备份引用见本次目录 `evidence/deployment.json`。
+
+对应 API 增量包：`/opt/chatchat-releases/chatchat-1.2.0-20261022-single-report-hotfix.tar.gz`，8,358,330 字节，SHA-256 `65d76629155d269b2048b422485a0444bc88aedeb0581d0acb3feef1e64aabee`。要求 chart-fonts 版本 API JAR 为基线，不包含或替换 Python/Node 镜像。已真实解包校验 11 份文件，并通过包内差分重建出与线上一致的完整 JAR。按包内 INSTALL.md 在空闲窗口安装，详见[包验收](evidence/runtime-single-report-package-20261022.json)。

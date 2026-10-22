@@ -1,0 +1,10 @@
+{
+  "status": "PASSED",
+  "file": "/opt/chatchat-releases/chatchat-1.2.0-20261022-single-report-hotfix.tar.gz",
+  "bytes": 8358330,
+  "sha256": "65d76629155d269b2048b422485a0444bc88aedeb0581d0acb3feef1e64aabee",
+  "verifiedFileCount": 11,
+  "jarRebuiltFromPayload": true,
+  "includesSecrets": false,
+  "includesCustomerData": false
+}

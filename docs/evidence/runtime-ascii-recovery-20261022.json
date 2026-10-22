@@ -1,0 +1,187 @@
+{
+  "version": "1.2.0-20261022",
+  "date": "2026-10-22",
+  "sourceCommit": "abc64338ba720d8feffe261502b7380dd1e40fed",
+  "localTests": {
+    "ExecutionFeedbackContractTest": {
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "CodingTaskPersistenceTest": {
+      "tests": 36,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "CodingAgentWatchdogTest": {
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "deployment": {
+    "status": "DEPLOYED",
+    "revision": "abc64338ba720d8feffe261502b7380dd1e40fed",
+    "backup": "/opt/chatchat-releases/1.2.0-20261022-ascii-recovery/private-backup/1792659764",
+    "unrelatedContainersUnchanged": true,
+    "configurationAndMountsPreserved": true,
+    "images": {
+      "api": {
+        "id": "sha256:97ca4ec7b17de0de8dceb4eb08b13c5b2ad7b21ad9c9952dd7d8913d24b00a35",
+        "bytes": 743679166
+      }
+    }
+  },
+  "realRecoveryDrills": {
+    "dockerEnabled": "enabled",
+    "timerEnabled": "enabled",
+    "timerActive": "active",
+    "sourceCommit": "abc64338ba720d8feffe261502b7380dd1e40fed",
+    "unexpectedExit": {
+      "seconds": 16.3,
+      "beforePid": 1100532,
+      "afterPid": 1155654,
+      "beforeRestartCount": 0,
+      "afterRestartCount": 1,
+      "observedHealthStates": [
+        "healthy",
+        "starting"
+      ],
+      "containerId": "7cc634931bdbbe3c71649d5fab2d05e4e0cfd6a8739648d62f22f046987605df",
+      "healthy": true
+    },
+    "unresponsiveProcess": {
+      "seconds": 91.68,
+      "beforePid": 1155654,
+      "afterPid": 1157882,
+      "beforeRestartCount": 1,
+      "afterRestartCount": 0,
+      "observedHealthStates": [
+        "healthy",
+        "unhealthy",
+        "starting"
+      ],
+      "containerId": "7cc634931bdbbe3c71649d5fab2d05e4e0cfd6a8739648d62f22f046987605df",
+      "healthy": true
+    },
+    "watchdogEvents": [
+      {
+        "timestamp": "2026-10-22T09:05:41.320200+00:00",
+        "component": "CODING_AGENT_WATCHDOG",
+        "action": "RESTART_REQUESTED",
+        "containerId": "7cc634931bdbbe3c71649d5fab2d05e4e0cfd6a8739648d62f22f046987605df",
+        "reason": "UNHEALTHY",
+        "cooldownSeconds": 300
+      },
+      {
+        "timestamp": "2026-10-22T09:05:51.975679+00:00",
+        "component": "CODING_AGENT_WATCHDOG",
+        "action": "RESTART_COMMAND_COMPLETED",
+        "containerId": "7cc634931bdbbe3c71649d5fab2d05e4e0cfd6a8739648d62f22f046987605df"
+      }
+    ],
+    "state": {
+      "containerId": "7cc634931bdbbe3c71649d5fab2d05e4e0cfd6a8739648d62f22f046987605df",
+      "lastAttemptAt": 1792659941.283119,
+      "attempts": 1
+    },
+    "unrelatedContainersUnchanged": true
+  },
+  "realModelAnalysis": {
+    "status": "PASSED",
+    "kind": "REAL_MODEL_ASCII_NAMING",
+    "parentTaskId": "fb6263e8-dec4-3f67-8de6-da710813ade9",
+    "taskId": "analysis-coding-17d48b5fc06708c73382690f9bcc127882e98c9cdc5f7cca3efe103335ad030c",
+    "traceId": "att-1-606aa44c-eae4-49f8-b0a3-9714d7ce388b",
+    "versions": [
+      {
+        "executionId": "cline-57ec20cb277fce214e552d145a8e6b5bfae8d27b5e51148cea9017e80d4c414d",
+        "script": {
+          "fileName": "python-csv-decimal-curre_20261022T091017512Z_3bd99ecea97f_v1.py",
+          "scriptPath": "/workspace/scripts/python-csv-decimal-curre_20261022T091017512Z_3bd99ecea97f_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/977c3fbdc94eefdb/3bd99ecea97f104658f983ae",
+          "scriptVersion": 1
+        },
+        "scriptHash": "8d3c53ad968548e9a77527519e393ddcb073c92c3483074d7c40eb36f9b55d33",
+        "status": "SUCCEEDED",
+        "errorCategory": "OUTPUT_CONTRACT",
+        "validationStatus": "FAILED",
+        "resultAvailable": false
+      },
+      {
+        "executionId": "cline-a6c8fa4671abe0450ee19388dcd99dde2504b9dde9399c2f890abedc9e6a33a2",
+        "script": {
+          "fileName": "python-csv-decimal-curre_20261022T091050957Z_3bd99ecea97f_v2.py",
+          "scriptPath": "/workspace/scripts/python-csv-decimal-curre_20261022T091050957Z_3bd99ecea97f_v2.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/977c3fbdc94eefdb/3bd99ecea97f104658f983ae",
+          "scriptVersion": 2
+        },
+        "scriptHash": "2cd287dfeda0f01d551c4b4893a42119d9e649e6fd91b182d2c243575b93f93f",
+        "status": "SUCCEEDED",
+        "errorCategory": null,
+        "validationStatus": "INCONCLUSIVE",
+        "resultAvailable": true
+      },
+      {
+        "executionId": "cline-f387b929476468f386b4fc9a71b82a99274fdfb1a6d067f7abbcd4c675545f96",
+        "script": {
+          "fileName": "python-csv-decimal-curre_20261022T091122359Z_3bd99ecea97f_v3.py",
+          "scriptPath": "/workspace/scripts/python-csv-decimal-curre_20261022T091122359Z_3bd99ecea97f_v3.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/977c3fbdc94eefdb/3bd99ecea97f104658f983ae",
+          "scriptVersion": 3
+        },
+        "scriptHash": "695f35ce2c149dc44d07096dcec9bb4a90154ef674b4c063e25e5d112174351f",
+        "status": "SUCCEEDED",
+        "errorCategory": null,
+        "validationStatus": "INCONCLUSIVE",
+        "resultAvailable": true
+      }
+    ],
+    "checks": {
+      "login": true,
+      "authenticatedIdentity": true,
+      "historyReadable": true,
+      "realQaAnswer": true,
+      "syntheticAttachmentUploaded": true,
+      "aggregateCorrect": true,
+      "codingCompleted": true,
+      "pythonExecuted": true,
+      "realModelCalled": true,
+      "feedbackAvailable": true,
+      "feedbackIdentity": true,
+      "independentResultAdmitted": true,
+      "inputSnapshotReused": true
+    },
+    "usage": {
+      "modelCalls": 6,
+      "modelTokens": 134605,
+      "toolCalls": 3,
+      "codeExecutions": 3,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 13137,
+      "costAmount": "0"
+    },
+    "siloCodeDownloadsHashVerified": true,
+    "pgVersionIndexesVerified": true,
+    "historicalChineseVersionsUnchangedAndReadable": 4,
+    "validationStatus": "INCONCLUSIVE",
+    "javaLogTypes": {
+      "TASK_STARTED": 1,
+      "NODE_RESPONSE": 96,
+      "RECOVERY_RECONCILED": 60,
+      "PYTHON_CODE_SUBMITTED": 3,
+      "PYTHON_EXECUTION_FEEDBACK": 3,
+      "TASK_FINISHED": 1
+    }
+  },
+  "limits": [
+    "Host reboot was not performed; Docker and timer enabled states were checked.",
+    "Recovery drills ran only after existing tasks completed; they do not prove arbitrary in-flight tasks can be blindly replayed.",
+    "Historical Unicode file names remain unchanged and readable; new allocations are ASCII only.",
+    "Local unit/component tests do not replace the separately recorded real server and model runs."
+  ]
+}

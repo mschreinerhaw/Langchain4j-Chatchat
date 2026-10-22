@@ -1,0 +1,9 @@
+{
+  "path": "/opt/chatchat-releases/chatchat-1.2.0-20261022-ascii-recovery-hotfix-r2.tar.gz",
+  "bytes": 6316259,
+  "sha256": "dae59c2e2b09a376c13060d4d394b31b327e92fa886433631c28a116199b49c1",
+  "includesPrivateData": false,
+  "baselineRequired": true,
+  "manifestChecksumsVerified": true,
+  "jarReconstructedFromPackagedDelta": true
+}

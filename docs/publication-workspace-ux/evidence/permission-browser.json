@@ -1,0 +1,21 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "fiveFlatNavigationWithoutChatChrome": true,
+    "ordinaryAdministratorWithoutApiAll": true,
+    "rolePermissionSavedThroughUi": true,
+    "threeDesktopWidthsWithoutHorizontalOverflow": true,
+    "userCreationAndRoleAssignmentThroughUi": true,
+    "roleResourceAndUserInheritanceQueryable": true,
+    "uiDenyImmediatelyBlocksRuntimeAndMcp": true,
+    "uiRevokeRestoresRuntimeAndMcp": true,
+    "loginAuditRemainsUsable": true,
+    "authorizationAuditVisible": true,
+    "organizationsCreatedAndUpdatedThroughUi": true,
+    "workspaceSettingsRestored": true,
+    "workspaceSettingsMenuOperable": true,
+    "settingsHaveNoChatOverlay": true,
+    "oldRoutesConvergeToOneResourcePage": true,
+    "noPageErrors": true
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "mcp_tool_permissionRestoredAfterAcceptance": true,
+    "resource_grantRestoredAfterAcceptance": true,
+    "sys_user_roleRestoredAfterAcceptance": true,
+    "sys_role_permissionRestoredAfterAcceptance": true,
+    "originalMcpTemplateBindingsUnchanged": true,
+    "obsoleteMenusAbsent": true,
+    "temporaryRolesAbsent": true,
+    "temporaryUsersAbsent": true,
+    "temporaryTenantsAbsent": true,
+    "temporaryOrganizationsAbsent": true,
+    "duplicatePermissionCodesAbsent": true,
+    "duplicateMenuCodesAbsent": true,
+    "unboundScopedRoleGrantsAbsent": true,
+    "fiveFlatPermissionPages": true,
+    "settingsBoundToExistingManagementPermission": true,
+    "apiRunningArtifactMatches": true,
+    "mcpRunningArtifactUnchanged": true
+  },
+  "counts": {
+    "obsoleteMenus": 0,
+    "temporaryRoles": 0,
+    "temporaryUsers": 0,
+    "temporaryTenants": 0,
+    "temporaryOrganizations": 0,
+    "duplicatePermissionCodes": 0,
+    "duplicateMenuCodes": 0,
+    "unboundScopedRoleGrants": 0
+  },
+  "readOnly": true
+}

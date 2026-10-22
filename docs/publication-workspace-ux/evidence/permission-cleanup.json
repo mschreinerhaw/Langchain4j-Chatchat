@@ -1,0 +1,16 @@
+{
+  "status": "PASSED",
+  "created": {
+    "roles": [
+      "64c555a4-4d80-4aa3-848f-6f316d9e9e24"
+    ],
+    "users": [
+      "e38824f1-dc39-4f45-a452-f854fa04b6b2"
+    ],
+    "orgs": [
+      "28d95f88-f0b6-4edb-beb4-8f4cbf6364b2"
+    ],
+    "denies": []
+  },
+  "errors": []
+}

@@ -1,0 +1,21 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "managementLayoutHasNoChatChrome": true,
+    "draftCreatedThroughUi": true,
+    "invalidJsonShowsActionableError": true,
+    "validateTestAndPublishThroughUi": true,
+    "publishedToolExecutesThroughRuntime": true,
+    "threeDesktopWidthsUsable": true,
+    "newDraftPreservesRunningVersion": true,
+    "versionStateFilterSelectsMatchingRelease": true,
+    "rollbackRestoresSelectedHistory": true,
+    "offlineRemovesRuntimeVisibility": true,
+    "organizationControlsUseSharedCss": true,
+    "loginAuditFitsContentWidth": true,
+    "domainSkillsCategoryRenamed": true,
+    "internalServerNotAnAuthorizationResource": true,
+    "noPageErrors": true
+  },
+  "realModelInvoked": false
+}

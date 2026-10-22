@@ -1,0 +1,38 @@
+{
+    "build":  {
+                  "apiPackage":  "PASSED",
+                  "frontend":  "PASSED",
+                  "vueStructureComponents":  62
+              },
+    "status":  "PASSED",
+    "scope":  "Selected publication and permission regression tests, not the entire repository suite",
+    "frontend":  {
+                     "tests":  286,
+                     "files":  30
+                 },
+    "backend":  {
+                    "suites":  [
+                                   {
+                                       "skipped":  0,
+                                       "name":  "com.chatchat.api.controller.mcp.ToolPublicationControllerTest",
+                                       "tests":  2,
+                                       "errors":  0,
+                                       "failures":  0
+                                   },
+                                   {
+                                       "skipped":  0,
+                                       "name":  "com.chatchat.api.enterprise.controller.PermissionCenterControllerTest",
+                                       "tests":  3,
+                                       "errors":  0,
+                                       "failures":  0
+                                   },
+                                   {
+                                       "skipped":  0,
+                                       "name":  "com.chatchat.api.security.ApiPermissionAuthorizationFilterTest",
+                                       "tests":  6,
+                                       "errors":  0,
+                                       "failures":  0
+                                   }
+                               ]
+                }
+}

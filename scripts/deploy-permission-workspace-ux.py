@@ -18,11 +18,12 @@ def main():
   values[databases['api']+'.sys_role_permission']=stage.sql(databases['api'],"select md5(coalesce(jsonb_agg(to_jsonb(t)-'updated_at'-'created_at' order by id)::text,'[]')) from sys_role_permission t")
   return values
  require_idle();before=fingerprints();destination=stage.backup(config,databases);require_idle()
- report=dict(version=version,sourceCommit=manifest['sourceCommit'],backup=str(destination),policyBefore=before,mcpImage=config['services']['mcp']['image']);migrated=False
+ navigation_preexisting=stage.sql(databases['api'],"select count(*) from runtime_product_retirement_archive where record_type='MARKER' and record_id='permission-workspace-ux-v1'")=='1'
+ report=dict(version=version,sourceCommit=manifest['sourceCommit'],backup=str(destination),policyBefore=before,mcpImage=config['services']['mcp']['image'],navigationAlreadyMigrated=navigation_preexisting);migrated=False
  print(json.dumps({'stage':'BACKED_UP','backup':str(destination)}),flush=True)
  try:
   stage.compose('stop','api')
-  stage.sql(databases['api'],(release/'V20261023_01__permission_workspace_ux.sql').read_text());migrated=True
+  stage.sql(databases['api'],(release/'V20261023_01__permission_workspace_ux.sql').read_text());migrated=not navigation_preexisting
   config['services']['api']['image']='runtime-os-api:'+version;(root/'compose.yaml').write_text(json.dumps(config,indent=2))
   env=root/'config/deployment.env';env.write_text('\n'.join(line for line in env.read_text().splitlines() if not line.startswith('API_IMAGE='))+'\nAPI_IMAGE=runtime-os-api:'+version+'\n')
   stage.compose('up','-d','--no-deps','--force-recreate','api');stage.ready(18180)

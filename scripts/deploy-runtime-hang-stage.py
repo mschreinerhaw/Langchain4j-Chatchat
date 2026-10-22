@@ -12,6 +12,7 @@ import time
 import urllib.error
 import urllib.request
 import zipfile
+from application_image_build import build_application_image
 
 ROOT = Path('/opt/runtime-os-docker-stage')
 PROJECT = 'runtime-os-app-stage'
@@ -60,9 +61,7 @@ release = sys.argv[3] if len(sys.argv) > 3 else 'r1'
 if not re.fullmatch(r'r[1-9][0-9]*', release):
     raise RuntimeError('Explicit valid release suffix required')
 tag = 'runtime-os-api:runtime-hang-20261019-'+release
-(EVIDENCE/'Dockerfile').write_text('FROM '+api['Config']['Image']+'\nCOPY app.jar /srv/app/app.jar\n')
-(EVIDENCE/'.dockerignore').write_text('*\n!app.jar\n!Dockerfile\n')
-run('docker', 'build', '-t', tag, str(EVIDENCE))
+build_application_image('api', jar, tag, EVIDENCE/'image-context')
 backup = EVIDENCE/('backup-'+str(int(time.time())))
 backup.mkdir(mode=0o700)
 cfg = ROOT/'compose.yaml'

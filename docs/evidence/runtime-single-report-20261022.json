@@ -1,0 +1,25 @@
+{
+  "status": "PASSED",
+  "sourceCommit": "2a343f88131c8da29f6a27310c31c1b98f48b7e8",
+  "backendUnitTests": {
+    "passed": 19,
+    "failed": 0
+  },
+  "frontendTests": {
+    "passed": 18,
+    "failed": 0
+  },
+  "realBrowserAcceptance": {
+    "taskId": "analysis-coding-53aa13bf2fc92325603ce323936f7b5dd4989f5a3d18efe30507c9b69e584351",
+    "duplicateCanonicalAnswerBodiesBefore": 1,
+    "duplicateCanonicalAnswerBodiesAfter": 0,
+    "visualReportCount": 1,
+    "loadedChartCount": 5,
+    "unresolvedCheckCount": 2,
+    "originalManifestCanonicalAnswerPreserved": true,
+    "pageErrors": []
+  },
+  "newModelCalls": 0,
+  "newPythonExecutions": 0,
+  "historicalReportsRewritten": false
+}

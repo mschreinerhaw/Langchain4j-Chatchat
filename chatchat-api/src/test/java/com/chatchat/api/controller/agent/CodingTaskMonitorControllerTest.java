@@ -59,6 +59,7 @@ class CodingTaskMonitorControllerTest {
             assertThatThrownBy(()->controller.cancel("run","task",request)).isInstanceOf(ResponseStatusException.class);
             assertThatThrownBy(()->controller.resume("run","task",request)).isInstanceOf(ResponseStatusException.class);
             assertThatThrownBy(()->controller.inputFiles("run","task",null,request)).isInstanceOf(ResponseStatusException.class);
+            assertThatThrownBy(()->controller.reviewVisualReport("run","task","runtime-evidence:result",request)).isInstanceOf(ResponseStatusException.class);
         }
         verifyNoInteractions(tasks,coding);
     }

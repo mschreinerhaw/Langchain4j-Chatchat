@@ -1,0 +1,12 @@
+{
+  "status": "PASSED",
+  "file": "/opt/chatchat-releases/chatchat-1.2.0-20261022-chart-fonts-linux-amd64.tar.gz",
+  "bytes": 801656737,
+  "sha256": "6f6662f2ab758b077673a5c6a3784953da67e695b1310ac049fa688f08880edf",
+  "includesCustomerData": false,
+  "includesSecrets": false,
+  "verifiedFileCount": 13,
+  "jarRebuiltFromPayload": true,
+  "pythonImageLoadedFromPayload": true,
+  "fontRenderFromLoadedPayload": true
+}

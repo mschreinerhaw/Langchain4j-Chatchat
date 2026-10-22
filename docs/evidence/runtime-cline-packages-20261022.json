@@ -1,0 +1,84 @@
+{
+  "status": "DEPLOYED_AND_VERIFIED",
+  "version": "1.2.0-20261022",
+  "date": "2026-10-22",
+  "imageSourceCommit": "3279ad95f21173a178a8b4047f92340ca83f4815",
+  "localNodeTests": {
+    "passed": 47,
+    "failed": 0
+  },
+  "initialLinuxTests": {
+    "status": "FAILED",
+    "passed": 38,
+    "failed": 3,
+    "reason": "Two missing test fixtures and one short timeout under concurrent execution"
+  },
+  "finalLinuxProductionImageTests": {
+    "passed": 47,
+    "failed": 0,
+    "skipped": 0,
+    "testConcurrency": 1,
+    "assertionsUnchanged": true
+  },
+  "build": {
+    "images": {
+      "coding-agent": {
+        "id": "sha256:04e56f01e65d4138ecf9dea8ba1f97e8cecbe2d2aa1e44fe3cefe203945575cb",
+        "bytes": 418340103
+      }
+    },
+    "revision": "3279ad95f21173a178a8b4047f92340ca83f4815",
+    "packages": {
+      "status": "VERIFIED",
+      "packages": {
+        "@cline/sdk": "0.0.93",
+        "@cline/core": "0.0.93",
+        "@cline/agents": "0.0.93",
+        "@cline/llms": "0.0.93",
+        "@cline/shared": "0.0.93"
+      }
+    }
+  },
+  "deployment": {
+    "status": "DEPLOYED",
+    "revision": "3279ad95f21173a178a8b4047f92340ca83f4815",
+    "backup": "/opt/chatchat-releases/1.2.0-20261022-cline-packages/private-backup/1792665112",
+    "unrelatedContainersUnchanged": true,
+    "configurationAndMountsPreserved": true,
+    "images": {
+      "coding-agent": {
+        "id": "sha256:04e56f01e65d4138ecf9dea8ba1f97e8cecbe2d2aa1e44fe3cefe203945575cb",
+        "bytes": 418340103
+      }
+    }
+  },
+  "runtime": {
+    "status": "PASSED",
+    "packages": {
+      "@cline/sdk": "0.0.93",
+      "@cline/core": "0.0.93",
+      "@cline/agents": "0.0.93",
+      "@cline/llms": "0.0.93",
+      "@cline/shared": "0.0.93"
+    },
+    "nodeVersion": "v24.21.0",
+    "uid": 1000,
+    "healthReady": true,
+    "healthAuthenticationRequired": true,
+    "build": "3279ad95f21173a178a8b4047f92340ca83f4815",
+    "inputCapabilitiesUnchanged": true
+  },
+  "previousImageMissingPackageCheck": {
+    "status": "PASSED",
+    "missingPackagesRejected": true,
+    "errorCode": "ERR_MODULE_NOT_FOUND"
+  },
+  "imageAliasesSynchronized": true,
+  "watchdogTimerActive": true,
+  "restartPolicy": "unless-stopped",
+  "limits": [
+    "No paid external model end-to-end business test was performed for this dependency-only change.",
+    "Installing SDK/core does not create core sessions, start the hub or automatically grant host tool access.",
+    "Existing Runtime authorization, model callbacks, budget controls and Python Sandbox remain the active execution route."
+  ]
+}

@@ -1,4 +1,5 @@
-FROM node:24.21.0-bookworm-slim AS build
+ARG NODE_RUNTIME_IMAGE=node:24.21.0-bookworm-slim
+FROM ${NODE_RUNTIME_IMAGE} AS build
 
 WORKDIR /srv/coding-agent
 COPY package.json package-lock.json ./
@@ -9,7 +10,7 @@ COPY scripts/build.mjs ./scripts/build.mjs
 COPY tsconfig.json tsconfig.web.json ./
 RUN npm run build && npm prune --omit=dev --ignore-scripts --no-audit --no-fund
 
-FROM node:24.21.0-bookworm-slim
+FROM ${NODE_RUNTIME_IMAGE}
 
 ARG BUILD_REVISION=development
 LABEL org.opencontainers.image.revision=$BUILD_REVISION
@@ -27,7 +28,7 @@ COPY --from=build --chown=node:node /srv/coding-agent/dist ./dist
 COPY --chown=node:node package.json ./
 # Retain the health probe path used by existing Runtime deployment tooling.
 COPY --chown=node:node src/healthcheck.js ./src/healthcheck.js
-RUN mkdir /srv/monitor-data && chown node:node /srv/monitor-data
+RUN node dist/sdk-packages.js && mkdir /srv/monitor-data && chown node:node /srv/monitor-data
 USER node
 EXPOSE 3100
 HEALTHCHECK --interval=15s --timeout=5s --start-period=15s --retries=3 CMD ["node", "dist/healthcheck.js"]

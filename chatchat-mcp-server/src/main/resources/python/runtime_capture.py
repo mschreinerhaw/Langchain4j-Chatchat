@@ -27,7 +27,8 @@ def capture(stream, result):
 
 def main():
     source = sys.argv[1]
-    process = subprocess.Popen([sys.executable, '-u', source], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen([sys.executable, '-u', source], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               env={**os.environ, 'PYTHONIOENCODING': 'utf-8'})
     out, err = {}, {}
     readers = [threading.Thread(target=capture, args=(process.stdout, out)),
                threading.Thread(target=capture, args=(process.stderr, err))]
@@ -36,7 +37,8 @@ def main():
     code = process.wait()
     for reader in readers:
         reader.join()
-    diagnostic = {'policy': 'METADATA_ONLY_V1', 'stdoutBytes': out['bytes'], 'stderrBytes': err['bytes'],
+    diagnostic = {'schemaVersion': 'runtime_os.python_diagnostic.v1',
+                  'policy': 'METADATA_ONLY_V1', 'stdoutBytes': out['bytes'], 'stderrBytes': err['bytes'],
                   'stdoutSha256': out['sha256'], 'stderrSha256': err['sha256']}
     exceptions = {name for name in dir(builtins) if isinstance(getattr(builtins, name), type)
                   and issubclass(getattr(builtins, name), BaseException)}
@@ -46,11 +48,30 @@ def main():
     frames = re.findall(r'File "' + re.escape(source) + r'", line ([0-9]{1,8})', err['tail'])
     if frames:
         diagnostic['line'] = int(frames[-1])
+        diagnostic['stack'] = [{'file': os.path.basename(source), 'line': int(line)} for line in frames[-16:]]
+    hint = diagnostic_code(err['tail'])
+    if hint:
+        diagnostic['diagnosticCode'] = hint
     path = sys.argv[2] if len(sys.argv) > 2 else '/workspace/output/logs/runtime-diagnostic.json'
     with open(path + '.part', 'w', encoding='utf-8') as output:
         json.dump(diagnostic, output, sort_keys=True)
     os.replace(path + '.part', path)
     return code if code >= 0 else 128 - code
+
+
+def diagnostic_code(tail):
+    """Fixed technical categories only; never persist exception text or values."""
+    if re.search(r"^TypeError: '[A-Za-z0-9_.]+' object is not subscriptable\s*$", tail, re.M):
+        return 'VALUE_NOT_SUBSCRIPTABLE'
+    if re.search(r'^TypeError: unsupported operand type\(s\) for ', tail, re.M):
+        return 'NUMERIC_TYPE_MISMATCH'
+    if re.search(r'^TypeError: Object of type [A-Za-z0-9_.]+ is not JSON serializable\s*$', tail, re.M):
+        return 'JSON_VALUE_NOT_SERIALIZABLE'
+    if re.search(r'^ModuleNotFoundError:', tail, re.M):
+        return 'PACKAGE_NOT_INSTALLED'
+    if re.search(r'^AttributeError: .* has no attribute ', tail, re.M):
+        return 'PACKAGE_API_UNAVAILABLE'
+    return None
 
 
 if __name__ == '__main__':

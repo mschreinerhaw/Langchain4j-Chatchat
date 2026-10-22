@@ -41,6 +41,37 @@ class UiArtifactServiceTest {
         assertThat(fixture.service().manifest("tenant-a",id).orElseThrow().toString()).contains("answer");
         assertThat(fixture.service().resource("other-tenant",id,"visual-report")).isEmpty();
     }
+    @Test void visualReportsWithMissingBodyDoNotMountTheArchivedAnswerTwice() {
+        var fixture=fixture(1);
+        for (String status : List.of("SUCCESS", "PARTIAL", "FAILED")) {
+            var report=Map.of("schemaVersion","python_visual_report.v1","status",status,"title","Report");
+            var presentation=fixture.service().externalizeIfNeeded("tenant-a","task-visual-"+status,
+                Map.of("answer","Retained complete text","visualReport",report,"status",status));
+            String id=presentation.reference().get("artifactId").toString();
+            var manifest=fixture.service().manifest("tenant-a",id).orElseThrow();
+            var spec=(Map<?,?>)manifest.get("spec");
+            var elements=(Map<?,?>)spec.get("elements");
+            var children=new java.util.ArrayList<Object>((List<?>)((Map<?,?>)elements.get("report")).get("children"));
+            assertThat(children).contains("visual-report");
+            assertThat(children).doesNotContain("answer");
+            assertThat(fixture.service().resource("tenant-a",id,"answer")).hasValue("Retained complete text");
+        }
+    }
+
+    @Test void visualReportDoesNotMountTheAlternativeHtmlReport() {
+        var fixture=fixture(1);
+        var report=Map.of("schemaVersion","python_visual_report.v1","status","PARTIAL","title","Report");
+        var presentation=fixture.service().externalizeIfNeeded("tenant-a","task-visual-html",
+            Map.of("reportHtml","<h1>Duplicate report</h1>","visualReport",report,"status","PARTIAL"));
+        String id=presentation.reference().get("artifactId").toString();
+        var spec=(Map<?,?>)fixture.service().manifest("tenant-a",id).orElseThrow().get("spec");
+        var elements=(Map<?,?>)spec.get("elements");
+        var children=new java.util.ArrayList<Object>((List<?>)((Map<?,?>)elements.get("report")).get("children"));
+        assertThat(children).contains("visual-report");
+        assertThat(children).doesNotContain("report-html");
+        assertThat(fixture.service().resource("tenant-a",id,"report")).hasValue("<h1>Duplicate report</h1>");
+    }
+
     @TempDir
     Path temporaryDirectory;
 

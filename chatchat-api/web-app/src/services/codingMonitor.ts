@@ -1,4 +1,5 @@
 import { apiRequest } from './api';
+import type { ExecutionFeedback } from '../../../../coding-agent-node/src/execution-feedback';
 
 export interface CodingEvent {
   eventId: string; taskId: string; sequence: number; occurredAt: string; type: string;
@@ -6,6 +7,7 @@ export interface CodingEvent {
   payload?: Record<string, any>; evidenceRefs?: string[];
 }
 export interface CodingTask {
+  executions?: ExecutionFeedback[];
   modelReceipts?: CodingModelCallTelemetry[];
   taskId: string; attemptId: string; objective: string; canCancel: boolean; canRetry: boolean; canResume?: boolean;
   configuration: { model?: Record<string, any>; skills?: Record<string, any>; configuredSkillIds?: string[] };
@@ -53,7 +55,7 @@ export function codeVersions(events: CodingEvent[]) {
     const operation = p.proposedOperationId ?? event.operationId;
     if (!operation?.startsWith('cline-')) continue;
     if (p.type === 'CODE_READY') versions.set(operation, {
-      operationId: operation, hash: p.codeSha256, fileName: p.fileName, generatedAt: event.occurredAt, state: 'CODE_READY',
+      operationId: operation, hash: p.codeSha256, fileName: p.fileName, scriptPath:p.scriptPath, scriptVersion:p.scriptVersion, generatedAt: event.occurredAt, state: 'CODE_READY',
     });
     const version = versions.get(operation);
     if (version && ['VALIDATING', 'EXECUTING', 'RESULT_VALIDATING'].includes(p.stage)) version.state = p.stage;

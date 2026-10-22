@@ -1,0 +1,16 @@
+{
+  "path": "/opt/chatchat-releases/chatchat-1.2.0-20261022-cline-packages-linux-amd64.tar.gz",
+  "sha256": "72924bd34a0291ccb7781f02e0174b9ae462fa85ff0276938d05bcfab117e971",
+  "bytes": 114326420,
+  "image": {
+    "tag": "runtime-os-coding-agent:1.2.0-20261022-cline-packages",
+    "id": "sha256:04e56f01e65d4138ecf9dea8ba1f97e8cecbe2d2aa1e44fe3cefe203945575cb",
+    "bytes": 418340103
+  },
+  "includesCustomerDataOrCredentials": false,
+  "requiresExistingInstallation": true,
+  "archiveChecksumsVerified": true,
+  "dockerLoadVerified": true,
+  "imageIdMatched": true,
+  "fivePackagesImportedFromPackagedImage": true
+}

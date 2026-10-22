@@ -11,6 +11,7 @@ export interface ModelCall {
   usage: { inputTokens: number | null; outputTokens: number | null; totalCost: number | null };
 }
 export interface CodeVersion {
+  scriptPath?: string; scriptVersion?: number | null;
   id: string; operationId: string; fileName: string; sha256: string; sourceBytes: number;
   createdAt: string; sourceRetained: boolean; source?: string;
 }

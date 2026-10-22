@@ -24,10 +24,24 @@ public class McpLicenseEntitlementClient implements McpLicenseEntitlementPort {
     static final String SKILL_LIMIT_PATH = "/internal/v1/license/skill-publication-limit";
     static final String SKILL_FEDERATION_PATH = "/internal/v1/license/skill-federation-entitlement";
     static final String WORKSPACE_PATH = "/internal/v1/license/workspace-entitlement";
+    static final String CODING_DISPATCH_PATH = "/internal/v1/license/coding-dispatch-entitlement";
 
     private final McpCenterProperties properties;
     private final InternalCredentialProperties credentials;
     private final WebClient webClient = WebClient.builder().build();
+
+    @Override
+    public CodingDispatchEntitlement codingDispatchEntitlement() {
+        try {
+            Map<?, ?> data = request(CODING_DISPATCH_PATH);
+            String status = text(data.get("licenseStatus"));
+            return new CodingDispatchEntitlement(Boolean.TRUE.equals(data.get("licenseValid"))
+                && "VALID".equals(status), status);
+        } catch (RuntimeException unavailable) {
+            log.warn("MCP Coding dispatch entitlement query failed: {}", unavailable.toString());
+            return McpLicenseEntitlementPort.super.codingDispatchEntitlement();
+        }
+    }
 
     @Override
     public WorkspaceEntitlement workspaceEntitlement() {

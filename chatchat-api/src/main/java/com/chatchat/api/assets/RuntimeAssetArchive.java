@@ -26,6 +26,12 @@ public class RuntimeAssetArchive {
         if(ids.size()>1)throw new IllegalStateException("Immutable task asset binding changed");
         return ids.isEmpty()?Optional.empty():Optional.of(assets.readTask(scope,task,ids.get(0)));
     }
+    public boolean contains(KernelDataScope scope,String task,String source){
+        Long count=jdbc.queryForObject("select count(*) from runtime_workspace_file where workspace_id=? and task_id=? and run_id=? and source_ref=? and state='AVAILABLE'",
+            Long.class,UserAssetService.Owner.of(scope).id(),task,scope.runId(),source);
+        if(count!=null&&count>1)throw new IllegalStateException("Immutable task asset binding changed");
+        return count!=null&&count==1;
+    }
     public boolean copy(KernelDataScope scope,String task,String source,java.io.OutputStream output)throws java.io.IOException {
         var ids=jdbc.queryForList("select id from runtime_workspace_file where workspace_id=? and task_id=? and run_id=? and source_ref=? and state='AVAILABLE'",
             String.class,UserAssetService.Owner.of(scope).id(),task,scope.runId(),source);

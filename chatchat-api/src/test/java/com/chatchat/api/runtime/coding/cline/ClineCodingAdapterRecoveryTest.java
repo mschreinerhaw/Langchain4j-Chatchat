@@ -76,6 +76,7 @@ class ClineCodingAdapterRecoveryTest {
             contract.inputSnapshotRef(), "input", "input.jsonl", "a".repeat(64), 1, 20, "source"));
         var validator = mock(CodingEvidenceCollector.IndependentValidator.class);
         when(plans.validator(contract)).thenReturn(validator);
+        when(tasks.scriptFile(any(),anyString(),anyString())).thenReturn(com.chatchat.common.runtime.coding.CodingScript.LEGACY_FILE);
         when(collector.collect(eq(scope), eq(contract), eq(operationId), eq("main.py"), eq("rows.jsonl"), anyList(), eq(validator)))
             .thenReturn(new CodingEvidenceCollector.Collected(contract.inputSnapshotRef(), "evidence:code",
                 "evidence:receipt", "evidence:result", "evidence:validation", "evidence:bundle", false,

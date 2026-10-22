@@ -20,6 +20,30 @@ import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.*;
 
 class McpPythonControlPlaneClientTimeoutTest {
+    @Test void unicodeVersionedCodePathsAreEncodedExactlyOnceForBytesAndStreamingDownloads() throws Exception {
+        String file="销售汇总_20261022T080000000Z_abcdef012345_v2.py";
+        byte[] code="print(42)\n".getBytes(StandardCharsets.UTF_8);
+        var paths=new java.util.concurrent.CopyOnWriteArrayList<String>();
+        HttpServer server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
+        server.createContext("/api/v1/admin/auth/login",exchange->{exchange.getRequestBody().readAllBytes();respond(exchange,"{\"code\":200,\"data\":{\"token\":\"internal-token\"}}");});
+        server.createContext("/api/v1/python/runtime/operations",exchange->{
+            paths.add(exchange.getRequestURI().getRawPath());
+            if(!exchange.getRequestURI().getPath().endsWith("/code/"+file)){exchange.sendResponseHeaders(404,-1);exchange.close();return;}
+            exchange.sendResponseHeaders(200,code.length);try(var output=exchange.getResponseBody()){output.write(code);}
+        });
+        server.start();
+        try {
+            var properties=new McpCenterProperties();properties.setBaseUrl("http://127.0.0.1:"+server.getAddress().getPort());
+            var credentials=mock(InternalCredentialProperties.class);when(credentials.resolvedUsername()).thenReturn("internal");
+            when(credentials.resolvedSecret()).thenReturn("0123456789abcdef0123456789abcdef");
+            when(credentials.resolveSecret(nullable(String.class),nullable(String.class))).thenReturn("");
+            var client=new McpPythonControlPlaneClient(properties,credentials,new ObjectMapper());
+            assertArrayEquals(code,client.artifact("tenant","owner","run","task","op","code",file));
+            var output=new java.io.ByteArrayOutputStream();client.downloadArtifact("tenant","owner","run","task","op","code",file,output);
+            assertArrayEquals(code,output.toByteArray());assertEquals(2,paths.size());
+            assertTrue(paths.stream().allMatch(path->path.contains("%E9")&&!path.contains("%25")));
+        } finally {server.stop(0);}
+    }
     @Test void emptyArchivedArtifactIsARealZeroByteResult() throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/api/v1/admin/auth/login", exchange -> {

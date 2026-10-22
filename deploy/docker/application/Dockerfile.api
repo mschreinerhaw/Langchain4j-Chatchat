@@ -1,0 +1,19 @@
+ARG JAVA_RUNTIME_IMAGE=eclipse-temurin:17-jre-jammy
+FROM ${JAVA_RUNTIME_IMAGE} AS api-runtime
+
+# SQL Studio invokes /usr/bin/python3. Keep its parser in the clean runtime,
+# never in a chain based on the previous application release.
+COPY sql-toolchain-requirements.txt /opt/chatchat/sql-toolchain-requirements.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 python3-pip \
+    && python3 -m pip install --no-cache-dir --require-hashes -r /opt/chatchat/sql-toolchain-requirements.txt \
+    && python3 -c "import sqlglot; assert sqlglot.__version__ == '30.23.0'" \
+    && rm -rf /var/lib/apt/lists/* /root/.cache
+
+FROM api-runtime
+WORKDIR /srv/app
+RUN mkdir -p /srv/app/config /srv/app/data /srv/app/logs
+COPY app.jar /srv/app/app.jar
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 TZ=Asia/Shanghai
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/srv/app/app.jar"]

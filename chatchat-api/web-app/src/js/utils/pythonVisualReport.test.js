@@ -1,10 +1,24 @@
 // @vitest-environment jsdom
 import {describe,it,expect,vi,afterEach} from 'vitest';
-import {checkedPlotlyFigure,plotlyFrameDocument,readReportArtifact} from './pythonVisualReport';
+import {checkedPlotlyFigure,plotlyFrameDocument,readReportArtifact,reviewArchivedVisualReport} from './pythonVisualReport';
 vi.mock('../../services/api',()=>({getStoredAuthSession:()=>({token:'scoped-token'})}));
 vi.mock('./workspaceContext',()=>({workspaceHeaders:()=>({'X-Workspace-Id':'test'})}));
 afterEach(()=>vi.unstubAllGlobals());
 describe('Python chart isolation and file authorization',()=>{
+ it('revalidates only the same owner-bound archived task, operation and result hashes',async()=>{
+   const execution={taskId:'task',operationId:'op',codeSha256:'code-hash',resultSha256:'result-hash',resultDatasetRef:'runtime-evidence:result',codeArtifact:{fileId:'file_1'}};
+   const reviewed={schemaVersion:'python_visual_report.v1',status:'PARTIAL',execution};
+   const fetch=vi.fn().mockResolvedValueOnce({ok:true,json:async()=>({code:200,data:{taskId:'task',runId:'run',sha256:'code-hash'}})})
+     .mockResolvedValueOnce({ok:true,json:async()=>({code:200,data:reviewed})});vi.stubGlobal('fetch',fetch);
+   expect(await reviewArchivedVisualReport({execution})).toEqual(reviewed);
+   expect(fetch.mock.calls[0][1].headers.Authorization).toBe('Bearer scoped-token');
+   expect(fetch.mock.calls[1][0]).toContain('/runs/run/coding/task/visual-report?resultRef=runtime-evidence%3Aresult');
+   fetch.mockResolvedValueOnce({ok:true,json:async()=>({data:{taskId:'other-task',runId:'run',sha256:'code-hash'}})});
+   await expect(reviewArchivedVisualReport({execution})).rejects.toThrow('不匹配');expect(fetch).toHaveBeenCalledTimes(3);
+   fetch.mockResolvedValueOnce({ok:true,json:async()=>({data:{taskId:'task',runId:'run',sha256:'code-hash'}})})
+     .mockResolvedValueOnce({ok:true,json:async()=>({data:{...reviewed,execution:{...execution,resultSha256:'changed'}}})});
+   await expect(reviewArchivedVisualReport({execution})).rejects.toThrow('执行身份不匹配');
+ });
  it('keeps figure numbers unchanged and uses an isolated, offline renderer document',()=>{
    const figure={data:[{type:'scatter',x:[1,2],y:[2,4],hovertemplate:'%{y}<extra></extra>'}],layout:{title:{text:'Actual results'}}};
    expect(checkedPlotlyFigure(figure).data[0].y).toEqual([2,4]);

@@ -15,6 +15,11 @@ public interface McpPythonControlPlanePort extends RuntimeProtocolPort {
     List<EnvironmentView> environments();
     /** Returns the MCP-published state of an environment, including non-active states. */
     EnvironmentView environment(String id);
+    /** Image-derived capabilities, not deployment-side guesses about installed packages. */
+    default EnvironmentRuntime environmentRuntime(String id) {
+        EnvironmentView env = environment(id);
+        return new EnvironmentRuntime(env.id(), env.versionNumber(), env.dockerImage(), null, env.pythonVersion(), Map.of());
+    }
     ProvisionResult provision(String environmentId, String tenantId, String ownerId, String assetId);
     ExecutionResult preview(String environmentId, String tenantId, String ownerId, String assetId,
                             String fileName, String source, Map<String, Object> parameters, String inputSchemaJson);
@@ -65,7 +70,24 @@ public interface McpPythonControlPlanePort extends RuntimeProtocolPort {
                         int attempt, long fencingToken, String environmentId, String assetId, String fileName,
                         String source, Map<String, Object> parameters, String inputSchemaJson,
                         List<String> authorizedFileIds, Map<String, String> authorizedFileHashes,
-                        String sourceSha256, java.time.Instant deadlineAt, String budgetReservationRef) {
+                        String sourceSha256, java.time.Instant deadlineAt, String budgetReservationRef,
+                        Integer expectedEnvironmentVersion, String expectedImageDigest, com.chatchat.common.runtime.coding.CodingScript script) {
+        public StartRequest(String tenantId, String ownerId, String runId, String taskId, String operationId,
+                        int attempt, long fencingToken, String environmentId, String assetId, String fileName,
+                        String source, Map<String, Object> parameters, String inputSchemaJson,
+                        List<String> authorizedFileIds, Map<String, String> authorizedFileHashes,
+                        String sourceSha256, java.time.Instant deadlineAt, String budgetReservationRef,
+                        Integer expectedEnvironmentVersion, String expectedImageDigest) {
+            this(tenantId, ownerId, runId, taskId, operationId, attempt, fencingToken, environmentId, assetId, fileName, source, parameters, inputSchemaJson, authorizedFileIds, authorizedFileHashes, sourceSha256, deadlineAt, budgetReservationRef, expectedEnvironmentVersion, expectedImageDigest, null);
+        }
+        public StartRequest(String tenantId, String ownerId, String runId, String taskId, String operationId,
+                int attempt, long fencingToken, String environmentId, String assetId, String fileName,
+                String source, Map<String,Object> parameters, String inputSchemaJson, List<String> authorizedFileIds,
+                Map<String,String> authorizedFileHashes, String sourceSha256, java.time.Instant deadlineAt, String budgetReservationRef) {
+            this(tenantId, ownerId, runId, taskId, operationId, attempt, fencingToken, environmentId, assetId, fileName,
+                source, parameters, inputSchemaJson, authorizedFileIds, authorizedFileHashes, sourceSha256, deadlineAt,
+                budgetReservationRef, null, null);
+        }
     }
 
     record OperationView(String operationId, String status, String containerId, long fencingToken,
@@ -80,6 +102,8 @@ public interface McpPythonControlPlanePort extends RuntimeProtocolPort {
     }
     record ProvisionResult(boolean ready, String containerName, String workspacePath, String message) {
     }
+    record EnvironmentRuntime(String environmentId, int environmentVersion, String dockerImage,
+                              String imageDigest, String pythonVersion, Map<String,String> packages) { }
     record ExecutionResult(String id, String containerId, String status, String stdout, String stderr,
                            Integer exitCode, Long durationMs) {
     }

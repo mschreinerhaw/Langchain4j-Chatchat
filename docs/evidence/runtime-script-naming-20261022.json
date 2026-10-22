@@ -1,0 +1,489 @@
+{
+  "status": "PASSED",
+  "sourceCommit": "363681e08d0c912c5dc1a1f847a7a76dd2fc3da3",
+  "implementationCommit": "3031c33afa9647caf8d5a6acca8de3140ff8d8c6",
+  "deployment": {
+    "status": "DEPLOYED",
+    "revision": "363681e08d0c912c5dc1a1f847a7a76dd2fc3da3",
+    "backup": "/opt/chatchat-releases/1.2.0-20261022-script-naming-r2/private-backup/1792656960",
+    "unrelatedContainersUnchanged": true,
+    "configurationAndMountsPreserved": true,
+    "images": {
+      "api": {
+        "id": "sha256:530823e29de397111e6af65c8d6cd2ec57c1842c9cd4bfc9f56dbbcbf25d2ae6",
+        "bytes": 743679162
+      },
+      "mcp": {
+        "id": "sha256:1a7729aed078a4df85ac5fc93e0d18fb986bc906983a2fbafe1fd759ae7f675a",
+        "bytes": 584018085
+      },
+      "coding-agent": {
+        "id": "sha256:860f250bc8619efd4d94927f38f430cbd623dce2b8f36521cb8cb22e0f6e9190",
+        "bytes": 393644993
+      }
+    }
+  },
+  "realModel": {
+    "status": "PASSED",
+    "kind": "REAL_MODEL_SYNTAX_REPAIR_NAMED_VERSIONS",
+    "parentTaskId": "3b1e67d2-a552-338c-9275-a2ebec6a793c",
+    "taskId": "analysis-coding-59cbd7d11e4ce41f23afaab9dc141b106e8fd30edf8ce6d5a1c3daee9d7c26dc",
+    "traceId": "att-1-39f81e6a-c0f8-4155-8252-eaec78c24af0",
+    "executionCount": 4,
+    "versions": [
+      {
+        "executionId": "cline-41d84d5da9525e8a5d34911c11d3b6e17217fd4fefcd396f1f058ea4d172ee91",
+        "script": {
+          "fileName": "发布验证-用-python-实际读取附件-csv_20261022T081916274Z_b1c69affb5e2_v1.py",
+          "scriptPath": "/workspace/scripts/发布验证-用-python-实际读取附件-csv_20261022T081916274Z_b1c69affb5e2_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/d976c3d8bb7286d1/b1c69affb5e2c95b94ecd474",
+          "scriptVersion": 1
+        },
+        "scriptHash": "003232175ec95f69cc280c4d6aa7eb8d8d635d55b4fbae5899e3afec5bb752e6",
+        "status": "FAILED",
+        "errorCategory": "SYNTAX"
+      },
+      {
+        "executionId": "cline-b2e76ad9b236756f9219ee38db95e21009c64da3dd5eb59a9c27ada09008f48f",
+        "script": {
+          "fileName": "发布验证-用-python-实际读取附件-csv_20261022T082121872Z_b1c69affb5e2_v2.py",
+          "scriptPath": "/workspace/scripts/发布验证-用-python-实际读取附件-csv_20261022T082121872Z_b1c69affb5e2_v2.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/d976c3d8bb7286d1/b1c69affb5e2c95b94ecd474",
+          "scriptVersion": 2
+        },
+        "scriptHash": "c13a6186d28525593a84627cafa51a1bb84b8b947fb056fbc608985179e70501",
+        "status": "SUCCEEDED",
+        "errorCategory": null
+      },
+      {
+        "executionId": "cline-f3bf93ae117dfb56e6285c5bfe51c7456f223f31cb0d5151c60bab61b997dd1a",
+        "script": {
+          "fileName": "发布验证-用-python-实际读取附件-csv_20261022T082154667Z_b1c69affb5e2_v3.py",
+          "scriptPath": "/workspace/scripts/发布验证-用-python-实际读取附件-csv_20261022T082154667Z_b1c69affb5e2_v3.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/d976c3d8bb7286d1/b1c69affb5e2c95b94ecd474",
+          "scriptVersion": 3
+        },
+        "scriptHash": "4f6bc092d8488ca3423c2e5aacfe0b0f0607914fc4825d72b07f5e33e8e17b85",
+        "status": "SUCCEEDED",
+        "errorCategory": null
+      },
+      {
+        "executionId": "cline-7c6bfc437df1a253accd2defa48ee01b886253e64eeac41046158c6af83729ff",
+        "script": {
+          "fileName": "发布验证-用-python-实际读取附件-csv_20261022T082239808Z_b1c69affb5e2_v4.py",
+          "scriptPath": "/workspace/scripts/发布验证-用-python-实际读取附件-csv_20261022T082239808Z_b1c69affb5e2_v4.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/d976c3d8bb7286d1/b1c69affb5e2c95b94ecd474",
+          "scriptVersion": 4
+        },
+        "scriptHash": "1ed4fa7af4682190a4e59cef56e6713b29e597fc9c806201f13ddf1ec8172f95",
+        "status": "SUCCEEDED",
+        "errorCategory": null
+      }
+    ],
+    "usage": {
+      "modelCalls": 9,
+      "modelTokens": 262691,
+      "toolCalls": 4,
+      "codeExecutions": 4,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 20492,
+      "costAmount": "0"
+    },
+    "javaLogTypes": {
+      "TASK_STARTED": 1,
+      "NODE_RESPONSE": 201,
+      "RECOVERY_RECONCILED": 86,
+      "PYTHON_CODE_SUBMITTED": 4,
+      "PYTHON_EXECUTION_FEEDBACK": 4,
+      "TASK_FINISHED": 1
+    },
+    "siloCodeDownloadsHashVerified": true,
+    "v1UnchangedAfterRepair": true,
+    "pgVersionIndexesVerified": true,
+    "sameTaskContext": true,
+    "finalValidationStatus": "INCONCLUSIVE",
+    "checks": {
+      "login": true,
+      "authenticatedIdentity": true,
+      "historyReadable": true,
+      "realQaAnswer": true,
+      "syntheticAttachmentUploaded": true,
+      "aggregateCorrect": true,
+      "codingCompleted": true,
+      "pythonExecuted": true,
+      "realModelCalled": true,
+      "feedbackAvailable": true,
+      "feedbackIdentity": true,
+      "faultActuallyExercised": true,
+      "independentResultAdmitted": true,
+      "codeVersionChanged": true,
+      "inputSnapshotReused": true
+    }
+  },
+  "realDockerIsolation": {
+    "kind": "REAL_DOCKER_TEN_OWNER_TWENTY_TASK_ISOLATION",
+    "status": "PASSED",
+    "cases": [
+      {
+        "owner": "script-fixture-user-2",
+        "taskId": "sales-1",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_c485dd440881_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_c485dd440881_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/3c7ebb9840b73dc5/6e014e04f43f6e26/01addb16e1ac79fc4b9ee8dd",
+          "scriptVersion": 1
+        },
+        "codeHash": "3bea2275d2287cddb92bb3530d8b1c5caf590ae5aedf5ec97c3edba2e985a73c",
+        "containerId": "chatchat-py-f91930be39bb59d282608e3c94ee11996fd1f6d0",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-0",
+        "taskId": "sales-0",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_8f1c023c8836_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_8f1c023c8836_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/70d5d5f1c45326b9/6e014e04f43f6e26/0fac5b1cb0a0ba0e519af71f",
+          "scriptVersion": 1
+        },
+        "codeHash": "5dcb0fb0131c1d677cebaa75ad8383b22c2fe5fc296c5b9a363e820ef205af0f",
+        "containerId": "chatchat-py-d83655390af67b8b13a4d20e6dd7568737bfb993",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-4",
+        "taskId": "sales-1",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_98167abdc29e_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_98167abdc29e_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/3cf78011c30c28ac/6e014e04f43f6e26/01addb16e1ac79fc4b9ee8dd",
+          "scriptVersion": 1
+        },
+        "codeHash": "7afee88a2925d41b13974561849ce5216e07d7c1d3e47cf2fb8c254aae7a8d85",
+        "containerId": "chatchat-py-33fc765dbd31d9a05972fcdc5ce0eb67ce5cfdca",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-0",
+        "taskId": "sales-1",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_e28a30f64517_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_e28a30f64517_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/70d5d5f1c45326b9/6e014e04f43f6e26/01addb16e1ac79fc4b9ee8dd",
+          "scriptVersion": 1
+        },
+        "codeHash": "14bc00244930fc7d57f5daac7bbeb0db5b4f9e845c4fae1d75d8817c413ffa71",
+        "containerId": "chatchat-py-6ce5261fd280461d62ab6d4e686ab3f58e10a065",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-3",
+        "taskId": "sales-0",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_a3fa41885588_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_a3fa41885588_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/ad5117003a6c90bf/6e014e04f43f6e26/0fac5b1cb0a0ba0e519af71f",
+          "scriptVersion": 1
+        },
+        "codeHash": "3cb87fc56f5bf02e15f7a508cdf8a71b216a267e5f6915d40278fac608f67837",
+        "containerId": "chatchat-py-b258db05030d0501705d63eb2c27f3b169e8f523",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-2",
+        "taskId": "sales-0",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_bba44e54e0c9_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_bba44e54e0c9_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/3c7ebb9840b73dc5/6e014e04f43f6e26/0fac5b1cb0a0ba0e519af71f",
+          "scriptVersion": 1
+        },
+        "codeHash": "ae13d1405cd99db5bac4f7498dd0e88cb9dfb946e0c5150cb79f4599e06aa98f",
+        "containerId": "chatchat-py-12b047cb2461eb8b0b4446893b9d5f336d7921b7",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-1",
+        "taskId": "sales-1",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_4f7b55352ca6_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_4f7b55352ca6_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/4d1a9f0286db0b13/6e014e04f43f6e26/01addb16e1ac79fc4b9ee8dd",
+          "scriptVersion": 1
+        },
+        "codeHash": "a289765fa9deeaa702caa4b2842f62b80d6c9bddf239b0cf0592a33bcafdb65c",
+        "containerId": "chatchat-py-6f0865d53a7e47d0e7092698b0fb061c6795553e",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-1",
+        "taskId": "sales-0",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_e34d4a46745b_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_e34d4a46745b_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/4d1a9f0286db0b13/6e014e04f43f6e26/0fac5b1cb0a0ba0e519af71f",
+          "scriptVersion": 1
+        },
+        "codeHash": "11303de40364855cf19136a9e6756b43132b66941f3001e3492b0f2164d7c79d",
+        "containerId": "chatchat-py-70fea669afa3a1d0c04fc37619f20f5d21fa002b",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-4",
+        "taskId": "sales-0",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_69677be95e30_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_69677be95e30_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/3cf78011c30c28ac/6e014e04f43f6e26/0fac5b1cb0a0ba0e519af71f",
+          "scriptVersion": 1
+        },
+        "codeHash": "3d8dafdc87aefa21bc5e53240c66a1637977aa9fba66e83e2075224cd3429ded",
+        "containerId": "chatchat-py-d2566e11e9080e0d1b20681ab986a6c8dc639f51",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-3",
+        "taskId": "sales-1",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_20da99d7aa02_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_20da99d7aa02_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/ad5117003a6c90bf/6e014e04f43f6e26/01addb16e1ac79fc4b9ee8dd",
+          "scriptVersion": 1
+        },
+        "codeHash": "d91d6e98c656dbcaa8dc9e9ac93011d0a2fa6cca32eb5aebc7564d0cd05bc355",
+        "containerId": "chatchat-py-2e47a8e3d23d9798e25fa47ea87924b741445580",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-5",
+        "taskId": "sales-1",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_8983f8d769d2_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_8983f8d769d2_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/b26c8f61f42d1c65/6e014e04f43f6e26/01addb16e1ac79fc4b9ee8dd",
+          "scriptVersion": 1
+        },
+        "codeHash": "3860ce0592b55ef59807235d3ded8b76ea40c00584bbac130d6c187c78f4b369",
+        "containerId": "chatchat-py-089635fcc7547f92064eb81090767260fef34513",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-5",
+        "taskId": "sales-0",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_c261290e8c91_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_c261290e8c91_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/b26c8f61f42d1c65/6e014e04f43f6e26/0fac5b1cb0a0ba0e519af71f",
+          "scriptVersion": 1
+        },
+        "codeHash": "86f9cdb6e320c3f35eae0dbc4e09249561d1b6f5bc7b322ee3645a8e89214651",
+        "containerId": "chatchat-py-cca54090450fde4c73600b98c80f4d294cae0afd",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-6",
+        "taskId": "sales-1",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_60b1a9b334fd_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_60b1a9b334fd_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/3a0ae315dc1e953a/6e014e04f43f6e26/01addb16e1ac79fc4b9ee8dd",
+          "scriptVersion": 1
+        },
+        "codeHash": "5369eb8c108a76b8b4dc404790132ad71041492a24942fb9d05d59ebc58136c2",
+        "containerId": "chatchat-py-636097c74de723a880b003f641faab85eca52e27",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-6",
+        "taskId": "sales-0",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_467f8fc3bc39_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_467f8fc3bc39_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/3a0ae315dc1e953a/6e014e04f43f6e26/0fac5b1cb0a0ba0e519af71f",
+          "scriptVersion": 1
+        },
+        "codeHash": "18813a84c93b05e82420f99215171178bab8fba2e2682c60a8056cb76450eecd",
+        "containerId": "chatchat-py-1bcd8d8a90dfcf7c889b4f21fe0b684615235641",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-7",
+        "taskId": "sales-1",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_d2a3df4cfd25_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_d2a3df4cfd25_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/bb0839b5e401cb8d/6e014e04f43f6e26/01addb16e1ac79fc4b9ee8dd",
+          "scriptVersion": 1
+        },
+        "codeHash": "438cc7f60364533f6720f82e5848d115ffc77bd8df66600b1df42786ed3ffc7f",
+        "containerId": "chatchat-py-15e198cd3d6389d8b4302cb840e5b966cf2a1ff2",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-7",
+        "taskId": "sales-0",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_6284c34d0776_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_6284c34d0776_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/bb0839b5e401cb8d/6e014e04f43f6e26/0fac5b1cb0a0ba0e519af71f",
+          "scriptVersion": 1
+        },
+        "codeHash": "7ec3340b2534b4912fab0418f8d2d0a1629cbaaf83521df76ca735d5d794dae4",
+        "containerId": "chatchat-py-9f0a89022d7edb6cf013182a776dcb85d0c20bc6",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-8",
+        "taskId": "sales-0",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_726a838cf428_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_726a838cf428_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/e6908d30b23c2c09/6e014e04f43f6e26/0fac5b1cb0a0ba0e519af71f",
+          "scriptVersion": 1
+        },
+        "codeHash": "7454f909d60d227ac6054783d98429563f381e1e513245ceed01ba76632cf156",
+        "containerId": "chatchat-py-24786bf304e30d938a2629e41f852f83de5dd31c",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-8",
+        "taskId": "sales-1",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_2631388f40f6_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_2631388f40f6_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/e6908d30b23c2c09/6e014e04f43f6e26/01addb16e1ac79fc4b9ee8dd",
+          "scriptVersion": 1
+        },
+        "codeHash": "515a60ab654951cde6e6d517af45395410ea9f1b68b239f77df170ccf15035b0",
+        "containerId": "chatchat-py-2327da3b310e849c6df211d1585b3dadb0fd7219",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-9",
+        "taskId": "sales-1",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_16dbbfbc63c6_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_16dbbfbc63c6_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/cd7c0a9b4fcff826/6e014e04f43f6e26/01addb16e1ac79fc4b9ee8dd",
+          "scriptVersion": 1
+        },
+        "codeHash": "ddb009ada73666953ad31b0c67ca9c33c92db4292243f9b20ed9ab94d87dec13",
+        "containerId": "chatchat-py-a3d079aa6024ce8ee3eb2c250f0757235774ae25",
+        "status": "PASSED"
+      },
+      {
+        "owner": "script-fixture-user-9",
+        "taskId": "sales-0",
+        "executionId": "named-operation",
+        "script": {
+          "fileName": "sales-summary_20261022T075635000Z_283f2b955b92_v1.py",
+          "scriptPath": "/workspace/scripts/sales-summary_20261022T075635000Z_283f2b955b92_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/cd7c0a9b4fcff826/6e014e04f43f6e26/0fac5b1cb0a0ba0e519af71f",
+          "scriptVersion": 1
+        },
+        "codeHash": "2393c09ebf89b8245d0c48db2525e37d58e6e8bbfa4300414627c7b32887b07b",
+        "containerId": "chatchat-py-2f256457770d254147b3dbb2e88d5843ce18f1d1",
+        "status": "PASSED"
+      }
+    ],
+    "runId": "script-isolation-c9e17ba744a6499f962fe02486658c4a",
+    "uniquePhysicalWorkspaces": 20,
+    "crossOwnerDenied": true,
+    "invalidPathDenied": true,
+    "crossOwnerWorkspaceDenied": true,
+    "cancelPreservesSiblingCode": true,
+    "ownerCount": 10,
+    "taskCount": 20
+  },
+  "restart": {
+    "status": "PASSED",
+    "kind": "REAL_JAVA_RESTART_SCRIPT_HISTORY",
+    "taskId": "analysis-coding-59cbd7d11e4ce41f23afaab9dc141b106e8fd30edf8ce6d5a1c3daee9d7c26dc",
+    "versionCount": 4,
+    "codesAndExecutionsUnchanged": true,
+    "legacyMainPyHistoryReadable": true
+  },
+  "browser": {
+    "status": "PASSED",
+    "taskId": "analysis-coding-59cbd7d11e4ce41f23afaab9dc141b106e8fd30edf8ce6d5a1c3daee9d7c26dc",
+    "productDynamicNamesVisible": true,
+    "nodeDynamicNamesVisible": true,
+    "allocatedVersionNumbersVisible": true,
+    "versionCount": 4,
+    "pageErrors": []
+  },
+  "localTests": {
+    "coreJava": {
+      "total": 763,
+      "passed": 744,
+      "skipped": 19,
+      "failed": 0
+    },
+    "httpClient": {
+      "total": 3,
+      "passed": 3,
+      "includesRealHttpUnicodeDownload": true
+    },
+    "node": {
+      "total": 46,
+      "passed": 46
+    },
+    "vueMonitor": {
+      "total": 9,
+      "passed": 9
+    },
+    "pythonDiagnostic": {
+      "total": 4,
+      "passed": 4
+    },
+    "viteBuild": "PASSED",
+    "realFilesystemAndPythonChildIsolation": {
+      "owners": 10,
+      "tasks": 20,
+      "syntaxV1ToV2": true
+    },
+    "realJdbcIsolation": {
+      "owners": 10,
+      "tasks": 20,
+      "repeatedTaskIdsAcrossOwners": true,
+      "concurrentSameOperationAllocationIdempotent": true
+    }
+  },
+  "resolvedRegression": {
+    "firstRealModelTask": "550b3a65-2976-3c56-a527-bd4618ea5b12",
+    "statusBeforeFix": "FAILED",
+    "cause": "Unicode artifact URI double-encoding",
+    "localHttpReproductionBeforeFix": "404 percent-escaped path",
+    "fixedBy": "363681e08d0c912c5dc1a1f847a7a76dd2fc3da3"
+  },
+  "boundaries": [
+    "Ten-owner Docker test uses scoped managed-runtime requests, not ten separate product SSO logins or ten real model sessions",
+    "Four previously unavailable local Spring authorization integration cases remain excluded",
+    "Nineteen local Docker-dependent Java cases skipped; real deployed Linux Docker exercises recorded separately",
+    "Restart test covers terminal code and execution history, not every in-flight crash window",
+    "Structural INCONCLUSIVE does not certify arbitrary business conclusions; synthetic total 33.68 verified independently",
+    "Unmodified historical main.py code remains readable; existing IDE user-defined entry paths are unchanged",
+    "QA was reused from earlier real verified normal case; the analysis and nine Cline model calls were freshly executed",
+    "Node monitor browser was verified through a temporary localhost SSH tunnel; public network policy was not expanded"
+  ]
+}

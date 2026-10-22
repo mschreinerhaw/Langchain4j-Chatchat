@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:chatchat:runtime-os:execution-feedback:v1",
+  "title": "ExecutionFeedback: server-normalized metadata only",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion","taskId","executionId","attemptId","traceId","status","stage","exitCode","durationMs","codeHash","stdout","stderr","stdoutBytes","stderrBytes","error","inputDataRefs","schemaRef","inputFiles","inputSchemaSummary","artifactRefs","validationStatus","resultAvailable","manifestHash","outputStatus","businessValidationPassed","repair","diagnosticPolicy"],
+  "properties": {
+    "schemaVersion": {"const":"runtime_os.execution_feedback.v1"},
+    "taskId": {"type":"string","minLength":1,"maxLength":512},
+    "executionId": {"type":"string","minLength":1,"maxLength":512},
+    "attemptId": {"type":"string","minLength":1,"maxLength":512},
+    "traceId": {"type":"string","minLength":1,"maxLength":512},
+    "script": {"type":["object","null"],"properties":{"fileName":{"type":"string"},"scriptPath":{"type":"string","pattern":"^/workspace/scripts/"},"workingDirectory":{"type":"string"},"scriptVersion":{"type":"integer","minimum":1}},"required":["fileName","scriptPath","workingDirectory","scriptVersion"],"additionalProperties":false},
+    "status": {"enum":["SUCCEEDED","FAILED","CANCELLED","TIMED_OUT"]},
+    "stage": {"enum":["VALIDATED","EXECUTION_FAILED","RESULT_VALIDATION_FAILED"]},
+    "exitCode": {"type":["integer","null"]},
+    "durationMs": {"type":["integer","null"],"minimum":0},
+    "codeHash": {"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "stdout": {"const":"[raw stdout omitted]"},
+    "stderr": {"type":"string","maxLength":2000},
+    "stdoutBytes": {"type":["integer","null"],"minimum":0},
+    "stderrBytes": {"type":["integer","null"],"minimum":0},
+    "error": {"oneOf":[{"type":"null"},{"$ref":"#/$defs/failure"}]},
+    "inputDataRefs": {"type":"array","maxItems":128,"items":{"type":"string"}},
+    "schemaRef": {"type":"string","maxLength":512},
+    "inputFiles": {"type":"array","maxItems":128,"items":{"type":"object","additionalProperties":false,"required":["fileId","fileName","sha256"],"properties":{"fileId":{"type":"string"},"fileName":{"type":"string"},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}}}},
+    "inputSchemaSummary": {"type":"object","additionalProperties":false,"properties":{"format":{"type":"string"},"schemaFileId":{"type":"string"},"manifestFileId":{"type":"string"},"manifestSha256":{"type":"string"}}},
+    "artifactRefs": {"type":"object","additionalProperties":{"type":"string"}},
+    "validationStatus": {"enum":["NOT_RUN","PASSED","FAILED","INCONCLUSIVE"]},
+    "resultAvailable": {"type":"boolean"},
+    "manifestHash": {"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "outputStatus": {"type":["string","null"]},
+    "businessValidationPassed": {"type":"boolean"},
+    "repair": {"$ref":"#/$defs/repair"},
+    "diagnosticPolicy": {"const":"METADATA_ONLY_V1"}
+  },
+  "$defs": {
+    "failure": {
+      "type":"object","additionalProperties":false,
+      "required":["category","exceptionType","diagnosticCode","message","stack","detailRef"],
+      "properties": {
+        "category":{"type":"string","maxLength":80},"exceptionType":{"type":["string","null"],"maxLength":80},
+        "diagnosticCode":{"type":"string","maxLength":80},"message":{"type":"string","maxLength":2000},
+        "detailRef":{"type":"string","maxLength":512},
+        "stack":{"type":"array","maxItems":16,"items":{"type":"object","additionalProperties":false,"required":["file","line","column"],"properties":{"file":{"type":"string","maxLength":175,"pattern":"^[^/\\\\\\u0000]+\\.py$"},"line":{"type":"integer","minimum":1,"maximum":99999999},"column":{"type":["integer","null"],"minimum":1}}}}
+      }
+    },
+    "repair": {
+      "type":"object","additionalProperties":false,
+      "required":["allowed","action","reason","attemptsUsed","maxAttempts","baseCodeHash","guidance"],
+      "properties": {
+        "allowed":{"type":"boolean"},"action":{"enum":["REPAIR_IN_CURRENT_CONTEXT","COMPLETE","STOP"]},
+        "reason":{"type":"string","maxLength":80},"attemptsUsed":{"type":"integer","minimum":0},
+        "maxAttempts":{"type":"integer","minimum":0,"maximum":31},"baseCodeHash":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+        "guidance":{"type":"string","maxLength":2000}
+      }
+    }
+  }
+}

@@ -20,6 +20,15 @@ public class PythonDataScienceController {
     private final PythonDataScienceService service;
     private final PythonCodeAssistantService codeAssistant;
     private final DomainSkillService domainSkillService;
+    private final PythonDefaultEnvironmentService defaultEnvironments;
+
+    @PostMapping("/assets/{id}/default")
+    public ApiResponse<?> setDefaultEnvironment(@PathVariable("id") String id, HttpServletRequest request) {
+        return call(() -> {
+            Scope s = scope(request);
+            return defaultEnvironments.setDefault(s.tenant(), s.user(), id);
+        });
+    }
 
     @GetMapping("/workbench")
     public ApiResponse<PythonDataScienceService.Workbench> workbench(HttpServletRequest request) {

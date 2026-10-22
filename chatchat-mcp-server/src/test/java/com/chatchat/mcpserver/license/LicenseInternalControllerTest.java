@@ -15,6 +15,18 @@ import static org.mockito.Mockito.when;
 class LicenseInternalControllerTest {
 
     @Test
+    void codingDispatchReflectsLicenseRenewalWithoutCachedAdmission() {
+        var service = mock(McpLicenseService.class);
+        var controller = new LicenseInternalController(service);
+        assertThat(controller.codingDispatchEntitlement().getData().licenseValid()).isFalse();
+        when(service.status()).thenReturn(LicenseStatus.invalid("EXPIRED", "expired", "server", null));
+        assertThat(controller.codingDispatchEntitlement().getData().licenseStatus()).isEqualTo("EXPIRED");
+        assertThat(controller.codingDispatchEntitlement().getData().licenseValid()).isFalse();
+        when(service.status()).thenReturn(LicenseStatus.valid("server", null));
+        assertThat(controller.codingDispatchEntitlement().getData().licenseValid()).isTrue();
+    }
+
+    @Test
     void workspaceEntitlementRespectsExplicitModulesAndLegacyPythonLicense() {
         McpLicenseService service = mock(McpLicenseService.class);
         var legacy = new LicensePayload("LIC", "Customer", "C", "LiveMCP", "enterprise",

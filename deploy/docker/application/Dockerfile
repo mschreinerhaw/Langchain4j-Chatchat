@@ -1,4 +1,5 @@
-FROM eclipse-temurin:17-jre-jammy
+ARG JAVA_RUNTIME_IMAGE=eclipse-temurin:17-jre-jammy
+FROM ${JAVA_RUNTIME_IMAGE}
 
 ARG APP_JAR=app.jar
 ARG APP_PORT=8080

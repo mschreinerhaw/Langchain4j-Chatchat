@@ -60,7 +60,7 @@ class ModelDirectedWorkflowIntegrationTest {
             var outcome = new DefaultAnalysisWorkflowRuntime(List.of(workflow)).analyze(context());
             assertThat(outcome.synthesis()).isEmpty();
             assertThat(outcome.metadata()).containsEntry("publicationState", "NOT_REQUESTED")
-                .containsEntry("modelNativeReportDraft", "Working report");
+                .containsEntry("modelAnalysisOutput", "Working report");
             assertThat(((Map<?,?>) outcome.metadata().get("modelDecision")).get("action")).isEqualTo(next);
             if (next.equals("CONTINUE")) assertThat(outcome.metadata()).containsEntry("executionStopReason", "RESOURCE_BUDGET_EXHAUSTED");
             if (next.equals("WAIT")) assertThat(outcome.metadata()).containsEntry("executionStopReason", "WAIT_UNSUPPORTED");

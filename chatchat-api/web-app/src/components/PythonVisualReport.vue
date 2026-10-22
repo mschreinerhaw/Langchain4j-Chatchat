@@ -19,8 +19,8 @@
         ></dl
       >
       <article v-for="(section, index) in report.sections || []" :key="index"
-        ><h3>{{ section.title }}</h3
-        ><p class="report-narrative">{{ section.narrative }}</p
+        ><template v-if="showSectionText(section)"><h3>{{ section.title }}</h3>
+          <p class="report-narrative">{{ section.narrative }}</p></template
         ><PythonReportChart
           v-for="chart in chartsFor(section.chartIds)"
           :key="chart.id"
@@ -37,11 +37,6 @@
         @status="chartStatus"
       />
       <ReportTable v-for="table in looseTables" :key="table.id" :table="table" />
-      <ReportMarkdown
-        v-if="!report.sections?.length && markdown"
-        :content="markdown"
-        :render-markdown="renderMarkdown"
-      />
       <section v-if="report.limitations?.length" class="report-notice" aria-label="分析限制"
         ><h3>解读提示</h3
         ><ul

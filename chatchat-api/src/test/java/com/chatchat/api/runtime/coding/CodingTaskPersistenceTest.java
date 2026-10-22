@@ -26,6 +26,64 @@ import static org.assertj.core.api.Assertions.*;
 
 /** Real JDBC transactions and independent connections. No mocked store, CAS, lock or recovery. */
 class CodingTaskPersistenceTest {
+    @Test void tenOwnersWithTheSameTaskIdsAllocateAndRecoverTwentyIndependentVersionRecords() throws Exception {
+        var pool=Executors.newFixedThreadPool(10);var start=new CountDownLatch(1);
+        var futures=new ArrayList<Future<List<String>>>();
+        try {
+            for(int user=0;user<10;user++) {
+                final String owner="owner-"+user;
+                futures.add(pool.submit(()->{
+                    start.await();var scoped=scope("tenant",owner,"shared-run");var own=service(evidence,scoped);
+                    var directories=new ArrayList<String>();
+                    for(int task=0;task<2;task++) {
+                        String taskId="sales-"+task;var base=contract(taskId,10);
+                        var contract=new CodingTaskContract(base.schemaVersion(),taskId,scoped,base.objective(),base.inputSnapshotRef(),base.metadataRefs(),base.workspaceRef(),
+                            base.authorization(),base.budget(),base.environmentRef(),base.validationPlanRef(),base.outputContract());
+                        own.submit(contract);var lease=own.claim(scoped,taskId,"worker",Duration.ofSeconds(30),own.get(scoped,taskId).revision());
+                        String operation="cline-"+"1".repeat(64);
+                        var script=own.allocateScript(scoped,taskId,lease,operation);
+                        own.bindScriptHash(scoped,taskId,lease,operation,"a".repeat(64));
+                        assertThat(service(store(new JdbcTemplate(dataSource)),scoped).script(scoped,taskId,operation)).isEqualTo(script);
+                        var intruder=scope("tenant","intruder","shared-run");
+                        assertThatThrownBy(()->own.script(intruder,taskId,operation)).isInstanceOf(RuntimeException.class);
+                        directories.add(script.workingDirectory());
+                    }
+                    return directories;
+                }));
+            }
+            start.countDown();var directories=new HashSet<String>();for(var future:futures)for(String directory:future.get(30,TimeUnit.SECONDS))assertThat(directories.add(directory)).isTrue();
+            assertThat(directories).hasSize(20);
+        } finally {pool.shutdownNow();pool.awaitTermination(30,TimeUnit.SECONDS);}
+    }
+    @Test void scriptVersionsAreAtomicImmutableAndRecoverableAcrossIndependentConnections() throws Exception {
+        service.submit(contract("script-task",16));var lease=claim("script-task","worker");
+        String first="cline-"+"1".repeat(64),second="cline-"+"2".repeat(64);
+        var v1=service.allocateScript(scope,"script-task",lease,first);
+        var pool=Executors.newFixedThreadPool(10);
+        try {
+            var futures=new ArrayList<Future<CodingScript>>();
+            for(int i=0;i<10;i++)futures.add(pool.submit(()->service(store(new JdbcTemplate(dataSource))).allocateScript(scope,"script-task",lease,second)));
+            for(var future:futures)assertThat(future.get()).isEqualTo(service.script(scope,"script-task",second));
+        } finally {pool.shutdownNow();}
+        var v2=service.script(scope,"script-task",second);
+        assertThat(v1.scriptVersion()).isEqualTo(1);assertThat(v2.scriptVersion()).isEqualTo(2);
+        assertThat(v1.fileName()).isNotEqualTo(v2.fileName()).endsWith("_v1.py");
+        service.bindScriptHash(scope,"script-task",lease,first,"a".repeat(64));
+        code(()->service.bindScriptHash(scope,"script-task",lease,first,"b".repeat(64)),TASK_ID_CONFLICT);
+        assertThat(service(store(new JdbcTemplate(dataSource))).script(scope,"script-task",first)).isEqualTo(v1);
+        assertThat(service.privateState(scope,"script-task","script:"+first).path("codeHash").asText()).isEqualTo("a".repeat(64));
+    }
+    @Test void repairPolicyIsDurableAndConcurrentUnsettledAttemptsCannotAcquireAnotherReservation() {
+        service.submit(contract("feedback-policy",10));var lease=claim("feedback-policy","worker");
+        var policy=json.valueToTree(Map.of("maxAutoRepairs",0));
+        service.privateState(scope,"feedback-policy",lease,"execution-repair-policy",null,policy);
+        var restarted=service(store(new JdbcTemplate(dataSource)));
+        assertThat(restarted.privateState(scope,"feedback-policy","execution-repair-policy")).isEqualTo(policy);
+        var first=restarted.reserve(scope,"feedback-policy",lease,rev("feedback-policy"),"first",intent,counters(1,"0"));
+        assertThat(first.admitted()).isTrue();
+        assertThat(restarted.reserve(scope,"feedback-policy",lease,rev("feedback-policy"),"first",intent,counters(1,"0")).admitted()).isTrue();
+        code(()->restarted.reserve(scope,"feedback-policy",lease,rev("feedback-policy"),"parallel",intent,counters(1,"0")),EXECUTION_OUTCOME_UNKNOWN);
+    }
     @Test void codeSubmissionsAreImmutableHashCheckedAndScopedAcrossServiceRestarts() {
         register("input:fixture");
         String operation="cline-"+"a".repeat(64),source="print(42)";
@@ -64,8 +122,11 @@ class CodingTaskPersistenceTest {
         return new JdbcRuntimeEvidenceStore(template,json,new DataSourceTransactionManager(dataSource));
     }
     DurableCodingTaskService service(JdbcRuntimeEvidenceStore database) {
+        return service(database,scope);
+    }
+    DurableCodingTaskService service(JdbcRuntimeEvidenceStore database,KernelDataScope ownerScope) {
         return new DurableCodingTaskService(database,json,clock,
-            new BoundCodingTaskAccess(()->scope,EnumSet.allOf(CodingTaskAccess.Action.class)),
+            new BoundCodingTaskAccess(()->ownerScope,EnumSet.allOf(CodingTaskAccess.Action.class)),
             (owner,reference)->database.find(owner,reference).isPresent(),null,workers,new ConcurrentTaskScheduler(timer));
     }
     static KernelDataScope scope(String tenant,String user,String run) {

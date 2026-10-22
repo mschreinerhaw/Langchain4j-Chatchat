@@ -1,6 +1,5 @@
-import { computed, defineComponent, h, ref, watch } from "vue";
-import MarkdownIt from "markdown-it";
-import ReportMarkdown from "../../components/ReportMarkdown.vue";
+import { computed, defineComponent, h, ref, watch, onBeforeUnmount } from "vue";
+import { reviewArchivedVisualReport } from "../utils/pythonVisualReport.js";
 import PythonReportChart from "../../components/PythonReportChart.vue";
 
 const ReportTable = defineComponent({
@@ -34,7 +33,7 @@ const ReportTable = defineComponent({
 
 export default defineComponent({
   name: "PythonVisualReport",
-  components: { PythonReportChart, ReportTable, ReportMarkdown },
+  components: { PythonReportChart, ReportTable },
   props: {
     report: { type: Object, default: null },
     fallbackMarkdown: { type: String, default: "" },
@@ -42,10 +41,23 @@ export default defineComponent({
   setup(componentProps, { expose: exposeComponent }) {
     exposeComponent();
     const props = componentProps;
-    const markdown = computed(() => props.report?.markdown || props.fallbackMarkdown);
-    const md = new MarkdownIt({ html: false, breaks: true, linkify: false });
-    md.disable("image");
-    const renderMarkdown = (value) => md.render(String(value || ""));
+    const reviewedReport = ref(null);
+    const report = computed(() => reviewedReport.value || props.report);
+    let reviewRequest;
+    watch(() => props.report, value => {
+      reviewedReport.value = null;
+      reviewRequest?.abort();
+      reviewRequest = null;
+      if (value?.status !== 'FAILED' || value.artifactValidationStatus
+          || !value.execution?.resultDatasetRef || !value.execution?.codeArtifact) return;
+      const controller = new AbortController();
+      reviewRequest = controller;
+      reviewArchivedVisualReport(value, controller.signal).then(result => {
+        if (reviewRequest === controller) reviewedReport.value = result;
+      }).catch(() => { /* Preserve the original result when archive verification fails. */ });
+    }, { immediate: true });
+    onBeforeUnmount(() => reviewRequest?.abort());
+    const showSectionText = section => String(section.title || '').trim() !== '图表分析';
     const chartFailures = ref({});
     function chartStatus(event) {
       if (event.error) chartFailures.value = { ...chartFailures.value, [event.id]: event.error };
@@ -62,9 +74,9 @@ export default defineComponent({
       }
     );
     const deliveryStatus = computed(() =>
-      Object.keys(chartFailures.value).length && props.report?.status === "SUCCESS"
+      Object.keys(chartFailures.value).length && report.value?.status === "SUCCESS"
         ? "PARTIAL"
-        : props.report?.status || "LOADING"
+        : report.value?.status || "LOADING"
     );
     const statusLabel = computed(
       () =>
@@ -76,24 +88,24 @@ export default defineComponent({
         })[deliveryStatus.value] || "正在生成"
     );
     const chartsFor = (ids) =>
-      (props.report?.charts || []).filter((chart) => (ids || []).includes(chart.id));
+      (report.value?.charts || []).filter((chart) => (ids || []).includes(chart.id));
     const tablesFor = (ids) =>
-      (props.report?.tables || []).filter((table) => (ids || []).includes(table.id));
+      (report.value?.tables || []).filter((table) => (ids || []).includes(table.id));
     const looseCharts = computed(() =>
-      (props.report?.charts || []).filter(
+      (report.value?.charts || []).filter(
         (chart) =>
-          !(props.report?.sections || []).some((section) => section.chartIds?.includes(chart.id))
+          !(report.value?.sections || []).some((section) => section.chartIds?.includes(chart.id))
       )
     );
     const looseTables = computed(() =>
-      (props.report?.tables || []).filter(
+      (report.value?.tables || []).filter(
         (table) =>
-          !(props.report?.sections || []).some((section) => section.tableIds?.includes(table.id))
+          !(report.value?.sections || []).some((section) => section.tableIds?.includes(table.id))
       )
     );
     return {
-      markdown,
-      renderMarkdown,
+      report,
+      showSectionText,
       chartStatus,
       deliveryStatus,
       statusLabel,

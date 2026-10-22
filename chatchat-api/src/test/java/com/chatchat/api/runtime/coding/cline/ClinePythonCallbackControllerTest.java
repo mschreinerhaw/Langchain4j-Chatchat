@@ -52,6 +52,7 @@ class ClinePythonCallbackControllerTest {
         when(plans.validator(any())).thenReturn(rows->new CodingEvidenceCollector.Validation(false,Map.of()));
         when(python.get(scope,"task",operation)).thenReturn(new McpPythonControlPlanePort.OperationView(operation,"SUCCEEDED","container",1,
             false,true,0,"b".repeat(64),"sha256:image","a".repeat(64),null));
+        when(tasks.scriptFile(any(),anyString(),anyString())).thenReturn(CodingScript.LEGACY_FILE);
         controller=new ClinePythonCallbackController(identity,tasks,inputs,plans,python,collector,json);
     }
     Map<String,Object> body(){return new LinkedHashMap<>(Map.of("scope",scope,"taskId","task","contract",contract,
@@ -135,6 +136,20 @@ class ClinePythonCallbackControllerTest {
             .containsEntry("evidenceBundleRef","bundle").containsEntry("validationStatus","INCONCLUSIVE")
             .containsEntry("resultAvailable",true)
             .doesNotContainKey("outputStatus");
+    }
+    @Test void visualArtifactContractFailureRequestsRepairButUnresolvedBusinessChecksDoNot(){
+        var node=(com.fasterxml.jackson.databind.node.ObjectNode)json.valueToTree(contract);
+        node.set("runtimeContext",json.valueToTree(Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","reportMode","visual")));
+        contract=json.convertValue(node,CodingTaskContract.class);
+        when(tasks.get(scope,"task").contractSha256()).thenReturn(CodingCanonicalHash.sha256(contract));
+        when(collector.collect(any(),any(),anyString(),anyString(),anyString(),anyList(),any()))
+            .thenReturn(new CodingEvidenceCollector.Collected("input","code","receipt","result","validation","bundle",false,CodingTaskOutcome.ValidationStatus.INCONCLUSIVE));
+        when(collector.visualReport(scope,"task","result")).thenReturn(Optional.of(Map.of("status","FAILED","artifactValidationStatus","FAILED")));
+        assertThat(controller.get(json.valueToTree(body()))).containsEntry("resultAvailable",false).containsEntry("outputStatus","VISUAL_REPORT_INVALID");
+        when(collector.visualReport(scope,"task","result")).thenReturn(Optional.of(Map.of("status","PARTIAL","artifactValidationStatus","PASSED")));
+        assertThat(controller.get(json.valueToTree(body()))).containsEntry("resultAvailable",true).doesNotContainKey("outputStatus");
+        when(collector.visualReport(scope,"task","result")).thenReturn(Optional.of(Map.of("status","FAILED","artifactValidationStatus","PASSED")));
+        assertThat(controller.get(json.valueToTree(body()))).containsEntry("resultAvailable",true).doesNotContainKey("outputStatus");
     }
 
     @Test void trustedSourceCopyFailureEndsOnlyThisDelegationForParentReplanning(){

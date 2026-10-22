@@ -74,14 +74,20 @@ public class PythonManagedExecutionService {
             catch (Exception ex) { throw new IllegalStateException("Python image cannot be pinned", ex); }
         }
         if (!InternalSecretCipher.isEncrypted(request.sourceCiphertext())) throw new IllegalArgumentException("Encrypted Python source is required");
+        if (request.expectedEnvironmentVersion() != null && request.expectedEnvironmentVersion() != environmentVersion
+                || request.expectedImageDigest() != null && !request.expectedImageDigest().equals(imageId))
+            throw new IllegalStateException("Python 环境版本或镜像已更新，当前任务保留原环境快照，请重新提交任务以使用最新默认环境。");
         String source = InternalSecretCipher.decryptIfNecessary(request.sourceCiphertext(), credentials.resolvedSecret());
         if (request.sourceSha256() == null || !request.sourceSha256().equals(PythonOperationWorkspace.hash(source.getBytes(StandardCharsets.UTF_8))))
             throw new IllegalArgumentException("Python source checksum mismatch");
         Map<String,Object> parameters = request.parameters() == null ? Map.of() : request.parameters();
         List<String> allowed = request.authorizedFileIds() == null ? List.of() : request.authorizedFileIds();
         Path workspace = workspaces.path(tenant, owner, request.runId(), request.taskId(), request.operationId(), request.attempt());
-        PythonOperationWorkspace.Snapshot snapshot = workspaces.prepare(workspace, request.fileName(), source, parameters, tenant, owner, allowed);
-        if (!snapshot.codeHash().equals(PythonOperationWorkspace.hash(source.getBytes(StandardCharsets.UTF_8)))
+        if(request.script()!=null && !request.script().workingDirectory().equals(
+                com.chatchat.common.runtime.coding.CodingScript.workspace(tenant,owner,request.runId(),request.taskId())))
+            throw new SecurityException("Script workspace belongs to another task or owner");
+        PythonOperationWorkspace.Snapshot snapshot = workspaces.prepare(workspace, request.fileName(), source, parameters, tenant, owner, allowed,request.script());
+        if (!java.util.Objects.equals(request.script(),snapshot.script()) || !request.fileName().equals(snapshot.fileName()) || !snapshot.codeHash().equals(PythonOperationWorkspace.hash(source.getBytes(StandardCharsets.UTF_8)))
                 || !snapshot.parametersHash().equals(PythonOperationWorkspace.hash(json(parameters))))
             throw new IllegalArgumentException("Operation ID is bound to another code or input snapshot");
         if (!new HashSet<>(allowed).equals(snapshot.inputs().stream().map(PythonDataFileService.SnapshotFile::fileId).collect(java.util.stream.Collectors.toSet())))
@@ -287,7 +293,7 @@ public class PythonManagedExecutionService {
                 PythonEnvironment environment = capability.managedEnvironmentState(row.environmentId);
                 if (environment.getVersionNumber() != row.environmentVersion)
                     throw new IllegalStateException("Published Python environment version changed before dispatch");
-                docker.createManaged(environment, workspace, row.containerName, snapshot.fileName(), row.imageDigest);
+                docker.createManaged(environment, workspace, row.containerName, snapshot.fileName(), row.imageDigest,snapshot.script()==null?"/workspace/scripts/"+snapshot.fileName():snapshot.script().scriptPath());
             } else if (state.finished() || state.running()) {
                 reconcile(id);
                 return;
@@ -451,6 +457,8 @@ public class PythonManagedExecutionService {
         receipt.put("fencingToken", row.fencingToken);
         receipt.put("budgetReservationRef", row.budgetReservationRef);
         receipt.put("codeHash", row.codeHash);
+        var script=workspaces.readSnapshot(Path.of(row.workspacePath)).script();
+        if(script!=null)receipt.put("script",script);
         receipt.put("inputSnapshotHash", PythonOperationWorkspace.hash(Files.readAllBytes(Path.of(row.workspacePath).resolve("snapshot.json"))));
         receipt.put("startedAt", state.startedAt() == null ? null : state.startedAt().toString());
         receipt.put("finishedAt", state.finishedAt() == null ? null : state.finishedAt().toString());
@@ -521,7 +529,7 @@ public class PythonManagedExecutionService {
         value.put("task",request.taskId());value.put("operation",request.operationId());value.put("attempt",request.attempt());
         value.put("fence",request.fencingToken());value.put("environment",request.environmentId());value.put("environmentVersion",environmentVersion);
         value.put("imageDigest",imageId);value.put("asset",request.assetId());
-        value.put("fileName",snapshot.fileName());value.put("code",snapshot.codeHash());value.put("parameters",snapshot.parametersHash());
+        if(snapshot.script()!=null)value.put("script",snapshot.script());value.put("fileName",snapshot.fileName());value.put("code",snapshot.codeHash());value.put("parameters",snapshot.parametersHash());
         value.put("inputSchema",request.inputSchemaJson());value.put("inputs",snapshot.inputs());
         value.put("deadline",request.deadlineAt().toString());value.put("budgetReservationRef",request.budgetReservationRef());
         return PythonOperationWorkspace.hash(json(value));
@@ -533,7 +541,27 @@ public class PythonManagedExecutionService {
                                String fileName, String sourceCiphertext, Map<String,Object> parameters,
                                String inputSchemaJson, List<String> authorizedFileIds,
                                Map<String,String> authorizedFileHashes, String sourceSha256,
-                               Instant deadlineAt, String budgetReservationRef) {}
+                               Instant deadlineAt, String budgetReservationRef,
+                               Integer expectedEnvironmentVersion, String expectedImageDigest, com.chatchat.common.runtime.coding.CodingScript script) {
+        public StartCommand(String tenantId, String ownerId, String runId, String taskId, String operationId,
+                               int attempt, long fencingToken, String environmentId, String assetId,
+                               String fileName, String sourceCiphertext, Map<String,Object> parameters,
+                               String inputSchemaJson, List<String> authorizedFileIds,
+                               Map<String,String> authorizedFileHashes, String sourceSha256,
+                               Instant deadlineAt, String budgetReservationRef,
+                               Integer expectedEnvironmentVersion, String expectedImageDigest) {
+            this(tenantId, ownerId, runId, taskId, operationId, attempt, fencingToken, environmentId, assetId, fileName, sourceCiphertext, parameters, inputSchemaJson, authorizedFileIds, authorizedFileHashes, sourceSha256, deadlineAt, budgetReservationRef, expectedEnvironmentVersion, expectedImageDigest, null);
+        }
+        public StartCommand(String tenantId, String ownerId, String runId, String taskId, String operationId,
+                int attempt, long fencingToken, String environmentId, String assetId, String fileName,
+                String sourceCiphertext, Map<String,Object> parameters, String inputSchemaJson,
+                List<String> authorizedFileIds, Map<String,String> authorizedFileHashes, String sourceSha256,
+                Instant deadlineAt, String budgetReservationRef) {
+            this(tenantId, ownerId, runId, taskId, operationId, attempt, fencingToken, environmentId, assetId,
+                fileName, sourceCiphertext, parameters, inputSchemaJson, authorizedFileIds, authorizedFileHashes,
+                sourceSha256, deadlineAt, budgetReservationRef, null, null);
+        }
+    }
     private record Operation(String id,String tenant,String owner,String run,String task,String operation,int attempt,
                              long fencingToken,String requestHash,String environmentId,int environmentVersion,String imageDigest,String containerName,
                              String workspacePath,String codeHash,String manifestHash,String status,boolean cancelRequested,

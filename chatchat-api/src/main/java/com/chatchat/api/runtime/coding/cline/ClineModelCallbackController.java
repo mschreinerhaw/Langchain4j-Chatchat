@@ -299,17 +299,18 @@ public final class ClineModelCallbackController {
     private Map<String,Object> workerPayload(JsonNode event) {
         var payload = new java.util.LinkedHashMap<String,Object>();
         for (String key : List.of("type", "timestamp", "stage", "source", "attemptId", "tool", "status",
-                "codeSha256", "fileName", "proposedOperationId", "skillFingerprint", "selectedModel", "providerModel", "protocol", "startedAt", "finishedAt", "validationStatus", "outputStatus",
-                "resultDatasetRef", "validationRecordRef", "evidenceBundleRef")) {
+                "scriptPath", "codeSha256", "fileName", "proposedOperationId", "skillFingerprint", "selectedModel", "providerModel", "protocol", "startedAt", "finishedAt", "validationStatus", "outputStatus",
+                "resultDatasetRef", "validationRecordRef", "evidenceBundleRef", "errorCategory", "diagnosticCode")) {
             JsonNode value = event.path(key);
             if (value.isTextual() && value.asText().length() <= 512) payload.put(key, value.asText());
         }
-        for (String key : List.of("modelCall", "sourceBytes", "durationMs", "maxOutputTokens")) {
+        for (String key : List.of("scriptVersion", "modelCall", "sourceBytes", "durationMs", "maxOutputTokens", "repairAttempts")) {
             if (event.path(key).isIntegralNumber() && event.path(key).asLong() >= 0)
                 payload.put(key, event.path(key).asLong());
         }
         if (event.path("resultAvailable").isBoolean())
             payload.put("resultAvailable", event.path("resultAvailable").asBoolean());
+        if (event.path("repairAllowed").isBoolean())payload.put("repairAllowed",event.path("repairAllowed").asBoolean());
         if (event.path("usage").isObject()) {
             var usage = new java.util.LinkedHashMap<String,Object>();
             for (String key : List.of("inputTokens", "outputTokens"))
@@ -358,10 +359,15 @@ public final class ClineModelCallbackController {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "SDK run has no completed, independently verifiable Python operation");
             var input = inputs.requireAuthorized(contract);
-            var collected = collector.collect(call.scope(), contract, operationId, "main.py",
+            var collected = collector.collect(call.scope(), contract, operationId, tasks.scriptFile(call.scope(),call.taskId(),operationId),
                 contract.outputContract().requiredFiles().get(0),
                 List.of(new CodingEvidenceCollector.InputFile(input.fileId(), input.fileName(), input.sha256())),
                 plans.validator(contract));
+            if(com.chatchat.common.runtime.coding.VisualReportMode.active(contract.runtimeContext())) {
+                var visual=collector.visualReport(call.scope(),call.taskId(),collected.resultDatasetRef());
+                if(visual.isEmpty() || "FAILED".equals(visual.get().get("artifactValidationStatus")))
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,"Visual report artifact contract requires technical repair before completion");
+            }
             CodingTaskOutcome current = tasks.get(call.scope(), call.taskId());
             if (current.status().terminal()) {
                 if (current.status() != CodingTaskOutcome.Status.COMPLETED

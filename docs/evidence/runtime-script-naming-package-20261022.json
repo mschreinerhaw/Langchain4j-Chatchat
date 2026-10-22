@@ -1,0 +1,26 @@
+{
+  "status": "PACKAGED_AND_VERIFIED",
+  "package": "/opt/chatchat-releases/chatchat-1.2.0-20261022-script-naming-offline.tar.gz",
+  "sha256": "8eccad9acd42bd469cada60bd3b83b78279fdb751411a3dd11f6536b126bd588",
+  "bytes": 898851678,
+  "sourceCommit": "363681e08d0c912c5dc1a1f847a7a76dd2fc3da3",
+  "images": {
+    "api": {
+      "tag": "runtime-os-api:1.2.0-20261022-script-naming-r2",
+      "id": "sha256:530823e29de397111e6af65c8d6cd2ec57c1842c9cd4bfc9f56dbbcbf25d2ae6",
+      "bytes": 743679162
+    },
+    "mcp": {
+      "tag": "runtime-os-mcp:1.2.0-20261022-script-naming",
+      "id": "sha256:1a7729aed078a4df85ac5fc93e0d18fb986bc906983a2fbafe1fd759ae7f675a",
+      "bytes": 584018085
+    },
+    "coding-agent": {
+      "tag": "runtime-os-coding-agent:1.2.0-20261022-script-naming-r2",
+      "id": "sha256:860f250bc8619efd4d94927f38f430cbd623dce2b8f36521cb8cb22e0f6e9190",
+      "bytes": 393644993
+    }
+  },
+  "includesCredentials": false,
+  "requiresExistingInstallation": true
+}

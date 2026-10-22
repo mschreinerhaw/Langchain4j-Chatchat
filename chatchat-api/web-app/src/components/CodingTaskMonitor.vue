@@ -43,36 +43,16 @@
       <template v-if="selected">
         <h3>{{ selected.objective }}</h3>
         <dl class="task-facts">
-          <div
-            ><dt>任务编号</dt><dd>{{ selected.taskId }}</dd></div
-          >
-          <div
-            ><dt>尝试编号</dt><dd>{{ selected.attemptId }}</dd></div
-          >
-          <div
-            ><dt>当前阶段</dt><dd aria-live="polite">{{ stageLabels[stage] || stage }}</dd></div
-          >
-          <div
-            ><dt>服务端状态</dt><dd>{{ selected.outcome.status }}</dd></div
-          >
-          <div
-            ><dt>结果校验</dt><dd>{{ selected.outcome.validationStatus || "未记录" }}</dd></div
-          >
-          <div
-            ><dt>创建时间</dt><dd>{{ time(selected.outcome.createdAt) }}</dd></div
-          >
-          <div
-            ><dt>运行时长</dt><dd>{{ elapsed }} 秒</dd></div
-          >
-          <div
-            ><dt>失败 / 停止原因</dt
-            ><dd>{{
-              selected.outcome.reasonCode || selected.outcome.executionControl?.stopReason || "无"
-            }}</dd></div
-          >
-          <div
-            ><dt>代码修正次数</dt><dd>{{ Math.max(0, versions.length - 1) }}</dd></div
-          >
+          <div><dt>任务编号</dt><dd>{{ selected.taskId }}</dd></div>
+          <div><dt>尝试编号</dt><dd>{{ selected.attemptId }}</dd></div>
+          <div><dt>当前阶段</dt><dd aria-live="polite">{{ stageLabels[stage] || stage }}</dd></div>
+          <div><dt>服务端状态</dt><dd>{{ selected.outcome.status }}</dd></div>
+          <div><dt>结果校验</dt><dd>{{ selected.outcome.validationStatus || '未记录' }}</dd></div>
+          <div><dt>创建时间</dt><dd>{{ time(selected.outcome.createdAt) }}</dd></div>
+          <div><dt>运行时长</dt><dd>{{ elapsed }} 秒</dd></div>
+          <div><dt>失败 / 停止原因</dt><dd>{{ selected.outcome.reasonCode || selected.outcome.executionControl?.stopReason || '无' }}</dd></div>
+          <div><dt>代码版本变化</dt><dd>{{ Math.max(0, versions.length - 1) }}</dd></div>
+          <div><dt>自动修复次数</dt><dd>{{ selected.executions?.length ? Math.max(...selected.executions.map(item => item.repair.attemptsUsed)) : '历史任务未记录' }}</dd></div>
         </dl>
         <button v-if="selected.canCancel" @click="cancel" :disabled="cancelling">{{
           cancelling ? "取消请求中" : "取消任务"
@@ -81,6 +61,16 @@
           resuming ? "核对中" : "核对并恢复"
         }}</button>
         <p v-if="selected.outcome.summary">{{ selected.outcome.summary }}</p>
+        <h4>Python 执行与修复反馈</h4>
+        <p v-if="!selected.executions?.length">尚未取得已归档的执行反馈；请以现有事件时间线核对进行中的操作。</p>
+        <div v-else class="table-scroll"><table><thead><tr><th>执行 / 代码版本</th><th>状态 / 校验</th><th>耗时 / 退出码</th><th>错误与定位</th><th>自动修复</th></tr></thead>
+          <tbody><tr v-for="execution in selected.executions" :key="execution.executionId">
+            <td>{{ execution.attemptId }}<br><code>{{ execution.codeHash?.slice(0,12) }}</code><br>{{ execution.executionId }}</td>
+            <td>{{ execution.stage }}<br>{{ execution.validationStatus }}</td>
+            <td>{{ execution.durationMs ?? '未测得' }} ms / {{ execution.exitCode ?? '未知' }}</td>
+            <td>{{ execution.error?.category || '无执行错误' }}<br>{{ execution.error?.message }}<span v-for="(frame,index) in execution.error?.stack || []" :key="index"><br>{{ frame.file }}:{{ frame.line }}</span></td>
+            <td>{{ execution.repair.attemptsUsed }} / {{ execution.repair.maxAttempts }}<br>{{ execution.repair.allowed ? '允许在当前任务修复' : execution.resultAvailable ? '结果已归档' : '已停止自动修复' }}<br>{{ execution.repair.reason }}</td>
+          </tr></tbody></table></div>
         <h4>实际模型调用</h4>
         <p
           >配置快照：{{ selected.configuration.model?.selectedModel || "历史任务未记录" }} ·
@@ -166,32 +156,12 @@
             }}</pre>
           </details>
         </article>
-        <h4>代码工作区 · main.py</h4>
-        <p v-if="!versions.length"
-          >尚无完整代码版本。模型请求期间显示 CODING，返回完整工具参数后显示代码。</p
-        >
-        <label v-if="versions.length"
-          >版本
-          <select v-model="selectedOperation"
-            ><option
-              v-for="(version, index) in versions"
-              :key="version.operationId"
-              :value="version.operationId"
-              >v{{ index + 1 }} · {{ version.state }} · {{ time(version.generatedAt) }}</option
-            ></select
-          ></label
-        >
-        <p v-if="version"
-          >SHA-256：{{ version.hash }} · {{ version.state }} · 校验
-          {{ version.validationStatus || "待回执" }} {{ version.outputStatus || "" }}</p
-        >
-        <p v-if="codeError" role="alert"
-          >{{ codeError }} <button @click="loadCode">重读源码</button></p
-        >
-        <nav v-if="code"
-          ><button @click="showDiff = false">完整源码</button
-          ><button @click="loadDiff" :disabled="!previousVersion">与上一版本对比</button></nav
-        >
+        <h4>代码工作区 · {{ version?.fileName || code?.fileName || '待提交' }}</h4>
+        <p v-if="!versions.length">尚无完整代码版本。模型请求期间显示 CODING，返回完整工具参数后显示代码。</p>
+        <label v-if="versions.length">版本 <select v-model="selectedOperation"><option v-for="(version, index) in versions" :key="version.operationId" :value="version.operationId">v{{ version.scriptVersion ?? index + 1 }} · {{ version.fileName }} · {{ version.state }} · {{ time(version.generatedAt) }}</option></select></label>
+        <p v-if="version">SHA-256：{{ version.hash }} · {{ version.state }} · 校验 {{ version.validationStatus || '待回执' }} {{ version.outputStatus || '' }}</p>
+        <p v-if="codeError" role="alert">{{ codeError }} <button @click="loadCode">重读源码</button></p>
+        <nav v-if="code"><button @click="showDiff = false">完整源码</button><button @click="loadDiff" :disabled="!previousVersion">与上一版本对比</button></nav>
         <p v-if="code?.redacted">源码中的凭据已脱敏；展示文本不用于执行或哈希计算。</p>
         <PythonCodeDiff
           v-if="showDiff && code"

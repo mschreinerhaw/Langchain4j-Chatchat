@@ -8,10 +8,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
     MPLCONFIGDIR=/tmp/matplotlib \
-    MATPLOTLIBRC=/opt/chatchat/matplotlib \
     TZ=Asia/Shanghai \
     LANG=C.UTF-8 \
-    LC_ALL=C.UTF-8
+    LC_ALL=C.UTF-8 \
+    MATPLOTLIBRC=/opt/chatchat/matplotlib
 
 # ============================================================
 # 系统基础组件
@@ -51,13 +51,18 @@ RUN groupadd --gid "${RUNTIME_GID}" runner \
 # Python dependencies
 # ============================================================
 COPY requirements.lock /opt/chatchat/requirements.lock
-COPY matplotlibrc /opt/chatchat/matplotlib/matplotlibrc
 
 RUN python -m pip install --upgrade pip setuptools wheel \
     && pip install \
         --no-cache-dir \
         --requirement /opt/chatchat/requirements.lock \
     && python -m pip check
+
+# Keep fonts/config in the image, never download them inside an execution sandbox.
+COPY matplotlibrc /opt/chatchat/matplotlib/matplotlibrc
+COPY verify-fonts.py /opt/chatchat/verify-fonts.py
+COPY configure-fonts.py /opt/chatchat/configure-fonts.py
+RUN python /opt/chatchat/configure-fonts.py
 
 # ============================================================
 # Runtime directories
@@ -76,5 +81,7 @@ RUN mkdir -p \
 WORKDIR /workspace
 
 USER runner:runner
+
+RUN python /opt/chatchat/verify-fonts.py
 
 CMD ["python"]

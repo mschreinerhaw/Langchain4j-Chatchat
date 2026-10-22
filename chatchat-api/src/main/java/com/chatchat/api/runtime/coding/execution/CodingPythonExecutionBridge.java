@@ -78,10 +78,14 @@ public class CodingPythonExecutionBridge {
         var intent = tasks.startIntent(scope, contract.taskId(), lease, reserved.outcome().revision(), operationId, handle);
         if (!intent.dispatchIntentCreated())
             return python.get(scope.tenantId(), scope.userId(), scope.runId(), contract.taskId(), operationId);
+        var environmentSnapshot = contract.runtimeContext().get("pythonEnvironment") instanceof Map<?,?> value ? value : Map.of();
+        Integer environmentVersion = environmentSnapshot.get("environmentVersion") instanceof Number version ? version.intValue() : null;
+        String imageDigest = environmentSnapshot.get("imageDigest") instanceof String digest ? digest : null;
         return python.start(new McpPythonControlPlanePort.StartRequest(scope.tenantId(), scope.userId(), scope.runId(),
                 contract.taskId(), operationId, 1, lease.fencingToken(), environmentId, assetId, fileName,
                 source, parameters == null ? Map.of() : parameters, inputSchemaJson == null ? "{}" : inputSchemaJson,
-                new ArrayList<>(files.keySet()), files, sourceHash, contract.budget().deadlineAt(), reservationRef));
+                new ArrayList<>(files.keySet()), files, sourceHash, contract.budget().deadlineAt(), reservationRef,
+                environmentVersion, imageDigest,tasks.script(scope,contract.taskId(),operationId)));
     }
 
     public McpPythonControlPlanePort.OperationView get(KernelDataScope scope, String taskId, String operationId) {
@@ -98,8 +102,18 @@ public class CodingPythonExecutionBridge {
     public String stdout(KernelDataScope scope,String taskId,String operationId) {
         return diagnostic(scope,taskId,operationId,"stdout.txt");
     }
+    public String diagnosticRecord(KernelDataScope scope,String taskId,String operationId) {
+        return diagnostic(scope,taskId,operationId,"runtime-diagnostic.json");
+    }
+    public String executionReceipt(KernelDataScope scope,String taskId,String operationId) {
+        return diagnostic(scope,taskId,operationId,"receipt.json");
+    }
     private String diagnostic(KernelDataScope scope,String taskId,String operationId,String logName) {
         tasks.get(scope, taskId);
+        if(assetArchiver!=null){
+            var archived=assetArchiver.log(scope,taskId,operationId,logName);
+            if(archived.isPresent())return new String(archived.get(),0,Math.min(archived.get().length,8_192),StandardCharsets.UTF_8);
+        }
         var stopped = get(scope, taskId, operationId);
         if (!stopped.executorStopped() || "UNKNOWN".equals(stopped.status()))
             throw new IllegalStateException("Python diagnostic is not archived");

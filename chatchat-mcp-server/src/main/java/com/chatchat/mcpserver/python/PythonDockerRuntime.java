@@ -21,6 +21,47 @@ public class PythonDockerRuntime {
     private final PythonRuntimeProperties properties;
     private final ObjectMapper objectMapper;
     private final PythonDataFileService dataFiles;
+    private final Map<String, Map<String,Object>> runtimeCapabilities = new ConcurrentHashMap<>();
+
+    public com.chatchat.common.mcp.python.McpPythonControlPlanePort.EnvironmentRuntime describeRuntime(PythonEnvironment env)
+            throws IOException, InterruptedException {
+        String image = resolveImageId(env);
+        Map<String,Object> details = runtimeCapabilities.get(image);
+        if (details == null) {
+            String name = "chatchat-py-probe-" + UUID.randomUUID().toString().replace("-", "");
+            String probe = "import sys,json,importlib.metadata as m; "
+                + "names=['numpy','pandas','pyarrow','scipy','matplotlib','seaborn','plotly','polars','duckdb',"
+                + "'openpyxl','xlrd','Pillow','pypdf','python-docx','scikit-learn','statsmodels','sympy','ruff']; "
+                + "installed={d.metadata['Name'].lower():d.version for d in m.distributions() if d.metadata.get('Name')}; "
+                + "print(json.dumps({'pythonVersion':sys.version.split()[0],'packages':{n:installed[n.lower()] for n in names if n.lower() in installed}}))";
+            try {
+                var result = run(List.of(properties.getDockerCommand(), "run", "--rm", "--name", name,
+                    "--network", "none", "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
+                    "--memory", "256m", "--cpus", "1", "--pids-limit", "64", "--user", env.getRuntimeUser(),
+                    "--entrypoint", "python", image, "-c", probe), Duration.ofSeconds(20));
+                if (result.exitCode() != 0 || result.timedOut() || result.stdout().length() > 8192)
+                    throw new IllegalStateException("已发布 Python 镜像运行能力检查失败，请检查镜像后重试。");
+                var node = objectMapper.readTree(result.stdout());
+                String version = node.path("pythonVersion").asText();
+                if (!version.matches("[0-9]+\\.[0-9]+\\.[0-9]+[A-Za-z0-9.+_-]*"))
+                    throw new IllegalStateException("Invalid Python runtime version");
+                Map<String,String> packages = new TreeMap<>();
+                node.path("packages").fields().forEachRemaining(entry -> {
+                    if (entry.getKey().matches("[A-Za-z0-9_.-]{1,80}")
+                            && entry.getValue().asText().matches("[A-Za-z0-9_.+!_-]{1,80}"))
+                        packages.put(entry.getKey(), entry.getValue().asText());
+                });
+                details = Map.of("pythonVersion", version, "packages", Map.copyOf(packages));
+                if (runtimeCapabilities.size() >= 64) runtimeCapabilities.clear();
+                runtimeCapabilities.put(image, details);
+            } finally {
+                run(List.of(properties.getDockerCommand(), "rm", "-f", name), Duration.ofSeconds(10));
+            }
+        }
+        @SuppressWarnings("unchecked") var packages = (Map<String,String>) details.get("packages");
+        return new com.chatchat.common.mcp.python.McpPythonControlPlanePort.EnvironmentRuntime(
+            env.getId(), env.getVersionNumber(), env.getDockerImage(), image, (String) details.get("pythonVersion"), packages);
+    }
 
     /** Stable name survives a lost HTTP response and a service restart. */
     public String managedContainerName(String tenant, String owner, String run, String task, String operation, int attempt) {
@@ -38,8 +79,12 @@ public class PythonDockerRuntime {
     }
 
     public void createManaged(PythonEnvironment env, Path workspace, String container, String fileName, String imageId) throws IOException, InterruptedException {
+        createManaged(env,workspace,container,fileName,imageId,"/workspace/scripts/"+fileName);
+    }
+    public void createManaged(PythonEnvironment env, Path workspace, String container, String fileName, String imageId,String scriptPath) throws IOException, InterruptedException {
+        if(!("/workspace/scripts/"+fileName).equals(scriptPath))throw new SecurityException("Script path outside assigned mount");
         validateEnvironment(env);
-        if (!container.matches("chatchat-py-[0-9a-f]{40}") || !fileName.matches("[A-Za-z0-9][A-Za-z0-9_.-]{0,170}\\.py")
+        if (!container.matches("chatchat-py-[0-9a-f]{40}") || !com.chatchat.common.runtime.coding.CodingScript.safeFileName(fileName)
                 || imageId == null || !imageId.matches("sha256:[0-9a-f]{64}"))
             throw new IllegalArgumentException("Invalid managed execution identity");
         Path scripts = workspace.resolve("scripts");
@@ -72,7 +117,7 @@ public class PythonDockerRuntime {
                 "-w", "/workspace", "-e", "CHATCHAT_INPUT_JSON=" + input));
         if ("NONE".equals(env.getNetworkPolicy())) command.addAll(List.of("--network", "none"));
         else command.addAll(List.of("--network", env.getNetworkName()));
-        command.addAll(List.of(imageId, "python", "/workspace/scripts/_runtime_capture.py", "/workspace/scripts/" + fileName));
+        command.addAll(List.of(imageId, "python", "/workspace/scripts/_runtime_capture.py", scriptPath));
         ExecResult created = run(command, Duration.ofSeconds(60));
         if (created.exitCode() != 0) throw new IllegalStateException("Docker create failed: " + created.stderr());
     }
@@ -155,7 +200,7 @@ public class PythonDockerRuntime {
     }
 
     public ExecResult execute(PythonEnvironment env, String tenant, String owner, String asset, String fileName, String source, Map<String, Object> parameters) {
-        if (fileName == null || !fileName.matches("[A-Za-z0-9][A-Za-z0-9_.-]{0,170}\\.py"))
+        if (fileName == null || !com.chatchat.common.runtime.coding.CodingScript.safeFileName(fileName))
             throw new IllegalArgumentException("非法 Python 文件名");
         validateEnvironment(env);
         String container = "chatchat-py-" + safe(asset).toLowerCase(Locale.ROOT) + "-" + UUID.randomUUID().toString().substring(0, 8);

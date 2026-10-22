@@ -153,7 +153,7 @@ function renderCodes(task: TaskDetail) {
   if (!task.codes.some(code => code.id === selectedCode)) selectedCode = task.codes.at(-1)!.id;
   const toolbar = el('div', 'code-toolbar'), select = document.createElement('select'); select.id = 'code-version'; select.setAttribute('aria-label', '代码版本');
   for (const [index, code] of task.codes.entries()) {
-    const option = document.createElement('option'); option.value = code.id; option.textContent = `版本 ${index + 1} · ${code.fileName} · ${time(code.createdAt)}`;
+    const option = document.createElement('option'); option.value = code.id; option.textContent = `版本 ${code.scriptVersion ?? index + 1} · ${code.fileName} · ${time(code.createdAt)}`;
     option.selected = code.id === selectedCode; select.append(option);
   }
   select.addEventListener('change', () => { selectedCode = select.value; void loadSource(task.id, selectedCode); });

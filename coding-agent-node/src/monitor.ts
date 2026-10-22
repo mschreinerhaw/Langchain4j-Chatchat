@@ -10,8 +10,9 @@ const VERSION = 'coding_agent.monitor.v1';
 const SESSION_MS = 8 * 60 * 60 * 1000;
 const COOKIE = 'coding_monitor_session';
 const EVENT_KEYS = ['stage', 'status', 'operationId', 'proposedOperationId', 'modelCall', 'tool',
-  'codeSha256', 'fileName', 'sourceBytes', 'skillFingerprint', 'validationStatus', 'outputStatus',
-  'selectedModel', 'providerModel', 'protocol', 'startedAt', 'finishedAt', 'durationMs', 'message'];
+  'scriptPath', 'scriptVersion', 'codeSha256', 'fileName', 'sourceBytes', 'skillFingerprint', 'validationStatus', 'outputStatus',
+  'selectedModel', 'providerModel', 'protocol', 'startedAt', 'finishedAt', 'durationMs', 'message',
+  'errorCategory', 'diagnosticCode', 'repairAttempts', 'repairAllowed'];
 type Contract = Record<string, any>;
 interface Options {
   directory?: string; maxTasks?: number; maxEvents?: number; maxSourceBytes?: number;
@@ -189,7 +190,7 @@ export class MonitorStore {
     }
     this.changed();
   }
-  code(id: string | null, value: { operationId: string; fileName: string; source: string }) {
+  code(id: string | null, value: { operationId: string; fileName: string; source: string; scriptPath?: string; scriptVersion?: number }) {
     const task = id ? this.tasks.get(id) : null;
     if (!task || typeof value.source !== 'string' || Buffer.byteLength(value.source) > 256000) return;
     const hash = createHash('sha256').update(value.source).digest('hex');
@@ -197,6 +198,7 @@ export class MonitorStore {
     if (task.codes.some(code => code.id === codeId)) return;
     if (task.codes.length >= 64) { task.codes.shift(); task.codesTruncated = true; }
     task.codes.push({ id: codeId, operationId: this.text(value.operationId), fileName: this.text(value.fileName, 256),
+      scriptPath:this.text(value.scriptPath),scriptVersion:value.scriptVersion??null,
       sha256: hash, sourceBytes: Buffer.byteLength(value.source), createdAt: new Date().toISOString(),
       source: value.source, sourceRetained: true });
     task.codeCount++; this.trimSources(); this.changed();

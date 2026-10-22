@@ -128,6 +128,11 @@ class CodingWorkspaceNodeIntegrationTest {
             var adapter=new ClineCodingAdapter(tasks,python,mock(CodingInputSnapshotService.class),mock(CodingValidationPlanService.class),
                 mock(CodingEvidenceCollector.class),receipts,URI.create("http://127.0.0.1:"+port),secret,json);
             adapter.setWorkspace(workspace);beans.registerSingleton("codingAgent",adapter);
+            adapter.setLicenseEntitlements(new com.chatchat.common.mcp.license.McpLicenseEntitlementPort() {
+                @Override public CodingDispatchEntitlement codingDispatchEntitlement() {
+                    return new CodingDispatchEntitlement(true, "VALID");
+                }
+            });
             var scope=new KernelDataScope("tenant","owner",null,null,"node-run",null,Map.of());
             var outcome=workspace.submit(scope,"node-task","Use authorized Mapping and historical SQL to produce a two-file source project.",dialect,"");
             long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(30);

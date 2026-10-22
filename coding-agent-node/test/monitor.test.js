@@ -1,7 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { createCodingRun } from '../src/runner.js';
+import { createCodingRun as realCreateCodingRun } from '../src/runner.js';
+// Allocation is a Java callback fixture; Python results below remain branch-specific fixtures.
+const createCodingRun=(task,gateway,options)=>{
+  let version=0;const assigned=new Map();
+  return realCreateCodingRun(task,{async preparePython(_task,input){
+    if(!assigned.has(input.operationId)){
+      const scriptVersion=++version,fileName=`financial-total_20261022T000000000Z_abcdef012345_v${scriptVersion}.py`;
+      assigned.set(input.operationId,{fileName,scriptVersion,scriptPath:'/workspace/scripts/'+fileName,
+        workingDirectory:'tasks/'+['a'.repeat(16),'b'.repeat(16),'c'.repeat(16),'d'.repeat(24)].join('/')});
+    }
+    return assigned.get(input.operationId);
+  },...gateway},options);
+};
 import { createCodingServer } from '../src/server.js';
 
 const contract = {

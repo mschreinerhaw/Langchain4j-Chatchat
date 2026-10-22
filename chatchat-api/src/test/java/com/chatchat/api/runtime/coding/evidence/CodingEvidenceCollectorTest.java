@@ -80,6 +80,11 @@ class CodingEvidenceCollectorTest {
         var replay=resumed.collect(scope,contract,"op","main.py","rows.jsonl",files,rows->new CodingEvidenceCollector.Validation(true,Map.of()));
         assertThat(replay).isEqualTo(first);
         assertThat(resumed.visualReport(scope,"task",replay.resultDatasetRef())).contains(firstCollector.visualReport(scope,"task",first.resultDatasetRef()).orElseThrow());
+        var original=resumed.visualReport(scope,"task",replay.resultDatasetRef()).orElseThrow();
+        assertThat(resumed.reviewVisualReport(scope,"task",replay.resultDatasetRef())).isEqualTo(original);
+        assertThat(resumed.visualReport(scope,"task",replay.resultDatasetRef())).contains(original);
+        when(python.artifact("tenant","owner","run","task","op","manifest","manifest.json")).thenReturn("{}".getBytes(StandardCharsets.UTF_8));
+        assertThatThrownBy(()->resumed.reviewVisualReport(scope,"task",replay.resultDatasetRef())).hasMessageContaining("manifest changed");
     }
     @Test void aSchemaValidCopyOfArchivedSourceCannotBecomeAnAdmittedAnalysis() throws Exception {
         String source = "private diagnostic source\n".repeat(100);

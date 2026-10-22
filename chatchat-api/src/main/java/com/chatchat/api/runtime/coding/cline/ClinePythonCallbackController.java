@@ -13,6 +13,7 @@ import com.chatchat.common.mcp.python.McpPythonControlPlanePort;
 import com.chatchat.common.runtime.coding.CodingTaskContract;
 import com.chatchat.common.runtime.coding.CodingTaskOutcome;
 import com.chatchat.common.runtime.coding.CodingErrorCode;
+import com.chatchat.common.runtime.coding.VisualReportMode;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
@@ -39,11 +40,14 @@ import org.springframework.web.server.ResponseStatusException;
 @ConditionalOnProperty(prefix = "chatchat.coding.cline", name = "enabled", havingValue = "true")
 @ConditionalOnProperty(prefix = "chatchat.coding", name = "enabled", havingValue = "true")
 public final class ClinePythonCallbackController {
+    private com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackService feedback;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setFeedback(com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackService value) { feedback=value; }
     private CodingCodeArtifactStore codeArtifacts;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setCodeArtifacts(CodingCodeArtifactStore value) { codeArtifacts = value; }
     private static final Logger LOG = LoggerFactory.getLogger(ClinePythonCallbackController.class);
-    private static final String CODE_FILE = "main.py";
+
     private final CodingInvocationContext identity;
     private final DurableCodingTaskService tasks;
     private final CodingInputSnapshotService inputs;
@@ -59,6 +63,17 @@ public final class ClinePythonCallbackController {
         this.plans = plans; this.python = python; this.collector = collector; this.mapper = mapper;
     }
 
+    @PostMapping("/prepare-python")
+    public Map<String,Object> prepare(@RequestBody JsonNode body) {
+        return bound(body,false,call->{
+            if(!call.contract().authorization().allowedTools().contains("python_execute")
+                ||!call.contract().authorization().allowedSideEffects().contains(CodingTaskContract.SideEffect.CODE_EXECUTION))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Python tool is not authorized");
+            String operation=operationId(call,body.path("execution"));
+            return mapper.convertValue(tasks.allocateScript(call.scope(),call.taskId(),call.lease(),operation),new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){});
+        });
+    }
+
     @PostMapping("/execute-python")
     public Map<String, Object> execute(@RequestBody JsonNode body) {
         return bound(body, false, call -> {
@@ -68,16 +83,27 @@ public final class ClinePythonCallbackController {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Python tool is not authorized");
             JsonNode request = body.path("execution");
             String operationId = operationId(call, request);
-            if (!CODE_FILE.equals(request.path("fileName").asText()))
-                throw new IllegalArgumentException("D1 executes only main.py");
+            var script=tasks.allocateScript(call.scope(),call.taskId(),call.lease(),operationId);
+            if(request.hasNonNull("script") && !script.equals(mapper.convertValue(request.path("script"),com.chatchat.common.runtime.coding.CodingScript.class)))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Script allocation differs from Runtime assignment");
+            String requested=request.path("fileName").asText("");
+            if(!script.fileName().equals(requested) && !(com.chatchat.common.runtime.coding.CodingScript.LEGACY_FILE.equals(requested)&&!request.hasNonNull("script")))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Script file name differs from Runtime assignment");
             String source = request.path("source").asText("");
             if (source.isBlank() || source.getBytes(StandardCharsets.UTF_8).length > 256_000)
                 throw new IllegalArgumentException("Python source exceeds the D1 limit");
             if (request.path("codeSha256").isTextual() && !sha(source).equals(request.path("codeSha256").asText()))
                 throw new IllegalArgumentException("Python source hash mismatch");
+            if(feedback!=null)try{feedback.admit(contract,call.lease(),operationId,sha(source));}
+            catch(com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackService.RepairDeniedException denied){
+                throw new ResponseStatusException(HttpStatus.CONFLICT,denied.getMessage());
+            }
             // Freeze the exact source before Sandbox admission; rejected code remains inspectable.
+            tasks.bindScriptHash(call.scope(),call.taskId(),call.lease(),operationId,sha(source));
             if (codeArtifacts != null) codeArtifacts.commit(contract, operationId, source,
-                request.path("codeSha256").isTextual() ? request.path("codeSha256").asText() : null);
+                request.path("codeSha256").isTextual() ? request.path("codeSha256").asText() : null,script);
+            com.chatchat.common.runtime.event.RuntimeEventLog.execution("PYTHON_CODE_SUBMITTED",call.scope(),call.taskId(),operationId,
+                Map.of("status","SUBMITTED","scriptPath",script.scriptPath(),"scriptVersion",script.scriptVersion(),"scriptHash",sha(source)));
             var input = inputs.requireAuthorized(contract);
             plans.validator(contract); // Fail before dispatch if no independent trusted plan exists.
             long executions = contract.budget().maxCodeExecutions();
@@ -90,15 +116,16 @@ public final class ClinePythonCallbackController {
             McpPythonControlPlanePort.OperationView view;
             try {
                 view = python.start(call.scope(), contract, call.lease(), operationId,
-                    contract.environmentRef(), "coding-task:" + contract.taskId(), CODE_FILE,
+                    contract.environmentRef(), "coding-task:" + contract.taskId(), script.fileName(),
                     source, Map.of(), "{}", Map.of(input.fileId(), input.sha256()), reservation);
             } catch (RuntimeException executionFailure) {
-                LOG.warn("Bound Coding Python operation {} was not acknowledged by the MCP control plane",
-                    operationId, executionFailure);
+                com.chatchat.common.runtime.event.RuntimeEventLog.execution("PYTHON_DISPATCH_UNKNOWN",call.scope(),call.taskId(),operationId,
+                    Map.of("status","UNKNOWN","exceptionType",executionFailure.getClass().getSimpleName(),
+                        "scriptPath",script.scriptPath(),"scriptVersion",script.scriptVersion(),"scriptHash",sha(source)));
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Python operation outcome is unknown; reconcile before retry", executionFailure);
             }
-            return view(view);
+            var response=view(view);response.put("script",script);return response;
         });
     }
 
@@ -106,13 +133,20 @@ public final class ClinePythonCallbackController {
     public Map<String, Object> get(@RequestBody JsonNode body) {
         return bound(body, true, call -> {
             String operationId = operationId(body.path("operationId").asText(null));
+            if(feedback!=null){
+                var cached=feedback.cached(call.scope(),call.taskId(),operationId);
+                if(cached!=null){
+                    var response=feedback.response(cached);var layout=CodingInputLayout.describe(call.contract().runtimeContext());
+                    if(!layout.isEmpty())response.put("inputLayout",layout);return response;
+                }
+            }
             var result = python.get(call.scope(), call.taskId(), operationId);
             if (result.executorStopped() && result.manifestHash() != null)
                 python.reconcile(call.scope(), call.taskId(), call.lease(), operationId);
             Map<String, Object> response = view(result);
             var layout = CodingInputLayout.describe(call.contract().runtimeContext());
             if (!layout.isEmpty()) response.put("inputLayout", layout);
-            if (result.executorStopped() && result.manifestHash()!=null) {
+            if (feedback==null && result.executorStopped() && result.manifestHash()!=null) {
                 try { var stderr=python.stderr(call.scope(), call.taskId(), operationId);
                     var stdout=python.stdout(call.scope(),call.taskId(),operationId);
                     // Process output is untrusted data: printing a source row must not
@@ -127,7 +161,7 @@ public final class ClinePythonCallbackController {
             if ("SUCCEEDED".equals(result.status()) && result.executorStopped()) {
                 var input = inputs.requireAuthorized(call.contract());
                 CodingEvidenceCollector.Collected collected;
-                try { collected = collector.collect(call.scope(), call.contract(), operationId, CODE_FILE,
+                try { collected = collector.collect(call.scope(), call.contract(), operationId, tasks.scriptFile(call.scope(),call.taskId(),operationId),
                     call.contract().outputContract().requiredFiles().get(0),
                     java.util.List.of(new CodingEvidenceCollector.InputFile(
                         input.fileId(), input.fileName(), input.sha256())),
@@ -141,10 +175,10 @@ public final class ClinePythonCallbackController {
                         +"Stdout and auxiliary file contents are not returned to the model: repeating print/file probes cannot reveal source samples. "
                         +"Inspect and parse data within the same Python program that computes and writes the result. "
                         +"Each call starts a fresh sandbox: write the required JSONL file under /workspace/output/results/ in the same program.");
-                    return response;
+                    return withFeedback(call,result,response);
                 } catch(CodingEvidenceCollector.InvalidStructuredResultException invalid) {
                     response.put("outputStatus","INVALID_RESULT_SCHEMA");response.put("resultAvailable",false);
-                    response.put("diagnostic","Structured result does not match the contracted row schema; repair field names and types in a complete new program.");return response;
+                    response.put("diagnostic","Structured result does not match the contracted row schema; repair field names and types in a complete new program.");return withFeedback(call,result,response);
                 }
                 if (collected.validationStatus() == com.chatchat.common.runtime.coding.CodingTaskOutcome.ValidationStatus.FAILED) {
                     if (collector.copiedSourceResult(call.scope(), call.taskId(), collected.validationRecordRef())
@@ -156,7 +190,7 @@ public final class ClinePythonCallbackController {
                         response.put("diagnostic", "The immutable-input comparison rejected a raw source copy. "
                             + "This Coding delegation has ended without admitting a dataset. Runtime must revise the analytical objective "
                             + "and output contract under a new requestId; do not repeat source inspection or source-row reproduction.");
-                        return response;
+                        return withFeedback(call,result,response);
                     }
                     response.put("outputStatus", "RESULT_VALIDATION_FAILED");
                     response.put("resultAvailable", false);
@@ -165,7 +199,7 @@ public final class ClinePythonCallbackController {
                         + "and replace bulk source text with metrics and concise findings calculated in Python. "
                         + "Unchanged source documents or record collections are not analytical results. Use short quotations or input row references alongside computed findings. Original long-form analysis is allowed; do not split raw documents across fields or rows. "
                         + "Repair the complete program and execute again.");
-                    return response;
+                    return withFeedback(call,result,response);
                 }
                 response.put("inputSnapshotRef", collected.inputSnapshotRef());
                 response.put("codeArtifactRef", collected.codeArtifactRef());
@@ -176,8 +210,16 @@ public final class ClinePythonCallbackController {
                 response.put("resultAvailable", true);
                 response.put("businessValidationPassed", collected.businessValidationPassed());
                 response.put("validationStatus", collected.validationStatus().name());
+                if(VisualReportMode.active(call.contract().runtimeContext())) {
+                    var visual=collector.visualReport(call.scope(),call.taskId(),collected.resultDatasetRef());
+                    if(visual.isEmpty() || "FAILED".equals(visual.get().get("artifactValidationStatus"))) {
+                        response.put("resultAvailable",false);
+                        response.put("outputStatus","VISUAL_REPORT_INVALID");
+                        response.put("diagnostic","Visual report artifact contract failed. Inspect artifact_read visualReportValidation, repair only the technical report schema, and preserve actual failed or unresolved business checks.");
+                    }
+                }
             }
-            return response;
+            return withFeedback(call,result,response);
         });
     }
 
@@ -191,6 +233,14 @@ public final class ClinePythonCallbackController {
 
     private record Call(KernelDataScope scope, String taskId, CodingTaskContract contract,
                         CodingJournal.Lease lease) { }
+
+    private Map<String,Object> withFeedback(Call call,McpPythonControlPlanePort.OperationView operation,Map<String,Object> response){
+        if(feedback!=null&&operation.executorStopped()&&operation.manifestHash()!=null){
+            var completed=feedback.finish(call.contract(),call.lease(),operation,response);
+            response.putAll(feedback.response(completed));
+        }
+        return response;
+    }
 
     private boolean rejectSourceCopy(Call call, CodingEvidenceCollector.Collected collected) {
         var current = tasks.get(call.scope(), call.taskId());
@@ -296,6 +346,11 @@ public final class ClinePythonCallbackController {
         while(error.find())diagnostic.put("exceptionType",error.group(1));
         var line=java.util.regex.Pattern.compile("(?m)^\\s*File \"/workspace/(?:code/)?main\\.py\", line ([0-9]{1,8})").matcher(stderr);
         while(line.find())diagnostic.put("line",Integer.parseInt(line.group(1)));
+        var code=java.util.regex.Pattern.compile("(?m)^Runtime diagnostic: ([A-Z_]{1,60})$").matcher(stderr);
+        if(code.find()&&com.chatchat.common.runtime.coding.ExecutionFailureClassifier.known(code.group(1))){
+            diagnostic.put("diagnosticCode",code.group(1));
+            diagnostic.put("guidance",com.chatchat.common.runtime.coding.ExecutionFailureClassifier.guidance(code.group(1)));
+        }
         return diagnostic;
     }
 }

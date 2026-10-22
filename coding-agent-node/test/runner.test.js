@@ -1,6 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createCodingRun } from '../src/runner.js';
+import { createCodingRun as realCreateCodingRun } from '../src/runner.js';
+// Allocation is a Java callback fixture; Python results below remain branch-specific fixtures.
+const createCodingRun=(task,gateway,options)=>{
+  let version=0;const assigned=new Map();
+  return realCreateCodingRun(task,{async preparePython(_task,input){
+    if(!assigned.has(input.operationId)){
+      const scriptVersion=++version,fileName=`financial-total_20261022T000000000Z_abcdef012345_v${scriptVersion}.py`;
+      assigned.set(input.operationId,{fileName,scriptVersion,scriptPath:'/workspace/scripts/'+fileName,
+        workingDirectory:'tasks/'+['a'.repeat(16),'b'.repeat(16),'c'.repeat(16),'d'.repeat(24)].join('/')});
+    }
+    return assigned.get(input.operationId);
+  },...gateway},options);
+};
 
 const task = {
   schemaVersion: 'runtime_os.coding.v1',
@@ -13,6 +25,44 @@ const task = {
   outputContract: { requiredFiles: ['rows.jsonl'] },
   budget: { maxModelCalls: 4 },
 };
+
+test('Java STOP feedback terminates the real SDK loop without another model or Python call', async () => {
+  let models=0,executions=0,finished;
+  const model={async *stream(){
+    models++;assert.equal(models,1);
+    yield {type:'tool-call-delta',toolCallId:'first',toolName:'python_execute',input:{fileName:'main.py',source:'while True: pass'}};
+    yield {type:'usage',usage:{inputTokens:2,outputTokens:2}};yield {type:'finish',reason:'tool-calls'};
+  }};
+  const gateway={async reserveModel(){},async settleModel(){},async executePython(){
+    executions++;return {status:'TIMED_OUT',executorStopped:true,resultAvailable:false,
+      executionFeedback:{repair:{allowed:false,action:'STOP',reason:'NON_REPAIRABLE'},error:{category:'TIMEOUT'}}};
+  },async finish(_task,outcome){finished=outcome;}};
+  const result=await createCodingRun(task,gateway,{model}).run();
+  assert.equal(result.status,'failed');assert.equal(executions,1);assert.equal(models,1);assert.equal(finished.status,'failed');
+});
+
+test('Java repair feedback reaches the same SDK context and an exact edit creates the next code version', async () => {
+  let models=0;const sources=[];const original='value = 1\nprint(value[0])';
+  const model={async *stream(request){
+    models++;
+    if(models===1)yield {type:'tool-call-delta',toolCallId:'first',toolName:'python_execute',input:{fileName:'main.py',source:original}};
+    else if(models===2){
+      assert.match(JSON.stringify(request.messages),/VALUE_NOT_SUBSCRIPTABLE/);
+      const {createHash}=await import('node:crypto');
+      yield {type:'tool-call-delta',toolCallId:'repair',toolName:'python_execute',input:{fileName:'main.py',repair:{
+        baseCodeSha256:createHash('sha256').update(original).digest('hex'),edits:[{oldText:'value[0]',newText:'value'}]}}};
+    }else yield {type:'text-delta',text:'Verified.'};
+    yield {type:'usage',usage:{inputTokens:2,outputTokens:2}};yield {type:'finish',reason:models<3?'tool-calls':'stop'};
+  }};
+  const gateway={async reserveModel(){},async settleModel(){},async executePython(_task,input){
+    sources.push(input.source);
+    return sources.length===1?{status:'FAILED',executorStopped:true,executionFeedback:{error:{diagnosticCode:'VALUE_NOT_SUBSCRIPTABLE'},
+      repair:{allowed:true,action:'REPAIR_IN_CURRENT_CONTEXT',reason:'TECHNICAL_REPAIR'}}}:
+      {status:'SUCCEEDED',executorStopped:true,resultDatasetRef:'result',validationRecordRef:'validation',evidenceBundleRef:'bundle'};
+  },async finish(){}};
+  assert.equal((await createCodingRun(task,gateway,{model}).run()).status,'completed');
+  assert.deepEqual(sources,[original,'value = 1\nprint(value)']);
+});
 
 test('worker rejects unnegotiated v2 and missing protocol versions before touching Runtime', () => {
   for (const schemaVersion of ['runtime_os.coding.v2', undefined])

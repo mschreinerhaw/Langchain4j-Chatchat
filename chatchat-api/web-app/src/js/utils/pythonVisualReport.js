@@ -1,6 +1,19 @@
 import {getStoredAuthSession} from '../../services/api';
 import {workspaceHeaders} from './workspaceContext';
 
+// Re-admit the original archived bytes under the current presentation validator, without rerunning a task.
+export async function reviewArchivedVisualReport(report,signal){
+  const original=report?.execution,asset=original?.codeArtifact;
+  if(!/^[A-Za-z0-9_-]{1,100}$/.test(asset?.fileId||'')||!original?.taskId||!original?.resultDatasetRef)throw new Error('报告归档引用无效');
+  const auth=getStoredAuthSession();const headers={...(auth?.token?{Authorization:`Bearer ${auth.token}`} : {}),...workspaceHeaders()};
+  async function get(path){const response=await fetch(path,{signal,headers});if(!response.ok)throw new Error('无法读取已授权报告');const body=await response.json();if(![0,200,undefined].includes(body.code))throw new Error('报告重新校验未完成');return body.data??body;}
+  const file=await get(`/api/v1/interactions/user-assets/${encodeURIComponent(asset.fileId)}`);
+  if(file.taskId!==original.taskId||file.sha256!==original.codeSha256||!file.runId)throw new Error('报告代码归档不匹配');
+  const reviewed=await get(`/api/v1/agent/runtime/runs/${encodeURIComponent(file.runId)}/coding/${encodeURIComponent(file.taskId)}/visual-report?resultRef=${encodeURIComponent(original.resultDatasetRef)}`);
+  if(reviewed.schemaVersion!=='python_visual_report.v1'||!['taskId','operationId','codeSha256','resultSha256','resultDatasetRef'].every(key=>reviewed.execution?.[key]===original[key]))throw new Error('重新校验报告的执行身份不匹配');
+  return reviewed;
+}
+
 export async function readReportArtifact(asset,signal){
   if(!/^[A-Za-z0-9_-]{1,100}$/.test(asset?.fileId||'') || !(asset.size>0&&asset.size<=8*1024*1024))throw new Error('图表文件引用无效');
   const auth=getStoredAuthSession();

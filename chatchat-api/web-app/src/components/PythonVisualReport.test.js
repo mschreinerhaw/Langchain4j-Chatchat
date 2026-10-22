@@ -2,6 +2,8 @@
 import { createApp, h, nextTick, reactive } from "vue";
 import { it, expect, afterEach, vi } from "vitest";
 import PythonVisualReport from "./PythonVisualReport.vue";
+import { reviewArchivedVisualReport } from "../js/utils/pythonVisualReport.js";
+vi.mock("../js/utils/pythonVisualReport.js", () => ({ reviewArchivedVisualReport: vi.fn() }));
 vi.mock("./PythonReportChart.vue", () => ({
   default: {
     props: ["chart"],
@@ -14,6 +16,39 @@ let app, host;
 afterEach(() => {
   app?.unmount();
   host?.remove();
+  vi.clearAllMocks();
+});
+it("hides duplicate chart prose and full text while retaining historical charts and business findings", async () => {
+  host = document.createElement("div");
+  document.body.append(host);
+  const report = { status: "SUCCESS", markdown: "Duplicate body", sections: [
+    { title: "图表分析", narrative: "Duplicate chart prose", chartIds: ["chart"] },
+    { title: "业务结论", narrative: "Business findings" },
+  ], charts: [{ id: "chart", title: "Retained chart" }] };
+  app = createApp({ render: () => h(PythonVisualReport, { report }) });
+  app.mount(host);
+  await nextTick();
+  expect(host.querySelectorAll(".chart-stub")).toHaveLength(1);
+  expect(host.textContent).toContain("Business findings");
+  for (const text of ["图表分析", "Duplicate chart prose", "Duplicate body"])
+    expect(host.textContent).not.toContain(text);
+  expect(report.markdown).toBe("Duplicate body");
+});
+it("reviews a legacy rejected report without mutating its evidence or revealing internal validation", async () => {
+  host = document.createElement("div");
+  document.body.append(host);
+  const report = { status: "FAILED", title: "Legacy failure", execution: { resultDatasetRef: "result", codeArtifact: { fileId: "source" } } };
+  reviewArchivedVisualReport.mockResolvedValue({ schemaVersion: "python_visual_report.v1", status: "PARTIAL", title: "Recovered analysis",
+    sections: [{ title: "Findings", narrative: "Retained business finding" }],
+    validation: { checks: [{ status: "UNRESOLVED", name: "internal-check" }] },
+  });
+  app = createApp({ render: () => h(PythonVisualReport, { report }) });
+  app.mount(host);
+  await vi.waitFor(() => expect(host.textContent).toContain("Recovered analysis"));
+  expect(host.textContent).toContain("Retained business finding");
+  expect(host.querySelector(".python-visual-report").dataset.status).toBe("PARTIAL");
+  expect(host.textContent).not.toContain("internal-check");
+  expect(report.status).toBe("FAILED");
 });
 it("shows structured analysis without an additional reference or full text body", async () => {
   host = document.createElement("div");
@@ -43,7 +78,7 @@ it("shows structured analysis without an additional reference or full text body"
     expect(host.textContent).not.toContain(text);
   expect(host.querySelector(".report-full-text")).toBeNull();
 });
-it("preserves exact calculated values, displays partial failures and retains valid text", async () => {
+it("preserves exact calculated values and partial status without duplicate full text", async () => {
   host = document.createElement("div");
   document.body.append(host);
   const props = reactive({ report: null, fallbackMarkdown: "Existing text answer" });
@@ -67,7 +102,7 @@ it("preserves exact calculated values, displays partial failures and retains val
   expect(host.querySelector("dd").textContent).toContain("9007199254740993.01");
   expect(host.querySelector("td").textContent).toBe("9007199254740993.01");
   expect(host.textContent).toContain("部分完成");
-  expect(host.textContent).toContain("Existing text answer");
+  expect(host.textContent).not.toContain("Existing text answer");
   expect(host.textContent).not.toContain("Plotly dependency missing");
   props.report = {
     status: "FAILED",
@@ -77,7 +112,7 @@ it("preserves exact calculated values, displays partial failures and retains val
   await nextTick();
   expect(host.textContent).toContain("暂不可用");
   expect(host.textContent).not.toContain("Python execution failed");
-  expect(host.textContent).toContain("Existing text answer");
+  expect(host.textContent).not.toContain("Existing text answer");
   props.report = { status: "NO_DATA", title: "Empty", markdown: "No records were available" };
   await nextTick();
   expect(host.textContent).toContain("没有可分析数据");

@@ -36,6 +36,11 @@ class PythonMcpToolPublisherTest {
         PythonTemplate legacy = new PythonTemplate();
         legacy.setToolName("python_direct_template_1234");
         when(templates.findByStatus("PUBLISHED")).thenReturn(List.of(legacy));
+        // Retired declarations are removed only if actually present in the SDK registry.
+        when(server.listTools()).thenReturn(java.util.stream.Stream.concat(
+            PythonMcpToolPublisher.LEGACY_PROTOCOL_TOOLS.stream(),java.util.stream.Stream.of(legacy.getToolName()))
+            .map(name->McpSchema.Tool.builder().name(name).description("Legacy fixture")
+                .inputSchema(Map.of("type","object","properties",Map.of())).build()).toList());
         PythonMcpToolPublisher publisher = new PythonMcpToolPublisher(servers, templates,
             mock(PythonAnalysisBridge.class), mock(McpToolConcurrencyManager.class), new ObjectMapper(),
             templateQueryPublisherProvider());

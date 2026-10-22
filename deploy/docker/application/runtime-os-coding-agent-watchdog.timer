@@ -1,0 +1,12 @@
+[Unit]
+Description=Check Runtime OS coding-agent health every 30 seconds
+
+[Timer]
+OnBootSec=60
+OnUnitInactiveSec=30
+AccuracySec=5
+RandomizedDelaySec=5
+Unit=runtime-os-coding-agent-watchdog.service
+
+[Install]
+WantedBy=timers.target

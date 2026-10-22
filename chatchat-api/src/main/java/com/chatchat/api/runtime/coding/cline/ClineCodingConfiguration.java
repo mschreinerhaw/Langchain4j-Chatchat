@@ -26,6 +26,7 @@ public class ClineCodingConfiguration {
             CodingInputSnapshotService inputs, CodingValidationPlanService plans,
             CodingEvidenceCollector collector,
             ClineModelReceiptStore receipts, ObjectMapper mapper,
+            com.chatchat.common.mcp.license.McpLicenseEntitlementPort licenseEntitlements,
             org.springframework.beans.factory.ObjectProvider<CodingWorkspaceService> workspace,
             org.springframework.beans.factory.ObjectProvider<CodingDataSupplyService> dataSupply,
             @Value("${chatchat.coding.cline.node-url:http://127.0.0.1:8791}") String nodeUrl,
@@ -35,6 +36,7 @@ public class ClineCodingConfiguration {
             URI.create(nodeUrl), CodingSecrets.resolve(secret,secretFile), mapper);
         adapter.setWorkspace(workspace.getIfAvailable());
         adapter.setDataSupply(dataSupply.getIfAvailable());
+        adapter.setLicenseEntitlements(licenseEntitlements);
         return adapter;
     }
 }

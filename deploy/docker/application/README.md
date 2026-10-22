@@ -57,3 +57,4 @@ The Docker daemon must see Python paths at the same absolute host/container loca
 The gateway redirects legacy Runtime URLs `/admin`, `/admin/` and `/admin/index.html` to the current application root. Runtime HTML uses `Cache-Control: no-store, max-age=0`; `/favicon.ico` redirects to the packaged SVG. MCP admin URLs on port 18101 remain unchanged. The frontend build must still pass `verify-web-assets.ps1`: redirecting an HTML entry point does not repair a JAR containing mismatched hashed assets. Refresh an already cached old page after this upgrade.
 
 Run `python deploy/docker/application/tests/test_application_deployment.py` with Docker available to validate real Compose expansion, existing-data bind semantics, News network routing and Nginx syntax.
+本版中文产品部署、离线包、升级、回滚和镜像清理步骤见 [1.2 产品部署手册](../../../docs/product-deployment-1.2-20261022.md)。

@@ -24,7 +24,7 @@ export function createCodingRun(contract, gateway, options = {}) {
     && contract?.outputContract?.resultFormat === 'JSON_LINES';
   const fastAnalysis = analysis && contract.metadataRefs?.includes('runtime-coding:analysis-fast-path:v1');
   const reviewedAnalysis = analysis && contract.metadataRefs?.includes('runtime-coding:analysis-reviewed-path:v1');
-  const repairableAnalysis = fastAnalysis || reviewedAnalysis;
+  const repairableAnalysis = !workspace;
   const pythonWorkspace=workspace && contract.outputContract.resultSchemaRef==='python-studio.output.v1';
   const fileInput = contract?.runtimeContext?.inputFiles;
   if (fileInput && (!analysis || fileInput.schemaVersion !== 'runtime_os.coding.input.v1'
@@ -64,6 +64,7 @@ export function createCodingRun(contract, gateway, options = {}) {
   const restored = options.checkpoint;
   let lastCollectedOperation = restored?.lastCollectedOperation ?? null;
   let reportReferenceFailure = restored?.reportReferenceFailure ?? null;
+  let terminalFeedback = restored?.terminalFeedback ?? null;
   let previousProgram = null;
   for (const message of restored?.messages ?? []) for (const part of message.content ?? []) {
     if (part.type === 'tool-call' && part.toolName === 'python_execute') {
@@ -155,32 +156,41 @@ export function createCodingRun(contract, gateway, options = {}) {
   if (permitted.has('python_execute')) tools.push({
     name: 'python_execute',
     ...(fastAnalysis ? { lifecycle: { completesRun: true } } : {}),
-    description: `Run main.py in a NEW isolated Python sandbox for EACH call. Java mounts only authorized immutable inputs under /data/input/{fileId}/{fileName}. ${fileInput ? 'Input is a versioned manifest with schemaFileId and ordered Parquet/CSV parts; use columns[].storageName/type to reconstruct logical columns and null/missing semantics. Read and hash-check each part; never parse this manifest as JSONL.' : 'A single input is input.jsonl; a chunked input uses manifest.json plus its ordered input.jsonl chunks. Read and hash-check the manifest chunks in Python.'} Previous calls' output files do not exist here. To produce an analysis result, perform the calculation and write structured JSONL to /workspace/output/results/${contract.outputContract?.requiredFiles?.[0] ?? 'rows.jsonl'}. A diagnostic program without that file may succeed as a process, but produces no analysis result. Inspect the returned Runtime receipt; repair technical errors with a complete new program. Never claim business validation yourself.`,
+    description: `Submit code using the Java Runtime-assigned versioned script name and workspace, in a NEW isolated Python sandbox for EACH call. Java mounts only authorized immutable inputs under /data/input/{fileId}/{fileName}. ${fileInput ? 'Input is a versioned manifest with schemaFileId and ordered Parquet/CSV parts; use columns[].storageName/type to reconstruct logical columns and null/missing semantics. Read and hash-check each part; never parse this manifest as JSONL.' : 'A single input is input.jsonl; a chunked input uses manifest.json plus its ordered input.jsonl chunks. Read and hash-check the manifest chunks in Python.'} Previous calls' output files do not exist here. To produce an analysis result, perform the calculation and write structured JSONL to /workspace/output/results/${contract.outputContract?.requiredFiles?.[0] ?? 'rows.jsonl'}. A diagnostic program without that file may succeed as a process, but produces no analysis result. Inspect the returned Runtime receipt; repair technical errors with a complete new program. Never claim business validation yourself.`,
     inputSchema: { type: 'object', properties: {
-      fileName: { type: 'string', enum: ['main.py'] }, source: { type: 'string' },
+      fileName: { type: 'string', description: 'Optional compatibility hint; Runtime assigns the actual immutable script name and version.' }, source: { type: 'string' },
       ...(repairableAnalysis ? { repair: { type: 'object', properties: {
         baseCodeSha256: { type: 'string' }, edits: { type: 'array', items: { type: 'object', properties: {
           oldText: { type: 'string' }, newText: { type: 'string' },
         }, required: ['oldText', 'newText'], additionalProperties: false } },
       }, required: ['baseCodeSha256', 'edits'], additionalProperties: false } } : {}),
-    }, required: repairableAnalysis ? ['fileName'] : ['fileName', 'source'], additionalProperties: false },
+    }, required: repairableAnalysis ? [] : ['source'], additionalProperties: false },
     // The SDK defaults to 30 seconds. Runtime owns the task deadline and cancellation.
     timeoutMs: deadline === null ? 30000 : Math.max(1, Math.min(deadline - Date.now(), 2147483647)),
     executionMode: 'sequential', retryable: false, maxRetries: 0,
     async execute(input, context) {
-      if (required(input?.fileName, 'fileName') !== 'main.py')
+      if(input?.fileName && (!/^[\p{L}\p{N}][\p{L}\p{N}_.-]*\.py$/u.test(input.fileName)||input.fileName.includes('..')))
         throw new TypeError('Invalid Python file name');
       const source = prepareProgram(input, repairableAnalysis ? previousProgram : null);
       if (Buffer.byteLength(source, 'utf8') > 256000) throw new TypeError('Python source exceeds Runtime limit');
       const toolCallId = required(context.toolCallId, 'toolCallId');
       const id = operationId(contract, toolCallId);
+      if(typeof gateway.preparePython!=='function')throw new TypeError('Runtime script allocation callback is required');
+      const script=await gateway.preparePython(contract,{operationId:id,toolCallId,attemptId},context.signal);
+      if(!script || !Number.isInteger(script.scriptVersion) || script.scriptVersion<1
+          || !/^[\p{L}\p{N}][\p{L}\p{N}_.-]*\.py$/u.test(script.fileName) || script.fileName.includes('..')
+          || !script.fileName.endsWith(`_v${script.scriptVersion}.py`)
+          || script.scriptPath!=='/workspace/scripts/'+script.fileName
+          || !/^tasks\/[0-9a-f]{16}\/[0-9a-f]{16}\/[0-9a-f]{16}\/[0-9a-f]{24}$/.test(script.workingDirectory))
+        throw new TypeError('Invalid Runtime script allocation');
+      const fileName=script.fileName;
       const codeSha256 = createHash('sha256').update(source).digest('hex');
-      try { options.observeCode?.({ operationId: id, fileName: 'main.py', source }); } catch { /* observer only */ }
-      codeFiles.push({ fileName: 'main.py', sha256: codeSha256, operationId: id,
+      try { options.observeCode?.({ operationId: id, fileName, scriptPath: script.scriptPath, scriptVersion: script.scriptVersion, source }); } catch { /* observer only */ }
+      codeFiles.push({ fileName, scriptPath: script.scriptPath, scriptVersion: script.scriptVersion, sha256: codeSha256, operationId: id,
         sourceBytes: Buffer.byteLength(source), artifactRef:
           `/api/v1/agent/runtime/runs/${encodeURIComponent(contract.scope.runId)}/coding/${encodeURIComponent(contract.taskId)}/${id}/code` });
       await forward({ type: 'CODE_READY', stage: 'CODE_READY', proposedOperationId: id,
-        codeSha256, fileName: 'main.py', sourceBytes: Buffer.byteLength(source), modelCall: modelIndex });
+        codeSha256, fileName, scriptPath: script.scriptPath, scriptVersion: script.scriptVersion, sourceBytes: Buffer.byteLength(source), modelCall: modelIndex });
       activeOperation = id;
       // A later attempt must never finish using an earlier program's evidence.
       lastCollectedOperation = null;
@@ -190,7 +200,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       try {
         if (context.signal?.aborted) throw context.signal.reason ?? new Error('Coding task cancelled');
         let receipt = await gateway.executePython(contract, {
-          operationId: id, fileName: input.fileName, source, toolCallId, codeSha256,
+          operationId: id, fileName, script, source, toolCallId, codeSha256,
           attemptId,
         }, context.signal);
         previousProgram = source;
@@ -227,7 +237,12 @@ export function createCodingRun(contract, gateway, options = {}) {
             && receipt.status === 'SUCCEEDED' && !!receipt.resultDatasetRef
             && !!receipt.validationRecordRef && !!receipt.evidenceBundleRef
             && receipt.validationStatus !== 'FAILED'),
-          validationStatus: receipt.validationStatus ?? 'NOT_RECORDED', outputStatus: receipt.outputStatus ?? null });
+          validationStatus: receipt.validationStatus ?? 'NOT_RECORDED', outputStatus: receipt.outputStatus ?? null,
+          codeSha256, durationMs: receipt.executionFeedback?.durationMs ?? null,
+          errorCategory: receipt.executionFeedback?.error?.category ?? null,
+          diagnosticCode: receipt.executionFeedback?.error?.diagnosticCode ?? null,
+          repairAttempts: receipt.executionFeedback?.repair?.attemptsUsed ?? null,
+          repairAllowed: receipt.executionFeedback?.repair?.allowed ?? null });
         return receipt;
       } catch (error) {
         // A failed/aborted HTTP request does not establish that Sandbox stopped.
@@ -288,7 +303,7 @@ export function createCodingRun(contract, gateway, options = {}) {
     'Generate Python when useful, inspect execution receipts, fix technical errors, and report verification limits.',
     'When validationStatus is FAILED, inspect and repair the output schema. INCONCLUSIVE structural validation does not certify business correctness.',
     fileInput ? 'Each Python call starts a fresh sandbox with Java-authorized input versions. Use the exact files[].virtualPath values supplied by Java. All file ID directories are siblings directly under /data/input: the manifest is /data/input/{manifestFileId}/manifest.json, the schema is /data/input/{schemaFileId}/schema.json, and each part is /data/input/{part.fileId}/{part.fileName}. Never nest schema or part IDs under the manifest directory. Verify SHA-256 and row counts, map storage columns to logical names, and decode JSON cells. Use pyarrow or pandas.read_parquet(dtype_backend="pyarrow") to retain nullable integer/decimal precision. Parquet presence columns pN distinguish missing from null; CSV null/missing/backslash rules are explicit in schema.json. Full data stays in files, never ask to put it in a prompt. Do not reopen previous output in a new sandbox.' : 'Each Python call starts a fresh sandbox with the original immutable input and any additional input versions explicitly delivered by Java data_request, without earlier output files or Python variables. Single inputs use /data/input/{fileId}/input.jsonl; chunked inputs use /data/input/{fileId}/manifest.json and the ordered, hash-checked chunks listed there. Do not launch a new call just to open a previous output file.',
-    'Runtime returns only safe diagnostic metadata (stream byte counts, exception type and program line) after the process is confirmed stopped. Raw stdout and stderr are discarded before persistence; printing source rows cannot produce a preview. Inspect schema and data quality inside Python; never print source rows or samples. Printing a result alone does not create an analysis dataset. REQUIRED_OUTPUT_MISSING means the process did not write the contracted result. Write the complete result in a fresh program.',
+    'Runtime returns versioned executionFeedback after independently confirming process stop: safe exception category, normalized technical message, source locations, code hash, validation state and a Java-owned repair decision. Raw stdout/stderr and business values are omitted. When repair.allowed is true, stay in this task, keep the authorized immutable inputs, and prefer the smallest repair.edits against repair.baseCodeHash. Do not restart the analysis or fetch the same data again. When action is STOP do not execute another version, install dependencies, change permissions or expand access. Exit code zero without a validated result is a repairable output failure, never task completion.',
     'A SUCCEEDED receipt with resultDatasetRef, validationRecordRef and evidenceBundleRef means Runtime archived the result. INCONCLUSIVE with businessValidationPassed=false means business correctness was not evaluated, not an execution failure. You own the interpretation and must report that limitation; Runtime only validates structure and authorized references.',
   ]).join('\n');
   const config = {
@@ -302,8 +317,14 @@ export function createCodingRun(contract, gateway, options = {}) {
       async afterTool({ toolCall, result }) {
         if (toolCall.toolName === 'artifact_read' && result.output?.reportReferenceValidation?.valid === false)
           return { result: { ...result, isError: true } };
-        if (!fastAnalysis || toolCall.toolName !== 'python_execute') return;
+        if (toolCall.toolName !== 'python_execute') return;
         const receipt = result.output;
+        if (receipt?.executionFeedback?.repair?.action === 'STOP') {
+          terminalFeedback = receipt.executionFeedback.repair.reason;
+          agent.abort('Runtime execution feedback requires STOP');
+          return { result: { ...result, isError: true } };
+        }
+        if (!fastAnalysis) return;
         const verified = !result.isError && receipt?.status === 'SUCCEEDED' && receipt.executorStopped === true
           && receipt.resultDatasetRef && receipt.validationRecordRef && receipt.evidenceBundleRef
           && receipt.validationStatus !== 'FAILED' && receipt.resultAvailable !== false;
@@ -315,17 +336,18 @@ export function createCodingRun(contract, gateway, options = {}) {
         if (fastAnalysis && lastCollectedOperation && event.type === 'message-added'
             && event.message?.role === 'tool' && typeof gateway.checkpoint === 'function') {
           await gateway.checkpoint(contract, { sdkSessionId, checkpointOrdinal: ++checkpointOrdinal,
-            modelOrdinal: modelIndex, eventOrdinal, messages: event.snapshot.messages, lastCollectedOperation, reportReferenceFailure,
+            modelOrdinal: modelIndex, eventOrdinal, messages: event.snapshot.messages, lastCollectedOperation, reportReferenceFailure, terminalFeedback,
             contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
             workspaceRef: contract.workspaceRef });
         }
       },
       async beforeModel({ snapshot }) {
+        if (terminalFeedback) throw new Error('Runtime execution policy denied automatic repair');
         // beforeModel follows completion of ALL tool results in the preceding turn.
         // restore() resets SDK usage; A2 remains the budget/ordinal authority.
         if (typeof gateway.checkpoint === 'function') await gateway.checkpoint(contract, {
           sdkSessionId, checkpointOrdinal: ++checkpointOrdinal, modelOrdinal: modelIndex,
-          eventOrdinal, messages: snapshot.messages, lastCollectedOperation, reportReferenceFailure,
+          eventOrdinal, messages: snapshot.messages, lastCollectedOperation, reportReferenceFailure, terminalFeedback,
           contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
           workspaceRef: contract.workspaceRef,
         });
@@ -359,8 +381,8 @@ export function createCodingRun(contract, gateway, options = {}) {
         try {
           if (result.status === 'completed' && reportReferenceFailure)
             throw new TypeError('REPORT_REFERENCE_REPAIR_REQUIRED: repair evidenceReferences using the exact Runtime-authorized dataset keys');
-          await gateway.finish?.(contract, { status: result.status, iterations: result.iterations,
-            summary: result.outputText?.slice(0, 1024) ?? '',
+          await gateway.finish?.(contract, { status: terminalFeedback ? 'failed' : result.status, iterations: result.iterations,
+            summary: terminalFeedback ?? result.outputText?.slice(0, 1024) ?? '',
             operationId: lastCollectedOperation });
         } catch (error) {
           if (result.status === 'completed') throw error;
@@ -462,7 +484,7 @@ export function createCodingRun(contract, gateway, options = {}) {
           : String(result.error?.message ?? result.error).slice(0, 512));
         return { taskId: contract.taskId, attemptId, codeFiles, eventReferences: events.filter(event => event.sequence)
             .map(event => ({ sequence: event.sequence, attemptId })),
-          status: result.status, text: result.outputText, iterations: result.iterations,
+          status: terminalFeedback ? 'failed' : result.status, text: result.outputText, iterations: result.iterations,
           usage: result.usage, lastUsage, error: failure };
       } finally { clearTimeout(timer); }
     },

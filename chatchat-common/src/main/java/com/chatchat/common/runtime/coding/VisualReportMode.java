@@ -24,11 +24,13 @@ public final class VisualReportMode {
         Use the user's language for report title, summary, narrative, metric labels and table headings. Units must come from explicit source metadata or user instructions; leave unit empty when unspecified, never assume currency, scale or business meaning from a field name.
         tables: [{id,title,columns:[string],rows:[[scalar]],scope}]; use bounded summary tables, not the complete input dataset.
         charts: [{id,title,kind:'png'|'svg'|'plotly',fileName,caption}]. Write each file directly in /workspace/output/results with a safe basename.
+        Preserve the published Python image's Matplotlib font defaults (Noto CJK with Latin fallback). Do not replace font.family/font.sans-serif with Latin-only fonts or download/install fonts. Keep SVG glyph outlines embedded so Chinese labels display without client fonts.
         Use installed Matplotlib for static PNG/SVG and Plotly fig.write_json for interactive plots (use ordinary JSON arrays, not binary/base64 ndarray transport; set template=None to omit unused default map/image templates).
         Preserve the Runtime's configured Unicode font defaults. Never replace font.sans-serif with guessed fonts such as SimHei. If choosing a font explicitly, verify it is installed and supports every chart label before rendering.
         Do not generate HTML or JavaScript. Plotly figures must be offline: no external URLs, image/map layers, custom scripts or credentials.
         sections: [{title,narrative,chartIds:[string],tableIds:[string]}]; narrative and summary must describe the same computed values, units, scope and missing-data treatment.
-        dataSources: [exact delivered dataset references actually used]. validation: {checks:[{name,status:'PASSED'|'FAILED',detail}],warnings:[string]}.
+        dataSources: [exact delivered dataset references actually used]. validation: {checks:[{name,status:'PASSED'|'FAILED'|'UNRESOLVED',detail}],warnings:[string]}.
+        PASSED means a check was performed and passed; FAILED means it was performed and failed; UNRESOLVED means evidence is insufficient to resolve it. Retain unresolved checks and explain their limits, set report status PARTIAL. Never relabel failed or unresolved checks as PASSED to satisfy report admission.
         Include timings:{analysisMs:number,chartMs:number} measured with time.perf_counter; never invent unavailable timings.
         Build every metric, table, plot and narrative from the SAME computed Python objects; assert consistency before writing results.
         For changes and returns, state the actual baseline and end date. N observed prices span N-1 adjacent return intervals; do not label a window's first-to-last change as an N-period return without the required baseline observation.

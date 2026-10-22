@@ -38,6 +38,36 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineModelCallbackControllerTest {
+    @Test void sdkCompletionCannotBypassFailedVisualArtifactAdmission() {
+        var source=new DriverManagerDataSource("jdbc:h2:mem:visual-finish-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa","");
+        new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);
+        var json=new ObjectMapper().findAndRegisterModules().disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        var store=new JdbcRuntimeEvidenceStore(new JdbcTemplate(source),json,new DataSourceTransactionManager(source));
+        var scope=new KernelDataScope("tenant","owner",null,null,"run",null,Map.of());
+        var access=new CodingInvocationContext();var timer=Executors.newSingleThreadScheduledExecutor();
+        try {
+            var receipts=new ClineModelReceiptStore(store);
+            var tasks=new DurableCodingTaskService(store,json,Clock.systemUTC(),access,(owner,ref)->true,receipts,Runnable::run,new ConcurrentTaskScheduler(timer));
+            var value=(com.fasterxml.jackson.databind.node.ObjectNode)json.valueToTree(contract(scope));
+            value.set("runtimeContext",json.valueToTree(Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","reportMode","visual")));
+            var contract=json.convertValue(value,CodingTaskContract.class);
+            var lease=access.as(scope,EnumSet.allOf(CodingTaskAccess.Action.class),()->{
+                var submitted=tasks.submit(contract);return tasks.claim(scope,"task","cline-adapter:test",Duration.ofSeconds(90),submitted.revision());
+            });
+            var inputs=mock(CodingInputSnapshotService.class);
+            when(inputs.requireAuthorized(any())).thenReturn(new CodingInputSnapshotService.Snapshot("input","file","input.jsonl","a".repeat(64),1,10,"source"));
+            var collector=mock(CodingEvidenceCollector.class);
+            when(collector.collect(any(),any(),anyString(),nullable(String.class),anyString(),anyList(),any()))
+                .thenReturn(new CodingEvidenceCollector.Collected("input","code","receipt","result","validation","bundle",false,CodingTaskOutcome.ValidationStatus.INCONCLUSIVE));
+            when(collector.visualReport(scope,"task","result")).thenReturn(java.util.Optional.of(Map.of("status","FAILED","artifactValidationStatus","FAILED")));
+            var controller=new ClineModelCallbackController(access,tasks,mock(ClineRuntimeModelBridge.class),receipts,inputs,mock(CodingValidationPlanService.class),collector,json);
+            var body=json.createObjectNode();body.set("scope",json.valueToTree(scope));body.put("taskId","task");
+            body.put("contractHash",CodingCanonicalHash.sha256(contract));body.put("fencingToken",lease.fencingToken());body.set("contract",json.valueToTree(contract));
+            body.set("outcome",json.valueToTree(Map.of("status","completed","operationId","cline-"+"a".repeat(64))));
+            assertThatThrownBy(()->controller.finish(body)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class).hasMessageContaining("technical repair before completion");
+            assertThat(access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->tasks.get(scope,"task").status())).isEqualTo(CodingTaskOutcome.Status.RUNNING);
+        }finally{timer.shutdownNow();}
+    }
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(booleans={false,true})
     void inputMetadataRequiresFrozenContractAndCurrentLeaseAndExcludesRawFields(boolean previewDeclared) {

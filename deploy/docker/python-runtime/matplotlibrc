@@ -1,8 +1,9 @@
-# Runtime-wide Chinese defaults, including when /tmp is a fresh read-only-runtime tmpfs.
-font.family: sans-serif
+# Explicit families survive legacy scripts overriding only font.sans-serif.
+font.family: Noto Sans CJK SC, Noto Sans CJK JP, DejaVu Sans
 font.sans-serif: Noto Sans CJK SC, Noto Sans CJK JP, DejaVu Sans
 axes.unicode_minus: True
-# Export glyph outlines/embedded fonts so downloaded charts do not depend on client fonts.
+backend: Agg
+# Embed glyph outlines; SVG readers do not need fonts installed on their host.
 svg.fonttype: path
 pdf.fonttype: 42
 ps.fonttype: 42

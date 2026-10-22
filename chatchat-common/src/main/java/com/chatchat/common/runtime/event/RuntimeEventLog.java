@@ -27,6 +27,7 @@ public final class RuntimeEventLog {
         "truncated", "stdoutTruncated", "exitCode", "recordCount", "observationCount", "candidateCount",
         "selectedIds", "selectedAssetIds", "selectedTemplateIds", "coverageDecision", "retrievalOutcome",
         "errorCode", "errorType", "errorMessage", "reason", "summary", "changeReason", "rawObservationLocation", "eventMetadataCompacted",
+        "traceId", "scriptPath", "scriptVersion", "scriptHash", "workingDirectory", "codeHash", "codeSha256", "httpStatus", "reasonCode", "errorCategory", "exceptionType", "diagnosticCode", "repairAttempts", "repairAllowed", "validationStatus", "resultAvailable",
         "schemaVersion", "contractVersion", "output_type", "target", "author", "declaration",
         "protocolVersion", "executionTraceId", "workflowExecutionAttempt", "planExecutionScope",
         "evidenceIteration", "evidenceId", "interpretationPlanVersion", "interpretationPlanStepId",
@@ -42,6 +43,22 @@ public final class RuntimeEventLog {
     private static final Pattern BEARER = Pattern.compile("(?i)\\bBearer\\s+[^\\s,;}]+|(?<=://)[^\\s/@]+:[^\\s/@]+@");
 
     private RuntimeEventLog() { }
+
+    /** Execution feedback uses the existing Runtime log projection, with no free-text process data. */
+    public static void execution(String eventType,com.chatchat.common.kernel.KernelDataScope scope,
+            String taskId,String executionId,Map<String,?> metadata) {
+        var facts=new LinkedHashMap<String,Object>();
+        facts.put("taskId",taskId);facts.put("traceId",scope==null?null:scope.runId());facts.put("executionId",executionId);
+        Set<String> allowed=Set.of("status","stage","reasonCode","errorCategory","exceptionType","diagnosticCode", "attemptId",
+            "scriptPath","scriptVersion","scriptHash","codeHash","codeSha256","httpStatus","durationMs","repairAttempts","repairAllowed","modelCall","evidenceSnapshotRef","exitCode","validationStatus","resultAvailable");
+        metadata.forEach((key,value)->{
+            if(!allowed.contains(key)||value==null)return;
+            if(value instanceof Number||value instanceof Boolean)facts.put(key,value);
+            else if("scriptPath".equals(key)&&value instanceof String path&&path.startsWith("/workspace/scripts/")&&com.chatchat.common.runtime.coding.CodingScript.safeFileName(path.substring("/workspace/scripts/".length())))facts.put(key,path);
+            else if(value instanceof String token&&token.matches("[A-Za-z0-9_:.\\-]{1,256}"))facts.put(key,token);
+        });
+        writeFact(scope==null?null:scope.runId(),eventType,facts);
+    }
 
     /** Facts with their own persistence reference (for example planId/version), outside the run-event sequence. */
     public static void writeFact(String streamId, String eventType, Map<String,Object> facts) {

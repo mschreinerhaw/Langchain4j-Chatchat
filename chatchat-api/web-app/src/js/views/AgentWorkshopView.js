@@ -1,16 +1,13 @@
 ﻿import {
   createWorkshopAgent,
-  discoverRemoteAgent,
-  registerRemoteAgent,
   deleteWorkshopAgent,
   fetchAgentWorkshop,
-  fetchRegisteredAgents,
   fetchPublishedAgentCurlExample,
   getStoredAuthSession,
   publishWorkshopAgent,
   recallWorkshopAgent,
   setDefaultWorkshopAgent,
-  updateWorkshopAgent
+  updateWorkshopAgent,
 } from "../../services/api.js";
 import * as XLSX from "xlsx";
 import "../../styles/pages/skill-hub.css";
@@ -107,7 +104,7 @@ function defaultRoutingSettings() {
     smartSelectionEnabled: true,
     limitParallelCalls: true,
     maxParallelCalls: 3,
-    maxRelevantMcpTools: 3
+    maxRelevantMcpTools: 3,
   };
 }
 
@@ -124,23 +121,25 @@ function defaultWorkflowConfig() {
       costBudget: 10,
       latencyBudgetMs: 1800000,
       toolRetryAttempts: 3,
-      allowParallel: false
+      allowParallel: false,
     },
     steps: [],
     toolDependencies: {},
-    parallelSteps: []
+    parallelSteps: [],
   };
 }
 
 function normalizeRuntimeEnvironment(value) {
-  const environment = String(value || "").trim().toUpperCase();
+  const environment = String(value || "")
+    .trim()
+    .toUpperCase();
   return ["DEV", "TEST", "UAT", "PROD"].includes(environment) ? environment : "";
 }
 
 function defaultDataAssetForm() {
   return {
     defaultDataAssetEnabled: false,
-    defaultDataAssetName: ""
+    defaultDataAssetName: "",
   };
 }
 
@@ -148,7 +147,7 @@ function defaultAssetSelectionPolicy() {
   return {
     assetSelectionMinRelevanceScore: 1,
     assetFallbackWhenEmpty: false,
-    assetFallbackWhenInvalid: false
+    assetFallbackWhenInvalid: false,
   };
 }
 
@@ -176,67 +175,14 @@ function emptyForm() {
     ...defaultAssetSelectionPolicy(),
     quickQuestions: "",
     marketStatus: "draft",
-    defaultAgent: false
+    defaultAgent: false,
   };
-}
-
-function emptyRemoteForm() {
-  return {
-    agentId: "", displayName: "", endpoint: "", origin: "GROUP", capabilities: "",
-    selectedCapabilities: [], professionalCapabilities: "", selectedDocumentIds: [], selectedSkillIds: [],
-    autoMcp: true, selectedMcpToolNames: [], workflowConfig: defaultWorkflowConfig(),
-    allowDocumentSupplement: false, allowDataSupplement: false,
-    defaultInstruction: "根据提供的知识和业务数据进行专业分析。所有结论必须基于提供的数据，不允许自行补充未经验证的事实。",
-    tenantIds: "", dataDomains: "", evidenceTypes: "DocumentAnalysisEvidence",
-    supportedExecutionModes: ["DOMAIN_INFERENCE"],
-    supplementSkillTypes: "", structuredSupplement: "", cardKeyId: "", cardPublicKeyPem: "",
-    credentialRef: "", requestQueryParameters: "", requestBodyParameters: "",
-    priority: 50, slaLatencyMs: 10000, maxAttempts: 2
-  };
-}
-
-function remoteSlug(value) {
-  return String(value || "agent").toLowerCase().replace(/[^a-z0-9.-]+/g, "-")
-    .replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "") || "agent";
-}
-
-function fixedRequestParameters(text, format) {
-  if (!String(text || "").trim()) return {};
-  let entries;
-  if (format === "query") {
-    entries = String(text).split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
-      const separator = line.indexOf("=");
-      if (separator <= 0) throw new Error("URL 查询参数请按每行“名称=值”填写");
-      return [line.slice(0, separator).trim(), line.slice(separator + 1).trim()];
-    });
-  } else {
-    let parsed;
-    try { parsed = JSON.parse(text); }
-    catch { throw new Error("A2A 消息参数必须是有效的 JSON 对象"); }
-    if (!parsed || Array.isArray(parsed) || typeof parsed !== "object")
-      throw new Error("A2A 消息参数必须是 JSON 对象");
-    entries = Object.entries(parsed);
-  }
-  if (entries.length > 16) throw new Error("固定请求参数最多 16 项");
-  const result = {};
-  for (const [name, value] of entries) {
-    if (!/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(name)
-      || /(password|secret|token|api[_-]?key|authorization|credential|bearer)/i.test(name))
-      throw new Error("请求参数名称无效或包含敏感凭据字段；令牌请使用凭据引用");
-    if (!["string", "number", "boolean"].includes(typeof value)
-      || !String(value).trim() || String(value).length > 256 || /[\r\n]/.test(String(value)))
-      throw new Error(`请求参数 ${name} 只能填写 1–256 字符的文本、数字或布尔值`);
-    if (Object.hasOwn(result, name)) throw new Error(`重复的请求参数：${name}`);
-    result[name] = value;
-  }
-  return result;
 }
 
 export default {
   name: "AgentWorkshopView",
   props: {
-    analysisAvailable: { type: Boolean, default: false },
-    chatAvailable: { type: Boolean, default: false }
+    chatAvailable: { type: Boolean, default: false },
   },
   data() {
     return {
@@ -256,28 +202,11 @@ export default {
       loading: false,
       saving: false,
       dialogOpen: false,
-      remoteDialogOpen: false,
-      remoteForm: emptyRemoteForm(),
-      remotePreview: null,
-      remoteAgents: [],
-      apiExampleAgentId: "",
-      remoteDocumentPickerOpen: false,
-      remoteSkillPickerOpen: false,
-      remoteDocSearch: "",
-      remoteSkillSearch: "",
-      remoteDocumentCategoryFilter: "all",
-      remoteDocumentTypeFilter: "all",
-      remoteDocumentPickerPage: 1,
-      remoteSkillCategoryFilter: "all",
-      remoteSkillPickerPage: 1,
-      remoteError: "",
-      remoteDiagnostic: "",
-      remoteBusy: false,
-      remoteAdvancedOpen: false,
+
       documentPickerOpen: false,
       skillPickerOpen: false,
       toolPickerOpen: false,
-      remoteToolPickerOpen: false,
+
       dialogMode: "create",
       activeAgent: null,
       recallConfirmOpen: false,
@@ -299,7 +228,7 @@ export default {
         tone: "success",
         title: "",
         message: "",
-        details: []
+        details: [],
       },
       searchQuery: "",
       agentCategoryFilter: "all",
@@ -325,76 +254,28 @@ export default {
       curlExampleLoading: false,
       curlExampleError: "",
       curlExample: null,
-      curlExampleCopied: false
+      curlExampleCopied: false,
     };
   },
   computed: {
     isPlatformAdmin() {
       const session = getStoredAuthSession();
-      return Array.isArray(session?.user?.permissionCodes)
-        && session.user.permissionCodes.includes("system:agent-registry:manage");
+      return (
+        Array.isArray(session?.user?.permissionCodes) &&
+        session.user.permissionCodes.includes("system:agent-registry:manage")
+      );
     },
-    remoteDocumentOptions() {
-      const query = this.remoteDocSearch.trim().toLowerCase();
-      const selected = new Set(this.remoteForm.selectedDocumentIds || []);
-      return this.normalizedKnowledgeDocuments.filter((document) => {
-        const categoryMatches = this.remoteDocumentCategoryFilter === "all"
-          || document.category === this.remoteDocumentCategoryFilter;
-        const typeMatches = this.remoteDocumentTypeFilter === "all"
-          || document.documentType === this.remoteDocumentTypeFilter;
-        return categoryMatches && typeMatches && (!query || this.documentSearchText(document).includes(query));
-      }).sort((left, right) => Number(selected.has(right.docId)) - Number(selected.has(left.docId))
-        || left.title.localeCompare(right.title, "zh-CN"));
-    },
-    remoteSkillOptions() {
-      const query = this.remoteSkillSearch.trim().toLowerCase();
-      const selected = new Set(this.remoteForm.selectedSkillIds || []);
-      return this.normalizedDomainSkills.filter((skill) => {
-        const categoryMatches = this.remoteSkillCategoryFilter === "all"
-          || skill.category === this.remoteSkillCategoryFilter;
-        return categoryMatches && (!query || this.documentSearchText(skill).includes(query));
-      }).sort((left, right) => Number(selected.has(right.docId)) - Number(selected.has(left.docId))
-        || left.title.localeCompare(right.title, "zh-CN"));
-    },
-    pagedRemoteDocuments() {
-      const start = (this.remoteDocumentPickerPage - 1) * this.resourcePickerPageSize;
-      return this.remoteDocumentOptions.slice(start, start + this.resourcePickerPageSize);
-    },
-    remoteDocumentPickerPageCount() {
-      return Math.max(1, Math.ceil(this.remoteDocumentOptions.length / this.resourcePickerPageSize));
-    },
-    remoteDocumentPageFullySelected() {
-      return this.pagedRemoteDocuments.length > 0
-        && this.pagedRemoteDocuments.every((document) => this.remoteForm.selectedDocumentIds.includes(document.docId));
-    },
-    pagedRemoteSkills() {
-      const start = (this.remoteSkillPickerPage - 1) * this.resourcePickerPageSize;
-      return this.remoteSkillOptions.slice(start, start + this.resourcePickerPageSize);
-    },
-    remoteSkillPickerPageCount() {
-      return Math.max(1, Math.ceil(this.remoteSkillOptions.length / this.resourcePickerPageSize));
-    },
-    remoteSkillPageFullySelected() {
-      return this.pagedRemoteSkills.length > 0
-        && this.pagedRemoteSkills.every((skill) => this.remoteForm.selectedSkillIds.includes(skill.docId));
-    },
-    remoteDocumentResultLabel() {
-      if (!this.normalizedKnowledgeDocuments.length) return "暂无有权访问的知识文档";
-      return `已选 ${this.remoteForm.selectedDocumentIds.length} / ${this.normalizedKnowledgeDocuments.length}，匹配 ${this.remoteDocumentOptions.length} 份`;
-    },
-    remoteSkillResultLabel() {
-      if (!this.normalizedDomainSkills.length) return "暂无有权访问的已发布 Skill";
-      return `已选 ${this.remoteForm.selectedSkillIds.length} / ${this.normalizedDomainSkills.length}，匹配 ${this.remoteSkillOptions.length} 个`;
-    },
+
     filteredAgents() {
       return this.agents;
     },
     agentCategoryOptions() {
-      const tags = uniqueList(this.agentCategories)
-        .sort((left, right) => left.localeCompare(right, "zh-CN"));
+      const tags = uniqueList(this.agentCategories).sort((left, right) =>
+        left.localeCompare(right, "zh-CN")
+      );
       return [
         { value: "all", label: "全部分类" },
-        ...tags.map((tag) => ({ value: tag, label: tag }))
+        ...tags.map((tag) => ({ value: tag, label: tag })),
       ];
     },
     agentStatusOptions() {
@@ -404,23 +285,25 @@ export default {
         { value: "unpublished", label: "未发布" },
         { value: "default", label: "默认Agent" },
         { value: "custom", label: "自定义" },
-        { value: "builtin", label: "内置" }
+        { value: "builtin", label: "内置" },
       ];
     },
     agentModelOptions() {
       const models = uniqueList([
         ...this.models.map((model) => model?.value),
-        ...this.agents.map((agent) => agent?.modelName || this.defaultModelName())
+        ...this.agents.map((agent) => agent?.modelName || this.defaultModelName()),
       ]).sort((left, right) => left.localeCompare(right));
       return [
         { value: "all", label: "全部模型" },
-        ...models.map((model) => ({ value: model, label: model }))
+        ...models.map((model) => ({ value: model, label: model })),
       ];
     },
     hasActiveAgentFilters() {
-      return this.agentCategoryFilter !== "all"
-        || this.agentStatusFilter !== "all"
-        || this.agentModelFilter !== "all";
+      return (
+        this.agentCategoryFilter !== "all" ||
+        this.agentStatusFilter !== "all" ||
+        this.agentModelFilter !== "all"
+      );
     },
     totalAgentPages() {
       return this.agentPageCount;
@@ -428,40 +311,7 @@ export default {
     paginatedAgents() {
       return this.agents;
     },
-    matchingRemoteAgents() {
-      if (!this.isPlatformAdmin || this.agentCategoryFilter !== "all"
-        || this.agentStatusFilter !== "all" || this.agentModelFilter !== "all") return [];
-      const keyword = this.searchQuery.trim().toLowerCase();
-      return (this.remoteAgents || []).filter((agent) => !keyword || [
-        agent.metadata?.displayName, agent.agentId, agent.origin,
-        ...(agent.metadata?.professionalCapabilities || [])
-      ].filter(Boolean).join(" ").toLowerCase().includes(keyword));
-    },
-    visibleRemoteAgents() {
-      return this.agentPage === 1 ? this.matchingRemoteAgents : [];
-    },
-    apiExampleAgent() {
-      return this.remoteAgents.find((agent) => agent.agentId === this.apiExampleAgentId) || null;
-    },
-    domainAnalysisApiRequest() {
-      const agent = this.apiExampleAgent;
-      if (!agent) return "";
-      const grants = agent.metadata?.analysisGrants || {};
-      const skillId = grants.skillIds?.[0] || "<已授权 Skill ID>";
-      const documentId = grants.documentIds?.[0] || "<已授权文档 ID>";
-      return JSON.stringify({
-        query: "请根据提供的证据完成专业分析",
-        providerId: agent.agentId,
-        capability: agent.capabilities?.[0]?.namespace
-          ? [agent.capabilities[0].namespace, agent.capabilities[0].name,
-            agent.capabilities[0].version].filter(Boolean).join(".")
-          : (agent.capabilities?.[0] || "<Agent Card 能力 ID>"),
-        skillId,
-        documentIds: [documentId],
-        tools: [],
-        confirmRemoteTransfer: true
-      }, null, 2);
-    },
+
     selectedAgentCount() {
       return this.selectedAgentIds.length;
     },
@@ -475,15 +325,11 @@ export default {
     selectedToolNames() {
       return parseList(this.form.boundMcpToolNames);
     },
-    remoteSelectedToolNames() {
-      return uniqueList(this.remoteForm.selectedMcpToolNames || []);
-    },
+
     pickerSelectedToolNames() {
-      return this.remoteToolPickerOpen ? this.remoteSelectedToolNames : this.selectedToolNames;
+      return this.selectedToolNames;
     },
-    remoteWorkflowSteps() {
-      return Array.isArray(this.remoteForm.workflowConfig?.steps) ? this.remoteForm.workflowConfig.steps : [];
-    },
+
     selectedDocumentIds() {
       return parseList(this.form.boundDocumentIds);
     },
@@ -494,10 +340,14 @@ export default {
       return this.selectedDocumentIds.length + this.selectedDomainSkillIds.length;
     },
     normalizedKnowledgeDocuments() {
-      return this.normalizedDocuments.filter((resource) => resource.resourceKind === "knowledge_document");
+      return this.normalizedDocuments.filter(
+        (resource) => resource.resourceKind === "knowledge_document"
+      );
     },
     normalizedDomainSkills() {
-      return this.normalizedDocuments.filter((resource) => resource.resourceKind === "domain_skill");
+      return this.normalizedDocuments.filter(
+        (resource) => resource.resourceKind === "domain_skill"
+      );
     },
     normalizedDocuments() {
       const selectedDocuments = new Set(this.selectedDocumentIds);
@@ -513,7 +363,7 @@ export default {
           category: document.category || "未分类",
           documentType: document.documentType || "未知类型",
           lifecycleStatus: String(document.lifecycleStatus || "INDEXED").toUpperCase(),
-          tags: Array.isArray(document.tags) ? document.tags.filter(Boolean) : []
+          tags: Array.isArray(document.tags) ? document.tags.filter(Boolean) : [],
         }));
       const domainSkillDocuments = (Array.isArray(this.domainSkills) ? this.domainSkills : [])
         .filter((skill) => skill?.id)
@@ -527,26 +377,34 @@ export default {
           lifecycleStatus: "PUBLISHED",
           source: "领域技能库",
           description: skill.description || "",
-          tags: [skill.category].filter(Boolean)
+          tags: [skill.category].filter(Boolean),
         }));
-      return [...knowledgeDocuments, ...domainSkillDocuments]
-        .sort((left, right) => {
-          const leftSelected = left.resourceKind === "domain_skill"
-            ? selectedSkills.has(left.docId) : selectedDocuments.has(left.docId);
-          const rightSelected = right.resourceKind === "domain_skill"
-            ? selectedSkills.has(right.docId) : selectedDocuments.has(right.docId);
-          const selectedDifference = Number(rightSelected) - Number(leftSelected);
-          return selectedDifference || left.title.localeCompare(right.title, "zh-CN");
-        });
+      return [...knowledgeDocuments, ...domainSkillDocuments].sort((left, right) => {
+        const leftSelected =
+          left.resourceKind === "domain_skill"
+            ? selectedSkills.has(left.docId)
+            : selectedDocuments.has(left.docId);
+        const rightSelected =
+          right.resourceKind === "domain_skill"
+            ? selectedSkills.has(right.docId)
+            : selectedDocuments.has(right.docId);
+        const selectedDifference = Number(rightSelected) - Number(leftSelected);
+        return selectedDifference || left.title.localeCompare(right.title, "zh-CN");
+      });
     },
     filteredDocuments() {
       const keyword = this.documentSearchQuery.trim().toLowerCase();
       return this.normalizedKnowledgeDocuments.filter((document) => {
-        const categoryMatches = this.documentCategoryFilter === "all"
-          || document.category === this.documentCategoryFilter;
-        const typeMatches = this.documentTypeFilter === "all"
-          || document.documentType === this.documentTypeFilter;
-        return categoryMatches && typeMatches && (!keyword || this.documentSearchText(document).includes(keyword));
+        const categoryMatches =
+          this.documentCategoryFilter === "all" ||
+          document.category === this.documentCategoryFilter;
+        const typeMatches =
+          this.documentTypeFilter === "all" || document.documentType === this.documentTypeFilter;
+        return (
+          categoryMatches &&
+          typeMatches &&
+          (!keyword || this.documentSearchText(document).includes(keyword))
+        );
       });
     },
     pagedDocuments() {
@@ -557,13 +415,19 @@ export default {
       return Math.max(1, Math.ceil(this.filteredDocuments.length / this.resourcePickerPageSize));
     },
     documentPageFullySelected() {
-      const selectable = this.pagedDocuments.filter((document) => this.documentSelectable(document));
-      return selectable.length > 0 && selectable.every((document) => this.selectedDocumentIds.includes(document.docId));
+      const selectable = this.pagedDocuments.filter((document) =>
+        this.documentSelectable(document)
+      );
+      return (
+        selectable.length > 0 &&
+        selectable.every((document) => this.selectedDocumentIds.includes(document.docId))
+      );
     },
     filteredDomainSkills() {
       const keyword = this.skillSearchQuery.trim().toLowerCase();
       return this.normalizedDomainSkills.filter((skill) => {
-        const categoryMatches = this.skillCategoryFilter === "all" || skill.category === this.skillCategoryFilter;
+        const categoryMatches =
+          this.skillCategoryFilter === "all" || skill.category === this.skillCategoryFilter;
         return categoryMatches && (!keyword || this.documentSearchText(skill).includes(keyword));
       });
     },
@@ -575,31 +439,41 @@ export default {
       return Math.max(1, Math.ceil(this.filteredDomainSkills.length / this.resourcePickerPageSize));
     },
     skillPageFullySelected() {
-      return this.pagedDomainSkills.length > 0
-        && this.pagedDomainSkills.every((skill) => this.selectedDomainSkillIds.includes(skill.docId));
+      return (
+        this.pagedDomainSkills.length > 0 &&
+        this.pagedDomainSkills.every((skill) => this.selectedDomainSkillIds.includes(skill.docId))
+      );
     },
     selectedDocuments() {
-      const resourcesByKey = new Map(this.normalizedDocuments.map((document) => [document.resourceKey, document]));
-      const knowledgeDocuments = this.selectedDocumentIds.map((docId) => resourcesByKey.get(`document:${docId}`) || {
-        docId,
-        resourceKey: `document:${docId}`,
-        resourceKind: "knowledge_document",
-        title: docId,
-        category: "目录中已不可见",
-        documentType: "未知类型",
-        lifecycleStatus: "UNAVAILABLE",
-        tags: []
-      });
-      const domainSkills = this.selectedDomainSkillIds.map((skillId) => resourcesByKey.get(`domain-skill:${skillId}`) || {
-        docId: skillId,
-        resourceKey: `domain-skill:${skillId}`,
-        resourceKind: "domain_skill",
-        title: skillId,
-        category: "技能已回收或不可见",
-        documentType: "领域技能",
-        lifecycleStatus: "UNAVAILABLE",
-        tags: []
-      });
+      const resourcesByKey = new Map(
+        this.normalizedDocuments.map((document) => [document.resourceKey, document])
+      );
+      const knowledgeDocuments = this.selectedDocumentIds.map(
+        (docId) =>
+          resourcesByKey.get(`document:${docId}`) || {
+            docId,
+            resourceKey: `document:${docId}`,
+            resourceKind: "knowledge_document",
+            title: docId,
+            category: "目录中已不可见",
+            documentType: "未知类型",
+            lifecycleStatus: "UNAVAILABLE",
+            tags: [],
+          }
+      );
+      const domainSkills = this.selectedDomainSkillIds.map(
+        (skillId) =>
+          resourcesByKey.get(`domain-skill:${skillId}`) || {
+            docId: skillId,
+            resourceKey: `domain-skill:${skillId}`,
+            resourceKind: "domain_skill",
+            title: skillId,
+            category: "技能已回收或不可见",
+            documentType: "领域技能",
+            lifecycleStatus: "UNAVAILABLE",
+            tags: [],
+          }
+      );
       return [...knowledgeDocuments, ...domainSkills];
     },
     documentCategoryOptions() {
@@ -607,17 +481,18 @@ export default {
         { value: "all", label: "全部业务分类" },
         ...uniqueList(this.normalizedKnowledgeDocuments.map((document) => document.category))
           .sort((left, right) => left.localeCompare(right, "zh-CN"))
-          .map((category) => ({ value: category, label: category }))
+          .map((category) => ({ value: category, label: category })),
       ];
     },
     documentTypeOptions() {
-      const knowledgeTypes = uniqueList(this.normalizedKnowledgeDocuments
-        .map((document) => document.documentType));
+      const knowledgeTypes = uniqueList(
+        this.normalizedKnowledgeDocuments.map((document) => document.documentType)
+      );
       return [
         { value: "all", label: "全部文档类型" },
         ...knowledgeTypes
           .sort((left, right) => left.localeCompare(right, "zh-CN"))
-          .map((type) => ({ value: type, label: type }))
+          .map((type) => ({ value: type, label: type })),
       ];
     },
     skillCategoryOptions() {
@@ -625,7 +500,7 @@ export default {
         { value: "all", label: "全部技能分类" },
         ...uniqueList(this.normalizedDomainSkills.map((skill) => skill.category))
           .sort((left, right) => left.localeCompare(right, "zh-CN"))
-          .map((category) => ({ value: category, label: category }))
+          .map((category) => ({ value: category, label: category })),
       ];
     },
     documentResultLabel() {
@@ -644,16 +519,23 @@ export default {
       return this.registeredMcpTools
         .filter((tool) => tool?.localToolName)
         .map((tool) => {
-          const applicability = tool.applicability && typeof tool.applicability === "object"
-            ? tool.applicability
-            : {};
+          const applicability =
+            tool.applicability && typeof tool.applicability === "object" ? tool.applicability : {};
           const declaredBackendTypes = Array.isArray(applicability.backendServiceTypes)
-            ? applicability.backendServiceTypes.map((type) => String(type || "").trim().toLowerCase()).filter(Boolean)
+            ? applicability.backendServiceTypes
+                .map((type) =>
+                  String(type || "")
+                    .trim()
+                    .toLowerCase()
+                )
+                .filter(Boolean)
             : [];
-          const legacyBackendType = String(tool.backendServiceType || "").trim().toLowerCase();
+          const legacyBackendType = String(tool.backendServiceType || "")
+            .trim()
+            .toLowerCase();
           const backendServiceTypes = uniqueList([
             ...declaredBackendTypes,
-            ...(legacyBackendType ? [legacyBackendType] : [])
+            ...(legacyBackendType ? [legacyBackendType] : []),
           ]);
           return {
             ...tool,
@@ -672,16 +554,18 @@ export default {
             tags: Array.isArray(tool.tags) ? tool.tags.filter(Boolean) : [],
             parameters: Array.isArray(tool.parameters) ? tool.parameters : [],
             applicability,
-            applicabilitySummary: applicability.summary || applicability.scopeLabel || ""
+            applicabilitySummary: applicability.summary || applicability.scopeLabel || "",
           };
         });
     },
     filteredMcpTools() {
       const keyword = this.toolSearchQuery.trim().toLowerCase();
       return this.normalizedMcpTools.filter((tool) => {
-        const typeMatches = this.toolBackendServiceTypeFilter === "all"
-          || (this.toolBackendServiceTypeFilter === "undeclared" && !tool.backendServiceTypes.length)
-          || tool.backendServiceTypes.includes(this.toolBackendServiceTypeFilter);
+        const typeMatches =
+          this.toolBackendServiceTypeFilter === "all" ||
+          (this.toolBackendServiceTypeFilter === "undeclared" &&
+            !tool.backendServiceTypes.length) ||
+          tool.backendServiceTypes.includes(this.toolBackendServiceTypeFilter);
         const keywordMatches = !keyword || this.toolSearchText(tool).includes(keyword);
         return typeMatches && keywordMatches;
       });
@@ -694,7 +578,7 @@ export default {
         if (!groups.has(group.key)) {
           groups.set(group.key, {
             ...group,
-            tools: []
+            tools: [],
           });
         }
         groups.get(group.key).tools.push(tool);
@@ -703,7 +587,7 @@ export default {
         .map((group) => ({
           ...group,
           selectedCount: group.tools.filter((tool) => selected.has(tool.localToolName)).length,
-          tools: this.sortMcpTools(group.tools, selected)
+          tools: this.sortMcpTools(group.tools, selected),
         }))
         .sort((left, right) => {
           const leftSelected = left.selectedCount > 0 ? 0 : 1;
@@ -752,17 +636,21 @@ export default {
       return [
         { value: "service", label: "按服务" },
         { value: "category", label: "按分类" },
-        { value: "tag", label: "按标签" }
+        { value: "tag", label: "按标签" },
       ];
     },
     mcpBackendServiceTypeOptions() {
-      const types = uniqueList(this.normalizedMcpTools
-        .flatMap((tool) => tool.backendServiceTypes)
-        .filter(Boolean))
-        .sort((left, right) => this.backendServiceTypeLabel(left).localeCompare(this.backendServiceTypeLabel(right), "zh-CN"));
+      const types = uniqueList(
+        this.normalizedMcpTools.flatMap((tool) => tool.backendServiceTypes).filter(Boolean)
+      ).sort((left, right) =>
+        this.backendServiceTypeLabel(left).localeCompare(
+          this.backendServiceTypeLabel(right),
+          "zh-CN"
+        )
+      );
       const options = [
         { value: "all", label: "全部后端类型" },
-        ...types.map((type) => ({ value: type, label: this.backendServiceTypeLabel(type) }))
+        ...types.map((type) => ({ value: type, label: this.backendServiceTypeLabel(type) })),
       ];
       if (this.normalizedMcpTools.some((tool) => !tool.backendServiceTypes.length)) {
         options.push({ value: "undeclared", label: "未声明类型" });
@@ -774,7 +662,7 @@ export default {
         return `已解析 ${this.importItems.length} 个 Agent`;
       }
       return "支持 JSON、CSV、TSV、XLSX，字段名可使用中英文或业务别名";
-    }
+    },
   },
   watch: {
     searchQuery() {
@@ -808,37 +696,15 @@ export default {
     skillCategoryFilter() {
       this.skillPickerPage = 1;
     },
-    remoteDocSearch() {
-      this.remoteDocumentPickerPage = 1;
-    },
-    remoteDocumentCategoryFilter() {
-      this.remoteDocumentPickerPage = 1;
-    },
-    remoteDocumentTypeFilter() {
-      this.remoteDocumentPickerPage = 1;
-    },
-    remoteSkillSearch() {
-      this.remoteSkillPickerPage = 1;
-    },
-    remoteSkillCategoryFilter() {
-      this.remoteSkillPickerPage = 1;
-    }
   },
   mounted() {
     this.loadWorkshop();
-    if (this.isPlatformAdmin) this.loadRemoteAgents();
   },
   methods: {
     async refreshAgentList() {
-      await Promise.all([this.loadWorkshop(), this.isPlatformAdmin ? this.loadRemoteAgents() : Promise.resolve()]);
+      await this.loadWorkshop();
     },
-    async loadRemoteAgents() {
-      try {
-        const agents = await fetchRegisteredAgents();
-        this.remoteAgents = Array.isArray(agents) ? agents.filter((item) =>
-          item.origin === "GROUP" || item.origin === "EXTERNAL") : [];
-      } catch { this.remoteAgents = []; }
-    },
+
     async loadWorkshop() {
       this.loading = true;
       this.error = "";
@@ -849,18 +715,22 @@ export default {
           status: this.agentStatusFilter,
           model: this.agentModelFilter,
           page: this.agentPage,
-          pageSize: this.agentPageSize
+          pageSize: this.agentPageSize,
         });
         this.summary = payload?.summary || {};
         this.agents = Array.isArray(payload?.agents) ? payload.agents : [];
         this.refreshSelectedAgentTemplates();
-        this.agentCategories = Array.isArray(payload?.agentCategories) ? payload.agentCategories : [];
+        this.agentCategories = Array.isArray(payload?.agentCategories)
+          ? payload.agentCategories
+          : [];
         this.agentTotal = payload?.page?.total ?? this.agents.length;
         this.agentPage = payload?.page?.page || this.agentPage;
         this.agentPageSize = payload?.page?.pageSize || this.agentPageSize;
         this.agentPageCount = payload?.page?.totalPages || 1;
         this.availableTools = Array.isArray(payload?.availableTools) ? payload.availableTools : [];
-        this.registeredMcpTools = Array.isArray(payload?.registeredMcpTools) ? payload.registeredMcpTools : [];
+        this.registeredMcpTools = Array.isArray(payload?.registeredMcpTools)
+          ? payload.registeredMcpTools
+          : [];
         this.models = this.normalizeModelOptions(payload?.models);
         this.backendDefaultModelName = String(payload?.defaultModelName || "").trim();
         this.documents = Array.isArray(payload?.documents) ? payload.documents : [];
@@ -896,7 +766,7 @@ export default {
         seen.add(modelValue);
         options.push({
           value: modelValue,
-          label: String(typeof entry === "object" ? entry?.label || modelValue : modelValue).trim()
+          label: String(typeof entry === "object" ? entry?.label || modelValue : modelValue).trim(),
         });
       });
       return options;
@@ -907,7 +777,7 @@ export default {
         return {
           key: `category:${category}`,
           label: category,
-          subtitle: "分类"
+          subtitle: "分类",
         };
       }
       if (this.toolGroupMode === "tag") {
@@ -915,14 +785,14 @@ export default {
         return {
           key: `tag:${tag}`,
           label: tag,
-          subtitle: "标签"
+          subtitle: "标签",
         };
       }
       const serviceName = tool.serviceName || tool.serviceId || "未归属服务";
       return {
         key: `service:${tool.serviceId || serviceName}`,
         label: serviceName,
-        subtitle: tool.serviceId && tool.serviceName ? tool.serviceId : "服务"
+        subtitle: tool.serviceId && tool.serviceName ? tool.serviceId : "服务",
       };
     },
     toolSearchText(tool) {
@@ -939,7 +809,9 @@ export default {
         tool?.applicability?.scopeId,
         tool?.applicability?.scopeLabel,
         tool?.applicability?.summary,
-        ...(Array.isArray(tool?.applicability?.backendServiceTypes) ? tool.applicability.backendServiceTypes : []),
+        ...(Array.isArray(tool?.applicability?.backendServiceTypes)
+          ? tool.applicability.backendServiceTypes
+          : []),
         ...(Array.isArray(tool?.applicability?.useWhen) ? tool.applicability.useWhen : []),
         ...(Array.isArray(tool?.applicability?.notFor) ? tool.applicability.notFor : []),
         ...(tool?.categories || []),
@@ -947,13 +819,15 @@ export default {
         ...(tool?.parameters || []).flatMap((parameter) => [
           parameter?.name,
           parameter?.type,
-          parameter?.description
-        ])
+          parameter?.description,
+        ]),
       ];
       return fields.map((field) => String(field || "").toLowerCase()).join(" ");
     },
     backendServiceTypeLabel(type) {
-      const normalized = String(type || "").trim().toLowerCase();
+      const normalized = String(type || "")
+        .trim()
+        .toLowerCase();
       const labels = {
         sql_datasource: "SQL 数据源",
         database_query: "数据库业务查询",
@@ -962,17 +836,21 @@ export default {
         api_service: "API 服务",
         template_discovery: "模板检索",
         web: "Web 服务",
-        data: "数据服务"
+        data: "数据服务",
       };
       return labels[normalized] || String(type || "未声明类型");
     },
     backendServiceTypesLabel(tool) {
       const types = Array.isArray(tool?.backendServiceTypes) ? tool.backendServiceTypes : [];
-      return types.length ? types.map((type) => this.backendServiceTypeLabel(type)).join(" / ") : "未声明类型";
+      return types.length
+        ? types.map((type) => this.backendServiceTypeLabel(type)).join(" / ")
+        : "未声明类型";
     },
     applicabilityTooltip(tool) {
       const applicability = tool?.applicability || {};
-      const lines = [tool?.chineseAlias || tool?.displayName || tool?.remoteToolName || tool?.localToolName];
+      const lines = [
+        tool?.chineseAlias || tool?.displayName || tool?.remoteToolName || tool?.localToolName,
+      ];
       if (tool?.chineseAlias) lines.push(`英文名称：${tool.remoteToolName || tool.localToolName}`);
       if (applicability.summary || applicability.scopeLabel) {
         lines.push(`适用范围：${applicability.summary || applicability.scopeLabel}`);
@@ -996,7 +874,7 @@ export default {
         document?.fileName,
         document?.version,
         document?.description,
-        ...(document?.tags || [])
+        ...(document?.tags || []),
       ];
       return fields.map((field) => String(field || "").toLowerCase()).join(" ");
     },
@@ -1008,15 +886,21 @@ export default {
         FAILED: "解析失败",
         DELETED: "已删除",
         PUBLISHED: "已发布",
-        UNAVAILABLE: "不可见"
+        UNAVAILABLE: "不可见",
       };
       return labels[String(status || "").toUpperCase()] || "状态未知";
     },
     documentSelectable(document) {
       if (document?.resourceKind === "domain_skill") {
-        return document.lifecycleStatus === "PUBLISHED" || this.selectedDomainSkillIds.includes(document?.docId);
+        return (
+          document.lifecycleStatus === "PUBLISHED" ||
+          this.selectedDomainSkillIds.includes(document?.docId)
+        );
       }
-      return document?.lifecycleStatus === "INDEXED" || this.selectedDocumentIds.includes(document?.docId);
+      return (
+        document?.lifecycleStatus === "INDEXED" ||
+        this.selectedDocumentIds.includes(document?.docId)
+      );
     },
     resourceSelected(document) {
       return document?.resourceKind === "domain_skill"
@@ -1032,10 +916,14 @@ export default {
         return "更新时间未知";
       }
       const parsed = new Date(value);
-      return Number.isNaN(parsed.getTime()) ? String(value) : `${parsed.toLocaleDateString("zh-CN")} 更新`;
+      return Number.isNaN(parsed.getTime())
+        ? String(value)
+        : `${parsed.toLocaleDateString("zh-CN")} 更新`;
     },
     agentBadge(agent) {
-      return String(agent?.name || agent?.id || "A").slice(0, 1).toUpperCase();
+      return String(agent?.name || agent?.id || "A")
+        .slice(0, 1)
+        .toUpperCase();
     },
     previewList(values, limit) {
       return Array.isArray(values) ? values.slice(0, limit) : [];
@@ -1047,10 +935,9 @@ export default {
       return `${agent.resolvedToolCount} 个`;
     },
     documentCountLabel(agent) {
-      const fallbackCount = new Set([
-        ...(agent?.boundDocumentIds || []),
-        ...(agent?.boundDomainSkillIds || [])
-      ].filter(Boolean)).size;
+      const fallbackCount = new Set(
+        [...(agent?.boundDocumentIds || []), ...(agent?.boundDomainSkillIds || [])].filter(Boolean)
+      ).size;
       const count = Number(agent?.boundDocumentCount ?? fallbackCount);
       return `${Number.isFinite(count) ? count : 0} 个`;
     },
@@ -1078,7 +965,7 @@ export default {
         ...(agent?.preferredToolPrefixes || []),
         ...(agent?.boundMcpServiceIds || []),
         ...(agent?.boundMcpToolNames || []),
-        ...(agent?.resolvedToolNames || [])
+        ...(agent?.resolvedToolNames || []),
       ];
       return fields.map((field) => String(field || "").toLowerCase()).join(" ");
     },
@@ -1087,7 +974,7 @@ export default {
       this.activeAgent = null;
       this.form = {
         ...emptyForm(),
-        modelName: this.defaultModelName()
+        modelName: this.defaultModelName(),
       };
       this.dialogError = "";
       this.resetDocumentFilters();
@@ -1149,7 +1036,7 @@ export default {
         tone,
         title,
         message,
-        details: Array.isArray(details) ? details.filter(Boolean) : []
+        details: Array.isArray(details) ? details.filter(Boolean) : [],
       };
     },
     closeImportNotice() {
@@ -1166,160 +1053,7 @@ export default {
       this.toolPickerOpen = false;
       this.dialogOpen = true;
     },
-    openRemoteDialog() {
-      this.remoteForm = emptyRemoteForm();
-      const session = getStoredAuthSession();
-      this.remoteForm.tenantIds = String(session?.user?.tenantId || session?.tenantId || "");
-      this.remotePreview = null;
-      this.remoteDocumentPickerOpen = false;
-      this.remoteSkillPickerOpen = false;
-      this.remoteDocSearch = "";
-      this.remoteSkillSearch = "";
-      this.remoteDocumentCategoryFilter = "all";
-      this.remoteDocumentTypeFilter = "all";
-      this.remoteDocumentPickerPage = 1;
-      this.remoteSkillCategoryFilter = "all";
-      this.remoteSkillPickerPage = 1;
-      this.remoteError = "";
-      this.remoteDiagnostic = "";
-      this.remoteAdvancedOpen = false;
-      this.remoteToolPickerOpen = false;
-      this.remoteDialogOpen = true;
-    },
-    invalidateRemotePreview() {
-      this.remotePreview = null;
-      this.remoteForm.selectedCapabilities = [];
-      this.remoteForm.capabilities = "";
-      this.remoteForm.agentId = "";
-      this.remoteError = "";
-      this.remoteDiagnostic = "";
-    },
-    remoteDescriptor() {
-      const form = this.remoteForm;
-      if (!form.supportedExecutionModes?.length) throw new Error("请至少选择一种 Agent 执行模式");
-      const selectedCapabilities = Array.isArray(form.selectedCapabilities)
-        ? form.selectedCapabilities : parseList(form.capabilities);
-      const capabilities = selectedCapabilities.map((value) => {
-        const parts = value.split(".");
-        if (parts.length < 2) throw new Error(`能力标识格式错误：${value}`);
-        const version = /^v\d+$/.test(parts.at(-1)) ? parts.pop() : "v1";
-        return { namespace: parts.shift(), name: parts.join("."), version };
-      });
-      const queryParameters = fixedRequestParameters(form.requestQueryParameters, "query");
-      const bodyParameters = fixedRequestParameters(form.requestBodyParameters, "body");
-      const selectedDocuments = form.selectedDocumentIds || [];
-      const selectedSkills = form.selectedSkillIds || [];
-      const selectedTools = uniqueList(form.selectedMcpToolNames || []);
-      const workflowConfig = this.normalizeWorkflowConfig?.(form.workflowConfig, selectedTools)
-        || { ...defaultWorkflowConfig(), ...(form.workflowConfig || {}),
-          steps: selectedTools.map((tool, index) => ({ step: index + 1, tool })) };
-      workflowConfig.enabled = Boolean(form.autoMcp && selectedTools.length && workflowConfig.enabled);
-      const explicitGrants = Array.isArray(form.selectedDocumentIds)
-        || Array.isArray(form.selectedSkillIds) || Array.isArray(form.selectedMcpToolNames);
-      const evidenceTypes = explicitGrants ? [
-        ...(selectedDocuments.length || selectedSkills.length ? ["DocumentAnalysisEvidence"] : []),
-        ...(selectedTools.length ? ["ToolAnalysisEvidence"] : []),
-        ...(form.allowDataSupplement ? ["StructuredDataEvidence"] : [])
-      ] : parseList(form.evidenceTypes);
-      return {
-        agentId: form.agentId.trim() || "preview.remote-agent", version: this.remotePreview?.version || "v1",
-        origin: form.origin, protocol: "A2A_HTTP_JSON", endpoint: form.endpoint.trim(),
-        capabilities, trustLevel: form.origin === "GROUP" ? "GROUP_TRUSTED" : "PARTNER",
-        dataAccessMode: "RUNTIME_MANAGED", allowedDataDomains: parseList(form.dataDomains),
-        allowedEvidenceTypes: evidenceTypes,
-        outputSchema: "agent_execution_outcome.v1", credentialRef: form.credentialRef.trim(),
-        priority: Number(form.priority) || 0, enabled: true,
-        metadata: {
-          allowedTenantIds: parseList(form.tenantIds),
-          providerType: "DOMAIN_AGENT",
-          supportedExecutionModes: form.supportedExecutionModes,
-          supplementSkillTypes: form.allowDocumentSupplement ? ["RULE_LOOKUP"]
-            : parseList(form.supplementSkillTypes),
-          supplementCapabilities: form.allowDataSupplement || form.structuredSupplement === "STRUCTURED_DATA"
-            ? ["STRUCTURED_DATA"] : [],
-          ...(explicitGrants ? { analysisGrants: {
-            documentIds: selectedDocuments, skillIds: selectedSkills,
-            mcpToolNames: selectedTools, mcpRoleGoverned: false,
-            mcpWorkflowConfig: workflowConfig,
-            allowDocumentSupplement: Boolean(form.allowDocumentSupplement),
-            allowDataSupplement: Boolean(form.allowDataSupplement),
-            defaultInstruction: String(form.defaultInstruction || "").trim()
-          } } : {}),
-          professionalCapabilities: parseList(form.professionalCapabilities),
-          cardKeyId: form.cardKeyId.trim(), cardPublicKeyPem: form.cardPublicKeyPem.trim(),
-          ...(form.displayName || this.remotePreview?.name
-            ? { displayName: form.displayName || this.remotePreview.name } : {}),
-          requireSignedCard: true, slaLatencyMs: Number(form.slaLatencyMs) || 10000,
-          supplementMaxAttempts: Number(form.maxAttempts) || 2,
-          ...(Object.keys(queryParameters).length ? { requestQueryParameters: queryParameters } : {}),
-          ...(Object.keys(bodyParameters).length ? { requestBodyParameters: bodyParameters } : {})
-        }
-      };
-    },
-    async previewRemoteAgent() {
-      this.remoteError = "";
-      this.remoteDiagnostic = "";
-      this.remoteBusy = true;
-      let discoveryStarted = false;
-      try {
-        if (!this.remoteForm.endpoint.trim()) throw new Error("请填写 Agent 服务地址");
-        let endpoint;
-        try { endpoint = new URL(this.remoteForm.endpoint.trim()); }
-        catch { throw new Error("请填写完整的 HTTP 或 HTTPS Agent 服务地址"); }
-        if (!["http:", "https:"].includes(endpoint.protocol))
-          throw new Error("Agent 服务地址只能使用 HTTP 或 HTTPS");
-        if (endpoint.protocol === "http:" && !["localhost", "127.0.0.1", "[::1]"].includes(endpoint.hostname))
-          throw new Error("远程 Agent 服务地址需使用 HTTPS；HTTP 仅允许本机调试");
-        if (endpoint.search || endpoint.hash)
-          throw new Error("请在高级设置中填写 URL 查询参数，服务地址本身不包含 ? 参数或 # 片段");
-        if (!this.remoteForm.cardKeyId.trim() || !this.remoteForm.cardPublicKeyPem.trim())
-          throw new Error("此 Agent 尚未配置身份验证。请联系平台管理员在“高级设置”中配置发布方验签信息。");
-        discoveryStarted = true;
-        const discovered = await discoverRemoteAgent(this.remoteDescriptor());
-        if (discovered.signatureVerified === false)
-          throw new Error("无法验证 Agent 身份，请检查服务地址或联系发布方。");
-        if (!this.remoteForm.agentId.trim())
-          this.remoteForm.agentId = `${this.remoteForm.origin.toLowerCase()}.${remoteSlug(discovered.name)}`;
-        this.remoteForm.capabilities = (Array.isArray(discovered.skills) ? discovered.skills : []).map((skill) => {
-            const value = String(skill || "").toLowerCase();
-            return /^[a-z0-9][a-z0-9.-]*\.[a-z0-9][a-z0-9.-]*$/.test(value)
-              ? value : `${this.remoteForm.origin.toLowerCase()}.${remoteSlug(skill)}`;
-          }).filter(Boolean).join("\n");
-        this.remoteForm.displayName ||= discovered.name || "";
-        this.remoteForm.selectedCapabilities = parseList(this.remoteForm.capabilities);
-        this.remotePreview = discovered;
-      }
-      catch (error) {
-        this.remotePreview = null;
-        this.remoteDiagnostic = error.message || "Agent Card 发现失败";
-        this.remoteError = discoveryStarted
-          ? "连接失败。无法验证 Agent 身份或协议兼容性，请检查服务地址或联系发布方。"
-          : this.remoteDiagnostic;
-      }
-      finally { this.remoteBusy = false; }
-    },
-    async saveRemoteAgent() {
-      this.remoteError = "";
-      this.remoteBusy = true;
-      try {
-        if (!this.remotePreview) throw new Error("请先发现并验证 Agent Card");
-        if (!parseList(this.remoteForm.tenantIds).length)
-          throw new Error("无法识别当前租户，请重新登录后再试");
-        if (!(this.remoteForm.selectedCapabilities || []).length)
-          throw new Error("Agent Card 未声明可调用能力，请联系发布方");
-        if (!parseList(this.remoteForm.professionalCapabilities).length)
-          throw new Error("请填写至少一项专业能力描述");
-        if (!(this.remoteForm.selectedSkillIds || []).length)
-          throw new Error("请至少选择一个已发布的知识 Skill");
-        if (this.normalizeWorkflowConfig) this.remoteForm.workflowConfig = this.normalizeWorkflowConfig(
-          this.remoteForm.workflowConfig, uniqueList(this.remoteForm.selectedMcpToolNames || []));
-        await registerRemoteAgent(this.remoteDescriptor());
-        this.remoteDialogOpen = false;
-        this.remoteToolPickerOpen = false;
-        await this.loadRemoteAgents();
-      } catch (error) { this.remoteError = error.message || "远程 Agent 接入失败"; }
-      finally { this.remoteBusy = false; }
-    },
+
     closeDialog() {
       if (this.saving) {
         return;
@@ -1350,36 +1084,15 @@ export default {
     closeSkillPicker() {
       this.skillPickerOpen = false;
     },
-    openRemoteDocumentPicker() {
-      this.remoteSkillPickerOpen = false;
-      this.remoteDocumentPickerPage = 1;
-      this.remoteDocumentPickerOpen = true;
-    },
-    closeRemoteDocumentPicker() {
-      this.remoteDocumentPickerOpen = false;
-    },
-    openRemoteSkillPicker() {
-      this.remoteDocumentPickerOpen = false;
-      this.remoteSkillPickerPage = 1;
-      this.remoteSkillPickerOpen = true;
-    },
-    closeRemoteSkillPicker() {
-      this.remoteSkillPickerOpen = false;
-    },
+
     openToolPicker() {
       this.documentPickerOpen = false;
       this.skillPickerOpen = false;
       this.toolPickerOpen = true;
     },
-    openRemoteToolPicker() {
-      this.remoteToolPickerOpen = true;
-      this.toolPickerOpen = true;
-      this.toolSearchQuery = "";
-      this.toolBackendServiceTypeFilter = "all";
-    },
+
     closeToolPicker() {
       this.toolPickerOpen = false;
-      this.remoteToolPickerOpen = false;
     },
     agentToForm(agent) {
       return {
@@ -1388,7 +1101,9 @@ export default {
         description: agent?.description || "",
         usageScenarios: joinList(agent?.usageScenarios),
         skillTags: joinList(agent?.skillTags),
-        defaultMode: ["role_chat", "llm_chat"].includes(agent?.defaultMode) ? "role_chat" : "agent_chat",
+        defaultMode: ["role_chat", "llm_chat"].includes(agent?.defaultMode)
+          ? "role_chat"
+          : "agent_chat",
         modelName: agent?.modelName || this.defaultModelName(),
         systemPrompt: agent?.systemPrompt || "",
         firstUseGreeting: agent?.firstUseGreeting || "",
@@ -1398,9 +1113,12 @@ export default {
         toolConfigs: Array.isArray(agent?.toolConfigs) ? agent.toolConfigs : [],
         routingSettings: {
           ...defaultRoutingSettings(),
-          ...(agent?.routingSettings || {})
+          ...(agent?.routingSettings || {}),
         },
-        workflowConfig: this.normalizeWorkflowConfig(agent?.workflowConfig, parseList(agent?.boundMcpToolNames)),
+        workflowConfig: this.normalizeWorkflowConfig(
+          agent?.workflowConfig,
+          parseList(agent?.boundMcpToolNames)
+        ),
         boundDocumentIds: parseList(agent?.boundDocumentIds),
         boundDomainSkillIds: parseList(agent?.boundDomainSkillIds),
         boundDocumentTags: parseList(agent?.boundDocumentTags),
@@ -1408,14 +1126,17 @@ export default {
         ...this.assetSelectionPolicyToForm(agent?.assetSelectionPolicy),
         quickQuestions: joinList(agent?.quickQuestions),
         marketStatus: agent?.marketStatus || "draft",
-        defaultAgent: !!agent?.defaultAgent
+        defaultAgent: !!agent?.defaultAgent,
       };
     },
     formToPayload() {
-      const registeredToolNames = new Set(this.registeredMcpTools.map((tool) => tool?.localToolName).filter(Boolean));
+      const registeredToolNames = new Set(
+        this.registeredMcpTools.map((tool) => tool?.localToolName).filter(Boolean)
+      );
       const roleChat = this.form.defaultMode === "role_chat";
-      const selectedToolNames = (roleChat ? [] : parseList(this.form.boundMcpToolNames))
-        .filter((toolName) => registeredToolNames.has(toolName));
+      const selectedToolNames = (roleChat ? [] : parseList(this.form.boundMcpToolNames)).filter(
+        (toolName) => registeredToolNames.has(toolName)
+      );
       const maxParallelCalls = Number(this.form.routingSettings.maxParallelCalls) || 3;
       const maxRelevantMcpTools = Number(this.form.routingSettings.maxRelevantMcpTools) || 3;
       const workflowConfig = roleChat
@@ -1444,21 +1165,21 @@ export default {
           smartSelectionEnabled: !!this.form.routingSettings.smartSelectionEnabled,
           limitParallelCalls: !!this.form.routingSettings.limitParallelCalls,
           maxParallelCalls: Math.max(1, Math.min(10, maxParallelCalls)),
-          maxRelevantMcpTools: Math.max(1, Math.min(20, maxRelevantMcpTools))
+          maxRelevantMcpTools: Math.max(1, Math.min(20, maxRelevantMcpTools)),
         },
         workflowConfig,
         defaultDataAsset: !roleChat && defaultDataAsset.enabled ? defaultDataAsset : null,
         assetSelectionPolicy: this.assetSelectionPolicyFromForm(),
         quickQuestions: parseList(this.form.quickQuestions),
         marketStatus: this.form.marketStatus || "draft",
-        defaultAgent: !!this.form.defaultAgent
+        defaultAgent: !!this.form.defaultAgent,
       };
     },
     defaultDataAssetToForm(value) {
       const asset = this.normalizeDefaultDataAsset(value, false);
       return {
         defaultDataAssetEnabled: !!asset.enabled,
-        defaultDataAssetName: asset.assetName
+        defaultDataAssetName: asset.assetName,
       };
     },
     assetSelectionPolicyToForm(value) {
@@ -1466,21 +1187,24 @@ export default {
       return {
         assetSelectionMinRelevanceScore: policy.minRelevanceScore,
         assetFallbackWhenEmpty: policy.fallbackWhenEmpty,
-        assetFallbackWhenInvalid: policy.fallbackWhenInvalid
+        assetFallbackWhenInvalid: policy.fallbackWhenInvalid,
       };
     },
     defaultDataAssetFromForm() {
-      return this.normalizeDefaultDataAsset({
-        assetName: this.form.defaultDataAssetName,
-        enabled: this.form.defaultDataAssetEnabled
-      }, false);
+      return this.normalizeDefaultDataAsset(
+        {
+          assetName: this.form.defaultDataAssetName,
+          enabled: this.form.defaultDataAssetEnabled,
+        },
+        false
+      );
     },
     assetSelectionPolicyFromForm() {
       return this.normalizeAssetSelectionPolicy({
         strategy: "BOUND_ASSET_ONLY",
         minRelevanceScore: 1,
         fallbackWhenEmpty: false,
-        fallbackWhenInvalid: false
+        fallbackWhenInvalid: false,
       });
     },
     normalizeDefaultDataAsset(value, enabledFallback = false) {
@@ -1493,7 +1217,7 @@ export default {
         assetName,
         assetType: "DATABASE",
         warehouseId,
-        enabled: source.enabled === undefined ? enabledFallback : booleanValue(source.enabled)
+        enabled: source.enabled === undefined ? enabledFallback : booleanValue(source.enabled),
       };
     },
     normalizeAssetSelectionPolicy(value) {
@@ -1501,109 +1225,204 @@ export default {
         strategy: "BOUND_ASSET_ONLY",
         minRelevanceScore: 1,
         fallbackWhenEmpty: false,
-        fallbackWhenInvalid: false
+        fallbackWhenInvalid: false,
       };
     },
     normalizeImportedAgent(row, index) {
-      const id = normalizeAgentId(fieldValue(row, [
-        "id", "agentId", "agent_id", "Agent ID", "AgentID", "智能体ID", "Agent编号", "编号"
-      ]));
-      const name = textValue(fieldValue(row, [
-        "name", "agentName", "agent_name", "label", "Agent名称", "名称", "智能体名称"
-      ]));
-      const defaultMode = textValue(fieldValue(row, [
-        "defaultMode", "mode", "默认模式", "模式"
-      ]));
-      const modelName = textValue(fieldValue(row, [
-        "modelName", "model", "模型", "使用模型", "绑定模型"
-      ]));
-      const runtimeEnvironment = normalizeRuntimeEnvironment(fieldValue(row, [
-        "runtimeEnvironment", "environment", "env", "运行环境", "环境"
-      ]));
+      const id = normalizeAgentId(
+        fieldValue(row, [
+          "id",
+          "agentId",
+          "agent_id",
+          "Agent ID",
+          "AgentID",
+          "智能体ID",
+          "Agent编号",
+          "编号",
+        ])
+      );
+      const name = textValue(
+        fieldValue(row, [
+          "name",
+          "agentName",
+          "agent_name",
+          "label",
+          "Agent名称",
+          "名称",
+          "智能体名称",
+        ])
+      );
+      const defaultMode = textValue(fieldValue(row, ["defaultMode", "mode", "默认模式", "模式"]));
+      const modelName = textValue(
+        fieldValue(row, ["modelName", "model", "模型", "使用模型", "绑定模型"])
+      );
+      const runtimeEnvironment = normalizeRuntimeEnvironment(
+        fieldValue(row, ["runtimeEnvironment", "environment", "env", "运行环境", "环境"])
+      );
       const defaultAsset = this.normalizeDefaultDataAsset({
         assetId: fieldValue(row, [
-          "defaultDataAssetId", "defaultAssetId", "assetId", "默认数据资产ID", "默认资产ID", "资产ID"
+          "defaultDataAssetId",
+          "defaultAssetId",
+          "assetId",
+          "默认数据资产ID",
+          "默认资产ID",
+          "资产ID",
         ]),
         assetName: fieldValue(row, [
-          "defaultDataAssetName", "defaultAssetName", "assetName", "默认数据资产", "默认数据资产名称", "默认资产名称", "资产名称"
+          "defaultDataAssetName",
+          "defaultAssetName",
+          "assetName",
+          "默认数据资产",
+          "默认数据资产名称",
+          "默认资产名称",
+          "资产名称",
         ]),
         assetType: fieldValue(row, [
-          "defaultDataAssetType", "defaultAssetType", "assetType", "默认资产类型", "资产类型"
+          "defaultDataAssetType",
+          "defaultAssetType",
+          "assetType",
+          "默认资产类型",
+          "资产类型",
         ]),
-        warehouseId: fieldValue(row, [
-          "warehouseId", "defaultWarehouseId", "默认仓库ID", "仓库ID"
-        ]),
+        warehouseId: fieldValue(row, ["warehouseId", "defaultWarehouseId", "默认仓库ID", "仓库ID"]),
         enabled: fieldValue(row, [
-          "defaultDataAssetEnabled", "defaultAssetEnabled", "启用默认数据资产", "默认资产启用"
-        ])
+          "defaultDataAssetEnabled",
+          "defaultAssetEnabled",
+          "启用默认数据资产",
+          "默认资产启用",
+        ]),
       });
-      defaultAsset.enabled = !!(defaultAsset.assetId || defaultAsset.assetName)
-        && (textValue(fieldValue(row, [
-          "defaultDataAssetEnabled", "defaultAssetEnabled", "启用默认数据资产", "默认资产启用"
-        ])) ? defaultAsset.enabled : true);
+      defaultAsset.enabled =
+        !!(defaultAsset.assetId || defaultAsset.assetName) &&
+        (textValue(
+          fieldValue(row, [
+            "defaultDataAssetEnabled",
+            "defaultAssetEnabled",
+            "启用默认数据资产",
+            "默认资产启用",
+          ])
+        )
+          ? defaultAsset.enabled
+          : true);
       const payload = {
         id,
         name,
-        description: textValue(fieldValue(row, [
-          "description", "businessDescription", "desc", "业务描述", "描述"
-        ])),
-        usageScenarios: listValue(fieldValue(row, [
-          "usageScenarios", "businessScenarios", "scenarios", "业务场景", "使用场景", "场景"
-        ])),
-        skillTags: listValue(fieldValue(row, [
-          "skillTags", "tags", "tag", "标签", "分类标签"
-        ])),
+        description: textValue(
+          fieldValue(row, ["description", "businessDescription", "desc", "业务描述", "描述"])
+        ),
+        usageScenarios: listValue(
+          fieldValue(row, [
+            "usageScenarios",
+            "businessScenarios",
+            "scenarios",
+            "业务场景",
+            "使用场景",
+            "场景",
+          ])
+        ),
+        skillTags: listValue(fieldValue(row, ["skillTags", "tags", "tag", "标签", "分类标签"])),
         defaultMode: defaultMode && defaultMode !== "default" ? defaultMode : "role_chat",
         modelName: modelName && modelName !== "default" ? modelName : this.defaultModelName(),
-        systemPrompt: textValue(fieldValue(row, [
-          "systemPrompt", "prompt", "system", "系统提示词", "提示词"
-        ])),
-        firstUseGreeting: textValue(fieldValue(row, [
-          "firstUseGreeting", "welcomeMessage", "welcome", "greeting", "首次问候", "欢迎语"
-        ])),
-        preferredToolPrefixes: listValue(fieldValue(row, [
-          "preferredToolPrefixes", "toolPrefixes", "工具前缀"
-        ])),
-        boundMcpServiceIds: listValue(fieldValue(row, [
-          "boundMcpServiceIds", "mcpServiceIds", "serviceIds", "MCP服务", "绑定服务"
-        ])),
-        boundMcpToolNames: listValue(fieldValue(row, [
-          "boundMcpToolNames", "mcpTools", "tools", "toolNames", "MCP工具", "绑定工具", "工具"
-        ])),
-        boundDocumentIds: listValue(fieldValue(row, [
-          "boundDocumentIds", "documentIds", "knowledgeDocumentIds", "知识文档", "绑定文档", "文档ID"
-        ])),
-        boundDocumentTags: listValue(fieldValue(row, [
-          "boundDocumentTags", "documentTags", "knowledgeTags", "知识标签", "文档标签"
-        ])),
+        systemPrompt: textValue(
+          fieldValue(row, ["systemPrompt", "prompt", "system", "系统提示词", "提示词"])
+        ),
+        firstUseGreeting: textValue(
+          fieldValue(row, [
+            "firstUseGreeting",
+            "welcomeMessage",
+            "welcome",
+            "greeting",
+            "首次问候",
+            "欢迎语",
+          ])
+        ),
+        preferredToolPrefixes: listValue(
+          fieldValue(row, ["preferredToolPrefixes", "toolPrefixes", "工具前缀"])
+        ),
+        boundMcpServiceIds: listValue(
+          fieldValue(row, [
+            "boundMcpServiceIds",
+            "mcpServiceIds",
+            "serviceIds",
+            "MCP服务",
+            "绑定服务",
+          ])
+        ),
+        boundMcpToolNames: listValue(
+          fieldValue(row, [
+            "boundMcpToolNames",
+            "mcpTools",
+            "tools",
+            "toolNames",
+            "MCP工具",
+            "绑定工具",
+            "工具",
+          ])
+        ),
+        boundDocumentIds: listValue(
+          fieldValue(row, [
+            "boundDocumentIds",
+            "documentIds",
+            "knowledgeDocumentIds",
+            "知识文档",
+            "绑定文档",
+            "文档ID",
+          ])
+        ),
+        boundDocumentTags: listValue(
+          fieldValue(row, [
+            "boundDocumentTags",
+            "documentTags",
+            "knowledgeTags",
+            "知识标签",
+            "文档标签",
+          ])
+        ),
         toolConfigs: Array.isArray(row?.toolConfigs) ? row.toolConfigs : [],
         routingSettings: {
           ...defaultRoutingSettings(),
-          ...(row?.routingSettings && typeof row.routingSettings === "object" ? row.routingSettings : {})
+          ...(row?.routingSettings && typeof row.routingSettings === "object"
+            ? row.routingSettings
+            : {}),
         },
         workflowConfig: {
           ...defaultWorkflowConfig(),
-          runtimeEnvironment
+          runtimeEnvironment,
         },
         defaultDataAsset: defaultAsset.enabled ? defaultAsset : null,
         assetSelectionPolicy: {
           strategy: "BOUND_ASSET_ONLY",
           minRelevanceScore: 1,
           fallbackWhenEmpty: false,
-          fallbackWhenInvalid: false
+          fallbackWhenInvalid: false,
         },
-        quickQuestions: listValue(fieldValue(row, [
-          "quickQuestions", "questions", "quickPrompts", "快捷问题", "推荐问题", "示例问题"
-        ])),
-        marketStatus: textValue(fieldValue(row, [
-          "marketStatus", "status", "发布状态", "状态"
-        ])) || "draft",
-        defaultAgent: booleanValue(fieldValue(row, [
-          "defaultAgent", "default_agent", "isDefault", "default", "默认Agent", "是否默认"
-        ]))
+        quickQuestions: listValue(
+          fieldValue(row, [
+            "quickQuestions",
+            "questions",
+            "quickPrompts",
+            "快捷问题",
+            "推荐问题",
+            "示例问题",
+          ])
+        ),
+        marketStatus:
+          textValue(fieldValue(row, ["marketStatus", "status", "发布状态", "状态"])) || "draft",
+        defaultAgent: booleanValue(
+          fieldValue(row, [
+            "defaultAgent",
+            "default_agent",
+            "isDefault",
+            "default",
+            "默认Agent",
+            "是否默认",
+          ])
+        ),
       };
       if (!payload.id || !/^[a-z0-9_-]{2,64}$/.test(payload.id)) {
-        throw new Error(`第 ${index + 1} 行缺少有效 Agent ID，ID 需为 2-64 位小写字母、数字、下划线或短横线。`);
+        throw new Error(
+          `第 ${index + 1} 行缺少有效 Agent ID，ID 需为 2-64 位小写字母、数字、下划线或短横线。`
+        );
       }
       if (!payload.name) {
         throw new Error(`第 ${index + 1} 行缺少 Agent 名称。`);
@@ -1612,7 +1431,10 @@ export default {
     },
     normalizeImportRows(rows) {
       return rows
-        .filter((row) => row && typeof row === "object" && Object.values(row).some((value) => textValue(value)))
+        .filter(
+          (row) =>
+            row && typeof row === "object" && Object.values(row).some((value) => textValue(value))
+        )
         .map((row, index) => this.normalizeImportedAgent(row, index));
     },
     parseImportTextContent(text) {
@@ -1622,7 +1444,11 @@ export default {
       }
       if (content.startsWith("[") || content.startsWith("{")) {
         const parsed = JSON.parse(content);
-        const rows = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.agents) ? parsed.agents : [parsed]);
+        const rows = Array.isArray(parsed)
+          ? parsed
+          : Array.isArray(parsed.agents)
+            ? parsed.agents
+            : [parsed];
         return this.normalizeImportRows(rows);
       }
       const workbook = XLSX.read(content, { type: "string", raw: false });
@@ -1644,10 +1470,16 @@ export default {
           const buffer = await file.arrayBuffer();
           const workbook = XLSX.read(buffer, { type: "array", raw: false });
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          this.importItems = this.normalizeImportRows(XLSX.utils.sheet_to_json(firstSheet, { defval: "" }));
+          this.importItems = this.normalizeImportRows(
+            XLSX.utils.sheet_to_json(firstSheet, { defval: "" })
+          );
           this.importText = "";
           if (this.importItems.length) {
-            this.showImportNotice("success", "解析成功", `已从 ${file.name} 解析出 ${this.importItems.length} 个 Agent 配置。`);
+            this.showImportNotice(
+              "success",
+              "解析成功",
+              `已从 ${file.name} 解析出 ${this.importItems.length} 个 Agent 配置。`
+            );
           } else {
             this.importError = "没有解析到可导入的 Agent。";
             this.showImportNotice("error", "解析失败", this.importError);
@@ -1675,7 +1507,11 @@ export default {
           return false;
         }
         if (showNotice) {
-          this.showImportNotice("success", "解析成功", `已解析出 ${this.importItems.length} 个 Agent 配置，可以确认导入。`);
+          this.showImportNotice(
+            "success",
+            "解析成功",
+            `已解析出 ${this.importItems.length} 个 Agent 配置，可以确认导入。`
+          );
         }
         return true;
       } catch (error) {
@@ -1693,7 +1529,11 @@ export default {
         this.refreshImportPreview(false);
       }
       if (!this.importItems.length) {
-        this.showImportNotice("error", "导入失败", this.importError || "没有可导入的 Agent 配置，请先检查导入内容。");
+        this.showImportNotice(
+          "error",
+          "导入失败",
+          this.importError || "没有可导入的 Agent 配置，请先检查导入内容。"
+        );
         return;
       }
       this.importing = true;
@@ -1704,27 +1544,47 @@ export default {
           try {
             const existing = existingById.get(agent.id);
             if (existing?.builtin) {
-              this.importResults.push({ id: agent.id, name: agent.name, status: "跳过内置Agent", outcome: "skipped" });
+              this.importResults.push({
+                id: agent.id,
+                name: agent.name,
+                status: "跳过内置Agent",
+                outcome: "skipped",
+              });
               continue;
             }
             if (existing && !this.importOverwriteExisting) {
-              this.importResults.push({ id: agent.id, name: agent.name, status: "已存在，已跳过", outcome: "skipped" });
+              this.importResults.push({
+                id: agent.id,
+                name: agent.name,
+                status: "已存在，已跳过",
+                outcome: "skipped",
+              });
               continue;
             }
             if (existing) {
               await updateWorkshopAgent(agent.id, agent);
-              this.importResults.push({ id: agent.id, name: agent.name, status: "已覆盖", outcome: "success" });
+              this.importResults.push({
+                id: agent.id,
+                name: agent.name,
+                status: "已覆盖",
+                outcome: "success",
+              });
             } else {
               await createWorkshopAgent(agent);
               existingById.set(agent.id, agent);
-              this.importResults.push({ id: agent.id, name: agent.name, status: "已新增", outcome: "success" });
+              this.importResults.push({
+                id: agent.id,
+                name: agent.name,
+                status: "已新增",
+                outcome: "success",
+              });
             }
           } catch (error) {
             this.importResults.push({
               id: agent.id,
               name: agent.name,
               status: error.message || "导入失败",
-              outcome: "failed"
+              outcome: "failed",
             });
           }
         }
@@ -1748,7 +1608,12 @@ export default {
           await this.loadWorkshop();
         } catch (error) {
           this.importError = error.message || "Agent 列表刷新失败";
-          this.showImportNotice("warning", "导入已完成，列表刷新失败", `${summary} 请稍后刷新页面查看最新数据。`, [this.importError, ...details]);
+          this.showImportNotice(
+            "warning",
+            "导入已完成，列表刷新失败",
+            `${summary} 请稍后刷新页面查看最新数据。`,
+            [this.importError, ...details]
+          );
         }
       } catch (error) {
         this.importError = error.message || "批量导入失败";
@@ -1816,7 +1681,7 @@ export default {
         boundDocumentIds: agent.boundDocumentIds || [],
         boundDocumentTags: agent.boundDocumentTags || [],
         marketStatus: agent.marketStatus || "draft",
-        defaultAgent: !!agent.defaultAgent
+        defaultAgent: !!agent.defaultAgent,
       }));
     },
     exportAgentsAsJson() {
@@ -1839,7 +1704,7 @@ export default {
         quickQuestions: joinList(agent.quickQuestions),
         boundMcpToolNames: joinList(agent.boundMcpToolNames),
         boundDocumentIds: joinList(agent.boundDocumentIds),
-        boundDocumentTags: joinList(agent.boundDocumentTags)
+        boundDocumentTags: joinList(agent.boundDocumentTags),
       }));
       if (!rows.length) {
         this.error = "请先勾选需要导出的 Agent 模板。";
@@ -1880,7 +1745,7 @@ export default {
         serviceId: registered.serviceId || "",
         description: registered.description || "",
         callWeight: 5,
-        enabled: true
+        enabled: true,
       };
       this.form.toolConfigs.push(config);
       return config;
@@ -1904,20 +1769,25 @@ export default {
     buildToolConfigs(selectedToolNames) {
       const existingConfigs = Array.isArray(this.form.toolConfigs) ? this.form.toolConfigs : [];
       const selected = new Set(selectedToolNames);
-      const byName = new Map(existingConfigs.filter((config) => config?.toolName).map((config) => [config.toolName, config]));
+      const byName = new Map(
+        existingConfigs
+          .filter((config) => config?.toolName)
+          .map((config) => [config.toolName, config])
+      );
       return selectedToolNames.map((toolName) => {
         const existing = byName.get(toolName) || {};
         const registered = this.registeredMcpTool(toolName);
         return {
           ...existing,
           toolName,
-          displayName: existing.displayName || registered.remoteToolName || registered.displayName || toolName,
+          displayName:
+            existing.displayName || registered.remoteToolName || registered.displayName || toolName,
           serviceId: existing.serviceId || registered.serviceId || "",
           description: Object.prototype.hasOwnProperty.call(existing, "description")
-            ? (existing.description || "")
-            : (registered.description || ""),
+            ? existing.description || ""
+            : registered.description || "",
           callWeight: existing.callWeight ?? 5,
-          enabled: selected.has(toolName)
+          enabled: selected.has(toolName),
         };
       });
     },
@@ -1925,46 +1795,53 @@ export default {
       const selected = uniqueList(selectedToolNames);
       const base = {
         ...defaultWorkflowConfig(),
-        ...(config && typeof config === "object" ? config : {})
+        ...(config && typeof config === "object" ? config : {}),
       };
       base.executionStrategy = {
         ...defaultWorkflowConfig().executionStrategy,
-        ...(base.executionStrategy || {})
+        ...(base.executionStrategy || {}),
       };
       const configuredMaxSteps = Number(base.executionStrategy.maxSteps);
-      base.executionStrategy.maxSteps = Number.isFinite(configuredMaxSteps) && configuredMaxSteps > 0
-        ? Math.max(1, Math.min(50, Math.trunc(configuredMaxSteps)))
-        : 3;
+      base.executionStrategy.maxSteps =
+        Number.isFinite(configuredMaxSteps) && configuredMaxSteps > 0
+          ? Math.max(1, Math.min(50, Math.trunc(configuredMaxSteps)))
+          : 3;
       const configuredCostBudget = Number(base.executionStrategy.costBudget);
-      base.executionStrategy.costBudget = Number.isFinite(configuredCostBudget) && configuredCostBudget >= 0
-        ? Math.min(1000000, configuredCostBudget)
-        : 10;
+      base.executionStrategy.costBudget =
+        Number.isFinite(configuredCostBudget) && configuredCostBudget >= 0
+          ? Math.min(1000000, configuredCostBudget)
+          : 10;
       const configuredLatencyBudgetMs = Number(base.executionStrategy.latencyBudgetMs);
-      base.executionStrategy.latencyBudgetMs = Number.isFinite(configuredLatencyBudgetMs) && configuredLatencyBudgetMs > 0
-        ? Math.max(1000, Math.min(3600000, Math.floor(configuredLatencyBudgetMs / 1000) * 1000))
-        : 1800000;
+      base.executionStrategy.latencyBudgetMs =
+        Number.isFinite(configuredLatencyBudgetMs) && configuredLatencyBudgetMs > 0
+          ? Math.max(1000, Math.min(3600000, Math.floor(configuredLatencyBudgetMs / 1000) * 1000))
+          : 1800000;
       base.executionStrategy.toolRetryAttempts = Math.max(
         0,
         Math.min(5, Number(base.executionStrategy.toolRetryAttempts ?? 3))
       );
       const existingSteps = Array.isArray(base.steps) ? base.steps : [];
-      const byTool = new Map(existingSteps
-        .filter((step) => step?.tool || step?.toolName)
-        .map((step) => [String(step.tool || step.toolName), step]));
+      const byTool = new Map(
+        existingSteps
+          .filter((step) => step?.tool || step?.toolName)
+          .map((step) => [String(step.tool || step.toolName), step])
+      );
       const selectedSet = new Set(selected);
       const steps = selected.map((toolName, index) => {
         const existing = byTool.get(toolName) || {};
-        const confirmation = existing.confirmation && String(existing.confirmation).trim()
-          ? String(existing.confirmation).trim()
-          : "auto_execute";
+        const confirmation =
+          existing.confirmation && String(existing.confirmation).trim()
+            ? String(existing.confirmation).trim()
+            : "auto_execute";
         return {
           step: index + 1,
           tool: toolName,
           required: existing.required !== false,
           condition: existing.condition || "",
           confirmation,
-          dependsOn: uniqueList(Array.isArray(existing.dependsOn) ? existing.dependsOn : [])
-            .filter((dependency) => selectedSet.has(dependency) && dependency !== toolName)
+          dependsOn: uniqueList(Array.isArray(existing.dependsOn) ? existing.dependsOn : []).filter(
+            (dependency) => selectedSet.has(dependency) && dependency !== toolName
+          ),
         };
       });
       const toolDependencies = {};
@@ -1973,50 +1850,30 @@ export default {
           toolDependencies[step.tool] = { dependsOn: step.dependsOn };
         }
       });
-      const parallelSteps = uniqueList(base.parallelSteps || []).filter((toolName) => selectedSet.has(toolName));
+      const parallelSteps = uniqueList(base.parallelSteps || []).filter((toolName) =>
+        selectedSet.has(toolName)
+      );
       return {
         enabled: base.enabled !== false,
         runtimeEnvironment: normalizeRuntimeEnvironment(base.runtimeEnvironment),
-        requiredToolParameters: base.requiredToolParameters && typeof base.requiredToolParameters === "object"
-          ? base.requiredToolParameters
-          : {},
+        requiredToolParameters:
+          base.requiredToolParameters && typeof base.requiredToolParameters === "object"
+            ? base.requiredToolParameters
+            : {},
         workflow: base.workflow || (this.form?.id ? `${this.form.id}_workflow` : "agent_workflow"),
         executionStrategy: base.executionStrategy,
         steps,
         toolDependencies,
-        parallelSteps
+        parallelSteps,
       };
     },
     syncWorkflowSteps(selectedToolNames = this.selectedToolNames) {
-      this.form.workflowConfig = this.normalizeWorkflowConfig(this.form.workflowConfig, selectedToolNames);
+      this.form.workflowConfig = this.normalizeWorkflowConfig(
+        this.form.workflowConfig,
+        selectedToolNames
+      );
     },
-    syncRemoteWorkflowSteps() {
-      this.remoteForm.workflowConfig = this.normalizeWorkflowConfig(
-        this.remoteForm.workflowConfig, this.remoteSelectedToolNames);
-    },
-    moveRemoteWorkflowStep(index, delta) {
-      const steps = [...this.remoteWorkflowSteps];
-      const nextIndex = index + delta;
-      if (nextIndex < 0 || nextIndex >= steps.length) return;
-      const [step] = steps.splice(index, 1);
-      steps.splice(nextIndex, 0, step);
-      this.remoteForm.selectedMcpToolNames = steps.map((item) => item.tool);
-      this.remoteForm.workflowConfig.steps = steps;
-      this.syncRemoteWorkflowSteps();
-    },
-    availableRemoteWorkflowDependencies(step) {
-      const selected = new Set(this.workflowStepDependencies(step));
-      return this.remoteSelectedToolNames.filter((name) => name !== step.tool && !selected.has(name));
-    },
-    addRemoteWorkflowDependency(step, name) {
-      if (!step || !name || name === step.tool) return;
-      step.dependsOn = uniqueList([...this.workflowStepDependencies(step), name]);
-      this.syncRemoteWorkflowSteps();
-    },
-    removeRemoteWorkflowDependency(step, name) {
-      step.dependsOn = this.workflowStepDependencies(step).filter((value) => value !== name);
-      this.syncRemoteWorkflowSteps();
-    },
+
     moveWorkflowStep(index, delta) {
       const steps = [...this.workflowSteps];
       const nextIndex = index + delta;
@@ -2026,7 +1883,9 @@ export default {
       const [step] = steps.splice(index, 1);
       steps.splice(nextIndex, 0, step);
       this.form.workflowConfig.steps = steps.map((item, order) => ({ ...item, step: order + 1 }));
-      this.form.boundMcpToolNames = this.form.workflowConfig.steps.map((item) => item.tool).join("\n");
+      this.form.boundMcpToolNames = this.form.workflowConfig.steps
+        .map((item) => item.tool)
+        .join("\n");
       this.syncWorkflowSteps();
     },
     workflowStepDependencies(step) {
@@ -2034,7 +1893,9 @@ export default {
     },
     availableWorkflowDependencies(step) {
       const selected = new Set(this.workflowStepDependencies(step));
-      return this.selectedToolNames.filter((toolName) => toolName !== step?.tool && !selected.has(toolName));
+      return this.selectedToolNames.filter(
+        (toolName) => toolName !== step?.tool && !selected.has(toolName)
+      );
     },
     addWorkflowDependency(step, toolName) {
       if (!step || !toolName || toolName === step.tool) {
@@ -2074,11 +1935,16 @@ export default {
       this.saving = true;
       try {
         const payload = this.formToPayload();
-        const saved = this.dialogMode === "create"
-          ? await createWorkshopAgent(payload)
-          : await updateWorkshopAgent(this.activeAgent.id, payload);
-        const requestedEnvironment = normalizeRuntimeEnvironment(payload.workflowConfig?.runtimeEnvironment);
-        const persistedEnvironment = normalizeRuntimeEnvironment(saved?.workflowConfig?.runtimeEnvironment);
+        const saved =
+          this.dialogMode === "create"
+            ? await createWorkshopAgent(payload)
+            : await updateWorkshopAgent(this.activeAgent.id, payload);
+        const requestedEnvironment = normalizeRuntimeEnvironment(
+          payload.workflowConfig?.runtimeEnvironment
+        );
+        const persistedEnvironment = normalizeRuntimeEnvironment(
+          saved?.workflowConfig?.runtimeEnvironment
+        );
         if (requestedEnvironment !== persistedEnvironment) {
           throw new Error(
             `Agent 保存后环境回读不一致：提交 ${requestedEnvironment || "未指定"}，返回 ${persistedEnvironment || "未指定"}`
@@ -2278,24 +2144,23 @@ export default {
       } else {
         selected.add(toolName);
       }
-      if (this.remoteToolPickerOpen) {
-        this.remoteForm.selectedMcpToolNames = [...selected];
-        this.syncRemoteWorkflowSteps();
-      } else {
-        this.form.boundMcpToolNames = [...selected].sort().join("\n");
-        this.syncWorkflowSteps([...selected].sort());
-      }
+
+      this.form.boundMcpToolNames = [...selected].sort().join("\n");
+      this.syncWorkflowSteps([...selected].sort());
     },
     toggleDocument(resource) {
-      const document = typeof resource === "string"
-        ? { docId: resource, resourceKind: "knowledge_document" }
-        : resource;
+      const document =
+        typeof resource === "string"
+          ? { docId: resource, resourceKind: "knowledge_document" }
+          : resource;
       const docId = document?.docId;
       if (!docId) {
         return;
       }
       const domainSkill = document.resourceKind === "domain_skill";
-      const selected = new Set(domainSkill ? this.selectedDomainSkillIds : this.selectedDocumentIds);
+      const selected = new Set(
+        domainSkill ? this.selectedDomainSkillIds : this.selectedDocumentIds
+      );
       if (selected.has(docId)) {
         selected.delete(docId);
       } else {
@@ -2315,10 +2180,12 @@ export default {
     },
     toggleDocumentPage(checked) {
       const selected = new Set(this.selectedDocumentIds);
-      this.pagedDocuments.filter((document) => this.documentSelectable(document)).forEach((document) => {
-        if (checked) selected.add(document.docId);
-        else selected.delete(document.docId);
-      });
+      this.pagedDocuments
+        .filter((document) => this.documentSelectable(document))
+        .forEach((document) => {
+          if (checked) selected.add(document.docId);
+          else selected.delete(document.docId);
+        });
       this.form.boundDocumentIds = [...selected];
     },
     toggleSkillPage(checked) {
@@ -2329,42 +2196,7 @@ export default {
       });
       this.form.boundDomainSkillIds = [...selected];
     },
-    toggleRemoteDocument(document) {
-      const selected = new Set(this.remoteForm.selectedDocumentIds);
-      if (selected.has(document.docId)) selected.delete(document.docId);
-      else selected.add(document.docId);
-      this.remoteForm.selectedDocumentIds = [...selected];
-    },
-    toggleRemoteSkill(skill) {
-      const selected = new Set(this.remoteForm.selectedSkillIds);
-      if (selected.has(skill.docId)) selected.delete(skill.docId);
-      else selected.add(skill.docId);
-      this.remoteForm.selectedSkillIds = [...selected];
-    },
-    toggleRemoteDocumentPage(checked) {
-      const selected = new Set(this.remoteForm.selectedDocumentIds);
-      this.pagedRemoteDocuments.forEach((document) => checked
-        ? selected.add(document.docId) : selected.delete(document.docId));
-      this.remoteForm.selectedDocumentIds = [...selected];
-    },
-    toggleRemoteSkillPage(checked) {
-      const selected = new Set(this.remoteForm.selectedSkillIds);
-      this.pagedRemoteSkills.forEach((skill) => checked
-        ? selected.add(skill.docId) : selected.delete(skill.docId));
-      this.remoteForm.selectedSkillIds = [...selected];
-    },
-    clearRemoteDocuments() {
-      this.remoteForm.selectedDocumentIds = [];
-    },
-    clearRemoteSkills() {
-      this.remoteForm.selectedSkillIds = [];
-    },
-    changeRemoteDocumentPickerPage(page) {
-      this.remoteDocumentPickerPage = Math.min(Math.max(1, Number(page) || 1), this.remoteDocumentPickerPageCount);
-    },
-    changeRemoteSkillPickerPage(page) {
-      this.remoteSkillPickerPage = Math.min(Math.max(1, Number(page) || 1), this.remoteSkillPickerPageCount);
-    },
+
     resetDocumentFilters() {
       this.documentSearchQuery = "";
       this.documentCategoryFilter = "all";
@@ -2375,22 +2207,23 @@ export default {
       this.skillPickerPage = 1;
     },
     changeDocumentPickerPage(page) {
-      this.documentPickerPage = Math.min(Math.max(1, Number(page) || 1), this.documentPickerPageCount);
+      this.documentPickerPage = Math.min(
+        Math.max(1, Number(page) || 1),
+        this.documentPickerPageCount
+      );
     },
     changeSkillPickerPage(page) {
       this.skillPickerPage = Math.min(Math.max(1, Number(page) || 1), this.skillPickerPageCount);
     },
     clearSelectedTools() {
-      if (this.remoteToolPickerOpen) {
-        this.remoteForm.selectedMcpToolNames = [];
-        this.syncRemoteWorkflowSteps();
-      } else {
-        this.form.boundMcpToolNames = "";
-        this.syncWorkflowSteps([]);
-      }
+      this.form.boundMcpToolNames = "";
+      this.syncWorkflowSteps([]);
     },
     isToolGroupFullySelected(group) {
-      return group?.tools?.length && group.tools.every((tool) => this.pickerSelectedToolNames.includes(tool.localToolName));
+      return (
+        group?.tools?.length &&
+        group.tools.every((tool) => this.pickerSelectedToolNames.includes(tool.localToolName))
+      );
     },
     toggleToolGroup(group) {
       if (!group?.tools?.length) {
@@ -2405,18 +2238,12 @@ export default {
           selected.add(tool.localToolName);
         }
       });
-      if (this.remoteToolPickerOpen) {
-        this.remoteForm.selectedMcpToolNames = [...selected];
-        this.syncRemoteWorkflowSteps();
-      } else {
-        this.form.boundMcpToolNames = [...selected].sort().join("\n");
-        this.syncWorkflowSteps([...selected].sort());
-      }
+
+      this.form.boundMcpToolNames = [...selected].sort().join("\n");
+      this.syncWorkflowSteps([...selected].sort());
     },
     defaultModelName() {
-      return this.backendDefaultModelName
-        || this.models.find((model) => model?.value)?.value
-        || "";
-    }
-  }
+      return this.backendDefaultModelName || this.models.find((model) => model?.value)?.value || "";
+    },
+  },
 };

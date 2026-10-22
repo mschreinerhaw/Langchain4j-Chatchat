@@ -1130,41 +1130,19 @@ export function rollbackSkillVersion(skillId, versionId) {
   });
 }
 
-export function discoverRemoteAgent(payload) {
-  return apiRequest("/enterprise/agent-registry/discover", {
-    method: "POST", body: JSON.stringify(payload)
-  });
-}
 
-export function fetchDomainIntelligenceProviders() {
-    return apiRequest("/agent/analysis/domain-providers");
-}
 
-export function fetchIntelligenceProviders() {
-    return apiRequest("/agent/analysis/intelligence-providers");
-}
 
-export function fetchDomainSkillResources(payload) {
-  return apiRequest("/agent/analysis/domain-resources", {
-    method: "POST", body: JSON.stringify(payload)
-  });
-}
 
-export function runDomainIntelligenceAnalysis(payload) {
-  return apiRequest("/agent/analysis/domain-intelligence", {
-    method: "POST", body: JSON.stringify(payload)
-  });
-}
 
-export function registerRemoteAgent(payload) {
-  return apiRequest("/enterprise/agent-registry", {
-    method: "POST", body: JSON.stringify(payload)
-  });
-}
 
-export function fetchRegisteredAgents() {
-  return apiRequest("/enterprise/agent-registry");
-}
+
+
+
+
+
+
+
 
 export function fetchAgentWorkshop(filters = {}) {
   const params = new URLSearchParams();

@@ -30,8 +30,17 @@ import { clearChatRuntimeState, mergeChatRuntimeState } from "./utils/chatRuntim
 import { configureTrendSemantics } from "./utils/trendSemantics";
 import { errorMessage } from "./utils/uiFormatters";
 import floatingDrag from "./directives/floatingDrag";
-import { fetchWorkspaces, fetchWorkspaceManifest, fetchWorkspacePreferences, saveWorkspacePreferences } from "../services/api";
-import { parseWorkspaceRoute, chooseWorkspace, setWorkspaceContext } from "./utils/workspaceContext";
+import {
+  fetchWorkspaces,
+  fetchWorkspaceManifest,
+  fetchWorkspacePreferences,
+  saveWorkspacePreferences,
+} from "../services/api";
+import {
+  parseWorkspaceRoute,
+  chooseWorkspace,
+  setWorkspaceContext,
+} from "./utils/workspaceContext";
 import "../styles/app.css";
 import "../styles/components/dialog-close.css";
 
@@ -40,22 +49,31 @@ const IDLE_LOGOUT_MS = 30 * 60 * 1000;
 const ACTIVITY_THROTTLE_MS = 1000;
 const TODO_REFRESH_MS = 30000;
 const HISTORY_PAGE_SIZE = 30;
-const ACTIVITY_EVENTS = ["click", "keydown", "mousemove", "mousedown", "scroll", "touchstart", "wheel"];
+const ACTIVITY_EVENTS = [
+  "click",
+  "keydown",
+  "mousemove",
+  "mousedown",
+  "scroll",
+  "touchstart",
+  "wheel",
+];
 const DEFAULT_VIEW = "chat";
 const LOGIN_ROUTE = "login";
 const REDIRECT_VIEW_KEY = "chatchat.auth.redirectView";
-const asyncView = (loader) => defineAsyncComponent({
-  loader,
-  loadingComponent: AsyncViewState,
-  errorComponent: AsyncViewState,
-  delay: 120,
-  timeout: 30000,
-  suspensible: false
-});
+const asyncView = (loader) =>
+  defineAsyncComponent({
+    loader,
+    loadingComponent: AsyncViewState,
+    errorComponent: AsyncViewState,
+    delay: 120,
+    timeout: 30000,
+    suspensible: false,
+  });
 const ChatAssistantView = asyncView(() => import("../views/ChatAssistantView.vue"));
 const CapabilityMarketView = asyncView(() => import("../views/CapabilityMarketView.vue"));
 const AiSearchView = asyncView(() => import("../views/AiSearchView.vue"));
-const DomainIntelligenceView = asyncView(() => import("../views/DomainIntelligenceView.vue"));
+
 const LibraryView = asyncView(() => import("../views/LibraryView.vue"));
 const FavoritesView = asyncView(() => import("../views/FavoritesView.vue"));
 const McpCenterView = asyncView(() => import("../views/McpCenterView.vue"));
@@ -70,8 +88,12 @@ const SystemUsersView = asyncView(() => import("../views/SystemUsersView.vue"));
 const SystemOrganizationsView = asyncView(() => import("../views/SystemOrganizationsView.vue"));
 const SystemRolesView = asyncView(() => import("../views/SystemRolesView.vue"));
 const SystemLoginAuditView = asyncView(() => import("../views/SystemLoginAuditView.vue"));
-const SystemResourceAuthorizationView = asyncView(() => import("../views/SystemResourceAuthorizationView.vue"));
-const SystemSkillRoleAuthorizationView = asyncView(() => import("../views/SystemSkillRoleAuthorizationView.vue"));
+const SystemResourceAuthorizationView = asyncView(
+  () => import("../views/SystemResourceAuthorizationView.vue")
+);
+const SystemSkillRoleAuthorizationView = asyncView(
+  () => import("../views/SystemSkillRoleAuthorizationView.vue")
+);
 const ModelManagementView = asyncView(() => import("../views/ModelManagementView.vue"));
 const TasksView = asyncView(() => import("../views/TasksView.vue"));
 const AccessDeniedView = asyncView(() => import("../views/AccessDeniedView.vue"));
@@ -80,13 +102,13 @@ const DATA_SCIENCE_TABS = {
   dataScienceEnvironment: "environment",
   dataScienceDevelop: "develop",
   dataScienceData: "data",
-  dataScienceScripts: "scripts"
+  dataScienceScripts: "scripts",
 };
 const views = {
   workspaces: WorkspacesView,
   chat: ChatAssistantView,
   search: AiSearchView,
-  domainAnalysis: DomainIntelligenceView,
+
   market: CapabilityMarketView,
   favorites: FavoritesView,
   library: LibraryView,
@@ -112,16 +134,17 @@ const views = {
   systemSkillRoles: SystemSkillRoleAuthorizationView,
   permissionTools: asyncView(() => import("../views/PermissionToolsView.vue")),
   toolPublications: asyncView(() => import("../views/ToolPublicationsView.vue")),
-  models: ModelManagementView
+  models: ModelManagementView,
 };
 
 function currentHashRoute() {
   let decoded;
-  try { decoded = decodeURIComponent(window.location.hash || ""); } catch (_) { return ""; }
-  return decoded
-    .replace(/^#\/?/, "")
-    .split("?")[0]
-    .trim();
+  try {
+    decoded = decodeURIComponent(window.location.hash || "");
+  } catch (_) {
+    return "";
+  }
+  return decoded.replace(/^#\/?/, "").split("?")[0].trim();
 }
 
 function viewFromHash() {
@@ -151,10 +174,10 @@ export default {
     LoginView,
     Plus,
     RightPanel,
-    WorkspacesView
+    WorkspacesView,
   },
   directives: {
-    floatingDrag
+    floatingDrag,
   },
   data() {
     const storedAuthSession = getStoredAuthSession();
@@ -162,9 +185,12 @@ export default {
     const sessionUser = authSession?.user || {};
     return {
       authSession,
-      activeView: authSession ? (viewFromHash() || DEFAULT_VIEW) : DEFAULT_VIEW,
+      activeView: authSession ? viewFromHash() || DEFAULT_VIEW : DEFAULT_VIEW,
       userId: sessionUser.username || sessionUser.id || USER_ID,
-      tenantId: resolveSessionTenantId(authSession, sessionUser.username || sessionUser.id || USER_ID),
+      tenantId: resolveSessionTenantId(
+        authSession,
+        sessionUser.username || sessionUser.id || USER_ID
+      ),
       tenantName: sessionUser.tenantName || sessionUser.tenant_name || "",
       historyLoading: false,
       historyDeleting: false,
@@ -192,63 +218,91 @@ export default {
       selectedConversation: null,
       pendingChatDraft: null,
       pendingDocumentShortcut: null,
-      pendingAnalysisProvider: null,
-      analysisSelectionSerial: 0,
+
       activeHistoryId: "",
       idleLogoutTimer: null,
       stopAgentTaskCancelledListener: null,
       lastActivityAt: Date.now(),
       navItems: [],
-      menuAuthorizationReady: false
-      , workspaceItems: [], currentWorkspace: null, workspacePages: [], workspaceContexts: {},
-      workspaceNavigationSerial: 0, workspaceBootstrapSerial: 0, workspaceLoading: false, workspaceError: "", workspaceReady: false,
-      showWorkspaceSelection: false, workspacePreference: {}, workspaceNotice: "", workspaceSaving: false
+      menuAuthorizationReady: false,
+      workspaceItems: [],
+      currentWorkspace: null,
+      workspacePages: [],
+      workspaceContexts: {},
+      workspaceNavigationSerial: 0,
+      workspaceBootstrapSerial: 0,
+      workspaceLoading: false,
+      workspaceError: "",
+      workspaceReady: false,
+      showWorkspaceSelection: false,
+      workspacePreference: {},
+      workspaceNotice: "",
+      workspaceSaving: false,
     };
   },
   computed: {
     workspaceContext() {
-      return this.currentWorkspace ? { tenantId: this.tenantId, userId: this.authSession?.user?.id,
-        workspaceId: this.currentWorkspace.workspaceId, configVersion: this.currentWorkspace.configVersion } : null;
+      return this.currentWorkspace
+        ? {
+            tenantId: this.tenantId,
+            userId: this.authSession?.user?.id,
+            workspaceId: this.currentWorkspace.workspaceId,
+            configVersion: this.currentWorkspace.configVersion,
+          }
+        : null;
     },
     workspaceComponentKey() {
       const page = this.workspacePages.find((candidate) => candidate.id === this.activeView);
       const component = views[page?.componentKey || this.activeView];
-      const stateDomain = Object.keys(views).find((key) => views[key] === component) || this.activeView;
+      const stateDomain =
+        Object.keys(views).find((key) => views[key] === component) || this.activeView;
       return `${this.tenantId}:${this.authSession?.user?.id}:${this.currentWorkspace?.workspaceId}:${stateDomain}`;
     },
     visibleNavItems() {
-      return this.navItems.map((group) => ({
-        ...group,
-        items: Array.isArray(group.items)
-          ? group.items
-              .filter((item) => item.id !== "debugger")
-              .map((item) => ({
-                ...item,
-                children: Array.isArray(item.children) ? item.children : undefined
-              }))
-          : []
-      })).filter((group) => group.items.length > 0);
+      return this.navItems
+        .map((group) => ({
+          ...group,
+          items: Array.isArray(group.items)
+            ? group.items
+                .filter((item) => item.id !== "debugger")
+                .map((item) => ({
+                  ...item,
+                  children: Array.isArray(item.children) ? item.children : undefined,
+                }))
+            : [],
+        }))
+        .filter((group) => group.items.length > 0);
     },
     activeComponent() {
       if (!this.menuAuthorizationReady) {
         return AsyncViewState;
       }
       const page = this.workspacePages?.find((candidate) => candidate.id === this.activeView);
-      return this.canAccessView(this.activeView) ? (views[page?.componentKey || this.activeView] || AccessDeniedView) : AccessDeniedView;
+      return this.canAccessView(this.activeView)
+        ? views[page?.componentKey || this.activeView] || AccessDeniedView
+        : AccessDeniedView;
     },
     activeComponentProps() {
-      const pageProps = this.workspacePages?.find((page) => page.id === this.activeView)?.props || {};
-      if (this.activeView === "workspaces") return { workspaces: this.workspaceItems,
-        defaultWorkspaceId: this.workspacePreference?.defaultWorkspaceId || this.workspaceItems.find(w => w.defaultWorkspace)?.workspaceId || "",
-        loading: this.workspaceLoading || this.workspaceSaving, notice: this.workspaceNotice };
+      const pageProps =
+        this.workspacePages?.find((page) => page.id === this.activeView)?.props || {};
+      if (this.activeView === "workspaces")
+        return {
+          workspaces: this.workspaceItems,
+          defaultWorkspaceId:
+            this.workspacePreference?.defaultWorkspaceId ||
+            this.workspaceItems.find((w) => w.defaultWorkspace)?.workspaceId ||
+            "",
+          loading: this.workspaceLoading || this.workspaceSaving,
+          notice: this.workspaceNotice,
+        };
       return this.activeView === "chat"
         ? {
             ...pageProps,
             userId: this.userId,
             tenantId: this.tenantId,
             selectedConversation: this.selectedConversation,
-            pendingDraft: this.pendingChatDraft
-            , workspaceContext: this.workspaceContext
+            pendingDraft: this.pendingChatDraft,
+            workspaceContext: this.workspaceContext,
           }
         : {
             ...pageProps,
@@ -259,24 +313,28 @@ export default {
               ? { initialTab: DATA_SCIENCE_TABS[this.activeView] }
               : {}),
             ...(this.activeView === "tasks" ? { tenantName: this.tenantName } : {}),
-            ...(this.activeView === "domainAnalysis"
-              ? { initialProviderSelection: this.pendingAnalysisProvider } : {}),
+
             ...(this.activeView === "agents"
-              ? { analysisAvailable: this.canAccessView("domainAnalysis"),
-                  chatAvailable: this.canAccessView("chat") } : {}),
-            pendingDocumentShortcut: this.activeView === "search" ? this.pendingDocumentShortcut : null
+              ? {
+                  chatAvailable: this.canAccessView("chat"),
+                }
+              : {}),
+            pendingDocumentShortcut:
+              this.activeView === "search" ? this.pendingDocumentShortcut : null,
           };
     },
     recentConversations() {
-      return this.conversationHistory.map((conversation) => this.normalizeHistoryConversationStatus(conversation));
-    }
+      return this.conversationHistory.map((conversation) =>
+        this.normalizeHistoryConversationStatus(conversation)
+      );
+    },
   },
   watch: {
     authSession(session) {
       if (!isAuthenticatedSession(session)) {
         this.handleUnauthenticated();
       }
-    }
+    },
   },
   mounted() {
     window.addEventListener("hashchange", this.handleHashChange);
@@ -312,96 +370,164 @@ export default {
   methods: {
     async loadWorkspaces({ requestedView = "", selectedWorkspaceId = "" } = {}) {
       if (!isAuthenticatedSession(this.authSession)) return;
-      const bootstrap = this.workspaceBootstrapSerial = (this.workspaceBootstrapSerial || 0) + 1;
+      const bootstrap = (this.workspaceBootstrapSerial = (this.workspaceBootstrapSerial || 0) + 1);
       const identity = this.authSession.user.id;
       this.workspaceLoading = true;
       this.workspaceError = "";
       try {
-        const [items, preference] = await Promise.all([fetchWorkspaces(), fetchWorkspacePreferences()]);
-        if (!isAuthenticatedSession(this.authSession) || bootstrap !== this.workspaceBootstrapSerial
-            || identity !== this.authSession.user.id) return;
-        this.workspaceItems = items; this.workspacePreference = preference;
+        const [items, preference] = await Promise.all([
+          fetchWorkspaces(),
+          fetchWorkspacePreferences(),
+        ]);
+        if (
+          !isAuthenticatedSession(this.authSession) ||
+          bootstrap !== this.workspaceBootstrapSerial ||
+          identity !== this.authSession.user.id
+        )
+          return;
+        this.workspaceItems = items;
+        this.workspacePreference = preference;
         const route = parseWorkspaceRoute(window.location.hash || "");
-        const target = selectedWorkspaceId ? items.find(item => item.workspaceId === selectedWorkspaceId)
+        const target = selectedWorkspaceId
+          ? items.find((item) => item.workspaceId === selectedWorkspaceId)
           : chooseWorkspace(items, route, preference);
         if (!target || route.invalid) {
-          this.workspaceError = selectedWorkspaceId || route.workspaceId || route.invalid ? "无权访问此工作空间或地址无效" : "当前账户没有可用工作空间";
-          this.showWorkspaceSelection = true; this.navItems = []; this.workspaceReady = false;
+          this.workspaceError =
+            selectedWorkspaceId || route.workspaceId || route.invalid
+              ? "无权访问此工作空间或地址无效"
+              : "当前账户没有可用工作空间";
+          this.showWorkspaceSelection = true;
+          this.navItems = [];
+          this.workspaceReady = false;
           return;
         }
-        await this.switchWorkspace(target.workspaceId, selectedWorkspaceId ? "" : route.pageId || requestedView || route.legacyView);
+        await this.switchWorkspace(
+          target.workspaceId,
+          selectedWorkspaceId ? "" : route.pageId || requestedView || route.legacyView
+        );
       } catch (error) {
-        if (bootstrap !== this.workspaceBootstrapSerial || identity !== this.authSession?.user?.id) return;
+        if (bootstrap !== this.workspaceBootstrapSerial || identity !== this.authSession?.user?.id)
+          return;
         this.workspaceError = errorMessage(error, "工作空间加载失败");
-        this.navItems = []; this.workspaceReady = false; this.showWorkspaceSelection = true;
-      } finally { if (bootstrap === this.workspaceBootstrapSerial) this.workspaceLoading = false; }
+        this.navItems = [];
+        this.workspaceReady = false;
+        this.showWorkspaceSelection = true;
+      } finally {
+        if (bootstrap === this.workspaceBootstrapSerial) this.workspaceLoading = false;
+      }
     },
     async switchWorkspace(id, requestedPage = "") {
       const serial = ++this.workspaceNavigationSerial;
       const identity = this.authSession?.user?.id;
-      this.workspaceLoading = true; this.workspaceError = "";
+      this.workspaceLoading = true;
+      this.workspaceError = "";
       try {
         const loaded = await fetchWorkspaceManifest(id);
-        if (serial !== this.workspaceNavigationSerial || identity !== this.authSession?.user?.id || !this.authSession) return;
+        if (
+          serial !== this.workspaceNavigationSerial ||
+          identity !== this.authSession?.user?.id ||
+          !this.authSession
+        )
+          return;
         const manifest = loaded.manifest;
         const pages = manifest.pages.filter((page) => views[page.componentKey]);
         if (pages.length === 0) throw new Error("当前工作空间没有授权页面");
-        if (parseWorkspaceRoute(window.location.hash || "").workspaceId && requestedPage
-            && !pages.some((page) => page.id === requestedPage)) throw new Error("无权访问该工作空间页面");
+        if (
+          parseWorkspaceRoute(window.location.hash || "").workspaceId &&
+          requestedPage &&
+          !pages.some((page) => page.id === requestedPage)
+        )
+          throw new Error("无权访问该工作空间页面");
         const from = this.currentWorkspace?.workspaceId;
-        if (from && from !== id) this.workspaceContexts[from] = {
-          activeView: this.activeView, selectedConversation: this.selectedConversation, activeHistoryId: this.activeHistoryId,
-          pendingChatDraft: this.pendingChatDraft, pendingDocumentShortcut: this.pendingDocumentShortcut,
-          pendingAnalysisProvider: this.pendingAnalysisProvider
-        };
+        if (from && from !== id)
+          this.workspaceContexts[from] = {
+            activeView: this.activeView,
+            selectedConversation: this.selectedConversation,
+            activeHistoryId: this.activeHistoryId,
+            pendingChatDraft: this.pendingChatDraft,
+            pendingDocumentShortcut: this.pendingDocumentShortcut,
+          };
         const saved = this.workspaceContexts[id] || {};
         // A sidebar selection may arrive while the initial workspace manifest loads.
         // Preserve it for the first workspace; later workspace switches use their own saved context.
         const initialSelection = !from ? this.selectedConversation : null;
         const pageIds = new Set(pages.map((page) => page.id));
-        const selected = [initialSelection ? "chat" : requestedPage, saved.activeView, manifest.entryPage, pages[0].id].find((page) => pageIds.has(page));
+        const selected = [
+          initialSelection ? "chat" : requestedPage,
+          saved.activeView,
+          manifest.entryPage,
+          pages[0].id,
+        ].find((page) => pageIds.has(page));
         const convert = (node) => {
           const children = node.children.map(convert).filter(Boolean);
           const page = pages.find((candidate) => candidate.menuCode === node.id);
           if (!page && !children.length) return null;
-          return { id: page?.id || node.id, label: node.title, icon: node.icon, ...(children.length ? { children } : {}) };
+          return {
+            id: page?.id || node.id,
+            label: node.title,
+            icon: node.icon,
+            ...(children.length ? { children } : {}),
+          };
         };
-        this.currentWorkspace = manifest; this.workspacePages = pages;
-        this.navItems = loaded.menus.map((group) => {
-          const direct = pages.some((page) => page.menuCode === group.id) ? [group] : group.children;
-          const studioRoot = manifest.layoutType === "studio" && direct.length === 1 && direct[0].children?.length
-            ? direct[0] : null;
-          return { id: group.id, label: studioRoot ? manifest.name : group.title,
-            items: (studioRoot ? studioRoot.children : direct).map(convert).filter(Boolean) };
-        }).filter((group) => group.items.length);
+        this.currentWorkspace = manifest;
+        this.workspacePages = pages;
+        this.navItems = loaded.menus
+          .map((group) => {
+            const direct = pages.some((page) => page.menuCode === group.id)
+              ? [group]
+              : group.children;
+            const studioRoot =
+              manifest.layoutType === "studio" && direct.length === 1 && direct[0].children?.length
+                ? direct[0]
+                : null;
+            return {
+              id: group.id,
+              label: studioRoot ? manifest.name : group.title,
+              items: (studioRoot ? studioRoot.children : direct).map(convert).filter(Boolean),
+            };
+          })
+          .filter((group) => group.items.length);
         if (from !== id) {
           this.selectedConversation = saved.selectedConversation || initialSelection || null;
           this.activeHistoryId = saved.activeHistoryId || initialSelection?.id || "";
-          this.pendingChatDraft = saved.pendingChatDraft || null; this.pendingDocumentShortcut = saved.pendingDocumentShortcut || null;
-          this.pendingAnalysisProvider = saved.pendingAnalysisProvider || null;
+          this.pendingChatDraft = saved.pendingChatDraft || null;
+          this.pendingDocumentShortcut = saved.pendingDocumentShortcut || null;
         }
-        this.activeView = selected; this.workspaceReady = true; this.menuAuthorizationReady = true;
+        this.activeView = selected;
+        this.workspaceReady = true;
+        this.menuAuthorizationReady = true;
         this.showWorkspaceSelection = false;
-        setWorkspaceContext({ tenantId: this.tenantId, userId: identity, workspaceId: id, configVersion: manifest.configVersion });
+        setWorkspaceContext({
+          tenantId: this.tenantId,
+          userId: identity,
+          workspaceId: id,
+          configVersion: manifest.configVersion,
+        });
         this.setHashRoute(`w/${id}/${selected}`);
         saveWorkspacePreferences({ lastWorkspaceId: id }).catch(() => {});
-        if(from!==id)this.loadConversationHistory?.({suppressError:true});
+        if (from !== id) this.loadConversationHistory?.({ suppressError: true });
       } catch (error) {
         if (serial === this.workspaceNavigationSerial) {
           this.workspaceError = errorMessage(error, "工作空间切换失败");
           if (!this.workspaceReady) this.showWorkspaceSelection = true;
         }
-      } finally { if (serial === this.workspaceNavigationSerial) this.workspaceLoading = false; }
+      } finally {
+        if (serial === this.workspaceNavigationSerial) this.workspaceLoading = false;
+      }
     },
     async switchWorkspaceFromAccount(id, event) {
-      const account = event.currentTarget.closest('.user-account');
+      const account = event.currentTarget.closest(".user-account");
       if (id !== this.currentWorkspace?.workspaceId) await this.switchWorkspace(id);
       if (account?.isConnected) account.open = false;
     },
-    openWorkspaceSelection() { return this.switchWorkspace("zhice", "workspaces"); },
+    openWorkspaceSelection() {
+      return this.switchWorkspace("zhice", "workspaces");
+    },
     async useDefaultWorkspace(id) {
       if (this.workspaceSaving) return;
-      this.workspaceSaving = true; this.workspaceError = ""; this.workspaceNotice = "";
+      this.workspaceSaving = true;
+      this.workspaceError = "";
+      this.workspaceNotice = "";
       const identity = this.authSession?.user?.id;
       try {
         const preference = await saveWorkspacePreferences({ defaultWorkspaceId: id });
@@ -409,8 +535,11 @@ export default {
         this.workspacePreference = preference;
         this.workspaceNotice = "默认登录空间已保存，下次登录生效。";
       } catch (error) {
-        if (identity === this.authSession?.user?.id) this.workspaceError = errorMessage(error, "默认工作空间保存失败");
-      } finally { if (identity === this.authSession?.user?.id) this.workspaceSaving = false; }
+        if (identity === this.authSession?.user?.id)
+          this.workspaceError = errorMessage(error, "默认工作空间保存失败");
+      } finally {
+        if (identity === this.authSession?.user?.id) this.workspaceSaving = false;
+      }
     },
     async loadEnterpriseMenus({ reconcileRoute = true } = {}) {
       if (!isAuthenticatedSession(this.authSession)) return;
@@ -429,14 +558,16 @@ export default {
             id: node.id,
             label: node.title || node.id,
             icon: node.icon || "grid",
-            ...(children.length ? { children } : {})
+            ...(children.length ? { children } : {}),
           };
         };
         const configured = (Array.isArray(groups) ? groups : [])
           .map((group) => ({
             id: group.id,
             label: group.title || group.id,
-            items: (Array.isArray(group.children) ? group.children : []).map(toNavItem).filter(Boolean)
+            items: (Array.isArray(group.children) ? group.children : [])
+              .map(toNavItem)
+              .filter(Boolean),
           }))
           .filter((group) => group.items.length > 0);
         if (Array.isArray(groups)) {
@@ -466,9 +597,12 @@ export default {
       return user.permissionCodes.includes(permissionCode);
     },
     canAccessView(view) {
-      if (this.workspaceReady && !this.workspacePages.some((page) => page.id === view)) return false;
-      const contains = (items) => (Array.isArray(items) ? items : []).some((item) =>
-        item?.id === view || contains(item?.children));
+      if (this.workspaceReady && !this.workspacePages.some((page) => page.id === view))
+        return false;
+      const contains = (items) =>
+        (Array.isArray(items) ? items : []).some(
+          (item) => item?.id === view || contains(item?.children)
+        );
       return this.navItems.some((group) => contains(group?.items));
     },
     firstAccessibleView() {
@@ -518,8 +652,9 @@ export default {
       this.tenantName = sessionUser.tenantName || sessionUser.tenant_name || "";
       this.loadTrendSemanticConfig();
       const requestedView = this.consumeRedirectView() || viewFromHash() || DEFAULT_VIEW;
-      await this.loadWorkspaces(selectedWorkspaceId ? { selectedWorkspaceId, requestedView }
-        : { requestedView });
+      await this.loadWorkspaces(
+        selectedWorkspaceId ? { selectedWorkspaceId, requestedView } : { requestedView }
+      );
       if (session?.embedded) {
         this.stopIdleLogoutWatcher();
       } else {
@@ -540,9 +675,15 @@ export default {
       ++this.workspaceNavigationSerial;
       this.workspaceBootstrapSerial = (this.workspaceBootstrapSerial || 0) + 1;
       setWorkspaceContext(null);
-      this.currentWorkspace = null; this.workspacePages = []; this.workspaceItems = [];
-      this.workspacePreference = {}; this.workspaceNotice = ""; this.workspaceSaving = false;
-      this.workspaceContexts = {}; this.workspaceReady = false; this.showWorkspaceSelection = false;
+      this.currentWorkspace = null;
+      this.workspacePages = [];
+      this.workspaceItems = [];
+      this.workspacePreference = {};
+      this.workspaceNotice = "";
+      this.workspaceSaving = false;
+      this.workspaceContexts = {};
+      this.workspaceReady = false;
+      this.showWorkspaceSelection = false;
       this.stopIdleLogoutWatcher();
       this.stopTodoRefresh();
       this.stopTodoTimeoutKill();
@@ -568,28 +709,54 @@ export default {
         return;
       }
       const workspaceRoute = parseWorkspaceRoute(window.location.hash || "");
-      if (workspaceRoute.invalid) { this.workspaceError = "Workspace address is invalid"; this.showWorkspaceSelection = true; return; }
+      if (workspaceRoute.invalid) {
+        this.workspaceError = "Workspace address is invalid";
+        this.showWorkspaceSelection = true;
+        return;
+      }
       const route = currentHashRoute();
-      if (workspaceRoute.selection) { this.showWorkspaceSelection = true; return; }
-      if (workspaceRoute.workspaceId && workspaceRoute.workspaceId !== this.currentWorkspace?.workspaceId) {
-        this.switchWorkspace(workspaceRoute.workspaceId, workspaceRoute.pageId); return;
+      if (workspaceRoute.selection) {
+        this.showWorkspaceSelection = true;
+        return;
       }
-      if (((workspaceRoute.legacyView?.startsWith("dataScience") && workspaceRoute.legacyView !== "dataScienceSkills") || workspaceRoute.legacyView === "sqlStudio")
-          && this.currentWorkspace?.workspaceId !== "data-science") {
-        this.switchWorkspace("data-science", workspaceRoute.legacyView); return;
+      if (
+        workspaceRoute.workspaceId &&
+        workspaceRoute.workspaceId !== this.currentWorkspace?.workspaceId
+      ) {
+        this.switchWorkspace(workspaceRoute.workspaceId, workspaceRoute.pageId);
+        return;
       }
-      if (workspaceRoute.legacyView && this.currentWorkspace?.workspaceId === "data-science"
-          && !this.canAccessView(workspaceRoute.legacyView)) {
-        this.switchWorkspace("zhice", workspaceRoute.legacyView); return;
+      if (
+        ((workspaceRoute.legacyView?.startsWith("dataScience") &&
+          workspaceRoute.legacyView !== "dataScienceSkills") ||
+          workspaceRoute.legacyView === "sqlStudio") &&
+        this.currentWorkspace?.workspaceId !== "data-science"
+      ) {
+        this.switchWorkspace("data-science", workspaceRoute.legacyView);
+        return;
       }
-      if (workspaceRoute.invalid) { this.workspaceError = "工作空间地址无效"; this.showWorkspaceSelection = true; return; }
+      if (
+        workspaceRoute.legacyView &&
+        this.currentWorkspace?.workspaceId === "data-science" &&
+        !this.canAccessView(workspaceRoute.legacyView)
+      ) {
+        this.switchWorkspace("zhice", workspaceRoute.legacyView);
+        return;
+      }
+      if (workspaceRoute.invalid) {
+        this.workspaceError = "工作空间地址无效";
+        this.showWorkspaceSelection = true;
+        return;
+      }
       this.showWorkspaceSelection = false;
       if (workspaceRoute.workspaceId) {
         if (!this.canAccessView(workspaceRoute.pageId)) {
           this.workspaceError = "Access to this workspace page is denied";
-          this.showWorkspaceSelection = true; return;
+          this.showWorkspaceSelection = true;
+          return;
         }
-        this.activeView = workspaceRoute.pageId; return;
+        this.activeView = workspaceRoute.pageId;
+        return;
       }
       if (route === LOGIN_ROUTE) {
         this.navigateToView(DEFAULT_VIEW);
@@ -624,14 +791,16 @@ export default {
       return views[value] ? value : "";
     },
     navigateToView(view) {
-      const requested = view === "system" ? "systemUsers" : (views[view] ? view : DEFAULT_VIEW);
+      const requested = view === "system" ? "systemUsers" : views[view] ? view : DEFAULT_VIEW;
       const nextView = this.canAccessView(requested) ? requested : this.firstAccessibleView();
       if (!nextView) {
         this.activeView = "";
         return;
       }
       this.activeView = nextView;
-      this.setHashRoute(this.currentWorkspace ? `w/${this.currentWorkspace.workspaceId}/${nextView}` : nextView);
+      this.setHashRoute(
+        this.currentWorkspace ? `w/${this.currentWorkspace.workspaceId}/${nextView}` : nextView
+      );
     },
     setHashRoute(route) {
       const nextHash = `#/${route}`;
@@ -678,7 +847,7 @@ export default {
         .filter((todo) => todo?.todoType === "TOOL_CONFIRMATION" && todo.taskId && todo.expiredAt)
         .map((todo) => ({
           todo,
-          expiresAt: new Date(todo.expiredAt).getTime()
+          expiresAt: new Date(todo.expiredAt).getTime(),
         }))
         .filter((item) => Number.isFinite(item.expiresAt));
       if (confirmationTodos.length === 0) {
@@ -710,7 +879,7 @@ export default {
             ...(killedTask || {}),
             taskId: todo.taskId,
             tenantId: todo.tenantId || this.tenantId,
-            message: "该操作超过 3 分钟未确认，任务已自动取消。"
+            message: "该操作超过 3 分钟未确认，任务已自动取消。",
           });
         } catch (error) {
           this.todoError = error.message || "确认超时取消任务失败";
@@ -750,10 +919,11 @@ export default {
           tenantId: this.tenantId,
           limit: HISTORY_PAGE_SIZE,
           page: append ? this.historyNextPage : 0,
-          ...historyFilters
+          ...historyFilters,
         });
-        const page = (Array.isArray(history) ? history : [])
-          .map((conversation) => mergeChatRuntimeState(conversation));
+        const page = (Array.isArray(history) ? history : []).map((conversation) =>
+          mergeChatRuntimeState(conversation)
+        );
         const nextHistory = append
           ? [...previousHistory, ...page].filter((conversation, index, items) => {
               const id = conversation.id || conversation.conversationId;
@@ -802,7 +972,7 @@ export default {
           tenantId: this.tenantId,
           page,
           pageSize,
-          keyword
+          keyword,
         });
         if (requestSerial !== this.historyManagerRequestSerial) return;
         this.historyManagerItems = Array.isArray(payload?.items) ? payload.items : [];
@@ -826,7 +996,7 @@ export default {
         const payload = await fetchWorkbenchShortcuts({
           tenantId: this.tenantId,
           userId: this.userId,
-          limit: 6
+          limit: 6,
         });
         const favorites = Array.isArray(payload?.favorites) ? payload.favorites : [];
         this.favoriteConversationIds = favorites
@@ -853,7 +1023,7 @@ export default {
         const payload = await fetchAgentTodos({
           tenantId: this.tenantId,
           userId: this.userId,
-          limit: 20
+          limit: 20,
         });
         this.runtimeTodos = Array.isArray(payload?.items) ? payload.items : [];
         this.scheduleTodoTimeoutKill();
@@ -876,14 +1046,14 @@ export default {
       }
       this.todoActionLoadingIds = {
         ...this.todoActionLoadingIds,
-        [todo.id]: true
+        [todo.id]: true,
       };
       this.todoError = "";
       try {
         await actAgentTodo(todo.id, {
           action,
           userId: this.userId,
-          ...payload
+          ...payload,
         });
         this.runtimeTodos = this.runtimeTodos.filter((item) => item?.id !== todo.id);
         this.scheduleTodoTimeoutKill();
@@ -908,12 +1078,7 @@ export default {
     handleNavigate(view) {
       this.navigateToView(view);
     },
-    handleAnalyzeWithAgent(providerId) {
-      if (!providerId || !this.canAccessView("domainAnalysis")) return;
-      this.analysisSelectionSerial += 1;
-      this.pendingAnalysisProvider = { providerId, requestId: this.analysisSelectionSerial };
-      this.navigateToView("domainAnalysis");
-    },
+
     handleNewConversation() {
       this.selectedConversation = null;
       this.activeHistoryId = "";
@@ -935,7 +1100,7 @@ export default {
       this.pendingChatDraft = {
         ...payload,
         id: payload.id || `${Date.now()}`,
-        newSession
+        newSession,
       };
       this.navigateToView("chat");
     },
@@ -945,7 +1110,7 @@ export default {
       }
       this.pendingDocumentShortcut = {
         ...payload,
-        id: `${payload.docId}-${Date.now()}`
+        id: `${payload.docId}-${Date.now()}`,
       };
       this.navigateToView("search");
     },
@@ -956,7 +1121,7 @@ export default {
           docId: item.targetId,
           title: item.title || "",
           summary: item.summary || "",
-          source: "favorite"
+          source: "favorite",
         });
         return;
       }
@@ -967,7 +1132,7 @@ export default {
       if (type === "AGENT") {
         this.handleSelectAgentShortcut({
           agentId: item.targetId,
-          title: item.title || item.targetId
+          title: item.title || item.targetId,
         });
         return;
       }
@@ -980,15 +1145,20 @@ export default {
       if (!targetId) {
         return;
       }
-      let conversation = this.conversationHistory.find((history) =>
-        history.id === targetId || history.conversationId === targetId
+      let conversation = this.conversationHistory.find(
+        (history) => history.id === targetId || history.conversationId === targetId
       );
       if (!conversation) {
         try {
-          const history = await fetchConversationHistory(this.userId, { tenantId: this.tenantId, limit: 100 });
+          const history = await fetchConversationHistory(this.userId, {
+            tenantId: this.tenantId,
+            limit: 100,
+          });
           if (Array.isArray(history)) {
             this.conversationHistory = history;
-            conversation = history.find((entry) => entry.id === targetId || entry.conversationId === targetId);
+            conversation = history.find(
+              (entry) => entry.id === targetId || entry.conversationId === targetId
+            );
           }
         } catch (error) {
           this.historyError = error.message || "收藏会话加载失败";
@@ -1008,7 +1178,7 @@ export default {
         id: `agent-shortcut-${payload.agentId}-${Date.now()}`,
         agentId: payload.agentId,
         title: payload.title || payload.agentId,
-        newSession: !!payload.newSession
+        newSession: !!payload.newSession,
       };
       this.navigateToView("chat");
     },
@@ -1018,15 +1188,17 @@ export default {
       }
       this.navigateToView("chat");
       const conversationId = conversation.id || conversation.conversationId || "";
-      const needsDetail = !!conversationId
-        && (conversation.missingMessageCount > 0 || (!conversation.detailsLoaded
-          && !(Array.isArray(conversation.messages) && conversation.messages.length > 0)));
+      const needsDetail =
+        !!conversationId &&
+        (conversation.missingMessageCount > 0 ||
+          (!conversation.detailsLoaded &&
+            !(Array.isArray(conversation.messages) && conversation.messages.length > 0)));
       this.activeHistoryId = conversationId;
       this.selectedConversation = {
         ...conversation,
         detailsLoading: needsDetail,
         detailLoadError: "",
-        selectedAt: Date.now()
+        selectedAt: Date.now(),
       };
       if (!needsDetail) {
         return;
@@ -1055,19 +1227,17 @@ export default {
           messages: Array.isArray(detail.messages)
             ? detail.messages.map((message) => ({
                 ...message,
-                timestamp: toTimestamp(message?.timestamp)
+                timestamp: toTimestamp(message?.timestamp),
               }))
             : [],
           detailsLoading: false,
           detailLoadError: "",
           detailsLoaded: true,
-          selectedAt: Date.now()
+          selectedAt: Date.now(),
         };
         this.selectedConversation = hydrated;
         this.conversationHistory = this.conversationHistory.map((item) =>
-          item.id === conversationId || item.conversationId === conversationId
-            ? hydrated
-            : item
+          item.id === conversationId || item.conversationId === conversationId ? hydrated : item
         );
       } catch (error) {
         if (this.activeHistoryId === conversationId) {
@@ -1077,7 +1247,7 @@ export default {
             ...conversation,
             detailsLoading: false,
             detailLoadError: message,
-            selectedAt: Date.now()
+            selectedAt: Date.now(),
           };
         }
       }
@@ -1086,13 +1256,20 @@ export default {
       if (!conversation?.id) {
         return;
       }
-      if (["running", "streaming", "pending"].includes(String(conversation.status || "").toLowerCase())) {
+      if (
+        ["running", "streaming", "pending"].includes(
+          String(conversation.status || "").toLowerCase()
+        )
+      ) {
         this.historyError = "进行中的会话不能删除";
         return;
       }
       const deletedId = conversation.id;
       const deletedConversationId = conversation.conversationId || "";
-      const deletedActiveConversation = this.isActiveConversationId(deletedId, deletedConversationId);
+      const deletedActiveConversation = this.isActiveConversationId(
+        deletedId,
+        deletedConversationId
+      );
       this.conversationHistory = this.conversationHistory.filter((item) => item.id !== deletedId);
       if (deletedActiveConversation) {
         this.resetCurrentConversationView();
@@ -1113,16 +1290,17 @@ export default {
       if (!title || title === currentTitle) return;
       try {
         const updated = await renameConversationHistory(conversationId, title, this.tenantId);
-        const applyTitle = (item) => (
+        const applyTitle = (item) =>
           item?.id === conversationId || item?.conversationId === conversationId
             ? { ...item, ...updated, title, question: title }
-            : item
-        );
+            : item;
         this.conversationHistory = this.conversationHistory.map(applyTitle);
         this.historyManagerItems = this.historyManagerItems.map(applyTitle);
-        if (this.selectedConversation
-            && (this.selectedConversation.id === conversationId
-              || this.selectedConversation.conversationId === conversationId)) {
+        if (
+          this.selectedConversation &&
+          (this.selectedConversation.id === conversationId ||
+            this.selectedConversation.conversationId === conversationId)
+        ) {
           this.selectedConversation = applyTitle(this.selectedConversation);
         }
       } catch (error) {
@@ -1132,8 +1310,9 @@ export default {
     async deleteConversations(conversations = []) {
       const uniqueConversations = conversations.filter((conversation, index, items) => {
         const id = conversation?.id;
-        const inProgress = ["running", "streaming", "pending"]
-          .includes(String(conversation?.status || "").toLowerCase());
+        const inProgress = ["running", "streaming", "pending"].includes(
+          String(conversation?.status || "").toLowerCase()
+        );
         return id && !inProgress && items.findIndex((item) => item?.id === id) === index;
       });
       if (uniqueConversations.length === 0 || this.historyDeleting) {
@@ -1141,32 +1320,43 @@ export default {
       }
 
       const deletedIds = new Set(uniqueConversations.map((conversation) => conversation.id));
-      const deletedActiveConversation = uniqueConversations.some((conversation) => (
+      const deletedActiveConversation = uniqueConversations.some((conversation) =>
         this.isActiveConversationId(conversation.id, conversation.conversationId || "")
-      ));
+      );
       this.historyDeleting = true;
       this.historyError = "";
-      this.conversationHistory = this.conversationHistory.filter((item) => !deletedIds.has(item.id));
+      this.conversationHistory = this.conversationHistory.filter(
+        (item) => !deletedIds.has(item.id)
+      );
       if (deletedActiveConversation) {
         this.resetCurrentConversationView();
       }
 
       try {
-        const results = await Promise.allSettled(uniqueConversations.map((conversation) => (
-          deleteConversationHistory(this.userId, conversation.id, this.tenantId)
-        )));
+        const results = await Promise.allSettled(
+          uniqueConversations.map((conversation) =>
+            deleteConversationHistory(this.userId, conversation.id, this.tenantId)
+          )
+        );
         const failedCount = results.filter((result) => result.status === "rejected").length;
         const succeededCount = uniqueConversations.length - failedCount;
         if (failedCount > 0) {
           await this.loadConversationHistory({ suppressError: true });
-          this.historyError = succeededCount > 0
-            ? `已删除 ${succeededCount} 条，${failedCount} 条删除失败，请重试`
-            : "批量删除历史会话失败，请重试";
+          this.historyError =
+            succeededCount > 0
+              ? `已删除 ${succeededCount} 条，${failedCount} 条删除失败，请重试`
+              : "批量删除历史会话失败，请重试";
         }
         await this.loadHistoryManager({
-          page: Math.min(this.historyManagerPage, Math.max(1, Math.ceil((this.historyManagerTotal - succeededCount) / this.historyManagerPageSize))),
+          page: Math.min(
+            this.historyManagerPage,
+            Math.max(
+              1,
+              Math.ceil((this.historyManagerTotal - succeededCount) / this.historyManagerPageSize)
+            )
+          ),
           pageSize: this.historyManagerPageSize,
-          keyword: this.historyManagerKeyword
+          keyword: this.historyManagerKeyword,
         });
       } finally {
         this.historyDeleting = false;
@@ -1180,7 +1370,7 @@ export default {
       const favorited = this.favoriteConversationIds.includes(targetId);
       this.favoriteSavingIds = {
         ...this.favoriteSavingIds,
-        [targetId]: true
+        [targetId]: true,
       };
       this.historyError = "";
       try {
@@ -1195,9 +1385,11 @@ export default {
           }
           await removeUserFavorite(favoriteId, {
             tenantId: this.tenantId,
-            userId: this.userId
+            userId: this.userId,
           });
-          this.favoriteConversationIds = this.favoriteConversationIds.filter((id) => id !== targetId);
+          this.favoriteConversationIds = this.favoriteConversationIds.filter(
+            (id) => id !== targetId
+          );
           const nextRecordIds = { ...this.favoriteConversationRecordIds };
           delete nextRecordIds[targetId];
           this.favoriteConversationRecordIds = nextRecordIds;
@@ -1208,13 +1400,13 @@ export default {
             targetType: "SESSION",
             targetId,
             title: conversation.question || "会话",
-            category: "会话"
+            category: "会话",
           });
           this.favoriteConversationIds = [...this.favoriteConversationIds, targetId];
           if (favorite?.id) {
             this.favoriteConversationRecordIds = {
               ...this.favoriteConversationRecordIds,
-              [targetId]: favorite.id
+              [targetId]: favorite.id,
             };
           }
         }
@@ -1227,7 +1419,11 @@ export default {
       }
     },
     handleConversationActive(conversation) {
-      if (conversation?.workspaceId && conversation.workspaceId !== this.currentWorkspace?.workspaceId) return;
+      if (
+        conversation?.workspaceId &&
+        conversation.workspaceId !== this.currentWorkspace?.workspaceId
+      )
+        return;
       if (conversation?.active !== false) {
         this.activeHistoryId = conversation?.id || "";
       }
@@ -1236,7 +1432,8 @@ export default {
       }
     },
     handleHistorySaved(payload) {
-      if (payload?.workspaceId && payload.workspaceId !== this.currentWorkspace?.workspaceId) return;
+      if (payload?.workspaceId && payload.workspaceId !== this.currentWorkspace?.workspaceId)
+        return;
       const previousHistory = this.conversationHistory;
       const history = Array.isArray(payload?.history) ? payload.history : payload;
       if (Array.isArray(history)) {
@@ -1276,18 +1473,20 @@ export default {
       return ids.some((id) => id && activeIds.has(id));
     },
     activeConversationIds() {
-      return new Set([
-        this.activeHistoryId,
-        this.selectedConversation?.id,
-        this.selectedConversation?.conversationId
-      ].filter(Boolean));
+      return new Set(
+        [
+          this.activeHistoryId,
+          this.selectedConversation?.id,
+          this.selectedConversation?.conversationId,
+        ].filter(Boolean)
+      );
     },
     historyContainsAnyConversationId(history = [], ids = new Set()) {
       if (!Array.isArray(history) || ids.size === 0) {
         return false;
       }
-      return history.some((conversation) =>
-        ids.has(conversation?.id) || ids.has(conversation?.conversationId)
+      return history.some(
+        (conversation) => ids.has(conversation?.id) || ids.has(conversation?.conversationId)
       );
     },
     applyActiveConversationStatus(history, activeHistoryId, activeStatus) {
@@ -1298,7 +1497,7 @@ export default {
         item.id === activeHistoryId
           ? this.normalizeHistoryConversationStatus({
               ...item,
-              status: activeStatus
+              status: activeStatus,
             })
           : this.normalizeHistoryConversationStatus(item)
       );
@@ -1309,19 +1508,23 @@ export default {
       if (!["running", "streaming", "pending"].includes(status)) {
         return mergedConversation;
       }
-      const messages = Array.isArray(mergedConversation.messages) ? mergedConversation.messages : [];
-      const hasRestorableTask = messages.some((message) => message?.role === "assistant" && message.taskId);
-      const recentRunning = Date.now() - Number(mergedConversation.timestamp || 0) <= 10 * 60 * 1000;
+      const messages = Array.isArray(mergedConversation.messages)
+        ? mergedConversation.messages
+        : [];
+      const hasRestorableTask = messages.some(
+        (message) => message?.role === "assistant" && message.taskId
+      );
+      const recentRunning =
+        Date.now() - Number(mergedConversation.timestamp || 0) <= 10 * 60 * 1000;
       if (hasRestorableTask || recentRunning) {
         return mergedConversation;
       }
-      const hasLiveAssistant = messages.some((message) =>
-        message?.role === "assistant"
-        && (message.streaming || message.status === "streaming" || message.status === "running")
-        && (
-          String(message.content || "").trim()
-          || Date.now() - Number(message.timestamp || mergedConversation.timestamp || 0) <= 120000
-        )
+      const hasLiveAssistant = messages.some(
+        (message) =>
+          message?.role === "assistant" &&
+          (message.streaming || message.status === "streaming" || message.status === "running") &&
+          (String(message.content || "").trim() ||
+            Date.now() - Number(message.timestamp || mergedConversation.timestamp || 0) <= 120000)
       );
       if (hasLiveAssistant) {
         return mergedConversation;
@@ -1330,10 +1533,15 @@ export default {
         ...mergedConversation,
         status: "completed",
         messages: messages.map((message) =>
-          message?.role === "assistant" && (message.streaming || message.status === "streaming" || message.status === "running")
-            ? { ...message, streaming: false, status: String(message.content || "").trim() ? "completed" : "empty" }
+          message?.role === "assistant" &&
+          (message.streaming || message.status === "streaming" || message.status === "running")
+            ? {
+                ...message,
+                streaming: false,
+                status: String(message.content || "").trim() ? "completed" : "empty",
+              }
             : message
-        )
+        ),
       };
     },
     handleAgentTaskCancelled(task = {}) {
@@ -1343,7 +1551,7 @@ export default {
       }
       clearChatRuntimeState({
         conversationId: sessionId,
-        taskId: task.taskId || ""
+        taskId: task.taskId || "",
       });
       const applyCancelled = (item) =>
         item && (item.id === sessionId || item.conversationId === sessionId)
@@ -1354,23 +1562,26 @@ export default {
                 ? item.messages.map((message) => ({
                     ...message,
                     streaming: false,
-                    status: message.streaming
-                      || message.status === "streaming"
-                      || message.status === "running"
-                      || message.status === "waiting"
-                      ? "cancelled"
-                      : message.status
+                    status:
+                      message.streaming ||
+                      message.status === "streaming" ||
+                      message.status === "running" ||
+                      message.status === "waiting"
+                        ? "cancelled"
+                        : message.status,
                   }))
-                : item.messages
+                : item.messages,
             }
           : item;
       this.conversationHistory = this.conversationHistory.map(applyCancelled);
-      if (this.selectedConversation && (
-        this.selectedConversation.id === sessionId || this.selectedConversation.conversationId === sessionId
-      )) {
+      if (
+        this.selectedConversation &&
+        (this.selectedConversation.id === sessionId ||
+          this.selectedConversation.conversationId === sessionId)
+      ) {
         this.selectedConversation = {
           ...applyCancelled(this.selectedConversation),
-          selectedAt: Date.now()
+          selectedAt: Date.now(),
         };
       }
     },
@@ -1391,14 +1602,14 @@ export default {
           ? conversation.messages.map((message) => ({
               ...message,
               streaming: !!message.streaming,
-              status: message.status || (message.streaming ? "streaming" : "completed")
+              status: message.status || (message.streaming ? "streaming" : "completed"),
             }))
-          : []
+          : [],
       };
       this.conversationHistory = [
         nextItem,
-        ...this.conversationHistory.filter((item) => item.id !== nextItem.id)
+        ...this.conversationHistory.filter((item) => item.id !== nextItem.id),
       ];
-    }
-  }
+    },
+  },
 };

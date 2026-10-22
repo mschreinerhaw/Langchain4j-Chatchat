@@ -1,0 +1,10 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "chatAndNavigation": true,
+    "localEditorWithoutRemoteRegistration": true,
+    "retiredRouteCannotLoad": true,
+    "retiredAuthenticatedApiRemoved": true,
+    "noRetiredRequestsOrPageErrors": true
+  }
+}

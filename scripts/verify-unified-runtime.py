@@ -26,6 +26,12 @@ def objects(value):
             pass
 
 
+def visual_report_resource(result, call):
+    # Task events carry references; structured reports are protected UI resources.
+    reference = next(row for row in objects(result) if row.get('contractVersion') == 'ui_artifact_ref_v1')
+    return call('/ui-artifacts/' + urllib.parse.quote(reference['artifactId']) + '/resources/visual-report')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--auth', type=Path, required=True)
@@ -82,8 +88,15 @@ def main():
         question = '请实际读取附件 CSV，使用 Python 计算行数与 amount 合计，并生成带金额柱状图、指标和解释的图文报告。仅使用附件中的合成数据，不查询外部数据。'
     request = {'question': question, 'sessionId': session, 'idempotencyKey': str(uuid.uuid4()),
                'parameters': {'reportMode': 'visual' if args.visual_report else 'off'}, 'attachmentIds': [item['id'] for item in files]}
-    task = call('/published-agents/' + urllib.parse.quote(args.agent) + '/questions', request)
-    assert call('/published-agents/' + urllib.parse.quote(args.agent) + '/questions', request)['taskId'] == task['taskId']
+    endpoint = '/published-agents/' + urllib.parse.quote(args.agent) + '/questions'
+    if args.visual_report:
+        endpoint = '/agent/tasks'
+        request = {'query': question, 'sessionId': session, 'idempotencyKey': str(uuid.uuid4()),
+                   'agentId': 'general', 'mode': 'llm_chat', 'modelName': before.get('modelName') or 'qwen3.6-plus',
+                   'tenantId': auth['user']['tenantId'], 'userId': auth['user']['id'],
+                   'toolInput': {'reportMode': 'visual', '__userAssetIds': [item['id'] for item in files]}}
+    task = call(endpoint, request)
+    assert call(endpoint, request)['taskId'] == task['taskId']
     save('submission.json', {'request': request, 'response': task})
     print(json.dumps({'stage': 'SUBMITTED', 'case': args.case, 'taskId': task['taskId']}), flush=True)
     query = '?tenantId=' + urllib.parse.quote(auth['user']['tenantId'])
@@ -130,8 +143,11 @@ def main():
               'sandboxExecutionProven': bool(consumed), 'admittedCodingEvidence': bool(receipts) and bool(feedback),
               'attachmentHashesVerified': len(files) == len(contents)}
     if args.visual_report:
-        reports = [row for row in objects(result) if row.get('schemaVersion') == 'python_visual_report.v1']
-        checks['visualReportProduced'] = any(row.get('status') == 'SUCCESS' and row.get('charts') for row in reports)
+        report = visual_report_resource(result, call)
+        save('visual-resource-private.json', report)
+        checks['visualReportProduced'] = (report.get('schemaVersion') == 'python_visual_report.v1'
+            and report.get('status') == 'SUCCESS' and bool(report.get('charts'))
+            and report.get('artifactValidationStatus') == 'PASSED')
     if args.exercise_error:
         checks['pythonErrorReturnedAndRepaired'] = bool(feedback) and any(
             row.get('schemaVersion') == 'runtime_os.execution_feedback.v1' and row.get('status') == 'FAILED'

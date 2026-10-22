@@ -1,5 +1,7 @@
 # LangChain4j ChatChat
 
+Runtime OS 2.1 架构已移除联合分析和集团/第三方专业 Agent 算力体系。统一入口为智能对话，数据分析沿用 Java Runtime → 受控 MCP → Node/Cline → Python Sandbox。删除清单、归档/回滚方案、保留的共享模块和验收结果见 [架构精简交付记录](docs/retire-professional-agents/delivery.md)。
+
 ## 品牌体系
 
 ### 总品牌：灵动（LingDong）

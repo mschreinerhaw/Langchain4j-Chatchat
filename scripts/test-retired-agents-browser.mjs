@@ -21,8 +21,15 @@ try {
   assert.equal(await page.getByText('联合分析', { exact: true }).count(), 0);
   checks.chatAndNavigation = true;
   await page.screenshot({ path: output + '/chat.png' });
+  const workshopLoaded = page.waitForResponse(response => response.url().includes('/api/v1/agents/workshop?') && response.request().method() === 'GET');
   await page.goto(base + '/#/w/zhice/agents');
   await page.locator('.agent-workshop-view').waitFor();
+  const workshopResponse = await workshopLoaded;
+  assert.equal(workshopResponse.status(), 200);
+  const workshop = (await workshopResponse.json()).data;
+  assert.ok(workshop.agents.length > 0);
+  assert.ok(workshop.models.length > 0);
+  await page.getByRole('button', { name: '刷新', exact: true }).waitFor();
   await page.getByRole('button', { name: '新增Agent', exact: true }).waitFor();
   assert.equal(await page.getByText('接入专有分析 Agent', { exact: true }).count(), 0);
   assert.equal(await page.locator('.remote-agent-card, .remote-agent-dialog').count(), 0);

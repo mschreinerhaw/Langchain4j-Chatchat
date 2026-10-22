@@ -1,0 +1,16 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "liveForeignKeyBlocksArchive": true,
+    "liveViewBlocksArchive": true,
+    "tablesArchivedWithoutDeletingRows": true,
+    "publicRegistryRemoved": true,
+    "archiveSchemaNotPublic": true,
+    "customizationConflictBlocksRollback": true,
+    "workspaceExactlyRestored": true,
+    "permissionAndBindingsRestored": true,
+    "physicalTablesRestored": true,
+    "archiveHistoryRetained": true
+  },
+  "productionDataUsed": false
+}

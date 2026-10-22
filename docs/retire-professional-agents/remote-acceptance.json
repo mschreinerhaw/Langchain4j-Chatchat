@@ -1,0 +1,255 @@
+{
+  "deployment": {
+    "version": "2.1.0-rc1",
+    "sourceCommit": "d54798c3a632740d2a876886d62da51b9cf47f00",
+    "backup": "/opt/runtime-os-docker-stage/evidence/retired-agents-2.1.0-rc1/backup-1792684249",
+    "archivedBefore": {
+      "agent_compute_definition": "24:76f79b341c6be75fc6fda4da2fb7ec13",
+      "agent_provider_health": "0:d751713988987e9331980363e24189ce",
+      "agent_a2a_task_link": "0:d751713988987e9331980363e24189ce"
+    },
+    "policyBefore": {
+      "runtime_os_acceptance_api.mcp_tool_permission": "cc610360702deaaf14b4b97358dd5385",
+      "runtime_os_acceptance_api.resource_grant": "cc4ee2677f54e70079b249dc53cc9459",
+      "runtime_os_acceptance_api.sys_user_role": "66ce7155c856069cc8c3804e437f2311",
+      "runtime_os_acceptance_mcp.mcp_template_query_binding": "6ef7a63454a2238e8ae81b4290075374"
+    },
+    "status": "DEPLOYED",
+    "policyAfter": {
+      "runtime_os_acceptance_api.mcp_tool_permission": "cc610360702deaaf14b4b97358dd5385",
+      "runtime_os_acceptance_api.resource_grant": "cc4ee2677f54e70079b249dc53cc9459",
+      "runtime_os_acceptance_api.sys_user_role": "66ce7155c856069cc8c3804e437f2311",
+      "runtime_os_acceptance_mcp.mcp_template_query_binding": "6ef7a63454a2238e8ae81b4290075374"
+    },
+    "policyUnchanged": true,
+    "archiveExact": true,
+    "artifacts": {
+      "api": {
+        "sha256": "5d193b58fd7fe5d62549826f7371208457d071152d5fcfe83c9fb7caa1128ab2",
+        "bytes": 428118323
+      },
+      "mcp": {
+        "sha256": "2c59eb269c610e56f9f3539363bed8b422b78c448f9d9f03f3e0fd3e916a9598",
+        "bytes": 254950910
+      }
+    }
+  },
+  "artifactAudit": {
+    "status": "PASSED",
+    "checks": {
+      "apiNoRetiredClassesOrDependencies": true,
+      "mcpNoRetiredClassesOrDependencies": true
+    }
+  },
+  "knowledge": {
+    "status": "PASSED",
+    "taskId": "427c1d28-d941-3d81-ba97-786fb8a40c75",
+    "checks": {
+      "taskSucceeded": true,
+      "answersQuestion": true,
+      "noProfessionalWorkflow": true
+    }
+  },
+  "controlledTemplate": {
+    "status": "PASSED",
+    "checks": {
+      "governanceWorkspaces": true,
+      "permissionsManifest": true,
+      "mcp-publicationManifest": true,
+      "unauthenticatedApiBlocked": true,
+      "directMcpManagementBlocked": true,
+      "revokedManagementPermissionEffectiveWithoutRelogin": true,
+      "readerCannotPublish": true,
+      "readerCannotEdit": true,
+      "readerCannotManagePermissions": true,
+      "draftInvisibleToRuntime": true,
+      "untestedPublishRejected": true,
+      "foreignTenantCannotTestRelease": true,
+      "invalidSchemaSampleRejected": true,
+      "draftUsesActualControlledRecall": true,
+      "testDidNotExpandTemplateScope": true,
+      "publishedToolVisible": true,
+      "publishedToolExecutesWithAuthenticatedEnvelope": true,
+      "executionRetainsFixedTemplateScope": true,
+      "newExecutionDenyEffectiveImmediately": true,
+      "removedSyntheticDenyRestoresExecution": true,
+      "forgedInvocationTenantRejected": true,
+      "publishedVersionCannotRevalidate": true,
+      "immutableVersionHistory": true,
+      "rollbackPreservesExactDefinition": true,
+      "rollbackRestoresRuntimeVisibility": true,
+      "offlineToolRemovedFromRuntime": true,
+      "offlineToolCannotExecuteByStaleId": true,
+      "databaseProtectsReleasedDefinition": true
+    },
+    "temporaryToolLogicalId": "b1685125-41b6-42c8-abd2-14cd66dfbc5f",
+    "temporaryToolState": "OFFLINE",
+    "templateFamily": "ssh_host",
+    "realModelInvoked": false
+  },
+  "finalHealth": {
+    "version": "2.1.0-rc1",
+    "services": {
+      "api": {
+        "status": "running",
+        "restartCount": 0
+      },
+      "mcp": {
+        "status": "running",
+        "restartCount": 0
+      },
+      "node-proxy": {
+        "status": "running",
+        "restartCount": 0
+      },
+      "coding-agent": {
+        "status": "running",
+        "restartCount": 0
+      },
+      "gateway": {
+        "status": "running",
+        "restartCount": 0
+      }
+    },
+    "artifactHashesMatch": true,
+    "originalCentralPoliciesRestoredAfterFixtureCleanup": true,
+    "originalTemplateBindingsUnchanged": true,
+    "syntheticPublicationsOffline": true,
+    "publicUiAvailable": true,
+    "status": "PASSED"
+  },
+  "runtimeCases": {
+    "single-error-repair": {
+      "status": "PASSED",
+      "case": "single",
+      "exerciseError": true,
+      "visualReport": false,
+      "taskId": "d628d643-67b4-35cc-ba59-5fc98aa08469",
+      "states": [
+        "PLANNING",
+        "SUCCEEDED"
+      ],
+      "checks": {
+        "taskSucceeded": true,
+        "publishedWorkflowUnchanged": true,
+        "sandboxExecutionProven": true,
+        "admittedCodingEvidence": true,
+        "attachmentHashesVerified": true,
+        "pythonErrorReturnedAndRepaired": true,
+        "protectedCodeAndStdoutRetrieved": true
+      },
+      "expectedTotals": [
+        30
+      ],
+      "elapsedSeconds": 151.4,
+      "evidenceParser": "Durable CODING_TRACE TASK_FINISHED plus successful execution_feedback.v1"
+    },
+    "visual-report": {
+      "status": "PASSED",
+      "case": "single",
+      "exerciseError": false,
+      "visualReport": true,
+      "taskId": "07037294-2076-3a85-8171-35d2baa818d2",
+      "states": [
+        "PLANNING",
+        "SUCCEEDED"
+      ],
+      "checks": {
+        "taskSucceeded": true,
+        "publishedWorkflowUnchanged": true,
+        "sandboxExecutionProven": true,
+        "admittedCodingEvidence": true,
+        "attachmentHashesVerified": true,
+        "visualReportProduced": true,
+        "protectedChartHashVerified": true,
+        "protectedCodeAndStdoutRetrieved": true
+      },
+      "expectedTotals": [
+        30
+      ],
+      "elapsedSeconds": 120.9,
+      "reportSummary": {
+        "status": "SUCCESS",
+        "chartCount": 1,
+        "metrics": [
+          {
+            "id": "row_count",
+            "value": "2",
+            "unit": "行"
+          },
+          {
+            "id": "amount_sum",
+            "value": "30",
+            "unit": ""
+          },
+          {
+            "id": "file_size",
+            "value": "20",
+            "unit": "字节"
+          }
+        ]
+      },
+      "evidenceParser": "Durable CODING_TRACE TASK_FINISHED plus successful execution_feedback.v1"
+    },
+    "chat-visual-report": {
+      "status": "PASSED",
+      "case": "single",
+      "exerciseError": false,
+      "visualReport": true,
+      "taskId": "60a5e1db-c5ad-35b1-9579-f8de2450863e",
+      "states": [
+        "PLANNING",
+        "SUCCEEDED"
+      ],
+      "checks": {
+        "taskSucceeded": true,
+        "publishedWorkflowUnchanged": true,
+        "sandboxExecutionProven": true,
+        "admittedCodingEvidence": true,
+        "attachmentHashesVerified": true,
+        "visualReportProduced": true,
+        "protectedChartHashVerified": true,
+        "protectedCodeAndStdoutRetrieved": true
+      },
+      "expectedTotals": [
+        30
+      ],
+      "elapsedSeconds": 70.6,
+      "reportSummary": {
+        "status": "SUCCESS",
+        "chartCount": 1,
+        "metrics": [
+          {
+            "id": "row_count",
+            "value": "2",
+            "unit": "行"
+          },
+          {
+            "id": "amount_sum",
+            "value": "30",
+            "unit": ""
+          }
+        ]
+      },
+      "evidenceParser": "Durable CODING_TRACE TASK_FINISHED plus successful execution_feedback.v1"
+    }
+  },
+  "retirementMetadata": {
+    "legacyMenuCount": 0,
+    "legacyPermissionCount": 0,
+    "legacyWorkspaceCount": 0,
+    "migrationMarkerCount": 1,
+    "archivedRegistryRows": 24
+  },
+  "syntheticNumericalCheck": {
+    "rowCount": 2,
+    "amountTotal": "30",
+    "archivedRowsSha256": "10de69efce2439c4a88b70d1de3c5213df190e8975a576feee6abf7d85813ef6"
+  },
+  "cleanup": {
+    "temporaryQueryServiceRemoved": true,
+    "temporaryIdentitiesRemoved": true,
+    "syntheticToolReleasesOffline": true,
+    "auditAndTaskEvidenceRetained": true
+  }
+}

@@ -1,11 +1,13 @@
 """Reconcile retained real analysis evidence and retrieve protected code/stdout without resubmitting work."""
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import urllib.parse
 import urllib.request
 import runpy
 objects = runpy.run_path(str(Path(__file__).with_name('verify-unified-runtime.py')))['objects']
+visual_report_resource = runpy.run_path(str(Path(__file__).with_name('verify-unified-runtime.py')))['visual_report_resource']
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--auth', type=Path, required=True)
@@ -52,6 +54,29 @@ consumed = [row for row in objects(monitors) if isinstance(row.get('consumed'), 
             and row['consumed'].get('codeExecutions', 0) > 0]
 snapshot = call('/agent/tasks/' + submission['response']['taskId'] + '?tenantId=' + auth['user']['tenantId'])
 summary = json.loads((args.output / 'acceptance.json').read_text())
+if summary.get('visualReport'):
+    result = json.loads((args.output / 'result.json').read_text())
+    report = visual_report_resource(result, call)
+    (args.output / 'visual-resource-private.json').write_text(json.dumps(report, ensure_ascii=False, indent=2))
+    summary['checks']['visualReportProduced'] = (report.get('schemaVersion') == 'python_visual_report.v1'
+        and report.get('status') == 'SUCCESS' and bool(report.get('charts'))
+        and report.get('artifactValidationStatus') == 'PASSED')
+    summary['reportSummary'] = {'status': report.get('status'), 'chartCount': len(report.get('charts', [])),
+        'metrics': [{key: metric[key] for key in ['id', 'value', 'unit']} for metric in report.get('metrics', [])]}
+    for chart in report.get('charts', []):
+        artifact = chart['artifact']
+        url = 'http://127.0.0.1:18180/api/v1/interactions/user-assets/' + urllib.parse.quote(artifact['fileId']) + '/content'
+        request = urllib.request.Request(url, headers={'Authorization': 'Bearer ' + auth['token']})
+        with client.open(request, timeout=60) as response:
+            content = response.read()
+        assert len(content) == artifact['size'] and hashlib.sha256(content).hexdigest() == artifact['sha256']
+        (args.output / artifact['fileName']).write_bytes(content)
+        try:
+            client.open(url, timeout=30)
+            raise AssertionError('Chart download unexpectedly allowed without authentication')
+        except urllib.error.HTTPError as error:
+            assert error.code in (401, 403)
+    summary['checks']['protectedChartHashVerified'] = bool(report.get('charts'))
 summary['checks'].update(taskSucceeded=snapshot['canonicalState'] == 'SUCCEEDED',
     sandboxExecutionProven=bool(consumed), admittedCodingEvidence=bool(receipts) and bool(feedbacks),
     protectedCodeAndStdoutRetrieved=bool(outputs))

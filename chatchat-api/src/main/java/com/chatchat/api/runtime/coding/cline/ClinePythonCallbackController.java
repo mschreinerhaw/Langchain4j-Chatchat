@@ -39,6 +39,9 @@ import org.springframework.web.server.ResponseStatusException;
 @ConditionalOnProperty(prefix = "chatchat.coding.cline", name = "enabled", havingValue = "true")
 @ConditionalOnProperty(prefix = "chatchat.coding", name = "enabled", havingValue = "true")
 public final class ClinePythonCallbackController {
+    private com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackService feedback;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setFeedback(com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackService value) { feedback=value; }
     private CodingCodeArtifactStore codeArtifacts;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setCodeArtifacts(CodingCodeArtifactStore value) { codeArtifacts = value; }
@@ -75,6 +78,10 @@ public final class ClinePythonCallbackController {
                 throw new IllegalArgumentException("Python source exceeds the D1 limit");
             if (request.path("codeSha256").isTextual() && !sha(source).equals(request.path("codeSha256").asText()))
                 throw new IllegalArgumentException("Python source hash mismatch");
+            if(feedback!=null)try{feedback.admit(contract,call.lease(),operationId,sha(source));}
+            catch(com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackService.RepairDeniedException denied){
+                throw new ResponseStatusException(HttpStatus.CONFLICT,denied.getMessage());
+            }
             // Freeze the exact source before Sandbox admission; rejected code remains inspectable.
             if (codeArtifacts != null) codeArtifacts.commit(contract, operationId, source,
                 request.path("codeSha256").isTextual() ? request.path("codeSha256").asText() : null);
@@ -93,8 +100,8 @@ public final class ClinePythonCallbackController {
                     contract.environmentRef(), "coding-task:" + contract.taskId(), CODE_FILE,
                     source, Map.of(), "{}", Map.of(input.fileId(), input.sha256()), reservation);
             } catch (RuntimeException executionFailure) {
-                LOG.warn("Bound Coding Python operation {} was not acknowledged by the MCP control plane",
-                    operationId, executionFailure);
+                com.chatchat.common.runtime.event.RuntimeEventLog.execution("PYTHON_DISPATCH_UNKNOWN",call.scope(),call.taskId(),operationId,
+                    Map.of("status","UNKNOWN","exceptionType",executionFailure.getClass().getSimpleName()));
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Python operation outcome is unknown; reconcile before retry", executionFailure);
             }
@@ -106,13 +113,17 @@ public final class ClinePythonCallbackController {
     public Map<String, Object> get(@RequestBody JsonNode body) {
         return bound(body, true, call -> {
             String operationId = operationId(body.path("operationId").asText(null));
+            if(feedback!=null){
+                var cached=feedback.cached(call.scope(),call.taskId(),operationId);
+                if(cached!=null)return feedback.response(cached);
+            }
             var result = python.get(call.scope(), call.taskId(), operationId);
             if (result.executorStopped() && result.manifestHash() != null)
                 python.reconcile(call.scope(), call.taskId(), call.lease(), operationId);
             Map<String, Object> response = view(result);
             var layout = CodingInputLayout.describe(call.contract().runtimeContext());
             if (!layout.isEmpty()) response.put("inputLayout", layout);
-            if (result.executorStopped() && result.manifestHash()!=null) {
+            if (feedback==null && result.executorStopped() && result.manifestHash()!=null) {
                 try { var stderr=python.stderr(call.scope(), call.taskId(), operationId);
                     var stdout=python.stdout(call.scope(),call.taskId(),operationId);
                     // Process output is untrusted data: printing a source row must not
@@ -141,10 +152,10 @@ public final class ClinePythonCallbackController {
                         +"Stdout and auxiliary file contents are not returned to the model: repeating print/file probes cannot reveal source samples. "
                         +"Inspect and parse data within the same Python program that computes and writes the result. "
                         +"Each call starts a fresh sandbox: write the required JSONL file under /workspace/output/results/ in the same program.");
-                    return response;
+                    return withFeedback(call,result,response);
                 } catch(CodingEvidenceCollector.InvalidStructuredResultException invalid) {
                     response.put("outputStatus","INVALID_RESULT_SCHEMA");response.put("resultAvailable",false);
-                    response.put("diagnostic","Structured result does not match the contracted row schema; repair field names and types in a complete new program.");return response;
+                    response.put("diagnostic","Structured result does not match the contracted row schema; repair field names and types in a complete new program.");return withFeedback(call,result,response);
                 }
                 if (collected.validationStatus() == com.chatchat.common.runtime.coding.CodingTaskOutcome.ValidationStatus.FAILED) {
                     if (collector.copiedSourceResult(call.scope(), call.taskId(), collected.validationRecordRef())
@@ -156,7 +167,7 @@ public final class ClinePythonCallbackController {
                         response.put("diagnostic", "The immutable-input comparison rejected a raw source copy. "
                             + "This Coding delegation has ended without admitting a dataset. Runtime must revise the analytical objective "
                             + "and output contract under a new requestId; do not repeat source inspection or source-row reproduction.");
-                        return response;
+                        return withFeedback(call,result,response);
                     }
                     response.put("outputStatus", "RESULT_VALIDATION_FAILED");
                     response.put("resultAvailable", false);
@@ -165,7 +176,7 @@ public final class ClinePythonCallbackController {
                         + "and replace bulk source text with metrics and concise findings calculated in Python. "
                         + "Unchanged source documents or record collections are not analytical results. Use short quotations or input row references alongside computed findings. Original long-form analysis is allowed; do not split raw documents across fields or rows. "
                         + "Repair the complete program and execute again.");
-                    return response;
+                    return withFeedback(call,result,response);
                 }
                 response.put("inputSnapshotRef", collected.inputSnapshotRef());
                 response.put("codeArtifactRef", collected.codeArtifactRef());
@@ -177,7 +188,7 @@ public final class ClinePythonCallbackController {
                 response.put("businessValidationPassed", collected.businessValidationPassed());
                 response.put("validationStatus", collected.validationStatus().name());
             }
-            return response;
+            return withFeedback(call,result,response);
         });
     }
 
@@ -191,6 +202,12 @@ public final class ClinePythonCallbackController {
 
     private record Call(KernelDataScope scope, String taskId, CodingTaskContract contract,
                         CodingJournal.Lease lease) { }
+
+    private Map<String,Object> withFeedback(Call call,McpPythonControlPlanePort.OperationView operation,Map<String,Object> response){
+        if(feedback!=null&&operation.executorStopped()&&operation.manifestHash()!=null)
+            response.put("executionFeedback",feedback.finish(call.contract(),call.lease(),operation,response));
+        return response;
+    }
 
     private boolean rejectSourceCopy(Call call, CodingEvidenceCollector.Collected collected) {
         var current = tasks.get(call.scope(), call.taskId());
@@ -296,6 +313,11 @@ public final class ClinePythonCallbackController {
         while(error.find())diagnostic.put("exceptionType",error.group(1));
         var line=java.util.regex.Pattern.compile("(?m)^\\s*File \"/workspace/(?:code/)?main\\.py\", line ([0-9]{1,8})").matcher(stderr);
         while(line.find())diagnostic.put("line",Integer.parseInt(line.group(1)));
+        var code=java.util.regex.Pattern.compile("(?m)^Runtime diagnostic: ([A-Z_]{1,60})$").matcher(stderr);
+        if(code.find()&&com.chatchat.common.runtime.coding.ExecutionFailureClassifier.known(code.group(1))){
+            diagnostic.put("diagnosticCode",code.group(1));
+            diagnostic.put("guidance",com.chatchat.common.runtime.coding.ExecutionFailureClassifier.guidance(code.group(1)));
+        }
         return diagnostic;
     }
 }

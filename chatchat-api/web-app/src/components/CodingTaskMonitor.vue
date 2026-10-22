@@ -25,11 +25,21 @@
           <div><dt>创建时间</dt><dd>{{ time(selected.outcome.createdAt) }}</dd></div>
           <div><dt>运行时长</dt><dd>{{ elapsed }} 秒</dd></div>
           <div><dt>失败 / 停止原因</dt><dd>{{ selected.outcome.reasonCode || selected.outcome.executionControl?.stopReason || '无' }}</dd></div>
-          <div><dt>代码修正次数</dt><dd>{{ Math.max(0, versions.length - 1) }}</dd></div>
+          <div><dt>代码修正次数</dt><dd>{{ selected.executions?.length ? Math.max(...selected.executions.map(item => item.repair.attemptsUsed)) : Math.max(0, versions.length - 1) }}</dd></div>
         </dl>
         <button v-if="selected.canCancel" @click="cancel" :disabled="cancelling">{{ cancelling ? '取消请求中' : '取消任务' }}</button>
         <button v-if="selected.canResume" @click="resume" :disabled="resuming">{{ resuming ? '核对中' : '核对并恢复' }}</button>
         <p v-if="selected.outcome.summary">{{ selected.outcome.summary }}</p>
+        <h4>Python 执行与修复反馈</h4>
+        <p v-if="!selected.executions?.length">尚未取得已归档的执行反馈；请以现有事件时间线核对进行中的操作。</p>
+        <div v-else class="table-scroll"><table><thead><tr><th>执行 / 代码版本</th><th>状态 / 校验</th><th>耗时 / 退出码</th><th>错误与定位</th><th>自动修复</th></tr></thead>
+          <tbody><tr v-for="execution in selected.executions" :key="execution.executionId">
+            <td>{{ execution.attemptId }}<br><code>{{ execution.codeHash?.slice(0,12) }}</code><br>{{ execution.executionId }}</td>
+            <td>{{ execution.stage }}<br>{{ execution.validationStatus }}</td>
+            <td>{{ execution.durationMs ?? '未测得' }} ms / {{ execution.exitCode ?? '未知' }}</td>
+            <td>{{ execution.error?.category || '无执行错误' }}<br>{{ execution.error?.message }}<span v-for="(frame,index) in execution.error?.stack || []" :key="index"><br>{{ frame.file }}:{{ frame.line }}</span></td>
+            <td>{{ execution.repair.attemptsUsed }} / {{ execution.repair.maxAttempts }}<br>{{ execution.repair.allowed ? '允许在当前任务修复' : execution.resultAvailable ? '结果已归档' : '已停止自动修复' }}<br>{{ execution.repair.reason }}</td>
+          </tr></tbody></table></div>
         <h4>实际模型调用</h4>
         <p>配置快照：{{ selected.configuration.model?.selectedModel || '历史任务未记录' }} · 任务内固定</p>
         <div class="table-scroll"><table><thead><tr><th>调用</th><th>模型 / 供应商协议</th><th>开始 / 结束</th><th>状态</th><th>耗时 / Tokens</th></tr></thead>

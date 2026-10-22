@@ -300,16 +300,17 @@ public final class ClineModelCallbackController {
         var payload = new java.util.LinkedHashMap<String,Object>();
         for (String key : List.of("type", "timestamp", "stage", "source", "attemptId", "tool", "status",
                 "codeSha256", "fileName", "proposedOperationId", "skillFingerprint", "selectedModel", "providerModel", "protocol", "startedAt", "finishedAt", "validationStatus", "outputStatus",
-                "resultDatasetRef", "validationRecordRef", "evidenceBundleRef")) {
+                "resultDatasetRef", "validationRecordRef", "evidenceBundleRef", "errorCategory", "diagnosticCode")) {
             JsonNode value = event.path(key);
             if (value.isTextual() && value.asText().length() <= 512) payload.put(key, value.asText());
         }
-        for (String key : List.of("modelCall", "sourceBytes", "durationMs", "maxOutputTokens")) {
+        for (String key : List.of("modelCall", "sourceBytes", "durationMs", "maxOutputTokens", "repairAttempts")) {
             if (event.path(key).isIntegralNumber() && event.path(key).asLong() >= 0)
                 payload.put(key, event.path(key).asLong());
         }
         if (event.path("resultAvailable").isBoolean())
             payload.put("resultAvailable", event.path("resultAvailable").asBoolean());
+        if (event.path("repairAllowed").isBoolean())payload.put("repairAllowed",event.path("repairAllowed").asBoolean());
         if (event.path("usage").isObject()) {
             var usage = new java.util.LinkedHashMap<String,Object>();
             for (String key : List.of("inputTokens", "outputTokens"))

@@ -4,15 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
+import com.chatchat.common.runtime.coding.ExecutionFailureClassifier;
 
 /** No user stream content crosses the managed-execution persistence boundary. */
 final class PythonExecutionLogBoundary {
-    private static final Map<String,String> HINTS = Map.of(
-        "VALUE_NOT_SUBSCRIPTABLE", "The value at this line cannot be indexed. Inspect its definition and distinguish a scalar from the intended row/dictionary; repair the program without changing source data.",
-        "NUMERIC_TYPE_MISMATCH", "Operands have incompatible types. Use the declared input schema to normalize compatible numeric types explicitly and preserve decimal precision.",
-        "JSON_VALUE_NOT_SERIALIZABLE", "A result value is not JSON serializable. Encode exact decimal/date values explicitly according to the output schema before writing JSONL.",
-        "PACKAGE_NOT_INSTALLED", "The requested package is absent. Use the captured installed-package versions and available libraries; do not install dependencies or access the network.",
-        "PACKAGE_API_UNAVAILABLE", "The attribute/API is unavailable. Check the captured package version and use a supported API at the reported source line.");
     private static final Set<String> EXCEPTIONS = Set.of("AssertionError", "AttributeError", "EOFError",
         "ImportError", "ModuleNotFoundError", "IndexError", "KeyError", "NameError", "UnboundLocalError",
         "OSError", "FileNotFoundError", "PermissionError", "RuntimeError", "NotImplementedError",
@@ -41,13 +36,26 @@ final class PythonExecutionLogBoundary {
                 if (EXCEPTIONS.contains(value.path("exceptionType").asText("")))
                     safe.put("exceptionType", value.path("exceptionType").asText());
                 String code = value.path("diagnosticCode").asText("");
-                if (HINTS.containsKey(code)) safe.put("diagnosticCode", code);
+                if (ExecutionFailureClassifier.known(code)) safe.put("diagnosticCode", code);
+                var stack = new ArrayList<Map<String,Object>>();
+                for (var frame : value.path("stack")) {
+                    if (stack.size() >= 16) break;
+                    if ("main.py".equals(frame.path("file").asText()) && frame.path("line").canConvertToInt()
+                            && frame.path("line").asInt() > 0 && frame.path("line").asInt() < 100_000_000)
+                        stack.add(Map.of("file", "main.py", "line", frame.path("line").asInt()));
+                }
+                if (!stack.isEmpty()) safe.put("stack", stack);
                 if (value.path("line").isIntegralNumber() && value.path("line").asLong() > 0
                         && value.path("line").asLong() < 100_000_000)
                     safe.put("line", value.path("line").asLong());
             } catch (RuntimeException | IOException malformed) {
                 // Missing diagnostics never authorize persisting arbitrary process output.
             }
+        }
+        safe.put("schemaVersion", "runtime_os.python_diagnostic.v1");
+        if (!safe.containsKey("diagnosticCode") && safe.get("exceptionType") instanceof String exception) {
+            String code = ExecutionFailureClassifier.code(exception);
+            if (ExecutionFailureClassifier.known(code)) safe.put("diagnosticCode", code);
         }
         replace(diagnostic, mapper.writeValueAsString(safe));
         replace(directory.resolve("stdout.txt"), "[Runtime: raw stdout omitted; observedBytes="
@@ -56,7 +64,7 @@ final class PythonExecutionLogBoundary {
         if (safe.containsKey("line")) stderr += "  File \"/workspace/main.py\", line " + safe.get("line") + "\n";
         if (safe.containsKey("exceptionType")) stderr += safe.get("exceptionType") + ":\n";
         if (safe.containsKey("diagnosticCode")) stderr += "Runtime diagnostic: " + safe.get("diagnosticCode")
-            + "\nRepair guidance: " + HINTS.get(safe.get("diagnosticCode")) + "\n";
+            + "\nRepair guidance: " + ExecutionFailureClassifier.guidance((String)safe.get("diagnosticCode")) + "\n";
         replace(directory.resolve("stderr.txt"), stderr);
     }
 

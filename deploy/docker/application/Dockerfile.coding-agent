@@ -1,0 +1,17 @@
+ARG NODE_RUNTIME_IMAGE=runtime-os-node-base:node24-bookworm-20261022
+FROM ${NODE_RUNTIME_IMAGE}
+ARG BUILD_REVISION=development
+LABEL org.opencontainers.image.revision=${BUILD_REVISION}
+ENV NODE_ENV=production RUNTIME_CODING_HOST=0.0.0.0 RUNTIME_CODING_PORT=3100 \
+    RUNTIME_CODING_BUILD=${BUILD_REVISION} RUNTIME_CODING_CALLBACK_TIMEOUT_MS=90000 RUNTIME_CODING_LOG_LEVEL=info
+WORKDIR /srv/coding-agent
+# Offline build: reuse verified dependencies, replace all application modules once.
+COPY --chown=node:node node_modules ./node_modules
+COPY --chown=node:node dist ./dist
+COPY --chown=node:node package.json ./
+COPY --chown=node:node src/healthcheck.js ./src/healthcheck.js
+RUN node --version && mkdir /srv/monitor-data && chown node:node /srv/monitor-data
+USER node
+EXPOSE 3100
+HEALTHCHECK --interval=15s --timeout=5s --start-period=15s --retries=3 CMD ["node", "dist/healthcheck.js"]
+CMD ["node", "dist/server.js"]

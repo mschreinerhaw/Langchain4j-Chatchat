@@ -36,7 +36,8 @@ def main():
     code = process.wait()
     for reader in readers:
         reader.join()
-    diagnostic = {'policy': 'METADATA_ONLY_V1', 'stdoutBytes': out['bytes'], 'stderrBytes': err['bytes'],
+    diagnostic = {'schemaVersion': 'runtime_os.python_diagnostic.v1',
+                  'policy': 'METADATA_ONLY_V1', 'stdoutBytes': out['bytes'], 'stderrBytes': err['bytes'],
                   'stdoutSha256': out['sha256'], 'stderrSha256': err['sha256']}
     exceptions = {name for name in dir(builtins) if isinstance(getattr(builtins, name), type)
                   and issubclass(getattr(builtins, name), BaseException)}
@@ -46,6 +47,7 @@ def main():
     frames = re.findall(r'File "' + re.escape(source) + r'", line ([0-9]{1,8})', err['tail'])
     if frames:
         diagnostic['line'] = int(frames[-1])
+        diagnostic['stack'] = [{'file': 'main.py', 'line': int(line)} for line in frames[-16:]]
     hint = diagnostic_code(err['tail'])
     if hint:
         diagnostic['diagnosticCode'] = hint

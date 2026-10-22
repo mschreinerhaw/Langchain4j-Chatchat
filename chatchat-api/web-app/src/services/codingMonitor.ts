@@ -1,4 +1,5 @@
 import { apiRequest } from './api';
+import type { ExecutionFeedback } from '../../../../coding-agent-node/src/execution-feedback';
 
 export interface CodingEvent {
   eventId: string; taskId: string; sequence: number; occurredAt: string; type: string;
@@ -6,6 +7,7 @@ export interface CodingEvent {
   payload?: Record<string, any>; evidenceRefs?: string[];
 }
 export interface CodingTask {
+  executions?: ExecutionFeedback[];
   modelReceipts?: CodingModelCallTelemetry[];
   taskId: string; attemptId: string; objective: string; canCancel: boolean; canRetry: boolean; canResume?: boolean;
   configuration: { model?: Record<string, any>; skills?: Record<string, any>; configuredSkillIds?: string[] };

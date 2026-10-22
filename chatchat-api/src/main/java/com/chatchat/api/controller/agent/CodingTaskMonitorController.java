@@ -22,6 +22,8 @@ import org.springframework.web.server.ResponseStatusException;
 @ConditionalOnProperty(prefix="chatchat.coding",name="enabled",havingValue="true")
 @RequestMapping("/api/v1/agent/runtime/runs/{runId}/coding")
 public class CodingTaskMonitorController {
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackService feedback;
     private final AgentRuntime runtime;
     private final DurableCodingTaskService tasks;
     private final CodingAgentSPI coding;
@@ -65,6 +67,7 @@ public class CodingTaskMonitorController {
                     item.put("taskId",id); item.put("outcome",outcome);
                     item.put("objective",contract.objective().instruction().split("\n",2)[0]);
                     item.put("configuration",contract.runtimeContext());
+                    if(feedback!=null)item.put("executions",feedback.timeline(scope,id));
                     if(modelReceipts!=null) {
                         var calls=new ArrayList<CodingModelCallTelemetry>();
                         for(var operation:tasks.startedModelOperations(scope,id))

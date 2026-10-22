@@ -10,6 +10,34 @@ CAPTURE = Path(__file__).resolve().parents[2] / 'chatchat-mcp-server/src/main/re
 
 
 class PythonRuntimeDiagnosticTest(unittest.TestCase):
+    def test_real_syntax_field_and_dependency_failures_keep_only_safe_source_locations(self):
+        cases = [('def broken(:\n    pass\n', 'SyntaxError'),
+                 ("row={'amount':1}\nprint(row['private_customer_field'])\n", 'KeyError'),
+                 ('import runtime_feedback_missing_private_package\n', 'ModuleNotFoundError')]
+        for code, expected in cases:
+            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as name:
+                root=Path(name); source=root/'main.py'; source.write_text(code,encoding='utf-8'); diagnostic=root/'diagnostic.json'
+                result=subprocess.run([sys.executable,str(CAPTURE),str(source),str(diagnostic)],capture_output=True)
+                self.assertEqual(result.returncode,1)
+                text=diagnostic.read_text(); value=json.loads(text)
+                self.assertEqual(value['schemaVersion'],'runtime_os.python_diagnostic.v1')
+                self.assertEqual(value['exceptionType'],expected)
+                self.assertEqual(value['stack'][-1]['file'],'main.py')
+                self.assertGreater(value['stack'][-1]['line'],0)
+                self.assertNotIn('private_customer_field',text)
+                self.assertNotIn('runtime_feedback_missing_private_package',text)
+
+    def test_large_private_stdout_is_counted_without_becoming_feedback_or_a_log_file(self):
+        with tempfile.TemporaryDirectory() as name:
+            root=Path(name);source=root/'main.py';source.write_text("print('private_customer_record'*100000)\n",encoding='utf-8')
+            diagnostic=root/'diagnostic.json'
+            result=subprocess.run([sys.executable,str(CAPTURE),str(source),str(diagnostic)],capture_output=True)
+            self.assertEqual(result.returncode,0)
+            value=json.loads(diagnostic.read_text());self.assertGreater(value['stdoutBytes'],1000000)
+            self.assertLess(diagnostic.stat().st_size,2048)
+            self.assertNotIn('private_customer_record',diagnostic.read_text())
+            self.assertEqual(result.stdout,b'')
+
     def test_repeated_historical_scalar_failure_gets_safe_machine_readable_repair_category(self):
         with tempfile.TemporaryDirectory() as name:
             root = Path(name)

@@ -343,12 +343,21 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
 
     private JsonNode request(String path, Object value) {
         if ("/v1/runs".equals(path)) requireDispatchLicense();
+        var envelope=mapper.valueToTree(value);
+        var binding=envelope.has("contract")?envelope.path("contract"):envelope;
+        KernelDataScope logScope=null;
+        try{if(binding.path("scope").isObject())logScope=mapper.treeToValue(binding.path("scope"),KernelDataScope.class);}
+        catch(java.io.IOException ignored){/* Logging does not alter callback binding. */}
+        String logTask=binding.path("taskId").asText(null);
+        long started=System.nanoTime();
         try {
             byte[] bytes = mapper.writeValueAsBytes(value);
             HttpRequest call = HttpRequest.newBuilder(node.resolve(path)).timeout(Duration.ofSeconds(5))
                 .header("Authorization", "Bearer " + secret).header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofByteArray(bytes)).build();
             HttpResponse<String> response = http.send(call, HttpResponse.BodyHandlers.ofString());
+            com.chatchat.common.runtime.event.RuntimeEventLog.execution(
+                "NODE_RESPONSE",logScope,logTask,null,Map.of("httpStatus",response.statusCode(),"durationMs",(System.nanoTime()-started)/1_000_000));
             if (response.statusCode() < 200 || response.statusCode() >= 300)
                 throw new NodeHttpException(response.statusCode());
             return mapper.readTree(response.body());
@@ -356,6 +365,8 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Cline dispatch interrupted; reconcile before retry", interrupted);
         } catch (java.io.IOException failure) {
+            com.chatchat.common.runtime.event.RuntimeEventLog.execution(
+                "NODE_RESPONSE_UNKNOWN",logScope,logTask,null,Map.of("status","UNKNOWN","exceptionType",failure.getClass().getSimpleName()));
             throw new IllegalStateException("Cline dispatch outcome unknown; reconcile before retry", failure);
         }
     }

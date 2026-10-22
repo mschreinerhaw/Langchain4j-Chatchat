@@ -85,7 +85,7 @@ class AgentWorkflowStateTrackerTest {
 
     @Test
     void carriesTheUniqueSuccessfulAssetTargetAcrossWorkflowAttempts() {
-        AgentWorkflowStateTracker tracker = new AgentWorkflowStateTracker();
+        AgentWorkflowStateTracker tracker = trackerWithDeclaredAssetTool();
         InteractionToolTrace asset = InteractionToolTrace.builder()
             .toolName("mcp_generated_ssh_asset_query")
             .success(true)
@@ -101,7 +101,7 @@ class AgentWorkflowStateTrackerTest {
 
     @Test
     void doesNotGuessWorkflowTargetAcrossFailedOrAmbiguousAssetQueries() {
-        AgentWorkflowStateTracker tracker = new AgentWorkflowStateTracker();
+        AgentWorkflowStateTracker tracker = trackerWithDeclaredAssetTool();
         InteractionToolTrace first = InteractionToolTrace.builder()
             .toolName("mcp_generated_ssh_asset_query")
             .success(true)
@@ -125,6 +125,18 @@ class AgentWorkflowStateTrackerTest {
             Map.of("workflowContext", Map.of("workflowTargetRef", "explicit-target")),
             java.util.Set.of(first.getToolName()), List.of(first)))
             .containsEntry("workflowContext", Map.of("workflowTargetRef", "explicit-target"));
+    }
+
+    private AgentWorkflowStateTracker trackerWithDeclaredAssetTool() {
+        var registry=new com.chatchat.agents.tool.DefaultToolRegistry();
+        var metadata=com.chatchat.common.tool.ToolMetadata.builder().id("mcp_generated_ssh_asset_query")
+            .metadata(Map.of(com.chatchat.common.tool.ToolWorkflowContract.METADATA_KEY,
+                com.chatchat.common.tool.ToolWorkflowContract.declaration(com.chatchat.common.tool.ToolWorkflowRole.ASSET_DISCOVERY,null,null))).build();
+        registry.registerTool(metadata.getId(),metadata,new com.chatchat.agents.tool.ToolRegistry.EnhancedTool(){
+            public com.chatchat.common.tool.ToolMetadata getMetadata(){return metadata;}
+            public com.chatchat.common.tool.ToolOutput execute(com.chatchat.common.tool.ToolInput input){throw new AssertionError("Role lookup must not execute tools");}
+        });
+        return new AgentWorkflowStateTracker(registry);
     }
 
     private AgentRunEvent observation(String toolName, boolean success, int stepId) {

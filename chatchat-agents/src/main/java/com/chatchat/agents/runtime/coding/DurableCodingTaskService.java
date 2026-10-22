@@ -79,6 +79,13 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         var value = task(read(scope, READ), taskId).privateState.get(key);
         return value == null ? null : value.deepCopy();
     }
+    public List<ExecutionFeedback> executionFeedback(KernelDataScope scope,String taskId){
+        var task=task(read(scope,READ),taskId);
+        return task.operations.entrySet().stream().filter(e->e.getValue().kind==CodingJournal.OperationKind.CODE)
+            .sorted(Comparator.comparingLong(e->e.getValue().startSequence))
+            .map(e->task.privateState.get("feedback:"+e.getKey())).filter(Objects::nonNull)
+            .map(value->json.convertValue(value,ExecutionFeedback.class)).toList();
+    }
 
     /** Internal extensions use the existing task journal and fencing transaction. No external I/O. */
     public void privateState(KernelDataScope scope, String taskId, CodingJournal.Lease lease, String key,
@@ -100,6 +107,36 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         if (saved == null || unresolved(task) || saved.path("operationCount").asInt(-1) != task.operations.size())
             return null; // A crash beyond this boundary requires receipt reconciliation, never replay.
         return saved.deepCopy();
+    }
+
+    /** Server-verified stopped feedback shares the existing journal transaction and idempotency. */
+    public boolean recordExecutionFeedback(KernelDataScope scope, String taskId, CodingJournal.Lease lease,
+            ExecutionFeedback feedback) {
+        require(taskId.equals(feedback.taskId()) && Objects.equals(scope.runId(), feedback.traceId()),
+            CONTRACT_INVALID, "Execution feedback identity mismatch");
+        boolean[] inserted = {false};
+        mutateTask(scope, taskId, WORKER, task -> {
+            fence(task, lease);
+            var operation = task.operations.get(feedback.executionId());
+            require(operation != null && operation.kind == CodingJournal.OperationKind.CODE && operation.stopProofRef != null,
+                INVALID_STATE_TRANSITION, "Execution feedback requires independently confirmed stop");
+            String key = "feedback:" + feedback.executionId();
+            if (task.privateState.containsKey(key)) return;
+            require(task.privateState.size() < 128, ADAPTER_UNAVAILABLE, "Private state capacity");
+            com.fasterxml.jackson.databind.JsonNode value = json.valueToTree(feedback);
+            task.privateState.put(key, value);
+            advance(task, CodingExecutionEvent.Type.RECOVERY_RECONCILED, null,
+                "Python feedback: " + feedback.stage(), feedback.executionId(), List.of(operation.stopProofRef),
+                copy(task, task.outcome.status(), task.outcome.reasonCode(), task.outcome.executionControl(), null));
+            int last = task.events.size() - 1;
+            var event = task.events.get(last);
+            task.events.set(last, new CodingExecutionEvent(event.schemaVersion(), event.eventId(), event.taskId(),
+                event.scope(), event.sequence(), event.revision(), event.occurredAt(), event.type(), event.operationId(),
+                event.attempt(), event.status(), event.reasonCode(), event.evidenceRefs(), event.usage(), event.summary(),
+                Map.of("type", "EXECUTION_FEEDBACK", "stage", feedback.stage(), "feedback", json.convertValue(feedback, Map.class))));
+            inserted[0] = true;
+        });
+        return inserted[0];
     }
 
     /** Same owner lock/transaction as leases, budget reservations and stop requests. */
@@ -244,6 +281,18 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             }
             revision(task,expectedRevision); active(task); deadline(task);
             if (task.outcome.executionControl().stopReason()!=null) return;
+            if(kind==CodingJournal.OperationKind.CODE && task.privateState.containsKey("execution-repair-policy")){
+                var codes=task.operations.entrySet().stream().filter(e->e.getValue().kind==CodingJournal.OperationKind.CODE).toList();
+                if(!codes.isEmpty()){
+                    var previous=codes.get(codes.size()-1);
+                    var feedback=task.privateState.get("feedback:"+previous.getKey());
+                    require(previous.getValue().stopProofRef!=null&&feedback!=null,EXECUTION_OUTCOME_UNKNOWN,
+                        "Reconcile and commit previous execution feedback before new code admission");
+                    int limit=task.privateState.get("execution-repair-policy").path("maxAutoRepairs").asInt(0);
+                    require(feedback.path("resultAvailable").asBoolean() || codes.size()<=limit&&feedback.path("repair").path("allowed").asBoolean(),
+                        BUDGET_EXCEEDED,"Automatic repair limit or policy prohibits another execution");
+                }
+            }
             require(task.operations.values().stream().noneMatch(op -> op.startIntent && op.stopProofRef == null
                 && op.executionHandle != null && op.executionHandle.startsWith("runtime-data:")),
                 EXECUTION_OUTCOME_UNKNOWN, "WAITING_FOR_DATA: new work is blocked until acquisition is reconciled");
@@ -551,7 +600,19 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         return decode(result);
     }
     private CodingJournal.Task mutateTask(KernelDataScope scope,String taskId,CodingTaskAccess.Action action,Consumer<CodingJournal.Task> mutation) {
-        return task(mutate(scope,action,journal->mutation.accept(task(journal,taskId))),taskId);
+        long[] before={0};
+        var committed=task(mutate(scope,action,journal->{
+            var current=task(journal,taskId);before[0]=current.outcome.lastEventSequence();mutation.accept(current);
+        }),taskId);
+        for(var event:committed.events)if(event.sequence()>before[0]){
+            var fields=new LinkedHashMap<String,Object>(event.payload());fields.put("status",event.status().name());
+            fields.put("reasonCode",event.reasonCode()==null?"NONE":event.reasonCode().name());
+            if(event.type()==CodingExecutionEvent.Type.TASK_FINISHED&&committed.outcome.startedAt()!=null&&committed.outcome.endedAt()!=null)
+                fields.put("durationMs",Math.max(0,Duration.between(committed.outcome.startedAt(),committed.outcome.endedAt()).toMillis()));
+            String execution=event.operationId()!=null?event.operationId():fields.get("proposedOperationId") instanceof String id?id:null;
+            com.chatchat.common.runtime.event.RuntimeEventLog.execution(event.type().name(),scope,taskId,execution,fields);
+        }
+        return committed;
     }
     private CodingJournal read(KernelDataScope scope,CodingTaskAccess.Action action) {
         return read(scope, action, access);

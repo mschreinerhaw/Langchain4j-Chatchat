@@ -1,6 +1,6 @@
-"""Recover only the original Temurin layers from a locally installed Docker archive.
+"""Recover only original Temurin or Node runtime layers from a local Docker archive.
 
-Offline fallback: source must be an existing trusted Temurin-based image. This is
+Offline fallback: source must be an existing trusted Temurin/Node image. This is
 not upstream signature verification. Never import a container export or app layer.
 Usage: python3 recover-java-base.py SOURCE_IMAGE OUTPUT_IMAGE WORK_DIRECTORY
 """
@@ -14,8 +14,9 @@ import tarfile
 
 
 def recover(source, destination, directory):
-    if not destination.startswith('runtime-os-java-base:'):
-        raise ValueError('Destination must be a dedicated runtime-os-java-base tag')
+    node = destination.startswith('runtime-os-node-base:')
+    if not node and not destination.startswith('runtime-os-java-base:'):
+        raise ValueError('Destination must be a dedicated Java/Node base tag')
     root = Path(directory)
     root.mkdir(parents=True, exist_ok=True)
     source_tar = root / 'source-image.tar'
@@ -24,13 +25,14 @@ def recover(source, destination, directory):
         manifest = json.load(archive.extractfile('manifest.json'))[0]
         original = json.load(archive.extractfile(manifest['Config']))
         history = original['history']
-        stops = [i for i, h in enumerate(history)
-                 if 'ENTRYPOINT' in h.get('created_by', '') and '/__cacert_entrypoint.sh' in h['created_by']]
+        stops = [i for i, h in enumerate(history) if
+                 (h.get('created_by', '').strip() == 'CMD ["node"]' if node else
+                  'ENTRYPOINT' in h.get('created_by', '') and '/__cacert_entrypoint.sh' in h['created_by'])]
         if len(stops) != 1:
-            raise ValueError('Cannot identify the exact upstream Temurin boundary')
+            raise ValueError('Cannot identify the exact upstream runtime boundary')
         retained = history[:stops[0] + 1]
-        if any('app.jar' in h.get('created_by', '') for h in retained):
-            raise ValueError('Business JAR detected in base layers')
+        if any(any(marker in h.get('created_by', '') for marker in ('app.jar', '/srv/coding-agent')) for h in retained):
+            raise ValueError('Business application detected in base layers')
         count = sum(not h.get('empty_layer', False) for h in retained)
         diff_ids = original['rootfs']['diff_ids'][:count]
         config = {
@@ -38,14 +40,16 @@ def recover(source, destination, directory):
             'created': retained[-1]['created'], 'history': retained,
             'rootfs': {'type': 'layers', 'diff_ids': diff_ids},
             'config': {'Env': [v for v in original['config']['Env']
-                               if v.split('=', 1)[0] in {'PATH', 'JAVA_HOME', 'JAVA_VERSION', 'LANG', 'LANGUAGE', 'LC_ALL'}],
-                       'Entrypoint': ['/__cacert_entrypoint.sh'], 'Cmd': ['/bin/bash'],
+                               if v.split('=', 1)[0] in ({'PATH', 'NODE_VERSION', 'YARN_VERSION'} if node else
+                                   {'PATH', 'JAVA_HOME', 'JAVA_VERSION', 'LANG', 'LANGUAGE', 'LC_ALL'})],
+                       'Entrypoint': ['docker-entrypoint.sh'] if node else ['/__cacert_entrypoint.sh'],
+                       'Cmd': ['node'] if node else ['/bin/bash'],
                        'WorkingDir': '/', 'Labels': {'com.chatchat.base.source': source}}
         }
         content = json.dumps(config, separators=(',', ':')).encode()
         config_name = hashlib.sha256(content).hexdigest() + '.json'
         layers = manifest['Layers'][:count]
-        output = root / 'java-base.tar'
+        output = root / ('node-base.tar' if node else 'java-base.tar')
         with tarfile.open(output, 'w') as target:
             for name, data in [(config_name, content), ('manifest.json', json.dumps([
                     {'Config': config_name, 'RepoTags': [destination], 'Layers': layers}]).encode())]:

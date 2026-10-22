@@ -11,7 +11,8 @@ const SESSION_MS = 8 * 60 * 60 * 1000;
 const COOKIE = 'coding_monitor_session';
 const EVENT_KEYS = ['stage', 'status', 'operationId', 'proposedOperationId', 'modelCall', 'tool',
   'codeSha256', 'fileName', 'sourceBytes', 'skillFingerprint', 'validationStatus', 'outputStatus',
-  'selectedModel', 'providerModel', 'protocol', 'startedAt', 'finishedAt', 'durationMs', 'message'];
+  'selectedModel', 'providerModel', 'protocol', 'startedAt', 'finishedAt', 'durationMs', 'message',
+  'errorCategory', 'diagnosticCode', 'repairAttempts', 'repairAllowed'];
 type Contract = Record<string, any>;
 interface Options {
   directory?: string; maxTasks?: number; maxEvents?: number; maxSourceBytes?: number;

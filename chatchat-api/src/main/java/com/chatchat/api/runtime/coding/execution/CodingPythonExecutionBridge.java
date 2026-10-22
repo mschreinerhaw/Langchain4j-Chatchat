@@ -102,8 +102,18 @@ public class CodingPythonExecutionBridge {
     public String stdout(KernelDataScope scope,String taskId,String operationId) {
         return diagnostic(scope,taskId,operationId,"stdout.txt");
     }
+    public String diagnosticRecord(KernelDataScope scope,String taskId,String operationId) {
+        return diagnostic(scope,taskId,operationId,"runtime-diagnostic.json");
+    }
+    public String executionReceipt(KernelDataScope scope,String taskId,String operationId) {
+        return diagnostic(scope,taskId,operationId,"receipt.json");
+    }
     private String diagnostic(KernelDataScope scope,String taskId,String operationId,String logName) {
         tasks.get(scope, taskId);
+        if(assetArchiver!=null){
+            var archived=assetArchiver.log(scope,taskId,operationId,logName);
+            if(archived.isPresent())return new String(archived.get(),0,Math.min(archived.get().length,8_192),StandardCharsets.UTF_8);
+        }
         var stopped = get(scope, taskId, operationId);
         if (!stopped.executorStopped() || "UNKNOWN".equals(stopped.status()))
             throw new IllegalStateException("Python diagnostic is not archived");

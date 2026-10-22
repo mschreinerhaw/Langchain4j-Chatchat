@@ -26,6 +26,17 @@ import static org.assertj.core.api.Assertions.*;
 
 /** Real JDBC transactions and independent connections. No mocked store, CAS, lock or recovery. */
 class CodingTaskPersistenceTest {
+    @Test void repairPolicyIsDurableAndConcurrentUnsettledAttemptsCannotAcquireAnotherReservation() {
+        service.submit(contract("feedback-policy",10));var lease=claim("feedback-policy","worker");
+        var policy=json.valueToTree(Map.of("maxAutoRepairs",0));
+        service.privateState(scope,"feedback-policy",lease,"execution-repair-policy",null,policy);
+        var restarted=service(store(new JdbcTemplate(dataSource)));
+        assertThat(restarted.privateState(scope,"feedback-policy","execution-repair-policy")).isEqualTo(policy);
+        var first=restarted.reserve(scope,"feedback-policy",lease,rev("feedback-policy"),"first",intent,counters(1,"0"));
+        assertThat(first.admitted()).isTrue();
+        assertThat(restarted.reserve(scope,"feedback-policy",lease,rev("feedback-policy"),"first",intent,counters(1,"0")).admitted()).isTrue();
+        code(()->restarted.reserve(scope,"feedback-policy",lease,rev("feedback-policy"),"parallel",intent,counters(1,"0")),EXECUTION_OUTCOME_UNKNOWN);
+    }
     @Test void codeSubmissionsAreImmutableHashCheckedAndScopedAcrossServiceRestarts() {
         register("input:fixture");
         String operation="cline-"+"a".repeat(64),source="print(42)";

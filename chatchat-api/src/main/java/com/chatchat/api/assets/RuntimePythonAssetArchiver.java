@@ -17,7 +17,7 @@ public class RuntimePythonAssetArchiver {
     public void stopped(KernelDataScope scope,String task,McpPythonControlPlanePort.OperationView operation){
         if(!operation.executorStopped() || operation.manifestHash()==null)return;
         String source="execution:"+operation.operationId()+":";
-        if(archive.read(scope,task,source+"manifest:manifest.json").isPresent())return;
+        if(archive.contains(scope,task,source+"manifest:manifest.json"))return;
         byte[] manifest=python.artifact(scope.tenantId(),scope.userId(),scope.runId(),task,operation.operationId(),"manifest","manifest.json");
         if(!UserAssetService.hash(manifest).equals(operation.manifestHash()))throw new SecurityException("Stopped execution manifest hash mismatch");
         try{
@@ -34,5 +34,12 @@ public class RuntimePythonAssetArchiver {
                 "status",operation.status(),"executorStopped",true,"manifestSha256",operation.manifestHash(),"resultValidity","NOT_EVALUATED"));
             archive.save(scope,task,UserAssetService.Kind.LOG,source+"manifest:manifest.json","manifest.json",manifest);
         }catch(java.io.IOException invalid){throw new IllegalStateException("Invalid stopped execution manifest",invalid);}
+    }
+    public Optional<byte[]> log(KernelDataScope scope,String task,String operation,String name){
+        String source="execution:"+operation+":";
+        if(!Set.of("runtime-diagnostic.json","receipt.json","stderr.txt","stdout.txt").contains(name))
+            throw new IllegalArgumentException("Unsupported execution log");
+        if(!archive.contains(scope,task,source+"manifest:manifest.json"))return Optional.empty();
+        return archive.read(scope,task,source+"logs:"+name);
     }
 }

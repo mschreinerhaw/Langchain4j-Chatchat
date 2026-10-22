@@ -18,7 +18,7 @@ npm start
 
 `src/server.js`、`runner.js` 保持已有执行协议；新增监控后端、前端及客户端均使用 TypeScript。编译产物位于 `dist/`；Docker 多阶段构建只保留运行依赖与产物。浏览器验证命令 `npm run test:browser` 使用仓库已有 Playwright / Edge；`CHATCHAT_BROWSER_PATH` 可指定浏览器路径。
 
-五个 Cline 包均作为生产依赖显式锁定在 `0.0.93`：`@cline/sdk`、`@cline/core`、`@cline/agents`、`@cline/llms`、`@cline/shared`。SDK 入口依赖 core，core 依赖另外三个包；锁文件固定实际依赖和完整性。镜像构建与服务启动会实际导入五包并核对版本，失败时不进入就绪状态；已验证版本在受保护的 `/healthz` 中返回。`verify:sdk` 可独立执行。Node 24 Linux 镜像需通过生产依赖 `npm ci --omit=dev --ignore-scripts` 及导入验证，离线构建必须更新生产 node_modules，不能继续复制缺包的旧目录。
+五个 Cline 包均作为生产依赖显式锁定在 `0.0.93`：`@cline/sdk`、`@cline/core`、`@cline/agents`、`@cline/llms`、`@cline/shared`。SDK 入口依赖 core，core 依赖另外三个包；锁文件固定实际依赖和完整性。镜像构建与服务启动会实际导入五包并核对版本，失败时不进入就绪状态；已验证版本在受保护的 `/healthz` 中返回。`verify:sdk` 可独立执行。Docker 在 Node 24 Linux 内先 `npm ci --ignore-scripts`、编译，再 `npm prune --omit=dev --ignore-scripts`；独立生产依赖安装也可用 `npm ci --omit=dev --ignore-scripts`。离线构建必须更新生产 node_modules，不能继续复制缺包的旧目录。
 
 包的部署使相应 API 可供后续功能按需集成；现有分析继续调用已授权的 Agent 与 Runtime 回调工具，安装过程不会创建 core session、启动 hub 或自动注册宿主文件/命令工具。
 

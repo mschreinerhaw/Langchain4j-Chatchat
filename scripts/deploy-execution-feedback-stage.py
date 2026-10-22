@@ -101,8 +101,9 @@ for database in (() if args.node_only else ('runtime_os_acceptance_api',) if arg
         subprocess.run(['docker','exec','-u','postgres','postgres','pg_dump','-Fc',database],stdout=output,check=True)
 config=json.loads((stage/'compose.yaml').read_text());lines=(stage/'config/deployment.env').read_text().splitlines()
 for service,image in images.items():
-    config['services'][service]['image']=image;key=service.upper().replace('-','_')+'_IMAGE'
-    lines=[line for line in lines if not line.startswith(key+'=')]+[key+'='+image]
+    config['services'][service]['image']=image
+    keys=('NODE_IMAGE','CODING_AGENT_IMAGE') if service=='coding-agent' else (service.upper().replace('-','_')+'_IMAGE',)
+    lines=[line for line in lines if not any(line.startswith(key+'=') for key in keys)]+[key+'='+image for key in keys]
 try:
     if args.node_only:
         worker=before[d.container('coding-agent')]

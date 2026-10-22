@@ -87,6 +87,13 @@ active=d.run('docker','exec','-u','postgres','postgres','psql','-At','-d','runti
     "SELECT count(*) FROM agent_task_latest WHERE canonical_state IS NULL OR canonical_state NOT IN ('SUCCEEDED','PARTIAL','FAILED','CANCELLED','REJECTED')")
 if active!='0':raise RuntimeError('Active tasks prevent deployment')
 before={name:d.inspect(name) for name in d.run('docker','ps','--format','{{.Names}}').splitlines()}
+if args.node_only:
+    worker=before[d.container('coding-agent')]
+    labels=worker['Config']['Labels']
+    if labels.get('com.docker.compose.project')!=project or labels.get('com.docker.compose.service')!='coding-agent':
+        raise RuntimeError('Unexpected worker deployment scope')
+    probe="""const fs=require('node:fs');const e=process.env;const s=e.RUNTIME_CODING_SHARED_SECRET_FILE?fs.readFileSync(e.RUNTIME_CODING_SHARED_SECRET_FILE,'utf8').trim():e.RUNTIME_CODING_SHARED_SECRET;fetch('http://127.0.0.1:'+(e.RUNTIME_CODING_PORT||3100)+'/readyz',{headers:{authorization:'Bearer '+s},signal:AbortSignal.timeout(5000)}).then(async r=>{if(!r.ok)throw Error('Not ready');console.log((await r.json()).activeSessions);}).catch(()=>process.exit(1));"""
+    if d.run('docker','exec',d.container('coding-agent'),'node','-e',probe)!='0':raise RuntimeError('Active Node sessions prevent replacement')
 backup=r/'private-backup'/str(int(time.time()));backup.mkdir(parents=True);backup.chmod(0o700)
 for source in (stage/'compose.yaml',stage/'config/deployment.env'):shutil.copy2(source,backup/source.name)
 for database in (() if args.node_only else ('runtime_os_acceptance_api',) if args.api_only else ('runtime_os_acceptance_api','runtime_os_acceptance_mcp')):

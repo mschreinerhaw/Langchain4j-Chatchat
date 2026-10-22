@@ -1,0 +1,26 @@
+{
+  "status": "PACKAGED_AND_VERIFIED",
+  "package": "/opt/chatchat-releases/chatchat-1.2.0-20261022-execution-feedback-offline.tar.gz",
+  "sha256": "56907d00a416eb618b8044a47538efcbc627b0fcb5ffbd3c7b67c3bea9008a82",
+  "bytes": 898858855,
+  "sourceCommit": "3ae06d448b642734a58019378d07a4183b51b87f",
+  "images": {
+    "api": {
+      "tag": "runtime-os-api:1.2.0-20261022-execution-feedback-r2",
+      "id": "sha256:d42b04c0956255365e484b4bf98666a6c64f08b54037a455db16cc642c5fb032",
+      "bytes": 743670779
+    },
+    "mcp": {
+      "tag": "runtime-os-mcp:1.2.0-20261022-execution-feedback",
+      "id": "sha256:fc6f9b3570864a3981d6b7fadd36fd1339126408d2f6c1daac5e20a430d7b611",
+      "bytes": 584010808
+    },
+    "coding-agent": {
+      "tag": "runtime-os-coding-agent:1.2.0-20261022-execution-feedback",
+      "id": "sha256:468895cd57cc1002db429b168b085cb19f8eb6f18a92c03383998b9d695a0f04",
+      "bytes": 393630617
+    }
+  },
+  "includesCredentials": false,
+  "requiresExistingInstallation": true
+}

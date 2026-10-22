@@ -1,0 +1,810 @@
+{
+  "kind": "REAL_DEPLOYED_FEEDBACK_EVIDENCE",
+  "cases": {
+    "normal": {
+      "parentTaskId": "e39f849f-a53e-3fd3-a47c-3944466a8ce2",
+      "traceId": "att-1-7e1970e0-2e0d-47fc-93d9-c2bacc3bf763",
+      "taskId": "analysis-coding-7658cfab86db679a366bf109241c9fb6936f4f78bdcf8a6c19f14fbda3d44f84",
+      "status": "COMPLETED",
+      "usage": {
+        "modelCalls": 5,
+        "modelTokens": 109077,
+        "toolCalls": 2,
+        "codeExecutions": 2,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 9467,
+        "costAmount": "0"
+      },
+      "executionCount": 2,
+      "executionDurationMs": [
+        1488,
+        1415
+      ],
+      "repairAttempts": [
+        0,
+        1
+      ],
+      "categories": [
+        null,
+        null
+      ],
+      "feedbackEvents": 2,
+      "totalEvents": 72,
+      "immutableInputReferences": true,
+      "artifactKinds": {
+        "DATASET": 3,
+        "CODE": 4,
+        "ARTIFACT": 6,
+        "LOG": 12,
+        "CONTEXT": 4
+      },
+      "archivedFeedbacks": 2,
+      "sdkPythonSubmissions": [
+        {
+          "form": "SOURCE",
+          "bytes": 11068
+        },
+        {
+          "form": "SOURCE",
+          "bytes": 10620
+        }
+      ],
+      "javaLogTypes": {
+        "TASK_STARTED": 1,
+        "NODE_RESPONSE": 94,
+        "RECOVERY_RECONCILED": 48,
+        "PYTHON_EXECUTION_FEEDBACK": 2,
+        "TASK_FINISHED": 1
+      }
+    },
+    "syntax": {
+      "parentTaskId": "f43eaeef-313a-3c10-8b8a-c372cec88e2b",
+      "traceId": "att-1-57a33ceb-ddf9-4585-8d02-c143ead1e20a",
+      "taskId": "analysis-coding-b064a4758b83418a98879e9e4629c90c30b5d30be5bc267e2f512233f1419351",
+      "status": "COMPLETED",
+      "usage": {
+        "modelCalls": 9,
+        "modelTokens": 222061,
+        "toolCalls": 4,
+        "codeExecutions": 4,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 12364,
+        "costAmount": "0"
+      },
+      "executionCount": 4,
+      "executionDurationMs": [
+        248,
+        987,
+        906,
+        874
+      ],
+      "repairAttempts": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "categories": [
+        "SYNTAX",
+        null,
+        null,
+        null
+      ],
+      "feedbackEvents": 4,
+      "totalEvents": 128,
+      "immutableInputReferences": true,
+      "artifactKinds": {
+        "CODE": 7,
+        "LOG": 24,
+        "CONTEXT": 7,
+        "DATASET": 3,
+        "ARTIFACT": 3
+      },
+      "archivedFeedbacks": 4,
+      "sdkPythonSubmissions": [
+        {
+          "form": "SOURCE",
+          "bytes": 68
+        },
+        {
+          "form": "SOURCE",
+          "bytes": 9012
+        },
+        {
+          "form": "PATCH",
+          "bytes": 9863
+        },
+        {
+          "form": "PATCH",
+          "bytes": 767
+        },
+        {
+          "form": "PATCH",
+          "bytes": 308
+        }
+      ],
+      "javaLogTypes": {
+        "TASK_STARTED": 1,
+        "NODE_RESPONSE": 120,
+        "RECOVERY_RECONCILED": 86,
+        "PYTHON_EXECUTION_FEEDBACK": 4,
+        "TASK_FINISHED": 1
+      }
+    },
+    "field": {
+      "parentTaskId": "ea0ca17d-d44a-3876-aceb-436222581b98",
+      "traceId": "att-1-2d65f143-c9ae-49fb-98c4-84bfd23eda29",
+      "taskId": "analysis-coding-b793df056b3896429dd946c6a968ecc44e0be7b423cff8e224176ad94e8d6a3a",
+      "status": "COMPLETED",
+      "usage": {
+        "modelCalls": 10,
+        "modelTokens": 266655,
+        "toolCalls": 4,
+        "codeExecutions": 4,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 12763,
+        "costAmount": "0"
+      },
+      "executionCount": 4,
+      "executionDurationMs": [
+        1706,
+        1002,
+        919,
+        891
+      ],
+      "repairAttempts": [
+        0,
+        1,
+        1,
+        1
+      ],
+      "categories": [
+        "SCHEMA_ACCESS",
+        null,
+        null,
+        null
+      ],
+      "feedbackEvents": 4,
+      "totalEvents": 137,
+      "immutableInputReferences": true,
+      "artifactKinds": {
+        "DATASET": 3,
+        "CODE": 7,
+        "LOG": 24,
+        "CONTEXT": 7,
+        "ARTIFACT": 3
+      },
+      "archivedFeedbacks": 4,
+      "sdkPythonSubmissions": [
+        {
+          "form": "SOURCE",
+          "bytes": 113
+        },
+        {
+          "form": "PATCH",
+          "bytes": 14932
+        },
+        {
+          "form": "PATCH",
+          "bytes": 7776
+        },
+        {
+          "form": "SOURCE",
+          "bytes": 7179
+        },
+        {
+          "form": "SOURCE",
+          "bytes": 7402
+        },
+        {
+          "form": "SOURCE",
+          "bytes": 7434
+        }
+      ],
+      "javaLogTypes": {
+        "TASK_STARTED": 1,
+        "NODE_RESPONSE": 147,
+        "RECOVERY_RECONCILED": 92,
+        "PYTHON_EXECUTION_FEEDBACK": 4,
+        "TASK_FINISHED": 1
+      }
+    },
+    "dependency": {
+      "parentTaskId": "011d3e97-3c1d-38ab-b35d-2603cd80c1d0",
+      "traceId": "att-1-6bc067e9-b178-420a-8660-2045a8e6cbba",
+      "taskId": "analysis-coding-7734b2b4ddc9f3e62f49c7017999c5433d8cb98f574b64afe6c86b233d6a91dd",
+      "status": "COMPLETED",
+      "usage": {
+        "modelCalls": 12,
+        "modelTokens": 399454,
+        "toolCalls": 7,
+        "codeExecutions": 7,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 24237,
+        "costAmount": "0"
+      },
+      "executionCount": 7,
+      "executionDurationMs": [
+        243,
+        1026,
+        962,
+        964,
+        870,
+        844,
+        799
+      ],
+      "repairAttempts": [
+        0,
+        1,
+        1,
+        2,
+        3,
+        3,
+        3
+      ],
+      "categories": [
+        "DEPENDENCY_UNAVAILABLE",
+        null,
+        "SCHEMA_ACCESS",
+        "SCHEMA_ACCESS",
+        null,
+        null,
+        null
+      ],
+      "feedbackEvents": 7,
+      "totalEvents": 184,
+      "immutableInputReferences": true,
+      "artifactKinds": {
+        "CODE": 11,
+        "ARTIFACT": 8,
+        "LOG": 42,
+        "CONTEXT": 11,
+        "DATASET": 3
+      },
+      "archivedFeedbacks": 7,
+      "sdkPythonSubmissions": [
+        {
+          "form": "SOURCE",
+          "bytes": 76
+        },
+        {
+          "form": "SOURCE",
+          "bytes": 9822
+        },
+        {
+          "form": "SOURCE",
+          "bytes": 9896
+        },
+        {
+          "form": "SOURCE",
+          "bytes": 9782
+        },
+        {
+          "form": "SOURCE",
+          "bytes": 9860
+        },
+        {
+          "form": "SOURCE",
+          "bytes": 10596
+        },
+        {
+          "form": "SOURCE",
+          "bytes": 9917
+        }
+      ],
+      "javaLogTypes": {
+        "TASK_STARTED": 1,
+        "NODE_RESPONSE": 241,
+        "RECOVERY_RECONCILED": 124,
+        "PYTHON_EXECUTION_FEEDBACK": 7,
+        "TASK_FINISHED": 1
+      }
+    },
+    "output": {
+      "parentTaskId": "7cc79cca-bb96-3cb9-93a8-d1e604fa5819",
+      "traceId": "att-1-5ed8c506-5372-40d1-85be-252a50d483fb",
+      "taskId": "analysis-coding-0bae2000d3cc2841bec977a682e703c2f31dc7276277cbce35e3a5f21284279f",
+      "status": "COMPLETED",
+      "usage": {
+        "modelCalls": 7,
+        "modelTokens": 155486,
+        "toolCalls": 3,
+        "codeExecutions": 3,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 7944,
+        "costAmount": "0"
+      },
+      "executionCount": 3,
+      "executionDurationMs": [
+        338,
+        913,
+        1120
+      ],
+      "repairAttempts": [
+        0,
+        1,
+        1
+      ],
+      "categories": [
+        "OUTPUT_CONTRACT",
+        null,
+        null
+      ],
+      "feedbackEvents": 3,
+      "totalEvents": 99,
+      "immutableInputReferences": true,
+      "artifactKinds": {
+        "DATASET": 3,
+        "CODE": 5,
+        "LOG": 18,
+        "ARTIFACT": 3,
+        "CONTEXT": 5
+      },
+      "archivedFeedbacks": 3,
+      "sdkPythonSubmissions": [
+        {
+          "form": "SOURCE",
+          "bytes": 132
+        },
+        {
+          "form": "PATCH",
+          "bytes": 8634
+        },
+        {
+          "form": "SOURCE",
+          "bytes": 7964
+        },
+        {
+          "form": "SOURCE",
+          "bytes": 8001
+        }
+      ],
+      "javaLogTypes": {
+        "TASK_STARTED": 1,
+        "NODE_RESPONSE": 81,
+        "RECOVERY_RECONCILED": 66,
+        "PYTHON_EXECUTION_FEEDBACK": 3,
+        "TASK_FINISHED": 1
+      }
+    },
+    "permission": {
+      "parentTaskId": "a028b27e-60a1-36d8-b3bb-4ce59d975934",
+      "traceId": "att-1-b59a6150-1ba3-4bf9-b8aa-5395226ef99f",
+      "taskId": "analysis-coding-4f76df502035dbadc526b7ca6f1503d3256c30297460406d50ee7e55dee2bf66",
+      "status": "FAILED",
+      "usage": {
+        "modelCalls": 1,
+        "modelTokens": 13642,
+        "toolCalls": 1,
+        "codeExecutions": 1,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 1733,
+        "costAmount": "0"
+      },
+      "executionCount": 1,
+      "executionDurationMs": [
+        236
+      ],
+      "repairAttempts": [
+        0
+      ],
+      "categories": [
+        "AUTHORIZATION"
+      ],
+      "feedbackEvents": 1,
+      "totalEvents": 23,
+      "immutableInputReferences": true,
+      "artifactKinds": {
+        "DATASET": 3,
+        "CODE": 1,
+        "LOG": 6,
+        "CONTEXT": 1
+      },
+      "archivedFeedbacks": 1,
+      "sdkPythonSubmissions": [],
+      "javaLogTypes": {
+        "TASK_STARTED": 1,
+        "NODE_RESPONSE": 8,
+        "RECOVERY_RECONCILED": 14,
+        "PYTHON_EXECUTION_FEEDBACK": 1,
+        "TASK_FINISHED": 1
+      }
+    },
+    "resource": {
+      "parentTaskId": "fe7acb4d-7190-3438-ac42-78cc1d9e9ce4",
+      "traceId": "att-1-c8b3671e-2737-4fc4-8e2d-da95762f6af8",
+      "taskId": "analysis-coding-c9e486b5c00dc35f56f366ebca3467375a2af5be951f802f6127eab0b0ac7219",
+      "status": "FAILED",
+      "usage": {
+        "modelCalls": 1,
+        "modelTokens": 13723,
+        "toolCalls": 1,
+        "codeExecutions": 1,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 1743,
+        "costAmount": "0"
+      },
+      "executionCount": 1,
+      "executionDurationMs": [
+        353
+      ],
+      "repairAttempts": [
+        0
+      ],
+      "categories": [
+        "RESOURCE"
+      ],
+      "feedbackEvents": 1,
+      "totalEvents": 23,
+      "immutableInputReferences": true,
+      "artifactKinds": {
+        "CODE": 1,
+        "DATASET": 3,
+        "LOG": 6,
+        "CONTEXT": 1
+      },
+      "archivedFeedbacks": 1,
+      "sdkPythonSubmissions": [],
+      "javaLogTypes": {
+        "TASK_STARTED": 1,
+        "NODE_RESPONSE": 10,
+        "RECOVERY_RECONCILED": 14,
+        "PYTHON_EXECUTION_FEEDBACK": 1,
+        "TASK_FINISHED": 1
+      }
+    },
+    "timeout": {
+      "parentTaskId": "f566b4b2-9cda-3c95-ac50-76fc9c38d831",
+      "traceId": "att-1-b07bea24-2c44-4de9-b08e-432b8e523442",
+      "taskId": "analysis-coding-8dd9cbfa92a82f36d1c90e65c1f222f3659498ebebd6a33865f3f6d9bbaab531",
+      "status": "FAILED",
+      "usage": {
+        "modelCalls": 1,
+        "modelTokens": 14056,
+        "toolCalls": 1,
+        "codeExecutions": 1,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 1738,
+        "costAmount": "0"
+      },
+      "executionCount": 1,
+      "executionDurationMs": [
+        2252
+      ],
+      "repairAttempts": [
+        0
+      ],
+      "categories": [
+        "TIMEOUT"
+      ],
+      "feedbackEvents": 1,
+      "totalEvents": 23,
+      "immutableInputReferences": true,
+      "artifactKinds": {
+        "DATASET": 3,
+        "LOG": 6,
+        "CODE": 1,
+        "CONTEXT": 1
+      },
+      "archivedFeedbacks": 1,
+      "sdkPythonSubmissions": [],
+      "javaLogTypes": {
+        "TASK_STARTED": 1,
+        "NODE_RESPONSE": 13,
+        "RECOVERY_RECONCILED": 14,
+        "PYTHON_EXECUTION_FEEDBACK": 1,
+        "TASK_FINISHED": 1
+      }
+    },
+    "repair-limit": {
+      "parentTaskId": "f68d2b23-5818-35d7-9b37-86e5bb8ec929",
+      "traceId": "att-1-49b52a41-ecb7-402f-9cc8-26e2f6e51fd8",
+      "taskId": "analysis-coding-f976633e310de69c3dfd010dc2a4b02c60e6df8429018756652aac4631e503e8",
+      "status": "FAILED",
+      "usage": {
+        "modelCalls": 5,
+        "modelTokens": 81935,
+        "toolCalls": 4,
+        "codeExecutions": 4,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 7008,
+        "costAmount": "0"
+      },
+      "executionCount": 4,
+      "executionDurationMs": [
+        211,
+        219,
+        207,
+        189
+      ],
+      "repairAttempts": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "categories": [
+        "PROGRAM",
+        "PROGRAM",
+        "PROGRAM",
+        "PROGRAM"
+      ],
+      "feedbackEvents": 4,
+      "totalEvents": 86,
+      "immutableInputReferences": true,
+      "artifactKinds": {
+        "DATASET": 3,
+        "CODE": 4,
+        "LOG": 24,
+        "CONTEXT": 4
+      },
+      "archivedFeedbacks": 4,
+      "sdkPythonSubmissions": [
+        {
+          "form": "SOURCE",
+          "bytes": 85
+        },
+        {
+          "form": "PATCH",
+          "bytes": 496
+        },
+        {
+          "form": "SOURCE",
+          "bytes": 172
+        },
+        {
+          "form": "SOURCE",
+          "bytes": 171
+        }
+      ],
+      "javaLogTypes": {
+        "TASK_STARTED": 1,
+        "NODE_RESPONSE": 34,
+        "RECOVERY_RECONCILED": 56,
+        "PYTHON_EXECUTION_FEEDBACK": 4,
+        "TASK_FINISHED": 1
+      }
+    }
+  },
+  "javaLog": {
+    "persistentPath": "/opt/runtime-os-docker-stage/api/logs/chatchat.log",
+    "matchedEvents": 1307,
+    "eventTypes": {
+      "TASK_STARTED": 9,
+      "NODE_RESPONSE": 748,
+      "RECOVERY_RECONCILED": 514,
+      "PYTHON_EXECUTION_FEEDBACK": 27,
+      "TASK_FINISHED": 9
+    }
+  },
+  "status": "PASSED",
+  "deploymentSourceCommit": "3ae06d448b642734a58019378d07a4183b51b87f",
+  "mcpComponentDrill": {
+    "kind": "REAL_MCP_SANDBOX_COMPONENT_DRILL",
+    "cases": {
+      "normal": {
+        "status": "SUCCEEDED",
+        "exitCode": 0,
+        "diagnostic": {
+          "policy": "METADATA_ONLY_V1",
+          "schemaVersion": "runtime_os.python_diagnostic.v1",
+          "stderrBytes": 0,
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdoutBytes": 0,
+          "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "elapsedMs": 1402,
+        "manifestHash": "64fe0001c5a95ae088f8bebaf102b1e4f06e6bf06ac68ec510093d3c157266ed"
+      },
+      "idempotentReplay": {
+        "passed": true,
+        "observableSideEffects": 1
+      },
+      "syntax": {
+        "status": "FAILED",
+        "exitCode": 1,
+        "diagnostic": {
+          "diagnosticCode": "SYNTAX_ERROR",
+          "exceptionType": "SyntaxError",
+          "line": 1,
+          "policy": "METADATA_ONLY_V1",
+          "schemaVersion": "runtime_os.python_diagnostic.v1",
+          "stack": [
+            {
+              "file": "main.py",
+              "line": 1
+            }
+          ],
+          "stderrBytes": 106,
+          "stderrSha256": "4db390805ce57094577f317a1fd590c7d8e9b2a8e6e6fd39f532e3faf4c5c3a3",
+          "stdoutBytes": 0,
+          "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "elapsedMs": 1322,
+        "manifestHash": "a5184c4d9a713035b576b4b25d7e050a65aefc696f03a9cd7a4f4bf9c31ddaa6"
+      },
+      "pandas-field": {
+        "status": "FAILED",
+        "exitCode": 1,
+        "diagnostic": {
+          "diagnosticCode": "FIELD_ACCESS_ERROR",
+          "exceptionType": "KeyError",
+          "line": 2,
+          "policy": "METADATA_ONLY_V1",
+          "schemaVersion": "runtime_os.python_diagnostic.v1",
+          "stack": [
+            {
+              "file": "main.py",
+              "line": 2
+            }
+          ],
+          "stderrBytes": 1286,
+          "stderrSha256": "a098f0c707d62ed2db1353bc43f6e2925f2e2f7e37fd3bc58c9f48597ce99149",
+          "stdoutBytes": 0,
+          "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "elapsedMs": 2778,
+        "manifestHash": "071d9ef4804789bc17eeb6c460d5cfe079ed2532bee564dcd94d58ed3cca61a2"
+      },
+      "missing-dependency": {
+        "status": "FAILED",
+        "exitCode": 1,
+        "diagnostic": {
+          "diagnosticCode": "PACKAGE_NOT_INSTALLED",
+          "exceptionType": "ModuleNotFoundError",
+          "line": 1,
+          "policy": "METADATA_ONLY_V1",
+          "schemaVersion": "runtime_os.python_diagnostic.v1",
+          "stack": [
+            {
+              "file": "main.py",
+              "line": 1
+            }
+          ],
+          "stderrBytes": 208,
+          "stderrSha256": "5bb1264dc8a1f575de3db037f58b73e68088a37397e650874631e59039735f45",
+          "stdoutBytes": 0,
+          "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "elapsedMs": 1621,
+        "manifestHash": "fc4011cae8871b9a06475e675bad627ee0745c644743087d3224ee2522cb7885"
+      },
+      "permission": {
+        "status": "FAILED",
+        "exitCode": 1,
+        "diagnostic": {
+          "diagnosticCode": "PERMISSION_DENIED",
+          "exceptionType": "PermissionError",
+          "line": 1,
+          "policy": "METADATA_ONLY_V1",
+          "schemaVersion": "runtime_os.python_diagnostic.v1",
+          "stack": [
+            {
+              "file": "main.py",
+              "line": 1
+            }
+          ],
+          "stderrBytes": 282,
+          "stderrSha256": "d5e9f66c5e5d65aca65bbaa0633744b55333f40efc28a104a4be0caa6b29c7e4",
+          "stdoutBytes": 0,
+          "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "elapsedMs": 1132,
+        "manifestHash": "cd94fe37228352da1a9ca5a9bf71dc44afa4b335127a24bd2969faa6bf079314"
+      },
+      "memory-limit": {
+        "status": "FAILED",
+        "exitCode": 1,
+        "diagnostic": {
+          "diagnosticCode": "RESOURCE_EXHAUSTED",
+          "exceptionType": "MemoryError",
+          "line": 3,
+          "policy": "METADATA_ONLY_V1",
+          "schemaVersion": "runtime_os.python_diagnostic.v1",
+          "stack": [
+            {
+              "file": "main.py",
+              "line": 3
+            }
+          ],
+          "stderrBytes": 133,
+          "stderrSha256": "b845c2d2378db5fe0a988e13e848ef7bd32b1d50287bf79e82276ad23507dd04",
+          "stdoutBytes": 0,
+          "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "elapsedMs": 1218,
+        "manifestHash": "db3d3101fc83a1d38774184ae0f7a7c2e82f506a7c7c6825e66bce4e85b185de"
+      },
+      "deadline": {
+        "status": "TIMED_OUT",
+        "exitCode": 137,
+        "diagnostic": {
+          "policy": "METADATA_ONLY_V1",
+          "schemaVersion": "runtime_os.python_diagnostic.v1"
+        },
+        "elapsedMs": 5167,
+        "manifestHash": "b5de6cf079cf75a45a9ea5e176fbb887dfdc46ccebdb22ae81b91ab91d34e32c"
+      },
+      "cancel": {
+        "passed": true
+      },
+      "concurrentIsolation": {
+        "passed": true,
+        "distinctContainers": true
+      },
+      "crossOwnerDenied": {
+        "passed": true
+      },
+      "mcpRestartRecovery": {
+        "passed": true,
+        "observableSideEffects": 1,
+        "status": "SUCCEEDED"
+      }
+    },
+    "status": "PASSED",
+    "runId": "execution-feedback-drill-2f1626f20d3a4affba893c85a33de2b3",
+    "imageDigest": "sha256:12efcec7c7752423a55a4ef0bf426cefb9b303357838689f481ac448a713ae44"
+  },
+  "nodeRestart": {
+    "kind": "REAL_NODE_RESTART_E2E",
+    "status": "PASSED",
+    "parentTaskId": "e20a1c82-e6b2-356a-a256-f0cb0b87f00b",
+    "traceId": "att-1-4ee09c83-60dc-4fd9-b570-acee5c3c2694",
+    "taskId": "analysis-coding-9ff45299afd8997de1805c87ceac94e62c92ab5716a5da6e4af6ab08794472b3",
+    "executionsBefore": 4,
+    "outcome": "COMPLETED",
+    "reasonCode": null,
+    "executionsAfter": 4,
+    "executionIds": [
+      "cline-3fc71510339862971cee5e057483d2a85508b5787badcb85716b231f158f3a73",
+      "cline-84d21c9b83a0e356320f73b81a1b0532e4b819bd86240ad23c73e8b77bf1285f",
+      "cline-e7e6b96658def12ee383c12dc5d8b80da214a943b146274496072e2d1287d8e5",
+      "cline-cd4e0a664190da77d2efad7d2756bad8242e5e1479cfda0a1f8493c4e0513000"
+    ],
+    "executionControl": {
+      "stopReason": null,
+      "stopRequestedAt": null,
+      "executorStopped": true,
+      "reconciliationRequired": false
+    }
+  },
+  "javaRestart": {
+    "status": "PASSED",
+    "kind": "JAVA_RESTART_TERMINAL_HISTORY_PERSISTENCE",
+    "tasks": 9,
+    "executionFeedbacks": 27,
+    "sameFeedbackBeforeAndAfter": true,
+    "persistentLogPresent": true,
+    "inFlightJavaRestartTested": false
+  },
+  "browser": {
+    "status": "PASSED",
+    "taskId": "analysis-coding-f976633e310de69c3dfd010dc2a4b02c60e6df8429018756652aac4631e503e8",
+    "executionRows": 9,
+    "repairLimitVisible": true,
+    "codeVersionsVisible": true,
+    "persistedTimelineVisible": true,
+    "pageErrors": []
+  },
+  "limitations": [
+    "Java in-flight restart not exercised",
+    "Node restart exercised after feedback commit, not all crash windows",
+    "4 local Spring integration cases excluded due to missing local MCP/semantic publication",
+    "19 local Docker-dependent Java cases skipped",
+    "Historical R1 normal/syntax repair counters retained; R2 counts failed-execution repairs",
+    "No controlled throughput/latency benchmark",
+    "Raw business stdout/stderr intentionally redacted",
+    "CPU/peak-memory zero fields are not actual usage measurements",
+    "Per-operation physical input copies remain",
+    "Business validation INCONCLUSIVE does not certify arbitrary business conclusions"
+  ]
+}

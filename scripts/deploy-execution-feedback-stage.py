@@ -11,6 +11,7 @@ parser.add_argument('action',choices=['build','deploy','verify','rollback'])
 parser.add_argument('--release-dir',required=True,type=Path)
 parser.add_argument('--revision',required=True)
 parser.add_argument('--api-only',action='store_true',help='Patch API/UI while retaining the verified MCP and Node containers')
+parser.add_argument('--image-manifest',type=Path,help='Use checksum-pinned images already loaded from the offline package')
 args=parser.parse_args();os.umask(0o077)
 r=args.release_dir.resolve();stage=Path('/opt/runtime-os-docker-stage');project='runtime-os-app-stage'
 if not r.is_relative_to(Path('/opt/chatchat-releases')):raise ValueError('Patch must stay under release root')
@@ -21,6 +22,15 @@ d.base='runtime-os-java-base:temurin17-jammy-20261022';d.manifest={'sourceCommit
 (r/'evidence').mkdir(exist_ok=True)
 tag=r.name
 images={s:'runtime-os-'+s+':'+tag for s in (('api',) if args.api_only else ('api','mcp','coding-agent'))}
+if args.image_manifest:
+    manifest_path=args.image_manifest.resolve()
+    if not manifest_path.is_relative_to(r):raise ValueError('Image manifest must be inside the release directory')
+    pinned=json.loads(manifest_path.read_text())['images']
+    if set(pinned)!=set(images):raise ValueError('Image manifest service set does not match deployment scope')
+    images={service:value['tag'] for service,value in pinned.items()}
+    for service,image in images.items():
+        if d.inspect(image)['Id']!=pinned[service]['id']:raise ValueError('Loaded image identity mismatch: '+service)
+    if args.action=='build':raise ValueError('Offline pinned images must be loaded, not rebuilt')
 
 def verify():
     d.wait_ready()

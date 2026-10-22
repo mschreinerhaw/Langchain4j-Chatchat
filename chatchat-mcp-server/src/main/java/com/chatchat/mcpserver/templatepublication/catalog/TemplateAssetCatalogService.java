@@ -4,7 +4,7 @@ import com.chatchat.mcpserver.api.registry.ApiServiceConfigService;
 import com.chatchat.mcpserver.category.BusinessCategory;
 import com.chatchat.mcpserver.category.BusinessCategoryService;
 import com.chatchat.mcpserver.authorization.McpAuthorizationService;
-import com.chatchat.mcpserver.authorization.McpScopeExpression;
+import com.chatchat.common.security.McpScopeExpression;
 import com.chatchat.mcpserver.database.definition.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.external.ExternalMcpRegistryService;
 import com.chatchat.mcpserver.external.ExternalMcpService;

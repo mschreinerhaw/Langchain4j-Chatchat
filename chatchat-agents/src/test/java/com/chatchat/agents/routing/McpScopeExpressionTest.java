@@ -1,5 +1,7 @@
 package com.chatchat.agents.routing;
 
+import com.chatchat.common.security.McpScopeExpression;
+
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

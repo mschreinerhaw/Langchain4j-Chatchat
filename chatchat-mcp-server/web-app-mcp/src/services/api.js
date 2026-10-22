@@ -452,68 +452,6 @@ export const auditApi = {
   getCommand: (id) => apiFetch(`${API_BASE}/audit-logs/commands/${encodeURIComponent(id)}`)
 };
 
-export const templateQueryPublicationsApi = {
-  list: () => apiFetch(`${API_BASE}/template-query-publications`),
-  templates: (roleId, parentToolName) =>
-    apiFetch(
-      `${API_BASE}/template-query-publications/templates?roleId=${encodeURIComponent(
-        roleId
-      )}&parentToolName=${encodeURIComponent(parentToolName)}`
-    ),
-  members: (roleId) =>
-    apiFetch(
-      `${API_BASE}/template-query-publications/members?roleId=${encodeURIComponent(roleId)}`
-    ),
-  parents: () => apiFetch(`${API_BASE}/template-query-publications/parents`),
-  roles: () => apiFetch(`${API_BASE}/template-query-publications/roles`),
-  save: (binding) => saveEntity(`${API_BASE}/template-query-publications`, binding),
-  remove: (id) =>
-    apiFetch(`${API_BASE}/template-query-publications/${encodeURIComponent(id)}`, {
-      method: 'DELETE'
-    }),
-  setEnabled: (id, enabled) =>
-    apiFetch(
-      `${API_BASE}/template-query-publications/${encodeURIComponent(
-        id
-      )}/enabled?enabled=${enabled}`,
-      { method: 'POST' }
-    )
-};
-
-export const authorizationApi = {
-  snapshot: () => apiFetch(`${API_BASE}/mcp-authorization/snapshot`),
-  sync: () => apiFetch(`${API_BASE}/mcp-authorization/sync`, { method: 'POST' }),
-  roles: (tenantId = '') => {
-    const query = new URLSearchParams();
-    if (tenantId) query.set('tenantId', tenantId);
-    return apiFetch(`${API_BASE}/mcp-authorization/roles${query.toString() ? `?${query}` : ''}`);
-  },
-  users: (tenantId = '') => {
-    const query = new URLSearchParams();
-    if (tenantId) query.set('tenantId', tenantId);
-    return apiFetch(`${API_BASE}/mcp-authorization/users${query.toString() ? `?${query}` : ''}`);
-  },
-  rolePermissions: (roleId, tenantId = '') => {
-    const query = new URLSearchParams({ roleId });
-    if (tenantId) query.set('tenantId', tenantId);
-    return apiFetch(`${API_BASE}/mcp-authorization/role-permissions?${query}`);
-  },
-  createRolePermission: (payload) =>
-    apiFetch(`${API_BASE}/mcp-authorization/role-permissions`, {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    }),
-  deleteRolePermission: (id) =>
-    apiFetch(`${API_BASE}/mcp-authorization/role-permissions/${encodeURIComponent(id)}`, {
-      method: 'DELETE'
-    }),
-  deleteRolePermissions: (ids) =>
-    apiFetch(`${API_BASE}/mcp-authorization/role-permissions/batch-delete`, {
-      method: 'POST',
-      body: JSON.stringify({ ids })
-    })
-};
-
 export const licenseApi = {
   status: () => apiFetch(`${API_BASE}/license/status`),
   menus: () => apiFetch(`${API_BASE}/license/menus`),

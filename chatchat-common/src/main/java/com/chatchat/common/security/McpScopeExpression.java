@@ -1,4 +1,4 @@
-package com.chatchat.mcpserver.authorization;
+package com.chatchat.common.security;
 
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -48,6 +48,22 @@ public record McpScopeExpression(
             attributes.get("domain"),
             attributes.get("level")
         );
+    }
+
+    /** Validate management writes strictly so a misspelled constraint cannot become a broad grant. */
+    public static McpScopeExpression parseStrict(String value) {
+        if(value==null || value.split("@",-1).length>2 || value.split("@",-1)[0].split(":",-1).length!=4)
+            throw new IllegalArgumentException("Invalid MCP scope expression");
+        String[] parts=value.split("@",-1);
+        if(parts.length==2) {
+            var seen=new java.util.HashSet<String>();
+            for(String attribute:parts[1].split(";",-1)) {
+                String[] pair=attribute.split("=",2);
+                if(pair.length!=2 || pair[1].isBlank() || !java.util.Set.of("tenant","domain","level").contains(pair[0].trim())
+                    || !seen.add(pair[0].trim()))throw new IllegalArgumentException("Invalid or duplicate MCP scope attribute");
+            }
+        }
+        return parse(value);
     }
 
     public boolean matches(String requestedAssetType,

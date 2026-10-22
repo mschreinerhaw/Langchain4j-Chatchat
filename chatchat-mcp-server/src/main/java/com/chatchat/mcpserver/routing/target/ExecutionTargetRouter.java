@@ -64,6 +64,15 @@ public class ExecutionTargetRouter {
     private final DatabaseQueryConfigService databaseQueryConfigService;
     private final ExecutionTargetService executionTargetService;
     private final ObjectMapper objectMapper;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.mcpserver.authorization.McpAuthorizationService authorization;
+
+    private void requireResolvedResource(String tool,String type,String id) {
+        if(authorization!=null) {
+            var decision=authorization.authorizeResolvedResource(tool,type,id);
+            if(!decision.allowed())throw new SecurityException(decision.reason());
+        }
+    }
 
     public Map<String, Object> routeLinuxCommand(Map<String, Object> arguments) {
         Map<String, Object> request = copyArguments(arguments);
@@ -71,6 +80,7 @@ public class ExecutionTargetRouter {
         Map<String, Object> context = executionContext(request);
         requireExecutionContext(context, "linux_command_execute");
         SshHostConfig host = resolveSshHost(request);
+        requireResolvedResource("linux_command_execute","ssh_host",host.getId());
         log.info("MCP execution routing selected SSH host: tool=linux_command_execute, context={}, hostId={}, assetName={}, hostTool={}, env={}",
             compactContext(context), host.getId(), host.getName(), host.getToolName(), host.getEnvironment());
         Map<String, Object> routingDecisionLog = routingTrace(
@@ -104,6 +114,7 @@ public class ExecutionTargetRouter {
         Map<String, Object> context = executionContext(request, true);
         requireExecutionContext(context, "sql_query_execute");
         SqlDatasourceConfig datasource = resolveSqlDatasource(request, context);
+        requireResolvedResource("sql_query_execute","sql_datasource",datasource.getId());
         log.info("MCP execution routing selected SQL datasource: tool=sql_query_execute, context={}, datasourceId={}, assetName={}, datasourceTool={}, env={}",
             compactContext(context), datasource.getId(), firstText(datasource.getName(), datasource.getToolName()),
             datasource.getToolName(), datasource.getEnvironment());
@@ -176,6 +187,7 @@ public class ExecutionTargetRouter {
         }
         requireExecutionContext(context, "http_request_execute");
         HttpEndpointConfig endpoint = resolveHttpEndpoint(request);
+        requireResolvedResource("http_request_execute","http_endpoint",endpoint.getId());
         Map<String, Object> routingDecisionLog = routingTrace(
             "http_endpoint",
             context,

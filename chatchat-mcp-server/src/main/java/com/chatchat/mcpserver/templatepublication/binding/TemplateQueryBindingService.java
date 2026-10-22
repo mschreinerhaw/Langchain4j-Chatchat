@@ -52,7 +52,7 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
         Map<String, TemplateQueryParentCatalog.ParentTool> parents = new LinkedHashMap<>();
         parentCatalog.list().forEach(item -> parents.put(normalize(item.toolName()), item));
         Map<String, McpSynchronizedRole> roles = new LinkedHashMap<>();
-        roleRepository.findAll().forEach(item -> roles.put(item.getId(), item));
+        authorizationService.roles(null).forEach(item -> roles.put(item.id(), roleProjection(item)));
         Map<String, McpAuthorizationService.UserView> users = new LinkedHashMap<>();
         authorizationService.currentView().users().forEach(item -> users.put(normalize(item.id()), item));
         return repository.findAllByOrderByUpdatedAtDesc().stream()
@@ -166,7 +166,8 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
             if (!tenantId.equals(normalize(binding.getTenantId()))) {
                 continue;
             }
-            McpSynchronizedRole role = roleRepository.findById(binding.getRoleId()).orElse(null);
+            McpSynchronizedRole role = authorizationService.roles(tenantId).stream()
+                .filter(item -> item.id().equals(binding.getRoleId())).map(this::roleProjection).findFirst().orElse(null);
             if (role == null || !roleMatches(role, callerRoles)) {
                 continue;
             }
@@ -405,8 +406,27 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
             .findFirst().orElse(null);
     }
 
+    private McpSynchronizedRole roleProjection(McpAuthorizationService.RoleView view) {
+        var role = new McpSynchronizedRole(); role.setId(view.id()); role.setTenantId(view.tenantId());
+        role.setRoleCode(view.roleCode()); role.setRoleName(view.roleName());
+        role.setRoleType(view.roleType()); role.setStatus(view.status()); return role;
+    }
+
+    /** Validates a draft without writing an executable publication binding. */
+    @Transactional(readOnly = true)
+    public void validateDraft(UpsertRequest request) {
+        if (request == null) throw new IllegalArgumentException("Binding request is required");
+        var parent = parentCatalog.require(request.parentToolName());
+        var role = role(required(request.roleId(), "roleId"));
+        TemplateQueryToolNamePolicy.requireDomainCode(request.domainCode());
+        subject(role, request.subjectType(), request.userId());
+        if (normalizeKeys(request.templateKeys(), role.getId(), parent).isEmpty())
+            throw new IllegalArgumentException("At least one authorized template is required");
+    }
+
     private McpSynchronizedRole role(String roleId) {
-        return roleRepository.findById(roleId)
+        return authorizationService.roles(null).stream().filter(item -> item.id().equals(roleId))
+            .map(this::roleProjection).findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Role not found: " + roleId));
     }
 

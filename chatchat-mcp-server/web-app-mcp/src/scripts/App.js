@@ -1,7 +1,6 @@
 ﻿import LoginView from '../views/LoginView.vue';
 import ApiServicesView from '../views/ApiServicesView.vue';
 import McpServicesView from '../views/McpServicesView.vue';
-import TemplateQueryPublicationsView from '../views/TemplateQueryPublicationsView.vue';
 import AssetCenterView from '../views/AssetCenterView.vue';
 import BusinessCategoriesView from '../views/BusinessCategoriesView.vue';
 import DatabaseMcpView from '../views/DatabaseMcpView.vue';
@@ -9,7 +8,6 @@ import CacheSettingsView from '../views/CacheSettingsView.vue';
 import NotificationChannelsView from '../views/NotificationChannelsView.vue';
 import AuditLogsView from '../views/AuditLogsView.vue';
 import CommandAuditLogsView from '../views/CommandAuditLogsView.vue';
-import SettingsView from '../views/SettingsView.vue';
 import LicenseView from '../views/LicenseView.vue';
 import NewsCollectionView from '../views/NewsCollectionView.vue';
 import PythonManagementView from '../views/PythonManagementView.vue';
@@ -33,7 +31,6 @@ const menuComponents = {
   apiServices: ApiServicesView,
   mcpServices: McpServicesView,
   pythonManagement: PythonManagementView,
-  templateQueryPublications: TemplateQueryPublicationsView,
   newsCollection: NewsCollectionView,
   assetCenter: AssetCenterView,
   businessCategories: BusinessCategoriesView,
@@ -41,9 +38,7 @@ const menuComponents = {
   cacheSettings: CacheSettingsView,
   notificationChannels: NotificationChannelsView,
   auditLogs: AuditLogsView,
-  commandAuditLogs: CommandAuditLogsView,
-  authorizationManagement: SettingsView,
-  settings: SettingsView
+  commandAuditLogs: CommandAuditLogsView
 };
 const licenseMenu = { key: 'license', label: 'License 授权', icon: 'Key', component: LicenseView };
 const databaseSections = [
@@ -55,23 +50,6 @@ const databaseSections = [
   { key: 'databaseCalendar', label: '交易日历', section: 'calendar' },
   { key: 'databaseImport', label: '批量导入', section: 'dsl' }
 ].map(item => ({ ...item, icon: 'Coin', component: DatabaseMcpView }));
-const userSettingsSection =
-  { key: 'settingsUsers', label: '用户管理', icon: 'User', component: SettingsView, section: 'users' };
-const authorizationSettingsSection =
-  { key: 'settingsRoles', label: '角色权限', icon: 'UserFilled', component: SettingsView, section: 'rolePermissions' };
-const loginAuditSettingsSection =
-  { key: 'settingsLoginAudits', label: '登录审计', icon: 'DocumentChecked', component: SettingsView, section: 'loginAudits' };
-const settingsSections = [userSettingsSection, authorizationSettingsSection, loginAuditSettingsSection];
-const systemSettingsMenu = (licensedSettings, licensedAuthorization) => ({
-  ...(licensedSettings || licensedAuthorization || {}),
-  key: 'settings', label: '系统设置', icon: 'Setting',
-  children: [
-    ...(licensedSettings ? [userSettingsSection] : []),
-    ...(licensedSettings || licensedAuthorization ? [authorizationSettingsSection] : []),
-    ...(licensedSettings ? [loginAuditSettingsSection] : []),
-    licenseMenu
-  ]
-});
 const activityEvents = ['pointerdown', 'pointermove', 'keydown', 'scroll', 'touchstart'];
 const activityWriteThrottleMs = 1000;
 
@@ -92,7 +70,7 @@ export default {
       resultOpen: false,
       resultTitle: '',
       resultValue: null,
-      navItems: [systemSettingsMenu(null)],
+      navItems: [licenseMenu],
       idleTimer: null,
       lastActivityRecordedAt: 0,
       idleLogoutInProgress: false
@@ -100,7 +78,7 @@ export default {
   },
   computed: {
     isSystemSettingsView() {
-      return this.activeView === 'license' || settingsSections.some(item => item.key === this.activeView);
+      return this.activeView === 'license';
     },
     activeNav() {
       return this.navItems.flatMap(item => item.children || [item])
@@ -128,15 +106,13 @@ export default {
       try {
         const access = await licenseApi.menus();
         const licensed = (Array.isArray(access) ? access : [])
-          .filter(item => item.authorized && menuComponents[item.key])
+          .filter(item => item.authorized && menuComponents[item.key] && !['templateQueryPublications','authorizationManagement','settings'].includes(item.key))
           .map(item => item.key === 'databaseMcp'
             ? { ...item, children: databaseSections }
             : { ...item, component: menuComponents[item.key] });
-        const settings = licensed.find(item => item.key === 'settings');
-        const authorization = licensed.find(item => item.key === 'authorizationManagement');
         this.navItems = [
           ...licensed.filter(item => !['settings', 'authorizationManagement'].includes(item.key)),
-          systemSettingsMenu(settings, authorization)
+          licenseMenu
         ];
         const available = this.navItems.flatMap(item => item.children || [item]);
         if (!available.some(item => item.key === this.activeView)) {
@@ -145,7 +121,7 @@ export default {
         await nextTick();
         this.$refs.sidebarMenu?.close('settings');
       } catch (error) {
-        this.navItems = [systemSettingsMenu(null)];
+        this.navItems = [licenseMenu];
         this.activeView = 'license';
         await nextTick();
         this.$refs.sidebarMenu?.close('settings');

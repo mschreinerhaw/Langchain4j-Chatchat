@@ -127,6 +127,17 @@ public class AgentRuntimeGovernanceFactory {
         meta.put("source", source);
         if (sourceId != null && !sourceId.isBlank()) {
             meta.put("sourceId", sourceId);
+            String resourceType=switch(source) {
+                case "sql_datasource", "ssh_host", "http_endpoint" -> source;
+                case "database_query_config" -> "database_query";
+                case "external_api" -> "api_service";
+                default -> null;
+            };
+            if(resourceType!=null && !"system-managed".equals(sourceId)) {
+                meta.put("authorizationResource",Map.of("assetType",resourceType,"domain",sourceId));
+                String action=switch(resourceType) {case "ssh_host"->"command";case "http_endpoint"->"request";case "api_service"->"invoke";default->"query";};
+                meta.put("authorizationScope",Map.of("assetType",resourceType,"capability","execute","action",action));
+            }
         }
         meta.put("governance", normalized);
 

@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.authorization;
 
+import com.chatchat.common.security.McpScopeExpression;
+
 import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.common.security.McpAdministratorPolicy;
 import com.chatchat.mcpserver.external.ExternalMcpRegistryService;
@@ -54,7 +56,6 @@ public class McpAuthorizationService {
         .connectTimeout(Duration.ofSeconds(5))
         .build();
     private final AtomicReference<Snapshot> snapshotRef = new AtomicReference<>(Snapshot.empty());
-    private final AtomicReference<Snapshot> synchronizedRoleSnapshotRef = new AtomicReference<>(Snapshot.empty());
     private final Object snapshotRefreshMonitor = new Object();
     private volatile long lastUnavailableRefreshAttemptMs = Long.MIN_VALUE;
     private volatile String bearerToken;
@@ -128,15 +129,8 @@ public class McpAuthorizationService {
     private boolean refreshSnapshotUnderLock(String trigger) {
         lastUnavailableRefreshAttemptMs = System.currentTimeMillis();
         try {
-            Snapshot previous = synchronizedRoleSnapshotRef.get();
             Snapshot snapshot = fetchSnapshot();
             snapshotRef.set(snapshot);
-            if (!sameRoles(previous, snapshot)) {
-                synchronizeRoles(snapshot);
-                synchronizedRoleSnapshotRef.set(snapshot);
-            } else {
-                log.debug("MCP authorization roles unchanged; local synchronization skipped");
-            }
             return snapshot.usable();
         } catch (Exception ex) {
             if (ex instanceof InterruptedException) {
@@ -150,13 +144,6 @@ public class McpAuthorizationService {
             log.debug("MCP authorization snapshot refresh stack trace", ex);
             return false;
         }
-    }
-
-    private boolean sameRoles(Snapshot left, Snapshot right) {
-        if (left == null || right == null || !left.usable() || !right.usable()) {
-            return false;
-        }
-        return Objects.equals(left.rolesById(), right.rolesById());
     }
 
     public AuthorizationDecision authorize(String toolName, Map<String, Object> arguments) {
@@ -177,6 +164,21 @@ public class McpAuthorizationService {
             return AuthorizationDecision.denyDecision("MCP database execution authorization is unavailable");
         }
         return evaluateAuthorization(serviceId, toolName, arguments, snapshot, null);
+    }
+
+    /** Final executor target wins over caller-supplied scope, after deterministic resource resolution. */
+    public AuthorizationDecision authorizeResolvedResource(String toolName,String assetType,String resourceId) {
+        if(resourceId==null || resourceId.isBlank())return AuthorizationDecision.denyDecision("Resolved resource identity is missing");
+        try {
+            var snapshot=Snapshot.from(fetchExecutionSnapshot());snapshotRef.set(snapshot);
+            var principal=principal(Map.of(),snapshot);
+            var requested=requestedScope(toolName,Map.of(),principal);
+            var actual=McpScopeExpression.of(assetType,requested.capability(),requested.action(),principal.tenantId(),resourceId,requested.level());
+            return evaluateAuthorization("chatchat-mcp-server",toolName,Map.of(),snapshot,actual);
+        } catch(Exception ex) {
+            if(ex instanceof InterruptedException)Thread.currentThread().interrupt();
+            return AuthorizationDecision.denyDecision("Resolved resource authorization is unavailable");
+        }
     }
 
     /** Discovery reuses the execution policy evaluator against the synchronized DB snapshot. */
@@ -394,7 +396,6 @@ public class McpAuthorizationService {
         try {
             Snapshot snapshot = fetchSnapshot();
             snapshotRef.set(snapshot);
-            synchronizeRoles(snapshot);
         } catch (Exception ex) {
             throw new IllegalStateException("failed to refresh MCP authorization snapshot: " + ex.getMessage(), ex);
         }
@@ -487,185 +488,13 @@ public class McpAuthorizationService {
     }
 
     public List<RoleView> roles(String tenantId) {
-        List<McpSynchronizedRole> roles = tenantId == null || tenantId.isBlank()
-            ? roleRepository.findAllByOrderByRoleNameAscRoleCodeAsc()
-            : roleRepository.findByTenantIdOrderByRoleNameAscRoleCodeAsc(tenantId);
-        return roles.stream().map(this::toRoleView).toList();
+        return snapshotRef.get().rolesById().values().stream()
+            .filter(role -> tenantId == null || tenantId.isBlank() || Objects.equals(tenantId, role.tenantId()))
+            .map(role -> new RoleView(role.id(), role.tenantId(), role.roleCode(), role.roleName(), role.roleType(), role.status()))
+            .sorted(java.util.Comparator.comparing(RoleView::id)).toList();
     }
 
-    private List<RoleView> localRoleViews() {
-        return roleRepository.findAllByOrderByRoleNameAscRoleCodeAsc().stream()
-            .map(this::toRoleView)
-            .toList();
-    }
-
-    private RoleView toRoleView(McpSynchronizedRole role) {
-        return new RoleView(
-            role.getId(),
-            role.getTenantId(),
-            role.getRoleCode(),
-            role.getRoleName(),
-            role.getRoleType(),
-            role.getStatus()
-        );
-    }
-
-    private void synchronizeRoles(Snapshot snapshot) {
-        if (snapshot == null) {
-            return;
-        }
-        Instant syncedAt = Instant.now();
-        Set<String> incomingRoleIds = snapshot.rolesById().values().stream()
-            .filter(role -> role.id() != null && !role.id().isBlank())
-            .map(Role::id)
-            .collect(java.util.stream.Collectors.toSet());
-        List<McpSynchronizedRole> roles = snapshot.rolesById().values().stream()
-            .filter(role -> role.id() != null && !role.id().isBlank())
-            .map(role -> {
-                McpSynchronizedRole entity = roleRepository.findById(role.id()).orElseGet(McpSynchronizedRole::new);
-                entity.setId(role.id());
-                entity.setTenantId(blankToNull(role.tenantId()));
-                entity.setRoleCode(blankToNull(role.roleCode()));
-                entity.setRoleName(blankToNull(role.roleName()));
-                entity.setRoleType(blankToNull(role.roleType()));
-                entity.setStatus(blankToNull(role.status()));
-                entity.setSource("chatchat-api");
-                entity.setSyncedAt(syncedAt);
-                return entity;
-            })
-            .toList();
-        if (!roles.isEmpty()) {
-            roleRepository.saveAll(roles);
-        }
-        List<McpSynchronizedRole> staleRoles = roleRepository.findAll().stream()
-            .filter(role -> "chatchat-api".equalsIgnoreCase(role.getSource()))
-            .filter(role -> !incomingRoleIds.contains(role.getId()))
-            .toList();
-        if (!staleRoles.isEmpty()) {
-            roleRepository.deleteAllInBatch(staleRoles);
-        }
-        log.info("MCP authorization roles synchronized count={} deleted={}", roles.size(), staleRoles.size());
-    }
-
-    public List<JsonNode> rolePermissions(String roleId, String tenantId) {
-        try {
-            String query = tenantId == null || tenantId.isBlank()
-                ? ""
-                : "?tenantId=" + encode(tenantId);
-            JsonNode data = apiJson("GET", "/api/v1/enterprise/tool-permissions" + query, null);
-            if (!data.isArray()) {
-                return List.of();
-            }
-            List<JsonNode> result = new ArrayList<>();
-            for (JsonNode node : data) {
-                if ("role".equalsIgnoreCase(node.path("targetType").asText())
-                    && roleId.equals(node.path("targetId").asText())) {
-                    result.add(node);
-                }
-            }
-            return result;
-        } catch (Exception ex) {
-            throw new IllegalStateException("failed to load role permissions: " + ex.getMessage(), ex);
-        }
-    }
-
-    public List<JsonNode> apiUsers(String tenantId) {
-        try {
-            String query = tenantId == null || tenantId.isBlank()
-                ? ""
-                : "?tenantId=" + encode(tenantId);
-            JsonNode data = apiJson("GET", "/api/v1/enterprise/users" + query, null);
-            if (!data.isArray()) {
-                return List.of();
-            }
-            List<JsonNode> result = new ArrayList<>();
-            data.forEach(result::add);
-            return result;
-        } catch (Exception ex) {
-            throw new IllegalStateException("failed to load api users: " + ex.getMessage(), ex);
-        }
-    }
-
-    public JsonNode createRolePermission(RolePermissionRequest request) {
-        if (request == null) {
-            throw new IllegalArgumentException("role permission request is required");
-        }
-        String roleId = blankToNull(request.roleId());
-        if (roleId == null) {
-            throw new IllegalArgumentException("roleId is required");
-        }
-        McpSynchronizedRole role = roleRepository.findById(roleId)
-            .orElseThrow(() -> new IllegalArgumentException("role not found: " + roleId));
-        String roleTenantId = blankToNull(role.getTenantId());
-        String requestedTenantId = blankToNull(request.tenantId());
-        if (roleTenantId != null && requestedTenantId != null
-            && !roleTenantId.equalsIgnoreCase(requestedTenantId)) {
-            throw new IllegalArgumentException("role tenant does not match permission tenant");
-        }
-        String permissionTenantId = firstText(roleTenantId, requestedTenantId);
-        validateScopeTenant(request.scopeExpression(), permissionTenantId);
-
-        try {
-            Map<String, Object> body = new LinkedHashMap<>();
-            body.put("tenantId", permissionTenantId);
-            body.put("targetType", "role");
-            body.put("targetId", roleId);
-            body.put("toolId", blankToNull(request.toolId()));
-            body.put("localToolName", request.localToolName());
-            body.put("scopeExpression", blankToNull(request.scopeExpression()));
-            body.put("effect", request.effect() == null || request.effect().isBlank() ? ALLOW : request.effect());
-            body.put("enabled", request.enabled() == null || request.enabled());
-            body.put("remark", blankToNull(request.remark()));
-            JsonNode saved = apiJson("POST", "/api/v1/enterprise/tool-permissions", objectMapper.writeValueAsString(body));
-            refreshSafely();
-            return saved;
-        } catch (Exception ex) {
-            throw new IllegalStateException("failed to save role permission: " + ex.getMessage(), ex);
-        }
-    }
-
-    private void validateScopeTenant(String scopeExpression, String permissionTenantId) {
-        String expression = blankToNull(scopeExpression);
-        if (expression == null) {
-            return;
-        }
-        McpScopeExpression scope = McpScopeExpression.parse(expression);
-        String scopeTenantId = blankToNull(scope.tenantId());
-        if (scopeTenantId != null && !"*".equals(scopeTenantId)
-            && (permissionTenantId == null || !scopeTenantId.equalsIgnoreCase(permissionTenantId))) {
-            throw new IllegalArgumentException("scope tenant does not match role tenant");
-        }
-    }
-
-    public void deleteRolePermission(String id) {
-        try {
-            apiJson("DELETE", "/api/v1/enterprise/tool-permissions/" + encode(id), null);
-            refreshSafely();
-        } catch (Exception ex) {
-            throw new IllegalStateException("failed to delete role permission: " + ex.getMessage(), ex);
-        }
-    }
-
-    public int deleteRolePermissions(List<String> ids) {
-        LinkedHashSet<String> normalizedIds = ids == null ? new LinkedHashSet<>() : ids.stream()
-            .map(this::blankToNull)
-            .filter(Objects::nonNull)
-            .collect(Collectors.toCollection(LinkedHashSet::new));
-        if (normalizedIds.isEmpty()) {
-            throw new IllegalArgumentException("permission ids must not be empty");
-        }
-        if (normalizedIds.size() > 500) {
-            throw new IllegalArgumentException("at most 500 permissions can be deleted at once");
-        }
-        try {
-            JsonNode result = apiJson("POST", "/api/v1/enterprise/tool-permissions/batch-delete",
-                objectMapper.writeValueAsString(Map.of("ids", normalizedIds)));
-            refreshSafely();
-            return result.path("deleted").asInt();
-        } catch (Exception ex) {
-            throw new IllegalStateException("failed to delete role permissions: " + ex.getMessage(), ex);
-        }
-    }
+    private List<RoleView> localRoleViews() { return roles(null); }
 
     private Snapshot fetchSnapshot() throws Exception {
         String token = resolveBearerToken();
@@ -905,17 +734,20 @@ public class McpAuthorizationService {
             context == null ? null : context.scopeExpression(),
             text(arguments, "scopeExpression")
         );
-        if (explicit != null) {
-            return McpScopeExpression.parse(explicit);
-        }
         ToolScope toolScope = toolScope(toolName);
+        var parsed=explicit==null?null:McpScopeExpression.parse(explicit);
+        if(parsed!=null && parsed.tenantId()!=null && !Objects.equals(parsed.tenantId(),principal.tenantId()))
+            throw new IllegalArgumentException("Scope tenant differs from caller tenant");
+        var metadata=toolRegistry==null?null:toolRegistry.getToolMetadata(toolName);
+        var resource=map(metadata==null?null:metadata.getMetadata(),"authorizationResource");
         return McpScopeExpression.of(
-            firstText(context == null ? null : context.assetType(), text(arguments, "assetType"), toolScope.assetType()),
-            firstText(toolScope.capability(), text(arguments, "capability")),
-            firstText(toolScope.action(), text(arguments, "action")),
+            firstText(text(resource,"assetType"),toolScope.assetType(),parsed==null?null:parsed.assetType(),context == null ? null : context.assetType(), text(arguments, "assetType")),
+            firstText(toolScope.capability(),parsed==null?null:parsed.capability(), text(arguments, "capability")),
+            firstText(toolScope.action(),parsed==null?null:parsed.action(), text(arguments, "action")),
             principal == null ? null : principal.tenantId(),
-            firstText(context == null ? null : context.domain(), text(arguments, "domain"), assetDomain(arguments)),
-            firstText(context == null ? null : context.permissionLevel(), text(arguments, "permissionLevel"), "read")
+            firstText(text(resource,"domain"),text(arguments,"datasourceId"),text(arguments,"hostId"),text(arguments,"endpointId"),
+                parsed==null?null:parsed.domain(),context == null ? null : context.domain(), text(arguments, "domain"), assetDomain(arguments)),
+            firstText(parsed==null?null:parsed.level(),context == null ? null : context.permissionLevel(), text(arguments, "permissionLevel"), "read")
         );
     }
 
@@ -977,18 +809,6 @@ public class McpAuthorizationService {
         String description,
         boolean enabled,
         String status
-    ) {
-    }
-
-    public record RolePermissionRequest(
-        String tenantId,
-        String roleId,
-        String toolId,
-        String localToolName,
-        String scopeExpression,
-        String effect,
-        Boolean enabled,
-        String remark
     ) {
     }
 

@@ -172,6 +172,7 @@ public class AgentWorkshopController {
     @Operation(summary = "Create one workshop Agent")
     public ApiResponse<AgentCard> createAgent(@RequestBody AgentUpsertRequest request,
                                                HttpServletRequest servletRequest) {
+        governRuntimeConfiguration(request, servletRequest, null);
         validateResourceBindings(request, servletRequest);
         SkillDefinition saved = skillCatalogService.upsert(toSkillDefinition(request, null));
         synchronizeKnowledgeBindings(saved, servletRequest);
@@ -191,6 +192,7 @@ public class AgentWorkshopController {
     public ApiResponse<AgentCard> updateAgent(@PathVariable("agentId") String agentId,
                                               @RequestBody AgentUpsertRequest request,
                                               HttpServletRequest servletRequest) {
+        governRuntimeConfiguration(request, servletRequest, agentId);
         validateResourceBindings(request, servletRequest);
         SkillDefinition saved = skillCatalogService.upsert(toSkillDefinition(request, agentId));
         synchronizeKnowledgeBindings(saved, servletRequest);
@@ -723,6 +725,13 @@ public class AgentWorkshopController {
             request.getMarketStatus(),
             request.getDefaultAgent()
         );
+    }
+
+    private void governRuntimeConfiguration(AgentUpsertRequest payload,HttpServletRequest request,String id) {
+        String user=currentUserId(request);
+        if(user==null || enterpriseAdminService.hasPermission(user,"system:agent-registry:manage"))return;
+        Map<String,Object> existing=id==null?Map.of():skillCatalogService.resolve(id).workflowConfig();
+        payload.setWorkflowConfig(RuntimeConfigurationPolicy.forUser(payload.getWorkflowConfig(),existing));
     }
 
     private Map<String, Object> workflowConfig(AgentUpsertRequest request) {

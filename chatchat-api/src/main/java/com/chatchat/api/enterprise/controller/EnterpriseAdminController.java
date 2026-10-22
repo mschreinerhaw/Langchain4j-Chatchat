@@ -614,10 +614,9 @@ public class EnterpriseAdminController {
      * @return the tool permissions list
      */
     @GetMapping("/tool-permissions")
-    public ApiResponse<List<McpToolPermission>> listToolPermissions(@RequestParam(name = "tenantId", required = false) String tenantId) {
-        List<McpToolPermission> data = tenantId == null || tenantId.isBlank()
-            ? toolPermissionRepository.findAll()
-            : toolPermissionRepository.findByTenantIdOrderByUpdatedAtDesc(tenantId);
+    public ApiResponse<List<McpToolPermission>> listToolPermissions(@RequestParam(name = "tenantId", required = false) String tenantId, HttpServletRequest request) {
+        String tenant=toolPermissionTenant(request,tenantId);
+        List<McpToolPermission> data = toolPermissionRepository.findByTenantIdOrderByUpdatedAtDesc(tenant);
         return ApiResponse.success(data);
     }
 
@@ -628,7 +627,9 @@ public class EnterpriseAdminController {
      * @return the created tool permission
      */
     @PostMapping("/tool-permissions")
-    public ApiResponse<McpToolPermission> createToolPermission(@RequestBody McpToolPermission input) {
+    public ApiResponse<McpToolPermission> createToolPermission(@RequestBody McpToolPermission input, HttpServletRequest request) {
+        input.setTenantId(toolPermissionTenant(request,input.getTenantId()));
+        if(input.getId()!=null)requireToolPermission(request,input.getId());
         return ApiResponse.success(adminService.saveToolPermission(input), "tool permission saved");
     }
 
@@ -641,7 +642,9 @@ public class EnterpriseAdminController {
      */
     @PutMapping("/tool-permissions/{id}")
     public ApiResponse<McpToolPermission> updateToolPermission(@PathVariable("id") String id,
-                                                               @RequestBody McpToolPermission input) {
+                                                               @RequestBody McpToolPermission input, HttpServletRequest request) {
+        requireToolPermission(request,id);
+        input.setTenantId(toolPermissionTenant(request,input.getTenantId()));
         input.setId(id);
         return ApiResponse.success(adminService.saveToolPermission(input), "tool permission saved");
     }
@@ -653,7 +656,8 @@ public class EnterpriseAdminController {
      * @return the operation result
      */
     @DeleteMapping("/tool-permissions/{id}")
-    public ApiResponse<Void> deleteToolPermission(@PathVariable("id") String id) {
+    public ApiResponse<Void> deleteToolPermission(@PathVariable("id") String id, HttpServletRequest request) {
+        requireToolPermission(request,id);
         adminService.delete("tool-permission", id);
         return ApiResponse.success(null, "tool permission deleted");
     }
@@ -666,7 +670,8 @@ public class EnterpriseAdminController {
      */
     @PostMapping("/tool-permissions/batch-delete")
     public ApiResponse<ToolPermissionBatchDeleteResult> deleteToolPermissions(
-        @RequestBody ToolPermissionBatchDeleteRequest request) {
+        @RequestBody ToolPermissionBatchDeleteRequest request, HttpServletRequest servletRequest) {
+        if(request!=null && request.ids()!=null)request.ids().forEach(id->requireToolPermission(servletRequest,id));
         int deleted = adminService.deleteToolPermissions(request == null ? null : request.ids());
         return ApiResponse.success(new ToolPermissionBatchDeleteResult(deleted), "tool permissions deleted");
     }
@@ -788,6 +793,18 @@ public class EnterpriseAdminController {
             Boolean.TRUE.equals(skill.defaultAgent()),
             skill.skillTags()
         );
+    }
+
+    private String toolPermissionTenant(HttpServletRequest request,String requested) {
+        String tenant=requestAttribute(request,ApiAuthenticationFilter.CURRENT_TENANT_ID);
+        if(tenant.isBlank() || (requested!=null && !requested.isBlank() && !tenant.equals(requested)))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Tool permission tenant does not match authenticated tenant");
+        return tenant;
+    }
+    private void requireToolPermission(HttpServletRequest request,String id) {
+        String tenant=toolPermissionTenant(request,null);
+        if(toolPermissionRepository.findById(id).filter(row->tenant.equals(row.getTenantId())).isEmpty())
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Tool permission not found");
     }
 
     private String currentUsername(HttpServletRequest request) {

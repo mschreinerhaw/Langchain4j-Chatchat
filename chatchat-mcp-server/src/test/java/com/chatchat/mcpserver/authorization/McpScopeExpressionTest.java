@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.authorization;
 
+import com.chatchat.common.security.McpScopeExpression;
+
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

@@ -8,6 +8,11 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AgentRuntimeGovernanceFactoryTest {
+    @Test void fixedDatasourceIdentityIsServerOwnedAuthorizationMetadata() {
+        var metadata=factory.toMeta("sql_datasource","datasource-fixed",Map.of());
+        assertThat(stringObjectMap(metadata.get("authorizationResource"))).containsEntry("domain","datasource-fixed").containsEntry("assetType","sql_datasource");
+        assertThat(stringObjectMap(metadata.get("authorizationScope"))).containsEntry("capability","execute").containsEntry("action","query");
+    }
 
     private final AgentRuntimeGovernanceFactory factory =
         new AgentRuntimeGovernanceFactory(new ObjectMapper());

@@ -1,0 +1,189 @@
+{
+  "scope": "Backend regression plus final target-authorization and release-package gates",
+  "status": "PASSED",
+  "suites": [
+    {
+      "module": "chatchat-agents",
+      "name": "com.chatchat.agents.routing.McpScopeExpressionTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.AgentAuthorizationIsolationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.ApiUserRoleScheduleMcpAuthorizationIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.controller.agent.AgentWorkshopControllerTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.controller.agent.RuntimeConfigurationPolicyTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.controller.mcp.ToolPublicationControllerTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.enterprise.controller.EnterpriseMcpAuthorizationSyncControllerTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.security.ApiPermissionAuthorizationFilterTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.workspace.UnifiedManagementMigrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-api",
+      "name": "com.chatchat.api.workspace.WorkspaceMigrationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-enterprise",
+      "name": "com.chatchat.enterprise.workspace.WorkspaceMigrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-mcp-server",
+      "name": "com.chatchat.mcpserver.authorization.McpAuthorizationServiceTest",
+      "tests": 40,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-mcp-server",
+      "name": "com.chatchat.mcpserver.authorization.McpScopeExpressionTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-mcp-server",
+      "name": "com.chatchat.mcpserver.routing.target.ExecutionTargetRouterTest",
+      "tests": 18,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-mcp-server",
+      "name": "com.chatchat.mcpserver.sql.execution.workflow.SqlQueryExecutionWorkflowTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-mcp-server",
+      "name": "com.chatchat.mcpserver.templatepublication.admin.ControlPlaneManagementFilterTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-mcp-server",
+      "name": "com.chatchat.mcpserver.templatepublication.admin.TemplateQueryAdminControllerTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-mcp-server",
+      "name": "com.chatchat.mcpserver.templatepublication.admin.ToolReleaseLifecycleTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-mcp-server",
+      "name": "com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingServiceTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-mcp-server",
+      "name": "com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisherTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "chatchat-mcp-server",
+      "name": "com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactoryTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "totals": {
+    "tests": 122,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "frontend": {
+    "files": 4,
+    "tests": 63,
+    "status": "PASSED",
+    "apiBuild": "PASSED",
+    "mcpBuild": "PASSED"
+  },
+  "package": "PASSED",
+  "remote": "PENDING"
+}

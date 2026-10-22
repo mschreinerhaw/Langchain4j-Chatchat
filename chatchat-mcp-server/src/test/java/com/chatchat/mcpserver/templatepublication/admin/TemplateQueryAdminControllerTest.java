@@ -51,20 +51,11 @@ class TemplateQueryAdminControllerTest {
     }
 
     @Test
-    void deleteRefreshesPublishedToolsAfterTheBindingChanges() {
-        TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
-        TemplateQueryMcpToolPublisher publisher = mock(TemplateQueryMcpToolPublisher.class);
-        TemplateQueryAdminController controller = new TemplateQueryAdminController(
-            bindings,
-            mock(TemplateAssetCatalogService.class),
-            mock(TemplateQueryParentCatalog.class),
-            mock(McpAuthorizationService.class),
-            publisher);
-
-        ApiResponse<Void> response = controller.delete("binding-1");
-
-        assertThat(response.getCode()).isEqualTo(200);
-        verify(bindings).delete("binding-1");
-        verify(publisher).refresh();
+    void legacyCatalogHasNoPermissionOrPublicationMutationHandlers() {
+        assertThat(java.util.Arrays.stream(TemplateQueryAdminController.class.getDeclaredMethods())
+            .filter(method -> method.isAnnotationPresent(org.springframework.web.bind.annotation.PostMapping.class)
+                || method.isAnnotationPresent(org.springframework.web.bind.annotation.PutMapping.class)
+                || method.isAnnotationPresent(org.springframework.web.bind.annotation.DeleteMapping.class)).toList()).isEmpty();
     }
+
 }

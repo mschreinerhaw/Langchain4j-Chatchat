@@ -29,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
+@org.springframework.context.annotation.Import(com.chatchat.api.testing.RuntimeSemanticPolicyFixture.class)
 @ActiveProfiles("test")
 @TestPropertySource(properties = "chatchat.test.context=agent-authorization-isolation")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)

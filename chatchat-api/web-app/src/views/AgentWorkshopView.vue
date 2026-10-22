@@ -821,7 +821,7 @@
                   ><input v-model="remoteForm.autoMcp" type="checkbox" /><span>启用</span></label
                 ></div
               >
-              <div v-if="remoteForm.autoMcp" class="workflow-strategy">
+              <div v-if="remoteForm.autoMcp && isPlatformAdmin" class="workflow-strategy">
                 <label
                   ><span>执行模式</span
                   ><select v-model="remoteForm.workflowConfig.executionStrategy.mode"
@@ -1431,10 +1431,10 @@
                 <span>启用</span>
               </label>
             </div>
-            <div class="workflow-budget-hint">
+            <div v-if="isPlatformAdmin" class="workflow-budget-hint">
               智能决策可按任务使用更小预算，但不得超过以下 Agent 配置上限。
             </div>
-            <div class="workflow-strategy">
+            <div v-if="isPlatformAdmin" class="workflow-strategy">
               <label>
                 <span>执行模式</span>
                 <select v-model="form.workflowConfig.executionStrategy.mode">

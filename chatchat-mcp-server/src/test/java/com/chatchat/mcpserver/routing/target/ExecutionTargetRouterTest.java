@@ -22,6 +22,18 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class ExecutionTargetRouterTest {
+    @Test void rejectsTheResolvedHostBeforeExecutingEvenWhenLogicalRoutingMatches() {
+        var hosts=mock(SshHostConfigService.class);var datasources=mock(SqlDatasourceConfigService.class);
+        var targets=mock(ExecutionTargetService.class);var router=router(hosts,datasources,targets);
+        var authority=mock(com.chatchat.mcpserver.authorization.McpAuthorizationService.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(router,"authorization",authority);
+        when(targets.listEnabledByAssetType(ExecutionTargetService.ASSET_TYPE_SSH_HOST)).thenReturn(List.of());
+        when(hosts.listEnabled()).thenReturn(List.of(host("blocked-host","blocked","ssh_blocked","PROD","linux")));
+        when(authority.authorizeResolvedResource("linux_command_execute","ssh_host","blocked-host"))
+            .thenReturn(com.chatchat.mcpserver.authorization.McpAuthorizationService.AuthorizationDecision.denyDecision("resource denied"));
+        assertThatThrownBy(()->router.routeLinuxCommand(Map.of("template","CHECK_DISK","executionContext",Map.of("env","PROD"))))
+            .isInstanceOf(SecurityException.class).hasMessageContaining("resource denied");
+    }
 
     @Test
     void routesLinuxCommandByLogicalExecutionContext() {

@@ -46,6 +46,8 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
     private final McpToolConcurrencyManager concurrencyManager;
     private final BoundTemplateCandidateRetriever candidateRetriever = new BoundTemplateCandidateRetriever();
     private final Set<String> publishedToolNames = new LinkedHashSet<>();
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.chatchat.mcpserver.templatepublication.admin.ToolReleaseContractCatalog releaseContracts;
     @org.springframework.beans.factory.annotation.Autowired
     private org.springframework.beans.factory.ObjectProvider<com.chatchat.mcpserver.ops.discovery.TemplateDiscoveryMcpToolPublisher> parentPublisher;
 
@@ -78,15 +80,16 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
     private McpServerFeatures.SyncToolSpecification specification(String toolName) {
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(toolName)
-            .title("Authorized template query")
-            .description("Agent-selectable child capability representing a fixed, system-maintained template set. "
+            .title(releaseContracts==null ? "Authorized template query" : releaseContracts.title(toolName,"Authorized template query"))
+            .description(releaseDescription(toolName,"Agent-selectable child capability representing a fixed, system-maintained template set. "
                 + "It is never executed directly: Runtime delegates it to the declared parent toolbox, which "
                 + "returns this child's bound template information and parameter contracts without another search. "
                 + "The result scope is fixed by "
                 + "the authenticated MCP service and caller roles. It only returns templates selected in "
                 + "Template Query Publication administration and never returns raw commands, SQL, URLs, headers, "
-                + "request bodies, credentials, or other execution specifications.")
-            .inputSchema(inputSchema())
+                + "request bodies, credentials, or other execution specifications."))
+            .inputSchema(releaseContracts == null ? inputSchema() : releaseContracts.inputSchema(toolName, inputSchema()))
+            .outputSchema(releaseContracts == null ? null : releaseContracts.outputSchema(toolName))
             .meta(meta(toolName))
             .build();
         return McpServerFeatures.SyncToolSpecification.builder()
@@ -113,6 +116,10 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             .build();
     }
 
+    private String releaseDescription(String name,String fallback) {
+        return releaseContracts==null?fallback:releaseContracts.description(name,fallback);
+    }
+
     Map<String, Object> query(String toolName, Map<String, Object> arguments) {
         return query(toolName, null, arguments);
     }
@@ -125,6 +132,7 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
     private Map<String, Object> query(String toolName, String invokedParentToolName,
                                       Map<String, Object> arguments) {
         String reviewedName = TemplateQueryToolNamePolicy.requireToolName(toolName);
+        if (releaseContracts != null) releaseContracts.validateInput(reviewedName, arguments);
         TemplateQueryRouteResolver.Route route = routeResolver.requireRoute(reviewedName);
         if (invokedParentToolName != null && !route.parentToolName().equals(invokedParentToolName)) {
             throw new IllegalArgumentException("Dynamic template query parent mismatch: " + reviewedName);
@@ -142,6 +150,23 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             throw new IllegalArgumentException("Dynamic template query is not authorized for current caller: "
                 + reviewedName);
         }
+        return queryBound(reviewedName, route, policy, arguments, true);
+    }
+
+    /** Test a draft through the same fixed-scope recall implementation without registering it. */
+    public Map<String,Object> preview(TemplateQueryBindingService.UpsertRequest draft,Map<String,Object> arguments) {
+        bindingService.validateDraft(draft);
+        var parent = new TemplateQueryParentCatalog().require(draft.parentToolName());
+        Set<String> ids = draft.templateKeys().stream().map(key -> key.substring(key.indexOf(':')+1))
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        var policy = new TemplateQueryBindingService.PolicyResolution(Map.of(parent.assetType(),ids),
+            Set.of(parent.toolName()),"draft-contract-test",false,ids.size(),java.time.Instant.now());
+        String name=TemplateQueryToolNamePolicy.toolName(draft.domainCode());
+        return queryBound(name,new TemplateQueryRouteResolver.Route(name,parent.toolName(),parent.assetType()),policy,arguments,false);
+    }
+
+    private Map<String,Object> queryBound(String reviewedName, TemplateQueryRouteResolver.Route route,
+        TemplateQueryBindingService.PolicyResolution policy,Map<String,Object> arguments,boolean enforceReleaseSchema) {
         Set<String> templateIds = policy.allowedTemplates().getOrDefault(route.assetType(), Set.of());
         Map<String, TemplateAssetCatalogService.TemplateAsset> enabledAssets = new LinkedHashMap<>();
         List<TemplateAssetCatalogService.TemplateAsset> scopedAssets =
@@ -186,7 +211,7 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         // Using templates.size() here makes every legitimate paged response look incomplete.
         int unavailableCount = Math.max(0, templateIds.size() - recall.candidateUniverseCount());
         McpInvocationContext.Context context = McpInvocationContext.current();
-        return Map.ofEntries(
+        Map<String,Object> result = Map.ofEntries(
             Map.entry("schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION),
             Map.entry("resultKind", "RAW_RECORDS"),
             Map.entry("resultSchemaRef", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION),
@@ -241,6 +266,8 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             )),
             Map.entry("rawExecutionSpecReturned", false)
         );
+        if (enforceReleaseSchema && releaseContracts != null) releaseContracts.validateOutput(reviewedName, result);
+        return result;
     }
 
     private int recallLimit(Map<String, Object> arguments) {
@@ -257,6 +284,10 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
     }
 
     private McpSchema.JsonSchema inputSchema() {
+        return defaultInputSchema();
+    }
+
+    public McpSchema.JsonSchema defaultInputSchema() {
         return new McpSchema.JsonSchema("object", Map.of(
             "assetType", Map.of(
                 "type", "string",
@@ -312,6 +343,8 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         ));
         Map<String, Object> meta = new LinkedHashMap<>(governanceFactory.toMeta(
             "template_query_publication", "system-managed", governance));
+        // RUNNING versions reached this point through the permission-checked release/rollback lifecycle.
+        if(releaseContracts!=null)meta.putAll(releaseContracts.metadata(toolName));
         String chineseAlias = bindingService.chineseAlias(toolName);
         if (chineseAlias != null) meta.put("chineseAlias", chineseAlias);
         meta.put("schemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION);

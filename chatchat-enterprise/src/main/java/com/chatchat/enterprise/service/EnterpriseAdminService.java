@@ -1035,8 +1035,31 @@ public class EnterpriseAdminService implements ApplicationRunner {
      */
     @Transactional
     public McpToolPermission saveToolPermission(McpToolPermission input) {
+        if(input==null || input.getTenantId()==null || input.getTenantId().isBlank())
+            throw new IllegalArgumentException("Tool permission tenant is required");
+        String targetType=defaultText(input.getTargetType(),"").toUpperCase(java.util.Locale.ROOT);
+        boolean validTarget=switch(targetType) {
+            case "ROLE" -> roleRepository.findById(defaultText(input.getTargetId(),""))
+                .filter(role->input.getTenantId().equals(role.getTenantId())).isPresent();
+            case "USER" -> userRepository.findById(defaultText(input.getTargetId(),""))
+                .filter(user->input.getTenantId().equals(user.getTenantId())).isPresent();
+            case "TENANT" -> input.getTenantId().equals(input.getTargetId()) && tenantRepository.existsById(input.getTenantId());
+            default -> false;
+        };
+        if(!validTarget)throw new IllegalArgumentException("Tool permission subject is outside its tenant");
+        if(!Set.of("allow","deny").contains(defaultText(input.getEffect(),"allow").toLowerCase(java.util.Locale.ROOT)))
+            throw new IllegalArgumentException("Invalid tool permission effect");
+        if(input.getScopeExpression()!=null && !input.getScopeExpression().isBlank()) {
+            var scope=com.chatchat.common.security.McpScopeExpression.parseStrict(input.getScopeExpression());
+            if(scope.tenantId()!=null && !input.getTenantId().equals(scope.tenantId()))
+                throw new IllegalArgumentException("Scope tenant does not match permission tenant");
+            input.setScopeExpression(com.chatchat.common.security.McpScopeExpression.of(scope.assetType(),scope.capability(),
+                scope.action(),input.getTenantId(),scope.domain(),scope.level()).value());
+        }
         McpToolPermission entity = input.getId() == null ? new McpToolPermission() :
             toolPermissionRepository.findById(input.getId()).orElseGet(McpToolPermission::new);
+        if(entity.getTenantId()!=null && !entity.getTenantId().equals(input.getTenantId()))
+            throw new SecurityException("An existing tool permission cannot move between tenants");
         entity.setTenantId(trimToNull(input.getTenantId()));
         entity.setTargetType(requireText(input.getTargetType(), "targetType").toUpperCase());
         entity.setTargetId(requireText(input.getTargetId(), "targetId"));

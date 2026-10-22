@@ -1,5 +1,7 @@
 package com.chatchat.agents.routing;
 
+import com.chatchat.common.security.McpScopeExpression;
+
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.common.tool.ToolMetadata;
 

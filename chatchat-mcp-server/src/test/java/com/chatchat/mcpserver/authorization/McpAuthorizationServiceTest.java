@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.authorization;
 
+import com.chatchat.common.security.McpScopeExpression;
+
 import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.mcpserver.external.ExternalMcpRegistryService;
 import com.chatchat.mcpserver.external.ExternalMcpService;
@@ -34,6 +36,40 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class McpAuthorizationServiceTest {
+    @Test void resolvedDatasourceCannotUseAnotherResourcesScopeClaim() throws Exception {
+        var authority=service(snapshot("""
+            [{"tenantId":"tenant-1","targetType":"role","targetId":"role-1","localToolName":"gateway",
+            "scopeExpression":"mcp:sql_datasource:execute:query@tenant=tenant-1;domain=db-allowed;level=read","effect":"allow","enabled":true}]
+            """));
+        var registry=mock(com.chatchat.agents.tool.ToolRegistry.class);
+        when(registry.getToolMetadata("gateway")).thenReturn(com.chatchat.common.tool.ToolMetadata.builder()
+            .metadata(Map.of("authorizationScope",Map.of("assetType","sql_datasource","capability","execute","action","query"))).build());
+        authority.setToolRegistry(registry);
+        var call=new com.chatchat.common.mcp.service.McpServiceCall(null,"scope-target","client","gateway",Map.of(),
+            Map.of("tenantId","tenant-1","userId","user-1","scopeExpression","mcp:sql_datasource:execute:query@tenant=tenant-1;domain=db-allowed;level=read"),0);
+        try(var ignored=McpInvocationContext.openCall(call)) {
+            assertThat(authority.authorizeResolvedResource("gateway","sql_datasource","db-allowed").allowed()).isTrue();
+            assertThat(authority.authorizeResolvedResource("gateway","sql_datasource","db-foreign").allowed()).isFalse();
+            assertThat(authority.authorize("gateway",Map.of("datasourceId","db-foreign")).allowed()).isFalse();
+            when(registry.getToolMetadata("gateway")).thenReturn(com.chatchat.common.tool.ToolMetadata.builder()
+                .metadata(Map.of("authorizationResource",Map.of("assetType","sql_datasource","domain","db-foreign"),
+                    "authorizationScope",Map.of("assetType","sql_datasource","capability","execute","action","query"))).build());
+            assertThat(authority.authorize("gateway",Map.of()).allowed()).isFalse();
+        }
+    }
+    @Test void oldPermissionSurfaceCannotWriteEvenWithServiceIdentity() {
+        assertThatThrownBy(() -> new McpAuthorizationAdminController().retired())
+            .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+            .hasMessageContaining("410");
+    }
+    @Test void rolesAreProjectedFromCentralSnapshotWithoutLocalPersistence() throws Exception {
+        var repository=mock(McpSynchronizedRoleRepository.class);
+        var service=service(snapshot("[]"),repository);
+        assertThat(service.roles("tenant-1")).extracting(McpAuthorizationService.RoleView::id).containsExactly("role-1");
+        assertThat(service.roles("tenant-other")).isEmpty();
+        org.mockito.Mockito.verifyNoInteractions(repository);
+    }
+
     @Test void eachMetadataInvocationObservesPermissionRevocation() throws Exception {
         var database=new AtomicReference<JsonNode>(databaseSnapshot(snapshot("""
             [{"tenantId":"tenant-1","targetType":"role","targetId":"role-1",
@@ -694,53 +730,9 @@ class McpAuthorizationServiceTest {
             "roleIds", List.of("role-super", "SUPER_ADMIN"))).allowed()).isFalse();
     }
 
-    @Test
-    void rolePermissionTenantMustMatchSynchronizedRoleTenant() throws Exception {
-        McpSynchronizedRoleRepository repository = mock(McpSynchronizedRoleRepository.class);
-        McpSynchronizedRole role = synchronizedRole("role-business-a", "chatchat-api");
-        role.setTenantId("tenant-a");
-        when(repository.findById("role-business-a")).thenReturn(Optional.of(role));
-        McpAuthorizationService service = service(multiTenantBusinessAdminSnapshot(), repository);
 
-        assertThatThrownBy(() -> service.createRolePermission(
-            new McpAuthorizationService.RolePermissionRequest(
-                "tenant-b",
-                "role-business-a",
-                null,
-                "sql_query_execute",
-                "mcp:sql_datasource:execute:query@tenant=tenant-b;domain=db-b;level=read",
-                "allow",
-                true,
-                "cross tenant"
-            )
-        ))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("role tenant does not match");
-    }
 
-    @Test
-    void rolePermissionScopeTenantMustMatchSynchronizedRoleTenant() throws Exception {
-        McpSynchronizedRoleRepository repository = mock(McpSynchronizedRoleRepository.class);
-        McpSynchronizedRole role = synchronizedRole("role-business-a", "chatchat-api");
-        role.setTenantId("tenant-a");
-        when(repository.findById("role-business-a")).thenReturn(Optional.of(role));
-        McpAuthorizationService service = service(multiTenantBusinessAdminSnapshot(), repository);
 
-        assertThatThrownBy(() -> service.createRolePermission(
-            new McpAuthorizationService.RolePermissionRequest(
-                "tenant-a",
-                "role-business-a",
-                null,
-                "sql_query_execute",
-                "mcp:sql_datasource:execute:query@tenant=tenant-b;domain=db-b;level=read",
-                "allow",
-                true,
-                "cross tenant scope"
-            )
-        ))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("scope tenant does not match");
-    }
 
     @Test
     void nestedMcpIdentityIsResolvedForAuthorization() throws Exception {
@@ -766,32 +758,9 @@ class McpAuthorizationServiceTest {
         assertThat(decision.allowed()).isTrue();
     }
 
-    @Test
-    void roleSynchronizationDeletesRolesMissingFromApiSnapshot() throws Exception {
-        McpSynchronizedRoleRepository repository = mock(McpSynchronizedRoleRepository.class);
-        McpSynchronizedRole stale = synchronizedRole("stale-role", "chatchat-api");
-        when(repository.findById("role-1")).thenReturn(Optional.empty());
-        when(repository.findAll()).thenReturn(List.of(stale));
-        McpAuthorizationService service = service(snapshot("[]"), repository);
 
-        synchronizeRoles(service, snapshot("[]"));
 
-        verify(repository).saveAll(anyList());
-        verify(repository).deleteAllInBatch(List.of(stale));
-    }
 
-    @Test
-    void emptyApiSnapshotDeletesAllPreviouslySynchronizedRoles() throws Exception {
-        McpSynchronizedRoleRepository repository = mock(McpSynchronizedRoleRepository.class);
-        McpSynchronizedRole stale = synchronizedRole("stale-role", "chatchat-api");
-        when(repository.findAll()).thenReturn(List.of(stale));
-        McpAuthorizationService service = service(emptySnapshot(), repository);
-
-        synchronizeRoles(service, emptySnapshot());
-
-        verify(repository, never()).saveAll(anyList());
-        verify(repository).deleteAllInBatch(List.of(stale));
-    }
 
     private McpAuthorizationService service(Object snapshot) throws Exception {
         return service(snapshot, mock(McpSynchronizedRoleRepository.class));

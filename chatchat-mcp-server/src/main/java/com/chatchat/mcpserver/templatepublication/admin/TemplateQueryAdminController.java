@@ -36,42 +36,11 @@ public class TemplateQueryAdminController {
         return ApiResponse.success(bindingService.list());
     }
 
-    @PostMapping
-    public ApiResponse<TemplateQueryBindingService.BindingView> create(
-        @RequestBody TemplateQueryBindingService.UpsertRequest request) {
-        TemplateQueryBindingService.BindingView result = bindingService.create(request);
-        toolPublisher.refresh();
-        return ApiResponse.success(result, "Template query binding created");
-    }
-
-    @PutMapping("/{id}")
-    public ApiResponse<TemplateQueryBindingService.BindingView> update(
-        @PathVariable("id") String id,
-        @RequestBody TemplateQueryBindingService.UpsertRequest request) {
-        TemplateQueryBindingService.BindingView result = bindingService.update(id, request);
-        toolPublisher.refresh();
-        return ApiResponse.success(result, "Template query binding updated");
-    }
-
-    @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable("id") String id) {
-        bindingService.delete(id);
-        toolPublisher.refresh();
-        return ApiResponse.success(null, "Template query binding deleted");
-    }
-
-    @PostMapping("/{id}/enabled")
-    public ApiResponse<TemplateQueryBindingService.BindingView> setEnabled(
-        @PathVariable("id") String id, @RequestParam("enabled") boolean enabled) {
-        TemplateQueryBindingService.BindingView result = bindingService.setEnabled(id, enabled);
-        toolPublisher.refresh();
-        return ApiResponse.success(result, "Template query binding status updated");
-    }
-
     @GetMapping("/templates")
     public ApiResponse<List<TemplateAssetCatalogService.TemplateAsset>> templates(
         @RequestParam("roleId") String roleId,
         @RequestParam("parentToolName") String parentToolName) {
+        authorizationService.refreshNow();
         TemplateQueryParentCatalog.ParentTool parent = parentCatalog.require(parentToolName);
         return ApiResponse.success(catalogService.listAuthorizedForRoleAndType(roleId, parent.assetType()).stream().filter(parent::accepts).toList());
     }
@@ -84,6 +53,7 @@ public class TemplateQueryAdminController {
     @GetMapping("/roles")
     public ApiResponse<List<McpAuthorizationService.RoleView>> roles(
         @RequestParam(name = "tenantId", required = false) String tenantId) {
+        authorizationService.refreshNow();
         return ApiResponse.success(authorizationService.roles(tenantId));
     }
 

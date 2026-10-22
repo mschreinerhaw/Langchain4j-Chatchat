@@ -1,0 +1,15 @@
+{
+  "version": "2.0.0-rc1",
+  "name": "Runtime OS 统一管理平台",
+  "baselineTag": "baseline/runtime-os-unified-management-20261022",
+  "baselineCommit": "5d5bc834fbe414755a99e38bcb03b6a69471c8a2",
+  "branch": "feature/unified-management-workspaces",
+  "permissionAuthority": "API PostgreSQL: sys_user, sys_role, sys_role_permission, mcp_tool_permission, resource_grant",
+  "workspaces": ["permissions", "mcp-publication"],
+  "apiCompatibility": {
+    "mcpAuthorizationManagement": "410 Gone; use the API permission center",
+    "legacyTemplatePublicationWrites": "410 Gone; use the versioned control plane",
+    "centralToolPermissionApi": "retained with authenticated tenant binding and strict resource-scope validation",
+    "existingControlledTemplateExecution": "retained"
+  }
+}

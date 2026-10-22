@@ -21,6 +21,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class TemplateQueryBindingServiceTest {
+    private McpAuthorizationService centralAuthorization() {
+        var authority=mock(McpAuthorizationService.class);
+        when(authority.roles(org.mockito.ArgumentMatchers.nullable(String.class))).thenReturn(List.of(
+            new McpAuthorizationService.RoleView("role-1","tenant-1","FINANCE","Finance Manager","business","ACTIVE"),
+            new McpAuthorizationService.RoleView("role-2","tenant-1","SECURITY","Security","business","ACTIVE")));
+        return authority;
+    }
+
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings = {"relational", "trino", "neo4j", "opensearch", "elasticsearch"})
@@ -29,7 +37,7 @@ class TemplateQueryBindingServiceTest {
         var roles = mock(McpSynchronizedRoleRepository.class);
         var catalog = mock(TemplateAssetCatalogService.class);
         var service = new TemplateQueryBindingService(repository, catalog, new TemplateQueryParentCatalog(), roles,
-            new ObjectMapper(), mock(McpAuthorizationService.class));
+            new ObjectMapper(), centralAuthorization());
         when(roles.findById("role-1")).thenReturn(Optional.of(role("role-1", "FINANCE")));
         var wrong = new TemplateAssetCatalogService.TemplateAsset("database_query:wrong", "database_query", "wrong",
             "wrong", "wrong", "finance", "finance", "Finance", Map.of())
@@ -45,7 +53,7 @@ class TemplateQueryBindingServiceTest {
     void rejectsTemplateWhoseCategoryDoesNotMatchTheFixedParentQuery() {
         TemplateQueryBindingRepository repository = mock(TemplateQueryBindingRepository.class);
         McpSynchronizedRoleRepository roles = mock(McpSynchronizedRoleRepository.class);
-        McpAuthorizationService authorization = mock(McpAuthorizationService.class);
+        McpAuthorizationService authorization = centralAuthorization();
         TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);
         TemplateQueryBindingService service = new TemplateQueryBindingService(
             repository, catalog, new TemplateQueryParentCatalog(), roles, new ObjectMapper(), authorization);
@@ -67,7 +75,7 @@ class TemplateQueryBindingServiceTest {
     void unionsOnlyBindingsMatchingAuthenticatedServiceTenantAndCallerRole() {
         TemplateQueryBindingRepository repository = mock(TemplateQueryBindingRepository.class);
         McpSynchronizedRoleRepository roles = mock(McpSynchronizedRoleRepository.class);
-        McpAuthorizationService authorization = mock(McpAuthorizationService.class);
+        McpAuthorizationService authorization = centralAuthorization();
         TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);
         TemplateQueryBindingService service = new TemplateQueryBindingService(
             repository, catalog, new TemplateQueryParentCatalog(), roles, new ObjectMapper(), authorization);
@@ -105,7 +113,7 @@ class TemplateQueryBindingServiceTest {
     void matchesDatabaseBindingByRoleNameAsWellAsRoleIdOrCode() {
         TemplateQueryBindingRepository repository = mock(TemplateQueryBindingRepository.class);
         McpSynchronizedRoleRepository roles = mock(McpSynchronizedRoleRepository.class);
-        McpAuthorizationService authorization = mock(McpAuthorizationService.class);
+        McpAuthorizationService authorization = centralAuthorization();
         TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);
         TemplateQueryBindingService service = new TemplateQueryBindingService(
             repository, catalog, new TemplateQueryParentCatalog(), roles, new ObjectMapper(), authorization);
@@ -131,7 +139,7 @@ class TemplateQueryBindingServiceTest {
     void ignoresUntrustedRequestRoleWhenCanonicalCallerRoleDoesNotMatch() {
         TemplateQueryBindingRepository repository = mock(TemplateQueryBindingRepository.class);
         McpSynchronizedRoleRepository roles = mock(McpSynchronizedRoleRepository.class);
-        McpAuthorizationService authorization = mock(McpAuthorizationService.class);
+        McpAuthorizationService authorization = centralAuthorization();
         TemplateQueryBindingService service = new TemplateQueryBindingService(
             repository, mock(TemplateAssetCatalogService.class), new TemplateQueryParentCatalog(),
             roles, new ObjectMapper(), authorization);
@@ -153,7 +161,7 @@ class TemplateQueryBindingServiceTest {
     void preservesParentRouteWhenMatchingBindingHasEmptyTemplateAuthorizationIntersection() {
         TemplateQueryBindingRepository repository = mock(TemplateQueryBindingRepository.class);
         McpSynchronizedRoleRepository roles = mock(McpSynchronizedRoleRepository.class);
-        McpAuthorizationService authorization = mock(McpAuthorizationService.class);
+        McpAuthorizationService authorization = centralAuthorization();
         TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);
         TemplateQueryBindingService service = new TemplateQueryBindingService(
             repository, catalog, new TemplateQueryParentCatalog(), roles, new ObjectMapper(), authorization);
@@ -179,7 +187,7 @@ class TemplateQueryBindingServiceTest {
     void appliesRoleWideTemplatesAndOnlyTheAuthenticatedMembersPersonalTemplates() {
         TemplateQueryBindingRepository repository = mock(TemplateQueryBindingRepository.class);
         McpSynchronizedRoleRepository roles = mock(McpSynchronizedRoleRepository.class);
-        McpAuthorizationService authorization = mock(McpAuthorizationService.class);
+        McpAuthorizationService authorization = centralAuthorization();
         TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);
         TemplateQueryBindingService service = new TemplateQueryBindingService(
             repository, catalog, new TemplateQueryParentCatalog(), roles, new ObjectMapper(), authorization);
@@ -214,7 +222,7 @@ class TemplateQueryBindingServiceTest {
     void resolvesFixedPublicationServiceWhenTransportClientIdIsUnavailable() {
         TemplateQueryBindingRepository repository = mock(TemplateQueryBindingRepository.class);
         McpSynchronizedRoleRepository roles = mock(McpSynchronizedRoleRepository.class);
-        McpAuthorizationService authorization = mock(McpAuthorizationService.class);
+        McpAuthorizationService authorization = centralAuthorization();
         TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);
         TemplateQueryBindingService service = new TemplateQueryBindingService(
             repository, catalog, new TemplateQueryParentCatalog(), roles, new ObjectMapper(), authorization);
@@ -238,7 +246,7 @@ class TemplateQueryBindingServiceTest {
     void resolvesFixedPublicationServiceWhenTransportClientIdDiffersFromLogicalServiceId() {
         TemplateQueryBindingRepository repository = mock(TemplateQueryBindingRepository.class);
         McpSynchronizedRoleRepository roles = mock(McpSynchronizedRoleRepository.class);
-        McpAuthorizationService authorization = mock(McpAuthorizationService.class);
+        McpAuthorizationService authorization = centralAuthorization();
         TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);
         TemplateQueryBindingService service = new TemplateQueryBindingService(
             repository, catalog, new TemplateQueryParentCatalog(), roles, new ObjectMapper(), authorization);

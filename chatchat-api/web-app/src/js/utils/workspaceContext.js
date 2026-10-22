@@ -18,6 +18,7 @@ export function parseWorkspaceRoute(hash = "") {
     const parts = route.split("/");
     if (parts.length !== 3 || !/^[a-z][a-z0-9-]{0,63}$/.test(parts[1])
         || !/^[a-zA-Z][a-zA-Z0-9-]{0,63}$/.test(parts[2])) return { invalid: true };
+    if (parts[1] === "zhice" && ["system","systemUsers","systemOrganizations","systemRoles","systemResources","systemSkillRoles","systemLogins"].includes(parts[2])) return { workspaceId: "permissions", pageId: parts[2] === "system" ? "systemUsers" : parts[2] };
     return { workspaceId: parts[1], pageId: parts[1]==='data-science' && parts[2]==='dataScienceScripts' ? 'dataScienceData' : parts[2] };
   }
   return { legacyView: route === "login" ? "" : route === "dataScience" ? "dataScienceEnvironment" : route === "dataScienceScripts" ? "dataScienceData" : route === "system" ? "systemUsers" : route };
@@ -27,6 +28,8 @@ export function chooseWorkspace(items, route, preference = {}) {
   if (route.workspaceId) return valid(route.workspaceId) || null;
   if ((route.legacyView?.startsWith("dataScience") && route.legacyView !== "dataScienceSkills") || route.legacyView === "sqlStudio")
     return valid("data-science") || null;
+  if (route.legacyView?.startsWith("system") || route.legacyView === "permissionTools") return valid("permissions") || null;
+  if (route.legacyView === "toolPublications") return valid("mcp-publication") || null;
   if (route.legacyView) return items.find((item) => item.defaultWorkspace) || items[0] || null;
   return valid(preference.defaultWorkspaceId)
     || items.find((item) => item.defaultWorkspace) || items[0] || null;

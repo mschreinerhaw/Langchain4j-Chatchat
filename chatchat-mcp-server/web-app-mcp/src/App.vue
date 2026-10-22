@@ -59,7 +59,7 @@
         </header>
 
         <KeepAlive
-          include="ApiServicesView,AssetCenterView,DatabaseMcpView,TemplateQueryPublicationsView"
+          include="ApiServicesView,AssetCenterView,DatabaseMcpView"
         >
           <component
             :is="activeNav.component"

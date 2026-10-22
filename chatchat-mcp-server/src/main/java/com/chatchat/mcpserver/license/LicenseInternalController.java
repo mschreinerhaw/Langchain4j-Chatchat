@@ -43,6 +43,8 @@ public class LicenseInternalController {
         if (modules.contains("workspacezhice")) ids.add("zhice");
         if (modules.contains("workspacedatascience")) ids.add("data-science");
         if (!explicit) { ids.add("zhice"); ids.add("data-science"); }
+        // Governance is part of the existing platform workspace entitlement, not a separate data capability.
+        if (ids.contains("zhice")) { ids.add("permissions"); ids.add("mcp-publication"); }
         return ApiResponse.success(new WorkspaceEntitlement(true, Set.copyOf(ids), status.status()));
     }
 

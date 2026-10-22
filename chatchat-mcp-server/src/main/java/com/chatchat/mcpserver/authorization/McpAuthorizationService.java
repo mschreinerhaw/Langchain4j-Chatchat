@@ -264,13 +264,7 @@ public class McpAuthorizationService {
                 if (normalize(tool.remoteToolName()) != null) toolIdentities.add(normalize(tool.remoteToolName()));
             }
         }
-        if (snapshot.isAdministrator(principal)) {
-            return AuthorizationDecision.allowDecision();
-        }
         List<ToolPermission> matched = snapshot.matchedPermissions(principal);
-        if (matched.isEmpty()) {
-            return AuthorizationDecision.denyDecision("no MCP asset authorization is assigned to caller");
-        }
 
         List<ToolPermission> effective = matched.stream()
             .filter(permission -> toolIdentities.stream().anyMatch(identity -> permission.matchesRequest(identity, requestedScope)))
@@ -278,6 +272,13 @@ public class McpAuthorizationService {
         boolean denied = effective.stream().anyMatch(permission -> DENY.equals(permission.effect()));
         if (denied) {
             return AuthorizationDecision.denyDecision("no permission to execute mcp tool: " + authorizationToolName);
+        }
+        // Administrator defaults never override a centrally maintained explicit denial.
+        if (snapshot.isAdministrator(principal)) {
+            return AuthorizationDecision.allowDecision();
+        }
+        if (matched.isEmpty()) {
+            return AuthorizationDecision.denyDecision("no MCP asset authorization is assigned to caller");
         }
         boolean allowed = effective.stream().anyMatch(permission -> ALLOW.equals(permission.effect()));
         if (!allowed) {
@@ -458,10 +459,6 @@ public class McpAuthorizationService {
         if (role == null || !snapshot.activeRole(role) || !snapshot.sameTenant(role.tenantId(), tenantId)) {
             return false;
         }
-        if (McpAdministratorPolicy.isAdministratorRole(tenantId, role.tenantId(),
-            role.roleCode(), role.status())) {
-            return true;
-        }
         String normalizedRoleId = normalize(role.id());
         String normalizedRoleCode = normalize(role.roleCode());
         List<ToolPermission> permissions = snapshot.permissions().stream()
@@ -479,6 +476,10 @@ public class McpAuthorizationService {
             .toList();
         if (effective.stream().anyMatch(permission -> DENY.equals(permission.effect()))) {
             return false;
+        }
+        if (McpAdministratorPolicy.isAdministratorRole(tenantId, role.tenantId(),
+            role.roleCode(), role.status())) {
+            return true;
         }
         return effective.stream().anyMatch(permission -> ALLOW.equals(permission.effect()));
     }

@@ -42,6 +42,7 @@ RC2 的远程验收进一步发现 DBA 创建新版本表后未交接应用角�
 - MCP 旧模板绑定的写接口已移除，并由过滤器返回 410；只保留内部目录读取。
 - 用户端统一控制面使用 `/api/v1/permission-center` 和 `/api/v1/tool-publications`。
 - 旧中央工具授权接口保留，但租户来自登录上下文，不能跨租户移动授权或批量删除其他租户记录。
+- 显式的用户或角色工具拒绝规则优先于超级管理员的默认工具访问权；没有显式拒绝时保留原管理员默认行为。此前实现曾提前放行管理员，RC5 修正了此顺序，并验证新增拒绝和移除拒绝均在下一次调用生效。
 - 已删除 MCP 的 Settings、TemplateQueryPublications 页面、脚本、样式及其前端 API 封装。
 - Agent Router 和 MCP 共用 `common.security.McpScopeExpression`，删除重复解析实现。
 - API/SQL/Python/SSH/HTTP TemplateWorkflowPlugin 继续保留，它们服务现有确定性执行链路；本次不恢复自由探索数据获取。

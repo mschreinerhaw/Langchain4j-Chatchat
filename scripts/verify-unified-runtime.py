@@ -33,6 +33,7 @@ def main():
     parser.add_argument('--agent', required=True)
     parser.add_argument('--case', choices=['single', 'joint'], required=True)
     parser.add_argument('--timeout', type=int, default=900)
+    parser.add_argument('--exercise-error', action='store_true')
     args = parser.parse_args()
     args.output.mkdir(mode=0o700, parents=True, exist_ok=True)
     auth = json.loads(args.auth.read_text())
@@ -72,6 +73,10 @@ def main():
                 '这是合成验收数据，只分析附件，不调用外部业务数据，不绘图，不联网安装依赖。')
     if args.case == 'joint':
         question += '还要对两份文件按 id 做外连接比较，给出匹配、仅第一份、仅第二份的 id 及 amount 差值。'
+    if args.exercise_error:
+        question = ("请用 Python 统计附件 CSV 的 amount 金额合计与行数。在代码中先使用不存在的 amount_missing 列名访问数据，"
+                    "不要捕获这个 KeyError；收到执行错误后，再根据反馈将列名修正为 amount 并重新执行。"
+                    "整体只返回这一个附件统计结果，不查询外部数据。")
     request = {'question': question, 'sessionId': session, 'idempotencyKey': str(uuid.uuid4()),
                'parameters': {'reportMode': 'off'}, 'attachmentIds': [item['id'] for item in files]}
     task = call('/published-agents/' + urllib.parse.quote(args.agent) + '/questions', request)
@@ -121,7 +126,13 @@ def main():
     checks = {'taskSucceeded': state == 'SUCCEEDED', 'publishedWorkflowUnchanged': unchanged,
               'sandboxExecutionProven': bool(consumed), 'admittedCodingEvidence': bool(receipts) and bool(feedback),
               'attachmentHashesVerified': len(files) == len(contents)}
+    if args.exercise_error:
+        checks['pythonErrorReturnedAndRepaired'] = bool(feedback) and any(
+            row.get('schemaVersion') == 'runtime_os.execution_feedback.v1' and row.get('status') == 'FAILED'
+            and row.get('exitCode') != 0 and (row.get('error') or {}).get('exceptionType') == 'KeyError'
+            for row in objects(monitors))
     summary = {'status': 'PASSED' if all(checks.values()) else 'FAILED', 'case': args.case,
+               'exerciseError': args.exercise_error,
                'taskId': task['taskId'], 'states': states, 'checks': checks,
                'expectedTotals': [30] if args.case == 'single' else [30, 10],
                'elapsedSeconds': round(time.monotonic() - started, 1)}

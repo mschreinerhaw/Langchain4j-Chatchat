@@ -41,10 +41,11 @@ def main():
             envelope = json.loads(raw)
         except ValueError:
             envelope = {}
-        if status != expected or (expected == 200 and envelope.get('code') not in (None, 0, 200)):
+        accepted_statuses = expected if isinstance(expected, tuple) else (expected,)
+        if status not in accepted_statuses or (status == 200 and envelope.get('code') not in (None, 0, 200)):
             (args.output / 'http-error-private.json').write_text(json.dumps({'path': path, 'status': status, 'body': envelope}))
             raise RuntimeError('Unexpected response at ' + path + ': HTTP ' + str(status))
-        return envelope.get('data') if expected == 200 else status
+        return envelope.get('data') if status == 200 else status
 
     login = json.loads((args.stage_root / 'evidence/cline-monitor-20261019/stage-auth.json').read_text())
     admin = call('/enterprise/auth/login', login)
@@ -94,6 +95,17 @@ def main():
                       'workspace:mcp-publication:access', 'mcp:publication:read']
         reader = identity(admin['user']['tenantId'], base_codes, 'reader')
         (args.output / 'reader-session-private.json').write_text(json.dumps(reader))
+        call('/tool-publications', token=reader['token'])
+        reader_role = reader['user']['roleIds'][0]
+        def reader_rights(codes):
+            call('/enterprise/roles/' + reader_role + '/authorization',
+                {'permissionIds': [permission_ids[code] for code in codes], 'orgScopes': [],
+                 'userIds': [reader['user']['id']], 'agentIds': []}, token, 'PUT')
+        try:
+            reader_rights([code for code in base_codes if code != 'mcp:publication:read'])
+            checks['revokedManagementPermissionEffectiveWithoutRelogin'] = call('/tool-publications', token=reader['token'], expected=403) == 403
+        finally:
+            reader_rights(base_codes)
         call('/tool-publications', token=reader['token'])
         checks['readerCannotPublish'] = call('/tool-publications/nonexistent/publish', {}, reader['token'], expected=403) == 403
         checks['readerCannotEdit'] = call('/tool-publications', {}, reader['token'], expected=403) == 403
@@ -154,6 +166,15 @@ def main():
         executed = call('/mcp/runtime/invoke', invocation, token)
         checks['publishedToolExecutesWithAuthenticatedEnvelope'] = executed['status'] == 'SUCCESS'
         checks['executionRetainsFixedTemplateScope'] = {row['templateId'] for row in executed['data']['templates']} == {template['templateId']}
+        deny = call('/permission-center/tool-grants', {'targetType': 'USER', 'targetId': admin['user']['id'],
+            'localToolName': descriptor['localToolName'], 'scopeExpression': '', 'effect': 'deny',
+            'enabled': True, 'remark': 'Temporary denial of this synthetic acceptance tool only'}, token)
+        try:
+            denied = call('/mcp/runtime/invoke', invocation, token, expected=(200, 403))
+            checks['newExecutionDenyEffectiveImmediately'] = denied == 403 or denied['status'] not in ['SUCCESS', 'REPAIRED', 'PARTIAL']
+        finally:
+            call('/permission-center/tool-grants/' + deny['id'], token=token, method='DELETE')
+        checks['removedSyntheticDenyRestoresExecution'] = call('/mcp/runtime/invoke', invocation, token)['status'] == 'SUCCESS'
         forged = {**invocation, 'context': {'tenantId': foreign_tenant['id']}}
         checks['forgedInvocationTenantRejected'] = call('/mcp/runtime/invoke', forged, token, expected=403) == 403
         original_definition = first['definitionJson']

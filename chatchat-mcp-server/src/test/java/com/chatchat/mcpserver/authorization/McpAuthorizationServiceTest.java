@@ -726,6 +726,28 @@ class McpAuthorizationServiceTest {
     }
 
     @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"USER", "ROLE"})
+    void explicitCentralDenyOverridesAdministratorDefaults(String subject) throws Exception {
+        var data = objectMapper.readTree("""
+            {"users":[{"id":"admin-1","tenantId":"tenant-1","username":"admin","status":"enabled","roleIds":["role-super"]}],
+             "roles":[{"id":"role-super","tenantId":"tenant-1","roleCode":"SUPER_ADMIN","status":"enabled"}],
+             "tenants":[],
+             "tools":[{"id":"tool-1","localToolName":"governed_search","remoteToolName":"web_search","serviceId":"chatchat-mcp-server","enabled":true}],
+             "permissions":[]}
+            """);
+        var rule = ((com.fasterxml.jackson.databind.node.ArrayNode)data.path("permissions")).addObject();
+        rule.put("tenantId","tenant-1").put("targetType",subject)
+            .put("targetId",subject.equals("USER")?"admin-1":"role-super")
+            .put("localToolName","governed_search").put("effect","deny").put("enabled",true);
+        var authorization = service(snapshotFrom(data));
+        assertThat(authorization.authorize("web_search",Map.of("userId","admin-1","tenantId","tenant-1")).allowed()).isFalse();
+        assertThat(authorization.roleAllows("role-super","tenant-1","governed_search",null)).isEqualTo(subject.equals("USER"));
+        // Removal takes effect on the next fresh execution, without changing administrator defaults.
+        ((com.fasterxml.jackson.databind.node.ArrayNode)data.path("permissions")).removeAll();
+        assertThat(service(snapshotFrom(data)).authorize("web_search",Map.of("userId","admin-1","tenantId","tenant-1")).allowed()).isTrue();
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings = {"disabled", "foreign-tenant", "unassigned", "disabled-user"})
     void invalidSuperAdminRoleDoesNotElevateCaller(String scenario) throws Exception {
         var data = objectMapper.createObjectNode();

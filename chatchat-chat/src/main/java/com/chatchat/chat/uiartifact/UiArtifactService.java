@@ -85,12 +85,13 @@ public class UiArtifactService {
             // HTML blob here loses semantics and makes evidence/report styling much harder to control.
             addResource(resources, resourceCatalog, artifactId, "answer", answer, "text/markdown");
             elements.put("answer", element("Markdown", Map.of("resourceId", "answer"), List.of()));
-            // A rejected visual manifest still retains the valid authored text resource.
-            if(!hasVisualReport || !(visualReport instanceof Map<?,?> visual && visual.get("markdown") instanceof String body && !body.isBlank()))reportChildren.add("answer");
+            // Archive the full authored answer, but present a visual report only once,
+            // including rejected/partial reports whose historical markdown is absent.
+            if (!hasVisualReport) reportChildren.add("answer");
         } else if (!explicitHtml.isBlank()) {
             addResource(resources, resourceCatalog, artifactId, "report", explicitHtml, "text/html");
             elements.put("report-html", element("Html", Map.of("resourceId", "report"), List.of()));
-            reportChildren.add("report-html");
+            if (!hasVisualReport) reportChildren.add("report-html");
         }
 
         String evidenceSummary = text(uiResponse.get("evidenceSummary"));

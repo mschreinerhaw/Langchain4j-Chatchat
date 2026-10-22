@@ -12,6 +12,7 @@
 import { computed, onErrorCaptured, provide, ref, watch } from "vue";
 import { JSONUIProvider, Renderer } from "@json-render/vue";
 import { fetchUiArtifact, fetchUiArtifactResource } from "../services/api.js";
+import { artifactPresentationSpec } from "../js/ui-artifact/presentation.js";
 import {
   ARTIFACT_EVENT_DISPATCHER,
   ARTIFACT_VISUALIZATION_PREFERENCES,
@@ -35,7 +36,7 @@ const error = ref("");
 const resourceCache = new Map();
 
 const artifactId = computed(() => String(props.artifact?.artifactId || ""));
-const spec = computed(() => manifest.value?.spec || null);
+const spec = computed(() => artifactPresentationSpec(manifest.value?.spec || null));
 
 function handleArtifactClick(event) {
   const chartTarget = event.target?.closest?.("[data-result-chart-payload]");

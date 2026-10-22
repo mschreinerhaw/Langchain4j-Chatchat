@@ -110,13 +110,16 @@ def main():
     save('coding-journal.json', monitors)
     consumed = [row for row in objects(monitors) if isinstance(row.get('consumed'), dict)
                 and row['consumed'].get('codeExecutions', 0) > 0]
-    receipts = [row for row in objects(observations) if row.get('operation') == 'RUN_CODING'
-                and row.get('status') == 'COMPLETED' and row.get('resultAvailable') is True
+    receipts = [row for row in objects(observations) if row.get('codingEventType') == 'TASK_FINISHED'
+                and row.get('eventState') == 'COMPLETED'
                 and len(set(row.get('evidenceRefs', []))) >= 6]
+    feedback = [row for row in objects(monitors) if row.get('schemaVersion') == 'runtime_os.execution_feedback.v1'
+                and row.get('status') == 'SUCCEEDED' and row.get('exitCode') == 0
+                and row.get('codeHash') and row.get('artifactRefs', {}).get('executionReceiptRef')]
     after = call('/agents/workshop/' + urllib.parse.quote(args.agent))
     unchanged = hashlib.sha256(json.dumps(after['workflowConfig'], sort_keys=True).encode()).hexdigest() == workflow_hash
     checks = {'taskSucceeded': state == 'SUCCEEDED', 'publishedWorkflowUnchanged': unchanged,
-              'sandboxExecutionProven': bool(consumed), 'admittedCodingEvidence': bool(receipts),
+              'sandboxExecutionProven': bool(consumed), 'admittedCodingEvidence': bool(receipts) and bool(feedback),
               'attachmentHashesVerified': len(files) == len(contents)}
     summary = {'status': 'PASSED' if all(checks.values()) else 'FAILED', 'case': args.case,
                'taskId': task['taskId'], 'states': states, 'checks': checks,

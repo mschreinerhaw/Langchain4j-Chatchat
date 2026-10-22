@@ -60,6 +60,7 @@
         <label
           >工具名称<input v-model.trim="form.title" required maxlength="256" :disabled="!editable"
         /></label>
+        <label>使用说明<textarea v-model.trim="form.description" rows="3" :disabled="!editable" /></label>
         <label
           >逻辑名称<input
             v-model.trim="definition.domainCode"
@@ -105,9 +106,8 @@
         <label>输出 Schema<textarea v-model="outputSchema" rows="6" :disabled="!editable" /></label>
         <details
           ><summary>合约测试样例</summary
-          ><p>检查输入、输出样例和当前角色的模板授权。真实数据执行另在查询服务中测试。</p
+          ><p>按输入样例实际检索绑定范围内的模板，并校验真实输出与当前角色授权。数据分析另在查询服务中测试。</p
           ><label>输入样例<textarea v-model="inputSample" rows="4" /></label
-          ><label>输出样例<textarea v-model="outputSample" rows="4" /></label
         ></details>
         <div class="management-actions"
           ><button v-if="editable" type="submit" :disabled="busy || !definition.templateKeys.length"

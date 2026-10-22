@@ -24,8 +24,7 @@ export default {
     const definition = ref(blank()),
       inputSchema = ref('{"type":"object","properties":{}}'),
       outputSchema = ref('{"type":"object","properties":{}}');
-    const inputSample = ref("{}"),
-      outputSample = ref("{}");
+    const inputSample = ref("{}");
     const permissions = getStoredAuthSession()?.user?.permissionCodes || [];
     const editable = computed(() => permissions.includes("mcp:publication:edit"));
     const publishable = computed(() => permissions.includes("mcp:publication:publish"));
@@ -120,7 +119,6 @@ export default {
       try {
         await action(row, "test", {
           input: JSON.parse(inputSample.value),
-          output: JSON.parse(outputSample.value),
         });
       } catch (error) {
         failed.value = true;
@@ -151,7 +149,6 @@ export default {
       inputSchema,
       outputSchema,
       inputSample,
-      outputSample,
       editable,
       publishable,
       states,

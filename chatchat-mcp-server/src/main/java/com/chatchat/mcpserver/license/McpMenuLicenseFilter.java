@@ -30,6 +30,8 @@ public class McpMenuLicenseFilter extends OncePerRequestFilter {
         String path = path(request);
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) return true;
         if (matchesPrefix(path, "/api/v1/license") || matchesPrefix(path, "/api/v1/admin/auth")) return true;
+        // Local console account/security management is infrastructure, not a licensed business module.
+        if (matchesPrefix(path,"/api/v1/admin/users") || matchesPrefix(path,"/api/v1/admin/login-audits")) return true;
         return !path.startsWith("/api/v1/") && menuCatalog.menuForPath(path).isEmpty();
     }
 

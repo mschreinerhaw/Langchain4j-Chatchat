@@ -157,3 +157,4 @@
     flex-direction: column;
   }
 }
+.sidebar-account-actions{margin-top:auto;display:grid;gap:10px}.sidebar-account-actions .el-button{margin:0}.sidebar-account-name{padding:0 12px;color:#9fb0ca;font-size:12px;overflow-wrap:anywhere}

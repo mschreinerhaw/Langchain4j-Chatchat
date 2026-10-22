@@ -4,6 +4,11 @@ import { apiFetch } from './http';
 const SEARCH_INDEX_URL = `${API_BASE}/mcp-search-index`;
 
 export const authApi = {
+  users: params => apiFetch(`${API_BASE}/admin/users?${new URLSearchParams(params)}`),
+  menuCatalog: () => apiFetch(`${API_BASE}/admin/users/menu-catalog`),
+  saveUser: (username, payload) => apiFetch(`${API_BASE}/admin/users${username ? '/' + encodeURIComponent(username) : ''}`, {
+    method: username ? 'PUT' : 'POST', body: JSON.stringify(payload)
+  }),
   currentUser: () => apiFetch(`${API_BASE}/admin/auth/me`),
   loginAudits: (params) => {
     const query = new URLSearchParams();

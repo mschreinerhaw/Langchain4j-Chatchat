@@ -18,6 +18,7 @@ public class AdminAuthController {
 
     private final AdminAuthService authService;
     private final AdminLoginAuditService loginAuditService;
+    private final AdminMenuAccessService menuAccess;
 
     /**
      * Performs the login operation.
@@ -62,7 +63,8 @@ public class AdminAuthController {
         return ApiResponse.success(Map.of(
             "authenticated", username != null,
             "username", username == null ? "" : username,
-            "admin", username != null
+            "admin", menuAccess.superAdmin(request),
+            "menuKeys", menuAccess.keys(request)
         ));
     }
 

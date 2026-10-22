@@ -45,6 +45,12 @@ public class AdminLoginAuditService {
     private final AdminLoginAuditLogRepository repository;
     private final ObjectMapper objectMapper;
 
+    @Transactional
+    public void recordManagement(String actor,String action,String target,HttpServletRequest request) {
+        var entry=baseLog(actor,request);entry.setActionName(action);entry.setResult("success");
+        entry.setDetail("target="+target);saveQuietly(entry);
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordSuccess(String username, HttpServletRequest request) {
         AdminLoginAuditLog auditLog = baseLog(username, request);

@@ -1,0 +1,121 @@
+.admin-user-filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5eaf2;
+}
+.admin-user-filters > .el-input {
+  max-width: 360px;
+}
+.admin-user-filters > .el-select {
+  width: 150px;
+}
+.admin-user-filters > span {
+  margin-left: auto;
+  color: #7c879a;
+  white-space: nowrap;
+}
+.admin-user-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  min-height: 540px;
+}
+.admin-user-list {
+  padding: 16px;
+  border-right: 1px solid #e5eaf2;
+  min-width: 0;
+}
+.admin-user-item {
+  width: 100%;
+  padding: 14px;
+  text-align: left;
+  display: grid;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+.admin-user-item.selected {
+  background: #eff6ff;
+  border-color: #b8d4ff;
+  color: #2563eb;
+}
+.admin-user-item span {
+  font-size: 12px;
+  color: #8290a5;
+}
+.admin-user-list .el-pagination {
+  margin-top: 18px;
+  justify-content: center;
+}
+.admin-user-detail {
+  padding: 24px;
+  min-width: 0;
+}
+.admin-detail-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.admin-detail-heading h3 {
+  margin: 4px 0;
+  font-size: 19px;
+}
+.admin-detail-heading p,
+.admin-detail-heading > div > span {
+  font-size: 13px;
+  color: #8290a5;
+}
+.admin-account-form {
+  display: flex;
+  gap: 24px;
+  margin-top: 20px;
+}
+.admin-account-form > .el-form-item {
+  flex: 1;
+}
+.admin-child-menu {
+  padding-left: 18px;
+}
+.admin-save-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+.admin-save-row > span {
+  font-size: 12px;
+  color: #8290a5;
+}
+.admin-menu-table .el-checkbox {
+  height: 28px;
+}
+@media (max-width: 1200px) {
+  .admin-user-layout {
+    grid-template-columns: 200px minmax(0, 1fr);
+  }
+  .admin-user-detail {
+    padding: 18px;
+  }
+  .admin-save-row {
+    flex-wrap: wrap;
+  }
+}
+.admin-menu-search {
+  width: 200px;
+}
+.admin-audit-table {
+  width: 100%;
+}
+.admin-audit-pagination {
+  display: flex;
+  justify-content: flex-end;
+  padding: 20px 24px;
+}

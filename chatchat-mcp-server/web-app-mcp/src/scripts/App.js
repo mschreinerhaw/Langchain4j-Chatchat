@@ -11,13 +11,15 @@ import CommandAuditLogsView from '../views/CommandAuditLogsView.vue';
 import LicenseView from '../views/LicenseView.vue';
 import NewsCollectionView from '../views/NewsCollectionView.vue';
 import PythonManagementView from '../views/PythonManagementView.vue';
+import AdminUsersView from '../views/AdminUsersView.vue';
+import AdminLoginAuditsView from '../views/AdminLoginAuditsView.vue';
 import ModalPanel from '../components/ModalPanel.vue';
 import JsonBlock from '../components/JsonBlock.vue';
 import { ElNotification } from 'element-plus';
 import { nextTick } from 'vue';
 import { MCP_ENDPOINT } from '../services/config';
 import { UnauthorizedError } from '../services/http';
-import { licenseApi } from '../services/api';
+import { licenseApi, authApi } from '../services/api';
 import {
   getSessionIdleRemainingMs,
   getToken,
@@ -41,6 +43,10 @@ const menuComponents = {
   commandAuditLogs: CommandAuditLogsView
 };
 const licenseMenu = { key: 'license', label: 'License 授权', icon: 'Key', component: LicenseView };
+const securityMenus = [
+  {key:'adminUsers',label:'用户管理',icon:'User',component:AdminUsersView},
+  {key:'adminLoginAudits',label:'登录审计',icon:'Tickets',component:AdminLoginAuditsView}
+];
 const databaseSections = [
   { key: 'databaseRelational', label: '关系库查询', queryFamily: 'relational' },
   { key: 'databaseTrino', label: 'Trino 查询', queryFamily: 'trino' },
@@ -70,7 +76,11 @@ export default {
       resultOpen: false,
       resultTitle: '',
       resultValue: null,
-      navItems: [licenseMenu],
+      navItems: [],
+      passwordOpen: false,
+      passwordBusy: false,
+      currentPassword: '',
+      newPassword: '',
       idleTimer: null,
       lastActivityRecordedAt: 0,
       idleLogoutInProgress: false
@@ -82,7 +92,7 @@ export default {
     },
     activeNav() {
       return this.navItems.flatMap(item => item.children || [item])
-        .find(item => item.key === this.activeView) || this.navItems.flatMap(item => item.children || [item])[0];
+        .find(item => item.key === this.activeView) || this.navItems.flatMap(item => item.children || [item])[0] || {};
     }
   },
   mounted() {
@@ -104,25 +114,27 @@ export default {
     },
     async loadLicensedMenus() {
       try {
-        const access = await licenseApi.menus();
+        const [access, identity] = await Promise.all([licenseApi.menus(), authApi.currentUser()]);
+        const granted = new Set(identity.menuKeys || []);
         const licensed = (Array.isArray(access) ? access : [])
-          .filter(item => item.authorized && menuComponents[item.key] && !['templateQueryPublications','authorizationManagement','settings'].includes(item.key))
+          .filter(item => item.authorized && granted.has(item.key) && menuComponents[item.key] && !['templateQueryPublications','authorizationManagement','settings'].includes(item.key))
           .map(item => item.key === 'databaseMcp'
             ? { ...item, children: databaseSections }
             : { ...item, component: menuComponents[item.key] });
         this.navItems = [
           ...licensed.filter(item => !['settings', 'authorizationManagement'].includes(item.key)),
-          licenseMenu
+          ...securityMenus.filter(item=>granted.has(item.key)),
+          ...(granted.has('license') ? [licenseMenu] : [])
         ];
         const available = this.navItems.flatMap(item => item.children || [item]);
         if (!available.some(item => item.key === this.activeView)) {
-          this.activeView = available[0]?.key || 'license';
+          this.activeView = available[0]?.key || '';
         }
         await nextTick();
         this.$refs.sidebarMenu?.close('settings');
       } catch (error) {
-        this.navItems = [licenseMenu];
-        this.activeView = 'license';
+        this.navItems = [];
+        this.activeView = '';
         await nextTick();
         this.$refs.sidebarMenu?.close('settings');
         if (error instanceof UnauthorizedError) {
@@ -138,6 +150,12 @@ export default {
       this.authenticated = false;
       this.user = '';
       await logout();
+    },
+    async saveOwnPassword() {
+      if(this.newPassword.length<8 || this.newPassword.length>128){this.handleError(new Error('新密码长度需为 8-128 位'));return;}
+      this.passwordBusy=true;
+      try{await authApi.changePassword(this.currentPassword,this.newPassword);this.passwordOpen=false;this.currentPassword='';this.newPassword='';this.forceRelogin();}
+      catch(error){this.handleError(error);}finally{this.passwordBusy=false;}
     },
     forceRelogin() {
       this.notify({ title: '请使用新密码重新登录' });

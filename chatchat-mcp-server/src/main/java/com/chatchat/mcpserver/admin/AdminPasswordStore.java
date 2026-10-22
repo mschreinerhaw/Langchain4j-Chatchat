@@ -70,7 +70,7 @@ public class AdminPasswordStore {
         repository.saveAndFlush(user);
     }
 
-    private AdminUser newUser(String username, String rawPassword) {
+    AdminUser newUser(String username, String rawPassword) {
         AdminUser user = new AdminUser();
         user.setUsername(username);
         user.setEnabled(true);
@@ -78,7 +78,7 @@ public class AdminPasswordStore {
         return user;
     }
 
-    private void applyPassword(AdminUser user, String rawPassword) {
+    void applyPassword(AdminUser user, String rawPassword) {
         byte[] salt = new byte[16];
         secureRandom.nextBytes(salt);
         user.setPasswordAlgorithm(ALGORITHM);

@@ -33,7 +33,7 @@ public class AdminAuthService {
             long ttlMinutes = Math.max(1, properties.getTokenTtlMinutes());
             Instant expiresAt = Instant.now().plusSeconds(ttlMinutes * 60);
             String internalUsername = internalCredentialProperties.resolvedUsername();
-            sessions.put(token, new TokenSession(internalUsername, expiresAt));
+            sessions.put(token, new TokenSession(internalUsername, expiresAt, true));
             return new LoginResult(token, internalUsername, expiresAt.toEpochMilli());
         }
         String authenticatedUsername = passwordStore.authenticate(username, password)
@@ -42,7 +42,7 @@ public class AdminAuthService {
         String token = newToken();
         long ttlMinutes = Math.max(1, properties.getTokenTtlMinutes());
         Instant expiresAt = Instant.now().plusSeconds(ttlMinutes * 60);
-        sessions.put(token, new TokenSession(authenticatedUsername, expiresAt));
+        sessions.put(token, new TokenSession(authenticatedUsername, expiresAt, false));
         return new LoginResult(token, authenticatedUsername, expiresAt.toEpochMilli());
     }
 
@@ -104,7 +104,7 @@ public class AdminAuthService {
             throw new IllegalArgumentException("新密码不能与当前密码相同");
         }
         passwordStore.save(username, newPassword);
-        sessions.clear();
+        revokeUser(username);
     }
 
     /**
@@ -162,7 +162,18 @@ public class AdminAuthService {
         return diff == 0;
     }
 
-    private record TokenSession(String username, Instant expiresAt) {
+    public boolean internalSession(String token) {
+        if(!isValid(token))return false;
+        var session=sessions.get(token);
+        return session!=null && session.internal();
+    }
+
+    public void revokeUser(String username) {
+        sessions.entrySet().removeIf(entry -> !entry.getValue().internal()
+            && entry.getValue().username().equalsIgnoreCase(username));
+    }
+
+    private record TokenSession(String username, Instant expiresAt, boolean internal) {
     }
 
     public record LoginResult(String token, String username, long expiresAt) {

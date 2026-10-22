@@ -21,5 +21,5 @@
   {"key":"auditLogs","label":"调用审计","icon":"Tickets","navigation":true,"description":"MCP 调用记录与审计检索","apiPrefixes":["/api/v1/audit-logs"]},
   {"key":"commandAuditLogs","label":"命令审计","icon":"Tickets","navigation":true,"description":"SSH、SQL、HTTP 与 JMX 执行审计","apiPrefixes":["/api/v1/audit-logs/commands"]},
   {"key":"authorizationManagement","label":"历史授权模块","icon":"Key","navigation":false,"description":"历史许可证兼容标识；授权写接口已停用","apiPrefixes":["/api/v1/mcp-authorization"],"impliedBy":["settings"]},
-  {"key":"settings","label":"内部运维设置","icon":"Setting","navigation":false,"description":"运维审计、执行目标与系统参数接口","apiPrefixes":["/api/v1/admin/login-audits","/api/v1/execution-targets","/api/v1/admin/market/security-master","/internal/v1/market"]}
+  {"key":"settings","label":"内部运维设置","icon":"Setting","navigation":false,"description":"执行目标与内部系统参数接口","apiPrefixes":["/api/v1/execution-targets","/api/v1/admin/market/security-master","/internal/v1/market"]}
 ]

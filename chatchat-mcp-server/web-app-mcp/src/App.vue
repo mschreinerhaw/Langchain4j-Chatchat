@@ -38,10 +38,14 @@
             </el-menu-item>
           </template>
         </el-menu>
-        <el-button class="sidebar-logout" @click="handleLogout">
-          <el-icon><SwitchButton /></el-icon>
-          <span>退出登录</span>
-        </el-button>
+        <div class="sidebar-account-actions">
+          <span class="sidebar-account-name">当前用户：{{ user }}</span>
+          <el-button class="sidebar-logout" @click="passwordOpen = true">修改密码</el-button>
+          <el-button class="sidebar-logout" @click="handleLogout">
+            <el-icon><SwitchButton /></el-icon>
+            <span>退出登录</span>
+          </el-button>
+        </div>
       </aside>
 
       <main class="app-main" :class="{ 'is-system-settings': isSystemSettingsView }">
@@ -58,9 +62,11 @@
           >
         </header>
 
-        <KeepAlive
-          include="ApiServicesView,AssetCenterView,DatabaseMcpView"
-        >
+        <el-empty
+          v-if="!navItems.length"
+          description="当前账号尚未获得管理菜单权限，请联系管理员授权。"
+        />
+        <KeepAlive v-else include="ApiServicesView,AssetCenterView,DatabaseMcpView">
           <component
             :is="activeNav.component"
             :key="activeView"
@@ -75,6 +81,41 @@
           />
         </KeepAlive>
       </main>
+
+      <el-dialog
+        v-model="passwordOpen"
+        title="修改我的密码"
+        width="440px"
+        @closed="
+          currentPassword = '';
+          newPassword = '';
+        "
+      >
+        <el-form label-position="top" @submit.prevent="saveOwnPassword">
+          <el-form-item label="当前密码"
+            ><el-input
+              v-model="currentPassword"
+              aria-label="当前密码"
+              type="password"
+              show-password
+              autocomplete="current-password"
+          /></el-form-item>
+          <el-form-item label="新密码"
+            ><el-input
+              v-model="newPassword"
+              aria-label="新密码"
+              type="password"
+              show-password
+              autocomplete="new-password"
+          /></el-form-item>
+        </el-form>
+        <template #footer
+          ><el-button @click="passwordOpen = false">取消</el-button
+          ><el-button type="primary" :loading="passwordBusy" @click="saveOwnPassword"
+            >保存密码</el-button
+          ></template
+        >
+      </el-dialog>
 
       <ModalPanel :open="resultOpen" :title="resultTitle" wide @close="resultOpen = false">
         <JsonBlock :value="resultValue" />

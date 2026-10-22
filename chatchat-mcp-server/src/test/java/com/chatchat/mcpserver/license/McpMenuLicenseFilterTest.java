@@ -76,7 +76,7 @@ class McpMenuLicenseFilterTest {
         assertThat(catalog.menuForPath("/api/v1/mcp-authorization/sync"))
             .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
             .isEqualTo("authorizationManagement");
-        assertThat(catalog.menuForPath("/api/v1/admin/login-audits"))
+        assertThat(catalog.menuForPath("/api/v1/execution-targets"))
             .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
             .isEqualTo("settings");
     }
@@ -92,7 +92,7 @@ class McpMenuLicenseFilterTest {
         filter.doFilter(request("/api/v1/mcp-authorization/sync", "tenant-a"),
             authorizationResponse, countingChain(calls));
         MockHttpServletResponse settingsResponse = new MockHttpServletResponse();
-        filter.doFilter(request("/api/v1/admin/login-audits", "tenant-a"),
+        filter.doFilter(request("/api/v1/execution-targets", "tenant-a"),
             settingsResponse, countingChain(calls));
 
         assertThat(authorizationResponse.getStatus()).isEqualTo(200);

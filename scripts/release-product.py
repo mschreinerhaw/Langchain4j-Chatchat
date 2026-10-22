@@ -50,16 +50,26 @@ def build_one(service, jar, image):
     context.mkdir(parents=True, exist_ok=True)
     templates = release / 'deploy/docker/application'
     recipe = {'api': 'Dockerfile.api', 'mcp': 'Dockerfile.mcp', 'news': 'Dockerfile'}[service]
+    selected_base = base
+    if service == 'api':
+        # The offline package includes this JAR-free runtime, so rollback does
+        # not need apt/pip access or the builder's ephemeral layer cache.
+        runtime = 'runtime-os-api-runtime:' + version
+        if subprocess.run(['docker', 'image', 'inspect', runtime], capture_output=True).returncode == 0:
+            recipe, selected_base = 'Dockerfile', runtime
     shutil.copy2(templates / recipe, context / 'Dockerfile')
     shutil.copy2(templates / '.dockerignore', context / '.dockerignore')
     shutil.copy2(jar, context / 'app.jar')
     if service == 'api':
         shutil.copy2(templates / 'sql-toolchain-requirements.txt', context / 'sql-toolchain-requirements.txt')
     if service == 'mcp': run('docker', 'cp', container('mcp') + ':/usr/local/bin/docker', str(context / 'docker'))
-    result = run('docker', 'build', '--build-arg', 'JAVA_RUNTIME_IMAGE=' + base,
+    if 'app.jar' in run('docker', 'history', '--no-trunc', '--format', '{{.CreatedBy}}', selected_base):
+        raise RuntimeError('Runtime base unexpectedly contains a business JAR')
+    result = run('docker', 'build', '--build-arg', 'JAVA_RUNTIME_IMAGE=' + selected_base,
                  '--build-arg', 'APP_PORT=' + ('8091' if service == 'news' else '8080'),
                  '--label', 'org.opencontainers.image.version=' + version,
-                 '--label', 'org.opencontainers.image.revision=' + manifest['sourceCommit'],
+                 '--label', 'org.opencontainers.image.revision=' + (inspect(container(service))['Image']
+                     if image.endswith('-rollback') else manifest['sourceCommit']),
                  '-t', image, str(context))
     (release / ('evidence/build-' + image.replace(':', '-') + '.log')).write_text(result)
     print(json.dumps(image_guard(image)), flush=True)
@@ -140,6 +150,13 @@ def deploy():
     lines = (backup / 'deployment.env').read_text().splitlines()
     lines = [line for line in lines if line.split('=', 1)[0] not in replacements]
     try:
+        # Close RocksDB's single writer before its physical backup. The original
+        # stores remain mounted at their existing locations during the upgrade.
+        compose('stop', '-t', '60', 'api')
+        data_mount = next(m for m in before[container('api')]['Mounts'] if m['Destination'] == '/srv/app/data')
+        for name in ('chat-rocksdb', 'ui-artifacts'):
+            source = Path(data_mount['Source']) / name
+            if source.is_dir(): shutil.copytree(source, backup / name)
         (stage / 'compose.yaml').write_text(json.dumps(config, indent=2) + '\n')
         (stage / 'config/deployment.env').write_text('\n'.join(lines + [k + '=' + v for k, v in replacements.items()]) + '\n')
         compose('config', '-q')
@@ -207,9 +224,15 @@ def cleanup():
         if inspect(tag)['Id'] in protected: continue
         try: run('docker', 'image', 'rm', tag); removed.append(tag)
         except RuntimeError: failures.append(tag)
-    # Scope dangling cleanup to the image IDs recorded before the release; no
-    # volume/container deletion and no global system-prune operation.
-    record('cleanup', {'removedTags': removed, 'retainedOrFailedTags': failures,
+    dangling_removed = []
+    for image in run('docker', 'image', 'ls', '--filter', 'dangling=true', '--no-trunc', '-q').splitlines():
+        if image in protected: continue
+        history = run('docker', 'history', '--no-trunc', '--format', '{{.CreatedBy}}', image)
+        if 'app.jar' not in history and '/srv/coding-agent' not in history: continue
+        try: run('docker', 'image', 'rm', image); dangling_removed.append(image)
+        except RuntimeError: failures.append(image)
+    # No volume/container deletion and no global system-prune operation.
+    record('cleanup', {'removedTags': removed, 'removedDanglingImages': dangling_removed, 'retainedOrFailedTags': failures,
                        'before': before, 'after': run('docker', 'system', 'df'),
                        'volumesDeleted': False, 'containersDeleted': False})
     print(json.dumps({'removedTags': len(removed), 'retainedOrFailedTags': failures}), flush=True)

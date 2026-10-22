@@ -33,3 +33,6 @@ def build_application_image(service, jar, tag, context):
     size = int(subprocess.check_output(['docker', 'image', 'inspect', '--format', '{{.Size}}', tag], text=True))
     if size > 1200 * 1024 * 1024:
         raise ValueError('Application image exceeds the 1200 MiB release budget')
+    history = subprocess.check_output(['docker', 'history', '--no-trunc', '--format', '{{.CreatedBy}}', tag], text=True)
+    if sum('COPY ' in line and 'app.jar' in line for line in history.splitlines()) != 1:
+        raise ValueError('Application image must contain exactly one business JAR copy layer')

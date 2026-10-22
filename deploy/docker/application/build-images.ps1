@@ -63,6 +63,10 @@ foreach ($app in $apps) {
         }
     }
     $appPort = if ($app.Name -eq 'news') { '8091' } elseif ($app.Name -eq 'mcp') { '8090' } else { '8080' }
+    if ($app.Name -eq 'api') {
+        & docker build --platform linux/amd64 --target api-runtime -t "runtime-os-api-runtime:$Tag" $context
+        if ($LASTEXITCODE -ne 0) { throw 'API SQL runtime build failed.' }
+    }
     & docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$buildRevision" --build-arg "APP_PORT=$appPort" -t "runtime-os-$($app.Name):$Tag" $context
     if ($LASTEXITCODE -ne 0) { throw "Docker build failed for $($app.Name)." }
     $imageSize = & docker image inspect --format '{{.Size}}' "runtime-os-$($app.Name):$Tag"
@@ -78,6 +82,6 @@ if ($LASTEXITCODE -ne 0) { throw 'Docker build failed for Coding Agent.' }
 if ($LASTEXITCODE -ne 0) { throw 'Docker pull failed for the loopback proxy.' }
 
 $archive = Join-Path $contextRoot "runtime-os-app-$Tag.tar"
-& docker save -o $archive "runtime-os-api:$Tag" "runtime-os-mcp:$Tag" "runtime-os-news:$Tag" "runtime-os-coding-agent:$Tag" nginx:1.27.5-alpine
+& docker save -o $archive "runtime-os-api:$Tag" "runtime-os-api-runtime:$Tag" "runtime-os-mcp:$Tag" "runtime-os-news:$Tag" "runtime-os-coding-agent:$Tag" nginx:1.27.5-alpine
 if ($LASTEXITCODE -ne 0) { throw 'Docker image export failed.' }
 Get-FileHash -Algorithm SHA256 $archive | Select-Object Path, Hash

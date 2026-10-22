@@ -1,8 +1,10 @@
 # 灵动智析 1.2 产品部署手册
 
-版本：`1.2.0-20261022`  
-发布日期：2026-10-22（北京时间）  
-发布分支：`release/1.2-20261022`  
+版本：`1.2.0-20261022`
+
+发布日期：2026-10-22（北京时间）
+
+发布分支：`release/1.2-20261022`
 适用范围：Linux x86_64、Docker Engine、Docker Compose v2；既有 PostgreSQL、OpenSearch、Redis 和产品授权服务。
 
 ## 1. 本版变更
@@ -35,15 +37,17 @@
 | 路径 | 内容 | 管理要求 |
 | --- | --- | --- |
 | `release-manifest.json` | 版本、构建源码提交、JAR 校验值 | 与发布包一起保留 |
-| `jars/` | API、MCP、News 可执行 JAR | 不包含业务数据和部署密钥 |
+| `jars/` | 服务器上的 API、MCP、News 构建产物 | 离线镜像包不重复携带这些 JAR |
 | `deploy/docker/application/` | 干净基础镜像构建模板及 Compose 示例 | 新装时按现场参数配置 |
 | `scripts/release-product.py` | 现有服务器的构建、升级、验证、回滚和镜像清理工具 | 从解压目录执行 |
-| `images.tar.gz` | 完整应用镜像、网关和 Python Sandbox 的离线镜像归档 | 通过 SHA-256 后加载 |
+| `images.tar.gz` | 应用、无 JAR 运行时、网关和 Python Sandbox 的离线镜像归档 | 通过 SHA-256 后加载 |
 | `SHA256SUMS` | 离线发布文件校验清单 | 安装前校验 |
 | `evidence/` | 镜像大小、部署、验收、清理报告 | 公开报告须脱敏 |
 | `private-backup/` | 升级前配置、原始 JAR、数据库备份 | 仅服务器 root 可读；不进入便携发布包 |
 
-便携包不携带授权文件、真实环境变量、数据库口令、私钥、内部凭据密钥或用户数据。新主机必须另行配置这些内容。升级包与完整离线镜像包的具体文件名、大小和校验值，以本次发布验收记录为准。
+便携包不携带授权文件、真实环境变量、数据库口令、私钥、内部凭据密钥或用户数据。新主机必须另行配置这些内容。完整离线包为 `chatchat-1.2.0-20261022-linux-amd64.tar.gz`，JAR 已在镜像内，无需再重复打包；现场 `jars/` 目录单独保留供重建。具体大小和校验值，以本次发布验收记录为准。
+
+低带宽环境可使用 `scripts/jar-delta.py` 的签名、差分和还原流程传送 JAR。差分仅复用压缩 ZIP 条目中的相同字节；还原前检查基准 JAR 哈希，还原后必须匹配本地构建完整 JAR 的 SHA-256。差分不能替代完整离线镜像交付。
 
 ## 4. 安装前准备
 
@@ -74,7 +78,9 @@ python3 scripts/release-product.py deploy \
 python3 scripts/release-product.py verify --release-dir "$PWD"
 ```
 
-自动升级流程保留现场 Compose 参数，备份配置和原始 API/MCP JAR，创建干净基础层上的回滚镜像，并备份 API/MCP 数据库。随后替换 MCP、News、API 和 API 网络命名空间的 node-proxy；就绪后刷新 gateway 的上游解析并恢复既有执行器网络限制。失败时恢复配置并切回回滚镜像。
+本版离线包同时包含 `runtime-os-api-runtime:1.2.0-20261022`。该镜像只有 Java、Python 和 SQLGlot，没有业务 JAR；升级工具用它构建精简回滚 API，因此无需联网安装 Python 包，也不依赖另一台机器的 Docker 构建缓存。
+
+自动升级流程保留现场 Compose 参数，备份配置和原始 API/MCP JAR，创建干净基础层上的回滚镜像，并备份 API/MCP 数据库；关闭 API 单写进程后备份 RocksDB 和 UI 产物。随后替换 MCP、News、API 和 API 网络命名空间的 node-proxy；就绪后刷新 gateway 的上游解析并恢复既有执行器网络限制。失败时恢复配置并切回回滚镜像。
 
 该工具默认检查现场 `runtime_os_acceptance_api`、`runtime_os_acceptance_mcp` 数据库及 `18180/18190` 回环端口；其他部署环境应先按实际数据库和端口调整脚本。工具不会自动恢复数据库备份；本版无业务数据库迁移。若后续版本有破坏性迁移，需单独制订数据库回滚方案。
 
@@ -97,6 +103,8 @@ python3 scripts/release-product.py verify --release-dir "$PWD"
 - Coding Agent 健康检查通过，既有数据挂载、配置值与非应用服务保持一致。
 - 通过自动测试验证授权过期、无效、不可用时不接受新委派；更新授权后可再次委派。**不得为验收修改在线真实授权或服务器系统时间。**
 - 通过正常登录后的问答、历史会话及一次小规模分析进行业务抽查；HTTP 200 或容器运行状态不能替代业务验收。无法完成的项目应在验收记录中明确标记。
+
+可使用 `scripts/verify-product-release.py --auth-file /私有目录/测试账号.json --output-dir /私有验收目录` 执行在线冒烟验证。账号文件字段为 `username`、`password`，权限设为 `0600`，用后删除。工具创建两条带“发布验证”标记的测试会话，上传三行合成 CSV，验证真实问答、Cline 委派、Python 执行及 CNY 合计 `33.68`；保留测试产物供审计。失败记录必须保留，不能通过删除失败样本来宣称全部首次通过。此冒烟验证不等于并发压测或全量生产发布门禁。
 
 ## 8. 回滚
 

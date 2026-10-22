@@ -363,6 +363,11 @@ public final class ClineModelCallbackController {
                 contract.outputContract().requiredFiles().get(0),
                 List.of(new CodingEvidenceCollector.InputFile(input.fileId(), input.fileName(), input.sha256())),
                 plans.validator(contract));
+            if(com.chatchat.common.runtime.coding.VisualReportMode.active(contract.runtimeContext())) {
+                var visual=collector.visualReport(call.scope(),call.taskId(),collected.resultDatasetRef());
+                if(visual.isEmpty() || "FAILED".equals(visual.get().get("artifactValidationStatus")))
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,"Visual report artifact contract requires technical repair before completion");
+            }
             CodingTaskOutcome current = tasks.get(call.scope(), call.taskId());
             if (current.status().terminal()) {
                 if (current.status() != CodingTaskOutcome.Status.COMPLETED

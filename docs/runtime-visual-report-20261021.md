@@ -43,7 +43,7 @@ tables = [{id, title, columns, rows, scope}]
 charts = [{id, title, kind: png|svg|plotly, fileName, caption}]
 sections = [{title, narrative, chartIds, tableIds}]
 dataSources = [实际使用的完整输入引用]
-validation = {checks: [{name, status: PASSED|FAILED, detail}], warnings}
+validation = {checks: [{name, status: PASSED|FAILED|UNRESOLVED, detail}], warnings}
 timings = {analysisMs, chartMs}  // 程序实际测量，可省略
 ```
 

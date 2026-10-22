@@ -1,0 +1,8 @@
+# Explicit families survive legacy scripts overriding only font.sans-serif.
+font.family: Noto Sans CJK SC, Noto Sans CJK JP, DejaVu Sans
+font.sans-serif: Noto Sans CJK SC, Noto Sans CJK JP, DejaVu Sans
+axes.unicode_minus: False
+backend: Agg
+# Embed glyph outlines; SVG readers do not need fonts installed on their host.
+svg.fonttype: path
+pdf.fonttype: 42

@@ -1,120 +1,381 @@
 <template>
-  <section class="feature-view unified-management">
-    <header
-      ><div
-        ><h2>MCP 工具发布</h2
-        ><p>管理受控工具的定义、测试和版本。发布不会授予用户数据访问权限。</p></div
-      ><button :disabled="busy" @click="refresh">刷新</button></header
+  <section class="permission-console tool-publications" :aria-busy="busy">
+    <header class="permission-page-heading">
+      <div
+        ><nav aria-label="面包屑">MCP 工具发布 <span>/</span> 工具管理</nav><h1>MCP 工具发布</h1
+        ><p>统一管理工具定义、测试与版本发布。业务访问权限在权限管理中维护。</p></div
+      >
+      <div class="permission-heading-actions"
+        ><button type="button" :disabled="busy" @click="refresh">刷新</button
+        ><button
+          v-if="editable"
+          class="permission-primary"
+          type="button"
+          :disabled="busy"
+          @click="reset"
+          >新建工具</button
+        ></div
+      >
+    </header>
+    <p
+      v-if="notice"
+      class="permission-notice"
+      :class="{ error: failed }"
+      :role="failed ? 'alert' : 'status'"
+      >{{ notice }}</p
     >
-    <p v-if="notice" role="status" :class="{ error: failed }">{{ notice }}</p>
-    <p v-if="busy" role="status">正在处理…</p>
-    <div class="management-columns">
-      <section class="management-card"
-        ><h3>发布版本</h3
-        ><p v-if="!rows.length && !busy">暂无工具。创建草稿后完成校验和测试，再发布。</p>
-        <article v-for="row in rows" :key="row.id" class="release-row">
-          <strong>{{ row.title }}</strong
-          ><span>v{{ row.releaseNumber }} · {{ states[row.state] || row.state }}</span>
-          <small>{{ new Date(row.createdAt).toLocaleString() }}</small>
-          <div class="management-actions">
-            <button @click="select(row)">查看 / 新版本</button>
-            <button
-              v-if="editable && !row.publishedAt"
-              :disabled="busy"
-              @click="action(row, 'validate')"
-              >校验</button
-            >
-            <button
-              v-if="editable && ['VALIDATED', 'TESTED'].includes(row.state)"
-              :disabled="busy"
-              @click="test(row)"
-              >合约测试</button
-            >
-            <button
-              v-if="publishable && row.state === 'TESTED'"
-              :disabled="busy"
-              @click="action(row, 'publish')"
-              >发布</button
-            >
-            <button
-              v-if="publishable && row.state === 'RUNNING'"
-              :disabled="busy"
-              @click="confirmAction(row, 'offline')"
-              >下线</button
-            >
-            <button
-              v-if="publishable && row.state === 'OFFLINE'"
-              :disabled="busy"
-              @click="confirmAction(row, 'rollback')"
-              >回滚到此版本</button
-            >
-          </div>
-          <details v-if="row.testEvidenceJson"
-            ><summary>测试记录</summary><pre>{{ pretty(row.testEvidenceJson) }}</pre>
-          </details>
-        </article>
-      </section>
-      <form class="management-card" @submit.prevent="save"
-        ><h3>{{ form.logicalId ? "创建下一版本" : "创建工具草稿" }}</h3>
-        <p v-if="form.logicalId">逻辑标识与授权对象保持稳定；保存会生成新的草稿版本。</p>
-        <label
-          >工具名称<input v-model.trim="form.title" required maxlength="256" :disabled="!editable"
+    <p v-if="busy" class="publication-loading" role="status">正在处理，请稍候…</p>
+    <div class="permission-master-detail">
+      <aside class="permission-master">
+        <div class="permission-master-head"
+          ><strong>工具列表</strong><span>{{ tools.length }} 项</span></div
+        >
+        <label class="publication-search"
+          >搜索工具<input v-model="query" type="search" placeholder="搜索名称或说明"
         /></label>
-        <label>使用说明<textarea v-model.trim="form.description" rows="3" :disabled="!editable" /></label>
-        <label
-          >逻辑名称<input
-            v-model.trim="definition.domainCode"
-            required
-            placeholder="例如 sales_summary"
-            :disabled="!!form.logicalId || !editable"
-        /></label>
-        <label
-          >执行能力<select
-            v-model="definition.parentToolName"
-            required
-            :disabled="!!form.logicalId || !editable"
-            @change="loadTemplates"
-            ><option value="">选择受控模板能力</option
-            ><option v-for="parent in parents" :key="parent.toolName" :value="parent.toolName">{{
-              parent.title
+        <label class="publication-search"
+          >版本状态<select v-model="stateFilter" aria-label="版本状态"
+            ><option value="">全部状态</option
+            ><option v-for="(label, value) in states" :key="value" :value="value">{{
+              label
             }}</option></select
           ></label
         >
-        <label
-          >使用角色<select
-            v-model="definition.roleId"
-            required
-            :disabled="!!form.logicalId || !editable"
-            @change="loadTemplates"
-            ><option value="">选择已授权角色</option
-            ><option v-for="role in roles" :key="role.id" :value="role.id">{{
-              role.roleName
-            }}</option></select
-          ></label
+        <div class="permission-master-list"
+          ><button
+            v-for="row in visibleTools"
+            :key="row.logicalId"
+            type="button"
+            class="permission-master-item"
+            :class="{ active: !editing && selected?.logicalId === row.logicalId }"
+            :disabled="busy"
+            :aria-pressed="!editing && selected?.logicalId === row.logicalId"
+            @click="choose(row)"
+            ><strong>{{ row.title }}</strong
+            ><small
+              >{{ stateFilter ? "匹配" : "最新" }} v{{ row.releaseNumber }} ·
+              {{ states[row.state] || "未知状态" }}</small
+            ></button
+          ><p v-if="!tools.length && !busy" class="permission-empty">{{
+            query || stateFilter ? "没有匹配的工具，请调整筛选。" : "暂无工具，点击“新建工具”开始。"
+          }}</p></div
         >
-        <p>这里只能绑定该角色已获授权的模板；授权范围在“权限管理”中维护。</p>
-        <fieldset :disabled="!editable"
-          ><legend>受控模板</legend
-          ><p v-if="!templates.length">选择执行能力和角色后加载可用模板；没有授权时列表为空。</p
-          ><label v-for="item in templates" :key="item.key" class="check"
-            ><input v-model="definition.templateKeys" type="checkbox" :value="item.key" />{{
-              item.title
-            }}</label
+        <footer class="permission-pagination"
+          ><button type="button" :disabled="page <= 1" @click="page--">上一页</button
+          ><span>{{ page }} / {{ pages }}</span
+          ><button type="button" :disabled="page >= pages" @click="page++">下一页</button></footer
+        >
+      </aside>
+      <form v-if="editing" class="permission-detail publication-editor" @submit.prevent="save">
+        <header class="permission-detail-heading"
+          ><div
+            ><p>{{ form.logicalId ? "版本管理" : "工具定义" }}</p
+            ><h2>{{ form.logicalId ? "创建下一版本" : "创建工具草稿" }}</h2
+            ><span>先保存草稿，再校验、测试与发布。保存不会改变当前运行版本。</span></div
+          ><button type="button" :disabled="busy" @click="cancel">取消</button></header
+        >
+        <fieldset :disabled="busy || !editable" class="publication-fields"
+          ><legend>基本信息</legend
+          ><label
+            >工具名称<input
+              v-model.trim="form.title"
+              required
+              maxlength="256"
+              placeholder="输入业务名称" /></label
+          ><label
+            >使用说明<textarea
+              v-model.trim="form.description"
+              rows="3"
+              placeholder="说明工具用途与适用场景"
+            /></label
+          ><label
+            >逻辑名称<input
+              v-model.trim="definition.domainCode"
+              required
+              :disabled="!!form.logicalId"
+              placeholder="例如 sales_summary，发布后保持稳定" /></label
+        ></fieldset>
+        <fieldset :disabled="busy || !editable" class="publication-fields"
+          ><legend>执行配置</legend
+          ><div class="permission-form-grid"
+            ><label
+              >执行能力<select
+                v-model="definition.parentToolName"
+                aria-label="执行能力"
+                required
+                :disabled="!!form.logicalId"
+                @change="loadTemplates()"
+                ><option value="">选择受控模板能力</option
+                ><option
+                  v-for="parent in parents"
+                  :key="parent.toolName"
+                  :value="parent.toolName"
+                  >{{ parent.title }}</option
+                ></select
+              ></label
+            ><label
+              >使用角色<select
+                v-model="definition.roleId"
+                aria-label="使用角色"
+                required
+                :disabled="!!form.logicalId"
+                @change="loadTemplates()"
+                ><option value="">选择已授权角色</option
+                ><option v-for="role in roles" :key="role.id" :value="role.id">{{
+                  role.roleName
+                }}</option></select
+              ></label
+            ></div
+          ><p class="publication-hint"
+            >仅可选择该角色已获授权的模板，工具发布不会扩大其数据访问范围。</p
           ></fieldset
         >
-        <label>输入 Schema<textarea v-model="inputSchema" rows="6" :disabled="!editable" /></label>
-        <label>输出 Schema<textarea v-model="outputSchema" rows="6" :disabled="!editable" /></label>
-        <details
-          ><summary>合约测试样例</summary
-          ><p>按输入样例实际检索绑定范围内的模板，并校验真实输出与当前角色授权。数据分析另在查询服务中测试。</p
-          ><label>输入样例<textarea v-model="inputSample" rows="4" /></label
+        <fieldset :disabled="busy || templatesLoading || !editable" class="publication-fields"
+          ><legend
+            >受控模板 <small>已选 {{ definition.templateKeys.length }} 项</small></legend
+          ><label
+            >搜索模板<input
+              v-model="templateQuery"
+              type="search"
+              placeholder="按模板名称筛选" /></label
+          ><p v-if="templatesLoading" role="status">正在加载已授权模板…</p
+          ><p v-else-if="!templates.length" class="permission-empty">{{
+            definition.roleId && definition.parentToolName
+              ? "当前角色没有可用模板，请先在权限管理中授权。"
+              : "选择执行能力和角色后，将显示可用模板。"
+          }}</p
+          ><div class="publication-template-list"
+            ><label
+              v-for="item in filteredTemplates"
+              :key="item.key"
+              class="publication-template-option"
+              ><input v-model="definition.templateKeys" type="checkbox" :value="item.key" />{{
+                item.title
+              }}</label
+            ></div
+          ><p
+            v-if="unavailableTemplates.length && !templatesLoading"
+            class="permission-notice error"
+            >有 {{ unavailableTemplates.length }} 项原模板当前不可用。<button
+              type="button"
+              class="permission-link"
+              @click="
+                definition.templateKeys = definition.templateKeys.filter(
+                  (key) => !unavailableTemplates.includes(key)
+                )
+              "
+              >移除不可用模板</button
+            ></p
+          ></fieldset
+        >
+        <details class="permission-advanced publication-schema"
+          ><summary>高级结构配置</summary
+          ><p>仅在需要约束输入输出格式时编辑。结构必须为有效 JSON。</p
+          ><label
+            >输入结构（Schema）<textarea
+              v-model="inputSchema"
+              rows="7"
+              :disabled="busy"
+              spellcheck="false"
+            /></label
+          ><label
+            >输出结构（Schema）<textarea
+              v-model="outputSchema"
+              rows="7"
+              :disabled="busy"
+              spellcheck="false"
+            /></label
         ></details>
-        <div class="management-actions"
-          ><button v-if="editable" type="submit" :disabled="busy || !definition.templateKeys.length"
+        <footer class="permission-form-actions"
+          ><span>运行版本与历史记录保留，可按版本回滚。</span
+          ><button
+            class="permission-primary"
+            type="submit"
+            :disabled="
+              busy ||
+              templatesLoading ||
+              !definition.templateKeys.length ||
+              !!unavailableTemplates.length
+            "
             >保存新草稿</button
-          ><button type="button" @click="reset">新建工具</button></div
+          ></footer
         >
       </form>
+      <section v-else-if="selected" class="permission-detail publication-detail">
+        <header class="permission-detail-heading"
+          ><div
+            ><p>受控工具 · v{{ selected.releaseNumber }}</p
+            ><h2>{{ selected.title }}</h2
+            ><span>{{ selected.description || "暂未填写使用说明" }}</span></div
+          ><button v-if="editable" type="button" :disabled="busy" @click="startRevision"
+            >创建新版本</button
+          ></header
+        >
+        <div class="publication-version-bar"
+          ><label
+            >当前版本<select
+              :value="selectedId"
+              aria-label="当前版本"
+              :disabled="busy"
+              @change="chooseVersion"
+              ><option v-for="row in versions" :key="row.id" :value="row.id"
+                >v{{ row.releaseNumber }} · {{ states[row.state] || "未知状态" }}</option
+              ></select
+            ></label
+          ><span class="permission-badge" :class="{ deny: selected.state === 'OFFLINE' }">{{
+            states[selected.state] || "未知状态"
+          }}</span></div
+        >
+        <div class="permission-category-tabs" role="tablist" aria-label="工具详情"
+          ><button
+            v-for="tab in [
+              { id: 'overview', label: '版本概览' },
+              { id: 'definition', label: '工具定义' },
+              { id: 'testing', label: '测试与记录' },
+            ]"
+            :id="'publication-tab-' + tab.id"
+            :key="tab.id"
+            role="tab"
+            type="button"
+            :aria-selected="activeTab === tab.id"
+            :aria-controls="'publication-panel-' + tab.id"
+            :class="{ active: activeTab === tab.id }"
+            @click="activeTab = tab.id"
+            >{{ tab.label }}</button
+          ></div
+        >
+        <section
+          :id="'publication-panel-' + activeTab"
+          role="tabpanel"
+          :aria-labelledby="'publication-tab-' + activeTab"
+          class="publication-tab-panel"
+        >
+          <template v-if="activeTab === 'overview'"
+            ><ol class="publication-lifecycle" aria-label="发布流程"
+              ><li class="complete">保存草稿</li
+              ><li :class="{ complete: selected.state !== 'DRAFT' }">校验定义</li
+              ><li :class="{ complete: ['TESTED', 'RUNNING', 'OFFLINE'].includes(selected.state) }"
+                >合约测试</li
+              ><li :class="{ complete: !!selected.publishedAt }">正式发布</li></ol
+            ><dl class="publication-metadata"
+              ><div
+                ><dt>执行能力</dt><dd>{{ parentName(selectedDefinition.parentToolName) }}</dd></div
+              ><div
+                ><dt>使用角色</dt><dd>{{ roleName(selectedDefinition.roleId) }}</dd></div
+              ><div
+                ><dt>绑定模板</dt
+                ><dd>{{ selectedDefinition.templateKeys?.length || 0 }} 项</dd></div
+              ><div
+                ><dt>创建时间</dt><dd>{{ dateLabel(selected.createdAt) }}</dd></div
+              ><div
+                ><dt>发布时间</dt><dd>{{ dateLabel(selected.publishedAt) }}</dd></div
+              ><div
+                ><dt>版本状态</dt><dd>{{ states[selected.state] }}</dd></div
+              ></dl
+            ><p class="publication-hint">工具通过校验和测试后才能发布。运行调用继续校验业务权限。</p
+            ><div class="publication-actions"
+              ><button
+                v-if="editable && !selected.publishedAt && selected.state === 'DRAFT'"
+                type="button"
+                :disabled="busy"
+                @click="action(selected, 'validate')"
+                >校验定义</button
+              ><button
+                v-if="testable"
+                type="button"
+                :disabled="busy"
+                @click="activeTab = 'testing'"
+                >{{ selected.state === "TESTED" ? "查看并重新测试" : "配置合约测试" }}</button
+              ><button
+                v-if="publishable && selected.state === 'TESTED'"
+                type="button"
+                class="permission-primary"
+                :disabled="busy"
+                @click="action(selected, 'publish')"
+                >发布工具</button
+              ><button
+                v-if="publishable && selected.state === 'RUNNING'"
+                type="button"
+                class="permission-link danger"
+                :disabled="busy"
+                @click="confirmAction(selected, 'offline')"
+                >下线工具</button
+              ><button
+                v-if="publishable && selected.state === 'OFFLINE'"
+                type="button"
+                :disabled="busy"
+                @click="confirmAction(selected, 'rollback')"
+                >回滚到此版本</button
+              ></div
+            ></template
+          >
+          <template v-else-if="activeTab === 'definition'"
+            ><p class="publication-hint">版本定义保留原始快照。需要修改时，使用“创建新版本”。</p
+            ><details class="permission-advanced" open
+              ><summary>模板与执行定义</summary
+              ><pre>{{ pretty(selected.definitionJson) }}</pre></details
+            ><details class="permission-advanced"
+              ><summary>输入结构（Schema）</summary
+              ><pre>{{ pretty(selected.inputSchemaJson) }}</pre></details
+            ><details class="permission-advanced"
+              ><summary>输出结构（Schema）</summary
+              ><pre>{{ pretty(selected.outputSchemaJson) }}</pre>
+            </details></template
+          >
+          <template v-else
+            ><div v-if="testable" class="publication-test-form"
+              ><label
+                >测试输入<textarea
+                  v-model="inputSample"
+                  rows="6"
+                  spellcheck="false"
+                  :disabled="busy"
+                  placeholder="输入符合工具结构的 JSON 样例"
+                /></label
+              ><p class="publication-hint"
+                >将真实检索当前角色授权范围内的受控模板，并校验返回结构。</p
+              ><button class="permission-primary" type="button" :disabled="busy" @click="test()"
+                >运行合约测试</button
+              ></div
+            ><p v-else class="publication-hint">{{
+              selected.state === "DRAFT"
+                ? "请先在版本概览中完成定义校验，再运行合约测试。"
+                : "已发布的版本保留测试记录；需要重新测试时，请创建新版本。"
+            }}</p
+            ><div class="publication-evidence"
+              ><h3>测试记录</h3
+              ><pre v-if="selected.testEvidenceJson">{{ pretty(selected.testEvidenceJson) }}</pre
+              ><p v-else class="permission-empty"
+                >暂无测试记录，完成定义校验后运行合约测试。</p
+              ></div
+            ></template
+          >
+        </section>
+        <details class="permission-advanced"
+          ><summary>版本技术详情</summary
+          ><dl
+            ><dt>逻辑标识</dt><dd>{{ selected.logicalId }}</dd
+            ><dt>版本标识</dt><dd>{{ selected.id }}</dd
+            ><dt>逻辑名称</dt><dd>{{ selectedDefinition.domainCode }}</dd></dl
+          ></details
+        >
+      </section>
+      <section v-else class="permission-detail publication-empty"
+        ><h2>{{ busy ? "正在加载工具…" : "开始管理受控工具" }}</h2
+        ><p>{{
+          editable
+            ? "新建工具草稿，依次完成定义校验、合约测试和发布。"
+            : "当前没有可查看的工具版本。请联系具备工具发布权限的管理员。"
+        }}</p
+        ><button
+          v-if="editable"
+          class="permission-primary"
+          type="button"
+          :disabled="busy"
+          @click="reset"
+          >新建工具</button
+        ></section
+      >
     </div>
   </section>
 </template>

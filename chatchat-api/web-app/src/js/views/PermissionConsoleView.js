@@ -240,7 +240,7 @@ export default {
         const [tools, library, skills, services, organizations] = extraResults.map((r) =>
           r.status === "fulfilled" ? r.value : null
         );
-        if (tools) extras.value.tools = Array.isArray(tools) ? tools : [];
+        if (tools) { extras.value.tools = Array.isArray(tools) ? tools : []; extras.value.toolsLoaded = true; }
         if (library) {
           extras.value.documents = library.documents || [];
           extras.value.categories = library.categories || [];

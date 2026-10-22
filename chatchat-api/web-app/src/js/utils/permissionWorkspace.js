@@ -1,3 +1,4 @@
+import { isInternalMcpCapability, hasExplicitToolRule } from "./mcpPermissionPresentation.js";
 export const permissionSections = [
   { id: "systemUsers", label: "用户管理", icon: "users" },
   { id: "systemOrganizations", label: "组织管理", icon: "organization" },
@@ -11,7 +12,7 @@ export const resourceGroups = [
   { id: "tool", label: "MCP 工具", description: "工具执行规则与资源边界" },
   { id: "datasource", label: "数据源", description: "通过受控工具访问数据，按数据范围生效" },
   { id: "knowledge", label: "知识库", description: "知识库与文档的访问规则" },
-  { id: "other", label: "其他资源", description: "领域技能、工作流与查询服务" },
+  { id: "other", label: "领域技能", description: "领域技能及其现有查询服务范围" },
 ];
 export const permissionRouteAliases = {
   system: "systemUsers",
@@ -39,21 +40,35 @@ export function resourceCatalog(catalog, extras = {}) {
       backend: "permission",
       id: p.id,
       type: "PERMISSION",
-      name: ({
-        "Workspace access": "基础工作空间访问",
-        "Zhice access": "智策工作空间访问",
-        "Workspace management": "工作空间设置管理",
-      })[p.permissionName] || p.permissionName || "未命名权限",
+      name:
+        {
+          "Workspace access": "基础工作空间访问",
+          "Zhice access": "智策工作空间访问",
+          "Workspace management": "工作空间设置管理",
+        }[p.permissionName] ||
+        p.permissionName ||
+        "未命名权限",
       group: /^workspace:[^:]+:access$/.test(p.permissionCode) ? "workspace" : "function",
       action: actionLabel(p.httpMethod),
       code: p.permissionCode,
       enabled: p.status === "enabled",
     });
   }
+  const hiddenTools = new Set();
   for (const tool of catalog.tools || []) {
+    if (isInternalMcpCapability(tool)) {
+      hiddenTools.add(tool.localToolName);
+      continue;
+    }
     const details =
       (extras.tools || []).find((t) => (t.localToolName || t.toolName) === tool.localToolName) ||
       {};
+    if (
+      extras.toolsLoaded &&
+      !Object.keys(details).length &&
+      !hasExplicitToolRule(tool.localToolName, catalog)
+    )
+      continue;
     const types = [details.backendServiceType, ...(details.backendServiceTypes || [])];
     const datasource = types.some((t) =>
       ["sql_datasource", "database_query", "ssh_host", "http_endpoint", "api_service"].includes(t)
@@ -62,7 +77,11 @@ export function resourceCatalog(catalog, extras = {}) {
       backend: "tool",
       type: "MCP_TOOL",
       id: tool.localToolName,
-      name: details.chineseAlias || details.displayName || tool.serviceName || "受控工具",
+      name:
+        details.chineseAlias ||
+        details.displayName ||
+        details.applicability?.scopeLabel ||
+        "业务工具（查看详情）",
       group: datasource ? "datasource" : "tool",
       action: "执行",
       code: tool.localToolName,
@@ -110,6 +129,7 @@ export function resourceCatalog(catalog, extras = {}) {
       action: "使用",
     });
   for (const grant of catalog.resourceGrants || []) {
+    if (grant.resourceType === "MCP_TOOL" && hiddenTools.has(grant.resourceId)) continue;
     const group = ["KNOWLEDGE", "KNOWLEDGE_BASE"].includes(grant.resourceType)
       ? "knowledge"
       : grant.resourceType === "MCP_TOOL"

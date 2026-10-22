@@ -653,3 +653,102 @@
   border: 1px solid #e1e6ef;
   border-radius: 10px;
 }
+
+/* Shared controls also cover the reused user/organization/login panels. */
+.workspace-management .system-management-view :is(input, select, textarea) {
+  border: 1px solid #d9e1ed;
+  border-radius: 7px;
+  background-color: #fff;
+  color: #25344b;
+  font: inherit;
+  padding: 8px 10px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.workspace-management .system-management-view button {
+  border: 1px solid #dce3ee;
+  border-radius: 7px;
+  background: #fff;
+  color: #334155;
+  padding: 7px 12px;
+  font: inherit;
+  line-height: 1.4;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.workspace-management .system-management-view button:hover {
+  border-color: #a5b9df;
+  background: #f4f7ff;
+}
+.workspace-management .system-management-view button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+:is(
+    .permission-console,
+    .permission-profile-dialog,
+    .workspace-settings,
+    .workspace-management .system-management-view
+  )
+  select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 36px;
+  padding: 8px 34px 8px 10px;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2364758b' stroke-width='1.8' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+}
+.workspace-management .system-management-view :is(input, select, textarea, button):focus-visible {
+  outline: 2px solid #adc5ff;
+  outline-offset: 2px;
+}
+.workspace-management .system-management-view .permission-toolbar label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+.workspace-management .system-management-view .permission-search {
+  flex: 1;
+  min-width: 180px;
+}
+.workspace-management .system-management-view .permission-search input {
+  width: 100%;
+}
+.workspace-management .system-management-view .entity-row-actions button {
+  padding: 5px 10px;
+}
+.workspace-management .system-management-view .entity-row-actions {
+  align-items: center;
+}
+.workspace-management .system-management-view .login-audit-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.workspace-management .system-management-view .login-audit-toolbar input {
+  flex: 1 1 240px;
+}
+.workspace-management .system-management-view .login-audit-toolbar select {
+  flex: 0 1 140px;
+}
+.workspace-management .system-management-view :is(.login-audit-head, .login-audit-row) {
+  min-width: 0;
+  grid-template-columns: minmax(125px, 0.95fr) minmax(110px, 1fr) minmax(
+      85px,
+      0.7fr
+    ) 76px 52px minmax(100px, 0.8fr) minmax(76px, 0.65fr) minmax(120px, 1.1fr);
+  gap: 10px;
+  padding-inline: 10px;
+}
+.workspace-management .system-management-view .login-audit-row > span {
+  min-width: 0;
+  overflow: hidden;
+}
+.workspace-management .system-management-view .login-audit-pagination {
+  flex-wrap: wrap;
+}

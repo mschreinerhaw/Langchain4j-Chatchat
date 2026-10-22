@@ -19,7 +19,7 @@
     :favorite-saving-ids="favoriteSavingIds"
     :nav-items="visibleNavItems"
     :recent-conversations="recentConversations"
-    :layout-type="activeView==='workspaces' ? 'management' : currentWorkspace?.layoutType || 'assistant'"
+    :layout-type="['workspaces', 'toolPublications'].includes(activeView) ? 'management' : currentWorkspace?.layoutType || 'assistant'"
     :user-id="userId"
     @navigate="handleNavigate"
     @delete-conversation="deleteConversation"
@@ -97,7 +97,7 @@
     </KeepAlive>
 
     <button
-      v-if="activeView !== 'workspaces' && canAccessView('chat')"
+      v-if="!['workspaces', 'toolPublications'].includes(activeView) && canAccessView('chat')"
       class="floating-new-conversation"
       v-floating-drag
       type="button"

@@ -8,6 +8,18 @@ import {
 } from "./permissionWorkspace.js";
 import { parseWorkspaceRoute } from "./workspaceContext.js";
 describe("unified permission workspace projections", () => {
+  it("hides internal communication capabilities without hiding published business tools or external tools", () => {
+    const tools=[
+      {localToolName:"internal",serviceId:"chatchat-mcp-server",remoteToolName:"sql_query_execute",serviceName:"ChatChat MCP Server"},
+      {localToolName:"business",serviceId:"chatchat-mcp-server",remoteToolName:"sales_template_query",serviceName:"ChatChat MCP Server"},
+      {localToolName:"external",serviceId:"third-party",remoteToolName:"sql_query_execute"},
+      {localToolName:"stale",serviceId:"old",remoteToolName:"old"},
+      {localToolName:"old-grant",serviceId:"old",remoteToolName:"old-grant"},
+    ];
+    const catalog={tools,grants:[{localToolName:"old-grant",targetType:"ROLE",targetId:"role"}],resourceGrants:[{resourceType:"MCP_TOOL",resourceId:"internal"}]};
+    const result=resourceCatalog(catalog,{toolsLoaded:true,tools:[{localToolName:"business",chineseAlias:"销售汇总"},{localToolName:"external",displayName:"外部受控查询"}]});
+    expect(result.map(r=>r.id)).toEqual(["business","external","old-grant"]);expect(result.some(r=>r.name==="ChatChat MCP Server")).toBe(false);expect(catalog.resourceGrants).toHaveLength(1);
+  });
   it("normalizes obsolete routes without creating duplicate pages", () => {
     for (const id of ["permissionTools", "systemSkillRoles"])
       for (const workspace of ["permissions", "zhice"])

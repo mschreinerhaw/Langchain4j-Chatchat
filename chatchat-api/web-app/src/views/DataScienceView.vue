@@ -10,7 +10,21 @@
     <div v-if="loading&&tab!=='data'&&tab!=='scripts'" class="ds-empty">正在加载数据车间工作台…</div>
     <section v-show="!loading&&tab==='environment'" class="ds-environment-pane">
       <div v-if="!assets.length" class="ds-empty"><strong>当前没有可用的数据车间环境</strong><p>请先添加 Python 环境。只有 READY 环境才允许创建、运行和发布脚本。</p><button class="ds-primary" @click="openAssetDialog">添加环境</button></div>
-      <template v-else><div class="ds-list-toolbar"><label class="ds-list-search"><span>⌕</span><input v-model.trim="environmentQuery" placeholder="检索环境名称、描述或状态"></label><span>共 {{ filteredEnvironmentAssets.length }} 个环境</span></div><div v-if="!filteredEnvironmentAssets.length" class="ds-empty"><strong>没有匹配的环境</strong><p>请调整检索关键词后重试。</p></div><div v-else class="ds-card-grid"><article v-for="asset in pagedEnvironmentAssets" :key="asset.id" class="ds-card ds-environment-card"><div class="ds-card-head"><div><span class="environment-eyebrow">数据车间环境</span><strong>{{ asset.name }}</strong></div><span :class="['ds-status', statusClass(asset.status)]">{{ assetStatusLabel(asset.status) }}</span></div><p>{{ asset.description || '用于 Python 数据分析、脚本调试与能力发布。' }}</p><div class="environment-capabilities"><span>Python {{ asset.pythonVersion || '3.11' }}</span><span>独立运行环境</span><span>支持开发、测试与发布</span></div><footer><span :class="['environment-dot',statusClass(asset.status)]"></span>{{ environmentStatusMessage(asset.status) }}</footer></article></div><nav v-if="filteredEnvironmentAssets.length" class="ds-pagination"><button :disabled="environmentCurrentPage<=1" @click="environmentPage=environmentCurrentPage-1">上一页</button><span>第 {{ environmentCurrentPage }} / {{ environmentPageCount }} 页</span><button :disabled="environmentCurrentPage>=environmentPageCount" @click="environmentPage=environmentCurrentPage+1">下一页</button></nav></template>
+      <template v-else>
+        <p class="ds-default-hint">默认环境用于当前用户新建的分析任务；发布版本更新后自动跟随，正在执行的任务保持原环境快照。</p>
+        <div class="ds-list-toolbar"><label class="ds-list-search"><span>⌕</span><input v-model.trim="environmentQuery" placeholder="检索环境名称、描述或状态"></label><span>共 {{ filteredEnvironmentAssets.length }} 个环境</span></div>
+        <div v-if="!filteredEnvironmentAssets.length" class="ds-empty"><strong>没有匹配的环境</strong><p>请调整检索关键词后重试。</p></div>
+        <div v-else class="ds-card-grid">
+          <article v-for="asset in pagedEnvironmentAssets" :key="asset.id" class="ds-card ds-environment-card">
+            <div class="ds-card-head"><div><span class="environment-eyebrow">数据车间环境</span><strong>{{ asset.name }}</strong><span v-if="asset.id===defaultAssetId" class="ds-default-environment" aria-label="默认 Python 环境">默认环境</span></div><span :class="['ds-status', statusClass(asset.status)]">{{ assetStatusLabel(asset.status) }}</span></div>
+            <p>{{ asset.description || '用于 Python 数据分析、脚本调试与能力发布。' }}</p>
+            <div class="environment-capabilities"><span>Python {{ asset.pythonVersion || '—' }}</span><span>发布版本 v{{ asset.mcpEnvironmentVersion }}</span><span>支持开发、测试与发布</span></div>
+            <p class="ds-environment-image" :title="asset.dockerImage">{{ asset.dockerImage }}</p>
+            <footer><span :class="['environment-dot',statusClass(asset.status)]"></span>{{ environmentStatusMessage(asset.status) }}<button type="button" class="ds-default-button" :disabled="busy||asset.status!=='READY'||asset.id===defaultAssetId" @click="chooseDefaultEnvironment(asset)">{{ asset.id===defaultAssetId ? '当前默认' : '设为默认环境' }}</button></footer>
+          </article>
+        </div>
+        <nav v-if="filteredEnvironmentAssets.length" class="ds-pagination"><button :disabled="environmentCurrentPage<=1" @click="environmentPage=environmentCurrentPage-1">上一页</button><span>第 {{ environmentCurrentPage }} / {{ environmentPageCount }} 页</span><button :disabled="environmentCurrentPage>=environmentPageCount" @click="environmentPage=environmentCurrentPage+1">下一页</button></nav>
+      </template>
     </section>
 
     <div v-show="!loading&&tab==='develop'" class="ds-develop-pane">

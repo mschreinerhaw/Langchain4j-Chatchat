@@ -7,6 +7,12 @@ import java.util.*;
 
 /** No user stream content crosses the managed-execution persistence boundary. */
 final class PythonExecutionLogBoundary {
+    private static final Map<String,String> HINTS = Map.of(
+        "VALUE_NOT_SUBSCRIPTABLE", "The value at this line cannot be indexed. Inspect its definition and distinguish a scalar from the intended row/dictionary; repair the program without changing source data.",
+        "NUMERIC_TYPE_MISMATCH", "Operands have incompatible types. Use the declared input schema to normalize compatible numeric types explicitly and preserve decimal precision.",
+        "JSON_VALUE_NOT_SERIALIZABLE", "A result value is not JSON serializable. Encode exact decimal/date values explicitly according to the output schema before writing JSONL.",
+        "PACKAGE_NOT_INSTALLED", "The requested package is absent. Use the captured installed-package versions and available libraries; do not install dependencies or access the network.",
+        "PACKAGE_API_UNAVAILABLE", "The attribute/API is unavailable. Check the captured package version and use a supported API at the reported source line.");
     private static final Set<String> EXCEPTIONS = Set.of("AssertionError", "AttributeError", "EOFError",
         "ImportError", "ModuleNotFoundError", "IndexError", "KeyError", "NameError", "UnboundLocalError",
         "OSError", "FileNotFoundError", "PermissionError", "RuntimeError", "NotImplementedError",
@@ -34,6 +40,8 @@ final class PythonExecutionLogBoundary {
                 }
                 if (EXCEPTIONS.contains(value.path("exceptionType").asText("")))
                     safe.put("exceptionType", value.path("exceptionType").asText());
+                String code = value.path("diagnosticCode").asText("");
+                if (HINTS.containsKey(code)) safe.put("diagnosticCode", code);
                 if (value.path("line").isIntegralNumber() && value.path("line").asLong() > 0
                         && value.path("line").asLong() < 100_000_000)
                     safe.put("line", value.path("line").asLong());
@@ -47,6 +55,8 @@ final class PythonExecutionLogBoundary {
         String stderr = "[Runtime: raw stderr omitted; observedBytes=" + safe.getOrDefault("stderrBytes", "unavailable") + "]\n";
         if (safe.containsKey("line")) stderr += "  File \"/workspace/main.py\", line " + safe.get("line") + "\n";
         if (safe.containsKey("exceptionType")) stderr += safe.get("exceptionType") + ":\n";
+        if (safe.containsKey("diagnosticCode")) stderr += "Runtime diagnostic: " + safe.get("diagnosticCode")
+            + "\nRepair guidance: " + HINTS.get(safe.get("diagnosticCode")) + "\n";
         replace(directory.resolve("stderr.txt"), stderr);
     }
 

@@ -25,6 +25,9 @@ public class McpPythonControlPlaneClient implements McpPythonControlPlanePort {
 
     public List<EnvironmentView> environments(){Object data=get("/api/v1/python/environments?published=true");if(!(data instanceof List<?> list))return List.of();return list.stream().filter(Map.class::isInstance).map(item->mapper.convertValue(item,EnvironmentView.class)).toList();}
     public EnvironmentView environment(String id){return convert(get("/api/v1/python/environments/"+encode(id)),EnvironmentView.class);}
+    @Override public EnvironmentRuntime environmentRuntime(String id) {
+        return convert(get("/api/v1/python/environments/" + encode(id) + "/runtime"), EnvironmentRuntime.class);
+    }
     public ProvisionResult provision(String environmentId,String tenantId,String ownerId,String assetId){return convert(post("/api/v1/python/runtime/assets/provision",Map.of("environmentId",environmentId,"tenantId",tenantId,"ownerId",ownerId,"assetId",assetId)),ProvisionResult.class);}
     public ExecutionResult preview(String environmentId,String tenantId,String ownerId,String assetId,String fileName,String source,Map<String,Object> parameters,String inputSchemaJson){Map<String,Object> body=new LinkedHashMap<>();body.put("environmentId",environmentId);body.put("tenantId",tenantId);body.put("ownerId",ownerId);body.put("assetId",assetId);body.put("fileName",fileName);body.put("sourceCiphertext",encrypt(source));body.put("parameters",parameters==null?Map.of():parameters);body.put("inputSchemaJson",inputSchemaJson==null?"{}":inputSchemaJson);return convert(post("/api/v1/python/runtime/preview",body),ExecutionResult.class);}
     public SyncResult synchronizeTemplate(String id,TemplatePayload payload){Map<String,Object> body=mapper.convertValue(payload,new TypeReference<>(){});body.put("sourceCiphertext",encrypt(payload.source()));body.remove("source");return convert(put("/api/v1/python/templates/"+encode(id),body),SyncResult.class);}

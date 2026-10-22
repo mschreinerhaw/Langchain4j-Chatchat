@@ -78,10 +78,14 @@ public class CodingPythonExecutionBridge {
         var intent = tasks.startIntent(scope, contract.taskId(), lease, reserved.outcome().revision(), operationId, handle);
         if (!intent.dispatchIntentCreated())
             return python.get(scope.tenantId(), scope.userId(), scope.runId(), contract.taskId(), operationId);
+        var environmentSnapshot = contract.runtimeContext().get("pythonEnvironment") instanceof Map<?,?> value ? value : Map.of();
+        Integer environmentVersion = environmentSnapshot.get("environmentVersion") instanceof Number version ? version.intValue() : null;
+        String imageDigest = environmentSnapshot.get("imageDigest") instanceof String digest ? digest : null;
         return python.start(new McpPythonControlPlanePort.StartRequest(scope.tenantId(), scope.userId(), scope.runId(),
                 contract.taskId(), operationId, 1, lease.fencingToken(), environmentId, assetId, fileName,
                 source, parameters == null ? Map.of() : parameters, inputSchemaJson == null ? "{}" : inputSchemaJson,
-                new ArrayList<>(files.keySet()), files, sourceHash, contract.budget().deadlineAt(), reservationRef));
+                new ArrayList<>(files.keySet()), files, sourceHash, contract.budget().deadlineAt(), reservationRef,
+                environmentVersion, imageDigest));
     }
 
     public McpPythonControlPlanePort.OperationView get(KernelDataScope scope, String taskId, String operationId) {

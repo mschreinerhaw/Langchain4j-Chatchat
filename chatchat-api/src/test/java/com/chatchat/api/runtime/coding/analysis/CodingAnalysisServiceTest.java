@@ -24,6 +24,25 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
+    @Test void workshopDefaultAndActualImageCapabilitiesReachTheCodingContract() {
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        var defaults = mock(com.chatchat.api.datascience.python.PythonDefaultEnvironmentService.class);
+        var environment = new McpPythonControlPlanePort.EnvironmentView("published-default", "Default", "", "python:new",
+            "3.11", "1", "512m", "1g", "64m", "10001:10001", "NONE", null, "[]", 300, false, 5, "PUBLISHED");
+        when(defaults.resolve(anyString(), anyString(), any())).thenReturn(
+            new com.chatchat.api.datascience.python.PythonDefaultEnvironmentService.Selection("asset", environment, "WORKSHOP_DEFAULT"));
+        when(python.environmentRuntime("published-default")).thenReturn(new McpPythonControlPlanePort.EnvironmentRuntime(
+            "published-default", 5, "python:new", "sha256:" + "a".repeat(64), "3.11.14", Map.of("pandas", "2.3.3")));
+        var service = service(); service.setDefaultEnvironments(defaults);
+        service.execute(context("tenant"), request(), sources());
+        var captured = org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);
+        verify(agent).submit(captured.capture());
+        assertThat(captured.getValue().environmentRef()).isEqualTo("published-default");
+        assertThat(captured.getValue().objective().instruction()).contains("3.11.14", "2.3.3", "WORKSHOP_DEFAULT");
+        assertThat(((Map<?,?>)captured.getValue().runtimeContext().get("pythonEnvironment")).get("imageDigest"))
+            .isEqualTo("sha256:" + "a".repeat(64));
+        verify(python, never()).environment("environment");
+    }
     @Test void nineSourceFileContractRetainsTheAuthorizedParentModelAcrossComplexitySelection() {
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
         policy.setComplexModelName("must-not-replace-parent");

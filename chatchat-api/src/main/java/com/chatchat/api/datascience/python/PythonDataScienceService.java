@@ -37,6 +37,8 @@ public class PythonDataScienceService {
     private final PythonDataScienceProperties properties;
     private final PythonSystemExampleCatalog exampleCatalog;
     private final PythonRuntimeService runtime;
+    @org.springframework.beans.factory.annotation.Autowired
+    private PythonDefaultEnvironmentService defaultEnvironments;
 
     public PythonRuntimeService.ExecResult codeTool(String tenant, String owner, String assetId, String source, boolean format) {
         PythonAssetEntity asset = ownedReadyAsset(assetId, tenant, owner);
@@ -46,7 +48,8 @@ public class PythonDataScienceService {
     public Workbench workbench(String tenant, String owner) {
         List<PythonAssetEntity> assets = assetRepository.findByTenantIdAndOwnerIdOrderByCreatedAtDesc(tenant, owner);
         assets.forEach(this::applyMcpEnvironmentStatus);
-        return new Workbench(assets, folderRepository.findByTenantIdAndOwnerIdOrderBySortOrderAscNameAsc(tenant, owner), scriptRepository.findByTenantIdAndOwnerIdOrderByUpdatedAtDesc(tenant, owner), executionRepository.findTop50ByTenantIdAndOwnerIdOrderByStartedAtDesc(tenant, owner), dataFileRepository.findByTenantIdAndOwnerIdOrderByCreatedAtDesc(tenant, owner), exampleCatalog.list());
+        return new Workbench(assets, folderRepository.findByTenantIdAndOwnerIdOrderBySortOrderAscNameAsc(tenant, owner), scriptRepository.findByTenantIdAndOwnerIdOrderByUpdatedAtDesc(tenant, owner), executionRepository.findTop50ByTenantIdAndOwnerIdOrderByStartedAtDesc(tenant, owner), dataFileRepository.findByTenantIdAndOwnerIdOrderByCreatedAtDesc(tenant, owner), exampleCatalog.list(),
+            defaultEnvironments == null ? null : defaultEnvironments.defaultAssetId(tenant, owner));
     }
 
     public List<McpPythonControlPlanePort.EnvironmentView> publishedEnvironments() {
@@ -465,6 +468,10 @@ public class PythonDataScienceService {
     private void applyMcpEnvironmentStatus(PythonAssetEntity asset) {
         try {
             var environment = mcp.environment(asset.getMcpEnvironmentId());
+            asset.setMcpEnvironmentVersion(environment.versionNumber());
+            asset.setDockerImage(environment.dockerImage());
+            asset.setPythonVersion(environment.pythonVersion());
+            asset.setDependenciesJson(environment.requirementsJson());
             String status = effectiveAssetStatus(environment.status());
             asset.setStatus(status);
             asset.setStatusMessage("READY".equals(status)
@@ -699,7 +706,7 @@ public class PythonDataScienceService {
     public record Workbench(List<PythonAssetEntity> assets, List<PythonScriptFolderEntity> folders,
                             List<PythonScriptEntity> scripts, List<PythonExecutionEntity> executions,
                             List<PythonDataFileEntity> dataFiles,
-                            List<PythonSystemExampleCatalog.Example> systemExamples) {
+                            List<PythonSystemExampleCatalog.Example> systemExamples, String defaultAssetId) {
     }
 
     public record DataDownload(String fileName, byte[] content) {

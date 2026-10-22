@@ -74,6 +74,9 @@ public class PythonManagedExecutionService {
             catch (Exception ex) { throw new IllegalStateException("Python image cannot be pinned", ex); }
         }
         if (!InternalSecretCipher.isEncrypted(request.sourceCiphertext())) throw new IllegalArgumentException("Encrypted Python source is required");
+        if (request.expectedEnvironmentVersion() != null && request.expectedEnvironmentVersion() != environmentVersion
+                || request.expectedImageDigest() != null && !request.expectedImageDigest().equals(imageId))
+            throw new IllegalStateException("Python 环境版本或镜像已更新，当前任务保留原环境快照，请重新提交任务以使用最新默认环境。");
         String source = InternalSecretCipher.decryptIfNecessary(request.sourceCiphertext(), credentials.resolvedSecret());
         if (request.sourceSha256() == null || !request.sourceSha256().equals(PythonOperationWorkspace.hash(source.getBytes(StandardCharsets.UTF_8))))
             throw new IllegalArgumentException("Python source checksum mismatch");
@@ -533,7 +536,18 @@ public class PythonManagedExecutionService {
                                String fileName, String sourceCiphertext, Map<String,Object> parameters,
                                String inputSchemaJson, List<String> authorizedFileIds,
                                Map<String,String> authorizedFileHashes, String sourceSha256,
-                               Instant deadlineAt, String budgetReservationRef) {}
+                               Instant deadlineAt, String budgetReservationRef,
+                               Integer expectedEnvironmentVersion, String expectedImageDigest) {
+        public StartCommand(String tenantId, String ownerId, String runId, String taskId, String operationId,
+                int attempt, long fencingToken, String environmentId, String assetId, String fileName,
+                String sourceCiphertext, Map<String,Object> parameters, String inputSchemaJson,
+                List<String> authorizedFileIds, Map<String,String> authorizedFileHashes, String sourceSha256,
+                Instant deadlineAt, String budgetReservationRef) {
+            this(tenantId, ownerId, runId, taskId, operationId, attempt, fencingToken, environmentId, assetId,
+                fileName, sourceCiphertext, parameters, inputSchemaJson, authorizedFileIds, authorizedFileHashes,
+                sourceSha256, deadlineAt, budgetReservationRef, null, null);
+        }
+    }
     private record Operation(String id,String tenant,String owner,String run,String task,String operation,int attempt,
                              long fencingToken,String requestHash,String environmentId,int environmentVersion,String imageDigest,String containerName,
                              String workspacePath,String codeHash,String manifestHash,String status,boolean cancelRequested,

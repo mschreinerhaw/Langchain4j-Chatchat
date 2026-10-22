@@ -217,6 +217,21 @@ class PythonManagedExecutionServiceTest {
         awaitRemoved(docker, recovered.containerId());
     }
 
+    @Test void changedEnvironmentVersionOrImageIsRejectedBeforeCreatingAnOperation() throws Exception {
+        var h = harness(false);
+        String code = "print('ok')";
+        for (boolean changedVersion : List.of(true, false)) {
+            var command = new PythonManagedExecutionService.StartCommand(
+                "tenant", "owner", "run", "task", "drift", 1, 1, "env", "asset", "main.py",
+                InternalSecretCipher.encrypt(code, SECRET), Map.of(), "{}", List.of(), Map.of(),
+                PythonOperationWorkspace.hash(code.getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                h.deadline, "reservation-1", changedVersion ? 2 : 1, "sha256:" + (changedVersion ? "a" : "b").repeat(64));
+            assertThrows(IllegalStateException.class, () -> service.start(command, "tenant", "owner"));
+        }
+        assertEquals(0, h.created.get());
+        assertEquals(0L, h.jdbc.queryForObject("select count(*) from mcp_python_managed_operation", Long.class));
+    }
+
     private Harness harness(boolean realDocker) throws Exception {
         var dataSource = new DriverManagerDataSource("jdbc:h2:mem:pyop-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", "");
         try (Connection connection = dataSource.getConnection()) {

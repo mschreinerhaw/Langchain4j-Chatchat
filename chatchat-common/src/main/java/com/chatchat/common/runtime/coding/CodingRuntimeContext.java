@@ -8,7 +8,17 @@ public final class CodingRuntimeContext {
     public static Map<String, Object> validate(Map<String, Object> value) {
         if (value == null || value.isEmpty()) return Map.of();
         CodingProtocol.require(value.keySet().stream().allMatch(Set.of("schemaVersion", "capturedAt",
-            "consistency", "model", "skills", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode")::contains), "Unknown Coding context field");
+            "consistency", "model", "skills", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "pythonEnvironment")::contains), "Unknown Coding context field");
+        if (value.containsKey("pythonEnvironment")) {
+            CodingProtocol.require(value.get("pythonEnvironment") instanceof Map<?,?>, "Python environment snapshot required");
+            var env = (Map<?,?>) value.get("pythonEnvironment");
+            CodingProtocol.require(env.keySet().stream().allMatch(Set.of("environmentId", "environmentVersion", "dockerImage",
+                "imageDigest", "pythonVersion", "packages", "source", "assetId")::contains), "Unknown Python environment field");
+            CodingProtocol.require(env.get("environmentId") instanceof String id && !id.isBlank(), "Python environment identity required");
+            CodingProtocol.require(env.get("environmentVersion") instanceof Number n && n.longValue() > 0, "Python environment version required");
+            if (env.containsKey("imageDigest")) CodingProtocol.require(env.get("imageDigest") instanceof String digest
+                && digest.matches("sha256:[0-9a-f]{64}"), "Invalid Python image digest");
+        }
         VisualReportMode.read(value);
         if(value.containsKey("executionProfile")) {
             CodingProtocol.require(value.get("executionProfile") instanceof Map<?,?>,"Coding execution profile required");

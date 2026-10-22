@@ -44,6 +44,11 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
     private final McpPythonControlPlanePort python;
     private final ObjectMapper json;
     private final Semaphore capacity;
+    private com.chatchat.api.datascience.python.PythonDefaultEnvironmentService defaultEnvironments;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setDefaultEnvironments(com.chatchat.api.datascience.python.PythonDefaultEnvironmentService value) {
+        this.defaultEnvironments = value;
+    }
     @org.springframework.beans.factory.annotation.Autowired
     private org.springframework.beans.factory.ObjectProvider<com.chatchat.api.assets.AssetAnalysisInputs> attachmentInputs;
     @Override public Map<String,Dataset> prepareFileSources(AnalysisCoverageCoordinator.Request context) {
@@ -215,9 +220,15 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 context.metadata().put("codingLastReceipt",receipt);
                 return receipt;
             }
-            var env=python.environment(text(policy.getEnvironmentId(),256));
+            var selectedEnvironment = defaultEnvironments == null ? null
+                : defaultEnvironments.resolve(scope.tenantId(), scope.userId(), policy.getEnvironmentId());
+            var env=selectedEnvironment == null ? python.environment(text(policy.getEnvironmentId(),256))
+                : selectedEnvironment.environment();
             if(env==null || !"PUBLISHED".equals(env.status()) || !"NONE".equals(env.networkPolicy()))
                 throw new SecurityException("Coding requires a published network-disabled deployment environment");
+            var runtime = python.environmentRuntime(env.id());
+            if (runtime != null && (!env.id().equals(runtime.environmentId()) || env.versionNumber() != runtime.environmentVersion()))
+                throw new IllegalStateException("Python 环境发布版本已变化，请重试以使用最新默认环境。");
             String decision="runtime-coding-delegation:"+taskId, workspace="runtime-coding-workspace:"+taskId;
             observer.accept(Map.of("eventKind","CODING_INPUT_PREPARING","taskId",taskId,"source","JAVA_RUNTIME"));
             var input=inputs.captureConfigured(scope,taskId,List.of(source),source.reference(),decision,workspace,
@@ -293,6 +304,21 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             }
             var configuration=new LinkedHashMap<String,Object>(com.chatchat.api.runtime.coding.CodingConfigurationSnapshot.capture(
                 context.runtimeAttributes(),context.metadata()));
+            var environmentSnapshot = new LinkedHashMap<String,Object>();
+            environmentSnapshot.put("environmentId", env.id());
+            environmentSnapshot.put("environmentVersion", env.versionNumber());
+            environmentSnapshot.put("dockerImage", env.dockerImage());
+            environmentSnapshot.put("pythonVersion", runtime == null ? env.pythonVersion() : runtime.pythonVersion());
+            environmentSnapshot.put("packages", runtime == null || runtime.packages() == null ? Map.of() : runtime.packages());
+            if (runtime != null && runtime.imageDigest() != null) environmentSnapshot.put("imageDigest", runtime.imageDigest());
+            if (selectedEnvironment != null) {
+                environmentSnapshot.put("source", selectedEnvironment.source());
+                if (selectedEnvironment.assetId() != null) environmentSnapshot.put("assetId", selectedEnvironment.assetId());
+            }
+            configuration.put("pythonEnvironment", environmentSnapshot);
+            goal += "\nActual Python execution environment (immutable task snapshot): " + ModelProtocolJson.compact(environmentSnapshot)
+                + ". Use the installed package versions and compatible APIs; do not assume packages from a different image or install dependencies. "
+                + "Distinguish scalar amounts from row dictionaries and inspect variable definitions before indexing values.";
             if(VisualReportMode.active(context.runtimeAttributes()) && WorkspaceResultSchema.object(schema.get("properties")).containsKey("visualReport"))configuration.put("reportMode","visual");
             if(dynamic)configuration.put("executionProfile",freezeExecutionProfile(sourceCount,input.rowCount()));
             contract=new CodingTaskContract(dynamic?CodingProtocol.ANALYSIS_VERSION:CodingProtocol.VERSION,taskId,scope,
@@ -300,7 +326,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 new CodingTaskContract.Authorization(decision,tools,CodingInputSnapshotService.mountedFiles(input)
                     .stream().map(CodingInputSnapshotService.Chunk::fileId).toList(),List.of(),List.of(),
                     CodingTaskContract.NetworkPolicy.NONE,List.of(),List.of(CodingTaskContract.SideEffect.CODE_EXECUTION)),budget,
-                policy.getEnvironmentId(),plan,new CodingTaskContract.OutputContract(CodingTaskContract.ResultFormat.JSON_LINES,
+                env.id(),plan,new CodingTaskContract.OutputContract(CodingTaskContract.ResultFormat.JSON_LINES,
                     "runtime-coding-schema:"+hash(schema),"runtime-coding-structural.v1",List.of("rows.jsonl"),
                     List.of("application/x-ndjson"),policy.getMaxResultRows(),policy.getMaxResultBytes(),List.of(CodingTaskContract.RequiredEvidence.values())),
                 inputs.withInputContext(configuration,scope,taskId,input));

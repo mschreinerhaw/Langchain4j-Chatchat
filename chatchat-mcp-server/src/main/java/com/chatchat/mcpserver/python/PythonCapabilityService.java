@@ -33,6 +33,14 @@ public class PythonCapabilityService {
     public PythonEnvironment environmentState(String id) {
         return environment(id);
     }
+    public com.chatchat.common.mcp.python.McpPythonControlPlanePort.EnvironmentRuntime environmentRuntime(String id) {
+        try { return runtime.describeRuntime(publishedEnvironment(id)); }
+        catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt(); throw new IllegalStateException("Python 环境能力检查被中断，请重试。", interrupted);
+        } catch (java.io.IOException unavailable) {
+            throw new IllegalStateException("暂时无法检查 Python 镜像运行能力，请检查已发布镜像后重试。", unavailable);
+        }
+    }
 
     /** Coding operations may only be admitted against an active, immutable published version. */
     public PythonEnvironment managedEnvironmentState(String id) {

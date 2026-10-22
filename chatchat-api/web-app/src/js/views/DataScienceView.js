@@ -6,6 +6,7 @@ import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import "monaco-editor/min/vs/editor/editor.main.css";
 import {
   createPythonAsset,
+  setDefaultPythonEnvironment,
   executePythonScript,
   fetchMcpPythonEnvironments,
   fetchPythonCodeModels,
@@ -106,6 +107,7 @@ export default {
     draftSaveTimer: null,
     draftRestored: false,
     assets: [],
+    defaultAssetId: null,
     scripts: [],
     folders: [],
     systemExamples: [],
@@ -632,6 +634,7 @@ export default {
           fetchPythonAssistSkills()
         ]);
         this.assets = data?.assets || [];
+        this.defaultAssetId = data?.defaultAssetId || null;
         this.folders = data?.folders || [];
         this.scripts = data?.scripts || [];
         this.systemExamples = data?.systemExamples || [];
@@ -652,7 +655,7 @@ export default {
             "";
         if (!this.assetForm.environmentId && this.environmentCatalog[0])
           this.assetForm.environmentId = this.environmentCatalog[0].id;
-        if (!this.form.assetId && this.readyAssets[0]) this.form.assetId = this.readyAssets[0].id;
+        if (!this.form.assetId && this.readyAssets[0]) this.form.assetId = this.defaultAssetId || this.readyAssets[0].id;
         if (this.tab === "develop" && !this.editorTabs.length) {
           if (this.scripts[0]) this.selectScript(this.scripts[0], false);
           else this.newScript(false);
@@ -668,6 +671,14 @@ export default {
             this.editor?.layout();
           });
       }
+    },
+    async chooseDefaultEnvironment(asset) {
+      await this.action(async () => {
+        await setDefaultPythonEnvironment(asset.id);
+        this.defaultAssetId = asset.id;
+        this.showTransientMessage(`已将“${asset.name}”设为默认环境，新建分析任务将使用该环境的已发布版本。`);
+        await this.load(true);
+      });
     },
     async refreshExplorer() {
       if (this.explorerRefreshing) return;

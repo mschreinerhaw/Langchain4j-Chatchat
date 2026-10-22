@@ -1,0 +1,14 @@
+{
+    "sourceCommit":  "0df5151c8d27c024dc2a93833aa008c509ec3c83",
+    "version":  "2.2.0-rc2",
+    "artifacts":  {
+                      "mcp":  {
+                                  "sha256":  "2c59eb269c610e56f9f3539363bed8b422b78c448f9d9f03f3e0fd3e916a9598",
+                                  "unchanged":  true,
+                                  "version":  "2.1.0-rc1"
+                              },
+                      "api":  {
+                                  "sha256":  "efdb81b1c70caa96de66f5905df33f98dc26dbe609669f686071f714d2410354"
+                              }
+                  }
+}

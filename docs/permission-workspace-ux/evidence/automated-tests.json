@@ -1,0 +1,115 @@
+{
+    "scope":  "Selected permission, migration, tenant isolation and workspace regression tests; not the entire repository suite",
+    "status":  "PASSED",
+    "frontend":  {
+                     "tests":  280,
+                     "files":  29,
+                     "failures":  0
+                 },
+    "build":  {
+                  "retiredClassesAbsent":  true,
+                  "apiPackage":  "PASSED",
+                  "frontend":  "PASSED",
+                  "vueStructureComponents":  62
+              },
+    "suites":  [
+                   {
+                       "skipped":  0,
+                       "name":  "PermissionWorkspaceUxMigrationTest",
+                       "tests":  2,
+                       "errors":  0,
+                       "failures":  0
+                   },
+                   {
+                       "skipped":  0,
+                       "name":  "RetiredAnalysisMigrationTest",
+                       "tests":  2,
+                       "errors":  0,
+                       "failures":  0
+                   },
+                   {
+                       "skipped":  0,
+                       "name":  "WorkspaceMigrationTest",
+                       "tests":  3,
+                       "errors":  0,
+                       "failures":  0
+                   },
+                   {
+                       "skipped":  0,
+                       "name":  "UnifiedManagementMigrationTest",
+                       "tests":  1,
+                       "errors":  0,
+                       "failures":  0
+                   },
+                   {
+                       "skipped":  0,
+                       "name":  "ResourceGrantAdminControllerTest",
+                       "tests":  4,
+                       "errors":  0,
+                       "failures":  0
+                   },
+                   {
+                       "skipped":  0,
+                       "name":  "ApiPermissionAuthorizationFilterTest",
+                       "tests":  6,
+                       "errors":  0,
+                       "failures":  0
+                   },
+                   {
+                       "skipped":  0,
+                       "name":  "AgentAuthorizationIsolationTest",
+                       "tests":  3,
+                       "errors":  0,
+                       "failures":  0
+                   },
+                   {
+                       "skipped":  0,
+                       "name":  "ApiUserRoleScheduleMcpAuthorizationIntegrationTest",
+                       "tests":  1,
+                       "errors":  0,
+                       "failures":  0
+                   },
+                   {
+                       "skipped":  0,
+                       "name":  "EnterpriseMcpAuthorizationSyncControllerTest",
+                       "tests":  1,
+                       "errors":  0,
+                       "failures":  0
+                   },
+                   {
+                       "skipped":  0,
+                       "name":  "PermissionCenterControllerTest",
+                       "tests":  3,
+                       "errors":  0,
+                       "failures":  0
+                   },
+                   {
+                       "skipped":  0,
+                       "name":  "PermissionMutationAuditFilterTest",
+                       "tests":  2,
+                       "errors":  0,
+                       "failures":  0
+                   },
+                   {
+                       "skipped":  0,
+                       "name":  "EnterpriseRoleTenantTest",
+                       "tests":  2,
+                       "errors":  0,
+                       "failures":  0
+                   },
+                   {
+                       "skipped":  0,
+                       "name":  "WorkspaceIntegrationTest",
+                       "tests":  10,
+                       "errors":  0,
+                       "failures":  0
+                   },
+                   {
+                       "skipped":  0,
+                       "name":  "EnterpriseAdminServiceIntegrationTest",
+                       "tests":  9,
+                       "errors":  0,
+                       "failures":  0
+                   }
+               ]
+}

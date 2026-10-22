@@ -27,6 +27,7 @@ queries = {
     'temporaryRoles': "select count(*) from sys_role where role_code like 'UX_%' or role_code like 'UNIFIED_%' or role_name like 'Temporary unified acceptance%'",
     'temporaryUsers': "select count(*) from sys_user where username like 'ux_permission_%' or username like 'ux_browser_%' or username like 'unified_acceptance_%'",
     'temporaryTenants': "select count(*) from sys_tenant where lower(tenant_code) like 'unified_%' or tenant_name like 'Temporary unified acceptance%'",
+    'temporaryOrganizations': "select count(*) from sys_org where org_code like 'UX_ORG_%'",
     'duplicatePermissionCodes': "select count(*) from (select permission_code from sys_permission group by permission_code having count(*)>1) t",
     'duplicateMenuCodes': "select count(*) from (select menu_code from sys_menu group by menu_code having count(*)>1) t",
     'unboundScopedRoleGrants': "select count(*) from resource_grant g where g.agent_id is not null and g.principal_type='ROLE' and not exists(select 1 from role_agent_binding b where b.tenant_id=g.tenant_id and b.role_id=g.principal_id and b.agent_id=g.agent_id and b.enabled=true)",

@@ -1,0 +1,9 @@
+{
+  "path": "/opt/chatchat-releases/chatchat-1.2.0-20261022-visual-check-repair-hotfix.tar.gz",
+  "bytes": 8481131,
+  "sha256": "44a9acd1a0751bef75ac4581335934437f281ae70506591c4907e4b03ff99e29",
+  "baselineRequired": true,
+  "includesCustomerDataOrCredentials": false,
+  "manifestChecksumsVerified": true,
+  "jarReconstructedFromPackagedDelta": true
+}

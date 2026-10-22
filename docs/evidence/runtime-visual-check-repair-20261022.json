@@ -1,0 +1,114 @@
+{
+  "version": "1.2.0-20261022",
+  "date": "2026-10-22",
+  "implementationCommits": [
+    "a090519479e84a66212b08c395f3e1d2c84418f0",
+    "64849e712"
+  ],
+  "localTests": {
+    "javaPassed": 59,
+    "javaFailed": 0,
+    "javaSkipped": 0,
+    "frontendPassed": 13,
+    "frontendFailed": 0,
+    "viteBuild": "PASSED"
+  },
+  "deployment": {
+    "status": "DEPLOYED",
+    "revision": "64849e712165e793f762c2a03fc602aafadeab63",
+    "backup": "/opt/chatchat-releases/1.2.0-20261022-visual-check-repair-r2/private-backup/1792664283",
+    "unrelatedContainersUnchanged": true,
+    "configurationAndMountsPreserved": true,
+    "images": {
+      "api": {
+        "id": "sha256:49c1c828859899e1bc69c1f4d8e128e290274f5888504b48a28ee32ccb4dbb85",
+        "bytes": 743682233
+      }
+    }
+  },
+  "originalTaskArchivedReports": {
+    "status": "PASSED",
+    "kind": "REAL_POSTGRES_SILO_MCP_ARCHIVED_REPORT_REVALIDATION",
+    "parentTaskId": "37a99a30-ddce-441e-a43a-a72cffcfa2ef",
+    "sessionId": "1792635017034-2ff25b51afb2d8",
+    "taskId": "analysis-coding-53aa13bf2fc92325603ce323936f7b5dd4989f5a3d18efe30507c9b69e584351",
+    "traceId": "att-1-5b4b638a-1c7c-42c8-b238-906f2b6e0d8d",
+    "versions": [
+      {
+        "version": 1,
+        "status": "FAILED",
+        "checks": {
+          "PASSED": 3,
+          "FAILED": 2
+        },
+        "chartCount": 4,
+        "markdownCharacters": 825,
+        "artifactValidationStatus": "PASSED",
+        "durationMs": 755,
+        "codeHash": "ebe196386e7fc270c2af15ecaa94b8c7f03ddc567a687efe4faf3fbf34f850fb",
+        "resultHash": "be2c53da78cd0d6e9e25649a48b982c6a404f9f5256c1cbd71e042afe1860645"
+      },
+      {
+        "version": 2,
+        "status": "PARTIAL",
+        "checks": {
+          "PASSED": 4,
+          "UNRESOLVED": 2
+        },
+        "chartCount": 5,
+        "markdownCharacters": 1474,
+        "artifactValidationStatus": "PASSED",
+        "durationMs": 393,
+        "codeHash": "1eaab20493c145138e147865225c476b1d48ef2a461442ce9e7d549c195d5f68",
+        "resultHash": "5aa918fa6d953dee109ac6e20d9d5f03801797b777fe356e95d784a3a6e8b874"
+      }
+    ],
+    "immutableEvidenceRowsUnchanged": 19,
+    "taskTimelineAndUsageUnchanged": true,
+    "newModelCalls": 0,
+    "newPythonExecutions": 0,
+    "sourceDataRequeried": false
+  },
+  "browser": {
+    "status": "PASSED",
+    "scope": "REAL_DEPLOYED_PRODUCT_AND_ORIGINAL_HISTORY_WITH_REAL_API_RESPONSES",
+    "taskId": "analysis-coding-53aa13bf2fc92325603ce323936f7b5dd4989f5a3d18efe30507c9b69e584351",
+    "historyRestored": true,
+    "deliveryStatus": "PARTIAL",
+    "loadedChartCount": 5,
+    "unresolvedCheckCount": 2,
+    "authoredTextVisible": true,
+    "pageErrors": [],
+    "reviewResponses": [
+      {
+        "status": 200
+      }
+    ]
+  },
+  "additionalLiveModelRepairDrills": [
+    {
+      "taskId": "fcb90361-a0af-3c61-8e63-1bfe8d41e3df",
+      "result": "NOT_EXERCISED",
+      "parentState": "PARTIAL",
+      "reason": "Existing multi-workflow planning guard rejected the test objectives before Coding execution",
+      "pythonExecutions": 0
+    },
+    {
+      "taskId": "1381fd02-b4d3-3f8a-8e5c-828d1d66d6dc",
+      "traceId": "att-1-0d388f3e-0bb4-465a-9a97-1f16037b434b",
+      "result": "NOT_PASSED",
+      "parentState": "FAILED",
+      "reason": "Model response rejected; provider stop and usage receipt archived",
+      "modelCalls": 1,
+      "modelTokens": 30194,
+      "pythonExecutions": 0
+    }
+  ],
+  "limits": [
+    "Original unresolved business checks remain unresolved; artifact integrity does not certify financial or reconciliation conclusions.",
+    "The original task and five original charts were verified against real PG/Silo/MCP and the deployed browser, without model/Python/source-query replay.",
+    "Technical feedback/repair and completion gates have local policy/controller coverage. The additional live-model repair drill did not pass and is not represented as successful.",
+    "No permission, workflow, model token cap or resource budget was widened to bypass either live-model test failure.",
+    "Customer report text, charts, account identifiers, credentials and private screenshots are not included in this evidence."
+  ]
+}

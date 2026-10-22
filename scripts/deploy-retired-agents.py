@@ -17,7 +17,7 @@ def legacy_snapshot(database, schema):
     for table in ['agent_compute_definition', 'agent_provider_health', 'agent_a2a_task_link']:
         relation = schema + '.' + table
         if stage.sql(database, "select to_regclass('" + relation + "')"):
-            result[table] = stage.sql(database, "select count(*)||':'||md5(coalesce(jsonb_agg(to_jsonb(t) order by id)::text,'[]')) from " + relation + ' t')
+            result[table] = stage.sql(database, "select count(*)||':'||md5(coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text)::text,'[]')) from " + relation + ' t')
     return result
 
 

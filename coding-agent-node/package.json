@@ -9,12 +9,17 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "start": "node dist/server.js",
+    "verify:sdk": "node src/sdk-packages.js",
     "pretest": "npm run build",
     "test": "node --test test/*.test.js",
     "test:browser": "node scripts/test-monitor-browser.mjs"
   },
   "dependencies": {
-    "@cline/agents": "0.0.93"
+    "@cline/agents": "0.0.93",
+    "@cline/core": "0.0.93",
+    "@cline/llms": "0.0.93",
+    "@cline/sdk": "0.0.93",
+    "@cline/shared": "0.0.93"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

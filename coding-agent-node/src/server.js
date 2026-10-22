@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { createCodingRun } from './runner.js';
 import { createRuntimeModel } from './runtime-model.js';
+import { verifyClinePackages } from './sdk-packages.js';
 import { MonitorStore, createMonitorHandler } from './monitor.ts';
 
 const MAX_BODY = 1024 * 1024;
@@ -97,7 +98,7 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
 /** Node owns only transient SDK state; Runtime's A2 snapshot remains authoritative. */
 export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayFactory = httpGateway,
   allowedCallbackHosts = ['127.0.0.1', 'localhost'], maxSessions = 256, sessionRetentionMs = 900000,
-  callbackTimeoutMs = 90000, monitorToken, monitorDirectory, monitorSecureCookie = false }) {
+  callbackTimeoutMs = 90000, monitorToken, monitorDirectory, monitorSecureCookie = false, sdkPackages }) {
   if (!Number.isSafeInteger(maxSessions) || maxSessions < 1 || maxSessions > 4096
       || !Number.isSafeInteger(sessionRetentionMs) || sessionRetentionMs < 0)
     throw new Error('Invalid Coding session resource limits');
@@ -132,7 +133,7 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
       }
       if (request.method === 'GET' && url.pathname === '/healthz')
         return response(reply, 200, { status: 'UP', sdk: '@cline/agents@0.0.93',
-          runtime: process.version, build: process.env.RUNTIME_CODING_BUILD ?? 'development' });
+          packages: sdkPackages, runtime: process.version, build: process.env.RUNTIME_CODING_BUILD ?? 'development' });
       if (request.method === 'GET' && url.pathname === '/readyz')
         return response(reply, draining ? 503 : 200, { status: draining ? 'DRAINING' : 'READY',
           activeSessions: [...runs.values()].filter(run => run.state === 'RUNNING').length });
@@ -231,6 +232,7 @@ function view(run) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const sdkPackages = await verifyClinePackages();
   const secret = process.env.RUNTIME_CODING_SHARED_SECRET_FILE
     ? readFileSync(process.env.RUNTIME_CODING_SHARED_SECRET_FILE, 'utf8').trim()
     : process.env.RUNTIME_CODING_SHARED_SECRET;
@@ -251,6 +253,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     timestamp: new Date().toISOString(), component: 'NODE_CLINE', event,
     build: process.env.RUNTIME_CODING_BUILD ?? 'development', port }) + '\n'); };
   const server = createCodingServer({ secret, callbackUrl, allowedCallbackHosts, callbackTimeoutMs,
+    sdkPackages,
     monitorToken, monitorDirectory: process.env.RUNTIME_CODING_MONITOR_DIRECTORY,
     monitorSecureCookie: process.env.RUNTIME_CODING_MONITOR_SECURE_COOKIE === 'true' });
   server.listen(port, host, () => log('WORKER_READY'));

@@ -27,7 +27,7 @@ COPY --from=build --chown=node:node /srv/coding-agent/dist ./dist
 COPY --chown=node:node package.json ./
 # Retain the health probe path used by existing Runtime deployment tooling.
 COPY --chown=node:node src/healthcheck.js ./src/healthcheck.js
-RUN mkdir /srv/monitor-data && chown node:node /srv/monitor-data
+RUN node dist/sdk-packages.js && mkdir /srv/monitor-data && chown node:node /srv/monitor-data
 USER node
 EXPOSE 3100
 HEALTHCHECK --interval=15s --timeout=5s --start-period=15s --retries=3 CMD ["node", "dist/healthcheck.js"]

@@ -10,7 +10,7 @@ COPY --chown=node:node node_modules ./node_modules
 COPY --chown=node:node dist ./dist
 COPY --chown=node:node package.json ./
 COPY --chown=node:node src/healthcheck.js ./src/healthcheck.js
-RUN node --version && mkdir /srv/monitor-data && chown node:node /srv/monitor-data
+RUN node --version && node dist/sdk-packages.js && mkdir /srv/monitor-data && chown node:node /srv/monitor-data
 USER node
 EXPOSE 3100
 HEALTHCHECK --interval=15s --timeout=5s --start-period=15s --retries=3 CMD ["node", "dist/healthcheck.js"]

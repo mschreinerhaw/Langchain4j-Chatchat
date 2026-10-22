@@ -10,51 +10,32 @@ import {
   ShieldCheck,
   Trash2,
   Users,
-  X
+  X,
 } from "@lucide/vue";
 import "../../styles/pages/system-management.css";
-import ResourceAuthorizationPanel from "../../views/ResourceAuthorizationPanel.vue";
-import SkillRoleAuthorizationPanel from "../../views/SkillRoleAuthorizationPanel.vue";
+import "../../styles/pages/permission-workspace.css";
+
 import {
   AUTH_REQUIRED_EVENT,
+  getStoredAuthSession,
   changeAdminPassword,
   clearAuthSession,
   createOrg,
   createAgentApiToken,
-  createRole,
   createUser,
-  deleteOrg,
-  deleteRole,
   deleteUser,
   fetchAgentApiTokens,
-  fetchAgentOptions,
-  fetchEnterpriseSummary,
   fetchLoginAuditLogs,
-  fetchMenuConfigurations,
   fetchOrgs,
-  fetchPermissions,
-  fetchRoleAuthorization,
   fetchRoles,
-  fetchTenants,
   fetchUsers,
   resetAgentApiToken,
   revokeAgentApiToken,
-  saveRoleAuthorization,
   syncEnterpriseOrgs,
   syncEnterpriseUsers,
   updateOrg,
-  updateRole,
-  updateUser
+  updateUser,
 } from "../../services/api";
-
-const blankRoleForm = () => ({
-  id: "",
-  roleName: "",
-  roleCode: "",
-  roleType: "business",
-  status: "enabled",
-  description: ""
-});
 
 const blankOrgForm = () => ({
   id: "",
@@ -62,7 +43,7 @@ const blankOrgForm = () => ({
   orgCode: "",
   orgName: "",
   sortOrder: 0,
-  status: "enabled"
+  status: "enabled",
 });
 
 const blankUserForm = () => ({
@@ -74,23 +55,24 @@ const blankUserForm = () => ({
   email: "",
   phone: "",
   status: "enabled",
-  roleIds: []
+  roleIds: [],
 });
 
 const blankAdminPasswordForm = () => ({
   currentPassword: "",
   newPassword: "",
-  confirmPassword: ""
+  confirmPassword: "",
 });
 
 export default {
   name: "SystemManagementView",
   props: {
+    embedded: { type: Boolean, default: false },
     section: {
       type: String,
       default: "users",
-      validator: (value) => ["users", "organizations", "roles", "logins", "resources", "skillRoles"].includes(value)
-    }
+      validator: (value) => ["users", "organizations", "logins"].includes(value),
+    },
   },
   components: {
     Building2,
@@ -99,26 +81,27 @@ export default {
     Pencil,
     Plus,
     RefreshCw,
-    ResourceAuthorizationPanel,
-    SkillRoleAuthorizationPanel,
+
     RotateCcw,
     Save,
     ShieldCheck,
     Trash2,
     Users,
-    X
+    X,
   },
   data() {
     return {
       loading: false,
+      entityQuery: "",
+      entityStatus: "",
+      entityPage: 1,
+      entityPageSize: 20,
       savingOrg: false,
-      savingRole: false,
       savingUser: false,
       savingAdminPassword: false,
       apiTokenLoading: false,
       apiTokenSaving: false,
       orgModalOpen: false,
-      roleModalOpen: false,
       userModalOpen: false,
       adminPasswordModalOpen: false,
       apiTokenModalOpen: false,
@@ -127,7 +110,6 @@ export default {
       message: "",
       noticeTimer: null,
       activeManagementTab: this.section,
-      summary: {},
       tenants: [],
       orgs: [],
       roles: [],
@@ -140,9 +122,6 @@ export default {
       loginAuditAction: "",
       loginAuditResult: "",
       loginAuditTenantId: "",
-      permissions: [],
-      menuConfigurations: [],
-      agentOptions: [],
       apiTokens: [],
       apiTokenDuration: 2592000,
       apiTokenName: "",
@@ -150,57 +129,46 @@ export default {
       apiTokenCopySecret: "",
       apiTokenTargetUser: null,
       selectedTenantId: "",
-      selectedRoleId: "",
-      selectedPermissionIds: [],
-      selectedAgentIds: [],
-      focusedPermissionId: "",
-      selectedUserIds: [],
-      scopeType: "org_and_children",
-      scopeOrgId: "",
-      draftPermissionIds: [],
-      draftAgentIds: [],
-      draftUserIds: [],
-      draftScopeType: "org_and_children",
-      draftScopeOrgId: "",
-      agentPickerOpen: false,
-      agentPickerQuery: "",
-      tempPickerAgentIds: [],
-      userPickerOpen: false,
-      tempPickerUserIds: [],
       orgForm: blankOrgForm(),
-      roleForm: blankRoleForm(),
       userForm: blankUserForm(),
-      adminPasswordForm: blankAdminPasswordForm()
+      adminPasswordForm: blankAdminPasswordForm(),
     };
   },
   computed: {
+    filteredEntities() {
+      const data = this.section === "users" ? this.users : this.orgTree;
+      const query = this.entityQuery.toLowerCase();
+      return data.filter(
+        (item) =>
+          (!this.entityStatus || item.status === this.entityStatus) &&
+          [item.displayName, item.username, item.orgName].some((v) =>
+            String(v || "")
+              .toLowerCase()
+              .includes(query)
+          )
+      );
+    },
+    entityPages() {
+      return Math.max(1, Math.ceil(this.filteredEntities.length / this.entityPageSize));
+    },
+    pagedUsers() {
+      return this.filteredEntities.slice(
+        (this.entityPage - 1) * this.entityPageSize,
+        this.entityPage * this.entityPageSize
+      );
+    },
+    pagedOrgs() {
+      return this.pagedUsers;
+    },
     sectionTitle() {
-      return {
-        users: "用户管理",
-        organizations: "组织管理",
-        roles: "角色管理",
-        logins: "登录审计",
-        resources: "资源授权",
-        skillRoles: "技能权限"
-      }[this.section];
+      return { users: "用户管理", organizations: "组织管理", logins: "安全审计" }[this.section];
     },
     sectionDescription() {
       return {
-        users: "管理账号、组织归属、角色分配与 Agent API 令牌",
-        organizations: "查看机构层级与成员归属，维护组织档案",
-        roles: "维护角色档案、成员关系与授权范围",
-        logins: "查询用户登录和 Agent API 认证记录",
-        resources: "按角色配置可访问的资源与 Agent 能力",
-        skillRoles: "双向查询角色拥有的技能，以及技能已授权的角色"
+        users: "管理账户、组织归属、角色分配及服务访问令牌",
+        organizations: "维护组织档案与层级，查看成员归属",
+        logins: "查询用户登录和服务访问认证记录",
       }[this.section];
-    },
-    metrics() {
-      return [
-        { label: "组织", value: this.summary.orgCount ?? this.orgs.length },
-        { label: "用户", value: this.summary.userCount ?? this.users.length },
-        { label: "角色", value: this.summary.roleCount ?? this.roles.length },
-        { label: "权限", value: this.summary.permissionCount ?? this.permissions.length }
-      ];
     },
     orgTree() {
       const children = new Map();
@@ -230,152 +198,9 @@ export default {
       }, {});
     },
     selectableOrgTree() {
-      return this.orgTree.filter((org) => org.status === "enabled" || org.id === this.userForm.orgId);
-    },
-    permissionTree() {
-      const children = new Map();
-      const visiblePermissions = this.permissions.filter((item) => item.permissionType !== "internal");
-      const visibleIds = new Set(visiblePermissions.map((item) => item.id));
-      visiblePermissions.forEach((item) => {
-        const parent = item.parentId && visibleIds.has(item.parentId) ? item.parentId : "root";
-        if (!children.has(parent)) {
-          children.set(parent, []);
-        }
-        children.get(parent).push(item);
-      });
-      const result = [];
-      const walk = (parentId, level) => {
-        (children.get(parentId) || []).forEach((item) => {
-          result.push({ ...item, level });
-          walk(item.id, level + 1);
-        });
-      };
-      walk("root", 0);
-      return result.length ? result : visiblePermissions.map((item) => ({ ...item, level: 0 }));
-    },
-    menuAliasesByPermissionId() {
-      const aliases = {};
-      this.menuConfigurations.forEach((configuration) => {
-        const menuName = configuration?.menu?.menuName;
-        if (!menuName) {
-          return;
-        }
-        (configuration.permissionIds || []).forEach((permissionId) => {
-          if (!aliases[permissionId]) {
-            aliases[permissionId] = menuName;
-          }
-        });
-      });
-      return aliases;
-    },
-    permissionGroups() {
-      const selected = new Set(this.draftPermissionIds);
-      const groups = [];
-      let currentGroup = null;
-
-      this.permissionTree.forEach((permission) => {
-        if (permission.level === 0 || !currentGroup) {
-          currentGroup = {
-            root: permission,
-            children: [],
-            permissionIds: [permission.id]
-          };
-          groups.push(currentGroup);
-          return;
-        }
-
-        currentGroup.children.push({
-          ...permission,
-          displayLevel: Math.max(permission.level - 1, 0)
-        });
-        currentGroup.permissionIds.push(permission.id);
-      });
-
-      return groups.map((group) => ({
-        ...group,
-        selectedCount: group.permissionIds.filter((id) => selected.has(id)).length,
-        totalCount: group.permissionIds.length
-      }));
-    },
-    savedPermissionTree() {
-      const selected = new Set(this.selectedPermissionIds);
-      return this.permissionTree.filter((permission) => selected.has(permission.id));
-    },
-    assignedUsers() {
-      const selected = new Set(this.selectedUserIds);
-      return this.users.filter((user) => selected.has(user.id));
-    },
-    scopedUsers() {
-      if (this.draftScopeType === "all" || !this.draftScopeOrgId) {
-        return this.users;
-      }
-      const orgIds = new Set([this.draftScopeOrgId]);
-      if (this.draftScopeType === "org_and_children") {
-        let changed = true;
-        while (changed) {
-          changed = false;
-          this.orgs.forEach((org) => {
-            if (org.parentId && orgIds.has(org.parentId) && !orgIds.has(org.id)) {
-              orgIds.add(org.id);
-              changed = true;
-            }
-          });
-        }
-      }
-      return this.users.filter((user) => orgIds.has(user.orgId));
-    },
-    selectedDraftUsers() {
-      const selected = new Set(this.draftUserIds);
-      return this.users.filter((user) => selected.has(user.id));
-    },
-    selectedDraftAgents() {
-      const selected = new Set(this.draftAgentIds);
-      return this.agentOptions.filter((agent) => selected.has(agent.id));
-    },
-    filteredAgentOptions() {
-      const query = this.agentPickerQuery.trim().toLowerCase();
-      if (!query) {
-        return this.agentOptions;
-      }
-      return this.agentOptions.filter((agent) => [
-        agent.id,
-        agent.name,
-        agent.description,
-        agent.category,
-        agent.marketStatus,
-        agent.status
-      ].some((value) => String(value || "").toLowerCase().includes(query)));
-    },
-    roleInfoSummary() {
-      const name = this.roleForm.roleName || "未填写角色名称";
-      const code = this.roleForm.roleCode ? ` · ${this.roleForm.roleCode}` : "";
-      return `${name}${code}`;
-    },
-    scopeSummary() {
-      if (this.draftScopeType === "all") {
-        return "全部组织";
-      }
-      const org = this.orgs.find((item) => item.id === this.draftScopeOrgId);
-      const scope = this.draftScopeType === "org" ? "指定组织" : "组织及下级";
-      return `${scope}${org ? ` · ${org.orgName}` : ""}`;
-    },
-    draftAgentSummary() {
-      if (!this.draftAgentIds.length) {
-        return "未绑定 Agent";
-      }
-      const names = this.selectedDraftAgents.map((agent) => agent.name || agent.id).slice(0, 3);
-      const suffix = this.draftAgentIds.length > names.length ? ` 等 ${this.draftAgentIds.length} 个` : "";
-      return `${names.join("、")}${suffix}`;
-    },
-    availableDraftUsers() {
-      const selected = new Set(this.draftUserIds);
-      return this.scopedUsers.filter((user) => !selected.has(user.id));
-    },
-    focusedPermission() {
-      return this.permissions.find((permission) => permission.id === this.focusedPermissionId) || null;
-    },
-    selectedRole() {
-      return this.roles.find((role) => role.id === this.selectedRoleId) || null;
+      return this.orgTree.filter(
+        (org) => org.status === "enabled" || org.id === this.userForm.orgId
+      );
     },
     rolesById() {
       return this.roles.reduce((result, role) => {
@@ -390,7 +215,7 @@ export default {
         { label: "30 天", value: 2592000 },
         { label: "90 天", value: 7776000 },
         { label: "1 年", value: 31536000 },
-        { label: "永久", value: 0 }
+        { label: "永久", value: 0 },
       ];
     },
     loginAuditRows() {
@@ -407,7 +232,7 @@ export default {
           ipAddress: detail.ipAddress || "-",
           macAddress: detail.macAddress || "-",
           userAgent: detail.userAgent || "-",
-          failureReason: detail.reason || audit.detail || ""
+          failureReason: detail.reason || audit.detail || "",
         };
       });
     },
@@ -415,7 +240,9 @@ export default {
       return Math.max(1, Math.ceil(this.loginAuditTotal / Math.max(1, this.loginAuditPageSize)));
     },
     loginAuditPageStart() {
-      return this.loginAuditTotal === 0 ? 0 : (this.loginAuditPage - 1) * this.loginAuditPageSize + 1;
+      return this.loginAuditTotal === 0
+        ? 0
+        : (this.loginAuditPage - 1) * this.loginAuditPageSize + 1;
     },
     loginAuditPageEnd() {
       return Math.min(this.loginAuditTotal, this.loginAuditPage * this.loginAuditPageSize);
@@ -431,7 +258,7 @@ export default {
         buttons.push(page);
       }
       return buttons;
-    }
+    },
   },
   mounted() {
     this.loadInitialData();
@@ -443,141 +270,62 @@ export default {
     }
   },
   watch: {
-    section(value, previous) {
+    entityQuery() {
+      this.entityPage = 1;
+    },
+    entityStatus() {
+      this.entityPage = 1;
+    },
+    entityPageSize() {
+      this.entityPage = 1;
+    },
+    section(value) {
       this.activeManagementTab = value;
-      this.setNotice("");
-      if (value === 'skillRoles' || previous === 'skillRoles') this.loadInitialData();
+      this.loadInitialData();
     },
-    draftScopeType() {
-      this.normalizeDraftUsersInScope();
-    },
-    draftScopeOrgId() {
-      this.normalizeDraftUsersInScope();
-    }
   },
   methods: {
+    openOrgModal(org = null) {
+      this.orgForm = org ? { ...org } : blankOrgForm();
+      this.orgModalOpen = true;
+    },
     async loadInitialData() {
       this.loading = true;
       this.setNotice("");
       try {
-        const [summary, tenants, permissions, agentOptions, menuConfigurations] = await Promise.all([
-          fetchEnterpriseSummary(),
-          fetchTenants(),
-          this.activeManagementTab === 'skillRoles' ? [] : fetchPermissions(),
-          this.activeManagementTab === 'skillRoles' ? [] : fetchAgentOptions(),
-          this.activeManagementTab === 'skillRoles' ? [] : fetchMenuConfigurations().catch(() => [])
-        ]);
-        this.summary = summary || {};
-        this.tenants = Array.isArray(tenants) ? tenants : [];
-        this.permissions = Array.isArray(permissions) ? permissions : [];
-        this.agentOptions = Array.isArray(agentOptions) ? agentOptions : [];
-        this.menuConfigurations = Array.isArray(menuConfigurations) ? menuConfigurations : [];
-        this.selectedTenantId = this.tenants[0]?.id || "";
+        const user = getStoredAuthSession()?.user;
+        this.selectedTenantId = user?.tenantId || "";
+        this.tenants = [{ id: this.selectedTenantId, tenantName: "当前租户" }];
         await this.loadTenantData();
       } catch (error) {
-        this.setNotice(error.message || "系统管理数据加载失败", true);
+        this.setNotice(error.message, true);
       } finally {
         this.loading = false;
       }
     },
-    async loadTenantData(keepRoleId = "") {
-      if (!this.selectedTenantId) {
+    async loadTenantData() {
+      if (!this.selectedTenantId) return;
+      if (this.activeManagementTab === "logins") {
+        const audits = await fetchLoginAuditLogs(this.loginAuditQuery());
+        this.loginAuditLogs = audits;
+        this.applyLoginAuditPage(audits);
         return;
       }
-      if (this.activeManagementTab === 'skillRoles') {
-        this.roles = []; this.agentOptions = []; this.selectedRoleId = '';
-        return;
-      }
-      const [orgs, roles, users, loginAudits, summary] = await Promise.all([
+      const [orgs, roles, users] = await Promise.all([
         fetchOrgs(this.selectedTenantId),
-        fetchRoles(this.selectedTenantId),
+        this.activeManagementTab === "users" ? fetchRoles(this.selectedTenantId) : [],
         fetchUsers(this.selectedTenantId),
-        fetchLoginAuditLogs(this.loginAuditQuery()),
-        fetchEnterpriseSummary()
       ]);
-      this.orgs = Array.isArray(orgs) ? orgs : [];
-      this.roles = Array.isArray(roles) ? roles : [];
-      this.users = Array.isArray(users) ? users : [];
-      this.loginAuditLogs = Array.isArray(loginAudits) ? loginAudits : [];
-      this.applyLoginAuditPage(loginAudits);
-      this.summary = summary || this.summary;
-      const nextRole = this.roles.find((role) => role.id === keepRoleId) || this.roles[0];
-      if (nextRole) {
-        await this.selectRole(nextRole);
-      } else {
-        this.resetRoleForm();
-        this.selectedRoleId = "";
-        this.selectedPermissionIds = [];
-        this.selectedAgentIds = [];
-        this.selectedUserIds = [];
-      }
-    },
-    async handleTenantChange() {
-      this.loading = true;
-      try {
-        await this.loadTenantData();
-      } catch (error) {
-        this.setNotice(error.message || "租户数据加载失败", true);
-      } finally {
-        this.loading = false;
-      }
-    },
-    async selectRole(role) {
-      this.selectedRoleId = role.id;
-      this.roleForm = {
-        id: role.id,
-        roleName: role.roleName || "",
-        roleCode: role.roleCode || "",
-        roleType: role.roleType || "business",
-        status: role.status || "enabled",
-        description: role.description || ""
-      };
-      try {
-        const authorization = await fetchRoleAuthorization(role.id);
-        this.selectedPermissionIds = Array.isArray(authorization?.permissionIds)
-          ? [...authorization.permissionIds]
-          : [];
-        this.selectedUserIds = Array.isArray(authorization?.userIds)
-          ? [...authorization.userIds]
-          : [];
-        this.selectedAgentIds = Array.isArray(authorization?.agentIds)
-          ? [...authorization.agentIds]
-          : [];
-        const scope = Array.isArray(authorization?.orgScopes) ? authorization.orgScopes[0] : null;
-        this.scopeType = scope?.scopeType || "org_and_children";
-        this.scopeOrgId = scope?.orgId || "";
-      } catch (error) {
-        this.setNotice(error.message || "角色授权加载失败", true);
-      }
-    },
-    resetRoleForm() {
-      this.roleForm = blankRoleForm();
-      this.selectedRoleId = "";
+      this.orgs = orgs || [];
+      this.roles = roles || [];
+      this.users = users || [];
     },
     resetOrgForm() {
       this.orgForm = blankOrgForm();
     },
-    openOrgModal(org = null) {
-      if (org) {
-        this.editOrg(org);
-      } else {
-        this.resetOrgForm();
-      }
-      this.orgModalOpen = true;
-    },
     closeOrgModal() {
       this.orgModalOpen = false;
       this.resetOrgForm();
-    },
-    editOrg(org) {
-      this.orgForm = {
-        id: org.id,
-        parentId: org.parentId || "",
-        orgCode: org.orgCode || "",
-        orgName: org.orgName || "",
-        sortOrder: org.sortOrder ?? 0,
-        status: org.status || "enabled"
-      };
     },
     async saveOrgForm() {
       if (!this.orgForm.orgName || !this.orgForm.orgCode) {
@@ -592,7 +340,7 @@ export default {
           orgCode: this.orgForm.orgCode,
           orgName: this.orgForm.orgName,
           sortOrder: Number(this.orgForm.sortOrder) || 0,
-          status: this.orgForm.status
+          status: this.orgForm.status,
         };
         const saved = this.orgForm.id
           ? await updateOrg(this.orgForm.id, payload)
@@ -600,38 +348,12 @@ export default {
         this.setNotice(this.orgForm.id ? "组织已更新" : "组织已新增");
         this.resetOrgForm();
         this.orgModalOpen = false;
-        await this.loadTenantData(this.selectedRoleId);
+        await this.loadTenantData();
         if (saved?.id) {
           this.userForm.orgId = saved.id;
         }
       } catch (error) {
         this.setNotice(error.message || "组织保存失败", true);
-      } finally {
-        this.savingOrg = false;
-      }
-    },
-    async removeOrg(org) {
-      if (!org?.id) {
-        return;
-      }
-      const childCount = this.orgs.filter((item) => item.parentId === org.id).length;
-      const userCount = this.orgUserCounts[org.id] || 0;
-      const suffix = childCount || userCount
-        ? `，该组织下有 ${childCount} 个下级组织、${userCount} 个账户`
-        : "";
-      if (!window.confirm(`确认删除组织「${org.orgName}」${suffix}？`)) {
-        return;
-      }
-      this.savingOrg = true;
-      try {
-        await deleteOrg(org.id);
-        this.setNotice("组织已删除");
-        if (this.orgForm.id === org.id) {
-          this.resetOrgForm();
-        }
-        await this.loadTenantData(this.selectedRoleId);
-      } catch (error) {
-        this.setNotice(error.message || "组织删除失败", true);
       } finally {
         this.savingOrg = false;
       }
@@ -678,14 +400,16 @@ export default {
         await changeAdminPassword({
           currentPassword: form.currentPassword,
           newPassword: form.newPassword,
-          confirmPassword: form.confirmPassword
+          confirmPassword: form.confirmPassword,
         });
         this.setNotice("admin 密码已修改，请使用新密码重新登录");
         this.closeAdminPasswordModal();
         clearAuthSession();
-        window.dispatchEvent(new CustomEvent(AUTH_REQUIRED_EVENT, {
-          detail: { reason: "admin_password_changed" }
-        }));
+        window.dispatchEvent(
+          new CustomEvent(AUTH_REQUIRED_EVENT, {
+            detail: { reason: "admin_password_changed" },
+          })
+        );
       } catch (error) {
         this.setNotice(error.message || "admin 密码修改失败", true);
       } finally {
@@ -734,7 +458,7 @@ export default {
           userId: this.apiTokenTargetUser.id,
           tokenName: this.apiTokenName,
           permanent: duration === 0,
-          expiresInSeconds: duration === 0 ? null : duration
+          expiresInSeconds: duration === 0 ? null : duration,
         });
         this.apiTokenLatestSecret = issued?.secret || "";
         await this.loadApiTokens();
@@ -769,7 +493,7 @@ export default {
         const duration = Number(this.apiTokenDuration) || 0;
         const issued = await resetAgentApiToken(token.id, {
           permanent: duration === 0,
-          expiresInSeconds: duration === 0 ? null : duration
+          expiresInSeconds: duration === 0 ? null : duration,
         });
         this.apiTokenLatestSecret = issued?.secret || "";
         await this.loadApiTokens();
@@ -836,7 +560,7 @@ export default {
         email: user.email || "",
         phone: user.phone || "",
         status: user.status || "enabled",
-        roleIds: Array.isArray(user.roleIds) ? [...user.roleIds] : []
+        roleIds: Array.isArray(user.roleIds) ? [...user.roleIds] : [],
       };
     },
     setUserRole(roleId) {
@@ -856,14 +580,14 @@ export default {
           displayName: this.userForm.displayName,
           email: this.userForm.email,
           phone: this.userForm.phone,
-          status: this.userForm.status
+          status: this.userForm.status,
         };
         if (this.userForm.password) {
           user.passwordHash = this.userForm.password;
         }
         const payload = {
           user,
-          roleIds: this.userForm.roleIds
+          roleIds: this.userForm.roleIds,
         };
         const saved = this.userForm.id
           ? await updateUser(this.userForm.id, payload)
@@ -871,7 +595,7 @@ export default {
         this.setNotice(this.userForm.id ? "账户已更新" : "账户已新增");
         this.resetUserForm();
         this.userModalOpen = false;
-        await this.loadTenantData(this.selectedRoleId);
+        await this.loadTenantData();
         if (saved?.id) {
           this.editUser(saved);
         }
@@ -896,200 +620,19 @@ export default {
         if (this.userForm.id === user.id) {
           this.resetUserForm();
         }
-        await this.loadTenantData(this.selectedRoleId);
+        await this.loadTenantData();
       } catch (error) {
         this.setNotice(error.message || "账户删除失败", true);
       } finally {
         this.savingUser = false;
       }
     },
-    openRoleModal(role = null) {
-      this.roleForm = role
-        ? {
-            id: role.id,
-            roleName: role.roleName || "",
-            roleCode: role.roleCode || "",
-            roleType: role.roleType || "business",
-            status: role.status || "enabled",
-            description: role.description || ""
-        }
-        : blankRoleForm();
-      this.draftPermissionIds = role ? [...this.selectedPermissionIds] : [];
-      this.draftAgentIds = role ? [...this.selectedAgentIds] : [];
-      this.draftUserIds = role ? [...this.selectedUserIds] : [];
-      this.draftScopeType = role ? this.scopeType || "org_and_children" : "org_and_children";
-      this.draftScopeOrgId = role ? this.scopeOrgId || "" : "";
-      this.userPickerOpen = false;
-      this.agentPickerOpen = false;
-      this.tempPickerUserIds = [];
-      this.tempPickerAgentIds = [];
-      this.agentPickerQuery = "";
-      this.roleModalOpen = true;
-    },
-    closeRoleModal() {
-      this.roleModalOpen = false;
-      this.roleForm = this.selectedRole
-        ? {
-            id: this.selectedRole.id,
-            roleName: this.selectedRole.roleName || "",
-            roleCode: this.selectedRole.roleCode || "",
-            roleType: this.selectedRole.roleType || "business",
-            status: this.selectedRole.status || "enabled",
-            description: this.selectedRole.description || ""
-          }
-        : blankRoleForm();
-      this.draftPermissionIds = [];
-      this.draftAgentIds = [];
-      this.draftUserIds = [];
-      this.draftScopeType = this.scopeType || "org_and_children";
-      this.draftScopeOrgId = this.scopeOrgId || "";
-      this.agentPickerOpen = false;
-      this.userPickerOpen = false;
-      this.tempPickerAgentIds = [];
-      this.tempPickerUserIds = [];
-      this.agentPickerQuery = "";
-    },
-    async saveRoleForm() {
-      if (!this.roleForm.roleName || !this.roleForm.roleCode) {
-        this.setNotice("请填写角色名称和角色编码", true);
-        return;
-      }
-      this.savingRole = true;
-      try {
-        const payload = {
-          tenantId: this.selectedTenantId,
-          roleName: this.roleForm.roleName,
-          roleCode: this.roleForm.roleCode,
-          roleType: this.roleForm.roleType,
-          status: this.roleForm.status,
-          description: this.roleForm.description
-        };
-        const saved = this.roleForm.id
-          ? await updateRole(this.roleForm.id, payload)
-          : await createRole(payload);
-        await saveRoleAuthorization(saved.id, {
-          permissionIds: this.draftPermissionIds,
-          agentIds: this.draftAgentIds,
-          orgScopes: [
-            {
-              scopeType: this.draftScopeType,
-              orgId: this.draftScopeType === "all" ? null : this.draftScopeOrgId
-            }
-          ],
-          userIds: this.draftUserIds
-        });
-        this.setNotice("角色已保存");
-        this.roleModalOpen = false;
-        await this.loadTenantData(saved.id);
-      } catch (error) {
-        this.setNotice(error.message || "角色保存失败", true);
-      } finally {
-        this.savingRole = false;
-      }
-    },
-    async removeRole(role = null) {
-      const roleId = role?.id || this.selectedRoleId;
-      const roleName = role?.roleName || this.selectedRole?.roleName || "当前角色";
-      if (!roleId || !window.confirm(`确认删除角色「${roleName}」？`)) {
-        return;
-      }
-      this.savingRole = true;
-      try {
-        await deleteRole(roleId);
-        this.setNotice("角色已删除");
-        await this.loadTenantData();
-      } catch (error) {
-        this.setNotice(error.message || "角色删除失败", true);
-      } finally {
-        this.savingRole = false;
-      }
-    },
-    selectAllPermissions() {
-      this.draftPermissionIds = this.permissionTree.map((permission) => permission.id);
-    },
-    clearPermissions() {
-      this.draftPermissionIds = [];
-    },
-    togglePermissionGroup(group, checked) {
-      const groupIds = new Set(group.permissionIds);
-      if (checked) {
-        this.draftPermissionIds = Array.from(new Set([...this.draftPermissionIds, ...group.permissionIds]));
-        return;
-      }
-      this.draftPermissionIds = this.draftPermissionIds.filter((id) => !groupIds.has(id));
-    },
-    selectAllAgents() {
-      this.draftAgentIds = this.agentOptions.map((agent) => agent.id);
-    },
-    clearAgents() {
-      this.draftAgentIds = [];
-    },
-    removeDraftAgent(agentId) {
-      this.draftAgentIds = this.draftAgentIds.filter((id) => id !== agentId);
-    },
-    openAgentPicker() {
-      this.tempPickerAgentIds = [...this.draftAgentIds];
-      this.agentPickerQuery = "";
-      this.agentPickerOpen = true;
-    },
-    closeAgentPicker() {
-      this.agentPickerOpen = false;
-      this.tempPickerAgentIds = [];
-      this.agentPickerQuery = "";
-    },
-    selectAllPickerAgents() {
-      this.tempPickerAgentIds = this.filteredAgentOptions.map((agent) => agent.id);
-    },
-    clearPickerAgents() {
-      this.tempPickerAgentIds = [];
-    },
-    confirmAgentPicker() {
-      this.draftAgentIds = [...this.tempPickerAgentIds];
-      this.closeAgentPicker();
-    },
-    addDraftUser(userId) {
-      if (!userId || this.draftUserIds.includes(userId)) {
-        return;
-      }
-      this.draftUserIds = [...this.draftUserIds, userId];
-    },
-    removeDraftUser(userId) {
-      this.draftUserIds = this.draftUserIds.filter((id) => id !== userId);
-    },
-    openUserPicker() {
-      this.tempPickerUserIds = [...this.draftUserIds];
-      this.userPickerOpen = true;
-    },
-    closeUserPicker() {
-      this.userPickerOpen = false;
-      this.tempPickerUserIds = [];
-    },
-    selectAllPickerUsers() {
-      this.tempPickerUserIds = this.scopedUsers.map((user) => user.id);
-    },
-    clearPickerUsers() {
-      this.tempPickerUserIds = [];
-    },
-    confirmUserPicker() {
-      this.draftUserIds = [...this.tempPickerUserIds];
-      this.closeUserPicker();
-    },
-    normalizeDraftUsersInScope() {
-      if (this.draftScopeType === "all" || !this.draftScopeOrgId) {
-        return;
-      }
-      const scopedIds = new Set(this.scopedUsers.map((user) => user.id));
-      this.draftUserIds = this.draftUserIds.filter((id) => scopedIds.has(id));
-    },
-    focusPermission(permission) {
-      this.focusedPermissionId = permission?.id || "";
-    },
     async syncOrgs() {
       this.loading = true;
       try {
         const result = await syncEnterpriseOrgs(this.selectedTenantId);
         this.setNotice(`组织同步完成：新增 ${result.created}，更新 ${result.updated}`);
-        await this.loadTenantData(this.selectedRoleId);
+        await this.loadTenantData();
       } catch (error) {
         this.setNotice(error.message || "组织同步失败", true);
       } finally {
@@ -1101,7 +644,7 @@ export default {
       try {
         const result = await syncEnterpriseUsers(this.selectedTenantId);
         this.setNotice(`用户同步完成：新增 ${result.created}，更新 ${result.updated}`);
-        await this.loadTenantData(this.selectedRoleId);
+        await this.loadTenantData();
       } catch (error) {
         this.setNotice(error.message || "用户同步失败", true);
       } finally {
@@ -1127,7 +670,7 @@ export default {
         tenantId: this.loginAuditTenantId,
         actionName: this.loginAuditAction,
         result: this.loginAuditResult,
-        keyword: this.loginAuditKeyword
+        keyword: this.loginAuditKeyword,
       };
     },
     applyLoginAuditPage(page) {
@@ -1137,7 +680,8 @@ export default {
         return;
       }
       this.loginAuditLogs = Array.isArray(page?.items) ? page.items : [];
-      this.loginAuditTotal = Number(page?.total ?? page?.filteredCount ?? this.loginAuditLogs.length) || 0;
+      this.loginAuditTotal =
+        Number(page?.total ?? page?.filteredCount ?? this.loginAuditLogs.length) || 0;
       this.loginAuditPage = Number(page?.page) || this.loginAuditPage;
       this.loginAuditPageSize = Number(page?.pageSize) || this.loginAuditPageSize;
     },
@@ -1168,34 +712,11 @@ export default {
     orgName(orgId) {
       return this.orgs.find((org) => org.id === orgId)?.orgName || "未分配组织";
     },
-    permissionDisplayName(permission) {
-      return this.menuAliasesByPermissionId[permission?.id]
-        || permission?.permissionName
-        || permission?.permissionCode
-        || "";
-    },
-    typeLabel(type) {
-      const labels = {
-        menu: "菜单",
-        button: "按钮",
-        api: "接口"
-      };
-      return labels[type] || type || "权限";
-    },
-    roleTypeLabel(type) {
-      const labels = {
-        platform: "平台",
-        tenant: "租户",
-        business: "业务",
-        guest: "访客"
-      };
-      return labels[type] || type || "业务";
-    },
     statusLabel(status) {
       const labels = {
         enabled: "启用",
         disabled: "停用",
-        locked: "锁定"
+        locked: "锁定",
       };
       return labels[status] || status || "启用";
     },
@@ -1203,14 +724,14 @@ export default {
       const labels = {
         login: "密码登录",
         "embed-login": "历史嵌入登录",
-        "agent-api-token-authenticate": "Agent API 认证"
+        "agent-api-token-authenticate": "Agent API 认证",
       };
       return labels[actionName] || actionName || "登录";
     },
     loginResultLabel(result) {
       const labels = {
         success: "成功",
-        failure: "失败"
+        failure: "失败",
       };
       return labels[result] || result || "-";
     },
@@ -1270,15 +791,6 @@ export default {
         .map((roleId) => this.rolesById[roleId]?.roleName)
         .filter(Boolean);
     },
-    scopeTypeLabel(type) {
-      const labels = {
-        all: "全部组织",
-        org: "指定组织",
-        org_and_children: "组织及下级",
-        custom: "自定义组织"
-      };
-      return labels[type] || type || "未配置";
-    },
     setNotice(text, isError = false) {
       if (this.noticeTimer) {
         globalThis.clearTimeout(this.noticeTimer);
@@ -1293,6 +805,6 @@ export default {
           this.noticeTimer = null;
         }, 3500);
       }
-    }
-  }
+    },
+  },
 };

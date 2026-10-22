@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.List;
 
 public interface ResourceGrantRepository extends JpaRepository<ResourceGrant, String> {
+    List<ResourceGrant> findByTenantIdOrderByUpdatedAtDesc(String tenantId);
     boolean existsByTenantIdAndResourceType(String tenantId, String resourceType);
     boolean existsByTenantIdAndResourceTypeAndResourceIdAndPrincipalTypeAndPrincipalIdAndEffectAndEnabledTrue(
         String tenantId, String resourceType, String resourceId, String principalType, String principalId, String effect);

@@ -55,6 +55,15 @@ public class ApiPermissionAuthorizationFilter extends OncePerRequestFilter {
         }
         String path = applicationPath(request);
         String method = request.getMethod();
+        // The consolidated read model is shared by the existing role/resource/audit managers.
+        // This exception covers these two GET routes only; mutations retain their database policies.
+        if("GET".equals(method) && ("/api/v1/permission-center".equals(path) || "/api/v1/permission-center/audits".equals(path))) {
+            var codes=adminService.getUserView(String.valueOf(userId)).permissionCodes();
+            if(codes.contains("system:permission-center:manage") || codes.contains("system:role:authorize") || codes.contains("system:role") && !path.endsWith("/audits")
+                || codes.contains("system:resource-grants:manage") || path.endsWith("/audits") && codes.contains("audit")) {
+                filterChain.doFilter(request,response);return;
+            }
+        }
         List<ResourcePermission> matches = adminService.listPermissions().stream()
             .filter(permission -> "enabled".equalsIgnoreCase(permission.getStatus()))
             .filter(permission -> methodMatches(permission.getHttpMethod(), method))

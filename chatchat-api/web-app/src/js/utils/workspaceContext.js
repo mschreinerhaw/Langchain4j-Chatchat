@@ -1,4 +1,5 @@
 // Product navigation provenance only. Authentication and object policies remain server-owned.
+import { permissionRouteAliases } from './permissionWorkspace.js';
 let activeContext = null;
 export function setWorkspaceContext(context) { activeContext = context ? Object.freeze({ ...context }) : null; }
 export function getWorkspaceContext() { return activeContext; }
@@ -18,10 +19,10 @@ export function parseWorkspaceRoute(hash = "") {
     const parts = route.split("/");
     if (parts.length !== 3 || !/^[a-z][a-z0-9-]{0,63}$/.test(parts[1])
         || !/^[a-zA-Z][a-zA-Z0-9-]{0,63}$/.test(parts[2])) return { invalid: true };
-    if (parts[1] === "zhice" && ["system","systemUsers","systemOrganizations","systemRoles","systemResources","systemSkillRoles","systemLogins"].includes(parts[2])) return { workspaceId: "permissions", pageId: parts[2] === "system" ? "systemUsers" : parts[2] };
+    if (['zhice','permissions'].includes(parts[1]) && ["system","systemUsers","systemOrganizations","systemRoles","systemResources","systemSkillRoles","systemLogins","permissionTools"].includes(parts[2])) return { workspaceId: "permissions", pageId: permissionRouteAliases[parts[2]] || parts[2] };
     return { workspaceId: parts[1], pageId: parts[1]==='data-science' && parts[2]==='dataScienceScripts' ? 'dataScienceData' : parts[2] };
   }
-  return { legacyView: route === "login" ? "" : route === "dataScience" ? "dataScienceEnvironment" : route === "dataScienceScripts" ? "dataScienceData" : route === "system" ? "systemUsers" : route };
+  return { legacyView: route === "login" ? "" : route === "dataScience" ? "dataScienceEnvironment" : route === "dataScienceScripts" ? "dataScienceData" : permissionRouteAliases[route] || route };
 }
 export function chooseWorkspace(items, route, preference = {}) {
   const valid = (id) => items.find((item) => item.workspaceId === id);

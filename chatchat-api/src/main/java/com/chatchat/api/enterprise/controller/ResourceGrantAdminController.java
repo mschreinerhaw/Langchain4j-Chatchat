@@ -39,6 +39,7 @@ public class ResourceGrantAdminController {
     private static final Set<String> EFFECTS = Set.of("ALLOW", "DENY");
     private final ResourceGrantRepository repository;
     private final EnterpriseAdminService adminService;
+    private final com.chatchat.enterprise.repository.audit.SysAuditLogRepository audits;
 
     @GetMapping
     public ApiResponse<List<ResourceGrant>> list(HttpServletRequest request,
@@ -59,6 +60,7 @@ public class ResourceGrantAdminController {
     public ApiResponse<ResourceGrant> create(HttpServletRequest request, @RequestBody ResourceGrant input) {
         validate(input);
         requireTenantAccess(request, input.getTenantId());
+        requirePrincipal(input);
         requireAgentBinding(input);
         if (input.getAgentId() != null) {
             var existing = repository.findByTenantIdAndResourceTypeOrderByUpdatedAtDesc(input.getTenantId(), input.getResourceType())
@@ -69,10 +71,13 @@ public class ResourceGrantAdminController {
             repository.deleteAll(existing);
         }
         input.setId(null);
-        return ApiResponse.success(repository.save(input));
+        var saved=repository.save(input);
+        audit(request,"grant",saved);
+        return ApiResponse.success(saved);
     }
 
     @PutMapping("/{id}")
+    @org.springframework.transaction.annotation.Transactional
     public ApiResponse<ResourceGrant> update(HttpServletRequest request, @PathVariable("id") String id,
                                              @RequestBody ResourceGrant input) {
         ResourceGrant stored = repository.findById(id)
@@ -80,6 +85,7 @@ public class ResourceGrantAdminController {
         requireTenantAccess(request, stored.getTenantId());
         validate(input);
         requireTenantAccess(request, input.getTenantId());
+        requirePrincipal(input);
         requireAgentBinding(input);
         stored.setTenantId(input.getTenantId());
         stored.setAgentId(input.getAgentId());
@@ -90,15 +96,18 @@ public class ResourceGrantAdminController {
         stored.setEffect(input.getEffect());
         stored.setEnabled(input.isEnabled());
         stored.setExpiresAt(input.getExpiresAt());
-        return ApiResponse.success(repository.save(stored));
+        var saved=repository.save(stored);audit(request,"update-grant",saved);
+        return ApiResponse.success(saved);
     }
 
     @DeleteMapping("/{id}")
+    @org.springframework.transaction.annotation.Transactional
     public ApiResponse<Void> delete(HttpServletRequest request, @PathVariable("id") String id) {
         ResourceGrant stored = repository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Resource grant not found"));
         requireTenantAccess(request, stored.getTenantId());
         repository.delete(stored);
+        audit(request,"revoke",stored);
         return ApiResponse.success(null);
     }
 
@@ -132,6 +141,23 @@ public class ResourceGrantAdminController {
         if (!grant.getTenantId().equals(authorization.role().getTenantId())
             || !authorization.agentIds().contains(grant.getAgentId()))
             throw new IllegalArgumentException("Agent is not bound to this role in the selected tenant");
+    }
+
+    private void requirePrincipal(ResourceGrant grant) {
+        String tenant=switch(grant.getPrincipalType()) {
+            case "ROLE" -> adminService.getRoleAuthorization(grant.getPrincipalId()).role().getTenantId();
+            case "USER" -> adminService.getUserView(grant.getPrincipalId()).tenantId();
+            default -> grant.getPrincipalId();
+        };
+        if(!grant.getTenantId().equals(tenant))throw new SecurityException("Grant subject outside selected tenant");
+    }
+
+    private void audit(HttpServletRequest request,String action,ResourceGrant grant) {
+        var log=new com.chatchat.enterprise.entity.audit.SysAuditLog();
+        log.setTenantId(grant.getTenantId());log.setActorId(String.valueOf(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)));
+        log.setModuleName("permission-center");log.setActionName(action);log.setResourceType(grant.getResourceType());log.setResourceId(grant.getResourceId().substring(0,Math.min(64,grant.getResourceId().length())));
+        log.setDetail("resourceId="+grant.getResourceId()+", principalType="+grant.getPrincipalType()+", principalId="+grant.getPrincipalId()+", effect="+grant.getEffect());
+        audits.save(log);
     }
 
     private void requireTenantAccess(HttpServletRequest request, String tenantId) {

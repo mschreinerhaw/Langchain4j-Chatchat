@@ -1,21 +1,15 @@
 <template>
   <section class="feature-view system-management-view" :class="{ 'has-message': !!message }">
-    <header class="system-header">
+    <header v-if="!embedded" class="system-header">
       <div>
-        <p>系统管理</p>
+        <nav aria-label="面包屑">权限管理 / {{ sectionTitle }}</nav
+        ><h1>{{ sectionTitle }}</h1>
         <span class="system-section-description">{{ sectionDescription }}</span>
       </div>
     </header>
 
     <div v-if="message" class="system-message" :class="{ error: !!error }">
       {{ message }}
-    </div>
-
-    <div class="system-metrics">
-      <article v-for="metric in metrics" :key="metric.label">
-        <strong>{{ metric.value }}</strong>
-        <span>{{ metric.label }}</span>
-      </article>
     </div>
 
     <div class="rbac-board">
@@ -41,7 +35,17 @@
           </div>
         </div>
 
-        <div class="entity-table">
+        <div class="permission-toolbar"
+          ><label class="permission-search"
+            >搜索用户<input v-model="entityQuery" type="search" placeholder="输入名称" /></label
+          ><label
+            >状态<select v-model="entityStatus"
+              ><option value="">全部状态</option
+              ><option value="enabled">启用</option
+              ><option value="disabled">停用</option></select
+            ></label
+          ><span>{{ filteredEntities.length }} 项</span></div
+        ><div class="entity-table">
           <div class="entity-table-head user-table-row">
             <span>用户信息</span>
             <span>组织</span>
@@ -50,7 +54,7 @@
             <span>操作</span>
           </div>
           <div
-            v-for="user in users"
+            v-for="user in pagedUsers"
             :key="user.id"
             class="entity-table-row user-table-row"
             :class="{ 'admin-user-row': isAdminUser(user) }"
@@ -95,8 +99,20 @@
               </button>
             </span>
           </div>
-          <div v-if="users.length === 0" class="empty-state">暂无用户</div>
-        </div>
+          <div v-if="users.length === 0" class="empty-state">暂无用户</div> </div
+        ><footer class="permission-pagination"
+          ><span>共 {{ filteredEntities.length }} 项</span
+          ><label
+            >每页<select v-model.number="entityPageSize"
+              ><option :value="20">20 项</option
+              ><option :value="50">50 项</option></select
+            ></label
+          ><button :disabled="entityPage <= 1" @click="entityPage--">上一页</button
+          ><span>{{ entityPage }} / {{ entityPages }}</span
+          ><button :disabled="entityPage >= entityPages" @click="entityPage++"
+            >下一页</button
+          ></footer
+        >
       </aside>
 
       <aside
@@ -109,121 +125,75 @@
             <h2>组织档案</h2>
           </div>
           <div class="mini-actions">
-            <button type="button" title="同步组织" @click="syncOrgs" :disabled="loading">
+            <button type="button" @click="openOrgModal()"><Plus :size="14" />新增组织</button
+            ><button type="button" title="同步组织" @click="syncOrgs" :disabled="loading">
               <RefreshCw :size="14" />
               {{ loading ? "同步中" : "同步组织" }}
             </button>
           </div>
         </div>
 
-        <div class="entity-table">
+        <div class="permission-toolbar"
+          ><label class="permission-search"
+            >搜索组织<input v-model="entityQuery" type="search" placeholder="输入名称" /></label
+          ><label
+            >状态<select v-model="entityStatus"
+              ><option value="">全部状态</option
+              ><option value="enabled">启用</option
+              ><option value="disabled">停用</option></select
+            ></label
+          ><span>{{ filteredEntities.length }} 项</span></div
+        ><div class="entity-table">
           <div class="entity-table-head organization-table-row">
             <span>组织名称</span>
-            <span>组织编码</span>
+
             <span>上级组织</span>
             <span>层级</span>
             <span>成员数</span>
             <span>状态</span>
-          </div>
-          <div v-for="org in orgTree" :key="org.id" class="entity-table-row organization-table-row">
+            <span>操作</span></div
+          >
+          <div
+            v-for="org in pagedOrgs"
+            :key="org.id"
+            class="entity-table-row organization-table-row"
+          >
             <span class="organization-name-cell">
               <i :style="{ width: `${org.level * 22}px` }" aria-hidden="true"></i>
               <Building2 :size="16" />
               <strong>{{ org.orgName }}</strong>
             </span>
-            <span>{{ org.orgCode }}</span>
+
             <span>{{ org.parentId ? orgName(org.parentId) : "根组织" }}</span>
             <span>{{ org.level + 1 }}</span>
             <span>{{ orgUserCounts[org.id] || 0 }}</span>
             <span
               ><em :class="['status-pill', org.status]">{{ statusLabel(org.status) }}</em></span
             >
-          </div>
-          <div v-if="orgTree.length === 0" class="empty-state">暂无组织机构，请先同步组织</div>
-        </div>
-      </aside>
-
-      <aside
-        v-else-if="activeManagementTab === 'roles'"
-        class="rbac-panel role-panel system-tab-panel"
-      >
-        <div class="panel-head">
-          <div>
-            <p>角色</p>
-            <h2>角色档案</h2>
-          </div>
-          <div class="mini-actions">
-            <button type="button" @click="openRoleModal()">
-              <Plus :size="14" />
-              新增角色
-            </button>
-          </div>
-        </div>
-
-        <div class="role-record-table">
-          <div class="role-record-head">
-            <span>角色名称</span>
-            <span>角色编码</span>
-            <span>类型</span>
-            <span>状态</span>
-            <span>已配权限</span>
-            <span>绑定Agent</span>
-            <span>绑定用户</span>
-            <span>操作</span>
-          </div>
-          <div
-            v-for="role in roles"
-            :key="role.id"
-            class="role-record"
-            :class="{ active: role.id === selectedRoleId }"
-            @click="selectRole(role)"
+            <span class="entity-row-actions"
+              ><button type="button" @click="openOrgModal(org)">编辑</button
+              ><details
+                ><summary>详情</summary><small>{{ org.orgCode }}</small></details
+              ></span
+            ></div
           >
-            <span>
-              <strong>{{ role.roleName }}</strong>
-              <small>{{ role.description || "无备注" }}</small>
-            </span>
-            <span>{{ role.roleCode }}</span>
-            <span>{{ roleTypeLabel(role.roleType) }}</span>
-            <span>
-              <em :class="['status-pill', role.status]">{{ statusLabel(role.status) }}</em>
-            </span>
-            <span>{{ role.id === selectedRoleId ? selectedPermissionIds.length : "-" }}</span>
-            <span>{{ role.id === selectedRoleId ? selectedAgentIds.length : "-" }}</span>
-            <span>{{ role.id === selectedRoleId ? selectedUserIds.length : "-" }}</span>
-            <span class="entity-row-actions">
-              <button
-                type="button"
-                class="icon-button"
-                title="编辑角色"
-                @click.stop="openRoleModal(role)"
-              >
-                <Pencil :size="15" />
-              </button>
-              <button
-                type="button"
-                class="icon-button"
-                title="删除角色"
-                @click.stop="removeRole(role)"
-              >
-                <Trash2 :size="15" />
-              </button>
-            </span>
-          </div>
-        </div>
+          <div v-if="orgTree.length === 0" class="empty-state"
+            >暂无组织机构，请先同步组织</div
+          > </div
+        ><footer class="permission-pagination"
+          ><span>共 {{ filteredEntities.length }} 项</span
+          ><label
+            >每页<select v-model.number="entityPageSize"
+              ><option :value="20">20 项</option
+              ><option :value="50">50 项</option></select
+            ></label
+          ><button :disabled="entityPage <= 1" @click="entityPage--">上一页</button
+          ><span>{{ entityPage }} / {{ entityPages }}</span
+          ><button :disabled="entityPage >= entityPages" @click="entityPage++"
+            >下一页</button
+          ></footer
+        >
       </aside>
-
-      <ResourceAuthorizationPanel
-        v-else-if="activeManagementTab === 'resources'"
-        :tenant-id="selectedTenantId"
-        :roles="roles"
-        :agents="agentOptions"
-        :initial-role-id="selectedRoleId"
-      />
-
-      <SkillRoleAuthorizationPanel
-        v-else-if="activeManagementTab === 'skillRoles'"
-        :tenant-id="selectedTenantId"
-      />
 
       <aside v-else class="rbac-panel login-audit-panel system-tab-panel">
         <div class="panel-head">
@@ -781,365 +751,6 @@
             </button>
           </footer>
         </section>
-      </div>
-
-      <div v-if="roleModalOpen" class="permission-modal-backdrop">
-        <form class="role-modal" @submit.prevent="saveRoleForm">
-          <div class="modal-head">
-            <div>
-              <p>角色权限配置</p>
-              <h2>{{ roleForm.id ? "修改角色" : "新建角色" }}</h2>
-            </div>
-            <button
-              type="button"
-              class="app-dialog-close"
-              aria-label="关闭"
-              title="关闭"
-              @click="closeRoleModal"
-            >
-              <X :size="18" />
-            </button>
-          </div>
-
-          <div class="role-config-body">
-            <section class="role-config-panel permission-config-panel">
-              <div class="manage-list-head">
-                <div class="permission-panel-heading">
-                  <strong>功能权限</strong>
-                  <small>按菜单分组，展开后逐项配置子菜单与操作权限</small>
-                </div>
-                <div class="mini-actions">
-                  <button type="button" @click="selectAllPermissions">全选</button>
-                  <button type="button" @click="clearPermissions">清空</button>
-                </div>
-              </div>
-              <div class="permission-tree auth-check-list">
-                <details
-                  v-for="group in permissionGroups"
-                  :key="group.root.id"
-                  class="permission-category"
-                  :class="{ 'has-children': group.children.length > 0 }"
-                >
-                  <summary
-                    class="permission-category-head"
-                    @click="!group.children.length && $event.preventDefault()"
-                  >
-                    <input
-                      type="checkbox"
-                      :checked="group.selectedCount === group.totalCount"
-                      :indeterminate.prop="
-                        group.selectedCount > 0 && group.selectedCount < group.totalCount
-                      "
-                      @click.stop
-                      @change="togglePermissionGroup(group, $event.target.checked)"
-                    />
-                    <span class="permission-category-title">
-                      <strong>{{ permissionDisplayName(group.root) }}</strong>
-                      <small>{{ group.root.permissionCode }}</small>
-                    </span>
-                    <em class="permission-category-type">{{
-                      typeLabel(group.root.permissionType)
-                    }}</em>
-                    <span class="permission-category-count"
-                      >{{ group.selectedCount }} / {{ group.totalCount }}</span
-                    >
-                  </summary>
-                  <div v-if="group.children.length" class="permission-category-items">
-                    <div class="permission-category-columns" aria-hidden="true">
-                      <span>子菜单 / 权限项</span>
-                      <span>类型</span>
-                    </div>
-                    <label
-                      v-for="permission in group.children"
-                      :key="permission.id"
-                      class="permission-item"
-                      :style="{ '--indent': `${Math.min(permission.displayLevel, 4) * 18}px` }"
-                    >
-                      <input v-model="draftPermissionIds" type="checkbox" :value="permission.id" />
-                      <span class="permission-item-content">
-                        <i class="permission-level-line" aria-hidden="true"></i>
-                        <span>
-                          <strong :title="permissionDisplayName(permission)">{{
-                            permissionDisplayName(permission)
-                          }}</strong>
-                          <small :title="permission.permissionCode">{{
-                            permission.permissionCode
-                          }}</small>
-                        </span>
-                      </span>
-                      <em>{{ typeLabel(permission.permissionType) }}</em>
-                    </label>
-                  </div>
-                </details>
-                <div v-if="permissionGroups.length === 0" class="empty-state">暂无功能权限</div>
-              </div>
-            </section>
-
-            <div class="role-config-side-stack">
-              <details class="role-config-panel role-config-collapsible">
-                <summary class="manage-list-head role-config-summary">
-                  <strong>角色信息</strong>
-                  <span>{{ roleInfoSummary }}</span>
-                </summary>
-                <div class="role-form-grid">
-                  <label>
-                    <span>角色名称</span>
-                    <input v-model.trim="roleForm.roleName" type="text" />
-                  </label>
-                  <label>
-                    <span>角色编码</span>
-                    <input v-model.trim="roleForm.roleCode" type="text" />
-                  </label>
-                  <label>
-                    <span>角色类型</span>
-                    <select v-model="roleForm.roleType">
-                      <option value="platform">平台</option>
-                      <option value="tenant">租户</option>
-                      <option value="business">业务</option>
-                      <option value="guest">访客</option>
-                    </select>
-                  </label>
-                  <label>
-                    <span>状态</span>
-                    <select v-model="roleForm.status">
-                      <option value="enabled">启用</option>
-                      <option value="disabled">停用</option>
-                    </select>
-                  </label>
-                  <details class="role-remark-details">
-                    <summary>
-                      <span>备注</span>
-                      <span class="role-remark-cue">展开填写</span>
-                    </summary>
-                    <textarea
-                      v-model.trim="roleForm.description"
-                      rows="2"
-                      placeholder="填写角色补充说明"
-                    ></textarea>
-                  </details>
-                </div>
-              </details>
-
-              <details class="role-config-panel role-config-collapsible">
-                <summary class="manage-list-head role-config-summary">
-                  <strong>组织范围</strong>
-                  <span>{{ scopeSummary }}</span>
-                </summary>
-                <div class="scope-box">
-                  <label>
-                    <span>数据范围</span>
-                    <select v-model="draftScopeType">
-                      <option value="all">全部组织</option>
-                      <option value="org">指定组织</option>
-                      <option value="org_and_children">组织及下级</option>
-                    </select>
-                  </label>
-                  <label v-if="draftScopeType !== 'all'">
-                    <span>组织</span>
-                    <select v-model="draftScopeOrgId">
-                      <option value="">未选择</option>
-                      <option v-for="org in orgs" :key="org.id" :value="org.id">
-                        {{ org.orgName }}
-                      </option>
-                    </select>
-                  </label>
-                </div>
-              </details>
-
-              <details class="role-config-panel role-config-collapsible">
-                <summary class="manage-list-head role-config-summary">
-                  <strong>Agent绑定</strong>
-                  <span>{{ draftAgentSummary }}</span>
-                </summary>
-                <button type="button" class="agent-bind-select" @click="openAgentPicker">
-                  <span>{{ draftAgentSummary }}</span>
-                  <em>{{ draftAgentIds.length }} / {{ agentOptions.length }}</em>
-                </button>
-                <div v-if="selectedDraftAgents.length" class="selected-agent-chips">
-                  <button
-                    v-for="agent in selectedDraftAgents"
-                    :key="agent.id"
-                    type="button"
-                    title="移除Agent"
-                    @click="removeDraftAgent(agent.id)"
-                  >
-                    {{ agent.name || agent.id }}
-                  </button>
-                </div>
-                <div v-else class="empty-state">当前角色未绑定Agent，点击上方区域编辑</div>
-              </details>
-
-              <details class="role-config-panel role-config-collapsible">
-                <summary class="manage-list-head role-config-summary">
-                  <strong>绑定用户</strong>
-                  <span>{{ draftUserIds.length }} 个用户</span>
-                </summary>
-                <div class="manage-list-head role-config-subhead">
-                  <span></span>
-                  <button type="button" class="ghost-button compact-button" @click="openUserPicker">
-                    <Plus :size="14" />
-                    添加/编辑
-                  </button>
-                </div>
-                <div class="user-bind-table editable-bind-table" @click="openUserPicker">
-                  <div class="user-bind-head">
-                    <span>用户信息</span>
-                    <span>状态</span>
-                    <span>操作</span>
-                  </div>
-                  <div v-for="user in selectedDraftUsers" :key="user.id" class="user-bind-row">
-                    <span class="user-bind-detail">
-                      <strong>{{ user.displayName }}</strong>
-                      <small>账号：{{ user.username }}</small>
-                      <small>组织：{{ orgName(user.orgId) }}</small>
-                      <small v-if="user.email">邮箱：{{ user.email }}</small>
-                      <small v-if="user.phone">电话：{{ user.phone }}</small>
-                    </span>
-                    <em :class="['status-pill', user.status]">{{ statusLabel(user.status) }}</em>
-                    <button
-                      type="button"
-                      class="icon-button"
-                      title="移除用户"
-                      @click.stop="removeDraftUser(user.id)"
-                    >
-                      <Trash2 :size="15" />
-                    </button>
-                  </div>
-                  <div v-if="selectedDraftUsers.length === 0" class="empty-state"
-                    >当前角色未绑定用户，点击添加</div
-                  >
-                </div>
-              </details>
-            </div>
-          </div>
-
-          <div class="modal-actions">
-            <button type="button" class="ghost-button" @click="closeRoleModal">取消</button>
-            <button type="submit" class="primary-button" :disabled="savingRole">
-              <Save :size="16" />
-              <span>保存角色配置</span>
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <div v-if="agentPickerOpen" class="permission-modal-backdrop">
-        <div class="user-picker-modal agent-picker-modal">
-          <div class="modal-head">
-            <div>
-              <p>Agent绑定</p>
-              <h2>搜索并选择可用Agent</h2>
-            </div>
-            <button
-              type="button"
-              class="app-dialog-close"
-              aria-label="关闭"
-              title="关闭"
-              @click="closeAgentPicker"
-            >
-              <X :size="18" />
-            </button>
-          </div>
-
-          <div class="user-picker-tools agent-picker-tools">
-            <label>
-              <span>搜索Agent</span>
-              <input
-                v-model.trim="agentPickerQuery"
-                type="search"
-                placeholder="名称、ID、分类或状态"
-              />
-            </label>
-            <button type="button" class="ghost-button compact-button" @click="selectAllPickerAgents"
-              >全选当前结果</button
-            >
-            <button type="button" class="ghost-button compact-button" @click="clearPickerAgents"
-              >清空</button
-            >
-            <span>{{ tempPickerAgentIds.length }} / {{ agentOptions.length }}</span>
-          </div>
-
-          <div class="agent-picker-list">
-            <label
-              v-for="agent in filteredAgentOptions"
-              :key="agent.id"
-              class="agent-picker-record"
-            >
-              <input v-model="tempPickerAgentIds" type="checkbox" :value="agent.id" />
-              <span>
-                <strong>{{ agent.name || agent.id }}</strong>
-                <small>{{ agent.id }} · {{ agent.marketStatus || agent.status || "draft" }}</small>
-              </span>
-            </label>
-            <div v-if="filteredAgentOptions.length === 0" class="empty-state">没有匹配的Agent</div>
-          </div>
-
-          <div class="modal-actions">
-            <button type="button" class="ghost-button" @click="closeAgentPicker">取消</button>
-            <button type="button" class="primary-button" @click="confirmAgentPicker">
-              <Save :size="16" />
-              <span>确认绑定</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="userPickerOpen" class="permission-modal-backdrop">
-        <div class="user-picker-modal">
-          <div class="modal-head">
-            <div>
-              <p>添加用户</p>
-              <h2>批量选择已创建用户</h2>
-            </div>
-            <button
-              type="button"
-              class="app-dialog-close"
-              aria-label="关闭"
-              title="关闭"
-              @click="closeUserPicker"
-            >
-              <X :size="18" />
-            </button>
-          </div>
-
-          <div class="user-picker-tools">
-            <button type="button" class="ghost-button compact-button" @click="selectAllPickerUsers"
-              >全选</button
-            >
-            <button type="button" class="ghost-button compact-button" @click="clearPickerUsers"
-              >清空</button
-            >
-            <span>{{ tempPickerUserIds.length }} / {{ scopedUsers.length }}</span>
-          </div>
-
-          <div class="user-picker-table">
-            <div class="user-picker-head">
-              <span>选择</span>
-              <span>姓名</span>
-              <span>账号</span>
-              <span>组织</span>
-              <span>状态</span>
-            </div>
-            <label v-for="user in scopedUsers" :key="user.id" class="user-picker-record">
-              <span><input v-model="tempPickerUserIds" type="checkbox" :value="user.id" /></span>
-              <strong>{{ user.displayName }}</strong>
-              <span>{{ user.username }}</span>
-              <span>{{ orgName(user.orgId) }}</span>
-              <em :class="['status-pill', user.status]">{{ statusLabel(user.status) }}</em>
-            </label>
-            <div v-if="scopedUsers.length === 0" class="empty-state"
-              >当前组织范围内暂无已创建用户</div
-            >
-          </div>
-
-          <div class="modal-actions">
-            <button type="button" class="ghost-button" @click="closeUserPicker">取消</button>
-            <button type="button" class="primary-button" @click="confirmUserPicker">
-              <Save :size="16" />
-              <span>确认添加</span>
-            </button>
-          </div>
-        </div>
       </div>
     </Teleport>
   </section>

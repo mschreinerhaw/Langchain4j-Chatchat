@@ -307,11 +307,18 @@ public class EnterpriseAdminController {
      * @return the saved role authorization
      */
     @PutMapping("/roles/{id}/authorization")
+    @org.springframework.transaction.annotation.Transactional
     public ApiResponse<EnterpriseAdminService.RoleAuthorizationView> saveRoleAuthorization(
         @PathVariable("id") String id,
-        @RequestBody EnterpriseAdminService.RoleAuthorizationRequest request
+        @RequestBody EnterpriseAdminService.RoleAuthorizationRequest request,
+        HttpServletRequest servletRequest
     ) {
-        return ApiResponse.success(adminService.saveRoleAuthorization(id, request), "role authorization saved");
+        var saved=adminService.saveRoleAuthorization(id, request);
+        var log=new SysAuditLog();log.setTenantId(saved.role().getTenantId());
+        log.setActorId(requestAttribute(servletRequest,ApiAuthenticationFilter.CURRENT_USER_ID));
+        log.setModuleName("permission-center");log.setActionName("role-authorization");
+        log.setResourceType("ROLE");log.setResourceId(id);log.setDetail("Role authorization updated");auditLogRepository.save(log);
+        return ApiResponse.success(saved, "role authorization saved");
     }
 
     /**

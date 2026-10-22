@@ -24,6 +24,7 @@ class ResourceGrantAdminControllerTest {
     @Test
     void savesAgentScopedGrantOnlyForBoundRoleAndFiltersLegacyList() throws Exception {
         ResourceGrantRepository repository = mock(ResourceGrantRepository.class);
+        when(repository.save(org.mockito.ArgumentMatchers.any())).thenAnswer(call -> call.getArgument(0));
         EnterpriseAdminService admin = mock(EnterpriseAdminService.class);
         when(admin.getUserView("user-a")).thenReturn(new EnterpriseAdminService.UserView(
             "user-a", "tenant-a", 100001L, null, "user-a", "User A", null, null,
@@ -37,7 +38,7 @@ class ResourceGrantAdminControllerTest {
         grant.setAgentId("agent-a"); grant.setResourceType("SKILL"); grant.setResourceId("skill-a"); grant.setEffect("ALLOW");
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)).thenReturn("user-a");
-        var controller = new ResourceGrantAdminController(repository, admin);
+        var controller = new ResourceGrantAdminController(repository, admin, mock(com.chatchat.enterprise.repository.audit.SysAuditLogRepository.class));
         controller.create(request, grant);
         verify(repository).save(grant);
         when(repository.findByTenantIdAndResourceTypeOrderByUpdatedAtDesc("tenant-a", "SKILL"))
@@ -59,13 +60,14 @@ class ResourceGrantAdminControllerTest {
     @Test
     void bindsNamedListParametersWithoutCompilerParameterMetadata() throws Exception {
         ResourceGrantRepository repository = mock(ResourceGrantRepository.class);
+        when(repository.save(org.mockito.ArgumentMatchers.any())).thenAnswer(call -> call.getArgument(0));
         EnterpriseAdminService admin = mock(EnterpriseAdminService.class);
         when(admin.getUserView("user-a")).thenReturn(new EnterpriseAdminService.UserView(
             "user-a", "tenant-a", 100001L, null, "user-a", "User A", null, null,
             "enabled", null, List.of(), List.of(), null, null));
         when(repository.findByTenantIdAndResourceTypeOrderByUpdatedAtDesc("tenant-a", "KNOWLEDGE"))
             .thenReturn(List.of());
-        MockMvc mvc = standaloneSetup(new ResourceGrantAdminController(repository, admin)).build();
+        MockMvc mvc = standaloneSetup(new ResourceGrantAdminController(repository, admin, mock(com.chatchat.enterprise.repository.audit.SysAuditLogRepository.class))).build();
 
         mvc.perform(get("/api/v1/enterprise/resource-grants")
                 .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-a")
@@ -77,6 +79,7 @@ class ResourceGrantAdminControllerTest {
     @Test
     void rejectsCrossTenantGrantBeforeWriting() {
         ResourceGrantRepository repository = mock(ResourceGrantRepository.class);
+        when(repository.save(org.mockito.ArgumentMatchers.any())).thenAnswer(call -> call.getArgument(0));
         EnterpriseAdminService admin = mock(EnterpriseAdminService.class);
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)).thenReturn("user-a");
@@ -91,7 +94,7 @@ class ResourceGrantAdminControllerTest {
         grant.setPrincipalId("tenant-b");
         grant.setEffect("ALLOW");
 
-        assertThatThrownBy(() -> new ResourceGrantAdminController(repository, admin).create(request, grant))
+        assertThatThrownBy(() -> new ResourceGrantAdminController(repository, admin, mock(com.chatchat.enterprise.repository.audit.SysAuditLogRepository.class)).create(request, grant))
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("Cross-tenant");
         verifyNoInteractions(repository);
@@ -100,6 +103,7 @@ class ResourceGrantAdminControllerTest {
     @Test
     void acceptsRoleBoundWorkflowGrant() {
         ResourceGrantRepository repository = mock(ResourceGrantRepository.class);
+        when(repository.save(org.mockito.ArgumentMatchers.any())).thenAnswer(call -> call.getArgument(0));
         EnterpriseAdminService admin = mock(EnterpriseAdminService.class);
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)).thenReturn("user-a");
@@ -114,7 +118,10 @@ class ResourceGrantAdminControllerTest {
         grant.setPrincipalId("business-admin");
         grant.setEffect("allow");
 
-        new ResourceGrantAdminController(repository, admin).create(request, grant);
+        var role=new com.chatchat.enterprise.entity.identity.SysRole();role.setId("business-admin");role.setTenantId("tenant-a");
+        when(admin.getRoleAuthorization("business-admin")).thenReturn(new EnterpriseAdminService.RoleAuthorizationView(role,List.of(),List.of(),List.of(),List.of()));
+
+        new ResourceGrantAdminController(repository, admin, mock(com.chatchat.enterprise.repository.audit.SysAuditLogRepository.class)).create(request, grant);
 
         verify(repository).save(grant);
         org.assertj.core.api.Assertions.assertThat(grant.getResourceType()).isEqualTo("WORKFLOW");

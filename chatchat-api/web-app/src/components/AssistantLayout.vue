@@ -4,6 +4,7 @@
     :class="{
       'sidebar-collapsed': sidebarCollapsed,
       'workspace-studio': layoutType === 'studio',
+      'workspace-management': layoutType === 'management',
       'assistant-right-collapsed': rightPanelCollapsed,
     }"
   >

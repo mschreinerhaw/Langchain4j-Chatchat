@@ -30,6 +30,7 @@ import { clearChatRuntimeState, mergeChatRuntimeState } from "./utils/chatRuntim
 import { configureTrendSemantics } from "./utils/trendSemantics";
 import { errorMessage } from "./utils/uiFormatters";
 import floatingDrag from "./directives/floatingDrag";
+import { permissionSections } from "./utils/permissionWorkspace";
 import {
   fetchWorkspaces,
   fetchWorkspaceManifest,
@@ -86,14 +87,9 @@ const RetrievalRulesView = asyncView(() => import("../views/RetrievalRulesView.v
 const EvidenceDebuggerView = asyncView(() => import("../views/EvidenceDebuggerView.vue"));
 const SystemUsersView = asyncView(() => import("../views/SystemUsersView.vue"));
 const SystemOrganizationsView = asyncView(() => import("../views/SystemOrganizationsView.vue"));
-const SystemRolesView = asyncView(() => import("../views/SystemRolesView.vue"));
-const SystemLoginAuditView = asyncView(() => import("../views/SystemLoginAuditView.vue"));
-const SystemResourceAuthorizationView = asyncView(
-  () => import("../views/SystemResourceAuthorizationView.vue")
-);
-const SystemSkillRoleAuthorizationView = asyncView(
-  () => import("../views/SystemSkillRoleAuthorizationView.vue")
-);
+const PermissionConsoleView = asyncView(() => import("../views/PermissionConsoleView.vue"));
+const SystemLoginAuditView = asyncView(() => import("../views/PermissionAuditView.vue"));
+const WorkspaceSettingsView = asyncView(() => import("../views/WorkspaceSettingsView.vue"));
 const ModelManagementView = asyncView(() => import("../views/ModelManagementView.vue"));
 const TasksView = asyncView(() => import("../views/TasksView.vue"));
 const AccessDeniedView = asyncView(() => import("../views/AccessDeniedView.vue"));
@@ -105,7 +101,7 @@ const DATA_SCIENCE_TABS = {
   dataScienceScripts: "scripts",
 };
 const views = {
-  workspaces: WorkspacesView,
+  workspaces: WorkspaceSettingsView,
   chat: ChatAssistantView,
   search: AiSearchView,
 
@@ -128,11 +124,9 @@ const views = {
   system: SystemUsersView,
   systemUsers: SystemUsersView,
   systemOrganizations: SystemOrganizationsView,
-  systemRoles: SystemRolesView,
+  systemRoles: PermissionConsoleView,
   systemLogins: SystemLoginAuditView,
-  systemResources: SystemResourceAuthorizationView,
-  systemSkillRoles: SystemSkillRoleAuthorizationView,
-  permissionTools: asyncView(() => import("../views/PermissionToolsView.vue")),
+  systemResources: PermissionConsoleView,
   toolPublications: asyncView(() => import("../views/ToolPublicationsView.vue")),
   models: ModelManagementView,
 };
@@ -256,9 +250,14 @@ export default {
       const component = views[page?.componentKey || this.activeView];
       const stateDomain =
         Object.keys(views).find((key) => views[key] === component) || this.activeView;
-      return `${this.tenantId}:${this.authSession?.user?.id}:${this.currentWorkspace?.workspaceId}:${stateDomain}`;
+      return `${this.tenantId}:${this.authSession?.user?.id}:${this.currentWorkspace?.workspaceId}:${stateDomain}${['systemRoles','systemResources'].includes(this.activeView)?':'+this.activeView:''}`;
     },
     visibleNavItems() {
+      if(this.currentWorkspace?.workspaceId==='permissions'){
+        const ids=new Set();const walk=items=>items.forEach(item=>{ids.add(item.id);if(item.children)walk(item.children);});
+        this.navItems.forEach(group=>walk(group.items || []));
+        return [{id:'permissions',label:'权限管理',items:permissionSections.filter(section=>ids.has(section.id))}];
+      }
       return this.navItems
         .map((group) => ({
           ...group,
@@ -283,18 +282,11 @@ export default {
         : AccessDeniedView;
     },
     activeComponentProps() {
+      if(['systemRoles','systemResources'].includes(this.activeView))return {mode:this.activeView==='systemRoles'?'roles':'resources'};
       const pageProps =
         this.workspacePages?.find((page) => page.id === this.activeView)?.props || {};
       if (this.activeView === "workspaces")
-        return {
-          workspaces: this.workspaceItems,
-          defaultWorkspaceId:
-            this.workspacePreference?.defaultWorkspaceId ||
-            this.workspaceItems.find((w) => w.defaultWorkspace)?.workspaceId ||
-            "",
-          loading: this.workspaceLoading || this.workspaceSaving,
-          notice: this.workspaceNotice,
-        };
+        return {};
       return this.activeView === "chat"
         ? {
             ...pageProps,

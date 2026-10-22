@@ -22,6 +22,17 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ApiPermissionAuthorizationFilterTest {
+    @Test void existingRoleManagerMayReadConsolidatedCatalog() throws Exception {
+        var request=new MockHttpServletRequest("GET","/api/v1/permission-center");request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID,"user-1");
+        when(adminService.getUserView("user-1")).thenReturn(user(List.of("system:role:authorize")));
+        var response=new MockHttpServletResponse();filter.doFilterInternal(request,response,chain);verify(chain).doFilter(request,response);
+    }
+    @Test void consolidatedReadAccessDoesNotGrantToolMutation() throws Exception {
+        var request=new MockHttpServletRequest("POST","/api/v1/permission-center/tool-grants");request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID,"user-1");
+        var permission=new SysPermission();permission.setPermissionCode("system:permission-center:manage");permission.setResourcePath("/api/v1/permission-center/**");permission.setHttpMethod("*");permission.setStatus("enabled");
+        when(adminService.listPermissions()).thenReturn(List.of(permission));when(adminService.getUserView("user-1")).thenReturn(user(List.of("system:role:authorize")));
+        var response=new MockHttpServletResponse();filter.doFilterInternal(request,response,chain);assertThat(response.getStatus()).isEqualTo(403);verify(chain,never()).doFilter(request,response);
+    }
 
     @Test
     void chatAttachmentsUseChatPermissionWithoutGrantingDataScienceApis() throws Exception {

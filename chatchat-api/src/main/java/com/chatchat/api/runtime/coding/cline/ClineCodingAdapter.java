@@ -273,7 +273,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         var input = inputs.requireAuthorized(contract);
         CodingEvidenceCollector.Collected collected;
         try {
-            collected = collector.collect(scope, contract, operationId, "main.py",
+            collected = collector.collect(scope, contract, operationId, tasks.scriptFile(scope,taskId,operationId),
                 contract.outputContract().requiredFiles().get(0),
                 List.of(new CodingEvidenceCollector.InputFile(
                     input.fileId(), input.fileName(), input.sha256())), plans.validator(contract));

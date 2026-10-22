@@ -4,6 +4,7 @@ const {contract,checkpoint}=JSON.parse(input);
 const operations=[];
 const gateway={
   reserveModel(_c,m){operations.push(m.operationId);}, settleModel(){},
+  preparePython: async()=>({fileName:'sales_20261022T000000000Z_abcdef012345_v1.py',scriptVersion:1,scriptPath:'/workspace/scripts/sales_20261022T000000000Z_abcdef012345_v1.py',workingDirectory:'tasks/'+['a'.repeat(16),'b'.repeat(16),'c'.repeat(16),'d'.repeat(24)].join('/')}),
   executePython(){operations.push('python');return {status:'SUCCEEDED',executorStopped:true,
     resultDatasetRef:'result:fixture',validationRecordRef:'validation:fixture',evidenceBundleRef:'bundle:fixture'};},
   checkpoint(_c,value){if(!checkpoint && value.modelOrdinal===1){

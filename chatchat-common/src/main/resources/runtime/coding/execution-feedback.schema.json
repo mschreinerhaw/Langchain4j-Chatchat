@@ -11,6 +11,7 @@
     "executionId": {"type":"string","minLength":1,"maxLength":512},
     "attemptId": {"type":"string","minLength":1,"maxLength":512},
     "traceId": {"type":"string","minLength":1,"maxLength":512},
+    "script": {"type":["object","null"],"properties":{"fileName":{"type":"string"},"scriptPath":{"type":"string","pattern":"^/workspace/scripts/"},"workingDirectory":{"type":"string"},"scriptVersion":{"type":"integer","minimum":1}},"required":["fileName","scriptPath","workingDirectory","scriptVersion"],"additionalProperties":false},
     "status": {"enum":["SUCCEEDED","FAILED","CANCELLED","TIMED_OUT"]},
     "stage": {"enum":["VALIDATED","EXECUTION_FAILED","RESULT_VALIDATION_FAILED"]},
     "exitCode": {"type":["integer","null"]},
@@ -42,7 +43,7 @@
         "category":{"type":"string","maxLength":80},"exceptionType":{"type":["string","null"],"maxLength":80},
         "diagnosticCode":{"type":"string","maxLength":80},"message":{"type":"string","maxLength":2000},
         "detailRef":{"type":"string","maxLength":512},
-        "stack":{"type":"array","maxItems":16,"items":{"type":"object","additionalProperties":false,"required":["file","line","column"],"properties":{"file":{"const":"main.py"},"line":{"type":"integer","minimum":1,"maximum":99999999},"column":{"type":["integer","null"],"minimum":1}}}}
+        "stack":{"type":"array","maxItems":16,"items":{"type":"object","additionalProperties":false,"required":["file","line","column"],"properties":{"file":{"type":"string","maxLength":175,"pattern":"^[^/\\\\\\u0000]+\\.py$"},"line":{"type":"integer","minimum":1,"maximum":99999999},"column":{"type":["integer","null"],"minimum":1}}}}
       }
     },
     "repair": {

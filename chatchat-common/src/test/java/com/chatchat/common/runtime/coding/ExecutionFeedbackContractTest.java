@@ -13,7 +13,7 @@ class ExecutionFeedbackContractTest {
         new ExecutionFeedback.Failure("SYNTAX","SyntaxError","SYNTAX_ERROR",ExecutionFailureClassifier.guidance("SYNTAX_ERROR"),
             List.of(new ExecutionFeedback.Frame("main.py",4,null)),"execution:operation:diagnostic"),
         List.of("input"),"schema",List.of(),Map.of(),Map.of("diagnosticRef","diagnostic"),"NOT_RUN",false,"b".repeat(64),null,false,
-        new ExecutionFeedback.Repair(true,"REPAIR_IN_CURRENT_CONTEXT","TECHNICAL_REPAIR",0,3,"a".repeat(64),"Repair syntax"),"METADATA_ONLY_V1");}
+        new ExecutionFeedback.Repair(true,"REPAIR_IN_CURRENT_CONTEXT","TECHNICAL_REPAIR",0,3,"a".repeat(64),"Repair syntax"),"METADATA_ONLY_V1",null);}
     @Test void javaWireRoundTripMatchesTheSharedSchemaAndRemainsImmutable() throws Exception {
         var feedback=feedback();
         assertThat(json.readValue(json.writeValueAsBytes(feedback),ExecutionFeedback.class)).isEqualTo(feedback);
@@ -33,5 +33,18 @@ class ExecutionFeedbackContractTest {
         assertThat(ExecutionFailureClassifier.guidance("PACKAGE_NOT_INSTALLED")).contains("prohibited");
         assertThat(ExecutionFailureClassifier.category(ExecutionFailureClassifier.code("TimeoutError"))).isEqualTo("TIMEOUT");
         assertThat(ExecutionFailureClassifier.category(ExecutionFailureClassifier.code("FileNotFoundError"))).isEqualTo("INPUT_REFERENCE");
+    }
+    @Test void dynamicUnicodeScriptIdentityAndFramesRoundTripAcrossTheSharedSchema() throws Exception {
+        var value=(com.fasterxml.jackson.databind.node.ObjectNode)json.valueToTree(feedback());
+        String file="销售汇总_20261022T080000000Z_abcdef012345_v2.py";
+        var script=new CodingScript(file,"/workspace/scripts/"+file,"tasks/"+"a".repeat(16)+"/"+"b".repeat(16)+"/"+"c".repeat(16)+"/"+"d".repeat(24),2);
+        value.set("script",json.valueToTree(script));
+        ((com.fasterxml.jackson.databind.node.ObjectNode)value.path("error").path("stack").get(0)).put("file",file);
+        assertThat(json.treeToValue(value,ExecutionFeedback.class).script()).isEqualTo(script);
+        try(var source=getClass().getResourceAsStream("/runtime/coding/execution-feedback.schema.json")){
+            assertThat(JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012).getSchema(json.readTree(source)).validate(value)).isEmpty();
+        }
+        assertThatThrownBy(()->new CodingScript(file,"/tmp/"+file,script.workingDirectory(),2)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(CodingScript.safeFileName("../customer.py")).isFalse();
     }
 }

@@ -296,7 +296,7 @@ public final class D1StagingSmokeDriver {
                         var input = identity.as(scope, grants,
                             () -> app.getBean(CodingInputSnapshotService.class).requireAuthorized(contract));
                         var collected = identity.as(scope, grants, () -> app.getBean(CodingEvidenceCollector.class)
-                            .collect(scope, contract, operationId, "main.py", "rows.jsonl",
+                            .collect(scope, contract, operationId, tasks.scriptFile(scope,taskId,operationId), "rows.jsonl",
                                 List.of(new CodingEvidenceCollector.InputFile(
                                     input.fileId(), input.fileName(), input.sha256())),
                                 app.getBean(CodingValidationPlanService.class).validator(contract)));

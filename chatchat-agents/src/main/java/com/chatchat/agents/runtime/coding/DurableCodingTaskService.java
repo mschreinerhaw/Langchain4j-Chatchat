@@ -79,6 +79,45 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         var value = task(read(scope, READ), taskId).privateState.get(key);
         return value == null ? null : value.deepCopy();
     }
+
+    /** Allocation and version increments share the existing owner journal lock and lease fencing. */
+    public CodingScript allocateScript(KernelDataScope scope,String taskId,CodingJournal.Lease lease,String operationId) {
+        require(operationId!=null&&operationId.matches("cline-[0-9a-f]{64}"),CONTRACT_INVALID,"Invalid script operation");
+        final CodingScript[] result=new CodingScript[1];
+        mutateTask(scope,taskId,WORKER,task->{
+            fence(task,lease);active(task);deadline(task);
+            require(task.outcome.executionControl().stopReason()==null,INVALID_STATE_TRANSITION,"Task is stopping");
+            String key="script:"+operationId;
+            if(task.privateState.containsKey(key)){result[0]=json.convertValue(task.privateState.get(key).path("script"),CodingScript.class);return;}
+            require(task.privateState.size()<128,ADAPTER_UNAVAILABLE,"Private state capacity");
+            int next=task.privateState.entrySet().stream().filter(e->e.getKey().startsWith("script:"))
+                .mapToInt(e->e.getValue().path("script").path("scriptVersion").asInt()).max().orElse(0)+1;
+            require(next<=task.contract.budget().maxCodeExecutions(),BUDGET_EXCEEDED,"Script version budget exhausted");
+            result[0]=CodingScript.allocate(task.contract,clock.instant(),next);
+            task.privateState.put(key,json.valueToTree(Map.of("script",result[0])));
+        });
+        return result[0];
+    }
+    public CodingScript script(KernelDataScope scope,String taskId,String operationId) {
+        var value=privateState(scope,taskId,"script:"+operationId);
+        return value==null?null:json.convertValue(value.path("script"),CodingScript.class);
+    }
+    public void bindScriptHash(KernelDataScope scope,String taskId,CodingJournal.Lease lease,String operationId,String hash) {
+        require(hash!=null&&hash.matches("[0-9a-f]{64}"),CONTRACT_INVALID,"Script hash required");
+        mutateTask(scope,taskId,WORKER,task->{
+            fence(task,lease);active(task);deadline(task);
+            require(task.outcome.executionControl().stopReason()==null,INVALID_STATE_TRANSITION,"Task is stopping");
+            require(task.privateState.containsKey("script:"+operationId),CONTRACT_INVALID,"Script must be allocated first");
+            var allocation=(com.fasterxml.jackson.databind.node.ObjectNode)task.privateState.get("script:"+operationId);
+            var previous=allocation.get("codeHash");
+            require(previous==null||hash.equals(previous.asText()),TASK_ID_CONFLICT,"Script version is immutable");
+            allocation.put("codeHash",hash);
+        });
+    }
+    public String scriptFile(KernelDataScope scope,String taskId,String operationId) {
+        var value=script(scope,taskId,operationId);
+        return value==null?CodingScript.LEGACY_FILE:value.fileName();
+    }
     public List<ExecutionFeedback> executionFeedback(KernelDataScope scope,String taskId){
         var task=task(read(scope,READ),taskId);
         return task.operations.entrySet().stream().filter(e->e.getValue().kind==CodingJournal.OperationKind.CODE)

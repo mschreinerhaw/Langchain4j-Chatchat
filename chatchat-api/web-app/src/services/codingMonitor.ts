@@ -55,7 +55,7 @@ export function codeVersions(events: CodingEvent[]) {
     const operation = p.proposedOperationId ?? event.operationId;
     if (!operation?.startsWith('cline-')) continue;
     if (p.type === 'CODE_READY') versions.set(operation, {
-      operationId: operation, hash: p.codeSha256, fileName: p.fileName, generatedAt: event.occurredAt, state: 'CODE_READY',
+      operationId: operation, hash: p.codeSha256, fileName: p.fileName, scriptPath:p.scriptPath, scriptVersion:p.scriptVersion, generatedAt: event.occurredAt, state: 'CODE_READY',
     });
     const version = versions.get(operation);
     if (version && ['VALIDATING', 'EXECUTING', 'RESULT_VALIDATING'].includes(p.stage)) version.state = p.stage;

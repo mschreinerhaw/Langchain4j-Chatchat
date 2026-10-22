@@ -20,15 +20,26 @@ public final class CodingCodeArtifactStore {
     private final JdbcRuntimeEvidenceStore evidence;
     public CodingCodeArtifactStore(JdbcRuntimeEvidenceStore evidence) { this.evidence = evidence; }
     public String commit(CodingTaskContract contract, String operation, String source, String expectedHash) {
+        return commit(contract,operation,source,expectedHash,null);
+    }
+    public String commit(CodingTaskContract contract, String operation, String source, String expectedHash,
+                         com.chatchat.common.runtime.coding.CodingScript script) {
         byte[] bytes = source.getBytes(StandardCharsets.UTF_8);
         if (!operation.matches("cline-[0-9a-f]{64}") || bytes.length == 0 || bytes.length > 256000)
             throw new IllegalArgumentException("Invalid code artifact identity or size");
         String hash = sha(bytes);
         if (expectedHash != null && !expectedHash.equals(hash)) throw new IllegalArgumentException("Code hash mismatch");
         String id = id(contract.taskId(), operation);
-        if(assets!=null)assets.code(contract.scope(),contract.taskId(),"code:"+operation,"main.py",source);
-        var payload = Map.<String,Object>of("taskId",contract.taskId(),"operationId",operation,"fileName","main.py",
-            "sha256",hash,"sourceBytes",bytes.length,"content",source);
+        String fileName=script==null?com.chatchat.common.runtime.coding.CodingScript.LEGACY_FILE:script.fileName();
+        var existing=find(contract.scope(),contract.taskId(),operation);
+        if(existing.isPresent()) {
+            if(!hash.equals(existing.get().get("sha256"))||!fileName.equals(existing.get().get("fileName")))throw new SecurityException("Code operation is immutable");
+            return hash;
+        }
+        if(assets!=null)assets.code(contract.scope(),contract.taskId(),"code:"+operation,fileName,source);
+        var payload = new LinkedHashMap<String,Object>(Map.of("taskId",contract.taskId(),"operationId",operation,"fileName",fileName,
+            "sha256",hash,"sourceBytes",bytes.length,"content",source));
+        if(script!=null)payload.put("script",script);
         String input = contract.inputSnapshotRef().replaceFirst("^runtime-evidence:", "");
         evidence.register(new EvidenceRecord(null,id,contract.scope(),"CODING_CODE_SUBMISSION","ClineCodingAgent",
                 evidence.contentHash(payload),payload,null,System.currentTimeMillis(),Map.of()),

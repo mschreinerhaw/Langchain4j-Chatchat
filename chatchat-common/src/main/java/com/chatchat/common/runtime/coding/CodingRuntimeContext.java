@@ -8,7 +8,9 @@ public final class CodingRuntimeContext {
     public static Map<String, Object> validate(Map<String, Object> value) {
         if (value == null || value.isEmpty()) return Map.of();
         CodingProtocol.require(value.keySet().stream().allMatch(Set.of("schemaVersion", "capturedAt",
-            "consistency", "model", "skills", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "pythonEnvironment")::contains), "Unknown Coding context field");
+            "consistency", "model", "skills", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "pythonEnvironment", "scriptPurpose")::contains), "Unknown Coding context field");
+        if(value.containsKey("scriptPurpose"))CodingProtocol.require(value.get("scriptPurpose") instanceof String purpose
+            &&!purpose.isBlank()&&purpose.length()<=512,"Invalid script business purpose");
         if (value.containsKey("pythonEnvironment")) {
             CodingProtocol.require(value.get("pythonEnvironment") instanceof Map<?,?>, "Python environment snapshot required");
             var env = (Map<?,?>) value.get("pythonEnvironment");

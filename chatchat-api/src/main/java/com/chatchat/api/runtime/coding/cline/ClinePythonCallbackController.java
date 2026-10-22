@@ -46,7 +46,7 @@ public final class ClinePythonCallbackController {
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setCodeArtifacts(CodingCodeArtifactStore value) { codeArtifacts = value; }
     private static final Logger LOG = LoggerFactory.getLogger(ClinePythonCallbackController.class);
-    private static final String CODE_FILE = "main.py";
+
     private final CodingInvocationContext identity;
     private final DurableCodingTaskService tasks;
     private final CodingInputSnapshotService inputs;
@@ -62,6 +62,17 @@ public final class ClinePythonCallbackController {
         this.plans = plans; this.python = python; this.collector = collector; this.mapper = mapper;
     }
 
+    @PostMapping("/prepare-python")
+    public Map<String,Object> prepare(@RequestBody JsonNode body) {
+        return bound(body,false,call->{
+            if(!call.contract().authorization().allowedTools().contains("python_execute")
+                ||!call.contract().authorization().allowedSideEffects().contains(CodingTaskContract.SideEffect.CODE_EXECUTION))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Python tool is not authorized");
+            String operation=operationId(call,body.path("execution"));
+            return mapper.convertValue(tasks.allocateScript(call.scope(),call.taskId(),call.lease(),operation),new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){});
+        });
+    }
+
     @PostMapping("/execute-python")
     public Map<String, Object> execute(@RequestBody JsonNode body) {
         return bound(body, false, call -> {
@@ -71,8 +82,12 @@ public final class ClinePythonCallbackController {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Python tool is not authorized");
             JsonNode request = body.path("execution");
             String operationId = operationId(call, request);
-            if (!CODE_FILE.equals(request.path("fileName").asText()))
-                throw new IllegalArgumentException("D1 executes only main.py");
+            var script=tasks.allocateScript(call.scope(),call.taskId(),call.lease(),operationId);
+            if(request.hasNonNull("script") && !script.equals(mapper.convertValue(request.path("script"),com.chatchat.common.runtime.coding.CodingScript.class)))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Script allocation differs from Runtime assignment");
+            String requested=request.path("fileName").asText("");
+            if(!script.fileName().equals(requested) && !(com.chatchat.common.runtime.coding.CodingScript.LEGACY_FILE.equals(requested)&&!request.hasNonNull("script")))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Script file name differs from Runtime assignment");
             String source = request.path("source").asText("");
             if (source.isBlank() || source.getBytes(StandardCharsets.UTF_8).length > 256_000)
                 throw new IllegalArgumentException("Python source exceeds the D1 limit");
@@ -83,8 +98,11 @@ public final class ClinePythonCallbackController {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,denied.getMessage());
             }
             // Freeze the exact source before Sandbox admission; rejected code remains inspectable.
+            tasks.bindScriptHash(call.scope(),call.taskId(),call.lease(),operationId,sha(source));
             if (codeArtifacts != null) codeArtifacts.commit(contract, operationId, source,
-                request.path("codeSha256").isTextual() ? request.path("codeSha256").asText() : null);
+                request.path("codeSha256").isTextual() ? request.path("codeSha256").asText() : null,script);
+            com.chatchat.common.runtime.event.RuntimeEventLog.execution("PYTHON_CODE_SUBMITTED",call.scope(),call.taskId(),operationId,
+                Map.of("status","SUBMITTED","scriptPath",script.scriptPath(),"scriptVersion",script.scriptVersion(),"scriptHash",sha(source)));
             var input = inputs.requireAuthorized(contract);
             plans.validator(contract); // Fail before dispatch if no independent trusted plan exists.
             long executions = contract.budget().maxCodeExecutions();
@@ -97,15 +115,16 @@ public final class ClinePythonCallbackController {
             McpPythonControlPlanePort.OperationView view;
             try {
                 view = python.start(call.scope(), contract, call.lease(), operationId,
-                    contract.environmentRef(), "coding-task:" + contract.taskId(), CODE_FILE,
+                    contract.environmentRef(), "coding-task:" + contract.taskId(), script.fileName(),
                     source, Map.of(), "{}", Map.of(input.fileId(), input.sha256()), reservation);
             } catch (RuntimeException executionFailure) {
                 com.chatchat.common.runtime.event.RuntimeEventLog.execution("PYTHON_DISPATCH_UNKNOWN",call.scope(),call.taskId(),operationId,
-                    Map.of("status","UNKNOWN","exceptionType",executionFailure.getClass().getSimpleName()));
+                    Map.of("status","UNKNOWN","exceptionType",executionFailure.getClass().getSimpleName(),
+                        "scriptPath",script.scriptPath(),"scriptVersion",script.scriptVersion(),"scriptHash",sha(source)));
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Python operation outcome is unknown; reconcile before retry", executionFailure);
             }
-            return view(view);
+            var response=view(view);response.put("script",script);return response;
         });
     }
 
@@ -141,7 +160,7 @@ public final class ClinePythonCallbackController {
             if ("SUCCEEDED".equals(result.status()) && result.executorStopped()) {
                 var input = inputs.requireAuthorized(call.contract());
                 CodingEvidenceCollector.Collected collected;
-                try { collected = collector.collect(call.scope(), call.contract(), operationId, CODE_FILE,
+                try { collected = collector.collect(call.scope(), call.contract(), operationId, tasks.scriptFile(call.scope(),call.taskId(),operationId),
                     call.contract().outputContract().requiredFiles().get(0),
                     java.util.List.of(new CodingEvidenceCollector.InputFile(
                         input.fileId(), input.fileName(), input.sha256())),

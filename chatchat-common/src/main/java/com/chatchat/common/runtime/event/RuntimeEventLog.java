@@ -27,7 +27,7 @@ public final class RuntimeEventLog {
         "truncated", "stdoutTruncated", "exitCode", "recordCount", "observationCount", "candidateCount",
         "selectedIds", "selectedAssetIds", "selectedTemplateIds", "coverageDecision", "retrievalOutcome",
         "errorCode", "errorType", "errorMessage", "reason", "summary", "changeReason", "rawObservationLocation", "eventMetadataCompacted",
-        "traceId", "codeHash", "codeSha256", "httpStatus", "reasonCode", "errorCategory", "exceptionType", "diagnosticCode", "repairAttempts", "repairAllowed", "validationStatus", "resultAvailable",
+        "traceId", "scriptPath", "scriptVersion", "scriptHash", "workingDirectory", "codeHash", "codeSha256", "httpStatus", "reasonCode", "errorCategory", "exceptionType", "diagnosticCode", "repairAttempts", "repairAllowed", "validationStatus", "resultAvailable",
         "schemaVersion", "contractVersion", "output_type", "target", "author", "declaration",
         "protocolVersion", "executionTraceId", "workflowExecutionAttempt", "planExecutionScope",
         "evidenceIteration", "evidenceId", "interpretationPlanVersion", "interpretationPlanStepId",
@@ -50,10 +50,11 @@ public final class RuntimeEventLog {
         var facts=new LinkedHashMap<String,Object>();
         facts.put("taskId",taskId);facts.put("traceId",scope==null?null:scope.runId());facts.put("executionId",executionId);
         Set<String> allowed=Set.of("status","stage","reasonCode","errorCategory","exceptionType","diagnosticCode", "attemptId",
-            "codeHash","codeSha256","httpStatus","durationMs","repairAttempts","repairAllowed","modelCall","evidenceSnapshotRef","exitCode","validationStatus","resultAvailable");
+            "scriptPath","scriptVersion","scriptHash","codeHash","codeSha256","httpStatus","durationMs","repairAttempts","repairAllowed","modelCall","evidenceSnapshotRef","exitCode","validationStatus","resultAvailable");
         metadata.forEach((key,value)->{
             if(!allowed.contains(key)||value==null)return;
             if(value instanceof Number||value instanceof Boolean)facts.put(key,value);
+            else if("scriptPath".equals(key)&&value instanceof String path&&path.startsWith("/workspace/scripts/")&&com.chatchat.common.runtime.coding.CodingScript.safeFileName(path.substring("/workspace/scripts/".length())))facts.put(key,path);
             else if(value instanceof String token&&token.matches("[A-Za-z0-9_:.\\-]{1,256}"))facts.put(key,token);
         });
         writeFact(scope==null?null:scope.runId(),eventType,facts);

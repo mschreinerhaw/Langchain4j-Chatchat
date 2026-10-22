@@ -52,6 +52,7 @@ class ClinePythonCallbackControllerTest {
         when(plans.validator(any())).thenReturn(rows->new CodingEvidenceCollector.Validation(false,Map.of()));
         when(python.get(scope,"task",operation)).thenReturn(new McpPythonControlPlanePort.OperationView(operation,"SUCCEEDED","container",1,
             false,true,0,"b".repeat(64),"sha256:image","a".repeat(64),null));
+        when(tasks.scriptFile(any(),anyString(),anyString())).thenReturn(CodingScript.LEGACY_FILE);
         controller=new ClinePythonCallbackController(identity,tasks,inputs,plans,python,collector,json);
     }
     Map<String,Object> body(){return new LinkedHashMap<>(Map.of("scope",scope,"taskId","task","contract",contract,

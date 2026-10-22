@@ -115,10 +115,12 @@ public class CodingExecutionFeedbackService {
             if(result.get(key) instanceof String ref)refs.put(key,ref);
         String detail="execution:"+operation.operationId()+":logs:runtime-diagnostic.json";
         refs.put("diagnosticRef",detail);refs.put("stderrRef","execution:"+operation.operationId()+":logs:stderr.txt");
+        String scriptFile=tasks.scriptFile(contract.scope(),contract.taskId(),operation.operationId());
+        if(scriptFile==null)scriptFile=com.chatchat.common.runtime.coding.CodingScript.LEGACY_FILE;
         var frames=new ArrayList<ExecutionFeedback.Frame>();
-        for(var frame:diagnostic.path("stack"))if(frames.size()<16&&"main.py".equals(frame.path("file").asText())&&frame.path("line").asInt()>0)
-            frames.add(new ExecutionFeedback.Frame("main.py",frame.path("line").asInt(),null));
-        if(frames.isEmpty()&&diagnostic.path("line").asInt()>0)frames.add(new ExecutionFeedback.Frame("main.py",diagnostic.path("line").asInt(),null));
+        for(var frame:diagnostic.path("stack"))if(frames.size()<16&&scriptFile.equals(frame.path("file").asText())&&frame.path("line").asInt()>0)
+            frames.add(new ExecutionFeedback.Frame(scriptFile,frame.path("line").asInt(),null));
+        if(frames.isEmpty()&&diagnostic.path("line").asInt()>0)frames.add(new ExecutionFeedback.Frame(scriptFile,diagnostic.path("line").asInt(),null));
         Long duration=null;
         try{duration=Math.max(0,Duration.between(Instant.parse(receipt.path("startedAt").asText()),Instant.parse(receipt.path("finishedAt").asText())).toMillis());}
         catch(java.time.DateTimeException missing){/* Missing metering remains explicitly unknown. */}
@@ -143,7 +145,7 @@ public class CodingExecutionFeedbackService {
             operation.manifestHash(),result.get("outputStatus") instanceof String output?output:null,
             Boolean.TRUE.equals(result.get("businessValidationPassed")),
             new ExecutionFeedback.Repair(allowed,allowed?"REPAIR_IN_CURRENT_CONTEXT":resultAvailable?"COMPLETE":"STOP",reason,repairsUsed,repairLimit,
-                operation.codeHash(),guidance),"METADATA_ONLY_V1");
+                operation.codeHash(),guidance),"METADATA_ONLY_V1",tasks.script(contract.scope(),contract.taskId(),operation.operationId()));
         if(archive!=null)try{archive.save(contract.scope(),contract.taskId(),UserAssetService.Kind.LOG,
             "feedback:"+operation.operationId(),"execution-feedback.json",json.writeValueAsBytes(feedback));}
         catch(java.io.IOException invalid){throw new IllegalStateException("Execution feedback archive failed",invalid);}
@@ -163,6 +165,7 @@ public class CodingExecutionFeedbackService {
         facts.put("exitCode",feedback.exitCode());facts.put("validationStatus",feedback.validationStatus());facts.put("resultAvailable",feedback.resultAvailable());
         facts.put("repairAttempts",feedback.repair().attemptsUsed());facts.put("repairAllowed",feedback.repair().allowed());
         facts.put("reasonCode",feedback.repair().reason());
+        if(feedback.script()!=null){facts.put("scriptPath",feedback.script().scriptPath());facts.put("scriptVersion",feedback.script().scriptVersion());facts.put("scriptHash",feedback.codeHash());}
         if(feedback.error()!=null){facts.put("errorCategory",feedback.error().category());facts.put("exceptionType",feedback.error().exceptionType());
             facts.put("diagnosticCode",feedback.error().diagnosticCode());facts.put("evidenceSnapshotRef",feedback.error().detailRef());}
         com.chatchat.common.runtime.event.RuntimeEventLog.execution(event,scope,feedback.taskId(),feedback.executionId(),facts);

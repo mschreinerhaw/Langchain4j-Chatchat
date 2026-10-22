@@ -75,7 +75,7 @@ class PythonManagedExecutionServiceTest {
         assertEquals(1, h.created.get());
         assertEquals("SUCCEEDED", h.start("op-1", 1, "print('one')").status());
         assertEquals(1, h.created.get());
-        assertThrows(IllegalArgumentException.class, () -> h.start("op-1", 1, "print('different')"));
+        assertThrows(SecurityException.class, () -> h.start("op-1", 1, "print('different')"));
         h.start("op-2", 2, "print('two')");
         await("SUCCEEDED", "tenant", "op-2");
         assertThrows(IllegalStateException.class, () -> h.start("op-3", 1, "print('stale')"));
@@ -254,7 +254,7 @@ class PythonManagedExecutionServiceTest {
             doAnswer(invocation -> { created.incrementAndGet(); state.set(new PythonDockerRuntime.ContainerState(true, false, false, null, ""));
                 Path root = invocation.getArgument(1);
                 java.nio.file.Files.writeString(root.resolve("output/results/rows.jsonl"), "{\"amount\":12.50}\n"); return null; })
-                    .when(docker).createManaged(any(), any(), anyString(), anyString(), anyString());
+                    .when(docker).createManaged(any(), any(), anyString(), anyString(), anyString(), anyString());
             doAnswer(invocation -> {
                 java.time.Instant started = java.time.Instant.now();
                 state.set(new PythonDockerRuntime.ContainerState(true, true, false, null, false, started, null, ""));

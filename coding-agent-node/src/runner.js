@@ -156,32 +156,41 @@ export function createCodingRun(contract, gateway, options = {}) {
   if (permitted.has('python_execute')) tools.push({
     name: 'python_execute',
     ...(fastAnalysis ? { lifecycle: { completesRun: true } } : {}),
-    description: `Run main.py in a NEW isolated Python sandbox for EACH call. Java mounts only authorized immutable inputs under /data/input/{fileId}/{fileName}. ${fileInput ? 'Input is a versioned manifest with schemaFileId and ordered Parquet/CSV parts; use columns[].storageName/type to reconstruct logical columns and null/missing semantics. Read and hash-check each part; never parse this manifest as JSONL.' : 'A single input is input.jsonl; a chunked input uses manifest.json plus its ordered input.jsonl chunks. Read and hash-check the manifest chunks in Python.'} Previous calls' output files do not exist here. To produce an analysis result, perform the calculation and write structured JSONL to /workspace/output/results/${contract.outputContract?.requiredFiles?.[0] ?? 'rows.jsonl'}. A diagnostic program without that file may succeed as a process, but produces no analysis result. Inspect the returned Runtime receipt; repair technical errors with a complete new program. Never claim business validation yourself.`,
+    description: `Submit code using the Java Runtime-assigned versioned script name and workspace, in a NEW isolated Python sandbox for EACH call. Java mounts only authorized immutable inputs under /data/input/{fileId}/{fileName}. ${fileInput ? 'Input is a versioned manifest with schemaFileId and ordered Parquet/CSV parts; use columns[].storageName/type to reconstruct logical columns and null/missing semantics. Read and hash-check each part; never parse this manifest as JSONL.' : 'A single input is input.jsonl; a chunked input uses manifest.json plus its ordered input.jsonl chunks. Read and hash-check the manifest chunks in Python.'} Previous calls' output files do not exist here. To produce an analysis result, perform the calculation and write structured JSONL to /workspace/output/results/${contract.outputContract?.requiredFiles?.[0] ?? 'rows.jsonl'}. A diagnostic program without that file may succeed as a process, but produces no analysis result. Inspect the returned Runtime receipt; repair technical errors with a complete new program. Never claim business validation yourself.`,
     inputSchema: { type: 'object', properties: {
-      fileName: { type: 'string', enum: ['main.py'] }, source: { type: 'string' },
+      fileName: { type: 'string', description: 'Optional compatibility hint; Runtime assigns the actual immutable script name and version.' }, source: { type: 'string' },
       ...(repairableAnalysis ? { repair: { type: 'object', properties: {
         baseCodeSha256: { type: 'string' }, edits: { type: 'array', items: { type: 'object', properties: {
           oldText: { type: 'string' }, newText: { type: 'string' },
         }, required: ['oldText', 'newText'], additionalProperties: false } },
       }, required: ['baseCodeSha256', 'edits'], additionalProperties: false } } : {}),
-    }, required: repairableAnalysis ? ['fileName'] : ['fileName', 'source'], additionalProperties: false },
+    }, required: repairableAnalysis ? [] : ['source'], additionalProperties: false },
     // The SDK defaults to 30 seconds. Runtime owns the task deadline and cancellation.
     timeoutMs: deadline === null ? 30000 : Math.max(1, Math.min(deadline - Date.now(), 2147483647)),
     executionMode: 'sequential', retryable: false, maxRetries: 0,
     async execute(input, context) {
-      if (required(input?.fileName, 'fileName') !== 'main.py')
+      if(input?.fileName && (!/^[\p{L}\p{N}][\p{L}\p{N}_.-]*\.py$/u.test(input.fileName)||input.fileName.includes('..')))
         throw new TypeError('Invalid Python file name');
       const source = prepareProgram(input, repairableAnalysis ? previousProgram : null);
       if (Buffer.byteLength(source, 'utf8') > 256000) throw new TypeError('Python source exceeds Runtime limit');
       const toolCallId = required(context.toolCallId, 'toolCallId');
       const id = operationId(contract, toolCallId);
+      if(typeof gateway.preparePython!=='function')throw new TypeError('Runtime script allocation callback is required');
+      const script=await gateway.preparePython(contract,{operationId:id,toolCallId,attemptId},context.signal);
+      if(!script || !Number.isInteger(script.scriptVersion) || script.scriptVersion<1
+          || !/^[\p{L}\p{N}][\p{L}\p{N}_.-]*\.py$/u.test(script.fileName) || script.fileName.includes('..')
+          || !script.fileName.endsWith(`_v${script.scriptVersion}.py`)
+          || script.scriptPath!=='/workspace/scripts/'+script.fileName
+          || !/^tasks\/[0-9a-f]{16}\/[0-9a-f]{16}\/[0-9a-f]{16}\/[0-9a-f]{24}$/.test(script.workingDirectory))
+        throw new TypeError('Invalid Runtime script allocation');
+      const fileName=script.fileName;
       const codeSha256 = createHash('sha256').update(source).digest('hex');
-      try { options.observeCode?.({ operationId: id, fileName: 'main.py', source }); } catch { /* observer only */ }
-      codeFiles.push({ fileName: 'main.py', sha256: codeSha256, operationId: id,
+      try { options.observeCode?.({ operationId: id, fileName, scriptPath: script.scriptPath, scriptVersion: script.scriptVersion, source }); } catch { /* observer only */ }
+      codeFiles.push({ fileName, scriptPath: script.scriptPath, scriptVersion: script.scriptVersion, sha256: codeSha256, operationId: id,
         sourceBytes: Buffer.byteLength(source), artifactRef:
           `/api/v1/agent/runtime/runs/${encodeURIComponent(contract.scope.runId)}/coding/${encodeURIComponent(contract.taskId)}/${id}/code` });
       await forward({ type: 'CODE_READY', stage: 'CODE_READY', proposedOperationId: id,
-        codeSha256, fileName: 'main.py', sourceBytes: Buffer.byteLength(source), modelCall: modelIndex });
+        codeSha256, fileName, scriptPath: script.scriptPath, scriptVersion: script.scriptVersion, sourceBytes: Buffer.byteLength(source), modelCall: modelIndex });
       activeOperation = id;
       // A later attempt must never finish using an earlier program's evidence.
       lastCollectedOperation = null;
@@ -191,7 +200,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       try {
         if (context.signal?.aborted) throw context.signal.reason ?? new Error('Coding task cancelled');
         let receipt = await gateway.executePython(contract, {
-          operationId: id, fileName: input.fileName, source, toolCallId, codeSha256,
+          operationId: id, fileName, script, source, toolCallId, codeSha256,
           attemptId,
         }, context.signal);
         previousProgram = source;

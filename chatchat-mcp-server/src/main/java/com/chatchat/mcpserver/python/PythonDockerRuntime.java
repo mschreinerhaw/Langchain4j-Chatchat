@@ -79,8 +79,12 @@ public class PythonDockerRuntime {
     }
 
     public void createManaged(PythonEnvironment env, Path workspace, String container, String fileName, String imageId) throws IOException, InterruptedException {
+        createManaged(env,workspace,container,fileName,imageId,"/workspace/scripts/"+fileName);
+    }
+    public void createManaged(PythonEnvironment env, Path workspace, String container, String fileName, String imageId,String scriptPath) throws IOException, InterruptedException {
+        if(!("/workspace/scripts/"+fileName).equals(scriptPath))throw new SecurityException("Script path outside assigned mount");
         validateEnvironment(env);
-        if (!container.matches("chatchat-py-[0-9a-f]{40}") || !fileName.matches("[A-Za-z0-9][A-Za-z0-9_.-]{0,170}\\.py")
+        if (!container.matches("chatchat-py-[0-9a-f]{40}") || !com.chatchat.common.runtime.coding.CodingScript.safeFileName(fileName)
                 || imageId == null || !imageId.matches("sha256:[0-9a-f]{64}"))
             throw new IllegalArgumentException("Invalid managed execution identity");
         Path scripts = workspace.resolve("scripts");
@@ -113,7 +117,7 @@ public class PythonDockerRuntime {
                 "-w", "/workspace", "-e", "CHATCHAT_INPUT_JSON=" + input));
         if ("NONE".equals(env.getNetworkPolicy())) command.addAll(List.of("--network", "none"));
         else command.addAll(List.of("--network", env.getNetworkName()));
-        command.addAll(List.of(imageId, "python", "/workspace/scripts/_runtime_capture.py", "/workspace/scripts/" + fileName));
+        command.addAll(List.of(imageId, "python", "/workspace/scripts/_runtime_capture.py", scriptPath));
         ExecResult created = run(command, Duration.ofSeconds(60));
         if (created.exitCode() != 0) throw new IllegalStateException("Docker create failed: " + created.stderr());
     }
@@ -196,7 +200,7 @@ public class PythonDockerRuntime {
     }
 
     public ExecResult execute(PythonEnvironment env, String tenant, String owner, String asset, String fileName, String source, Map<String, Object> parameters) {
-        if (fileName == null || !fileName.matches("[A-Za-z0-9][A-Za-z0-9_.-]{0,170}\\.py"))
+        if (fileName == null || !com.chatchat.common.runtime.coding.CodingScript.safeFileName(fileName))
             throw new IllegalArgumentException("非法 Python 文件名");
         validateEnvironment(env);
         String container = "chatchat-py-" + safe(asset).toLowerCase(Locale.ROOT) + "-" + UUID.randomUUID().toString().substring(0, 8);

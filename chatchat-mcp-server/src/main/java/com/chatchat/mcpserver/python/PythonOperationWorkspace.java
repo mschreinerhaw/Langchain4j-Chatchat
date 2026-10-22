@@ -29,15 +29,23 @@ public class PythonOperationWorkspace {
 
     public Snapshot prepare(Path target, String fileName, String source, Map<String,Object> parameters,
                             String tenant, String owner, List<String> authorizedFileIds) {
-        if (fileName == null || !fileName.matches("[A-Za-z0-9][A-Za-z0-9_.-]{0,170}\\.py"))
+        return prepare(target,fileName,source,parameters,tenant,owner,authorizedFileIds,null);
+    }
+    public Snapshot prepare(Path target,String fileName,String source,Map<String,Object> parameters,
+                            String tenant,String owner,List<String> authorizedFileIds,com.chatchat.common.runtime.coding.CodingScript script) {
+        Path scopedRoot=Path.of(properties.getWorkspaceRoot()).toAbsolutePath().normalize().resolve("operations").resolve(key(tenant)).resolve(key(owner));
+        if(!target.toAbsolutePath().normalize().startsWith(scopedRoot))throw new SecurityException("Operation workspace is outside owner boundary");
+        if(script!=null && !script.fileName().equals(fileName))throw new SecurityException("Script file differs from its version");
+        if (!com.chatchat.common.runtime.coding.CodingScript.safeFileName(fileName))
             throw new IllegalArgumentException("Invalid Python file name");
         if (source == null || source.isBlank()) throw new IllegalArgumentException("Python source is empty");
         try {
             if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
                 if (Files.isSymbolicLink(target)) throw new IllegalArgumentException("Operation path is a symlink");
-                return readSnapshot(target);
+                return matchingSnapshot(target,fileName,source,parameters,script);
             }
             Path parent = target.getParent();
+            rejectLinks(parent);
             Files.createDirectories(parent);
             rejectLinks(parent);
             Path temporary = Files.createTempDirectory(parent, ".snapshot-");
@@ -57,14 +65,14 @@ public class PythonOperationWorkspace {
                 byte[] args = mapper.copy().enable(com.fasterxml.jackson.databind.SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
                         .writeValueAsBytes(parameters == null ? Map.of() : parameters);
                 Files.write(temporary.resolve("parameters.json"), args, StandardOpenOption.CREATE_NEW);
-                Snapshot snapshot = new Snapshot(fileName, hash(code), hash(args), List.copyOf(files));
+                Snapshot snapshot = new Snapshot(fileName, hash(code), hash(args), List.copyOf(files),script);
                 Files.write(temporary.resolve("snapshot.json"), mapper.writeValueAsBytes(snapshot), StandardOpenOption.CREATE_NEW);
                 try {
                     Files.move(temporary, target);
                 } catch (FileAlreadyExistsException ex) {
-                    return readSnapshot(target);
+                    return matchingSnapshot(target,fileName,source,parameters,script);
                 } catch (DirectoryNotEmptyException ex) {
-                    return readSnapshot(target);
+                    return matchingSnapshot(target,fileName,source,parameters,script);
                 }
                 return snapshot;
             } finally {
@@ -80,8 +88,10 @@ public class PythonOperationWorkspace {
         for (Path path : List.of(target.resolve("snapshot.json"), target.resolve("parameters.json"), target.resolve("scripts"), target.resolve("input")))
             if (Files.isSymbolicLink(path)) throw new IllegalArgumentException("Symlink in operation snapshot");
         Snapshot snapshot = mapper.readValue(Files.readAllBytes(target.resolve("snapshot.json")), Snapshot.class);
-        if (snapshot.fileName() == null || !snapshot.fileName().matches("[A-Za-z0-9][A-Za-z0-9_.-]{0,170}\\.py"))
+        if (!com.chatchat.common.runtime.coding.CodingScript.safeFileName(snapshot.fileName()))
             throw new IllegalArgumentException("Invalid stored Python file name");
+        if(snapshot.script()!=null&&!snapshot.fileName().equals(snapshot.script().fileName()))
+            throw new SecurityException("Stored script version binding differs");
         if (Files.isSymbolicLink(target.resolve("scripts").resolve(snapshot.fileName()))
                 || !hash(Files.readAllBytes(target.resolve("scripts").resolve(snapshot.fileName()))).equals(snapshot.codeHash())
                 || !hash(Files.readAllBytes(target.resolve("parameters.json"))).equals(snapshot.parametersHash()))
@@ -98,6 +108,16 @@ public class PythonOperationWorkspace {
                 throw new IllegalStateException("Input snapshot checksum mismatch");
         }
         return snapshot;
+    }
+    private Snapshot matchingSnapshot(Path target,String name,String source,Map<String,Object> parameters,
+            com.chatchat.common.runtime.coding.CodingScript script) throws IOException {
+        var stored=readSnapshot(target);
+        byte[] args=mapper.copy().enable(com.fasterxml.jackson.databind.SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .writeValueAsBytes(parameters==null?Map.of():parameters);
+        if(!stored.fileName().equals(name)||!stored.codeHash().equals(hash(source.getBytes(StandardCharsets.UTF_8)))
+                ||!stored.parametersHash().equals(hash(args))||!Objects.equals(stored.script(),script))
+            throw new SecurityException("Operation snapshot is immutable");
+        return stored;
     }
 
     /** Give only the configured sandbox UID access to the operation's writable mount. */
@@ -284,7 +304,7 @@ public class PythonOperationWorkspace {
         }
     }
     public record Snapshot(String fileName, String codeHash, String parametersHash,
-                           List<PythonDataFileService.SnapshotFile> inputs) {}
+                           List<PythonDataFileService.SnapshotFile> inputs, com.chatchat.common.runtime.coding.CodingScript script) {}
     public record Artifact(String channel, String fileName, long size, String sha256, long rows,
                            String completeness, String schemaJson) {}
     public record Manifest(List<Artifact> artifacts, String resultCompleteness) {}

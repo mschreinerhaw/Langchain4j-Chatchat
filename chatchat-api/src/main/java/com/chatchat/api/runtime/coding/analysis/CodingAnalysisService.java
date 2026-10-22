@@ -316,6 +316,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 if (selectedEnvironment.assetId() != null) environmentSnapshot.put("assetId", selectedEnvironment.assetId());
             }
             configuration.put("pythonEnvironment", environmentSnapshot);
+            String purpose=context.query()==null||context.query().isBlank()?instruction:context.query();
+            configuration.put("scriptPurpose",purpose.codePoints().limit(96).collect(StringBuilder::new,StringBuilder::appendCodePoint,StringBuilder::append).toString());
             goal += "\nActual Python execution environment (immutable task snapshot): " + ModelProtocolJson.compact(environmentSnapshot)
                 + ". Use the installed package versions and compatible APIs; do not assume packages from a different image or install dependencies. "
                 + "Distinguish scalar amounts from row dictionaries and inspect variable definitions before indexing values.";

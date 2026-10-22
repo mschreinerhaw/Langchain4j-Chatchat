@@ -71,7 +71,15 @@ public interface McpPythonControlPlanePort extends RuntimeProtocolPort {
                         String source, Map<String, Object> parameters, String inputSchemaJson,
                         List<String> authorizedFileIds, Map<String, String> authorizedFileHashes,
                         String sourceSha256, java.time.Instant deadlineAt, String budgetReservationRef,
+                        Integer expectedEnvironmentVersion, String expectedImageDigest, com.chatchat.common.runtime.coding.CodingScript script) {
+        public StartRequest(String tenantId, String ownerId, String runId, String taskId, String operationId,
+                        int attempt, long fencingToken, String environmentId, String assetId, String fileName,
+                        String source, Map<String, Object> parameters, String inputSchemaJson,
+                        List<String> authorizedFileIds, Map<String, String> authorizedFileHashes,
+                        String sourceSha256, java.time.Instant deadlineAt, String budgetReservationRef,
                         Integer expectedEnvironmentVersion, String expectedImageDigest) {
+            this(tenantId, ownerId, runId, taskId, operationId, attempt, fencingToken, environmentId, assetId, fileName, source, parameters, inputSchemaJson, authorizedFileIds, authorizedFileHashes, sourceSha256, deadlineAt, budgetReservationRef, expectedEnvironmentVersion, expectedImageDigest, null);
+        }
         public StartRequest(String tenantId, String ownerId, String runId, String taskId, String operationId,
                 int attempt, long fencingToken, String environmentId, String assetId, String fileName,
                 String source, Map<String,Object> parameters, String inputSchemaJson, List<String> authorizedFileIds,

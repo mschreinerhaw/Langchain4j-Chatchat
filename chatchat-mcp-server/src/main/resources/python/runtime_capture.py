@@ -27,7 +27,8 @@ def capture(stream, result):
 
 def main():
     source = sys.argv[1]
-    process = subprocess.Popen([sys.executable, '-u', source], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen([sys.executable, '-u', source], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               env={**os.environ, 'PYTHONIOENCODING': 'utf-8'})
     out, err = {}, {}
     readers = [threading.Thread(target=capture, args=(process.stdout, out)),
                threading.Thread(target=capture, args=(process.stderr, err))]
@@ -47,7 +48,7 @@ def main():
     frames = re.findall(r'File "' + re.escape(source) + r'", line ([0-9]{1,8})', err['tail'])
     if frames:
         diagnostic['line'] = int(frames[-1])
-        diagnostic['stack'] = [{'file': 'main.py', 'line': int(line)} for line in frames[-16:]]
+        diagnostic['stack'] = [{'file': os.path.basename(source), 'line': int(line)} for line in frames[-16:]]
     hint = diagnostic_code(err['tail'])
     if hint:
         diagnostic['diagnosticCode'] = hint

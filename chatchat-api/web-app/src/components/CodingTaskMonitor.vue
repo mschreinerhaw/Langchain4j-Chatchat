@@ -62,7 +62,7 @@
           </table></div>
           <details><summary>字段类型与数据质量</summary><pre>{{ JSON.stringify({ schema: input.inputManifest?.columns || input.schemaJson, quality: input.qualitySummary }, null, 2) }}</pre></details>
         </article>
-        <h4>代码工作区 · main.py</h4>
+        <h4>代码工作区 · {{ version?.fileName || code?.fileName || '待提交' }}</h4>
         <p v-if="!versions.length">尚无完整代码版本。模型请求期间显示 CODING，返回完整工具参数后显示代码。</p>
         <label v-if="versions.length">版本 <select v-model="selectedOperation"><option v-for="(version, index) in versions" :key="version.operationId" :value="version.operationId">v{{ index + 1 }} · {{ version.state }} · {{ time(version.generatedAt) }}</option></select></label>
         <p v-if="version">SHA-256：{{ version.hash }} · {{ version.state }} · 校验 {{ version.validationStatus || '待回执' }} {{ version.outputStatus || '' }}</p>

@@ -26,6 +26,24 @@ import static org.assertj.core.api.Assertions.*;
 
 /** Real JDBC transactions and independent connections. No mocked store, CAS, lock or recovery. */
 class CodingTaskPersistenceTest {
+    @Test void scriptVersionsAreAtomicImmutableAndRecoverableAcrossIndependentConnections() throws Exception {
+        service.submit(contract("script-task",16));var lease=claim("script-task","worker");
+        String first="cline-"+"1".repeat(64),second="cline-"+"2".repeat(64);
+        var v1=service.allocateScript(scope,"script-task",lease,first);
+        var pool=Executors.newFixedThreadPool(10);
+        try {
+            var futures=new ArrayList<Future<CodingScript>>();
+            for(int i=0;i<10;i++)futures.add(pool.submit(()->service(store(new JdbcTemplate(dataSource))).allocateScript(scope,"script-task",lease,second)));
+            for(var future:futures)assertThat(future.get()).isEqualTo(service.script(scope,"script-task",second));
+        } finally {pool.shutdownNow();}
+        var v2=service.script(scope,"script-task",second);
+        assertThat(v1.scriptVersion()).isEqualTo(1);assertThat(v2.scriptVersion()).isEqualTo(2);
+        assertThat(v1.fileName()).isNotEqualTo(v2.fileName()).endsWith("_v1.py");
+        service.bindScriptHash(scope,"script-task",lease,first,"a".repeat(64));
+        code(()->service.bindScriptHash(scope,"script-task",lease,first,"b".repeat(64)),TASK_ID_CONFLICT);
+        assertThat(service(store(new JdbcTemplate(dataSource))).script(scope,"script-task",first)).isEqualTo(v1);
+        assertThat(service.privateState(scope,"script-task","script:"+first).path("codeHash").asText()).isEqualTo("a".repeat(64));
+    }
     @Test void repairPolicyIsDurableAndConcurrentUnsettledAttemptsCannotAcquireAnotherReservation() {
         service.submit(contract("feedback-policy",10));var lease=claim("feedback-policy","worker");
         var policy=json.valueToTree(Map.of("maxAutoRepairs",0));

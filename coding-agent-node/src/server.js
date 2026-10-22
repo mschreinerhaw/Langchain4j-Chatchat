@@ -77,6 +77,7 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
     reserveModel: (contract, model) => callback('reserve-model', { contract, model }),
     model: (contract, request, signal) => callback('model', { contract, request }, signal),
     settleModel: (contract, model) => callback('settle-model', { contract, model }),
+    preparePython: (contract, execution, signal) => callback('prepare-python', { contract, execution }, signal),
     executePython: (contract, execution, signal) => callback('execute-python', { contract, execution }, signal),
     getPython: (contract, operationId, signal) => callback('get-python', { contract, operationId }, signal),
     cancelPython: (contract, operationId) => callback('cancel-python', { contract, operationId }),

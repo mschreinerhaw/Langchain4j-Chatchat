@@ -8,6 +8,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class PythonExecutionLogBoundaryTest {
     @TempDir Path workspace;
+    @org.junit.jupiter.api.BeforeEach void snapshot() throws Exception {
+        Files.writeString(workspace.resolve("snapshot.json"),"{\"fileName\":\"sales_20261022T000000000Z_abcdef012345_v1.py\"}");
+    }
 
     @Test void untrustedDiagnosticFieldsAndOldLogsCannotPersistSourceRows() throws Exception {
         Path logs = Files.createDirectories(workspace.resolve("output/logs"));

@@ -10,7 +10,7 @@ public record ExecutionFeedback(String schemaVersion, String taskId, String exec
         List<InputFile> inputFiles, Map<String,String> inputSchemaSummary,
         Map<String,String> artifactRefs, String validationStatus, boolean resultAvailable,
         String manifestHash, String outputStatus, boolean businessValidationPassed,
-        Repair repair, String diagnosticPolicy) {
+        Repair repair, String diagnosticPolicy, CodingScript script) {
     public static final String VERSION = "runtime_os.execution_feedback.v1";
     public ExecutionFeedback {
         CodingProtocol.require(VERSION.equals(schemaVersion),"Unknown execution feedback version");
@@ -24,7 +24,7 @@ public record ExecutionFeedback(String schemaVersion, String taskId, String exec
         inputSchemaSummary=Map.copyOf(inputSchemaSummary);artifactRefs=Map.copyOf(artifactRefs);
     }
     public record Frame(String file, int line, Integer column) {
-        public Frame { CodingProtocol.require("main.py".equals(file)&&line>0&&line<100_000_000,"Invalid normalized source frame"); }
+        public Frame { CodingProtocol.require(CodingScript.safeFileName(file)&&line>0&&line<100_000_000,"Invalid normalized source frame"); }
     }
     public record InputFile(String fileId,String fileName,String sha256) { }
     public record Failure(String category, String exceptionType, String diagnosticCode,

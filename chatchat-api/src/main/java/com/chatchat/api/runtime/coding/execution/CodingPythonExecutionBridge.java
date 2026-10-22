@@ -85,7 +85,7 @@ public class CodingPythonExecutionBridge {
                 contract.taskId(), operationId, 1, lease.fencingToken(), environmentId, assetId, fileName,
                 source, parameters == null ? Map.of() : parameters, inputSchemaJson == null ? "{}" : inputSchemaJson,
                 new ArrayList<>(files.keySet()), files, sourceHash, contract.budget().deadlineAt(), reservationRef,
-                environmentVersion, imageDigest));
+                environmentVersion, imageDigest,tasks.script(scope,contract.taskId(),operationId)));
     }
 
     public McpPythonControlPlanePort.OperationView get(KernelDataScope scope, String taskId, String operationId) {

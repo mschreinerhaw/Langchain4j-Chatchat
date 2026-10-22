@@ -27,7 +27,8 @@ export async function startFixture(options = {}) {
       }
     } }), gatewayFactory: () => ({
       reserveModel: async () => {}, settleModel: async () => {}, finish: async () => {},
-      executePython: async () => ({ status: 'SUCCEEDED', executorStopped: true,
+      preparePython: async()=>({fileName:'sales_20261022T000000000Z_abcdef012345_v1.py',scriptVersion:1,scriptPath:'/workspace/scripts/sales_20261022T000000000Z_abcdef012345_v1.py',workingDirectory:'tasks/'+['a'.repeat(16),'b'.repeat(16),'c'.repeat(16),'d'.repeat(24)].join('/')}),
+  executePython: async () => ({ status: 'SUCCEEDED', executorStopped: true,
         resultDatasetRef: 'result', validationRecordRef: 'validation', evidenceBundleRef: 'bundle' }),
     }),
   });

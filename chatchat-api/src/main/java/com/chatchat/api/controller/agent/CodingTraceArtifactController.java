@@ -44,9 +44,10 @@ public class CodingTraceArtifactController {
                 var file = submitted.get();
                 String source = file.get("content").toString();
                 String safe = CodingArtifactRedactor.redact(source);
-                return ApiResponse.success(Map.of("kind","code","content",safe,"sha256",file.get("sha256"),
-                    "sourceBytes",file.get("sourceBytes"),"redacted",!source.equals(safe),"truncated",false,
-                    "version",operationId,"status","SUBMITTED_TO_RUNTIME"));
+                var response=new java.util.LinkedHashMap<String,Object>(Map.of("kind","code","content",safe,"sha256",file.get("sha256"),
+                    "sourceBytes",file.get("sourceBytes"),"redacted",!source.equals(safe),"truncated",false,"version",operationId,"status","SUBMITTED_TO_RUNTIME"));
+                response.put("fileName",file.get("fileName"));response.put("script",file.getOrDefault("script",Map.of()));
+                return ApiResponse.success(response);
             }
         }
         boolean referenced = runtime.observations(runId).stream().map(item -> item.metadata()).anyMatch(meta ->
@@ -55,7 +56,7 @@ public class CodingTraceArtifactController {
         if (!referenced || !operationId.matches("cline-[0-9a-f]{64}"))
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         String file = switch (kind) {
-            case "code" -> "main.py";
+            case "code" -> com.chatchat.common.runtime.coding.CodingScript.LEGACY_FILE;
             case "stdout" -> "stdout.txt";
             case "stderr" -> "stderr.txt";
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST);

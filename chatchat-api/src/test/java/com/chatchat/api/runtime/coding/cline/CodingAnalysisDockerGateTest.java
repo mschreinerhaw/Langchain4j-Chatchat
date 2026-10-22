@@ -91,6 +91,11 @@ class CodingAnalysisDockerGateTest extends CodingDockerFixture {
             new com.chatchat.api.datascience.sql.SqlGlotToolchain(System.getProperty("coding.sqlglotPython"),json)));
         node=new CodingNodeHttpFixture(json,model,new ClinePythonCallbackController(identity,tasks,inputs,plans,bridge,collector,json));
         adapter=new ClineCodingAdapter(tasks,bridge,inputs,plans,collector,modelReceipts,node.uri(),sharedSecret,json,recoveryClock);adapter.setDataSupply(supply);
+        adapter.setLicenseEntitlements(new com.chatchat.common.mcp.license.McpLicenseEntitlementPort() {
+            @Override public CodingDispatchEntitlement codingDispatchEntitlement() {
+                return new CodingDispatchEntitlement(true, "VALID");
+            }
+        });
     }
     @AfterEach void stopNode() throws Exception {if(node!=null)node.close();}
     void prepare(String fault,boolean longRunning) throws Exception {

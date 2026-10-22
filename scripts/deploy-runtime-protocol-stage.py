@@ -9,6 +9,7 @@ import time
 import urllib.error
 import urllib.request
 import zipfile
+from application_image_build import build_application_image
 
 ROOT = Path('/opt/runtime-os-docker-stage')
 EVIDENCE_ROOT = ROOT / 'evidence'
@@ -64,10 +65,7 @@ def main():
     tag = 'runtime-os-' + service + ':protocol-recovery-' + digest[:12]
     context = EVIDENCE / ('image-context' if service == 'api' else 'mcp-image-context')
     context.mkdir(exist_ok=True)
-    shutil.copy2(jar, context / 'app.jar')
-    base='runtime-os-api:studio-parser-sqlglot-30.23.0' if studio else current['Config']['Image']
-    (context / 'Dockerfile').write_text('FROM ' + base + '\nCOPY app.jar /srv/app/app.jar\n')
-    run('docker', 'build', '--network=none', '-t', tag, str(context))
+    build_application_image(service, jar, tag, context)
     backup = EVIDENCE / ('backup-' + str(int(time.time())))
     backup.mkdir(mode=0o700)
     paths = [ROOT / 'compose.yaml', ROOT / 'config/deployment.env']

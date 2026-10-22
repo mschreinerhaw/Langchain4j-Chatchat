@@ -10,6 +10,7 @@ import com.chatchat.api.runtime.coding.evidence.CodingValidationPlanService;
 import com.chatchat.api.runtime.coding.execution.CodingPythonExecutionBridge;
 import com.chatchat.api.runtime.evidence.JdbcRuntimeEvidenceStore;
 import com.chatchat.common.kernel.KernelDataScope;
+import com.chatchat.common.mcp.license.McpLicenseEntitlementPort;
 import com.chatchat.common.runtime.coding.CodingProtocol;
 import com.chatchat.common.runtime.coding.CodingTaskContract;
 import com.chatchat.common.runtime.coding.CodingTaskOutcome;
@@ -39,6 +40,7 @@ import org.springframework.scheduling.concurrent.ConcurrentTaskScheduler;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ClineCodingAdapterDispatchTest {
     @Test void missingNodeSessionCanRestartOnlyBeforeAnExternalOperationWasStarted() throws Exception {
@@ -88,6 +90,10 @@ class ClineCodingAdapterDispatchTest {
                 mock(CodingEvidenceCollector.class), receipts,
                 URI.create("http://127.0.0.1:" + http.getAddress().getPort()),
                 "0123456789abcdef0123456789abcdef", json);
+            var license = mock(McpLicenseEntitlementPort.class);
+            when(license.codingDispatchEntitlement()).thenReturn(
+                new McpLicenseEntitlementPort.CodingDispatchEntitlement(true, "VALID"));
+            adapter.setLicenseEntitlements(license);
             var base=contract(scope);
             var contract=fileInput?new CodingTaskContract(CodingProtocol.ANALYSIS_VERSION,base.taskId(),scope,base.objective(),base.inputSnapshotRef(),
                 base.metadataRefs(),base.workspaceRef(),new CodingTaskContract.Authorization(base.authorization().decisionRef(),List.of(),
@@ -104,6 +110,14 @@ class ClineCodingAdapterDispatchTest {
                 }
                 adapter.submit(contract);
                 assertThat(dispatches).hasValue(1);
+                when(license.codingDispatchEntitlement()).thenReturn(
+                    new McpLicenseEntitlementPort.CodingDispatchEntitlement(false, "EXPIRED"));
+                assertThatThrownBy(() -> adapter.resume(scope, contract.taskId()))
+                    .isInstanceOf(com.chatchat.common.runtime.coding.CodingContractException.class)
+                    .hasMessageContaining("授权已过期").hasMessageContaining("更新授权后重试");
+                assertThat(dispatches).hasValue(1);
+                when(license.codingDispatchEntitlement()).thenReturn(
+                    new McpLicenseEntitlementPort.CodingDispatchEntitlement(true, "VALID"));
                 adapter.resume(scope, contract.taskId()); // Node lost a session before any external call.
                 assertThat(dispatches).hasValue(2);
                 if(fileInput) {

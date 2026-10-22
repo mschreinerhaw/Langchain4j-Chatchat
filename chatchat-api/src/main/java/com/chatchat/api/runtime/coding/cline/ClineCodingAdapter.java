@@ -9,6 +9,7 @@ import com.chatchat.api.runtime.coding.evidence.CodingValidationPlanService;
 import com.chatchat.api.runtime.coding.execution.CodingPythonExecutionBridge;
 import com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService;
 import com.chatchat.common.kernel.KernelDataScope;
+import com.chatchat.common.mcp.license.McpLicenseEntitlementPort;
 import com.chatchat.common.runtime.coding.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,6 +41,10 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     public void setWorkspace(CodingWorkspaceService workspace) { this.workspace = workspace; }
     private CodingDataSupplyService dataSupply;
     public void setDataSupply(CodingDataSupplyService value) {this.dataSupply=value;}
+    private McpLicenseEntitlementPort licenseEntitlements = new McpLicenseEntitlementPort() { };
+    public void setLicenseEntitlements(McpLicenseEntitlementPort value) {
+        this.licenseEntitlements = java.util.Objects.requireNonNull(value);
+    }
 
     public ClineCodingAdapter(DurableCodingTaskService tasks, CodingPythonExecutionBridge python,
             CodingInputSnapshotService inputs, CodingValidationPlanService plans,
@@ -64,6 +69,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     }
 
     @Override public CodingTaskOutcome submit(CodingTaskContract contract) {
+        requireDispatchLicense();
         if (CodingWorkspaceService.supports(contract)) {
             if (workspace == null) throw new IllegalStateException("Workspace Coding profile is not enabled");
             workspace.requireAuthorized(contract);
@@ -336,6 +342,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     }
 
     private JsonNode request(String path, Object value) {
+        if ("/v1/runs".equals(path)) requireDispatchLicense();
         try {
             byte[] bytes = mapper.writeValueAsBytes(value);
             HttpRequest call = HttpRequest.newBuilder(node.resolve(path)).timeout(Duration.ofSeconds(5))
@@ -351,6 +358,23 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         } catch (java.io.IOException failure) {
             throw new IllegalStateException("Cline dispatch outcome unknown; reconcile before retry", failure);
         }
+    }
+    private void requireDispatchLicense() {
+        McpLicenseEntitlementPort.CodingDispatchEntitlement entitlement;
+        try {
+            entitlement = licenseEntitlements.codingDispatchEntitlement();
+        } catch (RuntimeException unavailable) {
+            entitlement = null;
+        }
+        if (entitlement != null && entitlement.licenseValid()
+                && "VALID".equals(entitlement.licenseStatus())) return;
+        String status = entitlement == null ? "UNAVAILABLE" : entitlement.licenseStatus();
+        String message = "EXPIRED".equals(status)
+            ? "您的产品授权已过期，任务委派已暂停。请联系管理员更新授权后重试。"
+            : "UNAVAILABLE".equals(status) || status == null || status.isBlank()
+                ? "暂时无法核验产品授权，Cline 任务委派已暂停。请联系管理员检查授权服务后重试。"
+                : "当前产品授权无效，Cline 任务委派已暂停。请联系管理员更新有效授权后重试。";
+        throw new CodingContractException(CodingErrorCode.AUTHORIZATION_DENIED, message);
     }
     private void requireInputCapabilities(CodingTaskContract contract) {
         boolean fast=contract.metadataRefs().contains("runtime-coding:analysis-fast-path:v1");

@@ -10,6 +10,8 @@ $ErrorActionPreference = 'Continue'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).Path
 Set-Location $repo
 $buildRevision = "$(git rev-parse HEAD)-$Tag"
+[xml]$releasePom = Get-Content -LiteralPath (Join-Path $repo 'pom.xml')
+$releaseVersion = $releasePom.project.version
 
 if (-not (Test-Path -LiteralPath $DockerCliPath -PathType Leaf)) {
     throw "Supply a Linux/amd64 Docker CLI binary compatible with the target Docker daemon."
@@ -36,20 +38,24 @@ if (-not $SkipMaven) {
     if ($LASTEXITCODE -ne 0) { throw 'Maven package failed.' }
 }
 
-& (Join-Path $PSScriptRoot 'verify-web-assets.ps1') -JarPath (Join-Path $repo 'chatchat-api/target/chatchat-api-1.0.0-SNAPSHOT.jar')
+& (Join-Path $PSScriptRoot 'verify-web-assets.ps1') -JarPath (Join-Path $repo "chatchat-api/target/chatchat-api-$releaseVersion.jar")
 foreach ($module in @('chatchat-api','chatchat-mcp-server','chatchat-runtime-news')) {
-    & (Join-Path $PSScriptRoot 'verify-image-secrets.ps1') -JarPath (Join-Path $repo "$module/target/$module-1.0.0-SNAPSHOT.jar")
+    & (Join-Path $PSScriptRoot 'verify-image-secrets.ps1') -JarPath (Join-Path $repo "$module/target/$module-$releaseVersion.jar")
 }
 $apps = @(
-    @{ Name = 'api'; Jar = 'chatchat-api/target/chatchat-api-1.0.0-SNAPSHOT.jar'; Dockerfile = 'Dockerfile' },
-    @{ Name = 'mcp'; Jar = 'chatchat-mcp-server/target/chatchat-mcp-server-1.0.0-SNAPSHOT.jar'; Dockerfile = 'Dockerfile.mcp' },
-    @{ Name = 'news'; Jar = 'chatchat-runtime-news/target/chatchat-runtime-news-1.0.0-SNAPSHOT.jar'; Dockerfile = 'Dockerfile' }
+    @{ Name = 'api'; Jar = "chatchat-api/target/chatchat-api-$releaseVersion.jar"; Dockerfile = 'Dockerfile.api' },
+    @{ Name = 'mcp'; Jar = "chatchat-mcp-server/target/chatchat-mcp-server-$releaseVersion.jar"; Dockerfile = 'Dockerfile.mcp' },
+    @{ Name = 'news'; Jar = "chatchat-runtime-news/target/chatchat-runtime-news-$releaseVersion.jar"; Dockerfile = 'Dockerfile' }
 )
 foreach ($app in $apps) {
     $context = Join-Path $contextRoot $app.Name
     New-Item -ItemType Directory -Force $context -ErrorAction Stop | Out-Null
     Copy-Item -LiteralPath (Join-Path $repo $app.Jar) -Destination (Join-Path $context 'app.jar') -Force -ErrorAction Stop
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $app.Dockerfile) -Destination (Join-Path $context 'Dockerfile') -Force -ErrorAction Stop
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '.dockerignore') -Destination (Join-Path $context '.dockerignore') -Force -ErrorAction Stop
+    if ($app.Name -eq 'api') {
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'sql-toolchain-requirements.txt') -Destination (Join-Path $context 'sql-toolchain-requirements.txt') -Force -ErrorAction Stop
+    }
     if ($app.Name -eq 'mcp') {
         $cliDestination = Join-Path $context 'docker'
         if ((Resolve-Path -LiteralPath $DockerCliPath).Path -ne $cliDestination) {
@@ -59,6 +65,10 @@ foreach ($app in $apps) {
     $appPort = if ($app.Name -eq 'news') { '8091' } elseif ($app.Name -eq 'mcp') { '8090' } else { '8080' }
     & docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$buildRevision" --build-arg "APP_PORT=$appPort" -t "runtime-os-$($app.Name):$Tag" $context
     if ($LASTEXITCODE -ne 0) { throw "Docker build failed for $($app.Name)." }
+    $imageSize = & docker image inspect --format '{{.Size}}' "runtime-os-$($app.Name):$Tag"
+    if ($LASTEXITCODE -ne 0 -or [long]$imageSize -gt 1200MB) { throw "Image size exceeds the 1200 MiB release budget: $($app.Name)." }
+    $history = & docker history --no-trunc --format '{{.CreatedBy}}' "runtime-os-$($app.Name):$Tag"
+    if (@($history | Where-Object { $_ -match 'COPY .*app.jar' }).Count -ne 1) { throw 'Application image must contain exactly one JAR copy layer.' }
 }
 
 & docker build --platform linux/amd64 --build-arg "BUILD_REVISION=$buildRevision" -t "runtime-os-coding-agent:$Tag" (Join-Path $repo 'coding-agent-node')

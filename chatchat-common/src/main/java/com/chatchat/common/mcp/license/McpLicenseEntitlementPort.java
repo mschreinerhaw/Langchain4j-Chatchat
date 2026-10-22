@@ -7,6 +7,13 @@ import java.util.Set;
 public interface McpLicenseEntitlementPort extends RuntimeProtocolPort {
     String PROTOCOL_VERSION = "runtime_os.mcp.license_entitlement.v1";
 
+    /** Task dispatch requires a current license; unavailable checks must not admit work. */
+    default CodingDispatchEntitlement codingDispatchEntitlement() {
+        return new CodingDispatchEntitlement(false, "UNAVAILABLE");
+    }
+
+    record CodingDispatchEntitlement(boolean licenseValid, String licenseStatus) { }
+
     /** Uses the same five-publication baseline as domain skills when MCP has no configured entitlement. */
     default AgentPublicationLimit agentPublicationLimit() {
         return new AgentPublicationLimit(true, "DEFAULT", "MCP 未配置 Agent 发布额度，使用默认额度", 5, true);

@@ -16,6 +16,15 @@ public class LicenseInternalController {
 
     private final McpLicenseService licenseService;
 
+    @GetMapping("/coding-dispatch-entitlement")
+    public ApiResponse<CodingDispatchEntitlement> codingDispatchEntitlement() {
+        LicenseStatus status = licenseService.status();
+        return ApiResponse.success(new CodingDispatchEntitlement(
+            status != null && status.valid(), status == null ? "UNAVAILABLE" : status.status()));
+    }
+
+    public record CodingDispatchEntitlement(boolean licenseValid, String licenseStatus) { }
+
     @GetMapping("/workspace-entitlement")
     public ApiResponse<WorkspaceEntitlement> workspaceEntitlement() {
         LicenseStatus status = licenseService.status();

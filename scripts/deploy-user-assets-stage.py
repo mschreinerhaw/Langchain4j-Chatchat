@@ -14,6 +14,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from application_image_build import build_application_image
 
 ROOT=Path('/opt/runtime-os-docker-stage')
 IMAGE='docker.io/pgsty/silo:RELEASE.2026-10-18T00-00-00Z'
@@ -102,8 +103,7 @@ mc admin policy attach store runtime-assets-api --user "$(cat /run/secrets/app-u
     run('docker','exec','-i','silo','sh',input=bootstrap)
     context=evidence/'api-image';context.mkdir(exist_ok=True);shutil.copy2(jar,context/'app.jar')
     tag='runtime-os-api:user-assets-'+expected[:12]
-    (context/'Dockerfile').write_text('FROM '+current['Config']['Image']+'\nCOPY app.jar /srv/app/app.jar\n')
-    run('docker','build','--network=none','-t',tag,str(context))
+    build_application_image('api', jar, tag, context)
     service=config['services']['api'];service['image']=tag
     env=service.setdefault('environment',{})
     if not isinstance(env,dict):raise RuntimeError('Structured API environment required')

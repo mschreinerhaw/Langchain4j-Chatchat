@@ -1,3 +1,5 @@
+> Historical design / evidence. Retired on 2026-10-22: professional Agent registration, A2A compute and joint-analysis orchestration have been removed. See [current architecture](retire-professional-agents/delivery.md). This document does not describe the current product.
+
 # 自建 Agent 联合分析实际输出
 
 验证日期：2026-09-30。以下内容来自生产环境真实模型调用；测试仅获取授权服务目录和文档，没有查询客户实际交易、资产或盈亏记录。结论的引用完整性通过自动检查，但不代表全部业务判断已经人工核实。

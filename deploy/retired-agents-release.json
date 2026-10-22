@@ -1,0 +1,10 @@
+{
+  "version": "2.1.0-rc1",
+  "branch": "feature/unified-management-workspaces",
+  "baselineTag": "baseline/runtime-os-unified-management-20261022",
+  "previousReleaseTag": "release/runtime-os-unified-management-2.0.0-rc5",
+  "removedApis": ["/api/v1/agent/analysis/**", "/api/v1/enterprise/agent-registry/**"],
+  "databaseMigration": "V20261022_04__retire_professional_agents.sql",
+  "databaseRollback": "R20261022_04__restore_professional_agents.sql",
+  "legacyDataPolicy": "restricted archival with exact row preservation; no destructive data deletion"
+}

@@ -1,3 +1,5 @@
+> Historical design / evidence. Retired on 2026-10-22: professional Agent registration, A2A compute and joint-analysis orchestration have been removed. See [current architecture](retire-professional-agents/delivery.md). This document does not describe the current product.
+
 # Agent 模型继承与联合分析联调
 
 ## 范围

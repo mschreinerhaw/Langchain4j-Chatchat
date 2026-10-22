@@ -34,6 +34,7 @@ def main():
     parser.add_argument('--case', choices=['single', 'joint'], required=True)
     parser.add_argument('--timeout', type=int, default=900)
     parser.add_argument('--exercise-error', action='store_true')
+    parser.add_argument('--visual-report', action='store_true')
     args = parser.parse_args()
     args.output.mkdir(mode=0o700, parents=True, exist_ok=True)
     auth = json.loads(args.auth.read_text())
@@ -77,8 +78,10 @@ def main():
         question = ("请用 Python 统计附件 CSV 的 amount 金额合计与行数。在代码中先使用不存在的 amount_missing 列名访问数据，"
                     "不要捕获这个 KeyError；收到执行错误后，再根据反馈将列名修正为 amount 并重新执行。"
                     "整体只返回这一个附件统计结果，不查询外部数据。")
+    if args.visual_report:
+        question = '请实际读取附件 CSV，使用 Python 计算行数与 amount 合计，并生成带金额柱状图、指标和解释的图文报告。仅使用附件中的合成数据，不查询外部数据。'
     request = {'question': question, 'sessionId': session, 'idempotencyKey': str(uuid.uuid4()),
-               'parameters': {'reportMode': 'off'}, 'attachmentIds': [item['id'] for item in files]}
+               'parameters': {'reportMode': 'visual' if args.visual_report else 'off'}, 'attachmentIds': [item['id'] for item in files]}
     task = call('/published-agents/' + urllib.parse.quote(args.agent) + '/questions', request)
     assert call('/published-agents/' + urllib.parse.quote(args.agent) + '/questions', request)['taskId'] == task['taskId']
     save('submission.json', {'request': request, 'response': task})
@@ -126,13 +129,16 @@ def main():
     checks = {'taskSucceeded': state == 'SUCCEEDED', 'publishedWorkflowUnchanged': unchanged,
               'sandboxExecutionProven': bool(consumed), 'admittedCodingEvidence': bool(receipts) and bool(feedback),
               'attachmentHashesVerified': len(files) == len(contents)}
+    if args.visual_report:
+        reports = [row for row in objects(result) if row.get('schemaVersion') == 'python_visual_report.v1']
+        checks['visualReportProduced'] = any(row.get('status') == 'SUCCESS' and row.get('charts') for row in reports)
     if args.exercise_error:
         checks['pythonErrorReturnedAndRepaired'] = bool(feedback) and any(
             row.get('schemaVersion') == 'runtime_os.execution_feedback.v1' and row.get('status') == 'FAILED'
             and row.get('exitCode') != 0 and (row.get('error') or {}).get('exceptionType') == 'KeyError'
             for row in objects(monitors))
     summary = {'status': 'PASSED' if all(checks.values()) else 'FAILED', 'case': args.case,
-               'exerciseError': args.exercise_error,
+               'exerciseError': args.exercise_error, 'visualReport': args.visual_report,
                'taskId': task['taskId'], 'states': states, 'checks': checks,
                'expectedTotals': [30] if args.case == 'single' else [30, 10],
                'elapsedSeconds': round(time.monotonic() - started, 1)}

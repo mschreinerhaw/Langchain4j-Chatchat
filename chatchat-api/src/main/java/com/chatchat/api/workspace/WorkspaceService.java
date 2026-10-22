@@ -171,7 +171,7 @@ public class WorkspaceService {
         if (manifest == null || !id.matches("[a-z][a-z0-9-]{0,63}") || !id.equals(manifest.workspaceId())
             || !"workspace-manifest.v1".equals(manifest.schemaVersion()) || manifest.configVersion() < 1
             || manifest.name() == null || manifest.name().isBlank() || manifest.appVersion() == null
-            || !Set.of("assistant", "studio").contains(manifest.layoutType()) || manifest.pages() == null
+            || !Set.of("assistant", "studio", "management").contains(manifest.layoutType()) || manifest.pages() == null
             || manifest.requiredCapabilities() == null || manifest.optionalCapabilities() == null || manifest.defaultSkillIds() == null)
             throw new IllegalArgumentException("Invalid Workspace Manifest");
         Set<String> ids = new HashSet<>();

@@ -82,48 +82,6 @@
       "props": {}
     },
     {
-      "id": "system",
-      "menuCode": "system",
-      "componentKey": "system",
-      "props": {}
-    },
-    {
-      "id": "systemUsers",
-      "menuCode": "systemUsers",
-      "componentKey": "systemUsers",
-      "props": {}
-    },
-    {
-      "id": "systemOrganizations",
-      "menuCode": "systemOrganizations",
-      "componentKey": "systemOrganizations",
-      "props": {}
-    },
-    {
-      "id": "systemRoles",
-      "menuCode": "systemRoles",
-      "componentKey": "systemRoles",
-      "props": {}
-    },
-    {
-      "id": "systemLogins",
-      "menuCode": "systemLogins",
-      "componentKey": "systemLogins",
-      "props": {}
-    },
-    {
-      "id": "systemResources",
-      "menuCode": "systemResources",
-      "componentKey": "systemResources",
-      "props": {}
-    },
-    {
-      "id": "systemSkillRoles",
-      "menuCode": "systemSkillRoles",
-      "componentKey": "systemSkillRoles",
-      "props": {}
-    },
-    {
       "id": "models",
       "menuCode": "models",
       "componentKey": "models",

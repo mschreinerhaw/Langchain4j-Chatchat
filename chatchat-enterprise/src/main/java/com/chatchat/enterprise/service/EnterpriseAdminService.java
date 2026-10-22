@@ -1574,7 +1574,6 @@ public class EnterpriseAdminService implements ApplicationRunner {
             .findByPermissionCode("system:menu-order:v3").isEmpty();
         List<SysPermission> permissions = ensureDefaultPermissions();
         ensureDefaultMenus();
-        migrateSystemSkillRoleMenuLabel();
         if (systemMenuOrderMigrationRequired) {
             migrateSystemMenuOrder();
         }
@@ -1991,7 +1990,6 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new MenuSeed("system", "systemRoles", "角色管理", "menu", "/index.html#systemRoles", "system", 42),
             new MenuSeed("system", "systemOrganizations", "组织管理", "menu", "/index.html#systemOrganizations", "system", 43),
             new MenuSeed("system", "systemResources", "资源授权", "menu", "/index.html#systemResources", "system", 44),
-            new MenuSeed("system", "systemSkillRoles", "技能权限", "menu", "/index.html#systemSkillRoles", "system", 45),
             new MenuSeed("system", "systemLogins", "登录审计", "menu", "/index.html#systemLogins", "system", 46)
         );
         Map<String, String> idsByCode = menuRepository.findAll().stream()
@@ -2023,14 +2021,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
     }
 
     /** Updates the original long label while preserving any administrator-customized menu name. */
-    private void migrateSystemSkillRoleMenuLabel() {
-        menuRepository.findByMenuCode("systemSkillRoles").ifPresent(menu -> {
-            if ("技能角色查询".equals(menu.getMenuName())) {
-                menu.setMenuName("技能权限");
-                menuRepository.save(menu);
-            }
-        });
-    }
+
 
     /** Applies the requested system submenu order once, then leaves database configuration authoritative. */
     private void migrateSystemMenuOrder() {
@@ -2039,7 +2030,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
             "systemRoles", 42,
             "systemOrganizations", 43,
             "systemResources", 44,
-            "systemSkillRoles", 45,
+
             "systemLogins", 46
         );
         orderByCode.forEach((code, sortOrder) -> menuRepository.findByMenuCode(code).ifPresent(menu -> {
@@ -2067,7 +2058,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
             case "systemOrganizations" -> "organization";
             case "systemRoles" -> "shield";
             case "systemResources" -> "key";
-            case "systemSkillRoles" -> "shield";
+
             default -> null;
         };
     }

@@ -70,7 +70,9 @@ class EnterpriseAdminServiceIntegrationTest {
             .toList())
             .containsSubsequence(
                 "systemUsers", "systemRoles", "systemOrganizations", "systemResources",
-                "systemSkillRoles", "systemLogins");
+                "systemLogins");
+        assertThat(service.listMenuConfigurations()).extracting(item -> item.menu().getMenuCode())
+            .doesNotContain("systemSkillRoles", "permissionTools");
         assertThat(resourceGrantRepository.findAll())
             .hasSize(6)
             .allSatisfy(grant -> {

@@ -90,7 +90,7 @@
       <h3>添加授权</h3
       ><div class="permission-form-grid"
         ><label
-          >对象类型<select v-model="form.targetType" @change="form.targetId = ''"
+          >对象类型<select aria-label="对象类型" v-model="form.targetType" @change="form.targetId = ''"
             ><option value="ROLE">角色</option
             ><option v-if="resource.backend !== 'permission'" value="USER">用户</option
             ><option v-if="resource.backend !== 'permission'" value="TENANT"
@@ -98,14 +98,14 @@
             ></select
           ></label
         ><label
-          >授权对象<select v-if="form.targetType !== 'TENANT'" v-model="form.targetId" required
+          >授权对象<select aria-label="授权对象" v-if="form.targetType !== 'TENANT'" v-model="form.targetId" required
             ><option value="">请选择</option
             ><option v-for="item in subjects" :key="item.id" :value="item.id">{{
               item.roleName || item.displayName || item.username
             }}</option></select
           ><input v-else value="当前工作空间所属租户" readonly /></label
         ><label
-          >授权动作<select v-model="form.effect"
+          >授权动作<select aria-label="授权动作" v-model="form.effect"
             ><option value="allow">允许{{ resource.action }}</option
             ><option v-if="resource.backend !== 'permission'" value="deny"
               >拒绝{{ resource.action }}</option

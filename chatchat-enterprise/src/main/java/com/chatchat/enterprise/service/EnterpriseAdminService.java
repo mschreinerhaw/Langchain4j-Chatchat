@@ -2020,11 +2020,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
         }
     }
 
-    /** Updates the original long label while preserving any administrator-customized menu name. */
-
-
     /** Applies the requested system submenu order once, then leaves database configuration authoritative. */
     private void migrateSystemMenuOrder() {
+        // The unified workspace migration now owns these positions; startup must preserve its archive/rollback state.
+        if (menuRepository.findByMenuCode("permissionsRoot").isPresent()) {
+            return;
+        }
         Map<String, Integer> orderByCode = Map.of(
             "systemUsers", 41,
             "systemRoles", 42,

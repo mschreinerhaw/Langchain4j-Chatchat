@@ -749,6 +749,9 @@ export default {
           return;
         }
         this.activeView = workspaceRoute.pageId;
+        if (workspaceRoute.workspaceId === "permissions" && /^#\/?w\/(?:permissions|zhice)\/(?:systemSkillRoles|permissionTools|system)(?:\?|$)/.test(window.location.hash)) {
+          window.history.replaceState(window.history.state, "", `#/w/permissions/${workspaceRoute.pageId}`);
+        }
         return;
       }
       if (route === LOGIN_ROUTE) {

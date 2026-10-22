@@ -264,8 +264,9 @@ export default {
         if (organizations) orgs.value = organizations;
         if (props.mode === "resources" && !selectedResource.value)
           resourceKey.value = resources.value[0]?.key || "";
-        notice.value = extraResults.some((r) => r.status === "rejected")
-          ? "权限目录已加载。部分资源名称目录不可读取，现有规则仍保留，可在详情查看标识。"
+        const missing = ["工具", "知识库", "领域技能", "查询服务", "组织"].filter((_, index) => extraResults[index].status === "rejected");
+        notice.value = missing.length
+          ? `权限目录已加载。${missing.join("、")}名称目录不可读取，现有规则仍保留，可在详情查看标识。`
           : "";
       } catch (e) {
         failed.value = true;

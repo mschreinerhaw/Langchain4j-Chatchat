@@ -8,6 +8,16 @@ import * as api from "../services/api.js";
 import { setWorkspaceContext } from "./utils/workspaceContext";
 
 describe("removed product routes", () => {
+  it.each(["systemSkillRoles", "permissionTools"])("replaces the retired URL after checking page access (%s)", (page) => {
+    const replaceState = vi.fn();
+    vi.stubGlobal("window", { location: { hash: `#/w/permissions/${page}` }, history: { replaceState } });
+    const context = { authSession: { token: "test" }, currentWorkspace: { workspaceId: "permissions" }, canAccessView: () => true };
+    try {
+      App.methods.handleHashChange.call(context);
+      expect(context.activeView).toBe("systemResources");
+      expect(replaceState).toHaveBeenCalledWith(undefined, "", "#/w/permissions/systemResources");
+    } finally { vi.unstubAllGlobals(); }
+  });
   it("rejects a removed component even if stale navigation still declares it", () => {
     const context = { workspaceReady: false, navItems: [{ items: [{ id: "domainAnalysis" }, { id: "chat" }] }] };
     expect(App.methods.canAccessView.call(context, "domainAnalysis")).toBe(false);

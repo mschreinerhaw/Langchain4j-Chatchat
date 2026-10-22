@@ -97,7 +97,7 @@
     </KeepAlive>
 
     <button
-      v-if="canAccessView('chat')"
+      v-if="activeView !== 'workspaces' && canAccessView('chat')"
       class="floating-new-conversation"
       v-floating-drag
       type="button"

@@ -1,9 +1,9 @@
 export const permissionSections = [
   { id: "systemUsers", label: "用户管理", icon: "users" },
-  { id: "systemOrganizations", label: "组织管理", icon: "building-2" },
-  { id: "systemRoles", label: "角色权限", icon: "shield-check" },
-  { id: "systemResources", label: "资源授权", icon: "key-round" },
-  { id: "systemLogins", label: "安全审计", icon: "clipboard-list" },
+  { id: "systemOrganizations", label: "组织管理", icon: "organization" },
+  { id: "systemRoles", label: "角色权限", icon: "shield" },
+  { id: "systemResources", label: "资源授权", icon: "key" },
+  { id: "systemLogins", label: "安全审计", icon: "tasks" },
 ];
 export const resourceGroups = [
   { id: "workspace", label: "工作空间", description: "进入工作空间的权限" },
@@ -39,7 +39,11 @@ export function resourceCatalog(catalog, extras = {}) {
       backend: "permission",
       id: p.id,
       type: "PERMISSION",
-      name: p.permissionName || "未命名权限",
+      name: ({
+        "Workspace access": "基础工作空间访问",
+        "Zhice access": "智策工作空间访问",
+        "Workspace management": "工作空间设置管理",
+      })[p.permissionName] || p.permissionName || "未命名权限",
       group: /^workspace:[^:]+:access$/.test(p.permissionCode) ? "workspace" : "function",
       action: actionLabel(p.httpMethod),
       code: p.permissionCode,

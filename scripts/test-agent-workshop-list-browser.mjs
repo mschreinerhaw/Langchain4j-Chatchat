@@ -20,6 +20,7 @@ try{
   if(index>1){const pending=page.waitForResponse(r=>r.url().includes('/agents/workshop?')&&new URL(r.url()).searchParams.get('page')===String(index));await page.getByRole('navigation',{name:'Agent分页'}).getByRole('button',{name:'下一页',exact:true}).click();await pending;}
   await page.waitForFunction(expected=>document.querySelectorAll('.agent-card').length===expected,Math.min(6,payload.agents.length-(index-1)*6));
   await page.waitForFunction(expected=>document.querySelector('.agent-pagination')?.textContent.includes('第 '+expected+' /'),index);
+  await page.waitForFunction(expected=>JSON.stringify(Array.from(document.querySelectorAll('.agent-card h2'),node=>node.textContent))===JSON.stringify(expected),payload.agents.slice((index-1)*6,index*6).map(agent=>agent.name));
   for(const name of await page.locator('.agent-card h2').allTextContents())names.push(name);
  }
  assert.deepEqual([...names].sort(),payload.agents.map(agent=>agent.name).sort());checks.allPagesRenderEveryMaintainedAgent=true;

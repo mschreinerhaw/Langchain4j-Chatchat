@@ -1,0 +1,12 @@
+{
+    "version":  "2.2.3-rc1",
+    "sourceCommit":  "bb8a80c22e53f0b6e7b88b52c8056e3e148c0a2a",
+    "artifacts":  {
+                      "api":  {
+                                  "sha256":  "52ac45019e46bf34a8c5df2f8f0fda64ece4f2d5d204bbbd6b7ad0cff23cf778"
+                              },
+                      "mcp":  {
+                                  "sha256":  "32cb883f098848b63b46174c670a1ee110af8937884b38f2eba2cc3c2250ffe2"
+                              }
+                  }
+}

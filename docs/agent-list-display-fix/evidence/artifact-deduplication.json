@@ -1,0 +1,20 @@
+[
+  {
+    "retainedOriginal": "releases/2.0.0-rc4/api.jar",
+    "retainedBackup": "evidence/unified-management-2.0.0-rc5/backup-1792681019/api-running.jar",
+    "sha256": "161deed8e0665c2acc0951f9b53d54cbeed2ba63e33e279155c5133146e3859d",
+    "identicalImmutableArtifactShared": true
+  },
+  {
+    "retainedOriginal": "releases/2.1.0-rc1/api.jar",
+    "retainedBackup": "evidence/permission-workspace-2.2.0-rc1/backup-1792689658/api-running.jar",
+    "sha256": "5d193b58fd7fe5d62549826f7371208457d071152d5fcfe83c9fb7caa1128ab2",
+    "identicalImmutableArtifactShared": true
+  },
+  {
+    "retainedOriginal": "releases/2.1.0-rc1/mcp.jar",
+    "retainedBackup": "evidence/permission-workspace-2.2.0-rc1/backup-1792689658/mcp-running.jar",
+    "sha256": "2c59eb269c610e56f9f3539363bed8b422b78c448f9d9f03f3e0fd3e916a9598",
+    "identicalImmutableArtifactShared": true
+  }
+]

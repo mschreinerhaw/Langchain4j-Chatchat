@@ -1,0 +1,12 @@
+{
+  "checks": {
+    "administratorHasAllAgentsPermission": true,
+    "apiIncludesPublishedAndUnpublishedAgents": true,
+    "allPagesRenderEveryMaintainedAgent": true,
+    "filterEmptyStateCorrect": true,
+    "clearingSearchRestoresCards": true,
+    "desktopScreenshotsCaptured": true,
+    "noPageErrors": true
+  },
+  "errors": []
+}

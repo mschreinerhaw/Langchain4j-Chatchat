@@ -1,0 +1,35 @@
+{
+  "version": "2.2.2-rc1",
+  "sourceCommit": "bfc7f4f2defb3f77f664d02e5176266c1aadac87",
+  "backup": "/opt/runtime-os-docker-stage/evidence/mcp-local-admin-2.2.2-rc1/backup-1792710204",
+  "previousMcp": {
+    "image": "runtime-os-mcp:2.1.0-rc1",
+    "imageId": "sha256:92ba164255ff1b9f38037d208fb63ad9ce461c8837038a6c8f6d643c7259cd0a",
+    "sha256": "2c59eb269c610e56f9f3539363bed8b422b78c448f9d9f03f3e0fd3e916a9598"
+  },
+  "apiImage": "runtime-os-api:2.2.1-rc1",
+  "policyBefore": {
+    "runtime_os_acceptance_api.mcp_tool_permission": "cc610360702deaaf14b4b97358dd5385",
+    "runtime_os_acceptance_api.resource_grant": "cc4ee2677f54e70079b249dc53cc9459",
+    "runtime_os_acceptance_api.sys_user_role": "66ce7155c856069cc8c3804e437f2311",
+    "runtime_os_acceptance_mcp.mcp_template_query_binding": "d0804abee88e63c54ca1d9a8cc4cf86f"
+  },
+  "artifacts": {
+    "mcp": {
+      "sha256": "32cb883f098848b63b46174c670a1ee110af8937884b38f2eba2cc3c2250ffe2"
+    },
+    "api": {
+      "sha256": "734f324ece9808a88fd4481f3f92db26a8de1626982bb613422d5991efa8a7db"
+    }
+  },
+  "status": "DEPLOYED",
+  "policyAfter": {
+    "runtime_os_acceptance_api.mcp_tool_permission": "cc610360702deaaf14b4b97358dd5385",
+    "runtime_os_acceptance_api.resource_grant": "cc4ee2677f54e70079b249dc53cc9459",
+    "runtime_os_acceptance_api.sys_user_role": "66ce7155c856069cc8c3804e437f2311",
+    "runtime_os_acceptance_mcp.mcp_template_query_binding": "d0804abee88e63c54ca1d9a8cc4cf86f"
+  },
+  "policyUnchanged": true,
+  "existingAccountsUnchanged": true,
+  "schemaOwnerMatchesExistingAccounts": true
+}

@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.chatchat.mcpserver.license.McpMenuLicenseFilterTest
+-------------------------------------------------------------------------------
+Tests run: 16, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.241 s -- in com.chatchat.mcpserver.license.McpMenuLicenseFilterTest

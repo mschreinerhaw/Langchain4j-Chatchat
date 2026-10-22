@@ -1,0 +1,6 @@
+{
+  "repeatableAdditiveMigration": true,
+  "tableOwnedByApplicationRole": true,
+  "applicationSelectInsertUpdateDelete": true,
+  "isolatedSchemaAndRoleRolledBack": true
+}

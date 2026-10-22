@@ -1,0 +1,8 @@
+{
+  "syntheticAccountsRemoved": true,
+  "syntheticMenuGrantsRemoved": true,
+  "loginAuditHistoryRetained": true,
+  "builtinAdministratorEnabled": true,
+  "apiSha256": "734f324ece9808a88fd4481f3f92db26a8de1626982bb613422d5991efa8a7db",
+  "mcpSha256": "32cb883f098848b63b46174c670a1ee110af8937884b38f2eba2cc3c2250ffe2"
+}

@@ -1,0 +1,18 @@
+{
+  "checks": {
+    "createUserThroughUi": true,
+    "noImplicitMenuAccess": true,
+    "saveMenuAuthorizationThroughUi": true,
+    "navigationMatchesUserGrants": true,
+    "directUnauthorizedReadAndWriteDenied": true,
+    "threeDesktopWidths": true,
+    "revokeAffectsExistingSession": true,
+    "successAndFailureLoginAuditVisible": true,
+    "resetPasswordInvalidatesSession": true,
+    "disableBlocksExistingAndNewSessions": true,
+    "builtinAdministratorProtected": true,
+    "noPageErrors": true
+  },
+  "errors": [],
+  "fixtureUsername": "mcp_ui_1792710582538"
+}

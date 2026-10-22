@@ -13,7 +13,11 @@ def main():
  stage.build_application_image('api',release/'api.jar','runtime-os-api:'+version,evidence/'api-image')
  def require_idle():
   if stage.sql(databases['api'],"select count(*) from agent_task_latest where canonical_state is null or canonical_state not in ('SUCCEEDED','PARTIAL','FAILED','CANCELLED','REJECTED')")!='0' or stage.run('docker','ps','--filter','name=chatchat-py-','--format','{{.ID}}'):raise RuntimeError('Active analysis tasks prevent replacement')
- require_idle();before=stage.policy_fingerprints(databases['api'],databases['mcp']);destination=stage.backup(config,databases);require_idle()
+ def fingerprints():
+  values=stage.policy_fingerprints(databases['api'],databases['mcp'])
+  values[databases['api']+'.sys_role_permission']=stage.sql(databases['api'],"select md5(coalesce(jsonb_agg(to_jsonb(t)-'updated_at'-'created_at' order by id)::text,'[]')) from sys_role_permission t")
+  return values
+ require_idle();before=fingerprints();destination=stage.backup(config,databases);require_idle()
  report=dict(version=version,sourceCommit=manifest['sourceCommit'],backup=str(destination),policyBefore=before,mcpImage=config['services']['mcp']['image']);migrated=False
  print(json.dumps({'stage':'BACKED_UP','backup':str(destination)}),flush=True)
  try:
@@ -26,7 +30,7 @@ def main():
   if stage.sql(databases['api'],"select count(*) from sys_menu where menu_code in ('systemSkillRoles','permissionTools')")!='0':raise RuntimeError('Obsolete menus remain')
   if stage.sql(databases['api'],"select manifest_json::jsonb->>'layoutType' from workspace_registry where id='permissions'")!='management':raise RuntimeError('Management layout missing')
   if stage.sql(databases['api'],"select count(*) from sys_menu_permission mp join sys_menu m on m.id=mp.menu_id join sys_permission p on p.id=mp.permission_id where m.menu_code='workspaces' and p.permission_code='system:workspaces:manage'")!='1':raise RuntimeError('Workspace settings binding missing')
-  after=stage.policy_fingerprints(databases['api'],databases['mcp'])
+  after=fingerprints()
   if before!=after:raise RuntimeError('Business authorization or fixed-template bindings changed')
   actual=stage.run('docker','exec','runtime-os-app-stage-api-1','sha256sum','/srv/app/app.jar').split()[0]
   if actual!=manifest['artifacts']['api']['sha256']:raise RuntimeError('Running artifact differs from release')

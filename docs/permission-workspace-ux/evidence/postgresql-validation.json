@@ -1,0 +1,19 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "customChildrenBlockMigration": true,
+    "fiveFlatNavigationPages": true,
+    "obsoleteMenusRemoved": true,
+    "settingsBoundToExistingManagementPermission": true,
+    "settingsNotExposedThroughGenericWorkspaceAccess": true,
+    "currentWorkspaceManifestPreserved": true,
+    "duplicateMainWorkspacePagesRemoved": true,
+    "businessGrantsUnchanged": true,
+    "laterWorkspaceChangesBlockRollback": true,
+    "laterMenuChangesBlockRollback": true,
+    "originalMenusAndBindingsExactlyRestored": true,
+    "originalManifestExactlyRestored": true,
+    "archiveHistoryRetained": true
+  },
+  "productionDataUsed": false
+}

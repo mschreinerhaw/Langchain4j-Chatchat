@@ -33,6 +33,7 @@ try{
  assert.ok((await api('/enterprise/roles/'+role.id+'/authorization')).permissionIds.includes(data.fixture.workspacePermissionId));checks.rolePermissionSavedThroughUi=true;
  for(const width of [1366,1440,1920]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);assert.ok(await page.locator('.permission-detail').evaluate(el=>el.clientWidth)>500);await page.locator('.permission-console').screenshot({path:output+'/roles-'+width+'.png'});}
  checks.threeDesktopWidthsWithoutHorizontalOverflow=true;
+ await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:output+'/permission-workspace-navigation.png'});
  await page.goto(base+'/#/w/permissions/systemUsers');await page.getByRole('button',{name:'新增账户',exact:true}).waitFor();await page.getByRole('button',{name:'新增账户',exact:true}).click();const userDialog=page.locator('.entity-modal');
  await userDialog.getByLabel('账号',{exact:true}).fill('ux_browser_'+Date.now());await userDialog.getByLabel('姓名',{exact:true}).fill('业务成员（验收）');await userDialog.getByLabel('密码',{exact:true}).fill('Synthetic!'+Date.now()+'x');
  await userDialog.locator('select').last().selectOption(role.id);
@@ -51,6 +52,9 @@ try{
  const root=await open(data.admin);page=root.view;await page.goto(base+'/#/w/zhice/workspaces');await page.getByRole('heading',{name:'工作空间设置',exact:true}).waitFor();await page.getByRole('button',{name:'配置',exact:true}).first().click();await page.getByRole('heading',{name:'配置工作空间',exact:true}).waitFor();await page.locator('.permission-profile-dialog').getByRole('button',{name:'取消',exact:true}).click();await page.locator('.workspace-settings').screenshot({path:output+'/workspace-settings.png'});checks.workspaceSettingsRestored=true;
  assert.deepEqual(errors,[]);checks.noPageErrors=true;
  writeFileSync(output+'/acceptance.json',JSON.stringify({status:'PASSED',checks},null,2));console.log(JSON.stringify({status:'PASSED',checks}));
+}catch(error){
+ if(page)await page.screenshot({path:output+'/failure.png'}).catch(()=>{});
+ writeFileSync(output+'/failure.json',JSON.stringify({status:'FAILED',checks,error:String(error),pageErrors:errors},null,2));throw error;
 }finally{
  const cleanupErrors=[];
  if(context){for(const id of created.denies)try{await api('/permission-center/tool-grants/'+id,null,'DELETE');}catch(e){cleanupErrors.push(e.message);}for(const id of created.users)try{await api('/enterprise/users/'+id,null,'DELETE');}catch(e){cleanupErrors.push(e.message);}for(const id of created.roles)try{await api('/enterprise/roles/'+id,null,'DELETE');}catch(e){cleanupErrors.push(e.message);}}

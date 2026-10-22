@@ -19,7 +19,8 @@ public final class ExecutionFailureClassifier {
         Map.entry("CANCELLED", "Execution was cancelled. Stop and preserve the existing task timeline."),
         Map.entry("INPUT_FILE_NOT_FOUND", "Use the exact authorized immutable input paths supplied by Runtime; do not enumerate files or reacquire source data."),
         Map.entry("PROGRAM_ERROR", "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data."),
-        Map.entry("OUTPUT_CONTRACT", "Repair the required output file, field names and types to match the authorized result contract; exit code zero alone is insufficient.")
+        Map.entry("OUTPUT_CONTRACT", "Repair the required output file, field names and types to match the authorized result contract; exit code zero alone is insufficient."),
+        Map.entry("VISUAL_REPORT_INVALID", "Use artifact_read to inspect visualReportValidation. Repair only the visual report artifact schema and file references using the existing computed results and authorized inputs. Computation check statuses are PASSED, FAILED or UNRESOLVED; never relabel failed or unresolved business checks as PASSED.")
     );
     public static boolean known(String code) { return HINTS.containsKey(code); }
     public static String guidance(String code) { return HINTS.getOrDefault(code, "No safe automatic repair is available; reconcile the existing operation."); }
@@ -49,7 +50,7 @@ public final class ExecutionFailureClassifier {
             case "TIMEOUT" -> "TIMEOUT";
             case "CANCELLED" -> "CANCELLED";
             case "INPUT_FILE_NOT_FOUND" -> "INPUT_REFERENCE";
-            case "OUTPUT_CONTRACT" -> "OUTPUT_CONTRACT";
+            case "OUTPUT_CONTRACT", "VISUAL_REPORT_INVALID" -> "OUTPUT_CONTRACT";
             case "UNKNOWN" -> "UNKNOWN";
             default -> "PROGRAM";
         };

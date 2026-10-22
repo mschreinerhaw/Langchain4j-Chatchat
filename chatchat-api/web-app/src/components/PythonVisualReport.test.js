@@ -16,3 +16,10 @@ it('marks a delivery partial when a chart cannot render without rewriting immuta
  app=createApp({render:()=>h(PythonVisualReport,{report})});app.mount(host);await nextTick();host.querySelector('.chart-stub').click();await nextTick();
  expect(host.querySelector('.python-visual-report').dataset.status).toBe('PARTIAL');expect(host.textContent).toContain('部分完成');expect(report.status).toBe('SUCCESS');
 });
+it('distinguishes unresolved business checks from failed and passed checks',async()=>{
+ host=document.createElement('div');document.body.append(host);
+ const report={status:'PARTIAL',title:'Bounded analysis',markdown:'Retained authored text',validation:{checks:[{name:'computed',status:'PASSED'},{name:'reconciled',status:'UNRESOLVED',detail:'Evidence is insufficient'},{name:'mismatch',status:'FAILED'}]}};
+ app=createApp({render:()=>h(PythonVisualReport,{report})});app.mount(host);await nextTick();
+ expect(host.textContent).toContain('尚未解决');expect(host.textContent).toContain('检查失败');expect(host.textContent).toContain('分析程序检查通过');
+ expect(host.textContent).toContain('Retained authored text');expect(report.validation.checks[1].status).toBe('UNRESOLVED');
+});

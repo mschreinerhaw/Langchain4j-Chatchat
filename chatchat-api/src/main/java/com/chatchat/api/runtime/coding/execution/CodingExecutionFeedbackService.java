@@ -82,7 +82,7 @@ public class CodingExecutionFeedbackService {
         boolean resultAvailable=Boolean.TRUE.equals(result.get("resultAvailable"));
         boolean outputFailed="SUCCEEDED".equals(operation.status())&&!resultAvailable;
         String category=ExecutionFailureClassifier.category(code);
-        if(outputFailed){code="OUTPUT_CONTRACT";category="OUTPUT_CONTRACT";}
+        if(outputFailed){code="VISUAL_REPORT_INVALID".equals(result.get("outputStatus"))?"VISUAL_REPORT_INVALID":"OUTPUT_CONTRACT";category="OUTPUT_CONTRACT";}
         if(receipt.path("oomKilled").asBoolean()){code="RESOURCE_EXHAUSTED";category="RESOURCE";}
         if("TIMED_OUT".equals(operation.status())){code="TIMEOUT";category="TIMEOUT";}
         if("CANCELLED".equals(operation.status())){code="CANCELLED";category="CANCELLED";}

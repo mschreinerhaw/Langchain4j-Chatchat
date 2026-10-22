@@ -32,6 +32,23 @@ class VisualReportArtifactsTest {
         var result=collect(report,Map.of());assertThat(result.get("status")).isEqualTo("PARTIAL");assertThat(result.get("markdown")).isEqualTo("Complete computed narrative");assertThat((List<?>)result.get("charts")).isEmpty();verifyNoInteractions(archive);
     }
     @Test void failedComputationChecksCannotBePublishedAsSuccess(){var report=raw();report.put("validation",Map.of("checks",List.of(Map.of("name","consistency","status","FAILED"))));assertThat(collect(report,Map.of()).get("status")).isEqualTo("FAILED");}
+    @Test void unresolvedReconciliationPreservesReportAndChartsWithoutCertifyingBusinessSuccess()throws Exception{
+        var report=raw();report.put("validation",Map.of("checks",List.of(Map.of("name","computed","status","PASSED"),Map.of("name","reconciliation","status","UNRESOLVED","detail","Insufficient evidence"))));
+        report.put("charts",List.of(Map.of("id","plot","kind","png","fileName","plot.png")));
+        var result=collect(report,Map.of("results/plot.png",png()));
+        assertThat(result).containsEntry("status","PARTIAL").containsEntry("artifactValidationStatus","PASSED").containsEntry("markdown","Complete computed narrative");
+        assertThat((List<?>)result.get("charts")).hasSize(1);assertThat(result.get("metrics")).isEqualTo(report.get("metrics"));
+        assertThat(((Map<?,?>)result.get("validation")).get("status")).isEqualTo("PARTIAL");
+        assertThat(result.toString()).contains("UNRESOLVED","Insufficient evidence");
+        report.put("validation",Map.of("checks",List.of(Map.of("name","unresolved","status","UNRESOLVED"),Map.of("name","failed","status","FAILED"))));
+        assertThat(collect(report,Map.of("results/plot.png",png()))).containsEntry("status","FAILED").containsEntry("artifactValidationStatus","PASSED");
+    }
+    @Test void malformedCheckRetainsSanitizedMarkdownAndRemainsATechnicalFailure(){
+        var report=raw();report.put("validation",Map.of("checks",List.of(Map.of("name","bad","status","UNKNOWN"))));
+        var result=service.collect(scope,"task","op",List.of(Map.of("visualReport",report,"reportMarkdown","Retained text /workspace/private.txt","evidenceReferences",List.of("source:authorized"))),Map.of(),execution);
+        assertThat(result).containsEntry("status","FAILED").containsEntry("artifactValidationStatus","FAILED").containsEntry("markdown","Retained text [analysis file]");
+        assertThat(result.toString()).contains("Invalid computation check").doesNotContain("/workspace/private.txt");
+    }
     @Test void admissionTelemetryCannotChangeImmutableReportBytesOnReplay()throws Exception{
         var counter=new java.util.concurrent.atomic.AtomicInteger();
         when(archive.save(eq(scope),eq("task"),any(),anyString(),anyString(),any())).thenAnswer(call->{

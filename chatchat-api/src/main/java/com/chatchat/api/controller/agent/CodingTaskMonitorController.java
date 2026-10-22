@@ -34,6 +34,18 @@ public class CodingTaskMonitorController {
     private com.chatchat.api.runtime.coding.data.CodingDataSupplyService dataSupply;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     private com.chatchat.api.runtime.coding.cline.ClineModelReceiptStore modelReceipts;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollector evidenceCollector;
+
+    @GetMapping("/{taskId}/visual-report")
+    public ApiResponse<?> reviewVisualReport(@PathVariable("runId") String runId,@PathVariable("taskId") String taskId,
+            @RequestParam("resultRef") String resultRef,HttpServletRequest request) {
+        return authorized(runId,request,scope->{
+            tasks.get(scope,taskId);
+            if(evidenceCollector==null)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
+            return ApiResponse.success(evidenceCollector.reviewVisualReport(scope,taskId,resultRef));
+        });
+    }
 
     @GetMapping("/{taskId}/inputs")
     public ApiResponse<?> inputFiles(@PathVariable("runId") String runId,@PathVariable("taskId") String taskId,

@@ -80,14 +80,14 @@ public final class VisualReportArtifacts {
                 var section=map(item);sections.add(Map.of("title",text(section.get("title"),240),"narrative",text(section.get("narrative"),16000),
                     "chartIds",references(section.get("chartIds"),chartIds),"tableIds",references(section.get("tableIds"),tableIds)));
             }
-            var validation=map(raw.get("validation"));var checks=new ArrayList<Map<String,Object>>();boolean failed=false;
+            var validation=map(raw.get("validation"));var checks=new ArrayList<Map<String,Object>>();boolean failed=false,unresolved=false;
             for(var item:list(validation.get("checks"),128)) {
-                var check=map(item);String state=text(check.get("status"),16);require(Set.of("PASSED","FAILED").contains(state),"Invalid computation check");failed|="FAILED".equals(state);
+                var check=map(item);String state=text(check.get("status"),16);require(Set.of("PASSED","FAILED","UNRESOLVED").contains(state),"Invalid computation check");failed|="FAILED".equals(state);unresolved|="UNRESOLVED".equals(state);
                 checks.add(Map.of("name",text(check.get("name"),240),"status",state,"detail",text(check.get("detail"),4000)));
             }
             for(var warning:list(validation.get("warnings"),64))warnings.add(text(warning,4000));
             if(failed)status="FAILED";
-            else if(!warnings.isEmpty()||checks.isEmpty()) {if("SUCCESS".equals(status))status="PARTIAL";}
+            else if(unresolved||!warnings.isEmpty()||checks.isEmpty()) {if("SUCCESS".equals(status))status="PARTIAL";}
             if(checks.isEmpty())warnings.add("The analysis program supplied no computation checks; business correctness is not certified.");
             if("NO_DATA".equals(status))require(metrics.isEmpty()&&charts.isEmpty()&&tables.stream().allMatch(t->((List<?>)t.get("rows")).isEmpty()),"NO_DATA report contains calculated data");
             result.put("status",status);result.put("metrics",metrics);result.put("tables",tables);result.put("charts",charts);result.put("sections",sections);
@@ -100,14 +100,21 @@ public final class VisualReportArtifacts {
             // Evidence is collected again during finalization/recovery. Wall-clock admission
             // duration belongs in telemetry, never in the immutable evidence payload/hash.
             long elapsed=(System.nanoTime()-started)/1_000_000;result.put("timings",timings);
-            result.put("validation",Map.of("status",failed?"FAILED":warnings.isEmpty()?"ARTIFACTS_VERIFIED":"PARTIAL","checks",checks,"warnings",warnings,
+            result.put("artifactValidationStatus","PASSED");
+            result.put("validation",Map.of("status",failed?"FAILED":unresolved||checks.isEmpty()||!warnings.isEmpty()?"PARTIAL":"ARTIFACTS_VERIFIED","checks",checks,"warnings",warnings,
                 "scope","STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED"));
             require(json.writeValueAsBytes(result).length<=1024*1024,"Report manifest exceeds 1MiB");
             log.info("visual_report_admission task={} operation={} status={} charts={} metrics={} durationMs={}",task,operation,status,charts.size(),metrics.size(),elapsed);return result;
         }catch(Exception invalid){
+            log.warn("visual_report_rejected task={} operation={} reasonType={}",task,operation,invalid.getClass().getSimpleName());
             return Map.of("schemaVersion",VisualReportMode.SCHEMA,"reportMode","visual","status","FAILED","title","Visual report unavailable",
-                "summary","The original text analysis is retained; visual report validation failed.","validation",Map.of("status","FAILED","warnings",List.of(safeReason(invalid))),"execution",execution);
+                "summary","The original text analysis is retained; visual report validation failed.","markdown",fallbackMarkdown(rows),
+                "artifactValidationStatus","FAILED","validation",Map.of("status","FAILED","warnings",List.of(safeReason(invalid))),"execution",execution);
         }
+    }
+    private static String fallbackMarkdown(List<Map<String,Object>> rows){
+        try{return rows.size()==1?text(rows.get(0).get("reportMarkdown"),200000):"";}
+        catch(IllegalArgumentException invalid){return "";}
     }
     public static void validatePng(byte[] bytes)throws Exception {
         require(bytes.length>=24&&Arrays.equals(Arrays.copyOf(bytes,8),new byte[]{(byte)137,80,78,71,13,10,26,10}),"Invalid PNG");

@@ -13,6 +13,7 @@ import com.chatchat.common.mcp.python.McpPythonControlPlanePort;
 import com.chatchat.common.runtime.coding.CodingTaskContract;
 import com.chatchat.common.runtime.coding.CodingTaskOutcome;
 import com.chatchat.common.runtime.coding.CodingErrorCode;
+import com.chatchat.common.runtime.coding.VisualReportMode;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
@@ -209,6 +210,14 @@ public final class ClinePythonCallbackController {
                 response.put("resultAvailable", true);
                 response.put("businessValidationPassed", collected.businessValidationPassed());
                 response.put("validationStatus", collected.validationStatus().name());
+                if(VisualReportMode.active(call.contract().runtimeContext())) {
+                    var visual=collector.visualReport(call.scope(),call.taskId(),collected.resultDatasetRef());
+                    if(visual.isEmpty() || "FAILED".equals(visual.get().get("artifactValidationStatus"))) {
+                        response.put("resultAvailable",false);
+                        response.put("outputStatus","VISUAL_REPORT_INVALID");
+                        response.put("diagnostic","Visual report artifact contract failed. Inspect artifact_read visualReportValidation, repair only the technical report schema, and preserve actual failed or unresolved business checks.");
+                    }
+                }
             }
             return withFeedback(call,result,response);
         });

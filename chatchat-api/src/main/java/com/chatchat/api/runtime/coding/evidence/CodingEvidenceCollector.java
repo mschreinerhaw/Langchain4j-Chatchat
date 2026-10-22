@@ -382,6 +382,39 @@ public class CodingEvidenceCollector {
             && value.payload().get("execution") instanceof Map<?,?> execution && task.equals(execution.get("taskId")))
             .map(EvidenceRecord::payload);
     }
+    /** Revalidates the same immutable report for display, without replaying its execution. */
+    public Map<String,Object> reviewVisualReport(KernelDataScope scope,String task,String resultReference) {
+        var result=resolve(scope,task,resultReference);
+        if(!"CODING_STRUCTURED_DATASET".equals(result.evidenceType()) || !(result.payload().get("size") instanceof Number size) || size.longValue()>1024*1024)
+            throw new IllegalArgumentException("A bounded archived report is required");
+        var original=visualReport(scope,task,resultReference).orElseThrow(()->new IllegalArgumentException("Archived visual report required"));
+        if(visualReports==null)throw new IllegalStateException("Visual report admission unavailable");
+        @SuppressWarnings("unchecked") var execution=(Map<String,Object>)original.get("execution");
+        String operation=Objects.toString(execution.get("operationId"),"");
+        if(!Boolean.TRUE.equals(execution.get("executorStopped")) || !Objects.equals(result.payload().get("operationId"),operation)
+                || !Objects.equals(result.payload().get("artifactSha256"),execution.get("resultSha256")))
+            throw new SecurityException("Archived report execution binding changed");
+        var stopped=python.get(scope.tenantId(),scope.userId(),scope.runId(),task,operation);
+        if(!stopped.executorStopped() || !"SUCCEEDED".equals(stopped.status()) || !Objects.equals(stopped.codeHash(),execution.get("codeSha256")))
+            throw new IllegalStateException("A matching stopped execution is required");
+        byte[] bytes=artifact(scope,task,operation,"manifest","manifest.json");
+        if(!Objects.equals(stopped.manifestHash(),sha(bytes)))throw new IllegalStateException("Archived manifest changed");
+        var page=readResultPage(scope,task,resultReference,0,2);
+        if(page.rows().size()!=1 || page.hasMore())throw new IllegalArgumentException("Exactly one archived report row required");
+        var files=new HashMap<String,byte[]>();long total=0;
+        for(var entry:parse(bytes).path("artifacts")) {
+            String name=entry.path("fileName").asText();
+            if(!"results".equals(entry.path("channel").asText()) || !name.matches("[A-Za-z0-9_][A-Za-z0-9_.-]{0,254}") || "rows.jsonl".equals(name))continue;
+            long length=entry.path("size").asLong(-1);
+            if(length<1 || length>8*1024*1024)continue;
+            total+=length;if(total>64L*1024*1024)throw new IllegalStateException("Report review exceeds artifact budget");
+            byte[] file=artifact(scope,task,operation,"results",name);verifyArtifact(entry,file);files.put("results/"+name,file);
+        }
+        // A fresh presentation of the same hash-verified artifacts. Never rewrite the original
+        // evidence/checkpoints or rerun Python, models, SQL, or source-file acquisition.
+        return visualReports.collect(scope,task,operation,page.rows(),files,execution);
+    }
+
     /** Existing analysis workspace registration shape; callers decide whether to admit it into an Analysis Loop. */
     public AnalysisEvidenceCoordinator.Dataset registeredResult(KernelDataScope scope, String taskId, String resultRef) {
         EvidenceRecord record = resolve(scope, taskId, resultRef);

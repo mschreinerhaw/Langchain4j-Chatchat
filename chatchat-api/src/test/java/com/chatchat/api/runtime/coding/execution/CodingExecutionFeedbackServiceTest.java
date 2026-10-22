@@ -98,6 +98,14 @@ class CodingExecutionFeedbackServiceTest {
         assertThat(feedback.stage()).isEqualTo("VALIDATED");assertThat(feedback.error()).isNull();
         assertThat(feedback.businessValidationPassed()).isFalse();assertThat(feedback.repair().action()).isEqualTo("COMPLETE");
     }
+    @Test void invalidVisualReportTriggersBoundedRepairInTheSameTaskWithoutChangingBusinessChecks(){
+        var feedback=service.finish(contract,lease,operation("SUCCEEDED"),Map.of("outputStatus","VISUAL_REPORT_INVALID","resultAvailable",false));
+        assertThat(feedback.error().category()).isEqualTo("OUTPUT_CONTRACT");
+        assertThat(feedback.error().diagnosticCode()).isEqualTo("VISUAL_REPORT_INVALID");
+        assertThat(feedback.repair().action()).isEqualTo("REPAIR_IN_CURRENT_CONTEXT");
+        assertThat(feedback.repair().guidance()).contains("artifact_read","UNRESOLVED","never relabel");
+        assertThat(feedback.exitCode()).isZero();assertThat(service.response(feedback)).containsEntry("outputStatus","VISUAL_REPORT_INVALID");
+    }
     @Test void successfulRecalculationDoesNotConsumeTheFailureRepairAllowance(){
         service.finish(contract,lease,operation("SUCCEEDED"),Map.of("resultAvailable",true,"validationStatus","INCONCLUSIVE"));
         when(tasks.startedCodeOperations(scope,"task")).thenReturn(List.of("operation","recalculation"));

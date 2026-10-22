@@ -38,7 +38,7 @@ for parent in call('/tool-publications/catalog/parents'):
 if not chosen:raise RuntimeError('No authorized controlled template available')
 parent,template=chosen;domain='unified_acceptance_'+uuid.uuid4().hex[:12]
 draft={'title':'权限控制台验收工具','description':'仅用于合成权限验收，完成后下线。','kind':'CONTROLLED_TEMPLATE','definition':{'parentToolName':parent['toolName'],'roleId':source_role['id'],'subjectType':'ROLE','userId':None,'domainCode':domain,'templateKeys':[template['key']],'enabled':False},'inputSchema':{'type':'object','properties':{'limit':{'type':'integer','minimum':1,'maximum':20}}},'outputSchema':{'type':'object','properties':{'success':{'const':True}},'required':['success']}}
-release=call('/tool-publications',draft);state.update(logicalId=release['logicalId'],releaseId=release['id']);save()
+release=call('/tool-publications',draft);state.update(logicalId=release['logicalId'],releaseId=release['id'],publicationDefinition=draft['definition'],templateTitle=template['title']);save()
 call('/tool-publications/'+release['id']+'/validate',{},'POST');call('/tool-publications/'+release['id']+'/test',{'input':{'limit':1}},'POST');call('/tool-publications/'+release['id']+'/publish',{},'POST')
 descriptor=next(t for t in call('/mcp/runtime/tools?toolNames='+domain+'_template_query') if t['remoteToolName']==domain+'_template_query')
 state.update(toolName=descriptor['localToolName'],invocation={'serviceId':descriptor['serviceId'],'toolName':descriptor['localToolName'],'arguments':{'limit':1},'context':{}},workspacePermissionId=ids['workspace:permissions:access'],workspacePermissionName=next(p['permissionName'] for p in permissions if p['permissionCode']=='workspace:permissions:access'))

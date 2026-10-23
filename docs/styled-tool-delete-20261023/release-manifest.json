@@ -1,0 +1,19 @@
+{
+  "version": "2.4.10-styled-tool-delete-20261023",
+  "sourceCommit": "7b603497e",
+  "baseline": {
+    "api": "eaa38403acd5393e4432ecbc46541157f0a7bc1bb402412ceed46843913b5ea4",
+    "mcp": "b029f636c4e9b182022ec9155a1bdbdb5fb8275ef7ecaf0b2f0ea196d0b4f3d3"
+  },
+  "backendEntriesUnchanged": true,
+  "patchedClasses": [],
+  "otherBackendEntriesUnchanged": true,
+  "artifacts": {
+    "api": {
+      "sha256": "41a5f669ccd14a1164bac3ecf07cd60a3e8da387c37940c228f90604676157e9"
+    },
+    "mcp": {
+      "sha256": "b029f636c4e9b182022ec9155a1bdbdb5fb8275ef7ecaf0b2f0ea196d0b4f3d3"
+    }
+  }
+}

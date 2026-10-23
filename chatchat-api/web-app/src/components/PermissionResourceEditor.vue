@@ -4,7 +4,7 @@
       ><div
         ><p>{{ typeName }} · {{ resource.action }}</p
         ><h2>{{ resource.name }}</h2
-        ><span>统一查看角色、用户及租户规则。授权修改会记录审计。</span></div
+        ><span>查看当前授权，或为角色和用户添加使用权限。</span></div
       ></header
     >
     <p v-if="notice" :class="['permission-notice', { error: failed }]" role="status">{{
@@ -71,9 +71,7 @@
             ></tr
           >
           <tr v-if="!filteredRules.length"
-            ><td colspan="5" class="permission-empty"
-              >暂无匹配的显式规则。可在下方添加授权；资源原有访问限制仍然生效。</td
-            ></tr
+            ><td colspan="5" class="permission-empty">暂无匹配的授权，可在下方添加。</td></tr
           >
         </tbody></table
       ></div
@@ -90,7 +88,10 @@
       <h3>添加授权</h3
       ><div class="permission-form-grid"
         ><label
-          >对象类型<select aria-label="对象类型" v-model="form.targetType" @change="form.targetId = ''"
+          >对象类型<select
+            aria-label="对象类型"
+            v-model="form.targetType"
+            @change="form.targetId = ''"
             ><option value="ROLE">角色</option
             ><option v-if="resource.backend !== 'permission'" value="USER">用户</option
             ><option v-if="resource.backend !== 'permission'" value="TENANT"
@@ -98,7 +99,11 @@
             ></select
           ></label
         ><label
-          >授权对象<select aria-label="授权对象" v-if="form.targetType !== 'TENANT'" v-model="form.targetId" required
+          >授权对象<select
+            aria-label="授权对象"
+            v-if="form.targetType !== 'TENANT'"
+            v-model="form.targetId"
+            required
             ><option value="">请选择</option
             ><option v-for="item in subjects" :key="item.id" :value="item.id">{{
               item.roleName || item.displayName || item.username
@@ -124,7 +129,7 @@
         ></details
       >
       <footer class="permission-form-actions"
-        ><span>保存后立即刷新规则；实际调用仍需通过 Runtime 与资源校验。</span
+        ><span>保存后生效，操作记录可在安全审计中查看。</span
         ><button class="permission-primary" type="submit" :disabled="busy">{{
           busy ? "保存中…" : "保存授权"
         }}</button></footer

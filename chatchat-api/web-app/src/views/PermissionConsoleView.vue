@@ -1,5 +1,5 @@
 <template>
-  <section class="permission-console">
+  <section class="permission-console" :class="{ 'permission-resource-mode': mode === 'resources' }">
     <header class="permission-page-heading"
       ><div
         ><nav aria-label="面包屑"
@@ -8,7 +8,7 @@
         ><p>{{
           mode === "roles"
             ? "选择角色，按业务资源分配权限，查看成员和生效范围。"
-            : "按资源查看角色与用户授权，所有修改统一记录、统一生效。"
+            : "找到要管理的资源，查看谁可以使用，并按需调整授权。"
         }}</p></div
       ><div class="permission-heading-actions"
         ><button :disabled="busy" @click="load">刷新</button
@@ -38,14 +38,24 @@
           id="permission-master-search"
           v-model="masterQuery"
           type="search"
-          :placeholder="mode === 'roles' ? '搜索角色名称' : '搜索资源名称'"
+          :placeholder="mode === 'roles' ? '搜索角色名称' : '搜索资源名称或关键词'"
         />
         <select v-if="mode === 'resources'" v-model="resourceGroup" aria-label="资源类型"
-          ><option value="">全部资源类型</option
+          ><option value="">常用资源</option
+          ><option value="all">全部资源类型</option
           ><option v-for="group in resourceGroups" :key="group.id" :value="group.id">{{
             group.label
           }}</option></select
         >
+        <p v-if="mode === 'resources'" class="permission-catalog-hint">{{
+          resourceGroup === "template"
+            ? "按名称搜索模板，每页显示 6 项。"
+            : !resourceGroup
+              ? masterQuery.trim()
+                ? "正在全部资源中搜索。"
+                : "业务模板可通过搜索或类型筛选查看。"
+              : "每页显示 6 项，点击资源查看授权。"
+        }}</p>
         <div class="permission-master-list"
           ><button
             v-for="item in masterPage"
@@ -56,8 +66,8 @@
             ]"
             :aria-pressed="mode === 'roles' ? item.id === roleId : item.key === resourceKey"
             @click="chooseMaster(item)"
-            ><strong>{{ item.roleName || item.name }}</strong
-            ><small>{{
+            ><strong :title="item.roleName || item.name">{{ item.roleName || item.name }}</strong
+            ><small v-if="mode === 'roles' || !resourceGroup || resourceGroup === 'all'">{{
               mode === "roles"
                 ? (item.status === "enabled" ? "启用" : "停用") +
                   " · " +
@@ -70,7 +80,9 @@
         >
         <footer class="permission-pagination"
           ><button :disabled="masterPageNumber <= 1" @click="masterPageNumber--">上一页</button
-          ><span>{{ masterPageNumber }} / {{ masterPages }}</span
+          ><span :aria-label="mode === 'resources' ? '当前资源范围' : '当前页'">{{
+            mode === "resources" ? masterRange : `${masterPageNumber} / ${masterPages}`
+          }}</span
           ><button :disabled="masterPageNumber >= masterPages" @click="masterPageNumber++"
             >下一页</button
           ></footer

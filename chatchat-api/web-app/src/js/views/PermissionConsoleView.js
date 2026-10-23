@@ -23,6 +23,7 @@ import {
   mergePermissionSelection,
 } from "../utils/permissionWorkspace.js";
 import "../../styles/pages/permission-workspace.css";
+import "../../styles/pages/permission-resource-catalog.css";
 
 export default {
   name: "PermissionConsoleView",
@@ -94,17 +95,50 @@ export default {
     );
     const groupLabel = (id) => resourceGroups.find((g) => g.id === id)?.label || "其他资源";
     const masterItems = computed(() => {
-      const query = masterQuery.value.toLowerCase();
+      const query = masterQuery.value.trim().toLowerCase();
       return (
         props.mode === "roles"
           ? catalog.value.roles
-          : resources.value.filter((r) => !resourceGroup.value || r.group === resourceGroup.value)
-      ).filter((r) => [r.roleName,r.name,r.code,r.roleCode].filter(Boolean).join(' ').toLowerCase().includes(query));
+          : resources.value.filter(
+              (r) =>
+                resourceGroup.value === "all" ||
+                (resourceGroup.value
+                  ? r.group === resourceGroup.value
+                  : query || r.group !== "template")
+            )
+      ).filter((r) =>
+        [r.roleName, r.name, r.code, r.roleCode]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(query)
+      );
     });
-    const masterPages = computed(() => Math.max(1, Math.ceil(masterItems.value.length / 20)));
-    const masterPage = computed(() =>
-      masterItems.value.slice((masterPageNumber.value - 1) * 20, masterPageNumber.value * 20)
+    const masterPageSize = computed(() => (props.mode === "resources" ? 6 : 20));
+    const masterPages = computed(() =>
+      Math.max(1, Math.ceil(masterItems.value.length / masterPageSize.value))
     );
+    const masterPage = computed(() =>
+      masterItems.value.slice(
+        (masterPageNumber.value - 1) * masterPageSize.value,
+        masterPageNumber.value * masterPageSize.value
+      )
+    );
+    const masterRange = computed(() =>
+      masterItems.value.length
+        ? `${(masterPageNumber.value - 1) * masterPageSize.value + 1}–${Math.min(masterPageNumber.value * masterPageSize.value, masterItems.value.length)} / ${masterItems.value.length}`
+        : "0 项"
+    );
+    watch([masterPage, () => props.mode], () => {
+      if (
+        props.mode === "resources" &&
+        !masterPage.value.some((row) => row.key === resourceKey.value)
+      )
+        resourceKey.value = masterPage.value[0]?.key || "";
+    });
+    watch(masterPages, (count) => {
+      masterPageNumber.value = Math.min(masterPageNumber.value, count);
+    });
     const stateFor = (row) => roleResourceState(row, catalog.value, roleId.value);
     const roleRows = computed(() =>
       resources.value.filter((row) => {
@@ -238,12 +272,17 @@ export default {
           fetchDomainSkills({ page: 0, pageSize: 100 }),
           fetchAgentOptions(),
           fetchOrgs(catalog.value.tenantId),
-          has("system:resource-grants:manage") ? apiRequest("/tool-publications/capabilities/permission-catalog") : Promise.resolve([]),
+          has("system:resource-grants:manage")
+            ? apiRequest("/tool-publications/capabilities/permission-catalog")
+            : Promise.resolve([]),
         ]);
-        const [tools, library, skills, services, organizations, templates] = extraResults.map((r) =>
-          r.status === "fulfilled" ? r.value : null
+        const [tools, library, skills, services, organizations, templates] = extraResults.map(
+          (r) => (r.status === "fulfilled" ? r.value : null)
         );
-        if (tools) { extras.value.tools = Array.isArray(tools) ? tools : []; extras.value.toolsLoaded = true; }
+        if (tools) {
+          extras.value.tools = Array.isArray(tools) ? tools : [];
+          extras.value.toolsLoaded = true;
+        }
         if (library) {
           extras.value.documents = library.documents || [];
           extras.value.categories = library.categories || [];
@@ -267,8 +306,10 @@ export default {
         if (organizations) orgs.value = organizations;
         extras.value.templates = Array.isArray(templates) ? templates : [];
         if (props.mode === "resources" && !selectedResource.value)
-          resourceKey.value = resources.value[0]?.key || "";
-        const missing = ["工具", "知识库", "领域技能", "查询服务", "组织", "业务模板"].filter((_, index) => extraResults[index].status === "rejected");
+          resourceKey.value = masterPage.value[0]?.key || "";
+        const missing = ["工具", "知识库", "领域技能", "查询服务", "组织", "业务模板"].filter(
+          (_, index) => extraResults[index].status === "rejected"
+        );
         notice.value = missing.length
           ? `权限目录已加载。${missing.join("、")}名称目录不可读取，现有规则仍保留，可在详情查看标识。`
           : "";
@@ -402,7 +443,7 @@ export default {
       () => {
         masterQuery.value = "";
         resourceKey.value = "";
-        if (props.mode === "resources") resourceKey.value = resources.value[0]?.key || "";
+        if (props.mode === "resources") resourceKey.value = masterPage.value[0]?.key || "";
       }
     );
     const preventUnload = (e) => {
@@ -462,6 +503,8 @@ export default {
       masterItems,
       masterPage,
       masterPages,
+      masterPageSize,
+      masterRange,
       roleRows,
       visibleRoleRows,
       rowPages,

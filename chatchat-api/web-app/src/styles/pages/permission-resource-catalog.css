@@ -1,0 +1,48 @@
+.permission-resource-mode .permission-master-detail {
+  grid-template-columns: 280px minmax(0, 1fr);
+}
+.permission-resource-mode .permission-catalog-hint {
+  color: #7b879a;
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 0 0 12px;
+}
+.permission-resource-mode .permission-master-list {
+  max-height: none;
+  overflow: visible;
+  min-height: 240px;
+  gap: 6px;
+}
+.permission-resource-mode .permission-master-item {
+  min-width: 0;
+  min-height: 44px;
+  align-content: center;
+  padding: 12px;
+}
+.permission-resource-mode .permission-master-item strong {
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.permission-resource-mode .permission-detail-heading h2 {
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  font-size: 21px;
+}
+@media (max-width: 1000px) {
+  .permission-resource-mode .permission-master-detail {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .permission-resource-mode .permission-master-detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .permission-resource-mode .permission-master-list {
+    min-height: 0;
+  }
+}

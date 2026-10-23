@@ -85,7 +85,7 @@
         </header>
 
         <el-empty
-          v-if="!navItems.length"
+          v-if="!navItems.length && !accountItems.length"
           description="当前账号尚未获得管理菜单权限，请联系管理员授权。"
         />
         <KeepAlive v-else include="ApiServicesView,AssetCenterView,DatabaseMcpView">

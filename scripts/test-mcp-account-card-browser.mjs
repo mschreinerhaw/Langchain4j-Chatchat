@@ -40,6 +40,30 @@ try {
   assert.ok((await summary.textContent()).includes('当前用户'));
   assert.ok((await summary.textContent()).includes(process.env.CHATCHAT_TEST_USERNAME || 'admin'));
   checks.collapsedAccountIdentity = true;
+  const menu = page.locator('.sidebar-menu');
+  for (const [width, height] of [[1366, 768], [1440, 900], [1920, 1080]]) {
+    await page.setViewportSize({ width, height });
+    assert.equal(await menu.evaluate(element => element.scrollHeight > element.clientHeight + 1), false, 'Unnecessary menu overflow at ' + width + 'x' + height);
+  }
+  checks.commonDesktopMenusFitWithoutScrolling = true;
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await menu.getByText('数据能力中心', { exact: true }).click();
+  await menu.getByRole('menuitem', { name: '关系库查询', exact: true }).waitFor();
+  assert.equal(await menu.evaluate(element => element.scrollHeight > element.clientHeight + 1), true);
+  const scrollStyle = await menu.evaluate(element => ({ width: getComputedStyle(element).scrollbarWidth, color: getComputedStyle(element).scrollbarColor }));
+  assert.equal(scrollStyle.width, 'thin');
+  assert.notEqual(scrollStyle.color, 'auto');
+  await menu.hover();
+  await page.mouse.wheel(0, 1600);
+  await menu.getByRole('menuitem', { name: 'License 授权', exact: true }).scrollIntoViewIfNeeded();
+  assert.ok(await menu.evaluate(element => element.scrollTop > 0));
+  const shortCard = await card.boundingBox();
+  assert.ok(shortCard.y + shortCard.height <= 601);
+  await page.screenshot({ path: output + '/overflow-scrollbar.png' });
+  await menu.getByText('数据能力中心', { exact: true }).click();
+  checks.shortExpandedMenuScrollsWithTheme = scrollStyle;
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await menu.evaluate(element => { element.scrollTop = 0; });
   await page.screenshot({ path: output + '/collapsed.png' });
   await summary.focus();
   await page.keyboard.press('Enter');

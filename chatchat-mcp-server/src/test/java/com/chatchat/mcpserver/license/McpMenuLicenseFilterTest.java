@@ -21,6 +21,18 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class McpMenuLicenseFilterTest {
+    @Test void toolCategoryMaintenanceRequiresTheExistingPublishingEntitlement() throws Exception {
+        assertThat(catalog.menuForPath("/api/v1/tool-categories/assignments/tool")).isPresent()
+            .get().extracting(McpAdminMenuCatalog.MenuDefinition::key).isEqualTo("templateQueryPublications");
+        var licenses=mock(McpLicenseService.class);var filter=new McpMenuLicenseFilter(licenses,catalog,objectMapper);
+        when(licenses.status()).thenReturn(valid(List.of("mcpServices")));
+        var allowed=new MockHttpServletResponse();var calls=new AtomicInteger();
+        filter.doFilter(request("/api/v1/tool-categories","tenant"),allowed,countingChain(calls));
+        assertThat(allowed.getStatus()).isEqualTo(200);assertThat(calls).hasValue(1);
+        when(licenses.status()).thenReturn(valid(List.of("newsCollection")));
+        var denied=new MockHttpServletResponse();filter.doFilter(request("/api/v1/tool-categories","tenant"),denied,countingChain(calls));
+        assertThat(denied.getStatus()).isEqualTo(403);assertThat(calls).hasValue(1);
+    }
     @Test void templateCapabilityControlPlaneUsesTheLicensedInternalPublishingModule() {
         assertThat(catalog.menuForPath("/api/v1/template-capabilities/templates")).isPresent()
             .get().extracting(McpAdminMenuCatalog.MenuDefinition::key).isEqualTo("templateQueryPublications");

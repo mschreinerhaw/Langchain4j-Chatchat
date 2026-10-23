@@ -30,7 +30,12 @@ def main():
         assert digest(before) == expected, 'Running baseline changed: ' + service
         with zipfile.ZipFile(root / (service + '-classes.zip')) as patch, zipfile.ZipFile(before) as source:
             replacements = {name: patch.read(name) for name in patch.namelist() if not name.endswith('/')}
-            assert replacements and all(name.startswith('BOOT-INF/classes/com/chatchat/') and name.endswith('.class') and '\\' not in name and '..' not in name.split('/') and value.startswith(b'\xca\xfe\xba\xbe') for name, value in replacements.items())
+            def allowed(name, value):
+                if service == 'mcp' and name == 'BOOT-INF/classes/mcp-admin-menus.json':
+                    assert isinstance(json.loads(value), list)
+                    return True
+                return name.startswith('BOOT-INF/classes/com/chatchat/') and name.endswith('.class') and '\\' not in name and '..' not in name.split('/') and value.startswith(b'\xca\xfe\xba\xbe')
+            assert replacements and all(allowed(name, value) for name, value in replacements.items())
             class_names = sorted(replacements)
             if service == 'api':
                 with zipfile.ZipFile(root / 'frontend.zip') as web:

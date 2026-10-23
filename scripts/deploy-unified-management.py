@@ -86,7 +86,15 @@ def backup(config, databases):
     for service, database in databases.items():
         with (destination / (service + '.dump')).open('wb') as output:
             subprocess.run(['docker', 'exec', '-u', 'postgres', 'postgres', 'pg_dump', '-Fc', '-d', database], stdout=output, check=True)
-        run('docker', 'cp', 'runtime-os-app-stage-' + service + '-1:/srv/app/app.jar', str(destination / (service + '-running.jar')))
+        container = 'runtime-os-app-stage-' + service + '-1'
+        expected = run('docker', 'exec', container, 'sha256sum', '/srv/app/app.jar').split()[0]
+        artifact = destination / (service + '-running.jar')
+        # Read through the running container namespace: daemon archive lookup can disagree
+        # with a healthy container's filesystem. Verify before any application replacement.
+        with artifact.open('wb') as output:
+            subprocess.run(['docker', 'exec', container, 'cat', '/srv/app/app.jar'], stdout=output, check=True)
+        if digest(artifact) != expected:
+            raise RuntimeError('Running application backup checksum mismatch: ' + service)
     (destination / 'workspace-registry-private.json').write_text(sql(databases['api'],
         "select coalesce(jsonb_agg(to_jsonb(t))::text,'[]') from workspace_registry t"))
     return destination

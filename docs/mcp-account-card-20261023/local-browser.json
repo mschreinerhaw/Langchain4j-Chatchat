@@ -1,0 +1,11 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "collapsedAccountIdentity": true,
+    "keyboardToggleAndEscape": true,
+    "desktopShortAndMobileLayouts": true,
+    "passwordDialogPreserved": true,
+    "logoutPreserved": true
+  },
+  "errors": []
+}

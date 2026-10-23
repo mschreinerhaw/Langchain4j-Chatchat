@@ -1,0 +1,13 @@
+{
+  "status": "DEPLOYED",
+  "version": "2.2.2-account-card-20261023",
+  "sourceCommit": "7f84e12fae392f74aa7d1f1e828e56dcf175793e",
+  "jarSha256": "c5eeda66f3aba1c5e9f104a4069d0346dcbcff10ae9d0f2ddc720e2c4af6ff09",
+  "gatewayResourcesVerified": 6,
+  "backendEntriesUnchanged": true,
+  "policyUnchanged": true,
+  "accountsUnchanged": true,
+  "apiUnchanged": true,
+  "databaseMigration": false,
+  "backup": "/opt/runtime-os-docker-stage/evidence/mcp-account-card-20261023/backup"
+}

@@ -21,6 +21,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class McpMenuLicenseFilterTest {
+    @Test void templateCapabilityControlPlaneUsesTheLicensedInternalPublishingModule() {
+        assertThat(catalog.menuForPath("/api/v1/template-capabilities/templates")).isPresent()
+            .get().extracting(McpAdminMenuCatalog.MenuDefinition::key).isEqualTo("templateQueryPublications");
+        assertThat(catalog.authorized(valid(List.of("mcpServices")), "templateQueryPublications")).isTrue();
+    }
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final McpAdminMenuCatalog catalog = new McpAdminMenuCatalog(objectMapper);
 

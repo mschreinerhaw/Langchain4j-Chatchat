@@ -45,6 +45,9 @@ class McpLicenseCoverageContractTest {
     private boolean recoveryOnly(String path) {
         return path.startsWith("/api/v1/license")
             || path.startsWith("/api/v1/admin/auth")
+            // Local console accounts are infrastructure, guarded by AdminAuthFilter and AdminMenuAccessFilter.
+            || path.startsWith("/api/v1/admin/users")
+            || path.startsWith("/api/v1/admin/login-audits")
             || path.startsWith("/internal/v1/license");
     }
 }

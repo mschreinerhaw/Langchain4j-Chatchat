@@ -18,7 +18,15 @@ beforeEach(()=>{vi.resetAllMocks();apiRequest.mockImplementation(async(path,opti
 afterEach(()=>{app?.unmount();root?.remove();});
 async function mount(){root=document.createElement("div");document.body.append(root);app=createApp(ToolPublicationsView);const vm=app.mount(root);await flush();return vm;}
 it("groups versions into one business tool while preserving version selection and state filters",async()=>{
- const vm=await mount();expect(vm.tools).toHaveLength(1);expect(vm.versions.map(r=>r.id)).toEqual(["draft","live"]);vm.stateFilter="RUNNING";expect(vm.tools[0].id).toBe("live");vm.choose(vm.rows[1]);expect(vm.selected.state).toBe("RUNNING");vm.query="不存在";await nextTick();expect(vm.visibleTools).toHaveLength(0);expect(root.textContent).toContain("没有匹配的工具");
+ const vm=await mount();expect(vm.stateFilter).toBe("RUNNING");expect(vm.tools).toHaveLength(1);expect(vm.selectedId).toBe("live");expect(vm.selected.state).toBe("RUNNING");expect(vm.versions.map(r=>r.id)).toEqual(["draft","live"]);vm.stateFilter="";expect(vm.tools[0].id).toBe("draft");vm.stateFilter="RUNNING";expect(vm.tools[0].id).toBe("live");vm.query="不存在";await nextTick();expect(vm.visibleTools).toHaveLength(0);expect(root.textContent).toContain("没有匹配的工具");
+});
+it("shows an empty running list without silently selecting a draft",async()=>{
+ const original=apiRequest.getMockImplementation();apiRequest.mockImplementation((path,options)=>path==="/tool-publications"?Promise.resolve([release("draft",2,"DRAFT")]):original(path,options));
+ const vm=await mount();expect(vm.tools).toHaveLength(0);expect(vm.selected).toBeNull();vm.stateFilter="DRAFT";expect(vm.tools[0].id).toBe("draft");
+});
+it("reveals the saved draft even when the initial filter is running",async()=>{
+ const vm=await mount();const original=apiRequest.getMockImplementation();apiRequest.mockImplementation((path,options)=>path==="/tool-publications"&&!options?.method?Promise.resolve([release("new",3,"DRAFT"),...vm.rows]):original(path,options));
+ vm.reset();vm.form.title="新工具";vm.definition={...definition,enabled:false};vm.templates=[{key:"authorized",title:"已授权模板"}];await vm.save();expect(vm.failed).toBe(false);expect(vm.stateFilter).toBe("DRAFT");expect(vm.selectedId).toBe("new");expect(vm.tools.some(row=>row.id==="new")).toBe(true);
 });
 it("keeps the draft when schema validation fails without issuing a write",async()=>{
  const vm=await mount();vm.reset();vm.form.title="新工具";vm.definition={...definition,enabled:false};vm.templates=[{key:"authorized",title:"已授权模板"}];vm.inputSchema="invalid";await vm.save();expect(vm.failed).toBe(true);expect(vm.notice).toContain("有效 JSON");expect(vm.editing).toBe(true);expect(apiRequest.mock.calls.some(c=>c[1]?.method==="POST")).toBe(false);

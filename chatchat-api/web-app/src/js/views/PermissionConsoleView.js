@@ -1,6 +1,7 @@
 import { computed, ref, onMounted, onActivated, watch, onBeforeUnmount } from "vue";
 import PermissionResourceEditor from "../../components/PermissionResourceEditor.vue";
 import { saveResourceAuthorization } from "../utils/permissionWrites.js";
+import { useTransientNotice } from "../utils/useTransientNotice.js";
 import {
   apiRequest,
   fetchResearchLibrary,
@@ -44,6 +45,7 @@ export default {
       failed = ref(false),
       roleId = ref(""),
       resourceKey = ref("");
+    useTransientNotice(notice, failed);
     const masterQuery = ref(""),
       rowQuery = ref(""),
       resourceGroup = ref(""),

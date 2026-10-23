@@ -1,5 +1,6 @@
 import { ref, computed, onMounted, onActivated, watch } from "vue";
 import { apiRequest, getStoredAuthSession } from "../../services/api.js";
+import { useTransientNotice } from "../utils/useTransientNotice.js";
 import "../../styles/pages/permission-workspace.css";
 import "../../styles/pages/tool-publications.css";
 
@@ -16,9 +17,10 @@ export default {
       failed = ref(false),
       loaded = ref(false);
     const query = ref(""),
-      stateFilter = ref(""),
+      stateFilter = ref("RUNNING"),
       page = ref(1),
       pageSize = ref(15);
+    useTransientNotice(notice, failed);
     const selectedId = ref(""),
       editing = ref(false),
       activeTab = ref("overview"),
@@ -142,7 +144,7 @@ export default {
       rows.value = await apiRequest("/tool-publications");
       selectedId.value = rows.value.some((r) => r.id === preferredId)
         ? preferredId
-        : rows.value[0]?.id || "";
+        : tools.value[0]?.id || "";
     }
     async function refresh() {
       await perform(async () => {
@@ -262,6 +264,7 @@ export default {
             outputSchema: output,
           }),
         });
+        stateFilter.value = "DRAFT";
         await loadRows(created.id);
         editing.value = false;
         activeTab.value = "overview";

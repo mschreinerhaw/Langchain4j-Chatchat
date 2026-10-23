@@ -67,9 +67,9 @@
   line-height: 1.4;
   white-space: nowrap;
 }
-.permission-console button:hover,
-.permission-profile-dialog button:hover,
-.workspace-settings button:hover {
+.permission-console button:hover:not(:disabled),
+.permission-profile-dialog button:hover:not(:disabled),
+.workspace-settings button:hover:not(:disabled) {
   border-color: #a5b9df;
   background: #f4f7ff;
 }
@@ -85,6 +85,20 @@
   background: var(--primary, #3268eb);
   color: #fff;
   border-color: var(--primary, #3268eb);
+}
+.permission-console .permission-primary:is(:hover, :focus-visible):not(:disabled),
+.permission-profile-dialog .permission-primary:is(:hover, :focus-visible):not(:disabled),
+.workspace-settings .permission-primary:is(:hover, :focus-visible):not(:disabled) {
+  background: #2455c7;
+  border-color: #2455c7;
+  color: #fff;
+}
+.permission-console .permission-primary:active:not(:disabled),
+.permission-profile-dialog .permission-primary:active:not(:disabled),
+.workspace-settings .permission-primary:active:not(:disabled) {
+  background: #1e40af;
+  border-color: #1e40af;
+  color: #fff;
 }
 .permission-console input,
 .permission-console select,

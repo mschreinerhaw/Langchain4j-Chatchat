@@ -97,6 +97,24 @@ beforeEach(() => {
   vi.spyOn(window, "confirm").mockReturnValue(true);
 });
 describe("permission console", () => {
+  it("dismisses the refreshed catalog success message automatically", async () => {
+    const wrapper = mount(PermissionConsoleView);
+    await flushPromises();
+    vi.useFakeTimers();
+    try {
+      await wrapper.vm.reloadAfterChange();
+      expect(wrapper.vm.notice).toBe("授权目录已刷新");
+      await vi.advanceTimersByTimeAsync(3500);
+      expect(wrapper.vm.notice).toBe("");
+      api.apiRequest.mockRejectedValueOnce(new Error("目录不可用"));
+      await wrapper.vm.reloadAfterChange();
+      await vi.advanceTimersByTimeAsync(10000);
+      expect(wrapper.vm.notice).toContain("刷新失败");
+    } finally {
+      wrapper.unmount();
+      vi.useRealTimers();
+    }
+  });
   it("switches between separate skill and Agent tabs with matching resource types", async () => {
     api.fetchDomainSkills.mockResolvedValue({ skills: [{ id: "skill-a", name: "投资技能" }], totalPages: 1 });
     api.fetchAgentOptions.mockResolvedValue([{ id: "agent-a", name: "日志分析助手" }]);

@@ -1,4 +1,5 @@
 import { saveResourceAuthorization } from "../utils/permissionWrites.js";
+import { useTransientNotice } from "../utils/useTransientNotice.js";
 import { computed, ref, watch } from "vue";
 import { apiRequest, fetchRoleAuthorization, saveRoleAuthorization } from "../../services/api.js";
 import { activeGrant, resourceRules, resourceGroups } from "../utils/permissionWorkspace.js";
@@ -18,6 +19,7 @@ export default {
       notice = ref(""),
       failed = ref(false),
       source = ref("");
+    useTransientNotice(notice, failed);
     const form = ref({
       targetType: "ROLE",
       targetId: props.roleId,

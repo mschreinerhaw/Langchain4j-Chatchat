@@ -522,6 +522,22 @@
         ></section
       >
     </div>
+    <AppConfirmDialog
+      v-if="deleteRequest"
+      title="删除工具"
+      :busy="busy"
+      :error="deleteError"
+      :cancel-label="deleteError ? '返回并刷新' : '取消'"
+      @cancel="cancelToolDeletion"
+      @confirm="confirmToolDeletion"
+    >
+      <div class="publication-delete-target"
+        ><strong>{{ deleteRequest.title }}</strong
+        ><span>将删除全部 {{ deleteRequest.count }} 个版本（含草稿）</span></div
+      >
+      <p class="publication-delete-warning">删除后无法恢复，也不能回滚到历史版本。</p>
+      <p class="publication-delete-note">操作审计记录仍会保留。</p>
+    </AppConfirmDialog>
   </section>
 </template>
 <script src="../js/views/ToolPublicationsView.js"></script>

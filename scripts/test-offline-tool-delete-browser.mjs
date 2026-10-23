@@ -95,14 +95,24 @@ try {
     await showOffline(stopped.title);
     const button = page.getByRole("button", { name: "删除工具", exact: true });
     assert.equal(await button.isEnabled(), true);
-    let prompt = "";
-    page.once("dialog", async (d) => {
-      prompt = d.message();
-      await d.dismiss();
-    });
     await button.click();
+    const modal = page.locator(".app-confirm-dialog");
+    await modal.waitFor();
+    assert.ok(
+      (await modal.innerText()).includes("全部") && (await modal.innerText()).includes("无法恢复")
+    );
+    assert.equal(await modal.evaluate((e) => getComputedStyle(e).borderRadius), "14px");
+    await page.screenshot({ path: out + "/styled-delete-dialog.png" });
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(
+      await modal.evaluate(
+        (e) => e.getBoundingClientRect().right <= innerWidth && e.getBoundingClientRect().left >= 0
+      ),
+      true
+    );
+    await page.screenshot({ path: out + "/styled-delete-dialog-mobile.png" });
+    await modal.getByRole("button", { name: "取消", exact: true }).click();
     await ready();
-    assert.ok(prompt.includes("全部") && prompt.includes("不能恢复"));
     assert.deepEqual(await api("/tool-publications"), before);
     await page.screenshot({ path: out + "/delete-entry.png" });
     checks.cancelDeletionPreservesExistingTools = true;
@@ -112,7 +122,12 @@ try {
     const stamp = Date.now().toString(36),
       title = "下线删除验收 " + stamp,
       domain = "offline_delete_" + stamp;
-    const definition = { ...JSON.parse(seed.definitionJson), domainCode: domain, enabled: false };
+    const definition = {
+      ...JSON.parse(seed.definitionJson),
+      businessCategory: seed.businessCategory || "",
+      domainCode: domain,
+      enabled: false,
+    };
     delete definition.chineseAlias;
     const payload = {
       title,
@@ -154,34 +169,59 @@ try {
     );
     const pending = await api("/tool-publications", { ...payload, logicalId: first.logicalId });
     assert.equal(pending.releaseNumber, 3);
-    page.once("dialog", (d) => d.accept());
     let response = page.waitForResponse(
       (r) =>
         r.url().endsWith("/tool-publications/" + second.id) && r.request().method() === "DELETE"
     );
     await page.getByRole("button", { name: "删除工具", exact: true }).click();
+    await page
+      .locator(".app-confirm-dialog")
+      .getByRole("button", { name: "确认删除", exact: true })
+      .click();
     assert.equal((await response).status(), 409);
     await ready();
-    assert.ok((await page.getByRole("alert").innerText()).includes("版本已变化"));
+    assert.ok(
+      (await page.locator(".app-confirm-dialog").getByRole("alert").innerText()).includes(
+        "版本已变化"
+      )
+    );
+    assert.equal(
+      await page
+        .locator(".app-confirm-dialog")
+        .getByRole("button", { name: "确认删除", exact: true })
+        .isDisabled(),
+      true
+    );
+    await page.screenshot({ path: out + "/stale-delete-dialog.png" });
     checks.concurrentNewVersionPreventsStaleDeletion = true;
     await page
-      .locator(".permission-page-heading")
-      .getByRole("button", { name: "刷新", exact: true })
+      .locator(".app-confirm-dialog")
+      .getByRole("button", { name: "返回并刷新", exact: true })
       .click();
     await ready();
     assert.equal(await page.getByLabel("当前版本", { exact: true }).locator("option").count(), 3);
-    let prompt = "";
     let deleteRequests = 0;
     page.on("request", (r) => {
       if (r.method() === "DELETE") deleteRequests++;
     });
-    page.once("dialog", async (d) => {
-      prompt = d.message();
-      await d.dismiss();
-    });
     await page.getByRole("button", { name: "删除工具", exact: true }).click();
+    const modal = page.locator(".app-confirm-dialog");
+    await modal.waitFor();
+    assert.ok((await modal.innerText()).includes("全部 3 个版本"));
+    assert.equal(await modal.evaluate((e) => getComputedStyle(e).borderRadius), "14px");
+    await page.screenshot({ path: out + "/styled-delete-dialog.png" });
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(
+      await modal.evaluate(
+        (e) => e.getBoundingClientRect().right <= innerWidth && e.getBoundingClientRect().left >= 0
+      ),
+      true
+    );
+    await page.screenshot({ path: out + "/styled-delete-dialog-mobile.png" });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.keyboard.press("Escape");
+    await modal.waitFor({ state: "detached" });
     assert.equal(deleteRequests, 0);
-    assert.ok(prompt.includes("全部 3 个版本"));
     assert.equal((await family(first.logicalId)).length, 3);
     checks.cancelConfirmationDoesNotDelete = true;
     await page.screenshot({ path: out + "/offline-delete-entry.png" });
@@ -189,8 +229,11 @@ try {
       (r) =>
         r.url().endsWith("/tool-publications/" + second.id) && r.request().method() === "DELETE"
     );
-    page.once("dialog", (d) => d.accept());
     await page.getByRole("button", { name: "删除工具", exact: true }).click();
+    await page
+      .locator(".app-confirm-dialog")
+      .getByRole("button", { name: "确认删除", exact: true })
+      .click();
     const deleted = await response;
     assert.equal(deleted.status(), 200, await deleted.text());
     assert.equal((await deleted.json()).data.deletedVersions, 3);

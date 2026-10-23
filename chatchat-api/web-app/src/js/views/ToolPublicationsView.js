@@ -1,18 +1,22 @@
 import { ref, computed, onMounted, onActivated, watch } from "vue";
 import { apiRequest, getStoredAuthSession } from "../../services/api.js";
 import { useTransientNotice } from "../utils/useTransientNotice.js";
+import AppConfirmDialog from "../../components/AppConfirmDialog.vue";
 import "../../styles/pages/permission-workspace.css";
 import "../../styles/pages/tool-publications.css";
 import "../../styles/pages/tool-categories.css";
 
 export default {
   name: "ToolPublicationsView",
+  components: { AppConfirmDialog },
   emits: ["navigate"],
   setup() {
     const rows = ref([]),
       parents = ref([]),
       roles = ref([]),
       templates = ref([]);
+    const deleteRequest = ref(null),
+      deleteError = ref("");
     const busy = ref(false),
       templatesLoading = ref(false),
       notice = ref(""),
@@ -454,19 +458,39 @@ export default {
         notice.value = "请先下线该工具的所有运行版本，再删除工具。";
         return;
       }
-      if (
-        !window.confirm(
-          `确认删除工具“${row.title}”及其全部 ${history.length} 个版本（含草稿）？删除后不能恢复或回滚，操作审计记录仍会保留。`
-        )
-      )
-        return;
+      deleteError.value = "";
+      deleteRequest.value = {
+        id: row.id,
+        logicalId: row.logicalId,
+        title: row.title,
+        count: history.length,
+        expectedVersions: Object.fromEntries(history.map((item) => [item.id, item.version])),
+      };
+    }
+    async function cancelToolDeletion() {
+      if (busy.value) return;
+      const reload = !!deleteError.value;
+      deleteRequest.value = null;
+      deleteError.value = "";
+      if (reload) await refresh();
+    }
+    async function confirmToolDeletion() {
+      if (!deleteRequest.value || busy.value || !publishable || deleteError.value) return;
+      const request = deleteRequest.value;
       await perform(async () => {
-        await apiRequest(`/tool-publications/${row.id}`, {
-          method: "DELETE",
-          body: JSON.stringify({
-            expectedVersions: Object.fromEntries(history.map((item) => [item.id, item.version])),
-          }),
-        });
+        try {
+          await apiRequest(`/tool-publications/${request.id}`, {
+            method: "DELETE",
+            body: JSON.stringify({
+              expectedVersions: request.expectedVersions,
+            }),
+          });
+        } catch (error) {
+          deleteError.value = error.message || "删除未完成，请稍后重试。";
+          throw error;
+        }
+        deleteRequest.value = null;
+        rows.value = rows.value.filter((item) => item.logicalId !== request.logicalId);
         editing.value = false;
         await loadRows("");
         activeTab.value = "overview";
@@ -564,6 +588,10 @@ export default {
       test,
       confirmAction,
       deleteTool,
+      deleteRequest,
+      deleteError,
+      confirmToolDeletion,
+      cancelToolDeletion,
     };
   },
 };

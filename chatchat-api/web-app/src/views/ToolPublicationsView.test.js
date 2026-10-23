@@ -360,7 +360,10 @@ it("deletes all versions of an offline tool after confirmation and preserves oth
   await nextTick();
   expect(vm.selectedId).toBe("new-offline");
   await vm.deleteTool();
-  expect(confirm).toHaveBeenCalledWith(expect.stringContaining("全部 3 个版本"));
+  expect(confirm).not.toHaveBeenCalled();
+  expect(document.querySelector(".app-confirm-dialog").textContent).toContain("全部 3 个版本");
+  expect(apiRequest.mock.calls.some((c) => c[1]?.method === "DELETE")).toBe(false);
+  await vm.confirmToolDeletion();
   const call = apiRequest.mock.calls.find((c) => c[1]?.method === "DELETE");
   expect(call[0]).toBe("/tool-publications/new-offline");
   expect(JSON.parse(call[1].body)).toEqual({
@@ -383,6 +386,9 @@ it("does not delete when confirmation is cancelled", async () => {
   await nextTick();
   const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
   await vm.deleteTool();
+  expect(vm.deleteRequest).not.toBeNull();
+  await vm.cancelToolDeletion();
+  expect(vm.deleteRequest).toBeNull();
   expect(apiRequest.mock.calls.some((c) => c[1]?.method === "DELETE")).toBe(false);
   expect(vm.selectedId).toBe("offline");
   confirm.mockRestore();
@@ -415,9 +421,45 @@ it("keeps the selected tool and versions when deletion is rejected as stale", as
   await nextTick();
   const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
   await vm.deleteTool();
+  await vm.confirmToolDeletion();
   expect(vm.failed).toBe(true);
   expect(vm.selectedId).toBe("offline");
   expect(vm.versions).toHaveLength(1);
   expect(vm.notice).toContain("版本已变化");
+  expect(vm.deleteRequest).not.toBeNull();
+  expect(vm.deleteError).toContain("版本已变化");
+  await vm.confirmToolDeletion();
+  expect(apiRequest.mock.calls.filter((c) => c[1]?.method === "DELETE")).toHaveLength(1);
+  await vm.cancelToolDeletion();
+  expect(vm.deleteRequest).toBeNull();
   confirm.mockRestore();
+});
+it("keeps the deletion confirmation open and prevents duplicate submissions or cancellation while saving", async () => {
+  const offline = { ...release("offline", 1, "OFFLINE"), version: 1 };
+  const original = apiRequest.getMockImplementation();
+  let finish;
+  apiRequest.mockImplementation((path, options) => {
+    if (options?.method === "DELETE")
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    if (path === "/tool-publications") return Promise.resolve([offline]);
+    return original(path, options);
+  });
+  const vm = await mount();
+  vm.stateFilter = "OFFLINE";
+  await nextTick();
+  await vm.deleteTool();
+  const pending = vm.confirmToolDeletion();
+  await nextTick();
+  expect(vm.busy).toBe(true);
+  const dialog = document.querySelector(".app-confirm-dialog");
+  expect([...dialog.querySelectorAll("button")].every((button) => button.disabled)).toBe(true);
+  await vm.cancelToolDeletion();
+  await vm.confirmToolDeletion();
+  expect(vm.deleteRequest).not.toBeNull();
+  expect(apiRequest.mock.calls.filter((c) => c[1]?.method === "DELETE")).toHaveLength(1);
+  finish({ deletedVersions: 1 });
+  await pending;
+  expect(vm.deleteRequest).toBeNull();
 });

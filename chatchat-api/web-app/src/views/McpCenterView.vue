@@ -109,83 +109,104 @@
         @keydown.esc="closeToolDetail"
         ><header
           ><h2>{{ activeTool.chineseAlias || activeTool.displayName }}</h2
-          ><button type="button" class="mcp-detail-close" @click="closeToolDetail"
-            >关闭</button
+          ><div class="mcp-detail-heading-actions"
+            ><button
+              type="button"
+              class="mcp-detail-advanced-entry"
+              :aria-expanded="detailAdvanced"
+              aria-controls="mcp-tool-call-information"
+              @click="detailAdvanced = !detailAdvanced"
+              >{{ detailAdvanced ? "返回模板" : "高级信息" }}</button
+            ><button type="button" class="mcp-detail-close" @click="closeToolDetail"
+              >关闭</button
+            ></div
           ></header
         ><div class="mcp-tool-detail-body"
-          ><section class="mcp-tool-detail-section primary"
-            ><h3>工具用途</h3><p>{{ activeTool.description }}</p
-            ><p>业务分类：{{ activeTool.functionalCategory || "待分类" }}</p
-            ><p>查看此工具支持的模板，具体可用范围以您的当前授权为准。</p></section
           ><section
-            class="mcp-authorized-templates"
-            aria-label="已授权模板"
-            :aria-busy="detailLoading"
-          >
-            <div class="mcp-template-heading"
-              ><h3
-                >已授权模板
-                <span v-if="!detailLoading && !detailError">{{ detailTemplates.length }}</span></h3
-              >
-              <button
-                type="button"
-                class="mcp-detail-close"
-                :disabled="detailLoading"
-                @click="loadDetailTemplates"
-                >刷新模板</button
-              ></div
+            v-if="detailAdvanced"
+            id="mcp-tool-call-information"
+            class="mcp-tool-detail-section mcp-call-details"
+            aria-label="调用信息"
+            ><h3>调用信息</h3><p>工具标识：{{ activeTool.localToolName }}</p
+            ><p>来源服务：{{ activeTool.serviceName }}</p
+            ><h4 v-if="activeToolSchemaText">入参结构</h4
+            ><pre v-if="activeToolSchemaText">{{ activeToolSchemaText }}</pre></section
+          ><template v-else
+            ><section class="mcp-tool-detail-section primary"
+              ><h3>工具用途</h3><p>{{ activeTool.description }}</p
+              ><p>业务分类：{{ activeTool.functionalCategory || "待分类" }}</p
+              ><p>查看此工具支持的模板，具体可用范围以您的当前授权为准。</p></section
+            ><section
+              class="mcp-authorized-templates"
+              aria-label="已授权模板"
+              :aria-busy="detailLoading"
             >
-            <p class="mcp-template-hint">仅展示您当前有权访问的模板，展开即可查看内容。</p>
-            <label class="mcp-template-search"
-              ><Search :size="18" aria-hidden="true" /><input
-                v-model="detailQuery"
-                type="search"
-                placeholder="搜索模板名称或用途"
-                aria-label="搜索授权模板"
-            /></label>
-            <p v-if="detailLoading" class="mcp-template-state" role="status">正在加载授权模板…</p>
-            <div v-else-if="detailError" class="mcp-template-state" role="alert"
-              ><p>{{ detailError }}</p
-              ><button type="button" class="mcp-detail-close" @click="loadDetailTemplates"
-                >重新加载</button
-              ></div
-            >
-            <p v-else-if="!filteredDetailTemplates.length" class="mcp-template-state">{{
-              detailQuery
-                ? "未找到匹配的模板，请调整搜索内容。"
-                : "当前没有可查看的授权模板，请联系管理员配置模板授权。"
-            }}</p>
-            <div v-else class="mcp-template-list">
-              <details
-                v-for="template in pagedDetailTemplates"
-                :key="template.key"
-                class="mcp-authorized-template"
+              <div class="mcp-template-heading"
+                ><h3
+                  >已授权模板
+                  <span v-if="!detailLoading && !detailError">{{
+                    detailTemplates.length
+                  }}</span></h3
+                >
+                <button
+                  type="button"
+                  class="mcp-detail-close"
+                  :disabled="detailLoading"
+                  @click="loadDetailTemplates"
+                  >刷新模板</button
+                ></div
               >
-                <summary
-                  ><span
-                    ><strong>{{ template.title }}</strong
-                    ><span class="mcp-template-description">{{
-                      template.description || "查看模板说明与内容"
-                    }}</span></span
-                  ><span class="mcp-template-expand">查看内容</span></summary
+              <p class="mcp-template-hint">仅展示您当前有权访问的模板，展开即可查看内容。</p>
+              <label class="mcp-template-search"
+                ><Search :size="18" aria-hidden="true" /><input
+                  v-model="detailQuery"
+                  type="search"
+                  placeholder="搜索模板名称或用途"
+                  aria-label="搜索授权模板"
+              /></label>
+              <p v-if="detailLoading" class="mcp-template-state" role="status">正在加载授权模板…</p>
+              <div v-else-if="detailError" class="mcp-template-state" role="alert"
+                ><p>{{ detailError }}</p
+                ><button type="button" class="mcp-detail-close" @click="loadDetailTemplates"
+                  >重新加载</button
+                ></div
+              >
+              <p v-else-if="!filteredDetailTemplates.length" class="mcp-template-state">{{
+                detailQuery
+                  ? "未找到匹配的模板，请调整搜索内容。"
+                  : "当前没有可查看的授权模板，请联系管理员配置模板授权。"
+              }}</p>
+              <div v-else class="mcp-template-list">
+                <details
+                  v-for="template in pagedDetailTemplates"
+                  :key="template.key"
+                  class="mcp-authorized-template"
                 >
-                <div class="mcp-template-content"
-                  ><p v-if="template.description">{{ template.description }}</p
-                  ><pre v-if="template.content">{{ template.content }}</pre
-                  ><p v-else class="mcp-template-hint"
-                    >此模板按上述用途提供服务，无额外文本内容。</p
-                  ></div
-                >
-              </details>
-              <AppPagination
-                :page="detailPage"
-                :page-size="6"
-                :total="filteredDetailTemplates.length"
-                :page-count="detailPageCount"
-                aria-label="授权模板分页"
-                @change="detailPage = $event"
-              />
-            </div> </section></div></aside
+                  <summary
+                    ><span
+                      ><strong>{{ template.title }}</strong
+                      ><span class="mcp-template-description">{{
+                        template.description || "查看模板说明与内容"
+                      }}</span></span
+                    ><span class="mcp-template-expand">查看内容</span></summary
+                  >
+                  <div class="mcp-template-content"
+                    ><p v-if="template.description">{{ template.description }}</p
+                    ><pre v-if="template.content">{{ template.content }}</pre
+                    ><p v-else class="mcp-template-hint"
+                      >此模板按上述用途提供服务，无额外文本内容。</p
+                    ></div
+                  >
+                </details>
+                <AppPagination
+                  :page="detailPage"
+                  :page-size="6"
+                  :total="filteredDetailTemplates.length"
+                  :page-count="detailPageCount"
+                  aria-label="授权模板分页"
+                  @change="detailPage = $event"
+                />
+              </div> </section></template></div></aside
     ></div>
   </section>
 </template>

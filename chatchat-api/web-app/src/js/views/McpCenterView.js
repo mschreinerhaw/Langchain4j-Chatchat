@@ -40,6 +40,7 @@ export default {
       toolCategoryFilter: "all",
       toolGroupMode: "category",
       activeTool: null,
+      detailAdvanced: false,
       detailTemplates: [],
       detailLoading: false,
       detailError: "",
@@ -58,6 +59,11 @@ export default {
     };
   },
   computed: {
+    activeToolSchemaText() {
+      return this.activeTool?.inputSchema
+        ? JSON.stringify(this.activeTool.inputSchema, null, 2)
+        : "";
+    },
     enabledServices() {
       return this.services.filter((service) => service.enabled);
     },
@@ -393,6 +399,7 @@ export default {
       return `${propertyText}，${requiredText}`;
     },
     openToolDetail(tool) {
+      this.detailAdvanced = false;
       this.activeTool = tool || null;
       this.detailQuery = "";
       this.detailPage = 1;
@@ -418,6 +425,7 @@ export default {
       }
     },
     closeToolDetail() {
+      this.detailAdvanced = false;
       this.detailSequence += 1;
       this.detailTemplates = [];
       this.detailError = "";

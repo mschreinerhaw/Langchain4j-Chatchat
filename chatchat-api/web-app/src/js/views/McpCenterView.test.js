@@ -10,13 +10,15 @@ import { fetchPublishedToolTemplates } from "../../services/api";
 import { readFileSync } from "node:fs";
 import McpCenterView from "./McpCenterView.js";
 describe("published business tool directory", () => {
-  it("removes call details and provides searchable authorized template content", () => {
+  it("keeps call details behind an explicit entry and provides searchable authorized templates", () => {
     const template = readFileSync(
       new URL("../../views/McpCenterView.vue", import.meta.url),
       "utf8"
     );
-    expect(template).not.toContain("调用信息");
-    expect(template).not.toContain("activeToolSchemaText");
+    expect(McpCenterView.data().detailAdvanced).toBe(false);
+    expect(template).toContain('v-if="detailAdvanced"');
+    expect(template).toContain("高级信息");
+    expect(template).toContain("activeToolSchemaText");
     expect(template).toContain("已授权模板");
     expect(template).toContain("template.content");
     const rows = Array.from({ length: 8 }, (_, i) => ({ title: `模板${i}`, description: "业务" }));
@@ -32,6 +34,19 @@ describe("published business tool directory", () => {
         filteredDetailTemplates: rows,
       })
     ).toEqual(rows.slice(6));
+  });
+  it("returns to hidden advanced information whenever a tool is reopened", () => {
+    const vm = {
+      ...McpCenterView.data(),
+      detailAdvanced: true,
+      loadDetailTemplates: vi.fn(),
+      $nextTick: vi.fn(),
+    };
+    McpCenterView.methods.openToolDetail.call(vm, { localToolName: "a" });
+    expect(vm.detailAdvanced).toBe(false);
+    vm.detailAdvanced = true;
+    McpCenterView.methods.closeToolDetail.call(vm);
+    expect(vm.detailAdvanced).toBe(false);
   });
   it("ignores a closed drawer response and never retains previously loaded content on failure", async () => {
     let resolve;

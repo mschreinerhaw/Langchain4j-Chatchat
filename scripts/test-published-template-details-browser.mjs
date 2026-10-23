@@ -2,7 +2,7 @@ import { chromium } from "../chatchat-api/web-app/node_modules/playwright-core/i
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import assert from "node:assert/strict";
 const base = process.env.CHATCHAT_STAGE_URL || "http://192.168.195.221:18100";
-const out = "docs/published-template-details-20261023";
+const out = process.env.CHATCHAT_BROWSER_OUTPUT || "docs/published-template-details-20261023";
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({
   executablePath: "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
@@ -68,7 +68,9 @@ try {
   const unauthorized = await api("/mcp/published-tool-templates?toolName=raw_execute");
   assert.notEqual(unauthorized.code, 200);
   checks.arbitraryToolRejected = true;
-  const target = results.filter(result => result.withContent > 0).reduce((a, b) => (a.count > b.count ? a : b));
+  const target = results
+    .filter((result) => result.withContent > 0)
+    .reduce((a, b) => (a.count > b.count ? a : b));
   const card = cards.find((card) => card.localToolName === target.name);
   const page = await context.newPage();
   page.setDefaultTimeout(45000);
@@ -83,6 +85,19 @@ try {
   const dialog = page.getByRole("dialog", { name: "工具详情与授权模板" });
   await dialog.locator(".mcp-authorized-template").first().waitFor();
   assert.equal(await dialog.getByText("调用信息", { exact: false }).count(), 0);
+  const advancedEntry = dialog.getByRole("button", { name: "高级信息", exact: true });
+  assert.equal(await advancedEntry.getAttribute("aria-expanded"), "false");
+  await advancedEntry.click();
+  await dialog.getByRole("region", { name: "调用信息" }).waitFor();
+  assert.ok(
+    (await dialog.getByRole("region", { name: "调用信息" }).textContent()).includes(
+      card.localToolName
+    )
+  );
+  await page.screenshot({ path: out + "/advanced-information.png" });
+  await dialog.getByRole("button", { name: "返回模板", exact: true }).click();
+  assert.equal(await dialog.getByText("调用信息", { exact: true }).count(), 0);
+  checks.advancedInformationHiddenByDefaultAndAccessibleOnDemand = true;
   assert.equal(await dialog.locator(".mcp-authorized-template").count(), Math.min(6, target.count));
   if (target.count > 6) {
     await dialog.getByRole("button", { name: "下一页", exact: true }).click();
@@ -109,9 +124,23 @@ try {
   await page.screenshot({ path: out + "/mobile.png", fullPage: true });
   assert.ok(await dialog.evaluate((el) => el.getBoundingClientRect().width <= window.innerWidth));
   checks.mobileFits = true;
+  await dialog.getByRole("button", { name: "高级信息", exact: true }).click();
+  await dialog.getByRole("region", { name: "调用信息" }).waitFor();
   await dialog.getByRole("button", { name: "关闭", exact: true }).click();
   await dialog.waitFor({ state: "detached" });
   checks.close = true;
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole("button", { name: "查看用途", exact: true }).first().click();
+  await dialog.getByRole("button", { name: "高级信息", exact: true }).waitFor();
+  assert.equal(
+    await dialog
+      .getByRole("button", { name: "高级信息", exact: true })
+      .getAttribute("aria-expanded"),
+    "false"
+  );
+  assert.equal(await dialog.getByRole("region", { name: "调用信息" }).count(), 0);
+  checks.reopeningRestoresHiddenDefault = true;
+  await dialog.getByRole("button", { name: "关闭", exact: true }).click();
   assert.deepEqual(errors, []);
   checks.noBrowserErrors = true;
   const after = await api("/mcp/tool-cards?pageSize=100&sourceType=mcp");

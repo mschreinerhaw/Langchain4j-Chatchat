@@ -1,0 +1,32 @@
+{
+  "version": "2.4.13-system-search-tools-20261024",
+  "sourceCommit": "af4f09c7b",
+  "baseline": {
+    "api": "29f70c273b4c11525fe701bb22fe584e7fd2d0e2a45f4911b63bd097693fcc77",
+    "mcp": "23418544988be9559018b46618440fb6212534a885ab35d51936755451f39939"
+  },
+  "backendEntriesUnchanged": false,
+  "patchedClasses": [
+    "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$McpInvokeRequest.class",
+    "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$McpServiceUpsertRequest.class",
+    "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$McpServiceVersionView.class",
+    "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$McpServiceView.class",
+    "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$ToolCardPage.class",
+    "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$ToolCardView.class",
+    "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$ToolParameterView.class",
+    "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$ToolServiceOption.class",
+    "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$ToolServiceOptionBuilder.class",
+    "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController.class",
+    "BOOT-INF/classes/com/chatchat/api/service/PublishedMcpToolCatalog$Publication.class",
+    "BOOT-INF/classes/com/chatchat/api/service/PublishedMcpToolCatalog.class"
+  ],
+  "otherBackendEntriesUnchanged": true,
+  "artifacts": {
+    "api": {
+      "sha256": "8964625c52bf5f9b4d3f123033801a4ef07706c803b3b63c27b671deb5875762"
+    },
+    "mcp": {
+      "sha256": "23418544988be9559018b46618440fb6212534a885ab35d51936755451f39939"
+    }
+  }
+}

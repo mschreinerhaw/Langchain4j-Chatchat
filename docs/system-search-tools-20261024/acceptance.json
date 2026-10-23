@@ -1,0 +1,12 @@
+{
+  "checks": {
+    "exactlyTwoSystemSearchToolsAndBusinessToolsPreserved": true,
+    "agentOptionsIncludeBothSystemTools": true,
+    "agentCanSaveAndResolveBothTools": true,
+    "systemCardsAndPurposeAvoidTemplateRequests": true,
+    "userCanSelectBothInAgentPicker": true,
+    "noBrowserErrors": true,
+    "temporaryAgentCleanedAndExistingAgentsPreserved": true
+  },
+  "errors": []
+}

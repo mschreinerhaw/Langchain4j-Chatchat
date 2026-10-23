@@ -1,0 +1,13 @@
+﻿{
+    "sourceCommit":  "af4f09c7b",
+    "vueStructure":  "passed",
+    "authorization":  "existing MCP tool and document permissions retained",
+    "backendTests":  13,
+    "frontendTests":  18,
+    "systemTools":  [
+                        "web_search",
+                        "document_search"
+                    ],
+    "productionBuild":  "passed",
+    "failed":  0
+}

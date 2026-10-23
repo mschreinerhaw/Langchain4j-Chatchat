@@ -81,6 +81,10 @@ try {
     defaultAgent: false,
   });
   ownAgent = created.id;
+  writeFileSync(
+    out + "/fixture.json",
+    JSON.stringify({ agentId: ownAgent, status: "CREATED" }, null, 2)
+  );
   assert.equal(ownAgent, id);
   const saved = await api("/agents/workshop/" + ownAgent);
   assert.ok(
@@ -150,6 +154,10 @@ try {
     if (ownAgent) {
       assert.ok(ownAgent.startsWith("system_search_acceptance_"));
       await api("/agents/workshop/" + ownAgent, undefined, "DELETE");
+      writeFileSync(
+        out + "/fixture.json",
+        JSON.stringify({ agentId: ownAgent, status: "DELETED" }, null, 2)
+      );
     }
     if (api && beforeAgents) {
       const after = await api("/agents/workshop?page=1&pageSize=100");

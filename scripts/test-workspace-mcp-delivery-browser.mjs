@@ -97,6 +97,17 @@ try {
   checks.enterWorkspaceWorks = true;
   await page.goto(base + "/#/w/zhice/mcp");
   await page.locator(".mcp-tool-card").first().waitFor();
+  const toolCard = page.locator(".mcp-tool-card").first();
+  assert.equal(await toolCard.locator('.mcp-capability-icon svg').count(), 1);
+  assert.equal(await toolCard.locator('dl > div').count(), 2);
+  assert.equal(await toolCard.evaluate(e => getComputedStyle(e).borderRadius), '16px');
+  const toolAction = toolCard.getByRole('button', { name: '查看用途' });
+  await toolAction.hover();
+  await page.waitForTimeout(250);
+  assert.equal(await toolAction.evaluate(e => getComputedStyle(e).color), 'rgb(255, 255, 255)');
+  await page.screenshot({ path: output + '/mcp-card-hover.png', fullPage: true });
+  await page.mouse.move(0, 0);
+  checks.publishedCardStylesAndHover = true;
   const heading = page.locator(".mcp-page-heading");
   const refresh = heading.getByRole("button", { name: "刷新", exact: true });
   const hb = await page.locator(".mcp-tools").boundingBox(),
@@ -105,8 +116,8 @@ try {
   checks.refreshAlignedRight = true;
   assert.equal(await page.locator(".mcp-operations").evaluate((e) => e.open), false);
   assert.equal(
-    await page.locator(".mcp-operations").evaluate((e) => e.nextElementSibling.className),
-    "mcp-tools"
+    await page.locator(".mcp-operations").evaluate((e) => e.nextElementSibling.classList.contains('mcp-tools')),
+    true
   );
   checks.operationsAtTopCollapsed = true;
   await page.screenshot({ path: output + "/mcp-desktop.png", fullPage: true });
@@ -131,6 +142,9 @@ try {
   assert.equal(await page.getByRole("dialog", { name: "工具用途" }).count(), 0);
   checks.detailStylesAndEscape = true;
   await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal((await page.locator('.mcp-tool-grid').first().evaluate(e => getComputedStyle(e).gridTemplateColumns)).split(' ').length, 1);
+  assert.equal(await toolCard.evaluate(e => e.scrollWidth <= e.clientWidth), true);
+  await page.screenshot({ path: output + '/mcp-cards-mobile.png', fullPage: true });
   await page.getByRole("button", { name: "查看用途" }).first().click();
   await page.getByText("调用信息（高级）", { exact: true }).click();
   assert.equal(

@@ -19,6 +19,7 @@ def main():
     parser.add_argument('--source-commit', required=True)
     parser.add_argument('--api-baseline', required=True)
     parser.add_argument('--mcp-baseline', required=True)
+    parser.add_argument('--version', default='2.4.2-workspace-ui-20261023')
     args = parser.parse_args()
     release = args.release_dir.resolve()
     baseline = {}
@@ -48,7 +49,7 @@ def main():
             new_backend = {e.filename: e.CRC for e in new.infolist() if not e.filename.startswith(prefix)}
             assert old_backend == new_backend
             assert all(old.read(name) == new.read(name) for name in old_backend)
-    manifest = {'version': '2.4.2-workspace-ui-20261023', 'sourceCommit': args.source_commit,
+    manifest = {'version': args.version, 'sourceCommit': args.source_commit,
                 'baseline': baseline, 'backendEntriesUnchanged': True,
                 'artifacts': {'api': {'sha256': digest(release / 'api.jar')}, 'mcp': {'sha256': baseline['mcp']}}}
     (release / 'release-manifest.json').write_text(json.dumps(manifest, indent=2))

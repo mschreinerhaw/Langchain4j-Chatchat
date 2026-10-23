@@ -1,14 +1,15 @@
-import { DownloadCloud, RefreshCw, Search } from "@lucide/vue";
+import { DownloadCloud, RefreshCw, Search, Blocks, ArrowUpRight, Layers3 } from "@lucide/vue";
 import AppPagination from "../../components/AppPagination.vue";
 import { errorMessage, formatDateTime } from "../utils/uiFormatters";
 import {
   fetchMcpCenterStatus,
   fetchMcpServices,
   fetchMcpToolCards,
-  syncMcpCenter
+  syncMcpCenter,
 } from "../../services/api";
 import "../../styles/pages/skill-hub.css";
 import "../../styles/pages/mcp-directory.css";
+import "../../styles/pages/mcp-published-cards.css";
 
 export default {
   name: "McpCenterView",
@@ -16,7 +17,10 @@ export default {
     AppPagination,
     DownloadCloud,
     RefreshCw,
-    Search
+    Search,
+    Blocks,
+    ArrowUpRight,
+    Layers3,
   },
   data() {
     return {
@@ -42,7 +46,7 @@ export default {
       error: "",
       syncMessage: "",
       toolSearchTimer: null,
-      toolRequestSequence: 0
+      toolRequestSequence: 0,
     };
   },
   computed: {
@@ -69,7 +73,7 @@ export default {
       return [
         { value: "service", label: "按来源服务" },
         { value: "category", label: "按能力分类" },
-        { value: "tag", label: "按标签" }
+        { value: "tag", label: "按标签" },
       ];
     },
     filteredToolCards() {
@@ -97,7 +101,7 @@ export default {
         if (!groups.has(group.key)) {
           groups.set(group.key, {
             ...group,
-            tools: []
+            tools: [],
           });
         }
         groups.get(group.key).tools.push(tool);
@@ -118,7 +122,7 @@ export default {
         return "";
       }
       return JSON.stringify(this.activeTool.inputSchema, null, 2);
-    }
+    },
   },
   mounted() {
     this.loadMcpCenter();
@@ -140,7 +144,7 @@ export default {
     toolGroupMode() {
       this.toolPage = 1;
       this.loadToolCards();
-    }
+    },
   },
   beforeUnmount() {
     window.clearTimeout(this.toolSearchTimer);
@@ -156,7 +160,7 @@ export default {
         const [centerStatus, services, toolCards] = await Promise.all([
           fetchMcpCenterStatus(),
           fetchMcpServices(),
-          fetchMcpToolCards(this.toolCardQuery())
+          fetchMcpToolCards(this.toolCardQuery()),
         ]);
         if (requestSequence === this.toolRequestSequence) {
           this.centerStatus = centerStatus;
@@ -219,7 +223,7 @@ export default {
         sourceType: "mcp",
         groupMode: this.toolGroupMode,
         page: this.toolPage,
-        pageSize: this.toolPageSize
+        pageSize: this.toolPageSize,
       };
     },
     applyToolPage(payload) {
@@ -228,7 +232,9 @@ export default {
         this.toolTotal = this.toolCards.length;
         this.mcpToolTotal = this.toolCards.length;
         this.toolPageTotal = Math.max(1, Math.ceil(this.toolTotal / this.toolPageSize));
-        this.filteredToolGroupCountValue = new Set(this.toolCards.map((tool) => this.resolveToolGroup(tool).key)).size;
+        this.filteredToolGroupCountValue = new Set(
+          this.toolCards.map((tool) => this.resolveToolGroup(tool).key)
+        ).size;
         this.toolServiceOptionsData = [];
         this.toolCategoryOptionsData = [];
         return;
@@ -239,9 +245,15 @@ export default {
       this.toolPageSize = payload?.pageSize || this.toolPageSize;
       this.toolPageTotal = payload?.totalPages || 1;
       this.filteredToolGroupCountValue = payload?.filteredGroupCount || 0;
-      this.toolServiceOptionsData = Array.isArray(payload?.serviceOptions) ? payload.serviceOptions : [];
-      this.toolCategoryOptionsData = Array.isArray(payload?.categoryOptions) ? payload.categoryOptions : [];
-      this.mcpToolTotal = this.toolServiceOptionsData.find((option) => option.value === "all")?.count || this.toolTotal;
+      this.toolServiceOptionsData = Array.isArray(payload?.serviceOptions)
+        ? payload.serviceOptions
+        : [];
+      this.toolCategoryOptionsData = Array.isArray(payload?.categoryOptions)
+        ? payload.categoryOptions
+        : [];
+      this.mcpToolTotal =
+        this.toolServiceOptionsData.find((option) => option.value === "all")?.count ||
+        this.toolTotal;
     },
     serviceBadge(service) {
       return (service.name || "M").slice(0, 1).toUpperCase();
@@ -263,9 +275,11 @@ export default {
       return protocol;
     },
     serviceToolCount(service) {
-      return this.toolServiceOptionsData.find((option) => (
-        option.value === service.id || option.label === service.name
-      ))?.count || 0;
+      return (
+        this.toolServiceOptionsData.find(
+          (option) => option.value === service.id || option.label === service.name
+        )?.count || 0
+      );
     },
     resolveToolGroup(tool) {
       if (this.toolGroupMode === "category") {
@@ -273,7 +287,7 @@ export default {
         return {
           key: `category:${category}`,
           label: category,
-          subtitle: "能力分类"
+          subtitle: "能力分类",
         };
       }
       if (this.toolGroupMode === "tag") {
@@ -281,14 +295,14 @@ export default {
         return {
           key: `tag:${tag}`,
           label: tag,
-          subtitle: "标签"
+          subtitle: "标签",
         };
       }
       const serviceName = tool?.serviceName || tool?.serviceId || "未归属服务";
       return {
         key: `service:${tool?.serviceId || serviceName}`,
         label: serviceName,
-        subtitle: tool?.serviceId && tool?.serviceName ? tool.serviceId : "来源服务"
+        subtitle: tool?.serviceId && tool?.serviceName ? tool.serviceId : "来源服务",
       };
     },
     toolSearchText(tool) {
@@ -306,13 +320,15 @@ export default {
         ...(tool?.parameters || []).flatMap((parameter) => [
           parameter?.name,
           parameter?.type,
-          parameter?.description
-        ])
+          parameter?.description,
+        ]),
       ];
       return fields.map((field) => String(field || "").toLowerCase()).join(" ");
     },
     toolBadge(tool) {
-      return String(tool?.chineseAlias || tool?.displayName || tool?.localToolName || "M").slice(0, 1).toUpperCase();
+      return String(tool?.chineseAlias || tool?.displayName || tool?.localToolName || "M")
+        .slice(0, 1)
+        .toUpperCase();
     },
     toolMetaLabel(tool) {
       const labels = [];
@@ -338,7 +354,7 @@ export default {
         ["超时", tool?.timeoutMillis ? `${tool.timeoutMillis}ms` : "-"],
         ["Agent可用", tool?.agentCompatible ? "是" : "否"],
         ["需要授权", tool?.requiresAuth ? "是" : "否"],
-        ["限流", tool?.rateLimited ? "是" : "否"]
+        ["限流", tool?.rateLimited ? "是" : "否"],
       ];
     },
     toolSchemaSummary(tool) {
@@ -346,9 +362,10 @@ export default {
       if (!schema || typeof schema !== "object" || !Object.keys(schema).length) {
         return "";
       }
-      const properties = schema.properties && typeof schema.properties === "object"
-        ? Object.keys(schema.properties)
-        : [];
+      const properties =
+        schema.properties && typeof schema.properties === "object"
+          ? Object.keys(schema.properties)
+          : [];
       const required = Array.isArray(schema.required) ? schema.required : [];
       if (!properties.length && !required.length) {
         return "已同步原始入参结构";
@@ -382,6 +399,6 @@ export default {
     },
     formatTime(value) {
       return formatDateTime(value, "-");
-    }
-  }
+    },
+  },
 };

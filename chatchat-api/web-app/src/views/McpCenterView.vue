@@ -20,7 +20,7 @@
         ><strong>{{ service.name }}</strong> · {{ serviceStatusLabel(service) }}</div
       ></details
     >
-    <section class="mcp-tools">
+    <section class="mcp-tools mcp-published-catalog">
       <div class="mcp-tools-head"
         ><div
           ><h2>已发布工具</h2><span>{{ toolFilterSummary }}</span></div
@@ -48,27 +48,39 @@
       <div v-else-if="toolTotal" class="mcp-tool-group-list">
         <section v-for="group in pagedToolGroups" :key="group.key" class="mcp-tool-group">
           <header
-            ><h3>{{ group.label }}</h3></header
+            ><h3>{{ group.label }}</h3
+            ><span class="mcp-group-count">本页 {{ group.tools.length }} 个工具</span></header
           >
           <div class="mcp-tool-grid"
             ><article v-for="tool in group.tools" :key="tool.localToolName" class="mcp-tool-card">
-              <div class="mcp-tool-card-head"
-                ><h3>{{ tool.chineseAlias || tool.displayName }}</h3
-                ><strong>已发布</strong></div
-              >
-              <p>{{ tool.description || "在授权范围内查询已选模板" }}</p>
+              <div class="mcp-card-topline">
+                <span class="mcp-capability-icon" aria-hidden="true"
+                  ><Blocks :size="24" :stroke-width="1.7"
+                /></span>
+                <span class="mcp-published-status"><i aria-hidden="true"></i>已发布</span>
+              </div>
+              <div class="mcp-card-copy">
+                <h3 :title="tool.chineseAlias || tool.displayName">{{
+                  tool.chineseAlias || tool.displayName
+                }}</h3>
+                <p>{{ tool.description || "在授权范围内查询已选模板" }}</p>
+              </div>
               <dl
                 ><div
-                  ><dt>业务分类</dt><dd>{{ tool.functionalCategory || "待分类" }}</dd></div
+                  ><dt>业务分类</dt
+                  ><dd class="mcp-category-value" :title="tool.functionalCategory || '待分类'">{{
+                    tool.functionalCategory || "待分类"
+                  }}</dd></div
                 ><div
-                  ><dt>包含模板</dt><dd>{{ tool.templateCount }} 项</dd></div
+                  ><dt><Layers3 :size="13" aria-hidden="true" />包含模板</dt
+                  ><dd class="mcp-template-value">{{ tool.templateCount }}<span>项</span></dd></div
                 ></dl
               >
               <div class="mcp-tool-card-footer"
-                ><button type="button" @click="openToolDetail(tool)">查看用途</button></div
-              >
-            </article></div
-          >
+                ><button type="button" @click="openToolDetail(tool)"
+                  ><span>查看用途</span><ArrowUpRight :size="17" aria-hidden="true" /></button
+              ></div> </article
+          ></div>
         </section>
       </div>
       <p v-else class="mcp-empty">{{

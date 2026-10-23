@@ -26,6 +26,17 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentWorkshopControllerTest {
+    @Test void acceptsBothAuthorizedSystemSearchToolsForAgentBindingsAndWorkflow() {
+        var published = mock(com.chatchat.api.service.PublishedMcpToolCatalog.class);
+        var controller = new AgentWorkshopController(mock(SkillCatalogService.class),mock(ToolRegistry.class),mock(McpToolCatalogQueryPort.class),mock(ModelResourceRegistry.class),mock(DocumentLibraryReadPort.class),mock(EnterpriseAdminService.class),mock(AgentPublicationLicenseService.class),mock(AgentReleaseService.class),mock(DomainSkillService.class),mock(ResourceAuthorizationPort.class),mock(SkillResourceScopeSynchronizationService.class),published);
+        var servlet = new org.springframework.mock.web.MockHttpServletRequest();
+        servlet.setAttribute(com.chatchat.api.security.ApiAuthenticationFilter.CURRENT_USER_ID,"user");
+        var names = List.of("mcp_chatchat_mcp_server_web_search", "mcp_chatchat_mcp_server_document_search");
+        when(published.registeredTools(servlet)).thenReturn(names.stream().map(name -> new McpToolCatalogQueryPort.RegisteredTool(name,"chatchat-mcp-server","MCP",name,"search")).toList());
+        var input = new AgentWorkshopController.AgentUpsertRequest(); input.setBoundMcpToolNames(names);
+        input.setWorkflowConfig(java.util.Map.of("steps",List.of(java.util.Map.of("tool",names.get(0)),java.util.Map.of("toolName",names.get(1)))));
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> org.springframework.test.util.ReflectionTestUtils.invokeMethod(controller,"validatePublishedToolBindings",input,servlet,null));
+    }
     @Test void rejectsNewUnpublishedToolsIncludingWorkflowAndServiceShortcuts() {
         var published=mock(com.chatchat.api.service.PublishedMcpToolCatalog.class);
         var skills=mock(SkillCatalogService.class);

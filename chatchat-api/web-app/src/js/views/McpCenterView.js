@@ -411,7 +411,10 @@ export default {
       this.detailPage = 1;
       this.detailTemplates = [];
       this.detailError = "";
-      if (!this.activeTool) return;
+      if (!this.activeTool || this.activeTool.systemTool) {
+        this.detailLoading = false;
+        return;
+      }
       this.detailLoading = true;
       try {
         const rows = await fetchPublishedToolTemplates(this.activeTool.localToolName);

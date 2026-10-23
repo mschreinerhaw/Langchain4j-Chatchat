@@ -4,7 +4,7 @@
       <div>
         <p>Agent管理</p>
         <span class="agent-management-intro"
-          >为 Agent 选择已发布工具、知识和领域技能，设置它可以完成的业务任务。</span
+          >为 Agent 选择系统工具、业务工具、知识和领域技能，设置它可以完成的业务任务。</span
         >
       </div>
     </header>
@@ -672,7 +672,7 @@
             class="agent-resource-selector wide-field"
           >
             <div class="agent-resource-selector-copy">
-              <strong>已发布工具</strong>
+              <strong>可用工具</strong>
               <span>按当前 Agent 的业务范围选择可调用工具。</span>
               <small v-if="selectedToolNames.length > selectedPublishedToolCount"
                 >另有
@@ -1214,8 +1214,8 @@
         <header>
           <div>
             <p>Agent 设置</p>
-            <h2 id="agent-tool-picker-title">选择已发布工具</h2>
-            <span>只展示已发布且有权使用的业务工具，勾选后即可供 Agent 使用。</span>
+            <h2 id="agent-tool-picker-title">选择工具</h2>
+            <span>选择有权使用的系统基础工具和已发布业务工具，勾选后即可供 Agent 使用。</span>
           </div>
           <button
             type="button"

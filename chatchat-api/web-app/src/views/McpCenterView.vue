@@ -57,7 +57,9 @@
                 <span class="mcp-capability-icon" aria-hidden="true"
                   ><Blocks :size="24" :stroke-width="1.7"
                 /></span>
-                <span class="mcp-published-status"><i aria-hidden="true"></i>已发布</span>
+                <span class="mcp-published-status"
+                  ><i aria-hidden="true"></i>{{ tool.systemTool ? "系统内置" : "已发布" }}</span
+                >
               </div>
               <div class="mcp-card-copy">
                 <h3 :title="tool.chineseAlias || tool.displayName">{{
@@ -72,8 +74,14 @@
                     tool.functionalCategory || "待分类"
                   }}</dd></div
                 ><div
-                  ><dt><Layers3 :size="13" aria-hidden="true" />包含模板</dt
-                  ><dd class="mcp-template-value">{{ tool.templateCount }}<span>项</span></dd></div
+                  ><dt
+                    ><Layers3 :size="13" aria-hidden="true" />{{
+                      tool.systemTool ? "使用方式" : "包含模板"
+                    }}</dt
+                  ><dd v-if="tool.systemTool" class="mcp-system-usage">Agent 可用</dd
+                  ><dd v-else class="mcp-template-value"
+                    >{{ tool.templateCount }}<span>项</span></dd
+                  ></div
                 ></dl
               >
               <div class="mcp-tool-card-footer"
@@ -135,9 +143,14 @@
             ><section class="mcp-tool-detail-section primary"
               ><h3>工具用途</h3><p>{{ activeTool.description }}</p
               ><p>业务分类：{{ activeTool.functionalCategory || "待分类" }}</p
-              ><p>查看此工具支持的模板，具体可用范围以您的当前授权为准。</p></section
+              ><p>{{
+                activeTool.systemTool
+                  ? "系统基础工具，可在 Agent 的工具配置中选择使用。"
+                  : "查看此工具支持的模板，具体可用范围以您的当前授权为准。"
+              }}</p></section
             ><section
               class="mcp-authorized-templates"
+              v-if="!activeTool.systemTool"
               aria-label="已授权模板"
               :aria-busy="detailLoading"
             >

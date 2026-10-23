@@ -172,3 +172,9 @@
   outline-offset: 3px;
   border-radius: 4px;
 }
+.mcp-system-usage {
+  margin: 8px 0 0;
+  color: #4773cf;
+  font-size: 15px;
+  font-weight: 600;
+}

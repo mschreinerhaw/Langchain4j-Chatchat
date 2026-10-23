@@ -10,6 +10,18 @@ import { fetchPublishedToolTemplates } from "../../services/api";
 import { readFileSync } from "node:fs";
 import McpCenterView from "./McpCenterView.js";
 describe("published business tool directory", () => {
+  it("does not fetch template publications for built-in system tools", async () => {
+    fetchPublishedToolTemplates.mockClear();
+    const vm = {
+      ...McpCenterView.data(),
+      activeTool: { systemTool: true, localToolName: "mcp_chatchat_mcp_server_web_search" },
+      detailTemplates: [{ key: "previous" }],
+    };
+    await McpCenterView.methods.loadDetailTemplates.call(vm);
+    expect(fetchPublishedToolTemplates).not.toHaveBeenCalled();
+    expect(vm.detailTemplates).toEqual([]);
+    expect(vm.detailLoading).toBe(false);
+  });
   it("keeps call details behind an explicit entry and provides searchable authorized templates", () => {
     const template = readFileSync(
       new URL("../../views/McpCenterView.vue", import.meta.url),

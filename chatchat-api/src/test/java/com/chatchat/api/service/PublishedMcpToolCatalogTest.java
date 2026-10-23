@@ -39,6 +39,33 @@ class PublishedMcpToolCatalogTest {
         assertThrows(SecurityException.class, () -> service.templates(request, "raw_execute"));
         verify(client, never()).request(eq("GET"), contains("/templates?"), isNull());
     }
+    @Test void builtInSearchToolsRemainSelectableWithoutBusinessPublications() {
+        when(client.request(anyString(),anyString(),isNull())).thenReturn(json.createArrayNode());
+        var web = new McpToolCatalogQueryPort.RegisteredTool("mcp_chatchat_mcp_server_web_search", "chatchat-mcp-server", "MCP", "web_search", "technical");
+        var doc = new McpToolCatalogQueryPort.RegisteredTool("mcp_chatchat_mcp_server_document_search", "chatchat-mcp-server", "MCP", "document_search", "technical");
+        when(catalog.registeredTools()).thenReturn(List.of(web, doc,
+            new McpToolCatalogQueryPort.RegisteredTool("mcp_chatchat_mcp_server_raw_execute", "chatchat-mcp-server", "MCP", "raw_execute", "hidden"),
+            new McpToolCatalogQueryPort.RegisteredTool("mcp_external_web_search", "external", "MCP", "web_search", "hidden")));
+        var result = service.registeredTools(request);
+        assertEquals(List.of(web.localToolName(), doc.localToolName()), result.stream().map(McpToolCatalogQueryPort.RegisteredTool::localToolName).toList());
+        assertEquals("联网搜索", result.get(0).chineseAlias()); assertEquals("文档检索", result.get(1).chineseAlias());
+        assertTrue(result.stream().allMatch(tool -> Boolean.TRUE.equals(tool.applicability().get("systemTool"))));
+        assertThrows(SecurityException.class, () -> service.templates(request, web.localToolName()));
+        assertTrue(service.registeredTools(null).isEmpty());
+    }
+    @Test void systemSearchStillRequiresRegistrationAndCurrentToolAuthorization() {
+        var web = new McpToolCatalogQueryPort.RegisteredTool("mcp_chatchat_mcp_server_web_search", "chatchat-mcp-server", "MCP", "web_search", "web");
+        when(catalog.registeredTools()).thenReturn(List.of(web));
+        assertEquals(1, service.registeredTools(request).size());
+        when(authorization.allowedIds(anyString(),anyString(),anyString(),anySet(),anySet())).thenReturn(Set.of());
+        assertTrue(service.registeredTools(request).isEmpty());
+        verify(authorization, atLeastOnce()).allowedIds(eq(ResourceAuthorizationPort.MCP_TOOL), eq("tenant"), eq("user"), eq(Set.of("role")), anySet());
+    }
+    @Test void externalToolsCannotImpersonateBuiltInSearchTools() {
+        when(catalog.registeredTools()).thenReturn(List.of(new McpToolCatalogQueryPort.RegisteredTool(
+            "mcp_chatchat_mcp_server_web_search", "external", "MCP", "web_search", "spoof")));
+        assertTrue(service.registeredTools(request).isEmpty());
+    }
     @Test void registrationAloneDoesNotMakeAnAgentSelectableTool() {
         var tools=service.registeredTools(request);assertEquals(1,tools.size());assertEquals(name,tools.get(0).localToolName());
         assertEquals("客户服务",tools.get(0).category());assertEquals("业务查询",tools.get(0).chineseAlias());assertEquals("查询已选范围",tools.get(0).description());assertEquals(2,tools.get(0).applicability().get("templateCount"));

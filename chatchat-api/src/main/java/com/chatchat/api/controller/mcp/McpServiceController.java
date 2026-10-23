@@ -324,7 +324,7 @@ public class McpServiceController {
                 .map(parameter -> new ToolParameterView(parameter.name(), parameter.type(), parameter.description(),
                     parameter.required()))
                 .toList(),
-            tool.inputSchema(), published.get(tool.localToolName()).templateCount())).toList();
+            tool.inputSchema(), published.get(tool.localToolName()).templateCount(), published.get(tool.localToolName()).systemTool())).toList();
     }
 
     /**
@@ -665,7 +665,8 @@ public class McpServiceController {
         List<String> tags,
         List<ToolParameterView> parameters,
         Map<String, Object> inputSchema,
-        int templateCount
+        int templateCount,
+        boolean systemTool
     ) {
     }
 

@@ -1,0 +1,12 @@
+{
+  "confirmedAtUtc": "2026-10-23T23:26:49.451888+00:00",
+  "version": "2.4.13-system-search-tools-20261024",
+  "runningArtifactHashesMatch": true,
+  "userVisibleSystemTools": [
+    "web_search",
+    "document_search"
+  ],
+  "agentSelectable": true,
+  "gatewayStaticResourcesMatch": true,
+  "businessToolsRetained": 6
+}

@@ -18,13 +18,13 @@
   line-height: 1.4;
 }
 .mcp-center-view .mcp-operations {
-  margin-top: 20px;
-  padding: 16px 20px;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #fff;
-  color: #475569;
-  font-size: 14px;
+  margin-top: 16px;
+  padding: 10px 14px;
+  border: 1px solid #e8ebef;
+  border-radius: 8px;
+  background: #f7f8fa;
+  color: #6b7280;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 .mcp-center-view .mcp-operations summary,
@@ -34,11 +34,31 @@
   line-height: 1.6;
 }
 .mcp-center-view .mcp-operations p {
-  margin: 12px 0;
+  margin: 8px 0;
   line-height: 1.7;
 }
+.mcp-center-view .mcp-operations summary {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 400;
+}
+.mcp-center-view .mcp-operations strong {
+  font-weight: 500;
+}
 .mcp-center-view .mcp-operations > div {
-  margin-top: 12px;
+  margin-top: 8px;
+}
+.mcp-center-view .mcp-operations > button.light-button {
+  min-height: 30px;
+  height: 30px;
+  padding: 4px 10px;
+  border-color: #e1e5eb;
+  color: #6b7280;
+  font-size: 12px;
+}
+.mcp-center-view .mcp-operations > button.light-button:hover:not(:disabled) {
+  border-color: #cbd1d9;
+  background: #eef0f3;
 }
 .mcp-center-view .mcp-operations button,
 .mcp-center-view .mcp-tool-detail-panel .mcp-detail-close {

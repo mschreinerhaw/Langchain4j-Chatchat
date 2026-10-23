@@ -38,14 +38,32 @@
             </el-menu-item>
           </template>
         </el-menu>
-        <div class="sidebar-account-actions">
-          <span class="sidebar-account-name">当前用户：{{ user }}</span>
-          <el-button class="sidebar-logout" @click="passwordOpen = true">修改密码</el-button>
-          <el-button class="sidebar-logout" @click="handleLogout">
-            <el-icon><SwitchButton /></el-icon>
-            <span>退出登录</span>
-          </el-button>
-        </div>
+        <details
+          ref="accountCard"
+          class="sidebar-account-card"
+          @keydown.esc.prevent.stop="$refs.accountCard.open = false; $refs.accountSummary.focus()"
+        >
+          <summary ref="accountSummary" class="sidebar-account-summary">
+            <span class="sidebar-account-avatar" aria-hidden="true">{{ user.slice(0, 2).toUpperCase() }}</span>
+            <span class="sidebar-account-identity">
+              <small>当前用户</small>
+              <strong class="sidebar-account-name" :title="user">{{ user }}</strong>
+            </span>
+            <span class="sidebar-account-chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="sidebar-account-actions">
+            <button
+              type="button"
+              class="sidebar-account-action"
+              @click="$refs.accountCard.open = false; passwordOpen = true"
+            >
+              <el-icon><Key /></el-icon><span>修改密码</span>
+            </button>
+            <button type="button" class="sidebar-account-action is-logout" @click="handleLogout">
+              <el-icon><SwitchButton /></el-icon><span>退出登录</span>
+            </button>
+          </div>
+        </details>
       </aside>
 
       <main class="app-main" :class="{ 'is-system-settings': isSystemSettingsView }">

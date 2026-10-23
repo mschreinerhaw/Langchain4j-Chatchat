@@ -1,0 +1,15 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "realWorkspaceCount": 4,
+    "cardColumns": "369.328px 369.328px 369.344px",
+    "paginationAndDisabledEntry": true,
+    "enterWorkspaceWorks": true,
+    "publishedCardStylesAndHover": true,
+    "refreshAlignedRight": true,
+    "operationsAtTopCollapsed": true,
+    "detailStylesAndEscape": true,
+    "mobileSingleColumn": true
+  },
+  "errors": []
+}

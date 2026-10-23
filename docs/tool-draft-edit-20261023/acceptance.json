@@ -1,0 +1,29 @@
+﻿{
+    "date":  "2026-10-23",
+    "timezone":  "Asia/Shanghai",
+    "status":  "DEPLOYED_AND_ACCEPTED",
+    "sourceCommit":  "d03283462",
+    "version":  "2.4.5-tool-draft-edit-20261023",
+    "frontendTests":  41,
+    "mcpLifecycleTests":  15,
+    "apiControllerTests":  3,
+    "apiPermissionTests":  8,
+    "vueComponents":  62,
+    "productionBuild":  "PASSED",
+    "localBrowser":  "PASSED",
+    "liveBrowser":  "PASSED",
+    "changes":  [
+                    "未发布版本可原地修改；保留工具ID、版本ID与版本号",
+                    "校验或测试失败返回同一草稿编辑器并保留定义与测试输入",
+                    "保存修改后清除旧测试证据，回到草稿状态，必须重新校验测试",
+                    "版本选择仅允许当前逻辑工具；新版本延续当前工具逻辑ID",
+                    "拒绝过期并发写入及其他租户访问，已发布版本不可修改",
+                    "阻止重启重复导入；已有重复导入项在列表中去重，真实导入v1历史保留",
+                    "运行时版本元数据优先使用正式版本记录"
+                ],
+    "databaseMigration":  false,
+    "existingReleasesAndPermissionsUnchangedAtDeployment":  true,
+    "backup":  "/opt/runtime-os-docker-stage/evidence/tool-draft-edit-2.4.5-tool-draft-edit-20261023/backup-1792761352",
+    "browserFixturePolicy":  "仅创建验收工具并在结束后下线；保留离线历史；用户 mysql_query 草稿未修改",
+    "buildNotes":  "初次全链路构建的 API npm ci 遇到 Windows 文件占用；恢复依赖后，使用纯后端模式完成 API 测试，前端构建和本地/线上浏览器验证均通过。"
+}

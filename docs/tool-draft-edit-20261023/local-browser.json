@@ -1,0 +1,7 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "existingInvalidDraftCanReturnToEditorWithoutChanges": true
+  },
+  "errors": []
+}

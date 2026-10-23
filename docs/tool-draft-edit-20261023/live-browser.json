@@ -1,0 +1,13 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "existingInvalidDraftCanReturnToEditorWithoutChanges": true,
+    "correctedDraftKeepsItsToolAndVersion": true,
+    "staleWriteRejected": true,
+    "failedTestReturnsToSameDraftAndPreservesInput": true,
+    "editInvalidatesPreviousTestApproval": true,
+    "revisionsBelongOnlyToTheirOwnTool": true,
+    "publishAndRollbackUseExactOwnedVersions": true
+  },
+  "errors": []
+}

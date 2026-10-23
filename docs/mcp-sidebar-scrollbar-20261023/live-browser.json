@@ -1,0 +1,16 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "collapsedAccountIdentity": true,
+    "commonDesktopMenusFitWithoutScrolling": true,
+    "shortExpandedMenuScrollsWithTheme": {
+      "width": "thin",
+      "color": "rgb(113, 132, 162) rgba(0, 0, 0, 0)"
+    },
+    "keyboardToggleAndEscape": true,
+    "desktopShortAndMobileLayouts": true,
+    "passwordDialogPreserved": true,
+    "logoutPreserved": true
+  },
+  "errors": []
+}

@@ -1,0 +1,13 @@
+{
+  "status": "DEPLOYED",
+  "version": "2.2.2-sidebar-scrollbar-20261023",
+  "sourceCommit": "3e0b6ed19c1fbfb0e7cf65d33bd099447e0c026c",
+  "jarSha256": "5e2a0cc4e9705f634eb663e42e4946b805507eff7b4e4ffdeb975bcf364ebe9d",
+  "gatewayResourcesVerified": 6,
+  "backendEntriesUnchanged": true,
+  "policyUnchanged": true,
+  "accountsUnchanged": true,
+  "apiUnchanged": true,
+  "databaseMigration": false,
+  "backup": "/opt/runtime-os-docker-stage/evidence/mcp-sidebar-scrollbar-20261023/backup"
+}

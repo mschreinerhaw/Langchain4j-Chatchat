@@ -8,6 +8,7 @@ import {
   syncMcpCenter
 } from "../../services/api";
 import "../../styles/pages/skill-hub.css";
+import "../../styles/pages/mcp-directory.css";
 
 export default {
   name: "McpCenterView",

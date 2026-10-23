@@ -1,0 +1,208 @@
+.workspace-catalog {
+  display: grid;
+  gap: 20px;
+}
+.workspace-catalog-toolbar {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+.workspace-catalog-toolbar label {
+  display: grid;
+  gap: 8px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+}
+.workspace-search {
+  flex: 1 1 280px;
+}
+.workspace-search > div {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.workspace-search svg {
+  position: absolute;
+  left: 12px;
+  color: #64748b;
+  pointer-events: none;
+}
+.workspace-settings .workspace-search input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 40px;
+  padding-left: 38px;
+}
+.workspace-status-filter {
+  flex: 0 1 180px;
+}
+.workspace-status-filter select {
+  height: 40px;
+}
+.workspace-result-count {
+  margin: 0 0 10px;
+  color: #64748b;
+  font-size: 13px;
+}
+.workspace-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.workspace-settings-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 8px #0f172a04;
+  transition:
+    border-color 0.18s,
+    box-shadow 0.18s;
+}
+.workspace-settings-card:hover {
+  border-color: #b4c7ec;
+  box-shadow: 0 6px 20px #1d4ed10a;
+}
+.workspace-settings-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.workspace-card-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: #eff5ff;
+  color: #2563eb;
+}
+.workspace-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 6px;
+}
+.workspace-status,
+.workspace-default {
+  padding: 4px 9px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #64748b;
+}
+.workspace-status.enabled {
+  background: #ecfdf5;
+  color: #047857;
+}
+.workspace-default {
+  color: #2455c7;
+  background: #eff5ff;
+}
+.workspace-settings-card h2 {
+  margin: 20px 0 10px;
+  font-size: 20px;
+  color: #1e293b;
+  overflow-wrap: anywhere;
+}
+.workspace-card-description {
+  flex: 1;
+  margin: 0 0 20px;
+  min-height: 48px;
+  color: #64748b;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.workspace-settings-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 20px;
+  padding-top: 16px;
+  border-top: 1px solid #eef2f7;
+}
+.workspace-settings-card dt {
+  margin-bottom: 6px;
+  color: #64748b;
+  font-size: 12px;
+}
+.workspace-settings-card dd {
+  margin: 0;
+  color: #334155;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.workspace-settings-card footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.workspace-card-secondary {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.workspace-settings button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.workspace-settings button svg {
+  flex-shrink: 0;
+}
+.workspace-settings button:focus-visible {
+  outline: 3px solid #93b4ff;
+  outline-offset: 3px;
+}
+.workspace-settings .workspace-enter {
+  margin-left: auto;
+}
+@media (max-width: 1200px) {
+  .workspace-settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .workspace-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace-settings-card {
+    padding: 20px;
+  }
+  .workspace-result-count {
+    width: 100%;
+    margin: 0;
+  }
+}
+@keyframes workspace-refresh-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.workspace-settings .spinning {
+  animation: workspace-refresh-turn 1s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-settings .spinning {
+    animation: none;
+  }
+}

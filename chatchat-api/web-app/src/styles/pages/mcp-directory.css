@@ -1,0 +1,123 @@
+.mcp-center-view > .mcp-page-heading {
+  width: 100%;
+  max-width: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.mcp-center-view > .mcp-page-heading > div {
+  flex: 1 1 240px;
+}
+.mcp-center-view > .mcp-page-heading .light-button {
+  flex: 0 0 auto;
+  margin: 0 0 0 auto;
+  min-height: 40px;
+  justify-content: center;
+  line-height: 1.4;
+}
+.mcp-center-view .mcp-operations {
+  margin-top: 20px;
+  padding: 16px 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  color: #475569;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.mcp-center-view .mcp-operations summary,
+.mcp-center-view .mcp-call-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.mcp-center-view .mcp-operations p {
+  margin: 12px 0;
+  line-height: 1.7;
+}
+.mcp-center-view .mcp-operations > div {
+  margin-top: 12px;
+}
+.mcp-center-view .mcp-operations button,
+.mcp-center-view .mcp-tool-detail-panel .mcp-detail-close {
+  width: auto;
+  min-width: 64px;
+  height: 40px;
+  white-space: nowrap;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 8px 16px;
+  border: 1px solid #dce3ee;
+  border-radius: 8px;
+  background: #fff;
+  color: #2455c7;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.mcp-center-view .mcp-operations button:hover:not(:disabled),
+.mcp-center-view .mcp-detail-close:hover {
+  background: #eff5ff;
+  border-color: #adc5ff;
+}
+.mcp-center-view button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.mcp-center-view :is(button, summary):focus-visible {
+  outline: 3px solid #93b4ff;
+  outline-offset: 3px;
+}
+.mcp-center-view .mcp-tool-detail-panel {
+  max-width: 100vw;
+  overflow: hidden;
+}
+.mcp-center-view .mcp-tool-detail-panel > header {
+  flex-shrink: 0;
+  gap: 20px;
+  align-items: center;
+}
+.mcp-center-view .mcp-tool-detail-panel > header h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.mcp-center-view .mcp-tool-detail-body {
+  min-width: 0;
+  overflow-x: hidden;
+}
+.mcp-center-view .mcp-tool-detail-panel .mcp-call-details {
+  min-width: 0;
+  max-width: 100%;
+}
+.mcp-center-view .mcp-tool-detail-panel .mcp-call-details p {
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.mcp-center-view .mcp-tool-detail-panel .mcp-call-details pre {
+  box-sizing: border-box;
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+@keyframes mcp-refresh-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.mcp-center-view .spinning {
+  animation: mcp-refresh-turn 1s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mcp-center-view .spinning {
+    animation: none;
+  }
+}

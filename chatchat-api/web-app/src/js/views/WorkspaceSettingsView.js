@@ -1,12 +1,15 @@
-import { ref, onMounted } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
+import { RefreshCw, Search, Layers3, ArrowRight, Settings2 } from "@lucide/vue";
+import AppPagination from "../../components/AppPagination.vue";
 import { apiRequest } from "../../services/api.js";
 import { permissionSections } from "../utils/permissionWorkspace.js";
 import "../../styles/pages/permission-workspace.css";
+import "../../styles/pages/workspace-catalog.css";
 export default {
   name: "WorkspaceSettingsView",
-  components: {},
+  components: { AppPagination, RefreshCw, Search, Layers3, ArrowRight, Settings2 },
   props: {},
-  emits: ["reload-workspaces"],
+  emits: ["reload-workspaces", "switch-workspace"],
   setup(props, { emit }) {
     const rows = ref([]),
       busy = ref(false),
@@ -14,6 +17,40 @@ export default {
       failed = ref(false),
       draft = ref(null),
       formError = ref("");
+    const searchQuery = ref(""),
+      statusFilter = ref("all"),
+      page = ref(1),
+      pageSize = 6;
+    const filteredRows = computed(() => {
+      const query = searchQuery.value.trim().toLocaleLowerCase();
+      return rows.value.filter(
+        (row) =>
+          (statusFilter.value === "all" || row.status === statusFilter.value) &&
+          (!query ||
+            [row.manifest.name, row.manifest.description, row.manifest.workspaceId].some((value) =>
+              String(value || "")
+                .toLocaleLowerCase()
+                .includes(query)
+            ))
+      );
+    });
+    const pageCount = computed(() => Math.max(1, Math.ceil(filteredRows.value.length / pageSize)));
+    const pagedRows = computed(() =>
+      filteredRows.value.slice((page.value - 1) * pageSize, page.value * pageSize)
+    );
+    watch([searchQuery, statusFilter], () => {
+      page.value = 1;
+    });
+    watch(pageCount, (count) => {
+      page.value = Math.min(page.value, count);
+    });
+    function setPage(value) {
+      page.value = Math.max(1, Math.min(pageCount.value, Number(value) || 1));
+    }
+    function enter(row) {
+      if (!busy.value && row.status === "enabled")
+        emit("switch-workspace", row.manifest.workspaceId, row.manifest.entryPage);
+    }
     const pageLabels = {
       ...Object.fromEntries(permissionSections.map((p) => [p.id, p.label])),
       chat: "智能对话",
@@ -93,6 +130,15 @@ export default {
     onMounted(load);
     return {
       rows,
+      searchQuery,
+      statusFilter,
+      page,
+      pageSize,
+      filteredRows,
+      pagedRows,
+      pageCount,
+      setPage,
+      enter,
       busy,
       notice,
       failed,

@@ -28,6 +28,19 @@ def main():
     evidence.mkdir(parents=True, exist_ok=True, mode=0o700)
     stage.root, stage.evidence = root, evidence
     config = json.loads((root / 'compose.yaml').read_text())
+    def verify_baseline():
+        for name, expected in manifest.get('baseline', {}).items():
+            actual = stage.run('docker', 'exec', 'runtime-os-app-stage-' + name + '-1', 'sha256sum', '/srv/app/app.jar').split()[0]
+            if actual != expected:
+                raise RuntimeError('Running application changed; rebase deployment: ' + name)
+    verify_baseline()
+    for volume in config['services']['api'].get('volumes', []):
+        if isinstance(volume, dict) and volume.get('type') == 'bind':
+            source = Path(volume['source'])
+            if not source.is_absolute():
+                source = root / source
+            if not source.exists():
+                raise RuntimeError('Missing API bind source: ' + str(source))
     databases = {name: config['services'][name]['environment']['CHATCHAT_' + name.upper() + '_POSTGRESQL_URL'].rsplit('/', 1)[1].split('?', 1)[0] for name in ['api', 'mcp']}
     if stage.digest(release / 'api.jar') != manifest['artifacts']['api']['sha256']:
         raise RuntimeError('Release artifact hash mismatch')
@@ -69,6 +82,7 @@ def main():
     print(json.dumps({'stage': 'BACKED_UP', 'backup': str(backup)}), flush=True)
     report = {'version': version, 'sourceCommit': manifest['sourceCommit'], 'backup': str(backup), 'previousApi': previous, 'mcpImage': config['services']['mcp']['image'], 'policyBefore': before, 'artifacts': manifest['artifacts'], 'databaseMigration': False}
     try:
+        verify_baseline()
         stage.compose('stop', 'api')
         config['services']['api']['image'] = 'runtime-os-api:' + version
         (root / 'compose.yaml').write_text(json.dumps(config, indent=2))

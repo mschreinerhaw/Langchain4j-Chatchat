@@ -344,11 +344,7 @@ public class McpServiceController {
         return options;
     }
 
-    /**
-     * Builds service type options from the backend service type declared by each tool.
-     * Tool category and tag values are intentionally not used here; they are often
-     * finer-grained than the service capability type shown in the MCP service page.
-     */
+    /** Builds business category options from published tools. */
     private List<ToolServiceOption> buildToolCategoryOptions(List<ToolCardView> tools) {
         Map<String, ToolServiceOptionBuilder> builders = new LinkedHashMap<>();
         for (ToolCardView tool : tools) {
@@ -359,7 +355,7 @@ public class McpServiceController {
             builder.count += 1;
         }
         List<ToolServiceOption> options = new ArrayList<>();
-        options.add(new ToolServiceOption("all", "全部服务类型", tools.size()));
+        options.add(new ToolServiceOption("all", "全部业务分类", tools.size()));
         builders.values().stream()
             .map(builder -> new ToolServiceOption(builder.value, builder.label, builder.count))
             .sorted(Comparator.comparing(ToolServiceOption::label))

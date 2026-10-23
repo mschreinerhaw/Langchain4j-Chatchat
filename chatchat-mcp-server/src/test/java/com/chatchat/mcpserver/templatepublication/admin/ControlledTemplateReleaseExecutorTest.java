@@ -7,6 +7,11 @@ import org.mockito.ArgumentCaptor;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 class ControlledTemplateReleaseExecutorTest {
+    @Test void deletionUsesTheGuardedInactiveBindingOperation() {
+        var bindings=mock(TemplateQueryBindingService.class);
+        new ControlledTemplateReleaseExecutor(bindings,new ObjectMapper(),mock(TemplateQueryMcpToolPublisher.class)).deleteInactive("binding-id");
+        verify(bindings).deleteInactive("binding-id");verifyNoMoreInteractions(bindings);
+    }
     @Test void businessCategoryRemainsDisplayMetadataWithoutChangingExecutionIdentity() throws Exception {
         var binding=mock(TemplateQueryBindingService.class);var json=new ObjectMapper();
         var executor=new ControlledTemplateReleaseExecutor(binding,json,mock(TemplateQueryMcpToolPublisher.class));

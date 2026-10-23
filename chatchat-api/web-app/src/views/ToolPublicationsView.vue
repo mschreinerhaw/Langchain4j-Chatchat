@@ -410,7 +410,18 @@
                 :disabled="busy"
                 @click="confirmAction(selected, 'rollback')"
                 >回滚到此版本</button
+              ><button
+                v-if="publishable && selected.state === 'OFFLINE'"
+                type="button"
+                class="permission-link danger"
+                :disabled="busy || hasRunningVersion"
+                @click="deleteTool(selected)"
+                >删除工具</button
               ></div
+            ><p
+              v-if="publishable && selected.state === 'OFFLINE' && hasRunningVersion"
+              class="publication-hint"
+              >该工具还有运行中的版本，请先将运行版本下线后再删除整个工具。</p
             ></template
           >
           <template v-else-if="activeTab === 'definition'"

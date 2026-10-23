@@ -93,6 +93,7 @@ export default {
     );
     const versionCount = (row) =>
       rows.value.filter((item) => item.logicalId === row.logicalId).length;
+    const hasRunningVersion = computed(() => versions.value.some((row) => row.state === "RUNNING"));
     const tools = computed(() => {
       const groups = new Map();
       for (const row of rows.value) {
@@ -423,6 +424,33 @@ export default {
       )
         return action(row, actionName);
     }
+    async function deleteTool(row = selected.value) {
+      if (!row || busy.value || !publishable) return;
+      const history = rows.value.filter((item) => item.logicalId === row.logicalId);
+      if (row.state !== "OFFLINE" || history.some((item) => item.state === "RUNNING")) {
+        failed.value = true;
+        notice.value = "请先下线该工具的所有运行版本，再删除工具。";
+        return;
+      }
+      if (
+        !window.confirm(
+          `确认删除工具“${row.title}”及其全部 ${history.length} 个版本（含草稿）？删除后不能恢复或回滚，操作审计记录仍会保留。`
+        )
+      )
+        return;
+      await perform(async () => {
+        await apiRequest(`/tool-publications/${row.id}`, {
+          method: "DELETE",
+          body: JSON.stringify({
+            expectedVersions: Object.fromEntries(history.map((item) => [item.id, item.version])),
+          }),
+        });
+        editing.value = false;
+        await loadRows("");
+        activeTab.value = "overview";
+        inputSample.value = "{}";
+      }, "工具及其全部版本已删除。");
+    }
     onMounted(refresh);
     onActivated(() => {
       if (loaded.value && !editing.value) refresh();
@@ -463,6 +491,7 @@ export default {
       canEditDraft,
       identityLocked,
       versionCount,
+      hasRunningVersion,
       selectedDefinition,
       versions,
       editing,
@@ -495,6 +524,7 @@ export default {
       action,
       test,
       confirmAction,
+      deleteTool,
     };
   },
 };

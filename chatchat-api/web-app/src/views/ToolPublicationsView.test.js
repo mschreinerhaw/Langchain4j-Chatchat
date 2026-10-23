@@ -337,3 +337,87 @@ it("selects the matching version of the same tool when changing publication stat
   await nextTick();
   expect(vm.selectedId).toBe("live");
 });
+it("deletes all versions of an offline tool after confirmation and preserves other tools", async () => {
+  const history = [
+    { ...release("old", 1, "OFFLINE"), version: 4 },
+    { ...release("new-offline", 2, "OFFLINE"), version: 3 },
+    { ...release("pending", 3, "DRAFT"), version: 0 },
+  ];
+  const other = { ...release("other", 7, "RUNNING"), logicalId: "another-tool", version: 1 };
+  let memory = [...history, other];
+  const original = apiRequest.getMockImplementation();
+  apiRequest.mockImplementation(async (path, options) => {
+    if (path === "/tool-publications" && !options?.method) return memory;
+    if (path === "/tool-publications/new-offline" && options?.method === "DELETE") {
+      memory = [other];
+      return { logicalId: "logical", deletedVersions: 3 };
+    }
+    return original(path, options);
+  });
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+  const vm = await mount();
+  vm.stateFilter = "OFFLINE";
+  await nextTick();
+  expect(vm.selectedId).toBe("new-offline");
+  await vm.deleteTool();
+  expect(confirm).toHaveBeenCalledWith(expect.stringContaining("全部 3 个版本"));
+  const call = apiRequest.mock.calls.find((c) => c[1]?.method === "DELETE");
+  expect(call[0]).toBe("/tool-publications/new-offline");
+  expect(JSON.parse(call[1].body)).toEqual({
+    expectedVersions: { old: 4, "new-offline": 3, pending: 0 },
+  });
+  expect(vm.rows.map((r) => r.id)).toEqual(["other"]);
+  expect(vm.selected).toBeNull();
+  expect(vm.notice).toContain("已删除");
+  confirm.mockRestore();
+});
+it("does not delete when confirmation is cancelled", async () => {
+  const original = apiRequest.getMockImplementation();
+  apiRequest.mockImplementation((path, options) =>
+    path === "/tool-publications" && !options?.method
+      ? Promise.resolve([{ ...release("offline", 1, "OFFLINE"), version: 1 }])
+      : original(path, options)
+  );
+  const vm = await mount();
+  vm.stateFilter = "OFFLINE";
+  await nextTick();
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  await vm.deleteTool();
+  expect(apiRequest.mock.calls.some((c) => c[1]?.method === "DELETE")).toBe(false);
+  expect(vm.selectedId).toBe("offline");
+  confirm.mockRestore();
+});
+it("blocks deletion of an old offline version when its own tool has a running version", async () => {
+  const vm = await mount();
+  const old = vm.rows.find((r) => r.id === "draft");
+  old.state = "OFFLINE";
+  vm.choose(old);
+  await nextTick();
+  expect(vm.hasRunningVersion).toBe(true);
+  const button = Array.from(root.querySelectorAll("button")).find(
+    (e) => e.textContent === "删除工具"
+  );
+  expect(button.disabled).toBe(true);
+  await vm.deleteTool();
+  expect(vm.notice).toContain("所有运行版本");
+  expect(apiRequest.mock.calls.some((c) => c[1]?.method === "DELETE")).toBe(false);
+});
+it("keeps the selected tool and versions when deletion is rejected as stale", async () => {
+  const offline = { ...release("offline", 1, "OFFLINE"), version: 1 };
+  const original = apiRequest.getMockImplementation();
+  apiRequest.mockImplementation(async (path, options) => {
+    if (options?.method === "DELETE") throw Error("工具版本已变化，请刷新并重新确认删除");
+    if (path === "/tool-publications") return [offline];
+    return original(path, options);
+  });
+  const vm = await mount();
+  vm.stateFilter = "OFFLINE";
+  await nextTick();
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+  await vm.deleteTool();
+  expect(vm.failed).toBe(true);
+  expect(vm.selectedId).toBe("offline");
+  expect(vm.versions).toHaveLength(1);
+  expect(vm.notice).toContain("版本已变化");
+  confirm.mockRestore();
+});

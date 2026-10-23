@@ -153,6 +153,50 @@ class ToolReleaseLifecycleTest {
         assertThat(first.getState()).isEqualTo("OFFLINE");
         assertThat(next.getReleaseNumber()).isEqualTo(2);
     }
+    ToolReleaseService.DeleteTool confirmation(ToolRelease row) {
+        return new ToolReleaseService.DeleteTool(repository.lockLogical(row.getLogicalId()).stream()
+            .collect(java.util.stream.Collectors.toMap(ToolRelease::getId, ToolRelease::getVersion)));
+    }
+    @Test void deletingAnOfflineToolRemovesAllItsVersionsAndBlocksReplayWithoutTouchingOtherTools() throws Exception {
+        var first=tested(null,"delete-me");service.publish("tenant-a","actor",first.getId(),false);
+        var second=tested(first.getLogicalId(),"delete-me");service.publish("tenant-a","actor",second.getId(),false);
+        service.offline("tenant-a","actor",second.getId());
+        var pending=service.draft("tenant-a","actor",draft(first.getLogicalId(),"delete-me"));
+        when(executor.activate(argThat(node -> node != null && "other-tool".equals(node.path("domainCode").asText())),any())).thenReturn("other-reference");
+        var other=tested(null,"other-tool");service.publish("tenant-a","actor",other.getId(),false);
+        var deleted=service.deleteTool("tenant-a","deleter",second.getId(),confirmation(second));
+        assertThat(deleted.logicalId()).isEqualTo(first.getLogicalId());assertThat(deleted.deletedVersions()).isEqualTo(3);
+        assertThat(service.list("tenant-a")).extracting(ToolRelease::getId).containsExactly(other.getId());
+        assertThat(other.getState()).isEqualTo("RUNNING");
+        assertThat(repository.findById(pending.getId()).orElseThrow().getState()).isEqualTo("DELETED");
+        verify(executor).deleteInactive("execution-reference");
+        assertThatThrownBy(()->service.publish("tenant-a","actor",first.getId(),true)).hasMessageContaining("404");
+        assertThatThrownBy(()->service.draft("tenant-a","actor",draft(first.getLogicalId(),"delete-me"))).hasMessageContaining("404");
+    }
+    @Test void runningVersionsPreventDeletionEvenWhenTheSelectedVersionIsOffline() throws Exception {
+        var first=tested(null,"still-running");service.publish("tenant-a","actor",first.getId(),false);
+        var second=tested(first.getLogicalId(),"still-running");service.publish("tenant-a","actor",second.getId(),false);
+        assertThatThrownBy(()->service.deleteTool("tenant-a","actor",first.getId(),confirmation(first))).hasMessageContaining("409");
+        assertThatThrownBy(()->service.deleteTool("tenant-a","actor",second.getId(),confirmation(second))).hasMessageContaining("409");
+        verify(executor,never()).deleteInactive(any());assertThat(second.getState()).isEqualTo("RUNNING");
+    }
+    @Test void deletionRejectsStaleConfirmationAndOtherTenants() throws Exception {
+        var row=tested(null,"stale-delete");service.publish("tenant-a","actor",row.getId(),false);service.offline("tenant-a","actor",row.getId());
+        var stale=confirmation(row);service.draft("tenant-a","actor",draft(row.getLogicalId(),"stale-delete"));
+        assertThatThrownBy(()->service.deleteTool("tenant-a","actor",row.getId(),stale)).hasMessageContaining("409");
+        assertThatThrownBy(()->service.deleteTool("tenant-b","other",row.getId(),stale)).hasMessageContaining("404");
+        verify(executor,never()).deleteInactive(any());
+    }
+    @Test void deletionAlsoHidesOldDuplicateImportsButKeepsTheirAuditSnapshots() throws Exception {
+        var row=tested(null,"duplicate-delete");service.publish("tenant-a","actor",row.getId(),false);service.offline("tenant-a","actor",row.getId());
+        var legacy=new ToolRelease();legacy.setId("duplicate-import");legacy.setLogicalId("duplicate-import");legacy.setTenantId("tenant-a");
+        legacy.setActorId("legacy-migration");legacy.setReleaseNumber(1);legacy.setKind(row.getKind());legacy.setState("OFFLINE");
+        legacy.setTitle("duplicate");legacy.setBindingId(row.getBindingId());legacy.setCreatedAt(row.getCreatedAt());legacy.setPublishedAt(row.getPublishedAt());
+        legacy.setDefinitionJson(row.getDefinitionJson());legacy.setInputSchemaJson(row.getInputSchemaJson());legacy.setOutputSchemaJson(row.getOutputSchemaJson());repository.saveAndFlush(legacy);
+        service.deleteTool("tenant-a","actor",row.getId(),confirmation(row));
+        assertThat(service.list("tenant-a")).isEmpty();assertThat(repository.count()).isEqualTo(2);
+        assertThat(legacy.getState()).isEqualTo("DELETED");
+    }
     @Test void schemaCannotReadNetworkOrLocalFiles() throws Exception {
         for(String ref:List.of("https://example.invalid/schema","file:///etc/passwd")) {
             var schema=json.readTree("{\"type\":\"object\",\"$ref\":\""+ref+"\"}");

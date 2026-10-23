@@ -19,9 +19,10 @@ def main():
     parser.add_argument('--source-commit', required=True)
     parser.add_argument('--api-baseline', required=True)
     parser.add_argument('--mcp-baseline', required=True)
+    parser.add_argument('--version', default='2.4.5-tool-draft-edit-20261023')
     args = parser.parse_args()
     root = args.release_dir.resolve()
-    manifest = {'version': '2.4.5-tool-draft-edit-20261023', 'sourceCommit': args.source_commit, 'baseline': {}, 'artifacts': {}}
+    manifest = {'version': args.version, 'sourceCommit': args.source_commit, 'baseline': {}, 'artifacts': {}}
     for service, expected in [('api', args.api_baseline), ('mcp', args.mcp_baseline)]:
         before = root / (service + '-before.jar')
         with before.open('wb') as output:

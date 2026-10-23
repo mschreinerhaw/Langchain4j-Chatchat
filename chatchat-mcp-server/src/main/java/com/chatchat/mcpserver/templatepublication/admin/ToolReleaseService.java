@@ -32,6 +32,8 @@ public class ToolReleaseService {
     public record ContractTest(JsonNode input, JsonNode output) { }
     public record DraftUpdate(String title, JsonNode definition, JsonNode inputSchema,
                               JsonNode outputSchema, String description, Long expectedVersion) { }
+    public record DeleteTool(Map<String, Long> expectedVersions) { }
+    public record DeletedTool(String logicalId, String title, int deletedVersions) { }
 
     @Transactional(readOnly=true)
     public List<ToolRelease> list(String tenant) {
@@ -39,7 +41,7 @@ public class ToolReleaseService {
         var managedBindings = rows.stream().filter(row -> !"legacy-migration".equals(row.getActorId()))
             .filter(row -> row.getBindingId() != null).collect(java.util.stream.Collectors.groupingBy(ToolRelease::getBindingId,
                 java.util.stream.Collectors.mapping(ToolRelease::getLogicalId, java.util.stream.Collectors.toSet())));
-        return rows.stream().filter(row -> !TemplateCapabilityService.KIND.equals(row.getKind()))
+        return rows.stream().filter(row -> !"DELETED".equals(row.getState()) && !TemplateCapabilityService.KIND.equals(row.getKind()))
             .filter(row -> !"legacy-migration".equals(row.getActorId()) || managedBindings.getOrDefault(row.getBindingId(), Set.of()).stream()
                 .noneMatch(logical -> !logical.equals(row.getLogicalId()))).toList();
     }
@@ -57,6 +59,7 @@ public class ToolReleaseService {
         var history = releases.lockLogical(logical);
         if (draft.logicalId() != null && !draft.logicalId().isBlank() && history.isEmpty()) missing();
         history.forEach(row -> requireTenant(row, tenant));
+        if (history.stream().anyMatch(row -> "DELETED".equals(row.getState()))) missing();
         requireUniqueIdentity(tenant, logical, draft.kind(), draft.definition());
         if (history.isEmpty() && executor.unmanagedExistingDefinition(draft.definition()))
             throw new IllegalArgumentException("Existing tool must be revised from its imported version");
@@ -180,6 +183,39 @@ public class ToolReleaseService {
         executor(row.getKind()).offline(row.getBindingId()); row.setState("OFFLINE"); releases.saveAndFlush(row); refreshAfterCommit(); return row;
     }
 
+    @Transactional
+    public DeletedTool deleteTool(String tenant, String actor, String id, DeleteTool request) {
+        ToolRelease row = locked(tenant, id);
+        var history = releases.lockLogical(row.getLogicalId());
+        if (!"OFFLINE".equals(row.getState()) || history.stream().anyMatch(item -> "RUNNING".equals(item.getState())))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "请先下线该工具的所有运行版本，再删除工具");
+        var current = history.stream().collect(java.util.stream.Collectors.toMap(ToolRelease::getId, ToolRelease::getVersion));
+        if (request == null || !current.equals(request.expectedVersions()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "工具版本已变化，请刷新并重新确认删除");
+        var executor = executor(row.getKind());
+        jdbc.execute((org.springframework.jdbc.core.ConnectionCallback<Void>) connection -> {
+            if (connection.getMetaData().getDatabaseProductName().equalsIgnoreCase("PostgreSQL")) {
+                try (var statement = connection.prepareStatement("select pg_advisory_xact_lock(?)")) {
+                    statement.setLong(1, executor.toolName(read(row.getDefinitionJson())).hashCode()); statement.execute();
+                }
+            }
+            return null;
+        });
+        var references = history.stream().map(ToolRelease::getBindingId).filter(Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        var duplicates = new ArrayList<ToolRelease>();
+        for (var other : releases.findByTenantIdOrderByCreatedAtDesc(tenant)) {
+            if (other.getLogicalId().equals(row.getLogicalId()) || "DELETED".equals(other.getState()) || !references.contains(other.getBindingId())) continue;
+            if (!"legacy-migration".equals(other.getActorId())) throw new ResponseStatusException(HttpStatus.CONFLICT, "执行连接仍被其他工具引用，不能删除");
+            duplicates.add(other);
+        }
+        for (String reference : references) executor.deleteInactive(reference);
+        // Tombstones preserve release/audit identity and prevent replay of deleted release IDs.
+        for (var item : history) item.setState("DELETED");
+        for (var item : duplicates) item.setState("DELETED");
+        releases.saveAll(history); releases.saveAll(duplicates); releases.flush(); refreshAfterCommit();
+        return new DeletedTool(row.getLogicalId(), row.getTitle(), history.size());
+    }
+
     private void validateDefinition(ToolRelease row) {
         authorization.refreshNow();
         var definition=read(row.getDefinitionJson()); requireTenant(row.getTenantId(),definition.path("roleId").asText());
@@ -193,7 +229,10 @@ public class ToolReleaseService {
     private ToolRelease locked(String tenant,String id) {
         ToolRelease row=releases.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         requireTenant(row,tenant);
-        return releases.lockLogical(row.getLogicalId()).stream().filter(item -> id.equals(item.getId())).findFirst().orElseThrow();
+        if ("DELETED".equals(row.getState())) missing();
+        var locked = releases.lockLogical(row.getLogicalId()).stream().filter(item -> id.equals(item.getId())).findFirst().orElseThrow();
+        if ("DELETED".equals(locked.getState())) missing();
+        return locked;
     }
     private void requireEditable(ToolRelease row) {
         if (row.getPublishedAt()!=null) throw new IllegalArgumentException("Released versions are immutable; create a new draft");

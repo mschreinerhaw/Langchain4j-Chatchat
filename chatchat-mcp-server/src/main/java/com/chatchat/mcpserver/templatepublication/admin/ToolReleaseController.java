@@ -8,6 +8,10 @@ import java.util.List;
 @RestController @RequiredArgsConstructor @RequestMapping("/api/v1/tool-publications")
 public class ToolReleaseController {
     private final ToolReleaseService service;
+    @DeleteMapping("/{id}") public ApiResponse<ToolReleaseService.DeletedTool> delete(@RequestParam("tenantId") String tenantId,
+        @RequestParam("actorId") String actorId,@PathVariable("id") String id,@RequestBody ToolReleaseService.DeleteTool request) {
+        return ApiResponse.success(service.deleteTool(tenantId,actorId,id,request));
+    }
     @PutMapping("/{id}") public ApiResponse<ToolRelease> update(@RequestParam("tenantId") String tenantId,
         @RequestParam("actorId") String actorId,@PathVariable("id") String id,@RequestBody ToolReleaseService.DraftUpdate update) {
         return ApiResponse.success(service.updateDraft(tenantId,actorId,id,update));

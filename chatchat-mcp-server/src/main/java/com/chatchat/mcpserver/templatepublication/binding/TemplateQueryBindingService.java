@@ -90,6 +90,17 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
     }
 
     @Transactional
+    public void deleteInactive(String id) {
+        var binding = repository.findById(id);
+        if (binding.isEmpty()) return;
+        if (binding.get().isEnabled()) throw new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.CONFLICT, "工具连接仍在运行，请先下线后再删除");
+        repository.delete(binding.get());
+        repository.flush();
+        invalidatePolicyCache();
+    }
+
+    @Transactional
     public BindingView setEnabled(String id, boolean enabled) {
         TemplateQueryBinding binding = repository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Template query binding not found: " + id));

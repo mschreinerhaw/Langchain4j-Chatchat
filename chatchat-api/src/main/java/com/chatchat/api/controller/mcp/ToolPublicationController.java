@@ -25,6 +25,15 @@ public class ToolPublicationController {
     private final com.chatchat.enterprise.repository.identity.SysRoleRepository roles;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     private com.chatchat.api.service.McpRuntimeAccessService runtime;
+    @DeleteMapping("/{id}") public ApiResponse<JsonNode> delete(HttpServletRequest request,
+        @PathVariable("id") String id,@RequestBody JsonNode body) {
+        authorize(request,"mcp:publication:publish");
+        if (!id.matches("[a-zA-Z0-9-]{1,64}")) throw new IllegalArgumentException("Invalid release ID");
+        JsonNode saved=client.request("DELETE","/api/v1/tool-publications/"+id+scope(request),body);
+        audit(request,"delete-tool",saved.path("logicalId").asText(id));
+        if(runtime!=null) { runtime.refresh(); identities.syncRegisteredMcpTools(); }
+        return ApiResponse.success(saved);
+    }
     @PutMapping("/{id}") public ApiResponse<JsonNode> update(HttpServletRequest request,
         @PathVariable("id") String id,@RequestBody JsonNode body) {
         authorize(request,"mcp:publication:edit");

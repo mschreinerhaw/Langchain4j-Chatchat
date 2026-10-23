@@ -10,5 +10,6 @@ public interface ToolReleaseExecutor {
     JsonNode test(JsonNode definition,JsonNode input);
     String activate(JsonNode definition,String executionReference);
     void offline(String executionReference);
+    default void deleteInactive(String executionReference) { throw new UnsupportedOperationException("当前执行器不支持删除"); }
     default boolean unmanagedExistingDefinition(JsonNode definition) { return false; }
 }

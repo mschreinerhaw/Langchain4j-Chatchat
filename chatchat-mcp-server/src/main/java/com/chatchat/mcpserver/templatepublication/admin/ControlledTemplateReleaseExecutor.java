@@ -30,6 +30,7 @@ public class ControlledTemplateReleaseExecutor implements ToolReleaseExecutor {
         return reference==null?bindings.create(enabled).id():bindings.update(reference,enabled).id();
     }
     @Override public void offline(String reference) { bindings.setEnabled(reference,false); }
+    @Override public void deleteInactive(String reference) { bindings.deleteInactive(reference); }
     @Override public boolean unmanagedExistingDefinition(JsonNode value) {
         var r=request(value);
         return bindings.list().stream().anyMatch(b -> b.domainCode().equals(r.domainCode()) && b.roleId().equals(r.roleId())

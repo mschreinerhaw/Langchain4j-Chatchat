@@ -21,6 +21,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class TemplateQueryBindingServiceTest {
+    @Test void deleteInactiveRefusesRunningBindingsAndRemovesOnlyTheRequestedStoppedBinding() {
+        var repository=mock(TemplateQueryBindingRepository.class);
+        var service=new TemplateQueryBindingService(repository,mock(TemplateAssetCatalogService.class),new TemplateQueryParentCatalog(),
+            mock(McpSynchronizedRoleRepository.class),new ObjectMapper(),mock(McpAuthorizationService.class));
+        var binding=new TemplateQueryBinding();binding.setId("target");binding.setEnabled(true);
+        when(repository.findById("target")).thenReturn(Optional.of(binding));
+        assertThatThrownBy(()->service.deleteInactive("target")).hasMessageContaining("409");
+        org.mockito.Mockito.verify(repository,org.mockito.Mockito.never()).delete(org.mockito.ArgumentMatchers.any(TemplateQueryBinding.class));
+        binding.setEnabled(false);service.deleteInactive("target");
+        org.mockito.Mockito.verify(repository).delete(binding);org.mockito.Mockito.verify(repository).flush();
+    }
     private McpAuthorizationService centralAuthorization() {
         var authority=mock(McpAuthorizationService.class);
         when(authority.roles(org.mockito.ArgumentMatchers.nullable(String.class))).thenReturn(List.of(

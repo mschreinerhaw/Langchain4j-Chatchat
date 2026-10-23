@@ -112,6 +112,8 @@ public class ApiPermissionAuthorizationFilter extends OncePerRequestFilter {
 
     static String templateCapabilityPermission(String method, String path) {
         String root = "/api/v1/tool-publications/capabilities";
+        if ("DELETE".equals(method) && !path.equals(root)
+            && path.matches("/api/v1/tool-publications/[a-zA-Z0-9-]{1,64}")) return "mcp:publication:publish";
         // Draft PUT is the same edit permission as draft POST; keep this limited to one release ID.
         if ("PUT".equals(method) && !path.equals(root)
             && path.matches("/api/v1/tool-publications/[a-zA-Z0-9-]{1,64}")) return "mcp:publication:edit";

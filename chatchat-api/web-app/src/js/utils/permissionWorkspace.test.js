@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   resourceCatalog,
+  resourceGroups,
   resourceRules,
   roleResourceState,
   activeGrant,
@@ -8,6 +9,27 @@ import {
 } from "./permissionWorkspace.js";
 import { parseWorkspaceRoute } from "./workspaceContext.js";
 describe("unified permission workspace projections", () => {
+  it("separates domain skills and agents, including wildcard and historical grants", () => {
+    const catalog = { resourceGrants: [
+      { resourceType: "SKILL", resourceId: "*" },
+      { resourceType: "AGENT_SKILL", resourceId: "*" },
+      { resourceType: "AGENT_SKILL", resourceId: "retired-agent" },
+      { resourceType: "SKILL", resourceId: "retired-skill" },
+      { resourceType: "AGENT_SKILL", resourceId: "agent-a" },
+    ] };
+    const original = JSON.stringify(catalog);
+    const rows = resourceCatalog(catalog, {
+      skills: [{ id: "skill-a", name: "投资技能" }],
+      services: [{ id: "agent-a", name: "日志分析助手" }],
+    });
+    expect(resourceGroups.find(g => g.id === "agent").label).toBe("Agent");
+    expect(rows.filter(r => r.group === "other").map(r => r.type)).toEqual(["SKILL", "SKILL", "SKILL"]);
+    expect(rows.filter(r => r.group === "agent").map(r => r.type)).toEqual(["AGENT_SKILL", "AGENT_SKILL", "AGENT_SKILL"]);
+    expect(rows.find(r => r.type === "AGENT_SKILL" && r.id === "*").name).toBe("全部Agent");
+    expect(rows.find(r => r.type === "SKILL" && r.id === "*").name).toBe("全部领域技能");
+    expect(rows.filter(r => r.id === "agent-a")).toHaveLength(1);
+    expect(JSON.stringify(catalog)).toBe(original);
+  });
   it("hides internal communication capabilities without hiding published business tools or external tools", () => {
     const tools=[
       {localToolName:"internal",serviceId:"chatchat-mcp-server",remoteToolName:"sql_query_execute",serviceName:"ChatChat MCP Server"},

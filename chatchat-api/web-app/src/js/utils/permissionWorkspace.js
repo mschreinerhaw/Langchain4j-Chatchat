@@ -12,7 +12,8 @@ export const resourceGroups = [
   { id: "tool", label: "MCP 工具", description: "工具执行规则与资源边界" },
   { id: "datasource", label: "数据源", description: "通过受控工具访问数据，按数据范围生效" },
   { id: "knowledge", label: "知识库", description: "知识库与文档的访问规则" },
-  { id: "other", label: "领域技能", description: "领域技能及其现有查询服务范围" },
+  { id: "other", label: "领域技能", description: "领域技能的访问规则" },
+  { id: "agent", label: "Agent", description: "Agent 查询服务的访问规则" },
 ];
 export const permissionRouteAliases = {
   system: "systemUsers",
@@ -124,8 +125,8 @@ export function resourceCatalog(catalog, extras = {}) {
       backend: "resource",
       type: "AGENT_SKILL",
       id: service.id,
-      name: service.name || "查询服务",
-      group: "other",
+      name: service.name || "Agent",
+      group: "agent",
       action: "使用",
     });
   for (const grant of catalog.resourceGrants || []) {
@@ -134,7 +135,9 @@ export function resourceCatalog(catalog, extras = {}) {
       ? "knowledge"
       : grant.resourceType === "MCP_TOOL"
         ? "tool"
-        : "other";
+        : grant.resourceType === "AGENT_SKILL"
+          ? "agent"
+          : "other";
     const named = result.find((r) => r.type === grant.resourceType && r.id === grant.resourceId);
     if (!named)
       add({

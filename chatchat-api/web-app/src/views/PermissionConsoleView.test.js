@@ -97,6 +97,21 @@ beforeEach(() => {
   vi.spyOn(window, "confirm").mockReturnValue(true);
 });
 describe("permission console", () => {
+  it("switches between separate skill and Agent tabs with matching resource types", async () => {
+    api.fetchDomainSkills.mockResolvedValue({ skills: [{ id: "skill-a", name: "投资技能" }], totalPages: 1 });
+    api.fetchAgentOptions.mockResolvedValue([{ id: "agent-a", name: "日志分析助手" }]);
+    const wrapper = mount(PermissionConsoleView);
+    await flushPromises();
+    const tabs = wrapper.findAll(".permission-category-tabs button");
+    await tabs.find(b => b.text() === "领域技能").trigger("click");
+    expect(wrapper.find(".permission-table").text()).toContain("投资技能");
+    expect(wrapper.find(".permission-table").text()).not.toContain("日志分析助手");
+    await tabs.find(b => b.text() === "Agent").trigger("click");
+    expect(wrapper.find(".permission-table").text()).toContain("日志分析助手");
+    expect(wrapper.find(".permission-table").text()).not.toContain("投资技能");
+    expect(wrapper.find(".permission-table").text()).toContain("Agent");
+    wrapper.unmount();
+  });
   it("refuses bulk writes that would remove an existing data or query-service boundary", async () => {
     const data = catalog();
     data.tools = [{ localToolName: "bounded", serviceName: "范围工具" }];

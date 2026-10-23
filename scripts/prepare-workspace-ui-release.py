@@ -1,5 +1,6 @@
 """Overlay a verified frontend on the exact running API, preserving all backend entries."""
 import argparse
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -37,7 +38,7 @@ def main():
             new.comment = old.comment
             for entry in old.infolist():
                 if not entry.filename.startswith(prefix):
-                    new.writestr(entry, old.read(entry.filename))
+                    new.writestr(copy.copy(entry), old.read(entry.filename))
             for entry in web.infolist():
                 if not entry.is_dir():
                     new.writestr(prefix + entry.filename, web.read(entry.filename), compress_type=zipfile.ZIP_DEFLATED)

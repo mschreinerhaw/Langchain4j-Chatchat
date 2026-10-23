@@ -46,7 +46,9 @@ public class ToolReleaseContractCatalog {
             var arguments=new LinkedHashMap<String,Object>(value==null?Map.of():value);
             // Runtime envelope and parent delegation are transport fields, outside the public tool Schema.
             for(String key:Set.of("_templateQueryChildToolName","mcpContext","tenantId","userId","username","roles",
-                "traceId","workspaceId","env","domain","permissionLevel","scopeExpression"))arguments.remove(key);
+                "traceId","requestId","conversationId","agentId","authorizationAgentId","callerProof",
+                "mcpExecutionContext","executionContext","defaultDataAsset","assetSelectionPolicy",
+                "workspaceId","env","domain","permissionLevel","scopeExpression"))arguments.remove(key);
             var schema=read(row.getInputSchemaJson());
             if(!schema.path("properties").has("assetType"))arguments.remove("assetType");
             ToolReleaseSchemas.validate(schema,json.valueToTree(arguments));

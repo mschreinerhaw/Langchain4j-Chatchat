@@ -81,6 +81,12 @@ public final class AnalysisCoverageCoordinator {
             "analysis_summary_governance", metadataOf(
                 "type", "analysis_dataset_excluded", "exclusion", excluded)));
         if (datasets.isEmpty() && !com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata())) {
+            // A failed acquisition is not a successful empty business result. Discovery
+            // steps may succeed while the actual data query fails before projection.
+            if (codingOwned && request.result() != null && (!request.result().success()
+                || request.result().steps().stream().anyMatch(step -> !step.success()))) {
+                throw new IllegalStateException("REQUIRED_MCP_DATA_UNAVAILABLE: data acquisition failed; no business evidence is available for analysis");
+            }
             writeEmptyProjectionCompletion(request, projection.excludedDatasets());
             boolean sourceFailed = projection.excludedDatasets().stream().anyMatch(
                 item -> "FAILED".equals(item.get("accountingStatus")));

@@ -24,6 +24,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AnalysisCoverageCoordinatorTest {
+    @Test void failedAcquisitionWithoutDatasetsCannotBecomeASuccessfulAnalysisReport() {
+        var evidence=mock(AnalysisEvidenceCoordinator.class);
+        when(evidence.project(any(),any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(),List.of()));
+        var base=request(new LinkedHashMap<>());
+        var result=new InterpretationPlanRuntime.ExecutionResult("failed",false,false,"schema rejected",null,
+            List.of(new InterpretationPlanRuntime.StepExecution(1,"tool_call","query",false,null,"schema rejected",null,null,1)),Map.of(),1);
+        var request=new AnalysisCoverageCoordinator.Request(null,"Analyze returned records",result,Map.of("taskType","DATA_ANALYSIS"),
+            base.metadata(),base.cancellationCheck(),base.cancellationGuard(),base.isolationScope(),base.summaryProtocol());
+        assertThatThrownBy(()->coordinator(evidence).analyze(request)).hasMessageContaining("REQUIRED_MCP_DATA_UNAVAILABLE");
+        assertThat(base.metadata()).doesNotContainKey("modelNativeReportDraft");
+    }
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.CsvSource({"OPTIONAL,true,false,true", "REQUIRED,true,false,false", "OPTIONAL,false,false,false", "REQUIRED,false,false,false",
         "REQUIRED,true,true,true", "OPTIONAL,true,true,true"})

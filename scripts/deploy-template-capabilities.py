@@ -32,10 +32,15 @@ def main():
     def running(name):
         return stage.run('docker', 'exec', 'runtime-os-app-stage-' + name + '-1', 'sha256sum', '/srv/app/app.jar').split()[0]
 
+    changed = []
     for name in ['api', 'mcp']:
         assert running(name) == manifest['baseline'][name], 'Running baseline changed: ' + name
         assert stage.digest(release / (name + '.jar')) == manifest['artifacts'][name]['sha256'], 'Artifact mismatch'
-        build_application_image(name, release / (name + '.jar'), 'runtime-os-' + name + ':' + version, stage.evidence / (name + '-image'))
+        if manifest['baseline'][name] != manifest['artifacts'][name]['sha256']:
+            changed.append(name)
+            build_application_image(name, release / (name + '.jar'), 'runtime-os-' + name + ':' + version, stage.evidence / (name + '-image'))
+    if not changed:
+        raise ValueError('No changed artifacts to deploy')
     assert stage.sql(databases['api'], "select count(*) from agent_task_latest where canonical_state is null or canonical_state not in ('SUCCEEDED','PARTIAL','FAILED','CANCELLED','REJECTED')") == '0', 'Active tasks prevent replacement'
     assert not stage.run('docker', 'ps', '--filter', 'name=chatchat-py-', '--format', '{{.ID}}'), 'Active Python operations'
     before = stage.policy_fingerprints(databases['api'], databases['mcp'])
@@ -52,14 +57,14 @@ def main():
     report = {'version': version, 'sourceCommit': manifest['sourceCommit'], 'backup': str(destination), 'policyBefore': before}
     print(json.dumps({'stage': 'BACKED_UP', 'backup': str(destination)}), flush=True)
     try:
-        stage.compose('stop', 'api', 'mcp')
-        for name in ['api', 'mcp']:
+        stage.compose('stop', *changed)
+        for name in changed:
             config['services'][name]['image'] = 'runtime-os-' + name + ':' + version
         (root / 'compose.yaml').write_text(json.dumps(config, indent=2))
         env = root / 'config/deployment.env'
         env.write_text('\n'.join(line for line in env.read_text().splitlines() if not line.startswith(('API_IMAGE=', 'MCP_IMAGE=')))
-                       + '\nAPI_IMAGE=runtime-os-api:' + version + '\nMCP_IMAGE=runtime-os-mcp:' + version + '\n')
-        stage.compose('up', '-d', '--no-deps', '--force-recreate', 'mcp', 'api')
+                       + '\nAPI_IMAGE=' + config['services']['api']['image'] + '\nMCP_IMAGE=' + config['services']['mcp']['image'] + '\n')
+        stage.compose('up', '-d', '--no-deps', '--force-recreate', *changed)
         stage.ready(18180)
         stage.ready(18190)
         after = stage.policy_fingerprints(databases['api'], databases['mcp'])
@@ -87,7 +92,7 @@ def main():
         stage.sql(databases['mcp'], "update mcp_tool_release set state='OFFLINE' where kind='TEMPLATE_CAPABILITY' and state='RUNNING'")
         for filename, target in [('compose.yaml', root / 'compose.yaml'), ('deployment.env', root / 'config/deployment.env')]:
             shutil.copy2(destination / filename, target)
-        stage.compose('up', '-d', '--no-deps', '--force-recreate', 'mcp', 'api')
+        stage.compose('up', '-d', '--no-deps', '--force-recreate', *changed)
         stage.ready(18180)
         stage.compose('up', '-d', '--no-deps', '--force-recreate', 'node-proxy')
         stage.run('docker', 'exec', 'runtime-os-app-stage-gateway-1', 'nginx', '-s', 'reload')

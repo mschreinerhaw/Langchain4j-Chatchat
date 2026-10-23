@@ -1,0 +1,15 @@
+{
+  "checks": {
+    "separateMenuAndCreateDialog": true,
+    "cancelDoesNotDelete": true,
+    "duplicateFeedbackAndKeyboardCancel": true,
+    "renameAppliesAcrossVersionsWithoutChangingSnapshots": true,
+    "deleteTransfersWholeToolAndRetainsHistory": true,
+    "existingPublishedToolCanBeClassifiedWithoutNewVersion": true,
+    "staleConfirmationRetainedAndRefreshAllowsRetry": true,
+    "deleteToUnclassifiedKeepsToolRunning": true,
+    "publishedCardReflectsCurrentClassification": true,
+    "searchPaginationAndSmallScreen": true
+  },
+  "consoleErrors": []
+}

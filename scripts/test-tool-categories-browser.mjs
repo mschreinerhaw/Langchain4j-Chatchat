@@ -13,7 +13,7 @@ const browser = await chromium.launch({
 const checks = {},
   errors = [],
   ownCategories = new Set();
-let api, context, page, logical;
+let api, context, page, logical, ownGrant;
 try {
   context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, locale: "zh-CN" });
   const credentials = JSON.parse(readFileSync("target/workspace-stage-auth-private.json", "utf8"));
@@ -48,6 +48,15 @@ try {
   const categoryReady = () => page.locator('.tool-categories[aria-busy="false"]').waitFor();
   async function showCategories() {
     await page.goto(base + "/#/w/mcp-publication/toolCategories");
+    await categoryReady();
+    const response = page.waitForResponse(
+      (r) => r.url().endsWith("/api/v1/tool-categories") && r.request().method() === "GET"
+    );
+    await page
+      .locator(".permission-heading-actions")
+      .getByRole("button", { name: "刷新", exact: true })
+      .click();
+    assert.equal((await response).status(), 200);
     await categoryReady();
   }
   async function searchCategory(name) {
@@ -118,6 +127,17 @@ try {
   await api(`/tool-publications/${first.id}/validate`, {}, "POST");
   await api(`/tool-publications/${first.id}/test`, { input: { limit: 1 } });
   await api(`/tool-publications/${first.id}/publish`, {}, "POST");
+  ownGrant = (
+    await api("/enterprise/resource-grants", {
+      tenantId: login.data.user.tenantId,
+      resourceType: "MCP_TOOL",
+      resourceId: `mcp_chatchat_mcp_server_${definition.domainCode}_template_query`,
+      principalType: "USER",
+      principalId: login.data.user.id,
+      effect: "ALLOW",
+      enabled: true,
+    })
+  ).id;
   const second = await api("/tool-publications", { ...payload, logicalId: logical });
   const family = async () =>
     (await api("/tool-publications")).filter((row) => row.logicalId === logical);
@@ -131,6 +151,32 @@ try {
   const renamedCategory = (await api("/tool-categories")).find((row) => row.id === source.id);
   assert.equal(renamedCategory.toolCount, 1);
   assert.ok((await family()).every((row) => row.businessCategory === renamed));
+  let renamedCards;
+  for (let attempt = 0; attempt < 30; attempt++) {
+    renamedCards = await api(
+      `/mcp/tool-cards?keyword=${encodeURIComponent(payload.title)}&sourceType=mcp`
+    );
+    if (renamedCards.tools.some((tool) => tool.chineseAlias === payload.title)) break;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  writeFileSync(
+    out + "/catalog-observation.json",
+    JSON.stringify(
+      {
+        cards: renamedCards,
+        registered: (await api("/mcp/tools")).filter((tool) =>
+          JSON.stringify(tool).includes(definition.domainCode)
+        ),
+        releases: await family(),
+      },
+      null,
+      2
+    )
+  );
+  assert.equal(
+    renamedCards.tools.find((tool) => tool.chineseAlias === payload.title)?.functionalCategory,
+    renamed
+  );
   assert.deepEqual(
     (await family()).map(({ businessCategory, businessCategoryId, ...row }) => row),
     snapshots
@@ -258,6 +304,7 @@ try {
   console.log(JSON.stringify(checks));
 } finally {
   if (api) {
+    if (ownGrant) await api(`/enterprise/resource-grants/${ownGrant}`, null, "DELETE");
     if (logical) {
       let rows = (await api("/tool-publications")).filter((row) => row.logicalId === logical);
       for (const row of rows.filter((row) => row.state === "RUNNING"))

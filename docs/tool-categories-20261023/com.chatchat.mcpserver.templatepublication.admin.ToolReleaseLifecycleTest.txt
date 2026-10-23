@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.chatchat.mcpserver.templatepublication.admin.ToolReleaseLifecycleTest
+-------------------------------------------------------------------------------
+Tests run: 19, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 17.54 s -- in com.chatchat.mcpserver.templatepublication.admin.ToolReleaseLifecycleTest

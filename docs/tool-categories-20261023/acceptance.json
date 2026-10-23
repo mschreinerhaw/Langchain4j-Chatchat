@@ -1,0 +1,14 @@
+{
+    "version":  "2.4.7.1-tool-categories-20261023",
+    "sourceCommit":  "9cf6c77e4",
+    "environment":  "http://192.168.195.221:18100",
+    "entry":  "/#/w/mcp-publication/toolCategories",
+    "backendTestsPassed":  65,
+    "frontendTestsPassed":  46,
+    "frontendBuildPassed":  true,
+    "licensedPublishingModuleCoveragePassed":  true,
+    "existingReleasesAndPermissionsPreservedOnDeploy":  true,
+    "realBrowserChecks":  "live-browser.json",
+    "cleanupAndReadOnlyVerification":  "final-verification.json",
+    "gatewayResourcesVerified":  94
+}

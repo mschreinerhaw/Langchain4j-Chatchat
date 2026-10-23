@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.chatchat.mcpserver.templatepublication.admin.ToolCategoryServiceTest
+-------------------------------------------------------------------------------
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.807 s -- in com.chatchat.mcpserver.templatepublication.admin.ToolCategoryServiceTest

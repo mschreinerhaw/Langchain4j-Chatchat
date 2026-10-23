@@ -1,0 +1,38 @@
+﻿{
+    "date":  "2026-10-23",
+    "timezone":  "Asia/Shanghai",
+    "status":  "DEPLOYED_AND_ACCEPTED",
+    "baseBranch":  "origin/feature/mcp-template-centric-permissions",
+    "baselineCommit":  "72dac06b1",
+    "branch":  "fix/workspace-mcp-delivery",
+    "frontendCommit":  "6303e0bd1",
+    "packagedSourceCommit":  "47c93a444",
+    "workspaceUrl":  "http://192.168.195.221:18100/#/w/zhice/workspaces",
+    "mcpUrl":  "http://192.168.195.221:18100/#/w/zhice/mcp",
+    "changes":  [
+                    "工作空间卡片视图、每页6项、名称说明标识检索、状态筛选",
+                    "进入工作空间按钮使用现有授权切换流程，停用空间禁止进入",
+                    "MCP运维信息移到顶部卡片并默认折叠",
+                    "解除通用标题720px宽度限制，刷新按钮与卡片右侧对齐",
+                    "统一按钮CSS、键盘聚焦与禁用反馈，修复窄屏关闭按钮及长参数换行"
+                ],
+    "validation":  {
+                       "vitestTests":  48,
+                       "vueComponents":  62,
+                       "productionBuild":  "PASSED",
+                       "overlayRegressionTests":  1,
+                       "localBrowser":  "PASSED",
+                       "liveBrowser":  "PASSED",
+                       "staticResourcesVerified":  92,
+                       "backendEntriesUnchanged":  true,
+                       "policyUnchanged":  true,
+                       "databaseMigration":  false
+                   },
+    "limitations":  [
+                        "线上只有4个工作空间；三页分页与停用空间使用浏览器拦截的14条测试数据验证，未写入服务器",
+                        "构建保留既有大体积资源提示"
+                    ],
+    "backup":  "/opt/runtime-os-docker-stage/evidence/publication-ui-2.4.2-workspace-ui-20261023/backup-1792758118",
+    "rollbackImage":  "runtime-os-api:2.4.1-published-tools-20261023",
+    "deploymentIssueResolved":  "发布准备脚本复用ZipInfo导致源偏移被修改，部署前校验拦截；改为复制元数据并增加回归测试后通过"
+}

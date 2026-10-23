@@ -123,17 +123,19 @@
               placeholder="说明工具用途与适用场景"
             /></label
           ><label
-            >业务分类<input
-              v-model.trim="definition.businessCategory"
-              maxlength="64"
-              list="publication-business-categories"
-              placeholder="按业务用途填写，例如客户分析、数据核验" /><datalist
-              id="publication-business-categories"
-              ><option
-                v-for="name in categories.filter((name) => name !== '待分类')"
-                :key="name"
-                :value="name" /></datalist
-          ></label>
+            >业务分类<select v-model="definition.businessCategory" aria-label="选择业务分类"
+              ><option value="">未分类</option
+              ><option v-for="item in categoryRegistry" :key="item.id" :value="item.name">{{
+                item.name
+              }}</option></select
+            ></label
+          >
+          <div class="publication-manage-categories"
+            ><button type="button" @click="$emit('navigate', 'toolCategories')">管理分类</button
+            ><small class="publication-hint">
+              分类统一维护，同一工具的所有版本共享分类。</small
+            ></div
+          >
           <label
             >工具标识<input
               v-model.trim="definition.domainCode"
@@ -304,6 +306,28 @@
           ><button v-else-if="editable" type="button" :disabled="busy" @click="startRevision()"
             >创建新版本</button
           ></header
+        >
+        <div class="publication-classification"
+          ><label for="current-tool-category">业务分类</label
+          ><select
+            v-if="editable"
+            id="current-tool-category"
+            v-model="selectedCategoryId"
+            :disabled="busy"
+            ><option value="">未分类</option
+            ><option v-for="item in categoryRegistry" :key="item.id" :value="item.id">{{
+              item.name
+            }}</option></select
+          ><span v-else>{{ categoryOf(selected) }}</span
+          ><button
+            v-if="editable && selectedCategoryId !== (selected.businessCategoryId || '')"
+            type="button"
+            :disabled="busy"
+            @click="saveCategory"
+            >保存分类</button
+          ><button type="button" :disabled="busy" @click="$emit('navigate', 'toolCategories')"
+            >管理分类</button
+          ></div
         >
         <div class="publication-version-bar"
           ><label

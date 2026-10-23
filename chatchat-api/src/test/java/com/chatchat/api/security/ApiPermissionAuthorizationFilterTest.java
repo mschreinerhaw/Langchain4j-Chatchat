@@ -22,6 +22,11 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ApiPermissionAuthorizationFilterTest {
+    @Test void categoryMaintenanceReusesPublicationPermissions() {
+        assertThat(ApiPermissionAuthorizationFilter.templateCapabilityPermission("GET","/api/v1/tool-categories")).isEqualTo("mcp:publication:read");
+        assertThat(ApiPermissionAuthorizationFilter.templateCapabilityPermission("DELETE","/api/v1/tool-categories/id")).isEqualTo("mcp:publication:edit");
+        assertThat(ApiPermissionAuthorizationFilter.templateCapabilityPermission("PUT","/api/v1/tool-categories/assignments/id")).isEqualTo("mcp:publication:edit");
+    }
     @Test void deletingAReleasedToolUsesPublishingPrivilegeWithoutExposingOtherDeleteRoutes() {
         assertThat(ApiPermissionAuthorizationFilter.templateCapabilityPermission("DELETE","/api/v1/tool-publications/release-id")).isEqualTo("mcp:publication:publish");
         assertThat(ApiPermissionAuthorizationFilter.templateCapabilityPermission("DELETE","/api/v1/tool-publications/release-id/publish")).isNull();

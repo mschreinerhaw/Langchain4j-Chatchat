@@ -45,7 +45,14 @@ class PublishedMcpToolCatalogTest {
         assertEquals(1,service.registeredTools(request).size());when(authorization.allowedIds(anyString(),anyString(),anyString(),anySet(),anySet())).thenReturn(Set.of());assertTrue(service.registeredTools(request).isEmpty());
     }
     @Test void absentCategoryIsExplicitlyPendingRatherThanAnExecutorType() throws Exception {
-        when(client.request(anyString(),anyString(),isNull())).thenReturn(json.valueToTree(List.of(row("RUNNING","CONTROLLED_TEMPLATE","role",""))));assertEquals("待分类",service.registeredTools(request).get(0).category());
+        when(client.request(anyString(),anyString(),isNull())).thenReturn(json.valueToTree(List.of(row("RUNNING","CONTROLLED_TEMPLATE","role",""))));assertEquals("未分类",service.registeredTools(request).get(0).category());
+    }
+    @Test void currentCategoryOverridesImmutableSnapshotIncludingExplicitUnclassification() throws Exception {
+        var value=new HashMap<>(row("RUNNING","CONTROLLED_TEMPLATE","role","旧分类"));value.put("businessCategory","新分类");
+        when(client.request(anyString(),anyString(),isNull())).thenReturn(json.valueToTree(List.of(value)));
+        assertEquals("新分类",service.registeredTools(request).get(0).category());
+        value.put("businessCategory","");when(client.request(anyString(),anyString(),isNull())).thenReturn(json.valueToTree(List.of(value)));
+        assertEquals("未分类",service.registeredTools(request).get(0).category());
     }
     @Test void unavailableControlPlaneNeverFallsBackToAllRegisteredTools() {
         when(client.request(anyString(),anyString(),isNull())).thenThrow(new IllegalStateException("offline"));assertThrows(IllegalStateException.class,()->service.registeredTools(request));assertTrue(service.registeredTools(null).isEmpty());

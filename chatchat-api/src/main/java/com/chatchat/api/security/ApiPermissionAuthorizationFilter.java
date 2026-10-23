@@ -111,6 +111,8 @@ public class ApiPermissionAuthorizationFilter extends OncePerRequestFilter {
     }
 
     static String templateCapabilityPermission(String method, String path) {
+        if (path.equals("/api/v1/tool-categories") || path.startsWith("/api/v1/tool-categories/"))
+            return "GET".equals(method) ? "mcp:publication:read" : "mcp:publication:edit";
         String root = "/api/v1/tool-publications/capabilities";
         if ("DELETE".equals(method) && !path.equals(root)
             && path.matches("/api/v1/tool-publications/[a-zA-Z0-9-]{1,64}")) return "mcp:publication:publish";

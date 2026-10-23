@@ -26,4 +26,6 @@ public class ToolRelease {
     @Column(name="created_at", nullable=false) private Instant createdAt;
     @Column(name="published_at") private Instant publishedAt;
     @Version private Long version;
+    @Transient private String businessCategory;
+    @Transient private String businessCategoryId;
 }

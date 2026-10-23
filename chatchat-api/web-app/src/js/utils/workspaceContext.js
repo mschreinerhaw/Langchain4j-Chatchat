@@ -30,7 +30,7 @@ export function chooseWorkspace(items, route, preference = {}) {
   if ((route.legacyView?.startsWith("dataScience") && route.legacyView !== "dataScienceSkills") || route.legacyView === "sqlStudio")
     return valid("data-science") || null;
   if (route.legacyView?.startsWith("system") || route.legacyView === "permissionTools") return valid("permissions") || null;
-  if (route.legacyView === "toolPublications") return valid("mcp-publication") || null;
+  if (["toolPublications", "toolCategories"].includes(route.legacyView)) return valid("mcp-publication") || null;
   if (route.legacyView) return items.find((item) => item.defaultWorkspace) || items[0] || null;
   return valid(preference.defaultWorkspaceId)
     || items.find((item) => item.defaultWorkspace) || items[0] || null;

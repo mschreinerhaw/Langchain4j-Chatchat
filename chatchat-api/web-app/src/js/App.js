@@ -128,6 +128,7 @@ const views = {
   systemLogins: SystemLoginAuditView,
   systemResources: PermissionConsoleView,
   toolPublications: asyncView(() => import("../views/ToolPublicationsView.vue")),
+  toolCategories: asyncView(() => import("../views/ToolCategoriesView.vue")),
   models: ModelManagementView,
 };
 

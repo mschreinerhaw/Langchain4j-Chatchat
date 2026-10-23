@@ -22,6 +22,8 @@ public class ToolReleaseService {
     private final TemplateQueryMcpToolPublisher publisher;
     private final ObjectMapper json;
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private ToolCategoryService categories;
 
     public record Draft(String logicalId, String title, String kind, JsonNode definition,
                         JsonNode inputSchema, JsonNode outputSchema, String description) {
@@ -41,9 +43,11 @@ public class ToolReleaseService {
         var managedBindings = rows.stream().filter(row -> !"legacy-migration".equals(row.getActorId()))
             .filter(row -> row.getBindingId() != null).collect(java.util.stream.Collectors.groupingBy(ToolRelease::getBindingId,
                 java.util.stream.Collectors.mapping(ToolRelease::getLogicalId, java.util.stream.Collectors.toSet())));
-        return rows.stream().filter(row -> !"DELETED".equals(row.getState()) && !TemplateCapabilityService.KIND.equals(row.getKind()))
+        var visible = rows.stream().filter(row -> !"DELETED".equals(row.getState()) && !TemplateCapabilityService.KIND.equals(row.getKind()))
             .filter(row -> !"legacy-migration".equals(row.getActorId()) || managedBindings.getOrDefault(row.getBindingId(), Set.of()).stream()
                 .noneMatch(logical -> !logical.equals(row.getLogicalId()))).toList();
+        if (categories != null) categories.project(tenant,visible);
+        return visible;
     }
 
     @Transactional
@@ -74,7 +78,9 @@ public class ToolReleaseService {
         row.setDescription(draft.description());
         ToolReleaseSchemas.compile(draft.inputSchema()); ToolReleaseSchemas.compile(draft.outputSchema());
         row.setDefinitionJson(write(draft.definition())); row.setInputSchemaJson(write(draft.inputSchema()));
-        row.setOutputSchemaJson(write(draft.outputSchema())); return releases.saveAndFlush(row);
+        row.setOutputSchemaJson(write(draft.outputSchema()));
+        if(categories!=null) categories.assignByName(tenant,logical,category);
+        return releases.saveAndFlush(row);
     }
 
     @Transactional
@@ -102,6 +108,7 @@ public class ToolReleaseService {
         row.setTitle(update.title()); row.setDescription(update.description()); row.setActorId(actor);
         row.setDefinitionJson(write(definition)); row.setInputSchemaJson(write(update.inputSchema()));
         row.setOutputSchemaJson(write(update.outputSchema())); row.setTestEvidenceJson(null); row.setState("DRAFT");
+        if(categories!=null) categories.assignByName(tenant,row.getLogicalId(),category);
         return releases.saveAndFlush(row);
     }
 

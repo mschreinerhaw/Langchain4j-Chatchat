@@ -19,7 +19,7 @@ public class ControlPlaneManagementFilter extends OncePerRequestFilter {
     private final InternalCredentialProperties credentials;
     @Override protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI().substring(request.getContextPath().length());
-        return !path.startsWith("/api/v1/template-query-publications") && !path.startsWith("/api/v1/tool-publications")
+        return !path.startsWith("/api/v1/tool-categories") && !path.startsWith("/api/v1/template-query-publications") && !path.startsWith("/api/v1/tool-publications")
             && !path.startsWith("/api/v1/template-capabilities");
     }
     @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)

@@ -39,10 +39,10 @@ public class PublishedMcpToolCatalog {
             String domain = definition.path("domainCode").asText();
             if (!domain.matches("[a-z][a-z0-9_]{0,63}")) continue;
             String name = "mcp_chatchat_mcp_server_" + domain + "_template_query";
-            String category = definition.path("businessCategory").asText("").trim();
+            String category = row.path("businessCategory").asText(definition.path("businessCategory").asText("")).trim();
             candidates.putIfAbsent(name, new Publication(row.path("title").asText(),
                 row.path("description").asText("").isBlank() ? "在授权范围内查询已选模板" : row.path("description").asText(),
-                category.isBlank() ? "待分类" : category, definition.path("templateKeys").size()));
+                category.isBlank() ? "未分类" : category, definition.path("templateKeys").size()));
         }
         Set<String> allowed = authorization.allowedIds(ResourceAuthorizationPort.MCP_TOOL, user.tenantId(), user.id(), roleIds, candidates.keySet());
         candidates.keySet().retainAll(allowed);

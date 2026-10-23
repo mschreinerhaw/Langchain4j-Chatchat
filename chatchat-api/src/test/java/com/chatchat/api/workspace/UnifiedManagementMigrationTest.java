@@ -6,7 +6,7 @@ import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.core.io.ClassPathResource;
 import static org.assertj.core.api.Assertions.*;
 class UnifiedManagementMigrationTest {
-    @Test void repeatableMigrationPreservesDataGrantsAndDoesNotRegrantRevokedManagementRights() {
+    @Test void repeatableMigrationPreservesDataGrantsAndDoesNotRegrantRevokedManagementRights() throws Exception {
         var source=new DriverManagerDataSource("jdbc:h2:mem:unified_migration;MODE=MySQL;DB_CLOSE_DELAY=-1","sa","");
         var jdbc=new JdbcTemplate(source);
         jdbc.execute("create table sys_permission(id varchar(64) primary key,permission_code varchar(128),permission_name varchar(128),permission_type varchar(32),resource_path varchar(512),http_method varchar(16),status varchar(32),sort_order int,created_at timestamp,updated_at timestamp)");
@@ -22,6 +22,12 @@ class UnifiedManagementMigrationTest {
         jdbc.update("insert into sys_role_permission(id,tenant_id,role_id,permission_id) values('old-admin','tenant','admin-role','authorize')");
         var migration=new ResourceDatabasePopulator(new ClassPathResource("workspace/unified-management-h2.sql"));migration.setSqlScriptEncoding("UTF-8");
         migration.execute(source);migration.execute(source);
+        var categories=new ToolCategoryNavigationMigration(jdbc,new com.fasterxml.jackson.databind.ObjectMapper());
+        categories.seed();categories.seed();
+        assertThat(jdbc.queryForObject("select count(*) from sys_menu where menu_code='toolCategories'",Integer.class)).isOne();
+        var publicationManifest=new com.fasterxml.jackson.databind.ObjectMapper().readTree(jdbc.queryForObject("select manifest_json from workspace_registry where id='mcp-publication'",String.class));
+        assertThat(publicationManifest.path("pages").size()).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select count(*) from sys_menu_permission where menu_id='toolCategories'",Integer.class)).isOne();
         assertThat(jdbc.queryForObject("select count(*) from workspace_registry",Integer.class)).isEqualTo(2);
         assertThat(jdbc.queryForObject("select manifest_json from workspace_registry where id='mcp-publication'",String.class))
             .contains("\"layoutType\":\"management\"");

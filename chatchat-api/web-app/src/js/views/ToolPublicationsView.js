@@ -3,9 +3,11 @@ import { apiRequest, getStoredAuthSession } from "../../services/api.js";
 import { useTransientNotice } from "../utils/useTransientNotice.js";
 import "../../styles/pages/permission-workspace.css";
 import "../../styles/pages/tool-publications.css";
+import "../../styles/pages/tool-categories.css";
 
 export default {
   name: "ToolPublicationsView",
+  emits: ["navigate"],
   setup() {
     const rows = ref([]),
       parents = ref([]),
@@ -30,9 +32,18 @@ export default {
         a.localeCompare(b, "zh-CN")
       )
     );
-    const categoryOf = (row) => parse(row.definitionJson, {}).businessCategory || "待分类";
+    const categoryRegistry = ref([]),
+      selectedCategoryId = ref("");
+    const categoryOf = (row) =>
+      (row.businessCategory ?? parse(row.definitionJson, {}).businessCategory) || "未分类";
     const categories = computed(() =>
-      [...new Set(rows.value.map(categoryOf))].sort((a, b) => a.localeCompare(b, "zh-CN"))
+      [
+        ...new Set([
+          ...categoryRegistry.value.map((row) => row.name),
+          ...rows.value.map(categoryOf),
+          "未分类",
+        ]),
+      ].sort((a, b) => a.localeCompare(b, "zh-CN"))
     );
     const pendingCount = computed(
       () =>
@@ -75,6 +86,9 @@ export default {
       OFFLINE: "已下线",
     };
     const selected = computed(() => rows.value.find((r) => r.id === selectedId.value) || null);
+    watch(selected, (row) => {
+      selectedCategoryId.value = row?.businessCategoryId || "";
+    });
     const selectedDefinition = computed(() => parse(selected.value?.definitionJson, {}));
     const versions = computed(() =>
       rows.value
@@ -228,6 +242,8 @@ export default {
     async function refresh() {
       await perform(async () => {
         await loadRows();
+        const registry = await apiRequest("/tool-categories");
+        categoryRegistry.value = Array.isArray(registry) ? registry : [];
         const values = await Promise.allSettled([
           apiRequest("/tool-publications/catalog/parents"),
           apiRequest("/tool-publications/catalog/roles"),
@@ -312,7 +328,13 @@ export default {
         title: row.title,
         description: row.description || "",
       };
-      definition.value = { ...blank(), ...parse(row.definitionJson, {}), enabled: false };
+      definition.value = {
+        ...blank(),
+        ...parse(row.definitionJson, {}),
+        businessCategory:
+          row.businessCategory ?? parse(row.definitionJson, {}).businessCategory ?? "",
+        enabled: false,
+      };
       inputSchema.value = pretty(row.inputSchemaJson);
       outputSchema.value = pretty(row.outputSchemaJson);
       if (!editCurrent) inputSample.value = "{}";
@@ -451,6 +473,20 @@ export default {
         inputSample.value = "{}";
       }, "工具及其全部版本已删除。");
     }
+    async function saveCategory() {
+      if (!editable || !selected.value || busy.value) return;
+      const row = selected.value;
+      await perform(async () => {
+        await apiRequest(`/tool-categories/assignments/${row.logicalId}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            categoryId: selectedCategoryId.value || null,
+            expectedCategoryId: row.businessCategoryId || null,
+          }),
+        });
+        await loadRows(row.id);
+      }, "工具分类已更新，所有版本已同步。");
+    }
     onMounted(refresh);
     onActivated(() => {
       if (loaded.value && !editing.value) refresh();
@@ -459,6 +495,9 @@ export default {
       rows,
       category,
       categories,
+      categoryRegistry,
+      selectedCategoryId,
+      saveCategory,
       categoryOf,
       pendingCount,
       templateCategory,

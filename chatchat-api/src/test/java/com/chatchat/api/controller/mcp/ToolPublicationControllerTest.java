@@ -11,6 +11,21 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 class ToolPublicationControllerTest {
+    @Test void draftUpdateBindsTheAuthenticatedTenantAndActorAndRequiresEditPermission() throws Exception {
+        var client=mock(McpControlPlaneClient.class);var access=mock(ObjectAccessService.class);
+        var identities=mock(EnterpriseAdminService.class);var request=new MockHttpServletRequest();
+        when(access.user(request)).thenReturn("editor");when(access.tenant(request)).thenReturn("tenant-a");
+        when(identities.hasPermission("editor","mcp:publication:edit")).thenReturn(true);
+        when(identities.hasPermission("editor","system:permission-center:manage")).thenReturn(true);
+        var body=new ObjectMapper().readTree("{\"title\":\"Updated\",\"expectedVersion\":0}");
+        when(client.request(anyString(),anyString(),any())).thenReturn(body);
+        var controller=new ToolPublicationController(client,access,identities,mock(WorkspaceService.class),mock(SysAuditLogRepository.class),mock(SysRoleRepository.class));
+        controller.update(request,"release-id",body);
+        verify(client).request("PUT","/api/v1/tool-publications/release-id?tenantId=tenant-a&actorId=editor",body);
+        when(identities.hasPermission("editor","mcp:publication:edit")).thenReturn(false);
+        assertThatThrownBy(()->controller.update(request,"release-id",body)).isInstanceOf(SecurityException.class);
+        verifyNoMoreInteractions(client);
+    }
     @Test void callerCannotSupplyTenantOrActorThroughTheDraftPayload() throws Exception {
         var client=mock(McpControlPlaneClient.class);var access=mock(ObjectAccessService.class);
         var workspaces=mock(WorkspaceService.class);var identities=mock(EnterpriseAdminService.class);

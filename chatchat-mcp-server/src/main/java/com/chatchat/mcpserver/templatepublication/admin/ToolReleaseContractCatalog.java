@@ -13,7 +13,10 @@ public class ToolReleaseContractCatalog {
     private final ToolReleaseRepository releases;
     private final ObjectMapper json;
     public Optional<ToolRelease> active(String toolName) {
-        return releases.findByState("RUNNING").stream().filter(row -> !TemplateCapabilityService.KIND.equals(row.getKind())).filter(row -> {
+        return releases.findByState("RUNNING").stream().filter(row -> !TemplateCapabilityService.KIND.equals(row.getKind()))
+            .sorted(Comparator.comparing((ToolRelease row) -> "legacy-migration".equals(row.getActorId()))
+                .thenComparing(ToolRelease::getPublishedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+            .filter(row -> {
             try { return toolName.equals(TemplateQueryToolNamePolicy.toolName(json.readTree(row.getDefinitionJson()).path("domainCode").asText())); }
             catch(Exception ex) { throw new IllegalStateException("Invalid released tool definition",ex); }
         }).findFirst();

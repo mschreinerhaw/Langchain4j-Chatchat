@@ -25,6 +25,13 @@ public class ToolPublicationController {
     private final com.chatchat.enterprise.repository.identity.SysRoleRepository roles;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     private com.chatchat.api.service.McpRuntimeAccessService runtime;
+    @PutMapping("/{id}") public ApiResponse<JsonNode> update(HttpServletRequest request,
+        @PathVariable("id") String id,@RequestBody JsonNode body) {
+        authorize(request,"mcp:publication:edit");
+        if (!id.matches("[a-zA-Z0-9-]{1,64}")) throw new IllegalArgumentException("Invalid release ID");
+        JsonNode saved=client.request("PUT","/api/v1/tool-publications/"+id+scope(request),body);
+        audit(request,"update-draft",id); return ApiResponse.success(saved);
+    }
     @GetMapping public ApiResponse<JsonNode> list(HttpServletRequest request) {
         authorize(request,"mcp:publication:read");
         return ApiResponse.success(client.request("GET","/api/v1/tool-publications"+scope(request),null));

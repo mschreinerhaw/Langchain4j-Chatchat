@@ -78,7 +78,7 @@
             ><strong>{{ row.title }}</strong
             ><small
               >{{ stateFilter ? "匹配" : "最新" }} v{{ row.releaseNumber }} ·
-              {{ states[row.state] || "未知状态" }}</small
+              {{ states[row.state] || "未知状态" }} · 共 {{ versionCount(row) }} 个版本</small
             ></button
           ><p v-if="!tools.length && !busy" class="permission-empty">{{
             query || stateFilter ? "没有匹配的工具，请调整筛选。" : "暂无工具，点击“新建工具”开始。"
@@ -94,8 +94,18 @@
         <header class="permission-detail-heading"
           ><div
             ><p>{{ form.logicalId ? "版本管理" : "工具定义" }}</p
-            ><h2>{{ form.logicalId ? "创建下一版本" : "新建 MCP 模板查询工具" }}</h2
-            ><span>一个工具可以包含多个子模板。先配置可查询集合，再校验、测试并发布。</span></div
+            ><h2>{{
+              editingId
+                ? `修改当前草稿 · v${selected.releaseNumber}`
+                : form.logicalId
+                  ? `为“${selected.title}”创建下一版本`
+                  : "新建 MCP 模板查询工具"
+            }}</h2
+            ><span>{{
+              editingId
+                ? "保存后仍为当前工具的同一版本，需要重新校验和测试。"
+                : "一个工具可以包含多个子模板。先配置可查询集合，再校验、测试并发布。"
+            }}</span></div
           ><button type="button" :disabled="busy" @click="cancel">取消</button></header
         >
         <fieldset :disabled="busy || !editable" class="publication-fields"
@@ -128,9 +138,16 @@
             >工具标识<input
               v-model.trim="definition.domainCode"
               required
-              :disabled="!!form.logicalId"
-              placeholder="例如 sales_summary，发布后保持稳定" /></label
-        ></fieldset>
+              :disabled="identityLocked"
+              pattern="[a-z][a-z0-9_]*"
+              maxlength="64"
+              title="以小写字母开头，只能包含小写字母、数字和下划线"
+              placeholder="例如 sales_summary，发布后保持稳定"
+            /><small class="publication-hint"
+              >以小写字母开头，仅支持小写字母、数字和下划线；同一工具的后续版本沿用此标识。</small
+            ></label
+          ></fieldset
+        >
         <fieldset :disabled="busy || !editable" class="publication-fields"
           ><legend>模板来源与使用范围</legend
           ><div class="permission-form-grid"
@@ -139,7 +156,7 @@
                 v-model="definition.parentToolName"
                 aria-label="执行能力"
                 required
-                :disabled="!!form.logicalId"
+                :disabled="identityLocked"
                 @change="loadTemplates()"
                 ><option value="">选择受控模板能力</option
                 ><option
@@ -154,7 +171,7 @@
                 v-model="definition.roleId"
                 aria-label="使用角色"
                 required
-                :disabled="!!form.logicalId"
+                :disabled="identityLocked"
                 @change="loadTemplates()"
                 ><option value="">选择已授权角色</option
                 ><option v-for="role in roles" :key="role.id" :value="role.id">{{
@@ -258,7 +275,11 @@
             /></label
         ></details>
         <footer class="permission-form-actions"
-          ><span>运行版本与历史记录保留，可按版本回滚。</span
+          ><span>{{
+            editingId
+              ? "修改会清除当前版本旧的测试结果，运行版本与历史快照保留。"
+              : "运行版本与历史记录保留，新版本始终属于当前工具。"
+          }}</span
           ><button
             class="permission-primary"
             type="submit"
@@ -268,7 +289,7 @@
               !definition.templateKeys.length ||
               !!unavailableTemplates.length
             "
-            >保存新草稿</button
+            >{{ editingId ? "保存当前草稿" : "保存新草稿" }}</button
           ></footer
         >
       </form>
@@ -278,13 +299,15 @@
             ><p>受控工具 · v{{ selected.releaseNumber }}</p
             ><h2>{{ selected.title }}</h2
             ><span>{{ selected.description || "暂未填写使用说明" }}</span></div
-          ><button v-if="editable" type="button" :disabled="busy" @click="startRevision"
+          ><button v-if="canEditDraft" type="button" :disabled="busy" @click="editDraft"
+            >修改当前草稿</button
+          ><button v-else-if="editable" type="button" :disabled="busy" @click="startRevision()"
             >创建新版本</button
           ></header
         >
         <div class="publication-version-bar"
           ><label
-            >当前版本<select
+            >{{ selected.title }} 的版本<select
               :value="selectedId"
               aria-label="当前版本"
               :disabled="busy"
@@ -391,7 +414,13 @@
             ></template
           >
           <template v-else-if="activeTab === 'definition'"
-            ><p class="publication-hint">版本定义保留原始快照。需要修改时，使用“创建新版本”。</p
+            ><p class="publication-hint">{{
+              canEditDraft
+                ? "此版本尚未发布，可以修改当前草稿；修改后需重新校验和测试。"
+                : "已发布版本保留原始快照。需要修改时，在当前工具下创建新版本。"
+            }}</p
+            ><button v-if="canEditDraft" type="button" :disabled="busy" @click="editDraft"
+              >修改当前草稿</button
             ><details class="permission-advanced" open
               ><summary>模板与执行定义</summary
               ><pre>{{ pretty(selected.definitionJson) }}</pre></details

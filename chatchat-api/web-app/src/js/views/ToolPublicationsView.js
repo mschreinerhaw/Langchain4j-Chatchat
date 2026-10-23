@@ -30,7 +30,7 @@ export default {
         a.localeCompare(b, "zh-CN")
       )
     );
-    const categoryOf = (row) => parse(row.definitionJson, {}).businessCategory || '待分类';
+    const categoryOf = (row) => parse(row.definitionJson, {}).businessCategory || "待分类";
     const categories = computed(() =>
       [...new Set(rows.value.map(categoryOf))].sort((a, b) => a.localeCompare(b, "zh-CN"))
     );
@@ -44,6 +44,8 @@ export default {
     );
     useTransientNotice(notice, failed);
     const selectedId = ref(""),
+      editingId = ref(""),
+      editingVersion = ref(null),
       editing = ref(false),
       activeTab = ref("overview"),
       templateQuery = ref("");
@@ -79,6 +81,18 @@ export default {
         .filter((r) => r.logicalId === selected.value?.logicalId)
         .sort((a, b) => b.releaseNumber - a.releaseNumber)
     );
+    const canEditDraft = computed(
+      () =>
+        editable &&
+        selected.value &&
+        !selected.value.publishedAt &&
+        ["DRAFT", "VALIDATED", "TESTED"].includes(selected.value.state)
+    );
+    const identityLocked = computed(
+      () => !!form.value.logicalId && (!editingId.value || versions.value.length > 1)
+    );
+    const versionCount = (row) =>
+      rows.value.filter((item) => item.logicalId === row.logicalId).length;
     const tools = computed(() => {
       const groups = new Map();
       for (const row of rows.value) {
@@ -150,8 +164,11 @@ export default {
     const dirty = computed(() => editing.value && snapshot() !== originalDraft.value);
     watch([query, stateFilter, pageSize, category], () => {
       page.value = 1;
-      if (!editing.value && !tools.value.some((row) => row.logicalId === selected.value?.logicalId))
-        selectedId.value = tools.value[0]?.id || "";
+      if (!editing.value)
+        selectedId.value =
+          tools.value.find((row) => row.logicalId === selected.value?.logicalId)?.id ||
+          tools.value[0]?.id ||
+          "";
     });
     watch(pages, (n) => {
       page.value = Math.min(page.value, n);
@@ -193,7 +210,9 @@ export default {
         return result;
       } catch (error) {
         failed.value = true;
-        notice.value = error.message || "操作失败，请重试";
+        notice.value = /domainCode (must|is required)/.test(error.message || "")
+          ? "工具标识须以小写字母开头，只能包含小写字母、数字和下划线。请返回修改当前草稿。"
+          : error.message || "操作失败，请重试";
         return null;
       } finally {
         busy.value = false;
@@ -230,7 +249,7 @@ export default {
       inputSample.value = "{}";
     }
     function chooseVersion(event) {
-      const row = rows.value.find((r) => r.id === event.target.value);
+      const row = versions.value.find((r) => r.id === event.target.value);
       if (row) choose(row);
       event.target.value = selectedId.value;
     }
@@ -266,6 +285,8 @@ export default {
       ++templateSerial;
       templatesLoading.value = false;
       form.value = { logicalId: null, title: "", description: "" };
+      editingId.value = "";
+      editingVersion.value = null;
       definition.value = blank();
       templates.value = [];
       templateQuery.value = "";
@@ -278,9 +299,13 @@ export default {
       notice.value = "";
       originalDraft.value = snapshot();
     }
-    async function startRevision() {
+    async function startRevision(editCurrent = false) {
+      editCurrent = editCurrent === true;
       if (!selected.value || !editable || !discard()) return;
       const row = selected.value;
+      if (editCurrent && !canEditDraft.value) return;
+      editingId.value = editCurrent ? row.id : "";
+      editingVersion.value = editCurrent ? row.version : null;
       form.value = {
         logicalId: row.logicalId,
         title: row.title,
@@ -289,11 +314,14 @@ export default {
       definition.value = { ...blank(), ...parse(row.definitionJson, {}), enabled: false };
       inputSchema.value = pretty(row.inputSchemaJson);
       outputSchema.value = pretty(row.outputSchemaJson);
-      inputSample.value = "{}";
+      if (!editCurrent) inputSample.value = "{}";
       editing.value = true;
       notice.value = "";
       originalDraft.value = snapshot();
       await loadTemplates(false);
+    }
+    async function editDraft() {
+      return startRevision(true);
     }
     function cancel() {
       if (discard()) editing.value = false;
@@ -309,6 +337,14 @@ export default {
         notice.value = "请填写工具名称并选择当前角色可用的模板。";
         return;
       }
+      if (
+        !/^[a-z][a-z0-9_]{0,63}$/.test(definition.value.domainCode) ||
+        definition.value.domainCode.endsWith("_template_query")
+      ) {
+        failed.value = true;
+        notice.value = "工具标识须以小写字母开头，只能包含小写字母、数字和下划线。请修改工具标识。";
+        return;
+      }
       await perform(async () => {
         let input, output;
         try {
@@ -317,16 +353,24 @@ export default {
         } catch {
           throw new Error("输入或输出结构不是有效 JSON，请在高级结构配置中修正。");
         }
-        const created = await apiRequest("/tool-publications", {
-          method: "POST",
-          body: JSON.stringify({
-            ...form.value,
-            kind: "CONTROLLED_TEMPLATE",
-            definition: definition.value,
-            inputSchema: input,
-            outputSchema: output,
-          }),
-        });
+        const created = await apiRequest(
+          editingId.value ? `/tool-publications/${editingId.value}` : "/tool-publications",
+          {
+            method: editingId.value ? "PUT" : "POST",
+            body: JSON.stringify({
+              ...(editingId.value
+                ? {
+                    title: form.value.title,
+                    description: form.value.description,
+                    expectedVersion: editingVersion.value,
+                  }
+                : { ...form.value, kind: "CONTROLLED_TEMPLATE" }),
+              definition: definition.value,
+              inputSchema: input,
+              outputSchema: output,
+            }),
+          }
+        );
         stateFilter.value = "DRAFT";
         await loadRows(created.id);
         editing.value = false;
@@ -336,17 +380,25 @@ export default {
     async function action(row, actionName, body) {
       if (!row || busy.value) return;
       await perform(async () => {
-        await apiRequest(`/tool-publications/${row.id}/${actionName}`, {
-          method: "POST",
-          ...(body ? { body: JSON.stringify(body) } : {}),
-        });
-        await loadRows(row.id);
+        try {
+          await apiRequest(`/tool-publications/${row.id}/${actionName}`, {
+            method: "POST",
+            ...(body ? { body: JSON.stringify(body) } : {}),
+          });
+        } catch (error) {
+          if (["validate", "test"].includes(actionName) && !row.publishedAt) {
+            selectedId.value = row.id;
+            await editDraft();
+          }
+          throw error;
+        }
         stateFilter.value =
           actionName === "publish" || actionName === "rollback"
             ? "RUNNING"
             : actionName === "offline"
               ? "OFFLINE"
               : "PENDING";
+        await loadRows(row.id);
         activeTab.value = actionName === "validate" ? "testing" : "overview";
       }, { validate: "定义校验通过，可以运行查询测试。", test: "查询测试通过，结果已记录。", publish: "工具已发布，运行时业务权限仍然生效。", offline: "工具已下线，版本与测试记录已保留。", rollback: "已恢复此历史版本。" }[actionName]);
     }
@@ -407,6 +459,10 @@ export default {
       visibleTools,
       selected,
       selectedId,
+      editingId,
+      canEditDraft,
+      identityLocked,
+      versionCount,
       selectedDefinition,
       versions,
       editing,
@@ -433,6 +489,7 @@ export default {
       loadTemplates,
       reset,
       startRevision,
+      editDraft,
       cancel,
       save,
       action,

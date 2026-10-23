@@ -22,6 +22,12 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ApiPermissionAuthorizationFilterTest {
+    @org.junit.jupiter.api.Test void draftUpdatesReuseOnlyTheExistingEditPermission() {
+        org.assertj.core.api.Assertions.assertThat(ApiPermissionAuthorizationFilter.templateCapabilityPermission("PUT", "/api/v1/tool-publications/release-id"))
+            .isEqualTo("mcp:publication:edit");
+        org.assertj.core.api.Assertions.assertThat(ApiPermissionAuthorizationFilter.templateCapabilityPermission("PUT", "/api/v1/tool-publications/release-id/publish")).isNull();
+        org.assertj.core.api.Assertions.assertThat(ApiPermissionAuthorizationFilter.templateCapabilityPermission("PUT", "/api/v1/tool-publications/capabilities")).isNull();
+    }
     @Test void templateRoutesMapToExistingSpecificMaintainedPrivileges() {
         String base = "/api/v1/tool-publications/capabilities";
         assertThat(ApiPermissionAuthorizationFilter.templateCapabilityPermission("PUT", base + "/agents/a/tools/t" )).isEqualTo("platform:agents:workshop");

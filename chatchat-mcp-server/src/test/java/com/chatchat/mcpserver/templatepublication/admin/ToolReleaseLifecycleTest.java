@@ -87,6 +87,72 @@ class ToolReleaseLifecycleTest {
         var row=tested(null,"stable");
         assertThatThrownBy(()->service.draft("tenant-a","actor",draft(row.getLogicalId(),"different"))).hasMessageContaining("stable");
     }
+    ToolReleaseService.DraftUpdate update(ToolRelease row, String domain) throws Exception {
+        var value = draft(row.getLogicalId(), domain);
+        return new ToolReleaseService.DraftUpdate("Updated tool", value.definition(), value.inputSchema(), value.outputSchema(), "Updated description", row.getVersion());
+    }
+    @Test void editingAnUnpublishedVersionPreservesItsToolAndNumberAndInvalidatesEvidence() throws Exception {
+        var row = tested(null, "editable");
+        String id = row.getId(), logical = row.getLogicalId();
+        assertThat(row.getTestEvidenceJson()).isNotNull();
+        var result = service.updateDraft("tenant-a", "editor", id, update(row, "corrected"));
+        assertThat(result.getId()).isEqualTo(id); assertThat(result.getLogicalId()).isEqualTo(logical);
+        assertThat(result.getReleaseNumber()).isEqualTo(1); assertThat(result.getState()).isEqualTo("DRAFT");
+        assertThat(result.getTestEvidenceJson()).isNull(); assertThat(result.getTitle()).isEqualTo("Updated tool");
+        assertThat(repository.count()).isEqualTo(1);
+        verify(executor, never()).activate(any(), any());
+    }
+    @Test void staleDraftWritesAreRejectedInsteadOfOverwritingAnotherEditorsChange() throws Exception {
+        var row = service.draft("tenant-a", "actor", draft(null, "concurrent"));
+        var stale = update(row, "concurrent");
+        service.updateDraft("tenant-a", "editor", row.getId(), stale);
+        assertThatThrownBy(() -> service.updateDraft("tenant-a", "other", row.getId(), stale))
+            .isInstanceOf(org.springframework.web.server.ResponseStatusException.class).hasMessageContaining("409");
+    }
+    @Test void publishedVersionsCannotBeEditedAndRevisionsCannotChangeToolIdentity() throws Exception {
+        var first = tested(null, "owned"); service.publish("tenant-a", "actor", first.getId(), false);
+        var revision = service.draft("tenant-a", "actor", draft(first.getLogicalId(), "owned"));
+        assertThat(revision.getReleaseNumber()).isEqualTo(2);
+        assertThatThrownBy(() -> service.updateDraft("tenant-a", "editor", first.getId(), update(first, "owned"))).hasMessageContaining("immutable");
+        assertThatThrownBy(() -> service.updateDraft("tenant-a", "editor", revision.getId(), update(revision, "other"))).hasMessageContaining("其他版本");
+    }
+    @Test void newToolsCannotStealAnExistingToolsIdentityAndUpdatesEnforceTenantIsolation() throws Exception {
+        var row = service.draft("tenant-a", "actor", draft(null, "unique"));
+        assertThatThrownBy(() -> service.draft("tenant-a", "actor", draft(null, "unique"))).hasMessageContaining("409");
+        assertThatThrownBy(() -> service.updateDraft("tenant-b", "other", row.getId(), update(row, "unique")))
+            .isInstanceOf(org.springframework.web.server.ResponseStatusException.class).hasMessageContaining("404");
+    }
+    @Test void legacyDuplicatesDoNotAppearAsSeparateToolsAfterAVersionedPublication() throws Exception {
+        var managed = tested(null, "managed"); service.publish("tenant-a", "actor", managed.getId(), false);
+        var legacy = new ToolRelease(); legacy.setId("legacy"); legacy.setLogicalId("legacy"); legacy.setTenantId("tenant-a");
+        legacy.setActorId("legacy-migration"); legacy.setReleaseNumber(1); legacy.setKind(managed.getKind()); legacy.setState("RUNNING");
+        legacy.setTitle("Duplicate import"); legacy.setBindingId(managed.getBindingId()); legacy.setCreatedAt(managed.getCreatedAt());
+        legacy.setDefinitionJson(managed.getDefinitionJson()); legacy.setInputSchemaJson(managed.getInputSchemaJson()); legacy.setOutputSchemaJson(managed.getOutputSchemaJson());
+        repository.saveAndFlush(legacy);
+        assertThat(service.list("tenant-a")).extracting(ToolRelease::getId).containsExactly(managed.getId());
+        assertThat(repository.count()).isEqualTo(2);
+        var unordered = mock(ToolReleaseRepository.class);
+        when(unordered.findByState("RUNNING")).thenReturn(List.of(legacy, managed));
+        assertThat(new ToolReleaseContractCatalog(unordered, json).metadata("managed_template_query"))
+            .containsEntry("releaseId", managed.getId()).containsEntry("logicalToolId", managed.getLogicalId());
+    }
+    @Test void restartingNeverReimportsAnAlreadyVersionedBindingAsANewLogicalTool() throws Exception {
+        var row = tested(null, "restart"); service.publish("tenant-a", "actor", row.getId(), false);
+        var bindings = mock(com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingRepository.class);
+        var binding = new com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBinding();
+        binding.setId(row.getBindingId());
+        when(bindings.findAllByOrderByUpdatedAtDesc()).thenReturn(List.of(binding));
+        new ToolReleaseLegacyMigration(repository, bindings, publisher, json).migrate();
+        assertThat(repository.count()).isEqualTo(1);
+        assertThat(service.list("tenant-a")).extracting(ToolRelease::getLogicalId).containsExactly(row.getLogicalId());
+    }
+    @Test void genuineImportedFirstVersionsStayInTheirOwnToolsHistoryAfterPublishingARevision() throws Exception {
+        var first = tested(null, "imported"); service.publish("tenant-a", "legacy-migration", first.getId(), false);
+        var next = tested(first.getLogicalId(), "imported"); service.publish("tenant-a", "editor", next.getId(), false);
+        assertThat(service.list("tenant-a")).extracting(ToolRelease::getId).containsExactlyInAnyOrder(first.getId(), next.getId());
+        assertThat(first.getState()).isEqualTo("OFFLINE");
+        assertThat(next.getReleaseNumber()).isEqualTo(2);
+    }
     @Test void schemaCannotReadNetworkOrLocalFiles() throws Exception {
         for(String ref:List.of("https://example.invalid/schema","file:///etc/passwd")) {
             var schema=json.readTree("{\"type\":\"object\",\"$ref\":\""+ref+"\"}");

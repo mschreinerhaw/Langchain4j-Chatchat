@@ -30,10 +30,19 @@ public class ToolReleaseService {
         }
     }
     public record ContractTest(JsonNode input, JsonNode output) { }
+    public record DraftUpdate(String title, JsonNode definition, JsonNode inputSchema,
+                              JsonNode outputSchema, String description, Long expectedVersion) { }
 
     @Transactional(readOnly=true)
-    public List<ToolRelease> list(String tenant) { return releases.findByTenantIdOrderByCreatedAtDesc(tenant).stream()
-        .filter(row -> !TemplateCapabilityService.KIND.equals(row.getKind())).toList(); }
+    public List<ToolRelease> list(String tenant) {
+        var rows = releases.findByTenantIdOrderByCreatedAtDesc(tenant);
+        var managedBindings = rows.stream().filter(row -> !"legacy-migration".equals(row.getActorId()))
+            .filter(row -> row.getBindingId() != null).collect(java.util.stream.Collectors.groupingBy(ToolRelease::getBindingId,
+                java.util.stream.Collectors.mapping(ToolRelease::getLogicalId, java.util.stream.Collectors.toSet())));
+        return rows.stream().filter(row -> !TemplateCapabilityService.KIND.equals(row.getKind()))
+            .filter(row -> !"legacy-migration".equals(row.getActorId()) || managedBindings.getOrDefault(row.getBindingId(), Set.of()).stream()
+                .noneMatch(logical -> !logical.equals(row.getLogicalId()))).toList();
+    }
 
     @Transactional
     public ToolRelease draft(String tenant, String actor, Draft draft) {
@@ -48,6 +57,7 @@ public class ToolReleaseService {
         var history = releases.lockLogical(logical);
         if (draft.logicalId() != null && !draft.logicalId().isBlank() && history.isEmpty()) missing();
         history.forEach(row -> requireTenant(row, tenant));
+        requireUniqueIdentity(tenant, logical, draft.kind(), draft.definition());
         if (history.isEmpty() && executor.unmanagedExistingDefinition(draft.definition()))
             throw new IllegalArgumentException("Existing tool must be revised from its imported version");
         if (!history.isEmpty()) {
@@ -62,6 +72,50 @@ public class ToolReleaseService {
         ToolReleaseSchemas.compile(draft.inputSchema()); ToolReleaseSchemas.compile(draft.outputSchema());
         row.setDefinitionJson(write(draft.definition())); row.setInputSchemaJson(write(draft.inputSchema()));
         row.setOutputSchemaJson(write(draft.outputSchema())); return releases.saveAndFlush(row);
+    }
+
+    @Transactional
+    public ToolRelease updateDraft(String tenant, String actor, String id, DraftUpdate update) {
+        ToolRelease row = locked(tenant, id); requireEditable(row);
+        if (!Set.of("DRAFT", "VALIDATED", "TESTED").contains(row.getState())) throw new IllegalArgumentException("只有未发布草稿可以修改");
+        if (update == null || update.expectedVersion() == null || !Objects.equals(row.getVersion(), update.expectedVersion()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "草稿已被修改，请刷新后重试");
+        if (update.title() == null || update.title().isBlank() || update.title().length() > 256
+            || update.definition() == null || !update.definition().isObject()) throw new IllegalArgumentException("请填写工具名称和定义");
+        var definition = update.definition();
+        if (definition.has("businessCategory") && !definition.path("businessCategory").isTextual()) throw new IllegalArgumentException("业务分类必须为文本");
+        String category = definition.path("businessCategory").asText("");
+        if (category.length() > 64 || category.chars().anyMatch(Character::isISOControl)) throw new IllegalArgumentException("业务分类无效");
+        requireTenant(tenant, definition.path("roleId").asText());
+        var executor = executor(row.getKind());
+        for (var other : releases.lockLogical(row.getLogicalId())) {
+            if (!other.getId().equals(id) && !executor.stableIdentity(read(other.getDefinitionJson())).equals(executor.stableIdentity(definition)))
+                throw new IllegalArgumentException("当前工具已有其他版本，工具标识、执行能力和使用角色必须保持一致");
+        }
+        requireUniqueIdentity(tenant, row.getLogicalId(), row.getKind(), definition);
+        if (!executor.stableIdentity(read(row.getDefinitionJson())).equals(executor.stableIdentity(definition))
+            && executor.unmanagedExistingDefinition(definition)) throw new IllegalArgumentException("工具标识已存在，请在原工具下创建版本");
+        ToolReleaseSchemas.compile(update.inputSchema()); ToolReleaseSchemas.compile(update.outputSchema());
+        row.setTitle(update.title()); row.setDescription(update.description()); row.setActorId(actor);
+        row.setDefinitionJson(write(definition)); row.setInputSchemaJson(write(update.inputSchema()));
+        row.setOutputSchemaJson(write(update.outputSchema())); row.setTestEvidenceJson(null); row.setState("DRAFT");
+        return releases.saveAndFlush(row);
+    }
+
+    private void requireUniqueIdentity(String tenant, String logical, String kind, JsonNode definition) {
+        var executor = executor(kind);
+        String identity = executor.stableIdentity(definition);
+        jdbc.execute((org.springframework.jdbc.core.ConnectionCallback<Void>) connection -> {
+            if (connection.getMetaData().getDatabaseProductName().equalsIgnoreCase("PostgreSQL")) {
+                try (var statement = connection.prepareStatement("select pg_advisory_xact_lock(?)")) {
+                    statement.setLong(1, (tenant + "|" + kind + "|" + identity).hashCode()); statement.execute();
+                }
+            }
+            return null;
+        });
+        if (list(tenant).stream().anyMatch(other -> !logical.equals(other.getLogicalId()) && kind.equals(other.getKind())
+            && identity.equals(executor.stableIdentity(read(other.getDefinitionJson())))))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "工具标识已存在，请选择该工具并创建新版本");
     }
 
     @Transactional

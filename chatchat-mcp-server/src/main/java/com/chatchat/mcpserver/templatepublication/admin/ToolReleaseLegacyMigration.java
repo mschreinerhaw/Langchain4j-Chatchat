@@ -24,7 +24,7 @@ public class ToolReleaseLegacyMigration {
     public void migrate() throws Exception {
         for (var binding:bindings.findAllByOrderByUpdatedAtDesc()) {
             String id=UUID.nameUUIDFromBytes(("legacy-tool-release:"+binding.getId()).getBytes(StandardCharsets.UTF_8)).toString();
-            if(releases.existsById(id))continue;
+            if(releases.existsById(id) || releases.existsByBindingId(binding.getId()))continue;
             var row=new ToolRelease();row.setId(id);row.setLogicalId(id);row.setTenantId(binding.getTenantId());
             row.setActorId("legacy-migration");row.setReleaseNumber(1);row.setKind("CONTROLLED_TEMPLATE");
             row.setTitle(Objects.toString(binding.getChineseAlias(),binding.getDomainCode()));

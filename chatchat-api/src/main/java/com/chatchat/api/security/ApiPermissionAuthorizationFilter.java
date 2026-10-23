@@ -112,6 +112,9 @@ public class ApiPermissionAuthorizationFilter extends OncePerRequestFilter {
 
     static String templateCapabilityPermission(String method, String path) {
         String root = "/api/v1/tool-publications/capabilities";
+        // Draft PUT is the same edit permission as draft POST; keep this limited to one release ID.
+        if ("PUT".equals(method) && !path.equals(root)
+            && path.matches("/api/v1/tool-publications/[a-zA-Z0-9-]{1,64}")) return "mcp:publication:edit";
         if ("GET".equals(method) && (root + "/permission-catalog").equals(path)) return "system:resource-grants:manage";
         if (path.equals(root + "/agents") || path.startsWith(root + "/agents/")) {
             if (java.util.Set.of("GET", "PUT", "DELETE").contains(method)) return "platform:agents:workshop";

@@ -1,0 +1,12 @@
+{
+  "status": "PASSED",
+  "styles": {
+    "fontSize": "12px",
+    "background": "rgb(247, 248, 250)",
+    "color": "rgb(107, 114, 128)",
+    "summaryWeight": "400",
+    "open": false,
+    "height": 41.1875
+  },
+  "errors": []
+}

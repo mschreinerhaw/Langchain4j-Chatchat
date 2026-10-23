@@ -34,7 +34,7 @@ class BusinessTemplateCatalogTest {
         assertTrue(service.businessTemplates(false).isEmpty());
         when(grants.allowedIds(eq("TEMPLATE"), eq("tenant"), eq("user"), anySet(), anySet())).thenReturn(Set.of("api_service:api_customer"));
         assertTrue(service.businessTemplates(false).isEmpty());
-        when(authority.callerAllowsOperation("api_customer", "api_service", "asset", "read")).thenReturn(true);
+        when(authority.callerAllowsOperation("api_template_execute", "api_service", "asset", "read")).thenReturn(true);
         var first = service.businessTemplates(false).get(0);
         assertEquals("api_template_execute", first.executor()); assertEquals("api_customer", first.binding().get("templateId"));
         assertFalse(first.publicView().containsKey("executor")); assertFalse(first.publicView().toString().contains("example.invalid"));

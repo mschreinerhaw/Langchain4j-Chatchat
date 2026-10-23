@@ -26,7 +26,7 @@ public class TemplateCapabilityPublisher implements McpToolContributor {
             Map<String, Object> properties = json.convertValue(schema.path("properties"), new com.fasterxml.jackson.core.type.TypeReference<>(){});
             List<String> required = new ArrayList<>(); schema.path("required").forEach(value -> required.add(value.asText()));
             var tool = McpSchema.Tool.builder().name(TemplateCapabilityService.toolName(row)).title(row.getTitle())
-                .description(Objects.toString(row.getDescription(), row.getTitle()))
+                .description(row.getDescription() == null || row.getDescription().isBlank() ? row.getTitle() : row.getDescription())
                 .inputSchema(json.convertValue(schema, new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){}))
                 .outputSchema(Map.of("type", "object", "properties", Map.of()))
                 .meta(Map.of("templateCapability", true, "schemaVersion", "template-capability.v1", "toolVersion", row.getReleaseNumber() + ".0.0",

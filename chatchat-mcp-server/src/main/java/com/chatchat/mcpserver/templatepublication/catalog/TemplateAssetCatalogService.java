@@ -93,9 +93,8 @@ public class TemplateAssetCatalogService {
                     if (template == null) continue;
                     for (var host : sshHostConfigService.listEnabled()) {
                         if (!readIds(host.getAllowedCommandsJson()).contains(template.getCode())) continue;
-                        String identity = firstText(host.getToolName(), firstText(host.getName(), host.getId()));
                         String level = "HIGH".equalsIgnoreCase(template.getRiskLevel()) ? "manage" : "MEDIUM".equalsIgnoreCase(template.getRiskLevel()) ? "write" : "read";
-                        if (!management && !authorizationService.callerAllows(identity,
+                        if (!management && !authorizationService.callerAllows("linux_command_execute",
                             McpScopeExpression.of(SSH, "execute", "command", caller.tenantId(), host.getId(), level))) continue;
                         result.add(bound(asset, host.getId(), host.getName(), "linux_command_execute",
                             Map.of("hostId", host.getId(), "template", template.getCode(), "permissionLevel", level), template, host));
@@ -109,7 +108,7 @@ public class TemplateAssetCatalogService {
                         var templateAllowlist = readIds(datasource.getAllowedTemplatesJson());
                         if (!templateAllowlist.isEmpty() && !templateAllowlist.contains(template.getCode())
                             || !sqlTemplateService.isCompatible(template, datasource)) continue;
-                        if (!management && !authorizationService.callerAllows(firstText(datasource.getToolName(), datasource.getId()),
+                        if (!management && !authorizationService.callerAllows("sql_query_execute",
                             McpScopeExpression.of(SQL, "execute", "query", caller.tenantId(), datasource.getId(), "read"))) continue;
                         result.add(bound(asset, datasource.getId(), datasource.getName(), "sql_query_execute",
                             Map.of("datasourceId", datasource.getId(), "template", template.getCode(), "permissionLevel", "read"), template, datasource));
@@ -117,7 +116,7 @@ public class TemplateAssetCatalogService {
                 }
                 case HTTP -> httpEndpointConfigService.listEnabled().stream()
                     .filter(t -> asset.templateId().equals(t.getToolName()))
-                    .filter(t -> management || authorizationService.callerAllowsOperation(t.getToolName(), HTTP, t.getId(), httpLevel(t.getMethod())))
+                    .filter(t -> management || authorizationService.callerAllowsOperation("http_request_execute", HTTP, t.getId(), httpLevel(t.getMethod())))
                     .forEach(t -> result.add(bound(asset, t.getId(), t.getName(), "http_request_execute",
                         Map.of("endpointId", t.getId(), "template", t.getToolName(), "permissionLevel", httpLevel(t.getMethod())), t)));
                 case DATABASE_QUERY -> {
@@ -126,9 +125,8 @@ public class TemplateAssetCatalogService {
                         var datasource = sqlDatasourceConfigService.listEnabled().stream()
                             .filter(item -> item.getId().equals(template.getDatasourceId())).findFirst().orElse(null);
                         if (datasource == null) continue;
-                        if (!management && (!authorizationService.callerAllows(template.getToolName(), null)
-                            || !authorizationService.callerAllows(firstText(datasource.getToolName(), datasource.getId()),
-                                McpScopeExpression.of(SQL, "execute", "query", caller.tenantId(), datasource.getId(), "read")))) continue;
+                        if (!management && !authorizationService.callerAllows("sql_query_execute",
+                            McpScopeExpression.of(SQL, "execute", "query", caller.tenantId(), datasource.getId(), "read"))) continue;
                         result.add(bound(asset, datasource.getId(), datasource.getName(), "sql_query_execute",
                             Map.of("datasourceId", datasource.getId(), "template", template.getToolName(), "permissionLevel", "read"), template, datasource));
                     }
@@ -136,7 +134,7 @@ public class TemplateAssetCatalogService {
                 case API -> {
                     for (var template : apiServiceConfigService.listEnabled()) {
                         if (!asset.templateId().equals(template.getToolName()) || !management && !authorizationService.callerAllowsOperation(
-                            template.getToolName(), API, template.getId(), httpLevel(template.getMethod()))) continue;
+                            "api_template_execute", API, template.getId(), httpLevel(template.getMethod()))) continue;
                         var gateway = httpEndpointConfigService.listEnabled().stream().filter(item -> item.getId().equals(template.getGatewayId())).findFirst();
                         if (template.getGatewayId() != null && !template.getGatewayId().isBlank() && gateway.isEmpty()) continue;
                         result.add(bound(asset, template.getId(), template.getTitle(), "api_template_execute",

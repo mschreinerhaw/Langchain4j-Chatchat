@@ -26,7 +26,7 @@
     <el-tab-pane label="模板目录" name="services">
       <CrudCatalog
         ref="catalog"
-        title="API 模板目录"
+        title="API 模板"
         create-label="新建 API 模板"
         subtitle="按业务分类检索并分页查看。启用仅表示模板可用，Agent 使用前还需发布与授权。"
         search-placeholder="搜索工具名称、显示名称、描述或分组"
@@ -43,7 +43,7 @@
         :test-action="testService"
         :rebuild-action="api.rebuildIndex"
         rebuild-label="重建索引"
-        form-subtitle="把已维护的 API 网关资产发布为 MCP 工具。这里主要配置工具名称、展示信息和模型调用时需要传入的业务参数。"
+        form-subtitle="维护 API 业务模板的名称、分类与调用参数。保存并测试启用后，在统一工作空间中发布 MCP 工具并分配给 Agent。"
         @notify="$emit('notify', $event)"
         @error="$emit('error', $event)"
         @result="$emit('result', $event)"

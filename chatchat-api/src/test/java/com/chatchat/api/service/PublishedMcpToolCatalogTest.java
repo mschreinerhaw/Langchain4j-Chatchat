@@ -32,6 +32,13 @@ class PublishedMcpToolCatalogTest {
         when(authorization.allowedIds(anyString(),anyString(),anyString(),anySet(),anySet())).thenAnswer(c->c.getArgument(4));
         when(catalog.registeredTools()).thenReturn(List.of(new McpToolCatalogQueryPort.RegisteredTool(name,"chatchat-mcp-server","MCP","sales_template_query","technical instructions"),new McpToolCatalogQueryPort.RegisteredTool("raw_execute","s","MCP","raw_execute","internal")));
     }
+    @Test void templateDetailsUseAuthenticatedIdentityAndRejectHiddenToolsBeforeForwarding() {
+        service.templates(request, name);
+        verify(client).request("GET", "/api/v1/tool-publications/templates?tenantId=tenant&actorId=user&domainCode=sales", null);
+        clearInvocations(client);
+        assertThrows(SecurityException.class, () -> service.templates(request, "raw_execute"));
+        verify(client, never()).request(eq("GET"), contains("/templates?"), isNull());
+    }
     @Test void registrationAloneDoesNotMakeAnAgentSelectableTool() {
         var tools=service.registeredTools(request);assertEquals(1,tools.size());assertEquals(name,tools.get(0).localToolName());
         assertEquals("客户服务",tools.get(0).category());assertEquals("业务查询",tools.get(0).chineseAlias());assertEquals("查询已选范围",tools.get(0).description());assertEquals(2,tools.get(0).applicability().get("templateCount"));

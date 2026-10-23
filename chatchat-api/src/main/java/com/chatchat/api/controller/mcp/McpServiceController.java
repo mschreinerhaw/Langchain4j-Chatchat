@@ -208,6 +208,12 @@ public class McpServiceController {
      * @param pageSize the page size value
      * @return the tool cards list
      */
+    @GetMapping("/published-tool-templates")
+    public ApiResponse<com.fasterxml.jackson.databind.JsonNode> publishedToolTemplates(
+        @RequestParam("toolName") String toolName, jakarta.servlet.http.HttpServletRequest request) {
+        return ApiResponse.success(publishedTools.templates(request, toolName));
+    }
+
     @GetMapping("/tool-cards")
     @Operation(summary = "List registered backend and MCP tools as searchable cards")
     public ApiResponse<Map<String, Object>> listToolCards(@RequestParam(value = "keyword", required = false) String keyword,

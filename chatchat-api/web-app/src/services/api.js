@@ -1271,6 +1271,10 @@ export async function invokeDiscoveredMcpTool(toolName, argumentsPayload = {}, c
   return result;
 }
 
+export function fetchPublishedToolTemplates(toolName) {
+  return apiRequest(`/mcp/published-tool-templates?toolName=${encodeURIComponent(toolName)}`);
+}
+
 export function fetchMcpToolCards(filters = {}) {
   const params = new URLSearchParams();
   if (filters.keyword) {

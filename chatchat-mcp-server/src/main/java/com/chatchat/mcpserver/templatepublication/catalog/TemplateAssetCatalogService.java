@@ -190,6 +190,24 @@ public class TemplateAssetCatalogService {
         }
     }
 
+    /** Business template bodies only; never return host, datasource or service connection settings. */
+    public String readableContent(String key) {
+        if (key.startsWith(SSH + ":")) return commandTemplateService.listEnabled().stream()
+            .filter(item -> key.equals(SSH + ":" + item.getCode())).map(item -> java.util.Objects.toString(item.getCommandTemplate(), "")).findFirst().orElse("");
+        if (key.startsWith(SQL + ":")) return sqlTemplateService.listEnabled().stream()
+            .filter(item -> key.equals(SQL + ":" + item.getCode())).map(item -> java.util.Objects.toString(item.getSqlTemplate(), "")).findFirst().orElse("");
+        if (key.startsWith(DATABASE_QUERY + ":")) return databaseQueryConfigService.listEnabled().stream()
+            .filter(item -> key.equals(DATABASE_QUERY + ":" + item.getToolName())).map(item -> firstText(item.getSqlTemplate(), java.util.Objects.toString(item.getSqlStepsJson(), ""))).findFirst().orElse("");
+        if (key.startsWith(HTTP + ":")) return httpEndpointConfigService.listEnabled().stream()
+            .filter(item -> key.equals(HTTP + ":" + firstText(item.getToolName(), firstText(item.getName(), item.getId()))))
+            .map(item -> java.util.Objects.toString(item.getBodyTemplate(), "")).findFirst().orElse("");
+        if (key.startsWith(API + ":")) return apiServiceConfigService.listEnabled().stream()
+            .filter(item -> key.equals(API + ":" + item.getToolName())).map(item -> java.util.Objects.toString(item.getBodyTemplate(), "")).findFirst().orElse("");
+        if (key.startsWith(PYTHON + ":")) return pythonTemplateCatalog.listPublished().stream()
+            .filter(item -> key.equals(PYTHON + ":" + item.getId())).map(pythonTemplateCatalog::readableSource).findFirst().orElse("");
+        return "";
+    }
+
     public List<TemplateAsset> listEnabled() {
         return entries().stream().map(CatalogEntry::asset).toList();
     }

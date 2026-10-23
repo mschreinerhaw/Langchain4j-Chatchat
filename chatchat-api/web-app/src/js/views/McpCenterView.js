@@ -5,11 +5,13 @@ import {
   fetchMcpCenterStatus,
   fetchMcpServices,
   fetchMcpToolCards,
+  fetchPublishedToolTemplates,
   syncMcpCenter,
 } from "../../services/api";
 import "../../styles/pages/skill-hub.css";
 import "../../styles/pages/mcp-directory.css";
 import "../../styles/pages/mcp-published-cards.css";
+import "../../styles/pages/mcp-authorized-templates.css";
 
 export default {
   name: "McpCenterView",
@@ -38,6 +40,12 @@ export default {
       toolCategoryFilter: "all",
       toolGroupMode: "category",
       activeTool: null,
+      detailTemplates: [],
+      detailLoading: false,
+      detailError: "",
+      detailQuery: "",
+      detailPage: 1,
+      detailSequence: 0,
       toolPage: 1,
       toolPageSize: 6,
       loading: false,
@@ -117,17 +125,26 @@ export default {
     toolPageCount() {
       return this.toolPageTotal;
     },
-    activeToolSchemaText() {
-      if (!this.activeTool?.inputSchema || !Object.keys(this.activeTool.inputSchema).length) {
-        return "";
-      }
-      return JSON.stringify(this.activeTool.inputSchema, null, 2);
+    filteredDetailTemplates() {
+      const query = this.detailQuery.trim().toLocaleLowerCase();
+      return this.detailTemplates.filter((item) =>
+        `${item.title || ""} ${item.description || ""}`.toLocaleLowerCase().includes(query)
+      );
+    },
+    pagedDetailTemplates() {
+      return this.filteredDetailTemplates.slice((this.detailPage - 1) * 6, this.detailPage * 6);
+    },
+    detailPageCount() {
+      return Math.max(1, Math.ceil(this.filteredDetailTemplates.length / 6));
     },
   },
   mounted() {
     this.loadMcpCenter();
   },
   watch: {
+    detailQuery() {
+      this.detailPage = 1;
+    },
     toolSearchQuery() {
       this.toolPage = 1;
       window.clearTimeout(this.toolSearchTimer);
@@ -149,6 +166,7 @@ export default {
   beforeUnmount() {
     window.clearTimeout(this.toolSearchTimer);
     this.toolRequestSequence += 1;
+    this.detailSequence += 1;
   },
   methods: {
     async loadMcpCenter() {
@@ -376,9 +394,34 @@ export default {
     },
     openToolDetail(tool) {
       this.activeTool = tool || null;
+      this.detailQuery = "";
+      this.detailPage = 1;
+      this.loadDetailTemplates();
       this.$nextTick(() => this.$refs.toolDetailPanel?.focus());
     },
+    async loadDetailTemplates() {
+      const sequence = ++this.detailSequence;
+      this.detailPage = 1;
+      this.detailTemplates = [];
+      this.detailError = "";
+      if (!this.activeTool) return;
+      this.detailLoading = true;
+      try {
+        const rows = await fetchPublishedToolTemplates(this.activeTool.localToolName);
+        if (sequence === this.detailSequence)
+          this.detailTemplates = Array.isArray(rows) ? rows : [];
+      } catch (error) {
+        if (sequence === this.detailSequence)
+          this.detailError = errorMessage(error, "模板加载失败，请重试");
+      } finally {
+        if (sequence === this.detailSequence) this.detailLoading = false;
+      }
+    },
     closeToolDetail() {
+      this.detailSequence += 1;
+      this.detailTemplates = [];
+      this.detailError = "";
+      this.detailLoading = false;
       this.activeTool = null;
     },
     previewList(values, limit) {

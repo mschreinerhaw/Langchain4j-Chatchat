@@ -48,6 +48,13 @@ public class PublishedMcpToolCatalog {
         candidates.keySet().retainAll(allowed);
         return Collections.unmodifiableMap(candidates);
     }
+    public JsonNode templates(HttpServletRequest request, String toolName) {
+        if (!publications(request).containsKey(toolName)) throw new SecurityException("工具已下线或无权查看");
+        var user = (EnterpriseAdminService.UserView) request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_VIEW);
+        String domain = toolName.substring("mcp_chatchat_mcp_server_".length(), toolName.length() - "_template_query".length());
+        return client.request("GET", "/api/v1/tool-publications/templates?tenantId=" + encode(user.tenantId())
+            + "&actorId=" + encode(user.id()) + "&domainCode=" + encode(domain), null);
+    }
     public List<McpToolCatalogQueryPort.RegisteredTool> registeredTools(HttpServletRequest request) {
         Map<String, Publication> published = publications(request);
         return catalog.registeredTools().stream().filter(tool -> published.containsKey(tool.localToolName()))

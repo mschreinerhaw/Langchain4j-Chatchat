@@ -7,6 +7,12 @@ import SystemManagementView from "./views/SystemManagementView.js";
 import * as api from "../services/api.js";
 import { setWorkspaceContext } from "./utils/workspaceContext";
 
+it('opens dynamic template-collection publishing directly from the MCP publication route', async () => {
+  const view = App.computed.activeComponent.call({ menuAuthorizationReady: true, activeView: 'toolPublications', canAccessView: () => true });
+  const resolved = await view.__asyncLoader();
+  expect(resolved.name).toBe('ToolPublicationsView');
+});
+
 describe("removed product routes", () => {
   it.each(["systemSkillRoles", "permissionTools"])("replaces the retired URL after checking page access (%s)", (page) => {
     const replaceState = vi.fn();

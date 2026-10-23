@@ -12,6 +12,16 @@
   color: #64748b;
   font-size: 12px;
 }
+.publication-workflow { list-style: none; margin: 0 0 20px; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.publication-workflow li { display: grid; align-content: start; gap: 8px; border: 1px solid #dce3ee; border-radius: 10px; background: #fff; padding: 16px; min-width: 0; line-height: 1.6; }
+.publication-workflow strong { font-size: 13px; color: #25344b; }
+.publication-workflow span { color: #64748b; font-size: 12px; }
+.publication-template-filters { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr); gap: 12px; }
+.publication-template-pagination { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.publication-template-pagination > span:first-child { margin-right: auto; }
+.publication-template-option small { color: #64748b; margin-left: auto; }
+.publication-selected-templates { color: #475569; font-size: 12px; line-height: 1.8; }
+@media (max-width: 800px) { .publication-workflow { grid-template-columns: repeat(2, minmax(0, 1fr)); } .publication-template-filters { grid-template-columns: 1fr; } }
 .tool-publications .publication-editor {
   display: grid;
   gap: 20px;

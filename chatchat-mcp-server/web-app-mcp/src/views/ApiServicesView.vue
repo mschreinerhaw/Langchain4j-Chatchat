@@ -3,15 +3,15 @@
     <header class="panel-heading"
       ><div
         ><h2>API 能力模板</h2
-        ><p>先维护并测试业务模板，再到统一工作空间发布工具并分配给 Agent。</p></div
+        ><p>在此维护 API 子模板，再到 MCP 工具发布中创建可查询这些子模板的工具。</p></div
       ><el-button type="primary" @click="createApiTemplate">新建 API 模板</el-button></header
     >
     <ol
       ><li><strong>1 · 维护模板</strong><span>选择网关资产，配置业务名称、分类与参数。</span></li
       ><li><strong>2 · 测试并启用</strong><span>在下方列表测试接口，确认结果后启用模板。</span></li
       ><li
-        ><strong>3 · 发布并分配</strong
-        ><span>统一工作空间 → MCP 工具发布 → 新建 MCP 工具 → 分配 Agent。</span></li
+        ><strong>3 · 发布模板查询工具</strong
+        ><span>新建 MCP 工具 → 选择父级执行能力与角色 → 勾选子模板集合 → 校验、测试与发布。</span></li
       ></ol
     >
   </section>
@@ -28,7 +28,7 @@
         ref="catalog"
         title="API 模板"
         create-label="新建 API 模板"
-        subtitle="按业务分类检索并分页查看。启用仅表示模板可用，Agent 使用前还需发布与授权。"
+        subtitle="按业务分类检索并分页查看。已启用且获得角色授权的模板，可纳入动态 MCP 查询工具的子模板集合。"
         search-placeholder="搜索工具名称、显示名称、描述或分组"
         :columns="columns"
         :form-fields="formFields"
@@ -43,7 +43,7 @@
         :test-action="testService"
         :rebuild-action="api.rebuildIndex"
         rebuild-label="重建索引"
-        form-subtitle="维护 API 业务模板的名称、分类与调用参数。保存并测试启用后，在统一工作空间中发布 MCP 工具并分配给 Agent。"
+        form-subtitle="维护 API 子模板的名称、分类与调用参数。测试并启用后，可在 MCP 工具发布中将其加入指定角色的可查询子模板集合。"
         @notify="$emit('notify', $event)"
         @error="$emit('error', $event)"
         @result="$emit('result', $event)"

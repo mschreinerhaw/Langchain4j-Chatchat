@@ -2,8 +2,10 @@
   <section class="permission-console tool-publications" :aria-busy="busy">
     <header class="permission-page-heading">
       <div
-        ><nav aria-label="面包屑">MCP 工具发布 <span>/</span> 历史工具</nav><h1>历史工具版本管理</h1
-        ><p>历史受控工具的版本维护。新业务工具请从上方“新建 MCP 工具”选择模板发布。</p></div
+        ><nav aria-label="面包屑">MCP 工具发布 <span>/</span> 模板查询工具</nav><h1>MCP 工具发布</h1
+        ><p
+          >动态创建 MCP 模板查询工具，为每个工具配置执行能力、授权角色和可查询的子模板集合。</p
+        ></div
       >
       <div class="permission-heading-actions"
         ><button type="button" :disabled="busy" @click="refresh">刷新</button
@@ -13,7 +15,7 @@
           type="button"
           :disabled="busy"
           @click="reset"
-          >新建工具</button
+          >新建 MCP 工具</button
         ></div
       >
     </header>
@@ -25,7 +27,16 @@
       >{{ notice }}</p
     >
     <p v-if="busy" class="publication-loading" role="status">正在处理，请稍候…</p>
-    <div class="permission-category-tabs" aria-label="历史工具状态"
+    <ol class="publication-workflow" aria-label="MCP 查询工具发布流程"
+      ><li><strong>1 · 新建查询工具</strong><span>填写业务名称与稳定的逻辑名称</span></li
+      ><li
+        ><strong>2 · 配置子模板集合</strong><span>选择父级执行能力、角色，勾选可查询范围</span></li
+      ><li><strong>3 · 校验与测试</strong><span>验证绑定关系，预览实际检索结果</span></li
+      ><li
+        ><strong>4 · 发布与使用</strong><span>运行中工具供 Agent 选择，查询受已选范围约束</span></li
+      ></ol
+    >
+    <div class="permission-category-tabs" aria-label="查询工具状态"
       ><button :class="{ active: stateFilter === 'RUNNING' }" @click="stateFilter = 'RUNNING'"
         >运行中的工具</button
       ><button :class="{ active: stateFilter === 'PENDING' }" @click="stateFilter = 'PENDING'"
@@ -40,7 +51,7 @@
           ><strong>工具列表</strong><span>{{ tools.length }} 项</span></div
         >
         <label class="publication-search"
-          >能力分类<select v-model="category" aria-label="历史工具分类"
+          >能力分类<select v-model="category" aria-label="工具分类"
             ><option value="">全部分类</option
             ><option v-for="name in categories" :key="name" :value="name">{{
               name
@@ -88,8 +99,8 @@
         <header class="permission-detail-heading"
           ><div
             ><p>{{ form.logicalId ? "版本管理" : "工具定义" }}</p
-            ><h2>{{ form.logicalId ? "创建下一版本" : "创建工具草稿" }}</h2
-            ><span>先保存草稿，再校验、测试与发布。保存不会改变当前运行版本。</span></div
+            ><h2>{{ form.logicalId ? "创建下一版本" : "新建 MCP 模板查询工具" }}</h2
+            ><span>一个工具可以包含多个子模板。先配置可查询集合，再校验、测试并发布。</span></div
           ><button type="button" :disabled="busy" @click="cancel">取消</button></header
         >
         <fieldset :disabled="busy || !editable" class="publication-fields"
@@ -114,7 +125,7 @@
               placeholder="例如 sales_summary，发布后保持稳定" /></label
         ></fieldset>
         <fieldset :disabled="busy || !editable" class="publication-fields"
-          ><legend>执行配置</legend
+          ><legend>执行配置 · 父级检索能力与授权角色</legend
           ><div class="permission-form-grid"
             ><label
               >执行能力<select
@@ -145,17 +156,27 @@
               ></label
             ></div
           ><p class="publication-hint"
-            >仅可选择该角色已获授权的模板，工具发布不会扩大其数据访问范围。</p
+            >勾选的子模板共同构成此 MCP
+            工具的可查询集合。调用时仍校验角色与资源权限，发布不会扩大访问范围。</p
           ></fieldset
         >
         <fieldset :disabled="busy || templatesLoading || !editable" class="publication-fields"
           ><legend
-            >受控模板 <small>已选 {{ definition.templateKeys.length }} 项</small></legend
-          ><label
-            >搜索模板<input
-              v-model="templateQuery"
-              type="search"
-              placeholder="按模板名称筛选" /></label
+            >可查询的子模板集合 <small>已选 {{ definition.templateKeys.length }} 项</small></legend
+          ><div class="publication-template-filters"
+            ><label
+              >业务分类<select v-model="templateCategory" aria-label="子模板分类"
+                ><option value="">全部分类</option
+                ><option v-for="name in templateCategories" :key="name" :value="name">{{
+                  name
+                }}</option></select
+              ></label
+            >
+            <label
+              >搜索模板<input
+                v-model="templateQuery"
+                type="search"
+                placeholder="按模板名称筛选" /></label></div
           ><p v-if="templatesLoading" role="status">正在加载已授权模板…</p
           ><p v-else-if="!templates.length" class="permission-empty">{{
             definition.roleId && definition.parentToolName
@@ -164,16 +185,41 @@
           }}</p
           ><div class="publication-template-list"
             ><label
-              v-for="item in filteredTemplates"
+              v-for="item in visibleTemplates"
               :key="item.key"
               class="publication-template-option"
               ><input v-model="definition.templateKeys" type="checkbox" :value="item.key" />{{
                 item.title
-              }}</label
+              }}<small>{{ templateCategoryOf(item) }}</small></label
             ></div
-          ><p
-            v-if="unavailableTemplates.length && !templatesLoading"
-            class="permission-notice error"
+          ><p v-if="templates.length && !filteredTemplates.length" class="publication-hint"
+            >没有匹配的子模板，请调整分类或搜索条件。</p
+          >
+          <div v-if="templates.length" class="publication-template-pagination"
+            ><span
+              >匹配 {{ filteredTemplates.length }} 项 · 已选
+              {{ definition.templateKeys.length }} 项</span
+            ><button type="button" :disabled="!visibleTemplates.length" @click="selectTemplatePage"
+              >选择本页</button
+            ><button
+              type="button"
+              :disabled="!definition.templateKeys.length"
+              @click="clearTemplateSelection"
+              >清空已选</button
+            ><button type="button" :disabled="templatePage <= 1" @click="templatePage--"
+              >上一页</button
+            ><span>{{ templatePage }} / {{ templatePages }}</span
+            ><button type="button" :disabled="templatePage >= templatePages" @click="templatePage++"
+              >下一页</button
+            ></div
+          >
+          <details v-if="selectedTemplates.length" class="publication-selected-templates"
+            ><summary>查看已选的 {{ selectedTemplates.length }} 个子模板（含其他分页）</summary
+            ><ul
+              ><li v-for="item in selectedTemplates" :key="item.key">{{ item.title }}</li></ul
+            ></details
+          >
+          <p v-if="unavailableTemplates.length && !templatesLoading" class="permission-notice error"
             >有 {{ unavailableTemplates.length }} 项原模板当前不可用。<button
               type="button"
               class="permission-link"
@@ -292,10 +338,11 @@
               ></dl
             ><p class="publication-hint" role="status">{{
               {
-                DRAFT: "下一步：点击“校验定义”，检查模板绑定和参数结构。",
-                VALIDATED: "下一步：点击“配置合约测试”，填写参数并运行测试。",
-                TESTED: "下一步：点击“发布工具”，使这个版本正式运行。",
-                RUNNING: "工具已发布并运行。业务调用仍受当前角色与资源权限限制。",
+                DRAFT: "下一步：点击“校验定义”，检查子模板集合与参数结构。",
+                VALIDATED: "下一步：在“测试与记录”中填写查询参数并运行合约测试。",
+                TESTED: "下一步：点击“发布工具”，发布这个子模板查询集合。",
+                RUNNING:
+                  "查询工具已运行。Agent 可选择此能力，返回范围受已勾选子模板和实时权限约束。",
                 OFFLINE: "此版本已下线，保留历史与测试记录。需要恢复时可回滚。",
               }[selected.state]
             }}</p
@@ -400,7 +447,7 @@
           type="button"
           :disabled="busy"
           @click="reset"
-          >新建工具</button
+          >新建 MCP 工具</button
         ></section
       >
     </div>

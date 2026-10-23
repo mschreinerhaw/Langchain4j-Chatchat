@@ -40,3 +40,25 @@ it("uses the selected immutable release id and actual test input for lifecycle c
 it("ignores stale template responses when the role changes",async()=>{
  const vm=await mount();let finish;apiRequest.mockImplementationOnce(()=>new Promise(r=>{finish=r;})).mockResolvedValueOnce([{key:"new",title:"新角色模板"}]);vm.definition={...definition,templateKeys:["authorized"]};const first=vm.loadTemplates();vm.definition.roleId="next";await vm.loadTemplates();finish([{key:"old",title:"旧角色模板"}]);await first;expect(vm.templates.map(t=>t.key)).toEqual(["new"]);expect(vm.definition.templateKeys).toEqual([]);
 });
+it('preserves a multi-template collection across categories and pages and saves it as one query tool', async () => {
+ const vm=await mount(); vm.reset(); vm.form.title='客户查询集合';
+ vm.definition={...definition,domainCode:'collection_example',templateKeys:[],enabled:false};
+ vm.templates=Array.from({length:23},(_,i)=>({key:`template:${i}`,title:`模板${i}`,businessCategoryName:i<21?'客户分析':'交易分析'}));
+ expect(vm.visibleTemplates).toHaveLength(10); vm.selectTemplatePage();
+ vm.templatePage=3; await nextTick(); expect(vm.visibleTemplates).toHaveLength(3);
+ vm.selectTemplatePage(); expect(vm.definition.templateKeys).toHaveLength(13);
+ vm.templateCategory='交易分析'; await nextTick(); expect(vm.templatePage).toBe(1); expect(vm.visibleTemplates).toHaveLength(2);
+ vm.templateQuery='不存在'; await nextTick(); expect(vm.visibleTemplates).toHaveLength(0); expect(vm.definition.templateKeys).toHaveLength(13);
+ await vm.save(); const call=apiRequest.mock.calls.find(c=>c[0]==='/tool-publications'&&c[1]?.method==='POST');
+ const body=JSON.parse(call[1].body); expect(body.kind).toBe('CONTROLLED_TEMPLATE');
+ expect(body.definition.templateKeys).toHaveLength(13); expect(body.definition.roleId).toBe('role'); expect(body.definition.parentToolName).toBe('ssh_template_query');
+ expect(apiRequest.mock.calls.some(c=>c[0].includes('/capabilities/'))).toBe(false);
+});
+it('resets the template picker and its selection when switching parent or role', async () => {
+ const vm=await mount(); vm.reset(); vm.definition={...definition,templateKeys:['authorized']}; vm.templateCategory='客户分析';vm.templatePage=4;
+ await vm.loadTemplates(); expect(vm.templateCategory).toBe(''); expect(vm.templatePage).toBe(1); expect(vm.definition.templateKeys).toEqual([]);
+});
+it('takes validated tools to contract testing and tested tools back to the publish action',async()=>{
+ const vm=await mount(); await vm.action(vm.selected,'validate'); expect(vm.activeTab).toBe('testing');
+ await vm.test(); expect(vm.activeTab).toBe('overview');
+});

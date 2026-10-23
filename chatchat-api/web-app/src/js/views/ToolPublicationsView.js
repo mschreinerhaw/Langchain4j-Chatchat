@@ -20,10 +20,28 @@ export default {
       stateFilter = ref("RUNNING"),
       page = ref(1),
       pageSize = ref(15);
-    const category = ref('');
-    const categoryOf = row => parentName(parse(row.definitionJson, {}).parentToolName);
-    const categories = computed(() => [...new Set(rows.value.map(categoryOf))].sort((a, b) => a.localeCompare(b, 'zh-CN')));
-    const pendingCount = computed(() => new Set(rows.value.filter(row => ['DRAFT', 'VALIDATED', 'TESTED'].includes(row.state)).map(row => row.logicalId)).size);
+    const category = ref("");
+    const templateCategory = ref(""),
+      templatePage = ref(1),
+      templatePageSize = ref(10);
+    const templateCategoryOf = (item) => item.businessCategoryName || item.category || "未分类";
+    const templateCategories = computed(() =>
+      [...new Set(templates.value.map(templateCategoryOf))].sort((a, b) =>
+        a.localeCompare(b, "zh-CN")
+      )
+    );
+    const categoryOf = (row) => parentName(parse(row.definitionJson, {}).parentToolName);
+    const categories = computed(() =>
+      [...new Set(rows.value.map(categoryOf))].sort((a, b) => a.localeCompare(b, "zh-CN"))
+    );
+    const pendingCount = computed(
+      () =>
+        new Set(
+          rows.value
+            .filter((row) => ["DRAFT", "VALIDATED", "TESTED"].includes(row.state))
+            .map((row) => row.logicalId)
+        ).size
+    );
     useTransientNotice(notice, failed);
     const selectedId = ref(""),
       editing = ref(false),
@@ -63,7 +81,12 @@ export default {
     const tools = computed(() => {
       const groups = new Map();
       for (const row of rows.value) {
-        if (stateFilter.value === 'PENDING' ? !['DRAFT', 'VALIDATED', 'TESTED'].includes(row.state) : stateFilter.value && row.state !== stateFilter.value) continue;
+        if (
+          stateFilter.value === "PENDING"
+            ? !["DRAFT", "VALIDATED", "TESTED"].includes(row.state)
+            : stateFilter.value && row.state !== stateFilter.value
+        )
+          continue;
         if (category.value && categoryOf(row) !== category.value) continue;
         const entry = groups.get(row.logicalId);
         if (!entry || row.releaseNumber > entry.releaseNumber) groups.set(row.logicalId, row);
@@ -86,12 +109,34 @@ export default {
       tools.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value)
     );
     const filteredTemplates = computed(() =>
-      templates.value.filter((t) =>
-        String(t.title || "")
-          .toLowerCase()
-          .includes(templateQuery.value.trim().toLowerCase())
+      templates.value.filter(
+        (t) =>
+          (!templateCategory.value || templateCategoryOf(t) === templateCategory.value) &&
+          String(`${t.title || ""} ${t.description || ""}`)
+            .toLowerCase()
+            .includes(templateQuery.value.trim().toLowerCase())
       )
     );
+    const templatePages = computed(() =>
+      Math.max(1, Math.ceil(filteredTemplates.value.length / templatePageSize.value))
+    );
+    const visibleTemplates = computed(() =>
+      filteredTemplates.value.slice(
+        (templatePage.value - 1) * templatePageSize.value,
+        templatePage.value * templatePageSize.value
+      )
+    );
+    const selectedTemplates = computed(() =>
+      templates.value.filter((t) => definition.value.templateKeys.includes(t.key))
+    );
+    function selectTemplatePage() {
+      definition.value.templateKeys = [
+        ...new Set([...definition.value.templateKeys, ...visibleTemplates.value.map((t) => t.key)]),
+      ];
+    }
+    function clearTemplateSelection() {
+      definition.value.templateKeys = [];
+    }
     const unavailableTemplates = computed(() =>
       definition.value.templateKeys.filter((key) => !templates.value.some((t) => t.key === key))
     );
@@ -104,10 +149,17 @@ export default {
     const dirty = computed(() => editing.value && snapshot() !== originalDraft.value);
     watch([query, stateFilter, pageSize, category], () => {
       page.value = 1;
-      if (!editing.value && !tools.value.some(row => row.logicalId === selected.value?.logicalId)) selectedId.value = tools.value[0]?.id || '';
+      if (!editing.value && !tools.value.some((row) => row.logicalId === selected.value?.logicalId))
+        selectedId.value = tools.value[0]?.id || "";
     });
     watch(pages, (n) => {
       page.value = Math.min(page.value, n);
+    });
+    watch([templateQuery, templateCategory, templatePageSize], () => {
+      templatePage.value = 1;
+    });
+    watch(templatePages, (n) => {
+      templatePage.value = Math.min(templatePage.value, n);
     });
     function parse(value, fallback) {
       try {
@@ -186,6 +238,8 @@ export default {
       const serial = ++templateSerial;
       templates.value = [];
       templateQuery.value = "";
+      templateCategory.value = "";
+      templatePage.value = 1;
       if (clearSelection) definition.value.templateKeys = [];
       if (!definition.value.roleId || !definition.value.parentToolName) {
         templatesLoading.value = false;
@@ -214,6 +268,8 @@ export default {
       definition.value = blank();
       templates.value = [];
       templateQuery.value = "";
+      templateCategory.value = "";
+      templatePage.value = 1;
       inputSchema.value = outputSchema.value = '{"type":"object","properties":{}}';
       inputSample.value = "{}";
       editing.value = true;
@@ -284,7 +340,13 @@ export default {
           ...(body ? { body: JSON.stringify(body) } : {}),
         });
         await loadRows(row.id);
-        stateFilter.value = actionName === 'publish' || actionName === 'rollback' ? 'RUNNING' : actionName === 'offline' ? 'OFFLINE' : 'PENDING';
+        stateFilter.value =
+          actionName === "publish" || actionName === "rollback"
+            ? "RUNNING"
+            : actionName === "offline"
+              ? "OFFLINE"
+              : "PENDING";
+        activeTab.value = actionName === "validate" ? "testing" : "overview";
       }, { validate: "定义校验通过，可以运行合约测试。", test: "合约测试通过，结果已记录。", publish: "工具已发布，运行时业务权限仍然生效。", offline: "工具已下线，版本与测试记录已保留。", rollback: "已恢复此历史版本。" }[actionName]);
     }
     async function test(row = selected.value) {
@@ -314,7 +376,20 @@ export default {
     });
     return {
       rows,
-      category, categories, categoryOf, pendingCount,
+      category,
+      categories,
+      categoryOf,
+      pendingCount,
+      templateCategory,
+      templateCategoryOf,
+      templateCategories,
+      templatePage,
+      templatePageSize,
+      templatePages,
+      visibleTemplates,
+      selectedTemplates,
+      selectTemplatePage,
+      clearTemplateSelection,
       parents,
       roles,
       templates,

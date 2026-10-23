@@ -77,7 +77,7 @@ export default {
           help: 'API 服务工具名沿用 <业务能力>_api 命名，例如 weather_api、customer_profile_api；只使用小写字母、数字和下划线，保存后避免随意修改。',
           section: 'basic',
           sectionTitle: '基础信息',
-          sectionSubtitle: '定义业务模板的名称和展示信息。模板维护完成后，再发布给 Agent 使用。'
+          sectionSubtitle: '定义 API 子模板的名称和展示信息。角色获得模板授权后，可将其纳入 MCP 查询工具的可查询集合。'
         },
         {
           key: 'title',

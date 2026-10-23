@@ -3,10 +3,28 @@ import argparse
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import zipfile
 from application_image_build import build_application_image
+
+
+def check_python_runtimes(stage, database):
+    """Published environments are deployment dependencies even when no sandbox is active."""
+    if not stage.sql(database, "select to_regclass('public.mcp_python_environment')"):
+        return []
+    images = stage.sql(database, "select distinct docker_image from mcp_python_environment where status='PUBLISHED' order by docker_image")
+    dependencies = []
+    for image in images.splitlines():
+        try:
+            identity = stage.run('docker', 'image', 'inspect', '--format', '{{.Id}}', image)
+        except RuntimeError as failure:
+            raise RuntimeError('Published Python runtime is missing on the MCP host: ' + image) from failure
+        if not re.fullmatch(r'sha256:[0-9a-f]{64}', identity):
+            raise RuntimeError('Invalid published Python runtime identity: ' + image)
+        dependencies.append({'image': image, 'imageId': identity})
+    return dependencies
 
 
 def main():
@@ -28,6 +46,7 @@ def main():
     stage.evidence.mkdir(parents=True, exist_ok=True, mode=0o700)
     config = json.loads((root / 'compose.yaml').read_text())
     databases = {name: config['services'][name]['environment']['CHATCHAT_' + name.upper() + '_POSTGRESQL_URL'].rsplit('/', 1)[1].split('?', 1)[0] for name in ['api', 'mcp']}
+    python_runtimes = check_python_runtimes(stage, databases['mcp'])
 
     def running(name):
         return stage.run('docker', 'exec', 'runtime-os-app-stage-' + name + '-1', 'sha256sum', '/srv/app/app.jar').split()[0]
@@ -54,7 +73,8 @@ def main():
     volumes = config['services']['mcp'].setdefault('volumes', [])
     if not any(isinstance(volume, dict) and volume.get('target') == '/srv/app/config/application.yml' for volume in volumes):
         volumes.append({'type': 'bind', 'source': str(runtime_config), 'target': '/srv/app/config/application.yml', 'read_only': True})
-    report = {'version': version, 'sourceCommit': manifest['sourceCommit'], 'backup': str(destination), 'policyBefore': before}
+    report = {'version': version, 'sourceCommit': manifest['sourceCommit'], 'backup': str(destination), 'policyBefore': before,
+              'pythonRuntimes': python_runtimes}
     print(json.dumps({'stage': 'BACKED_UP', 'backup': str(destination)}), flush=True)
     try:
         stage.compose('stop', *changed)

@@ -21,6 +21,7 @@ public class PermissionWorkspaceUxMigration {
     private boolean postgres;
     @EventListener(ApplicationReadyEvent.class) @Order(150) @Transactional
     public void migrate() throws Exception {
+        jdbc.update("update sys_menu set menu_name='数据空间',updated_at=CURRENT_TIMESTAMP where menu_code='workspaces' and menu_name in ('工作空间设置','工作空间')");
         try(var connection=jdbc.getDataSource().getConnection()){postgres="PostgreSQL".equals(connection.getMetaData().getDatabaseProductName());}
         if(postgres)jdbc.execute("select pg_advisory_xact_lock(hashtext('permission-workspace-ux-v1'))");
         if(!jdbc.queryForList("select batch_id from runtime_product_retirement_archive where record_type='MARKER' and record_id=?",MARKER).isEmpty())return;
@@ -53,7 +54,7 @@ public class PermissionWorkspaceUxMigration {
         bind(batch,root,"workspace:permissions:access","permission-ux-root-access");
         var settings=jdbc.queryForList("select id from sys_menu where menu_code='workspaces'",String.class);
         if(settings.isEmpty())throw new IllegalStateException("Workspace settings menu missing from platform seed");
-        jdbc.update("update sys_menu set menu_name='工作空间设置',route_path='/index.html#/w/zhice/workspaces',status='enabled',updated_at=CURRENT_TIMESTAMP where id=?",settings.get(0));
+        jdbc.update("update sys_menu set menu_name='数据空间',route_path='/index.html#/w/zhice/workspaces',status='enabled',updated_at=CURRENT_TIMESTAMP where id=?",settings.get(0));
         jdbc.update("delete from sys_menu_permission where id='ws-selection-access' and menu_id=? and permission_id in (select id from sys_permission where permission_code='workspace:zhice:access')",settings.get(0));
         bind(batch,settings.get(0),"system:workspaces:manage","permission-ux-settings-access");
         for(var record:jdbc.queryForList("select record_type,record_id from runtime_product_retirement_archive where batch_id=? and record_type in ('sys_menu','INSERTED_sys_menu','INSERTED_sys_menu_permission')",batch)) {

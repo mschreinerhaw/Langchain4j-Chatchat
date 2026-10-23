@@ -2,7 +2,7 @@
   <section class="workspace-settings"
     ><header class="permission-page-heading"
       ><div
-        ><nav aria-label="面包屑">平台管理 <span>/</span> 工作空间设置</nav><h1>工作空间设置</h1
+        ><nav aria-label="面包屑">平台管理 <span>/</span> 数据空间</nav><h1>数据空间</h1
         ><p>配置工作空间的名称、入口和启用状态，统一管理默认登录空间。</p></div
       ><button type="button" class="workspace-refresh" :disabled="busy" @click="load"
         ><RefreshCw :size="16" :class="{ spinning: busy }" aria-hidden="true" />{{
@@ -12,7 +12,7 @@
     ><p v-if="notice" :class="['permission-notice', { error: failed }]" role="status">{{
       notice
     }}</p
-    ><p v-if="busy && !rows.length" role="status">正在加载工作空间设置…</p>
+    ><p v-if="busy && !rows.length" role="status">正在加载数据空间…</p>
     <section class="workspace-catalog" aria-label="工作空间目录" :aria-busy="busy">
       <div class="workspace-catalog-toolbar">
         <label class="workspace-search"

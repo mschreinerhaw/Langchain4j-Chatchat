@@ -56,7 +56,7 @@ export default {
       chat: "智能对话",
       search: "文档检索",
       agents: "查询服务管理",
-      workspaces: "工作空间设置",
+      workspaces: "数据空间",
       toolPublications: "工具发布",
       sqlStudio: "数据开发",
       dataScienceData: "数据工作台",

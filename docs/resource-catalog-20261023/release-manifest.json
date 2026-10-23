@@ -1,0 +1,19 @@
+{
+  "version": "2.4.9-resource-catalog-20261023",
+  "sourceCommit": "2782fe35c",
+  "baseline": {
+    "api": "9bef51e8ea80d4193ea63ccb917918e3caafe4e59217aa856fb06c8e7687956d",
+    "mcp": "b029f636c4e9b182022ec9155a1bdbdb5fb8275ef7ecaf0b2f0ea196d0b4f3d3"
+  },
+  "backendEntriesUnchanged": true,
+  "patchedClasses": [],
+  "otherBackendEntriesUnchanged": true,
+  "artifacts": {
+    "api": {
+      "sha256": "eaa38403acd5393e4432ecbc46541157f0a7bc1bb402412ceed46843913b5ea4"
+    },
+    "mcp": {
+      "sha256": "b029f636c4e9b182022ec9155a1bdbdb5fb8275ef7ecaf0b2f0ea196d0b4f3d3"
+    }
+  }
+}

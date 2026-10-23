@@ -1,0 +1,13 @@
+{
+  "checks": {
+    "defaultShowsCommonResources": true,
+    "sixCompactTemplateRowsWithoutInnerScrolling": true,
+    "pagingKeepsDetailsAligned": true,
+    "emptySearchClearsStaleDetails": true,
+    "defaultSearchStillFindsBusinessTemplates": true,
+    "smallScreenDoesNotOverflow": true,
+    "existingAuthorizationUnchanged": true
+  },
+  "consoleErrors": [],
+  "permissionWrites": []
+}

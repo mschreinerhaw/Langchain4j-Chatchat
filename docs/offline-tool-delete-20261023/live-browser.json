@@ -1,0 +1,14 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "runningSiblingBlocksDeleteInUiAndApi": true,
+    "concurrentNewVersionPreventsStaleDeletion": true,
+    "cancelConfirmationDoesNotDelete": true,
+    "confirmedDeletionRemovesAllOwnedVersionsIncludingDrafts": true,
+    "deletedVersionIdsCannotBeReplayed": true,
+    "deletedToolIsNotAvailableToRuntime": true,
+    "stoppedBindingRemovedAndNameCanBeReused": true,
+    "otherToolDefinitionsAndVersionStatesUnchanged": true
+  },
+  "errors": []
+}

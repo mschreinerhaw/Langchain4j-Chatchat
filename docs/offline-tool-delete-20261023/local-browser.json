@@ -1,0 +1,7 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "cancelDeletionPreservesExistingTools": true
+  },
+  "errors": []
+}

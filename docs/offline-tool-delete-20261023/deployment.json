@@ -1,0 +1,60 @@
+{
+  "version": "2.4.6-offline-tool-delete-20261023",
+  "sourceCommit": "7de8412d0",
+  "backup": "/opt/runtime-os-docker-stage/evidence/tool-draft-edit-2.4.6-offline-tool-delete-20261023/backup-1792762478",
+  "policyBefore": {
+    "runtime_os_acceptance_api.mcp_tool_permission": "cc610360702deaaf14b4b97358dd5385",
+    "runtime_os_acceptance_api.resource_grant": "1e84ebfbd55077b136e865b10ea74bd3",
+    "runtime_os_acceptance_api.sys_user_role": "66ce7155c856069cc8c3804e437f2311",
+    "runtime_os_acceptance_mcp.mcp_template_query_binding": "ed4902ab4fa12c9485091b25e7a91df9",
+    "runtime_os_acceptance_api.sys_role_permission": "87a8093cab46abda097b026aacfa966f",
+    "runtime_os_acceptance_mcp.mcp_tool_release": "d241c77e0e6781c91196de4f6c44887f"
+  },
+  "artifacts": {
+    "api": {
+      "sha256": "aa359a40dbd7eefc1435f6cda93aa5836b633563e142a66be2bb45d53423b2de",
+      "testedClasses": [
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/ToolPublicationController.class",
+        "BOOT-INF/classes/com/chatchat/api/security/ApiPermissionAuthorizationFilter$ResourcePermission.class",
+        "BOOT-INF/classes/com/chatchat/api/security/ApiPermissionAuthorizationFilter.class"
+      ],
+      "otherBackendEntriesUnchanged": true
+    },
+    "mcp": {
+      "sha256": "4368882ab237b5372b079c9d54d69e1496df04c8fc80f263f88b02e084b06f2d",
+      "testedClasses": [
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/admin/ControlledTemplateReleaseExecutor$1.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/admin/ControlledTemplateReleaseExecutor.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseController.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseExecutor.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseService$1.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseService$ContractTest.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseService$DeleteTool.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseService$DeletedTool.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseService$Draft.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseService$DraftUpdate.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseService.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/binding/TemplateQueryBindingService$1.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/binding/TemplateQueryBindingService$BindingView.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/binding/TemplateQueryBindingService$CachedPolicy.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/binding/TemplateQueryBindingService$PolicyCacheKey.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/binding/TemplateQueryBindingService$PolicyResolution.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/binding/TemplateQueryBindingService$Subject.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/binding/TemplateQueryBindingService$UpsertRequest.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/binding/TemplateQueryBindingService.class"
+      ],
+      "otherBackendEntriesUnchanged": true
+    }
+  },
+  "databaseMigration": false,
+  "status": "DEPLOYED",
+  "policyAfter": {
+    "runtime_os_acceptance_api.mcp_tool_permission": "cc610360702deaaf14b4b97358dd5385",
+    "runtime_os_acceptance_api.resource_grant": "1e84ebfbd55077b136e865b10ea74bd3",
+    "runtime_os_acceptance_api.sys_user_role": "66ce7155c856069cc8c3804e437f2311",
+    "runtime_os_acceptance_mcp.mcp_template_query_binding": "ed4902ab4fa12c9485091b25e7a91df9",
+    "runtime_os_acceptance_api.sys_role_permission": "87a8093cab46abda097b026aacfa966f",
+    "runtime_os_acceptance_mcp.mcp_tool_release": "d241c77e0e6781c91196de4f6c44887f"
+  },
+  "existingReleasesAndPermissionsUnchanged": true
+}

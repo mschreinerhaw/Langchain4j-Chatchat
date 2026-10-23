@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.chatchat.api.controller.mcp.ToolPublicationControllerTest
+-------------------------------------------------------------------------------
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 12.33 s -- in com.chatchat.api.controller.mcp.ToolPublicationControllerTest

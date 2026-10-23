@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingServiceTest
+-------------------------------------------------------------------------------
+Tests run: 14, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.623 s -- in com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingServiceTest

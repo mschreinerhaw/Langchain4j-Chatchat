@@ -1,0 +1,14 @@
+﻿{
+    "behavior":  [
+                     "advanced information hidden by default",
+                     "explicit header entry",
+                     "return to templates",
+                     "reset hidden state on reopen"
+                 ],
+    "frontendTests":  5,
+    "vueStructure":  "passed",
+    "failed":  0,
+    "sourceCommit":  "13c49203e",
+    "productionBuild":  "passed",
+    "backendChanged":  false
+}

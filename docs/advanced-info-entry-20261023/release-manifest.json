@@ -1,0 +1,19 @@
+{
+  "version": "2.4.12-advanced-info-entry-20261023",
+  "sourceCommit": "13c49203e",
+  "baseline": {
+    "api": "457dd314d9fa87d184e35016e2e49ff486f8c1cf5f70b99b7d5380423c59985e",
+    "mcp": "23418544988be9559018b46618440fb6212534a885ab35d51936755451f39939"
+  },
+  "backendEntriesUnchanged": true,
+  "patchedClasses": [],
+  "otherBackendEntriesUnchanged": true,
+  "artifacts": {
+    "api": {
+      "sha256": "29f70c273b4c11525fe701bb22fe584e7fd2d0e2a45f4911b63bd097693fcc77"
+    },
+    "mcp": {
+      "sha256": "23418544988be9559018b46618440fb6212534a885ab35d51936755451f39939"
+    }
+  }
+}

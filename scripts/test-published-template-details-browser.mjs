@@ -33,7 +33,15 @@ try {
     const data = await response.json();
     return { status: response.status(), ...data };
   };
-  const before = await api("/mcp/tool-cards?pageSize=100&sourceType=mcp");
+  let before = await api("/mcp/tool-cards?pageSize=100&sourceType=mcp");
+  for (
+    let attempt = 0;
+    attempt < 12 && before.code === 200 && !before.data.tools.length;
+    attempt++
+  ) {
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    before = await api("/mcp/tool-cards?pageSize=100&sourceType=mcp");
+  }
   assert.equal(before.code, 200);
   const cards = before.data.tools;
   assert.ok(cards.length);

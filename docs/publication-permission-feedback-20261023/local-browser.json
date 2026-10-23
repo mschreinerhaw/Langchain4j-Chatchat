@@ -1,0 +1,26 @@
+{
+  "status": "PASSED",
+  "checks": {
+    "defaultRunningListAndSelection": 5,
+    "createToolHover": {
+      "background": "rgb(36, 85, 199)",
+      "color": "rgb(255, 255, 255)"
+    },
+    "createRoleHover": {
+      "background": "rgb(36, 85, 199)",
+      "color": "rgb(255, 255, 255)"
+    },
+    "roleDialogSaveHover": {
+      "background": "rgb(36, 85, 199)",
+      "color": "rgb(255, 255, 255)"
+    },
+    "disabledButtonKeepsBackground": true,
+    "authorizationSaveHover": {
+      "background": "rgb(36, 85, 199)",
+      "color": "rgb(255, 255, 255)"
+    },
+    "successNoticeAutoDismissed": true,
+    "defaultRunningAfterReload": true
+  },
+  "errors": []
+}

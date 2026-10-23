@@ -1,0 +1,13 @@
+{
+  "status": "DEPLOYED",
+  "version": "2.2.3-permission-feedback-20261023",
+  "sourceCommit": "55df550800369b8f6e2ee9fca4c94cddcfda26de",
+  "jarSha256": "e62aa611bf57b0f5fa4a3d6af6b25e137e84c42b23343cf0f47989ec6e6debdc",
+  "gatewayResourcesVerified": 89,
+  "backendEntriesUnchanged": true,
+  "policyUnchanged": true,
+  "artifactHashesMatch": true,
+  "databaseMigration": false,
+  "mcpImage": "runtime-os-mcp:2.2.2-account-card-20261023",
+  "backup": "/opt/runtime-os-docker-stage/evidence/publication-ui-2.2.3-permission-feedback-20261023/backup-1792718920"
+}

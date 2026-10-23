@@ -1,0 +1,44 @@
+{
+  "checks": {
+    "allPublishedToolsReadWithoutTechnicalFields": [
+      {
+        "name": "mcp_chatchat_mcp_server_customer_service_template_query",
+        "count": 10,
+        "withContent": 0
+      },
+      {
+        "name": "mcp_chatchat_mcp_server_finance_local_service_template_query",
+        "count": 0,
+        "withContent": 0
+      },
+      {
+        "name": "mcp_chatchat_mcp_server_java_service_analyze_template_query",
+        "count": 10,
+        "withContent": 10
+      },
+      {
+        "name": "mcp_chatchat_mcp_server_mysql_db_status_template_query",
+        "count": 9,
+        "withContent": 9
+      },
+      {
+        "name": "mcp_chatchat_mcp_server_tdh_service_analyze_template_query",
+        "count": 8,
+        "withContent": 8
+      },
+      {
+        "name": "mcp_chatchat_mcp_server_yarn_cdh_service_template_query",
+        "count": 16,
+        "withContent": 0
+      }
+    ],
+    "arbitraryToolRejected": true,
+    "pagination": true,
+    "contentSearchAndEmptyState": true,
+    "mobileFits": true,
+    "close": true,
+    "noBrowserErrors": true,
+    "readOnly": true
+  },
+  "errors": []
+}

@@ -1,0 +1,62 @@
+{
+  "version": "2.4.11-published-template-details-20261023",
+  "sourceCommit": "a23880438",
+  "backup": "/opt/runtime-os-docker-stage/evidence/tool-draft-edit-2.4.11-published-template-details-20261023/backup-1792768378",
+  "policyBefore": {
+    "runtime_os_acceptance_api.mcp_tool_permission": "cc610360702deaaf14b4b97358dd5385",
+    "runtime_os_acceptance_api.resource_grant": "1e84ebfbd55077b136e865b10ea74bd3",
+    "runtime_os_acceptance_api.sys_user_role": "66ce7155c856069cc8c3804e437f2311",
+    "runtime_os_acceptance_mcp.mcp_template_query_binding": "87fd1844b965b95ad5e0c8e50b3ed66b",
+    "runtime_os_acceptance_api.sys_role_permission": "87a8093cab46abda097b026aacfa966f",
+    "runtime_os_acceptance_mcp.mcp_tool_release": "47bb9131e4cf2f11cfc538edc1e62531"
+  },
+  "artifacts": {
+    "api": {
+      "sha256": "457dd314d9fa87d184e35016e2e49ff486f8c1cf5f70b99b7d5380423c59985e",
+      "testedClasses": [
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$McpInvokeRequest.class",
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$McpServiceUpsertRequest.class",
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$McpServiceVersionView.class",
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$McpServiceView.class",
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$ToolCardPage.class",
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$ToolCardView.class",
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$ToolParameterView.class",
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$ToolServiceOption.class",
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$ToolServiceOptionBuilder.class",
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController.class",
+        "BOOT-INF/classes/com/chatchat/api/service/PublishedMcpToolCatalog$Publication.class",
+        "BOOT-INF/classes/com/chatchat/api/service/PublishedMcpToolCatalog.class"
+      ],
+      "otherBackendEntriesUnchanged": true
+    },
+    "mcp": {
+      "sha256": "23418544988be9559018b46618440fb6212534a885ab35d51936755451f39939",
+      "testedClasses": [
+        "BOOT-INF/classes/com/chatchat/mcpserver/python/PythonTemplateCatalog.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/admin/PublishedToolTemplateController.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/admin/PublishedToolTemplateService$Template.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/admin/PublishedToolTemplateService.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$1.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$2.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$AuthorizationRef.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$BoundTemplate.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$CatalogEntry.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$CategoryRef.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$TemplateAsset.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService.class"
+      ],
+      "otherBackendEntriesUnchanged": true
+    }
+  },
+  "databaseMigration": false,
+  "status": "DEPLOYED",
+  "policyAfter": {
+    "runtime_os_acceptance_api.mcp_tool_permission": "cc610360702deaaf14b4b97358dd5385",
+    "runtime_os_acceptance_api.resource_grant": "1e84ebfbd55077b136e865b10ea74bd3",
+    "runtime_os_acceptance_api.sys_user_role": "66ce7155c856069cc8c3804e437f2311",
+    "runtime_os_acceptance_mcp.mcp_template_query_binding": "87fd1844b965b95ad5e0c8e50b3ed66b",
+    "runtime_os_acceptance_api.sys_role_permission": "87a8093cab46abda097b026aacfa966f",
+    "runtime_os_acceptance_mcp.mcp_tool_release": "47bb9131e4cf2f11cfc538edc1e62531"
+  },
+  "existingReleasesAndPermissionsUnchanged": true
+}

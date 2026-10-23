@@ -1,0 +1,46 @@
+{
+  "version": "2.4.11-published-template-details-20261023",
+  "sourceCommit": "a23880438",
+  "baseline": {
+    "api": "41a5f669ccd14a1164bac3ecf07cd60a3e8da387c37940c228f90604676157e9",
+    "mcp": "b029f636c4e9b182022ec9155a1bdbdb5fb8275ef7ecaf0b2f0ea196d0b4f3d3"
+  },
+  "artifacts": {
+    "api": {
+      "sha256": "457dd314d9fa87d184e35016e2e49ff486f8c1cf5f70b99b7d5380423c59985e",
+      "testedClasses": [
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$McpInvokeRequest.class",
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$McpServiceUpsertRequest.class",
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$McpServiceVersionView.class",
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$McpServiceView.class",
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$ToolCardPage.class",
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$ToolCardView.class",
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$ToolParameterView.class",
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$ToolServiceOption.class",
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController$ToolServiceOptionBuilder.class",
+        "BOOT-INF/classes/com/chatchat/api/controller/mcp/McpServiceController.class",
+        "BOOT-INF/classes/com/chatchat/api/service/PublishedMcpToolCatalog$Publication.class",
+        "BOOT-INF/classes/com/chatchat/api/service/PublishedMcpToolCatalog.class"
+      ],
+      "otherBackendEntriesUnchanged": true
+    },
+    "mcp": {
+      "sha256": "23418544988be9559018b46618440fb6212534a885ab35d51936755451f39939",
+      "testedClasses": [
+        "BOOT-INF/classes/com/chatchat/mcpserver/python/PythonTemplateCatalog.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/admin/PublishedToolTemplateController.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/admin/PublishedToolTemplateService$Template.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/admin/PublishedToolTemplateService.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$1.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$2.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$AuthorizationRef.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$BoundTemplate.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$CatalogEntry.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$CategoryRef.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$TemplateAsset.class",
+        "BOOT-INF/classes/com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService.class"
+      ],
+      "otherBackendEntriesUnchanged": true
+    }
+  }
+}

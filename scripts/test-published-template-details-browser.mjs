@@ -68,7 +68,7 @@ try {
   const unauthorized = await api("/mcp/published-tool-templates?toolName=raw_execute");
   assert.notEqual(unauthorized.code, 200);
   checks.arbitraryToolRejected = true;
-  const target = results.reduce((a, b) => (a.count > b.count ? a : b));
+  const target = results.filter(result => result.withContent > 0).reduce((a, b) => (a.count > b.count ? a : b));
   const card = cards.find((card) => card.localToolName === target.name);
   const page = await context.newPage();
   page.setDefaultTimeout(45000);

@@ -24,6 +24,24 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
+    @Test void combinedInputsKeepProducerFieldMeaningsWithoutGuessingFromOpaqueNames() {
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        when(inputs.captureConfigured(any(),anyString(),anyList(),startsWith("coding-input-set:"),anyString(),anyString(),anyLong(),anyLong(),any()))
+            .thenAnswer(call->{
+                List<Dataset> captured=call.getArgument(2);
+                var context=captured.get(0).analysisContext();
+                assertThat(context.toString()).contains("fieldDefinitions","Previous observation amount","Elapsed duration")
+                    .doesNotContain("PRIVATE_RAW","PRIVATE_DEFAULT");
+                return new CodingInputSnapshotService.Snapshot("runtime-evidence:input","c"+"a".repeat(63),"input.jsonl","a".repeat(64),1,30,"combined");
+            });
+        var source=new Dataset("opaque#source",Map.of("schema",Map.of("definition",Map.of("properties",Map.of(
+            "a",Map.of("type","string","description","Previous observation amount","default","PRIVATE_DEFAULT"),
+            "b",Map.of("type","integer","description","Elapsed duration","rawData","PRIVATE_RAW"))))),
+            List.of(Map.of("a","12.50","b",3)));
+        var request=new LinkedHashMap<>(request());request.remove("datasetReference");request.put("datasetReferences",List.of(source.reference()));
+        service().execute(context("tenant"),request,Map.of(source.reference(),source));
+        verify(agent).submit(any());
+    }
     @Test void workshopDefaultAndActualImageCapabilitiesReachTheCodingContract() {
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
         var defaults = mock(com.chatchat.api.datascience.python.PythonDefaultEnvironmentService.class);
@@ -123,7 +141,7 @@ class CodingAnalysisServiceTest {
         assertThat(contract.getValue().metadataRefs()).contains("runtime-coding:analysis-reviewed-path:v1")
             .doesNotContain("runtime-coding:analysis-fast-path:v1");
         assertThat(contract.getValue().objective().instruction()).contains("call artifact_read", "Runtime will perform no semantic review",
-            "preserve the exact field meaning declared by fieldSchema", "a plausible value under the wrong label must be repaired");
+            "preserve the exact field meaning declared by fieldDefinitions", "a plausible value under the wrong label must be repaired");
     }
     @Test void combinedSourcesKeepTheirOwnDeclaredRepresentationInTheAcceptedObjective() {
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));

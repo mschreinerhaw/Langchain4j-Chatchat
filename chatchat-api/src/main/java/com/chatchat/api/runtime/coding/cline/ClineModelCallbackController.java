@@ -121,6 +121,7 @@ public final class ClineModelCallbackController {
             if(row.containsKey("reportMarkdown") && row.containsKey("evidenceReferences")) {
                 var input=inputs.requireAuthorized(contract);
                 var description=inputs.describe(call.scope(),call.taskId(),input);
+                response.put("sourceFieldDefinitions",description.getOrDefault("inputVersions",List.of()));
                 var authorized=new java.util.LinkedHashSet<String>();
                 if(description.get("inputVersions") instanceof Iterable<?> versions) {
                     for(Object version:versions)if(version instanceof Map<?,?> source

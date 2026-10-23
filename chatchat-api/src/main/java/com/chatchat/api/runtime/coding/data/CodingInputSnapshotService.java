@@ -120,6 +120,7 @@ public final class CodingInputSnapshotService {
                     }
                     item.put("fieldSchema",safe);
                 }
+                item.put("fieldDefinitions",CodingFieldDefinitions.sanitize(fields.get("fieldDefinitions")));
                 projected.add(Map.copyOf(item));
             }
             description.put("inputVersions",List.copyOf(projected));

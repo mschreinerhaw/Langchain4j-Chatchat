@@ -45,6 +45,16 @@ def main():
     stage.evidence = root / 'evidence' / ('template-capabilities-' + version)
     stage.evidence.mkdir(parents=True, exist_ok=True, mode=0o700)
     config = json.loads((root / 'compose.yaml').read_text())
+    # Recreating a running container requires every bind source to still exist.
+    # Check before stopping anything, including mounts retained from older releases.
+    for name in ['api', 'mcp']:
+        for volume in config['services'][name].get('volumes', []):
+            if isinstance(volume, dict) and volume.get('type') == 'bind':
+                source = Path(volume['source'])
+                if not source.is_absolute():
+                    source = root / source
+                if not source.exists():
+                    raise RuntimeError('Missing bind source for ' + name + ': ' + str(source))
     databases = {name: config['services'][name]['environment']['CHATCHAT_' + name.upper() + '_POSTGRESQL_URL'].rsplit('/', 1)[1].split('?', 1)[0] for name in ['api', 'mcp']}
     python_runtimes = check_python_runtimes(stage, databases['mcp'])
 
@@ -67,11 +77,15 @@ def main():
     destination = stage.backup(config, databases)
     # Preserve the running server's environment-specific root configuration outside the application image.
     # The versioned production profile remains in the new JAR; secret key mounts remain unchanged.
-    with zipfile.ZipFile(destination / 'mcp-running.jar') as baseline:
-        runtime_config = stage.evidence / 'baseline-mcp-application.yml'
-        runtime_config.write_bytes(baseline.read('BOOT-INF/classes/application.yml'))
     volumes = config['services']['mcp'].setdefault('volumes', [])
     if not any(isinstance(volume, dict) and volume.get('target') == '/srv/app/config/application.yml' for volume in volumes):
+        with zipfile.ZipFile(destination / 'mcp-running.jar') as baseline:
+            runtime_config = root / 'config/mcp-application.yml'
+            content = baseline.read('BOOT-INF/classes/application.yml')
+            if runtime_config.exists() and runtime_config.read_bytes() != content:
+                raise RuntimeError('Persistent MCP root configuration differs from running baseline')
+            runtime_config.write_bytes(content)
+            runtime_config.chmod(0o600)
         volumes.append({'type': 'bind', 'source': str(runtime_config), 'target': '/srv/app/config/application.yml', 'read_only': True})
     report = {'version': version, 'sourceCommit': manifest['sourceCommit'], 'backup': str(destination), 'policyBefore': before,
               'pythonRuntimes': python_runtimes}

@@ -32,7 +32,8 @@ public class ToolReleaseService {
     public record ContractTest(JsonNode input, JsonNode output) { }
 
     @Transactional(readOnly=true)
-    public List<ToolRelease> list(String tenant) { return releases.findByTenantIdOrderByCreatedAtDesc(tenant); }
+    public List<ToolRelease> list(String tenant) { return releases.findByTenantIdOrderByCreatedAtDesc(tenant).stream()
+        .filter(row -> !TemplateCapabilityService.KIND.equals(row.getKind())).toList(); }
 
     @Transactional
     public ToolRelease draft(String tenant, String actor, Draft draft) {
@@ -97,6 +98,7 @@ public class ToolReleaseService {
             return null;
         });
         for(var other:releases.findByState("RUNNING")) {
+            if (TemplateCapabilityService.KIND.equals(other.getKind())) continue;
             if(!other.getLogicalId().equals(row.getLogicalId())
                 && executor(other.getKind()).toolName(read(other.getDefinitionJson())).equals(executor.toolName(read(row.getDefinitionJson())))
                 && (!read(other.getInputSchemaJson()).equals(read(row.getInputSchemaJson()))

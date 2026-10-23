@@ -17,6 +17,7 @@ class ToolPublicationControllerTest {
         var audits=mock(SysAuditLogRepository.class);var roles=mock(SysRoleRepository.class);
         var request=new MockHttpServletRequest();when(access.user(request)).thenReturn("authenticated-user");when(access.tenant(request)).thenReturn("tenant-a");
         when(identities.hasPermission("authenticated-user","mcp:publication:edit")).thenReturn(true);
+        when(identities.hasPermission("authenticated-user","system:permission-center:manage")).thenReturn(true);
         var json=new ObjectMapper();var payload=json.readTree("{\"tenantId\":\"other\",\"actorId\":\"admin\"}");
         when(client.request(anyString(),anyString(),any())).thenReturn(json.readTree("{\"id\":\"release\"}"));
         new ToolPublicationController(client,access,identities,workspaces,audits,roles).draft(request,payload);

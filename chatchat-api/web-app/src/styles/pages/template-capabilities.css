@@ -1,0 +1,13 @@
+.template-capability-workspace > .permission-category-tabs { margin-bottom: 18px; }
+.template-capability-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 16px; margin-top: 18px; }
+.template-capability-card { min-width: 0; padding: 20px; background: #fff; border: 1px solid #dce3ee; border-radius: 12px; display: flex; flex-direction: column; gap: 16px; }
+.template-capability-card h2 { margin: 10px 0 8px; font-size: 17px; line-height: 1.5; }
+.template-capability-card p { color: #64748b; line-height: 1.7; margin: 0; }
+.template-capability-card dl { display: grid; gap: 10px; margin: 0; }
+.template-capability-card dl > div { display: flex; justify-content: space-between; gap: 16px; }
+.template-capability-card dt { color: #64748b; font-weight: 400; }
+.template-capability-card dd { margin: 0; overflow-wrap: anywhere; text-align: right; }
+.template-capability-card footer { margin-top: auto; padding-top: 10px; }
+.template-capability-card summary { color: #3268eb; cursor: pointer; }
+.template-capability-card ul { padding-left: 18px; line-height: 1.8; }
+.template-capability-empty { text-align: center; padding: 64px 24px; color: #64748b; background: #fff; border: 1px solid #dce3ee; border-radius: 12px; margin-top: 18px; }

@@ -14,6 +14,7 @@ export const resourceGroups = [
   { id: "knowledge", label: "知识库", description: "知识库与文档的访问规则" },
   { id: "other", label: "领域技能", description: "领域技能的访问规则" },
   { id: "agent", label: "Agent", description: "Agent 查询服务的访问规则" },
+  { id: "template", label: "业务模板", description: "模板能力使用权限，仍与资产权限取交集" },
 ];
 export const permissionRouteAliases = {
   system: "systemUsers",
@@ -35,6 +36,8 @@ export function resourceCatalog(catalog, extras = {}) {
       result.push(item);
     }
   };
+  for (const template of extras.templates || []) add({ backend: "resource", type: "TEMPLATE", id: template.templateKey,
+    name: template.title, group: "template", action: "使用" });
   for (const p of catalog.permissions || []) {
     if (p.permissionType === "internal") continue;
     add({
@@ -135,7 +138,9 @@ export function resourceCatalog(catalog, extras = {}) {
       ? "knowledge"
       : grant.resourceType === "MCP_TOOL"
         ? "tool"
-        : grant.resourceType === "AGENT_SKILL"
+        : grant.resourceType === "TEMPLATE"
+          ? "template"
+          : grant.resourceType === "AGENT_SKILL"
           ? "agent"
           : "other";
     const named = result.find((r) => r.type === grant.resourceType && r.id === grant.resourceId);

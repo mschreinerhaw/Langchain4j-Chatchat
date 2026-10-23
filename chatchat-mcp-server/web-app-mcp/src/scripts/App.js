@@ -77,6 +77,7 @@ export default {
       resultTitle: '',
       resultValue: null,
       navItems: [],
+      accountItems: [],
       passwordOpen: false,
       passwordBusy: false,
       currentPassword: '',
@@ -91,8 +92,8 @@ export default {
       return this.activeView === 'license';
     },
     activeNav() {
-      return this.navItems.flatMap(item => item.children || [item])
-        .find(item => item.key === this.activeView) || this.navItems.flatMap(item => item.children || [item])[0] || {};
+      const items = [...this.navItems.flatMap(item => item.children || [item]), ...this.accountItems];
+      return items.find(item => item.key === this.activeView) || items[0] || {};
     }
   },
   mounted() {
@@ -119,14 +120,18 @@ export default {
         const licensed = (Array.isArray(access) ? access : [])
           .filter(item => item.authorized && granted.has(item.key) && menuComponents[item.key] && !['templateQueryPublications','authorizationManagement','settings'].includes(item.key))
           .map(item => item.key === 'databaseMcp'
-            ? { ...item, children: databaseSections }
-            : { ...item, component: menuComponents[item.key] });
-        this.navItems = [
-          ...licensed.filter(item => !['settings', 'authorizationManagement'].includes(item.key)),
+            ? { ...item, label: '查询能力模板', children: databaseSections }
+            : { ...item, label: ({ assetCenter: '资产与执行模板', apiServices: 'API 能力模板', pythonManagement: 'Python 能力模板' })[item.key] || item.label, component: menuComponents[item.key] });
+        this.accountItems = [
           ...securityMenus.filter(item=>granted.has(item.key)),
           ...(granted.has('license') ? [licenseMenu] : [])
         ];
-        const available = this.navItems.flatMap(item => item.children || [item]);
+        const diagnostics = licensed.filter(item => ['mcpServices', 'cacheSettings', 'notificationChannels', 'auditLogs', 'commandAuditLogs'].includes(item.key));
+        this.navItems = [
+          ...licensed.filter(item => !['settings', 'authorizationManagement', ...diagnostics.map(entry => entry.key)].includes(item.key)),
+          ...(diagnostics.length ? [{ key: 'operations', label: '运行与诊断', icon: 'Setting', children: diagnostics }] : [])
+        ];
+        const available = [...this.navItems.flatMap(item => item.children || [item]), ...this.accountItems];
         if (!available.some(item => item.key === this.activeView)) {
           this.activeView = available[0]?.key || '';
         }
@@ -134,6 +139,7 @@ export default {
         this.$refs.sidebarMenu?.close('settings');
       } catch (error) {
         this.navItems = [];
+        this.accountItems = [];
         this.activeView = '';
         await nextTick();
         this.$refs.sidebarMenu?.close('settings');

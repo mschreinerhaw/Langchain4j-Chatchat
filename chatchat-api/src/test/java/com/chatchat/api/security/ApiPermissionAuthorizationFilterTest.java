@@ -22,6 +22,14 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ApiPermissionAuthorizationFilterTest {
+    @Test void templateRoutesMapToExistingSpecificMaintainedPrivileges() {
+        String base = "/api/v1/tool-publications/capabilities";
+        assertThat(ApiPermissionAuthorizationFilter.templateCapabilityPermission("PUT", base + "/agents/a/tools/t" )).isEqualTo("platform:agents:workshop");
+        assertThat(ApiPermissionAuthorizationFilter.templateCapabilityPermission("DELETE", base + "/agents/a/tools/t")).isEqualTo("platform:agents:workshop");
+        assertThat(ApiPermissionAuthorizationFilter.templateCapabilityPermission("GET", base + "/permission-catalog")).isEqualTo("system:resource-grants:manage");
+        assertThat(ApiPermissionAuthorizationFilter.templateCapabilityPermission("POST", base + "/publications")).isEqualTo("mcp:publication:publish");
+        assertThat(ApiPermissionAuthorizationFilter.templateCapabilityPermission("POST", "/api/v1/tool-publications")).isNull();
+    }
     @Test void existingRoleManagerMayReadConsolidatedCatalog() throws Exception {
         var request=new MockHttpServletRequest("GET","/api/v1/permission-center");request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID,"user-1");
         when(adminService.getUserView("user-1")).thenReturn(user(List.of("system:role:authorize")));

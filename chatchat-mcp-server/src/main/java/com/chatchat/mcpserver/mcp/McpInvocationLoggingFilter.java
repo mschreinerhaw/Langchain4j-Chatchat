@@ -51,6 +51,12 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
     private final McpLicenseService licenseService;
     private final McpServiceRegistryService serviceRegistryService;
     @Autowired(required = false)
+    private com.chatchat.mcpserver.templatepublication.admin.TemplateCapabilityService templateCapabilities;
+    @Autowired(required = false)
+    private com.chatchat.mcpserver.templatepublication.publisher.TemplateCapabilityPublisher templatePublisher;
+    @Autowired(required = false)
+    private com.chatchat.common.security.InternalCredentialProperties templateCredentials;
+    @Autowired(required = false)
     private ChatChatMcpServerProperties mcpServerProperties;
 
     /**
@@ -83,6 +89,22 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
                 writeAuthorizationDenied(response, "License: " + runtimeDenialReason);
                 recordAudit(wrappedRequest, response, 0L, "MCP_LICENSE_ACCESS_DENIED");
                 return;
+            }
+            if (requestJson != null && templateCapabilities != null && templatePublisher != null && "tools/list".equals(text(requestJson.get("method")))) {
+                var proofNode = requestJson.path("params").path("_meta").path(com.chatchat.common.security.McpCallerSignature.KEY);
+                boolean registry = templateCredentials != null && com.chatchat.common.security.InternalRequestSigner.matches(
+                    request.getHeader("X-Chatchat-Registry"), com.chatchat.common.security.InternalRequestSigner.sign(
+                        templateCredentials.resolvedSecret(), "MCP", "/registry", "v1", "tools"));
+                if (!registry || !proofNode.isMissingNode()) {
+                    Map<String,Object> proof = proofNode.isObject() ? objectMapper.convertValue(proofNode, new TypeReference<>(){}) : Map.of();
+                    var permitted = templateCapabilities.running().stream().filter(row -> templateCapabilities.available(row, proof))
+                        .map(com.chatchat.mcpserver.templatepublication.admin.TemplateCapabilityService::toolName).collect(java.util.stream.Collectors.toSet());
+                    var tools = templatePublisher.contribute().stream().filter(item -> permitted.contains(item.toolName()))
+                        .map(item -> item.specification().tool()).toList();
+                    response.setContentType("application/json;charset=UTF-8");
+                    objectMapper.writeValue(response.getWriter(), Map.of("jsonrpc", "2.0", "id", requestJson.path("id"), "result", Map.of("tools", tools)));
+                    return;
+                }
             }
             if (authorizationProperties.isRequireTenantContext() && isToolCall(wrappedRequest, requestBody(wrappedRequest))
                 && (invocationContext.tenantId() == null || invocationContext.tenantId().isBlank())) {
@@ -128,6 +150,10 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
 
     private McpInvocationContext.Context invocationContext(HttpServletRequest request) {
         JsonNode body = requestBodyJson(request);
+        var proofNode = body == null ? objectMapper.createObjectNode() : body.path("params").path("_meta").path(com.chatchat.common.security.McpCallerSignature.KEY);
+        Map<String,Object> proof = proofNode.isObject() ? objectMapper.convertValue(proofNode, new TypeReference<>(){}) : Map.of();
+        boolean signed = templateCredentials != null && com.chatchat.common.security.McpCallerSignature.verify(
+            templateCredentials.resolvedSecret(), proof, System.currentTimeMillis());
         return new McpInvocationContext.Context(
             firstText(
                 request.getHeader("X-User-Id"),
@@ -152,6 +178,7 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
             ),
             serviceRegistryService.resolveActiveServiceId(resolveInvocationToken(request)),
             firstText(
+                signed ? String.valueOf(proof.get("userId")) : null,
                 request.getHeader("X-User-Id"),
                 request.getHeader("X-Operator-Id"),
                 request.getHeader("X-Principal-Id"),
@@ -165,6 +192,7 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
                 textAt(body, "params", "_meta", "user", "username")
             ),
             firstText(
+                signed ? String.valueOf(proof.get("tenantId")) : null,
                 request.getHeader("X-Tenant-Id"),
                 request.getHeader("X-Tenant"),
                 textAt(body, "tenant", "tenantId"),
@@ -321,12 +349,20 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
         }
         JsonNode params = node.path("params");
         String toolName = firstText(params.get("name"), params.get("toolName"), params.get("tool_name"));
-        JsonNode argumentsNode = firstNode(params.get("arguments"), params.get("input"));
         String licenseDenialReason = licenseService.toolDenialReason(toolName);
         if (licenseDenialReason != null) {
-            return McpAuthorizationService.AuthorizationDecision.denyDecision(
-                licenseDenialReason + ": " + toolName);
+            return McpAuthorizationService.AuthorizationDecision.denyDecision(licenseDenialReason + ": " + toolName);
         }
+        if (templateCapabilities != null && com.chatchat.common.tool.TemplateToolNames.remote(toolName) != null) {
+            var proofNode = params.path("_meta").path(com.chatchat.common.security.McpCallerSignature.KEY);
+            Map<String,Object> proof = proofNode.isObject() ? objectMapper.convertValue(proofNode, new TypeReference<>(){}) : Map.of();
+            boolean permitted = templateCapabilities.running().stream()
+                .filter(row -> com.chatchat.mcpserver.templatepublication.admin.TemplateCapabilityService.toolName(row).equals(toolName))
+                .anyMatch(row -> templateCapabilities.available(row, proof));
+            return permitted ? McpAuthorizationService.AuthorizationDecision.allowDecision()
+                : McpAuthorizationService.AuthorizationDecision.denyDecision("Template or Agent permission denied");
+        }
+        JsonNode argumentsNode = firstNode(params.get("arguments"), params.get("input"));
         Map<String, Object> arguments = argumentsNode != null && argumentsNode.isObject()
             ? objectMapper.convertValue(argumentsNode, new TypeReference<Map<String, Object>>() { })
             : new LinkedHashMap<>();

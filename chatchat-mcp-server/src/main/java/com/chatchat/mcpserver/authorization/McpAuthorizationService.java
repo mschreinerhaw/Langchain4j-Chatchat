@@ -150,6 +150,15 @@ public class McpAuthorizationService {
         return authorize("chatchat-mcp-server", toolName, arguments);
     }
 
+    /** Template publication and invocation require a fresh authoritative snapshot, without stale fallback. */
+    public void refreshTemplateCaller() {
+        try { snapshotRef.set(Snapshot.from(fetchExecutionSnapshot())); }
+        catch (Exception unavailable) {
+            if (unavailable instanceof InterruptedException) Thread.currentThread().interrupt();
+            throw new SecurityException("Template caller authorization is unavailable", unavailable);
+        }
+    }
+
     public AuthorizationDecision authorize(String serviceId, String toolName, Map<String, Object> arguments) {
         if (!properties.isEnabled()) {
             return AuthorizationDecision.denyDecision("MCP database authorization is disabled");
@@ -189,6 +198,15 @@ public class McpAuthorizationService {
             declared.assetType(), declared.capability(), declared.action(),
             principal(Map.of(), snapshot).tenantId(), null, "read") : scope;
         return evaluateAuthorization("chatchat-mcp-server", toolName, Map.of(), snapshot, candidateScope).allowed();
+    }
+
+    /** A template's declared operation level cannot be weakened by request arguments. */
+    public boolean callerAllowsOperation(String toolName, String assetType, String resourceId, String level) {
+        var snapshot = snapshotRef.get();
+        var declared = toolScope(toolName);
+        var caller = principal(Map.of(), snapshot);
+        return evaluateAuthorization("chatchat-mcp-server", toolName, Map.of(), snapshot,
+            McpScopeExpression.of(assetType, declared.capability(), declared.action(), caller.tenantId(), resourceId, level)).allowed();
     }
 
     /** Fresh request snapshot; registry domains are evaluated before candidate ranking. */

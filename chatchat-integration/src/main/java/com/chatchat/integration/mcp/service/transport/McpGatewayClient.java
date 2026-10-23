@@ -100,7 +100,7 @@ public class McpGatewayClient {
         "requestId", "request_id", "traceId", "trace_id",
         "conversationId", "conversation_id",
         "mcpExecutionContext", "mcpContext",
-        "defaultDataAsset", "assetSelectionPolicy"
+        "defaultDataAsset", "assetSelectionPolicy", "agentId", "callerProof"
     );
 
     private final ObjectMapper objectMapper;
@@ -534,7 +534,7 @@ public class McpGatewayClient {
         Object raw = client.callTool(new McpSchema.CallToolRequest(
             toolName,
             toolArgumentsForTransport(config, arguments),
-            invocationMeta(arguments)
+            invocationMeta(config, arguments)
         ));
         Map<String, Object> mapped = objectMapper.convertValue(raw, new TypeReference<>() {});
         return normalizeInvokeResult(mapped);
@@ -574,7 +574,7 @@ public class McpGatewayClient {
                 Map<String, Object> params = new LinkedHashMap<>();
                 params.put("name", toolName);
                 params.put("arguments", toolArgumentsForTransport(config, arguments));
-                Map<String, Object> invocationMeta = invocationMeta(arguments);
+                Map<String, Object> invocationMeta = invocationMeta(config, arguments);
                 if (!invocationMeta.isEmpty()) {
                     params.put("_meta", invocationMeta);
                 }
@@ -858,6 +858,18 @@ public class McpGatewayClient {
         if (!scope.isEmpty()) meta.put("scope", scope);
         putText(meta, "scopeExpression", firstText(
             stringValue(arguments.get("scopeExpression")), stringValue(contextScope.get("scopeExpression"))));
+        return meta;
+    }
+
+    private Map<String, Object> invocationMeta(McpServiceConfig config, Map<String, Object> arguments) {
+        Map<String, Object> meta = new LinkedHashMap<>(invocationMeta(arguments));
+        String callerUser = stringValue(arguments == null ? null : arguments.get("userId"));
+        String callerTenant = arguments == null ? null : tenantIdFrom(arguments);
+        if (isStandaloneCenterEndpoint(config) && callerUser != null && callerTenant != null && internalCredentialProperties.isEnabled()) {
+            meta.put(com.chatchat.common.security.McpCallerSignature.KEY,
+                com.chatchat.common.security.McpCallerSignature.issue(internalCredentialProperties.resolvedSecret(),
+                    callerTenant, callerUser, stringValue(arguments.get("agentId"))));
+        }
         return meta;
     }
 
@@ -1189,6 +1201,10 @@ public class McpGatewayClient {
         String fallbackToken = fallbackStandaloneInvocationToken(config);
         if (fallbackToken != null) {
             headers.put("X-MCP-TOKEN", fallbackToken);
+        }
+        if (isStandaloneCenterEndpoint(config) && internalCredentialProperties.isEnabled()) {
+            headers.put("X-Chatchat-Registry", com.chatchat.common.security.InternalRequestSigner.sign(
+                internalCredentialProperties.resolvedSecret(), "MCP", "/registry", "v1", "tools"));
         }
         return headers.isEmpty() ? Map.of() : headers;
     }

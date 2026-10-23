@@ -95,7 +95,8 @@ public class AgentWorkshopController {
                                                     @RequestParam(value = "pageSize", required = false) Integer pageSize,
                                                     HttpServletRequest request) {
         List<String> availableTools = availableTools();
-        List<McpToolCatalogQueryPort.RegisteredTool> registeredMcpTools = mcpCatalog.registeredTools();
+        List<McpToolCatalogQueryPort.RegisteredTool> registeredMcpTools = mcpCatalog.registeredTools().stream()
+            .filter(tool -> com.chatchat.common.tool.TemplateToolNames.remote(tool.localToolName()) == null).toList();
         Map<String, List<String>> mcpToolsByServiceId = mcpToolsByServiceId(registeredMcpTools);
         AgentVisibility visibility = agentVisibility(request);
         List<AgentCard> allAgents = skillCatalogService.list().stream()
@@ -519,6 +520,7 @@ public class AgentWorkshopController {
     private List<String> availableTools() {
         return toolRegistry.getAllToolNames().stream()
             .filter(name -> name != null && !name.isBlank())
+            .filter(name -> com.chatchat.common.tool.TemplateToolNames.remote(name) == null)
             .filter(this::isUserVisibleAgentTool)
             .distinct()
             .sorted(Comparator.naturalOrder())
@@ -607,6 +609,16 @@ public class AgentWorkshopController {
             .map(LibraryDocumentItem::docId)
             .filter(id -> id != null && !id.isBlank())
             .collect(java.util.stream.Collectors.toSet());
+        Set<String> requestedTemplateTools = new java.util.LinkedHashSet<>();
+        if (input.getBoundMcpToolNames() != null) requestedTemplateTools.addAll(input.getBoundMcpToolNames());
+        if (input.getToolConfigs() != null) input.getToolConfigs().stream().filter(config -> !Boolean.FALSE.equals(config.enabled()))
+            .forEach(config -> requestedTemplateTools.add(config.toolName()));
+        Set<String> templateIds = requestedTemplateTools.stream().map(com.chatchat.common.tool.TemplateToolNames::remote)
+            .filter(java.util.Objects::nonNull).map(com.chatchat.common.tool.TemplateToolNames::local).collect(java.util.stream.Collectors.toSet());
+        if (!templateIds.isEmpty() && !resourceAuthorization.allowedIds(com.chatchat.common.retrieval.ResourceAuthorizationPort.MCP_TOOL,
+            tenantId(request), currentUserId(request), Set.of(), templateIds).containsAll(templateIds)) {
+            throw new SecurityException("Agent contains template tools outside the current user's permissions");
+        }
         List<String> requestedDocuments = existingDocumentIds(input.getBoundDocumentIds());
         if (requestedDocuments != null && !allowedDocuments.containsAll(requestedDocuments)) {
             throw new SecurityException("Agent contains knowledge documents outside the current user's permissions");

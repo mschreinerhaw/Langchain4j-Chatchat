@@ -24,6 +24,42 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class McpInvocationLoggingFilterTest {
+    @Test void signedTemplateIdentityControlsDiscoveryAndCallAndCannotBeReplacedByHeaders() throws Exception {
+        var json = new ObjectMapper();
+        var capabilities = mock(com.chatchat.mcpserver.templatepublication.admin.TemplateCapabilityService.class);
+        var publisher = mock(com.chatchat.mcpserver.templatepublication.publisher.TemplateCapabilityPublisher.class);
+        var credentials = mock(com.chatchat.common.security.InternalCredentialProperties.class);
+        when(credentials.resolvedSecret()).thenReturn("secret");
+        var row = new com.chatchat.mcpserver.templatepublication.admin.ToolRelease(); row.setLogicalId("01234567-89ab-cdef-0123-456789abcdef");
+        String name = com.chatchat.mcpserver.templatepublication.admin.TemplateCapabilityService.toolName(row);
+        when(capabilities.running()).thenReturn(java.util.List.of(row)); when(capabilities.available(eq(row), anyMap())).thenReturn(true);
+        var tool = io.modelcontextprotocol.spec.McpSchema.Tool.builder().name(name).title("客户查询").description("查询")
+            .inputSchema(java.util.Map.of("type", "object", "properties", java.util.Map.of())).build();
+        when(publisher.contribute()).thenReturn(java.util.List.of(com.chatchat.mcpserver.tool.ToolPublication.from(
+            io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification.builder().tool(tool)
+                .callHandler((exchange, request) -> io.modelcontextprotocol.spec.McpSchema.CallToolResult.builder().build()).build())));
+        var filter = new McpInvocationLoggingFilter(mock(InvocationAuditService.class), json, new McpAuthorizationProperties(),
+            mock(McpAuthorizationService.class), mock(McpLicenseService.class), mock(McpServiceRegistryService.class));
+        org.springframework.test.util.ReflectionTestUtils.setField(filter, "templateCapabilities", capabilities);
+        org.springframework.test.util.ReflectionTestUtils.setField(filter, "templatePublisher", publisher);
+        org.springframework.test.util.ReflectionTestUtils.setField(filter, "templateCredentials", credentials);
+        var proof = com.chatchat.common.security.McpCallerSignature.issue("secret", "tenant", "user", "agent");
+        var meta = java.util.Map.of(com.chatchat.common.security.McpCallerSignature.KEY, proof);
+        var discovery = new MockHttpServletRequest("POST", "/mcp");
+        discovery.setContent(json.writeValueAsBytes(java.util.Map.of("jsonrpc", "2.0", "id", 1, "method", "tools/list", "params", java.util.Map.of("_meta", meta))));
+        var response = new MockHttpServletResponse(); filter.doFilterInternal(discovery, response, mock(FilterChain.class));
+        assertThat(json.readTree(response.getContentAsByteArray()).path("result").path("tools")).hasSize(1);
+        var request = new MockHttpServletRequest("POST", "/mcp"); request.addHeader("X-Tenant-Id", "forged"); request.addHeader("X-User-Id", "forged");
+        request.setContent(json.writeValueAsBytes(java.util.Map.of("jsonrpc", "2.0", "id", 2, "method", "tools/call", "params", java.util.Map.of("name", name, "arguments", java.util.Map.of(), "_meta", meta))));
+        FilterChain chain = (req, res) -> { assertThat(McpInvocationContext.current().tenantId()).isEqualTo("tenant"); assertThat(McpInvocationContext.current().userId()).isEqualTo("user"); };
+        filter.doFilterInternal(request, new MockHttpServletResponse(), chain);
+        when(capabilities.available(eq(row), anyMap())).thenReturn(false);
+        request.setContent(json.writeValueAsBytes(java.util.Map.of("jsonrpc", "2.0", "id", 2, "method", "tools/call", "params", java.util.Map.of("name", name, "arguments", java.util.Map.of(), "_meta", meta))));
+        var denied = new MockHttpServletResponse(); filter.doFilterInternal(request, denied, mock(FilterChain.class)); assertThat(denied.getStatus()).isEqualTo(403);
+        discovery.setContent(json.writeValueAsBytes(java.util.Map.of("jsonrpc", "2.0", "id", 1, "method", "tools/list", "params", java.util.Map.of("_meta", meta))));
+        var empty = new MockHttpServletResponse(); filter.doFilterInternal(discovery, empty, mock(FilterChain.class));
+        assertThat(json.readTree(empty.getContentAsByteArray()).path("result").path("tools")).isEmpty();
+    }
 
     @Test
     void restoresCallerContextFromStandardMcpRequestMeta() throws Exception {

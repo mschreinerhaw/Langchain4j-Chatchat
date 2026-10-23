@@ -230,8 +230,17 @@ public class SkillCatalogService {
             return List.of();
         }
 
+        Set<String> explicitTemplateTools = new LinkedHashSet<>();
+        normalizeList(skill.boundMcpToolNames()).stream().map(com.chatchat.common.tool.TemplateToolNames::remote)
+            .filter(Objects::nonNull).forEach(explicitTemplateTools::add);
+        normalizeToolConfigs(skill.toolConfigs()).stream().filter(config -> Boolean.TRUE.equals(config.enabled()))
+            .map(config -> com.chatchat.common.tool.TemplateToolNames.remote(config.toolName())).filter(Objects::nonNull).forEach(explicitTemplateTools::add);
+        normalizeToolConfigs(skill.toolConfigs()).stream().filter(config -> Boolean.FALSE.equals(config.enabled()))
+            .map(config -> com.chatchat.common.tool.TemplateToolNames.remote(config.toolName())).filter(Objects::nonNull).forEach(explicitTemplateTools::remove);
         List<String> sortedAllTools = allTools.stream()
             .filter(name -> name != null && !name.isBlank())
+            .filter(name -> com.chatchat.common.tool.TemplateToolNames.remote(name) == null
+                || explicitTemplateTools.contains(com.chatchat.common.tool.TemplateToolNames.remote(name)))
             .distinct()
             .sorted()
             .toList();

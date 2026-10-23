@@ -35,6 +35,8 @@ public final class LocalMcpRuntimeServiceProvider implements McpServiceProvider 
     private final ToolRegistry toolRegistry;
     private final McpDynamicToolRegistryMirror publicationMirror;
     private final McpAuthorizationService authorizationService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.chatchat.common.security.InternalCredentialProperties templateCredentials;
 
     public LocalMcpRuntimeServiceProvider(ToolRegistry toolRegistry,
                                           McpDynamicToolRegistryMirror publicationMirror,
@@ -83,10 +85,19 @@ public final class LocalMcpRuntimeServiceProvider implements McpServiceProvider 
         ToolOutput output;
         try (McpInvocationContext.Scope ignored = McpInvocationContext.openCall(call)) {
             var authorization = authorizationService.authorize(SERVICE_ID, registryName, arguments);
-            if (!authorization.allowed()) {
+            boolean templateCapability = com.chatchat.common.tool.TemplateToolNames.remote(registryName) != null
+                && Boolean.TRUE.equals(toolRegistry.getToolMetadata(registryName).getMetadata().get("templateCapability"));
+            if (!authorization.allowed() && !templateCapability) {
                 return new McpServiceResult(null, call.requestId(), call.serviceId(), call.toolName(),
                     McpServiceResultStatus.REJECTED, null, null, "MCP_TOOL_FORBIDDEN",
                     authorization.reason(), false, "REQUEST_ACCESS", Map.of(), 0);
+            }
+            Map<String,Object> invocationContext = new LinkedHashMap<>(call.context());
+            if (templateCapability && templateCredentials != null) {
+                invocationContext.put(com.chatchat.common.security.McpCallerSignature.KEY,
+                    com.chatchat.common.security.McpCallerSignature.issue(templateCredentials.resolvedSecret(),
+                        text(call.context(), "tenantId"), text(call.context(), "userId"),
+                        text(call.context(), "authorizationAgentId", "agentId", "skillId")));
             }
             output = toolRegistry.executeEnhancedTool(executionName, ToolInput.builder()
             .parameters(arguments)
@@ -94,7 +105,7 @@ public final class LocalMcpRuntimeServiceProvider implements McpServiceProvider 
             .requestId(call.requestId())
             .userId(text(call.context(), "userId", "user_id"))
             .conversationId(text(call.context(), "conversationId", "conversation_id"))
-            .context(new LinkedHashMap<>(call.context()))
+            .context(invocationContext)
             .build());
         }
         Map<String, Object> metadata = new LinkedHashMap<>(output == null || output.getMetadata() == null

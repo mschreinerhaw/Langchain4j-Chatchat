@@ -10,6 +10,7 @@ public interface ResourceAuthorizationPort {
     String SKILL = "SKILL";
     String AGENT_SKILL = "AGENT_SKILL";
     String WORKFLOW = "WORKFLOW";
+    String TEMPLATE = "TEMPLATE";
 
     Set<String> allowedIds(String resourceType, String tenantId, String userId,
                            Set<String> roleIds, Set<String> candidateIds);

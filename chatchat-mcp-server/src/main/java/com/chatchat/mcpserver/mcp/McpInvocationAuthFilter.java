@@ -16,6 +16,7 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
+@org.springframework.core.annotation.Order(org.springframework.core.Ordered.HIGHEST_PRECEDENCE + 19)
 public class McpInvocationAuthFilter extends OncePerRequestFilter {
 
     private final McpSecurityProperties securityProperties;

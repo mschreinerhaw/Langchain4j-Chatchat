@@ -22,6 +22,23 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class ExecutionTargetRouterTest {
+    @Test void fixedTemplateTargetRequiresAnInProcessValueAndRechecksActualAssetPermission() {
+        var hosts = mock(SshHostConfigService.class); var sources = mock(SqlDatasourceConfigService.class);
+        var router = router(hosts, sources, mock(ExecutionTargetService.class));
+        when(hosts.listEnabled()).thenReturn(List.of(host("fixed", "fixed", "ssh_fixed", "PROD", "linux")));
+        var authority = mock(com.chatchat.mcpserver.authorization.McpAuthorizationService.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(router, "authorization", authority);
+        when(authority.authorizeResolvedResource("linux_command_execute", "ssh_host", "fixed"))
+            .thenReturn(com.chatchat.mcpserver.authorization.McpAuthorizationService.AuthorizationDecision.allowDecision());
+        assertThat(router.routeLinuxCommand(Map.of("hostId", "fixed", TemplateExecutionTarget.KEY, new TemplateExecutionTarget("ssh_host", "fixed"))))
+            .containsEntry("hostId", "fixed").doesNotContainKey(TemplateExecutionTarget.KEY);
+        assertThatThrownBy(() -> router.routeLinuxCommand(Map.of("hostId", "fixed", TemplateExecutionTarget.KEY, Map.of("assetType", "ssh_host", "resourceId", "fixed"))))
+            .isInstanceOf(IllegalArgumentException.class);
+        when(authority.authorizeResolvedResource("linux_command_execute", "ssh_host", "fixed"))
+            .thenReturn(com.chatchat.mcpserver.authorization.McpAuthorizationService.AuthorizationDecision.denyDecision("revoked"));
+        assertThatThrownBy(() -> router.routeLinuxCommand(Map.of(TemplateExecutionTarget.KEY, new TemplateExecutionTarget("ssh_host", "fixed"))))
+            .isInstanceOf(SecurityException.class).hasMessageContaining("revoked");
+    }
     @Test void rejectsTheResolvedHostBeforeExecutingEvenWhenLogicalRoutingMatches() {
         var hosts=mock(SshHostConfigService.class);var datasources=mock(SqlDatasourceConfigService.class);
         var targets=mock(ExecutionTargetService.class);var router=router(hosts,datasources,targets);

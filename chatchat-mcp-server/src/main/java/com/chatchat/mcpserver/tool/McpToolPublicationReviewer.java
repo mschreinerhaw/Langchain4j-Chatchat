@@ -129,7 +129,10 @@ public final class McpToolPublicationReviewer {
                     Map<String, Object> arguments = new LinkedHashMap<>(
                         request.arguments() == null ? Map.of() : request.arguments());
                     McpInvocationArguments.enrich(request.name(), arguments, request.meta());
-                    if (!visibleToCaller(publication.descriptor(), arguments)) {
+                    // Template capabilities validate signed identity, tenant, Agent and live resource grants in their handler.
+                    // Their caller identity is intentionally not taken from model-controlled arguments here.
+                    boolean templateCapability = source.meta() != null && Boolean.TRUE.equals(source.meta().get("templateCapability"));
+                    if (!templateCapability && !visibleToCaller(publication.descriptor(), arguments)) {
                         return McpSchema.CallToolResult.builder()
                             .addTextContent("Tool is not enabled for this caller rollout")
                             .structuredContent(Map.of("success", false,

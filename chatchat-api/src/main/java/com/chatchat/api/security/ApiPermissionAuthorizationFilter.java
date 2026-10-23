@@ -55,6 +55,20 @@ public class ApiPermissionAuthorizationFilter extends OncePerRequestFilter {
         }
         String path = applicationPath(request);
         String method = request.getMethod();
+        // New template workflows reuse maintained permission codes, independently of legacy draft POST policies.
+        String capabilityPermission = templateCapabilityPermission(method, path);
+        if (capabilityPermission != null) {
+            boolean enabled = adminService.listPermissions().stream().anyMatch(permission ->
+                capabilityPermission.equals(permission.getPermissionCode()) && "enabled".equalsIgnoreCase(permission.getStatus()));
+            if (enabled && adminService.getUserView(String.valueOf(userId)).permissionCodes().contains(capabilityPermission)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+            response.setStatus(HttpStatus.FORBIDDEN.value());
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            objectMapper.writeValue(response.getWriter(), ApiResponse.error(403, "Template workflow permission denied"));
+            return;
+        }
         // The consolidated read model is shared by the existing role/resource/audit managers.
         // This exception covers these two GET routes only; mutations retain their database policies.
         if("GET".equals(method) && ("/api/v1/permission-center".equals(path) || "/api/v1/permission-center/audits".equals(path))) {
@@ -94,6 +108,17 @@ public class ApiPermissionAuthorizationFilter extends OncePerRequestFilter {
     private boolean methodMatches(String configured, String requested) {
         return configured == null || configured.isBlank() || "*".equals(configured)
             || configured.toUpperCase(Locale.ROOT).equals(requested.toUpperCase(Locale.ROOT));
+    }
+
+    static String templateCapabilityPermission(String method, String path) {
+        String root = "/api/v1/tool-publications/capabilities";
+        if ("GET".equals(method) && (root + "/permission-catalog").equals(path)) return "system:resource-grants:manage";
+        if (path.equals(root + "/agents") || path.startsWith(root + "/agents/")) {
+            if (java.util.Set.of("GET", "PUT", "DELETE").contains(method)) return "platform:agents:workshop";
+        }
+        if ("POST".equals(method) && (path.equals(root + "/publications")
+            || path.matches(root + "/publications/[a-zA-Z0-9-]{1,64}/offline"))) return "mcp:publication:publish";
+        return null;
     }
 
     private String apiPattern(String resourcePath) {

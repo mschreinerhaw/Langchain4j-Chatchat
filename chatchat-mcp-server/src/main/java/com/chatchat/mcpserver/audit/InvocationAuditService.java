@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.UUID;
 
 @Slf4j
@@ -49,6 +50,18 @@ public class InvocationAuditService {
     private final McpRocksDbStore rocksDbStore;
     private final ObjectMapper objectMapper;
     private final AuditQueryProperties auditQueryProperties;
+
+    /** Records the distribution boundary without retaining credentials, proofs or business parameters. */
+    public void recordTemplateCapability(String releaseId, String toolName, Map<String,Object> identity,
+                                         boolean success, long durationMs, String error) {
+        InvocationAuditLog entry = new InvocationAuditLog();
+        entry.setId(UUID.randomUUID().toString()); entry.setTargetType("TEMPLATE_CAPABILITY");
+        entry.setTargetId(releaseId); entry.setTargetName(toolName); entry.setToolName(toolName);
+        entry.setCaller(Objects.toString(identity.get("userId"), "unverified")); entry.setSuccess(success);
+        entry.setStatusCode(success ? 200 : 403); entry.setDurationMs(durationMs); entry.setErrorMessage(error);
+        entry.setRequestSummary(toJsonSummary(identity)); entry.setResponseSummary(toJsonSummary(Map.of("success", success)));
+        entry.setCreatedAt(Instant.now()); save(entry);
+    }
 
     /**
      * Lists the recent.

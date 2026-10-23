@@ -1065,6 +1065,9 @@ public class McpToolRegistryBridge {
             return;
         }
         Map<String, Object> inputContext = input == null || input.getContext() == null ? Map.of() : input.getContext();
+        arguments.remove("agentId");
+        String invokingAgent = firstText(stringValue(inputContext.get("authorizationAgentId")), stringValue(inputContext.get("agentId")), stringValue(inputContext.get("skillId")));
+        if (invokingAgent != null) arguments.put("agentId", invokingAgent);
         String tenantId = firstText(
             stringValue(inputContext.get("tenantId")),
             stringValue(inputContext.get("tenant_id")),

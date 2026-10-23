@@ -62,6 +62,7 @@ public class ToolPublicationController {
     private void authorize(HttpServletRequest request,String permission) {
         workspaces.requireAvailable(request,"mcp-publication");
         if (access.user(request)==null || !identities.hasPermission(access.user(request),permission)) throw new SecurityException("Tool publication denied");
+        if (!identities.hasPermission(access.user(request),"system:permission-center:manage")) throw new SecurityException("Legacy publication management requires administrator permission");
     }
     private String scope(HttpServletRequest request) { return "?tenantId="+encode(access.tenant(request))+"&actorId="+encode(access.user(request)); }
     private String encode(String value) { if(value==null)throw new IllegalArgumentException("Missing parameter"); return URLEncoder.encode(value,StandardCharsets.UTF_8); }

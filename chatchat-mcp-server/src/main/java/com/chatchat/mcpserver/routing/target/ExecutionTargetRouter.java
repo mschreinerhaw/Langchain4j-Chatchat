@@ -76,6 +76,12 @@ public class ExecutionTargetRouter {
 
     public Map<String, Object> routeLinuxCommand(Map<String, Object> arguments) {
         Map<String, Object> request = copyArguments(arguments);
+        if (request.get(TemplateExecutionTarget.KEY) instanceof TemplateExecutionTarget fixed && "ssh_host".equals(fixed.assetType())) {
+            var host = hostConfigService.listEnabled().stream().filter(item -> fixed.resourceId().equals(item.getId()))
+                .findFirst().orElseThrow(() -> new SecurityException("Template host is no longer enabled"));
+            requireResolvedResource("linux_command_execute", "ssh_host", host.getId());
+            request.remove(TemplateExecutionTarget.KEY); request.put("hostId", host.getId()); return request;
+        }
         rejectConcreteTarget(request, "hostId", "host", "hostname", "ip", "ipAddress", "address");
         Map<String, Object> context = executionContext(request);
         requireExecutionContext(context, "linux_command_execute");
@@ -109,6 +115,12 @@ public class ExecutionTargetRouter {
 
     public Map<String, Object> routeSqlQuery(Map<String, Object> arguments) {
         Map<String, Object> request = copyArguments(arguments);
+        if (request.get(TemplateExecutionTarget.KEY) instanceof TemplateExecutionTarget fixed && "sql_datasource".equals(fixed.assetType())) {
+            var datasource = datasourceConfigService.listEnabled().stream().filter(item -> fixed.resourceId().equals(item.getId()))
+                .findFirst().orElseThrow(() -> new SecurityException("Template datasource is no longer enabled"));
+            requireResolvedResource("sql_query_execute", "sql_datasource", datasource.getId());
+            request.remove(TemplateExecutionTarget.KEY); request.put("datasourceId", datasource.getId()); return request;
+        }
         rejectConcreteTarget(request, "datasourceId", "jdbcUrl", "url", "connectionString");
         enforceBoundSqlAsset(request);
         Map<String, Object> context = executionContext(request, true);
@@ -178,6 +190,12 @@ public class ExecutionTargetRouter {
 
     public RoutedHttpEndpoint routeHttpRequest(Map<String, Object> arguments) {
         Map<String, Object> request = copyArguments(arguments);
+        if (request.get(TemplateExecutionTarget.KEY) instanceof TemplateExecutionTarget fixed && "http_endpoint".equals(fixed.assetType())) {
+            var endpoint = httpEndpointConfigService.listEnabled().stream().filter(item -> fixed.resourceId().equals(item.getId()))
+                .findFirst().orElseThrow(() -> new SecurityException("Template HTTP asset is no longer enabled"));
+            requireResolvedResource("http_request_execute", "http_endpoint", endpoint.getId());
+            request.remove(TemplateExecutionTarget.KEY); return new RoutedHttpEndpoint(endpoint, request);
+        }
         rejectConcreteTarget(request, "endpointId", "url", "uri", "host", "hostname", "ip", "ipAddress", "address");
         Map<String, Object> context = executionContext(request);
         String template = firstText(text(request.get("template")), text(request.get("templateId")));

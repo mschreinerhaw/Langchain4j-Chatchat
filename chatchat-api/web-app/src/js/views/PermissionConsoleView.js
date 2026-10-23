@@ -238,8 +238,9 @@ export default {
           fetchDomainSkills({ page: 0, pageSize: 100 }),
           fetchAgentOptions(),
           fetchOrgs(catalog.value.tenantId),
+          has("system:resource-grants:manage") ? apiRequest("/tool-publications/capabilities/permission-catalog") : Promise.resolve([]),
         ]);
-        const [tools, library, skills, services, organizations] = extraResults.map((r) =>
+        const [tools, library, skills, services, organizations, templates] = extraResults.map((r) =>
           r.status === "fulfilled" ? r.value : null
         );
         if (tools) { extras.value.tools = Array.isArray(tools) ? tools : []; extras.value.toolsLoaded = true; }
@@ -264,9 +265,10 @@ export default {
         }
         if (services) extras.value.services = services;
         if (organizations) orgs.value = organizations;
+        extras.value.templates = Array.isArray(templates) ? templates : [];
         if (props.mode === "resources" && !selectedResource.value)
           resourceKey.value = resources.value[0]?.key || "";
-        const missing = ["工具", "知识库", "领域技能", "查询服务", "组织"].filter((_, index) => extraResults[index].status === "rejected");
+        const missing = ["工具", "知识库", "领域技能", "查询服务", "组织", "业务模板"].filter((_, index) => extraResults[index].status === "rejected");
         notice.value = missing.length
           ? `权限目录已加载。${missing.join("、")}名称目录不可读取，现有规则仍保留，可在详情查看标识。`
           : "";

@@ -22,6 +22,8 @@ public class InternalResourceAuthorizationController {
     private static final int MAX_CANDIDATES = 500;
     private final ResourceAuthorizationPort authorization;
     private final EnterpriseAdminService adminService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.chatchat.api.service.AgentTemplateToolPolicy agentTemplateTools;
 
     @PostMapping
     public ApiResponse<ResourceAuthorizationResult> authorize(@RequestBody ResourceAuthorizationRequest request) {
@@ -32,7 +34,8 @@ public class InternalResourceAuthorizationController {
         }
         if (!Set.of(ResourceAuthorizationPort.KNOWLEDGE, ResourceAuthorizationPort.KNOWLEDGE_BASE,
             ResourceAuthorizationPort.MCP_TOOL, ResourceAuthorizationPort.SKILL,
-            ResourceAuthorizationPort.AGENT_SKILL, ResourceAuthorizationPort.WORKFLOW)
+            ResourceAuthorizationPort.AGENT_SKILL, ResourceAuthorizationPort.WORKFLOW,
+            ResourceAuthorizationPort.TEMPLATE, "AGENT_TOOL")
             .contains(request.resourceType())) {
             return ApiResponse.badRequest("Unsupported resourceType");
         }
@@ -49,6 +52,10 @@ public class InternalResourceAuthorizationController {
         if (user == null || !"enabled".equalsIgnoreCase(user.status())
             || !Objects.equals(user.tenantId(), request.tenantId())) {
             return ApiResponse.error(403, "Resource authorization principal is not authorized");
+        }
+        if ("AGENT_TOOL".equals(request.resourceType())) {
+            return ApiResponse.success(new ResourceAuthorizationResult(agentTemplateTools == null ? Set.of()
+                : agentTemplateTools.allowed(user.tenantId(), user.id(), request.agentId(), request.candidateIds())));
         }
         if (request.agentId() != null && !request.agentId().isBlank()) {
             return ApiResponse.success(new ResourceAuthorizationResult(authorization.allowedIdsForAgent(

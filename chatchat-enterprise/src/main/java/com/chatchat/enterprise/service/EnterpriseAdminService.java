@@ -2140,7 +2140,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
             ResourceAuthorizationPort.MCP_TOOL,
             ResourceAuthorizationPort.SKILL,
             ResourceAuthorizationPort.AGENT_SKILL,
-            ResourceAuthorizationPort.WORKFLOW
+            ResourceAuthorizationPort.WORKFLOW,
+            ResourceAuthorizationPort.TEMPLATE
         )) {
             boolean exists = resourceGrantRepository
                 .findByTenantIdAndResourceTypeOrderByUpdatedAtDesc(tenantId, resourceType).stream()

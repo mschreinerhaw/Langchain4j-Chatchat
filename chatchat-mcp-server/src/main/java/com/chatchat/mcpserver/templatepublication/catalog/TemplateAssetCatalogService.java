@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -55,6 +56,141 @@ public class TemplateAssetCatalogService {
     private final ObjectMapper objectMapper;
     @Autowired(required = false)
     private ExternalMcpRegistryService externalMcpRegistry;
+    @Autowired(required = false)
+    private com.chatchat.common.retrieval.ResourceAuthorizationPort templateAuthorization;
+
+    /** Business catalog intersects template grants with the actual asset ACL; never returns secrets. */
+    public List<BoundTemplate> businessTemplates(boolean management) {
+        var caller = authorizationService.currentCallerContext();
+        if (caller == null || caller.userId() == null || caller.tenantId() == null) return List.of();
+        var entries = entries().stream().filter(entry -> entry.tenantId() == null
+            || entry.tenantId().equals(caller.tenantId())).toList();
+        Set<String> candidates = entries.stream().map(entry -> entry.asset().key()).collect(Collectors.toSet());
+        Set<String> allowed = management ? candidates : templateAuthorization == null ? Set.of()
+            : templateAuthorization.allowedIds(com.chatchat.common.retrieval.ResourceAuthorizationPort.TEMPLATE,
+                caller.tenantId(), caller.userId(), Set.of(), candidates);
+        List<BoundTemplate> result = new ArrayList<>();
+        for (var entry : entries) {
+            var asset = entry.asset();
+            if (!allowed.contains(asset.key())) continue;
+            if (externalMcpRegistry != null && asset.templateId().startsWith("external_")) {
+                for (var service : externalMcpRegistry.list()) {
+                    if (!service.isEnabled()) continue;
+                    for (var template : externalMcpRegistry.templates(service)) {
+                        String name = ExternalMcpToolPublisher.publishedName(service.getId(), template.name());
+                        if (template.readOnly() && name.equals(asset.templateId())
+                            && (management || authorizationService.callerAllows(name, null))) {
+                            result.add(bound(asset, service.getId(), service.getName(), name, Map.of(), service, template));
+                        }
+                    }
+                }
+                continue;
+            }
+            switch (asset.assetType()) {
+                case SSH -> {
+                    var template = commandTemplateService.listEnabled().stream()
+                        .filter(t -> t.getCode().equals(asset.templateId())).findFirst().orElse(null);
+                    if (template == null) continue;
+                    for (var host : sshHostConfigService.listEnabled()) {
+                        if (!readIds(host.getAllowedCommandsJson()).contains(template.getCode())) continue;
+                        String identity = firstText(host.getToolName(), firstText(host.getName(), host.getId()));
+                        String level = "HIGH".equalsIgnoreCase(template.getRiskLevel()) ? "manage" : "MEDIUM".equalsIgnoreCase(template.getRiskLevel()) ? "write" : "read";
+                        if (!management && !authorizationService.callerAllows(identity,
+                            McpScopeExpression.of(SSH, "execute", "command", caller.tenantId(), host.getId(), level))) continue;
+                        result.add(bound(asset, host.getId(), host.getName(), "linux_command_execute",
+                            Map.of("hostId", host.getId(), "template", template.getCode(), "permissionLevel", level), template, host));
+                    }
+                }
+                case SQL -> {
+                    var template = sqlTemplateService.listEnabled().stream()
+                        .filter(t -> t.getCode().equals(asset.templateId())).findFirst().orElse(null);
+                    if (template == null) continue;
+                    for (var datasource : sqlDatasourceConfigService.listEnabled()) {
+                        var templateAllowlist = readIds(datasource.getAllowedTemplatesJson());
+                        if (!templateAllowlist.isEmpty() && !templateAllowlist.contains(template.getCode())
+                            || !sqlTemplateService.isCompatible(template, datasource)) continue;
+                        if (!management && !authorizationService.callerAllows(firstText(datasource.getToolName(), datasource.getId()),
+                            McpScopeExpression.of(SQL, "execute", "query", caller.tenantId(), datasource.getId(), "read"))) continue;
+                        result.add(bound(asset, datasource.getId(), datasource.getName(), "sql_query_execute",
+                            Map.of("datasourceId", datasource.getId(), "template", template.getCode(), "permissionLevel", "read"), template, datasource));
+                    }
+                }
+                case HTTP -> httpEndpointConfigService.listEnabled().stream()
+                    .filter(t -> asset.templateId().equals(t.getToolName()))
+                    .filter(t -> management || authorizationService.callerAllowsOperation(t.getToolName(), HTTP, t.getId(), httpLevel(t.getMethod())))
+                    .forEach(t -> result.add(bound(asset, t.getId(), t.getName(), "http_request_execute",
+                        Map.of("endpointId", t.getId(), "template", t.getToolName(), "permissionLevel", httpLevel(t.getMethod())), t)));
+                case DATABASE_QUERY -> {
+                    for (var template : databaseQueryConfigService.listEnabled()) {
+                        if (!asset.templateId().equals(template.getToolName())) continue;
+                        var datasource = sqlDatasourceConfigService.listEnabled().stream()
+                            .filter(item -> item.getId().equals(template.getDatasourceId())).findFirst().orElse(null);
+                        if (datasource == null) continue;
+                        if (!management && (!authorizationService.callerAllows(template.getToolName(), null)
+                            || !authorizationService.callerAllows(firstText(datasource.getToolName(), datasource.getId()),
+                                McpScopeExpression.of(SQL, "execute", "query", caller.tenantId(), datasource.getId(), "read")))) continue;
+                        result.add(bound(asset, datasource.getId(), datasource.getName(), "sql_query_execute",
+                            Map.of("datasourceId", datasource.getId(), "template", template.getToolName(), "permissionLevel", "read"), template, datasource));
+                    }
+                }
+                case API -> {
+                    for (var template : apiServiceConfigService.listEnabled()) {
+                        if (!asset.templateId().equals(template.getToolName()) || !management && !authorizationService.callerAllowsOperation(
+                            template.getToolName(), API, template.getId(), httpLevel(template.getMethod()))) continue;
+                        var gateway = httpEndpointConfigService.listEnabled().stream().filter(item -> item.getId().equals(template.getGatewayId())).findFirst();
+                        if (template.getGatewayId() != null && !template.getGatewayId().isBlank() && gateway.isEmpty()) continue;
+                        result.add(bound(asset, template.getId(), template.getTitle(), "api_template_execute",
+                            Map.of("templateId", template.getToolName(), "permissionLevel", httpLevel(template.getMethod())), template, gateway.orElse(null)));
+                    }
+                }
+                case PYTHON -> {
+                    for (var template : pythonTemplateCatalog.listPublished()) {
+                        if (!caller.tenantId().equals(template.getTenantId()) || !asset.templateId().equals(template.getId())) continue;
+                        var environment = pythonTemplateCatalog.publishedEnvironment(template);
+                        if (environment == null || !management && !authorizationService.callerAllowsOperation(
+                            PythonMcpToolPublisher.TEMPLATE_EXECUTE_TOOL, PYTHON, template.getAssetId(), "write")) continue;
+                        result.add(bound(asset, template.getAssetId(), template.getAssetName(), PythonMcpToolPublisher.TEMPLATE_EXECUTE_TOOL,
+                            Map.of("templateId", template.getId(), "permissionLevel", "write"), template, environment));
+                    }
+                }
+                default -> { }
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private BoundTemplate bound(TemplateAsset template, String assetId, String assetName, String executor,
+                                Map<String, Object> binding, Object... definitions) {
+        try {
+            var contract = new LinkedHashMap<>(template.parameterSchema());
+            contract.put("type", "object"); contract.putIfAbsent("properties", Map.of());
+            var dependencies = objectMapper.createArrayNode();
+            for (var definition : definitions) {
+                var dependency = objectMapper.valueToTree(definition);
+                if (dependency.isObject()) ((com.fasterxml.jackson.databind.node.ObjectNode) dependency).remove(
+                    List.of("usageCount", "rating", "lastUsedAt", "lastExecutionAt", "discoveredAt", "createdAt", "updatedAt"));
+                dependencies.add(dependency);
+            }
+            var snapshot = objectMapper.valueToTree(List.of(template, binding, dependencies));
+            String revision = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                .digest(objectMapper.writeValueAsBytes(snapshot)));
+            return new BoundTemplate(template.key() + "@" + assetId, template.key(), template.title(),
+                template.description(), firstText(assetName, "关联资源"), template.businessCategoryName(),
+                contract, revision, executor, binding);
+        } catch (Exception ex) { throw new IllegalStateException("Cannot snapshot template contract", ex); }
+    }
+
+    private String httpLevel(String method) { return method != null && Set.of("GET", "HEAD", "OPTIONS").contains(method.toUpperCase(Locale.ROOT)) ? "read" : "write"; }
+
+    public record BoundTemplate(String key, String templateKey, String title, String description,
+                                String assetName, String category, Map<String, Object> inputSchema,
+                                String revision, String executor, Map<String, Object> binding) {
+        public Map<String, Object> publicView() {
+            return Map.of("key", key, "templateKey", templateKey, "title", title, "description", description,
+                "assetName", assetName, "category", category, "inputSchema", inputSchema, "revision", revision,
+                "operationLevel", binding.getOrDefault("permissionLevel", "read"));
+        }
+    }
 
     public List<TemplateAsset> listEnabled() {
         return entries().stream().map(CatalogEntry::asset).toList();

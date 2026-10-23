@@ -52,6 +52,10 @@
             <span class="sidebar-account-chevron" aria-hidden="true"></span>
           </summary>
           <div class="sidebar-account-actions">
+            <button v-for="item in accountItems" :key="item.key" type="button" class="sidebar-account-action"
+              @click="activeView = item.key; $refs.accountCard.open = false">
+              <el-icon><component :is="item.icon" /></el-icon><span>{{ item.label }}</span>
+            </button>
             <button
               type="button"
               class="sidebar-account-action"

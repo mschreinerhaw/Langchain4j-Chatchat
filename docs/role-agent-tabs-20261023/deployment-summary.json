@@ -1,0 +1,14 @@
+{
+  "status": "PASSED",
+  "version": "2.2.3-role-agent-tabs-20261023-r2",
+  "sourceCommit": "369b347cdaee2190e53e82b5a527746195c28c6a",
+  "jarSha256": "6059dd077d6d87d26fdbc36f7ccff7a5dade137212bd24361221e78cfd26d4f8",
+  "gatewayResourcesVerified": 88,
+  "backendEntriesUnchanged": true,
+  "policyUnchanged": true,
+  "artifactHashesMatch": true,
+  "databaseMigration": false,
+  "mcpImage": "runtime-os-mcp:2.2.2-rc1",
+  "backup": "/opt/runtime-os-docker-stage/evidence/publication-ui-2.2.3-role-agent-tabs-20261023-r2/backup-1792717286",
+  "serverVerification": "/opt/runtime-os-docker-stage/evidence/role-agent-tabs-20261023/verification.json"
+}

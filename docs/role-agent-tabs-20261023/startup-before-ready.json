@@ -1,0 +1,6 @@
+{
+  "status": "FAILED",
+  "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n502 !== 200\n",
+  "checks": {},
+  "errors": []
+}

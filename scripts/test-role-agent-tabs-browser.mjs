@@ -27,6 +27,7 @@ try {
   checks.authenticatedLogin = true;
   await page.goto(base + '/#/w/permissions/systemRoles');
   await page.locator('.permission-master-item').first().waitFor();
+  await page.locator('.permission-master-detail[aria-busy="false"]').waitFor();
   const businessRole = page.locator('.permission-master-item').filter({ hasText: '业务管理员' });
   if (await businessRole.count()) await businessRole.first().click();
   const tabs = page.locator('.permission-category-tabs');
@@ -62,6 +63,7 @@ try {
   await tabs.getByRole('button', { name: 'Agent', exact: true }).waitFor();
   checks.reloadPreservesNewTab = true;
   await page.goto(base + '/#/w/permissions/systemResources');
+  await page.locator('.permission-master-detail[aria-busy="false"]').waitFor();
   await page.getByLabel('资源类型', { exact: true }).waitFor();
   await page.getByLabel('资源类型', { exact: true }).selectOption('agent');
   await page.locator('.permission-master-item').first().waitFor();

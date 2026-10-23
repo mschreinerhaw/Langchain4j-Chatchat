@@ -1,0 +1,24 @@
+{
+  "status": "FAILED",
+  "error": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(checks.Agent.names.includes('LiveBOS 报表开发助手'))\n",
+  "checks": {
+    "authenticatedLogin": true,
+    "领域技能": {
+      "count": 3,
+      "names": [
+        "已有资源（查看详情）",
+        "全部领域技能",
+        "全部领域技能"
+      ]
+    },
+    "Agent": {
+      "count": 3,
+      "names": [
+        "已有资源（查看详情）",
+        "已有资源（查看详情）",
+        "全部Agent"
+      ]
+    }
+  },
+  "errors": []
+}

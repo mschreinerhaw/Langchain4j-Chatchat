@@ -14,11 +14,12 @@ beforeEach(() => apiRequest.mockImplementation(path => Promise.resolve(path === 
 afterEach(() => { app?.unmount(); root?.remove(); vi.restoreAllMocks(); apiRequest.mockReset(); });
 it('shows business templates without requiring executor or role configuration', async () => {
   const vm = await mount(); expect(root.textContent).toContain('客户资产查询'); expect(root.textContent).toContain('客户库');
+  expect(vm.tab).toBe('publications'); vm.navigate('templates'); await nextTick();
   expect(root.textContent).not.toContain('历史版本管理'); expect(vm.templates).toHaveLength(1);
-  vm.query = '不存在'; await nextTick(); expect(root.textContent).toContain('暂无可用模板');
+  vm.query = '不存在'; await nextTick(); expect(root.textContent).toContain('没有匹配的结果');
 });
 it('requires confirmation and sends only template identity and expected revision', async () => {
-  const vm = await mount(); root.querySelector('.template-capability-card button').click(); await nextTick();
+  const vm = await mount(); vm.navigate('templates'); await nextTick(); root.querySelector('.template-capability-card button').click(); await nextTick();
   expect(root.querySelector('[role="dialog"]')).not.toBeNull();
   expect(apiRequest.mock.calls.some(call => call[1]?.method === 'POST')).toBe(false);
   await vm.publish(); expect(apiRequest).toHaveBeenCalledWith(base + '/publications', { method: 'POST', body: JSON.stringify({ key: template.key, revision: template.revision }) });
@@ -34,4 +35,26 @@ it('persists explicit Agent binding and refreshes after denial', async () => {
   expect(apiRequest).toHaveBeenCalledWith(base + '/agents/agent/tools/tpl_123', { method: 'PUT' });
   apiRequest.mockRejectedValueOnce(new Error('绑定已失效')); await vm.toggleBinding(publication, false);
   expect(vm.failed).toBe(true); expect(vm.isBound(publication)).toBe(false);
+});
+it('filters before paging and resets the page when category or search changes', async () => {
+  const original = apiRequest.getMockImplementation();
+  apiRequest.mockImplementation(path => path === base + '/templates' ? Promise.resolve(Array.from({ length: 29 }, (_, i) => ({ ...template, key: `template-${i}`, title: `模板${i}`, category: i < 26 ? '客户分析' : '行情' }))) : original(path));
+  const vm = await mount(); vm.navigate('templates'); await nextTick();
+  expect(vm.filtered).toHaveLength(29); expect(vm.visible).toHaveLength(12); expect(vm.pages).toBe(3);
+  vm.page = 3; await nextTick(); expect(vm.visible).toHaveLength(5);
+  vm.category = '行情'; await nextTick(); expect(vm.page).toBe(1); expect(vm.filtered).toHaveLength(3);
+  vm.query = '不存在'; await nextTick(); expect(vm.visible).toHaveLength(0); expect(vm.pages).toBe(1);
+  vm.navigate('publications'); await nextTick(); expect(vm.category).toBe(''); expect(vm.query).toBe(''); expect(vm.stateFilter).toBe('RUNNING');
+});
+it('takes a running publication directly to Agent assignment without losing the search', async () => {
+  const vm = await mount(); root.querySelector('.template-capability-card .permission-primary').click(); await flush();
+  expect(vm.tab).toBe('agents'); expect(vm.query).toBe(publication.title); expect(vm.visible).toHaveLength(1);
+  expect(root.textContent).toContain('分配给当前 Agent');
+});
+it('offers assignment instead of republishing an unchanged running template', async () => {
+  const original = apiRequest.getMockImplementation();
+  apiRequest.mockImplementation(path => path === base + '/publications' ? Promise.resolve([{ ...publication, templateKey: 'sql:customers', revision: template.revision }]) : path === base + '/templates' ? Promise.resolve([{ ...template, templateKey: 'sql:customers' }]) : original(path));
+  const vm = await mount(); vm.navigate('templates'); await nextTick();
+  expect(root.querySelector('.template-capability-card').textContent).toContain('当前版本已发布');
+  expect(root.querySelector('.template-capability-card').textContent).not.toContain('发布模板工具');
 });

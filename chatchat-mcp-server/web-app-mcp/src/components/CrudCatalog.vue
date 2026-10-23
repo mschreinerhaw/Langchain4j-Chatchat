@@ -55,7 +55,7 @@
             </el-button>
             <el-button type="primary" @click="openCreate">
               <el-icon><Plus /></el-icon>
-              <span>新增</span>
+              <span>{{ createLabel }}</span>
             </el-button>
           </div>
         </div>

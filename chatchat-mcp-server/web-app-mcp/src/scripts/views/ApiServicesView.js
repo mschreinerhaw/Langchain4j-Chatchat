@@ -292,6 +292,11 @@ export default {
     this.loadCategories();
   },
   methods: {
+    async createApiTemplate() {
+      this.activeTab = 'services';
+      await this.$nextTick();
+      this.$refs.catalog?.openCreate();
+    },
     async loadCategories() {
       try {
         this.categories = await api.listCategories() || [];

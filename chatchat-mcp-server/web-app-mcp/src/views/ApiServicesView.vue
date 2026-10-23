@@ -1,4 +1,20 @@
 <template>
+  <section class="workspace-panel api-publishing-guide">
+    <header class="panel-heading"
+      ><div
+        ><h2>API 能力模板</h2
+        ><p>先维护并测试业务模板，再到统一工作空间发布工具并分配给 Agent。</p></div
+      ><el-button type="primary" @click="createApiTemplate">新建 API 模板</el-button></header
+    >
+    <ol
+      ><li><strong>1 · 维护模板</strong><span>选择网关资产，配置业务名称、分类与参数。</span></li
+      ><li><strong>2 · 测试并启用</strong><span>在下方列表测试接口，确认结果后启用模板。</span></li
+      ><li
+        ><strong>3 · 发布并分配</strong
+        ><span>统一工作空间 → MCP 工具发布 → 新建 MCP 工具 → 分配 Agent。</span></li
+      ></ol
+    >
+  </section>
   <CategoryCardPager
     v-if="activeTab === 'services'"
     :cards="categoryCards"
@@ -7,11 +23,12 @@
     @select="selectCategory"
   />
   <el-tabs v-model="activeTab" class="workspace-tabs">
-    <el-tab-pane label="API 服务维护" name="services">
+    <el-tab-pane label="模板目录" name="services">
       <CrudCatalog
         ref="catalog"
-        title="API 服务"
-        subtitle="将已登记 API 发布为 MCP 工具。"
+        title="API 模板目录"
+        create-label="新建 API 模板"
+        subtitle="按业务分类检索并分页查看。启用仅表示模板可用，Agent 使用前还需发布与授权。"
         search-placeholder="搜索工具名称、显示名称、描述或分组"
         :columns="columns"
         :form-fields="formFields"
@@ -222,3 +239,4 @@
 </template>
 
 <script src="../scripts/views/ApiServicesView.js"></script>
+<style scoped src="../styles/views/api-services.css"></style>

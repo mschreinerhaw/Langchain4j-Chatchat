@@ -176,7 +176,10 @@ public class TemplateCapabilityService {
         return Map.ofEntries(Map.entry("id", row.getId()), Map.entry("logicalId", row.getLogicalId()), Map.entry("toolName", toolName(row)),
             Map.entry("title", row.getTitle()), Map.entry("state", row.getState()), Map.entry("version", row.getReleaseNumber()),
             Map.entry("templateKey", definition.path("templateKey").asText()), Map.entry("revision", definition.path("revision").asText()),
-            Map.entry("assetName", definition.path("assetName").asText()), Map.entry("publishedAt", row.getPublishedAt().toString()));
+            Map.entry("assetName", definition.path("assetName").asText()),
+            Map.entry("category", definition.path("category").asText()),
+            Map.entry("description", Objects.toString(row.getDescription(), "")),
+            Map.entry("publishedAt", row.getPublishedAt().toString()));
     }
     public com.fasterxml.jackson.databind.JsonNode definition(ToolRelease row) {
         try { return json.readTree(row.getDefinitionJson()); } catch (Exception ex) { throw new IllegalStateException("Invalid stored template publication", ex); }

@@ -17,7 +17,7 @@ import ModalPanel from '../components/ModalPanel.vue';
 import JsonBlock from '../components/JsonBlock.vue';
 import { ElNotification } from 'element-plus';
 import { nextTick } from 'vue';
-import { MCP_ENDPOINT } from '../services/config';
+import { MCP_ENDPOINT, WORKSPACE_PUBLICATION_URL } from '../services/config';
 import { UnauthorizedError } from '../services/http';
 import { licenseApi, authApi } from '../services/api';
 import {
@@ -73,6 +73,7 @@ export default {
       user: getUser(),
       activeView: 'apiServices',
       mcpEndpoint: MCP_ENDPOINT,
+      workspacePublicationUrl: WORKSPACE_PUBLICATION_URL,
       resultOpen: false,
       resultTitle: '',
       resultValue: null,

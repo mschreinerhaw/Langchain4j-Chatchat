@@ -11,6 +11,7 @@ export default {
   components: { ModalPanel, ApiTestParameterDialog },
   props: {
     title: { type: String, required: true },
+    createLabel: { type: String, default: '新增' },
     subtitle: { type: String, default: '' },
     columns: { type: Array, required: true },
     formFields: { type: Array, required: true },

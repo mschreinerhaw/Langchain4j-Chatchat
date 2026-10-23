@@ -20,6 +20,10 @@ export default {
       stateFilter = ref("RUNNING"),
       page = ref(1),
       pageSize = ref(15);
+    const category = ref('');
+    const categoryOf = row => parentName(parse(row.definitionJson, {}).parentToolName);
+    const categories = computed(() => [...new Set(rows.value.map(categoryOf))].sort((a, b) => a.localeCompare(b, 'zh-CN')));
+    const pendingCount = computed(() => new Set(rows.value.filter(row => ['DRAFT', 'VALIDATED', 'TESTED'].includes(row.state)).map(row => row.logicalId)).size);
     useTransientNotice(notice, failed);
     const selectedId = ref(""),
       editing = ref(false),
@@ -59,7 +63,8 @@ export default {
     const tools = computed(() => {
       const groups = new Map();
       for (const row of rows.value) {
-        if (stateFilter.value && row.state !== stateFilter.value) continue;
+        if (stateFilter.value === 'PENDING' ? !['DRAFT', 'VALIDATED', 'TESTED'].includes(row.state) : stateFilter.value && row.state !== stateFilter.value) continue;
+        if (category.value && categoryOf(row) !== category.value) continue;
         const entry = groups.get(row.logicalId);
         if (!entry || row.releaseNumber > entry.releaseNumber) groups.set(row.logicalId, row);
       }
@@ -97,8 +102,9 @@ export default {
       JSON.stringify([form.value, definition.value, inputSchema.value, outputSchema.value]);
     const originalDraft = ref("");
     const dirty = computed(() => editing.value && snapshot() !== originalDraft.value);
-    watch([query, stateFilter, pageSize], () => {
+    watch([query, stateFilter, pageSize, category], () => {
       page.value = 1;
+      if (!editing.value && !tools.value.some(row => row.logicalId === selected.value?.logicalId)) selectedId.value = tools.value[0]?.id || '';
     });
     watch(pages, (n) => {
       page.value = Math.min(page.value, n);
@@ -278,6 +284,7 @@ export default {
           ...(body ? { body: JSON.stringify(body) } : {}),
         });
         await loadRows(row.id);
+        stateFilter.value = actionName === 'publish' || actionName === 'rollback' ? 'RUNNING' : actionName === 'offline' ? 'OFFLINE' : 'PENDING';
       }, { validate: "定义校验通过，可以运行合约测试。", test: "合约测试通过，结果已记录。", publish: "工具已发布，运行时业务权限仍然生效。", offline: "工具已下线，版本与测试记录已保留。", rollback: "已恢复此历史版本。" }[actionName]);
     }
     async function test(row = selected.value) {
@@ -307,6 +314,7 @@ export default {
     });
     return {
       rows,
+      category, categories, categoryOf, pendingCount,
       parents,
       roles,
       templates,

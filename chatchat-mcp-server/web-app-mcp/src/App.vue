@@ -79,6 +79,7 @@
             >
           </div>
           <div v-else class="topbar-context">系统设置 <span>/</span> {{ activeNav.label }}</div>
+          <a v-if="workspacePublicationUrl && !isSystemSettingsView && navItems.length" class="workspace-publish-entry" :href="workspacePublicationUrl" target="_blank" rel="noopener">前往 MCP 工具发布 ↗</a>
           <p v-if="isSystemSettingsView" class="topbar-endpoint"
             >MCP Endpoint: <code>{{ mcpEndpoint }}</code></p
           >

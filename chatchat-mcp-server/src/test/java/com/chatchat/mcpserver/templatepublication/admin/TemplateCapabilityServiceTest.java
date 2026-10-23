@@ -51,6 +51,8 @@ class TemplateCapabilityServiceTest {
     @Test void publicationIsIdempotentAndIsolatedByPublisher() {
         var first = publish("user"); var repeated = publish("user"); var other = publish("other");
         assertEquals(first, repeated); assertEquals(2, rows.size());
+        assertEquals("客户分析", first.get("category"));
+        assertEquals("查询客户", first.get("description"));
         assertNotEquals(first.get("toolName"), other.get("toolName"));
         assertEquals(List.of(first), service.publications("tenant", "user"));
         assertTrue(service.publications("otherTenant", "user").isEmpty());

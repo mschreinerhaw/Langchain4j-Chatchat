@@ -2,8 +2,8 @@
   <section class="permission-console tool-publications" :aria-busy="busy">
     <header class="permission-page-heading">
       <div
-        ><nav aria-label="面包屑">MCP 工具发布 <span>/</span> 工具管理</nav><h1>MCP 工具发布</h1
-        ><p>统一管理工具定义、测试与版本发布。业务访问权限在权限管理中维护。</p></div
+        ><nav aria-label="面包屑">MCP 工具发布 <span>/</span> 历史工具</nav><h1>历史工具版本管理</h1
+        ><p>历史受控工具的版本维护。新业务工具请从上方“新建 MCP 工具”选择模板发布。</p></div
       >
       <div class="permission-heading-actions"
         ><button type="button" :disabled="busy" @click="refresh">刷新</button
@@ -25,10 +25,27 @@
       >{{ notice }}</p
     >
     <p v-if="busy" class="publication-loading" role="status">正在处理，请稍候…</p>
+    <div class="permission-category-tabs" aria-label="历史工具状态"
+      ><button :class="{ active: stateFilter === 'RUNNING' }" @click="stateFilter = 'RUNNING'"
+        >运行中的工具</button
+      ><button :class="{ active: stateFilter === 'PENDING' }" @click="stateFilter = 'PENDING'"
+        >待完成发布（{{ pendingCount }}）</button
+      ><button :class="{ active: stateFilter === 'OFFLINE' }" @click="stateFilter = 'OFFLINE'"
+        >已下线版本</button
+      ></div
+    >
     <div class="permission-master-detail">
       <aside class="permission-master">
         <div class="permission-master-head"
           ><strong>工具列表</strong><span>{{ tools.length }} 项</span></div
+        >
+        <label class="publication-search"
+          >能力分类<select v-model="category" aria-label="历史工具分类"
+            ><option value="">全部分类</option
+            ><option v-for="name in categories" :key="name" :value="name">{{
+              name
+            }}</option></select
+          ></label
         >
         <label class="publication-search"
           >搜索工具<input v-model="query" type="search" placeholder="搜索名称或说明"
@@ -36,6 +53,7 @@
         <label class="publication-search"
           >版本状态<select v-model="stateFilter" aria-label="版本状态"
             ><option value="">全部状态</option
+            ><option value="PENDING">待完成发布</option
             ><option v-for="(label, value) in states" :key="value" :value="value">{{
               label
             }}</option></select
@@ -272,11 +290,20 @@
               ><div
                 ><dt>版本状态</dt><dd>{{ states[selected.state] }}</dd></div
               ></dl
-            ><p class="publication-hint">工具通过校验和测试后才能发布。运行调用继续校验业务权限。</p
+            ><p class="publication-hint" role="status">{{
+              {
+                DRAFT: "下一步：点击“校验定义”，检查模板绑定和参数结构。",
+                VALIDATED: "下一步：点击“配置合约测试”，填写参数并运行测试。",
+                TESTED: "下一步：点击“发布工具”，使这个版本正式运行。",
+                RUNNING: "工具已发布并运行。业务调用仍受当前角色与资源权限限制。",
+                OFFLINE: "此版本已下线，保留历史与测试记录。需要恢复时可回滚。",
+              }[selected.state]
+            }}</p
             ><div class="publication-actions"
               ><button
                 v-if="editable && !selected.publishedAt && selected.state === 'DRAFT'"
                 type="button"
+                class="permission-primary"
                 :disabled="busy"
                 @click="action(selected, 'validate')"
                 >校验定义</button

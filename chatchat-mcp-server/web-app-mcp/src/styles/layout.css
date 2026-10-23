@@ -3,6 +3,8 @@
   display: grid;
   grid-template-columns: 244px minmax(0, 1fr);
 }
+.workspace-publish-entry { display: inline-flex; align-items: center; justify-content: center; padding: 10px 16px; background: #326cf0; color: #fff; border-radius: 8px; text-decoration: none; white-space: nowrap; }
+.workspace-publish-entry:hover, .workspace-publish-entry:focus-visible { background: #2058d4; color: #fff; }
 
 .sidebar {
   height: 100vh;

@@ -1,0 +1,34 @@
+.api-publishing-guide {
+  margin-bottom: 20px;
+}
+.api-publishing-guide ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+  gap: 16px;
+  margin: 18px 0 0;
+  padding: 0;
+}
+.api-publishing-guide li {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 10px;
+  background: #f2f6ff;
+  color: #334155;
+  line-height: 1.7;
+}
+.api-publishing-guide li span {
+  color: #64748b;
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  .api-publishing-guide ol {
+    grid-template-columns: 1fr;
+  }
+  .api-publishing-guide .panel-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}

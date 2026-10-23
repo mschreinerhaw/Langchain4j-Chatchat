@@ -66,6 +66,7 @@ public class AgentWorkshopController {
     private final DomainSkillService domainSkillService;
     private final ResourceAuthorizationPort resourceAuthorization;
     private final SkillResourceScopeSynchronizationService skillResourceScopes;
+    private final com.chatchat.api.service.PublishedMcpToolCatalog publishedTools;
 
     @GetMapping("/{agentId}/releases")
     @Operation(summary = "List immutable Agent releases and quality-gate reports")
@@ -95,8 +96,7 @@ public class AgentWorkshopController {
                                                     @RequestParam(value = "pageSize", required = false) Integer pageSize,
                                                     HttpServletRequest request) {
         List<String> availableTools = availableTools();
-        List<McpToolCatalogQueryPort.RegisteredTool> registeredMcpTools = mcpCatalog.registeredTools().stream()
-            .filter(tool -> com.chatchat.common.tool.TemplateToolNames.remote(tool.localToolName()) == null).toList();
+        List<McpToolCatalogQueryPort.RegisteredTool> registeredMcpTools = publishedTools.registeredTools(request);
         Map<String, List<String>> mcpToolsByServiceId = mcpToolsByServiceId(registeredMcpTools);
         AgentVisibility visibility = agentVisibility(request);
         List<AgentCard> allAgents = skillCatalogService.list().stream()
@@ -174,6 +174,7 @@ public class AgentWorkshopController {
     public ApiResponse<AgentCard> createAgent(@RequestBody AgentUpsertRequest request,
                                                HttpServletRequest servletRequest) {
         governRuntimeConfiguration(request, servletRequest, null);
+        validatePublishedToolBindings(request, servletRequest, null);
         validateResourceBindings(request, servletRequest);
         SkillDefinition saved = skillCatalogService.upsert(toSkillDefinition(request, null));
         synchronizeKnowledgeBindings(saved, servletRequest);
@@ -194,6 +195,7 @@ public class AgentWorkshopController {
                                               @RequestBody AgentUpsertRequest request,
                                               HttpServletRequest servletRequest) {
         governRuntimeConfiguration(request, servletRequest, agentId);
+        validatePublishedToolBindings(request, servletRequest, agentId);
         validateResourceBindings(request, servletRequest);
         SkillDefinition saved = skillCatalogService.upsert(toSkillDefinition(request, agentId));
         synchronizeKnowledgeBindings(saved, servletRequest);
@@ -601,6 +603,39 @@ public class AgentWorkshopController {
             .toList();
     }
 
+    private void validatePublishedToolBindings(AgentUpsertRequest input, HttpServletRequest request, String agentId) {
+        if (input == null || request == null || currentUserId(request) == null) return;
+        SkillDefinition existing = agentId == null ? null : skillCatalogService.resolve(agentId);
+        if (existing != null && !agentId.equals(existing.id())) throw new SecurityException("Unknown Agent");
+        Set<String> previous = new java.util.LinkedHashSet<>();
+        if (existing != null) {
+            if (existing.boundMcpToolNames() != null) previous.addAll(existing.boundMcpToolNames());
+            if (existing.toolConfigs() != null) existing.toolConfigs().stream().filter(c -> !Boolean.FALSE.equals(c.enabled())).forEach(c -> previous.add(c.toolName()));
+            addWorkflowToolNames(previous, existing.workflowConfig());
+        }
+        Set<String> requested = new java.util.LinkedHashSet<>();
+        if (input.getBoundMcpToolNames() != null) requested.addAll(input.getBoundMcpToolNames());
+        if (input.getToolConfigs() != null) input.getToolConfigs().stream().filter(c -> !Boolean.FALSE.equals(c.enabled())).forEach(c -> requested.add(c.toolName()));
+        addWorkflowToolNames(requested, input.getWorkflowConfig());
+        requested.removeAll(previous); // Preserve existing configurations; new selections must come from the published directory.
+        Set<String> allowed = publishedTools.registeredTools(request).stream().map(McpToolCatalogQueryPort.RegisteredTool::localToolName).collect(java.util.stream.Collectors.toSet());
+        if (!allowed.containsAll(requested)) throw new SecurityException("只能选择已发布且有权使用的工具，请刷新工具列表");
+        if (input.getBoundMcpServiceIds() != null && !input.getBoundMcpServiceIds().isEmpty()
+            && (existing == null || existing.boundMcpServiceIds() == null || !existing.boundMcpServiceIds().containsAll(input.getBoundMcpServiceIds())))
+            throw new SecurityException("请选择具体的已发布工具，不能按服务批量绑定");
+        if (input.getPreferredToolPrefixes() != null && !input.getPreferredToolPrefixes().isEmpty()
+            && (existing == null || existing.preferredToolPrefixes() == null || !existing.preferredToolPrefixes().containsAll(input.getPreferredToolPrefixes())))
+            throw new SecurityException("请选择具体的已发布工具，不能按名称前缀批量绑定");
+    }
+    private void addWorkflowToolNames(Set<String> names, Map<String, Object> workflow) {
+        if (workflow == null || !(workflow.get("steps") instanceof Iterable<?> steps)) return;
+        for (Object item : steps) if (item instanceof Map<?, ?> step) {
+            for (String key : List.of("tool", "toolName")) {
+                Object value = step.get(key);
+                if (value != null && !value.toString().isBlank()) names.add(value.toString());
+            }
+        }
+    }
     private void validateResourceBindings(AgentUpsertRequest input, HttpServletRequest request) {
         if (input == null || request == null || currentUserId(request) == null) {
             return;

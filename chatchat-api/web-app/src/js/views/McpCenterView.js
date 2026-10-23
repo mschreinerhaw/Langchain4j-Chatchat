@@ -31,7 +31,7 @@ export default {
       toolSearchQuery: "",
       toolServiceFilter: "all",
       toolCategoryFilter: "all",
-      toolGroupMode: "service",
+      toolGroupMode: "category",
       activeTool: null,
       toolPage: 1,
       toolPageSize: 6,
@@ -105,9 +105,9 @@ export default {
     },
     toolFilterSummary() {
       if (!this.mcpToolTotal) {
-        return "暂无已注册工具";
+        return "暂无可用的已发布工具";
       }
-      return `${this.toolTotal} / ${this.mcpToolTotal} 个 · ${this.filteredToolGroupCount} 个${this.toolGroupModeLabel}分组 · 每页 ${this.toolPageSize} 条`;
+      return `共 ${this.mcpToolTotal} 个已发布工具，当前找到 ${this.toolTotal} 个`;
     },
     toolPageCount() {
       return this.toolPageTotal;

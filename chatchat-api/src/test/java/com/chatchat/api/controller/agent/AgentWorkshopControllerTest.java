@@ -26,6 +26,22 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentWorkshopControllerTest {
+    @Test void rejectsNewUnpublishedToolsIncludingWorkflowAndServiceShortcuts() {
+        var published=mock(com.chatchat.api.service.PublishedMcpToolCatalog.class);
+        var skills=mock(SkillCatalogService.class);
+        var controller=new AgentWorkshopController(skills,mock(ToolRegistry.class),mock(McpToolCatalogQueryPort.class),mock(ModelResourceRegistry.class),mock(DocumentLibraryReadPort.class),mock(EnterpriseAdminService.class),mock(AgentPublicationLicenseService.class),mock(AgentReleaseService.class),mock(DomainSkillService.class),mock(ResourceAuthorizationPort.class),mock(SkillResourceScopeSynchronizationService.class),published);
+        var servlet=new org.springframework.mock.web.MockHttpServletRequest();
+        servlet.setAttribute(com.chatchat.api.security.ApiAuthenticationFilter.CURRENT_USER_ID,"user");
+        when(published.registeredTools(servlet)).thenReturn(List.of());
+        var input=new AgentWorkshopController.AgentUpsertRequest();
+        input.setBoundMcpToolNames(List.of("internal_execute"));
+        org.junit.jupiter.api.Assertions.assertThrows(SecurityException.class,()->controller.createAgent(input,servlet));
+        input.setBoundMcpToolNames(List.of());input.setWorkflowConfig(java.util.Map.of("steps",List.of(java.util.Map.of("tool","internal_execute"))));
+        org.junit.jupiter.api.Assertions.assertThrows(SecurityException.class,()->controller.createAgent(input,servlet));
+        input.setWorkflowConfig(java.util.Map.of());input.setBoundMcpServiceIds(List.of("all-tools-service"));
+        org.junit.jupiter.api.Assertions.assertThrows(SecurityException.class,()->controller.createAgent(input,servlet));
+        org.mockito.Mockito.verify(skills,org.mockito.Mockito.never()).upsert(any(SkillDefinition.class));
+    }
 
     @Test
     void removesMissingDocumentBindingsWhenAgentIsSaved() {
@@ -58,7 +74,8 @@ class AgentWorkshopControllerTest {
             mock(AgentReleaseService.class),
             mock(DomainSkillService.class),
             mock(ResourceAuthorizationPort.class),
-            scopeSynchronization
+            scopeSynchronization,
+            mock(com.chatchat.api.service.PublishedMcpToolCatalog.class)
         );
         AgentWorkshopController.AgentUpsertRequest request = new AgentWorkshopController.AgentUpsertRequest();
         request.setId("migrated-agent");

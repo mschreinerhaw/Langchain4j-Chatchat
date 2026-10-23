@@ -37,6 +37,7 @@ public class McpServiceController {
 
     private final McpAdministrationPort administrationPort;
     private final ApiKernelScopeResolver scopeResolver;
+    private final com.chatchat.api.service.PublishedMcpToolCatalog publishedTools;
 
     /**
      * Lists the services.
@@ -215,8 +216,9 @@ public class McpServiceController {
                                                           @RequestParam(value = "sourceType", required = false) String sourceType,
                                                           @RequestParam(value = "groupMode", required = false) String groupMode,
                                                           @RequestParam(value = "page", required = false) Integer page,
-                                                          @RequestParam(value = "pageSize", required = false) Integer pageSize) {
-        List<ToolCardView> allTools = buildToolCards();
+                                                          @RequestParam(value = "pageSize", required = false) Integer pageSize,
+                                                          HttpServletRequest request) {
+        List<ToolCardView> allTools = buildToolCards(request);
         List<ToolCardView> sourceScopedTools = allTools.stream()
             .filter(tool -> isAll(sourceType) || sourceType.equalsIgnoreCase(tool.sourceType()))
             .toList();
@@ -306,16 +308,17 @@ public class McpServiceController {
      *
      * @return the built tool cards
      */
-    private List<ToolCardView> buildToolCards() {
-        return administrationPort.listToolCatalog().stream().map(tool -> new ToolCardView(
-            tool.localToolName(), tool.displayName(), tool.chineseAlias(), tool.description(), tool.sourceType(), tool.sourceLabel(),
+    private List<ToolCardView> buildToolCards(HttpServletRequest request) {
+        var published = publishedTools.publications(request);
+        return administrationPort.listToolCatalog().stream().filter(tool -> published.containsKey(tool.localToolName())).map(tool -> new ToolCardView(
+            tool.localToolName(), published.get(tool.localToolName()).title(), published.get(tool.localToolName()).title(), published.get(tool.localToolName()).description(), tool.sourceType(), tool.sourceLabel(),
             tool.serviceId(), tool.serviceName(), tool.remoteToolName(), tool.outputType(), tool.agentCompatible(),
             tool.requiresAuth(), tool.rateLimited(), tool.timeoutMillis(), tool.parameters().size(),
-            tool.functionalCategory(), tool.categories(), tool.tags(), tool.parameters().stream()
+            published.get(tool.localToolName()).category(), List.of(published.get(tool.localToolName()).category()), List.of(), tool.parameters().stream()
                 .map(parameter -> new ToolParameterView(parameter.name(), parameter.type(), parameter.description(),
                     parameter.required()))
                 .toList(),
-            tool.inputSchema())).toList();
+            tool.inputSchema(), published.get(tool.localToolName()).templateCount())).toList();
     }
 
     /**
@@ -659,7 +662,8 @@ public class McpServiceController {
         List<String> categories,
         List<String> tags,
         List<ToolParameterView> parameters,
-        Map<String, Object> inputSchema
+        Map<String, Object> inputSchema,
+        int templateCount
     ) {
     }
 

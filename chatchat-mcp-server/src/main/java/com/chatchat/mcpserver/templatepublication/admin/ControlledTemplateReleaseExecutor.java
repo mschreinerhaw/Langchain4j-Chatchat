@@ -37,7 +37,11 @@ public class ControlledTemplateReleaseExecutor implements ToolReleaseExecutor {
     }
     private TemplateQueryBindingService.UpsertRequest request(JsonNode value) {
         if(value==null || !value.isObject())throw new IllegalArgumentException("Controlled tool definition required");
-        try{return json.treeToValue(value,TemplateQueryBindingService.UpsertRequest.class);}
+        try{
+            var execution = (com.fasterxml.jackson.databind.node.ObjectNode)value.deepCopy();
+            execution.remove("businessCategory");
+            return json.treeToValue(execution,TemplateQueryBindingService.UpsertRequest.class);
+        }
         catch(Exception ex){throw new IllegalArgumentException("Invalid controlled tool definition",ex);}
     }
 }

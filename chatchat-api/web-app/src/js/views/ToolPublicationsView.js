@@ -30,7 +30,7 @@ export default {
         a.localeCompare(b, "zh-CN")
       )
     );
-    const categoryOf = (row) => parentName(parse(row.definitionJson, {}).parentToolName);
+    const categoryOf = (row) => parse(row.definitionJson, {}).businessCategory || '待分类';
     const categories = computed(() =>
       [...new Set(rows.value.map(categoryOf))].sort((a, b) => a.localeCompare(b, "zh-CN"))
     );
@@ -50,6 +50,7 @@ export default {
     const form = ref({ logicalId: null, title: "", description: "" });
     const blank = () => ({
       domainCode: "",
+      businessCategory: "",
       parentToolName: "",
       roleId: "",
       subjectType: "ROLE",
@@ -330,7 +331,7 @@ export default {
         await loadRows(created.id);
         editing.value = false;
         activeTab.value = "overview";
-      }, "草稿已保存。完成校验和合约测试后即可发布。");
+      }, "草稿已保存。完成校验和查询测试后即可发布。");
     }
     async function action(row, actionName, body) {
       if (!row || busy.value) return;
@@ -347,7 +348,7 @@ export default {
               ? "OFFLINE"
               : "PENDING";
         activeTab.value = actionName === "validate" ? "testing" : "overview";
-      }, { validate: "定义校验通过，可以运行合约测试。", test: "合约测试通过，结果已记录。", publish: "工具已发布，运行时业务权限仍然生效。", offline: "工具已下线，版本与测试记录已保留。", rollback: "已恢复此历史版本。" }[actionName]);
+      }, { validate: "定义校验通过，可以运行查询测试。", test: "查询测试通过，结果已记录。", publish: "工具已发布，运行时业务权限仍然生效。", offline: "工具已下线，版本与测试记录已保留。", rollback: "已恢复此历史版本。" }[actionName]);
     }
     async function test(row = selected.value) {
       let input;

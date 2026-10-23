@@ -1,10 +1,10 @@
-﻿<template>
+<template>
   <section class="feature-view skill-hub-view agent-workshop-view">
     <header class="agent-workshop-header">
       <div>
         <p>Agent管理</p>
         <span class="agent-management-intro"
-          >管理用于智能对话与任务的查询服务，沿用受控数据工具和 Coding Agent 分析链路。</span
+          >为 Agent 选择已发布工具、知识和领域技能，设置它可以完成的业务任务。</span
         >
       </div>
     </header>
@@ -27,11 +27,7 @@
         <strong>{{ summary.unpublishedCount || 0 }}</strong>
       </article>
       <article>
-        <span>可用工具</span>
-        <strong>{{ summary.availableToolCount || 0 }}</strong>
-      </article>
-      <article>
-        <span>MCP工具</span>
+        <span>可选业务工具</span>
         <strong>{{ summary.registeredMcpToolCount || 0 }}</strong>
       </article>
     </section>
@@ -676,14 +672,19 @@
             class="agent-resource-selector wide-field"
           >
             <div class="agent-resource-selector-copy">
-              <strong>已注册 MCP 工具</strong>
+              <strong>已发布工具</strong>
               <span>按当前 Agent 的业务范围选择可调用工具。</span>
+              <small v-if="selectedToolNames.length > selectedPublishedToolCount"
+                >另有
+                {{ selectedToolNames.length - selectedPublishedToolCount }}
+                项既有调用设置，保存时保留，可在高级设置中查看。</small
+              >
             </div>
             <div class="agent-resource-selector-action">
-              <span :class="{ 'is-selected': selectedToolNames.length }">
+              <span :class="{ 'is-selected': selectedPublishedToolCount }">
                 {{
-                  selectedToolNames.length
-                    ? `已选 ${selectedToolNames.length} 个工具`
+                  selectedPublishedToolCount
+                    ? `已选 ${selectedPublishedToolCount} 个工具`
                     : "未选择工具"
                 }}
               </span>
@@ -694,10 +695,11 @@
             </div>
           </section>
 
-          <section
+          <details
             v-if="form.defaultMode === 'agent_chat' && selectedToolNames.length"
             class="agent-workflow-builder wide-field"
           >
+            <summary>工具调用设置（高级）</summary>
             <div class="agent-tool-picker-head">
               <div>
                 <strong>MCP 工具编排</strong>
@@ -873,7 +875,7 @@
                 </div>
               </article>
             </div>
-          </section>
+          </details>
 
           <section v-if="form.defaultMode === 'agent_chat'" class="routing-settings wide-field">
             <label class="checkbox-row">
@@ -1212,8 +1214,8 @@
         <header>
           <div>
             <p>Agent 设置</p>
-            <h2 id="agent-tool-picker-title">选择已注册 MCP 工具</h2>
-            <span>可按服务类型、分组和关键词快速筛选。</span>
+            <h2 id="agent-tool-picker-title">选择已发布工具</h2>
+            <span>只展示已发布且有权使用的业务工具，勾选后即可供 Agent 使用。</span>
           </div>
           <button
             type="button"
@@ -1228,31 +1230,19 @@
         <div class="agent-resource-dialog-body">
           <div v-if="registeredMcpTools.length" class="agent-tool-searchbar">
             <label>
-              <span>检索工具</span>
+              <span>搜索工具</span>
               <input
                 v-model.trim="toolSearchQuery"
                 type="search"
-                placeholder="搜索名称、服务、描述、参数、分类或标签"
+                placeholder="搜索工具名称或用途"
                 autofocus
               />
             </label>
             <label>
-              <span>后端服务类型</span>
-              <select v-model="toolBackendServiceTypeFilter">
+              <span>业务分类</span>
+              <select v-model="toolBusinessCategoryFilter">
                 <option
-                  v-for="option in mcpBackendServiceTypeOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </option>
-              </select>
-            </label>
-            <label>
-              <span>分组方式</span>
-              <select v-model="toolGroupMode">
-                <option
-                  v-for="option in mcpToolGroupOptions"
+                  v-for="option in mcpBusinessCategoryOptions"
                   :key="option.value"
                   :value="option.value"
                 >
@@ -1289,7 +1279,7 @@
                   :key="tool.localToolName"
                   class="agent-tool-check"
                   :class="{ active: pickerSelectedToolNames.includes(tool.localToolName) }"
-                  :title="applicabilityTooltip(tool)"
+                  :title="tool.description"
                 >
                   <input
                     type="checkbox"
@@ -1303,19 +1293,12 @@
                       tool.remoteToolName ||
                       tool.localToolName
                     }}</strong>
-                    <small v-if="tool.chineseAlias" class="agent-tool-english-name">{{
-                      tool.remoteToolName || tool.localToolName
-                    }}</small>
                     <small>
-                      {{ tool.serviceName || tool.serviceId || "未归属服务" }}
-                      · {{ backendServiceTypesLabel(tool) }}
+                      {{ tool.description || "在授权范围内查询已选模板" }}
                     </small>
                     <small v-if="tool.applicabilitySummary" class="agent-tool-applicability">
                       适用范围：{{ tool.applicabilitySummary }}
                     </small>
-                    <em v-if="!tool.chineseAlias || tool.localToolName !== tool.remoteToolName">{{
-                      tool.localToolName
-                    }}</em>
                   </span>
                 </label>
               </div>
@@ -1324,12 +1307,14 @@
           <p v-else-if="registeredMcpTools.length" class="agent-tool-empty"
             >没有匹配的 MCP 工具，请调整关键词或筛选条件。</p
           >
-          <p v-else class="agent-tool-empty">请先在 MCP 服务完成服务接入和工具注册。</p>
+          <p v-else class="agent-tool-empty"
+            >暂无可选工具，请先在“MCP 工具发布”中完成发布并分配使用权限。</p
+          >
         </div>
 
         <footer>
           <button
-            v-if="pickerSelectedToolNames.length"
+            v-if="selectedPublishedToolCount"
             type="button"
             class="agent-resource-clear-button"
             @click="clearSelectedTools"
@@ -1338,7 +1323,7 @@
           </button>
           <span v-else></span>
           <button type="button" class="primary-button" @click="closeToolPicker">
-            完成（已选 {{ pickerSelectedToolNames.length }} 个）
+            完成（已选 {{ selectedPublishedToolCount }} 个）
           </button>
         </footer>
       </section>

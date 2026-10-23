@@ -40,6 +40,9 @@ public class ToolReleaseService {
         if (draft == null || draft.title() == null || draft.title().isBlank() || draft.title().length()>256
             || draft.kind() == null || draft.definition()==null || !draft.definition().isObject()) throw new IllegalArgumentException("Invalid tool draft or unsupported executor kind");
         var executor=executor(draft.kind());
+        if (draft.definition().has("businessCategory") && !draft.definition().path("businessCategory").isTextual()) throw new IllegalArgumentException("Business category must be text");
+        String category = draft.definition().path("businessCategory").asText("");
+        if (category.length()>64 || category.chars().anyMatch(Character::isISOControl)) throw new IllegalArgumentException("Invalid business category");
         requireTenant(tenant, draft.definition().path("roleId").asText());
         String logical = draft.logicalId() == null || draft.logicalId().isBlank() ? UUID.randomUUID().toString() : draft.logicalId();
         var history = releases.lockLogical(logical);

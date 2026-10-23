@@ -238,7 +238,8 @@ export default {
       agentPageSize: 6,
       toolSearchQuery: "",
       toolBackendServiceTypeFilter: "all",
-      toolGroupMode: "service",
+      toolGroupMode: "category",
+      toolBusinessCategoryFilter: "all",
       documentSearchQuery: "",
       documentCategoryFilter: "all",
       documentTypeFilter: "all",
@@ -324,6 +325,10 @@ export default {
     },
     selectedToolNames() {
       return parseList(this.form.boundMcpToolNames);
+    },
+    selectedPublishedToolCount() {
+      const names = new Set(this.registeredMcpTools.map(tool=>tool.localToolName));
+      return this.selectedToolNames.filter(name=>names.has(name)).length;
     },
 
     pickerSelectedToolNames() {
@@ -567,7 +572,8 @@ export default {
             !tool.backendServiceTypes.length) ||
           tool.backendServiceTypes.includes(this.toolBackendServiceTypeFilter);
         const keywordMatches = !keyword || this.toolSearchText(tool).includes(keyword);
-        return typeMatches && keywordMatches;
+        const categoryMatches = !this.toolBusinessCategoryFilter || this.toolBusinessCategoryFilter === 'all' || tool.category === this.toolBusinessCategoryFilter;
+        return categoryMatches && typeMatches && keywordMatches;
       });
     },
     mcpToolGroups() {
@@ -622,7 +628,8 @@ export default {
       }
       const filteredCount = this.filteredMcpTools.length;
       const totalCount = this.normalizedMcpTools.length;
-      return `已勾选 ${this.pickerSelectedToolNames.length} / ${totalCount}，当前 ${filteredCount} 个`;
+      const selectedCount = this.normalizedMcpTools.filter(tool=>this.pickerSelectedToolNames.includes(tool.localToolName)).length;
+      return `已选 ${selectedCount} 个，当前找到 ${filteredCount} / ${totalCount} 个`;
     },
     mcpToolGroupSummary() {
       if (!this.filteredMcpTools.length) {
@@ -656,6 +663,9 @@ export default {
         options.push({ value: "undeclared", label: "未声明类型" });
       }
       return options;
+    },
+    mcpBusinessCategoryOptions() {
+      return [{value:'all',label:'全部业务分类'}, ...uniqueList(this.normalizedMcpTools.map(tool=>tool.category || '待分类')).sort((a,b)=>a.localeCompare(b,'zh-CN')).map(label=>({value:label,label}))];
     },
     importPreviewLabel() {
       if (this.importItems.length) {
@@ -1086,6 +1096,8 @@ export default {
     },
 
     openToolPicker() {
+      this.toolBackendServiceTypeFilter = 'all';
+      this.toolGroupMode = 'category';
       this.documentPickerOpen = false;
       this.skillPickerOpen = false;
       this.toolPickerOpen = true;
@@ -1135,7 +1147,7 @@ export default {
       );
       const roleChat = this.form.defaultMode === "role_chat";
       const selectedToolNames = (roleChat ? [] : parseList(this.form.boundMcpToolNames)).filter(
-        (toolName) => registeredToolNames.has(toolName)
+        (toolName) => registeredToolNames.has(toolName) || (this.dialogMode === 'edit' && (this.activeAgent?.boundMcpToolNames || []).includes(toolName))
       );
       const maxParallelCalls = Number(this.form.routingSettings.maxParallelCalls) || 3;
       const maxRelevantMcpTools = Number(this.form.routingSettings.maxRelevantMcpTools) || 3;
@@ -1741,7 +1753,7 @@ export default {
       const registered = this.registeredMcpTool(toolName);
       config = {
         toolName,
-        displayName: registered.remoteToolName || registered.displayName || toolName,
+        displayName: registered.chineseAlias || registered.displayName || registered.remoteToolName || toolName,
         serviceId: registered.serviceId || "",
         description: registered.description || "",
         callWeight: 5,
@@ -2216,8 +2228,10 @@ export default {
       this.skillPickerPage = Math.min(Math.max(1, Number(page) || 1), this.skillPickerPageCount);
     },
     clearSelectedTools() {
-      this.form.boundMcpToolNames = "";
-      this.syncWorkflowSteps([]);
+      const published = new Set(this.registeredMcpTools.map(tool=>tool.localToolName));
+      const retained = this.selectedToolNames.filter(name=>!published.has(name));
+      this.form.boundMcpToolNames = retained.join('\n');
+      this.syncWorkflowSteps(retained);
     },
     isToolGroupFullySelected(group) {
       return (

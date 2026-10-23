@@ -36,6 +36,11 @@ describe("AgentWorkshopView query service management", () => {
 });
 
 describe("AgentWorkshopView MCP Chinese aliases", () => {
+  it('filters published tool choices by business classification instead of backend type',()=>{
+    const rows=[{category:'客户服务',backendServiceTypes:['sql'],description:'查询客户'},{category:'数据核验',backendServiceTypes:['sql'],description:'检查差异'}];
+    const filtered=AgentWorkshopView.computed.filteredMcpTools.call({toolSearchQuery:'',toolBackendServiceTypeFilter:'all',toolBusinessCategoryFilter:'客户服务',normalizedMcpTools:rows,toolSearchText:()=>''});
+    expect(filtered).toEqual([rows[0]]);
+  });
   it("keeps the English tool identity while exposing the Chinese alias for search and hover", () => {
     const tools = AgentWorkshopView.computed.normalizedMcpTools.call({
       registeredMcpTools: [

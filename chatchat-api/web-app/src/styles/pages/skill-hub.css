@@ -4177,7 +4177,7 @@
 
 .mcp-center-view .mcp-tool-filters {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) repeat(2, minmax(150px, 200px)) minmax(130px, 170px);
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 260px);
   align-items: end;
   gap: 12px;
   border: 1px solid #e3e9f3;

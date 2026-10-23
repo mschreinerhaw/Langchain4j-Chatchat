@@ -3,9 +3,7 @@
     <header class="permission-page-heading">
       <div
         ><nav aria-label="面包屑">MCP 工具发布 <span>/</span> 模板查询工具</nav><h1>MCP 工具发布</h1
-        ><p
-          >动态创建 MCP 模板查询工具，为每个工具配置执行能力、授权角色和可查询的子模板集合。</p
-        ></div
+        ><p>选择要包含的模板，设置谁可以使用，发布后供 Agent 选择。</p></div
       >
       <div class="permission-heading-actions"
         ><button type="button" :disabled="busy" @click="refresh">刷新</button
@@ -28,13 +26,10 @@
     >
     <p v-if="busy" class="publication-loading" role="status">正在处理，请稍候…</p>
     <ol class="publication-workflow" aria-label="MCP 查询工具发布流程"
-      ><li><strong>1 · 新建查询工具</strong><span>填写业务名称与稳定的逻辑名称</span></li
-      ><li
-        ><strong>2 · 配置子模板集合</strong><span>选择父级执行能力、角色，勾选可查询范围</span></li
-      ><li><strong>3 · 校验与测试</strong><span>验证绑定关系，预览实际检索结果</span></li
-      ><li
-        ><strong>4 · 发布与使用</strong><span>运行中工具供 Agent 选择，查询受已选范围约束</span></li
-      ></ol
+      ><li><strong>1 · 新建查询工具</strong><span>填写工具名称和用途</span></li
+      ><li><strong>2 · 配置子模板集合</strong><span>选择模板来源、使用角色和模板范围</span></li
+      ><li><strong>3 · 校验与测试</strong><span>检查配置并预览查询结果</span></li
+      ><li><strong>4 · 发布与使用</strong><span>发布后可在 Agent 中选择使用</span></li></ol
     >
     <div class="permission-category-tabs" aria-label="查询工具状态"
       ><button :class="{ active: stateFilter === 'RUNNING' }" @click="stateFilter = 'RUNNING'"
@@ -51,7 +46,7 @@
           ><strong>工具列表</strong><span>{{ tools.length }} 项</span></div
         >
         <label class="publication-search"
-          >能力分类<select v-model="category" aria-label="工具分类"
+          >业务分类<select v-model="category" aria-label="工具分类"
             ><option value="">全部分类</option
             ><option v-for="name in categories" :key="name" :value="name">{{
               name
@@ -118,14 +113,26 @@
               placeholder="说明工具用途与适用场景"
             /></label
           ><label
-            >逻辑名称<input
+            >业务分类<input
+              v-model.trim="definition.businessCategory"
+              maxlength="64"
+              list="publication-business-categories"
+              placeholder="按业务用途填写，例如客户分析、数据核验" /><datalist
+              id="publication-business-categories"
+              ><option
+                v-for="name in categories.filter((name) => name !== '待分类')"
+                :key="name"
+                :value="name" /></datalist
+          ></label>
+          <label
+            >工具标识<input
               v-model.trim="definition.domainCode"
               required
               :disabled="!!form.logicalId"
               placeholder="例如 sales_summary，发布后保持稳定" /></label
         ></fieldset>
         <fieldset :disabled="busy || !editable" class="publication-fields"
-          ><legend>执行配置 · 父级检索能力与授权角色</legend
+          ><legend>模板来源与使用范围</legend
           ><div class="permission-form-grid"
             ><label
               >执行能力<select
@@ -319,7 +326,7 @@
               ><li class="complete">保存草稿</li
               ><li :class="{ complete: selected.state !== 'DRAFT' }">校验定义</li
               ><li :class="{ complete: ['TESTED', 'RUNNING', 'OFFLINE'].includes(selected.state) }"
-                >合约测试</li
+                >查询测试</li
               ><li :class="{ complete: !!selected.publishedAt }">正式发布</li></ol
             ><dl class="publication-metadata"
               ><div
@@ -339,7 +346,7 @@
             ><p class="publication-hint" role="status">{{
               {
                 DRAFT: "下一步：点击“校验定义”，检查子模板集合与参数结构。",
-                VALIDATED: "下一步：在“测试与记录”中填写查询参数并运行合约测试。",
+                VALIDATED: "下一步：在“测试与记录”中填写查询参数并运行查询测试。",
                 TESTED: "下一步：点击“发布工具”，发布这个子模板查询集合。",
                 RUNNING:
                   "查询工具已运行。Agent 可选择此能力，返回范围受已勾选子模板和实时权限约束。",
@@ -359,7 +366,7 @@
                 type="button"
                 :disabled="busy"
                 @click="activeTab = 'testing'"
-                >{{ selected.state === "TESTED" ? "查看并重新测试" : "配置合约测试" }}</button
+                >{{ selected.state === "TESTED" ? "查看并重新测试" : "配置查询测试" }}</button
               ><button
                 v-if="publishable && selected.state === 'TESTED'"
                 type="button"
@@ -409,18 +416,18 @@
               ><p class="publication-hint"
                 >将真实检索当前角色授权范围内的受控模板，并校验返回结构。</p
               ><button class="permission-primary" type="button" :disabled="busy" @click="test()"
-                >运行合约测试</button
+                >运行查询测试</button
               ></div
             ><p v-else class="publication-hint">{{
               selected.state === "DRAFT"
-                ? "请先在版本概览中完成定义校验，再运行合约测试。"
+                ? "请先在版本概览中完成定义校验，再运行查询测试。"
                 : "已发布的版本保留测试记录；需要重新测试时，请创建新版本。"
             }}</p
             ><div class="publication-evidence"
               ><h3>测试记录</h3
               ><pre v-if="selected.testEvidenceJson">{{ pretty(selected.testEvidenceJson) }}</pre
               ><p v-else class="permission-empty"
-                >暂无测试记录，完成定义校验后运行合约测试。</p
+                >暂无测试记录，完成定义校验后运行查询测试。</p
               ></div
             ></template
           >
@@ -430,7 +437,7 @@
           ><dl
             ><dt>逻辑标识</dt><dd>{{ selected.logicalId }}</dd
             ><dt>版本标识</dt><dd>{{ selected.id }}</dd
-            ><dt>逻辑名称</dt><dd>{{ selectedDefinition.domainCode }}</dd></dl
+            ><dt>工具标识</dt><dd>{{ selectedDefinition.domainCode }}</dd></dl
           ></details
         >
       </section>
@@ -438,7 +445,7 @@
         ><h2>{{ busy ? "正在加载工具…" : "开始管理受控工具" }}</h2
         ><p>{{
           editable
-            ? "新建工具草稿，依次完成定义校验、合约测试和发布。"
+            ? "新建工具草稿，依次完成定义校验、查询测试和发布。"
             : "当前没有可查看的工具版本。请联系具备工具发布权限的管理员。"
         }}</p
         ><button

@@ -121,6 +121,7 @@ public final class CodingInputSnapshotService {
                     item.put("fieldSchema",safe);
                 }
                 item.put("fieldDefinitions",CodingFieldDefinitions.sanitize(fields.get("fieldDefinitions")));
+                item.put("sourceDefinition",CodingFieldDefinitions.sanitizeSource(fields.get("sourceDefinition")));
                 projected.add(Map.copyOf(item));
             }
             description.put("inputVersions",List.copyOf(projected));

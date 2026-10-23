@@ -6,6 +6,20 @@ import java.util.*;
 public final class CodingFieldDefinitions {
     private CodingFieldDefinitions() {}
 
+    public static Map<String,Object> sourceFromContext(Map<String,Object> context) {
+        return sanitizeSource(context.get("source"));
+    }
+
+    public static Map<String,Object> sanitizeSource(Object value) {
+        if (!(value instanceof Map<?,?> source)) return Map.of();
+        var result=new LinkedHashMap<String,Object>();
+        for (String key:List.of("type","id","displayName","toolName","description")) {
+            if (source.get(key) instanceof String text && !text.isBlank() && text.length()<=4096)
+                result.put(key,text);
+        }
+        return Map.copyOf(result);
+    }
+
     public static Map<String,Object> fromContext(Map<String,Object> context) {
         Object schema=context.get("schema");
         if (!(schema instanceof Map<?,?> envelope)) return Map.of();

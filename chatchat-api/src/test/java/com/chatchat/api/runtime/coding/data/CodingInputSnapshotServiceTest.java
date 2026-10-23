@@ -102,6 +102,7 @@ class CodingInputSnapshotServiceTest {
                 "datasetReference","template#call","contentSha256","a".repeat(64),"rowCount",2L,
                 "fieldSchema",Map.of("tradeDate",List.of("STRING")),
                 "fieldDefinitions",Map.of("tradeDate",Map.of("type","string","description","Observation date","default","PRIVATE_DEFAULT","rawData","PRIVATE_ROW")),
+                "sourceDefinition",Map.of("displayName","Completed observations","rawBody","PRIVATE_SOURCE"),
                 "secretRecords","RAW_SHOULD_NOT_ENTER_DESCRIPTOR"))),
             List.of(Map.of("tradeDate", "2026-10-14", "amount", "1.25"),
                 Map.of("tradeDate", "2026-10-15")));
@@ -122,7 +123,8 @@ class CodingInputSnapshotServiceTest {
         assertThat(descriptor.toString()).doesNotContain("2026-10-14","1.25");
         assertThat(descriptor.toString()).contains("template#call","fieldSchema").doesNotContain("RAW_SHOULD_NOT_ENTER_DESCRIPTOR");
         assertThat(descriptor.toString()).contains("fieldDefinitions","Observation date")
-            .doesNotContain("PRIVATE_DEFAULT","PRIVATE_ROW");
+            .contains("sourceDefinition","Completed observations")
+            .doesNotContain("PRIVATE_DEFAULT","PRIVATE_ROW","PRIVATE_SOURCE");
         var contract = contract(scope, snapshot);
         assertThat(access.as(scope, EnumSet.of(CodingTaskAccess.Action.READ), () ->
             snapshots.requireAuthorized(contract))).isEqualTo(snapshot);

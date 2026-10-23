@@ -1,0 +1,37 @@
+{
+  "version": "2.4.8-data-space-label-20261023",
+  "sourceCommit": "cec4b1296",
+  "backup": "/opt/runtime-os-docker-stage/evidence/publication-ui-2.4.8-data-space-label-20261023/backup-1792765593",
+  "previousApi": {
+    "image": "runtime-os-api:2.4.7.1-tool-categories-20261023",
+    "imageId": "sha256:88425c95ae13078e2de17f20ecdd8ca33a98cb5a1fd65b72543d0a8a5f4e2b9f",
+    "sha256": "753247beb90ffd3309c8e2e8e9b40f5e22c5e47b24ca3239b871956a4d1f7f78"
+  },
+  "mcpImage": "runtime-os-mcp:2.4.7.1-tool-categories-20261023",
+  "policyBefore": {
+    "runtime_os_acceptance_api.mcp_tool_permission": "cc610360702deaaf14b4b97358dd5385",
+    "runtime_os_acceptance_api.resource_grant": "1e84ebfbd55077b136e865b10ea74bd3",
+    "runtime_os_acceptance_api.sys_user_role": "66ce7155c856069cc8c3804e437f2311",
+    "runtime_os_acceptance_mcp.mcp_template_query_binding": "ed4902ab4fa12c9485091b25e7a91df9",
+    "runtime_os_acceptance_api.sys_role_permission": "7c4ea653ee5a68d96792c9ca2fe31fa9"
+  },
+  "artifacts": {
+    "api": {
+      "sha256": "9bef51e8ea80d4193ea63ccb917918e3caafe4e59217aa856fb06c8e7687956d"
+    },
+    "mcp": {
+      "sha256": "b029f636c4e9b182022ec9155a1bdbdb5fb8275ef7ecaf0b2f0ea196d0b4f3d3"
+    }
+  },
+  "databaseMigration": false,
+  "status": "DEPLOYED",
+  "policyAfter": {
+    "runtime_os_acceptance_api.mcp_tool_permission": "cc610360702deaaf14b4b97358dd5385",
+    "runtime_os_acceptance_api.resource_grant": "1e84ebfbd55077b136e865b10ea74bd3",
+    "runtime_os_acceptance_api.sys_user_role": "66ce7155c856069cc8c3804e437f2311",
+    "runtime_os_acceptance_mcp.mcp_template_query_binding": "ed4902ab4fa12c9485091b25e7a91df9",
+    "runtime_os_acceptance_api.sys_role_permission": "7c4ea653ee5a68d96792c9ca2fe31fa9"
+  },
+  "policyUnchanged": true,
+  "artifactHashesMatch": true
+}

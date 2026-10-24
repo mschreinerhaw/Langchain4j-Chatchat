@@ -36,8 +36,8 @@ flowchart LR
 - `PublishedDataAcquisitionPlanner` compiles an unambiguous configured fixed provider
   and executor even when unrelated optional tools are available. It does not execute
   those optional tools, widen the publication scope, or select a template literal.
-  Ambiguous providers, extra required operations, missing authorization and staged
-  asset selection retain the existing governed planning path.
+  Ambiguous providers, extra required operations and missing authorization retain
+  the existing governed planning path. Configured asset stages are compiled separately.
 - Existing runtime admission, pagination, template parameter defaults, permissions,
   execution confirmation, checkpointing and dataset projection remain authoritative.
 - Acquisition failures retain their failed steps and original cause. A transport success
@@ -91,3 +91,31 @@ position or by a business-specific name rule.
 Live acceptance records explicitly cover DATA_ACQUISITION, verify the three-phase DAG
 and usable invocation receipts, and stop the agent-created verification task after that
 boundary. A completed end-to-end analytical report is a separate acceptance condition.
+
+## Final live acceptance
+
+- API image: `2.4.20-published-data-supply-20261024`; code revision: `1569734a9`.
+- Targeted Java regression suite: **112 tests, zero failures/errors/skips**.
+- Fresh verification task: `8966cef3-26ec-31ee-a9b4-186fd22f69da`, reproducing
+  the original question with the current published Agent configuration.
+- The executed DAG contains the capability bridge with `stage=asset`, the fixed
+  published template query, and SQL execution, in that order. Template-ID bindings
+  originate from the fixed template node, never the asset node.
+- The original asset query was preserved. The subsequent template request contained
+  the admitted canonical asset ID and logical name. All **three** SQL invocations
+  succeeded, used that same asset ID, and returned usable evidence. Dataset projection
+  recorded **three datasets and zero exclusions**.
+- The initial acceptance assertion mistakenly compared a technical display alias to
+  the user-facing logical name. Receipt rechecking now joins executed asset IDs to
+  the asset-stage admitted IDs, then checks the catalog's canonical logical name.
+  Persisted execution receipts passed this check; the original failed checker log
+  is retained rather than hidden.
+- The agent-created verification task was stopped after the data acquisition boundary.
+  Its parent status is CANCELLED; `analysisReportVerified=false`. This is a passing
+  supply-chain acceptance, not a claim that an end-to-end analytical report completed.
+- Deployment checks confirmed unchanged authorization and template-binding fingerprints;
+  the current Agent configuration was identical before and after deployment.
+
+Private server evidence is under
+`/opt/chatchat-releases/published-data-supply-staged-20261024`, including the release
+manifest, original verification log, corrected receipt check, and data acceptance JSON.

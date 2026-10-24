@@ -50,6 +50,16 @@ metadata envelopes, actual published protocol shapes, redirected bindings, confi
 dependency edges, optional tools, missing tool authorization, cross-protocol rejection,
 existing plan validation and failure provenance.
 
+Live verification on 2.4.18 obtained four real SQL execution datasets and entered Coding.
+It also exposed a second issue: an optional SSH discovery tool was counted when inferring
+the required SQL predecessor. That made the configured SQL dependency ambiguous. A later
+optimizer pass removed the compiled edge and materialized a generic bridge again.
+Predecessor resolution now considers executable nodes only and uses the same protocol
+plugin match as plan compilation and validation. The regression uses the actual shape:
+a fixed SQL provider, a generic SQL bridge, an optional SSH discovery node, and an SQL
+executor with no manually entered dependency. Existing interface class hashes were
+checked against the deployed JAR; this was not an interface-version mismatch.
+
 The release patches eight compiled classes onto the exact deployed API artifact.
 `prepare-published-data-supply-release.mjs` records the source revision and baseline;
 `patch-published-data-supply.py` verifies the baseline and byte equality of every

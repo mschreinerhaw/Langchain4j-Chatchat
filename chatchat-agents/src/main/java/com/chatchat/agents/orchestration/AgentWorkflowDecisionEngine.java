@@ -313,6 +313,17 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
                                                                  McpToolProtocolRole predecessorRole) {
         McpToolProtocolRole currentRole = predecessorRole == McpToolProtocolRole.ASSET_QUERY
             ? McpToolProtocolRole.TEMPLATE_QUERY : McpToolProtocolRole.TEMPLATE_EXECUTE;
+        if (currentRole == McpToolProtocolRole.TEMPLATE_EXECUTE && toolRegistry != null) {
+            var executor = templateWorkflowTool(toolName);
+            var plugin = com.chatchat.agents.runtime.plan.template.TemplateWorkflowPluginRegistry.load()
+                .resolve(executor).orElse(null);
+            if (plugin != null) {
+                return steps.stream().filter(WorkflowToolStep::executable)
+                    .filter(candidate -> workflowRole(candidate.toolName()) == ToolWorkflowRole.TEMPLATE_DISCOVERY)
+                    .filter(candidate -> plugin.accepts(templateWorkflowTool(candidate.toolName()), executor))
+                    .toList();
+            }
+        }
         String declaredFamily = protocolFamily(toolName);
         String resolvedFamily = declaredFamily == null ? currentRole.family(toolName) : declaredFamily;
         if (resolvedFamily != null) {
@@ -323,6 +334,7 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
             }
         }
         return steps.stream()
+            .filter(WorkflowToolStep::executable)
             .filter(candidate -> predecessorRole == McpToolProtocolRole.ASSET_QUERY
                 ? workflowRole(candidate.toolName()) == ToolWorkflowRole.ASSET_DISCOVERY
                 : workflowRole(candidate.toolName()) == ToolWorkflowRole.TEMPLATE_DISCOVERY)
@@ -336,6 +348,7 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
         ToolWorkflowRole requiredRole = role == McpToolProtocolRole.ASSET_QUERY
             ? ToolWorkflowRole.ASSET_DISCOVERY : ToolWorkflowRole.TEMPLATE_DISCOVERY;
         return steps.stream()
+            .filter(WorkflowToolStep::executable)
             .filter(candidate -> !candidate.toolName().equalsIgnoreCase(currentToolName))
             .filter(candidate -> workflowRole(candidate.toolName()) == requiredRole)
             .filter(candidate -> family.equals(protocolFamily(candidate.toolName()))
@@ -347,6 +360,13 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
         return toolRegistry == null
             ? ToolWorkflowContract.resolveRole(toolName, null)
             : toolRegistry.getWorkflowRole(toolName);
+    }
+
+    private com.chatchat.agents.runtime.plan.template.TemplateWorkflowTool templateWorkflowTool(String name) {
+        ToolMetadata metadata = toolRegistry.getToolMetadata(name);
+        return new com.chatchat.agents.runtime.plan.template.TemplateWorkflowTool(name, workflowRole(name),
+            ToolWorkflowContract.declaredProtocolFamily(metadata).orElse(null),
+            com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.assetType(metadata));
     }
 
     private String protocolFamily(String toolName) {

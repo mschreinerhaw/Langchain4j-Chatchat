@@ -36,11 +36,14 @@ class AgentWorkflowDecisionEngineTest {
                 when(registry.getToolMetadata(name)).thenReturn(meta);
             }
             when(registry.getWorkflowRole(execute)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+            when(registry.getToolMetadata(execute)).thenReturn(metadata(ToolWorkflowRole.TEMPLATE_EXECUTION,"mcp.sql-template.v1"));
+            when(registry.getWorkflowRole("optional_tool")).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+            when(registry.getToolMetadata("optional_tool")).thenReturn(metadata(ToolWorkflowRole.TEMPLATE_DISCOVERY,"mcp.ssh-template.v1"));
             Map<String,Object> workflow=Map.of("steps",List.of(
                 Map.of("step",1,"tool",bridge,"required",true),
                 Map.of("step",2,"tool","optional_tool","required",false),
                 Map.of("step",3,"tool",child,"required",true),
-                Map.of("step",4,"tool",execute,"required",true,"dependsOn",List.of(bridge))));
+                Map.of("step",4,"tool",execute,"required",true)));
             var result=new AgentWorkflowDecisionEngine(registry).resolveWorkflowMandatoryTools(
                 List.of(child,bridge,execute,"optional_tool"),Map.of("mcpWorkflow",workflow),"Inspect records");
             assertThat(result.tools()).containsExactly(child,execute);

@@ -38,6 +38,80 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineModelCallbackControllerTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void longModelCallRenewsOnlyItsOwnLiveLeaseAndArchivesLateReceipt(boolean cancel) {
+        var source = new DriverManagerDataSource("jdbc:h2:mem:model-heartbeat-" + UUID.randomUUID()
+            + ";DB_CLOSE_DELAY=-1", "sa", "");
+        new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);
+        var json = new ObjectMapper().findAndRegisterModules().disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        var store = new JdbcRuntimeEvidenceStore(new JdbcTemplate(source), json, new DataSourceTransactionManager(source));
+        var scope = new KernelDataScope("tenant", "owner", null, null, "run", null, Map.of());
+        var input = Map.<String, Object>of("fixture", "authorized");
+        store.register(new EvidenceRecord(null, "input", scope, "CODING_INPUT_SNAPSHOT", "test",
+            store.contentHash(input), input, null, System.currentTimeMillis(), Map.of()),
+            new EvidenceLineage(null, "input", scope, List.of(), "task", "test", null, Map.of()));
+        var access = new CodingInvocationContext();
+        var time = new AtomicReference<>(Instant.now().truncatedTo(ChronoUnit.MILLIS));
+        var clock = mock(Clock.class);
+        when(clock.instant()).thenAnswer(call -> time.get());
+        when(clock.millis()).thenAnswer(call -> time.get().toEpochMilli());
+        var timer = Executors.newSingleThreadScheduledExecutor();
+        try {
+            var receipts = new ClineModelReceiptStore(store);
+            var tasks = new DurableCodingTaskService(store, json, clock, access, (owner, ref) -> true,
+                receipts, Runnable::run, new ConcurrentTaskScheduler(timer));
+            var value = (com.fasterxml.jackson.databind.node.ObjectNode) json.valueToTree(contract(scope));
+            ((com.fasterxml.jackson.databind.node.ObjectNode)value.path("budget")).put("deadlineAt", time.get().plusSeconds(900).toString());
+            var contract = json.convertValue(value, CodingTaskContract.class);
+            var grants = EnumSet.allOf(CodingTaskAccess.Action.class);
+            var lease = access.as(scope, grants, () -> {
+                var submitted = tasks.submit(contract);
+                return tasks.claim(scope, "task", "cline-adapter:test", Duration.ofSeconds(90), submitted.revision());
+            });
+            var scheduler = mock(java.util.concurrent.ScheduledExecutorService.class);
+            var scheduled = mock(java.util.concurrent.ScheduledFuture.class);
+            var pulse = new AtomicReference<Runnable>();
+            doAnswer(call -> { pulse.set(call.getArgument(0)); return scheduled; }).when(scheduler)
+                .scheduleWithFixedDelay(any(Runnable.class), eq(60L), eq(60L), eq(TimeUnit.SECONDS));
+            var model = mock(ClineRuntimeModelBridge.class);
+            when(model.complete(any(), any())).thenAnswer(call -> {
+                var before = access.as(scope, grants, () -> tasks.ownership(scope, "task"));
+                time.set(time.get().plusSeconds(240));
+                pulse.get().run();
+                var renewed = access.as(scope, grants, () -> tasks.ownership(scope, "task"));
+                assertThat(renewed.leaseUntil()).isAfter(before.leaseUntil());
+                assertThat(renewed.fencingToken()).isEqualTo(lease.fencingToken());
+                if (cancel) {
+                    access.as(scope, grants, () -> tasks.cancel(scope, "task", "test cancellation"));
+                    pulse.get().run();
+                    assertThat(access.as(scope, grants, () -> tasks.ownership(scope, "task"))).isEqualTo(renewed);
+                } else {
+                    time.set(time.get().plusSeconds(360));
+                    var replacement = access.as(scope, grants, () -> tasks.claim(scope, "task", "cline-adapter:replacement",
+                        Duration.ofMinutes(5), tasks.get(scope, "task").revision()));
+                    assertThatThrownBy(() -> pulse.get().run()).isInstanceOf(RuntimeException.class);
+                    assertThat(access.as(scope, grants, () -> tasks.ownership(scope, "task"))).isEqualTo(replacement);
+                }
+                return Map.of("text", "done", "toolCalls", List.of(), "usage", Map.of("inputTokens", 4, "outputTokens", 2));
+            });
+            var controller = new ClineModelCallbackController(access, tasks, model, receipts,
+                mock(CodingInputSnapshotService.class), mock(CodingValidationPlanService.class), mock(CodingEvidenceCollector.class), json);
+            controller.setModelLeaseRenewals(scheduler);
+            var body = json.createObjectNode();
+            body.set("scope", json.valueToTree(scope)); body.put("taskId", "task");
+            body.put("contractHash", CodingCanonicalHash.sha256(contract)); body.put("fencingToken", lease.fencingToken());
+            body.set("contract", json.valueToTree(contract));
+            body.set("model", json.valueToTree(Map.of("operationId", "model-1", "modelCalls", 1, "maxTokens", 2048)));
+            controller.reserve(body);
+            body.set("request", json.valueToTree(Map.of("operationId", "model-1", "messages", List.of(), "tools", List.of())));
+            assertThatThrownBy(() -> controller.model(body)).hasMessageContaining("Coding ownership or stop state changed");
+            assertThat(receipts.response(scope, "task", "model-1")).isPresent();
+            verify(scheduled).cancel(false);
+            verify(model, times(1)).complete(any(), any());
+        } finally { timer.shutdownNow(); }
+    }
+
     @Test void sdkCompletionCannotBypassFailedVisualArtifactAdmission() {
         var source=new DriverManagerDataSource("jdbc:h2:mem:visual-finish-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa","");
         new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);

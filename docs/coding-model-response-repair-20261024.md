@@ -53,3 +53,21 @@ task records are retained; live verification uses the official retry endpoint.
 
 Private deployment backups and full acceptance evidence are retained on the server under
 `/opt/chatchat-releases/model-response-repair-20261024/evidence/`.
+
+## Long model-call correction
+
+The complex acceptance exposed a second transport boundary: a coding reply exceeded the
+worker's 300-second callback limit while the configured model request was still running.
+Changing only a global timeout is insufficient because native fetch also imposes a header
+timeout and the model callback initially renewed ownership for only five minutes.
+
+Version `2.4.16-model-deadline-20261024` uses the authorized task deadline for model callbacks,
+with a cancellable native HTTP request and a bounded response body. Control callbacks retain
+their short timeout. Java renews the active model call's five-minute lease every minute;
+cancellation, task deadline and fencing continue to prevent stale execution. Late provider
+receipts remain archival evidence and cannot publish a result after ownership is lost.
+No task budget or business model binding is changed.
+
+The extended Java gate passed 33 tests. The production Node 24 worker gate passed 32 tests,
+including a delayed model response beyond the control timeout, task-deadline abort and explicit
+cancellation. Lease renewal was tested across cancellation and replacement ownership.

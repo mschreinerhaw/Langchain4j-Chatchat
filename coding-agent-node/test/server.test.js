@@ -13,6 +13,23 @@ const contract = {
   budget: { maxModelCalls: 1 },
 };
 
+test('model inference follows task deadline beyond control timeout and remains cancellable', async () => {
+  const callback = createServer((request, response) => {
+    setTimeout(() => { if (!response.destroyed) { response.writeHead(200); response.end('{"text":"done"}'); } }, 120);
+  });
+  await new Promise(resolve => callback.listen(0, '127.0.0.1', resolve));
+  try {
+    const gateway = httpGateway(`http://127.0.0.1:${callback.address().port}`, secret, {}, { timeoutMs: 25 });
+    const bounded = { ...contract, budget: { deadlineAt: new Date(Date.now() + 3000).toISOString() } };
+    assert.equal((await gateway.model(bounded, {})).text, 'done');
+    await assert.rejects(gateway.model({ ...bounded, budget: { deadlineAt: new Date(Date.now() + 40).toISOString() } }, {}), /timeout|aborted/i);
+    const cancellation = new AbortController();
+    const pending = gateway.model(bounded, {}, cancellation.signal);
+    cancellation.abort();
+    await assert.rejects(pending, /aborted/i);
+  } finally { callback.closeAllConnections(); await new Promise(resolve => callback.close(resolve)); }
+});
+
 test('Runtime callback timeout bounds stalled admission while expired tasks can still request cancellation', async () => {
   let calls = 0;
   const callback = createServer((request, response) => {

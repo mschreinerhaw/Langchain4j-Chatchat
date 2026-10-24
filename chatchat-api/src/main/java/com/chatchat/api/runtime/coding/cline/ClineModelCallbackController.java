@@ -40,6 +40,16 @@ import org.springframework.web.server.ResponseStatusException;
 @ConditionalOnProperty(prefix = "chatchat.coding.cline", name = "enabled", havingValue = "true")
 @ConditionalOnProperty(prefix = "chatchat.coding", name = "enabled", havingValue = "true")
 public final class ClineModelCallbackController {
+    private static final java.util.concurrent.ScheduledExecutorService MODEL_LEASE_RENEWALS =
+        java.util.concurrent.Executors.newSingleThreadScheduledExecutor(work -> {
+            var thread = new Thread(work, "coding-model-lease-renewal");
+            thread.setDaemon(true);
+            return thread;
+        });
+    private java.util.concurrent.ScheduledExecutorService modelLeaseRenewals = MODEL_LEASE_RENEWALS;
+    void setModelLeaseRenewals(java.util.concurrent.ScheduledExecutorService scheduler) {
+        modelLeaseRenewals = scheduler;
+    }
     private static final Logger LOG = LoggerFactory.getLogger(ClineModelCallbackController.class);
     private static final Set<CodingTaskAccess.Action> GRANTS = EnumSet.of(
         CodingTaskAccess.Action.READ, CodingTaskAccess.Action.WORKER, CodingTaskAccess.Action.EVIDENCE, CodingTaskAccess.Action.SUBMIT);
@@ -234,6 +244,15 @@ public final class ClineModelCallbackController {
             if (!freshDispatches.remove(key(call, operationId), permittedAt))
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Model dispatch permission was already consumed");
             Map<String, Object> response;
+            var renewal = modelLeaseRenewals.scheduleWithFixedDelay(() -> identity.as(call.scope(), GRANTS, () -> {
+                var current = tasks.get(call.scope(), call.taskId());
+                if (current.status().terminal() || current.cancellationRequested()
+                        || current.executionControl().stopReason() != null
+                        || !contract.budget().deadlineAt().isAfter(Instant.now())) return null;
+                CodingTaskRevisions.mutate(tasks, call.scope(), call.taskId(), revision ->
+                    tasks.renew(call.scope(), call.taskId(), call.lease(), Duration.ofMinutes(5), revision));
+                return null;
+            }), 60, 60, java.util.concurrent.TimeUnit.SECONDS);
             try {
                 response = model.complete(contract, request);
             } catch (ClineRuntimeModelBridge.InvalidModelResponseException invalid) {
@@ -249,6 +268,8 @@ public final class ClineModelCallbackController {
                     operationId, providerFailure);
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Runtime model request failed; execution outcome must be reconciled", providerFailure);
+            } finally {
+                renewal.cancel(false);
             }
             // Preserve a genuine late provider receipt even when cancellation/fencing won the race.
             // Receipt archival cannot publish a result or grant another dispatch.

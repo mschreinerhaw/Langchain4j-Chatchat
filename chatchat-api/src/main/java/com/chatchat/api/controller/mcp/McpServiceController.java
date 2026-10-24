@@ -316,21 +316,19 @@ public class McpServiceController {
      */
     private List<ToolCardView> buildToolCards(HttpServletRequest request) {
         var published = publishedTools.publications(request);
-        var catalog = administrationPort.listToolCatalog();
-        var systemNames = publishedTools.systemToolNames(request, catalog);
-        return catalog.stream().filter(tool -> published.containsKey(tool.localToolName()) || systemNames.contains(tool.localToolName())).map(tool -> {
+        return administrationPort.listToolCatalog().stream().filter(tool -> published.containsKey(tool.localToolName())).map(tool -> {
             var publication = published.get(tool.localToolName());
-            boolean system = publication == null;
+            boolean system = publication.systemTool();
             return new ToolCardView(
-            tool.localToolName(), system ? tool.displayName() : publication.title(), system ? tool.chineseAlias() : publication.title(),
-            system ? tool.description() : publication.description(), system ? "system" : "mcp", system ? "系统工具" : tool.sourceLabel(),
+            tool.localToolName(), publication.title(), publication.title(),
+            publication.description(), system ? "system" : "mcp", system ? "系统工具" : tool.sourceLabel(),
             tool.serviceId(), tool.serviceName(), tool.remoteToolName(), tool.outputType(), tool.agentCompatible(),
             tool.requiresAuth(), tool.rateLimited(), tool.timeoutMillis(), tool.parameters().size(),
-            system ? tool.functionalCategory() : publication.category(), system ? tool.categories() : List.of(publication.category()), List.of(), tool.parameters().stream()
+            publication.category(), List.of(publication.category()), List.of(), tool.parameters().stream()
                 .map(parameter -> new ToolParameterView(parameter.name(), parameter.type(), parameter.description(),
                     parameter.required()))
                 .toList(),
-            tool.inputSchema(), system ? 0 : publication.templateCount());
+            tool.inputSchema(), publication.templateCount(), system);
         }).toList();
     }
 
@@ -672,7 +670,8 @@ public class McpServiceController {
         List<String> tags,
         List<ToolParameterView> parameters,
         Map<String, Object> inputSchema,
-        int templateCount
+        int templateCount,
+        boolean systemTool
     ) {
     }
 

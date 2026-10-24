@@ -21,22 +21,7 @@ public class PublishedMcpToolCatalog {
     private final McpToolCatalogQueryPort catalog;
     private final ResourceAuthorizationPort authorization;
     private final ObjectMapper json;
-    public record Publication(String title, String description, String category, int templateCount) { }
-
-    /** Built-in tools use their existing grants; external registered tools still require publication. */
-    public Set<String> systemToolNames(HttpServletRequest request,
-        List<com.chatchat.common.mcp.admin.McpAdministrationPort.ToolCatalogEntry> tools) {
-        Object principal = request == null ? null : request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_VIEW);
-        if (!(principal instanceof EnterpriseAdminService.UserView user)) return Set.of();
-        Set<String> candidates = tools.stream()
-            .filter(tool -> "backend".equals(tool.sourceType()) ||
-                "mcp".equals(tool.sourceType()) && (tool.remoteToolName() == null || tool.remoteToolName().isBlank() ||
-                    "chatchat-mcp-server".equals(tool.serviceId()) && "document_search".equals(tool.remoteToolName())))
-            .map(com.chatchat.common.mcp.admin.McpAdministrationPort.ToolCatalogEntry::localToolName)
-            .collect(java.util.stream.Collectors.toSet());
-        return authorization.allowedIds(ResourceAuthorizationPort.MCP_TOOL, user.tenantId(), user.id(),
-            user.roleIds() == null ? Set.of() : Set.copyOf(user.roleIds()), candidates);
-    }
+    public record Publication(String title, String description, String category, int templateCount, boolean systemTool) { }
 
     public Map<String, Publication> publications(HttpServletRequest request) {
         Object principal = request == null ? null : request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_VIEW);
@@ -45,6 +30,17 @@ public class PublishedMcpToolCatalog {
         boolean manager = user.permissionCodes() != null && user.permissionCodes().contains("system:permission-center:manage");
         String path = "/api/v1/tool-publications?tenantId=" + encode(user.tenantId()) + "&actorId=" + encode(user.id());
         Map<String, Publication> candidates = new LinkedHashMap<>();
+        // Preserve the deployed system search catalog and its existing resource authorization.
+        for (var tool : catalog.registeredTools()) {
+            String name = tool.remoteToolName();
+            if (!"chatchat-mcp-server".equals(tool.serviceId()) ||
+                !Set.of("web_search", "document_search").contains(name == null ? "" : name) ||
+                !("mcp_chatchat_mcp_server_" + name).equals(tool.localToolName())) continue;
+            boolean web = "web_search".equals(name);
+            candidates.put(tool.localToolName(), new Publication(web ? "联网搜索" : "文档检索",
+                web ? "检索资讯与公开网页，为回答提供相关信息和来源。" : "检索您有权访问的文档，查找相关内容与引用来源。",
+                "系统工具", 0, true));
+        }
         for (JsonNode row : client.request("GET", path, null)) {
             if (!"RUNNING".equals(row.path("state").asText()) || !"CONTROLLED_TEMPLATE".equals(row.path("kind").asText())) continue;
             JsonNode definition;
@@ -57,14 +53,15 @@ public class PublishedMcpToolCatalog {
             String category = row.path("businessCategory").asText(definition.path("businessCategory").asText("")).trim();
             candidates.putIfAbsent(name, new Publication(row.path("title").asText(),
                 row.path("description").asText("").isBlank() ? "在授权范围内查询已选模板" : row.path("description").asText(),
-                category.isBlank() ? "未分类" : category, definition.path("templateKeys").size()));
+                category.isBlank() ? "未分类" : category, definition.path("templateKeys").size(), false));
         }
         Set<String> allowed = authorization.allowedIds(ResourceAuthorizationPort.MCP_TOOL, user.tenantId(), user.id(), roleIds, candidates.keySet());
         candidates.keySet().retainAll(allowed);
         return Collections.unmodifiableMap(candidates);
     }
     public JsonNode templates(HttpServletRequest request, String toolName) {
-        if (!publications(request).containsKey(toolName)) throw new SecurityException("工具已下线或无权查看");
+        var publication = publications(request).get(toolName);
+        if (publication == null || publication.systemTool()) throw new SecurityException("此工具没有可查看的授权模板");
         var user = (EnterpriseAdminService.UserView) request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_VIEW);
         String domain = toolName.substring("mcp_chatchat_mcp_server_".length(), toolName.length() - "_template_query".length());
         return client.request("GET", "/api/v1/tool-publications/templates?tenantId=" + encode(user.tenantId())
@@ -77,7 +74,8 @@ public class PublishedMcpToolCatalog {
                 Publication item = published.get(tool.localToolName());
                 return new McpToolCatalogQueryPort.RegisteredTool(tool.localToolName(), tool.serviceId(), tool.serviceName(),
                     tool.remoteToolName(), item.description(), tool.backendServiceType(), item.category(), List.of(item.category()), List.of(),
-                    Map.of("summary", "包含 " + item.templateCount() + " 个已选模板", "templateCount", item.templateCount(), "published", true),
+                    Map.of("summary", item.systemTool() ? "系统内置，可供 Agent 使用" : "包含 " + item.templateCount() + " 个已选模板",
+                        "templateCount", item.templateCount(), "published", true, "systemTool", item.systemTool()),
                     tool.capabilityNode(), item.title());
             }).toList();
     }

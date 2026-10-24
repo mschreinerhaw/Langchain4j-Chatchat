@@ -1,10 +1,10 @@
 # Live Monitor 容器运维平台接入
 
-本仓库的 `feature/container-ops-platform` 从 `main / 86d496089` 建立。API 前端已通过 package.json / Vue createApp 入口确认是 Vue3，无须换成旧前端。监控平台实现位于独立仓库 `live-monitor-java` 的同名开发分支（基于已核实的 `origin/feature/vue3-frontend / 9222560`）。本次不修改生产分支，不执行生产部署。
+本仓库的 `feature/container-ops-platform` 从 `main / 86d496089` 建立。API 前端已通过 package.json / Vue createApp 入口确认是 Vue3，无须换成旧前端。监控平台实现位于独立仓库 `live-monitor-java` 的同名开发分支（基于已核实的 `origin/feature/vue3-frontend / 9222560`）。本次不修改生产分支；监控控制面已按用户后续授权独立部署到服务器验证，现有 ChatChat 生产容器保持原状。
 
 ## 责任边界
 
-Live Monitor 是部署、主机监控、容器操作、备份、告警和审计的控制面；本仓库继续提供 API/MCP/Node Worker 等业务镜像。两者通过标准部署参数和镜像 Digest 对接，不把 ChatChat 服务名称、服务器 IP、业务数据库、Agent 模型等硬编码到平台业务逻辑中。
+Live Monitor 是面向多服务器、多应用、多环境的统一部署、运行监控、故障恢复、备份、告警和审计控制面；本仓库继续提供 API/MCP/Node Worker 等业务镜像。两者通过标准部署参数和镜像 Digest 对接，不把 ChatChat 服务名称、服务器 IP、业务数据库、Agent 模型等硬编码到平台业务逻辑中。
 
 现有镜像构建入口 `scripts/application_image_build.py` 与 `deploy/docker/application` 保持原样。继续从干净运行时构建，不以旧业务镜像为基础叠层。构建并推送已验证镜像后，将仓库返回的完整不可变 Digest 登记到平台；平台校验批准仓库、资源限制、Secret 引用、网络、数据卷和健康检查，再经显式授权发布。
 
@@ -27,4 +27,4 @@ Live Monitor 是部署、主机监控、容器操作、备份、告警和审计�
 
 保留现有监控入口。新的运维页为 Live Monitor 的 `/#/ops/overview`，通过外部配置或门户链接访问，不能硬编码某台生产服务器 URL。现有嵌入监控令牌仍用于原监控；新增运维拒绝把嵌入令牌自动转换成管理员授权，必须单独交互登录并获得运维范围权限。
 
-生产环境部署、恢复、删除和原数据迁移均需要针对具体变更另行批准。本任务只交付开发分支、可运行构建、隔离测试与接入说明。
+生产业务接管、恢复、删除和原数据迁移均需要针对具体变更明确授权。2026-10-25 已在授权服务器部署独立控制面，完成两套测试应用的镜像部署、升级回滚、真实卷备份恢复、异常及 unhealthy 自动恢复、限次熔断与人工停机保护；原有 19 个容器未被替换或重启。实际物理服务器验收数量为 1；多物理服务器仍需补充授权目标验收。详情见 live-monitor-java 的 `docs/container-ops/06-server-acceptance.md`，不在本仓库写死访问地址或凭据。

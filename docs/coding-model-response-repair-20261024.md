@@ -71,3 +71,29 @@ including a delayed model response beyond the control timeout, task-deadline abo
 cancellation. Lease renewal was tested across cancellation and replacement ownership.
 The renewal tests also run on a separate thread to verify the callback identity and grants
 are restored on the scheduler thread.
+
+## Final live acceptance and remaining model-service limit
+
+- On the final deployed version, selecting the page-published `qwen3.8-flash` returned `OK`
+  through the official interaction endpoint, with a completed coding receipt and usable result.
+- Selecting `hy3` completed a separate, context-only Python calculation of the integer sum
+  from 1 through 500. The result was `125250`; five real model calls succeeded and the worker
+  recorded two Python programs. This synthetic computation is not the database diagnosis.
+- Original-analysis retry `d31875e6-413f-4f95-ab23-728ca3046856` used the current published
+  Agent binding, `qwen3.8-max`. Planning completed, but the first coding model request returned
+  no receipt within the original twenty-minute tool budget. At 17:27:38 Shanghai time its
+  deadline was reached, and the parent ended `FAILED`; the child records `DEADLINE_EXCEEDED`
+  with reconciliation still required. No Python program ran for this attempt. It is not
+  recorded as a successful full database analysis.
+- A private JVM thread dump showed the active call waiting in `JdkHttpClient.execute` /
+  `HttpClientImpl.send`, with another model executor thread idle. The lease renewed while
+  waiting, including beyond the former five-minute limit. The remaining blocker is an
+  unreturned upstream model HTTP request, rather than a model-catalog miss or thread-pool
+  saturation. The Node callback goes directly to `http://api:8080`; the Node proxy's timeout
+  belongs to the opposite, short-request direction and was not changed.
+
+The current business Agent binding and all original budgets remain unchanged. A reviewable
+proposal is prepared on the server to change only `db_ops_assistant.modelName` from
+`qwen3.8-max` to the tested `qwen3.8-flash`, then publish through the existing licensed API.
+This business configuration change is awaiting the user's explicit choice and has not been
+applied. Its private before/after payloads preserve every other upsert field.

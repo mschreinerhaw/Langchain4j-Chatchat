@@ -21,9 +21,9 @@ although direct tool descriptors publish the same contract at the top level.
 
 ```mermaid
 flowchart LR
-    A[Published workflow and authorized fixed scope] --> B[Java compiles provider-to-executor dependencies]
-    B --> C[Model admits relevant returned templates and evidence-backed arguments]
-    C --> D[Java enforces bindings, permissions and execution contracts]
+    A[Published workflow and authorized scope] --> B[Java compiles asset resolution then fixed template selection]
+    B --> C[Model admits canonical assets and relevant returned templates]
+    C --> D[Java binds canonical asset context and template identity to execution]
     D --> E[Immutable execution evidence becomes business datasets]
     E --> F[Coding analysis]
 ```
@@ -60,7 +60,7 @@ a fixed SQL provider, a generic SQL bridge, an optional SSH discovery node, and 
 executor with no manually entered dependency. Existing interface class hashes were
 checked against the deployed JAR; this was not an interface-version mismatch.
 
-The release patches eight compiled classes onto the exact deployed API artifact.
+The release patches nine compiled classes onto the exact deployed API artifact.
 `prepare-published-data-supply-release.mjs` records the source revision and baseline;
 `patch-published-data-supply.py` verifies the baseline and byte equality of every
 unrelated JAR entry. The existing API deployment helper backs up the database and
@@ -68,3 +68,26 @@ configuration, checks task idleness, preserves previous images, verifies permiss
 and template bindings, and rolls back the API image on verification failure.
 No Agent model binding, business workflow configuration, authorization data, MCP
 publication, SQL template, or business identifier is changed by this release.
+
+## Asset identity is a separate prerequisite
+
+The two-node 2.4.19 verification correctly rejected an ambiguous execution context:
+only the environment was available, matching eight authorized datasources. A fixed
+**template** scope does not fix the execution **asset**. Neither may replace the other.
+The verification task failed; it is not recorded as a completed analysis.
+
+The final compiler preserves a required dual-stage capability bridge as an **asset-only**
+invocation, then calls the published fixed template provider, then its executor. The
+configured dependency projection uses the invocation role, rather than assuming that
+one tool always returns templates. Only the template node supplies template-ID bindings.
+Optional SSH discovery remains outside the required SQL chain.
+
+For compiled asset resolution, Java preserves the original user query instead of running
+it through the template-keyword rewrite. This prevents losing a user-supplied logical
+asset identity while retaining the normal authorized candidate search, canonical asset
+review, routing context validation and ambiguity rejection. No asset is selected by list
+position or by a business-specific name rule.
+
+Live acceptance records explicitly cover DATA_ACQUISITION, verify the three-phase DAG
+and usable invocation receipts, and stop the agent-created verification task after that
+boundary. A completed end-to-end analytical report is a separate acceptance condition.

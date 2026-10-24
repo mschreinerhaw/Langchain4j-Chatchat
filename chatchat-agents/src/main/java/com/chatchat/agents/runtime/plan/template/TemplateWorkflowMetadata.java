@@ -31,4 +31,15 @@ public final class TemplateWorkflowMetadata {
         return fixedScope(tool).map(McpTemplateSelectionScope::assetType)
             .map(value->value.trim().toLowerCase(Locale.ROOT)).orElse(null);
     }
+
+    public static boolean assetStages(ToolMetadata tool) {
+        if (tool == null) return false;
+        if (tool.getParameters() != null && tool.getParameters().stream().anyMatch(parameter ->
+            parameter != null && "stage".equals(parameter.getName()) && parameter.getEnumValues() != null
+                && Arrays.asList(parameter.getEnumValues()).containsAll(List.of("asset", "template")))) return true;
+        Object schema = publisher(tool).get("inputSchema");
+        if (!(schema instanceof Map<?,?> input) || !(input.get("properties") instanceof Map<?,?> properties)
+            || !(properties.get("stage") instanceof Map<?,?> stage)) return false;
+        return stage.get("enum") instanceof Collection<?> values && values.containsAll(List.of("asset", "template"));
+    }
 }

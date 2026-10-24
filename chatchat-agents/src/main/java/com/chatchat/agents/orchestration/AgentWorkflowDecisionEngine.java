@@ -153,7 +153,7 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
         List<WorkflowToolStep> augmented = new ArrayList<>(steps);
         for (int index = 0; index < augmented.size(); index++) {
             WorkflowToolStep step = augmented.get(index);
-            if (workflowRole(step.toolName()) == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
+            if (invocationRole(step, augmented) == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
                 List<WorkflowToolStep> assets = matchingProtocolPredecessors(
                     augmented, step.toolName(), McpToolProtocolRole.ASSET_QUERY);
                 if (assets.size() == 1) {
@@ -230,7 +230,8 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
         for (WorkflowToolStep candidate : steps) {
             if (!candidate.executable()
                 || workflowRole(candidate.toolName()) != ToolWorkflowRole.TEMPLATE_DISCOVERY
-                || fixedTemplateSelectionScope(candidate.toolName()).isPresent()) {
+                || fixedTemplateSelectionScope(candidate.toolName()).isPresent()
+                || com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.assetStages(toolRegistry.getToolMetadata(candidate.toolName()))) {
                 continue;
             }
             String assetType = templateDiscoveryAssetType(candidate.toolName());
@@ -319,8 +320,17 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
                 .resolve(executor).orElse(null);
             if (plugin != null) {
                 return steps.stream().filter(WorkflowToolStep::executable)
-                    .filter(candidate -> workflowRole(candidate.toolName()) == ToolWorkflowRole.TEMPLATE_DISCOVERY)
+                    .filter(candidate -> invocationRole(candidate, steps) == ToolWorkflowRole.TEMPLATE_DISCOVERY)
                     .filter(candidate -> plugin.accepts(templateWorkflowTool(candidate.toolName()), executor))
+                    .toList();
+            }
+        }
+        if (predecessorRole == McpToolProtocolRole.ASSET_QUERY && toolRegistry != null) {
+            String assetType = templateDiscoveryAssetType(toolName);
+            if (assetType != null) {
+                return steps.stream().filter(WorkflowToolStep::executable)
+                    .filter(candidate -> invocationRole(candidate, steps) == ToolWorkflowRole.ASSET_DISCOVERY)
+                    .filter(candidate -> assetType.equals(templateDiscoveryAssetType(candidate.toolName())))
                     .toList();
             }
         }
@@ -336,8 +346,8 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
         return steps.stream()
             .filter(WorkflowToolStep::executable)
             .filter(candidate -> predecessorRole == McpToolProtocolRole.ASSET_QUERY
-                ? workflowRole(candidate.toolName()) == ToolWorkflowRole.ASSET_DISCOVERY
-                : workflowRole(candidate.toolName()) == ToolWorkflowRole.TEMPLATE_DISCOVERY)
+                ? invocationRole(candidate, steps) == ToolWorkflowRole.ASSET_DISCOVERY
+                : invocationRole(candidate, steps) == ToolWorkflowRole.TEMPLATE_DISCOVERY)
             .toList();
     }
 
@@ -350,7 +360,7 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
         return steps.stream()
             .filter(WorkflowToolStep::executable)
             .filter(candidate -> !candidate.toolName().equalsIgnoreCase(currentToolName))
-            .filter(candidate -> workflowRole(candidate.toolName()) == requiredRole)
+            .filter(candidate -> invocationRole(candidate, steps) == requiredRole)
             .filter(candidate -> family.equals(protocolFamily(candidate.toolName()))
                 || family.equals(role.family(candidate.toolName())))
             .toList();
@@ -360,6 +370,18 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
         return toolRegistry == null
             ? ToolWorkflowContract.resolveRole(toolName, null)
             : toolRegistry.getWorkflowRole(toolName);
+    }
+
+    private ToolWorkflowRole invocationRole(WorkflowToolStep step, List<WorkflowToolStep> steps) {
+        ToolWorkflowRole declared = workflowRole(step.toolName());
+        if (declared != ToolWorkflowRole.TEMPLATE_DISCOVERY || toolRegistry == null
+            || !com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.assetStages(toolRegistry.getToolMetadata(step.toolName()))
+            || fixedTemplateSelectionScope(step.toolName()).isPresent()) return declared;
+        String type = templateDiscoveryAssetType(step.toolName());
+        return steps.stream().filter(WorkflowToolStep::executable)
+            .anyMatch(candidate -> fixedTemplateSelectionScope(candidate.toolName())
+                .map(scope -> scope.assetType().equalsIgnoreCase(type)).orElse(false))
+            ? ToolWorkflowRole.ASSET_DISCOVERY : declared;
     }
 
     private com.chatchat.agents.runtime.plan.template.TemplateWorkflowTool templateWorkflowTool(String name) {

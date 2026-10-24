@@ -1027,9 +1027,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             metadata.put("mandatoryWorkflowPending", true);
         }
 
+        requestRuntimeAttributes.remove("compiledPublishedDataAcquisition");
         InterpretationPlan deterministicTemplatePlan = new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(toolRegistry)
             .compile(query, plannerVisibleTools, workflowMandatoryTools);
         if (deterministicTemplatePlan != null) {
+            requestRuntimeAttributes.put("compiledPublishedDataAcquisition", true);
             metadata.put("analysisPlanningNodes", List.of(Map.of(
                 "node", "deterministic_bound_template_plan",
                 "status", "COMPLETED"

@@ -46,7 +46,7 @@ def main():
         value = (root / 'classes' / name).read_bytes()
         assert value.startswith(b'\xca\xfe\xba\xbe')
         replacements[name] = value
-    assert len(replacements) == 8
+    assert len(replacements) == 9
     with zipfile.ZipFile(args.baseline_file) as source:
         nested = [name for name in source.namelist() if name.startswith('BOOT-INF/lib/chatchat-agents-')]
         assert len(nested) == 1

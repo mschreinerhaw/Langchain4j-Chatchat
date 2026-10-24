@@ -75,4 +75,23 @@ class PublishedTemplateSupplyTest {
         when(registry.getToolMetadata(EXECUTE)).thenReturn(ToolMetadata.builder().metadata(Map.of("workflowContract",ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_EXECUTION,"mcp.ssh-template.v1","executionContext"))).build());
         assertThat(new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry).compile("Inspect",List.of(CHILD,EXECUTE),List.of(CHILD,EXECUTE))).isNull();
     }
+    @Test void assetStageCannotSupplyTemplateIdsOrDisappearFromTheCompiledChain() {
+        var registry=registry(true);
+        var bridge=registry.getToolMetadata(BRIDGE);
+        bridge.setParameters(List.of(ToolParameter.builder().name("stage").type("string").enumValues(new String[]{"asset","template"}).build()));
+        var plan=new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry)
+            .compile("Inspect authorized target",List.of(BRIDGE,CHILD,EXECUTE),List.of(BRIDGE,CHILD,EXECUTE));
+        assertThat(plan).isNotNull();
+        assertThat(plan.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(BRIDGE,CHILD,EXECUTE,"");
+        assertThat(plan.steps().get(0).input()).containsEntry("stage","asset");
+        assertThat(plan.steps().get(1).dependsOn()).containsExactly(1);
+        assertThat(plan.steps().get(2).dependsOn()).containsExactly(2);
+        assertThat(plan.plan().bindings()).allSatisfy(b->assertThat(b.from()).isEqualTo(2));
+        var optimized=new InterpretationPlanOptimizer(registry).optimize(plan,List.of(
+            Map.of("tool",BRIDGE,"dependsOnTools",List.of()),
+            Map.of("tool",CHILD,"dependsOnTools",List.of(BRIDGE)),
+            Map.of("tool",EXECUTE,"dependsOnTools",List.of(CHILD)))).plan();
+        assertThat(optimized.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(BRIDGE,CHILD,EXECUTE,"");
+        assertThat(optimized.plan().bindings()).allSatisfy(b->assertThat(b.from()).isEqualTo(2));
+    }
 }

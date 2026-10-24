@@ -7,6 +7,7 @@ const [output,version,api,mcp]=process.argv.slice(2);
 assert(output && version && /^[a-f0-9]{64}$/.test(api) && /^[a-f0-9]{64}$/.test(mcp));
 const classes=[
   'orchestration/AgentOrchestrationEngine',
+  'orchestration/InterpretationAnalysisSession',
   'orchestration/AgentWorkflowDecisionEngine',
   'orchestration/analysis/governance/AnalysisCoverageCoordinator',
   'runtime/plan/InterpretationPlanOptimizer',

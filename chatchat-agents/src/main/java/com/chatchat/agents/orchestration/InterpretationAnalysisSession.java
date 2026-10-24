@@ -221,6 +221,13 @@ final class InterpretationAnalysisSession {
                                         request,
                                         pipelineRuntimeAttributes),
                         request -> {
+                            // Asset identity comes from the original user request. A template-
+                            // keyword rewrite can erase that identity and return unrelated or
+                            // empty sources. Candidate selection/review remains governed below.
+                            if (Boolean.TRUE.equals(pipelineRuntimeAttributes.get("compiledPublishedDataAcquisition"))
+                                    && "asset".equals(request.input().get("stage"))) {
+                                return new java.util.LinkedHashMap<>(request.input());
+                            }
                             String stepTool =
                                     request.step() == null ? null : request.step().toolName();
                             ModelAssistedRetrievalBridge.RetrievalEvidenceContext evidenceContext =

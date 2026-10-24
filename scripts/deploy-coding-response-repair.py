@@ -124,7 +124,7 @@ def main():
         config['services']['api']['image'] = api_tag
         config['services']['coding-agent']['image'] = node_tag
         config['services']['api']['environment'].update(CHATCHAT_CODING_CLINE_MAX_OUTPUT_TOKENS='32768', CHATCHAT_CODING_CLINE_MAX_MODEL_RESPONSE_REPAIRS='2')
-        config['services']['coding-agent']['environment']['RUNTIME_CODING_CALLBACK_TIMEOUT_MS'] = '180000'
+        config['services']['coding-agent']['environment']['RUNTIME_CODING_CALLBACK_TIMEOUT_MS'] = '300000'
         (root / 'compose.yaml').write_text(json.dumps(config, indent=2))
         env = root / 'config/deployment.env'
         env.write_text('\n'.join(line for line in env.read_text().splitlines() if not line.startswith(('API_IMAGE=', 'NODE_IMAGE='))) + '\nAPI_IMAGE=' + api_tag + '\nNODE_IMAGE=' + node_tag + '\n')

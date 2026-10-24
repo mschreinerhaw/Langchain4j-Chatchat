@@ -23,6 +23,21 @@ public class PublishedMcpToolCatalog {
     private final ObjectMapper json;
     public record Publication(String title, String description, String category, int templateCount) { }
 
+    /** Built-in tools use their existing grants; external registered tools still require publication. */
+    public Set<String> systemToolNames(HttpServletRequest request,
+        List<com.chatchat.common.mcp.admin.McpAdministrationPort.ToolCatalogEntry> tools) {
+        Object principal = request == null ? null : request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_VIEW);
+        if (!(principal instanceof EnterpriseAdminService.UserView user)) return Set.of();
+        Set<String> candidates = tools.stream()
+            .filter(tool -> "backend".equals(tool.sourceType()) ||
+                "mcp".equals(tool.sourceType()) && (tool.remoteToolName() == null || tool.remoteToolName().isBlank() ||
+                    "chatchat-mcp-server".equals(tool.serviceId()) && "document_search".equals(tool.remoteToolName())))
+            .map(com.chatchat.common.mcp.admin.McpAdministrationPort.ToolCatalogEntry::localToolName)
+            .collect(java.util.stream.Collectors.toSet());
+        return authorization.allowedIds(ResourceAuthorizationPort.MCP_TOOL, user.tenantId(), user.id(),
+            user.roleIds() == null ? Set.of() : Set.copyOf(user.roleIds()), candidates);
+    }
+
     public Map<String, Publication> publications(HttpServletRequest request) {
         Object principal = request == null ? null : request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_VIEW);
         if (!(principal instanceof EnterpriseAdminService.UserView user)) return Map.of();

@@ -1,13 +1,52 @@
+.mcp-center-view {
+  padding: 20px;
+}
+.mcp-center-view > .mcp-page-heading {
+  margin-bottom: 12px;
+}
+.mcp-center-view > .mcp-page-heading h1 {
+  margin: 0;
+  font-size: 24px;
+}
+.mcp-center-view > .mcp-page-heading p {
+  margin: 4px 0 0;
+  font-weight: 400;
+}
+.mcp-center-view .mcp-operations {
+  margin-top: 0;
+}
 .mcp-center-view .mcp-published-catalog {
-  padding: 24px;
-  gap: 22px;
+  padding: 16px;
+  gap: 12px;
   border-radius: 16px;
 }
 .mcp-center-view .mcp-published-catalog .mcp-tool-filters {
-  padding: 16px;
+  padding: 10px 12px;
   border-color: #e8edf5;
   border-radius: 12px;
   background: #f8fafc;
+}
+.mcp-center-view .mcp-catalog-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #e8edf5;
+}
+.mcp-center-view .mcp-catalog-tabs button {
+  padding: 8px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #64748b;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mcp-center-view .mcp-catalog-tabs button.active {
+  border-bottom-color: #4264dc;
+  color: #4264dc;
+}
+.mcp-center-view .mcp-catalog-tabs button:hover {
+  background: #f3f6ff;
 }
 .mcp-center-view .mcp-published-catalog .mcp-tool-group {
   padding: 0;
@@ -30,14 +69,14 @@
 }
 .mcp-center-view .mcp-published-catalog .mcp-tool-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
+  gap: 12px;
 }
 .mcp-center-view .mcp-published-catalog .mcp-tool-card {
   position: relative;
   gap: 0;
-  padding: 22px;
+  padding: 14px;
   border: 1px solid #e4eaf3;
-  border-radius: 16px;
+  border-radius: 12px;
   background: linear-gradient(145deg, #fff 65%, #f8faff);
   box-shadow:
     0 2px 5px #1e3a5f03,
@@ -59,17 +98,29 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.mcp-center-view .mcp-card-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #1e293b;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .mcp-center-view .mcp-capability-icon {
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
+  width: 34px;
+  height: 34px;
   flex: 0 0 auto;
   border: 1px solid #e2eafe;
-  border-radius: 14px;
+  border-radius: 10px;
   background: linear-gradient(135deg, #f2f6ff, #eaf0ff);
   color: #4264dc;
   box-shadow: inset 0 1px 0 #fff;
@@ -99,27 +150,31 @@
   min-width: 0;
 }
 .mcp-center-view .mcp-published-catalog .mcp-card-copy h3 {
-  margin: 0 0 10px;
+  margin: 0 0 4px;
   color: #1e293b;
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 650;
   line-height: 1.5;
   overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .mcp-center-view .mcp-published-catalog .mcp-card-copy p {
-  min-height: 44px;
+  min-height: 36px;
+  height: 36px;
   margin: 0;
   color: #7b899e;
   font-size: 13px;
-  line-height: 1.7;
+  line-height: 18px;
   overflow-wrap: anywhere;
 }
 .mcp-center-view .mcp-published-catalog .mcp-tool-card dl {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
-  gap: 16px;
-  margin: 20px 0 18px;
-  padding: 16px 0 0;
+  gap: 10px;
+  margin: 8px 0;
+  padding: 8px 0 0;
   border-top: 1px solid #edf1f7;
 }
 .mcp-center-view .mcp-published-catalog .mcp-tool-card dt {
@@ -133,19 +188,22 @@
 .mcp-center-view .mcp-published-catalog .mcp-category-value {
   display: inline-block;
   max-width: 100%;
-  margin-top: 8px;
-  padding: 4px 8px;
+  margin-top: 4px;
+  padding: 3px 6px;
   border-radius: 6px;
   background: #f1f4f9;
   color: #64748b;
   font-size: 12px;
   font-weight: 500;
   line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .mcp-center-view .mcp-published-catalog .mcp-template-value {
   margin-top: 4px;
   color: #334155;
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 600;
   line-height: 1.4;
   font-variant-numeric: tabular-nums;
@@ -164,7 +222,7 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  height: 38px;
+  height: 30px;
   padding: 0 12px;
   border: 1px solid #e8eefb;
   border-radius: 8px;
@@ -183,9 +241,23 @@
   background: #4164d8;
   color: #fff;
 }
-@media (max-width: 1150px) {
+@media (max-width: 1000px) {
   .mcp-center-view .mcp-published-catalog .mcp-tool-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 761px) {
+  .mcp-center-view .mcp-published-catalog .mcp-tools-head > div:first-child {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .mcp-center-view .mcp-published-catalog .mcp-tool-filters label {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
   }
 }
 @media (max-width: 760px) {
@@ -196,7 +268,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .mcp-center-view .mcp-published-catalog .mcp-tool-card {
-    padding: 20px;
+    padding: 14px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

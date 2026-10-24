@@ -64,4 +64,18 @@ class PublishedMcpToolCatalogTest {
     @Test void unavailableControlPlaneNeverFallsBackToAllRegisteredTools() {
         when(client.request(anyString(),anyString(),isNull())).thenThrow(new IllegalStateException("offline"));assertThrows(IllegalStateException.class,()->service.registeredTools(request));assertTrue(service.registeredTools(null).isEmpty());
     }
+    private com.chatchat.common.mcp.admin.McpAdministrationPort.ToolCatalogEntry tool(String name, String source, String remote) {
+        return new com.chatchat.common.mcp.admin.McpAdministrationPort.ToolCatalogEntry(name, name, null, "description",
+            source, source, "chatchat-mcp-server", "service", remote, "json", true, true, false, 1000L,
+            "search", List.of(), List.of(), List.of(), Map.of());
+    }
+    @Test void systemDirectoryNeverIncludesUnpublishedExternalToolsAndRechecksGrants() {
+        var tools = List.of(tool("document_search", "backend", null), tool("internal_search", "mcp", null),
+            tool("mcp_chatchat_mcp_server_document_search", "mcp", "document_search"),
+            tool("raw_execute", "mcp", "raw_execute"));
+        assertEquals(Set.of("document_search", "internal_search", "mcp_chatchat_mcp_server_document_search"), service.systemToolNames(request, tools));
+        when(authorization.allowedIds(anyString(), anyString(), anyString(), anySet(), anySet())).thenReturn(Set.of());
+        assertTrue(service.systemToolNames(request, tools).isEmpty());
+        assertTrue(service.systemToolNames(null, tools).isEmpty());
+    }
 }

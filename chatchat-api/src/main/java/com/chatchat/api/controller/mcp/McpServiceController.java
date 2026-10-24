@@ -316,15 +316,22 @@ public class McpServiceController {
      */
     private List<ToolCardView> buildToolCards(HttpServletRequest request) {
         var published = publishedTools.publications(request);
-        return administrationPort.listToolCatalog().stream().filter(tool -> published.containsKey(tool.localToolName())).map(tool -> new ToolCardView(
-            tool.localToolName(), published.get(tool.localToolName()).title(), published.get(tool.localToolName()).title(), published.get(tool.localToolName()).description(), tool.sourceType(), tool.sourceLabel(),
+        var catalog = administrationPort.listToolCatalog();
+        var systemNames = publishedTools.systemToolNames(request, catalog);
+        return catalog.stream().filter(tool -> published.containsKey(tool.localToolName()) || systemNames.contains(tool.localToolName())).map(tool -> {
+            var publication = published.get(tool.localToolName());
+            boolean system = publication == null;
+            return new ToolCardView(
+            tool.localToolName(), system ? tool.displayName() : publication.title(), system ? tool.chineseAlias() : publication.title(),
+            system ? tool.description() : publication.description(), system ? "system" : "mcp", system ? "系统工具" : tool.sourceLabel(),
             tool.serviceId(), tool.serviceName(), tool.remoteToolName(), tool.outputType(), tool.agentCompatible(),
             tool.requiresAuth(), tool.rateLimited(), tool.timeoutMillis(), tool.parameters().size(),
-            published.get(tool.localToolName()).category(), List.of(published.get(tool.localToolName()).category()), List.of(), tool.parameters().stream()
+            system ? tool.functionalCategory() : publication.category(), system ? tool.categories() : List.of(publication.category()), List.of(), tool.parameters().stream()
                 .map(parameter -> new ToolParameterView(parameter.name(), parameter.type(), parameter.description(),
                     parameter.required()))
                 .toList(),
-            tool.inputSchema(), published.get(tool.localToolName()).templateCount())).toList();
+            tool.inputSchema(), system ? 0 : publication.templateCount());
+        }).toList();
     }
 
     /**

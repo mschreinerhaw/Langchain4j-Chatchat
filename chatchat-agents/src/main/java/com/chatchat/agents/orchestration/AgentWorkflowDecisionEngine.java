@@ -272,23 +272,14 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
 
     private java.util.Optional<McpTemplateSelectionScope> fixedTemplateSelectionScope(String toolName) {
         if (toolRegistry == null || toolName == null) return java.util.Optional.empty();
-        ToolMetadata toolMetadata = toolRegistry.getToolMetadata(toolName);
-        Map<String, Object> metadata = asMap(toolMetadata == null ? null : toolMetadata.getMetadata());
-        Map<String, Object> mcpMeta = asMap(metadata.get("mcpToolMeta"));
-        return McpTemplateSelectionScope.fromToolMetadata(mcpMeta)
-            .filter(McpTemplateSelectionScope::fixedBindingAuthority);
+        return com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.fixedScope(
+            toolRegistry.getToolMetadata(toolName));
     }
 
     private String templateDiscoveryAssetType(String toolName) {
         if (toolRegistry == null || toolName == null) return null;
-        ToolMetadata toolMetadata = toolRegistry.getToolMetadata(toolName);
-        Map<String, Object> metadata = asMap(toolMetadata == null ? null : toolMetadata.getMetadata());
-        Map<String, Object> mcpMeta = asMap(metadata.get("mcpToolMeta"));
-        String explicit = stringValue(firstObject(mcpMeta, "assetType", "asset_type"));
-        return explicit == null
-            ? McpTemplateSelectionScope.fromToolMetadata(mcpMeta)
-                .map(McpTemplateSelectionScope::assetType).orElse(null)
-            : explicit;
+        return com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.assetType(
+            toolRegistry.getToolMetadata(toolName));
     }
 
     private String normalizedAssetType(String assetType) {

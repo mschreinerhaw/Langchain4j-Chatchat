@@ -85,7 +85,14 @@ public final class AnalysisCoverageCoordinator {
             // steps may succeed while the actual data query fails before projection.
             if (codingOwned && request.result() != null && (!request.result().success()
                 || request.result().steps().stream().anyMatch(step -> !step.success()))) {
-                throw new IllegalStateException("REQUIRED_MCP_DATA_UNAVAILABLE: data acquisition failed; no business evidence is available for analysis");
+                var failed = request.result().steps().stream().filter(step -> !step.success())
+                    .map(step -> metadataOf("stepId", step.stepId(), "toolName", step.toolName(),
+                        "error", step.errorMessage())).toList();
+                request.metadata().put("dataAcquisitionFailure", metadataOf(
+                    "status", "FAILED", "businessDatasetCount", 0, "failedSteps", failed));
+                String cause = failed.isEmpty() ? "execution plan did not complete"
+                    : String.valueOf(failed.get(0).get("error"));
+                throw new IllegalStateException("REQUIRED_MCP_DATA_UNAVAILABLE: data acquisition failed; no business evidence is available for analysis; cause=" + cause);
             }
             writeEmptyProjectionCompletion(request, projection.excludedDatasets());
             boolean sourceFailed = projection.excludedDatasets().stream().anyMatch(

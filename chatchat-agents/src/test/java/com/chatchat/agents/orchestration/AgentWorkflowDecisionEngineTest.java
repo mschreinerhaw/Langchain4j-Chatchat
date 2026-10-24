@@ -23,6 +23,31 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AgentWorkflowDecisionEngineTest {
+    @Test
+    void fixedProviderCompilesTheSameConfiguredChainForFlatAndRegisteredMetadata() {
+        for (boolean nested : List.of(false, true)) {
+            String child="published_provider", bridge="generic_directory", execute="registered_executor";
+            ToolRegistry registry=mock(ToolRegistry.class);
+            when(registry.getAllToolNames()).thenReturn(Set.of(child,bridge,execute,"optional_tool"));
+            for (String name:List.of(child,bridge)) {
+                when(registry.getWorkflowRole(name)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+                ToolMetadata meta=templateScopeMetadata("sql_datasource",name.equals(child));
+                if (!nested) meta.setMetadata((Map<String,Object>)meta.getMetadata().get("mcpToolMeta"));
+                when(registry.getToolMetadata(name)).thenReturn(meta);
+            }
+            when(registry.getWorkflowRole(execute)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+            Map<String,Object> workflow=Map.of("steps",List.of(
+                Map.of("step",1,"tool",bridge,"required",true),
+                Map.of("step",2,"tool","optional_tool","required",false),
+                Map.of("step",3,"tool",child,"required",true),
+                Map.of("step",4,"tool",execute,"required",true,"dependsOn",List.of(bridge))));
+            var result=new AgentWorkflowDecisionEngine(registry).resolveWorkflowMandatoryTools(
+                List.of(child,bridge,execute,"optional_tool"),Map.of("mcpWorkflow",workflow),"Inspect records");
+            assertThat(result.tools()).containsExactly(child,execute);
+            assertThat(result.authoritativeDag()).extracting(WorkflowDagNode::toolName).containsExactly(child,execute);
+            assertThat(result.authoritativeDag().get(1).dependsOnTools()).containsExactly(child);
+        }
+    }
 
     private final AgentWorkflowDecisionEngine engine = new AgentWorkflowDecisionEngine();
 

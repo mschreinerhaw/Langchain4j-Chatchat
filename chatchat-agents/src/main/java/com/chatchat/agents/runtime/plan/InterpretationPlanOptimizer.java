@@ -1258,26 +1258,14 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
 
     private java.util.Optional<McpTemplateSelectionScope> fixedTemplateSelectionScope(String toolName) {
         if (toolRegistry == null || toolName == null) return java.util.Optional.empty();
-        ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
-        Map<String, Object> extra = metadata == null || metadata.getMetadata() == null
-            ? Map.of() : metadata.getMetadata();
-        Map<String, Object> mcpMeta = metadataMap(extra.get("mcpToolMeta"));
-        return McpTemplateSelectionScope.fromToolMetadata(mcpMeta)
-            .filter(McpTemplateSelectionScope::fixedBindingAuthority);
+        return com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.fixedScope(
+            toolRegistry.getToolMetadata(toolName));
     }
 
     private String templateDiscoveryAssetType(String toolName) {
         if (toolRegistry == null || toolName == null) return null;
-        ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
-        Map<String, Object> extra = metadata == null || metadata.getMetadata() == null
-            ? Map.of() : metadata.getMetadata();
-        Map<String, Object> mcpMeta = metadataMap(extra.get("mcpToolMeta"));
-        String value = mapValue(mcpMeta, "assetType", "asset_type");
-        if (value != null) return normalize(value);
-        return McpTemplateSelectionScope.fromToolMetadata(mcpMeta)
-            .map(McpTemplateSelectionScope::assetType)
-            .map(this::normalize)
-            .orElse(null);
+        return com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.assetType(
+            toolRegistry.getToolMetadata(toolName));
     }
 
     @SuppressWarnings("unchecked")

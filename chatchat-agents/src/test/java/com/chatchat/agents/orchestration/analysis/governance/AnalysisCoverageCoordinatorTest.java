@@ -32,7 +32,8 @@ class AnalysisCoverageCoordinatorTest {
             List.of(new InterpretationPlanRuntime.StepExecution(1,"tool_call","query",false,null,"schema rejected",null,null,1)),Map.of(),1);
         var request=new AnalysisCoverageCoordinator.Request(null,"Analyze returned records",result,Map.of("taskType","DATA_ANALYSIS"),
             base.metadata(),base.cancellationCheck(),base.cancellationGuard(),base.isolationScope(),base.summaryProtocol());
-        assertThatThrownBy(()->coordinator(evidence).analyze(request)).hasMessageContaining("REQUIRED_MCP_DATA_UNAVAILABLE");
+        assertThatThrownBy(()->coordinator(evidence).analyze(request)).hasMessageContaining("REQUIRED_MCP_DATA_UNAVAILABLE").hasMessageContaining("schema rejected");
+        assertThat(base.metadata()).containsKey("dataAcquisitionFailure");
         assertThat(base.metadata()).doesNotContainKey("modelNativeReportDraft");
     }
     @org.junit.jupiter.params.ParameterizedTest

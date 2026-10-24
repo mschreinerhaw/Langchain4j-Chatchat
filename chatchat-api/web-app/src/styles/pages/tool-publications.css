@@ -100,22 +100,45 @@
   margin-top: 12px;
 }
 .publication-version-bar {
-  display: flex;
-  align-items: end;
-  gap: 12px;
   margin-bottom: 16px;
 }
-.publication-version-bar label {
+.publication-detail .publication-detail-control {
   display: grid;
-  gap: 6px;
+  grid-template-columns: 56px minmax(0, 200px) auto auto;
+  align-items: center;
+  justify-content: start;
+  gap: 10px;
+}
+.publication-detail-control > label {
   font-size: 12px;
   color: #64748b;
+  white-space: nowrap;
 }
-.publication-version-bar select {
-  min-width: 190px;
+.publication-detail .publication-detail-control > select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 36px;
+  box-sizing: border-box;
+  text-overflow: ellipsis;
 }
 .publication-version-bar .permission-badge {
-  margin-bottom: 8px;
+  margin: 0;
+  justify-self: start;
+}
+.publication-detail-control > button {
+  min-height: 36px;
+}
+@media (max-width: 600px) {
+  .publication-detail .publication-detail-control {
+    grid-template-columns: 56px minmax(0, 1fr);
+    justify-content: stretch;
+  }
+  .publication-detail-control > :is(button, .permission-badge),
+  .publication-detail-control > button ~ button {
+    grid-column: 2;
+    justify-self: start;
+  }
 }
 .publication-tab-panel {
   padding-block: 20px;

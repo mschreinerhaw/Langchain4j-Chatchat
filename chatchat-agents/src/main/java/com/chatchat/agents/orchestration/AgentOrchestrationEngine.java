@@ -218,7 +218,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private final InterpretationPlanEvidenceAnalyzer planEvidenceAnalyzer;
     final InterpretationPlanSnapshotService planSnapshotService;
     private ToolObservationBuilder toolObservationBuilder;
-    private final AgentChatModelResolver chatModelResolver;
+    private AgentChatModelResolver chatModelResolver;
     private final AgentToolNameResolver toolNames;
     private final AgentToolArgumentResolver toolArguments;
     private final AgentToolExecutor toolExecutor;
@@ -506,6 +506,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 if (!result.contains(trace)) result.add(trace);
             }
         return List.copyOf(result);
+    }
+
+    /** Use the shared published model registry in production, including runtime model updates. */
+    @Autowired
+    public void setChatModelResolver(AgentChatModelResolver resolver) {
+        this.chatModelResolver = java.util.Objects.requireNonNull(resolver);
     }
 
     /** Production supplies the database-backed provider; direct unit construction retains a deterministic fallback. */

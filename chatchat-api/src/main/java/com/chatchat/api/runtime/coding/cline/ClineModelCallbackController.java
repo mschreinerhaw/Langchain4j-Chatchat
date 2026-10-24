@@ -216,9 +216,10 @@ public final class ClineModelCallbackController {
             CodingTaskContract contract = contract(body, call);
             JsonNode request = body.path("request");
             String operationId = operationId(request.path("operationId").asText(null));
+            boolean supportsModelFeedback = "runtime_os.coding.model_feedback.v1".equals(request.path("modelResponseFeedbackVersion").asText());
             var prior = receipts.response(call.scope(), call.taskId(), operationId);
             if (prior.isPresent()) {
-                if (prior.get().containsKey("error")) throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                if (prior.get().containsKey("error") && !(supportsModelFeedback && repairableModelResponse(prior.get()))) throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Archived model response contains invalid tool arguments");
                 return prior.get();
             }
@@ -237,6 +238,10 @@ public final class ClineModelCallbackController {
                 response = model.complete(contract, request);
             } catch (ClineRuntimeModelBridge.InvalidModelResponseException invalid) {
                 receipts.commit(contract, operationId, "runtime-model:" + operationId, invalid.receipt());
+                if (supportsModelFeedback && repairableModelResponse(invalid.receipt())) {
+                    assertStillOwned(call);
+                    return invalid.receipt();
+                }
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Model response rejected; provider stop and usage receipt archived", invalid);
             } catch (RuntimeException providerFailure) {
@@ -251,6 +256,14 @@ public final class ClineModelCallbackController {
             assertStillOwned(call);
             return response;
         });
+    }
+
+    private static boolean repairableModelResponse(Map<String, Object> response) {
+        return response.get("modelResponseFeedback") instanceof Map<?, ?> feedback
+            && "runtime_os.coding.model_feedback.v1".equals(feedback.get("schemaVersion"))
+            && Boolean.TRUE.equals(feedback.get("repairAllowed"))
+            && feedback.get("diagnosticCode") instanceof String diagnostic
+            && Set.of("MODEL_OUTPUT_TRUNCATED", "MODEL_TOOL_ARGUMENTS_INVALID").contains(diagnostic);
     }
 
     @PostMapping("/settle-model")
@@ -305,7 +318,7 @@ public final class ClineModelCallbackController {
             JsonNode value = event.path(key);
             if (value.isTextual() && value.asText().length() <= 512) payload.put(key, value.asText());
         }
-        for (String key : List.of("scriptVersion", "modelCall", "sourceBytes", "durationMs", "maxOutputTokens", "repairAttempts")) {
+        for (String key : List.of("scriptVersion", "modelCall", "sourceBytes", "durationMs", "maxOutputTokens", "repairAttempts", "repairAttempt", "maxRepairAttempts")) {
             if (event.path(key).isIntegralNumber() && event.path(key).asLong() >= 0)
                 payload.put(key, event.path(key).asLong());
         }

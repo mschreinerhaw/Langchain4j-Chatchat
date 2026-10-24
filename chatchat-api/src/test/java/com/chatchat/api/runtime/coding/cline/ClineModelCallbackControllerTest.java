@@ -313,8 +313,9 @@ class ClineModelCallbackControllerTest {
     }
 
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
-    void modelCallHasDurableIntentReceiptReconciliationAndUnknownCostReservation(boolean invalidResponse) {
+    @org.junit.jupiter.params.provider.ValueSource(ints = {0, 1, 2, 3, 4})
+    void modelCallHasDurableIntentReceiptReconciliationAndUnknownCostReservation(int responseKind) {
+        boolean invalidResponse = responseKind == 1 || responseKind == 3 || responseKind == 4;
         var source = new DriverManagerDataSource("jdbc:h2:mem:model-callback-" + UUID.randomUUID()
             + ";DB_CLOSE_DELAY=-1", "sa", "");
         new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);
@@ -345,6 +346,12 @@ class ClineModelCallbackControllerTest {
             if (invalidResponse) when(model.complete(any(), any())).thenThrow(
                 new ClineRuntimeModelBridge.InvalidModelResponseException(Map.of("error", "Invalid tool JSON",
                     "toolCalls", List.of(), "usage", Map.of("inputTokens", 4, "outputTokens", 2))));
+            if (responseKind >= 2) doThrow(
+                new ClineRuntimeModelBridge.InvalidModelResponseException(Map.of("error", "Invalid tool JSON",
+                    "toolCalls", List.of(), "usage", Map.of("inputTokens", 4, "outputTokens", 2),
+                    "modelResponseFeedback", Map.of("schemaVersion", "runtime_os.coding.model_feedback.v1", "repairAllowed", true,
+                        "maxRepairAttempts", 2, "diagnosticCode", responseKind == 3 ? "MODEL_TOOL_NOT_AUTHORIZED" : "MODEL_OUTPUT_TRUNCATED"))))
+                .when(model).complete(any(), any());
             var controller = new ClineModelCallbackController(access, tasks, model, receipts,
                 mock(CodingInputSnapshotService.class), mock(CodingValidationPlanService.class),
                 mock(CodingEvidenceCollector.class), json);
@@ -359,6 +366,8 @@ class ClineModelCallbackControllerTest {
             var execution = base.deepCopy();
             execution.set("request", json.valueToTree(Map.of("operationId", "model-1",
                 "messages", List.of(), "tools", List.of())));
+            if (responseKind == 2 || responseKind == 3)
+                ((com.fasterxml.jackson.databind.node.ObjectNode)execution.path("request")).put("modelResponseFeedbackVersion", "runtime_os.coding.model_feedback.v1");
             // Deterministically reproduce a recovery poll between revision read and renewal.
             var firstRenewal = new java.util.concurrent.atomic.AtomicBoolean(true);
             doAnswer(invocation -> {
@@ -370,6 +379,17 @@ class ClineModelCallbackControllerTest {
                 assertThatThrownBy(() -> controller.model(execution)).hasMessageContaining("receipt archived");
                 assertThatThrownBy(() -> controller.model(execution)).hasMessageContaining("Archived model response");
                 verify(model, times(1)).complete(any(), any());
+            } else if (responseKind == 2) {
+                var response = controller.model(execution);
+                assertThat(json.valueToTree(response).path("modelResponseFeedback").path("diagnosticCode").asText()).isEqualTo("MODEL_OUTPUT_TRUNCATED");
+                assertThat(controller.model(execution)).isEqualTo(response);
+                var event=base.deepCopy();
+                event.set("event",json.valueToTree(Map.of("type","MODEL_RESPONSE_REJECTED","sequence",1,"modelCall",1,
+                    "diagnosticCode","MODEL_OUTPUT_TRUNCATED","repairAttempt",0,"maxRepairAttempts",2)));
+                controller.event(event);
+                var recorded=access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->tasks.events(scope,"task",0,128));
+                assertThat(recorded).anySatisfy(item->assertThat(item.payload()).containsEntry("type","MODEL_RESPONSE_REJECTED")
+                    .containsEntry("repairAttempt",0));
             } else {
                 assertThat(controller.model(execution).get("text")).isEqualTo("done");
                 assertThat(controller.model(execution).get("text")).isEqualTo("done");

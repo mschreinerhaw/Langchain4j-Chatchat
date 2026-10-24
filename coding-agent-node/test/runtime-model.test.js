@@ -28,3 +28,11 @@ test('Runtime model refuses file parts rather than silently losing context', asy
     ] }], tools: [] })) { /* consume */ }
   }, /Unsupported Runtime model content/);
 });
+
+test('unauthorized or unknown feedback is never converted into a tool call or retry', async () => {
+  for(const feedback of [null,{schemaVersion:'unknown',repairAllowed:true},
+    {schemaVersion:'runtime_os.coding.model_feedback.v1',diagnosticCode:'MODEL_TOOL_NOT_AUTHORIZED',repairAllowed:true,maxRepairAttempts:2}]) {
+    const model=createRuntimeModel({async model(){return {error:'rejected',toolCalls:[],modelResponseFeedback:feedback};}},{});
+    await assert.rejects(async()=>{for await(const event of model.stream({messages:[],tools:[]}))assert.notEqual(event.type,'tool-call-delta');},/without an authorized repair decision/);
+  }
+});

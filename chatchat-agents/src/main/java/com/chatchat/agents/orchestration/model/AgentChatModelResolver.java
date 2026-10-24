@@ -26,6 +26,7 @@ public class AgentChatModelResolver {
     private final ConfigurableChatModelFactory chatModelFactory;
     private final Map<String, ChatModel> chatModelsByName = new ConcurrentHashMap<>();
     private final Map<String, ChatModel> governedModelsByName = new ConcurrentHashMap<>();
+    private final Map<String, Map.Entry<ModelsConfig.ModelConnectionConfig, ChatModel>> publishedModels = new ConcurrentHashMap<>();
     private final ModelInvocationCapacityManager modelCapacity;
 
     public AgentChatModelResolver(ChatModel defaultChatModel, ModelsConfig modelsConfig) {
@@ -72,6 +73,13 @@ public class AgentChatModelResolver {
         String modelKey = modelResources.canonicalName(selectedModelName);
         log.info("Agent chat model selected modelName={} configKey={} providerModel={} matchType={}",
             selectedModelName, selected.configuredKey(), selected.providerModelName(), selected.matchType());
+        if (modelResources.usesPublishedChatModels()) {
+            return publishedModels.compute(modelKey, (key, cached) -> {
+                if (cached != null && cached.getKey().equals(selected.config())) return cached;
+                ChatModel model = new CapacityGovernedChatModel(key, chatModelFactory.create(key), modelCapacity);
+                return new java.util.AbstractMap.SimpleImmutableEntry<>(selected.config(), model);
+            }).getValue();
+        }
         return governedModelsByName.computeIfAbsent(modelKey, ignored -> {
             ChatModel resolved = isDefaultSelection(selected)
                 ? defaultChatModel

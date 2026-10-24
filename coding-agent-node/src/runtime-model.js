@@ -19,8 +19,22 @@ export function createRuntimeModel(gateway, contract, initialOrdinal = 0) {
       }));
       const answer = await gateway.model(contract, {
         operationId: `model-${++modelCallIndex}`,
+        modelResponseFeedbackVersion: 'runtime_os.coding.model_feedback.v1',
         systemPrompt: request.systemPrompt ?? '', messages, tools,
       }, request.signal);
+      if (answer.error) {
+        const feedback = answer.modelResponseFeedback;
+        if (feedback?.schemaVersion !== 'runtime_os.coding.model_feedback.v1'
+            || feedback.repairAllowed !== true
+            || !['MODEL_OUTPUT_TRUNCATED', 'MODEL_TOOL_ARGUMENTS_INVALID'].includes(feedback.diagnosticCode)
+            || !Number.isInteger(feedback.maxRepairAttempts) || feedback.maxRepairAttempts < 1
+            || feedback.maxRepairAttempts > 8 || answer.toolCalls?.length)
+          throw new Error('Runtime rejected the model response without an authorized repair decision');
+        // This is provider-response feedback, never a fabricated tool invocation.
+        yield { type: 'runtime-model-feedback', feedback };
+        if (!answer.text) yield { type: 'text-delta', text:
+          `Runtime rejected the provider tool arguments: ${feedback.diagnosticCode}. No tool was executed.` };
+      }
       if (answer.modelInfo) yield { type: 'runtime-model-metadata', metadata: answer.modelInfo };
       if (answer.text) yield { type: 'text-delta', text: answer.text };
       for (const call of answer.toolCalls ?? []) {

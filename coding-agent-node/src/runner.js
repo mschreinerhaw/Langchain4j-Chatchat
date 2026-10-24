@@ -79,6 +79,8 @@ export function createCodingRun(contract, gateway, options = {}) {
   let lastUsage = { inputTokens: 0, outputTokens: 0, totalCost: 0 };
   let firstRuntimeError = null;
   let modelFailed = false;
+  let modelResponseFeedback = restored?.modelResponseFeedback ?? null;
+  let modelResponseRepairs = restored?.modelResponseRepairs ?? 0;
   const events = [];
   const codeFiles = [];
   const forward = async (event) => {
@@ -312,7 +314,14 @@ export function createCodingRun(contract, gateway, options = {}) {
     tools,
     maxIterations: Math.max(1, Math.min(Number(contract.budget?.maxModelCalls ?? 1), 32)),
     toolExecution: 'sequential',
-    ...(fastAnalysis ? { completionPolicy: { requireCompletionTool: true } } : {}),
+    completionPolicy: {
+      ...(fastAnalysis ? { requireCompletionTool: true } : {}),
+      completionGuard: () => modelResponseFeedback
+        ? `Runtime rejected the previous provider tool arguments (${modelResponseFeedback.diagnosticCode}). No tool was executed. `
+          + 'Generate a concise, complete JSON object for an already authorized tool. Keep the program focused, avoid repeating context or embedding input datasets, and preserve all requested calculations and evidence limits. '
+          + 'Do not infer execution success from the rejected response or change authorization. Continue in this task using the same immutable inputs.'
+        : undefined,
+    },
     hooks: {
       async afterTool({ toolCall, result }) {
         if (toolCall.toolName === 'artifact_read' && result.output?.reportReferenceValidation?.valid === false)
@@ -337,17 +346,24 @@ export function createCodingRun(contract, gateway, options = {}) {
             && event.message?.role === 'tool' && typeof gateway.checkpoint === 'function') {
           await gateway.checkpoint(contract, { sdkSessionId, checkpointOrdinal: ++checkpointOrdinal,
             modelOrdinal: modelIndex, eventOrdinal, messages: event.snapshot.messages, lastCollectedOperation, reportReferenceFailure, terminalFeedback,
+            modelResponseFeedback, modelResponseRepairs,
             contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
             workspaceRef: contract.workspaceRef });
         }
       },
       async beforeModel({ snapshot }) {
         if (terminalFeedback) throw new Error('Runtime execution policy denied automatic repair');
+        const repairingModelResponse = Boolean(modelResponseFeedback);
+        if (repairingModelResponse) {
+          if (modelResponseRepairs >= modelResponseFeedback.maxRepairAttempts)
+            throw new Error(`MODEL_RESPONSE_REPAIR_LIMIT_REACHED: ${modelResponseFeedback.diagnosticCode}`);
+        }
         // beforeModel follows completion of ALL tool results in the preceding turn.
         // restore() resets SDK usage; A2 remains the budget/ordinal authority.
         if (typeof gateway.checkpoint === 'function') await gateway.checkpoint(contract, {
           sdkSessionId, checkpointOrdinal: ++checkpointOrdinal, modelOrdinal: modelIndex,
           eventOrdinal, messages: snapshot.messages, lastCollectedOperation, reportReferenceFailure, terminalFeedback,
+          modelResponseFeedback, modelResponseRepairs,
           contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
           workspaceRef: contract.workspaceRef,
         });
@@ -355,6 +371,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         try {
           await gateway.reserveModel(contract, { operationId: `model-${index}`, modelCalls: 1,
             maxTokens: Number(options.modelTokenReservation ?? 2048) });
+          if (repairingModelResponse) modelResponseRepairs++;
         } catch (error) {
           firstRuntimeError ??= String(error?.message ?? error).slice(0, 512);
           throw error;
@@ -398,7 +415,15 @@ export function createCodingRun(contract, gateway, options = {}) {
       // callback ordinal without a matching A2 reservation. Runtime owns retries.
       try {
         modelFailed = false;
+        modelResponseFeedback = null;
         for await (const event of await options.model.stream(request)) {
+          if (event.type === 'runtime-model-feedback') {
+            modelResponseFeedback = event.feedback;
+            await forward({ type: 'MODEL_RESPONSE_REJECTED', modelCall: modelIndex, stage: 'CODING',
+              diagnosticCode: event.feedback.diagnosticCode, repairAttempt: modelResponseRepairs,
+              maxRepairAttempts: event.feedback.maxRepairAttempts });
+            continue;
+          }
           if (event.type === 'runtime-model-metadata') {
             await forward({ type: 'MODEL_RESOLVED', modelCall: modelIndex, stage: 'CODING', ...event.metadata });
             continue;

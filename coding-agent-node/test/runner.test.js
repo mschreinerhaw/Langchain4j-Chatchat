@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCodingRun as realCreateCodingRun } from '../src/runner.js';
+import { createRuntimeModel } from '../src/runtime-model.js';
 // Allocation is a Java callback fixture; Python results below remain branch-specific fixtures.
 const createCodingRun=(task,gateway,options)=>{
   let version=0;const assigned=new Map();
@@ -25,6 +26,56 @@ const task = {
   outputContract: { requiredFiles: ['rows.jsonl'] },
   budget: { maxModelCalls: 4 },
 };
+
+test('malformed provider arguments are repaired in the same SDK with fresh admissions and actual usage', async () => {
+  const admitted=[],settled=[],checkpoints=[];let models=0,executions=0;
+  const gateway={
+    async reserveModel(_task,call){admitted.push(call.operationId);},
+    async settleModel(_task,call){settled.push(call.operationId);},
+    async checkpoint(_task,value){checkpoints.push(structuredClone(value));},
+    async model(_task,request){
+      models++;
+      if(models===1)return {error:'Invalid tool JSON',text:'Preparing the program.',toolCalls:[],usage:{inputTokens:10,outputTokens:20},
+        modelResponseFeedback:{schemaVersion:'runtime_os.coding.model_feedback.v1',diagnosticCode:'MODEL_OUTPUT_TRUNCATED',repairAllowed:true,maxRepairAttempts:2}};
+      if(models===2){
+        assert.match(JSON.stringify(request.messages),/MODEL_OUTPUT_TRUNCATED/);
+        assert.match(JSON.stringify(request.messages),/same immutable inputs/);
+        return {toolCalls:[{id:'repaired-call',name:'python_execute',input:{fileName:'main.py',source:'print(42)'}}],usage:{inputTokens:12,outputTokens:8}};
+      }
+      return {text:'Verified result.',toolCalls:[],usage:{inputTokens:8,outputTokens:2}};
+    },
+    async executePython(){executions++;return {status:'SUCCEEDED',executorStopped:true,resultDatasetRef:'result',validationRecordRef:'validation',evidenceBundleRef:'bundle'};},
+    async finish(){},
+  };
+  const run=createCodingRun(task,gateway,{model:createRuntimeModel(gateway,task),contractHash:'a'.repeat(64)});
+  const result=await run.run();
+  assert.equal(result.status,'completed');assert.equal(executions,1);assert.equal(models,3);
+  assert.deepEqual(admitted,['model-1','model-2','model-3']);assert.deepEqual(settled,admitted);
+  assert(checkpoints.some(c=>c.modelResponseFeedback?.diagnosticCode==='MODEL_OUTPUT_TRUNCATED'&&c.modelOrdinal===1));
+  assert(checkpoints.some(c=>c.modelResponseRepairs===1));
+  assert(run.events.some(e=>e.type==='MODEL_RESPONSE_REJECTED'));
+});
+
+test('repeated malformed provider responses exhaust the repair limit without running Python', async () => {
+  let models=0,executions=0,settlements=0;
+  const gateway={async reserveModel(){},async settleModel(){settlements++;},async finish(){},
+    async executePython(){executions++;},async model(){models++;return {error:'Invalid JSON',toolCalls:[],usage:{inputTokens:1,outputTokens:2},
+      modelResponseFeedback:{schemaVersion:'runtime_os.coding.model_feedback.v1',diagnosticCode:'MODEL_TOOL_ARGUMENTS_INVALID',repairAllowed:true,maxRepairAttempts:1}};}};
+  const result=await createCodingRun(task,gateway,{model:createRuntimeModel(gateway,task)}).run();
+  assert.equal(result.status,'failed');assert.match(result.error,/MODEL_RESPONSE_REPAIR_LIMIT_REACHED/);
+  assert.equal(models,2);assert.equal(settlements,2);assert.equal(executions,0);
+});
+
+test('restoring a settled checkpoint cannot reset the model response repair limit', async () => {
+  let admitted=0,models=0;
+  const gateway={async reserveModel(){admitted++;},async settleModel(){},async finish(){},async executePython(){throw new Error('must not execute');},
+    async model(){models++;throw new Error('must not call');}};
+  const checkpoint={messages:[{role:'user',content:[{type:'text',text:'Original authorized request'}]}],modelOrdinal:2,eventOrdinal:3,
+    modelResponseRepairs:1,modelResponseFeedback:{schemaVersion:'runtime_os.coding.model_feedback.v1',diagnosticCode:'MODEL_OUTPUT_TRUNCATED',repairAllowed:true,maxRepairAttempts:1}};
+  const result=await createCodingRun(task,gateway,{model:createRuntimeModel(gateway,task,2),checkpoint}).run();
+  assert.equal(result.status,'failed');assert.match(result.error,/MODEL_RESPONSE_REPAIR_LIMIT_REACHED/);
+  assert.equal(admitted,0);assert.equal(models,0);
+});
 
 test('Java STOP feedback terminates the real SDK loop without another model or Python call', async () => {
   let models=0,executions=0,finished;

@@ -78,19 +78,20 @@ class ClineModelCallbackControllerTest {
             when(model.complete(any(), any())).thenAnswer(call -> {
                 var before = access.as(scope, grants, () -> tasks.ownership(scope, "task"));
                 time.set(time.get().plusSeconds(240));
-                pulse.get().run();
+                java.util.concurrent.CompletableFuture.runAsync(pulse.get()).join();
                 var renewed = access.as(scope, grants, () -> tasks.ownership(scope, "task"));
                 assertThat(renewed.leaseUntil()).isAfter(before.leaseUntil());
                 assertThat(renewed.fencingToken()).isEqualTo(lease.fencingToken());
                 if (cancel) {
                     access.as(scope, grants, () -> tasks.cancel(scope, "task", "test cancellation"));
-                    pulse.get().run();
+                    java.util.concurrent.CompletableFuture.runAsync(pulse.get()).join();
                     assertThat(access.as(scope, grants, () -> tasks.ownership(scope, "task"))).isEqualTo(renewed);
                 } else {
                     time.set(time.get().plusSeconds(360));
                     var replacement = access.as(scope, grants, () -> tasks.claim(scope, "task", "cline-adapter:replacement",
                         Duration.ofMinutes(5), tasks.get(scope, "task").revision()));
-                    assertThatThrownBy(() -> pulse.get().run()).isInstanceOf(RuntimeException.class);
+                    assertThatThrownBy(() -> java.util.concurrent.CompletableFuture.runAsync(pulse.get()).join())
+                        .isInstanceOf(RuntimeException.class);
                     assertThat(access.as(scope, grants, () -> tasks.ownership(scope, "task"))).isEqualTo(replacement);
                 }
                 return Map.of("text", "done", "toolCalls", List.of(), "usage", Map.of("inputTokens", 4, "outputTokens", 2));

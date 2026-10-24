@@ -13,8 +13,9 @@ unknown usage, stale leases and legacy workers retain their rejection behavior. 
 loop requests a corrected response without executing rejected arguments. Each attempt requires
 normal budget admission and settlement; the repair counter survives checkpoints and is bounded.
 
-The deployed reply limit is 32,768 tokens, with at most two response repairs and a 300-second
-worker callback timeout. Total task budgets and selected models are retained. No database,
+The deployed reply limit is 32,768 tokens, with at most two response repairs. Control callbacks
+have a 300-second timeout; model callbacks follow the authorized task deadline. Total task
+budgets and selected models are retained. No database,
 template, business question or model identifier is special-cased in the implementation.
 
 A separate model selection failure came from `AgentOrchestrationEngine` constructing its own
@@ -32,18 +33,14 @@ task records are retained; live verification uses the official retry endpoint.
 
 ## Deployment verification
 
-- Source commit: `f847b83a1d05b53413b8eb221e873745b87d897a`.
-- API and worker image version: `2.4.15-model-response-repair-20261024`.
-- Deployed API JAR SHA-256: `d675cb55bad85a6912a23c940efe7fb6a430d375986b3b9da371b8320d799b1d`.
-- Java: 31 targeted tests passed; worker: 31 tests passed on production Node 24.21.0,
+- Source commit: `153fabcdfc039995f53c2e8db0bdf3430b4646a1`.
+- API and worker image version: `2.4.16-model-deadline-20261024`.
+- Deployed API JAR SHA-256: `2565652217e17656f546727fd12d15bcae784880c83387f1e7382062b900cdc4`.
+- Java: 33 targeted tests passed; worker: 32 tests passed on production Node 24.21.0,
   including real SDK correction, bounded failure and checkpoint recovery tests.
 - API readiness and worker health passed; authorization and template-binding fingerprints
   were unchanged. Reply cap, repair cap, callback timeout and unchanged total model budget
   were verified against the running containers.
-- Live planning calls took up to 210 seconds with the current published Agent model. The
-  worker callback timeout was consequently raised from the initially deployed 180 seconds
-  to the existing supported ceiling of 300 seconds while the worker was idle. Task deadlines
-  and total model budgets still apply.
 - Explicitly selecting the page-published `qwen3.8-flash` through the official interaction
   endpoint returned `OK`, with a completed coding receipt and an available result. The
   provider identity and actual token usage were recorded in successful model receipts.
@@ -52,7 +49,8 @@ task records are retained; live verification uses the official retry endpoint.
   verification the Agent was bound to `qwen3.8-max`. No Agent binding was changed for testing.
 
 Private deployment backups and full acceptance evidence are retained on the server under
-`/opt/chatchat-releases/model-response-repair-20261024/evidence/`.
+`/opt/chatchat-releases/model-response-repair-20261024/evidence/` and
+`/opt/chatchat-releases/model-deadline-20261024/evidence/`.
 
 ## Long model-call correction
 
@@ -71,3 +69,5 @@ No task budget or business model binding is changed.
 The extended Java gate passed 33 tests. The production Node 24 worker gate passed 32 tests,
 including a delayed model response beyond the control timeout, task-deadline abort and explicit
 cancellation. Lease renewal was tested across cancellation and replacement ownership.
+The renewal tests also run on a separate thread to verify the callback identity and grants
+are restored on the scheduler thread.

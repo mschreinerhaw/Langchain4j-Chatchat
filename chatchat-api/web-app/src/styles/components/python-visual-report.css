@@ -46,7 +46,7 @@
   border-radius: 8px;
 }
 .report-narrative {
-  white-space: pre-wrap;
+  overflow-x: auto;
 }
 .report-provenance {
   margin-top: 16px;
@@ -120,7 +120,7 @@
   color: #142b49;
   margin: 10px 0 14px;
 }
-.python-visual-report header > p {
+.python-visual-report .report-summary {
   font-size: 15px;
   line-height: 1.9;
   color: #475569;
@@ -156,6 +156,57 @@
 .report-narrative {
   line-height: 1.95;
   color: #334155;
+}
+.report-narrative :deep(p),
+.report-summary :deep(p) {
+  margin: 0 0 12px;
+}
+.report-narrative :deep(:last-child),
+.report-summary :deep(:last-child),
+.report-notice li :deep(p:last-child) {
+  margin-bottom: 0;
+}
+.report-notice li :deep(p) {
+  margin-top: 0;
+}
+.report-narrative :deep(h1),
+.report-narrative :deep(h2),
+.report-narrative :deep(h3),
+.report-narrative :deep(h4) {
+  color: #183b63;
+  font-size: 17px;
+  line-height: 1.6;
+  margin: 20px 0 10px;
+}
+.report-narrative :deep(:first-child) {
+  margin-top: 0;
+}
+.report-narrative :deep(ul),
+.report-narrative :deep(ol) {
+  padding-left: 24px;
+  margin: 12px 0;
+}
+.report-narrative :deep(li) {
+  margin: 6px 0;
+}
+.report-narrative :deep(blockquote) {
+  margin: 12px 0;
+  border-left: 3px solid #b8cff4;
+  padding: 10px 14px;
+  background: #f7faff;
+}
+.report-narrative :deep(pre) {
+  overflow: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f6f8fc;
+  line-height: 1.6;
+}
+.report-narrative :deep(a),
+.report-summary :deep(a) {
+  color: #245fc7;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .python-visual-report :deep(th) {
   background: #f1f5fa;

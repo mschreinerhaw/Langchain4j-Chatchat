@@ -97,7 +97,7 @@ try:
     checks['taskArchivesPresent']=len(native)==1
     objects=[];code=[]
     if native:
-        files=call('/interactions/user-assets?taskId='+native[0]+'&limit=100',token=admin)
+        files=call('/interactions/user-assets?taskId='+native[0]+'&limit=100&personalOnly=false',token=admin)
         for file in files:
             status,body=call('/interactions/user-assets/'+file['id']+'/content',token=admin,raw=True)
             if status!=200 or len(body)!=file['size'] or hashlib.sha256(body).hexdigest()!=file['sha256']:raise RuntimeError('Task archive integrity failure')

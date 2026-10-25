@@ -40,6 +40,18 @@ class AgentRuntimeTaskEventPublisherTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    @Test void reviewerSubstagesRetainStateAndTimingInRuntimeObservations() {
+        AgentTaskLatestRepository repository=mock(AgentTaskLatestRepository.class);
+        InMemoryAgentEventStore store=new InMemoryAgentEventStore();
+        var task=task("review-substages");when(repository.findById(task.getTaskId())).thenReturn(Optional.of(task));
+        var publisher=new AgentRuntimeTaskEventPublisher(repository,store,mock(AgentEventBus.class),objectMapper);
+        for(String state:List.of("STARTED","COMPLETED","FAILED"))publisher.publish(AgentRunEvent.of(task.getTaskId(),AgentRunEventType.OBSERVATION_RECORDED,
+            "review stage",Map.of("metadata",Map.of("eventKind","TOOL_REVIEW_STAGE","eventState",state,"modelPhase","tool_result_review_coverage","stepId",25,"durationMs",42))));
+        var events=store.listByTask(task.getTenantId(),task.getSessionId(),task.getTaskId(),10);
+        assertThat(events).extracting(AgentEvent::getStatus).containsExactly("RUNNING","SUCCESS","FAILED");
+        assertThat(events).allSatisfy(event->{assertThat(event.getType()).isEqualTo("RUNTIME_OBSERVATION");assertThat(event.getPayload()).contains("tool_result_review_coverage","durationMs");});
+    }
+
     @Test void preservesTypedClassificationWithoutForwardingArbitraryUntrustedFields() throws Exception {
         AgentTaskLatestRepository repository=mock(AgentTaskLatestRepository.class);
         InMemoryAgentEventStore store=new InMemoryAgentEventStore();

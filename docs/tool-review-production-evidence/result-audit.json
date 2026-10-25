@@ -1,0 +1,97 @@
+{
+  "taskId": "9f2c0d5d-4437-3de8-90d7-4982a3b7463a",
+  "status": "SUCCESS",
+  "answerCharacters": 3388,
+  "hasRequestedEngine": true,
+  "hasQuantifiedMetrics": true,
+  "technicalFailureInAnswer": false,
+  "eventTypes": {
+    "QUESTION": 1,
+    "STATUS": 5,
+    "RUNTIME_OBSERVATION": 128,
+    "RUNTIME_STARTED": 1,
+    "RUNTIME_STEP": 4,
+    "BUSINESS_TEMPLATE_REQUIREMENT_MATCHING": 1,
+    "RUNTIME_COMPLETED": 1,
+    "THINK": 2,
+    "PLAN": 1,
+    "TOOL_CALL": 3,
+    "TOOL_RESULT": 3,
+    "ANSWER": 1,
+    "COMPLETE": 1
+  },
+  "toolResults": [
+    {
+      "type": "TOOL_RESULT",
+      "status": "RUNNING",
+      "toolName": "mcp_chatchat_mcp_server_database_capability_query",
+      "success": true,
+      "outputChars": 25936,
+      "resultStatus": "SUCCESS",
+      "summaryCounts": {},
+      "outputKeys": [
+        "schemaVersion",
+        "requestId",
+        "serviceId",
+        "toolName",
+        "status",
+        "resultKind",
+        "provenance",
+        "completeness",
+        "data",
+        "rawData",
+        "runtimeMetadata"
+      ]
+    },
+    {
+      "type": "TOOL_RESULT",
+      "status": "RUNNING",
+      "toolName": "mcp_chatchat_mcp_server_mysql_db_status_template_query",
+      "success": true,
+      "outputChars": 32016,
+      "resultStatus": "SUCCESS",
+      "summaryCounts": {},
+      "outputKeys": [
+        "schemaVersion",
+        "requestId",
+        "serviceId",
+        "toolName",
+        "status",
+        "resultKind",
+        "resultSchemaRef",
+        "provenance",
+        "pagination",
+        "completeness",
+        "data",
+        "rawData",
+        "runtimeMetadata"
+      ]
+    },
+    {
+      "type": "TOOL_RESULT",
+      "status": "RUNNING",
+      "toolName": "mcp_chatchat_mcp_server_sql_query_execute",
+      "success": true,
+      "outputChars": 822071,
+      "resultStatus": "SUCCESS",
+      "summaryCounts": {
+        "total": 3,
+        "success": 3,
+        "failed": 0,
+        "blocked": 0,
+        "skipped": 0,
+        "remoteToolInvocations": 3
+      },
+      "outputKeys": [
+        "batchId",
+        "executionMode",
+        "startedAt",
+        "completedAt",
+        "status",
+        "cardinality",
+        "summary",
+        "results"
+      ]
+    }
+  ]
+}

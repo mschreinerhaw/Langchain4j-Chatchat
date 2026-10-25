@@ -50,6 +50,14 @@ public class AgentRuntimeProperties {
     /** Legacy review switch for non-data final responses; model-owned data reports always bypass it. */
     private boolean governedAnalysisPublicationReviewEnabled = false;
     private long answerCriticTimeoutMs = 45_000;
+    /** Reviewer-only resolved-input projection; execution and schema binding retain the original arguments. */
+    private int toolReviewStepInputMaxChars = 4_000;
+    /** Total wall-clock budget shared by semantic selection, coverage and binding calls. */
+    private long toolResultReviewTimeoutMs = 60_000;
+
+    public long toolResultReviewTimeoutMs() {
+        return Math.max(1, toolResultReviewTimeoutMs);
+    }
     /** Hard wall-clock budget for one Agent execution; zero keeps the legacy unlimited behavior. */
     private long executionTimeoutMs = 0L;
     /** Resource budget for model-selected evidence navigation, rather than a business-analysis rule. */

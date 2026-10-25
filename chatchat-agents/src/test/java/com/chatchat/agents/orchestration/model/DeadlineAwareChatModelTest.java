@@ -14,6 +14,31 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DeadlineAwareChatModelTest {
+    @Test void reviewBudgetBoundsAnOtherwiseUnlimitedTransportAndRestoresCallerScope() {
+        DeadlineAwareChatModel model=new DeadlineAwareChatModel(new ChatModel(){
+            @Override public String chat(String message) {
+                if("slow".equals(message))try{Thread.sleep(5000);}catch(InterruptedException ex){Thread.currentThread().interrupt();}
+                return "ok";
+            }
+        },()->-1L);
+        try(var budget=ModelInvocationBudget.open(30)) {
+            assertThatThrownBy(()->model.chat("slow")).isInstanceOf(ModelPhaseBudgetExceededException.class)
+                .hasMessageContaining("MODEL_REVIEW_DEADLINE_EXCEEDED");
+        }
+        assertThat(model.chat("fast")).isEqualTo("ok");
+    }
+    @Test void nativeReviewCallsAlsoRespectThePhaseBudget() {
+        var model=new DeadlineAwareChatModel(new ChatModel(){
+            @Override public ChatResponse doChat(ChatRequest request){
+                try{Thread.sleep(5000);}catch(InterruptedException ex){Thread.currentThread().interrupt();}
+                return ChatResponse.builder().aiMessage(dev.langchain4j.data.message.AiMessage.from("late")).build();
+            }
+        },()->-1L);
+        try(var budget=ModelInvocationBudget.open(30)) {
+            assertThatThrownBy(()->model.chat(ChatRequest.builder().messages(dev.langchain4j.data.message.UserMessage.from("slow")).build()))
+                .isInstanceOf(ModelPhaseBudgetExceededException.class);
+        }
+    }
 
     @Test
     void interruptsModelInvocationWhenRequestDeadlineExpires() {

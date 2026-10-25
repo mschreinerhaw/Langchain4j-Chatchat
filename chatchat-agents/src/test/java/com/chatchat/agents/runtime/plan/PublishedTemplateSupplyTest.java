@@ -94,4 +94,32 @@ class PublishedTemplateSupplyTest {
         assertThat(optimized.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(BRIDGE,CHILD,EXECUTE,"");
         assertThat(optimized.plan().bindings()).allSatisfy(b->assertThat(b.from()).isEqualTo(2));
     }
+
+    @Test void omittedStageInNestedPublisherIsExpandedBeforeFixedScopePruning() {
+        var registry=registry(true);
+        var bridge=registry.getToolMetadata(BRIDGE);
+        Map<String,Object> attributes=new LinkedHashMap<>(bridge.getMetadata());
+        Map<String,Object> publisher=new LinkedHashMap<>((Map<String,Object>)attributes.get("mcpToolMeta"));
+        publisher.put("inputSchema",Map.of("type","object","properties",Map.of(
+            "stage",Map.of("type","string","enum",List.of("asset","template")))));
+        attributes.put("mcpToolMeta",publisher);bridge.setMetadata(attributes);
+        var optimizer=new InterpretationPlanOptimizer(registry);
+        var optimized=optimizer.optimize(plan()).plan();
+        var asset=optimized.steps().stream().filter(s->BRIDGE.equals(s.toolName())).findFirst().orElseThrow();
+        assertThat(asset.input()).containsEntry("stage","asset");
+        var provider=optimized.steps().stream().filter(s->CHILD.equals(s.toolName())).findFirst().orElseThrow();
+        assertThat(provider.dependsOn()).contains(asset.id());
+        var execution=optimized.steps().stream().filter(s->EXECUTE.equals(s.toolName())).findFirst().orElseThrow();
+        assertThat(execution.dependsOn()).contains(provider.id());
+        assertThat(optimized.plan().bindings()).allSatisfy(b->assertThat(b.from()).isEqualTo(provider.id()));
+        assertThat(new InterpretationPlanValidator().validate(optimized,registry,Set.of(BRIDGE,CHILD,EXECUTE)).errors()).isEmpty();
+        assertThat(optimizer.optimize(optimized).plan().steps()).hasSameSizeAs(optimized.steps());
+        var configured=optimizer.optimize(plan(),List.of(
+            Map.of("tool",BRIDGE,"required",true),
+            Map.of("tool",EXECUTE,"required",true,"dependsOnTools",List.of(BRIDGE)),
+            Map.of("tool",CHILD,"required",false))).plan();
+        assertThat(configured.steps()).filteredOn(s->BRIDGE.equals(s.toolName()))
+            .singleElement().satisfies(s->assertThat(s.input()).containsEntry("stage","asset"));
+        assertThat(new InterpretationPlanValidator().validate(configured,registry,Set.of(BRIDGE,CHILD,EXECUTE)).errors()).isEmpty();
+    }
 }

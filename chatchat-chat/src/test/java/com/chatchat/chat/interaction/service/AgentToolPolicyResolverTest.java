@@ -17,6 +17,26 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AgentToolPolicyResolverTest {
+    @Test void registrationDuringAuthorizationDoesNotLeaveStaleRequiredCapabilityGaps() {
+        ToolRegistry registry=mock(ToolRegistry.class);
+        var ready=new java.util.concurrent.atomic.AtomicBoolean();
+        when(registry.getRevision()).thenAnswer(invocation->ready.get()?1L:0L);
+        when(registry.hasTool("mcp_required")).thenAnswer(invocation->ready.get());
+        var skills=mock(SkillCatalogService.class);
+        var catalog=mock(McpToolCatalogQueryPort.class);
+        when(catalog.registeredTools()).thenReturn(List.of(registered("mcp_required","required")));
+        var retriever=mock(McpToolCandidateRetriever.class);
+        when(retriever.retrieve(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.anyList(),org.mockito.ArgumentMatchers.anyInt()))
+            .thenAnswer(invocation->{ready.set(true);return new McpToolCandidateRetriever.Selection(
+                java.util.Set.of("mcp_required"),java.util.Set.of("mcp_required"),List.of("mcp_required"));});
+        var agent=skillWithWorkflow(List.of(Map.of("tool","mcp_required","required",true)));
+        var policy=new AgentToolPolicyResolver(registry,skills,catalog,retriever).resolve(
+            InteractionRequest.builder().query("inspect the selected target").availableTools(List.of("mcp_required")).build(),agent);
+        assertThat(policy.requiredCapabilityGaps()).isEmpty();
+        assertThat(policy.requiredTools()).containsExactly("mcp_required");
+        org.mockito.Mockito.verify(retriever,org.mockito.Mockito.times(2)).retrieve(
+            org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.anyList(),org.mockito.ArgumentMatchers.anyInt());
+    }
     @Test
     void activatesLocalToolIntentFromDatabaseBinding() {
         ToolRegistry registry = mock(ToolRegistry.class);

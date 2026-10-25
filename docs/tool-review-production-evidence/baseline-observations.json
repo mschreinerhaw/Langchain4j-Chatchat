@@ -1,0 +1,91 @@
+[
+  {
+    "taskId": "f375cb0b-4513-4b98-806c-81142e37b4f2",
+    "agentId": "server_ops_assistant",
+    "status": "KILLED",
+    "createTime": "2026-10-24T14:35:59.281489Z",
+    "finishedAt": "2026-10-24T14:50:14.398634Z",
+    "questionChars": 31,
+    "reviewObservations": [
+      {
+        "type": "RUNTIME_OBSERVATION",
+        "createTime": 1792852575202,
+        "phase": "tool_result_review",
+        "state": "STARTED",
+        "stepId": 1
+      }
+    ]
+  },
+  {
+    "taskId": "928dbfa6-3327-4527-8bd7-ca4d399bb505",
+    "agentId": "server_ops_assistant",
+    "status": "KILLED",
+    "createTime": "2026-10-24T14:08:10.465040Z",
+    "finishedAt": "2026-10-24T14:10:20.773964Z",
+    "questionChars": 31,
+    "reviewObservations": [
+      {
+        "type": "RUNTIME_OBSERVATION",
+        "createTime": 1792850912503,
+        "phase": "tool_result_review",
+        "state": "STARTED",
+        "stepId": 1
+      },
+      {
+        "type": "RUNTIME_OBSERVATION",
+        "createTime": 1792850930490,
+        "phase": "tool_result_review",
+        "state": "COMPLETED",
+        "durationMs": 17989,
+        "stepId": 1
+      },
+      {
+        "type": "RUNTIME_OBSERVATION",
+        "createTime": 1792850931069,
+        "phase": "tool_result_review",
+        "state": "STARTED",
+        "stepId": 2
+      }
+    ]
+  },
+  {
+    "taskId": "91766347-97f0-4795-b079-4e4052ba8df2",
+    "agentId": "db_ops_assistant",
+    "status": "SUCCESS",
+    "createTime": "2026-10-24T13:10:55.155126Z",
+    "finishedAt": "2026-10-24T13:28:29.979187Z",
+    "questionChars": 36,
+    "reviewObservations": [
+      {
+        "type": "RUNTIME_OBSERVATION",
+        "createTime": 1792847470210,
+        "phase": "tool_result_review",
+        "state": "STARTED",
+        "stepId": 1
+      },
+      {
+        "type": "RUNTIME_OBSERVATION",
+        "createTime": 1792848171516,
+        "phase": "tool_result_review",
+        "state": "COMPLETED",
+        "durationMs": 701303,
+        "stepId": 1
+      },
+      {
+        "type": "RUNTIME_OBSERVATION",
+        "createTime": 1792848171872,
+        "phase": "tool_result_review",
+        "state": "STARTED",
+        "stepId": 2
+      },
+      {
+        "type": "RUNTIME_OBSERVATION",
+        "createTime": 1792848274819,
+        "phase": "tool_result_review",
+        "state": "COMPLETED",
+        "durationMs": 102948,
+        "stepId": 2
+      }
+    ]
+  }
+]

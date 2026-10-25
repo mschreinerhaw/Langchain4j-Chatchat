@@ -1,0 +1,21 @@
+{
+    "fixture":  "30 publisher-declared candidates with repeated semantics and schemas",
+    "before":  {
+                   "promptChars":  30445,
+                   "estimatedTokens":  8271
+               },
+    "after":  {
+                  "promptChars":  17706,
+                  "estimatedTokens":  5047
+              },
+    "promptCharacterReductionPercent":  41.84,
+    "estimatedInputTokenReductionPercent":  38.98,
+    "actualProviderLatencyMeasured":  false,
+    "productionDeployed":  false,
+    "allCandidateIdsAndTailCapabilitiesVerified":  true,
+    "largeResolvedInput":  {
+                               "reviewPromptBelowCharacters":  20000,
+                               "executionInputUnchanged":  true,
+                               "originalCharacters":  220000
+                           }
+}

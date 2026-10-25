@@ -77,7 +77,9 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                 .forEach(augmentedRejected::add);
             rejectedIds = List.copyOf(new LinkedHashSet<>(augmentedRejected));
         }
-        Projection projection = project(output, selectedIds, deferredIds, rejectedIds, evaluations, 0);
+        String supplyAuthority = Boolean.TRUE.equals(metadata.get("publishedDataSupply"))
+            ? "runtime_published_data_supply" : null;
+        Projection projection = project(output, selectedIds, deferredIds, rejectedIds, evaluations, 0, supplyAuthority);
         if (!projection.applied()) {
             return Evaluation.notApplied(output,
                 "model-selected template ids were not present in the authorized MCP candidate set");
@@ -94,7 +96,8 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             : attachReviewedInvocations(projection.output(), reviewedInvocations, 0);
         Map<String, Object> requirementMatch = requirementMatch(
             metadata, projection.selectedIds(), rejectedIds, evaluations,
-            projection.output(), parameterBlocked, "RUNTIME_EVIDENCE_MODEL_REVIEW");
+            projection.output(), parameterBlocked, supplyAuthority == null
+                ? "RUNTIME_EVIDENCE_MODEL_REVIEW" : "RUNTIME_PUBLISHED_DATA_SUPPLY");
         Object projectedOutput = requirementMatch.isEmpty()
             ? invocationProjectedOutput
             : attachRequirementMatch(invocationProjectedOutput, requirementMatch, 0);
@@ -238,7 +241,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             .filter(Objects::nonNull)
             .toList();
         List<TemplateRequirementMatchEvaluation> completeEvaluations = completeEvaluations(
-            typedEvaluations, selectedIds, rejectedIds);
+            typedEvaluations, selectedIds, rejectedIds, authority);
         return new TemplateMatchAnalysis(
             TemplateMatchAnalysis.SCHEMA_VERSION,
             question,
@@ -374,7 +377,8 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
     private List<TemplateRequirementMatchEvaluation> completeEvaluations(
         List<TemplateRequirementMatchEvaluation> evaluations,
         List<String> selectedIds,
-        List<String> rejectedIds
+        List<String> rejectedIds,
+        String authority
     ) {
         Set<String> selected = selectedIds.stream().map(this::normalize)
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
@@ -389,7 +393,9 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                 item, admitted ? "ACCEPT" : "REJECT", role));
         });
         selectedIds.forEach(id -> values.putIfAbsent(normalize(id), defaultEvaluation(
-            id, "ACCEPT", TemplateAnalysisRole.CONTEXT, "Selected by context-aware reviewer")));
+            id, "ACCEPT", TemplateAnalysisRole.CONTEXT, "RUNTIME_PUBLISHED_DATA_SUPPLY".equals(authority)
+                ? "Publisher baseline admitted; analytical relevance has not been evaluated"
+                : "Selected by context-aware reviewer")));
         rejectedIds.forEach(id -> values.putIfAbsent(normalize(id), defaultEvaluation(
             id, "REJECT", TemplateAnalysisRole.IRRELEVANT, "Excluded by context-aware reviewer")));
         return List.copyOf(values.values());
@@ -638,7 +644,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                                List<String> deferredIds,
                                List<String> rejectedIds,
                                List<Map<String, Object>> evaluations,
-                               int depth) {
+                               int depth, String supplyAuthority) {
         if (depth > 8) {
             return Projection.notApplied(output);
         }
@@ -649,7 +655,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             List<String> projectedIds = new ArrayList<>();
             boolean applied = false;
             for (Object item : list) {
-                Projection nested = project(item, selectedIds, deferredIds, rejectedIds, evaluations, depth + 1);
+                Projection nested = project(item, selectedIds, deferredIds, rejectedIds, evaluations, depth + 1, supplyAuthority);
                 projectedItems.add(nested.output());
                 if (nested.applied()) {
                     applied = true;
@@ -705,7 +711,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                     "deferredTemplateIds", deferredIds,
                     "rejectedTemplateIds", rejectedIds,
                     "candidateEvaluations", evaluations,
-                    "selectionAuthority", "runtime_evidence_model_review",
+                    "selectionAuthority", supplyAuthority == null ? "runtime_evidence_model_review" : supplyAuthority,
                     "mcpScoresAreWeakPriors", true
                 ));
                 return new Projection(map, templates.size(), 0, List.of(), true);
@@ -724,7 +730,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                 "deferredTemplateIds", deferredIds,
                 "rejectedTemplateIds", rejectedIds,
                 "candidateEvaluations", evaluations,
-                "selectionAuthority", admission.authority(),
+                "selectionAuthority", supplyAuthority == null ? admission.authority() : supplyAuthority,
                 "mcpScoresAreWeakPriors", true
             ));
             return new Projection(map, templates.size(), selected.size(), projectedIds, true);
@@ -734,7 +740,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             "routingProjection", "coverage", "preview"
         )) {
             Projection nested = project(
-                map.get(key), selectedIds, deferredIds, rejectedIds, evaluations, depth + 1);
+                map.get(key), selectedIds, deferredIds, rejectedIds, evaluations, depth + 1, supplyAuthority);
             if (nested.applied()) {
                 map.put(key, nested.output());
                 return new Projection(

@@ -2010,7 +2010,7 @@ class InterpretationPlanRuntimeTest {
             .containsEntry("localFactCheckHasEvidence", true)
             .containsEntry("toolResultReviewUnavailable", true)
             .containsEntry("semanticCandidateReviewSatisfied", false);
-        assertThat(result.errorMessage()).contains("model did not select a template id");
+        assertThat(result.errorMessage()).contains("CANDIDATE_REVIEW_UNAVAILABLE");
         assertThat(result.steps().get(0).output().toString())
             .contains("check_cpu", "check_docker_overview");
     }
@@ -10554,6 +10554,57 @@ class InterpretationPlanRuntimeTest {
             new InterpretationPlan.SelfCheck(0.8, 0.1, true, List.of()),
             List.of()
         );
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void publishedBaselineProducesEightAuthorizedExecutionCallsWithoutSemanticSelection() {
+        String discovery="mcp_chatchat_mcp_server_api_template_query",executor="mcp_chatchat_mcp_server_api_template_execute";
+        var candidates=java.util.stream.IntStream.range(0,8).mapToObj(i->Map.<String,Object>of(
+            "templateId","baseline-"+i,"parameterSchema",Map.of("type","object","properties",Map.of()),
+            "parameterContract",Map.of("executionTool",executor))).toList();
+        var descriptor=ToolMetadata.builder().id(discovery).riskLevel("low").metadata(Map.of(
+            com.chatchat.common.tool.ToolWorkflowContract.METADATA_KEY,
+            com.chatchat.common.tool.ToolWorkflowContract.declaration(com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY,"mcp.authorized-template-query.v1","filters","template"),
+            com.chatchat.common.mcp.capability.McpTemplateSelectionScope.METADATA_KEY,
+            com.chatchat.common.mcp.capability.McpTemplateSelectionScope.fixedBinding("api_service").toMetadata(),
+            com.chatchat.common.mcp.capability.McpDataSupplyPolicy.METADATA_KEY,
+            com.chatchat.common.mcp.capability.McpDataSupplyPolicy.fixedBaseline())).build();
+        var page=Map.<String,Object>of("schemaVersion","template_query_result.v1","success",true,
+            "scopeMode","FIXED_BINDING","bindingComplete",true,"hasMore",false,
+            "returnedCount",8,"templates",candidates);
+        ToolRegistry registry=mock(ToolRegistry.class);when(registry.hasTool(any())).thenReturn(true);
+        when(registry.getToolMetadata(any())).thenAnswer(call->discovery.equals(call.getArgument(0))
+            ?descriptor:batchCapableTemplateMetadata(executor));
+        ToolRuntimeService service=mock(ToolRuntimeService.class);var executed=new AtomicReference<Map<String,Object>>();
+        when(service.execute(any())).thenAnswer(call->{
+            ToolRuntimeRequest request=call.getArgument(0);
+            if(discovery.equals(request.getToolName()))return new ToolRuntimeExecution(ToolOutput.success(page),descriptor,null,"success",Map.of());
+            executed.set(request.getToolInput().getParameters());
+            return new ToolRuntimeExecution(ToolOutput.success(Map.of("results",candidates.stream()
+                .map(c->Map.of("callId",c.get("templateId"),"status","SUCCESS","data",Map.of("rows",List.of(Map.of("observed",true))))).toList())),
+                batchCapableTemplateMetadata(executor),null,"success",Map.of("batchExecution",true));
+        });
+        var plan=new InterpretationPlan("1.0",new InterpretationPlan.Intent("data_query","collect baseline","low"),context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1,"mcp_tool",discovery,Map.of(),List.of(),null,null),
+                new InterpretationPlan.Step(2,"mcp_tool",executor,Map.of("parameters",Map.of()),List.of(1),null,null),
+                new InterpretationPlan.Step(3,"final_answer","",Map.of("answer","done"),List.of(2),null,null)),
+                List.of(),List.of(),List.of(new InterpretationPlan.Binding(1,"$.templates[0].templateId",2,"$.templateId","jsonpath",true)),null),
+            new InterpretationPlan.ExecutionPolicy(3,false,List.of(discovery,executor),List.of(),30000),review());
+        var runtime=new InterpretationPlanRuntime(service,new InterpretationPlanValidator(),null,
+            request->discovery.equals(request.execution().toolName())
+                ?com.chatchat.agents.runtime.plan.review.PublishedDataSupplyReviewer.review(descriptor,page,candidates).orElseThrow()
+                :InterpretationPlanRuntime.StepReview.accepted("execution facts preserved",Map.of()),
+            scriptedController(List.of(List.of(1),List.of(2),List.of(3))));
+        var result=runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(plan,registry,List.of(discovery,executor),
+            "tenant-baseline","request-baseline","conversation-baseline","user-baseline",Map.of("originalUserQuery","analyze collected evidence")));
+        assertThat(result.success()).as("%s",result.errorMessage()).isTrue();
+        assertThat((List<Map<String,Object>>)executed.get().get("calls")).hasSize(8).allSatisfy(call->{
+            var arguments=(Map<String,Object>)call.get("arguments");
+            assertThat(arguments).containsEntry("parameters",Map.of()).containsKey(McpTemplateBindingEvidence.CONTEXT_KEY);
+        });
+        assertThat(result.steps().get(0).metadata()).containsEntry("analyticalCoverage","NOT_EVALUATED");
     }
 
     private InterpretationPlanRuntime.DagExecutionController scriptedController(List<List<Integer>> waves) {

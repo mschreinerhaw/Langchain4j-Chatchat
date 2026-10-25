@@ -36,9 +36,18 @@ public class ToolReleaseContractCatalog {
             new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){})).orElse(null);
     }
     public Map<String,Object> metadata(String toolName) {
-        return active(toolName).map(row -> Map.<String,Object>of("logicalToolId",row.getLogicalId(),"releaseId",row.getId(),
+        return active(toolName).map(row -> {
+            Map<String,Object> metadata=new LinkedHashMap<>(Map.<String,Object>of("logicalToolId",row.getLogicalId(),"releaseId",row.getId(),
             "toolVersion",row.getReleaseNumber()+".0.0","publicationStatus","active",
-            "breakingChangeApproved",true)).orElse(Map.of());
+            "breakingChangeApproved",true));
+            JsonNode declared=read(row.getInputSchemaJson()).path("x-runtime-data-supply");
+            if(declared.isObject()) {
+                Map<String,Object> policy=json.convertValue(declared,new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){});
+                var key=com.chatchat.common.mcp.capability.McpDataSupplyPolicy.METADATA_KEY;
+                if(com.chatchat.common.mcp.capability.McpDataSupplyPolicy.declared(Map.of(key,policy))) metadata.put(key,policy);
+            }
+            return Map.copyOf(metadata);
+        }).orElse(Map.of());
     }
     public String title(String name,String fallback) { return active(name).map(ToolRelease::getTitle).orElse(fallback); }
     public String description(String name,String fallback) {

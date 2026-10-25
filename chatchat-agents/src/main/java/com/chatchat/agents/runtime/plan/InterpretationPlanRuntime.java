@@ -2976,6 +2976,9 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         metadata.putIfAbsent("localDecisionPhase", "fact_check");
         metadata.put("toolResultReviewMaxAttempts", maxAttempts);
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            metadata.remove("toolResultReviewUnavailable");
+            metadata.remove("toolResultReviewException");
+            metadata.remove("toolResultReviewSkipped");
             try {
                 lastReview = stepResultReviewer.review(new StepReviewRequest(
                     request.plan(),
@@ -2986,10 +2989,13 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                     maxAttempts,
                     runId(request)
                 ));
+            } catch (java.util.concurrent.CancellationException ex) {
+                throw ex;
             } catch (RuntimeException ex) {
                 lastReview = StepReview.rejected(
                     ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage(),
-                    Map.of("toolResultReviewException", ex.getClass().getName())
+                    Map.of("toolResultReviewException", ex.getClass().getName(),
+                        "toolResultReviewUnavailable", true)
                 );
             }
             if (lastReview != null) {
@@ -3379,6 +3385,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         if (execution == null || metadata == null) {
             return null;
         }
+        if ((isAssetDiscoveryExecution(execution) || isTemplateDiscoveryExecution(execution))
+            && Boolean.TRUE.equals(metadata.get("toolResultReviewUnavailable"))) {
+            return "CANDIDATE_REVIEW_UNAVAILABLE: candidate selection was not completed; no semantic no-match decision is available";
+        }
         if (isAssetDiscoveryExecution(execution)) {
             if (!Boolean.TRUE.equals(metadata.get("runtimeAssetSelectionApplied"))) {
                 return "the model did not select an asset id from the returned candidate set";
@@ -3394,6 +3404,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             }
             Integer selected = integerValue(metadata.get("runtimeTemplateSelectedCount"));
             if (selected == null || selected < 1) {
+                if ("SCOPE_INSUFFICIENT".equals(metadata.get("templateCoverageDecision"))) {
+                    return "MCP_CAPABILITY_SCOPE_INSUFFICIENT: no matching template exists in the authorized publication; "
+                        + "configure the required data-supply capability instead of executing unrelated templates";
+                }
                 return "the model selected no usable template candidate";
             }
         }

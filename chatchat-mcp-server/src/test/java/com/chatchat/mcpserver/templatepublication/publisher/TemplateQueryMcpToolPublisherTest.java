@@ -105,6 +105,7 @@ class TemplateQueryMcpToolPublisherTest {
             .containsEntry("assetType", TemplateAssetCatalogService.API)
             .containsEntry("chineseAlias", "客户模板查询")
             .containsKey(McpTemplateSelectionScope.METADATA_KEY)
+            .doesNotContainKey(com.chatchat.common.mcp.capability.McpDataSupplyPolicy.METADATA_KEY)
             .doesNotContainKeys("parentToolName", "kind");
         assertThat(McpDynamicCapabilityRoute.fromToolMetadata(captor.getValue().tool().meta()).orElseThrow())
             .satisfies(route -> {

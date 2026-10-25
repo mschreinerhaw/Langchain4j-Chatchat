@@ -19,6 +19,45 @@ import java.nio.file.*;
 import org.junit.jupiter.api.Test;
 
 class ToolReviewerOptimizationTest {
+    @Test void explicitCanonicalAssetSelectionAvoidsModelReviewButSoleUnselectedAssetDoesNot() {
+        ChatModel model=mock(ChatModel.class);ToolRegistry registry=mock(ToolRegistry.class);
+        when(registry.getToolMetadata(TOOL)).thenReturn(ToolMetadata.builder().metadata(Map.of(ToolWorkflowContract.METADATA_KEY,
+            ToolWorkflowContract.declaration(ToolWorkflowRole.ASSET_DISCOVERY,"fixture","asset_query_result.v1"))).build());
+        var engine=new AgentOrchestrationEngine(model,registry,new ToolRuntimeService(registry,mapper,new ToolRuntimeProperties(),List.of(),List.of()),mapper,new ModelsConfig());
+        var output=Map.<String,Object>of("assets",List.of(Map.of("assetId","canonical-target")),
+            "queryIr",Map.of("asset",Map.of("selected",Map.of("id","canonical-target"))));
+        var execution=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool",TOOL,true,output,null,null,null,1L);
+        var review=engine.reviewInterpretationPlanToolResult(model,"inspect the configured target",null,()->false,
+            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(),1,1));
+        assertThat(review.metadata()).containsEntry("toolResultReviewMode","RUNTIME_DECLARED_ASSET_SELECTION");
+        var projected=new com.chatchat.agents.runtime.plan.selection.EvidenceBasedAssetCandidateEvaluator().evaluate(output,review.metadata());
+        assertThat(projected.selectedIds()).containsExactly("canonical-target");verifyNoInteractions(model);
+        var ambiguous=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool",TOOL,true,
+            Map.of("assets",List.of(Map.of("assetId","canonical-target"))),null,null,null,1L);
+        var needsReview=engine.reviewInterpretationPlanToolResult(model,"inspect another target",null,()->false,
+            new InterpretationPlanRuntime.StepReviewRequest(null,null,ambiguous,Map.of(),1,1));
+        assertThat(needsReview.metadata()).containsEntry("toolResultReviewUnavailable",true);
+        verify(model,times(1)).chat(anyString());
+    }
+    @Test void publisherBaselineUsesNoModelEvenWhenModelWouldRejectEveryCandidate() {
+        ChatModel model=mock(ChatModel.class);ToolRegistry registry=mock(ToolRegistry.class);
+        when(registry.getToolMetadata(TOOL)).thenReturn(ToolMetadata.builder().metadata(Map.of(
+            ToolWorkflowContract.METADATA_KEY,ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY,"fixture","template_query.v1"),
+            com.chatchat.common.mcp.capability.McpTemplateSelectionScope.METADATA_KEY,
+            com.chatchat.common.mcp.capability.McpTemplateSelectionScope.fixedBinding("fixture").toMetadata(),
+            com.chatchat.common.mcp.capability.McpDataSupplyPolicy.METADATA_KEY,
+            com.chatchat.common.mcp.capability.McpDataSupplyPolicy.fixedBaseline())).build());
+        var engine=new AgentOrchestrationEngine(model,registry,new ToolRuntimeService(registry,mapper,new ToolRuntimeProperties(),List.of(),List.of()),mapper,new ModelsConfig());
+        var output=Map.<String,Object>of("success",true,"scopeMode","FIXED_BINDING","bindingComplete",true,"hasMore",false,
+            com.chatchat.common.mcp.capability.McpDataSupplyPolicy.METADATA_KEY,
+            com.chatchat.common.mcp.capability.McpDataSupplyPolicy.fixedBaseline(),
+            "templates",List.of(Map.of("templateId","source-a","parameterSchema",Map.of("type","object"))));
+        var execution=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool",TOOL,true,output,null,null,null,1L);
+        var review=engine.reviewInterpretationPlanToolResult(model,"collect the published baseline",null,()->false,
+            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(),1,1));
+        assertThat(review.satisfied()).isTrue();assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("source-a"));
+        verifyNoInteractions(model);
+    }
     static final String TOOL="publisher_declared_discovery";
     final ObjectMapper mapper=new ObjectMapper();
     AgentOrchestrationEngine engine(ChatModel model) {

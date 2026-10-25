@@ -45,13 +45,13 @@ public final class DeadlineAwareChatModel implements ChatModel {
     @Override
     public String chat(String message) {
         MeteredChatModel.CallTiming timing = MeteredChatModel.currentTiming();
-        long remaining = remainingTimeMs.getAsLong();
+        long remaining = ModelInvocationBudget.remaining(remainingTimeMs.getAsLong());
         if (remaining < 0L) {
             if (timing != null) timing.started();
             return delegate.chat(message);
         }
         if (remaining == 0L) {
-            throw new AgentDeadlineExceededException("Agent execution time budget exhausted before model invocation");
+            throw deadlineExceeded("Agent execution time budget exhausted before model invocation");
         }
         Future<String> future;
         try {
@@ -71,8 +71,7 @@ public final class DeadlineAwareChatModel implements ChatModel {
                 log.warn("Agent model invocation exceeded the request deadline; cancellation was requested "
                     + "but delegate transport termination depends on its own interrupt and socket-timeout support");
             }
-            throw new AgentDeadlineExceededException(
-                "Agent execution time budget exhausted during model invocation");
+            throw deadlineExceeded("Agent execution time budget exhausted during model invocation");
         } catch (InterruptedException ex) {
             future.cancel(true);
             Thread.currentThread().interrupt();
@@ -86,16 +85,21 @@ public final class DeadlineAwareChatModel implements ChatModel {
         }
     }
 
+    private RuntimeException deadlineExceeded(String message) {
+        return remainingTimeMs.getAsLong() != 0L && ModelInvocationBudget.remaining(-1L) == 0L
+            ? new ModelPhaseBudgetExceededException() : new AgentDeadlineExceededException(message);
+    }
+
     @Override
     public ChatResponse doChat(ChatRequest request) {
         MeteredChatModel.CallTiming timing = MeteredChatModel.currentTiming();
-        long remaining = remainingTimeMs.getAsLong();
+        long remaining = ModelInvocationBudget.remaining(remainingTimeMs.getAsLong());
         if (remaining < 0L) {
             if (timing != null) timing.started();
             return delegate.chat(request);
         }
         if (remaining == 0L) {
-            throw new AgentDeadlineExceededException("Agent execution time budget exhausted before model invocation");
+            throw deadlineExceeded("Agent execution time budget exhausted before model invocation");
         }
         Future<ChatResponse> future;
         try {
@@ -114,8 +118,7 @@ public final class DeadlineAwareChatModel implements ChatModel {
                 log.warn("Agent model invocation exceeded the request deadline; cancellation was requested "
                     + "but delegate transport termination depends on its own interrupt and socket-timeout support");
             }
-            throw new AgentDeadlineExceededException(
-                "Agent execution time budget exhausted during model invocation");
+            throw deadlineExceeded("Agent execution time budget exhausted during model invocation");
         } catch (InterruptedException ex) {
             future.cancel(true);
             Thread.currentThread().interrupt();

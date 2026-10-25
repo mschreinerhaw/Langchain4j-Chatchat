@@ -3467,6 +3467,28 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         Map<String, Object> runtimeAttributes
     ) {
         runtimeGuard.checkCancelled(cancellationCheck);
+        if (request != null && request.execution() != null && request.execution().success()
+            && ToolWorkflowContract.resolveRole(request.execution().toolName(),
+                toolMetadataOrNull(request.execution().toolName())) == ToolWorkflowRole.ASSET_DISCOVERY) {
+            var declared = new com.chatchat.agents.runtime.plan.selection.EvidenceBasedAssetCandidateEvaluator()
+                .evaluate(com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(request.execution().output()),
+                    Map.of("toolResultReviewSkipped", true));
+            if (declared.applied() && !declared.selectedIds().isEmpty()) {
+                return InterpretationPlanRuntime.StepReview.accepted(
+                    "Canonical asset already selected by the governed query contract; preserve that identity.",
+                    Map.of("toolResultReviewSkipped", true,
+                        "toolResultReviewMode", "RUNTIME_DECLARED_ASSET_SELECTION"));
+            }
+        }
+        if (request != null && request.execution() != null && request.execution().success()
+            && ToolWorkflowContract.resolveRole(request.execution().toolName(),
+                toolMetadataOrNull(request.execution().toolName())) == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
+            var baseline = com.chatchat.agents.runtime.plan.review.PublishedDataSupplyReviewer.review(
+                toolMetadataOrNull(request.execution().toolName()),
+                findCandidatePage(request.execution().output(), 0),
+                findCandidateMaps(request.execution().output(), "templates", 0));
+            if (baseline.isPresent()) return baseline.get();
+        }
         if (activeChatModel == null || request == null || request.execution() == null) {
             return InterpretationPlanRuntime.StepReview.accepted("Model reviewer unavailable; accepting tool result.", Map.of(
                 "toolResultReviewSkipped", true
@@ -3539,7 +3561,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         );
         Throwable reviewFailure = null;
         Map<String, Object> reviewMetrics = new LinkedHashMap<>();
-        try {
+        try (var phaseBudget = com.chatchat.agents.orchestration.model.ModelInvocationBudget.open(
+                agentRuntimeProperties.toolResultReviewTimeoutMs())) {
         long startedAt = System.currentTimeMillis();
         log.info("agentModelRequest phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} modelClass={}",
             firstNonBlank(runId, ""),

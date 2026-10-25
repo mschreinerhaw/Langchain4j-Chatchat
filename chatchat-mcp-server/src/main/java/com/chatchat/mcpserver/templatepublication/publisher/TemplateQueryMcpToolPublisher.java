@@ -87,7 +87,10 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
                 + "The result scope is fixed by "
                 + "the authenticated MCP service and caller roles. It only returns templates selected in "
                 + "Template Query Publication administration and never returns raw commands, SQL, URLs, headers, "
-                + "request bodies, credentials, or other execution specifications."))
+                + "request bodies, credentials, or other execution specifications. "
+                + "An explicitly published dataSupplyPolicy admits parameter-free bound templates as a Runtime-managed "
+                + "baseline; parameterized templates retain controlled schema binding. Discovery metadata is "
+                + "not business evidence, and analytical relevance and coverage remain with the analysis graph."))
             .inputSchema(releaseContracts == null ? inputSchema() : releaseContracts.inputSchema(toolName, inputSchema()))
             .outputSchema(releaseContracts == null ? null : releaseContracts.outputSchema(toolName))
             .meta(meta(toolName))

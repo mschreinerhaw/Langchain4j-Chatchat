@@ -81,7 +81,8 @@ public class AgentToolPolicyResolver {
         }
         availableTools = normalizeToolNames(availableTools);
 
-        WorkflowToolResolution workflowTools = resolveRequiredWorkflowTools(skill, availableTools);
+        long registryRevision = toolRegistry.getRevision();
+        WorkflowToolResolution initialWorkflowTools = resolveRequiredWorkflowTools(skill, availableTools);
 
         List<ToolIntentSpec> requestedIntents = resolveRequestedIntents(request);
         List<ToolActivation> activations = new ArrayList<>();
@@ -90,9 +91,17 @@ public class AgentToolPolicyResolver {
             .map(ToolActivation::localToolName)
             .distinct()
             .toList();
+        List<String> initialRequiredTools = mergeToolNames(initialWorkflowTools.requiredTools(), activatedRequiredTools);
+        availableTools = mergeRequestedTools(availableTools, initialRequiredTools, requestedIntents);
+        ToolSelection initialSelection = selectRelevantTools(request, skill, availableTools, initialRequiredTools);
+        // Local registration can complete while the catalog/authorization query is in flight.
+        // Reconcile once against the new revision instead of publishing stale missing-tool gaps.
+        boolean registrationChanged = registryRevision != toolRegistry.getRevision();
+        WorkflowToolResolution workflowTools = registrationChanged
+            ? resolveRequiredWorkflowTools(skill, availableTools) : initialWorkflowTools;
         List<String> requiredTools = mergeToolNames(workflowTools.requiredTools(), activatedRequiredTools);
-        availableTools = mergeRequestedTools(availableTools, requiredTools, requestedIntents);
-        ToolSelection selection = selectRelevantTools(request, skill, availableTools, requiredTools);
+        ToolSelection selection = registrationChanged
+            ? selectRelevantTools(request, skill, availableTools, requiredTools) : initialSelection;
         List<String> effectiveRequiredTools = requiredTools.stream()
             .filter(selection.availableTools()::contains).toList();
         List<ToolActivation> effectiveActivations = activations.stream()

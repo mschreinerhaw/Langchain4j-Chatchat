@@ -27,9 +27,15 @@ public final class EvidenceBasedAssetCandidateEvaluator {
         if (toolSelectionApplied) {
             selected = toolDeclaredSelection;
         }
+        boolean literalReferenceApplied = reviewMetadata != null
+            && !Boolean.TRUE.equals(reviewMetadata.get("toolResultReviewUnavailable"))
+            && com.chatchat.agents.runtime.plan.review.CanonicalAssetReferenceReviewer.MODE.equals(
+                reviewMetadata.get("toolResultReviewMode")) && selected.size()==1;
+        String authority = toolSelectionApplied ? "runtime_tool_declared_selection"
+            : literalReferenceApplied ? "runtime_exact_canonical_asset_reference" : null;
         Projection projection = project(
             output, selected, rejected, evaluations,
-            reviewerUnavailable && !toolSelectionApplied, toolSelectionApplied, 0);
+            reviewerUnavailable && authority==null, authority, 0);
         if (!projection.applied()) {
             return new Evaluation(output, 0, 0, List.of(), evaluations, false,
                 "No evidence-reviewed asset selection could be projected onto the authorized candidate set.");
@@ -43,7 +49,7 @@ public final class EvidenceBasedAssetCandidateEvaluator {
     private Projection project(Object output, List<String> selectedIds, List<String> rejectedIds,
                                List<Map<String, Object>> evaluations,
                                boolean reviewerUnavailable,
-                               boolean toolSelectionApplied,
+                               String selectionAuthority,
                                int depth) {
         if (!(output instanceof Map<?, ?> raw) || depth > 7) return Projection.none(output);
         Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) raw);
@@ -74,9 +80,7 @@ public final class EvidenceBasedAssetCandidateEvaluator {
                 "selectedAssetIds", ids,
                 "rejectedAssetIds", rejectedIds,
                 "candidateEvaluations", evaluations,
-                "selectionAuthority", toolSelectionApplied
-                    ? "runtime_tool_declared_selection"
-                    : admission.authority(),
+                "selectionAuthority", selectionAuthority==null ? admission.authority() : selectionAuthority,
                 "candidateIsObservation", false
             ));
             return new Projection(map, assets.size(), ids, true);
@@ -85,7 +89,7 @@ public final class EvidenceBasedAssetCandidateEvaluator {
             "body", "output", "routingProjection")) {
             Projection nested = project(
                 map.get(key), selectedIds, rejectedIds, evaluations,
-                reviewerUnavailable, toolSelectionApplied, depth + 1);
+                reviewerUnavailable, selectionAuthority, depth + 1);
             if (nested.applied()) {
                 map.put(key, nested.output());
                 return new Projection(map, nested.candidateCount(), nested.selectedIds(), true);

@@ -3467,9 +3467,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         Map<String, Object> runtimeAttributes
     ) {
         runtimeGuard.checkCancelled(cancellationCheck);
+        ToolWorkflowRole workflowRole = request == null || request.execution() == null ? null
+            : new com.chatchat.agents.runtime.plan.protocol.ToolProtocolPayloadNavigator().discoveryRole(
+                request.execution().output(), ToolWorkflowContract.resolveRole(request.execution().toolName(),
+                    toolMetadataOrNull(request.execution().toolName())));
         if (request != null && request.execution() != null && request.execution().success()
-            && ToolWorkflowContract.resolveRole(request.execution().toolName(),
-                toolMetadataOrNull(request.execution().toolName())) == ToolWorkflowRole.ASSET_DISCOVERY) {
+            && workflowRole == ToolWorkflowRole.ASSET_DISCOVERY) {
             var declared = new com.chatchat.agents.runtime.plan.selection.EvidenceBasedAssetCandidateEvaluator()
                 .evaluate(com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(request.execution().output()),
                     Map.of("toolResultReviewSkipped", true));
@@ -3479,10 +3482,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                     Map.of("toolResultReviewSkipped", true,
                         "toolResultReviewMode", "RUNTIME_DECLARED_ASSET_SELECTION"));
             }
+            var literal = com.chatchat.agents.runtime.plan.review.CanonicalAssetReferenceReviewer.review(
+                query, com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(request.execution().output()));
+            if (literal.isPresent()) return literal.get();
         }
         if (request != null && request.execution() != null && request.execution().success()
-            && ToolWorkflowContract.resolveRole(request.execution().toolName(),
-                toolMetadataOrNull(request.execution().toolName())) == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
+            && workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
             var baseline = com.chatchat.agents.runtime.plan.review.PublishedDataSupplyReviewer.review(
                 toolMetadataOrNull(request.execution().toolName()),
                 findCandidatePage(request.execution().output(), 0),
@@ -3494,8 +3499,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 "toolResultReviewSkipped", true
             ));
         }
-        ToolWorkflowRole workflowRole = ToolWorkflowContract.resolveRole(
-            request.execution().toolName(), toolMetadataOrNull(request.execution().toolName()));
         if (workflowRole == ToolWorkflowRole.TEMPLATE_EXECUTION && request.execution().success()) {
             log.info("Tool result admitted without model review runId={} stepId={} tool={} mode={}",
                 firstNonBlank(request.runId(), ""),

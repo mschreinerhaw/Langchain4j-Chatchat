@@ -19,6 +19,20 @@ import java.nio.file.*;
 import org.junit.jupiter.api.Test;
 
 class ToolReviewerOptimizationTest {
+    @Test void stagedBridgeResolvesAnExplicitCanonicalUserReferenceWithoutModelReview() {
+        ChatModel model=mock(ChatModel.class);ToolRegistry registry=mock(ToolRegistry.class);
+        when(registry.getToolMetadata(TOOL)).thenReturn(ToolMetadata.builder().metadata(Map.of(ToolWorkflowContract.METADATA_KEY,
+            ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY,"fixture","asset_query_result.v1"))).build());
+        var engine=new AgentOrchestrationEngine(model,registry,new ToolRuntimeService(registry,mapper,new ToolRuntimeProperties(),List.of(),List.of()),mapper,new ModelsConfig());
+        var output=Map.<String,Object>of("schemaVersion","asset_query_result.v1","stage","asset","success",true,"possiblyTruncated",false,"returnedCount",1,
+            "assets",List.of(Map.of("asset",Map.of("id","canonical-target","name","node-alpha 集群","enabled",true))));
+        var execution=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool",TOOL,true,output,null,null,null,1L);
+        var review=engine.reviewInterpretationPlanToolResult(model,"分析 node-alpha 集群 的状态",null,()->false,
+            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(),1,1));
+        assertThat(review.metadata()).containsEntry("toolResultReviewMode",com.chatchat.agents.runtime.plan.review.CanonicalAssetReferenceReviewer.MODE);
+        assertThat(new com.chatchat.agents.runtime.plan.selection.EvidenceBasedAssetCandidateEvaluator().evaluate(output,review.metadata()).selectedIds())
+            .containsExactly("canonical-target");verifyNoInteractions(model);
+    }
     @Test void explicitCanonicalAssetSelectionAvoidsModelReviewButSoleUnselectedAssetDoesNot() {
         ChatModel model=mock(ChatModel.class);ToolRegistry registry=mock(ToolRegistry.class);
         when(registry.getToolMetadata(TOOL)).thenReturn(ToolMetadata.builder().metadata(Map.of(ToolWorkflowContract.METADATA_KEY,

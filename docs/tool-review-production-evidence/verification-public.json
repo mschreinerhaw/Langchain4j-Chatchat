@@ -1,0 +1,65 @@
+{
+  "taskId": "9f2c0d5d-4437-3de8-90d7-4982a3b7463a",
+  "agentId": "db_ops_assistant",
+  "status": "SUCCESS",
+  "elapsedMs": 321649,
+  "questionReusedFrom": "91766347-97f0-4795-b079-4e4052ba8df2",
+  "configuredModel": "qwen3.7-plus",
+  "reviewPhases": [
+    {
+      "phase": "tool_result_review",
+      "state": "STARTED",
+      "stepId": 1,
+      "createTime": 1792903898534
+    },
+    {
+      "phase": "tool_result_review",
+      "state": "COMPLETED",
+      "durationMs": 28733,
+      "stepId": 1,
+      "createTime": 1792903927273
+    },
+    {
+      "phase": "tool_result_review",
+      "state": "STARTED",
+      "stepId": 2,
+      "createTime": 1792903928361
+    },
+    {
+      "phase": "tool_result_review_coverage",
+      "state": "STARTED",
+      "stepId": 2,
+      "createTime": 1792903973346
+    },
+    {
+      "phase": "tool_result_review_coverage",
+      "state": "COMPLETED",
+      "durationMs": 17338,
+      "stepId": 2,
+      "createTime": 1792903990686
+    },
+    {
+      "phase": "tool_result_review_binding",
+      "state": "STARTED",
+      "stepId": 2,
+      "createTime": 1792903990706
+    },
+    {
+      "phase": "tool_result_review_binding",
+      "state": "COMPLETED",
+      "durationMs": 27,
+      "stepId": 2,
+      "createTime": 1792903990733
+    },
+    {
+      "phase": "tool_result_review",
+      "state": "COMPLETED",
+      "durationMs": 62387,
+      "stepId": 2,
+      "createTime": 1792903990750
+    }
+  ],
+  "eventCount": 152,
+  "answerCharacters": 3388,
+  "errorMessage": null
+}

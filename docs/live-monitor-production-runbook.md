@@ -1,5 +1,7 @@
 # 通过 Live Monitor 发布 Runtime OS
 
+最新业务升级：2026-10-25 通过 Vue 页面发布 `release-20261025123929`，仅升级 API 镜像，真实模型任务验证成功，见 [tool reviewer 生产验证](tool-review-production-validation-20261025.md)。下文的首次接管记录属于历史基线。实际升级核验可使用 `verify-live-monitor-takeover.py --approved-upgrade-file`，显式提供服务对应的不可变镜像与 Java JAR SHA256；未批准的服务仍要求镜像和二进制不变。
+
 2026-10-25 已按用户授权完成生产接管，并将控制面从本地冷迁移为服务器常驻容器。当前入口 **http://192.168.195.221:18080/#/ops/delivery**；应用栈发布在 `/#/ops/stacks`。原账号、凭据、任务和业务数据保留，本地调度已停止，避免同一应用被两个控制器同时恢复。详细交付验收见监控仓库 `docs/container-ops/09-delivery-acceptance.md`。
 
 实际发布任务 `222bbaf8-712f-4a46-b105-3751e5b862b5` 由 Vue 页面发起并成功完成。七个业务服务容器全部替换；业务镜像内容、环境、持久挂载、配置/密钥、权限和模板绑定核验一致。共享 PostgreSQL、Redis、OpenSearch 保留原实例和数据，授权服务作为外部依赖探测。发布包、策略和镜像 Digest 的校验在服务器执行。

@@ -22,12 +22,19 @@ def main():
     p.add_argument('--contract-file', type=Path, required=True)
     p.add_argument('--record', type=Path, required=True)
     p.add_argument('--phase', choices=['before', 'after'], required=True)
+    p.add_argument('--approved-upgrade-file', type=Path, help='Explicit service -> immutable image and optional jarSha256 approval for an actual upgrade')
     a = p.parse_args()
     assert os.getuid() == 0
     os.umask(0o077)
     manifest = json.loads((a.release / 'manifest.json').read_text())
     source = json.loads((a.release / 'source-compose-private.json').read_text())
     contract = json.loads(a.contract_file.read_text())
+    upgrades = json.loads(a.approved_upgrade_file.read_text()) if a.approved_upgrade_file else {}
+    assert set(upgrades) <= set(source['services']), 'Unknown approved upgrade service'
+    for name, upgrade in upgrades.items():
+        assert re.search(r'@sha256:[a-f0-9]{64}$', upgrade['image']), 'Immutable upgrade image required'
+        if name in contract.get('service_jars', {}):
+            assert re.fullmatch(r'[a-f0-9]{64}', upgrade.get('jarSha256', '')), 'Expected upgraded JAR checksum required'
     all_containers = json.loads(run('docker', 'inspect', *run('docker', 'ps', '-aq').split()))
     by_name = {c['Name'].lstrip('/'): c for c in all_containers}
     services = {c['Config'].get('Labels', {}).get('com.docker.compose.service'): c for c in all_containers
@@ -77,20 +84,27 @@ def main():
         return
     before = json.loads(a.record.read_text())
     assert before['policyFingerprints'] == fingerprints, 'Existing business authorization/binding records changed'
-    assert before['jarSha256'] == jars, 'Unexpected business binary change'
+    for name, actual in jars.items():
+        expected = upgrades.get(name, {}).get('jarSha256', before['jarSha256'].get(name))
+        assert actual == expected, 'Unexpected business binary change: ' + name
     for name, current in snapshot['services'].items():
         assert current['id'] != before['services'][name]['id'], 'Service was not actually replaced: ' + name
-        assert current['imageId'] == before['services'][name]['imageId'], 'Image content changed during ownership migration'
+        if name in upgrades:
+            expected_image = json.loads(run('docker', 'image', 'inspect', upgrades[name]['image']))[0]['Id']
+            assert current['imageId'] == expected_image and target[name]['Config']['Image'] == upgrades[name]['image'], 'Unapproved upgraded image: ' + name
+        else:
+            assert current['imageId'] == before['services'][name]['imageId'], 'Unexpected image content change: ' + name
         assert target[name]['State']['Running']
     current_ids = {c['Id']: c for c in all_containers}
     for identity, original in before['otherContainers'].items():
         assert identity in current_ids and current_ids[identity]['Image'] == original['image'] and current_ids[identity]['State']['StartedAt'] == original['startedAt'], 'Non-target workload changed'
-    result = {'allDeclaredServicesReplaced': True, 'serviceCount': len(target), 'businessBinariesUnchanged': True,
+    result = {'allDeclaredServicesReplaced': True, 'serviceCount': len(target), 'businessBinariesUnchanged': before['jarSha256'] == jars,
+              'approvedUpgradeServices': sorted(upgrades), 'approvedUpgradeVerified': bool(upgrades), 'unchangedServiceImagesPreserved': True,
               'businessEnvironmentUnchanged': True, 'staticAddressesPreserved': True, 'namespaceFollowersUpdated': True,
               'persistentMountsPreserved': True, 'configurationAndSecretBytesPreserved': True,
               'businessPolicyFingerprintsPreserved': True, 'nonTargetContainersPreserved': True,
               'services': snapshot['services'], 'jarSha256': jars, 'policyFingerprints': fingerprints}
-    report = a.record.with_name('takeover-verification.json')
+    report = a.record.with_name('upgrade-verification.json' if upgrades else 'takeover-verification.json')
     report.write_text(json.dumps(result, indent=2))
     print(json.dumps(result))
 

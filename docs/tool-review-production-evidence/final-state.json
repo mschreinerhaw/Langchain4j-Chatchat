@@ -1,0 +1,12 @@
+{
+  "productionHealthy": true,
+  "maintenance": false,
+  "serviceCount": 7,
+  "dockerDependencies": 3,
+  "externalDependencies": 1,
+  "observedAt": 1792904861767,
+  "currentPackage": "release-20261025123929",
+  "abnormalContainers": 0,
+  "agentModelUnchanged": true,
+  "configuredModel": "qwen3.7-plus"
+}

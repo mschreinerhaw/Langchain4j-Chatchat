@@ -114,5 +114,12 @@ class PublishedTemplateSupplyTest {
         assertThat(optimized.plan().bindings()).allSatisfy(b->assertThat(b.from()).isEqualTo(provider.id()));
         assertThat(new InterpretationPlanValidator().validate(optimized,registry,Set.of(BRIDGE,CHILD,EXECUTE)).errors()).isEmpty();
         assertThat(optimizer.optimize(optimized).plan().steps()).hasSameSizeAs(optimized.steps());
+        var configured=optimizer.optimize(plan(),List.of(
+            Map.of("tool",BRIDGE,"required",true),
+            Map.of("tool",EXECUTE,"required",true,"dependsOnTools",List.of(BRIDGE)),
+            Map.of("tool",CHILD,"required",false))).plan();
+        assertThat(configured.steps()).filteredOn(s->BRIDGE.equals(s.toolName()))
+            .singleElement().satisfies(s->assertThat(s.input()).containsEntry("stage","asset"));
+        assertThat(new InterpretationPlanValidator().validate(configured,registry,Set.of(BRIDGE,CHILD,EXECUTE)).errors()).isEmpty();
     }
 }

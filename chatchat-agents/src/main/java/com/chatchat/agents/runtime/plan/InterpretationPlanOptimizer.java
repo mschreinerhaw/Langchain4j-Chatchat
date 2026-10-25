@@ -550,7 +550,10 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
                 .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
             List<Integer> repaired = new ArrayList<>();
             for (Integer dependency : target.dependsOn() == null ? List.<Integer>of() : target.dependsOn()) {
-                if (!configuredStepIds.contains(dependency) || requiredIds.contains(dependency)) {
+                InterpretationPlan.Step predecessor = steps.stream()
+                    .filter(step -> Objects.equals(step.id(), dependency)).findFirst().orElse(null);
+                if (!configuredStepIds.contains(dependency) || requiredIds.contains(dependency)
+                    || publishedSupplyDependency(predecessor, target)) {
                     repaired.add(dependency);
                 }
             }
@@ -586,7 +589,7 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
                 .filter(step -> Objects.equals(step.id(), contract.from())).findFirst().orElse(null);
             InterpretationPlan.Step to = steps.stream()
                 .filter(step -> Objects.equals(step.id(), contract.to())).findFirst().orElse(null);
-            return from != null && to != null && !configuredEdges.contains(
+            return from != null && to != null && !publishedSupplyDependency(from, to) && !configuredEdges.contains(
                 semanticToolName(from.toolName()) + "->" + semanticToolName(to.toolName()));
         });
         changed |= before != contracts.size();
@@ -625,6 +628,21 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
             }
         }
         return new ConfiguredDagRepairResult(steps, contracts, changed);
+    }
+
+    /** Selected publisher invariants complement the user's general tool dependencies. */
+    private boolean publishedSupplyDependency(InterpretationPlan.Step from, InterpretationPlan.Step to) {
+        if (from == null || to == null) return false;
+        if (isAssetDiscoveryStep(from) && isTemplateDiscoveryStep(to)
+            && fixedTemplateSelectionScope(to.toolName()).isPresent()) {
+            String family = templateDiscoveryAssetType(from.toolName());
+            return family != null && family.equals(templateDiscoveryAssetType(to.toolName()));
+        }
+        if (!isTemplateDiscoveryStep(from) || fixedTemplateSelectionScope(from.toolName()).isEmpty()
+            || !isTemplateExecutionStep(to)) return false;
+        TemplateWorkflowTool executor = workflowTool(to.toolName());
+        TemplateWorkflowPlugin plugin = templateWorkflowPlugins.resolve(executor).orElse(null);
+        return plugin != null && plugin.accepts(workflowTool(from.toolName()), executor);
     }
 
     private List<ConfiguredWorkflowNode> configuredWorkflowNodes(Object rawDag) {

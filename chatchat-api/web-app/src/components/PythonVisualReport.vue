@@ -5,8 +5,12 @@
       <header
         ><small>图文报告 · {{ statusLabel }}</small
         ><h2>{{ report.title || "分析报告" }}</h2
-        ><p v-if="report.summary">{{ report.summary }}</p></header
-      >
+        ><div
+          v-if="report.summary"
+          class="report-summary"
+          v-html="renderReportNarrative(report.summary)"
+        ></div
+      ></header>
       <p v-if="deliveryStatus !== 'SUCCESS'" class="report-notice" role="status"
         >{{ statusLabel }}。已取得的分析内容会继续保留。</p
       >
@@ -19,8 +23,12 @@
         ></dl
       >
       <article v-for="(section, index) in report.sections || []" :key="index"
-        ><template v-if="showSectionText(section)"><h3>{{ section.title }}</h3>
-          <p class="report-narrative">{{ section.narrative }}</p></template
+        ><template v-if="showSectionText(section)"
+          ><h3>{{ section.title }}</h3>
+          <div
+            class="report-narrative"
+            v-html="renderReportNarrative(section.narrative)"
+          ></div></template
         ><PythonReportChart
           v-for="chart in chartsFor(section.chartIds)"
           :key="chart.id"
@@ -40,11 +48,9 @@
       <section v-if="report.limitations?.length" class="report-notice" aria-label="分析限制"
         ><h3>解读提示</h3
         ><ul
-          ><li v-for="(limitation, index) in report.limitations" :key="index">{{
-            limitation
-          }}</li></ul
-        ></section
-      >
+          ><li v-for="(limitation, index) in report.limitations" :key="index"
+            ><div v-html="renderReportNarrative(limitation)"></div></li></ul
+      ></section>
     </template>
   </section>
 </template>

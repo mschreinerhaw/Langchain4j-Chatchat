@@ -1,6 +1,7 @@
 import { computed, defineComponent, h, ref, watch, onBeforeUnmount } from "vue";
 import { reviewArchivedVisualReport } from "../utils/pythonVisualReport.js";
 import PythonReportChart from "../../components/PythonReportChart.vue";
+import { renderReportNarrative } from "../utils/reportNarrative.js";
 
 const ReportTable = defineComponent({
   props: { table: Object },
@@ -104,6 +105,7 @@ export default defineComponent({
       )
     );
     return {
+      renderReportNarrative,
       report,
       showSectionText,
       chartStatus,

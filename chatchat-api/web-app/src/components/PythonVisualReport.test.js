@@ -13,6 +13,54 @@ vi.mock("./PythonReportChart.vue", () => ({
   },
 }));
 let app, host;
+it("renders archived Markdown narratives as semantic HTML while preserving report values", async () => {
+  host = document.createElement("div");
+  document.body.append(host);
+  const report = {
+    status: "SUCCESS", summary: "**Verified** snapshot", limitations: ["Use `read-only` evidence."],
+    sections: [{ title: "Overview", narrative: "## Engine status\n\n**Snapshot**: 2026-10-24 21:24:35\n\n- **Hit rate**: 99.92%\n- Exact value: 9007199254740993.01\n\n| Metric | Value |\n|---|---|\n| Rate | 99.92% |\n\n```sql\nSELECT 1;\n```" }],
+  };
+  const original = JSON.stringify(report);
+  app = createApp({ render: () => h(PythonVisualReport, { report }) });
+  app.mount(host);
+  await nextTick();
+  const narrative = host.querySelector(".report-narrative");
+  expect(narrative.querySelector("h2").textContent).toBe("Engine status");
+  expect(narrative.querySelector("strong").textContent).toBe("Snapshot");
+  expect(narrative.querySelectorAll("li")).toHaveLength(2);
+  expect(narrative.querySelector("table td").textContent).toBe("Rate");
+  expect(narrative.querySelector("pre code").textContent).toContain("SELECT 1;");
+  expect(narrative.textContent).toContain("9007199254740993.01");
+  expect(narrative.textContent).not.toMatch(/## Engine|\*\*Snapshot\*\*/);
+  expect(host.querySelector(".report-summary strong").textContent).toBe("Verified");
+  expect(host.querySelector(".report-notice code").textContent).toBe("read-only");
+  expect(JSON.stringify(report)).toBe(original);
+});
+it("escapes executable HTML and rejects unsafe Markdown links in narratives", async () => {
+  host = document.createElement("div");
+  document.body.append(host);
+  const narrative = '<script>window.reportInjected=true</script>\n\n<img src=x onerror="alert(1)">\n\n[unsafe](javascript:alert(1))\n\n[safe](https://example.com/report)';
+  app = createApp({ render: () => h(PythonVisualReport, { report: { status: "SUCCESS", sections: [{ title: "Note", narrative }] } }) });
+  app.mount(host);
+  await nextTick();
+  expect(host.querySelector("script,img,iframe")).toBeNull();
+  expect(host.querySelector('a[href^="javascript:"]')).toBeNull();
+  expect(host.querySelector(".report-narrative a").getAttribute("rel")).toBe("noopener noreferrer");
+  expect(host.querySelector(".report-narrative a").getAttribute("target")).toBe("_blank");
+});
+it("renders a whole Markdown source wrapper while keeping ordinary code examples literal", async () => {
+  host = document.createElement("div");
+  document.body.append(host);
+  app = createApp({ render: () => h(PythonVisualReport, { report: { status: "SUCCESS", sections: [
+    { title: "Wrapped", narrative: "```markdown\n## Visible heading\n\n**Visible emphasis**\n```" },
+    { title: "Code", narrative: "Example:\n\n```python\n# literal heading\n```" },
+  ] } }) });
+  app.mount(host);
+  await nextTick();
+  expect(host.querySelector(".report-narrative h2").textContent).toBe("Visible heading");
+  expect(host.querySelector(".report-narrative strong").textContent).toBe("Visible emphasis");
+  expect(host.querySelector(".report-narrative pre code").textContent).toContain("# literal heading");
+});
 afterEach(() => {
   app?.unmount();
   host?.remove();

@@ -23,6 +23,7 @@
 | P1 | 数据请求仅按 requestId/operationId 重放去重；换 requestId 的相同参数请求仍可能重新采集 | 现有 `CodingDataSupplyService.request` 可见这一边界。尚未增加跨身份缓存；需要先获得可核验模板版本、源快照版本和有效期，不能用参数相等推断可安全复用可变数据源 |
 | P2 | 全仓历史测试未全绿 | 既有文档记载旧 `AgentOrchestratorTest` 和三项 `CommandTemplateDiscoveryDatabaseQueryTest` 失败；不删除历史实现，也不将本轮定向通过说成全仓通过 |
 | P2 | 同模型/数据快照/硬件的多样本前后压测不足 | 当前无本轮部署后的样本，P50/P95/P99 及 50% 目标均待验收 |
+| P1 | 旧受管清单引用的 `release-20261025123929/assets` 已不存在，导致发布包预检查失败 | 从运行中只读挂载恢复 12 个原文件；先逐个匹配原封存清单 SHA256，再写入原缺失路径；未覆盖已有文件、未生成新密钥、未重启服务 |
 
 2026-10-25 公开 GitHub 页面显示 [Issues](https://github.com/mschreinerhaw/Langchain4j-Chatchat/issues) 和 [PR](https://github.com/mschreinerhaw/Langchain4j-Chatchat/pulls) 的开放数均为 0；并不据此推断代码不存在缺陷。检查相关 Runtime/Coding 源码中的 TODO/FIXME/HACK，没有将注释统一转换为缺陷。
 
@@ -69,7 +70,10 @@ SSH 到目标环境成功，Runtime 认证 API 及任务/事件 API 实际访问
 - 最终 package 复用同次首次构建的前端产物，没有修改前端源码。生成的跟踪静态文件恢复到构建前状态，最终 JAR 保留本次构建结果。
 - 本轮 API JAR SHA256：`854026c00480746cf44f6218304814284419dcb44e1afaf5bf3cb7044e68e699`；MCP JAR：`10768bd17834981f4e2a59050ebe72754f672e863c60bf602625947eb30d8766`。产物源码提交为 `e6eba0291792faefc49a6cf10b3674502bd66aed`。
 - 日志在本地忽略目录 `target/runtime-review/`；原始服务器任务和事件在 `/opt/runtime-review-20261025/` 私有目录。不提交凭据或业务原始输出。
-- 已准备服务器目录 `/opt/live-monitor-managed-releases/release-20261025-tool-review-e6eba0291`，复用原受管发布 Dockerfile、构建及校验辅助脚本。最终 JAR/hash、不可变镜像与部署前验证完成后才可发布。
+- 已准备服务器目录 `/opt/live-monitor-managed-releases/release-20261025-tool-review-e6eba0291`，复用原受管发布 Dockerfile、构建及校验辅助脚本。完整 JAR 上传后校验 SHA256、包内修复类及 API/MCP 公共模块一致性通过。
+- 不可变 API 镜像：`localhost:18443/runtime-os/api@sha256:f1ca714d81d6fbc3820102b006721ec7ae8239766688fe973e9d53b0e8b10704`；MCP 镜像：`localhost:18443/runtime-os/mcp@sha256:9c551fbba1a097b14bf1ba720149e66a9515fb2908b9990f8ce6064626d46890`。
+- 已生成并登记封存候选包，引用 `release-20261025-tool-review-e6eba0291`，清单 SHA256 为 `2b208620edbc89a1a385c05fec0f81d07e9bb09605a95815d4d1e9ef0805d53d`。保留 `715e09f92` 的回滚镜像和配置，非镜像部署参数未改变。**登记候选包不代表已部署**。
+- 最终预检查通过：封存清单、固定镜像引用和不存在 JAR 挂载覆盖均校验通过；准备前后 **48 个既有容器**的镜像及启动时间不变，生产 API/MCP JAR 哈希不变。服务器证据为候选目录下的 `pre-deployment-public.json`、`prepared-public.json`、`asset-recovery-public.json`。
 - **本轮尚未部署**。现有 Runtime 登录有效，但已找到的 Live Monitor 控制台登录信息返回 401；已请求提供有效登录信息的安全存放路径。遵守 [现有受管发布流程](live-monitor-production-runbook.md)，没有绕过平台停机备份/回滚，也没有重置账户或修改生产认证配置。
 
 下一步必须完成受管部署、注册表就绪检查、原问题的完整采集与 Coding/Python/结果校验、空数据/QA/文件/权限回归，再做同模型同快照多样本比较。服务健康或直接采集成功均不能替代最终报告验收。

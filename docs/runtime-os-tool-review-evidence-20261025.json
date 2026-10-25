@@ -89,7 +89,26 @@
     "host": "192.168.195.221",
     "sshPort": 5221,
     "releaseDirectory": "/opt/live-monitor-managed-releases/release-20261025-tool-review-e6eba0291",
-    "productionRestarted": false
+    "productionRestarted": false,
+    "prepared": true,
+    "packageRef": "release-20261025-tool-review-e6eba0291",
+    "packageSha256": "2b208620edbc89a1a385c05fec0f81d07e9bb09605a95815d4d1e9ef0805d53d",
+    "images": {
+      "api": "localhost:18443/runtime-os/api@sha256:f1ca714d81d6fbc3820102b006721ec7ae8239766688fe973e9d53b0e8b10704",
+      "mcp": "localhost:18443/runtime-os/mcp@sha256:9c551fbba1a097b14bf1ba720149e66a9515fb2908b9990f8ce6064626d46890"
+    },
+    "sourceClassHashVerified": true,
+    "apiMcpCommonModuleIdentical": true,
+    "assetRecovery": {
+      "restoredFiles": 12,
+      "source": "running read-only mounts",
+      "allSealedManifestHashesVerified": true,
+      "existingFilesOverwritten": false,
+      "servicesRestarted": false
+    },
+    "sealedPackagePreflightPassed": true,
+    "existingContainerImagesAndStartTimesUnchanged": 48,
+    "productionJarHashesUnchanged": true
   },
   "performanceAcceptance": {
     "afterSamples": 0,

@@ -10,11 +10,16 @@ public final class CanonicalAssetReferenceReviewer {
     public static final String MODE = "RUNTIME_EXACT_CANONICAL_ASSET_REFERENCE";
     private static final Pattern QUALIFIED_REFERENCE = Pattern.compile(
         "(?iu)(?:\\b(?:no|not|never|neither|nor|don't|dont|except|exclude|excluding|ignore|without|instead|rather)\\b|不|非|无|勿|别|排除|忽略|除外|以外|之外|其他|其它|其余|替代)");
+    // One literal name does not prove that the request is limited to one target.
+    // Preserve semantic admission for comparisons and inclusive/multiple scopes.
+    private static final Pattern MULTI_TARGET_REFERENCE = Pattern.compile(
+        "(?iu)(?:\\b(?:compare|comparison|versus|vs|both|either|all|every|including|other)\\b|比较|对比|所有|全部|各个|每个|以及|同时|还有)");
     private CanonicalAssetReferenceReviewer() {}
 
     public static Optional<InterpretationPlanRuntime.StepReview> review(String userQuery, Object output) {
         String query = normalize(userQuery);
         if (query.isEmpty() || QUALIFIED_REFERENCE.matcher(query).find()
+            || MULTI_TARGET_REFERENCE.matcher(query).find()
             || !(output instanceof Map<?,?> page)
             || !"asset_query_result.v1".equals(page.get("schemaVersion"))
             || !Boolean.TRUE.equals(page.get("success"))

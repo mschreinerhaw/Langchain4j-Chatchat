@@ -41,6 +41,13 @@ class CanonicalAssetReferenceReviewerTest {
         var disabled=page(Map.of("asset",Map.of("id","a","name","node-alpha","enabled",false)));
         assertThat(CanonicalAssetReferenceReviewer.review("inspect node-alpha",disabled)).isEmpty();
     }
+    @Test void oneNamedCandidateCannotNarrowComparativeOrInclusiveScope() {
+        var page=page(candidate("a","node-alpha"),candidate("b","node-beta"));
+        for(String query:List.of("compare node-alpha with its peers", "inspect every node including node-alpha",
+                "inspect node-alpha and all peers", "对比 node-alpha 与其余环境", "分析所有节点，包括 node-alpha"))
+            assertThat(CanonicalAssetReferenceReviewer.review(query,page)).as(query).isEmpty();
+        assertThat(CanonicalAssetReferenceReviewer.review("inspect node-alpha status",page)).isPresent();
+    }
     @Test void duplicateIdsUnknownContractAndShortIncidentalLabelsAreDeferred() {
         assertThat(CanonicalAssetReferenceReviewer.review("inspect node-alpha",page(candidate("a","node-alpha"),candidate("a","node-alpha")))).isEmpty();
         assertThat(CanonicalAssetReferenceReviewer.review("inspect node-alpha",page(candidate("A","node-alpha"),candidate("a","node-beta")))).isEmpty();

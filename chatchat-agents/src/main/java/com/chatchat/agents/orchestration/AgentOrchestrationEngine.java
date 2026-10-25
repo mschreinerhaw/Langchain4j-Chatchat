@@ -218,7 +218,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private final InterpretationPlanEvidenceAnalyzer planEvidenceAnalyzer;
     final InterpretationPlanSnapshotService planSnapshotService;
     private ToolObservationBuilder toolObservationBuilder;
-    private final AgentChatModelResolver chatModelResolver;
+    private AgentChatModelResolver chatModelResolver;
     private final AgentToolNameResolver toolNames;
     private final AgentToolArgumentResolver toolArguments;
     private final AgentToolExecutor toolExecutor;
@@ -506,6 +506,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 if (!result.contains(trace)) result.add(trace);
             }
         return List.copyOf(result);
+    }
+
+    /** Use the shared published model registry in production, including runtime model updates. */
+    @Autowired
+    public void setChatModelResolver(AgentChatModelResolver resolver) {
+        this.chatModelResolver = java.util.Objects.requireNonNull(resolver);
     }
 
     /** Production supplies the database-backed provider; direct unit construction retains a deterministic fallback. */
@@ -1021,9 +1027,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             metadata.put("mandatoryWorkflowPending", true);
         }
 
-        InterpretationPlan deterministicTemplatePlan = deterministicBoundTemplatePlan(
-            query, plannerVisibleTools);
+        requestRuntimeAttributes.remove("compiledPublishedDataAcquisition");
+        InterpretationPlan deterministicTemplatePlan = new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(toolRegistry)
+            .compile(query, plannerVisibleTools, workflowMandatoryTools);
         if (deterministicTemplatePlan != null) {
+            requestRuntimeAttributes.put("compiledPublishedDataAcquisition", true);
             metadata.put("analysisPlanningNodes", List.of(Map.of(
                 "node", "deterministic_bound_template_plan",
                 "status", "COMPLETED"
@@ -1178,68 +1186,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
      * call is removed from the critical path.
      */
     InterpretationPlan deterministicBoundTemplatePlan(String query, List<String> plannerVisibleTools) {
-        if (query == null || query.isBlank() || plannerVisibleTools == null
-            || plannerVisibleTools.size() != 2) {
-            return null;
-        }
-        String discoveryTool = plannerVisibleTools.stream()
-            .filter(toolNames::isTemplateDiscoveryToolName)
-            .findFirst().orElse(null);
-        String executionTool = plannerVisibleTools.stream()
-            .filter(tool -> ToolWorkflowContract.resolveRole(
-                tool, toolMetadataOrNull(tool)) == ToolWorkflowRole.TEMPLATE_EXECUTION)
-            .findFirst().orElse(null);
-        if (discoveryTool == null || executionTool == null
-            || discoveryTool.equals(executionTool)) {
-            return null;
-        }
-        // A bridge exposing asset discovery needs the original model plan and asset
-        // selection flow; its first response is not guaranteed to contain templates.
-        ToolMetadata discoveryMetadata = toolMetadataOrNull(discoveryTool);
-        if (discoveryMetadata != null && discoveryMetadata.getParameters() != null
-            && discoveryMetadata.getParameters().stream().anyMatch(parameter -> parameter != null
-                && "stage".equals(parameter.getName()) && parameter.getEnumValues() != null
-                && java.util.Arrays.asList(parameter.getEnumValues()).contains("asset"))) return null;
-        List<InterpretationPlan.Step> steps = List.of(
-            new InterpretationPlan.Step(
-                1, "mcp_tool", discoveryTool,
-                Map.of("query", query, "limit", 10),
-                List.of(), null, null),
-            new InterpretationPlan.Step(
-                2, "mcp_tool", executionTool,
-                Map.of(), List.of(1), null, null),
-            new InterpretationPlan.Step(
-                3, "final_answer", "",
-                Map.of("answer", "Use the admitted tool evidence to answer the current question."),
-                List.of(2), null, null)
-        );
-        InterpretationPlan.Plan plan = new InterpretationPlan.Plan(
-            steps,
-            List.of(new InterpretationPlan.EdgeContract(
-                1, 2, "$.templates[0].templateId", "string", true)),
-            List.of(
-                new InterpretationPlan.DependencyContract(
-                    1, 2, true, null, "Template discovery must precede execution.", "replan"),
-                new InterpretationPlan.DependencyContract(
-                    2, 3, true, null, "Evidence execution must precede the answer.", "replan")
-            ),
-            List.of(new InterpretationPlan.Binding(
-                1, "$.templates[0].templateId", 2, "$.templateId", "jsonpath", true)),
-            null
-        );
-        return new InterpretationPlan(
-            "1.0",
-            new InterpretationPlan.Intent("mixed", query, "low"),
-            new InterpretationPlan.Context(
-                List.of("The agent has one bound template discovery tool and one bound executor."),
-                List.of(), List.of(), List.of("Use only returned template identities.")),
-            plan,
-            new InterpretationPlan.ExecutionPolicy(
-                3, true, List.of(discoveryTool, executionTool), List.of(), null, 1,
-                "partial_result"),
-            new InterpretationPlan.Review(
-                new InterpretationPlan.SelfCheck(1.0, 0.0, true, List.of()), List.of())
-        );
+        return new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(toolRegistry)
+            .compile(query, plannerVisibleTools, List.of());
     }
 
     private AgentOrchestrator.AgentExecutionResult executeInterpretationPlanPipeline(InterpretationPlan plan,

@@ -91,4 +91,24 @@ class PublishedMcpToolCatalogTest {
     @Test void unavailableControlPlaneNeverFallsBackToAllRegisteredTools() {
         when(client.request(anyString(),anyString(),isNull())).thenThrow(new IllegalStateException("offline"));assertThrows(IllegalStateException.class,()->service.registeredTools(request));assertTrue(service.registeredTools(null).isEmpty());
     }
+    @Test void systemSearchPreservesAgentSelectionAndRechecksGrantsWithoutExposingRawTools() {
+        String document = "mcp_chatchat_mcp_server_document_search";
+        String web = "mcp_chatchat_mcp_server_web_search";
+        when(catalog.registeredTools()).thenReturn(List.of(
+            new McpToolCatalogQueryPort.RegisteredTool(document, "chatchat-mcp-server", "MCP", "document_search", "document"),
+            new McpToolCatalogQueryPort.RegisteredTool(web, "chatchat-mcp-server", "MCP", "web_search", "web"),
+            new McpToolCatalogQueryPort.RegisteredTool("raw_execute", "chatchat-mcp-server", "MCP", "raw_execute", "raw"),
+            new McpToolCatalogQueryPort.RegisteredTool("mcp_foreign_document_search", "foreign", "MCP", "document_search", "foreign")));
+        var publications = service.publications(request);
+        assertTrue(publications.get(document).systemTool());
+        assertTrue(publications.get(web).systemTool());
+        assertFalse(publications.get(name).systemTool());
+        var tools = service.registeredTools(request);
+        assertEquals(List.of(document, web), tools.stream().map(McpToolCatalogQueryPort.RegisteredTool::localToolName).toList());
+        assertEquals(true, tools.get(0).applicability().get("systemTool"));
+        assertThrows(SecurityException.class, () -> service.templates(request, document));
+        when(authorization.allowedIds(anyString(), anyString(), anyString(), anySet(), anySet())).thenReturn(Set.of());
+        assertTrue(service.publications(request).isEmpty());
+        assertTrue(service.publications(null).isEmpty());
+    }
 }

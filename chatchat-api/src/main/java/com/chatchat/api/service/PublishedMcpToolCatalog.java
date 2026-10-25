@@ -30,12 +30,12 @@ public class PublishedMcpToolCatalog {
         boolean manager = user.permissionCodes() != null && user.permissionCodes().contains("system:permission-center:manage");
         String path = "/api/v1/tool-publications?tenantId=" + encode(user.tenantId()) + "&actorId=" + encode(user.id());
         Map<String, Publication> candidates = new LinkedHashMap<>();
-        // Only the two built-in tools from our own service are independent of template publication.
+        // Preserve the deployed system search catalog and its existing resource authorization.
         for (var tool : catalog.registeredTools()) {
-            if (!"chatchat-mcp-server".equals(tool.serviceId())) continue;
             String name = tool.remoteToolName();
-            if (!Set.of("web_search", "document_search").contains(name == null ? "" : name)
-                || !("mcp_chatchat_mcp_server_" + name).equals(tool.localToolName())) continue;
+            if (!"chatchat-mcp-server".equals(tool.serviceId()) ||
+                !Set.of("web_search", "document_search").contains(name == null ? "" : name) ||
+                !("mcp_chatchat_mcp_server_" + name).equals(tool.localToolName())) continue;
             boolean web = "web_search".equals(name);
             candidates.put(tool.localToolName(), new Publication(web ? "联网搜索" : "文档检索",
                 web ? "检索资讯与公开网页，为回答提供相关信息和来源。" : "检索您有权访问的文档，查找相关内容与引用来源。",
@@ -74,7 +74,8 @@ public class PublishedMcpToolCatalog {
                 Publication item = published.get(tool.localToolName());
                 return new McpToolCatalogQueryPort.RegisteredTool(tool.localToolName(), tool.serviceId(), tool.serviceName(),
                     tool.remoteToolName(), item.description(), tool.backendServiceType(), item.category(), List.of(item.category()), List.of(),
-                    Map.of("summary", item.systemTool() ? "系统内置，可供 Agent 使用" : "包含 " + item.templateCount() + " 个已选模板", "templateCount", item.templateCount(), "published", true, "systemTool", item.systemTool()),
+                    Map.of("summary", item.systemTool() ? "系统内置，可供 Agent 使用" : "包含 " + item.templateCount() + " 个已选模板",
+                        "templateCount", item.templateCount(), "published", true, "systemTool", item.systemTool()),
                     tool.capabilityNode(), item.title());
             }).toList();
     }

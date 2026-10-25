@@ -57,8 +57,43 @@ class ClineRuntimeModelBridgeTest {
             assertThat(error.receipt()).containsEntry("usage", Map.of("inputTokens", 13, "outputTokens", 7));
             assertThat((List<?>) error.receipt().get("toolCalls")).isEmpty();
             assertThat(error.receipt()).containsKey("modelInfo").containsKey("error");
+            assertThat(json.valueToTree(error.receipt()).path("modelResponseFeedback").path("repairAllowed").asBoolean()).isTrue();
         }
         verify(parent, times(1)).chat(any(ChatRequest.class));
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void truncatedArgumentsHavePortableDiagnosticsButUnauthorizedToolsNeverGainRepairAuthority(boolean unauthorized) throws Exception {
+        var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
+        var parent=mock(ChatModel.class);when(resources.defaultChatModel()).thenReturn("registered-model");
+        when(parent.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder()
+            .aiMessage(AiMessage.from(List.of(ToolExecutionRequest.builder().id("call")
+                .name(unauthorized?"outside_contract":"python_execute").arguments("{\"source\":").build())))
+            .tokenUsage(new TokenUsage(123,512,635))
+            .finishReason(dev.langchain4j.model.output.FinishReason.TOOL_EXECUTION).build());
+        var bridge=new ClineRuntimeModelBridge(resources,factory,json);bridge.setMaxOutputTokens(512);
+        var registry=new CodingParentModels();bridge.setParentModels(registry);var task=contract();
+        try(var binding=registry.bind(task.scope(),task.taskId(),parent)) {
+            var rejected=catchThrowableOfType(()->bridge.complete(task,json.readTree("{\"systemPrompt\":\"calculate\",\"messages\":[],\"tools\":[]}")),
+                ClineRuntimeModelBridge.InvalidModelResponseException.class);
+            var feedback=json.valueToTree(rejected.receipt()).path("modelResponseFeedback");
+            assertThat(feedback.path("diagnosticCode").asText()).isEqualTo(unauthorized?"MODEL_TOOL_NOT_AUTHORIZED":"MODEL_OUTPUT_TRUNCATED");
+            assertThat(feedback.path("repairAllowed").asBoolean()).isEqualTo(!unauthorized);
+            assertThat(feedback.path("maxRepairAttempts").asInt()).isEqualTo(2);
+            assertThat((List<?>)rejected.receipt().get("toolCalls")).isEmpty();
+        }
+    }
+    @Test void rejectedResponseWithoutProviderUsageCannotAuthorizeAnUnmeteredRetry() throws Exception {
+        var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
+        var parent=mock(ChatModel.class);when(resources.defaultChatModel()).thenReturn("registered-model");
+        when(parent.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder()
+            .aiMessage(AiMessage.from(List.of(ToolExecutionRequest.builder().id("call").name("python_execute").arguments("{} {}").build()))).build());
+        var bridge=new ClineRuntimeModelBridge(resources,factory,json);var registry=new CodingParentModels();bridge.setParentModels(registry);var task=contract();
+        try(var binding=registry.bind(task.scope(),task.taskId(),parent)) {
+            var rejected=catchThrowableOfType(()->bridge.complete(task,json.readTree("{\"systemPrompt\":\"calculate\",\"messages\":[],\"tools\":[]}")),
+                ClineRuntimeModelBridge.InvalidModelResponseException.class);
+            assertThat(json.valueToTree(rejected.receipt()).path("modelResponseFeedback").path("repairAllowed").asBoolean()).isFalse();
+        }
     }
     @Test void reportsFrozenActualModelAndContinuesBoundModelAfterDefaultChanges() throws Exception {
         var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);

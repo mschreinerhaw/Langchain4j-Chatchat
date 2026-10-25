@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service;
 @Service
 @ConditionalOnProperty(prefix = "chatchat.coding.cline", name = "enabled", havingValue = "true")
 public final class ClineRuntimeModelBridge {
-    private static final int MAX_MESSAGES = 64, MAX_TOOLS = 3, MAX_TEXT = 256_000;
+    private static final int MAX_MESSAGES = 64, MAX_TOOLS = 4, MAX_TEXT = 256_000;
     private final ModelResourceRegistry resources;
     private final ConfigurableChatModelFactory models;
     private final ObjectMapper json;
@@ -30,6 +30,12 @@ public final class ClineRuntimeModelBridge {
     private CodingWorkspaceService workspace;
     private int configuredMaxOutputTokens = 8192;
     private int workspaceMaxOutputTokens=8192;
+    private int maxModelResponseRepairs = 2;
+    @org.springframework.beans.factory.annotation.Value("${chatchat.coding.cline.max-model-response-repairs:2}")
+    public void setMaxModelResponseRepairs(int attempts) {
+        if (attempts < 0 || attempts > 8) throw new IllegalArgumentException("Invalid model response repair limit");
+        maxModelResponseRepairs = attempts;
+    }
     @org.springframework.beans.factory.annotation.Value("${chatchat.coding.workspace.max-output-tokens:8192}")
     public void setWorkspaceMaxOutputTokens(int tokens){
         if(tokens<1 || tokens>32768)throw new IllegalArgumentException("Invalid workspace reply token limit");
@@ -140,16 +146,28 @@ public final class ClineRuntimeModelBridge {
         if (answer == null || answer.aiMessage() == null) throw new IllegalStateException("Model returned no assistant message");
         List<Map<String, Object>> toolCalls = new ArrayList<>();
         String responseError = null;
+        String responseDiagnostic = null;
         for (ToolExecutionRequest call : answer.aiMessage().toolExecutionRequests()) {
             try {
                 allowedTool(contract, call.name());
-                var input = json.readTree(call.arguments());
+                if (call.id() == null || call.id().isBlank() || call.id().length() > 256)
+                    throw new IllegalArgumentException("Tool call identity is invalid");
+                if (call.arguments() == null || call.arguments().length() > MAX_TEXT)
+                    throw new IllegalArgumentException("Tool arguments exceed limit");
+                JsonNode input = json.reader().with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+                    .readTree(call.arguments());
                 if (input == null || !input.isObject()) throw new IllegalArgumentException("Tool input must be an object");
                 toolCalls.add(Map.of("id", call.id(), "name", call.name(), "input", input));
             } catch (Exception invalid) {
                 // The provider has returned. Preserve its stop/usage receipt even when its
                 // tool output is unusable; this is not an unknown external execution.
                 responseError = "Model returned invalid or unauthorized tool arguments";
+                responseDiagnostic = invalid instanceof SecurityException ? "MODEL_TOOL_NOT_AUTHORIZED"
+                    : invalid instanceof com.fasterxml.jackson.core.JsonProcessingException
+                        && (answer.finishReason() != null && "LENGTH".equals(answer.finishReason().name())
+                            || answer.tokenUsage() != null && answer.tokenUsage().outputTokenCount() != null
+                                && answer.tokenUsage().outputTokenCount() >= outputLimit)
+                        ? "MODEL_OUTPUT_TRUNCATED" : "MODEL_TOOL_ARGUMENTS_INVALID";
                 toolCalls.clear();
                 break;
             }
@@ -186,6 +204,13 @@ public final class ClineRuntimeModelBridge {
         if (answer.id() != null) result.put("requestId", answer.id());
         if (responseError != null) {
             result.put("error", responseError);
+            boolean usageKnown = answer.tokenUsage() != null && answer.tokenUsage().inputTokenCount() != null
+                && answer.tokenUsage().outputTokenCount() != null && answer.tokenUsage().inputTokenCount() >= 0
+                && answer.tokenUsage().outputTokenCount() >= 0;
+            result.put("modelResponseFeedback", Map.of("schemaVersion", "runtime_os.coding.model_feedback.v1",
+                "diagnosticCode", responseDiagnostic, "repairAllowed", usageKnown && maxModelResponseRepairs > 0
+                    && !"MODEL_TOOL_NOT_AUTHORIZED".equals(responseDiagnostic),
+                "maxRepairAttempts", maxModelResponseRepairs, "maxOutputTokens", outputLimit));
             throw new InvalidModelResponseException(result);
         }
         return result;

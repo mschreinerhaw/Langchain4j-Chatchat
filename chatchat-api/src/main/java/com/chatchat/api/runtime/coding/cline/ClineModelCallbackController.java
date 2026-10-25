@@ -40,6 +40,16 @@ import org.springframework.web.server.ResponseStatusException;
 @ConditionalOnProperty(prefix = "chatchat.coding.cline", name = "enabled", havingValue = "true")
 @ConditionalOnProperty(prefix = "chatchat.coding", name = "enabled", havingValue = "true")
 public final class ClineModelCallbackController {
+    private static final java.util.concurrent.ScheduledExecutorService MODEL_LEASE_RENEWALS =
+        java.util.concurrent.Executors.newSingleThreadScheduledExecutor(work -> {
+            var thread = new Thread(work, "coding-model-lease-renewal");
+            thread.setDaemon(true);
+            return thread;
+        });
+    private java.util.concurrent.ScheduledExecutorService modelLeaseRenewals = MODEL_LEASE_RENEWALS;
+    void setModelLeaseRenewals(java.util.concurrent.ScheduledExecutorService scheduler) {
+        modelLeaseRenewals = scheduler;
+    }
     private static final Logger LOG = LoggerFactory.getLogger(ClineModelCallbackController.class);
     private static final Set<CodingTaskAccess.Action> GRANTS = EnumSet.of(
         CodingTaskAccess.Action.READ, CodingTaskAccess.Action.WORKER, CodingTaskAccess.Action.EVIDENCE, CodingTaskAccess.Action.SUBMIT);
@@ -216,9 +226,10 @@ public final class ClineModelCallbackController {
             CodingTaskContract contract = contract(body, call);
             JsonNode request = body.path("request");
             String operationId = operationId(request.path("operationId").asText(null));
+            boolean supportsModelFeedback = "runtime_os.coding.model_feedback.v1".equals(request.path("modelResponseFeedbackVersion").asText());
             var prior = receipts.response(call.scope(), call.taskId(), operationId);
             if (prior.isPresent()) {
-                if (prior.get().containsKey("error")) throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                if (prior.get().containsKey("error") && !(supportsModelFeedback && repairableModelResponse(prior.get()))) throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Archived model response contains invalid tool arguments");
                 return prior.get();
             }
@@ -233,10 +244,23 @@ public final class ClineModelCallbackController {
             if (!freshDispatches.remove(key(call, operationId), permittedAt))
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Model dispatch permission was already consumed");
             Map<String, Object> response;
+            var renewal = modelLeaseRenewals.scheduleWithFixedDelay(() -> identity.as(call.scope(), GRANTS, () -> {
+                var current = tasks.get(call.scope(), call.taskId());
+                if (current.status().terminal() || current.cancellationRequested()
+                        || current.executionControl().stopReason() != null
+                        || !contract.budget().deadlineAt().isAfter(Instant.now())) return null;
+                CodingTaskRevisions.mutate(tasks, call.scope(), call.taskId(), revision ->
+                    tasks.renew(call.scope(), call.taskId(), call.lease(), Duration.ofMinutes(5), revision));
+                return null;
+            }), 60, 60, java.util.concurrent.TimeUnit.SECONDS);
             try {
                 response = model.complete(contract, request);
             } catch (ClineRuntimeModelBridge.InvalidModelResponseException invalid) {
                 receipts.commit(contract, operationId, "runtime-model:" + operationId, invalid.receipt());
+                if (supportsModelFeedback && repairableModelResponse(invalid.receipt())) {
+                    assertStillOwned(call);
+                    return invalid.receipt();
+                }
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Model response rejected; provider stop and usage receipt archived", invalid);
             } catch (RuntimeException providerFailure) {
@@ -244,6 +268,8 @@ public final class ClineModelCallbackController {
                     operationId, providerFailure);
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Runtime model request failed; execution outcome must be reconciled", providerFailure);
+            } finally {
+                renewal.cancel(false);
             }
             // Preserve a genuine late provider receipt even when cancellation/fencing won the race.
             // Receipt archival cannot publish a result or grant another dispatch.
@@ -251,6 +277,14 @@ public final class ClineModelCallbackController {
             assertStillOwned(call);
             return response;
         });
+    }
+
+    private static boolean repairableModelResponse(Map<String, Object> response) {
+        return response.get("modelResponseFeedback") instanceof Map<?, ?> feedback
+            && "runtime_os.coding.model_feedback.v1".equals(feedback.get("schemaVersion"))
+            && Boolean.TRUE.equals(feedback.get("repairAllowed"))
+            && feedback.get("diagnosticCode") instanceof String diagnostic
+            && Set.of("MODEL_OUTPUT_TRUNCATED", "MODEL_TOOL_ARGUMENTS_INVALID").contains(diagnostic);
     }
 
     @PostMapping("/settle-model")
@@ -305,7 +339,7 @@ public final class ClineModelCallbackController {
             JsonNode value = event.path(key);
             if (value.isTextual() && value.asText().length() <= 512) payload.put(key, value.asText());
         }
-        for (String key : List.of("scriptVersion", "modelCall", "sourceBytes", "durationMs", "maxOutputTokens", "repairAttempts")) {
+        for (String key : List.of("scriptVersion", "modelCall", "sourceBytes", "durationMs", "maxOutputTokens", "repairAttempts", "repairAttempt", "maxRepairAttempts")) {
             if (event.path(key).isIntegralNumber() && event.path(key).asLong() >= 0)
                 payload.put(key, event.path(key).asLong());
         }

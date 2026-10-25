@@ -19,6 +19,39 @@ import static org.mockito.Mockito.when;
 class AgentChatModelResolverTest {
 
     @Test
+    void publishedModelOverridesFilesAndRefreshesAfterRepublishing() {
+        ModelsConfig files = new ModelsConfig();
+        ModelResourceRegistry registry = new ModelResourceRegistry(files);
+        var catalog = mock(com.chatchat.common.config.ModelCatalogOverride.class);
+        when(catalog.hasChatModels()).thenReturn(true);
+        when(catalog.defaultChatModel()).thenReturn("page-model");
+        registry.setCatalog(catalog);
+        var first = new ModelsConfig.ModelConnectionConfig();
+        first.setBaseUrl("https://first.example/v1");
+        first.setApiKey("first-test-key");
+        var second = new ModelsConfig.ModelConnectionConfig();
+        second.setBaseUrl("https://second.example/v1");
+        second.setApiKey("second-test-key");
+        when(catalog.resolveChatModel("page-model")).thenReturn(new ModelsConfig.ResolvedModelConnection(
+            "page-model", "page-model", first, ModelsConfig.ModelMatchType.CONFIG_KEY));
+        var factory = mock(ConfigurableChatModelFactory.class);
+        ChatModel one = mock(ChatModel.class), two = mock(ChatModel.class);
+        when(factory.create("page-model")).thenReturn(one, two);
+        when(one.chat("hello")).thenReturn("first");
+        when(two.chat("hello")).thenReturn("second");
+        var resolver = new AgentChatModelResolver(mock(ChatModel.class), registry, factory, new AgentRuntimeProperties());
+        ChatModel original = resolver.resolveChatModel(null);
+        assertThat(original.chat("hello")).isEqualTo("first");
+        assertThat(resolver.resolveChatModel("page-model")).isSameAs(original);
+        when(catalog.resolveChatModel("page-model")).thenReturn(new ModelsConfig.ResolvedModelConnection(
+            "page-model", "page-model", second, ModelsConfig.ModelMatchType.CONFIG_KEY));
+        assertThat(resolver.resolveChatModel(null).chat("hello")).isEqualTo("second");
+        when(catalog.resolveChatModel("page-model")).thenReturn(null);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> resolver.resolveChatModel("page-model"))
+            .hasMessageContaining("not available");
+    }
+
+    @Test
     @SuppressWarnings("deprecation")
     void resolvesConfiguredAlternateModelWithoutProviderGate() {
         ModelsConfig config = new ModelsConfig();

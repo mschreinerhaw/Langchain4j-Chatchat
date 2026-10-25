@@ -29,6 +29,9 @@ export default {
       centerStatus: null,
       services: [],
       toolCards: [],
+      toolTab: "mcp",
+      toolTabState: {},
+      switchingToolTab: false,
       toolTotal: 0,
       mcpToolTotal: 0,
       toolPageTotal: 1,
@@ -59,6 +62,15 @@ export default {
     };
   },
   computed: {
+    isSystemTab() {
+      return this.toolTab === "system";
+    },
+    catalogLabel() {
+      return this.isSystemTab ? "系统工具" : "已发布工具";
+    },
+    isSystemDetail() {
+      return this.activeTool?.sourceType === "system" || this.activeTool?.sourceType === "backend";
+    },
     activeToolSchemaText() {
       return this.activeTool?.inputSchema
         ? JSON.stringify(this.activeTool.inputSchema, null, 2)
@@ -124,9 +136,9 @@ export default {
     },
     toolFilterSummary() {
       if (!this.mcpToolTotal) {
-        return "暂无可用的已发布工具";
+        return `暂无可用的${this.catalogLabel}`;
       }
-      return `共 ${this.mcpToolTotal} 个已发布工具，当前找到 ${this.toolTotal} 个`;
+      return `共 ${this.mcpToolTotal} 个${this.catalogLabel}，当前找到 ${this.toolTotal} 个`;
     },
     toolPageCount() {
       return this.toolPageTotal;
@@ -152,15 +164,18 @@ export default {
       this.detailPage = 1;
     },
     toolSearchQuery() {
+      if (this.switchingToolTab) return;
       this.toolPage = 1;
       window.clearTimeout(this.toolSearchTimer);
       this.toolSearchTimer = window.setTimeout(() => this.loadToolCards(), 300);
     },
     toolServiceFilter() {
+      if (this.switchingToolTab) return;
       this.toolPage = 1;
       this.loadToolCards();
     },
     toolCategoryFilter() {
+      if (this.switchingToolTab) return;
       this.toolPage = 1;
       this.loadToolCards();
     },
@@ -175,6 +190,30 @@ export default {
     this.detailSequence += 1;
   },
   methods: {
+    async selectToolTab(tab) {
+      if (tab === this.toolTab) return;
+      window.clearTimeout(this.toolSearchTimer);
+      this.closeToolDetail();
+      this.toolTabState[this.toolTab] = {
+        keyword: this.toolSearchQuery,
+        category: this.toolCategoryFilter,
+        page: this.toolPage,
+      };
+      this.switchingToolTab = true;
+      this.toolRequestSequence += 1;
+      this.toolTab = tab;
+      const saved = this.toolTabState[tab];
+      this.toolSearchQuery = saved?.keyword || "";
+      this.toolCategoryFilter = saved?.category || "all";
+      this.toolPage = saved?.page || 1;
+      this.toolCards = [];
+      this.toolTotal = 0;
+      this.mcpToolTotal = 0;
+      this.toolCategoryOptionsData = [];
+      await this.$nextTick();
+      this.switchingToolTab = false;
+      this.loadToolCards();
+    },
     async loadMcpCenter() {
       const requestSequence = ++this.toolRequestSequence;
       this.loading = true;
@@ -235,6 +274,7 @@ export default {
         }
       } finally {
         if (requestSequence === this.toolRequestSequence) {
+          this.loading = false;
           this.toolLoading = false;
         }
       }
@@ -244,7 +284,7 @@ export default {
         keyword: this.toolSearchQuery.trim(),
         service: this.toolServiceFilter,
         category: this.toolCategoryFilter,
-        sourceType: "mcp",
+        sourceType: this.toolTab,
         groupMode: this.toolGroupMode,
         page: this.toolPage,
         pageSize: this.toolPageSize,
@@ -252,9 +292,17 @@ export default {
     },
     applyToolPage(payload) {
       if (Array.isArray(payload)) {
-        this.toolCards = payload.filter((tool) => tool?.sourceType === "mcp");
-        this.toolTotal = this.toolCards.length;
-        this.mcpToolTotal = this.toolCards.length;
+        const tools = payload.filter((tool) =>
+          this.toolTab === "system"
+            ? ["system", "backend"].includes(tool?.sourceType)
+            : tool?.sourceType === "mcp"
+        );
+        this.toolTotal = tools.length;
+        this.mcpToolTotal = tools.length;
+        this.toolCards = tools.slice(
+          (this.toolPage - 1) * this.toolPageSize,
+          this.toolPage * this.toolPageSize
+        );
         this.toolPageTotal = Math.max(1, Math.ceil(this.toolTotal / this.toolPageSize));
         this.filteredToolGroupCountValue = new Set(
           this.toolCards.map((tool) => this.resolveToolGroup(tool).key)
@@ -403,7 +451,7 @@ export default {
       this.activeTool = tool || null;
       this.detailQuery = "";
       this.detailPage = 1;
-      this.loadDetailTemplates();
+      if (!this.isSystemDetail) this.loadDetailTemplates();
       this.$nextTick(() => this.$refs.toolDetailPanel?.focus());
     },
     async loadDetailTemplates() {

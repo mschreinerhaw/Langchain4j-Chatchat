@@ -1,4 +1,5 @@
-import { createServer } from 'node:http';
+import { createServer, request as httpRequest } from 'node:http';
+import { request as httpsRequest } from 'node:https';
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -48,6 +49,33 @@ function boundRun(runs, value, allowNewerFence = false) {
       || allowNewerFence && value.fencingToken > run.fencingToken) ? run : null;
 }
 
+// Provider inference can outlive fetch's fixed header timeout. The authorized task
+// deadline and abort signal own this request; redirects remain forbidden.
+function modelRequest(url, options) {
+  return new Promise((resolve, reject) => {
+    const target = new URL(url);
+    const request = (target.protocol === 'https:' ? httpsRequest : httpRequest)(target, options, response => {
+      const chunks = []; let size = 0;
+      response.on('error', reject);
+      response.on('data', chunk => {
+        size += chunk.length;
+        if (size > 8 * MAX_BODY) {
+          response.destroy(new Error('Runtime model response exceeds limit'));
+          return;
+        }
+        chunks.push(chunk);
+      });
+      response.on('end', () => resolve({
+        ok: response.statusCode >= 200 && response.statusCode < 300,
+        status: response.statusCode,
+        json: async () => JSON.parse(Buffer.concat(chunks).toString('utf8')),
+      }));
+    });
+    request.on('error', reject);
+    request.end(options.body);
+  });
+}
+
 export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } = {}) {
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 300000)
     throw new Error('Invalid Runtime callback timeout');
@@ -61,10 +89,12 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
       .update(`v2\nPOST\n${path}\n${timestamp}\n${nonce}\n${digest}`).digest('hex');
     const deadline = Date.parse(payload.contract?.budget?.deadlineAt ?? '');
     const reconciliation = ['get-python', 'cancel-python', 'event', 'finish', 'settle-model'].includes(action);
-    const remaining = !reconciliation && Number.isFinite(deadline) ? Math.min(timeoutMs, deadline - Date.now()) : timeoutMs;
+    const remaining = !reconciliation && Number.isFinite(deadline)
+      ? action === 'model' ? deadline - Date.now() : Math.min(timeoutMs, deadline - Date.now()) : timeoutMs;
     if (remaining <= 0) throw new Error('Runtime Coding deadline reached before callback dispatch');
     const timeout = AbortSignal.timeout(remaining);
-    const answer = await fetch(`${callbackUrl}${path}`, {
+    const transport = action === 'model' ? modelRequest : fetch;
+    const answer = await transport(`${callbackUrl}${path}`, {
       method: 'POST', headers: { authorization: `Bearer ${secret}`, 'content-type': 'application/json',
         'x-chatchat-timestamp': timestamp, 'x-chatchat-nonce': nonce,
         'x-chatchat-signature': signature, 'x-chatchat-signature-version': '2' },

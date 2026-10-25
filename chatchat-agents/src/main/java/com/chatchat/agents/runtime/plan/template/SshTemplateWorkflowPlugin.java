@@ -6,7 +6,7 @@ import java.util.Set;
 public final class SshTemplateWorkflowPlugin extends ProtocolFamilyTemplateWorkflowPlugin {
     public SshTemplateWorkflowPlugin() {
         super("ssh-template-workflow.v1", Set.of("mcp.ssh-template.v1"),
-            Set.of("host", "ssh", "linux_host"));
+            Set.of("ssh_host", "host", "ssh", "linux_host"));
     }
 
     @Override

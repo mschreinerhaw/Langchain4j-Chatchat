@@ -1,0 +1,121 @@
+# Published data supply contract
+
+## Observed failure
+
+Task `451d8133-ea9d-4bb7-b388-da48678289d4` failed at 19:05:48 Asia/Shanghai.
+Its published template query returned nine template descriptors, not database records.
+The executor instead depended on a generic capability bridge whose response was
+`asset_query_result.v1`, with zero returned assets. The edge required
+`$.templates[0].templateId`, so execution stopped at `STEP_OUTPUT_CONTRACT_FAILED`.
+There was no successful data execution and therefore no business dataset. Rejecting
+analysis in that situation is correct; treating the template directory as data is not.
+
+The invariant acquisition path existed but was restricted to exactly two visible tools.
+The actual Agent has additional optional capabilities. A published fixed query declares
+the generic authorized-template protocol and the canonical `sql_datasource` asset type;
+the SQL plugin did not recognize that canonical asset type. SSH had the analogous
+`ssh_host` mismatch. Scope resolution also read only the nested MCP metadata envelope,
+although direct tool descriptors publish the same contract at the top level.
+
+## Ownership and correction
+
+```mermaid
+flowchart LR
+    A[Published workflow and authorized scope] --> B[Java compiles asset resolution then fixed template selection]
+    B --> C[Model admits canonical assets and relevant returned templates]
+    C --> D[Java binds canonical asset context and template identity to execution]
+    D --> E[Immutable execution evidence becomes business datasets]
+    E --> F[Coding analysis]
+```
+
+- `TemplateWorkflowMetadata` supplies one view of the publisher contract for both
+  descriptor envelopes. The workflow decision engine and optimizer use the same scope.
+- Protocol plugins recognize the publisher's canonical SQL and SSH asset types.
+  These are transport contract identifiers, not database names, template IDs, user IDs,
+  business keywords, model names, or business-specific selection rules.
+- `PublishedDataAcquisitionPlanner` compiles an unambiguous configured fixed provider
+  and executor even when unrelated optional tools are available. It does not execute
+  those optional tools, widen the publication scope, or select a template literal.
+  Ambiguous providers, extra required operations and missing authorization retain
+  the existing governed planning path. Configured asset stages are compiled separately.
+- Existing runtime admission, pagination, template parameter defaults, permissions,
+  execution confirmation, checkpointing and dataset projection remain authoritative.
+- Acquisition failures retain their failed steps and original cause. A transport success
+  or a discovery result cannot satisfy the business-data prerequisite.
+
+## Verification and rollout
+
+The initial regression reproduced retention of the generic bridge. Tests exercise both
+metadata envelopes, actual published protocol shapes, redirected bindings, configured
+dependency edges, optional tools, missing tool authorization, cross-protocol rejection,
+existing plan validation and failure provenance.
+
+Live verification on 2.4.18 obtained four real SQL execution datasets and entered Coding.
+It also exposed a second issue: an optional SSH discovery tool was counted when inferring
+the required SQL predecessor. That made the configured SQL dependency ambiguous. A later
+optimizer pass removed the compiled edge and materialized a generic bridge again.
+Predecessor resolution now considers executable nodes only and uses the same protocol
+plugin match as plan compilation and validation. The regression uses the actual shape:
+a fixed SQL provider, a generic SQL bridge, an optional SSH discovery node, and an SQL
+executor with no manually entered dependency. Existing interface class hashes were
+checked against the deployed JAR; this was not an interface-version mismatch.
+
+The release patches nine compiled classes onto the exact deployed API artifact.
+`prepare-published-data-supply-release.mjs` records the source revision and baseline;
+`patch-published-data-supply.py` verifies the baseline and byte equality of every
+unrelated JAR entry. The existing API deployment helper backs up the database and
+configuration, checks task idleness, preserves previous images, verifies permissions
+and template bindings, and rolls back the API image on verification failure.
+No Agent model binding, business workflow configuration, authorization data, MCP
+publication, SQL template, or business identifier is changed by this release.
+
+## Asset identity is a separate prerequisite
+
+The two-node 2.4.19 verification correctly rejected an ambiguous execution context:
+only the environment was available, matching eight authorized datasources. A fixed
+**template** scope does not fix the execution **asset**. Neither may replace the other.
+The verification task failed; it is not recorded as a completed analysis.
+
+The final compiler preserves a required dual-stage capability bridge as an **asset-only**
+invocation, then calls the published fixed template provider, then its executor. The
+configured dependency projection uses the invocation role, rather than assuming that
+one tool always returns templates. Only the template node supplies template-ID bindings.
+Optional SSH discovery remains outside the required SQL chain.
+
+For compiled asset resolution, Java preserves the original user query instead of running
+it through the template-keyword rewrite. This prevents losing a user-supplied logical
+asset identity while retaining the normal authorized candidate search, canonical asset
+review, routing context validation and ambiguity rejection. No asset is selected by list
+position or by a business-specific name rule.
+
+Live acceptance records explicitly cover DATA_ACQUISITION, verify the three-phase DAG
+and usable invocation receipts, and stop the agent-created verification task after that
+boundary. A completed end-to-end analytical report is a separate acceptance condition.
+
+## Final live acceptance
+
+- API image: `2.4.20-published-data-supply-20261024`; code revision: `1569734a9`.
+- Targeted Java regression suite: **112 tests, zero failures/errors/skips**.
+- Fresh verification task: `8966cef3-26ec-31ee-a9b4-186fd22f69da`, reproducing
+  the original question with the current published Agent configuration.
+- The executed DAG contains the capability bridge with `stage=asset`, the fixed
+  published template query, and SQL execution, in that order. Template-ID bindings
+  originate from the fixed template node, never the asset node.
+- The original asset query was preserved. The subsequent template request contained
+  the admitted canonical asset ID and logical name. All **three** SQL invocations
+  succeeded, used that same asset ID, and returned usable evidence. Dataset projection
+  recorded **three datasets and zero exclusions**.
+- The initial acceptance assertion mistakenly compared a technical display alias to
+  the user-facing logical name. Receipt rechecking now joins executed asset IDs to
+  the asset-stage admitted IDs, then checks the catalog's canonical logical name.
+  Persisted execution receipts passed this check; the original failed checker log
+  is retained rather than hidden.
+- The agent-created verification task was stopped after the data acquisition boundary.
+  Its parent status is CANCELLED; `analysisReportVerified=false`. This is a passing
+  supply-chain acceptance, not a claim that an end-to-end analytical report completed.
+- Deployment checks confirmed unchanged authorization and template-binding fingerprints;
+  the current Agent configuration was identical before and after deployment.
+
+Private server evidence is under
+`/opt/chatchat-releases/published-data-supply-staged-20261024`, including the release
+manifest, original verification log, corrected receipt check, and data acceptance JSON.

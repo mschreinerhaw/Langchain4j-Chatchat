@@ -316,15 +316,20 @@ public class McpServiceController {
      */
     private List<ToolCardView> buildToolCards(HttpServletRequest request) {
         var published = publishedTools.publications(request);
-        return administrationPort.listToolCatalog().stream().filter(tool -> published.containsKey(tool.localToolName())).map(tool -> new ToolCardView(
-            tool.localToolName(), published.get(tool.localToolName()).title(), published.get(tool.localToolName()).title(), published.get(tool.localToolName()).description(), tool.sourceType(), tool.sourceLabel(),
+        return administrationPort.listToolCatalog().stream().filter(tool -> published.containsKey(tool.localToolName())).map(tool -> {
+            var publication = published.get(tool.localToolName());
+            boolean system = publication.systemTool();
+            return new ToolCardView(
+            tool.localToolName(), publication.title(), publication.title(),
+            publication.description(), system ? "system" : "mcp", system ? "系统工具" : tool.sourceLabel(),
             tool.serviceId(), tool.serviceName(), tool.remoteToolName(), tool.outputType(), tool.agentCompatible(),
             tool.requiresAuth(), tool.rateLimited(), tool.timeoutMillis(), tool.parameters().size(),
-            published.get(tool.localToolName()).category(), List.of(published.get(tool.localToolName()).category()), List.of(), tool.parameters().stream()
+            publication.category(), List.of(publication.category()), List.of(), tool.parameters().stream()
                 .map(parameter -> new ToolParameterView(parameter.name(), parameter.type(), parameter.description(),
                     parameter.required()))
                 .toList(),
-            tool.inputSchema(), published.get(tool.localToolName()).templateCount(), published.get(tool.localToolName()).systemTool())).toList();
+            tool.inputSchema(), publication.templateCount(), system);
+        }).toList();
     }
 
     /**

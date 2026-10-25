@@ -307,7 +307,7 @@
             >创建新版本</button
           ></header
         >
-        <div class="publication-classification"
+        <div class="publication-classification publication-detail-control"
           ><label for="current-tool-category">业务分类</label
           ><select
             v-if="editable"
@@ -329,17 +329,17 @@
             >管理分类</button
           ></div
         >
-        <div class="publication-version-bar"
-          ><label
-            >{{ selected.title }} 的版本<select
-              :value="selectedId"
-              aria-label="当前版本"
-              :disabled="busy"
-              @change="chooseVersion"
-              ><option v-for="row in versions" :key="row.id" :value="row.id"
-                >v{{ row.releaseNumber }} · {{ states[row.state] || "未知状态" }}</option
-              ></select
-            ></label
+        <div class="publication-version-bar publication-detail-control"
+          ><label for="current-tool-version">工具版本</label
+          ><select
+            id="current-tool-version"
+            :value="selectedId"
+            aria-label="当前版本"
+            :disabled="busy"
+            @change="chooseVersion"
+            ><option v-for="row in versions" :key="row.id" :value="row.id"
+              >v{{ row.releaseNumber }} · {{ states[row.state] || "未知状态" }}</option
+            ></select
           ><span class="permission-badge" :class="{ deny: selected.state === 'OFFLINE' }">{{
             states[selected.state] || "未知状态"
           }}</span></div

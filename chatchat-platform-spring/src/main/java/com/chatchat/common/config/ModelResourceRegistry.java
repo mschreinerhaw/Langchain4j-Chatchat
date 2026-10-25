@@ -28,6 +28,10 @@ public class ModelResourceRegistry {
             ? properties.getDefaultChatModel() : catalog.defaultChatModel();
     }
 
+    public boolean usesPublishedChatModels() {
+        return catalog != null && catalog.hasChatModels();
+    }
+
     public List<String> selectableChatModels() {
         return catalog == null || !catalog.hasChatModels()
             ? properties.getUsableChatModels() : catalog.chatModelNames();

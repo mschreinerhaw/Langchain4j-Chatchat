@@ -4,6 +4,7 @@ import com.chatchat.agents.orchestration.analysis.graph.InterpretationAnalysisGr
 
 import com.chatchat.agents.orchestration.analysis.context.ContextCompressionEnvelope;
 import com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator;
+import com.chatchat.agents.orchestration.analysis.context.ToolReviewPromptContext;
 import com.chatchat.agents.orchestration.analysis.contract.SemanticInsightContractProvider;
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisRecordChunkPlanner;
 import com.chatchat.agents.orchestration.analysis.dataset.StructuredDataProjector;
@@ -3537,6 +3538,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             )
         );
         Throwable reviewFailure = null;
+        Map<String, Object> reviewMetrics = new LinkedHashMap<>();
         try {
         long startedAt = System.currentTimeMillis();
         log.info("agentModelRequest phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} modelClass={}",
@@ -3553,16 +3555,21 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             request.execution().toolName(), reviewSize.chars(), reviewSize.tokens());
         // Required semantic selection uses the request's DeadlineAwareChatModel budget.
         // An optional-review cutoff must not prevent the first executable template selection.
+        long inferenceStartedAt = System.currentTimeMillis();
+        reviewMetrics.put("toolResultReviewPreparationDurationMs", inferenceStartedAt - startedAt);
         String raw = activeChatModel.chat(reviewPrompt);
+        reviewMetrics.put("toolResultReviewPromptChars", reviewSize.chars());
+        reviewMetrics.put("toolResultReviewEstimatedTokens", reviewSize.tokens());
+        reviewMetrics.put("toolResultReviewModelDurationMs", System.currentTimeMillis() - inferenceStartedAt);
         log.info("agentModelResponse phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} durationMs={} responseChars={}",
             firstNonBlank(runId, ""),
             request.step() == null ? null : request.step().id(),
             request.execution().toolName(),
             request.attempt(),
             request.maxAttempts(),
-            System.currentTimeMillis() - startedAt,
+            System.currentTimeMillis() - inferenceStartedAt,
             raw == null ? 0 : raw.length());
-        log.info("agentModelRawOutput phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} raw=\n{}",
+        if (log.isDebugEnabled()) log.debug("agentModelRawOutput phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} raw=\n{}",
             firstNonBlank(runId, ""),
             request.step() == null ? null : request.step().id(),
             request.execution().toolName(),
@@ -3574,7 +3581,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             return InterpretationPlanRuntime.StepReview.accepted(
                 "Tool result reviewer was unavailable; preserving successful tool evidence.",
                 Map.of(
-                    "toolResultReviewRaw", preview(raw),
+                    "toolResultReviewRaw", Objects.toString(preview(raw), ""),
                     "toolResultReviewUnavailable", true
                 )
             );
@@ -3584,7 +3591,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             return InterpretationPlanRuntime.StepReview.accepted(
                 "Tool result reviewer was unavailable; preserving successful tool evidence.",
                 Map.of(
-                    "toolResultReviewRaw", preview(raw),
+                    "toolResultReviewRaw", Objects.toString(preview(raw), ""),
                     "toolResultReviewUnavailable", true,
                     "toolResultReviewError", preview(stringify(payload.get("error")))
                 )
@@ -3597,10 +3604,19 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             // complementary source for one part of a multi-facet question. Always run the independent
             // coverage audit whenever unselected candidates remain; the auditor still decides by semantic
             // relevance and returned capability metadata, never by hard-coded template identities.
-            payload = auditTemplateSelectionCoverage(activeChatModel, query, request, payload);
+            runtimeGuard.checkCancelled(cancellationCheck);
+            Map<String, Object> provisional = payload;
+            long coverageStarted = System.currentTimeMillis();
+            payload = runToolReviewStage(runtimeAttributes, request, "tool_result_review_coverage",
+                () -> auditTemplateSelectionCoverage(activeChatModel, query, request, provisional));
+            reviewMetrics.put("toolResultReviewCoverageDurationMs", System.currentTimeMillis() - coverageStarted);
             payload = enforceCrossAssetRelationshipAuthorization(query, request, payload);
-            payload = bindSelectedTemplateParameters(
-                activeChatModel, query, request.execution().output(), payload);
+            runtimeGuard.checkCancelled(cancellationCheck);
+            Map<String, Object> selectedForBinding = payload;
+            long bindingStarted = System.currentTimeMillis();
+            payload = runToolReviewStage(runtimeAttributes, request, "tool_result_review_binding",
+                () -> bindSelectedTemplateParameters(activeChatModel, query, request.execution().output(), selectedForBinding));
+            reviewMetrics.put("toolResultReviewBindingDurationMs", System.currentTimeMillis() - bindingStarted);
         }
         boolean satisfied = booleanValue(firstObject(payload, "satisfied", "accepted", "sufficient"));
         String reason = firstNonBlank(
@@ -3608,6 +3624,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             satisfied ? "Tool result satisfies the plan step." : "Tool result does not satisfy the plan step."
         );
         Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.putAll(reviewMetrics);
+        metadata.put("toolResultReviewTotalDurationMs", System.currentTimeMillis() - reviewLifecycleStartedAt);
         metadata.put("toolResultReviewRaw", preview(raw));
         String reviewAnswer = firstNonBlank(
             stringValue(firstObject(payload, "review_answer", "reviewAnswer")),
@@ -3802,6 +3820,28 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
     }
 
+    private Map<String, Object> runToolReviewStage(Map<String, Object> attributes,
+            InterpretationPlanRuntime.StepReviewRequest request, String phase,
+            java.util.function.Supplier<Map<String, Object>> work) {
+        long started = System.currentTimeMillis();
+        boolean success = false;
+        recordLifecyclePhase(attributes, null, "tool_review_stage", phase,
+            metadataOf("eventKind", "TOOL_REVIEW_STAGE", "eventState", "STARTED", "modelPhase", phase,
+                "stepId", request.execution().stepId(), "toolName", request.execution().toolName(), "attempt", request.attempt()));
+        try {
+            Map<String, Object> result = work.get();
+            success = true;
+            return result;
+        } finally {
+            long duration = System.currentTimeMillis() - started;
+            log.info("agentToolReviewStage phase={} runId={} stepId={} durationMs={} success={}", phase,
+                firstNonBlank(request.runId(), ""), request.execution().stepId(), duration, success);
+            recordLifecyclePhase(attributes, null, "tool_review_stage", phase,
+                metadataOf("eventKind", "TOOL_REVIEW_STAGE", "eventState", success ? "COMPLETED" : "FAILED", "modelPhase", phase,
+                    "stepId", request.execution().stepId(), "toolName", request.execution().toolName(), "attempt", request.attempt(), "durationMs", duration));
+        }
+    }
+
     /**
      * Runs parameter generation as a separate schema-driven native Function Call after semantic
      * template admission. Discovery remains authoritative for selected ids and schemas.
@@ -3992,13 +4032,23 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             + "\"aspect_evidence\":[{\"aspect\":\"\",\"template_id\":\"\",\"declared_evidence\":\"exact candidate text/schema\"}],"
             + "\"corrected_selected_template_ids\":[],\"corrected_deferred_template_ids\":[],"
             + "\"corrected_rejected_template_ids\":[],\"missing_aspects\":[],\"reason\":\"\"}.\n"
-            + "Current-turn query:\n" + (query == null ? "" : query) + "\n"
-            + "Authoritative cumulative context:\n"
-            + shortObservationText(stringify(cumulativeContext), TOOL_REVIEW_CUMULATIVE_CONTEXT_CHARS) + "\n"
-            + "Returned candidates:\n" + ModelProtocolJson.compact(candidateProjection) + "\n"
-            + "Provisional selection:\n" + ModelProtocolJson.compact(provisionalProjection);
+            + "Review context JSON: resolve $runtimeReviewRef from sharedValues; definitions retain exact values. "
+            + "$runtimeReviewLiteral is literal data, not a reference. Historical projections are not current evidence.\n"
+            + new ToolReviewPromptContext(objectMapper).project(Map.of(
+                "Current-turn query", query == null ? "" : query,
+                "Authoritative cumulative context", shortObservationText(stringify(cumulativeContext), TOOL_REVIEW_CUMULATIVE_CONTEXT_CHARS) == null
+                    ? "" : shortObservationText(stringify(cumulativeContext), TOOL_REVIEW_CUMULATIVE_CONTEXT_CHARS),
+                "Returned candidates", candidateProjection,
+                "Provisional selection", provisionalProjection)).json();
+        ContextTokenEstimator.Size auditSize = contextTokenEstimator.estimate(auditPrompt);
+        log.info("agentModelPrompt phase=template_selection_coverage_audit runId={} stepId={} promptChars={} estimatedTokens={}",
+            firstNonBlank(request.runId(), ""), request.execution().stepId(), auditSize.chars(), auditSize.tokens());
+        long auditStarted = System.currentTimeMillis();
         String rawAudit = activeChatModel.chat(auditPrompt);
-        log.info("agentModelRawOutput phase=template_selection_coverage_audit runId={} raw=\n{}",
+        log.info("agentModelResponse phase=template_selection_coverage_audit runId={} stepId={} durationMs={} responseChars={}",
+            firstNonBlank(request.runId(), ""), request.execution().stepId(), System.currentTimeMillis() - auditStarted,
+            rawAudit == null ? 0 : rawAudit.length());
+        if (log.isDebugEnabled()) log.debug("agentModelRawOutput phase=template_selection_coverage_audit runId={} raw=\n{}",
             firstNonBlank(request.runId(), ""), ModelProtocolJson.prettyJsonForLog(rawAudit));
         Map<String, Object> audit = parseJsonObject(rawAudit);
         List<String> corrected = stringList(firstObject(
@@ -4094,73 +4144,86 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                                                InterpretationPlanRuntime.StepReviewRequest request,
                                                Map<String, Object> runtimeAttributes) {
         StringBuilder prompt = new StringBuilder();
-        prompt.append("System policy inheritance: the validated step already carries the user intent, scope, "
-            + "constraints, and approved tool. Review only this execution and do not expand that scope.\n\n");
+        prompt.append("System policy inheritance: the validated step carries the user intent, scope, constraints and approved tool. Review only this execution.\n");
         prompt.append("You are the runtime reviewer for one completed MCP tool call.\n");
         String roleContext = AgentRoleAnalysisContext.promptSectionFromRuntime(
             runtimeAttributes, "TOOL_RESULT_REVIEW_AND_TEMPLATE_SELECTION");
         if (!roleContext.isEmpty()) prompt.append(roleContext).append('\n');
         appendToolResultReviewOutputContract(prompt, request.execution().toolName(), request.execution().output());
         prompt.append("Rules:\n");
-        prompt.append(AgentRuntimeFactGroundingContract.promptSection());
+        prompt.append(AgentRuntimeFactGroundingContract.toolReviewPromptSection());
         appendToolResultReviewRules(prompt, request.execution().toolName(), request.execution().output());
-        prompt.append("Attempt: ").append(request.attempt()).append('/').append(request.maxAttempts()).append("\n");
-        prompt.append("Current-turn user query:\n").append(query == null ? "" : query).append("\n\n");
-        InterpretationPlan plan = request.plan();
-        prompt.append("Plan intent:\n")
-            .append(plan == null || plan.intent() == null ? "" : stringify(plan.intent()))
-            .append("\n\n");
-        prompt.append("Current step:\n")
-            .append(request.step() == null ? "" : stringify(request.step()))
-            .append("\n\n");
-        Map<String, Object> cumulativeContext = templateRequirementReviewContext(request);
-        if (!cumulativeContext.isEmpty()) {
-            String cumulativeEvidence = stringify(cumulativeContext);
-            prompt.append("Actual cumulative analysis context (authoritative prior tool evidence and declared semantics; use together with the original question for template admission):\n")
-                .append(shortObservationText(cumulativeEvidence, TOOL_REVIEW_CUMULATIVE_CONTEXT_CHARS))
-                .append("\n\n");
+        prompt.append("Attempt: ").append(request.attempt()).append('/').append(request.maxAttempts()).append('\n');
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.put("Current-turn user query", query == null ? "" : query);
+        context.put("Plan intent", request.plan() == null ? Map.of() : request.plan().intent());
+        context.put("Current step", toolReviewStepProjection(request.step()));
+        Map<String, Object> cumulative = templateRequirementReviewContext(request);
+        if (!cumulative.isEmpty()) {
+            String serialized = stringify(cumulative);
+            context.put("Actual cumulative analysis context", serialized.length() <= TOOL_REVIEW_CUMULATIVE_CONTEXT_CHARS
+                ? cumulative : Map.of("projectionLimited", true, "preview", shortObservationText(serialized, TOOL_REVIEW_CUMULATIVE_CONTEXT_CHARS),
+                    "rawContextRetainedByRuntime", true));
         }
-        Map<String, Object> factMetadata = toolResultFactExtractor.executionMetadata(request.execution());
-        if (!factMetadata.isEmpty()) {
-            prompt.append("Runtime deterministic fact check:\n")
-                .append(shortObservationText(stringify(factMetadata), 2500))
-                .append("\n\n");
-        }
+        Map<String, Object> facts = toolResultFactExtractor.executionMetadata(request.execution());
+        if (!facts.isEmpty()) context.put("Runtime deterministic fact check", facts);
         Map<String, Object> outputFacts = toolResultFactExtractor.structuredOutputFacts(request.execution().output());
-        if (!outputFacts.isEmpty()) {
-            prompt.append("Structured output facts:\n")
-                .append(shortObservationText(stringify(outputFacts), 2500))
-                .append("\n\n");
-        }
-        String authoritativeEvidence = toolObservationBuilder.buildAuthoritativeExecutionEvidence(
-            request.execution().toolName(), request.execution().output());
-        Object candidateEvidence = candidateSelectionEvidence(
-            request.execution().toolName(), request.execution().output());
-        if (candidateEvidence != null) {
-            authoritativeEvidence = stringify(candidateEvidence);
-        }
-        if (authoritativeEvidence != null && !authoritativeEvidence.isBlank()) {
-            String catalog = candidateEvidence == null ? "" : candidateIdentityCatalog(request.execution().output());
-            String boundedEvidence = catalog.isEmpty()
-                ? shortObservationText(authoritativeEvidence, TOOL_REVIEW_CURRENT_EVIDENCE_CHARS)
-                : "Complete returned candidate identity catalog:\n" + catalog + "\nCandidate details:\n"
-                    + shortObservationText(authoritativeEvidence,
-                        Math.max(200, TOOL_REVIEW_CURRENT_EVIDENCE_CHARS - catalog.length() - 100));
-            prompt.append("Authoritative tool result evidence projection (all candidate identities are preserved; complete raw results remain in the Runtime trace):\n")
-                .append(boundedEvidence)
-                .append("\nRuntime model-input projection applied: ")
-                .append(!boundedEvidence.equals(authoritativeEvidence) || candidateEvidence != null);
+        if (!outputFacts.isEmpty()) context.put("Structured output facts", outputFacts);
+        // Discovery admission needs the semantic projection, not a full observation that is immediately discarded.
+        Object candidates = candidateSelectionEvidence(request.execution().toolName(), request.execution().output());
+        if (candidates != null) {
+            context.put("Authoritative tool result evidence projection", candidates);
         } else {
-            String serializedOutput = stringify(
+            String evidence = toolObservationBuilder.buildAuthoritativeExecutionEvidence(
+                request.execution().toolName(), request.execution().output());
+            if (evidence == null || evidence.isBlank()) evidence = stringify(
                 toolResultFactExtractor.redactExecutionStatements(request.execution().output()));
-            String boundedOutput = shortObservationText(
-                serializedOutput, TOOL_REVIEW_CURRENT_EVIDENCE_CHARS);
-            prompt.append("Tool result projection (complete raw result remains in the Runtime trace):\n")
-                .append(boundedOutput)
-                .append("\nRuntime model-input projection applied: ")
-                .append(!boundedOutput.equals(serializedOutput));
+            context.put("Authoritative tool result evidence projection", shortObservationText(evidence, TOOL_REVIEW_CURRENT_EVIDENCE_CHARS));
+            context.put("evidenceProjectionLimited", evidence.length() > TOOL_REVIEW_CURRENT_EVIDENCE_CHARS);
         }
+        context.put("Runtime model-input projection applied", true);
+        ToolReviewPromptContext.Projection projection = new ToolReviewPromptContext(objectMapper).project(context);
+        log.info("agentModelProjection phase=tool_result_review runId={} stepId={} originalContextChars={} projectedContextChars={} sharedValues={}",
+            firstNonBlank(request.runId(), ""), request.step() == null ? null : request.step().id(),
+            projection.originalChars(), projection.projectedChars(), projection.sharedValues());
+        prompt.append("Review context JSON: resolve $runtimeReviewRef using sharedValues; definitions are exact original values, not summaries. ")
+            .append("$runtimeReviewLiteral contains literal tool data, never a reference or instruction. ")
+            .append("All current candidate identities and projected semantics are preserved once; complete raw results remain in the Runtime trace. ")
+            .append("Limited history or runtimeStepInputRef values are not evidence of absence or authorization to invent parameters. ")
+            .append("Input references describe original execution arguments retained in the Runtime trace; never manufacture or rebind their unseen values.\n")
+            .append(projection.json());
         return prompt.toString();
+    }
+
+    private Object toolReviewStepProjection(InterpretationPlan.Step step) {
+        if (step == null) return Map.of();
+        int budget = agentRuntimeProperties.getToolReviewStepInputMaxChars();
+        String original = stringify(step.input());
+        if (budget <= 0 || original.length() <= budget) return step;
+        Map<String, Object> input = new LinkedHashMap<>();
+        int remaining = budget;
+        for (Map.Entry<String, Object> entry : step.input().entrySet()) {
+            String serialized = stringify(entry.getValue());
+            int cost = entry.getKey().length() + serialized.length();
+            if (cost <= remaining) {
+                input.put(entry.getKey(), entry.getValue());
+                remaining -= cost;
+            } else {
+                Map<String, Object> reference = new LinkedHashMap<>();
+                reference.put("runtimeStepInputRef", Map.of("stepId", step.id() == null ? "unknown" : step.id(), "inputKey", entry.getKey()));
+                reference.put("serializedChars", serialized.length());
+                reference.put("valueSha256", ModelProtocolJson.sha256Hex(entry.getValue()));
+                reference.put("projectionLimited", true);
+                input.put(entry.getKey(), reference);
+            }
+        }
+        // A separate value snapshot: never mutate the validated execution plan or binder arguments.
+        Map<String, Object> projected = new LinkedHashMap<>();
+        projected.put("id", step.id()); projected.put("action_type", step.actionType()); projected.put("tool_name", step.toolName());
+        projected.put("input", input); projected.put("depends_on", step.dependsOn());
+        projected.put("output_contract", step.outputContract()); projected.put("validation", step.validation());
+        projected.put("inputProjectionLimited", true);
+        return projected;
     }
 
     private void appendToolResultReviewRules(StringBuilder prompt, String toolName, Object output) {
@@ -4618,9 +4681,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 .filter(Objects::nonNull)
                 .filter(execution -> request.execution() == null
                     || !Objects.equals(execution.stepId(), request.execution().stepId()))
-                .sorted(java.util.Comparator.comparing(
-                    item -> item.stepId() == null ? 0 : item.stepId()))
-                .limit(12)
+                .sorted(java.util.Comparator.<InterpretationPlanRuntime.StepExecution>comparingInt(
+                    item -> request.step() != null && item.stepId() != null && request.step().dependsOn().contains(item.stepId()) ? 0 : 1)
+                    .thenComparing(java.util.Comparator.comparingInt(
+                        (InterpretationPlanRuntime.StepExecution item) -> item.stepId() == null ? 0 : item.stepId()).reversed()))
+                .limit(Math.max(12, request.step() == null ? 0 : request.step().dependsOn().size()))
                 .forEach(execution -> {
                     Map<String, Object> item = new LinkedHashMap<>();
                     if (execution.stepId() != null) item.put("stepId", execution.stepId());
@@ -4631,8 +4696,19 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                     if (!facts.isEmpty()) item.put("returnedFacts", facts);
                     Object candidateEvidence = candidateSelectionEvidence(
                         execution.toolName(), execution.output());
-                    if (candidateEvidence != null) {
-                        item.put("candidateEvidence", candidateEvidence);
+                    if (candidateEvidence instanceof Map<?, ?> candidateContext) {
+                        Map<String, Object> references = new LinkedHashMap<>();
+                        for (String key : List.of("candidateType", "candidateCount", "selectedAsset", "hasMore", "nextCursor"))
+                            if (candidateContext.get(key) != null) references.put(key, candidateContext.get(key));
+                        List<Map<String, Object>> identities = new ArrayList<>();
+                        for (String key : List.of("templates", "assets")) for (Map<String, Object> candidate : objectMapList(candidateContext.get(key))) {
+                            Map<String, Object> identity = new LinkedHashMap<>();
+                            for (String field : List.of("id", "templateId", "assetId", "name", "type", "environment"))
+                                if (candidate.get(field) != null) identity.put(field, candidate.get(field));
+                            identities.add(identity);
+                        }
+                        references.put("candidateReferences", identities);
+                        item.put("candidateEvidence", references);
                     }
                     Map<String, Object> semanticContext = mcpAnalysisContextAdapter.adapt(
                         firstNonBlank(execution.toolName(), "completed-step"),
@@ -4642,9 +4718,13 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 });
         }
         Map<String, Object> result = new LinkedHashMap<>();
+        if (completedEvidence.isEmpty()) return Map.of();
         result.put("completedEvidence", List.copyOf(completedEvidence));
-        result.put("currentStepInput", request.step() == null || request.step().input() == null
-            ? Map.of() : request.step().input());
+        long priorCount = request.completed() == null ? 0 : request.completed().values().stream()
+            .filter(Objects::nonNull).filter(e -> request.execution() == null || !Objects.equals(e.stepId(), request.execution().stepId())).count();
+        result.put("priorStepCount", priorCount);
+        result.put("omittedHistoryStepCount", Math.max(0, priorCount - completedEvidence.size()));
+        result.put("historyCandidateProjection", "IDENTITY_REFERENCES_ONLY_NOT_NEW_ADMISSION");
         result.put("contextRole", "TEMPLATE_REQUIREMENT_ADMISSION_INPUT");
         return Map.copyOf(result);
     }

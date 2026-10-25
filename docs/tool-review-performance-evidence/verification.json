@@ -1,0 +1,22 @@
+{
+    "baselineCommit":  "387d11707",
+    "javaTargetedTests":  {
+                              "skipped":  0,
+                              "failed":  0,
+                              "passed":  38
+                          },
+    "frontendTests":  {
+                          "passed":  73,
+                          "failed":  0
+                      },
+    "chatModuleAndDependenciesPackage":  "BUILD SUCCESS",
+    "frontendProductionBuild":  "PASS",
+    "fullLegacyClassPassed":  false,
+    "newLegacyFailureNames":  [
+
+                              ],
+    "productionLogsMatchingReviewMetrics":  0,
+    "productionDeployed":  false,
+    "agentsJarSha256":  "21ee2ed9101387a859989cc1f72e9d4de1e35f19fa723d21db7ff1ed615a35df",
+    "chatJarSha256":  "68650d3e43566a36f29c49aa85f1431dfecebb49de61465eac3ad5d702edc89c"
+}

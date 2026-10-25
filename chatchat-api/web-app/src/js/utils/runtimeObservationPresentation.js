@@ -68,6 +68,11 @@ export function runtimeObservationPresentation(runtimePayload = {}) {
       status: applied ? "done" : "warning"
     };
   }
+  if (eventKind === "TOOL_REVIEW_STAGE") {
+    const titles = { TOOL_RESULT_REVIEW_COVERAGE: "模板覆盖检查", TOOL_RESULT_REVIEW_BINDING: "受控参数绑定" };
+    return { title: titles[upper(metadata.modelPhase)] || "工具结果审查阶段", toolName: "tool_review_stage",
+      status: eventState === "FAILED" ? "error" : (eventState === "COMPLETED" ? "done" : "active") };
+  }
   if (eventKind === "MODEL_INFERENCE") {
     const phase = upper(metadata.modelPhase);
     const title = phase === "TOOL_RESULT_REVIEW" ? "模型审查工具结果" : "模型分析中";
@@ -157,6 +162,9 @@ export function runtimeObservationIdentity(runtimePayload = {}) {
   }
   if (upper(metadata.eventKind) === "MODEL_INFERENCE") {
     return `model-inference:${metadata.modelPhase || "unknown"}:${metadata.stepId || "run"}`;
+  }
+  if (upper(metadata.eventKind) === "TOOL_REVIEW_STAGE") {
+    return `tool-review-stage:${metadata.modelPhase || "unknown"}:${metadata.stepId || "run"}:${metadata.attempt || 1}`;
   }
   if (upper(metadata.type) === "BUSINESS_ANALYSIS_PROGRESS" && metadata.progressId) {
     return `business-analysis:${metadata.progressId}`;

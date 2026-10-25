@@ -6,6 +6,15 @@ import {
 } from "./runtimeObservationPresentation.js";
 
 describe("runtime observation presentation", () => {
+  it("separates coverage and binding phases without creating a new identity on completion", () => {
+    for (const [phase, title] of [["tool_result_review_coverage", "模板覆盖检查"], ["tool_result_review_binding", "受控参数绑定"]]) {
+      const metadata = { eventKind: "TOOL_REVIEW_STAGE", modelPhase: phase, stepId: 25, attempt: 2, eventState: "STARTED" };
+      expect(runtimeObservationPresentation({ metadata })).toEqual({ title, toolName: "tool_review_stage", status: "active" });
+      expect(runtimeObservationPresentation({ metadata: { ...metadata, eventState: "FAILED" } }).status).toBe("error");
+      expect(runtimeObservationIdentity({ metadata })).toBe(runtimeObservationIdentity({ metadata: { ...metadata, eventState: "COMPLETED" } }));
+      expect(runtimeObservationIdentity({ metadata })).not.toBe(runtimeObservationIdentity({ metadata: { ...metadata, attempt: 3 } }));
+    }
+  });
   it('shows preparation and submission without claiming Cline has started',()=>{
     for(const stage of ['FILE_REFERENCES_PREPARING','CLINE_SUBMITTING','RESULT_VALIDATING']) {
       const progress=runtimeObservationPresentation({metadata:{eventKind:'FILE_ANALYSIS',stage,eventState:'RUNNING'}});

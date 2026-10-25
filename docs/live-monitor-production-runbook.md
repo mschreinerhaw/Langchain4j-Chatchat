@@ -1,6 +1,6 @@
-# 从本地 Live Monitor 发布 Runtime OS
+# 通过 Live Monitor 发布 Runtime OS
 
-2026-10-25 已按用户授权完成生产接管。控制面是本地 **http://127.0.0.1:18080/#/ops/stacks**，通过受限 SSH Agent 部署服务器；不是远程演示页面。原业务入口及数据保持原样。
+2026-10-25 已按用户授权完成生产接管，并将控制面从本地冷迁移为服务器常驻容器。当前入口 **http://192.168.195.221:18080/#/ops/delivery**；应用栈发布在 `/#/ops/stacks`。原账号、凭据、任务和业务数据保留，本地调度已停止，避免同一应用被两个控制器同时恢复。详细交付验收见监控仓库 `docs/container-ops/09-delivery-acceptance.md`。
 
 实际发布任务 `222bbaf8-712f-4a46-b105-3751e5b862b5` 由 Vue 页面发起并成功完成。七个业务服务容器全部替换；业务镜像内容、环境、持久挂载、配置/密钥、权限和模板绑定核验一致。共享 PostgreSQL、Redis、OpenSearch 保留原实例和数据，授权服务作为外部依赖探测。发布包、策略和镜像 Digest 的校验在服务器执行。
 
@@ -11,7 +11,7 @@
 1. 按现有构建流水线构建并执行业务测试，将候选镜像发布为不可变 Digest。不要把旧容器文件系统误当成新版本源码。
 2. 准备服务名到完整镜像 Digest 的 JSON 映射；通过 `scripts/prepare-live-monitor-release.py --candidate-images-file ...` 在授权主机上生成新的批准发布包。目标主机、环境、源 Compose、共享依赖与业务探测契约由参数/契约文件提供；不在通用平台写死业务服务、IP、SQL 或端口。
 3. 准备工具只转存校验镜像、快照配置、保留原版本作为回滚基线并追加批准包；不重启业务。原包和原环境加密身份保留，不覆盖其他环境状态。主机工具在 `/opt/live-monitor-managed-releases/tools/`。
-4. 在本地“应用栈发布”页面登记或编辑包引用及 SHA256，执行“部署前检查”。配置或网络策略改变时须先完成相应契约审查。
+4. 在平台“应用栈发布”页面登记或编辑包引用及 SHA256，执行“部署前检查”。配置或网络策略改变时须先完成相应契约审查。
 5. 确认没有活跃业务任务/编码会话，明确维护窗口及数据兼容性，再点击“备份并发布应用栈”。后台顺序执行镜像校验、空闲检查、暂停写入、备份/校验、重建、网络隔离钩子和稳定健康检查。
 6. 查看任务事件、真实服务日志和自动采样结果；退出维护模式。失败会恢复上一个配置并校验健康，原数据不自动删除。
 
@@ -21,4 +21,4 @@
 
 服务器迁移核验工具为 `scripts/verify-live-monitor-takeover.py`；对比业务 JAR、环境、静态地址、命名空间、持久挂载、只读配置/密钥、权限指纹和非目标容器。数据库名称、验证表与探测契约留在主机私有契约中。
 
-本地登录信息位于监控仓库忽略目录 `target/runtime-os-production-control/login-private.json`，完整稳定密钥在独立私有身份文件，均不提交 Git。详细实施与验收报告在 live-monitor-java 仓库 `docs/container-ops/07-runtime-takeover.md`。
+登录信息位于监控仓库忽略目录 `target/runtime-os-production-control/login-private.json`，已记录服务器入口。完整稳定密钥在独立私有身份文件，均不提交 Git。控制面持久目录为服务器 `/opt/live-monitor-production-control`，本地原数据保留作迁移前备份，不直接重新启动本机调度。最初接管记录在监控仓库 `docs/container-ops/07-runtime-takeover.md`，当前客户操作手册及验收在 `08-customer-delivery.md`、`09-delivery-acceptance.md`。

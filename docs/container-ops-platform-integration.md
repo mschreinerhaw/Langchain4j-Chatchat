@@ -2,7 +2,7 @@
 
 **当前状态**：用户已进一步授权真实生产接管，本地 Live Monitor 已完成七服务替换、共享依赖核验和持续监控。后续生产操作见 [live-monitor-production-runbook.md](live-monitor-production-runbook.md)；下文保留原接入背景。
 
-本仓库的 `feature/container-ops-platform` 从 `main / 86d496089` 建立。API 前端已通过 package.json / Vue createApp 入口确认是 Vue3，无须换成旧前端。监控平台实现位于独立仓库 `live-monitor-java` 的同名开发分支（基于已核实的 `origin/feature/vue3-frontend / 9222560`）。生产分支未修改。当前控制面运行在本地，已按用户授权替换生产七服务容器并接管原 /opt 部署入口；业务二进制与数据保持原样。
+本仓库的 `feature/container-ops-platform` 从 `main / 86d496089` 建立。API 前端已通过 package.json / Vue createApp 入口确认是 Vue3，无须换成旧前端。监控平台实现位于独立仓库 `live-monitor-java` 的同名开发分支（基于已核实的 `origin/feature/vue3-frontend / 9222560`）。生产分支未修改。最初由本地控制面按授权替换生产七服务容器并接管原 /opt 部署入口；当前控制面已冷迁移为服务器常驻容器，本机调度停止。业务二进制与数据保持原样，新增统一监控和部署交付向导。
 
 ## 责任边界
 

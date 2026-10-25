@@ -1,0 +1,99 @@
+{
+  "date": "2026-10-25",
+  "timezone": "Asia/Shanghai",
+  "branch": "fix/runtime-os-tool-review-performance",
+  "sourceCommit": "e6eba0291792faefc49a6cf10b3674502bd66aed",
+  "git": {
+    "originalHead": "011f6d35a",
+    "mergeCommits": [
+      "f73f1ad25",
+      "b7f418a2d",
+      "ce851f0c7"
+    ],
+    "worktreeBackup": "../runtime-review-backup-20261025-225310"
+  },
+  "tests": {
+    "java": {
+      "run": 379,
+      "passed": 378,
+      "failed": 0,
+      "skipped": 1,
+      "skipReason": "coding.sqlglotPython not configured"
+    },
+    "node": {
+      "passed": 52,
+      "failed": 0,
+      "skipped": 0
+    },
+    "frontend": {
+      "passed": 40,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "artifacts": {
+    "sourceRevision": "e6eba0291",
+    "sourceCommit": "e6eba0291792faefc49a6cf10b3674502bd66aed",
+    "branch": "fix/runtime-os-tool-review-performance",
+    "jars": {
+      "api": "854026c00480746cf44f6218304814284419dcb44e1afaf5bf3cb7044e68e699",
+      "mcp": "10768bd17834981f4e2a59050ebe72754f672e863c60bf602625947eb30d8766"
+    },
+    "canonicalReviewerSha256": "66270f18cdbc02ed5c719cb2eeef2e5eff9c26d46f124c6bcb3193beeb76592f",
+    "packageGate": "BUILD SUCCESS",
+    "javaTests": {
+      "run": 300,
+      "passed": 299,
+      "skipped": 1,
+      "failed": 0
+    },
+    "nodeTests": {
+      "passed": 52
+    },
+    "frontendTests": {
+      "passed": 40
+    }
+  },
+  "logs": {
+    "package.log": {
+      "sha256": "bdfe564ff21b2b4cc232d45ddf73c29d5033ab1bdbd8a1c4fc188c9f9b1158dd"
+    },
+    "regression-package.log": {
+      "sha256": "cb4eb07702002847c5d73573eae85710c3495bba0979552eaf072719ab6996a2"
+    },
+    "execution-regression-retry.log": {
+      "sha256": "9adacf2411a8688b8c9aa354256d1d901c5e79db12556b11fe6c626326f97aca"
+    },
+    "node-tests-complete.log": {
+      "sha256": "601d5cdc04fd316e7926e9269087faf5df4af6450f46f47691f3cd9e479b63e2"
+    },
+    "frontend-tests.log": {
+      "sha256": "3800ab8e6535cf97896f487046adc322b73506ab77774f964cddc8ec41b2874c"
+    }
+  },
+  "baseline": {
+    "taskId": "6c2eb79c-72ed-32fe-a91f-6d532d231832",
+    "runtimeRevision": "715e09f92",
+    "status": "FAILED",
+    "endToEndMs": 153329,
+    "toolResultReviewMs": 60012,
+    "reviewPromptChars": 21876,
+    "reviewInputTokensEstimated": 6856,
+    "reviewModelCalls": 1,
+    "codingReached": false,
+    "pythonReached": false,
+    "source": "Authenticated Runtime task/event API and model logs"
+  },
+  "deployment": {
+    "status": "AWAITING_CONTROL_CREDENTIAL",
+    "host": "192.168.195.221",
+    "sshPort": 5221,
+    "releaseDirectory": "/opt/live-monitor-managed-releases/release-20261025-tool-review-e6eba0291",
+    "productionRestarted": false
+  },
+  "performanceAcceptance": {
+    "afterSamples": 0,
+    "p95Reduction": null,
+    "targetMet": null
+  }
+}

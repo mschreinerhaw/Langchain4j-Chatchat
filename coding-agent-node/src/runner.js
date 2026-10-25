@@ -91,6 +91,22 @@ export function createCodingRun(contract, gateway, options = {}) {
     try { options.observe?.(progress); } catch { /* isolated operator observer */ }
     if (typeof gateway.event === 'function') await gateway.event(progress);
   };
+  if (reviewedAnalysis && (!permitted.has('artifact_read') || typeof gateway.readArtifact !== 'function'))
+    throw new TypeError('Reviewed analysis requires authorized Runtime artifact reads');
+  const readArtifact = async (reference, signal, automatic = false) => {
+    await forward({ type: 'TOOL_STARTED', tool: 'artifact_read', reference, automatic });
+    const result = await gateway.readArtifact(contract, reference, signal);
+    if (automatic && (result?.reference !== reference || result.complete !== true
+        || !Array.isArray(result.rows) || result.rows.length !== 1))
+      throw new TypeError('REVIEWED_ARTIFACT_INVALID: exact complete Runtime report required');
+    if (result.reportReferenceValidation) {
+      reportReferenceFailure = result.reportReferenceValidation.valid === true ? null : result.reportReferenceValidation;
+      if (reportReferenceFailure) lastCollectedOperation = null;
+    }
+    await forward({ type: 'TOOL_FINISHED', tool: 'artifact_read', reference, automatic,
+      status: reportReferenceFailure ? 'FAILED' : 'SUCCEEDED' });
+    return result;
+  };
   const tools = [];
   if(analysis&&permitted.has('sql_validate'))tools.push({
     name:'sql_validate',description:'Parse SQL with the trusted Java SQLGlot toolchain. Static diagnostics only: no SQL execution or database access. For execution use Python Sandbox with SQLite over delivered immutable data.',
@@ -228,8 +244,11 @@ export function createCodingRun(contract, gateway, options = {}) {
           });
           receipt = await gateway.getPython(contract, id, context.signal);
         }
-        if (receipt.status === 'SUCCEEDED' && receipt.resultDatasetRef
-            && receipt.validationRecordRef && receipt.evidenceBundleRef)
+        const verified = receipt.status === 'SUCCEEDED' && receipt.executorStopped === true
+          && receipt.resultDatasetRef && receipt.validationRecordRef && receipt.evidenceBundleRef
+          && receipt.validationStatus !== 'FAILED' && receipt.resultAvailable !== false
+          && receipt.executionFeedback?.repair?.action !== 'STOP';
+        if (verified)
           lastCollectedOperation = id;
         await forward({ type: 'TOOL_FINISHED', tool: 'python_execute', operationId: id,
           status: receipt.status, resultDatasetRef: receipt.resultDatasetRef ?? null,
@@ -245,6 +264,15 @@ export function createCodingRun(contract, gateway, options = {}) {
           diagnosticCode: receipt.executionFeedback?.error?.diagnosticCode ?? null,
           repairAttempts: receipt.executionFeedback?.repair?.attemptsUsed ?? null,
           repairAllowed: receipt.executionFeedback?.repair?.allowed ?? null });
+        if (reviewedAnalysis && verified) {
+          // Reading the exact immutable result is a declared workflow step, not a
+          // semantic decision. Keep the complete report in the next Cline turn so
+          // semantic review and any necessary repair still happen there.
+          lastCollectedOperation = null;
+          const artifact = await readArtifact(receipt.resultDatasetRef, context.signal, true);
+          if (!reportReferenceFailure) lastCollectedOperation = id;
+          receipt = { ...receipt, reviewedArtifact: artifact };
+        }
         return receipt;
       } catch (error) {
         // A failed/aborted HTTP request does not establish that Sandbox stopped.
@@ -278,14 +306,7 @@ export function createCodingRun(contract, gateway, options = {}) {
     executionMode: 'sequential', retryable: false, maxRetries: 0,
     async execute(input, context) {
       const reference = required(input?.reference, 'reference');
-      await forward({ type: 'TOOL_STARTED', tool: 'artifact_read' });
-      const result = await gateway.readArtifact(contract, reference, context.signal);
-      if (result.reportReferenceValidation) {
-        reportReferenceFailure = result.reportReferenceValidation.valid === true ? null : result.reportReferenceValidation;
-        if (reportReferenceFailure) lastCollectedOperation = null;
-      }
-      await forward({ type: 'TOOL_FINISHED', tool: 'artifact_read', status: reportReferenceFailure ? 'FAILED' : 'SUCCEEDED' });
-      return result;
+      return readArtifact(reference, context.signal);
     },
   });
   const systemPrompt = (workspace && pythonWorkspace ? [
@@ -307,6 +328,7 @@ export function createCodingRun(contract, gateway, options = {}) {
     fileInput ? 'Each Python call starts a fresh sandbox with Java-authorized input versions. Use the exact files[].virtualPath values supplied by Java. All file ID directories are siblings directly under /data/input: the manifest is /data/input/{manifestFileId}/manifest.json, the schema is /data/input/{schemaFileId}/schema.json, and each part is /data/input/{part.fileId}/{part.fileName}. Never nest schema or part IDs under the manifest directory. Verify SHA-256 and row counts, map storage columns to logical names, and decode JSON cells. Use pyarrow or pandas.read_parquet(dtype_backend="pyarrow") to retain nullable integer/decimal precision. Parquet presence columns pN distinguish missing from null; CSV null/missing/backslash rules are explicit in schema.json. Full data stays in files, never ask to put it in a prompt. Do not reopen previous output in a new sandbox.' : 'Each Python call starts a fresh sandbox with the original immutable input and any additional input versions explicitly delivered by Java data_request, without earlier output files or Python variables. Single inputs use /data/input/{fileId}/input.jsonl; chunked inputs use /data/input/{fileId}/manifest.json and the ordered, hash-checked chunks listed there. Do not launch a new call just to open a previous output file.',
     'Runtime returns versioned executionFeedback after independently confirming process stop: safe exception category, normalized technical message, source locations, code hash, validation state and a Java-owned repair decision. Raw stdout/stderr and business values are omitted. When repair.allowed is true, stay in this task, keep the authorized immutable inputs, and prefer the smallest repair.edits against repair.baseCodeHash. Do not restart the analysis or fetch the same data again. When action is STOP do not execute another version, install dependencies, change permissions or expand access. Exit code zero without a validated result is a repairable output failure, never task completion.',
     'A SUCCEEDED receipt with resultDatasetRef, validationRecordRef and evidenceBundleRef means Runtime archived the result. INCONCLUSIVE with businessValidationPassed=false means business correctness was not evaluated, not an execution failure. You own the interpretation and must report that limitation; Runtime only validates structure and authorized references.',
+    ...(reviewedAnalysis ? ['For reviewed analysis, python_execute automatically calls the authorized artifact_read for the exact registered resultDatasetRef and returns the complete report under reviewedArtifact. Perform your semantic review on that actual report in your next turn. Do not call artifact_read again for the same report already supplied. Repair unsupported findings or invalid references when necessary; otherwise finish without another execution. Automatic reading does not establish business correctness.'] : []),
   ]).join('\n');
   const config = {
     agentId: sdkSessionId,
@@ -333,6 +355,8 @@ export function createCodingRun(contract, gateway, options = {}) {
           agent.abort('Runtime execution feedback requires STOP');
           return { result: { ...result, isError: true } };
         }
+        if (receipt?.reviewedArtifact?.reportReferenceValidation?.valid === false)
+          return { result: { ...result, isError: true } };
         if (!fastAnalysis) return;
         const verified = !result.isError && receipt?.status === 'SUCCEEDED' && receipt.executorStopped === true
           && receipt.resultDatasetRef && receipt.validationRecordRef && receipt.evidenceBundleRef
@@ -342,7 +366,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         return { result: { ...result, isError: !verified } };
       },
       async onEvent(event) {
-        if (fastAnalysis && lastCollectedOperation && event.type === 'message-added'
+        if ((fastAnalysis || reviewedAnalysis) && lastCollectedOperation && event.type === 'message-added'
             && event.message?.role === 'tool' && typeof gateway.checkpoint === 'function') {
           await gateway.checkpoint(contract, { sdkSessionId, checkpointOrdinal: ++checkpointOrdinal,
             modelOrdinal: modelIndex, eventOrdinal, messages: event.snapshot.messages, lastCollectedOperation, reportReferenceFailure, terminalFeedback,
@@ -398,6 +422,8 @@ export function createCodingRun(contract, gateway, options = {}) {
         try {
           if (result.status === 'completed' && reportReferenceFailure)
             throw new TypeError('REPORT_REFERENCE_REPAIR_REQUIRED: repair evidenceReferences using the exact Runtime-authorized dataset keys');
+          if (result.status === 'completed' && reviewedAnalysis && !lastCollectedOperation)
+            throw new TypeError('REVIEWED_RESULT_NOT_AVAILABLE: Runtime report read and validation must succeed before completion');
           await gateway.finish?.(contract, { status: terminalFeedback ? 'failed' : result.status, iterations: result.iterations,
             summary: terminalFeedback ?? result.outputText?.slice(0, 1024) ?? '',
             operationId: lastCollectedOperation });

@@ -137,13 +137,16 @@ test('reviewed analysis repairs locally and reads its scoped result before compl
     else if (turns === 2) yield { type: 'tool-call-delta', toolCallId: 'repair', toolName: 'python_execute',
       input: { fileName: 'main.py', repair: { baseCodeSha256: digest,
         edits: [{ oldText: 'raise ValueError(value)', newText: 'print(value)' }] } } };
-    else if (turns === 3) yield { type: 'tool-call-delta', toolCallId: 'review', toolName: 'artifact_read',
-      input: { reference: 'runtime-evidence:result' } };
-    else yield { type: 'text-delta', text: 'Reviewed result is supported.' };
-    yield { type: 'finish', reason: turns < 4 ? 'tool-calls' : 'stop' };
+    else {
+      assert.equal(turns, 3);
+      assert.match(JSON.stringify(request.messages), /reviewedArtifact/);
+      assert.match(JSON.stringify(request.messages), /supported/);
+      yield { type: 'text-delta', text: 'Reviewed result is supported.' };
+    }
+    yield { type: 'finish', reason: turns < 3 ? 'tool-calls' : 'stop' };
   } } });
   const result = await run.run();
-  assert.equal(result.status, 'completed'); assert.equal(turns, 4); assert.equal(executions, 2); assert.equal(reviewed, 1);
+  assert.equal(result.status, 'completed'); assert.equal(turns, 3); assert.equal(executions, 2); assert.equal(reviewed, 1);
   assert.equal(actual.source, 'value = 1\nprint(value)\n');
   assert.equal(finished.operationId, actual.operationId);
   assert.ok(run.events.some(event => event.type === 'TOOL_STARTED' && event.tool === 'artifact_read'));
@@ -160,7 +163,7 @@ test('report citation failures return to the Cline repair loop before task compl
     reserveModel() {}, settleModel() {}, finish(_task, value) { finished = value; },
     executePython() { executions++; return { status: 'SUCCEEDED', executorStopped: true,
       resultDatasetRef: 'runtime-evidence:result', validationRecordRef: 'validation', evidenceBundleRef: 'bundle' }; },
-    readArtifact() { return { rows: [{ reportMarkdown: 'report' }], complete: true,
+    readArtifact() { return { reference: 'runtime-evidence:result', rows: [{ reportMarkdown: 'report' }], complete: true,
       reportReferenceValidation: { valid: executions === 2, repairRequired: executions !== 2,
         authorizedDatasetReferences: ['exact-source#binding-1'] } }; },
   }, { model: { async *stream(request) {

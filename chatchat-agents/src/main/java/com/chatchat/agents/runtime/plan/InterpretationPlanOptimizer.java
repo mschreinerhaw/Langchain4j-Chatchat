@@ -182,13 +182,21 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
     @Override
     public void constrainBusinessCapabilityScope(PlanTransformationWorkspace workspace,
                                                  PlanTransformationContext context) {
+        // Expand staged publishers before narrowing template authority. Otherwise a
+        // planner's omitted/default template stage can take asset discovery with it.
+        List<InterpretationPlan.Step> staged = new ArrayList<>(workspace.steps());
+        List<InterpretationPlan.DependencyContract> stagedDependencies =
+            new ArrayList<>(workspace.dependencyContracts());
+        boolean expanded = materializePublishedAssetStages(staged, stagedDependencies);
         CapabilityScopeRewrite result = constrainBusinessCapabilityScope(
-            workspace.steps(), workspace.edgeContracts(), workspace.dependencyContracts(), workspace.bindings());
+            staged, workspace.edgeContracts(), stagedDependencies, workspace.bindings());
         workspace.steps(result.steps());
         workspace.edgeContracts(result.edgeContracts());
         workspace.dependencyContracts(result.dependencyContracts());
         workspace.bindings(result.bindings());
-        markChanged(workspace, "BusinessCapabilityScopePass", result.changed());
+        if (expanded) workspace.executionPolicy(expandPolicyForMaterializedSteps(
+            workspace.executionPolicy(), result.steps()));
+        markChanged(workspace, "BusinessCapabilityScopePass", result.changed() || expanded);
     }
 
     @Override
@@ -423,13 +431,8 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
     }
 
     private boolean publishesAssetAndTemplateStages(String toolName) {
-        ToolMetadata metadata = toolRegistry == null ? null : toolRegistry.getToolMetadata(toolName);
-        Map<String, Object> attributes = metadata == null || metadata.getMetadata() == null
-            ? Map.of() : metadata.getMetadata();
-        Map<String, Object> schema = metadataMap(attributes.get("inputSchema"));
-        Map<String, Object> properties = metadataMap(schema.get("properties"));
-        Object stages = metadataMap(properties.get("stage")).get("enum");
-        return stages instanceof Collection<?> values && values.contains("asset") && values.contains("template");
+        return com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.assetStages(
+            toolRegistry == null ? null : toolRegistry.getToolMetadata(toolName));
     }
 
     private InterpretationPlan.ExecutionPolicy expandPolicyForMaterializedSteps(

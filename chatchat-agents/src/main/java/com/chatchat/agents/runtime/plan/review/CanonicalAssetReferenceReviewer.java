@@ -25,8 +25,7 @@ public final class CanonicalAssetReferenceReviewer {
             || !Boolean.TRUE.equals(page.get("success"))
             || !Boolean.FALSE.equals(page.get("possiblyTruncated"))
             || !(page.get("assets") instanceof List<?> candidates) || candidates.isEmpty()
-            || !(page.get("returnedCount") instanceof Number count) || count.intValue()!=candidates.size()
-            || (page.get("unavailableCount") instanceof Number unavailable && unavailable.intValue()!=0))
+            || !(page.get("returnedCount") instanceof Number count) || count.doubleValue()!=candidates.size())
             return Optional.empty();
         Set<String> allIds = new HashSet<>();
         Map<String,String> matches = new LinkedHashMap<>();
@@ -42,11 +41,31 @@ public final class CanonicalAssetReferenceReviewer {
             }
         }
         if (matches.size()!=1) return Optional.empty();
+        if (!unavailableReferencesAreDisjoint(query,page,allIds)) return Optional.empty();
         var selected=matches.entrySet().iterator().next();
         return Optional.of(InterpretationPlanRuntime.StepReview.accepted(
             "The user explicitly named one canonical authorized asset; no fuzzy or rank-based selection was used.",
             Map.of("toolResultReviewSkipped",true,"toolResultReviewMode",MODE,
                 "selectedAssetIds",List.of(selected.getKey()),"assetReferenceMatchedField",selected.getValue())));
+    }
+
+    /** Unrelated unavailable assets do not invalidate an exact authorized identity.
+     * Their complete identities must still be present so ambiguity cannot be hidden. */
+    private static boolean unavailableReferencesAreDisjoint(String query,Map<?,?> page,Set<String> ids) {
+        Object raw=page.get("unavailableAssets");
+        List<?> unavailable=raw instanceof List<?> list?list:List.of();
+        if (page.get("unavailableCount") instanceof Number count) {
+            if (count.doubleValue()!=unavailable.size()) return false;
+        } else if (!unavailable.isEmpty()) return false;
+        for (Object candidate : unavailable) {
+            if (!(candidate instanceof Map<?,?> entry) || !(entry.get("asset") instanceof Map<?,?> asset)) return false;
+            String id=text(asset.get("id"));
+            if (id.isEmpty() || !ids.add(id.toLowerCase(Locale.ROOT))) return false;
+            String name=normalize(text(asset.get("name"))),display=normalize(text(asset.get("displayName")));
+            if (name.isEmpty() && display.isEmpty()) return false;
+            if (literalReference(query,name) || literalReference(query,display)) return false;
+        }
+        return true;
     }
 
     private static boolean literalReference(String query, String name) {

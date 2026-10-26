@@ -41,6 +41,23 @@ class CanonicalAssetReferenceReviewerTest {
         var disabled=page(Map.of("asset",Map.of("id","a","name","node-alpha","enabled",false)));
         assertThat(CanonicalAssetReferenceReviewer.review("inspect node-alpha",disabled)).isEmpty();
     }
+    @Test void exactAuthorizedIdentitySurvivesCompleteUnrelatedUnavailableCatalog() {
+        var page=page(candidate("a","node-alpha"));
+        page.put("unavailableCount",2);
+        page.put("unavailableAssets",List.of(candidate("b","node-beta"),candidate("c","node-gamma")));
+        var review=CanonicalAssetReferenceReviewer.review("inspect node-alpha status",page).orElseThrow();
+        assertThat(new EvidenceBasedAssetCandidateEvaluator().evaluate(page,review.metadata()).selectedIds()).containsExactly("a");
+    }
+    @Test void unavailableConflictsAndIncompleteIdentitiesStillRequireClarification() {
+        for (var unavailable : List.of(candidate("b","node-alpha"),candidate("A","unrelated"),Map.<String,Object>of("asset",Map.of("id","b")))) {
+            var page=page(candidate("a","node-alpha"));page.put("unavailableCount",1);page.put("unavailableAssets",List.of(unavailable));
+            assertThat(CanonicalAssetReferenceReviewer.review("inspect node-alpha status",page)).isEmpty();
+        }
+        var missing=page(candidate("a","node-alpha"));missing.put("unavailableCount",1);
+        assertThat(CanonicalAssetReferenceReviewer.review("inspect node-alpha status",missing)).isEmpty();
+        missing.put("unavailableCount",0.5);
+        assertThat(CanonicalAssetReferenceReviewer.review("inspect node-alpha status",missing)).isEmpty();
+    }
     @Test void oneNamedCandidateCannotNarrowComparativeOrInclusiveScope() {
         var page=page(candidate("a","node-alpha"),candidate("b","node-beta"));
         for(String query:List.of("compare node-alpha with its peers", "inspect every node including node-alpha",

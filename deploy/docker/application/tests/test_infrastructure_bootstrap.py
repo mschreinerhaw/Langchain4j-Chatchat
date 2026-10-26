@@ -54,6 +54,7 @@ class InfrastructureBootstrapTest(unittest.TestCase):
                 MCP_HOST_MAC_FILE='/etc/hostname',OPENSEARCH_CERTS_DIR=str(certificates),OPENSEARCH_TRUSTSTORE_FILE=str(stage/'unused.p12'),
                 API_INTERNAL_KEY_FILE=str(password_files['internal']),MCP_INTERNAL_KEY_FILE=str(password_files['internal']),
                 CODING_AGENT_SHARED_SECRET_FILE=str(password_files['coding']),CODING_AGENT_NODE_SECRET_FILE=str(password_files['coding']),
+                CODING_MONITOR_TOKEN_FILE=str(password_files['internal']),
                 POSTGRESQL_ADMIN_PASSWORD_FILE=str(password_files['postgresql-admin']),POSTGRESQL_API_PASSWORD_FILE=str(password_files['postgresql-api']),
                 POSTGRESQL_MCP_PASSWORD_FILE=str(password_files['postgresql-mcp']),REDIS_PASSWORD_FILE=str(password_files['redis']),
                 OPENSEARCH_ADMIN_PASSWORD_FILE=str(password_files['opensearch-admin']),BOOTSTRAP_ADMIN_PASSWORD_FILE=str(password_files['bootstrap-admin']),

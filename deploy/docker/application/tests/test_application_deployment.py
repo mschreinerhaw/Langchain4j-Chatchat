@@ -25,6 +25,7 @@ class ApplicationDeploymentTest(unittest.TestCase):
                       'MODEL_CONFIG_FILE': '/config/model.yml', 'MCP_HOST_MAC_FILE': '/sys/class/net/ens192/address',
                       'API_INTERNAL_KEY_FILE': '/keys/api', 'MCP_INTERNAL_KEY_FILE': '/keys/mcp',
                       'CODING_AGENT_SHARED_SECRET_FILE': '/keys/shared', 'CODING_AGENT_NODE_SECRET_FILE': '/keys/node',
+                      'CODING_MONITOR_TOKEN_FILE': '/keys/monitor',
                       'NEWS_DATA_DIR': '/existing/news/data', 'NEWS_CONFIG_DIR': '/existing/news/config'}
             for key in ['POSTGRESQL_ADMIN_PASSWORD_FILE', 'POSTGRESQL_API_PASSWORD_FILE',
                         'POSTGRESQL_MCP_PASSWORD_FILE', 'REDIS_PASSWORD_FILE',

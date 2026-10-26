@@ -41,13 +41,15 @@ touch "$STAGE_ROOT/config/"{api,mcp,news}.env
 生成以下新部署密钥（已有部署从密钥管理系统导入，不覆盖原文件）。不要将整个真实 env 文件提交到 Git，也不要在工单中粘贴 `compose config` 的完整输出。
 
 ```bash
-for name in postgresql-admin postgresql-api postgresql-mcp redis opensearch-admin bootstrap-admin coding-shared; do
+for name in postgresql-admin postgresql-api postgresql-mcp redis opensearch-admin bootstrap-admin coding-shared coding-monitor.token; do
   test ! -e "$STAGE_ROOT/secrets/$name" || { echo "Refusing to replace $name"; exit 1; }
   openssl rand -hex 32 | tr -d '\n' > "$STAGE_ROOT/secrets/$name"
 done
 cp "$STAGE_ROOT/secrets/coding-shared" "$STAGE_ROOT/secrets/coding-node"
 chown root:32101 "$STAGE_ROOT/secrets/coding-node"
 chmod 640 "$STAGE_ROOT/secrets/coding-node"
+chown root:32101 "$STAGE_ROOT/secrets/coding-monitor.token"
+chmod 640 "$STAGE_ROOT/secrets/coding-monitor.token"
 chmod 700 "$STAGE_ROOT/secrets"
 # 官方 PostgreSQL entrypoint 会降权，两个应用密码必须可被其 postgres 用户读取。
 # 镜像须已离线导入或从批准仓库安装；自定义镜像用实际 POSTGRESQL_IMAGE。
@@ -57,6 +59,8 @@ chmod 640 "$STAGE_ROOT/secrets/"postgresql-{admin,api,mcp}
 ```
 
 `api-internal.key`、`mcp-internal.key`、模型配置、News 配置和授权 license 使用现有配置管理流程提供；加密后的配置值必须与对应密钥匹配，不要随机替换密钥。`bootstrap-admin` 仅用于创建/修复无密码管理员，已有有效密码不会被改写。Compose 用 Spring config tree 读取数据库、OpenSearch 和初始化密码，不把明文放入 YAML 或进程启动参数。
+
+监控控制台为 Runtime 网关的 `/monitor/`。网关只将 `/monitor`、`/monitor/` 和 `/v1/monitor/` 白名单经 API 网络空间中的 8792 监控监听转给 Coding Agent；执行接口仍仅由 Java 访问回环 8791。浏览器通过独立的 `coding-monitor.token` 登录，监控令牌不等同于执行密钥；Cookie 和 Origin/Host 保持同源。监控历史保存在独立持久卷。TLS 入口可设置 `CODING_MONITOR_SECURE_COOKIE=true`。
 
 向 `OPENSEARCH_CERTS_DIR` 安装 [OpenSearch 证书清单](docker/opensearch/certs/README.md)，UID 1000 必须能读取目录和必要文件。不要将 CA 私钥部署到容器。生成 Java truststore 时保留 JRE 原有公有 CA，避免影响模型供应商 HTTPS；下面在安装了 JDK 的维护主机执行：
 

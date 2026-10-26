@@ -296,9 +296,16 @@ services:
       RUNTIME_CODING_CALLBACK_URL: ${CODING_CALLBACK_URL:-http://api:8080}
       RUNTIME_CODING_ALLOWED_CALLBACK_HOSTS: ${CODING_CALLBACK_ALLOWED_HOSTS:-api}
       RUNTIME_CODING_SHARED_SECRET_FILE: /run/secrets/coding_agent_shared_secret
+      RUNTIME_CODING_MONITOR_TOKEN_FILE: /run/secrets/coding_node_monitor
+      RUNTIME_CODING_MONITOR_DIRECTORY: /srv/monitor-data
+      RUNTIME_CODING_MONITOR_SECURE_COOKIE: ${CODING_MONITOR_SECURE_COOKIE:-false}
     secrets:
       - source: coding_agent_node_secret
         target: coding_agent_shared_secret
+      - source: coding_monitor_token
+        target: coding_node_monitor
+    volumes:
+      - coding-monitor-data:/srv/monitor-data
     networks:
       coding: {}
     read_only: true
@@ -387,11 +394,14 @@ secrets:
     file: ${CODING_AGENT_SHARED_SECRET_FILE:?Set CODING_AGENT_SHARED_SECRET_FILE}
   coding_agent_node_secret:
     file: ${CODING_AGENT_NODE_SECRET_FILE:?Set CODING_AGENT_NODE_SECRET_FILE}
+  coding_monitor_token:
+    file: ${CODING_MONITOR_TOKEN_FILE:?Set a separate read-only CODING_MONITOR_TOKEN_FILE}
 
 volumes:
   postgresql-data:
   redis-data:
   opensearch-data:
+  coding-monitor-data:
 
 networks:
   control:

@@ -45,6 +45,7 @@ import com.chatchat.enterprise.repository.identity.SysTenantRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRoleRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Service;
@@ -75,8 +76,12 @@ import static com.chatchat.common.constants.TenantConstants.PLATFORM_TENANT_NO;
 public class EnterpriseAdminService implements ApplicationRunner {
 
     private static final String DEFAULT_TENANT_CODE = "default";
-    private static final String LEGACY_TENANT_CODE = "guodu";
-    private static final String DEFAULT_ADMIN_PASSWORD = "123456";
+
+    @Value("${chatchat.enterprise.bootstrap.admin-password:}")
+    private String bootstrapAdminPassword;
+
+    @Value("${chatchat.enterprise.migration.legacy-tenant-code:}")
+    private String legacyTenantCode;
 
     private final SysTenantRepository tenantRepository;
     private final SysOrgRepository orgRepository;
@@ -439,7 +444,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         entity.setDisplayName(requireText(input.getDisplayName(), "displayName"));
         String suppliedPassword = trimToNull(input.getPasswordHash());
         if (entity.getId() == null) {
-            entity.setPasswordHash(PasswordHashCodec.encode(defaultText(suppliedPassword, DEFAULT_ADMIN_PASSWORD)));
+            entity.setPasswordHash(PasswordHashCodec.encode(requireText(suppliedPassword, "password")));
         } else if (suppliedPassword != null && !suppliedPassword.equals(entity.getPasswordHash())) {
             entity.setPasswordHash(PasswordHashCodec.encode(suppliedPassword));
         }
@@ -946,7 +951,14 @@ public class EnterpriseAdminService implements ApplicationRunner {
             user.setUsername(username);
             user.setDisplayName(firstText(external.getName(), username));
             if (isNew) {
-                user.setPasswordHash(PasswordHashCodec.encode(firstText(external.getPassword(), DEFAULT_ADMIN_PASSWORD)));
+                String password = trimToNull(external.getPassword());
+                // Passwordless imports must not share a known local login credential.
+                if (password == null) {
+                    byte[] random = new byte[32];
+                    secureRandom.nextBytes(random);
+                    password = Base64.getUrlEncoder().withoutPadding().encodeToString(random);
+                }
+                user.setPasswordHash(PasswordHashCodec.encode(password));
             }
             user.setEmail(trimToNull(firstText(external.getEmail(), external.getOaEmail())));
             user.setPhone(trimToNull(firstText(external.getOaTelephone(), external.getHrTelephone())));
@@ -1592,7 +1604,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
             seed.setOrgId(it.getId());
             seed.setUsername("admin");
             seed.setDisplayName("系统管理员");
-            seed.setPasswordHash(PasswordHashCodec.encode(DEFAULT_ADMIN_PASSWORD));
+            seed.setPasswordHash(PasswordHashCodec.encode(requireBootstrapAdminPassword()));
             seed.setEmail("admin@example.com");
             return userRepository.save(seed);
         });
@@ -1600,7 +1612,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         admin.setOrgId(it.getId());
         admin.setDisplayName("系统管理员");
         if (admin.getPasswordHash() == null || admin.getPasswordHash().isBlank() || "admin".equals(admin.getPasswordHash())) {
-            admin.setPasswordHash(PasswordHashCodec.encode(DEFAULT_ADMIN_PASSWORD));
+            admin.setPasswordHash(PasswordHashCodec.encode(requireBootstrapAdminPassword()));
         }
         admin.setEmail(defaultText(admin.getEmail(), "admin@example.com"));
         admin.setStatus(defaultText(admin.getStatus(), "enabled"));
@@ -1670,7 +1682,9 @@ public class EnterpriseAdminService implements ApplicationRunner {
     private SysTenant resolveDefaultTenant() {
         return tenantRepository.findByTenantCode(DEFAULT_TENANT_CODE)
             .map(this::neutralizeDefaultTenant)
-            .orElseGet(() -> tenantRepository.findByTenantCode(LEGACY_TENANT_CODE)
+            .orElseGet(() -> tenantRepository.findByTenantNo(PLATFORM_TENANT_NO)
+                .or(() -> Optional.ofNullable(trimToNull(legacyTenantCode))
+                    .flatMap(tenantRepository::findByTenantCode))
                 .map(this::neutralizeDefaultTenant)
                 .orElseGet(() -> {
                     SysTenant seed = new SysTenant();
@@ -1681,6 +1695,16 @@ public class EnterpriseAdminService implements ApplicationRunner {
                     seed.setDescription("企业级智能问答助手平台默认租户");
                     return tenantRepository.save(seed);
                 }));
+    }
+
+    private String requireBootstrapAdminPassword() {
+        if (bootstrapAdminPassword == null || bootstrapAdminPassword.isBlank()
+            || bootstrapAdminPassword.length() < 12) {
+            throw new IllegalStateException(
+                "Set chatchat.enterprise.bootstrap.admin-password to at least 12 characters "
+                    + "before initializing the administrator account");
+        }
+        return bootstrapAdminPassword;
     }
 
     /**

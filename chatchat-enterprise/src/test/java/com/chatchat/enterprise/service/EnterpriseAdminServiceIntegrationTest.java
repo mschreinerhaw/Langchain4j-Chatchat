@@ -1,7 +1,13 @@
 package com.chatchat.enterprise.service;
 
 import com.chatchat.common.security.InternalCredentialProperties;
+import com.chatchat.common.security.PasswordHashCodec;
+import com.chatchat.enterprise.entity.federation.ExternalUser;
+import com.chatchat.enterprise.repository.federation.ExternalUserRepository;
+import com.chatchat.enterprise.repository.identity.SysUserRepository;
 import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
+import com.chatchat.common.retrieval.ResourceAuthorizationPort;
+import com.chatchat.enterprise.entity.security.ResourceGrant;
 import com.chatchat.enterprise.entity.datasource.DataSourceConfig;
 import com.chatchat.enterprise.entity.mcp.McpToolPermission;
 import com.chatchat.enterprise.entity.identity.SysOrg;
@@ -22,6 +28,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
@@ -30,6 +37,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 @DataJpaTest(properties = {
+    "chatchat.enterprise.bootstrap.admin-password=Test-Only-Admin-Password!",
     "spring.jpa.hibernate.ddl-auto=create-drop",
     "spring.datasource.url=jdbc:h2:mem:enterprise_release;MODE=MySQL;DB_CLOSE_DELAY=-1",
     "spring.jpa.show-sql=false",
@@ -44,14 +52,128 @@ class EnterpriseAdminServiceIntegrationTest {
     @Autowired
     private ResourceGrantRepository resourceGrantRepository;
 
+    @Autowired
+    private SysTenantRepository tenantRepository;
+
+    @Autowired
+    private SysUserRepository userRepository;
+
+    @Autowired
+    private ExternalUserRepository externalUserRepository;
+
     @BeforeEach
     void initializeEnterpriseDomain() {
         service.run(null);
     }
 
     @Test
+    void rejectsKnownDefaultPasswordAndStoresOnlyConfiguredPasswordHash() {
+        assertThatThrownBy(() -> service.login("admin", "123456"))
+            .isInstanceOf(IllegalArgumentException.class);
+        String hash = userRepository.findByUsername("admin").orElseThrow().getPasswordHash();
+        assertThat(PasswordHashCodec.isEncoded(hash)).isTrue();
+        assertThat(PasswordHashCodec.matches("Test-Only-Admin-Password!", hash)).isTrue();
+    }
+
+    @Test
+    void requiresSecureBootstrapConfigurationOnlyWhenAdminNeedsAPassword() {
+        SysUser admin = userRepository.findByUsername("admin").orElseThrow();
+        String existingHash = admin.getPasswordHash();
+        try {
+            ReflectionTestUtils.setField(service, "bootstrapAdminPassword", "");
+            service.run(null);
+            assertThat(admin.getPasswordHash()).isEqualTo(existingHash);
+            admin.setPasswordHash(null);
+            assertThatThrownBy(() -> service.run(null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("chatchat.enterprise.bootstrap.admin-password");
+            ReflectionTestUtils.setField(service, "bootstrapAdminPassword", "123456");
+            assertThatThrownBy(() -> service.run(null)).isInstanceOf(IllegalStateException.class);
+        } finally {
+            ReflectionTestUtils.setField(service, "bootstrapAdminPassword", "Test-Only-Admin-Password!");
+        }
+    }
+
+    @Test
+    void rejectsNewUserWithoutPasswordAndPreservesExistingPasswordOnUpdate() {
+        SysTenant tenant = tenantRepository.findByTenantCode("default").orElseThrow();
+        SysUser input = user(tenant.getId(), null, "password-required");
+        input.setPasswordHash(null);
+        assertThatThrownBy(() -> service.saveUser(input, List.of()))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("password");
+        assertThat(userRepository.findByUsername(input.getUsername())).isEmpty();
+        input.setPasswordHash("Explicit-User-Password!");
+        var saved = service.saveUser(input, List.of());
+        input.setId(saved.id());
+        input.setPasswordHash(null);
+        service.saveUser(input, null);
+        assertThat(service.login(input.getUsername(), "Explicit-User-Password!").user().id())
+            .isEqualTo(saved.id());
+    }
+
+    @Test
+    void passwordlessExternalUsersGetIndependentCredentialsThatSurviveResync() {
+        for (long id = 1; id <= 2; id++) {
+            ExternalUser external = new ExternalUser();
+            external.setId(id);
+            external.setUserId("passwordless-" + id);
+            externalUserRepository.save(external);
+        }
+        externalUserRepository.flush();
+        service.syncExternalUsers(null);
+        String firstHash = userRepository.findByUsername("passwordless-1").orElseThrow().getPasswordHash();
+        String secondHash = userRepository.findByUsername("passwordless-2").orElseThrow().getPasswordHash();
+        assertThat(firstHash).isNotEqualTo(secondHash);
+        assertThat(PasswordHashCodec.isEncoded(firstHash)).isTrue();
+        for (String username : List.of("passwordless-1", "passwordless-2")) {
+            assertThatThrownBy(() -> service.login(username, "123456"))
+                .isInstanceOf(IllegalArgumentException.class);
+        }
+        service.syncExternalUsers(null);
+        assertThat(userRepository.findByUsername("passwordless-1").orElseThrow().getPasswordHash())
+            .isEqualTo(firstHash);
+    }
+
+    @Test
+    void identifiesPlatformTenantByNumberWithoutEnterpriseNameSpecialCases() {
+        SysTenant platform = tenantRepository.findByTenantCode("default").orElseThrow();
+        platform.setTenantCode("custom-platform");
+        tenantRepository.saveAndFlush(platform);
+        SysTenant resolved = ReflectionTestUtils.invokeMethod(service, "resolveDefaultTenant");
+        assertThat(resolved.getId()).isEqualTo(platform.getId());
+        assertThat(resolved.getTenantCode()).isEqualTo("default");
+    }
+
+    @Test
+    void doesNotRenameAnUnconfiguredEnterpriseTenant() {
+        SysTenant enterprise = tenantRepository.findByTenantCode("default").orElseThrow();
+        enterprise.setTenantCode("guodu");
+        enterprise.setTenantNo(100001L);
+        tenantRepository.saveAndFlush(enterprise);
+        SysTenant resolved = ReflectionTestUtils.invokeMethod(service, "resolveDefaultTenant");
+        assertThat(resolved.getId()).isNotEqualTo(enterprise.getId());
+        assertThat(enterprise.getTenantCode()).isEqualTo("guodu");
+    }
+
+    @Test
+    void migratesOnlyExplicitlyConfiguredLegacyTenantAndKeepsItsIdentity() {
+        SysTenant legacy = tenantRepository.findByTenantCode("default").orElseThrow();
+        legacy.setTenantCode("configured-legacy");
+        legacy.setTenantNo(null);
+        tenantRepository.saveAndFlush(legacy);
+        try {
+            ReflectionTestUtils.setField(service, "legacyTenantCode", "configured-legacy");
+            SysTenant resolved = ReflectionTestUtils.invokeMethod(service, "resolveDefaultTenant");
+            assertThat(resolved.getId()).isEqualTo(legacy.getId());
+            assertThat(resolved.getTenantCode()).isEqualTo("default");
+        } finally {
+            ReflectionTestUtils.setField(service, "legacyTenantCode", "");
+        }
+    }
+
+    @Test
     void initializesSecureAdminAndEnforcesLoginAndEmbedTokenLifecycle() {
-        EnterpriseAdminService.AuthResult login = service.login("admin", "123456");
+        EnterpriseAdminService.AuthResult login = service.login("admin", "Test-Only-Admin-Password!");
         assertThat(login.token()).isNotBlank();
         assertThat(login.user().username()).isEqualTo("admin");
         assertThat(service.isTokenValid(login.token())).isTrue();
@@ -74,12 +196,17 @@ class EnterpriseAdminServiceIntegrationTest {
         assertThat(service.listMenuConfigurations()).extracting(item -> item.menu().getMenuCode())
             .doesNotContain("systemSkillRoles", "permissionTools");
         assertThat(resourceGrantRepository.findAll())
-            .hasSize(6)
             .allSatisfy(grant -> {
                 assertThat(grant.getResourceId()).isEqualTo("*");
                 assertThat(grant.getPrincipalType()).isEqualTo("ROLE");
                 assertThat(grant.getEffect()).isEqualTo("ALLOW");
             });
+        assertThat(resourceGrantRepository.findAll()).extracting(ResourceGrant::getResourceType)
+            .containsExactlyInAnyOrder(
+                ResourceAuthorizationPort.KNOWLEDGE, ResourceAuthorizationPort.KNOWLEDGE_BASE,
+                ResourceAuthorizationPort.MCP_TOOL, ResourceAuthorizationPort.SKILL,
+                ResourceAuthorizationPort.AGENT_SKILL, ResourceAuthorizationPort.WORKFLOW,
+                ResourceAuthorizationPort.TEMPLATE);
         assertThatThrownBy(() -> service.login("admin", "wrong-password"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("invalid username or password");
@@ -128,7 +255,7 @@ class EnterpriseAdminServiceIntegrationTest {
 
     @Test
     void exposesTrustedSuperAdminKeysForDownstreamDocumentAuthorization() {
-        EnterpriseAdminService.AuthResult login = service.login("admin", "123456");
+        EnterpriseAdminService.AuthResult login = service.login("admin", "Test-Only-Admin-Password!");
 
         assertThat(service.authorizationRoleKeys(login.user().id()))
             .contains("SUPER_ADMIN", "超级管理员");
@@ -136,7 +263,7 @@ class EnterpriseAdminServiceIntegrationTest {
 
     @Test
     void roleAuthorizationExposesEffectiveAllAgentPermissionWithoutFabricatingBindings() {
-        var user = service.login("admin", "123456").user();
+        var user = service.login("admin", "Test-Only-Admin-Password!").user();
         String roleId = user.roleIds().get(0);
         var initial = service.getRoleAuthorization(roleId);
         assertThat(initial.allAgentAccess()).isTrue();
@@ -157,7 +284,7 @@ class EnterpriseAdminServiceIntegrationTest {
 
     @Test
     void adminUsernameDoesNotBypassPersistedRolePermissions() {
-        EnterpriseAdminService.AuthResult login = service.login("admin", "123456");
+        EnterpriseAdminService.AuthResult login = service.login("admin", "Test-Only-Admin-Password!");
         SysPermission selfRead = service.listPermissions().stream()
             .filter(permission -> "account:self:read".equals(permission.getPermissionCode()))
             .findFirst()
@@ -167,7 +294,7 @@ class EnterpriseAdminServiceIntegrationTest {
                 List.of(selfRead.getId()), List.of(), null, List.of()));
 
         service.run(null);
-        EnterpriseAdminService.UserView reloaded = service.login("admin", "123456").user();
+        EnterpriseAdminService.UserView reloaded = service.login("admin", "Test-Only-Admin-Password!").user();
 
         assertThat(reloaded.permissionCodes()).containsExactly("account:self:read");
         assertThat(service.hasAllAgentAccess(reloaded)).isFalse();
@@ -175,7 +302,7 @@ class EnterpriseAdminServiceIntegrationTest {
 
     @Test
     void persistsMenuPermissionRelationsAndDoesNotOverwriteConfigurationOnRestart() {
-        EnterpriseAdminService.AuthResult login = service.login("admin", "123456");
+        EnterpriseAdminService.AuthResult login = service.login("admin", "Test-Only-Admin-Password!");
         EnterpriseAdminService.MenuConfigurationView chatConfig = service.listMenuConfigurations().stream()
             .filter(item -> "chat".equals(item.menu().getMenuCode()))
             .findFirst()

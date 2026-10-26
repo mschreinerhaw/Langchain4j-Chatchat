@@ -58,6 +58,8 @@ The Docker daemon must see Python paths at the same absolute host/container loca
 
 The gateway redirects legacy Runtime URLs `/admin`, `/admin/` and `/admin/index.html` to the current application root. Runtime HTML uses `Cache-Control: no-store, max-age=0`; `/favicon.ico` redirects to the packaged SVG. MCP admin URLs on port 18101 remain unchanged. The frontend build must still pass `verify-web-assets.ps1`: redirecting an HTML entry point does not repair a JAR containing mismatched hashed assets. Refresh an already cached old page after this upgrade.
 
+The API Maven `prepare-package` phase now also checks the copied frontend output automatically with `scripts/VerifyWebAssets.java` (JDK 17, no Node dependency). This check runs even with `-DskipTests`, `-Dfrontend.skip=true`, or the `backend-only` profile. Skipping Vite is safe only when a complete earlier frontend build exists: this repository ignores most generated assets, so a fresh checkout's tracked HTML is insufficient. Missing or empty entrypoint JS/CSS blocks packaging. Build with the normal frontend flow first, then verify the final JAR with `verify-web-assets.ps1`. Deployment acceptance must check the referenced resources and use a real browser to render both the login page and an authenticated workspace; an HTML HTTP 200 alone does not establish frontend availability.
+
 Run `python deploy/docker/application/tests/test_application_deployment.py` with Docker available to validate real Compose expansion, existing-data bind semantics, News network routing and Nginx syntax.
 
 Coding callbacks and promotion

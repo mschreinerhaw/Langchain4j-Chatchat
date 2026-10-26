@@ -542,8 +542,8 @@ export function createCodingRun(contract, gateway, options = {}) {
             await forward({ type: 'MODEL_FAILED', modelCall: modelIndex, stage: 'CODING', status: 'FAILED' });
           }
           if (nativeSdk && event.type === 'usage') attemptUsage = { ...attemptUsage, ...event.usage };
+          if (event.type === 'finish' && event.reason !== 'error') outcome = 'SUCCEEDED';
           if (nativeSdk && event.type === 'finish' && event.reason !== 'error') {
-            outcome = 'SUCCEEDED';
             lastUsage = attemptUsage ?? {};
             if (!options.model.managesAdmissions) await gateway.settleModel(contract, { operationId: `model-${modelIndex}`,
               requestId: event.requestId ?? null, usage: lastUsage });

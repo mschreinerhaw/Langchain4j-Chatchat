@@ -248,7 +248,9 @@ class CodingAnalysisDockerGateTest extends CodingDockerFixture {
             else if(turn==3){
                 assertThat(((JsonNode)call.getArgument(1)).toString()).contains("sqlExecuted","false","sqlglot");
                 String paths=json.writeValueAsString(actor(()->supply.snapshots(contract,null)).stream().map(s->"/data/input/"+s.fileId()+"/input.jsonl").toList());
-                String source="import json,pathlib,sqlite3\nc=sqlite3.connect(':memory:')\nc.execute('CREATE TABLE ledger(payload TEXT, day TEXT)')\nfor p in "+paths+":\n for line in pathlib.Path(p).read_text().splitlines():\n  r=json.loads(line)\n  c.execute('INSERT INTO ledger VALUES (?,?)',(line,r['date']))\nrows=[json.loads(row[0]) for row in c.execute('"+sql+"')]\npathlib.Path('/workspace/output/results/rows.jsonl').write_text(''.join(json.dumps(r)+'\\n' for r in rows))\nprint('sandbox_sqlite_rows',len(rows))\n";
+                // Match the existing clean-ledger fixture's declared string output representation.
+                // Java still validates original source types, values and all financial invariants.
+                String source="import json,pathlib,sqlite3\nc=sqlite3.connect(':memory:')\nc.execute('CREATE TABLE ledger(payload TEXT, day TEXT)')\nfor p in "+paths+":\n for line in pathlib.Path(p).read_text().splitlines():\n  r=json.loads(line)\n  c.execute('INSERT INTO ledger VALUES (?,?)',(line,r['date']))\nrows=[json.loads(row[0]) for row in c.execute('"+sql+"')]\nfor r in rows:\n for k in ('assets','netFlow','returnRate'): r[k]=str(r[k])\npathlib.Path('/workspace/output/results/rows.jsonl').write_text(''.join(json.dumps(r)+'\\n' for r in rows))\nprint('sandbox_sqlite_rows',len(rows))\n";
                 calls=List.of(Map.of("id","sql-run","name","python_execute","input",Map.of("fileName","main.py","source",source)));
             }else {assertThat(((JsonNode)call.getArgument(1)).toString()).contains("\"resultAvailable\":true");calls=List.of();}
             return Map.of("text",turn>3?"SQLite executed only in the network-disabled Python Sandbox.":"","toolCalls",calls,"usage",Map.of("inputTokens",20,"outputTokens",20));

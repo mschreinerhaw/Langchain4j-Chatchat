@@ -1,8 +1,10 @@
 /** Cline AgentModel backed by the Runtime's configured Java model connection. */
-export function createRuntimeModel(gateway, contract, initialOrdinal = 0) {
+export function createRuntimeModel(gateway, contract, initialOrdinal = 0, { nativeSdk = false } = {}) {
   if (typeof gateway?.model !== 'function') throw new TypeError('Runtime model callback is required');
   let modelCallIndex = initialOrdinal;
+  const managesAdmissions = nativeSdk && gateway.atomicModelAttempts === true;
   return {
+    managesAdmissions,
     async *stream(request) {
       // Project only portable text/tool parts. The Java side validates the bound
       // contract, tool names, sizes, lease and budget before contacting a provider.
@@ -19,6 +21,7 @@ export function createRuntimeModel(gateway, contract, initialOrdinal = 0) {
       }));
       const answer = await gateway.model(contract, {
         operationId: `model-${++modelCallIndex}`,
+        ...(managesAdmissions ? { managedAttempt: true } : {}),
         modelResponseFeedbackVersion: 'runtime_os.coding.model_feedback.v1',
         systemPrompt: request.systemPrompt ?? '', messages, tools,
       }, request.signal);
@@ -31,8 +34,13 @@ export function createRuntimeModel(gateway, contract, initialOrdinal = 0) {
             || feedback.maxRepairAttempts > 8 || answer.toolCalls?.length)
           throw new Error('Runtime rejected the model response without an authorized repair decision');
         // This is provider-response feedback, never a fabricated tool invocation.
-        yield { type: 'runtime-model-feedback', feedback };
-        if (!answer.text) yield { type: 'text-delta', text:
+        if (!nativeSdk) yield { type: 'runtime-model-feedback', feedback };
+        if (nativeSdk && feedback.diagnosticCode === 'MODEL_TOOL_ARGUMENTS_INVALID') {
+          if (!answer.nativeToolCalls?.length) throw new Error('Native tool feedback requires authorized provider tool calls');
+          for (const call of answer.nativeToolCalls) yield { type: 'tool-call-delta',
+            toolCallId: call.id, toolName: call.name, inputText: call.arguments };
+        }
+        if (!nativeSdk && !answer.text) yield { type: 'text-delta', text:
           `Runtime rejected the provider tool arguments: ${feedback.diagnosticCode}. No tool was executed.` };
       }
       if (answer.modelInfo) yield { type: 'runtime-model-metadata', metadata: answer.modelInfo };
@@ -42,7 +50,13 @@ export function createRuntimeModel(gateway, contract, initialOrdinal = 0) {
           toolName: call.name, input: call.input };
       }
       if (answer.usage) yield { type: 'usage', usage: answer.usage };
-      yield { type: 'finish', reason: answer.toolCalls?.length ? 'tool-calls' : 'stop',
+      const reasons = { STOP: 'stop', TOOL_EXECUTION: 'tool-calls', LENGTH: 'max-tokens',
+        CONTENT_FILTER: 'content-filter', OTHER: 'unknown' };
+      const reason = nativeSdk ? answer.error
+        ? answer.modelResponseFeedback.diagnosticCode === 'MODEL_OUTPUT_TRUNCATED' ? 'max-tokens' : 'tool-calls'
+        : reasons[answer.finishReason] ?? (answer.finishReason ? 'unknown' : answer.toolCalls?.length ? 'tool-calls' : 'stop')
+        : answer.toolCalls?.length ? 'tool-calls' : 'stop';
+      yield { type: 'finish', reason,
         requestId: answer.requestId };
     },
   };

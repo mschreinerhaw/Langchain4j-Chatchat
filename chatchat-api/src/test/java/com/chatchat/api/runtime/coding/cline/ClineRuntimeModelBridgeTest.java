@@ -56,6 +56,7 @@ class ClineRuntimeModelBridgeTest {
                 ClineRuntimeModelBridge.InvalidModelResponseException.class);
             assertThat(error.receipt()).containsEntry("usage", Map.of("inputTokens", 13, "outputTokens", 7));
             assertThat((List<?>) error.receipt().get("toolCalls")).isEmpty();
+            assertThat(json.valueToTree(error.receipt()).path("nativeToolCalls").get(0).path("arguments").asText()).isEqualTo(arguments);
             assertThat(error.receipt()).containsKey("modelInfo").containsKey("error");
             assertThat(json.valueToTree(error.receipt()).path("modelResponseFeedback").path("repairAllowed").asBoolean()).isTrue();
         }
@@ -110,6 +111,7 @@ class ClineRuntimeModelBridgeTest {
         try(var binding=registry.bind(task.scope(),task.taskId(),parent)) {
             var answer=bridge.complete(task,json.readTree("{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"calculate\"}]}],\"tools\":[]}"));
             assertThat(answer.get("modelInfo").toString()).contains("authorized-selected","actual-reported-provider").doesNotContain("changed-default");
+            assertThat(((Map<?,?>)answer.get("modelInfo")).get("retryTimeMs")).isNull();
         }
         verifyNoInteractions(factory);verify(resources,never()).require(anyString());
     }
@@ -144,7 +146,7 @@ class ClineRuntimeModelBridgeTest {
         ConfigurableChatModelFactory factory = mock(ConfigurableChatModelFactory.class);
         ChatModel model = mock(ChatModel.class);
         when(resources.defaultChatModel()).thenReturn("registered-model");
-        when(factory.create(eq("registered-model"), eq(Duration.ofSeconds(90)), eq(2048))).thenReturn(model);
+        when(factory.create(eq("registered-model"), any(Duration.class), eq(2048))).thenReturn(model);
         when(model.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder()
             .id("provider-request").aiMessage(AiMessage.builder().text("run this")
                 .toolExecutionRequests(List.of(ToolExecutionRequest.builder().id("call-1")
@@ -158,7 +160,7 @@ class ClineRuntimeModelBridgeTest {
         assertThat(result.get("requestId")).isEqualTo("provider-request");
         assertThat((List<?>) result.get("toolCalls")).hasSize(1);
         assertThat(((Map<?, ?>) result.get("usage")).get("inputTokens")).isEqualTo(9);
-        verify(factory).create("registered-model", Duration.ofSeconds(90), 2048);
+        verify(factory).create(eq("registered-model"), any(Duration.class), eq(2048));
         var captured=org.mockito.ArgumentCaptor.forClass(ChatRequest.class);
         verify(model).chat(captured.capture());
         assertThat(captured.getValue().parameters().maxOutputTokens()).isEqualTo(2048);

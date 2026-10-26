@@ -13,6 +13,7 @@ import com.chatchat.api.runtime.coding.data.CodingInputSnapshotService;
 import com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollector;
 import com.chatchat.api.runtime.coding.evidence.CodingFinancialResultVerifier;
 import com.chatchat.api.runtime.coding.evidence.CodingValidationPlanService;
+import com.chatchat.api.runtime.coding.evidence.CodingSchemaResultVerifier;
 import com.chatchat.api.runtime.coding.execution.CodingPythonExecutionBridge;
 import com.chatchat.api.runtime.coding.execution.McpPythonExecutionProofVerifier;
 import com.chatchat.api.runtime.coding.fixture.CodingLedgerFixture;
@@ -74,7 +75,7 @@ class CodingAnalysisDockerGateTest extends CodingDockerFixture {
             (s,t,o,h,r)->pythonProof.confirmsStopped(s,t,o,h,r)||dataProof.confirmsStopped(s,t,o,h,r)||sqlProof.confirmsStopped(s,t,o,h,r)||modelReceipts.confirmsStopped(s,t,o,h,r),Runnable::run,new ConcurrentTaskScheduler(timer));
         inputs=new CodingInputSnapshotService(evidence,port,identity,json);
         var financial=new CodingFinancialResultVerifier();financial.setPython(port);
-        plans=new CodingValidationPlanService(evidence,inputs,identity,json,List.of(financial));
+        plans=new CodingValidationPlanService(evidence,inputs,identity,json,List.of(financial,new CodingSchemaResultVerifier()));
         var tool=mock(RegisteredToolAnalysisOperator.class);
         when(tool.execute(any(),any(),isNull())).thenAnswer(call->{
             var rows=new ArrayList<Map<String,Object>>(List.of(new LinkedHashMap<>(Map.of("date","2026-10-13","assets","121.00","netFlow","0.00","returnRate","0.10000000"))));
@@ -89,7 +90,9 @@ class CodingAnalysisDockerGateTest extends CodingDockerFixture {
         var model=new ClineModelCallbackController(identity,tasks,provider,modelReceipts,inputs,plans,collector,json);model.setDataSupply(supply);
         if(System.getProperty("coding.sqlglotPython")!=null)model.setAnalysisSql(new CodingAnalysisSqlService(tasks,evidence,
             new com.chatchat.api.datascience.sql.SqlGlotToolchain(System.getProperty("coding.sqlglotPython"),json)));
-        node=new CodingNodeHttpFixture(json,model,new ClinePythonCallbackController(identity,tasks,inputs,plans,bridge,collector,json));
+        var pythonCallback=new ClinePythonCallbackController(identity,tasks,inputs,plans,bridge,collector,json);
+        pythonCallback.setFeedback(new com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackService(tasks,bridge,json,2));
+        node=new CodingNodeHttpFixture(json,model,pythonCallback);
         adapter=new ClineCodingAdapter(tasks,bridge,inputs,plans,collector,modelReceipts,node.uri(),sharedSecret,json,recoveryClock);adapter.setDataSupply(supply);
         adapter.setLicenseEntitlements(new com.chatchat.common.mcp.license.McpLicenseEntitlementPort() {
             @Override public CodingDispatchEntitlement codingDispatchEntitlement() {
@@ -122,13 +125,20 @@ class CodingAnalysisDockerGateTest extends CodingDockerFixture {
         when(provider.complete(any(),any())).thenAnswer(call->{
             int turn=turns.incrementAndGet();List<Map<String,Object>> calls;
             if(turn==1)calls=List.of(Map.of("id","technical-fault","name","python_execute","input",Map.of("fileName","main.py","source",longRunning?"import time\nwhile True: time.sleep(1)":"raise ValueError('D3 injected technical error')")));
-            else if(turn==2){assertThat(((JsonNode)call.getArgument(1)).toString()).contains("D3 injected technical error");
+            else if(turn==2){assertThat(((JsonNode)call.getArgument(1)).toString()).contains("ValueError","PROGRAM_ERROR");
                 calls=List.of(Map.of("id","missing-data","name","data_request","input",Map.of("requestId","missing-date","datasetRefs",List.of("ledger:v1"),"authorizedTemplateId","ledger","parameterBindings",Map.of("date","2026-10-13"),"requiredFields",List.of("date","assets","netFlow","returnRate"),"reason","Missing trading date","expectedUsage","Complete explicitly authorized calendar coverage")));}
             else if(turn==3){
                 var snapshots=actor(()->supply.snapshots(contract,null));
                 String paths=json.writeValueAsString(snapshots.stream().map(s->"/data/input/"+s.fileId()+"/input.jsonl").toList());
                 String source="import json,pathlib\nrows=[]\nfor p in "+paths+":\n rows.extend(json.loads(line) for line in pathlib.Path(p).read_text().splitlines())\nrows.sort(key=lambda r:r['date'])\n# Technical representation only; original bytes/types are independently checked by Java.\nfor r in rows:\n for k in ('assets','netFlow','returnRate'): r[k]=str(r[k])\npathlib.Path('/workspace/output/results/rows.jsonl').write_text(''.join(json.dumps(r)+'\\n' for r in rows))\n";
-                calls=List.of(Map.of("id","repaired-program","name","python_execute","input",Map.of("fileName","main.py","source",source)));
+                Object proposal=Map.of("fileName","main.py","source",source);
+                if(contract.runtimeContext().containsKey("codingLifecycle")) {
+                    String aggregate="import json,pathlib,decimal\nrows=[]\nfor p in "+paths+":\n rows.extend(json.loads(line) for line in pathlib.Path(p).read_text().splitlines())\ntotal=sum(decimal.Decimal(row['assets']) for row in rows)\npathlib.Path('/workspace/output/results/rows.jsonl').write_text(json.dumps({'assetsTotal':str(total)})+'\\n')\n";
+                    proposal=Map.of("repair",Map.of("parentCodeVersion",1,
+                        "baseCodeSha256",HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest("raise ValueError('D3 injected technical error')".getBytes(StandardCharsets.UTF_8))),
+                        "edits",List.of(Map.of("oldText","raise ValueError('D3 injected technical error')","newText",aggregate))));
+                }
+                calls=List.of(Map.of("id","repaired-program","name","python_execute","input",proposal));
             }else calls=List.of();
             return Map.of("text",turn>3?"Source values preserved. Runtime independently validates the ledger.":"","toolCalls",calls,"usage",Map.of("inputTokens",20,"outputTokens",20));
         });
@@ -141,25 +151,52 @@ class CodingAnalysisDockerGateTest extends CodingDockerFixture {
         }while(System.nanoTime()<until);
         throw new AssertionError("Coding task did not terminate: "+state+"; worker: "+node.log());
     }
+    @Test void negotiatedLifecycleRepairsThroughRealSdkAndSandboxWithVersionLineage() throws Exception {
+        prepare("clean",false);
+        var c=contract;
+        String plan=actor(()->plans.register(scope,c.taskId(),inputs.requireAuthorized(c),new CodingValidationPlanService.Plan(
+            "runtime-result-schema","v1",Map.of("rowSchema",Map.of("type","object","properties",Map.of("assetsTotal",Map.of("type","string")),"required",List.of("assetsTotal"),"additionalProperties",false)))));
+        contract=new CodingTaskContract(c.schemaVersion(),c.taskId(),c.scope(),c.objective(),c.inputSnapshotRef(),c.metadataRefs(),c.workspaceRef(),
+            c.authorization(),c.budget(),c.environmentRef(),plan,c.outputContract(),
+            Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT",
+                "codingLifecycle",Map.of("schemaVersion","runtime_os.code_lifecycle.v1","patchOnlyAfterFirst",true)));
+        actor(()->adapter.submit(contract));
+        var outcome=awaitTerminal();
+        assertThat(outcome.status()).isEqualTo(CodingTaskOutcome.Status.COMPLETED);
+        assertThat(outcome.validationStatus()).isEqualTo(CodingTaskOutcome.ValidationStatus.INCONCLUSIVE);
+        assertThat(outcome.usage().consumed().codeExecutions()).isEqualTo(2);
+        assertThat(actor(()->tasks.events(scope,contract.taskId(),0,256)).toString()).contains("CODE_READY","PATCH","parentCodeVersion");
+        assertThat(actor(()->collector.readResultPage(scope,contract.taskId(),outcome.resultDatasetRef(),0,1)).rows())
+            .containsExactly(Map.of("assetsTotal","364.10"));
+        int modelCalls=node.callbackCounts.get("model").get();
+        assertThat(modelCalls).isEqualTo(turns.get());
+        if(Boolean.parseBoolean(System.getProperty("coding.nativeSdk","true"))) {
+            assertThat(node.callbackCounts).doesNotContainKeys("reserve-model","settle-model");
+        } else {
+            assertThat(node.callbackCounts.get("reserve-model").get()).isEqualTo(modelCalls);
+            assertThat(node.callbackCounts.get("settle-model").get()).isEqualTo(modelCalls);
+        }
+        System.out.println("SDK_RPC_COMPARISON "+json.writeValueAsString(Map.of("nativeSdk",Boolean.parseBoolean(System.getProperty("coding.nativeSdk","true")),
+            "models",modelCalls,"callbacks",node.callbackCounts.entrySet().stream().collect(java.util.stream.Collectors.toMap(Map.Entry::getKey,e->e.getValue().get())),
+            "codeExecutions",outcome.usage().consumed().codeExecutions(),"modelTokens",outcome.usage().consumed().modelTokens())));
+    }
     @ParameterizedTest @ValueSource(strings={"clean","type","missing","duplicate","precision","return","combined"})
-    void independentFinancialFaultsDynamicSupplyTechnicalRepairAndPublication(String fault) throws Exception {
+    void rawLedgerCopiesAreRejectedAfterDynamicSupplyAndTechnicalRepair(String fault) throws Exception {
         prepare(fault,false);actor(()->adapter.submit(contract));var outcome=awaitTerminal();
-        assertThat(outcome.status()).as("%s; Worker: %s",outcome,node.state(contract,actor(()->tasks.ownership(scope,contract.taskId())).fencingToken())).isEqualTo(CodingTaskOutcome.Status.COMPLETED);
-        assertThat(outcome.validationStatus()).isEqualTo(fault.equals("clean")?CodingTaskOutcome.ValidationStatus.PASSED:CodingTaskOutcome.ValidationStatus.FAILED);
-        assertThat(outcome.usage().consumed().modelCalls()).isEqualTo(4);assertThat(outcome.usage().consumed().codeExecutions()).isEqualTo(2);assertThat(outcome.usage().consumed().toolCalls()).isEqualTo(3);
-        for(String ref:List.of(outcome.inputSnapshotRef(),outcome.codeArtifactRef(),outcome.executionReceiptRef(),outcome.resultDatasetRef(),outcome.validationRecordRef(),outcome.evidenceBundleRef()))
+        assertThat(outcome.status()).isEqualTo(CodingTaskOutcome.Status.FAILED);
+        assertThat(outcome.validationStatus()).isEqualTo(CodingTaskOutcome.ValidationStatus.FAILED);
+        assertThat(outcome.resultDatasetRef()).isNull();
+        assertThat(outcome.usage().consumed().modelCalls()).isEqualTo(3);assertThat(outcome.usage().consumed().codeExecutions()).isEqualTo(2);assertThat(outcome.usage().consumed().toolCalls()).isEqualTo(3);
+        for(String ref:List.of(outcome.inputSnapshotRef(),outcome.codeArtifactRef(),outcome.executionReceiptRef(),outcome.validationRecordRef(),outcome.evidenceBundleRef()))
             assertThat(evidence.find(scope,ref.substring(17)).isPresent()||evidence.snapshot(scope,ref.substring(17)).isPresent()).isTrue();
-        var result=evidence.find(scope,outcome.resultDatasetRef().substring(17)).orElseThrow();assertThat((List<?>)result.payload().get("inputVersions")).hasSize(2);
-        var validation=evidence.find(scope,outcome.validationRecordRef().substring(17)).orElseThrow();assertThat(validation.payload().get("businessEvaluated")).isEqualTo(true);
+        var validation=evidence.find(scope,outcome.validationRecordRef().substring(17)).orElseThrow();
         var checks=(Map<?,?>)validation.payload().get("checks");assertThat(checks.get("sourceReconciled")).isEqualTo(true);
+        assertThat(checks.get("copiedSourceContentDetected")).isEqualTo(true);
         var faults=(List<String>)checks.get("faults");
         if(fault.equals("clean"))assertThat(faults).isEmpty();
         else if(fault.equals("combined"))assertThat(faults).contains("FIELD_TYPE","MISSING_TRADING_DATE","DUPLICATE_DATE","DECIMAL_PRECISION","RETURN_RECONCILIATION");
         else assertThat(faults).contains(Map.of("type","FIELD_TYPE","missing","MISSING_TRADING_DATE","duplicate","DUPLICATE_DATE","precision","DECIMAL_PRECISION","return","RETURN_RECONCILIATION").get(fault));
-        var registered=actor(()->collector.registeredResult(scope,contract.taskId(),outcome.resultDatasetRef()));
-        assertThat(registered.recordCount()).isGreaterThan(0);
-        // AnalysisCodingService publication additionally requires validation != FAILED; fault cases retain evidence only.
-        assertThat(outcome.validationStatus()!=CodingTaskOutcome.ValidationStatus.FAILED).isEqualTo(fault.equals("clean"));
+        // No copied ledger rows are admitted, even when their financial checks happened to pass.
         assertThat(actor(()->tasks.events(scope,contract.taskId(),0,128))).isNotEmpty();
     }
     @Test void workerAndJavaComponentRestartRestoreSettledSdkBoundaryWithoutBudgetReset() throws Exception {
@@ -169,10 +206,10 @@ class CodingAnalysisDockerGateTest extends CodingDockerFixture {
         node.stopWorker();release.countDown();node.close();node=null;
         clockOffset.set(TimeUnit.MINUTES.toMillis(6));newRuntime();
         var before=actor(()->tasks.get(scope,contract.taskId()));actor(()->adapter.resume(scope,contract.taskId()));var outcome=awaitTerminal();
-        assertThat(outcome.status()).isEqualTo(CodingTaskOutcome.Status.COMPLETED);assertThat(outcome.usage().budgetId()).isEqualTo(before.usage().budgetId());
-        assertThat(outcome.usage().consumed().modelCalls()).isEqualTo(4);assertThat(outcome.usage().consumed().codeExecutions()).isEqualTo(2);
+        assertThat(outcome.status()).isEqualTo(CodingTaskOutcome.Status.FAILED);assertThat(outcome.usage().budgetId()).isEqualTo(before.usage().budgetId());
+        assertThat(outcome.usage().consumed().modelCalls()).isEqualTo(3);assertThat(outcome.usage().consumed().codeExecutions()).isEqualTo(2);
         assertThat(actor(()->tasks.ownership(scope,contract.taskId())).fencingToken()).isEqualTo(2);
-        assertThat(outcome.validationStatus()).isEqualTo(CodingTaskOutcome.ValidationStatus.PASSED);
+        assertThat(outcome.validationStatus()).isEqualTo(CodingTaskOutcome.ValidationStatus.FAILED);
     }
     @Test void cancellationStopsRealSandboxBehindLiveSdkAndPublishesNoDataset() throws Exception {
         prepare("cancel",true);actor(()->adapter.submit(contract));long until=System.nanoTime()+TimeUnit.SECONDS.toNanos(20);
@@ -213,7 +250,7 @@ class CodingAnalysisDockerGateTest extends CodingDockerFixture {
                 String paths=json.writeValueAsString(actor(()->supply.snapshots(contract,null)).stream().map(s->"/data/input/"+s.fileId()+"/input.jsonl").toList());
                 String source="import json,pathlib,sqlite3\nc=sqlite3.connect(':memory:')\nc.execute('CREATE TABLE ledger(payload TEXT, day TEXT)')\nfor p in "+paths+":\n for line in pathlib.Path(p).read_text().splitlines():\n  r=json.loads(line)\n  c.execute('INSERT INTO ledger VALUES (?,?)',(line,r['date']))\nrows=[json.loads(row[0]) for row in c.execute('"+sql+"')]\npathlib.Path('/workspace/output/results/rows.jsonl').write_text(''.join(json.dumps(r)+'\\n' for r in rows))\nprint('sandbox_sqlite_rows',len(rows))\n";
                 calls=List.of(Map.of("id","sql-run","name","python_execute","input",Map.of("fileName","main.py","source",source)));
-            }else {assertThat(((JsonNode)call.getArgument(1)).toString()).contains("sandbox_sqlite_rows 3");calls=List.of();}
+            }else {assertThat(((JsonNode)call.getArgument(1)).toString()).contains("\"resultAvailable\":true");calls=List.of();}
             return Map.of("text",turn>3?"SQLite executed only in the network-disabled Python Sandbox.":"","toolCalls",calls,"usage",Map.of("inputTokens",20,"outputTokens",20));
         }).when(provider).complete(any(),any());
         actor(()->adapter.submit(contract));var outcome=awaitTerminal();assertThat(outcome.status()).isEqualTo(CodingTaskOutcome.Status.COMPLETED);

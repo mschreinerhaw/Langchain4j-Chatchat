@@ -1,0 +1,49 @@
+{
+  "scope": "CONTROLLED_SDK_REGRESSION_FIXTURE",
+  "actualProvider": false,
+  "actualSandbox": false,
+  "warmupRoundsPerMode": 5,
+  "tokenUsage": null,
+  "sandboxCpuUsage": null,
+  "sandboxMemoryUsage": null,
+  "note": "Same semantic proposals; before uses exact edits, beforeFullSource uses complete-source revisions. Execution admissions are fixture counters. SDK timings and process CPU/memory deltas exclude real provider and Sandbox. Memory deltas include GC/runtime noise and are not peak memory. Not a production success-rate estimate.",
+  "before": {
+    "tasks": 20,
+    "successfulTasks": 0,
+    "successRate": 0,
+    "wallMsP50": 2.55457000000024,
+    "wallMsP95": 57.50088100000016,
+    "modelCallsMean": 4,
+    "pythonExecutionAdmissionsMean": 3,
+    "modelInputBytesMean": 91601,
+    "sdkCpuMsMean": 5.14,
+    "sdkRssDeltaBytesMean": 81100.8,
+    "sdkHeapDeltaBytesMean": 226477.6
+  },
+  "beforeFullSource": {
+    "tasks": 20,
+    "successfulTasks": 0,
+    "successRate": 0,
+    "wallMsP50": 2.647578000000067,
+    "wallMsP95": 82.41551700000014,
+    "modelCallsMean": 4,
+    "pythonExecutionAdmissionsMean": 3,
+    "modelInputBytesMean": 178150,
+    "sdkCpuMsMean": 7.474849999999999,
+    "sdkRssDeltaBytesMean": 148684.8,
+    "sdkHeapDeltaBytesMean": 194014
+  },
+  "after": {
+    "tasks": 20,
+    "successfulTasks": 20,
+    "successRate": 1,
+    "wallMsP50": 2.9332549999999173,
+    "wallMsP95": 15.53605400000015,
+    "modelCallsMean": 4,
+    "pythonExecutionAdmissionsMean": 2,
+    "modelInputBytesMean": 95686,
+    "sdkCpuMsMean": 8.279599999999999,
+    "sdkRssDeltaBytesMean": 189235.2,
+    "sdkHeapDeltaBytesMean": -247156.4
+  }
+}

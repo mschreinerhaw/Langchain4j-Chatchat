@@ -136,7 +136,7 @@ public class CodingExecutionFeedbackService {
                 if(files.get(key) instanceof String value)inputSchema.put(key,value);
         var feedback=new ExecutionFeedback(ExecutionFeedback.VERSION,contract.taskId(),operation.operationId(),contract.taskId()+":execution-"+attempt,
             contract.scope().runId(),operation.status(),resultAvailable?"VALIDATED":outputFailed?"RESULT_VALIDATION_FAILED":"EXECUTION_FAILED",
-            operation.exitCode(),duration,operation.codeHash(),"[raw stdout omitted]",failed?guidance:"[raw stderr omitted]",
+            operation.exitCode(),duration,count(diagnostic,"cpuTimeMs"),count(diagnostic,"maxRssBytes"),operation.codeHash(),"[raw stdout omitted]",failed?guidance:"[raw stderr omitted]",
             count(diagnostic,"stdoutBytes"),count(diagnostic,"stderrBytes"),
             failed?new ExecutionFeedback.Failure(category,exception,code,guidance,List.copyOf(frames),detail):null,
             List.of(contract.inputSnapshotRef()),contract.outputContract().resultSchemaRef(),
@@ -162,6 +162,7 @@ public class CodingExecutionFeedbackService {
     private void log(String event,KernelDataScope scope,ExecutionFeedback feedback){
         var facts=new LinkedHashMap<String,Object>();facts.put("attemptId",feedback.attemptId());facts.put("status",feedback.status());
         facts.put("stage",feedback.stage());facts.put("codeHash",feedback.codeHash());facts.put("durationMs",feedback.durationMs());
+        facts.put("cpuTimeMs",feedback.cpuTimeMs());facts.put("maxRssBytes",feedback.maxRssBytes());
         facts.put("exitCode",feedback.exitCode());facts.put("validationStatus",feedback.validationStatus());facts.put("resultAvailable",feedback.resultAvailable());
         facts.put("repairAttempts",feedback.repair().attemptsUsed());facts.put("repairAllowed",feedback.repair().allowed());
         facts.put("reasonCode",feedback.repair().reason());

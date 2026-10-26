@@ -36,13 +36,13 @@ for (const skillStatus of ['APPLIED', 'DELIVERED']) test(`SDK receives ${skillSt
       resultDatasetRef: 'result', validationRecordRef: 'validation', evidenceBundleRef: 'bundle' }; },
   }, { attemptId: 'task:fence-3', model: { async *stream(request) {
     assert.doesNotMatch(request.systemPrompt, /selected-by-java/);
-    assert.match(request.systemPrompt, /responsible for exploring delivered data or supplied context, choosing analytical methods/);
+    assert.match(request.systemPrompt, /implement the supplied Runtime task plan in Python/);
     assert.match(request.systemPrompt, /already selected business template workflow is immutable/);
     assert.doesNotMatch(request.systemPrompt, /analysis agent owns analytical goals, methods/);
     assert.match(JSON.stringify(request.messages), /selected-by-java/);
     assert.match(JSON.stringify(request.messages), /authorized-skill/);
     assert.match(JSON.stringify(request.messages), /Original authorized methodology/);
-    assert.match(request.systemPrompt, /Select relevant methods yourself inside this Coding task/);
+    assert.match(request.systemPrompt, /implementation guidance within the Runtime task plan/);
     if (++turn === 1) {
       yield { type: 'tool-call-delta', toolCallId: 'generate-1', toolName: 'python_execute', input: { fileName: 'main.py', source } };
       yield { type: 'finish', reason: 'tool-calls' };
@@ -143,11 +143,51 @@ test('reviewed analysis repairs locally and reads its scoped result before compl
     yield { type: 'finish', reason: turns < 4 ? 'tool-calls' : 'stop' };
   } } });
   const result = await run.run();
-  assert.equal(result.status, 'completed'); assert.equal(turns, 4); assert.equal(executions, 2); assert.equal(reviewed, 1);
+  assert.equal(result.status, 'completed'); assert.equal(turns, 3); assert.equal(executions, 2); assert.equal(reviewed, 1);
   assert.equal(actual.source, 'value = 1\nprint(value)\n');
   assert.equal(finished.operationId, actual.operationId);
   assert.ok(run.events.some(event => event.type === 'TOOL_STARTED' && event.tool === 'artifact_read'));
   assert.ok(run.events.some(event => event.type === 'TOOL_FINISHED' && event.tool === 'artifact_read'));
+});
+
+test('native completion rejects a stale artifact and stops immediately after the latest accepted review', async () => {
+  const next = structuredClone(contract);
+  next.metadataRefs = ['runtime-coding:analysis-reviewed-path:v1'];
+  next.authorization.allowedTools = ['python_execute', 'artifact_read']; next.budget.maxModelCalls = 4;
+  let calls = 0, executions = 0;
+  const run = createCodingRun(next, { async reserveModel() {}, async settleModel() {}, async finish() {},
+    async executePython() { executions++; return { status: 'SUCCEEDED', executorStopped: true,
+      resultDatasetRef: 'runtime-evidence:latest', validationRecordRef: 'validation', evidenceBundleRef: 'evidence' }; },
+    async readArtifact(_task, reference) { return { reference, complete: true, rows: [{ reportMarkdown: 'computed' }],
+      reportReferenceValidation: { valid: true } }; },
+  }, { model: { async *stream(request) {
+    calls++; assert.ok(calls <= 3, 'No discretionary rewrite/model turn follows an accepted artifact');
+    if (calls === 1) yield { type: 'tool-call-delta', toolCallId: 'program', toolName: 'python_execute', input: { source: 'print(1)' } };
+    else {
+      if (calls === 3) assert.match(JSON.stringify(request.messages), /"isError":true/);
+      yield { type: 'tool-call-delta', toolCallId: 'review-' + calls, toolName: 'artifact_read',
+        input: { reference: calls === 2 ? 'runtime-evidence:stale' : 'runtime-evidence:latest' } };
+    }
+    yield { type: 'finish', reason: 'tool-calls' };
+  } } });
+  assert.equal((await run.run()).status, 'completed'); assert.equal(calls, 3); assert.equal(executions, 1);
+});
+
+test('a complete artifact cannot certify a Python receipt whose result validation failed', async () => {
+  const next = structuredClone(contract);
+  next.metadataRefs = ['runtime-coding:analysis-reviewed-path:v1'];
+  next.authorization.allowedTools = ['python_execute', 'artifact_read']; next.budget.maxModelCalls = 2;
+  let calls = 0;
+  const run = createCodingRun(next, { async reserveModel() {}, async settleModel() {}, async finish() {},
+    async executePython() { return { status: 'SUCCEEDED', executorStopped: true, resultAvailable: false,
+      resultDatasetRef: 'runtime-evidence:invalid', validationStatus: 'FAILED', validationRecordRef: 'validation', evidenceBundleRef: 'evidence' }; },
+    async readArtifact(_task, reference) { return { reference, complete: true, reportReferenceValidation: { valid: true } }; },
+  }, { model: { async *stream() {
+    if (++calls === 1) yield { type: 'tool-call-delta', toolCallId: 'program', toolName: 'python_execute', input: { source: 'print(1)' } };
+    else yield { type: 'tool-call-delta', toolCallId: 'review', toolName: 'artifact_read', input: { reference: 'runtime-evidence:invalid' } };
+    yield { type: 'finish', reason: 'tool-calls' };
+  } } });
+  assert.equal((await run.run()).status, 'failed');
 });
 
 test('report citation failures return to the Cline repair loop before task completion', async () => {
@@ -160,7 +200,7 @@ test('report citation failures return to the Cline repair loop before task compl
     reserveModel() {}, settleModel() {}, finish(_task, value) { finished = value; },
     executePython() { executions++; return { status: 'SUCCEEDED', executorStopped: true,
       resultDatasetRef: 'runtime-evidence:result', validationRecordRef: 'validation', evidenceBundleRef: 'bundle' }; },
-    readArtifact() { return { rows: [{ reportMarkdown: 'report' }], complete: true,
+    readArtifact() { return { reference: 'runtime-evidence:result', rows: [{ reportMarkdown: 'report' }], complete: true,
       reportReferenceValidation: { valid: executions === 2, repairRequired: executions !== 2,
         authorizedDatasetReferences: ['exact-source#binding-1'] } }; },
   }, { model: { async *stream(request) {
@@ -233,7 +273,7 @@ test('only explicitly declared bounded input observations reach the coding model
         analysisPreview: { complete: false, samples: [{ rowJsonPrefix: 'authorized-format-prefix' }] },
       }) }, { model: { async *stream(request) {
         calls++; assert.match(JSON.stringify(request.messages), /authorized-format-prefix/);
-        assert.match(request.systemPrompt, /does not judge business conclusions/);
+        assert.match(request.systemPrompt, /Runtime OS owns business interpretation, classification, task plans/);
         yield { type: 'text-delta', text: 'Analysis agent owns the result' }; yield { type: 'finish', reason: 'stop' };
       } } });
     if (declared) { await run.run(); assert.equal(calls, 1); }

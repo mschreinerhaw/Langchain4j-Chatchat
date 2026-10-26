@@ -81,7 +81,7 @@ class CodingEvidenceDockerIntegrationTest extends CodingDockerFixture {
             .isEqualTo(CodingTaskOutcome.ValidationStatus.FAILED);
         Run pythonFailure = run("python-failure", "raise ValueError('injected')", "FAILED");
         assertThat(bridge.stderr(scope, "python-failure", pythonFailure.operationId()))
-            .contains("ValueError: injected");
+            .contains("ValueError:","PROGRAM_ERROR").doesNotContain("injected");
         assertThatThrownBy(() -> collect(pythonFailure, rows -> new CodingEvidenceCollector.Validation(true, Map.of())))
             .isInstanceOf(IllegalStateException.class);
         assertThat(evidence.snapshot(scope, "coding:" + sha("unused") + ":bundle")).isEmpty();

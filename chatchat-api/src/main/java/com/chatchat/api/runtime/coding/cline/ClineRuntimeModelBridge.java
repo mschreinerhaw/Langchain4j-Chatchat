@@ -28,6 +28,16 @@ public final class ClineRuntimeModelBridge {
     private final ObjectMapper json;
     private CodingParentModels parentModels;
     private CodingWorkspaceService workspace;
+    private long maxModelCallMillis;
+    private com.chatchat.agents.runtime.coding.DurableCodingTaskService runtimeTasks;
+    private com.chatchat.api.runtime.coding.CodingInvocationContext runtimeIdentity;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setRuntimeGuard(com.chatchat.agents.runtime.coding.DurableCodingTaskService tasks,
+            com.chatchat.api.runtime.coding.CodingInvocationContext identity) { runtimeTasks=tasks;runtimeIdentity=identity; }
+    @org.springframework.beans.factory.annotation.Value("${chatchat.coding.cline.max-model-call-millis:0}")
+    public void setMaxModelCallMillis(long value) {
+        if(value<0)throw new IllegalArgumentException("Negative model call budget");maxModelCallMillis=value;
+    }
     private int configuredMaxOutputTokens = 8192;
     private int workspaceMaxOutputTokens=8192;
     private int maxModelResponseRepairs = 2;
@@ -140,11 +150,27 @@ public final class ClineRuntimeModelBridge {
                 : dev.langchain4j.model.chat.request.DefaultChatRequestParameters.builder()
                     .maxOutputTokens(outputLimit).build();
         Instant started = Instant.now();
-        ChatResponse answer = (parent == null ? models.create(modelName, Duration.ofSeconds(90), outputLimit) : parent)
-            .chat(ChatRequest.builder().messages(messages).toolSpecifications(tools)
-                .parameters(requestParameters).build());
+        java.util.function.LongSupplier remaining=()->Math.max(0,Duration.between(Instant.now(),contract.budget().deadlineAt()).toMillis());
+        java.util.function.BooleanSupplier cancelled=()->runtimeTasks!=null && runtimeIdentity.as(contract.scope(),
+            java.util.EnumSet.of(com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.READ),()->{
+                var state=runtimeTasks.get(contract.scope(),contract.taskId());
+                return state.status().terminal()||state.cancellationRequested()||state.executionControl().stopReason()!=null;
+            });
+        if(remaining.getAsLong()==0)throw new com.chatchat.agents.orchestration.model.AgentDeadlineExceededException("Coding model budget expired");
+        ChatResponse answer;
+        Long queueTime, firstToken, generationTime, retryTime;
+        String responseMode;
+        try(var timing=com.chatchat.agents.orchestration.model.MeteredChatModel.observeTiming()) {
+            var selected=parent==null?models.create(modelName,Duration.ofMillis(remaining.getAsLong()),outputLimit):parent;
+            answer=com.chatchat.agents.orchestration.model.ToolExecutionModels.independent(selected,remaining,cancelled,maxModelCallMillis)
+                .chat(ChatRequest.builder().messages(messages).toolSpecifications(tools).parameters(requestParameters).build());
+            queueTime=timing.queueTimeMs(); firstToken=timing.firstTokenMs(); generationTime=timing.generationTimeMs();
+            retryTime=timing.retryTimeMs();
+            responseMode=timing.responseMode();
+        }
         if (answer == null || answer.aiMessage() == null) throw new IllegalStateException("Model returned no assistant message");
         List<Map<String, Object>> toolCalls = new ArrayList<>();
+        List<Map<String, Object>> nativeToolCalls = new ArrayList<>();
         String responseError = null;
         String responseDiagnostic = null;
         for (ToolExecutionRequest call : answer.aiMessage().toolExecutionRequests()) {
@@ -154,6 +180,7 @@ public final class ClineRuntimeModelBridge {
                     throw new IllegalArgumentException("Tool call identity is invalid");
                 if (call.arguments() == null || call.arguments().length() > MAX_TEXT)
                     throw new IllegalArgumentException("Tool arguments exceed limit");
+                nativeToolCalls.add(Map.of("id", call.id(), "name", call.name(), "arguments", call.arguments()));
                 JsonNode input = json.reader().with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
                     .readTree(call.arguments());
                 if (input == null || !input.isObject()) throw new IllegalArgumentException("Tool input must be an object");
@@ -183,6 +210,8 @@ public final class ClineRuntimeModelBridge {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("text", answer.aiMessage().text() == null ? "" : answer.aiMessage().text());
         result.put("toolCalls", toolCalls);
+        if (responseError != null && !"MODEL_TOOL_NOT_AUTHORIZED".equals(responseDiagnostic))
+            result.put("nativeToolCalls", nativeToolCalls);
         result.put("usage", usage);
         result.put("maxOutputTokens", outputLimit);
         var modelInfo = new LinkedHashMap<String,Object>();
@@ -197,6 +226,14 @@ public final class ClineRuntimeModelBridge {
         modelInfo.put("finishedAt", Instant.now().toString());
         modelInfo.put("durationMs", Duration.between(started, Instant.now()).toMillis());
         modelInfo.put("maxOutputTokens", outputLimit);
+        modelInfo.put("queueTimeMs",queueTime);
+        modelInfo.put("messageCount",turns.size());
+        modelInfo.put("requestBytes",request.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
+        modelInfo.put("firstTokenMs",firstToken);
+        modelInfo.put("generationTimeMs",generationTime);
+        modelInfo.put("responseMode",responseMode);
+        modelInfo.put("retryTimeMs",retryTime);
+        modelInfo.put("deadlineAt",contract.budget().deadlineAt().toString());
         if(executionProfile.get("complexity") instanceof String complexity)modelInfo.put("complexity",complexity);
         if(executionProfile.get("reasoningEffort") instanceof String effort)modelInfo.put("reasoningEffort",effort);
         result.put("modelInfo", modelInfo);

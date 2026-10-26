@@ -187,6 +187,13 @@ public final class ClineModelCallbackController {
         this.inputs = inputs; this.plans = plans; this.collector = collector; this.mapper = mapper;
     }
 
+    /** Signed connectivity check only; never creates a task or grants execution authority. */
+    @PostMapping(value="/preflight", produces="application/json")
+    public Map<String,Object> preflight() {
+        return Map.of("status","READY","codeLifecycleVersion","runtime_os.code_lifecycle.v1",
+            "serverTime",Instant.now().toString());
+    }
+
     @PostMapping("/reserve-model")
     public Map<String, Object> reserve(@RequestBody JsonNode body) {
         return bound(body, call -> {
@@ -227,12 +234,20 @@ public final class ClineModelCallbackController {
             JsonNode request = body.path("request");
             String operationId = operationId(request.path("operationId").asText(null));
             boolean supportsModelFeedback = "runtime_os.coding.model_feedback.v1".equals(request.path("modelResponseFeedbackVersion").asText());
+            boolean managedAttempt = request.path("managedAttempt").asBoolean(false);
+            var accounting = body.deepCopy();
+            ((com.fasterxml.jackson.databind.node.ObjectNode) accounting).set("model", mapper.valueToTree(
+                Map.of("operationId", operationId, "modelCalls", 1, "maxTokens", 1)));
             var prior = receipts.response(call.scope(), call.taskId(), operationId);
             if (prior.isPresent()) {
                 if (prior.get().containsKey("error") && !(supportsModelFeedback && repairableModelResponse(prior.get()))) throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Archived model response contains invalid tool arguments");
+                if (managedAttempt) settle(accounting);
                 return prior.get();
             }
+            // One authenticated transport request, preserving the existing durable
+            // admission/start/receipt/settlement transactions and crash semantics.
+            if (managedAttempt) reserve(accounting);
             Instant permittedAt = freshDispatches.get(key(call, operationId));
             if (!tasks.unresolvedOperations(call.scope(), call.taskId()).contains(operationId)
                     || permittedAt == null || permittedAt.isBefore(Instant.now().minus(Duration.ofMinutes(5))))
@@ -259,6 +274,7 @@ public final class ClineModelCallbackController {
                 receipts.commit(contract, operationId, "runtime-model:" + operationId, invalid.receipt());
                 if (supportsModelFeedback && repairableModelResponse(invalid.receipt())) {
                     assertStillOwned(call);
+                    if (managedAttempt) settle(accounting);
                     return invalid.receipt();
                 }
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
@@ -275,6 +291,7 @@ public final class ClineModelCallbackController {
             // Receipt archival cannot publish a result or grant another dispatch.
             receipts.commit(contract, operationId, "runtime-model:" + operationId, response);
             assertStillOwned(call);
+            if (managedAttempt) settle(accounting);
             return response;
         });
     }
@@ -320,7 +337,9 @@ public final class ClineModelCallbackController {
                 throw new IllegalArgumentException("Bounded worker event and sequence are required");
             String type = event.path("type").asText("");
             // TOOL_STARTED precedes Runtime admission, so its proposed operation is advisory only.
-            String operation = "TOOL_FINISHED".equals(type)
+            boolean admissionPending = event.path("admissionPending").asBoolean(false)
+                && Set.of("MODEL_STARTED", "MODEL_FAILED").contains(type);
+            String operation = admissionPending ? null : "TOOL_FINISHED".equals(type)
                 ? event.path("operationId").asText(null)
                 : type.startsWith("MODEL_") ? operationId("model-" + event.path("modelCall").asLong(-1)) : null;
             var snapshot = CodingTaskRevisions.mutate(tasks, call.scope(), call.taskId(), revision ->
@@ -335,11 +354,11 @@ public final class ClineModelCallbackController {
         var payload = new java.util.LinkedHashMap<String,Object>();
         for (String key : List.of("type", "timestamp", "stage", "source", "attemptId", "tool", "status",
                 "scriptPath", "codeSha256", "fileName", "proposedOperationId", "skillFingerprint", "selectedModel", "providerModel", "protocol", "startedAt", "finishedAt", "validationStatus", "outputStatus",
-                "resultDatasetRef", "validationRecordRef", "evidenceBundleRef", "errorCategory", "diagnosticCode")) {
+                "resultDatasetRef", "validationRecordRef", "evidenceBundleRef", "errorCategory", "diagnosticCode", "parentCodeHash", "changeKind", "proposalHash", "toolCallId", "responseMode")) {
             JsonNode value = event.path(key);
             if (value.isTextual() && value.asText().length() <= 512) payload.put(key, value.asText());
         }
-        for (String key : List.of("scriptVersion", "modelCall", "sourceBytes", "durationMs", "maxOutputTokens", "repairAttempts", "repairAttempt", "maxRepairAttempts")) {
+        for (String key : List.of("scriptVersion", "modelCall", "sourceBytes", "durationMs", "maxOutputTokens", "repairAttempts", "repairAttempt", "maxRepairAttempts", "queueTimeMs", "firstTokenMs", "generationTimeMs", "retryTimeMs", "parentCodeVersion", "codeVersion", "toolDurationMs", "messageCount", "requestBytes", "cpuTimeMs", "maxRssBytes")) {
             if (event.path(key).isIntegralNumber() && event.path(key).asLong() >= 0)
                 payload.put(key, event.path(key).asLong());
         }
@@ -524,6 +543,7 @@ public final class ClineModelCallbackController {
         if (lease.fencingToken() != call.lease().fencingToken()
                 || !lease.owner().equals(call.lease().owner())
                 || !lease.leaseUntil().isAfter(Instant.now())
+                || !tasks.contract(call.scope(),call.taskId()).budget().deadlineAt().isAfter(Instant.now())
                 || current.status().terminal() || current.cancellationRequested()
                 || current.executionControl().stopReason() != null)
             throw new ResponseStatusException(HttpStatus.CONFLICT,

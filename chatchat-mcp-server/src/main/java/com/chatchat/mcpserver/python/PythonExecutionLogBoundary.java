@@ -27,7 +27,7 @@ final class PythonExecutionLogBoundary {
         if (Files.isRegularFile(diagnostic, LinkOption.NOFOLLOW_LINKS) && Files.size(diagnostic) <= 8192) {
             try {
                 var value = mapper.readTree(Files.readAllBytes(diagnostic));
-                for (String key : List.of("stdoutBytes", "stderrBytes")) {
+                for (String key : List.of("stdoutBytes", "stderrBytes", "cpuTimeMs", "maxRssBytes")) {
                     var count = value.path(key);
                     if (count.isIntegralNumber() && count.canConvertToLong() && count.asLong() >= 0)
                         safe.put(key, count.asLong());

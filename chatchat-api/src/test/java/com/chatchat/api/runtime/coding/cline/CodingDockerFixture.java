@@ -65,6 +65,7 @@ abstract class CodingDockerFixture {
             + ";DB_CLOSE_DELAY=-1", "sa", "");
         try (Connection connection = operationSource.getConnection()) {
             ScriptUtils.executeSqlScript(connection, new FileSystemResource(Path.of("../database/migration/h2/V20261015_01__mcp_python_managed_operation.sql")));
+            ScriptUtils.executeSqlScript(connection, new FileSystemResource(Path.of("../database/migration/h2/V20261019_03__mcp_python_unadmitted_cancellation.sql")));
         }
         PythonRuntimeProperties properties = new PythonRuntimeProperties();
         properties.setWorkspaceRoot(temporary.resolve("workspaces").toString());

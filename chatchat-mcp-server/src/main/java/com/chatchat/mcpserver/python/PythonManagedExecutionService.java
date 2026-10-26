@@ -31,6 +31,9 @@ public class PythonManagedExecutionService {
     private final PythonOperationWorkspace workspaces;
     private final InternalCredentialProperties credentials;
     private final ObjectMapper mapper;
+    // Worker completion and HTTP polling must not rewrite the same stopped workspace concurrently.
+    private final Object[] archiveLocks = java.util.stream.IntStream.range(0,256).mapToObj(i->new Object()).toArray();
+    private Object archiveLock(String id) { return archiveLocks[Math.floorMod(id.hashCode(),archiveLocks.length)]; }
     private final ThreadPoolExecutor workers = new ThreadPoolExecutor(2, 4, 30, TimeUnit.SECONDS,
             new ArrayBlockingQueue<>(64), new ThreadPoolExecutor.AbortPolicy());
 
@@ -184,6 +187,9 @@ public class PythonManagedExecutionService {
     /** A durable terminal row prevents startCreated under the task fence lock. Preserve that
      * non-dispatch proof as well as code/inputs, so Runtime can reconcile cancellation before create. */
     private void preserveUndispatchedStop(String id) {
+        synchronized(archiveLock(id)) { preserveUndispatchedStopLocked(id); }
+    }
+    private void preserveUndispatchedStopLocked(String id) {
         Operation row=find(id);
         if(row==null||!row.executorStopped||row.containerStartedAt!=null||row.manifestHash!=null
                 ||!Set.of("CANCELLED","TIMED_OUT").contains(row.status))return;
@@ -374,6 +380,12 @@ public class PythonManagedExecutionService {
     }
 
     private void fenceSuperseded(Operation row) {
+        synchronized(archiveLock(row.id)) {
+            var current=find(row.id);
+            if(current!=null&&!terminal(current.status))fenceSupersededLocked(current);
+        }
+    }
+    private void fenceSupersededLocked(Operation row) {
         PythonDockerRuntime.ContainerState state = docker.inspectManaged(row.containerName);
         boolean stopped = state.exists() && docker.stopManaged(row.containerName).confirmed();
         if (stopped) {
@@ -400,6 +412,9 @@ public class PythonManagedExecutionService {
     }
 
     private void finalizeStopped(String id) {
+        synchronized(archiveLock(id)) { finalizeStoppedLocked(id); }
+    }
+    private void finalizeStoppedLocked(String id) {
         Operation row = find(id);
         if (row == null || terminal(row.status)) return;
         PythonDockerRuntime.ContainerState state = docker.inspectManaged(row.containerName);
@@ -439,8 +454,13 @@ public class PythonManagedExecutionService {
     }
 
     private void writeOnce(Path path, String value) throws java.io.IOException {
-        try { Files.writeString(path, value == null ? "" : value, StandardOpenOption.CREATE_NEW); }
-        catch (FileAlreadyExistsException ignored) { /* Preserve first captured log. */ }
+        if(Files.exists(path,LinkOption.NOFOLLOW_LINKS))return;
+        Path part=Files.createTempFile(path.getParent(),".runtime-write-",".part");
+        try {
+            Files.writeString(part,value==null?"":value);
+            try { Files.move(part,path); }
+            catch(FileAlreadyExistsException ignored) { /* Preserve the first fully written receipt. */ }
+        } finally { Files.deleteIfExists(part); }
     }
 
     private void writeReceipt(Operation row, PythonDockerRuntime.ContainerState state, boolean fenceSuperseded) throws java.io.IOException {

@@ -5,6 +5,8 @@ export interface MonitorEvent {
   operationId?: string; modelCall?: number; tool?: string; [key: string]: unknown;
 }
 export interface ModelCall {
+  queueTimeMs?: number | null; firstTokenMs?: number | null; generationTimeMs?: number | null;
+  retryTimeMs?: number | null; responseMode?: string | null;
   ordinal: number; status: 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'UNKNOWN';
   startedAt: string; finishedAt: string | null; durationMs: number | null;
   selectedModel?: string; providerModel?: string; protocol?: string;

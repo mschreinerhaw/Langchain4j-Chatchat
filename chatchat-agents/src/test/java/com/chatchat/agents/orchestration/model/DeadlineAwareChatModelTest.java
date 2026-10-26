@@ -15,6 +15,38 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DeadlineAwareChatModelTest {
 
+    @Test void cancellationInterruptsAnActiveTransportBeforeTheDeadline() throws Exception {
+        var entered=new java.util.concurrent.CountDownLatch(1);
+        var stopped=new java.util.concurrent.CountDownLatch(1);
+        var cancelled=new AtomicBoolean();
+        ChatModel provider=new ChatModel() {
+            @Override public String chat(String prompt) {
+                entered.countDown();
+                try { Thread.sleep(10_000); return "late"; }
+                catch(InterruptedException e){ stopped.countDown(); throw new java.util.concurrent.CancellationException(); }
+            }
+        };
+        var pool=java.util.concurrent.Executors.newSingleThreadExecutor();
+        try {
+            var run=pool.submit(()->new DeadlineAwareChatModel(provider,()->10_000,cancelled::get,0).chat("code"));
+            assertThat(entered.await(2,java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            cancelled.set(true);
+            assertThatThrownBy(()->run.get(2,java.util.concurrent.TimeUnit.SECONDS))
+                .hasCauseInstanceOf(java.util.concurrent.CancellationException.class);
+            assertThat(stopped.await(2,java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+        } finally {pool.shutdownNow();}
+    }
+
+    @Test void perCallCapCannotSpendTheRestOfTheTaskOrAcceptALateReply() {
+        var model=new DeadlineAwareChatModel(new ChatModel() {
+            @Override public String chat(String prompt) {
+                try {Thread.sleep(200);} catch(InterruptedException ignored) {}
+                return "late";
+            }
+        },()->10_000,()->false,25);
+        assertThatThrownBy(()->model.chat("code")).isInstanceOf(AgentDeadlineExceededException.class);
+    }
+
     @Test
     void interruptsModelInvocationWhenRequestDeadlineExpires() {
         AtomicBoolean interrupted = new AtomicBoolean();

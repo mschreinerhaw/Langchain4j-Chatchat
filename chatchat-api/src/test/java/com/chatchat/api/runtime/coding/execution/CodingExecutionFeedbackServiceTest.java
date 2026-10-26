@@ -48,13 +48,15 @@ class CodingExecutionFeedbackServiceTest {
         "SUCCEEDED".equals(status)?0:1,"a".repeat(64),"sha256:"+"b".repeat(64),"c".repeat(64),null);}
     @Test void safeFailureSurvivesIntoFeedbackAndRepeatedPollingDoesNotDownloadAgain(){
         when(python.diagnosticRecord(scope,"task","operation")).thenReturn("""
-            {"exceptionType":"TypeError","diagnosticCode":"VALUE_NOT_SUBSCRIPTABLE","line":430,
+            {"exceptionType":"TypeError","diagnosticCode":"VALUE_NOT_SUBSCRIPTABLE","line":430,"cpuTimeMs":75,"maxRssBytes":1048576,
              "message":"secret customer value","stack":[{"file":"main.py","line":430},{"file":"private-name","line":9}]}
             """);
         var feedback=service.finish(contract,lease,operation("FAILED"),Map.of());
         assertThat(feedback.error().category()).isEqualTo("PROGRAM");
         assertThat(feedback.error().stack()).containsExactly(new ExecutionFeedback.Frame("main.py",430,null));
         assertThat(feedback.durationMs()).isEqualTo(1000);
+        assertThat(feedback.cpuTimeMs()).isEqualTo(75);
+        assertThat(feedback.maxRssBytes()).isEqualTo(1048576);
         assertThat(feedback.repair().allowed()).isTrue();
         assertThat(service.response(feedback)).containsKeys("diagnostics","stdoutBytes","executionFeedback")
             .containsEntry("diagnosticPolicy","METADATA_ONLY");

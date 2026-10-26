@@ -6,10 +6,12 @@ import subprocess
 import tempfile
 import time
 import unittest
+import uuid
 import urllib.request
 import urllib.error
 
 ROOT = Path(__file__).resolve().parents[1]
+GATEWAY_IMAGE = os.environ.get('GATEWAY_TEST_IMAGE', 'nginx:1.27.5-alpine')
 
 class ApplicationDeploymentTest(unittest.TestCase):
     def config(self, explicit=False, missing_api_data=False):
@@ -64,16 +66,63 @@ class ApplicationDeploymentTest(unittest.TestCase):
         self.assertEqual(api['environment']['CHATCHAT_CHAT_DETAIL_STORE_EXTERNAL_TEXT_MIGRATE_LEGACY_ON_READ'],'false')
         self.assertEqual(api['stop_grace_period'],'1m0s')
 
+    def test_coding_callback_authentication_uses_configured_dns_and_dynamic_addresses(self):
+        doc,_=self.config()
+        api=doc['services']['api']; worker=doc['services']['coding-agent']
+        self.assertEqual(api['environment']['CHATCHAT_CODING_CLINE_ALLOWED_PEER_HOSTNAMES'],'coding-agent')
+        self.assertEqual(api['environment']['CHATCHAT_CODING_CLINE_ALLOWED_PEER_ADDRESSES'],'')
+        self.assertEqual(worker['environment']['RUNTIME_CODING_CALLBACK_URL'],'http://api:8080')
+        self.assertEqual(worker['environment']['RUNTIME_CODING_ALLOWED_CALLBACK_HOSTS'],'api')
+        for service in (api,worker):
+            self.assertFalse((service['networks']['coding'] or {}).get('ipv4_address'))
+
     def test_nginx_accepts_gateway_config(self):
         subprocess.run(['docker','run','--rm','-i','--add-host','api:127.0.0.1','--add-host','mcp:127.0.0.1',
-                        '--entrypoint','sh','nginx:1.27.5-alpine','-c',
+                        '--entrypoint','sh',GATEWAY_IMAGE,'-c',
                         'cat > /tmp/test.conf && exec nginx -t -c /tmp/test.conf'],
                        input=(ROOT/'public-gateway.conf').read_text(),text=True,capture_output=True,check=True)
+
+    def test_node_proxy_follows_worker_dns_after_ip_changes_without_reload(self):
+        prefix='coding-dns-test-'+uuid.uuid4().hex[:12]
+        names=[prefix+suffix for suffix in ['-one','-two','-proxy','-reserved']]
+        one,two,proxy,reserved=names
+        image=os.environ.get('PYTHON_TEST_IMAGE','python:3.11-alpine')
+        server="import http.server,sys\nclass Handler(http.server.BaseHTTPRequestHandler):\n def do_GET(self):\n  self.send_response(200);self.end_headers();self.wfile.write(sys.argv[1].encode())\nhttp.server.HTTPServer(('0.0.0.0',3100),Handler).serve_forever()\n"
+        def run(*args):return subprocess.check_output(['docker',*args],text=True,stderr=subprocess.PIPE).strip()
+        def response(expected):
+            until=time.monotonic()+20
+            while time.monotonic()<until:
+                try:
+                    text=run('run','--rm','--network','container:'+proxy,'--entrypoint','python',image,'-c',
+                        "import urllib.request;print(urllib.request.build_opener(urllib.request.ProxyHandler({})).open('http://127.0.0.1:8791/',timeout=3).read().decode())")
+                    if text==expected:return
+                except subprocess.CalledProcessError:pass
+                time.sleep(0.2)
+            self.fail('Proxy did not resolve the current worker identity')
+        run('network','create','--internal',prefix)
+        try:
+            # Let Docker choose an unused subnet, then make it explicit for the address reservation below.
+            subnet=run('network','inspect','-f','{{(index .IPAM.Config 0).Subnet}}',prefix)
+            run('network','rm',prefix);run('network','create','--internal','--subnet',subnet,prefix)
+            run('run','-d','--name',one,'--network',prefix,'--network-alias','coding-agent','--entrypoint','python',image,'-u','-c',server,'one')
+            old=run('inspect','-f','{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}',one)
+            run('create','--name',proxy,'--network',prefix,'--entrypoint','nginx',GATEWAY_IMAGE,'-g','daemon off;')
+            run('cp',str(ROOT/'node-proxy.conf'),proxy+':/etc/nginx/nginx.conf');run('start',proxy)
+            response('one')
+            run('rm','-f',one)
+            # Reserve the released address so the recreated worker is guaranteed to receive another IP.
+            run('run','-d','--name',reserved,'--network',prefix,'--ip',old,'--entrypoint','python',image,'-c','import time;time.sleep(60)')
+            run('run','-d','--name',two,'--network',prefix,'--network-alias','coding-agent','--entrypoint','python',image,'-u','-c',server,'two')
+            self.assertNotEqual(old,run('inspect','-f','{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}',two))
+            response('two')
+        finally:
+            for name in names:subprocess.run(['docker','rm','-f',name],capture_output=True)
+            subprocess.run(['docker','network','rm',prefix],capture_output=True,check=True)
 
     def test_redirects_keep_the_external_port(self):
         container=subprocess.check_output(['docker','create','--publish','127.0.0.1::8080',
             '--add-host','api:127.0.0.1','--add-host','mcp:127.0.0.1','--entrypoint','nginx',
-            'nginx:1.27.5-alpine','-g','daemon off;'],text=True).strip()
+            GATEWAY_IMAGE,'-g','daemon off;'],text=True).strip()
         self.assertTrue(len(container)==64 and all(c in '0123456789abcdef' for c in container))
         class NoRedirect(urllib.request.HTTPRedirectHandler):
             def redirect_request(self,*args,**kwargs):return None

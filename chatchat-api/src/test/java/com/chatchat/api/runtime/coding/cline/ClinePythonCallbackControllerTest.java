@@ -58,6 +58,19 @@ class ClinePythonCallbackControllerTest {
     Map<String,Object> body(){return new LinkedHashMap<>(Map.of("scope",scope,"taskId","task","contract",contract,
         "contractHash",CodingCanonicalHash.sha256(contract),"fencingToken",1,"operationId",operation));}
 
+    @Test void temporarilyUnverifiableStopProofKeepsTheSameExecutionPendingWithoutPublishing() {
+        when(python.reconcile(eq(scope),eq("task"),any(),eq(operation))).thenThrow(
+            new CodingContractException(CodingErrorCode.EXECUTION_OUTCOME_UNKNOWN,"Stop proof is not yet verifiable"));
+        var response=controller.get(json.valueToTree(body()));
+        assertThat(response).containsEntry("status","RECONCILING").containsEntry("executorStopped",false)
+            .containsEntry("resultAvailable",false).containsEntry("reconciliationRequired",true)
+            .containsEntry("operationId",operation);
+        verifyNoInteractions(collector);
+        verify(python).get(scope,"task",operation);
+        verify(python).reconcile(eq(scope),eq("task"),any(),eq(operation));
+        verifyNoMoreInteractions(python);
+    }
+
     @Test void failedTableReaderReceivesStructuralRepairGuidanceWithoutSourceValues() {
         var old=contract; String file="c"+"a".repeat(63);
         contract=new CodingTaskContract(CodingProtocol.ANALYSIS_VERSION,old.taskId(),old.scope(),old.objective(),

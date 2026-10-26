@@ -1,0 +1,57 @@
+{
+  "sourceRevision": "e0271b164",
+  "taskId": "78a20370-abea-4db1-becd-d837f8afe438",
+  "parentState": "FAILED",
+  "codingTaskId": "analysis-coding-2e0830f83c2f88b9504ffac19b18794780787458a91ec6693b3ae227d9960daa",
+  "workerState": "CANCELLED",
+  "workerError": null,
+  "analysisReportVerified": false,
+  "dataAcquisitionVerified": true,
+  "usableFirstPythonResult": true,
+  "laterOutputMissingResultRejected": true,
+  "events": [
+    {
+      "type": "TOOL_FINISHED",
+      "tool": "python_execute",
+      "status": "SUCCEEDED",
+      "validationStatus": "INCONCLUSIVE",
+      "repairAttempts": 0,
+      "operationId": "cline-7d3075191d5bfef69bae6bf446288c71d27fac9b97e5e84a7a2ef0ec9964a0cb"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "tool": "artifact_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "tool": "python_execute",
+      "status": "SUCCEEDED",
+      "validationStatus": "FAILED",
+      "outputStatus": "REQUIRED_OUTPUT_MISSING",
+      "repairAttempts": 0,
+      "diagnosticCode": "OUTPUT_CONTRACT",
+      "operationId": "cline-c31caa6273941b03d9f445c5f1a505ce0bd636de1c02a4670b1a1d62298ac508"
+    },
+    {
+      "type": "SESSION_FINISHED",
+      "status": "CANCELLED"
+    }
+  ],
+  "modelTimeoutChange": {
+    "model": "qwen3.8-flash",
+    "changedConnectionFields": [
+      "timeout"
+    ],
+    "beforeTimeoutMs": 30000,
+    "afterTimeoutMs": 180000,
+    "otherConnectionFieldsUnchanged": true,
+    "publishedThroughOfficialApi": true
+  },
+  "checks": {
+    "localWorkerTests": 54,
+    "productionWorkerTests": 34,
+    "javaRegressionTests": 44
+  },
+  "workerHealth": "healthy"
+}

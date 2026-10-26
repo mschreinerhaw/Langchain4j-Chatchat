@@ -6,6 +6,13 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RuntimeEventLogTest {
+    @Test void preservesMeasuredResourcesAndVersionLineageWithoutRawPrograms() {
+        String line=RuntimeEventLog.format(event(Map.of("cpuTimeMs",12,"maxRssBytes",4096,
+            "firstTokenMs",80,"generationTimeMs",150,"parentCodeVersion",2,"changeKind","PATCH",
+            "programSource","private source","stdout","private output")));
+        assertThat(line).contains("\"cpuTimeMs\":12","\"maxRssBytes\":4096","\"firstTokenMs\":80","\"parentCodeVersion\":2","PATCH")
+            .doesNotContain("private source","private output");
+    }
     @Test void recordsNavigationAndExecutionFactsWithoutRawCredentialsOrModelContent() {
         String line = RuntimeEventLog.format(event(Map.of("metadata", Map.of(
             "eventKind", "HARNESS_TURN", "eventState", "COMPLETED", "turn", 2,

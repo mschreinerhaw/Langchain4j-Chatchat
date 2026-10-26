@@ -110,7 +110,7 @@ class CodingAnalysisServiceTest {
         assertThat((List<?>) value.get("datasetReferences")).hasSize(9);
         assertThat(value.get("requestId")).isEqualTo("primary-data-analysis-v1");
         assertThat(value.get("reviewResult")).isEqualTo(true);
-        assertThat(value.get("instruction").toString()).contains("Autonomously inspect",
+        assertThat(value.get("instruction").toString()).contains("Inspect their schemas and quality for the supplied Runtime task plan",
             "same declared metric, scope, period and unit", "every table header aligns with its values",
             "User objective", "Question").doesNotContain("customer", "security", "profit formula");
         assertThat((Map<String,Object>) value.get("outputSchema")).containsEntry("type", "object");
@@ -482,19 +482,19 @@ class CodingAnalysisServiceTest {
         assertThat(contracts.getAllValues()).allSatisfy(c -> assertThat(c.budget().maxModelTokens()).isEqualTo(policy.getMaxModelTokens()));
     }
 
-    @Test void toolDeadlineIsIndependentAndParentModelUsageIsNotChargedForCoding() {
+    @Test void codingDeadlineIsCappedByParentWithoutChargingParentTokensOrExtendingTime() {
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
         var provider=mock(ChatModel.class);when(provider.chat(anyString())).thenReturn("tool response");
         var usage=new LinkedHashMap<String,Object>();
-        var parentModel=new com.chatchat.agents.orchestration.model.MeteredChatModel(
-            new com.chatchat.agents.orchestration.model.DeadlineAwareChatModel(provider,()->0L),usage,1,0,0,0,0.8);
         var deadline=new java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis()+60_000);
+        var parentModel=new com.chatchat.agents.orchestration.model.MeteredChatModel(
+            new com.chatchat.agents.orchestration.model.DeadlineAwareChatModel(provider,()->Math.max(0,deadline.get()-System.currentTimeMillis())),usage,1,0,0,0,0.8);
         var parent=context("tenant");
         var ctx=new AnalysisCoverageCoordinator.Request(parentModel,parent.query(),null,Map.of("__agentDeadlineAt",deadline),
             parent.metadata(),()->false,()->{},parent.isolationScope(),null);
         when(agent.submit(any())).thenAnswer(call -> {
             CodingTaskContract contract=call.getArgument(0);
-            assertThat(contract.budget().deadlineAt()).isAfter(java.time.Instant.now().plusSeconds(200));
+            assertThat(contract.budget().deadlineAt().toEpochMilli()).isEqualTo(deadline.get());
             assertThat(models.find(contract.scope(),contract.taskId()).chat("a large code generation prompt")).isEqualTo("tool response");
             return outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN);
         });

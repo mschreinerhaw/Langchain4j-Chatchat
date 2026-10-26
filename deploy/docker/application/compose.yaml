@@ -17,7 +17,8 @@ services:
       CHATCHAT_CODING_ENABLED: "true"
       CHATCHAT_CODING_CLINE_ENABLED: "true"
       CHATCHAT_CODING_CLINE_NODE_URL: http://127.0.0.1:8791
-      CHATCHAT_CODING_CLINE_ALLOWED_PEER_ADDRESSES: 172.30.93.10
+      CHATCHAT_CODING_CLINE_ALLOWED_PEER_ADDRESSES: ${CODING_CALLBACK_ALLOWED_ADDRESSES:-}
+      CHATCHAT_CODING_CLINE_ALLOWED_PEER_HOSTNAMES: ${CODING_CALLBACK_ALLOWED_HOSTNAMES:-coding-agent}
       CHATCHAT_CODING_CLINE_SHARED_SECRET_FILE: /run/secrets/coding_agent_shared_secret
       CHATCHAT_SEARCH_OPENSEARCH_INDEX: runtime_os_stage_documents
       CHATCHAT_CHAT_DETAIL_STORE_PATH: /srv/app/data/chat-rocksdb
@@ -44,8 +45,7 @@ services:
       - coding_agent_shared_secret
     networks:
       control: {}
-      coding:
-        ipv4_address: 172.30.93.20
+      coding: {}
     security_opt:
       - no-new-privileges:true
     mem_limit: 4g
@@ -134,17 +134,17 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      CLINE_NATIVE_SDK_ENABLED: ${CODING_NATIVE_SDK_ENABLED:-false}
       RUNTIME_CODING_HOST: 0.0.0.0
       RUNTIME_CODING_PORT: "3100"
-      RUNTIME_CODING_CALLBACK_URL: http://api:8080
-      RUNTIME_CODING_ALLOWED_CALLBACK_HOSTS: api
+      RUNTIME_CODING_CALLBACK_URL: ${CODING_CALLBACK_URL:-http://api:8080}
+      RUNTIME_CODING_ALLOWED_CALLBACK_HOSTS: ${CODING_CALLBACK_ALLOWED_HOSTS:-api}
       RUNTIME_CODING_SHARED_SECRET_FILE: /run/secrets/coding_agent_shared_secret
     secrets:
       - source: coding_agent_node_secret
         target: coding_agent_shared_secret
     networks:
-      coding:
-        ipv4_address: 172.30.93.10
+      coding: {}
     read_only: true
     tmpfs:
       - /tmp:size=128m,noexec,nosuid,nodev,uid=1000,gid=32101
@@ -220,4 +220,4 @@ networks:
     internal: true
     ipam:
       config:
-        - subnet: 172.30.93.0/24
+        - subnet: ${CODING_NETWORK_SUBNET:-172.30.93.0/24}

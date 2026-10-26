@@ -1,0 +1,19 @@
+{
+  "previousImage": "sha256:62cdac1c8b41f492e6e8815974e9044c489634ed2780b285054e0064e0863d1f",
+  "image": "runtime-os-coding-agent:repair-context-20261026",
+  "backupContainer": "runtime-os-app-stage-coding-agent-1-before-repair-context-20261026",
+  "changedModules": [
+    "runner.js",
+    "code-repair.js"
+  ],
+  "runtimePolicyPreserved": true,
+  "status": "DEPLOYED",
+  "runtimePolicyVerified": true,
+  "imageId": "sha256:b5d531b183e8d42c99e05d99260c94b4fc2b92dc198291d91cfbffabf1291c65",
+  "artifacts": {
+    "runner.js": "d0864bada0d7d7bb5ea3289abfc20a464bd2b60275c445b3342f27ffd11a02a5",
+    "code-repair.js": "0bf8f74bf7b3cc15766ba5bb7997be50508b3b142107c63156ad933062c040b7"
+  },
+  "fixedWorkerAddressRestored": true,
+  "workerAddress": "172.30.93.10"
+}

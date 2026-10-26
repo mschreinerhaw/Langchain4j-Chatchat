@@ -45,9 +45,49 @@ public final class MeteredChatModel implements ChatModel {
 
     static CallTiming currentTiming() { return CURRENT_TIMING.get(); }
 
+    /** Reuses the existing per-call clock for Coding receipts without charging parent tokens. */
+    public static TimingScope observeTiming() { return new TimingScope(); }
+    public static void singleAttemptProvider() { var timing=CURRENT_TIMING.get();if(timing!=null)timing.retryTimeMs=0L; }
+    public static final class TimingScope implements AutoCloseable {
+        private final CallTiming previous = CURRENT_TIMING.get();
+        private final CallTiming timing = new CallTiming();
+        private TimingScope() { CURRENT_TIMING.set(timing); }
+        public Long firstTokenMs() { return timing.firstTokenMs; }
+        public Long generationTimeMs() { return timing.generationTimeMs; }
+        public Long retryTimeMs() { return timing.retryTimeMs; }
+        public String responseMode() { return timing.streaming?"STREAMING":"NON_STREAMING"; }
+        public Long queueTimeMs() { return timing.executionStartedNanos==0?null:
+            java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(timing.executionStartedNanos-timing.submittedNanos); }
+        @Override public void close() { if(previous==null)CURRENT_TIMING.remove();else CURRENT_TIMING.set(previous); }
+    }
+
+    public static StreamTiming observeStream() { return new StreamTiming(CURRENT_TIMING.get()); }
+    public static final class StreamTiming {
+        private final CallTiming timing;
+        private final long started=System.nanoTime();
+        private final java.util.concurrent.atomic.AtomicLong first=new java.util.concurrent.atomic.AtomicLong(-1);
+        private StreamTiming(CallTiming timing) { this.timing=timing;if(timing!=null)timing.streaming=true; }
+        public void token() {
+            long elapsed=java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-started);
+            if(first.compareAndSet(-1,elapsed) && timing!=null)timing.firstTokenMs=elapsed;
+        }
+        public void complete() {
+            if(first.get()>=0 && timing!=null)timing.generationTimeMs=Math.max(0,
+                java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-started)-first.get());
+        }
+    }
+
+    static <T> T withTiming(CallTiming timing, java.util.concurrent.Callable<T> action) throws Exception {
+        CallTiming previous=CURRENT_TIMING.get();
+        if(timing!=null)CURRENT_TIMING.set(timing);
+        try{return action.call();}finally{if(previous==null)CURRENT_TIMING.remove();else CURRENT_TIMING.set(previous);}
+    }
+
     static final class CallTiming {
         final long submittedNanos = System.nanoTime();
         volatile long executionStartedNanos;
+        volatile Long firstTokenMs, generationTimeMs, retryTimeMs;
+        volatile boolean streaming;
         void started() { executionStartedNanos = System.nanoTime(); }
     }
 
@@ -152,6 +192,10 @@ public final class MeteredChatModel implements ChatModel {
                 Long queue = timing.executionStartedNanos == 0 ? null
                     : Math.min(elapsed, Math.max(0, (timing.executionStartedNanos - timing.submittedNanos) / 1_000_000));
                 call.put("queueTimeMs", queue);
+                call.put("firstTokenMs",timing.firstTokenMs);
+                call.put("generationTimeMs",timing.generationTimeMs);
+                call.put("retryTimeMs",timing.retryTimeMs);
+                call.put("responseMode",timing.streaming?"STREAMING":"NON_STREAMING");
                 call.put("executionTimeMs", queue == null ? null : elapsed - queue);
                 call.put("outputTokensEstimated", success ? responseTokens : null);
                 call.put("inputTokens", actual == null ? null : actual.inputTokenCount());

@@ -33,99 +33,90 @@ public final class DeadlineAwareChatModel implements ChatModel {
     );
 
     private final ChatModel delegate;
+    private final LongSupplier remainingTimeMs;
+    private final java.util.function.BooleanSupplier cancelled;
+    private final long maxCallMillis;
 
     ChatModel toolDelegate() { return delegate; }
-    private final LongSupplier remainingTimeMs;
+    LongSupplier toolRemainingTimeMs() { return remainingTimeMs; }
+    java.util.function.BooleanSupplier toolCancellation() { return cancelled; }
+    long toolMaxCallMillis() { return maxCallMillis; }
 
     public DeadlineAwareChatModel(ChatModel delegate, LongSupplier remainingTimeMs) {
+        this(delegate, remainingTimeMs, () -> false, 0);
+    }
+
+    public DeadlineAwareChatModel(ChatModel delegate, LongSupplier remainingTimeMs,
+            java.util.function.BooleanSupplier cancelled, long maxCallMillis) {
+        if (maxCallMillis < 0) throw new IllegalArgumentException("Negative per-call model budget");
         this.delegate = delegate;
         this.remainingTimeMs = remainingTimeMs;
+        this.cancelled = cancelled;
+        this.maxCallMillis = maxCallMillis;
     }
 
-    @Override
-    public String chat(String message) {
-        MeteredChatModel.CallTiming timing = MeteredChatModel.currentTiming();
-        long remaining = remainingTimeMs.getAsLong();
-        if (remaining < 0L) {
-            if (timing != null) timing.started();
-            return delegate.chat(message);
-        }
-        if (remaining == 0L) {
-            throw new AgentDeadlineExceededException("Agent execution time budget exhausted before model invocation");
-        }
-        Future<String> future;
-        try {
-            future = EXECUTOR.submit(() -> {
-                if (timing != null) timing.started();
-                return delegate.chat(message);
-            });
-        } catch (RejectedExecutionException ex) {
-            throw new AgentDeadlineExceededException(
-                "Agent model deadline executor is saturated");
-        }
-        try {
-            return future.get(remaining, TimeUnit.MILLISECONDS);
-        } catch (TimeoutException ex) {
-            boolean cancelled = future.cancel(true);
-            if (cancelled) {
-                log.warn("Agent model invocation exceeded the request deadline; cancellation was requested "
-                    + "but delegate transport termination depends on its own interrupt and socket-timeout support");
-            }
-            throw new AgentDeadlineExceededException(
-                "Agent execution time budget exhausted during model invocation");
-        } catch (InterruptedException ex) {
-            future.cancel(true);
-            Thread.currentThread().interrupt();
-            throw new java.util.concurrent.CancellationException("Agent model invocation interrupted");
-        } catch (ExecutionException ex) {
-            Throwable cause = ex.getCause() == null ? ex : ex.getCause();
-            if (cause instanceof RuntimeException runtimeException) {
-                throw runtimeException;
-            }
-            throw new IllegalStateException(cause.getMessage(), cause);
-        }
+    @Override public String chat(String message) { return invoke(() -> delegate.chat(message)); }
+    @Override public ChatResponse doChat(ChatRequest request) { return invoke(() -> delegate.chat(request)); }
+
+    private void requireActive() {
+        if (cancelled.getAsBoolean()) throw new java.util.concurrent.CancellationException("Runtime task cancelled during model invocation");
     }
 
-    @Override
-    public ChatResponse doChat(ChatRequest request) {
+    private <T> T invoke(java.util.concurrent.Callable<T> operation) {
+        requireActive();
         MeteredChatModel.CallTiming timing = MeteredChatModel.currentTiming();
         long remaining = remainingTimeMs.getAsLong();
-        if (remaining < 0L) {
+        if (remaining == 0) throw exhausted();
+        // Custom unbounded embedders retain direct execution only when no call cap exists.
+        if (remaining < 0 && maxCallMillis == 0) {
             if (timing != null) timing.started();
-            return delegate.chat(request);
+            try { return operation.call(); }
+            catch (RuntimeException e) { throw e; }
+            catch (Exception e) { throw new IllegalStateException(e); }
         }
-        if (remaining == 0L) {
-            throw new AgentDeadlineExceededException("Agent execution time budget exhausted before model invocation");
-        }
-        Future<ChatResponse> future;
+        long allowance = remaining < 0 ? maxCallMillis : maxCallMillis > 0 ? Math.min(remaining, maxCallMillis) : remaining;
+        long started = System.nanoTime();
+        long allowanceNanos = TimeUnit.MILLISECONDS.toNanos(allowance);
+        Future<T> future;
         try {
             future = EXECUTOR.submit(() -> {
+                requireActive();
+                if (System.nanoTime()-started >= allowanceNanos || remainingTimeMs.getAsLong()==0) throw exhausted();
                 if (timing != null) timing.started();
-                return delegate.chat(request);
+                return MeteredChatModel.withTiming(timing, operation);
             });
-        } catch (RejectedExecutionException ex) {
+        } catch (RejectedExecutionException e) {
             throw new AgentDeadlineExceededException("Agent model deadline executor is saturated");
         }
         try {
-            return future.get(remaining, TimeUnit.MILLISECONDS);
-        } catch (TimeoutException ex) {
-            boolean cancelled = future.cancel(true);
-            if (cancelled) {
-                log.warn("Agent model invocation exceeded the request deadline; cancellation was requested "
-                    + "but delegate transport termination depends on its own interrupt and socket-timeout support");
+            while (true) {
+                requireActive();
+                long left = allowanceNanos - (System.nanoTime()-started);
+                long taskLeft = remainingTimeMs.getAsLong();
+                if (taskLeft >= 0) left = Math.min(left, TimeUnit.MILLISECONDS.toNanos(taskLeft));
+                if (left <= 0) throw exhausted();
+                try {
+                    T value=future.get(Math.min(left, TimeUnit.MILLISECONDS.toNanos(50)), TimeUnit.NANOSECONDS);
+                    requireActive();
+                    if(remainingTimeMs.getAsLong()==0 || System.nanoTime()-started>=allowanceNanos)throw exhausted();
+                    return value;
+                }
+                catch (TimeoutException waitAgain) { /* Recheck cancellation and the Java deadline. */ }
             }
-            throw new AgentDeadlineExceededException(
-                "Agent execution time budget exhausted during model invocation");
-        } catch (InterruptedException ex) {
-            future.cancel(true);
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new java.util.concurrent.CancellationException("Agent model invocation interrupted");
-        } catch (ExecutionException ex) {
-            Throwable cause = ex.getCause() == null ? ex : ex.getCause();
-            if (cause instanceof RuntimeException runtimeException) {
-                throw runtimeException;
-            }
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause()==null?e:e.getCause();
+            if (cause instanceof RuntimeException runtime) throw runtime;
             throw new IllegalStateException(cause.getMessage(), cause);
+        } finally {
+            if (!future.isDone()) future.cancel(true);
+            EXECUTOR.purge();
         }
+    }
+
+    private static AgentDeadlineExceededException exhausted() {
+        return new AgentDeadlineExceededException("Agent execution time budget exhausted during model invocation");
     }
 }

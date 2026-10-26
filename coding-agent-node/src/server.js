@@ -95,7 +95,7 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
     const timeout = AbortSignal.timeout(remaining);
     const transport = action === 'model' ? modelRequest : fetch;
     const answer = await transport(`${callbackUrl}${path}`, {
-      method: 'POST', headers: { authorization: `Bearer ${secret}`, 'content-type': 'application/json',
+      method: 'POST', headers: { authorization: `Bearer ${secret}`, 'content-type': 'application/json', accept: 'application/json',
         'x-chatchat-timestamp': timestamp, 'x-chatchat-nonce': nonce,
         'x-chatchat-signature': signature, 'x-chatchat-signature-version': '2' },
       body: bytes, signal: signal ? AbortSignal.any([signal, timeout]) : timeout, redirect: 'error',
@@ -105,7 +105,9 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
     return data;
   };
   return {
+    atomicModelAttempts: true,
     reserveModel: (contract, model) => callback('reserve-model', { contract, model }),
+    preflight: signal => callback('preflight', {}, signal),
     model: (contract, request, signal) => callback('model', { contract, request }, signal),
     settleModel: (contract, model) => callback('settle-model', { contract, model }),
     preparePython: (contract, execution, signal) => callback('prepare-python', { contract, execution }, signal),
@@ -159,6 +161,7 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
       if (request.method === 'POST' && url.pathname === '/v1/input-capabilities') {
         await body(request);
         return response(reply, 200, { schemaVersion: 'runtime_os.coding.input.v1', formats: ['PARQUET', 'CSV'],
+          codeLifecycleVersions: ['runtime_os.code_lifecycle.v1'],
           analysisProfiles: ['runtime-coding:analysis-fast-path:v1'] });
       }
       if (request.method === 'GET' && url.pathname === '/healthz')
@@ -203,7 +206,9 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
         let monitorId = null;
         run.session = createCodingRun(value.contract, gateway, {
           model: modelFactory ? modelFactory(value.contract)
-            : createRuntimeModel(gateway, value.contract, value.checkpoint?.modelOrdinal ?? 0),
+            : createRuntimeModel(gateway, value.contract, value.checkpoint?.modelOrdinal ?? 0,
+              { nativeSdk: value.checkpoint?.nativeSdk ?? process.env.CLINE_NATIVE_SDK_ENABLED !== 'false' }),
+          nativeSdk: value.checkpoint?.nativeSdk ?? process.env.CLINE_NATIVE_SDK_ENABLED !== 'false',
           modelTokenReservation: value.modelTokenReservation, checkpoint: value.checkpoint,
           contractHash: value.contractHash,
           attemptId: `${value.contract.taskId}:fence-${value.fencingToken}`,

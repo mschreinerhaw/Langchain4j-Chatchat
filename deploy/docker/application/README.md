@@ -57,4 +57,13 @@ The Docker daemon must see Python paths at the same absolute host/container loca
 The gateway redirects legacy Runtime URLs `/admin`, `/admin/` and `/admin/index.html` to the current application root. Runtime HTML uses `Cache-Control: no-store, max-age=0`; `/favicon.ico` redirects to the packaged SVG. MCP admin URLs on port 18101 remain unchanged. The frontend build must still pass `verify-web-assets.ps1`: redirecting an HTML entry point does not repair a JAR containing mismatched hashed assets. Refresh an already cached old page after this upgrade.
 
 Run `python deploy/docker/application/tests/test_application_deployment.py` with Docker available to validate real Compose expansion, existing-data bind semantics, News network routing and Nginx syntax.
+
+Coding callbacks and promotion
+-----------------------------
+
+Compose uses service DNS identities instead of fixed API/Worker addresses. Configure `CODING_CALLBACK_URL`, `CODING_CALLBACK_ALLOWED_HOSTS`, `CODING_CALLBACK_ALLOWED_HOSTNAMES` and secret-file mounts together. Explicit legacy addresses remain available through `CODING_CALLBACK_ALLOWED_ADDRESSES`; the signed callback protocol is still required. After candidate creation or container recreation, run `restrict-coding-worker.sh` with the candidate's `CODING_WORKER_CONTAINER`, `CODING_API_CONTAINER` and `CODING_NETWORK`; it atomically replaces only its owned firewall rules using inspected addresses.
+
+Set `CODING_FIREWALL_VALIDATE_ONLY=1` to validate the proposed rules with `iptables-restore --test` before applying them. The Node proxy resolves Worker DNS dynamically so container IP changes do not require an Nginx reload. The isolated deployment test reserves the previous address and verifies routing to a recreated Worker at a different address.
+
+Before promoting prepared candidate routes, run `python3 scripts/verify-coding-callback.py --worker CANDIDATE --report /private/releases/RELEASE/callback.json --promote-gateway GATEWAY`. A signed protocol preflight and an unsigned 401 check must both pass before the script tests/reloads Nginx. Without `--promote-gateway` it only verifies. A failed candidate must not replace current traffic. This gate complements the existing deployment system; it does not create a second rollout manager. Historical dated release scripts are reproduction/rollback records and do not implement the new protocol gate. See [the architecture and measured validation scope](../../../docs/runtime-coding-stability-20261026.md) for compatibility flags and test evidence. `GATEWAY_TEST_IMAGE` selects an already installed gateway image for isolated deployment tests.
 本版中文产品部署、离线包、升级、回滚和镜像清理步骤见 [1.2 产品部署手册](../../../docs/product-deployment-1.2-20261022.md)。

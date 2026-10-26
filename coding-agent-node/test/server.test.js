@@ -31,21 +31,23 @@ test('model inference follows task deadline beyond control timeout and remains c
 });
 
 test('Runtime callback timeout bounds stalled admission while expired tasks can still request cancellation', async () => {
-  let calls = 0;
-  const callback = createServer((request, response) => {
-    calls++;
-    if (request.url.endsWith('/cancel-python')) { response.writeHead(200, { 'content-type': 'application/json' }); response.end('{}'); }
+  const admissions = []; let cancellations = 0;
+  const callback = createServer(async (request, response) => {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    if (request.url.endsWith('/reserve-model')) admissions.push(JSON.parse(Buffer.concat(chunks)));
+    if (request.url.endsWith('/cancel-python')) { cancellations++; response.writeHead(200, { 'content-type': 'application/json' }); response.end('{}'); }
   });
   await new Promise(resolve => callback.listen(0, '127.0.0.1', resolve));
   try {
     const gateway = httpGateway(`http://127.0.0.1:${callback.address().port}`, secret, {}, { timeoutMs: 100 });
     await assert.rejects(gateway.reserveModel(contract, {}), /timeout|aborted/i);
     const expired = { ...contract, budget: { deadlineAt: '2020-01-01T00:00:00Z' } };
-    const before = calls;
     await assert.rejects(gateway.reserveModel(expired, {}), /deadline reached/);
-    assert.equal(calls, before);
     await gateway.cancelPython(expired, 'existing-operation');
-    assert.equal(calls, before + 1);
+    assert.equal(cancellations, 1);
+    // A timed-out transport can arrive late on a busy host; it is still the original admission.
+    assert.equal(admissions.some(value => value.contract?.budget?.deadlineAt === expired.budget.deadlineAt), false);
   } finally { callback.closeAllConnections(); await new Promise(resolve => callback.close(resolve)); }
 });
 
@@ -105,7 +107,7 @@ test('Node HTTP boundary authenticates, dispatches once, and hides SDK session I
     assert.equal((await fetch(`${url}/readyz`, { headers: { authorization: `Bearer ${secret}` } })).status, 200);
     assert.equal((await post('/v1/input-capabilities', {}, 'wrong')).status, 401);
     assert.deepEqual(await (await post('/v1/input-capabilities', {})).json(),
-      { schemaVersion: 'runtime_os.coding.input.v1', formats: ['PARQUET', 'CSV'], analysisProfiles: ['runtime-coding:analysis-fast-path:v1'] });
+      { schemaVersion: 'runtime_os.coding.input.v1', formats: ['PARQUET', 'CSV'], codeLifecycleVersions: ['runtime_os.code_lifecycle.v1'], analysisProfiles: ['runtime-coding:analysis-fast-path:v1'] });
     const request = { contract, contractHash: 'a'.repeat(64), fencingToken: 1 };
     const unsupported = await post('/v1/runs', { ...request,
       contract: { ...contract, schemaVersion: 'runtime_os.coding.v2' } });

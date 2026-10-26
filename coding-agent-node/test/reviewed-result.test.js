@@ -46,6 +46,8 @@ test('reviewed analysis delivers the actual authorized report to the next semant
     assert.equal(turn, 2);
     assert.match(JSON.stringify(request.messages), /ACTUAL_COMPUTED_REPORT/);
     assert.match(JSON.stringify(request.messages), /INCONCLUSIVE/);
+    assert.match(request.systemPrompt, /finish with one concise confirmation/);
+    assert.match(request.systemPrompt, /Keep all required review checks/);
     return complete;
   }, verified, (_read, reference) => {
     assert.equal(reference, 'runtime-evidence:result-1');

@@ -80,7 +80,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             if(dataSupply==null)throw new SecurityException("Dynamic analysis is unavailable");
             if(contract.authorization().allowedTools().contains("data_request"))dataSupply.requireAuthorized(contract);
         }
-        if (!(dynamic?java.util.Set.of("python_execute","artifact_read","data_request","sql_validate"):java.util.Set.of("python_execute")).containsAll(contract.authorization().allowedTools()))
+        if (!(dynamic?ClineToolProfiles.ANALYSIS:java.util.Set.of("python_execute")).containsAll(contract.authorization().allowedTools()))
             throw new IllegalArgumentException("D1 permits only the implemented Runtime Python callback");
         inputs.requireAuthorized(contract);
         plans.validator(contract);

@@ -44,12 +44,15 @@ import static org.mockito.Mockito.when;
 
 class ClineCodingAdapterDispatchTest {
     @Test void missingNodeSessionCanRestartOnlyBeforeAnExternalOperationWasStarted() throws Exception {
-        runScenario(false);
+        runScenario(false,false);
     }
     @Test void fileCapabilitiesAreRequiredOnInitialDispatchAndSessionRecovery() throws Exception {
-        runScenario(true);
+        runScenario(true,false);
     }
-    private void runScenario(boolean fileInput) throws Exception {
+    @Test void authorizedSkillDisclosureSurvivesDispatchAndRecoveryWithoutExpandingExecutionAuthority() throws Exception {
+        runScenario(true,true);
+    }
+    private void runScenario(boolean fileInput,boolean skillReader) throws Exception {
         var source = new DriverManagerDataSource("jdbc:h2:mem:adapter-dispatch-" + UUID.randomUUID()
             + ";DB_CLOSE_DELAY=-1", "sa", "");
         new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);
@@ -96,7 +99,7 @@ class ClineCodingAdapterDispatchTest {
             adapter.setLicenseEntitlements(license);
             var base=contract(scope);
             var contract=fileInput?new CodingTaskContract(CodingProtocol.ANALYSIS_VERSION,base.taskId(),scope,base.objective(),base.inputSnapshotRef(),
-                base.metadataRefs(),base.workspaceRef(),new CodingTaskContract.Authorization(base.authorization().decisionRef(),List.of(),
+                base.metadataRefs(),base.workspaceRef(),new CodingTaskContract.Authorization(base.authorization().decisionRef(),skillReader?List.of("skill_read"):List.of(),
                     List.of("c"+"a".repeat(63)),List.of(),List.of(),CodingTaskContract.NetworkPolicy.NONE,List.of(),List.of()),
                 base.budget(),base.environmentRef(),base.validationPlanRef(),base.outputContract(),
                 Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","inputFiles",

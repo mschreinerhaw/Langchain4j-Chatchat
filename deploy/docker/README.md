@@ -1,6 +1,8 @@
 # ChatChat single-host production infrastructure
 
-`docker-compose.yaml` deploys the infrastructure used by the current Runtime:
+For the current complete PostgreSQL application stack, use [application/compose.yaml](application/compose.yaml) and [the maintenance manual](../DOCKER-MAINTENANCE.zh-CN.md). This file describes the alternative MySQL infrastructure only. Do not start duplicate Redis/OpenSearch services from both entry points.
+
+`docker-compose.yaml` deploys the MySQL-compatible infrastructure:
 
 - MySQL 8.4 with independent `live_runtime_api`, `live_runtime_mcp`, and `chatchat_news` schemas;
 - Redis with AOF/RDB persistence and a least-privilege `chatchat` ACL for `db-query-cache:*`;
@@ -27,6 +29,13 @@ opensearch_admin_password.txt
 
 The directory is ignored by Git. On Linux, set directory mode `0700` and file mode `0600`.
 Never put secrets in `.env.production`, Compose command lines, or application YAML.
+
+The OpenSearch bootstrap container runs as UID/GID 1000: set its
+`opensearch_admin_password.txt` to `root:1000`, mode `0640`, so the bind-mounted
+secret is readable inside that container. The shared idempotent bootstrap helper
+preserves existing security settings, rejects mismatched credentials and verifies
+authenticated cluster health. A transport-ready 503 before initialization is not
+application readiness; `opensearch-security-init` must exit successfully.
 
 Provision the OpenSearch certificates described in
 `deploy/docker/opensearch/certs/README.md` before startup.

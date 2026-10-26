@@ -26,6 +26,12 @@ class ApplicationDeploymentTest(unittest.TestCase):
                       'API_INTERNAL_KEY_FILE': '/keys/api', 'MCP_INTERNAL_KEY_FILE': '/keys/mcp',
                       'CODING_AGENT_SHARED_SECRET_FILE': '/keys/shared', 'CODING_AGENT_NODE_SECRET_FILE': '/keys/node',
                       'NEWS_DATA_DIR': '/existing/news/data', 'NEWS_CONFIG_DIR': '/existing/news/config'}
+            for key in ['POSTGRESQL_ADMIN_PASSWORD_FILE', 'POSTGRESQL_API_PASSWORD_FILE',
+                        'POSTGRESQL_MCP_PASSWORD_FILE', 'REDIS_PASSWORD_FILE',
+                        'OPENSEARCH_ADMIN_PASSWORD_FILE', 'BOOTSTRAP_ADMIN_PASSWORD_FILE']:
+                values[key]='/keys/'+key.lower()
+            values.update(OPENSEARCH_CERTS_DIR='/keys/opensearch-certs',
+                          OPENSEARCH_TRUSTSTORE_FILE='/keys/opensearch-truststore.p12')
             values.update(API_DATA_DIR=stage.as_posix()+'/api/data', MCP_DATA_DIR=stage.as_posix()+'/mcp/data')
             if explicit:
                 values.update(API_DATA_DIR='/existing/api/data', MCP_DATA_DIR='/existing/mcp/data',
@@ -81,6 +87,44 @@ class ApplicationDeploymentTest(unittest.TestCase):
                         '--entrypoint','sh',GATEWAY_IMAGE,'-c',
                         'cat > /tmp/test.conf && exec nginx -t -c /tmp/test.conf'],
                        input=(ROOT/'public-gateway.conf').read_text(),text=True,capture_output=True,check=True)
+
+    def test_dependencies_are_persistent_authenticated_and_isolated_from_coding(self):
+        doc,_=self.config();services=doc['services']
+        for name in ['postgresql','redis','opensearch']:
+            service=services[name]
+            self.assertIn('healthcheck',service)
+            self.assertEqual(set(service['networks']),{'control'})
+            self.assertEqual(service['ports'][0]['host_ip'],'127.0.0.1')
+            self.assertTrue(any(v['type']=='volume' for v in service['volumes']))
+        for name,db in [('api','live_runtime_api'),('mcp','live_runtime_mcp')]:
+            service=services[name]
+            self.assertEqual(service['depends_on']['postgresql']['condition'],'service_healthy')
+            self.assertEqual(service['depends_on']['opensearch-security-init']['condition'],
+                             'service_completed_successfully')
+            self.assertIn('classpath:datasource-postgresql.yml',service['environment']['SPRING_CONFIG_IMPORT'])
+            self.assertIn('configtree:/run/secrets/',service['environment']['SPRING_CONFIG_IMPORT'])
+            url=service['environment']['CHATCHAT_'+name.upper()+'_POSTGRESQL_URL']
+            self.assertEqual(url,'jdbc:postgresql://postgresql:5432/'+db)
+            self.assertTrue(any(s['target']=='CHATCHAT_'+name.upper()+'_POSTGRESQL_PASSWORD' for s in service['secrets']))
+        self.assertNotIn('DISABLE_SECURITY_PLUGIN',services['opensearch']['environment'])
+        self.assertIn('.runtime-schema-initialized',services['postgresql']['healthcheck']['test'][-1])
+        self.assertEqual(set(services['coding-agent']['networks']),{'coding'})
+
+    def test_startup_graph_has_no_cycle_and_health_conditions_have_probes(self):
+        doc,_=self.config();services=doc['services'];visited=set();active=set()
+        def visit(name):
+            self.assertNotIn(name,active,'Circular dependency at '+name)
+            if name in visited:return
+            active.add(name)
+            for dependency,condition in services[name].get('depends_on',{}).items():
+                self.assertIn(dependency,services)
+                if condition['condition']=='service_healthy':
+                    self.assertIn('healthcheck',services[dependency])
+                visit(dependency)
+            active.remove(name);visited.add(name)
+        for name in services:visit(name)
+        self.assertEqual(services['gateway']['depends_on']['api']['condition'],'service_healthy')
+        self.assertEqual(services['node-proxy']['depends_on']['coding-agent']['condition'],'service_healthy')
 
     def test_node_proxy_follows_worker_dns_after_ip_changes_without_reload(self):
         prefix='coding-dns-test-'+uuid.uuid4().hex[:12]

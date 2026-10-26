@@ -284,7 +284,7 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: [CMD, node, -e, "fetch('http://127.0.0.1:3100/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: [CMD, node, --input-type=module, -e, "import {readFileSync} from 'node:fs'; const secret=readFileSync(process.env.RUNTIME_CODING_SHARED_SECRET_FILE,'utf8').trim(); fetch('http://127.0.0.1:3100/healthz',{headers:{Authorization:'Bearer '+secret}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 12

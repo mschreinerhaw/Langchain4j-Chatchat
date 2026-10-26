@@ -109,6 +109,9 @@ class ApplicationDeploymentTest(unittest.TestCase):
         self.assertNotIn('DISABLE_SECURITY_PLUGIN',services['opensearch']['environment'])
         self.assertIn('.runtime-schema-initialized',services['postgresql']['healthcheck']['test'][-1])
         self.assertEqual(set(services['coding-agent']['networks']),{'coding'})
+        health_command=services['coding-agent']['healthcheck']['test'][-1]
+        self.assertIn('RUNTIME_CODING_SHARED_SECRET_FILE',health_command)
+        self.assertIn("Authorization:'Bearer '+secret",health_command)
 
     def test_startup_graph_has_no_cycle_and_health_conditions_have_probes(self):
         doc,_=self.config();services=doc['services'];visited=set();active=set()

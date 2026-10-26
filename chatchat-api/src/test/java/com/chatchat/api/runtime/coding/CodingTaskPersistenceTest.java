@@ -254,6 +254,18 @@ class CodingTaskPersistenceTest {
         assertThat(takeover.fencingToken()).isGreaterThan(lease.fencingToken());
     }
 
+    @Test void skillAvailabilityAndContentReadsRemainDistinctNonAuthoritativeObservations() {
+        service.submit(contract("task",10));var lease=claim("task","worker");
+        service.recordWorkerProgress(scope,"task",lease,rev("task"),1,"SKILLS_AVAILABLE",null,intent,
+            Map.of("type","SKILLS_AVAILABLE","stage","CONTEXT_READY"));
+        var restarted=service(store(new JdbcTemplate(dataSource)));
+        restarted.recordWorkerProgress(scope,"task",lease,rev("task"),2,"SKILLS_LOADED",null,"b".repeat(64),
+            Map.of("type","SKILLS_LOADED","stage","CODING","skillId","method"));
+        assertThat(restarted.events(scope,"task",0,16).toString()).contains("SKILLS_AVAILABLE","SKILLS_LOADED");
+        assertThat(restarted.hasStartedOperations(scope,"task")).isFalse();
+        assertThat(restarted.get(scope,"task").usage().consumed().modelCalls()).isZero();
+    }
+
     @Test void structuredWorkerTelemetrySurvivesRestartAndDuplicateDelivery() {
         service.submit(contract("task",10));var lease=claim("task","worker");
         var payload=Map.<String,Object>of("type","CODE_READY","stage","CODE_READY","codeSha256",intent,

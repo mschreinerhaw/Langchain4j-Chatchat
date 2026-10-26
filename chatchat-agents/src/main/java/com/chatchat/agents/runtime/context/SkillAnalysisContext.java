@@ -45,6 +45,24 @@ public final class SkillAnalysisContext {
         return Map.copyOf(copy);
     }
 
+    /** Capability-only projection, including for legacy full-document snapshots. */
+    public static Map<String, Object> catalog(Object raw) {
+        var context = validate(raw);
+        if (context.isEmpty()) return Map.of();
+        var cards = new ArrayList<Map<String,Object>>();
+        if (context.get("skills") instanceof List<?> list) for (Object item : list) {
+            if (!(item instanceof Map<?,?> skill)) continue;
+            var card = new LinkedHashMap<String,Object>();
+            for (String key : List.of("id", "name", "description", "category", "version", "contentSha256", "agentId"))
+                if (skill.get(key) instanceof String text) card.put(key, text);
+            if (!card.containsKey("id") || !card.containsKey("version")) continue;
+            card.put("selectionOwner", "CLINE");
+            card.put("contentDelivery", "ON_DEMAND");
+            cards.add(Map.copyOf(card));
+        }
+        return create(context.get("status").toString().contains("LIMITS") ? "AVAILABLE_WITH_LIMITS" : "AVAILABLE", cards, Map.of());
+    }
+
     public static Map<String, Object> attach(Map<String, Object> target, Map<String, Object> attributes) {
         var result = new LinkedHashMap<String, Object>(target == null ? Map.of() : target);
         result.remove(ATTRIBUTE); // Tool-returned context is never the authority.
@@ -74,7 +92,7 @@ public final class SkillAnalysisContext {
         result.put("configuredCount", configuredIds == null ? 0 : configuredIds.size());
         result.put("selectedCount", skills.size());
         result.put("activatedCount", activated.size());
-        result.put("loadedCount", skills.size());
+        result.put("loadedCount", String.valueOf(context.get("status")).startsWith("AVAILABLE") ? 0 : skills.size());
         result.put("skills", skills);
         result.put("activatedSkills", activated);
         result.put("fingerprint", context.get("fingerprint"));

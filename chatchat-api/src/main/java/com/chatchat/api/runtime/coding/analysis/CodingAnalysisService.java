@@ -309,6 +309,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             }
             var configuration=new LinkedHashMap<String,Object>(com.chatchat.api.runtime.coding.CodingConfigurationSnapshot.capture(
                 context.runtimeAttributes(),context.metadata()));
+            if (configuration.get("skills") instanceof Map<?,?> skills
+                    && skills.get("skills") instanceof List<?> cards && !cards.isEmpty()) tools.add("skill_read");
             var environmentSnapshot = new LinkedHashMap<String,Object>();
             environmentSnapshot.put("environmentId", env.id());
             environmentSnapshot.put("environmentVersion", env.versionNumber());

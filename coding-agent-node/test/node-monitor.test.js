@@ -40,7 +40,7 @@ test('monitor consumes actual SDK observations without granting dispatch authori
     const { task } = await f.client.task(f.task.id);
     assert.equal(task.status, 'COMPLETED'); assert.equal(task.models.length, 2);
     assert.equal(task.models[0].providerModel, 'actual-model'); assert.equal(task.models[0].usage.inputTokens, 12);
-    assert.equal(task.skills.applications, 2); assert.ok(task.skills.loadedAt);
+    assert.equal(task.skills.applications, 0); assert.equal(task.skills.loadedAt, null); // Catalog delivery is not a content read.
     assert.equal(task.skills.configured[0].skillId, 'aggregate');
     assert.equal(task.codeCount, 1); assert.equal(task.codes[0].source, undefined);
     const code = await f.client.code(task.id, task.codes[0].id);

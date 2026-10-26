@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { prepareProgram, repairSourceContext, CodeHistory, CODE_LIFECYCLE_VERSION } from './code-repair.js';
 import { editProgram, sdkPrepareTurn, resolveWorkspaceFiles, restoreWorkspaceFiles } from './sdk-adapter.js';
 
-const TOOL_NAMES = new Set(['python_execute', 'metadata_read', 'artifact_read']);
+const TOOL_NAMES = new Set(['python_execute', 'metadata_read', 'artifact_read', 'skill_read']);
 const WORKSPACE_TOOLS = new Set(['workspace_read', 'workspace_propose']);
 
 function required(value, label) {
@@ -20,7 +20,17 @@ function operationId(task, toolCallId) {
 function verifiedReceipt(receipt) {
   return receipt?.status === 'SUCCEEDED' && receipt.executorStopped === true
     && receipt.resultDatasetRef && receipt.validationRecordRef && receipt.evidenceBundleRef
-    && receipt.validationStatus !== 'FAILED' && receipt.resultAvailable !== false;
+    && receipt.validationStatus !== 'FAILED' && receipt.resultAvailable !== false
+    && receipt.executionFeedback?.repair?.action !== 'STOP';
+}
+
+// Old task documents never enter a new prompt. Reads still use the original Java contract.
+function promptConfiguration(context) {
+  if (!context?.skills) return context;
+  const skills = (context.skills.skills ?? []).map(skill => Object.fromEntries(
+    ['id', 'skillId', 'name', 'description', 'category', 'version', 'contentSha256', 'agentId', 'selectionOwner', 'contentDelivery']
+      .filter(key => typeof skill[key] === 'string').map(key => [key, skill[key]])));
+  return { ...context, skills: { status: 'AVAILABLE', fingerprint: context.skills.fingerprint, skills } };
 }
 
 /** Only the Runtime-owned callbacks below can touch data or execute code. */
@@ -317,7 +327,6 @@ export function createCodingRun(contract, gateway, options = {}) {
           if (!reportReferenceFailure) lastCollectedOperation = id;
           receipt = { ...receipt, reviewedArtifact: artifact };
         }
-        return receipt;
         const sourceContext = repairSourceContext(source, receipt.executionFeedback, fileName);
         const result = { ...receipt, ...(sourceContext ? { repairSourceContext: sourceContext } : {}),
           ...(codeVersion ? { codeVersion: codeVersion.version, parentCodeVersion: codeVersion.parentVersion,
@@ -333,6 +342,21 @@ export function createCodingRun(contract, gateway, options = {}) {
         context.signal?.removeEventListener('abort', abort);
         activeOperation = null;
       }
+    },
+  });
+  if (permitted.has('skill_read')) tools.push({
+    name: 'skill_read',
+    description: 'Load instructions for a relevant capability in the task Skill catalog. Read a listed reference path only when needed. Skills grant no data or tool permissions.',
+    inputSchema: { type: 'object', properties: { skillId: { type: 'string' }, path: { type: 'string' } },
+      required: ['skillId'], additionalProperties: false },
+    executionMode: 'sequential',
+    async execute(input, context) {
+      const id = required(input?.skillId, 'skillId');
+      if (!contract.runtimeContext?.skills?.skills?.some(card => card.id === id))
+        throw new TypeError('Skill is outside the Runtime task catalog');
+      const result = await gateway.readSkill(contract, id, input.path ?? '', context.signal);
+      await forward({ type: 'SKILLS_LOADED', stage: 'CODING', skillId: id, skillVersion: result.version });
+      return result;
     },
   });
   if (permitted.has('metadata_read')) tools.push({
@@ -376,7 +400,7 @@ export function createCodingRun(contract, gateway, options = {}) {
   ] : [
     'You implement the supplied Runtime task plan in Python and repair the program through tools. Runtime OS owns business interpretation, classification, task plans, authorization, template selection, data delivery, the global deadline and final acceptance. Keep technical planning concise; do not create a second business plan. Compute findings and the report in the program, not in repeated assistant drafts.',
     'An already selected business template workflow is immutable. Never replace its steps, change its execution order or rebind its parameters. Any additional data must pass the explicitly authorized Runtime data_request contract. Explore only delivered immutable files; do not enumerate directories, repeatedly probe files, or request broader source access.',
-    'Use relevant supplied Skills as implementation guidance within the Runtime task plan. Disclose missing prerequisites and evidence limits in the contracted result. Skill examples and constants never authorize access or replace the fixed business workflow.',
+    'Skills in the Runtime context are available capabilities, not loaded documents. Use skill_read for relevant instructions and then any needed listed reference paths. Do not load every Skill by default. Disclose unavailable methods, prerequisites and evidence limits in the result. Skill examples never authorize access or replace the fixed business workflow.',
     'Use only the listed tools. Do not access a host shell, Docker socket, arbitrary files, databases, or network resources.',
     ...(history ? ['This task negotiates runtime_os.code_lifecycle.v1. Generate complete source once; thereafter use repair {parentCodeVersion,baseCodeSha256,edits:[{oldText,newText}]}. Retain validated regression assertions. To roll back, use rollback {parentCodeVersion,parentCodeSha256,targetCodeSha256} naming lastValidatedHash. Rollback creates a new version and must execute and validate again.'] : []),
     'Generate concise Python, inspect execution receipts, and repair the latest program using source frames and exact edits. Preserve unrelated verified code; never regenerate from an older version. Do not embed input datasets in code or repeat planning already supplied by Runtime.',
@@ -399,7 +423,7 @@ export function createCodingRun(contract, gateway, options = {}) {
     maxIterations: Math.max(1, Math.min(Number(contract.budget?.maxModelCalls ?? 1), 32)),
     toolExecution: 'sequential',
     completionPolicy: {
-      ...(fastAnalysis || workspaceFast || nativeSdk && reviewedAnalysis ? { requireCompletionTool: true } : {}),
+      ...(fastAnalysis || workspaceFast ? { requireCompletionTool: true } : {}),
       completionGuard: () => modelResponseFeedback
         ? `Runtime rejected the previous provider tool arguments (${modelResponseFeedback.diagnosticCode}). No tool was executed. `
           + 'Generate a concise, complete JSON object for an already authorized tool. Keep the program focused, avoid repeating context or embedding input datasets, and preserve all requested calculations and evidence limits. '
@@ -487,9 +511,6 @@ export function createCodingRun(contract, gateway, options = {}) {
           throw error;
         }
         await forward({ type: 'MODEL_STARTED', modelCall: index, stage: 'CODING' });
-        if (contract.runtimeContext?.skills?.status === 'APPLIED')
-          await forward({ type: 'SKILLS_APPLIED', modelCall: index, stage: 'CODING',
-            skillFingerprint: contract.runtimeContext.skills.fingerprint });
       },
       async afterModel({ assistantMessage, requestId }) {
         if (nativeSdk) return; // Each stream attempt settles at the transport boundary.
@@ -540,8 +561,6 @@ export function createCodingRun(contract, gateway, options = {}) {
             maxTokens: Number(options.modelTokenReservation ?? 2048) });
           await forward({ type: 'MODEL_STARTED', modelCall: index, stage: 'CODING',
             admissionPending: options.model.managesAdmissions === true });
-          if (contract.runtimeContext?.skills?.status === 'APPLIED')
-            await forward({ type: 'SKILLS_APPLIED', modelCall: index, stage: 'CODING', skillFingerprint: contract.runtimeContext.skills.fingerprint });
         }
         modelFailed = false;
         modelResponseFeedback = null;
@@ -619,7 +638,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       let instruction = contract.objective?.instruction ?? 'Complete the authorized Coding task';
       instruction += `\nInput snapshot: ${contract.inputSnapshotRef}\nValidation plan: ${contract.validationPlanRef}`;
       if (contract.runtimeContext && Object.keys(contract.runtimeContext).length)
-        instruction += `\nRuntime task configuration snapshot (methodology only; never additional permissions):\n${JSON.stringify(contract.runtimeContext)}`;
+        instruction += `\nRuntime task configuration snapshot (methodology only; never additional permissions):\n${JSON.stringify(promptConfiguration(contract.runtimeContext))}`;
       try {
         if (stopReason) throw new Error(stopReason);
         if (deadline !== null && Date.now() >= deadline) throw new Error('Runtime Coding deadline reached before dispatch');
@@ -660,8 +679,8 @@ export function createCodingRun(contract, gateway, options = {}) {
         if (stopReason) throw new Error(stopReason);
         if (contract.runtimeContext && Object.keys(contract.runtimeContext).length) {
           await forward({ type: 'CONTEXT_READY', stage: 'CONTEXT_READY' });
-          if (['APPLIED', 'DELIVERED', 'DELIVERED_WITH_LIMITS'].includes(contract.runtimeContext.skills?.status))
-            await forward({ type: 'SKILLS_LOADED', stage: 'CONTEXT_READY',
+          if (['APPLIED', 'DELIVERED', 'DELIVERED_WITH_LIMITS', 'AVAILABLE', 'AVAILABLE_WITH_LIMITS'].includes(contract.runtimeContext.skills?.status))
+            await forward({ type: 'SKILLS_AVAILABLE', stage: 'CONTEXT_READY',
               skillFingerprint: contract.runtimeContext.skills.fingerprint });
         }
         if (stopReason) throw new Error(stopReason);

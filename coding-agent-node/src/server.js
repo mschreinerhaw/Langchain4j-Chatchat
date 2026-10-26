@@ -115,6 +115,7 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
     getPython: (contract, operationId, signal) => callback('get-python', { contract, operationId }, signal),
     cancelPython: (contract, operationId) => callback('cancel-python', { contract, operationId }),
     readMetadata: (contract, reference, signal) => callback('read-metadata', { contract, reference }, signal),
+    readSkill: (contract, skillId, path, signal) => callback('read-skill', { contract, skillId, path }, signal),
     readInputContext: (contract, signal) => callback('input-context', { contract }, signal),
     readArtifact: (contract, reference, signal) => callback('read-artifact', { contract, reference }, signal),
     readWorkspace: (contract, operationId, signal) => callback('workspace-read', { contract, operationId }, signal),

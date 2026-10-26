@@ -65,6 +65,18 @@ public final class ClineModelCallbackController {
     private CodingWorkspaceService workspace;
     private CodingDataSupplyService dataSupply;
     private CodingAnalysisSqlService analysisSql;
+    private com.chatchat.api.runtime.coding.CodingSkillReader skillReader;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setSkillReader(com.chatchat.api.runtime.coding.CodingSkillReader value) { this.skillReader=value; }
+    @PostMapping("/read-skill")
+    public Map<String,Object> readSkill(@RequestBody JsonNode body) {
+        return bound(body,call -> {
+            if (skillReader==null) throw new SecurityException("Skill reader unavailable");
+            var result=skillReader.read(contract(body,call),call.lease(),body.path("skillId").asText(""),body.path("path").asText(""));
+            assertStillOwned(call);
+            return result;
+        });
+    }
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setAnalysisSql(CodingAnalysisSqlService value){this.analysisSql=value;}
     @PostMapping("/validate-sql")
@@ -353,7 +365,7 @@ public final class ClineModelCallbackController {
     private Map<String,Object> workerPayload(JsonNode event) {
         var payload = new java.util.LinkedHashMap<String,Object>();
         for (String key : List.of("type", "timestamp", "stage", "source", "attemptId", "tool", "status",
-                "scriptPath", "codeSha256", "fileName", "proposedOperationId", "skillFingerprint", "selectedModel", "providerModel", "protocol", "startedAt", "finishedAt", "validationStatus", "outputStatus",
+                "scriptPath", "codeSha256", "fileName", "proposedOperationId", "skillFingerprint", "skillId", "skillVersion", "selectedModel", "providerModel", "protocol", "startedAt", "finishedAt", "validationStatus", "outputStatus",
                 "resultDatasetRef", "validationRecordRef", "evidenceBundleRef", "errorCategory", "diagnosticCode", "parentCodeHash", "changeKind", "proposalHash", "toolCallId", "responseMode", "strategy", "reason", "requestHash")) {
             JsonNode value = event.path(key);
             if (value.isTextual() && value.asText().length() <= 512) payload.put(key, value.asText());
@@ -377,7 +389,7 @@ public final class ClineModelCallbackController {
             String type=event.path("type").asText();
             String tool=event.path("tool").asText();
             payload.put("stage", "CODE_READY".equals(type)?"CODE_READY"
-                : Set.of("CONTEXT_READY","SKILLS_LOADED").contains(type)?"CONTEXT_READY"
+                : Set.of("CONTEXT_READY","SKILLS_AVAILABLE").contains(type)?"CONTEXT_READY"
                 : "TOOL_STARTED".equals(type)&&"python_execute".equals(tool)?"VALIDATING"
                 : "TOOL_STARTED".equals(type)&&"data_request".equals(tool)?"WAITING_CONTEXT"
                 : "TOOL_FINISHED".equals(type)&&"python_execute".equals(tool)?"RESULT_VALIDATING":"CODING");

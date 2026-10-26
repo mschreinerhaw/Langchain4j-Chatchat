@@ -57,8 +57,8 @@ for (const skillStatus of ['APPLIED', 'DELIVERED']) test(`SDK receives ${skillSt
     assert.doesNotMatch(request.systemPrompt, /analysis agent owns analytical goals, methods/);
     assert.match(JSON.stringify(request.messages), /selected-by-java/);
     assert.match(JSON.stringify(request.messages), /authorized-skill/);
-    assert.match(JSON.stringify(request.messages), /Original authorized methodology/);
-    assert.match(request.systemPrompt, /implementation guidance within the Runtime task plan/);
+    assert.doesNotMatch(JSON.stringify(request.messages), /Original authorized methodology/);
+    assert.match(request.systemPrompt, /Use skill_read/);
     if (++turn === 1) {
       yield { type: 'tool-call-delta', toolCallId: 'generate-1', toolName: 'python_execute', input: { fileName: 'main.py', source } };
       yield { type: 'finish', reason: 'tool-calls' };
@@ -70,8 +70,9 @@ for (const skillStatus of ['APPLIED', 'DELIVERED']) test(`SDK receives ${skillSt
   assert.equal(result.taskId, 'task'); assert.equal(result.attemptId, 'task:fence-3');
   assert.equal(result.codeFiles[0].sha256, received.codeSha256);
   assert.ok(result.codeFiles[0].artifactRef.endsWith('/code'));
-  assert.ok(run.events.some(e => e.type === 'SKILLS_LOADED'));
-  assert.equal(run.events.some(e => e.type === 'SKILLS_APPLIED'), skillStatus === 'APPLIED');
+  assert.ok(run.events.some(e => e.type === 'SKILLS_AVAILABLE'));
+  assert.equal(run.events.some(e => e.type === 'SKILLS_LOADED'), false);
+  assert.equal(run.events.some(e => e.type === 'SKILLS_APPLIED'), false);
   assert.ok(run.events.some(e => e.type === 'CODE_READY' && e.codeSha256 === received.codeSha256));
   assert.ok(run.events.every(e => !Object.hasOwn(e, 'source') || e.source === 'NODE_CLINE'));
   assert.equal(JSON.stringify(run.events).includes('print(42)'), false);

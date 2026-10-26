@@ -8,11 +8,8 @@ import com.chatchat.chat.interaction.service.InteractionExecution;
 import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.runtime.skill.api.discovery.SkillSearchRequest;
 import com.chatchat.runtime.skill.api.identity.SkillRoleContext;
-import com.chatchat.runtime.skill.api.resolution.SkillResolutionRequest;
 import com.chatchat.runtime.skill.port.inbound.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
@@ -23,12 +20,11 @@ import org.springframework.stereotype.Component;
 public final class SkillAnalysisContextService {
     private static final int MAX_SKILLS = 6;
     private final SkillRouter router;
-    private final SkillResolver resolver;
     private final ObjectProvider<AgentRunEventPublisher> publishers;
     // Constructor compatibility with existing integrations; no model is created or called here.
     public SkillAnalysisContextService(SkillRouter router, SkillResolver resolver, ConfigurableChatModelFactory models,
                                        ObjectMapper mapper, ObjectProvider<AgentRunEventPublisher> publishers) {
-        this.router = router; this.resolver = resolver; this.publishers = publishers;
+        this.router = router; this.publishers = publishers;
     }
     public Map<String,Object> prepare(InteractionRequest request, SkillDefinition agent, List<String> roles) {
         return prepare(request,agent,roles,null);
@@ -46,47 +42,19 @@ public final class SkillAnalysisContextService {
                 routed = router.route(new SkillSearchRequest("",identity,List.of(),20,Map.of()));
             if (routed.candidates().isEmpty()) return completed(request,SkillAnalysisContext.create(
                 "SOURCE_FAILED".equals(routed.status()) ? "UNAVAILABLE" : "NO_CANDIDATES",List.of(),Map.of()));
-            var source = new AdkAnalysisSkillSource(routed.candidates(),resolver,identity);
             var delivered = new ArrayList<Map<String,Object>>();
             boolean limited = routed.candidates().size() > MAX_SKILLS || "PARTIAL_SOURCE_FAILURE".equals(routed.status());
             for (var descriptor : routed.candidates().stream().limit(MAX_SKILLS).toList()) {
                 InteractionExecution.checkCancellation(request);
-                String alias = AdkAnalysisSkillSource.alias(descriptor.id());
-                String instructions = source.loadInstructions(alias).blockingGet();
-                var resolved = resolver.resolve(new SkillResolutionRequest(descriptor.id(),descriptor.version(),identity));
-                if (!resolved.resolved() || !instructions.equals(resolved.skill().instructions())
-                        || !descriptor.version().equals(resolved.skill().descriptor().version()))
-                    throw new SecurityException("Skill permission, version or content changed");
-                var resources = new ArrayList<Map<String,Object>>();
-                if (resolved.skill().resources().size() > 64) limited = true;
-                for (var resource : resolved.skill().resources().stream().limit(64).toList()) {
-                    // Scripts are not executable authority and are never shipped as tools.
-                    if (resource.relativePath().startsWith("scripts/")) continue;
-                    InteractionExecution.checkCancellation(request);
-                    var file = new LinkedHashMap<String,Object>();
-                    file.put("path",resource.relativePath()); file.put("sha256",resource.digest());
-                    try {
-                        byte[] bytes = source.loadResource(alias,resource.relativePath()).blockingGet().read();
-                        if (!resource.digest().equals(HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes))))
-                            throw new SecurityException("Skill resource digest differs from its declaration");
-                        String text = StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
-                        file.put("content",contentChunks(text)); file.put("deliveryStatus","CONTENT_VERIFIED");
-                    } catch (Exception unavailable) {
-                        InteractionExecution.propagateCancellation(request,unavailable);
-                        file.put("deliveryStatus","UNAVAILABLE"); limited = true;
-                    }
-                    resources.add(Map.copyOf(file));
-                }
-                var provenance = new LinkedHashMap<>(source.applied(List.of(alias)).get(0));
-                provenance.put("instructions",contentChunks(instructions));
-                provenance.put("resources",List.copyOf(resources));
-                provenance.put("selectionOwner","CLINE");
-                delivered.add(Map.copyOf(provenance));
+                /* Binding registers L1 capabilities only. Instructions and resources are
+                   resolved by the authenticated Coding callback when Cline requests them. */
+                delivered.add(Map.of("id", descriptor.id(), "version", descriptor.version(),
+                    "name", descriptor.name(), "description", descriptor.description(),
+                    "category", descriptor.category(), "agentId", agent.id(),
+                    "selectionOwner", "CLINE", "contentDelivery", "ON_DEMAND"));
             }
-            // Recheck permission/version/content for ALL delivered Skills just before publication.
-            source.applied(routed.candidates().stream().limit(MAX_SKILLS).map(item -> AdkAnalysisSkillSource.alias(item.id())).toList());
             InteractionExecution.checkCancellation(request);
-            return completed(request,SkillAnalysisContext.create(limited ? "DELIVERED_WITH_LIMITS" : "DELIVERED",delivered,Map.of()));
+            return completed(request,SkillAnalysisContext.create(limited ? "AVAILABLE_WITH_LIMITS" : "AVAILABLE",delivered,Map.of()));
         } catch (java.util.concurrent.CancellationException cancelled) {
             publish(request,"CANCELLED",Map.of()); throw cancelled;
         } catch (Exception failure) {

@@ -33,6 +33,8 @@ final class CodingNodeHttpFixture implements AutoCloseable {
                     case "reserve-model"->model.reserve(body);case "model"->model.model(body);case "settle-model"->model.settle(body);
                     case "event"->model.event(body);case "finish"->model.finish(body);case "data-request"->model.dataRequest(body);
                     case "validate-sql"->model.validateSql(body);
+                    case "read-skill"->model.readSkill(body);case "read-artifact"->model.readArtifact(body);
+                    case "input-context"->model.inputContext(body);
                     case "checkpoint"->{var saved=model.checkpoint(body);afterCheckpoint.accept(body.path("checkpoint"));yield saved;}
                     case "prepare-python"->python.prepare(body);case "execute-python"->python.execute(body);case "get-python"->python.get(body);case "cancel-python"->python.cancel(body);
                     default->throw new IllegalArgumentException("Unexpected callback "+action);

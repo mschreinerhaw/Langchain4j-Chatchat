@@ -36,7 +36,7 @@ public final class CodingConfigurationSnapshot {
         result.put("capturedAt", Instant.now().toString());
         result.put("consistency", "TASK_SNAPSHOT");
         result.put("model", model);
-        result.put("skills", SkillAnalysisContext.from(attributes));
+        result.put("skills", SkillAnalysisContext.catalog(SkillAnalysisContext.from(attributes)));
         Object configured = attributes.get(com.chatchat.common.skills.DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE);
         result.put("configuredSkillIds", configured instanceof Map<?, ?> map && map.get("configuredSkillIds") instanceof List<?> ids
             ? ids.stream().filter(String.class::isInstance).limit(128).toList() : List.of());

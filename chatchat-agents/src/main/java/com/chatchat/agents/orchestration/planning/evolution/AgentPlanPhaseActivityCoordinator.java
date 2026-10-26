@@ -107,7 +107,7 @@ public final class AgentPlanPhaseActivityCoordinator {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             toolRuntimeService, new InterpretationPlanValidator(),
             new InterpretationPlanOptimizer(toolRegistry), runStore,
-            review -> operations.review(model, query, prompt, review),
+            review -> operations.review(model, query, prompt, review, map(context.get("attributes"))),
             decision -> operations.decide(model, query, prompt, decision),
             enrichment -> operations.enrich(model, query, enrichment),
             replayPort, new LocalPlanDagControlPort());
@@ -245,6 +245,10 @@ public final class AgentPlanPhaseActivityCoordinator {
                                                      InterpretationPlanRuntime.DagDecisionRequest request);
         InterpretationPlanRuntime.StepReview review(ChatModel model, String query, String prompt,
                                                     InterpretationPlanRuntime.StepReviewRequest request);
+        default InterpretationPlanRuntime.StepReview review(ChatModel model, String query, String prompt,
+                InterpretationPlanRuntime.StepReviewRequest request, Map<String,Object> attributes) {
+            return review(model, query, prompt, request);
+        }
         Map<String, Object> enrich(ChatModel model, String query,
                                    InterpretationPlanRuntime.StepInputEnrichmentRequest request);
         PlanToolExecutionPort toolPort();

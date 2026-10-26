@@ -6,6 +6,14 @@ import java.util.Map;
 public final class RuntimeAnalysisOwnership {
     private RuntimeAnalysisOwnership() { }
 
+    /** Narrow admission boundary: ordinary QA retains its independent review consumers. */
+    public static boolean codingOwnsToolAdmission(Map<String,Object> attributes) {
+        return attributes != null && ("DATA_ANALYSIS".equals(attributes.get("workflowFamily"))
+            || "DATA_ANALYSIS".equals(attributes.get("taskType"))
+            || Boolean.TRUE.equals(attributes.get("codingOwnedAnalysisActive"))
+            || "CODING_OWNED_DATA_ANALYSIS".equals(attributes.get("analysisExecutionMode")));
+    }
+
     public static boolean codingOwnsAnalysis(Map<String, Object> attributes) {
         return attributes != null && (java.util.Set.of("DATA_ANALYSIS", "DOCUMENT", "DIRECT_ANSWER", "ASSET_GUIDANCE")
                 .contains(String.valueOf(attributes.get("workflowFamily")))

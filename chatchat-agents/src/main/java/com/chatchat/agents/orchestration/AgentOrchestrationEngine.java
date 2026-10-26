@@ -633,6 +633,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 String prompt, InterpretationPlanRuntime.StepReviewRequest request) {
                 return reviewInterpretationPlanToolResult(model, query, prompt, () -> false, request);
             }
+            public InterpretationPlanRuntime.StepReview review(ChatModel model, String query,
+                String prompt, InterpretationPlanRuntime.StepReviewRequest request, Map<String,Object> attributes) {
+                return reviewInterpretationPlanToolResult(model, query, prompt, () -> false, request, attributes);
+            }
             public Map<String, Object> enrich(ChatModel model, String query,
                 InterpretationPlanRuntime.StepInputEnrichmentRequest request) {
                 String tool = request.step() == null ? null : request.step().toolName();
@@ -3493,6 +3497,21 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 findCandidatePage(request.execution().output(), 0),
                 findCandidateMaps(request.execution().output(), "templates", 0));
             if (baseline.isPresent()) return baseline.get();
+        }
+        // Coding has one semantic owner. Local fact/authorization checks have already run.
+        if (com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnership
+                .codingOwnsToolAdmission(runtimeAttributes) && request != null && request.execution() != null) {
+            boolean discovery = workflowRole == ToolWorkflowRole.ASSET_DISCOVERY
+                || workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY;
+            Map<String,Object> admission = Map.of("toolResultReviewSkipped", true,
+                "toolResultReviewMode", "CODING_DETERMINISTIC_ADMISSION",
+                "analysisDecisionOwner", "CLINE", "toolResultReviewModelCalls", 0);
+            if (!request.execution().success()) return InterpretationPlanRuntime.StepReview.rejected(
+                "Failed tool execution cannot be admitted as Coding evidence.", admission);
+            if (discovery) return InterpretationPlanRuntime.StepReview.rejected(
+                "Authorized candidates require an explicit scope/template match; clarify the requirement rather than guessing a selection.", admission);
+            return InterpretationPlanRuntime.StepReview.accepted(
+                "Admit governed tool evidence; Cline owns exploration, execution feedback and business interpretation.", admission);
         }
         if (activeChatModel == null || request == null || request.execution() == null) {
             return InterpretationPlanRuntime.StepReview.accepted("Model reviewer unavailable; accepting tool result.", Map.of(

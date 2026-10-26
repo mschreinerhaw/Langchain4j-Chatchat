@@ -19,6 +19,35 @@ import java.nio.file.*;
 import org.junit.jupiter.api.Test;
 
 class ToolReviewerOptimizationTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(ToolWorkflowRole.class)
+    void codingAdmissionNeverCallsAModelAndNeverGuessesDiscovery(ToolWorkflowRole role) {
+        ChatModel model=mock(ChatModel.class);
+        ToolRegistry registry=mock(ToolRegistry.class);
+        when(registry.getToolMetadata(TOOL)).thenReturn(ToolMetadata.builder().metadata(Map.of(
+            ToolWorkflowContract.METADATA_KEY,ToolWorkflowContract.declaration(role,"fixture","result.v1"))).build());
+        var engine=new AgentOrchestrationEngine(model,registry,
+            new ToolRuntimeService(registry,mapper,new ToolRuntimeProperties(),List.of(),List.of()),mapper,new ModelsConfig());
+        for (boolean success : List.of(true,false)) {
+            var execution=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool",TOOL,success,
+                Map.of("rows",List.of(Map.of("amount","153.17"))),null,null,null,1L);
+            var review=engine.reviewInterpretationPlanToolResult(model,"analyze",null,()->false,
+                new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(),1,1),
+                Map.of("workflowFamily","DATA_ANALYSIS"));
+            assertThat(review.metadata()).containsEntry("toolResultReviewModelCalls",0)
+                .containsEntry("analysisDecisionOwner","CLINE");
+            assertThat(review.satisfied()).isEqualTo(success && role!=ToolWorkflowRole.ASSET_DISCOVERY
+                && role!=ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        }
+        verifyNoInteractions(model);
+    }
+    @Test void ordinaryQaDoesNotInheritTheCodingToolAdmissionBoundary() {
+        ChatModel model=mock(ChatModel.class);
+        var review=engine(model).reviewInterpretationPlanToolResult(model,"question",null,()->false,
+            fixture(),Map.of("taskType","QA"));
+        assertThat(review.metadata()).doesNotContainKey("analysisDecisionOwner");
+        verify(model).chat(anyString());
+    }
     @Test void stagedBridgeResolvesAnExplicitCanonicalUserReferenceWithoutModelReview() {
         ChatModel model=mock(ChatModel.class);ToolRegistry registry=mock(ToolRegistry.class);
         when(registry.getToolMetadata(TOOL)).thenReturn(ToolMetadata.builder().metadata(Map.of(ToolWorkflowContract.METADATA_KEY,

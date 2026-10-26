@@ -20,8 +20,10 @@ class AgentPlannerPromptBudgetTest {
             List.of(Map.of("id","read","tool","authorized_read")));
         String prompt=builder.build("Compute after acquisition","Role context ".repeat(1000),List.of("authorized_read"),List.of(),List.of(),List.of(),
             List.of("authorized_read"),true,false,null,null,attributes);
-        assertThat(prompt).contains("later analysis loop decides", "unavailable as an MCP acquisition tool",
-            "source data/capability", "step read: tool=authorized_read");
+        assertThat(prompt).contains("Cline owns data exploration", "unavailable as an MCP acquisition tool",
+            "source data/capability", "step read: tool=authorized_read", "filters.assetName",
+            "An intent string alone does not constrain asset identity")
+            .doesNotContain("later analysis loop decides");
         String disabled=builder.build("Compute",null,List.of("authorized_read"),List.of(),List.of(),List.of(),
             List.of(),false,false,null,null,Map.of());
         assertThat(disabled).doesNotContain("Runtime analysis capability:");

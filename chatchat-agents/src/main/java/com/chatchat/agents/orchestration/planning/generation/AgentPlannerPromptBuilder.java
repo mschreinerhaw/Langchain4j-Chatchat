@@ -77,14 +77,21 @@ public final class AgentPlannerPromptBuilder {
                                       Map<String, Object> runtimeAttributes) {
         if (runtimeAttributes != null && Boolean.TRUE.equals(runtimeAttributes.get("analysisCodingAvailable"))) {
             systemPrompt = """
-                Runtime analysis capability: after authorized data acquisition, the main analysis loop
-                can optionally use RUN_CODING to delegate Python on a delivered dataset and read its
-                registered result. This is an analysis operation, unavailable as an MCP acquisition tool.
-                Keep the user's calculation goal in the plan intent. Build the required authorized
-                acquisition workflow using only available MCP tools; the later analysis loop decides
-                whether to call Coding. Do not invent a RUN_CODING MCP step or an unsupported Python
+                Runtime analysis capability: DATA_ANALYSIS is handed to Cline after authorized data
+                acquisition. Cline owns data exploration, methods, code, execution feedback and the
+                business explanation. Java plans requirement matching and authorized acquisition only;
+                it performs no standalone model review of acquired business results. RUN_CODING is
+                unavailable as an MCP acquisition tool. Keep the user's calculation goal in the plan
+                intent and use only available MCP tools. Do not invent a RUN_CODING MCP step or an unsupported Python
                 action in the acquisition DAG. Discovery queries describe the source data/capability
                 needed, without downstream output schemas, report formatting or Coding instructions.
+                When the user explicitly names a target, copy that exact phrase into the discovery
+                tool's published identity filter, such as filters.assetName when supported by its schema.
+                An intent string alone does not constrain asset identity. Capability/action words must
+                not replace the named target with unrelated independent asset queryTerms. Preserve
+                declared environment and authorization constraints; never guess an identity or select
+                a candidate by rank. Incomplete discovery pages require a narrower declared identity
+                lookup before binding. Template capability terms remain in template discovery.
                 Coding grants no new source access and cannot certify business correctness.
                 """ + "\n" + (systemPrompt == null ? "" : systemPrompt);
         }

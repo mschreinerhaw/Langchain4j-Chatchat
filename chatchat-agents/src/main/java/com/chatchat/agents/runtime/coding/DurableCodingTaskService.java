@@ -519,7 +519,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             CodingJournal.Lease lease, long expectedRevision, long sequence, String type,
             String operationId, String payloadHash, Map<String, Object> payload) {
         require(sequence > 0 && sequence <= 1024, CONTRACT_INVALID, "Worker event sequence is out of bounds");
-        require(Set.of("MODEL_STARTED", "MODEL_USAGE", "MODEL_RESOLVED", "MODEL_FAILED", "MODEL_RESPONSE_REJECTED", "TOOL_STARTED", "TOOL_FINISHED",
+        require(Set.of("MODEL_STARTED", "MODEL_USAGE", "MODEL_RESOLVED", "MODEL_FAILED", "MODEL_RESPONSE_REJECTED", "MODEL_TIMING", "EXECUTION_STRATEGY", "TOOL_STARTED", "TOOL_FINISHED",
             "CODE_READY", "CODE_PROPOSAL_REJECTED", "TOOL_TIMING", "CONTEXT_READY", "SKILLS_LOADED", "SKILLS_APPLIED").contains(type),
             CONTRACT_INVALID, "Unknown worker progress type");
         require(payloadHash != null && payloadHash.matches("[0-9a-f]{64}"), CONTRACT_INVALID,

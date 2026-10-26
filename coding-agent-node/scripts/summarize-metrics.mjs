@@ -43,8 +43,9 @@ export function summarize(document, runtimeOutcomes = []) {
   const byTool = {};
   for (const tool of new Set(events.filter(event => event.type === 'TOOL_TIMING').map(event => event.tool))) {
     const samples = events.filter(event => event.type === 'TOOL_TIMING' && event.tool === tool);
-    byTool[tool] = { boundary: outcomes(samples, e => e.status === 'RETURNED', e => e.status === 'THREW'),
-      durationMs: distribution(samples.map(event => event.toolDurationMs)) };
+    byTool[tool] = { boundary: outcomes(samples, e => ['RETURNED','SUCCEEDED'].includes(e.status), e => ['THREW','FAILED'].includes(e.status)),
+      durationMs: distribution(samples.map(event => event.toolDurationMs)),
+      validationDurationMs: distribution(samples.map(event => event.validationDurationMs)) };
   }
   return { authority: 'JAVA_OUTCOMES_FOR_TASK_SUCCESS; NODE_OBSERVATIONS_FOR_STAGE_METRICS',
     taskCount: groups.size, historyTruncated: (document.tasks ?? []).some(task => task.eventsTruncated || task.codesTruncated),
@@ -54,6 +55,9 @@ export function summarize(document, runtimeOutcomes = []) {
       durationMs: distribution(models.map(m => m.durationMs)), queueMs: distribution(models.map(m => m.queueTimeMs)),
       firstTokenMs: distribution(models.map(m => m.firstTokenMs)), generationMs: distribution(models.map(m => m.generationTimeMs)),
       retryMs: distribution(models.map(m => m.retryTimeMs)), inputTokens: tokens('inputTokens'), outputTokens: tokens('outputTokens') },
+    callbacks: { durationMs: distribution(models.map(m => m.callbackDurationMs)),
+      firstEventMs: distribution(models.map(m => m.callbackFirstEventMs)),
+      requestBytes: distribution(models.map(m => m.requestBytes)), responseBytes: distribution(models.map(m => m.responseBytes)) },
     tools: byTool,
     python: { execution: outcomes(python, e => e.status === 'SUCCEEDED', e => ['FAILED', 'TIMED_OUT', 'CANCELLED'].includes(e.status)),
       validatedOutput: outcomes(python, e => e.resultAvailable === true, e => e.resultAvailable === false),

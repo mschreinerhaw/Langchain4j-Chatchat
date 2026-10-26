@@ -40,6 +40,12 @@ public final class ClineRuntimeModelBridge {
     }
     private int configuredMaxOutputTokens = 8192;
     private int workspaceMaxOutputTokens=8192;
+    private int fastPathMaxOutputTokens=8192;
+    @org.springframework.beans.factory.annotation.Value("${chatchat.coding.workspace.fast-path.max-output-tokens:8192}")
+    public void setFastPathMaxOutputTokens(int tokens){
+        if(tokens<1 || tokens>32768)throw new IllegalArgumentException("Invalid fast path reply token limit");
+        fastPathMaxOutputTokens=tokens;
+    }
     private int maxModelResponseRepairs = 2;
     @org.springframework.beans.factory.annotation.Value("${chatchat.coding.cline.max-model-response-repairs:2}")
     public void setMaxModelResponseRepairs(int attempts) {
@@ -59,6 +65,9 @@ public final class ClineRuntimeModelBridge {
 
     public int maxOutputTokens(CodingTaskContract contract) {
         int configured=CodingWorkspaceService.supports(contract)?Math.min(configuredMaxOutputTokens,workspaceMaxOutputTokens):configuredMaxOutputTokens;
+        if(CodingWorkspaceService.supports(contract) && contract.metadataRefs()!=null
+                && contract.metadataRefs().contains(CodingWorkspaceService.FAST_PATH_REF))
+            configured=Math.min(configured,fastPathMaxOutputTokens);
         return (int)Math.max(1, Math.min(configured, contract.budget().maxModelTokens() / 2));
     }
 

@@ -275,6 +275,20 @@
                             </arguments>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>verify-web-app-assets</id>
+                        <phase>prepare-package</phase>
+                        <goals><goal>exec</goal></goals>
+                        <configuration>
+                            <executable>${java.home}/bin/java</executable>
+                            <arguments>
+                                <argument>--source</argument>
+                                <argument>17</argument>
+                                <argument>${project.basedir}/../scripts/VerifyWebAssets.java</argument>
+                                <argument>${project.build.outputDirectory}/static</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
@@ -344,7 +358,7 @@
     </build>
 
     <profiles>
-        <!-- Pure backend build: reuse the versioned static assets without running Vite. -->
+        <!-- Reuse a complete previous frontend build; packaging still validates its entrypoints. -->
         <profile>
             <id>backend-only</id>
             <properties>

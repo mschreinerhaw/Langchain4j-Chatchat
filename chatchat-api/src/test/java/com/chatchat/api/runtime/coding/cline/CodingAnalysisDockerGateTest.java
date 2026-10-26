@@ -240,7 +240,7 @@ class CodingAnalysisDockerGateTest extends CodingDockerFixture {
         contract=new CodingTaskContract(c.schemaVersion(),c.taskId(),c.scope(),c.objective(),c.inputSnapshotRef(),c.metadataRefs(),c.workspaceRef(),
             new CodingTaskContract.Authorization(c.authorization().decisionRef(),List.of("python_execute","data_request","sql_validate"),c.authorization().allowedDataRefs(),List.of(),List.of(),CodingTaskContract.NetworkPolicy.NONE,List.of(),c.authorization().allowedSideEffects()),
             c.budget(),c.environmentRef(),c.validationPlanRef(),c.outputContract());
-        String sql="SELECT payload FROM ledger ORDER BY day";
+        String sql="SELECT payload, COUNT(*) OVER (ORDER BY day) AS observed_days FROM ledger ORDER BY day";
         doAnswer(call->{
             int turn=turns.incrementAndGet();List<Map<String,Object>> calls;
             if(turn==1)calls=List.of(Map.of("id","sql-data","name","data_request","input",Map.of("requestId","sql-missing-date","datasetRefs",List.of("ledger:v1"),"authorizedTemplateId","ledger","parameterBindings",Map.of("date","2026-10-13"),"requiredFields",List.of("date","assets","netFlow","returnRate"),"reason","SQL needs complete calendar input","expectedUsage","Sandbox SQLite aggregation")));
@@ -248,13 +248,20 @@ class CodingAnalysisDockerGateTest extends CodingDockerFixture {
             else if(turn==3){
                 assertThat(((JsonNode)call.getArgument(1)).toString()).contains("sqlExecuted","false","sqlglot");
                 String paths=json.writeValueAsString(actor(()->supply.snapshots(contract,null)).stream().map(s->"/data/input/"+s.fileId()+"/input.jsonl").toList());
-                String source="import json,pathlib,sqlite3\nc=sqlite3.connect(':memory:')\nc.execute('CREATE TABLE ledger(payload TEXT, day TEXT)')\nfor p in "+paths+":\n for line in pathlib.Path(p).read_text().splitlines():\n  r=json.loads(line)\n  c.execute('INSERT INTO ledger VALUES (?,?)',(line,r['date']))\nrows=[json.loads(row[0]) for row in c.execute('"+sql+"')]\npathlib.Path('/workspace/output/results/rows.jsonl').write_text(''.join(json.dumps(r)+'\\n' for r in rows))\nprint('sandbox_sqlite_rows',len(rows))\n";
+                // Produce an actual SQL-derived metric, while preserving every original value.
+                // A plain source copy must continue to fail computed-result admission.
+                String source="import json,pathlib,sqlite3\nc=sqlite3.connect(':memory:')\nc.execute('CREATE TABLE ledger(payload TEXT, day TEXT)')\nfor p in "+paths+":\n for line in pathlib.Path(p).read_text().splitlines():\n  r=json.loads(line)\n  c.execute('INSERT INTO ledger VALUES (?,?)',(line,r['date']))\nrows=[]\nfor payload, observed_days in c.execute('"+sql+"'):\n r=json.loads(payload)\n r['observedTradingDays']=observed_days\n rows.append(r)\npathlib.Path('/workspace/output/results/rows.jsonl').write_text(''.join(json.dumps(r)+'\\n' for r in rows))\nprint('sandbox_sqlite_rows',len(rows))\n";
                 calls=List.of(Map.of("id","sql-run","name","python_execute","input",Map.of("fileName","main.py","source",source)));
             }else {assertThat(((JsonNode)call.getArgument(1)).toString()).contains("\"resultAvailable\":true");calls=List.of();}
             return Map.of("text",turn>3?"SQLite executed only in the network-disabled Python Sandbox.":"","toolCalls",calls,"usage",Map.of("inputTokens",20,"outputTokens",20));
         }).when(provider).complete(any(),any());
-        actor(()->adapter.submit(contract));var outcome=awaitTerminal();assertThat(outcome.status()).isEqualTo(CodingTaskOutcome.Status.COMPLETED);
+        actor(()->adapter.submit(contract));var outcome=awaitTerminal();
+        var diagnostics=new org.springframework.jdbc.core.JdbcTemplate(evidenceSource).queryForList(
+            "select entry_id,record_json from runtime_evidence_entry where lower(evidence_type) like '%validation%'");
+        assertThat(outcome.status()).as("%s %s; validation: %s",outcome.reasonCode(),outcome.summary(),diagnostics).isEqualTo(CodingTaskOutcome.Status.COMPLETED);
         assertThat(outcome.validationStatus()).isEqualTo(CodingTaskOutcome.ValidationStatus.PASSED);
         assertThat(outcome.usage().consumed().modelCalls()).isEqualTo(4);assertThat(outcome.usage().consumed().toolCalls()).isEqualTo(3);assertThat(outcome.usage().consumed().codeExecutions()).isEqualTo(1);
+        assertThat(actor(()->collector.readResultPage(scope,"clean",outcome.resultDatasetRef(),0,10)).rows())
+            .extracting(row->row.get("observedTradingDays")).containsExactly(1,2,3);
     }
 }

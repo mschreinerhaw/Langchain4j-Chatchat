@@ -1,0 +1,29 @@
+{
+  "scope": "ISOLATED_REAL_JAVA_NODE_DOCKER_SANDBOX_EVIDENCE_GATE",
+  "actualSandbox": true,
+  "actualProvider": false,
+  "externalDataSource": "DETERMINISTIC_SYNTHETIC_FIXTURE",
+  "testsFound": 14,
+  "testsPassed": 14,
+  "testsFailed": 0,
+  "testsSkipped": 0,
+  "junitWallMs": 91132,
+  "classes": [
+    "CodingEvidenceDockerIntegrationTest",
+    "CodingAnalysisDockerGateTest"
+  ],
+  "initialRun": {
+    "passed": 13,
+    "failed": 1,
+    "failedTest": "sqlAnalysisValidatesWithSqlGlotAndExecutesOnlyInSandboxSqlite",
+    "rootCause": "Existing SQL fixture only copied source records, correctly rejected by the computed-result admission policy.",
+    "resolution": "Compute cumulative observation count in SQL; assert [1,2,3] independently; preserve all original financial/source-copy assertions."
+  },
+  "productionContainersChecked": 11,
+  "productionContainerIdsAndStartTimesUnchanged": true,
+  "productionDataMounted": false,
+  "monitorAndMcpHttp": "PASSED",
+  "verifiedAt": "2026-10-26T10:53:14.870254+00:00",
+  "finalLogSha256": "c07ff26439092053e7c183e3e7f1aff44648ae20a613a5aad0fe76a27b946a83",
+  "initialLogSha256": "d5aba16af7e983430d2a6dcebe553a3209d71d5ddd0c82525e18c68179275728"
+}

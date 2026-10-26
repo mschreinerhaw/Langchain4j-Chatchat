@@ -51,6 +51,21 @@ class CodingWorkspaceServiceTest {
         lease=actor(()->tasks.claim(scope,"task","cline-adapter:test",Duration.ofMinutes(2),tasks.get(scope,"task").revision()));
     }
     @AfterEach void close(){timer.shutdownNow();}
+    @Test void fastPathIsExplicitBoundedAndFrozenAcrossConfigurationChanges(){
+        assertThat(contract.metadataRefs()).doesNotContain(CodingWorkspaceService.FAST_PATH_REF);
+        service.setFastPathEnabled(true);
+        service.submit(scope,"fast","Create one pure function.","python","");
+        var fast=actor(()->tasks.contract(scope,"fast"));
+        assertThat(fast.metadataRefs()).contains(CodingWorkspaceService.FAST_PATH_REF);
+        assertThat(fast.budget().maxCodeExecutions()).isZero();
+        service.setFastPathEnabled(false);
+        service.submit(scope,"fast","Create one pure function.","python","");
+        assertThat(actor(()->tasks.contract(scope,"fast"))).isEqualTo(fast);
+        service.setFastPathEnabled(true);service.setFastPathMaxContextBytes(1024);
+        service.submit(scope,"large","request".repeat(1000),"mysql","");
+        assertThat(actor(()->tasks.contract(scope,"large")).metadataRefs()).doesNotContain(CodingWorkspaceService.FAST_PATH_REF);
+        assertThatThrownBy(()->service.setFastPathMaxContextBytes(0)).isInstanceOf(IllegalArgumentException.class);
+    }
     @Test void reservesForMultiRoundGenerationAndKeepsPreviouslyFrozenBudget(){
         assertThat(contract.budget().maxModelTokens()).isGreaterThanOrEqualTo(8L*16384);
         assertThat(contract.budget().maxCodeExecutions()).isZero();

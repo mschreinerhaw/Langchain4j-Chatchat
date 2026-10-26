@@ -23,6 +23,22 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineRuntimeModelBridgeTest {
+    @Test void fastReplyLimitCannotIncreaseWorkspaceOrTaskBudget(){
+        var bridge=new ClineRuntimeModelBridge(mock(ModelResourceRegistry.class),mock(ConfigurableChatModelFactory.class),json);
+        var task=mock(CodingTaskContract.class);var output=mock(CodingTaskContract.OutputContract.class);
+        var budget=mock(CodingTaskContract.Budget.class);
+        when(task.schemaVersion()).thenReturn(CodingProtocol.WORKSPACE_VERSION);when(task.outputContract()).thenReturn(output);
+        when(output.resultFormat()).thenReturn(CodingTaskContract.ResultFormat.WORKSPACE_FILES);
+        when(task.metadataRefs()).thenReturn(List.of(com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService.FAST_PATH_REF));
+        when(task.budget()).thenReturn(budget);when(budget.maxModelTokens()).thenReturn(262144L);
+        bridge.setFastPathMaxOutputTokens(4096);
+        assertThat(bridge.maxOutputTokens(task)).isEqualTo(4096);
+        assertThat(bridge.modelTokenReservation(task)).isEqualTo(8192);
+        bridge.setFastPathMaxOutputTokens(16384);
+        assertThat(bridge.maxOutputTokens(task)).isEqualTo(8192);
+        when(budget.maxModelTokens()).thenReturn(2048L);
+        assertThat(bridge.maxOutputTokens(task)).isEqualTo(1024);
+    }
     @Test void workspaceBoundsIndividualRepliesEvenWhenGlobalAnalysisAllowsLargeOutputs(){
         var bridge=new ClineRuntimeModelBridge(mock(ModelResourceRegistry.class),mock(ConfigurableChatModelFactory.class),json);
         var task=mock(CodingTaskContract.class);var output=mock(CodingTaskContract.OutputContract.class);

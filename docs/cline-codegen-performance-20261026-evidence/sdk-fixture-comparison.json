@@ -1,0 +1,116 @@
+{
+  "scope": "INSTALLED_SDK_DETERMINISTIC_FIXTURE",
+  "actualProvider": false,
+  "actualSandbox": false,
+  "sdkVersion": "0.0.93",
+  "cases": [
+    {
+      "language": "python",
+      "injectedParserFailures": 0,
+      "sameSource": true,
+      "before": {
+        "status": "completed",
+        "modelCalls": 3,
+        "workspaceReads": 1,
+        "proposals": 1,
+        "requestBytes": 7264,
+        "sdkWallMs": 5.122600000000034,
+        "providerLatencyMs": null,
+        "tokenUsage": null,
+        "cost": null
+      },
+      "after": {
+        "status": "completed",
+        "modelCalls": 1,
+        "workspaceReads": 1,
+        "proposals": 1,
+        "requestBytes": 3261,
+        "sdkWallMs": 0.7221999999999298,
+        "providerLatencyMs": null,
+        "tokenUsage": null,
+        "cost": null
+      }
+    },
+    {
+      "language": "python",
+      "injectedParserFailures": 2,
+      "sameSource": true,
+      "before": {
+        "status": "completed",
+        "modelCalls": 5,
+        "workspaceReads": 1,
+        "proposals": 3,
+        "requestBytes": 15306,
+        "sdkWallMs": 1.2738000000000511,
+        "providerLatencyMs": null,
+        "tokenUsage": null,
+        "cost": null
+      },
+      "after": {
+        "status": "completed",
+        "modelCalls": 3,
+        "workspaceReads": 1,
+        "proposals": 3,
+        "requestBytes": 12333,
+        "sdkWallMs": 12.800799999999981,
+        "providerLatencyMs": null,
+        "tokenUsage": null,
+        "cost": null
+      }
+    },
+    {
+      "language": "sql",
+      "injectedParserFailures": 0,
+      "sameSource": true,
+      "before": {
+        "status": "completed",
+        "modelCalls": 3,
+        "workspaceReads": 1,
+        "proposals": 1,
+        "requestBytes": 7662,
+        "sdkWallMs": 0.6781000000000859,
+        "providerLatencyMs": null,
+        "tokenUsage": null,
+        "cost": null
+      },
+      "after": {
+        "status": "completed",
+        "modelCalls": 1,
+        "workspaceReads": 1,
+        "proposals": 1,
+        "requestBytes": 3401,
+        "sdkWallMs": 0.29920000000004165,
+        "providerLatencyMs": null,
+        "tokenUsage": null,
+        "cost": null
+      }
+    },
+    {
+      "language": "sql",
+      "injectedParserFailures": 2,
+      "sameSource": true,
+      "before": {
+        "status": "completed",
+        "modelCalls": 5,
+        "workspaceReads": 1,
+        "proposals": 3,
+        "requestBytes": 15908,
+        "sdkWallMs": 0.8062999999999647,
+        "providerLatencyMs": null,
+        "tokenUsage": null,
+        "cost": null
+      },
+      "after": {
+        "status": "completed",
+        "modelCalls": 3,
+        "workspaceReads": 1,
+        "proposals": 3,
+        "requestBytes": 12735,
+        "sdkWallMs": 6.753300000000081,
+        "providerLatencyMs": null,
+        "tokenUsage": null,
+        "cost": null
+      }
+    }
+  ]
+}

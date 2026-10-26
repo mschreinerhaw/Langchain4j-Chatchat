@@ -1,0 +1,305 @@
+{
+  "classes": {
+    "com.chatchat.common.runtime.coding.CodingCanonicalHashTest": [
+      3,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.common.runtime.coding.CodingContractsTest": [
+      58,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.common.runtime.coding.CodingJsonSchemaTest": [
+      38,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.common.runtime.coding.CodingRuntimeContextTest": [
+      4,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.platform.runtime.coding.CodingSharedFilesTest": [
+      3,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.agents.orchestration.analysis.graph.CodingRequestBatchTest": [
+      4,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.agents.orchestration.analysis.graph.HarnessCodingIntegrationTest": [
+      19,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.agents.runtime.coding.CodingBudgetMathTest": [
+      9,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.agents.runtime.coding.CodingTaskRevisionsTest": [
+      3,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.integration.mcp.service.client.McpCodingDispatchEntitlementClientTest": [
+      1,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.controller.agent.CodingTaskMonitorControllerTest": [
+      3,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.controller.agent.CodingTraceArtifactControllerTest": [
+      8,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.datascience.sql.SqlGlotToolchainTest": [
+      6,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.analysis.ClineContextAnswerServiceTest": [
+      15,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest": [
+      27,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.analysis.CodingExecutionProfileTest": [
+      3,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.analysis.CodingSourceRepresentationTest": [
+      5,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.cline.ClineCallbackAuthFilterTest": [
+      8,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.cline.ClineCodingAdapterDispatchTest": [
+      2,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.cline.ClineCodingAdapterRecoveryTest": [
+      16,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.cline.ClineCodingLicenseTest": [
+      5,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest": [
+      13,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.cline.ClineModelReceiptOrderingTest": [
+      2,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.cline.ClineModelReceiptStoreTest": [
+      1,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.cline.ClinePythonCallbackControllerTest": [
+      15,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.cline.ClineRuntimeModelBridgeTest": [
+      14,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest": [
+      5,
+      0,
+      0,
+      5
+    ],
+    "com.chatchat.api.runtime.coding.cline.CodingBudgetShareTest": [
+      4,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.cline.CodingEvidenceDockerIntegrationTest": [
+      3,
+      0,
+      0,
+      3
+    ],
+    "com.chatchat.api.runtime.coding.cline.CodingInputLayoutTest": [
+      4,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.cline.CodingWorkspaceNodeIntegrationTest": [
+      5,
+      0,
+      0,
+      1
+    ],
+    "com.chatchat.api.runtime.coding.CodingConfigurationSnapshotTest": [
+      3,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.CodingInvocationContextTest": [
+      2,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.CodingTaskPersistenceTest": [
+      36,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.data.CodingChunkedSnapshotTest": [
+      1,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.data.CodingDataSupplyServiceTest": [
+      11,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.data.CodingInputFilePublisherTest": [
+      8,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.data.CodingInputObservationTest": [
+      3,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.data.CodingInputSnapshotServiceTest": [
+      3,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.data.CodingTableCodecTest": [
+      2,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollectorTest": [
+      11,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.evidence.CodingFinancialResultVerifierTest": [
+      8,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.evidence.CodingSchemaResultVerifierTest": [
+      3,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.evidence.CodingTypedSourceBoundaryTest": [
+      2,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.evidence.CodingValidationPlanServiceTest": [
+      1,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackServiceTest": [
+      7,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.execution.CodingPythonCancellationTest": [
+      2,
+      0,
+      0,
+      0
+    ],
+    "com.chatchat.api.runtime.coding.workspace.CodingWorkspaceServiceTest": [
+      9,
+      0,
+      0,
+      0
+    ]
+  },
+  "totals": [
+    418,
+    0,
+    0,
+    9
+  ],
+  "columns": [
+    "testsFound",
+    "failures",
+    "errors",
+    "skipped"
+  ],
+  "scope": "TARGETED_CODING_CLINE_AND_PARSER_REGRESSION"
+}

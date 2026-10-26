@@ -1,0 +1,53 @@
+{
+  "scope": "OUT_OF_BAND_GENERATED_CANDIDATE_BEHAVIOR_CHECK",
+  "cases": [
+    {
+      "case": "mysql-fast.json",
+      "status": "PASSED",
+      "sourceSha256": {
+        "sql/a.sql": "9283c218e3781810cc6f926cf17b1e82ed408b5b8d3761f481adf1d77b57f1f1",
+        "sql/b.sql": "d342bde56304eea6304e81f3e429e03b42d72f95fdfaaad11cb2c2e6e341a192"
+      },
+      "containerWallMs": 2676,
+      "image": "chatchat-python-runtime:3.11-v1.2-fonts-r2-20261022",
+      "network": "NONE",
+      "productionDataMounted": false
+    },
+    {
+      "case": "mysql-full.json",
+      "status": "PASSED",
+      "sourceSha256": {
+        "sql/a.sql": "9283c218e3781810cc6f926cf17b1e82ed408b5b8d3761f481adf1d77b57f1f1",
+        "sql/b.sql": "d342bde56304eea6304e81f3e429e03b42d72f95fdfaaad11cb2c2e6e341a192"
+      },
+      "containerWallMs": 675,
+      "image": "chatchat-python-runtime:3.11-v1.2-fonts-r2-20261022",
+      "network": "NONE",
+      "productionDataMounted": false
+    },
+    {
+      "case": "python-fast.json",
+      "status": "PASSED",
+      "sourceSha256": {
+        "src/a.py": "30a72fd6ce2908ec778d4577b14b32b1d90fb77dab1a6e6a066f2244065af183",
+        "src/b.py": "22548d7f416f9d08283619f6a93d38d369d6a46f17ae5915689df5a117740863"
+      },
+      "containerWallMs": 682,
+      "image": "chatchat-python-runtime:3.11-v1.2-fonts-r2-20261022",
+      "network": "NONE",
+      "productionDataMounted": false
+    },
+    {
+      "case": "python-full.json",
+      "status": "PASSED",
+      "sourceSha256": {
+        "src/a.py": "7adc4c5f72daa7c83b4cf4433b9a64c5796f7f1d6b9670a375f97a28bcd6651b",
+        "src/b.py": "4028bace0ac011a693c23be6d2904efc3a037f81adc96c2a05732ef6d3fb3919"
+      },
+      "containerWallMs": 718,
+      "image": "chatchat-python-runtime:3.11-v1.2-fonts-r2-20261022",
+      "network": "NONE",
+      "productionDataMounted": false
+    }
+  ]
+}

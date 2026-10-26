@@ -1,0 +1,11 @@
+{
+  "scope": "NODE_SDK_AND_SERVICE_REGRESSION",
+  "baselineTestsPassed": 78,
+  "finalTestsPassed": 90,
+  "finalFailures": 0,
+  "finalSkipped": 0,
+  "sdkVersion": "0.0.93",
+  "typescriptAndMonitorBuild": "PASSED",
+  "realProvider": false,
+  "realSandbox": false
+}

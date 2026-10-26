@@ -4,6 +4,8 @@
 
 组件仍通过既有 Runtime 回调协议取得模型、工具权限、预算和执行回执。Node 不自行连接业务数据库、模型供应商或 Docker；对任务执行及结果准入的最终判断由 Runtime 管理。
 
+工作区代码生成的可选快速路径复用同一 SDK Agent、原生完成工具和编辑器。Java 通过有界快照选择策略；失败在当前会话按源码 Hash 局部修复，保留其他文件并重新解析。默认关闭，不影响已有契约。[配置示例](../config/coding-workspace-performance.example.yml)、[实施依据](../docs/cline-codegen-performance-analysis-20261026.md)及[性能与验证报告](../docs/cline-codegen-performance-results-20261026.md)说明了实际测量范围。
+
 ## 构建与运行
 
 使用 Node 24 LTS 与 npm：

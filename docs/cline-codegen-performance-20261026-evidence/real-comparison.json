@@ -1,0 +1,617 @@
+{
+  "scope": "REAL_PROVIDER_ISOLATED_JAVA_NODE_H2_PARSER",
+  "sourceCommit": "6021029c7f25b4ba61e315d5bc3a1c3f9c3fbd51",
+  "model": "deepseek-v4-pro",
+  "productionModified": false,
+  "sameAuthorizedModelAndReplyBudget": true,
+  "limitations": [
+    "Single sample per mode; sequential order and provider cache/load differ. No p50/p95 or broad success-rate claim.",
+    "Historical 67.767-second request used a different commit/model/workload; not a matched performance comparison.",
+    "Supplier queue/first-token breakdown and pricing are unavailable when not reported.",
+    "Workspace generation and out-of-band candidate behavior checks are separate; no workspace code execution authority added."
+  ],
+  "cases": [
+    {
+      "language": "mysql",
+      "samplesPerMode": 1,
+      "before": {
+        "status": "COMPLETED",
+        "workloadSha256": "34bcd00c993ad48b0190fb91b5bd99a9f8b5737ba15084ca3e48955305b63093",
+        "wallMs": 18018,
+        "modelCalls": 3,
+        "toolCalls": 2,
+        "inputTokens": 3118,
+        "outputTokens": 407,
+        "reasoningTokens": 140,
+        "telemetry": [
+          {
+            "modelInfo": {
+              "selectedModel": "deepseek-v4-pro",
+              "providerModel": "deepseek-v4-pro",
+              "startedAt": "2026-10-26T10:28:01.808226600Z",
+              "finishedAt": "2026-10-26T10:28:11.221244900Z",
+              "durationMs": 9413,
+              "maxOutputTokens": 8192,
+              "queueTimeMs": 45,
+              "messageCount": 1,
+              "requestBytes": 2081,
+              "firstTokenMs": null,
+              "generationTimeMs": null,
+              "responseMode": "NON_STREAMING",
+              "retryTimeMs": 0,
+              "deadlineAt": "2026-10-26T10:33:01.062Z"
+            },
+            "usage": {
+              "inputTokens": 707,
+              "outputTokens": 71,
+              "cacheReadTokens": 640,
+              "reasoningTokens": 42
+            }
+          },
+          {
+            "modelInfo": {
+              "selectedModel": "deepseek-v4-pro",
+              "providerModel": "deepseek-v4-pro",
+              "startedAt": "2026-10-26T10:28:11.451879900Z",
+              "finishedAt": "2026-10-26T10:28:14.328375Z",
+              "durationMs": 2876,
+              "maxOutputTokens": 8192,
+              "queueTimeMs": 7,
+              "messageCount": 3,
+              "requestBytes": 2780,
+              "firstTokenMs": null,
+              "generationTimeMs": null,
+              "responseMode": "NON_STREAMING",
+              "retryTimeMs": 0,
+              "deadlineAt": "2026-10-26T10:33:01.062Z"
+            },
+            "usage": {
+              "inputTokens": 889,
+              "outputTokens": 218,
+              "cacheReadTokens": 640,
+              "reasoningTokens": 81
+            }
+          },
+          {
+            "modelInfo": {
+              "selectedModel": "deepseek-v4-pro",
+              "providerModel": "deepseek-v4-pro",
+              "startedAt": "2026-10-26T10:28:14.724229300Z",
+              "finishedAt": "2026-10-26T10:28:16.881390800Z",
+              "durationMs": 2157,
+              "maxOutputTokens": 8192,
+              "queueTimeMs": 9,
+              "messageCount": 5,
+              "requestBytes": 4525,
+              "firstTokenMs": null,
+              "generationTimeMs": null,
+              "responseMode": "NON_STREAMING",
+              "retryTimeMs": 0,
+              "deadlineAt": "2026-10-26T10:33:01.062Z"
+            },
+            "usage": {
+              "inputTokens": 1522,
+              "outputTokens": 118,
+              "cacheReadTokens": 1024,
+              "reasoningTokens": 17
+            }
+          }
+        ],
+        "spans": [
+          {
+            "toolCount": 2,
+            "status": "SUCCEEDED",
+            "type": "MODEL_TIMING",
+            "durationMs": 9693,
+            "timestamp": "2026-10-26T10:28:11.285Z",
+            "modelCall": 1,
+            "source": "NODE_CLINE",
+            "responseBytes": 739,
+            "responseMode": "RUNTIME_MODEL_CALLBACK",
+            "messageCount": 1,
+            "attemptId": "node-task:fence-1",
+            "requestHash": "c32cdc76c1519d5af5877bcaa5e4888b671a00dfc78c21d09ed3bf78321436ee",
+            "stage": "CODING",
+            "callbackFirstEventMs": 9670,
+            "requestBytes": 2012
+          },
+          {
+            "timestamp": "2026-10-26T10:28:11.393Z",
+            "toolCallId": "call_00_BTYtyJXSLXUMRram634U0287",
+            "type": "TOOL_TIMING",
+            "stage": "CODING",
+            "attemptId": "node-task:fence-1",
+            "source": "NODE_CLINE",
+            "status": "RETURNED",
+            "toolDurationMs": 97,
+            "tool": "workspace_read"
+          },
+          {
+            "toolCount": 2,
+            "status": "SUCCEEDED",
+            "type": "MODEL_TIMING",
+            "durationMs": 2967,
+            "timestamp": "2026-10-26T10:28:14.380Z",
+            "modelCall": 2,
+            "source": "NODE_CLINE",
+            "responseBytes": 1066,
+            "responseMode": "RUNTIME_MODEL_CALLBACK",
+            "messageCount": 3,
+            "attemptId": "node-task:fence-1",
+            "requestHash": "d05c4cf989d4aadab396a95ff041249ae2237984b059a8981a92c2701f971224",
+            "stage": "CODING",
+            "callbackFirstEventMs": 2939,
+            "requestBytes": 2894
+          },
+          {
+            "toolCallId": "call_00_6h9wpTo5SY4gCtg1zM8a8261",
+            "toolDurationMs": 261,
+            "attemptId": "node-task:fence-1",
+            "stage": "CODING",
+            "status": "RETURNED",
+            "source": "NODE_CLINE",
+            "type": "TOOL_TIMING",
+            "timestamp": "2026-10-26T10:28:14.657Z",
+            "validationDurationMs": 174,
+            "tool": "workspace_propose"
+          },
+          {
+            "toolCount": 2,
+            "status": "SUCCEEDED",
+            "type": "MODEL_TIMING",
+            "durationMs": 2261,
+            "timestamp": "2026-10-26T10:28:16.945Z",
+            "modelCall": 3,
+            "source": "NODE_CLINE",
+            "responseBytes": 1063,
+            "responseMode": "RUNTIME_MODEL_CALLBACK",
+            "messageCount": 5,
+            "attemptId": "node-task:fence-1",
+            "requestHash": "e2ddc878f152933422add66ec265749c08a50ca1684c20a0bcc2e5dea0c8cf5e",
+            "stage": "CODING",
+            "callbackFirstEventMs": 2238,
+            "requestBytes": 4823
+          }
+        ],
+        "cost": null,
+        "sourceSha256": {
+          "sql/a.sql": "9283c218e3781810cc6f926cf17b1e82ed408b5b8d3761f481adf1d77b57f1f1",
+          "sql/b.sql": "d342bde56304eea6304e81f3e429e03b42d72f95fdfaaad11cb2c2e6e341a192"
+        },
+        "parserValidation": {
+          "diagnostics": [
+            {
+              "fields": "NOT_EVALUATED",
+              "path": "sql/a.sql",
+              "status": "PARSED"
+            },
+            {
+              "fields": "NOT_EVALUATED",
+              "path": "sql/b.sql",
+              "status": "PARSED"
+            }
+          ],
+          "fieldValidation": "NOT_EVALUATED",
+          "parser": "sqlglot",
+          "sqlExecuted": false,
+          "valid": true,
+          "version": "30.23.0"
+        },
+        "generatedCodeExecutedByWorkspace": false
+      },
+      "after": {
+        "status": "COMPLETED",
+        "workloadSha256": "34bcd00c993ad48b0190fb91b5bd99a9f8b5737ba15084ca3e48955305b63093",
+        "wallMs": 3970,
+        "modelCalls": 1,
+        "toolCalls": 2,
+        "inputTokens": 1088,
+        "outputTokens": 234,
+        "reasoningTokens": 82,
+        "telemetry": [
+          {
+            "modelInfo": {
+              "selectedModel": "deepseek-v4-pro",
+              "providerModel": "deepseek-v4-pro",
+              "startedAt": "2026-10-26T10:28:18.031261900Z",
+              "finishedAt": "2026-10-26T10:28:21.526193700Z",
+              "durationMs": 3494,
+              "maxOutputTokens": 8192,
+              "queueTimeMs": 6,
+              "messageCount": 2,
+              "requestBytes": 3725,
+              "firstTokenMs": null,
+              "generationTimeMs": null,
+              "responseMode": "NON_STREAMING",
+              "retryTimeMs": 0,
+              "deadlineAt": "2026-10-26T10:33:17.865Z"
+            },
+            "usage": {
+              "inputTokens": 1088,
+              "outputTokens": 234,
+              "cacheReadTokens": 0,
+              "reasoningTokens": 82
+            }
+          }
+        ],
+        "spans": [
+          {
+            "stage": "CONTEXT_READY",
+            "strategy": "WORKSPACE_FAST",
+            "type": "EXECUTION_STRATEGY",
+            "source": "NODE_CLINE",
+            "timestamp": "2026-10-26T10:28:17.973Z",
+            "attemptId": "node-task:fence-1",
+            "requestBytes": 421
+          },
+          {
+            "timestamp": "2026-10-26T10:28:17.981Z",
+            "toolCallId": "context-prefetch-v1",
+            "type": "TOOL_TIMING",
+            "stage": "CONTEXT_READY",
+            "attemptId": "node-task:fence-1",
+            "source": "NODE_CLINE",
+            "status": "SUCCEEDED",
+            "toolDurationMs": 67,
+            "tool": "workspace_read"
+          },
+          {
+            "toolCount": 2,
+            "status": "SUCCEEDED",
+            "type": "MODEL_TIMING",
+            "durationMs": 3558,
+            "timestamp": "2026-10-26T10:28:21.560Z",
+            "modelCall": 1,
+            "source": "NODE_CLINE",
+            "responseBytes": 1122,
+            "responseMode": "RUNTIME_MODEL_CALLBACK",
+            "messageCount": 2,
+            "attemptId": "node-task:fence-1",
+            "requestHash": "ae56c752793888cefe602af30490fb0539183184dde8a66487299b9467baed4d",
+            "stage": "CODING",
+            "callbackFirstEventMs": 3539,
+            "requestBytes": 3731
+          },
+          {
+            "toolCallId": "call_00_uXV7e9Po9QBShgms7C237625",
+            "toolDurationMs": 189,
+            "attemptId": "node-task:fence-1",
+            "stage": "CODING",
+            "status": "RETURNED",
+            "source": "NODE_CLINE",
+            "type": "TOOL_TIMING",
+            "timestamp": "2026-10-26T10:28:21.755Z",
+            "validationDurationMs": 147,
+            "tool": "workspace_propose"
+          }
+        ],
+        "cost": null,
+        "sourceSha256": {
+          "sql/a.sql": "9283c218e3781810cc6f926cf17b1e82ed408b5b8d3761f481adf1d77b57f1f1",
+          "sql/b.sql": "d342bde56304eea6304e81f3e429e03b42d72f95fdfaaad11cb2c2e6e341a192"
+        },
+        "parserValidation": {
+          "diagnostics": [
+            {
+              "fields": "NOT_EVALUATED",
+              "path": "sql/a.sql",
+              "status": "PARSED"
+            },
+            {
+              "fields": "NOT_EVALUATED",
+              "path": "sql/b.sql",
+              "status": "PARSED"
+            }
+          ],
+          "fieldValidation": "NOT_EVALUATED",
+          "parser": "sqlglot",
+          "sqlExecuted": false,
+          "valid": true,
+          "version": "30.23.0"
+        },
+        "generatedCodeExecutedByWorkspace": false
+      },
+      "wallReductionPercent": 77.97
+    },
+    {
+      "language": "python",
+      "samplesPerMode": 1,
+      "before": {
+        "status": "COMPLETED",
+        "workloadSha256": "f807e96ec1bc8049ada20366680d5ad96216ac0128cbe81743fe11e936c10efc",
+        "wallMs": 6380,
+        "modelCalls": 3,
+        "toolCalls": 2,
+        "inputTokens": 3100,
+        "outputTokens": 370,
+        "reasoningTokens": 94,
+        "telemetry": [
+          {
+            "modelInfo": {
+              "selectedModel": "deepseek-v4-pro",
+              "providerModel": "deepseek-v4-pro",
+              "startedAt": "2026-10-26T10:28:22.777041200Z",
+              "finishedAt": "2026-10-26T10:28:23.909717200Z",
+              "durationMs": 1132,
+              "maxOutputTokens": 8192,
+              "queueTimeMs": 4,
+              "messageCount": 1,
+              "requestBytes": 1947,
+              "firstTokenMs": null,
+              "generationTimeMs": null,
+              "responseMode": "NON_STREAMING",
+              "retryTimeMs": 0,
+              "deadlineAt": "2026-10-26T10:33:22.680Z"
+            },
+            "usage": {
+              "inputTokens": 673,
+              "outputTokens": 70,
+              "cacheReadTokens": 640,
+              "reasoningTokens": 41
+            }
+          },
+          {
+            "modelInfo": {
+              "selectedModel": "deepseek-v4-pro",
+              "providerModel": "deepseek-v4-pro",
+              "startedAt": "2026-10-26T10:28:24.016019500Z",
+              "finishedAt": "2026-10-26T10:28:26.980998700Z",
+              "durationMs": 2964,
+              "maxOutputTokens": 8192,
+              "queueTimeMs": 7,
+              "messageCount": 3,
+              "requestBytes": 2763,
+              "firstTokenMs": null,
+              "generationTimeMs": null,
+              "responseMode": "NON_STREAMING",
+              "retryTimeMs": 0,
+              "deadlineAt": "2026-10-26T10:33:22.680Z"
+            },
+            "usage": {
+              "inputTokens": 872,
+              "outputTokens": 206,
+              "cacheReadTokens": 640,
+              "reasoningTokens": 53
+            }
+          },
+          {
+            "modelInfo": {
+              "selectedModel": "deepseek-v4-pro",
+              "providerModel": "deepseek-v4-pro",
+              "startedAt": "2026-10-26T10:28:27.288599300Z",
+              "finishedAt": "2026-10-26T10:28:28.975677600Z",
+              "durationMs": 1687,
+              "maxOutputTokens": 8192,
+              "queueTimeMs": 6,
+              "messageCount": 5,
+              "requestBytes": 4529,
+              "firstTokenMs": null,
+              "generationTimeMs": null,
+              "responseMode": "NON_STREAMING",
+              "retryTimeMs": 0,
+              "deadlineAt": "2026-10-26T10:33:22.680Z"
+            },
+            "usage": {
+              "inputTokens": 1555,
+              "outputTokens": 94,
+              "cacheReadTokens": 1024,
+              "reasoningTokens": 0
+            }
+          }
+        ],
+        "spans": [
+          {
+            "toolCount": 2,
+            "status": "SUCCEEDED",
+            "type": "MODEL_TIMING",
+            "durationMs": 1185,
+            "timestamp": "2026-10-26T10:28:23.937Z",
+            "modelCall": 1,
+            "source": "NODE_CLINE",
+            "responseBytes": 738,
+            "responseMode": "RUNTIME_MODEL_CALLBACK",
+            "messageCount": 1,
+            "attemptId": "node-task:fence-1",
+            "requestHash": "b7aea8e7b261cdeb0f879fd66f9e59ac463e7a31cdb1961eaadae8b3cf0b09a7",
+            "stage": "CODING",
+            "callbackFirstEventMs": 1174,
+            "requestBytes": 1878
+          },
+          {
+            "timestamp": "2026-10-26T10:28:23.978Z",
+            "toolCallId": "call_00_KrHbhKd7QBJSA58spJsq5491",
+            "type": "TOOL_TIMING",
+            "stage": "CODING",
+            "attemptId": "node-task:fence-1",
+            "source": "NODE_CLINE",
+            "status": "RETURNED",
+            "toolDurationMs": 29,
+            "tool": "workspace_read"
+          },
+          {
+            "toolCount": 2,
+            "status": "SUCCEEDED",
+            "type": "MODEL_TIMING",
+            "durationMs": 3036,
+            "timestamp": "2026-10-26T10:28:27.025Z",
+            "modelCall": 2,
+            "source": "NODE_CLINE",
+            "responseBytes": 1118,
+            "responseMode": "RUNTIME_MODEL_CALLBACK",
+            "messageCount": 3,
+            "attemptId": "node-task:fence-1",
+            "requestHash": "d1ff3693db1983700095c238598b38ddef35f2195b5bd8f7560da1b950fcf0e5",
+            "stage": "CODING",
+            "callbackFirstEventMs": 3015,
+            "requestBytes": 2877
+          },
+          {
+            "toolCallId": "call_00_5nqAGIlVN0JsfzMOzxBY4385",
+            "toolDurationMs": 200,
+            "attemptId": "node-task:fence-1",
+            "stage": "CODING",
+            "status": "RETURNED",
+            "source": "NODE_CLINE",
+            "type": "TOOL_TIMING",
+            "timestamp": "2026-10-26T10:28:27.232Z",
+            "validationDurationMs": 147,
+            "tool": "workspace_propose"
+          },
+          {
+            "toolCount": 2,
+            "status": "SUCCEEDED",
+            "type": "MODEL_TIMING",
+            "durationMs": 1768,
+            "timestamp": "2026-10-26T10:28:29.015Z",
+            "modelCall": 3,
+            "source": "NODE_CLINE",
+            "responseBytes": 1019,
+            "responseMode": "RUNTIME_MODEL_CALLBACK",
+            "messageCount": 5,
+            "attemptId": "node-task:fence-1",
+            "requestHash": "8b080a5b7f9d3ca27a9470d179a8566aaadc8e860f3a03fcdc2aabd2fe9639be",
+            "stage": "CODING",
+            "callbackFirstEventMs": 1743,
+            "requestBytes": 4827
+          }
+        ],
+        "cost": null,
+        "sourceSha256": {
+          "src/a.py": "7adc4c5f72daa7c83b4cf4433b9a64c5796f7f1d6b9670a375f97a28bcd6651b",
+          "src/b.py": "4028bace0ac011a693c23be6d2904efc3a037f81adc96c2a05732ef6d3fb3919"
+        },
+        "parserValidation": {
+          "codeExecuted": false,
+          "diagnostics": [
+            {
+              "path": "src/a.py",
+              "status": "PARSED"
+            },
+            {
+              "path": "src/b.py",
+              "status": "PARSED"
+            }
+          ],
+          "fieldValidation": "NOT_EVALUATED",
+          "parser": "python-ast",
+          "sqlExecuted": false,
+          "valid": true,
+          "version": "30.23.0"
+        },
+        "generatedCodeExecutedByWorkspace": false
+      },
+      "after": {
+        "status": "COMPLETED",
+        "workloadSha256": "f807e96ec1bc8049ada20366680d5ad96216ac0128cbe81743fe11e936c10efc",
+        "wallMs": 5217,
+        "modelCalls": 1,
+        "toolCalls": 2,
+        "inputTokens": 1072,
+        "outputTokens": 298,
+        "reasoningTokens": 136,
+        "telemetry": [
+          {
+            "modelInfo": {
+              "selectedModel": "deepseek-v4-pro",
+              "providerModel": "deepseek-v4-pro",
+              "startedAt": "2026-10-26T10:28:29.992481100Z",
+              "finishedAt": "2026-10-26T10:28:34.802830700Z",
+              "durationMs": 4810,
+              "maxOutputTokens": 8192,
+              "queueTimeMs": 8,
+              "messageCount": 2,
+              "requestBytes": 3705,
+              "firstTokenMs": null,
+              "generationTimeMs": null,
+              "responseMode": "NON_STREAMING",
+              "retryTimeMs": 0,
+              "deadlineAt": "2026-10-26T10:33:29.858Z"
+            },
+            "usage": {
+              "inputTokens": 1072,
+              "outputTokens": 298,
+              "cacheReadTokens": 0,
+              "reasoningTokens": 136
+            }
+          }
+        ],
+        "spans": [
+          {
+            "stage": "CONTEXT_READY",
+            "strategy": "WORKSPACE_FAST",
+            "type": "EXECUTION_STRATEGY",
+            "source": "NODE_CLINE",
+            "timestamp": "2026-10-26T10:28:29.937Z",
+            "attemptId": "node-task:fence-1",
+            "requestBytes": 538
+          },
+          {
+            "timestamp": "2026-10-26T10:28:29.942Z",
+            "toolCallId": "context-prefetch-v1",
+            "type": "TOOL_TIMING",
+            "stage": "CONTEXT_READY",
+            "attemptId": "node-task:fence-1",
+            "source": "NODE_CLINE",
+            "status": "SUCCEEDED",
+            "toolDurationMs": 36,
+            "tool": "workspace_read"
+          },
+          {
+            "toolCount": 2,
+            "status": "SUCCEEDED",
+            "type": "MODEL_TIMING",
+            "durationMs": 4876,
+            "timestamp": "2026-10-26T10:28:34.836Z",
+            "modelCall": 1,
+            "source": "NODE_CLINE",
+            "responseBytes": 1158,
+            "responseMode": "RUNTIME_MODEL_CALLBACK",
+            "messageCount": 2,
+            "attemptId": "node-task:fence-1",
+            "requestHash": "1fcf0296c59254d25f0e9c64d66568af9aa81b4dc616baac1090d238804cdc58",
+            "stage": "CODING",
+            "callbackFirstEventMs": 4865,
+            "requestBytes": 3711
+          },
+          {
+            "toolCallId": "call_00_Y3chYtPaBdPtaMgZ6dcU3043",
+            "toolDurationMs": 175,
+            "attemptId": "node-task:fence-1",
+            "stage": "CODING",
+            "status": "RETURNED",
+            "source": "NODE_CLINE",
+            "type": "TOOL_TIMING",
+            "timestamp": "2026-10-26T10:28:35.020Z",
+            "validationDurationMs": 141,
+            "tool": "workspace_propose"
+          }
+        ],
+        "cost": null,
+        "sourceSha256": {
+          "src/a.py": "30a72fd6ce2908ec778d4577b14b32b1d90fb77dab1a6e6a066f2244065af183",
+          "src/b.py": "22548d7f416f9d08283619f6a93d38d369d6a46f17ae5915689df5a117740863"
+        },
+        "parserValidation": {
+          "codeExecuted": false,
+          "diagnostics": [
+            {
+              "path": "src/a.py",
+              "status": "PARSED"
+            },
+            {
+              "path": "src/b.py",
+              "status": "PARSED"
+            }
+          ],
+          "fieldValidation": "NOT_EVALUATED",
+          "parser": "python-ast",
+          "sqlExecuted": false,
+          "valid": true,
+          "version": "30.23.0"
+        },
+        "generatedCodeExecutedByWorkspace": false
+      },
+      "wallReductionPercent": 18.23
+    }
+  ]
+}

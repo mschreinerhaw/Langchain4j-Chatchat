@@ -1,0 +1,603 @@
+{
+  "schemaVersion": "runtime_review_cleanup.comparison.v1",
+  "sourceRevision": "cbeb4c6e8",
+  "samples": [
+    {
+      "sample": "before-csv",
+      "status": "SUCCEEDED",
+      "endToEndMs": 73480,
+      "codingTasks": 1,
+      "codingModelCalls": 2,
+      "codingModelDurationMs": 39114,
+      "javaModelCalls": 0,
+      "javaModelDurationMs": 0,
+      "inputTokens": 34534,
+      "outputTokens": 2282,
+      "javaInputTokens": 0,
+      "javaOutputTokens": 0,
+      "cacheReadTokens": 14336,
+      "pythonExecutions": 1,
+      "pythonRoundtripMs": 5367,
+      "pythonProcessMs": 1572,
+      "pythonContainersReleased": 1,
+      "pythonCleanupPending": 0,
+      "runtimeSemanticReviews": 0,
+      "templateBatchCount": 0,
+      "templateBatchDurationMs": 0,
+      "summarySha256": "2f3c6d900ae8ce7b6e1fb492134ccdcca5a4c27e8adeb732dde1eaa0d1b2724c",
+      "codingModels": [
+        "qwen3.7-plus"
+      ],
+      "javaModelPhases": [],
+      "codingProviderSpans": [
+        {
+          "durationMs": 35117,
+          "usage": {
+            "inputTokens": 14976,
+            "reasoningTokens": 511,
+            "cacheReadTokens": 0,
+            "outputTokens": 2109
+          },
+          "selectedModel": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus"
+        },
+        {
+          "durationMs": 3997,
+          "usage": {
+            "inputTokens": 19558,
+            "reasoningTokens": 82,
+            "cacheReadTokens": 14336,
+            "outputTokens": 173
+          },
+          "selectedModel": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus"
+        }
+      ],
+      "workerEvents": {
+        "JAVA_RUNTIME": 20,
+        "CONTEXT_READY": 1,
+        "SKILLS_LOADED": 1,
+        "MODEL_STARTED": 2,
+        "MODEL_RESOLVED": 2,
+        "MODEL_USAGE": 2,
+        "MODEL_TIMING": 2,
+        "CODE_READY": 1,
+        "TOOL_STARTED": 2,
+        "EXECUTION_FEEDBACK": 1,
+        "TOOL_FINISHED": 2,
+        "TOOL_TIMING": 2
+      },
+      "skillCatalogCards": 6,
+      "skillInstructionsInFrozenCatalog": true
+    },
+    {
+      "sample": "before-original",
+      "status": "FAILED",
+      "endToEndMs": 309398,
+      "codingTasks": 0,
+      "codingModelCalls": 0,
+      "codingModelDurationMs": 0,
+      "javaModelCalls": 3,
+      "javaModelDurationMs": 302644,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "javaInputTokens": 15932,
+      "javaOutputTokens": 20543,
+      "cacheReadTokens": 9728,
+      "pythonExecutions": 0,
+      "pythonRoundtripMs": 0,
+      "pythonProcessMs": 0,
+      "pythonContainersReleased": 0,
+      "pythonCleanupPending": 0,
+      "runtimeSemanticReviews": 0,
+      "templateBatchCount": 0,
+      "templateBatchDurationMs": 0,
+      "summarySha256": "3600b81fa7f71bbb645026e8012db3be5aadfe50d505300fe101061aa47c83ff",
+      "codingModels": [],
+      "javaModelPhases": [
+        "com.chatchat.agents.orchestration.AgentPlanner#decideNextDecision",
+        "com.chatchat.agents.orchestration.AgentPlanner#decideNextDecision",
+        "com.chatchat.agents.orchestration.AgentPlanner#decideNextDecision"
+      ],
+      "codingProviderSpans": []
+    },
+    {
+      "sample": "after-csv",
+      "status": "FAILED",
+      "endToEndMs": 39075,
+      "codingTasks": 0,
+      "codingModelCalls": 0,
+      "codingModelDurationMs": 0,
+      "javaModelCalls": null,
+      "javaModelDurationMs": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "javaInputTokens": null,
+      "javaOutputTokens": null,
+      "cacheReadTokens": null,
+      "pythonExecutions": 0,
+      "pythonRoundtripMs": 0,
+      "pythonProcessMs": 0,
+      "pythonContainersReleased": 0,
+      "pythonCleanupPending": 0,
+      "runtimeSemanticReviews": null,
+      "templateBatchCount": 0,
+      "templateBatchDurationMs": 0,
+      "summarySha256": "a6bfa703d6dfa5f5bbeb8e5f253e03cae75348b74ad018b242b9ce99562ca761",
+      "missingTelemetry": "Failed parent has no persisted result; unknown is not zero",
+      "codingModels": [],
+      "javaModelPhases": [],
+      "codingProviderSpans": []
+    },
+    {
+      "sample": "after-original",
+      "status": "FAILED",
+      "endToEndMs": 149655,
+      "codingTasks": 0,
+      "codingModelCalls": 0,
+      "codingModelDurationMs": 0,
+      "javaModelCalls": null,
+      "javaModelDurationMs": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "javaInputTokens": null,
+      "javaOutputTokens": null,
+      "cacheReadTokens": null,
+      "pythonExecutions": 0,
+      "pythonRoundtripMs": 0,
+      "pythonProcessMs": 0,
+      "pythonContainersReleased": 0,
+      "pythonCleanupPending": 0,
+      "runtimeSemanticReviews": null,
+      "templateBatchCount": 0,
+      "templateBatchDurationMs": 0,
+      "summarySha256": "74b6c8b93a270e9367d54c15df9758e9cf7de5569778e0c1fcf866880db1c902",
+      "missingTelemetry": "Failed parent has no persisted result; unknown is not zero",
+      "codingModels": [],
+      "javaModelPhases": [],
+      "codingProviderSpans": []
+    },
+    {
+      "sample": "after-qa",
+      "status": "FAILED",
+      "endToEndMs": 178710,
+      "codingTasks": 0,
+      "codingModelCalls": 0,
+      "codingModelDurationMs": 0,
+      "javaModelCalls": null,
+      "javaModelDurationMs": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "javaInputTokens": null,
+      "javaOutputTokens": null,
+      "cacheReadTokens": null,
+      "pythonExecutions": 0,
+      "pythonRoundtripMs": 0,
+      "pythonProcessMs": 0,
+      "pythonContainersReleased": 0,
+      "pythonCleanupPending": 0,
+      "runtimeSemanticReviews": null,
+      "templateBatchCount": 0,
+      "templateBatchDurationMs": 0,
+      "summarySha256": "92102b7ac648207eaf0cacee1eaa574895443cd0dc301e5fb31a3e2d4973fddd",
+      "missingTelemetry": "Failed parent has no persisted result; unknown is not zero",
+      "codingModels": [],
+      "javaModelPhases": [],
+      "codingProviderSpans": []
+    },
+    {
+      "sample": "final-csv",
+      "status": "SUCCEEDED",
+      "endToEndMs": 95119,
+      "codingTasks": 1,
+      "codingModelCalls": 2,
+      "codingModelDurationMs": 63716,
+      "javaModelCalls": 0,
+      "javaModelDurationMs": 0,
+      "inputTokens": 25013,
+      "outputTokens": 3805,
+      "javaInputTokens": 0,
+      "javaOutputTokens": 0,
+      "cacheReadTokens": 9216,
+      "pythonExecutions": 1,
+      "pythonRoundtripMs": 3860,
+      "pythonProcessMs": 1581,
+      "pythonContainersReleased": 1,
+      "pythonCleanupPending": 0,
+      "runtimeSemanticReviews": 0,
+      "templateBatchCount": 0,
+      "templateBatchDurationMs": 0,
+      "summarySha256": "2459bd8ceba49bb1c865644be2e2e275bdce5f2e8644f74f9d0098a0c6093328",
+      "codingModels": [
+        "qwen3.7-plus"
+      ],
+      "javaModelPhases": [],
+      "codingProviderSpans": [
+        {
+          "durationMs": 41415,
+          "usage": {
+            "reasoningTokens": 585,
+            "inputTokens": 9432,
+            "outputTokens": 2496,
+            "cacheReadTokens": 0
+          },
+          "selectedModel": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus"
+        },
+        {
+          "durationMs": 22301,
+          "usage": {
+            "reasoningTokens": 639,
+            "inputTokens": 15581,
+            "outputTokens": 1309,
+            "cacheReadTokens": 9216
+          },
+          "selectedModel": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus"
+        }
+      ],
+      "workerEvents": {
+        "JAVA_RUNTIME": 20,
+        "CONTEXT_READY": 1,
+        "SKILLS_AVAILABLE": 1,
+        "MODEL_STARTED": 2,
+        "MODEL_RESOLVED": 2,
+        "MODEL_USAGE": 2,
+        "MODEL_TIMING": 2,
+        "CODE_READY": 1,
+        "TOOL_STARTED": 2,
+        "EXECUTION_FEEDBACK": 1,
+        "TOOL_FINISHED": 2,
+        "TOOL_TIMING": 1
+      },
+      "skillCatalogCards": 6,
+      "skillInstructionsInFrozenCatalog": false
+    },
+    {
+      "sample": "final-original",
+      "status": "FAILED",
+      "endToEndMs": 225580,
+      "codingTasks": 0,
+      "codingModelCalls": 0,
+      "codingModelDurationMs": 0,
+      "javaModelCalls": null,
+      "javaModelDurationMs": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "javaInputTokens": null,
+      "javaOutputTokens": null,
+      "cacheReadTokens": null,
+      "pythonExecutions": 0,
+      "pythonRoundtripMs": 0,
+      "pythonProcessMs": 0,
+      "pythonContainersReleased": 0,
+      "pythonCleanupPending": 0,
+      "runtimeSemanticReviews": null,
+      "templateBatchCount": 0,
+      "templateBatchDurationMs": 0,
+      "summarySha256": "aeb77032c9e7e27fee1a0cce24963165e6ecc2611a3e5bf1192e77c7b619d356",
+      "missingTelemetry": "Failed parent has no persisted result; unknown is not zero",
+      "codingModels": [],
+      "javaModelPhases": [],
+      "codingProviderSpans": []
+    },
+    {
+      "sample": "final-qa",
+      "status": "SUCCEEDED",
+      "endToEndMs": 116497,
+      "codingTasks": 1,
+      "codingModelCalls": 3,
+      "codingModelDurationMs": 101035,
+      "javaModelCalls": 0,
+      "javaModelDurationMs": 0,
+      "inputTokens": 47951,
+      "outputTokens": 6950,
+      "javaInputTokens": 0,
+      "javaOutputTokens": 0,
+      "cacheReadTokens": 31232,
+      "pythonExecutions": 2,
+      "pythonRoundtripMs": 7433,
+      "pythonProcessMs": 2109,
+      "pythonContainersReleased": 2,
+      "pythonCleanupPending": 0,
+      "runtimeSemanticReviews": 0,
+      "templateBatchCount": 0,
+      "templateBatchDurationMs": 0,
+      "summarySha256": "72be04ac87e8c9247f48b7de93776c2b1b403a1426790150ef402163b4d7893a",
+      "codingModels": [
+        "deepseek-v4-pro"
+      ],
+      "javaModelPhases": [],
+      "codingProviderSpans": [
+        {
+          "durationMs": 77774,
+          "usage": {
+            "reasoningTokens": 3276,
+            "inputTokens": 7898,
+            "outputTokens": 5253,
+            "cacheReadTokens": 0
+          },
+          "selectedModel": "deepseek-v4-pro",
+          "providerModel": "deepseek-v4-pro"
+        },
+        {
+          "durationMs": 10534,
+          "usage": {
+            "reasoningTokens": 692,
+            "inputTokens": 17435,
+            "outputTokens": 836,
+            "cacheReadTokens": 13056
+          },
+          "selectedModel": "deepseek-v4-pro",
+          "providerModel": "deepseek-v4-pro"
+        },
+        {
+          "durationMs": 12727,
+          "usage": {
+            "reasoningTokens": 160,
+            "inputTokens": 22618,
+            "outputTokens": 861,
+            "cacheReadTokens": 18176
+          },
+          "selectedModel": "deepseek-v4-pro",
+          "providerModel": "deepseek-v4-pro"
+        }
+      ],
+      "workerEvents": {
+        "JAVA_RUNTIME": 32,
+        "CONTEXT_READY": 1,
+        "SKILLS_AVAILABLE": 1,
+        "MODEL_STARTED": 3,
+        "MODEL_RESOLVED": 3,
+        "MODEL_USAGE": 3,
+        "MODEL_TIMING": 3,
+        "CODE_READY": 2,
+        "TOOL_STARTED": 4,
+        "EXECUTION_FEEDBACK": 2,
+        "TOOL_FINISHED": 4,
+        "TOOL_TIMING": 2
+      },
+      "skillCatalogCards": 6,
+      "skillInstructionsInFrozenCatalog": false
+    },
+    {
+      "sample": "accepted-csv",
+      "status": "SUCCEEDED",
+      "endToEndMs": 105843,
+      "codingTasks": 1,
+      "codingModelCalls": 3,
+      "codingModelDurationMs": 58281,
+      "javaModelCalls": 0,
+      "javaModelDurationMs": 0,
+      "inputTokens": 43959,
+      "outputTokens": 3373,
+      "javaInputTokens": 0,
+      "javaOutputTokens": 0,
+      "cacheReadTokens": 24192,
+      "pythonExecutions": 2,
+      "pythonRoundtripMs": 8744,
+      "pythonProcessMs": 2059,
+      "pythonContainersReleased": 2,
+      "pythonCleanupPending": 0,
+      "runtimeSemanticReviews": 0,
+      "templateBatchCount": 0,
+      "templateBatchDurationMs": 0,
+      "summarySha256": "5a3b8a55214308a024e8b5e638ac4b2af17ddf502f813fc1dcdc6175bfab9aab",
+      "codingModels": [
+        "qwen3.7-plus"
+      ],
+      "javaModelPhases": [],
+      "codingProviderSpans": [
+        {
+          "durationMs": 33681,
+          "usage": {
+            "reasoningTokens": 504,
+            "cacheReadTokens": 0,
+            "outputTokens": 2016,
+            "inputTokens": 9497
+          },
+          "selectedModel": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus"
+        },
+        {
+          "durationMs": 13894,
+          "usage": {
+            "reasoningTokens": 497,
+            "cacheReadTokens": 9216,
+            "outputTokens": 795,
+            "inputTokens": 15040
+          },
+          "selectedModel": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus"
+        },
+        {
+          "durationMs": 10706,
+          "usage": {
+            "reasoningTokens": 249,
+            "cacheReadTokens": 14976,
+            "outputTokens": 562,
+            "inputTokens": 19422
+          },
+          "selectedModel": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus"
+        }
+      ],
+      "workerEvents": {
+        "JAVA_RUNTIME": 31,
+        "CONTEXT_READY": 1,
+        "SKILLS_AVAILABLE": 1,
+        "MODEL_STARTED": 3,
+        "MODEL_RESOLVED": 3,
+        "MODEL_USAGE": 3,
+        "MODEL_TIMING": 3,
+        "CODE_READY": 2,
+        "TOOL_STARTED": 4,
+        "EXECUTION_FEEDBACK": 2,
+        "TOOL_FINISHED": 4,
+        "TOOL_TIMING": 2
+      },
+      "skillCatalogCards": 6,
+      "skillInstructionsInFrozenCatalog": false
+    },
+    {
+      "sample": "accepted-original",
+      "status": "SUCCEEDED",
+      "endToEndMs": 768054,
+      "codingTasks": 1,
+      "codingModelCalls": 3,
+      "codingModelDurationMs": 449640,
+      "javaModelCalls": 3,
+      "javaModelDurationMs": 250809,
+      "inputTokens": 126544,
+      "outputTokens": 37974,
+      "javaInputTokens": 5594,
+      "javaOutputTokens": 17039,
+      "cacheReadTokens": 97792,
+      "pythonExecutions": 2,
+      "pythonRoundtripMs": 8968,
+      "pythonProcessMs": 2317,
+      "pythonContainersReleased": 2,
+      "pythonCleanupPending": 0,
+      "runtimeSemanticReviews": 0,
+      "templateBatchCount": 1,
+      "templateBatchDurationMs": 18028,
+      "summarySha256": "ad9078fafa212a7e0817545d8739eeb65a17482eb42fd9c93bac4f9d185a147a",
+      "codingModels": [
+        "deepseek-v4-pro"
+      ],
+      "javaModelPhases": [
+        "com.chatchat.agents.orchestration.AgentPlanner#decideNextDecision",
+        "com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge#enrichWithGate",
+        "com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge#enrichWithGate"
+      ],
+      "codingProviderSpans": [
+        {
+          "durationMs": 300606,
+          "usage": {
+            "reasoningTokens": 19797,
+            "cacheReadTokens": 0,
+            "outputTokens": 25220,
+            "inputTokens": 13503
+          },
+          "selectedModel": "deepseek-v4-pro",
+          "providerModel": "deepseek-v4-pro"
+        },
+        {
+          "durationMs": 132451,
+          "usage": {
+            "reasoningTokens": 10093,
+            "cacheReadTokens": 38656,
+            "outputTokens": 11569,
+            "inputTokens": 46648
+          },
+          "selectedModel": "deepseek-v4-pro",
+          "providerModel": "deepseek-v4-pro"
+        },
+        {
+          "durationMs": 16583,
+          "usage": {
+            "reasoningTokens": 768,
+            "cacheReadTokens": 58112,
+            "outputTokens": 1185,
+            "inputTokens": 66393
+          },
+          "selectedModel": "deepseek-v4-pro",
+          "providerModel": "deepseek-v4-pro"
+        }
+      ],
+      "workerEvents": {
+        "JAVA_RUNTIME": 38,
+        "CONTEXT_READY": 1,
+        "SKILLS_AVAILABLE": 1,
+        "MODEL_STARTED": 3,
+        "MODEL_RESOLVED": 3,
+        "MODEL_USAGE": 3,
+        "MODEL_TIMING": 3,
+        "CODE_READY": 2,
+        "TOOL_STARTED": 4,
+        "EXECUTION_FEEDBACK": 2,
+        "TOOL_FINISHED": 4,
+        "TOOL_TIMING": 2
+      },
+      "skillCatalogCards": 6,
+      "skillInstructionsInFrozenCatalog": false
+    },
+    {
+      "sample": "accepted-qa",
+      "status": "SUCCEEDED",
+      "endToEndMs": 121653,
+      "codingTasks": 1,
+      "codingModelCalls": 2,
+      "codingModelDurationMs": 113090,
+      "javaModelCalls": 0,
+      "javaModelDurationMs": 0,
+      "inputTokens": 27369,
+      "outputTokens": 8386,
+      "javaInputTokens": 0,
+      "javaOutputTokens": 0,
+      "cacheReadTokens": 16128,
+      "pythonExecutions": 1,
+      "pythonRoundtripMs": 3037,
+      "pythonProcessMs": 1048,
+      "pythonContainersReleased": 1,
+      "pythonCleanupPending": 0,
+      "runtimeSemanticReviews": 0,
+      "templateBatchCount": 0,
+      "templateBatchDurationMs": 0,
+      "summarySha256": "b1bff67c73ea8842cbc2e4de35f168fc0b5de0eef8d327e0a3c003e219f6c8f5",
+      "codingModels": [
+        "deepseek-v4-pro"
+      ],
+      "javaModelPhases": [],
+      "codingProviderSpans": [
+        {
+          "durationMs": 96715,
+          "usage": {
+            "reasoningTokens": 5376,
+            "cacheReadTokens": 896,
+            "outputTokens": 7348,
+            "inputTokens": 7949
+          },
+          "selectedModel": "deepseek-v4-pro",
+          "providerModel": "deepseek-v4-pro"
+        },
+        {
+          "durationMs": 16375,
+          "usage": {
+            "reasoningTokens": 710,
+            "cacheReadTokens": 15232,
+            "outputTokens": 1038,
+            "inputTokens": 19420
+          },
+          "selectedModel": "deepseek-v4-pro",
+          "providerModel": "deepseek-v4-pro"
+        }
+      ],
+      "workerEvents": {
+        "JAVA_RUNTIME": 21,
+        "CONTEXT_READY": 1,
+        "SKILLS_AVAILABLE": 1,
+        "MODEL_STARTED": 2,
+        "MODEL_RESOLVED": 2,
+        "MODEL_USAGE": 2,
+        "MODEL_TIMING": 2,
+        "CODE_READY": 1,
+        "TOOL_STARTED": 2,
+        "EXECUTION_FEEDBACK": 1,
+        "TOOL_FINISHED": 2,
+        "TOOL_TIMING": 1
+      },
+      "skillCatalogCards": 6,
+      "skillInstructionsInFrozenCatalog": false
+    }
+  ],
+  "limits": [
+    "One sample per workload per revision; no P95 or statistical speedup claim",
+    "inputTokens/outputTokens are Coding provider usage; javaInputTokens/javaOutputTokens are separate",
+    "Historical baseline CSV already recorded zero independent reviews, so real workload does not establish 1-to-0 savings",
+    "Failed baseline original has no valid completion and cannot be a latency denominator",
+    "All intermediate failures are retained; QA question differs for after-qa",
+    "Model settings unchanged within the CSV comparison; qwen3.7-plus for CSV and deepseek-v4-pro for final Docker/QA",
+    "Structural result validation INCONCLUSIVE is not a business correctness certificate"
+  ]
+}

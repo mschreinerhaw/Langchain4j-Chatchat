@@ -1,0 +1,9 @@
+{
+  "application": 200,
+  "monitor": 200,
+  "mcpAdmin": 200,
+  "api": "running",
+  "coding-agent": "healthy",
+  "node-proxy": "healthy",
+  "gateway": "healthy"
+}

@@ -1,0 +1,291 @@
+{
+  "scope": "Latest per-suite local results; overlapping reactor runs are deduplicated by suite; not full repository coverage; only suites with a current source file are included (historical XML is excluded)",
+  "suites": [
+    {
+      "name": "com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnershipTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 4.258
+    },
+    {
+      "name": "com.chatchat.agents.orchestration.answer.AnswerReviewCoordinatorTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.509
+    },
+    {
+      "name": "com.chatchat.agents.orchestration.CodingToolReviewBenchmarkTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 6.78
+    },
+    {
+      "name": "com.chatchat.agents.orchestration.model.DeadlineAwareChatModelTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.309
+    },
+    {
+      "name": "com.chatchat.agents.orchestration.planning.evolution.CodingAdmissionContinuationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 2.123
+    },
+    {
+      "name": "com.chatchat.agents.orchestration.planning.generation.AgentPlannerDomainSkillContextTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 4.676
+    },
+    {
+      "name": "com.chatchat.agents.orchestration.planning.generation.AgentPlannerPromptBudgetTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.311
+    },
+    {
+      "name": "com.chatchat.agents.orchestration.ToolReviewerOptimizationTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 2.023
+    },
+    {
+      "name": "com.chatchat.agents.runtime.answer.DefaultAgentAnswerReviewerTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.095
+    },
+    {
+      "name": "com.chatchat.agents.runtime.coding.CodingBudgetMathTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.094
+    },
+    {
+      "name": "com.chatchat.agents.runtime.coding.CodingTaskRevisionsTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.864
+    },
+    {
+      "name": "com.chatchat.agents.runtime.context.SkillAnalysisContextTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.047
+    },
+    {
+      "name": "com.chatchat.agents.runtime.plan.review.CanonicalAssetReferenceReviewerTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.035
+    },
+    {
+      "name": "com.chatchat.agents.runtime.plan.review.PublishedDataSupplyReviewerTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.157
+    },
+    {
+      "name": "com.chatchat.api.AgentAuthorizationIsolationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 80.576
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+      "tests": 27,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 14.709
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.cline.ClineCodingAdapterDispatchTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 14.005
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.cline.ClineCodingAdapterRecoveryTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.763
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 6.923
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.cline.ClinePythonCallbackControllerTest",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.706
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.cline.ClineRuntimeModelBridgeTest",
+      "tests": 14,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.706
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.cline.CodingBudgetShareTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 1.755
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.CodingConfigurationSnapshotTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.017
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.CodingSkillReaderTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.274
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.CodingTaskPersistenceTest",
+      "tests": 37,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 22.486
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.data.CodingChunkedSnapshotTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 1.629
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.data.CodingDataSupplyServiceTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "timeSeconds": 1.899
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.data.CodingInputSnapshotServiceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.429
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollectorTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 2.151
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.evidence.CodingFinancialResultVerifierTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.022
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.evidence.CodingSchemaResultVerifierTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.008
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackServiceTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.359
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.execution.CodingPythonCancellationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.04
+    },
+    {
+      "name": "com.chatchat.api.runtime.RuntimeCancellationStorageTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 0.126
+    },
+    {
+      "name": "com.chatchat.chat.skills.runtime.SkillAnalysisContextServiceTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "timeSeconds": 6.76
+    }
+  ],
+  "totals": {
+    "tests": 273,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1
+  }
+}

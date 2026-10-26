@@ -1,0 +1,1 @@
+{"measurement":"LOCAL_ROUTING_WITH_STUB_PROVIDER","samples":[{"modelCalls":1,"mode":"LEGACY_COMPATIBILITY","orchestrationWallMs":300.7867,"accepted":true},{"modelCalls":0,"mode":"CODING","orchestrationWallMs":0.3833,"accepted":true}],"legacyEstimatedInputTokens":1362,"codingReviewerInputTokens":0,"codingReviewerOutputTokens":0,"businessCorrectness":"NOT_MEASURED"}

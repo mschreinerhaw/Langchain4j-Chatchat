@@ -1,0 +1,66 @@
+{
+  "scope": "Declared small-sample rubric; not broad business correctness certification",
+  "csvOracle": {
+    "inputSha256": "52e0631636f9a04de66706e11c9dd5b1a00494636212278959e20c99ff027e83",
+    "rowCount": 2,
+    "currencyTotals": {
+      "CNY": "153.17"
+    },
+    "oracle": "Independent CSV parser + decimal.Decimal from original authenticated immutable bytes"
+  },
+  "csvChecks": {
+    "before-csv": {
+      "originalHashInAnswer": true,
+      "rowCountMatches": true,
+      "currencyTotalMatches": true
+    },
+    "final-csv": {
+      "originalHashInAnswer": true,
+      "rowCountMatches": true,
+      "currencyTotalMatches": true
+    },
+    "accepted-csv": {
+      "originalHashInAnswer": true,
+      "rowCountMatches": true,
+      "currencyTotalMatches": true
+    }
+  },
+  "dockerOracle": {
+    "oracle": "Independent regex + Decimal over hash-verified authorized Parquet stdout; source snapshots retained privately",
+    "sourcePartSha256": "35950c78d771684d6bbea8a89235f8add425a04198b6f6b1b5d5a62ab4d7b3e4",
+    "expected": {
+      "imageTagRows": 19,
+      "uniqueImages": 18,
+      "containers": 11,
+      "running": 4,
+      "statsRows": 4,
+      "networks": 5,
+      "volumes": 74,
+      "memoryGiBRounded": "2.49",
+      "imageTagSizeGBRounded": "17.96"
+    },
+    "answerChecks": {
+      "imageTagRows": true,
+      "uniqueImages": true,
+      "containers": true,
+      "running": true,
+      "statsRows": true,
+      "networks": true,
+      "volumes": true,
+      "memoryGiBRounded": true,
+      "imageTagSizeGBRounded": true
+    }
+  },
+  "acceptedFinal": {
+    "executionSuccess": "3/3",
+    "dataWorkloadRubric": "2/2",
+    "allWorkloadStrictCorrectness": "2/3",
+    "knowledgeQA": {
+      "status": "FAIL_FACTUAL_CHECK",
+      "coreFormulaPresent": true,
+      "liveInstanceNotQueried": true,
+      "finding": "Answer incorrectly claims online buffer-pool resize starts at MySQL 8.0.13; official MySQL 5.7 manual already documents dynamic SET GLOBAL resize. Read-ahead accounting claim is also unverified. Do not mark fully correct.",
+      "reference": "https://docs.oracle.com/cd/E17952_01/mysql-5.7-en/innodb-buffer-pool-resize.html"
+    }
+  }
+}

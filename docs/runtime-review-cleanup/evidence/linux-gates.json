@@ -1,0 +1,34 @@
+{
+  "scope": "Linux candidate image and isolated Java/Node/H2/Docker gates; deterministic provider and template fixtures; not real-model business correctness",
+  "worker": {
+    "tests": 100,
+    "passed": 100,
+    "failed": 0,
+    "testConcurrency": 1,
+    "network": "none",
+    "image": "runtime-os-coding-agent:review-cleanup-e4e851aac",
+    "logSha256": "cad64f7f88e32cf21b072a5d5701ac8df12bcf6beb0a5f7dae121036afaa8e20",
+    "initialPackagingAndResourceFailuresRetained": true
+  },
+  "javaDocker": {
+    "tests": 73,
+    "passed": 73,
+    "failed": 0,
+    "skipped": 0,
+    "testClasses": [
+      "com.chatchat.api.runtime.coding.cline.CodingEvidenceDockerIntegrationTest",
+      "com.chatchat.api.runtime.coding.cline.CodingAnalysisDockerGateTest",
+      "com.chatchat.api.runtime.coding.CodingSkillReaderTest",
+      "com.chatchat.api.runtime.coding.cline.ClineCodingAdapterDispatchTest",
+      "com.chatchat.api.runtime.coding.cline.ClineRuntimeModelBridgeTest",
+      "com.chatchat.agents.runtime.plan.review.CanonicalAssetReferenceReviewerTest",
+      "com.chatchat.agents.orchestration.ToolReviewerOptimizationTest",
+      "com.chatchat.agents.orchestration.planning.evolution.CodingAdmissionContinuationTest",
+      "com.chatchat.agents.orchestration.planning.generation.AgentPlannerPromptBudgetTest",
+      "com.chatchat.agents.orchestration.planning.generation.AgentPlannerDomainSkillContextTest"
+    ],
+    "logSha256": "2f928e902205e5977dba6dd1d54761c203bea6e9411c90f3316fc679a5d7e889",
+    "initialMountLayoutFailureRetained": true
+  },
+  "removedSkillSourceAbsentFromDeployedJar": true
+}

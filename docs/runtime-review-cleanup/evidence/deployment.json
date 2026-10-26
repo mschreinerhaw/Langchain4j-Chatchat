@@ -1,0 +1,26 @@
+{
+  "deployed": true,
+  "sourceRevision": "cbeb4c6e8",
+  "jarSha256": "c47ccf8219347adc5999c13027bd4a83085d2bd17abde7698cc5efe3051baf37",
+  "authorizationFingerprintsUnchanged": true,
+  "authorizationTablesCompared": 6,
+  "nonTargetRunningContainersUnchanged": [
+    "runtime-os-app-stage-mcp-1",
+    "runtime-os-app-stage-news-1",
+    "silo",
+    "postgres",
+    "opensearch-node",
+    "zookeeper",
+    "redis"
+  ],
+  "candidate": {
+    "sourceRevision": "cbeb4c6e8",
+    "workerSourceRevision": "e4e851aac",
+    "jarSha256": "c47ccf8219347adc5999c13027bd4a83085d2bd17abde7698cc5efe3051baf37",
+    "frontendEntrypointsVerified": 2,
+    "apiImageId": "sha256:57137b66b514420f67cb1750afdf1d9f10ba523808a20209a3d08b685db82eeb",
+    "workerImageId": "sha256:661380c333fb3f526814b56881582033156d1bddd95ac822810eef5a5d35b074"
+  },
+  "callbackVerified": true,
+  "initialComposeConflictRetainedInEvidence": true
+}

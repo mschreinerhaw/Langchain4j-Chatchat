@@ -27,6 +27,12 @@ def capture(stream, result):
 
 def main():
     source = sys.argv[1]
+    try:
+        import resource
+        before_usage = resource.getrusage(resource.RUSAGE_CHILDREN)
+    except ImportError:
+        resource = None
+        before_usage = None
     process = subprocess.Popen([sys.executable, '-u', source], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                env={**os.environ, 'PYTHONIOENCODING': 'utf-8'})
     out, err = {}, {}
@@ -40,6 +46,11 @@ def main():
     diagnostic = {'schemaVersion': 'runtime_os.python_diagnostic.v1',
                   'policy': 'METADATA_ONLY_V1', 'stdoutBytes': out['bytes'], 'stderrBytes': err['bytes'],
                   'stdoutSha256': out['sha256'], 'stderrSha256': err['sha256']}
+    if resource is not None:
+        usage = resource.getrusage(resource.RUSAGE_CHILDREN)
+        diagnostic['cpuTimeMs'] = max(0, int(1000 * (
+            usage.ru_utime + usage.ru_stime - before_usage.ru_utime - before_usage.ru_stime)))
+        diagnostic['maxRssBytes'] = max(0, int(usage.ru_maxrss * (1 if sys.platform == 'darwin' else 1024)))
     exceptions = {name for name in dir(builtins) if isinstance(getattr(builtins, name), type)
                   and issubclass(getattr(builtins, name), BaseException)}
     for name in re.findall(r'^([A-Za-z]+Error|[A-Za-z]+Exception|StopIteration|KeyboardInterrupt|SystemExit)(?=:|$)', err['tail'], re.M):

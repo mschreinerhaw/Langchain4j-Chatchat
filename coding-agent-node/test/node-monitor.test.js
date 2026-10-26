@@ -5,12 +5,25 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { MonitorStore, createMonitorHandler } from '../src/monitor.ts';
+import { summarize } from '../scripts/summarize-metrics.mjs';
 import { createServer } from 'node:http';
 import { createMonitorClient } from '../src/monitor-client.ts';
 import { createCodingServer } from '../src/server.js';
 import { contract } from '../fixtures/monitor-server.mjs';
 
 import { startFixture } from '../fixtures/monitor-server.mjs';
+
+test('persisted monitor observations retain failed output validation and measured tool resources', () => {
+  const store = new MonitorStore(); const id = store.start(contract, 1, 'NEW_SDK');
+  store.event(id, { type: 'TOOL_FINISHED', tool: 'python_execute', operationId: 'python-1', status: 'SUCCEEDED',
+    resultAvailable: false, repairAllowed: true, cpuTimeMs: 12, maxRssBytes: 4096 });
+  store.event(id, { type: 'TOOL_TIMING', tool: 'python_execute', toolCallId: 'call-1', status: 'RETURNED', toolDurationMs: 30 });
+  const result = summarize({ tasks: [store.detail(id)] });
+  assert.equal(result.python.validatedOutput.successRate, 0);
+  assert.equal(result.python.cpuMs.mean, 12);
+  assert.equal(result.python.maxRssBytes.mean, 4096);
+  assert.equal(result.tools.python_execute.boundary.successRate, 1);
+});
 const secret = 'dispatch-secret-0123456789abcdef0123456789';
 const monitorToken = 'monitor-secret-0123456789abcdef0123456789';
 

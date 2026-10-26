@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { MonitorStore } from '../dist/monitor.js';
 import { createCodingRun as realCreateCodingRun } from '../src/runner.js';
 // Allocation is a Java callback fixture; Python results below remain branch-specific fixtures.
 const createCodingRun=(task,gateway,options)=>{
@@ -25,6 +26,21 @@ const contract = {
   runtimeContext: { model: { selectedModel: 'selected-by-java' }, skills: { status: 'APPLIED', fingerprint: 'approved-guidance',
     skills: [{ skillId: 'authorized-skill' }], stages: { ANALYSIS: ['Use measured values only'] } } },
 };
+test('callback timings remain distinct from provider timings and persist only bounded metadata', () => {
+  const store = new MonitorStore();
+  const id = store.start(contract, 1, 'NEW_SDK');
+  store.event(id, { type: 'MODEL_STARTED', modelCall: 1 });
+  store.event(id, { type: 'MODEL_RESOLVED', modelCall: 1, durationMs: 120, firstTokenMs: 40 });
+  store.event(id, { type: 'MODEL_TIMING', modelCall: 1, durationMs: 150, callbackFirstEventMs: 130,
+    requestBytes: 2048, responseBytes: 512, requestHash: 'a'.repeat(64), prompt: 'PRIVATE_PROMPT' });
+  const detail = store.detail(id);
+  assert.equal(detail.models[0].durationMs, 120);
+  assert.equal(detail.models[0].callbackDurationMs, 150);
+  assert.equal(detail.models[0].firstTokenMs, 40);
+  assert.equal(detail.models[0].callbackFirstEventMs, 130);
+  assert.equal(detail.models[0].requestBytes, 2048);
+  assert.doesNotMatch(JSON.stringify(detail), /PRIVATE_PROMPT/);
+});
 for (const skillStatus of ['APPLIED', 'DELIVERED']) test(`SDK receives ${skillStatus} Skills and configuration; code receipt references exact source`, async () => {
   const source = '\nprint(42)\n'; let turn = 0, received;
   const task = structuredClone(contract);
@@ -36,13 +52,13 @@ for (const skillStatus of ['APPLIED', 'DELIVERED']) test(`SDK receives ${skillSt
       resultDatasetRef: 'result', validationRecordRef: 'validation', evidenceBundleRef: 'bundle' }; },
   }, { attemptId: 'task:fence-3', model: { async *stream(request) {
     assert.doesNotMatch(request.systemPrompt, /selected-by-java/);
-    assert.match(request.systemPrompt, /responsible for exploring delivered data or supplied context, choosing analytical methods/);
+    assert.match(request.systemPrompt, /implement the supplied Runtime task plan in Python/);
     assert.match(request.systemPrompt, /already selected business template workflow is immutable/);
     assert.doesNotMatch(request.systemPrompt, /analysis agent owns analytical goals, methods/);
     assert.match(JSON.stringify(request.messages), /selected-by-java/);
     assert.match(JSON.stringify(request.messages), /authorized-skill/);
     assert.match(JSON.stringify(request.messages), /Original authorized methodology/);
-    assert.match(request.systemPrompt, /Select relevant methods yourself inside this Coding task/);
+    assert.match(request.systemPrompt, /implementation guidance within the Runtime task plan/);
     if (++turn === 1) {
       yield { type: 'tool-call-delta', toolCallId: 'generate-1', toolName: 'python_execute', input: { fileName: 'main.py', source } };
       yield { type: 'finish', reason: 'tool-calls' };
@@ -153,6 +169,46 @@ test('reviewed analysis repairs locally and reads its scoped result before compl
   assert.ok(run.events.some(event => event.type === 'TOOL_FINISHED' && event.tool === 'artifact_read'));
 });
 
+test('native completion rejects a stale artifact and stops immediately after the latest accepted review', async () => {
+  const next = structuredClone(contract);
+  next.metadataRefs = ['runtime-coding:analysis-reviewed-path:v1'];
+  next.authorization.allowedTools = ['python_execute', 'artifact_read']; next.budget.maxModelCalls = 4;
+  let calls = 0, executions = 0;
+  const run = createCodingRun(next, { async reserveModel() {}, async settleModel() {}, async finish() {},
+    async executePython() { executions++; return { status: 'SUCCEEDED', executorStopped: true,
+      resultDatasetRef: 'runtime-evidence:latest', validationRecordRef: 'validation', evidenceBundleRef: 'evidence' }; },
+    async readArtifact(_task, reference) { return { reference, complete: true, rows: [{ reportMarkdown: 'computed' }],
+      reportReferenceValidation: { valid: true } }; },
+  }, { model: { async *stream(request) {
+    calls++; assert.ok(calls <= 3, 'No discretionary rewrite/model turn follows an accepted artifact');
+    if (calls === 1) yield { type: 'tool-call-delta', toolCallId: 'program', toolName: 'python_execute', input: { source: 'print(1)' } };
+    else {
+      if (calls === 3) assert.match(JSON.stringify(request.messages), /"isError":true/);
+      yield { type: 'tool-call-delta', toolCallId: 'review-' + calls, toolName: 'artifact_read',
+        input: { reference: calls === 2 ? 'runtime-evidence:stale' : 'runtime-evidence:latest' } };
+    }
+    yield { type: 'finish', reason: 'tool-calls' };
+  } } });
+  assert.equal((await run.run()).status, 'completed'); assert.equal(calls, 3); assert.equal(executions, 1);
+});
+
+test('a complete artifact cannot certify a Python receipt whose result validation failed', async () => {
+  const next = structuredClone(contract);
+  next.metadataRefs = ['runtime-coding:analysis-reviewed-path:v1'];
+  next.authorization.allowedTools = ['python_execute', 'artifact_read']; next.budget.maxModelCalls = 2;
+  let calls = 0;
+  const run = createCodingRun(next, { async reserveModel() {}, async settleModel() {}, async finish() {},
+    async executePython() { return { status: 'SUCCEEDED', executorStopped: true, resultAvailable: false,
+      resultDatasetRef: 'runtime-evidence:invalid', validationStatus: 'FAILED', validationRecordRef: 'validation', evidenceBundleRef: 'evidence' }; },
+    async readArtifact(_task, reference) { return { reference, complete: true, reportReferenceValidation: { valid: true } }; },
+  }, { model: { async *stream() {
+    if (++calls === 1) yield { type: 'tool-call-delta', toolCallId: 'program', toolName: 'python_execute', input: { source: 'print(1)' } };
+    else yield { type: 'tool-call-delta', toolCallId: 'review', toolName: 'artifact_read', input: { reference: 'runtime-evidence:invalid' } };
+    yield { type: 'finish', reason: 'tool-calls' };
+  } } });
+  assert.equal((await run.run()).status, 'failed');
+});
+
 test('report citation failures return to the Cline repair loop before task completion', async () => {
   const next = structuredClone(contract);
   next.metadataRefs = ['runtime-coding:analysis-reviewed-path:v1'];
@@ -236,7 +292,7 @@ test('only explicitly declared bounded input observations reach the coding model
         analysisPreview: { complete: false, samples: [{ rowJsonPrefix: 'authorized-format-prefix' }] },
       }) }, { model: { async *stream(request) {
         calls++; assert.match(JSON.stringify(request.messages), /authorized-format-prefix/);
-        assert.match(request.systemPrompt, /does not judge business conclusions/);
+        assert.match(request.systemPrompt, /Runtime OS owns business interpretation, classification, task plans/);
         yield { type: 'text-delta', text: 'Analysis agent owns the result' }; yield { type: 'finish', reason: 'stop' };
       } } });
     if (declared) { await run.run(); assert.equal(calls, 1); }

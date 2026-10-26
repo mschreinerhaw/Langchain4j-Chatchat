@@ -62,4 +62,26 @@ class PythonRuntimeDiagnosticTest(unittest.TestCase):
         self.assertEqual(module.diagnostic_code("ModuleNotFoundError: No module named 'private_name'"), 'PACKAGE_NOT_INSTALLED')
 
 
+class RuntimeDiagnosticTest(unittest.TestCase):
+    def test_resources_and_exception_frames_without_raw_streams(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / 'analysis.py'
+            output = Path(folder) / 'diagnostic.json'
+            source.write_text('print("private fixture value")\nsum(i*i for i in range(100000))\nraise ValueError("private failure")\n', encoding='utf-8')
+            result = subprocess.run([sys.executable, str(CAPTURE), str(source), str(output)], capture_output=True)
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stdout, b'')
+            self.assertEqual(result.stderr, b'')
+            diagnostic = json.loads(output.read_text(encoding='utf-8'))
+            self.assertNotIn('private', json.dumps(diagnostic))
+            self.assertEqual(diagnostic['exceptionType'], 'ValueError')
+            self.assertEqual(diagnostic['stack'][-1], {'file': 'analysis.py', 'line': 3})
+            if sys.platform != 'win32':
+                self.assertGreaterEqual(diagnostic['cpuTimeMs'], 0)
+                self.assertGreater(diagnostic['maxRssBytes'], 0)
+            else:
+                self.assertNotIn('cpuTimeMs', diagnostic)
+                self.assertNotIn('maxRssBytes', diagnostic)
+
+
 if __name__ == '__main__': unittest.main()

@@ -19,6 +19,9 @@ import java.time.Duration;
 @Component
 public class ConfigurableChatModelFactory {
 
+    private boolean runtimeStreamingEnabled;
+    @org.springframework.beans.factory.annotation.Value("${chatchat.models.runtime-streaming-enabled:false}")
+    public void setRuntimeStreamingEnabled(boolean enabled) {runtimeStreamingEnabled=enabled;}
     private final ModelResourceRegistry modelResources;
     private final ObjectMapper objectMapper;
 
@@ -42,8 +45,23 @@ public class ConfigurableChatModelFactory {
         if (modelName == null || modelName.isBlank()) {
             throw new IllegalArgumentException("Chat model name must not be blank");
         }
-        ModelsConfig.ResolvedModelConnection resolved =
-            modelResources.require(modelName);
+        return createResolved(modelResources.require(modelName), maximumTimeout, maximumOutputTokens);
+    }
+
+    /** Frozen connection, one physical attempt; Runtime owns retry admission. */
+    public ChatModel createRuntime(ModelsConfig.ResolvedModelConnection resolved) {
+        return createResolved(resolved, null, null, true);
+    }
+
+    public ChatModel createResolved(ModelsConfig.ResolvedModelConnection resolved,
+            Duration maximumTimeout, Integer maximumOutputTokens) {
+        return createResolved(resolved, maximumTimeout, maximumOutputTokens, maximumTimeout != null);
+    }
+
+    private ChatModel createResolved(ModelsConfig.ResolvedModelConnection resolved,
+            Duration maximumTimeout, Integer maximumOutputTokens, boolean disableRetries) {
+        if (maximumTimeout != null && (maximumTimeout.isZero() || maximumTimeout.isNegative()))
+            throw new IllegalArgumentException("Model invocation budget has expired");
         ModelsConfig.ModelConnectionConfig config = resolved.config();
         String providerModelName = resolved.providerModelName();
         ModelEndpoint endpoint = ModelEndpoint.resolve(config.getBaseUrl(), config.getProtocol());
@@ -51,11 +69,23 @@ public class ConfigurableChatModelFactory {
         if (maximumTimeout != null && (timeout.isZero() || timeout.compareTo(maximumTimeout) > 0)) timeout = maximumTimeout;
         int outputTokens = maximumOutputTokens == null ? config.getMaxTokens()
             : config.getMaxTokens() > 0 ? Math.min(config.getMaxTokens(), maximumOutputTokens) : maximumOutputTokens;
-        int retries = maximumTimeout == null ? config.getMaxRetries() : 0;
+        int retries = disableRetries ? 0 : config.getMaxRetries();
+        if(disableRetries)com.chatchat.agents.orchestration.model.MeteredChatModel.singleAttemptProvider();
         if (endpoint.protocol() == ModelEndpoint.Protocol.DASHSCOPE_NATIVE) {
             return new DashScopeNativeChatModel(
                 endpoint.url(), endpoint.multimodal(), config.getApiKey(), providerModelName,
                 timeout, outputTokens, retries, httpClient(config.getProxy()), objectMapper);
+        }
+
+        if(disableRetries && runtimeStreamingEnabled) {
+            var streaming=dev.langchain4j.model.openai.OpenAiStreamingChatModel.builder()
+                .apiKey(config.getApiKey()).baseUrl(endpoint.url()).modelName(providerModelName)
+                .logRequests(false).logResponses(false);
+            if(!timeout.isZero() && !timeout.isNegative())streaming.timeout(timeout);
+            if(outputTokens>0)streaming.maxTokens(outputTokens);
+            var client=openAiHttpClientBuilder(config.getProxy());
+            if(client!=null)streaming.httpClientBuilder(client);
+            return new RuntimeStreamingChatModel(streaming.build());
         }
 
         OpenAiChatModel.OpenAiChatModelBuilder builder = OpenAiChatModel.builder()

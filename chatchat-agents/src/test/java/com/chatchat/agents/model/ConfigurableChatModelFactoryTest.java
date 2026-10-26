@@ -13,6 +13,35 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ConfigurableChatModelFactoryTest {
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans={false,true})
+    void runtimeDoesNotRetryARealFailingProviderEvenWhenTheConnectionRequestsRetries(boolean streaming) throws Exception {
+        var calls=new java.util.concurrent.atomic.AtomicInteger();
+        var server=com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1",0),0);
+        server.createContext("/v1/chat/completions",exchange->{
+            calls.incrementAndGet();
+            byte[] body="{\"error\":{\"message\":\"synthetic upstream failure\",\"type\":\"server_error\"}}".getBytes();
+            exchange.sendResponseHeaders(500,body.length);exchange.getResponseBody().write(body);exchange.close();
+        });server.start();
+        try {
+            var files=new ModelsConfig();var config=new ModelsConfig.ModelConnectionConfig();
+            config.setApiKey("synthetic-key");config.setProtocol("openai");config.setMaxRetries(3);
+            config.setBaseUrl("http://127.0.0.1:"+server.getAddress().getPort()+"/v1");
+            files.getChatModels().put("registered-test-model",config);
+            var resolved=new com.chatchat.common.config.ModelResourceRegistry(files).require("registered-test-model");
+            var factory=new ConfigurableChatModelFactory(files,new ObjectMapper());
+            factory.setRuntimeStreamingEnabled(streaming);
+            try(var timing=com.chatchat.agents.orchestration.model.MeteredChatModel.observeTiming()) {
+                assertThatThrownBy(()->factory.createRuntime(resolved).chat("test")).isInstanceOf(RuntimeException.class);
+                assertThat(timing.retryTimeMs()).isZero();
+            }
+            assertThat(calls.get()).isEqualTo(1);
+            assertThatThrownBy(()->factory.createResolved(resolved,java.time.Duration.ZERO,null))
+                .hasMessageContaining("expired");
+            assertThat(calls.get()).isEqualTo(1);
+        } finally {server.stop(0);}
+    }
+
     @Test
     void usesDedicatedConnectionForSelectedModel() {
         ModelsConfig config = new ModelsConfig();

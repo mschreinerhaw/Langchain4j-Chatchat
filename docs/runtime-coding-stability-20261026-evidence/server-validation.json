@@ -1,0 +1,166 @@
+{
+  "scope": "ISOLATED_ACCEPTANCE_ON_USER_SERVER",
+  "javaDocker": {
+    "found": 24,
+    "passed": 23,
+    "failed": 0,
+    "skipped": 1,
+    "skipReason": "Optional SQLGlot interpreter not configured"
+  },
+  "node24": {
+    "tests": 61,
+    "passed": 61,
+    "failed": 0,
+    "execution": "serial test files, network none, read-only root, 1 CPU, 512 MiB"
+  },
+  "pythonLinuxDiagnostics": {
+    "tests": 5,
+    "passed": 5
+  },
+  "callbackGatePolicy": {
+    "tests": 2,
+    "passed": 2,
+    "scope": "policy unit tests; no production promotion"
+  },
+  "firewallPolicy": {
+    "tests": 3,
+    "passed": 3,
+    "scope": "rule construction unit tests; production rules unchanged"
+  },
+  "firewallActualPreflight": {
+    "passed": true,
+    "mode": "iptables-restore --test",
+    "rulesCommitted": false
+  },
+  "composeAndNginx": {
+    "tests": 7,
+    "passed": 7,
+    "scope": "isolated Compose expansion and gateway containers"
+  },
+  "productionHttpHealth": {
+    "18100": 200,
+    "18101": 200
+  },
+  "productionTrafficPromoted": false,
+  "productionProviderAcceptance": "NOT_RUN_FOR_THIS_REMEDIATION",
+  "pythonFixtureResourceObservations": [
+    {
+      "status": "FAILED",
+      "durationMs": 311,
+      "cpuTimeMs": 32,
+      "maxRssBytes": 17936384
+    },
+    {
+      "status": "SUCCEEDED",
+      "durationMs": 1130,
+      "cpuTimeMs": 560,
+      "maxRssBytes": 18022400
+    },
+    {
+      "status": "FAILED",
+      "durationMs": 629,
+      "cpuTimeMs": 60,
+      "maxRssBytes": 17997824
+    },
+    {
+      "status": "SUCCEEDED",
+      "durationMs": 806,
+      "cpuTimeMs": 371,
+      "maxRssBytes": 17895424
+    },
+    {
+      "status": "FAILED",
+      "durationMs": 303,
+      "cpuTimeMs": 29,
+      "maxRssBytes": 18010112
+    },
+    {
+      "status": "SUCCEEDED",
+      "durationMs": 462,
+      "cpuTimeMs": 191,
+      "maxRssBytes": 17932288
+    },
+    {
+      "status": "FAILED",
+      "durationMs": 273,
+      "cpuTimeMs": 30,
+      "maxRssBytes": 18001920
+    },
+    {
+      "status": "SUCCEEDED",
+      "durationMs": 449,
+      "cpuTimeMs": 188,
+      "maxRssBytes": 17809408
+    },
+    {
+      "status": "FAILED",
+      "durationMs": 324,
+      "cpuTimeMs": 74,
+      "maxRssBytes": 17891328
+    },
+    {
+      "status": "SUCCEEDED",
+      "durationMs": 460,
+      "cpuTimeMs": 217,
+      "maxRssBytes": 17870848
+    },
+    {
+      "status": "FAILED",
+      "durationMs": 249,
+      "cpuTimeMs": 25,
+      "maxRssBytes": 17858560
+    },
+    {
+      "status": "SUCCEEDED",
+      "durationMs": 1036,
+      "cpuTimeMs": 473,
+      "maxRssBytes": 18018304
+    },
+    {
+      "status": "FAILED",
+      "durationMs": 446,
+      "cpuTimeMs": 62,
+      "maxRssBytes": 18001920
+    },
+    {
+      "status": "SUCCEEDED",
+      "durationMs": 514,
+      "cpuTimeMs": 216,
+      "maxRssBytes": 18018304
+    },
+    {
+      "status": "FAILED",
+      "durationMs": 355,
+      "cpuTimeMs": 62,
+      "maxRssBytes": 17809408
+    },
+    {
+      "status": "SUCCEEDED",
+      "durationMs": 451,
+      "cpuTimeMs": 189,
+      "maxRssBytes": 17866752
+    },
+    {
+      "status": "FAILED",
+      "durationMs": 347,
+      "cpuTimeMs": 74,
+      "maxRssBytes": 18006016
+    },
+    {
+      "status": "SUCCEEDED",
+      "durationMs": 602,
+      "cpuTimeMs": 187,
+      "maxRssBytes": 17870848
+    }
+  ],
+  "evidenceSha256": {
+    "java-docker-tests.log": "07927ac38c5c3320eb0323929eaeb668c767feac4960255fe2248e7a68d0462e",
+    "node24-tests.log": "46f8a0bd874acaaf85b84559a1f55cf8f25cb414549db2e2efed2fb8c0cb7a1a",
+    "python-linux-tests.log": "f5e984b0fdb47ee816b85eb841d1ccbe457e264715715c40fd534ce59efbefac",
+    "deployment-tests.log": "a1ba1cc3b803812acd2b780bbd091d96af50e0cd517efdfdede1e57e381c685b",
+    "firewall-preflight.log": "0a10f4e3f3d40fd0a54079467c1ca7248d7f7a24bb7c0bd67bcc5160185a1302",
+    "firewall-tests.log": "4472706129b22c57c4543985a4363e72c66e7b16dc72738f839abd4b4c5880ab",
+    "benchmark-linux.json": "0a475f418aaa4acb427904e35e33a70d9e8a638765fc90329ad9d4a38c101536",
+    "java-classes.tar.gz": "b58349513d2f2a31d99ba96b760f285dfc68272241530cc6ffcb6945d3b6c080"
+  }
+}

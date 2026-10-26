@@ -8,7 +8,7 @@ public final class CodingRuntimeContext {
     public static Map<String, Object> validate(Map<String, Object> value) {
         if (value == null || value.isEmpty()) return Map.of();
         CodingProtocol.require(value.keySet().stream().allMatch(Set.of("schemaVersion", "capturedAt",
-            "consistency", "model", "skills", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "pythonEnvironment", "scriptPurpose")::contains), "Unknown Coding context field");
+            "consistency", "model", "skills", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "pythonEnvironment", "scriptPurpose", "codingLifecycle")::contains), "Unknown Coding context field");
         if(value.containsKey("scriptPurpose"))CodingProtocol.require(value.get("scriptPurpose") instanceof String purpose
             &&!purpose.isBlank()&&purpose.length()<=512,"Invalid script business purpose");
         if (value.containsKey("pythonEnvironment")) {
@@ -20,6 +20,13 @@ public final class CodingRuntimeContext {
             CodingProtocol.require(env.get("environmentVersion") instanceof Number n && n.longValue() > 0, "Python environment version required");
             if (env.containsKey("imageDigest")) CodingProtocol.require(env.get("imageDigest") instanceof String digest
                 && digest.matches("sha256:[0-9a-f]{64}"), "Invalid Python image digest");
+        }
+        if(value.containsKey("codingLifecycle")) {
+            CodingProtocol.require(value.get("codingLifecycle") instanceof Map<?,?>,"Code lifecycle policy required");
+            var policy=(Map<?,?>)value.get("codingLifecycle");
+            CodingProtocol.require(policy.keySet().equals(Set.of("schemaVersion","patchOnlyAfterFirst"))
+                && "runtime_os.code_lifecycle.v1".equals(policy.get("schemaVersion"))
+                && Boolean.TRUE.equals(policy.get("patchOnlyAfterFirst")),"Unsupported code lifecycle policy");
         }
         VisualReportMode.read(value);
         if(value.containsKey("executionProfile")) {

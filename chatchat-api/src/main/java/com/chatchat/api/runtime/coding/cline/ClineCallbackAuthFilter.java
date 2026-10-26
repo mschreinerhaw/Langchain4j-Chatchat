@@ -36,26 +36,48 @@ public final class ClineCallbackAuthFilter extends OncePerRequestFilter {
     private static final String PREFIX = "/internal/coding/cline/";
     private final String secret;
     private final Set<String> allowedPeers;
+    private final Set<String> allowedPeerHostnames;
     private final Map<String, Long> nonces = new ConcurrentHashMap<>();
 
     @Autowired
     public ClineCallbackAuthFilter(@Value("${chatchat.coding.cline.shared-secret:}") String secret,
             @Value("${chatchat.coding.cline.allowed-peer-addresses:127.0.0.1,::1,0:0:0:0:0:0:0:1}")
-            String allowedPeerAddresses, @Value("${chatchat.coding.cline.shared-secret-file:}") String secretFile) {
-        this(CodingSecrets.resolve(secret,secretFile),allowedPeerAddresses);
+            String allowedPeerAddresses, @Value("${chatchat.coding.cline.shared-secret-file:}") String secretFile,
+            @Value("${chatchat.coding.cline.allowed-peer-hostnames:}") String allowedPeerHostnames) {
+        this(CodingSecrets.resolve(secret,secretFile),allowedPeerAddresses,parseHostnames(allowedPeerHostnames));
     }
 
     ClineCallbackAuthFilter(String secret, String allowedPeerAddresses) {
+        this(secret,allowedPeerAddresses,Set.of());
+    }
+
+    ClineCallbackAuthFilter(String secret, String allowedPeerAddresses, Set<String> hostnames) {
         if (secret == null || secret.length() < 32)
             throw new IllegalArgumentException("Cline callback secret must contain at least 32 characters");
         this.allowedPeers = Arrays.stream(allowedPeerAddresses.split(","))
             .map(String::trim).filter(value -> !value.isEmpty()).collect(Collectors.toUnmodifiableSet());
-        if (allowedPeers.isEmpty()) throw new IllegalArgumentException("A Coding callback peer is required");
+        this.allowedPeerHostnames=Set.copyOf(hostnames);
+        if (allowedPeers.isEmpty() && allowedPeerHostnames.isEmpty()) throw new IllegalArgumentException("A Coding callback peer is required");
         this.secret = secret;
     }
 
     ClineCallbackAuthFilter(String secret) {
         this(secret, "127.0.0.1,::1,0:0:0:0:0:0:0:1");
+    }
+
+    private static Set<String> parseHostnames(String configured) {
+        return Arrays.stream(configured.split(",")).map(String::trim).filter(value->!value.isEmpty())
+            .peek(value->{if(!value.matches("[A-Za-z0-9][A-Za-z0-9.-]{0,252}"))throw new IllegalArgumentException("Invalid Coding callback hostname");})
+            .collect(Collectors.toUnmodifiableSet());
+    }
+
+    private boolean allowedPeer(String address) {
+        if(allowedPeers.contains(address))return true;
+        for(String hostname:allowedPeerHostnames)try {
+            for(var resolved:java.net.InetAddress.getAllByName(hostname))
+                if(resolved.getHostAddress().equals(address))return true;
+        } catch(java.net.UnknownHostException unavailable) { /* Fail closed; never trust forwarded headers. */ }
+        return false;
     }
 
     @Override protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -64,7 +86,7 @@ public final class ClineCallbackAuthFilter extends OncePerRequestFilter {
 
     @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                                FilterChain chain) throws ServletException, IOException {
-        if (!allowedPeers.contains(request.getRemoteAddr())
+        if (!allowedPeer(request.getRemoteAddr())
                 || !"2".equals(request.getHeader("X-Chatchat-Signature-Version"))) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
             return;
@@ -99,7 +121,7 @@ public final class ClineCallbackAuthFilter extends OncePerRequestFilter {
     private boolean valid(HttpServletRequest request, byte[] body) {
         String address = request.getRemoteAddr();
         if (!"POST".equalsIgnoreCase(request.getMethod())
-                || !allowedPeers.contains(address)
+                || !allowedPeer(address)
                 || !InternalRequestSigner.matches(request.getHeader("Authorization"), "Bearer " + secret))
             return false;
         String timestamp = request.getHeader(InternalRequestSigner.TIMESTAMP_HEADER);

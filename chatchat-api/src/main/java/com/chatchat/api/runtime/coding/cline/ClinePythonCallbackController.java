@@ -141,8 +141,18 @@ public final class ClinePythonCallbackController {
                 }
             }
             var result = python.get(call.scope(), call.taskId(), operationId);
-            if (result.executorStopped() && result.manifestHash() != null)
-                python.reconcile(call.scope(), call.taskId(), call.lease(), operationId);
+            if (result.executorStopped() && result.manifestHash() != null) {
+                try { python.reconcile(call.scope(), call.taskId(), call.lease(), operationId); }
+                catch(com.chatchat.common.runtime.coding.CodingContractException pending) {
+                    if(pending.error().code()!=CodingErrorCode.EXECUTION_OUTCOME_UNKNOWN)throw pending;
+                    // Poll the same admission until its stop proof is verifiable; never spend a new execution.
+                    var response=view(result);
+                    response.put("status","RECONCILING");response.put("executorStopped",false);
+                    response.put("resultAvailable",false);response.put("reconciliationRequired",true);
+                    response.put("diagnosticCode",CodingErrorCode.EXECUTION_OUTCOME_UNKNOWN.name());
+                    return response;
+                }
+            }
             Map<String, Object> response = view(result);
             var layout = CodingInputLayout.describe(call.contract().runtimeContext());
             if (!layout.isEmpty()) response.put("inputLayout", layout);

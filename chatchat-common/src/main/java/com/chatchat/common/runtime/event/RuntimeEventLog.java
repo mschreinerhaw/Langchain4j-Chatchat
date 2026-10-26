@@ -22,6 +22,8 @@ public final class RuntimeEventLog {
         "turn", "maximumTurns", "modelCalls", "requestCount", "completedRequestCount", "workspaceVersion",
         "modelCompleted", "publicationState", "executionState", "executionStopReason", "success",
         "durationMs", "elapsedMs", "queueTimeMs", "executionTimeMs", "inputTokensEstimated",
+        "cpuTimeMs", "maxRssBytes", "firstTokenMs", "generationTimeMs", "retryTimeMs", "toolDurationMs", "requestBytes", "messageCount", "responseMode",
+        "parentCodeHash", "parentCodeVersion", "codeVersion", "changeKind", "proposalHash",
         "outputTokensEstimated", "instructionsChars", "layersChars", "fullChars", "outputCheckpointRestored",
         "record", "from", "limit", "field", "fromChar", "maxChars", "nextChar", "nextRecord", "hasMore",
         "truncated", "stdoutTruncated", "exitCode", "recordCount", "observationCount", "candidateCount",
@@ -50,7 +52,9 @@ public final class RuntimeEventLog {
         var facts=new LinkedHashMap<String,Object>();
         facts.put("taskId",taskId);facts.put("traceId",scope==null?null:scope.runId());facts.put("executionId",executionId);
         Set<String> allowed=Set.of("status","stage","reasonCode","errorCategory","exceptionType","diagnosticCode", "attemptId",
-            "scriptPath","scriptVersion","scriptHash","codeHash","codeSha256","httpStatus","durationMs","repairAttempts","repairAllowed","modelCall","evidenceSnapshotRef","exitCode","validationStatus","resultAvailable");
+            "scriptPath","scriptVersion","scriptHash","codeHash","codeSha256","httpStatus","durationMs","repairAttempts","repairAllowed","modelCall","evidenceSnapshotRef","exitCode","validationStatus","resultAvailable",
+            "cpuTimeMs","maxRssBytes","queueTimeMs","firstTokenMs","generationTimeMs","retryTimeMs","toolDurationMs","requestBytes","messageCount","responseMode",
+            "parentCodeHash","parentCodeVersion","codeVersion","changeKind","proposalHash");
         metadata.forEach((key,value)->{
             if(!allowed.contains(key)||value==null)return;
             if(value instanceof Number||value instanceof Boolean)facts.put(key,value);

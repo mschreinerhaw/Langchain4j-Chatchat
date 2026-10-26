@@ -1,0 +1,11 @@
+# Apply only to a reviewed test deployment first. Existing contracts remain frozen.
+chatchat:
+  coding:
+    workspace:
+      fast-path:
+        enabled: false
+        # UTF-8 size of the complete Java-captured snapshot, including schema.
+        max-context-bytes: 32768
+        # Also bounded by the existing workspace, model and task token limits.
+        # Kept at the existing reply limit by default to avoid output truncation.
+        max-output-tokens: 8192

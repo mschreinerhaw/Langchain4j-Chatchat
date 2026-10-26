@@ -9,10 +9,12 @@ import type { CodeVersion, ModelCall, MonitorEvent, NodeSnapshot, TaskDetail, Ta
 const VERSION = 'coding_agent.monitor.v1';
 const SESSION_MS = 8 * 60 * 60 * 1000;
 const COOKIE = 'coding_monitor_session';
-const EVENT_KEYS = ['stage', 'status', 'operationId', 'proposedOperationId', 'modelCall', 'tool',
+const EVENT_KEYS = ['stage', 'status', 'operationId', 'proposedOperationId', 'modelCall', 'tool', 'toolCallId',
   'scriptPath', 'scriptVersion', 'codeSha256', 'fileName', 'sourceBytes', 'skillFingerprint', 'validationStatus', 'outputStatus',
   'selectedModel', 'providerModel', 'protocol', 'startedAt', 'finishedAt', 'durationMs', 'message',
-  'errorCategory', 'diagnosticCode', 'repairAttempts', 'repairAllowed'];
+  'queueTimeMs', 'firstTokenMs', 'generationTimeMs', 'retryTimeMs', 'responseMode', 'parentCodeHash', 'codeVersion', 'parentCodeVersion', 'changeKind',
+  'errorCategory', 'diagnosticCode', 'repairAttempts', 'repairAllowed', 'resultAvailable', 'requestBytes', 'messageCount', 'toolDurationMs', 'proposalHash', 'cpuTimeMs', 'maxRssBytes',
+  'callbackFirstEventMs', 'responseBytes', 'toolCount', 'requestHash', 'strategy', 'reason', 'validationDurationMs'];
 type Contract = Record<string, any>;
 interface Options {
   directory?: string; maxTasks?: number; maxEvents?: number; maxSourceBytes?: number;
@@ -156,6 +158,7 @@ export class MonitorStore {
     const event: MonitorEvent = { cursor: ++this.cursor, timestamp: now, type: this.text(value.type, 80) };
     for (const key of EVENT_KEYS) {
       if (typeof value[key] === 'string') event[key] = this.text(value[key], 512);
+      else if (typeof value[key] === 'boolean') event[key] = value[key];
       else if (integer(value[key]) !== null) event[key] = value[key];
     }
     if (value.usage) event.usage = { inputTokens: integer(value.usage.inputTokens),
@@ -173,12 +176,22 @@ export class MonitorStore {
         task.models.push(call);
       }
       if (call) {
+        if (event.type === 'MODEL_TIMING') {
+          call.callbackDurationMs = integer(event.durationMs);
+          for (const key of ['callbackFirstEventMs', 'requestBytes', 'responseBytes', 'messageCount', 'toolCount'] as const)
+            call[key] = integer(event[key]);
+          // A buffered Java callback first event is not the provider's first token.
+          call.durationMs ??= call.callbackDurationMs;
+        }
         if (event.type === 'MODEL_RESOLVED') {
           for (const key of ['selectedModel', 'providerModel', 'protocol'] as const)
             if (typeof event[key] === 'string') call[key] = event[key];
           if (typeof event.startedAt === 'string') call.startedAt = event.startedAt;
           if (typeof event.finishedAt === 'string') call.finishedAt = event.finishedAt;
           call.durationMs = integer(event.durationMs);
+          for(const key of ['queueTimeMs','firstTokenMs','generationTimeMs','retryTimeMs'] as const)
+            call[key]=integer(event[key]);
+          call.responseMode=typeof event.responseMode==='string'?event.responseMode:null;
         }
         if (['MODEL_USAGE', 'MODEL_FAILED'].includes(event.type)) {
           call.status = event.type === 'MODEL_USAGE' ? 'SUCCEEDED' : 'FAILED';

@@ -9,6 +9,15 @@ import static org.assertj.core.api.Assertions.*;
 /** Real isolated Python process with pinned SQLGlot. No database or model. */
 @EnabledIfSystemProperty(named="coding.sqlglotPython",matches=".+")
 class SqlGlotToolchainTest {
+    @Test void diagnosticsIdentifySyntaxCategoryFileAndLocationWithoutRunningSource(){
+        var result=parser().validate("python",List.of(new SqlOutputBundle.Candidate("src/a.py","# keep\ndef broken(:\n")),Map.of());
+        assertThat(result).containsEntry("valid",false).containsEntry("codeExecuted",false);
+        var tree=new ObjectMapper().valueToTree(result).path("diagnostics").get(0);
+        assertThat(tree.path("path").asText()).isEqualTo("src/a.py");
+        assertThat(tree.path("category").asText()).isEqualTo("SYNTAX");
+        assertThat(tree.path("line").asInt()).isEqualTo(2);
+        assertThat(tree.path("column").asInt()).isGreaterThan(0);
+    }
     SqlGlotToolchain parser(){return new SqlGlotToolchain(System.getProperty("coding.sqlglotPython"),new ObjectMapper());}
     @Test void parsesAllStudioDialectsAndReturnsNormalizationWithoutExecutingSql(){
         for(String dialect:SqlStudioService.DIALECTS){

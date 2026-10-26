@@ -12,7 +12,7 @@ const createCodingRun=(task,gateway,options)=>{
         workingDirectory:'tasks/'+['a'.repeat(16),'b'.repeat(16),'c'.repeat(16),'d'.repeat(24)].join('/')});
     }
     return assigned.get(input.operationId);
-  },...gateway},options);
+  },...gateway},{nativeSdk:false,...options});
 };
 
 const task = {
@@ -99,6 +99,8 @@ test('Java repair feedback reaches the same SDK context and an exact edit create
     if(models===1)yield {type:'tool-call-delta',toolCallId:'first',toolName:'python_execute',input:{fileName:'main.py',source:original}};
     else if(models===2){
       assert.match(JSON.stringify(request.messages),/VALUE_NOT_SUBSCRIPTABLE/);
+      assert.match(JSON.stringify(request.messages),/repairSourceContext/);
+      assert.match(JSON.stringify(request.messages),/2: print\(value\[0\]\)/);
       const {createHash}=await import('node:crypto');
       yield {type:'tool-call-delta',toolCallId:'repair',toolName:'python_execute',input:{fileName:'main.py',repair:{
         baseCodeSha256:createHash('sha256').update(original).digest('hex'),edits:[{oldText:'value[0]',newText:'value'}]}}};
@@ -107,8 +109,9 @@ test('Java repair feedback reaches the same SDK context and an exact edit create
   }};
   const gateway={async reserveModel(){},async settleModel(){},async executePython(_task,input){
     sources.push(input.source);
-    return sources.length===1?{status:'FAILED',executorStopped:true,executionFeedback:{error:{diagnosticCode:'VALUE_NOT_SUBSCRIPTABLE'},
-      repair:{allowed:true,action:'REPAIR_IN_CURRENT_CONTEXT',reason:'TECHNICAL_REPAIR'}}}:
+    return sources.length===1?{status:'FAILED',executorStopped:true,executionFeedback:{codeHash: input.codeSha256,
+      error:{diagnosticCode:'VALUE_NOT_SUBSCRIPTABLE',stack:[{file:input.fileName,line:2}]},
+      repair:{allowed:true,baseCodeHash:input.codeSha256,action:'REPAIR_IN_CURRENT_CONTEXT',reason:'TECHNICAL_REPAIR'}}}:
       {status:'SUCCEEDED',executorStopped:true,resultDatasetRef:'result',validationRecordRef:'validation',evidenceBundleRef:'bundle'};
   },async finish(){}};
   assert.equal((await createCodingRun(task,gateway,{model}).run()).status,'completed');
@@ -199,8 +202,8 @@ test('successful exploration without an output artifact can be corrected without
   assert.notEqual(completed.operationId,executions[0].operationId);
 });
 
-test('Python operation is polled until Docker confirms stop before a result is accepted', async () => {
-  let polls = 0;
+test('Python operation is polled through pending stop-proof reconciliation without another execution', async () => {
+  let polls = 0, executions = 0;
   let turns = 0;
   const model = { async *stream() {
     if (++turns === 1) {
@@ -214,9 +217,10 @@ test('Python operation is polled until Docker confirms stop before a result is a
   } };
   const gateway = {
     reserveModel() {}, settleModel() {},
-    executePython() { return { status: 'RUNNING', executorStopped: false }; },
+    executePython() { executions++; return { status: 'RUNNING', executorStopped: false }; },
     getPython() {
       polls++;
+      if(polls===1)return { status: 'RECONCILING', executorStopped: false, resultAvailable: false };
       return { status: 'SUCCEEDED', executorStopped: true,
         resultDatasetRef: 'runtime-evidence:result',
         validationRecordRef: 'runtime-evidence:validation',
@@ -228,7 +232,8 @@ test('Python operation is polled until Docker confirms stop before a result is a
     budget: { ...task.budget, deadlineAt: new Date(Date.now() + 10_000).toISOString() },
   }, gateway, { model });
   assert.equal((await run.run()).status, 'completed');
-  assert.equal(polls, 1);
+  assert.equal(polls, 2);
+  assert.equal(executions, 1);
 });
 
 test('unrecognized or unauthorized tools fail closed before a model call', () => {

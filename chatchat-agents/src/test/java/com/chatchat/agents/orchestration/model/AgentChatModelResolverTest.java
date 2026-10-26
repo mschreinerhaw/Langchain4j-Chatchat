@@ -36,7 +36,7 @@ class AgentChatModelResolverTest {
             "page-model", "page-model", first, ModelsConfig.ModelMatchType.CONFIG_KEY));
         var factory = mock(ConfigurableChatModelFactory.class);
         ChatModel one = mock(ChatModel.class), two = mock(ChatModel.class);
-        when(factory.create("page-model")).thenReturn(one, two);
+        when(factory.createRuntime(org.mockito.ArgumentMatchers.any())).thenReturn(one, two);
         when(one.chat("hello")).thenReturn("first");
         when(two.chat("hello")).thenReturn("second");
         var resolver = new AgentChatModelResolver(mock(ChatModel.class), registry, factory, new AgentRuntimeProperties());

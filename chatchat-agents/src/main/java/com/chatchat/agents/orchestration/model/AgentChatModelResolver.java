@@ -76,7 +76,8 @@ public class AgentChatModelResolver {
         if (modelResources.usesPublishedChatModels()) {
             return publishedModels.compute(modelKey, (key, cached) -> {
                 if (cached != null && cached.getKey().equals(selected.config())) return cached;
-                ChatModel model = new CapacityGovernedChatModel(key, chatModelFactory.create(key), modelCapacity);
+                ChatModel model = new CapacityGovernedChatModel(key, chatModelFactory.createRuntime(selected), modelCapacity,
+                    remaining -> chatModelFactory.createResolved(selected, remaining, null));
                 return new java.util.AbstractMap.SimpleImmutableEntry<>(selected.config(), model);
             }).getValue();
         }
@@ -84,7 +85,8 @@ public class AgentChatModelResolver {
             ChatModel resolved = isDefaultSelection(selected)
                 ? defaultChatModel
                 : chatModelsByName.computeIfAbsent(modelKey, chatModelFactory::create);
-            return new CapacityGovernedChatModel(modelKey, resolved, modelCapacity);
+            return new CapacityGovernedChatModel(modelKey, resolved, modelCapacity,
+                remaining -> chatModelFactory.createResolved(selected, remaining, null));
         });
     }
 

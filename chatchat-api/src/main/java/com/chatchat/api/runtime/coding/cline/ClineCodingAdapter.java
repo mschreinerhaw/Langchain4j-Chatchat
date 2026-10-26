@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /** Vendor-neutral Runtime facade; Node SDK is a replaceable, non-authoritative worker. */
@@ -389,13 +390,27 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     }
     private void requireInputCapabilities(CodingTaskContract contract) {
         boolean fast=contract.metadataRefs().contains("runtime-coding:analysis-fast-path:v1");
+        boolean workspaceFast=contract.metadataRefs().contains(CodingWorkspaceService.FAST_PATH_REF);
         Object descriptor=contract.runtimeContext().get("inputFiles");
-        if(descriptor==null && !fast)return;
+        Object lifecycle=contract.runtimeContext().get("codingLifecycle");
+        if(descriptor==null && !fast && !workspaceFast && lifecycle==null)return;
         JsonNode capabilities=request("/v1/input-capabilities",Map.of());
+        if(workspaceFast) {
+            boolean supported=false;
+            for(var profile:capabilities.path("workspaceProfiles"))
+                if(CodingWorkspaceService.FAST_PATH_REF.equals(profile.asText()))supported=true;
+            if(!supported)throw new IllegalStateException("Cline worker has not negotiated the workspace fast path");
+        }
         if(descriptor instanceof Map<?,?> input &&
                 (!com.chatchat.common.runtime.coding.CodingInputManifest.VERSION.equals(capabilities.path("schemaVersion").asText())
                 || !capabilities.path("formats").toString().contains("\""+input.get("format")+"\"")))
             throw new IllegalStateException("Cline worker has not negotiated this input descriptor");
+        if(lifecycle instanceof Map<?,?> policy) {
+            boolean supported=false;
+            for(var version:capabilities.path("codeLifecycleVersions"))
+                if(Objects.equals(policy.get("schemaVersion"),version.asText()))supported=true;
+            if(!supported)throw new IllegalStateException("Cline worker has not negotiated the code lifecycle policy");
+        }
         if(fast) {
             boolean supported=false;
             for(var profile:capabilities.path("analysisProfiles"))

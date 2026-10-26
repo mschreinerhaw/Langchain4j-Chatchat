@@ -31,6 +31,29 @@ class PythonManagedExecutionServiceTest {
 
     @AfterEach void shutdown() { if (service != null) service.shutdown(); }
 
+    @Test void concurrentCompletionAndPollingArchiveOnceAndKeepTheStopReceiptStable() throws Exception {
+        var h=harness(false);
+        var entered=new java.util.concurrent.CountDownLatch(1);
+        var release=new java.util.concurrent.CountDownLatch(1);
+        doAnswer(call->{entered.countDown();assertTrue(release.await(5,java.util.concurrent.TimeUnit.SECONDS));return call.callRealMethod();})
+            .when(h.workspace).archive(any());
+        h.start("racing-archive",1,"print('fixture')");
+        assertTrue(entered.await(5,java.util.concurrent.TimeUnit.SECONDS));
+        var pool=java.util.concurrent.Executors.newSingleThreadExecutor();
+        try {
+            var poll=pool.submit(()->service.get("tenant","owner","run","task","racing-archive"));
+            assertThrows(java.util.concurrent.TimeoutException.class,()->poll.get(100,java.util.concurrent.TimeUnit.MILLISECONDS));
+            release.countDown();
+            assertEquals("SUCCEEDED",poll.get(5,java.util.concurrent.TimeUnit.SECONDS).status());
+            var stopped=await("SUCCEEDED","tenant","racing-archive");
+            byte[] receipt=service.artifact("tenant","owner","run","task","racing-archive","logs","receipt.json");
+            assertTrue(new ObjectMapper().readTree(receipt).path("stopConfirmed").asBoolean());
+            for(int i=0;i<5;i++)assertEquals(stopped.manifestHash(),service.get("tenant","owner","run","task","racing-archive").manifestHash());
+            assertArrayEquals(receipt,service.artifact("tenant","owner","run","task","racing-archive","logs","receipt.json"));
+            verify(h.workspace,times(1)).archive(any());
+        } finally {release.countDown();pool.shutdownNow();}
+    }
+
     @Test void cancelBeforeAdmissionPersistsNoStartProofAndBlocksLateStartAcrossRestart() throws Exception {
         Harness h = harness(false);
         var stopped = service.cancel("tenant", "owner", "run", "task", "not-admitted", 1);
@@ -180,7 +203,8 @@ class PythonManagedExecutionServiceTest {
         org.junit.jupiter.api.Assumptions.assumeTrue(Boolean.getBoolean("coding.realDocker"));
         Path db = temporary.resolve("recovery-db").resolve("operation");
         java.nio.file.Files.createDirectories(db.getParent());
-        String url = "jdbc:h2:file:" + db.toAbsolutePath().toString().replace('\\', '/') + ";AUTO_SERVER=TRUE";
+        // Parent reopens only after the child exits; no H2 TCP server or host reverse DNS is needed.
+        String url = "jdbc:h2:file:" + db.toAbsolutePath().toString().replace('\\', '/');
         Path workspaceRoot = temporary.resolve("recovery-workspace");
         Path migration = Path.of("../database/migration/h2/V20261015_01__mcp_python_managed_operation.sql").toAbsolutePath();
         String javaExecutable = Path.of(System.getProperty("java.home"), "bin", System.getProperty("os.name").startsWith("Windows") ? "java.exe" : "java").toString();
@@ -193,7 +217,8 @@ class PythonManagedExecutionServiceTest {
         Path output = temporary.resolve("child.log");
         Process child = new ProcessBuilder(javaExecutable, "@" + arguments).redirectErrorStream(true).redirectOutput(output.toFile()).start();
         if (!child.waitFor(35, java.util.concurrent.TimeUnit.SECONDS)) {
-            child.destroyForcibly(); fail("Child JVM did not crash after Docker start");
+            child.destroyForcibly(); child.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
+            fail("Child JVM did not crash after Docker start: "+java.nio.file.Files.readString(output));
         }
         assertEquals(0, child.exitValue(), java.nio.file.Files.readString(output));
         assertTrue(java.nio.file.Files.readString(output).contains("RUNNING"));
@@ -243,7 +268,7 @@ class PythonManagedExecutionServiceTest {
         properties.setWorkspaceRoot(temporary.toString());
         PythonDataFileService dataFiles = mock(PythonDataFileService.class);
         ObjectMapper mapper = new ObjectMapper();
-        PythonOperationWorkspace workspace = new PythonOperationWorkspace(properties, dataFiles, mapper);
+        PythonOperationWorkspace workspace = spy(new PythonOperationWorkspace(properties, dataFiles, mapper));
         PythonDockerRuntime docker = realDocker ? new PythonDockerRuntime(properties, mapper, dataFiles) : mock(PythonDockerRuntime.class);
         AtomicInteger created = new AtomicInteger();
         if (!realDocker) {
@@ -288,7 +313,7 @@ class PythonManagedExecutionServiceTest {
         InternalCredentialProperties credentials = mock(InternalCredentialProperties.class);
         when(credentials.resolvedSecret()).thenReturn(SECRET);
         service = new PythonManagedExecutionService(jdbc, new DataSourceTransactionManager(dataSource), capability, docker, workspace, credentials, mapper);
-        return new Harness(jdbc, docker, created);
+        return new Harness(jdbc, docker, created,workspace);
     }
 
     private com.chatchat.common.mcp.python.McpPythonControlPlanePort.OperationView await(String status, String tenant, String op) throws InterruptedException {
@@ -313,9 +338,10 @@ class PythonManagedExecutionServiceTest {
         final JdbcTemplate jdbc;
         final PythonDockerRuntime docker;
         final AtomicInteger created;
+        final PythonOperationWorkspace workspace;
         final java.time.Instant deadline = java.time.Instant.now().plusSeconds(120);
-        Harness(JdbcTemplate jdbc, PythonDockerRuntime docker, AtomicInteger created) {
-            this.jdbc = jdbc; this.docker = docker; this.created = created;
+        Harness(JdbcTemplate jdbc, PythonDockerRuntime docker, AtomicInteger created,PythonOperationWorkspace workspace) {
+            this.jdbc = jdbc; this.docker = docker; this.created = created;this.workspace=workspace;
         }
         com.chatchat.common.mcp.python.McpPythonControlPlanePort.OperationView start(String operation, long token, String code) {
             return PythonManagedExecutionServiceTest.this.service.start(new PythonManagedExecutionService.StartCommand(

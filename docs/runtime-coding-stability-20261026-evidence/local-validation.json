@@ -1,0 +1,25 @@
+{
+  "scope": "LOCAL_TARGETED_REACTOR_REGRESSION",
+  "baseCommit": "e0271b164",
+  "java": {
+    "found": 538,
+    "passed": 518,
+    "skipped": 20,
+    "failed": 0
+  },
+  "node": {
+    "tests": 61,
+    "passed": 61
+  },
+  "pythonDiagnosticsAndPolicy": {
+    "tests": 16,
+    "passed": 16
+  },
+  "fullRepositoryTestSuite": false,
+  "productionProviderAcceptance": false,
+  "evidenceSha256": {
+    "stability-regression-tests.log": "17ad6dc7eced047d969c12583a0c569a54aa7e4f49c8ce11f462bd7734f298ea",
+    "stability-node-tests.log": "ffbe697776ec0a7ad54a649ebf5d6cb0749924e6e54fb7fd884e58c4552a0435",
+    "stability-archive-race-tests.log": "ed326d3e37b1ee83ba2276ff28a7b097f84c4eb5a44c0d8f1b5db428b4d9ac3d"
+  }
+}

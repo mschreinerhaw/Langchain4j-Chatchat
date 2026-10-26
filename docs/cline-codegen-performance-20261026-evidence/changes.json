@@ -1,0 +1,182 @@
+{
+  "baseCommit": "1dcf93600",
+  "implementationCommit": "1976672e3611ba9351b81100fdade8b59f52e71e",
+  "scope": "GIT_NORMALIZED_CHANGED_FILES_EXCLUDING_THIS_MANIFEST",
+  "files": [
+    {
+      "status": "M",
+      "path": "chatchat-agents/src/main/java/com/chatchat/agents/runtime/coding/DurableCodingTaskService.java",
+      "sha256": "a6003802d609089e02f401c7b48d573a0fe1ec2df4776fc66bcd0cca4a4a26f5"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineCodingAdapter.java",
+      "sha256": "f49e2d00e3563597812426749be31d2922da43e40bd4cdf17a98a0fd383a79f7"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController.java",
+      "sha256": "302c32d985aa205f5f29254e0963015d96af32c28c3d1169d04740d7d8176807"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineRuntimeModelBridge.java",
+      "sha256": "d3b5439340079658e21be4e057ed28fc0e3d7652d6095d7c817b9bd6c69ff0c3"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/workspace/CodingWorkspaceService.java",
+      "sha256": "6a7b5ffffb5f1279f523d335379a93d6d802e12cab22c46806a7ea91406ec730"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/resources/sql-toolchain/validate.py",
+      "sha256": "de45a5ff71ea79bc83f8d66b89fc65710277a08865ccf316dcc9b0a65b0b142f"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlGlotToolchainTest.java",
+      "sha256": "c7ba9127e98453d22b70abafe5c7639aee44142e8de07bf1b1a75e6241db58d5"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClineRuntimeModelBridgeTest.java",
+      "sha256": "272080dad52345ee2cd74a537638f8629848e60caf4c76d246f1a2a834371235"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/CodingAnalysisDockerGateTest.java",
+      "sha256": "32b3609deb721d22e85cead96da2b76d109991a3e5e990be02c94cc92757e038"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/CodingWorkspaceNodeIntegrationTest.java",
+      "sha256": "1bcf135291176499b5314ac84431592916a3e4fe7f13be1c5d2dc08546b5b722"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/workspace/CodingWorkspaceServiceTest.java",
+      "sha256": "ab67831cd431d405ca9374596803f97887aaba4108e5363f6f20d2b0b417ebc3"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/README.md",
+      "sha256": "b01b4aeef69a993c8c09f79cc638a6dc7a95e2b11bf4effa6efbfc79353d9665"
+    },
+    {
+      "status": "A",
+      "path": "coding-agent-node/scripts/benchmark-workspace-codegen.mjs",
+      "sha256": "d83da4df19048602f24d8fb8be72aef6d2411b9e0f75c412f4cac6e4d076cdff"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/scripts/summarize-metrics.mjs",
+      "sha256": "e1263134867ea7adffb5961dfb6e399d9e6c4aefffbc61b39f367c49a4951775"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/src/monitor-types.ts",
+      "sha256": "9eaee78196dd96b080c5e1b1b6f6896c9a70a3fb5bda6d49a72f50c826eb6a09"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/src/monitor.ts",
+      "sha256": "1793aadde3c87fb61fcefab52bdecd18a6dffe36e10f0bfdffe387f028c3a51d"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/src/runner.js",
+      "sha256": "8263ccc1ce454f76209c83455f2bc4875f375fb074d503daaffaa7c29addfef7"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/src/sdk-adapter.js",
+      "sha256": "f9e37266305e7f16ec54200f8e8ea19e06fd8a708a9c6f4015ad21a4d38837ac"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/src/server.js",
+      "sha256": "767459559d6d0a6bc698b9b66c6ac6082bdc9e56fffb681beb471183856daf85"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/test/monitor.test.js",
+      "sha256": "69190581dcd6f8efd702777c30e99fcc9705d6ff4b7d4753ccdaa8d6bd8a3b42"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/test/server.test.js",
+      "sha256": "52fcf2a93c125da2160b46860d840abc9289de4a8d34434d6f10435d34a5b60e"
+    },
+    {
+      "status": "A",
+      "path": "coding-agent-node/test/workspace-fast-path.test.js",
+      "sha256": "7c188917d2cfc1bc81432f27fdf1c4d0918e4d76e1f1963047658f79317eb2fd"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/web/main.ts",
+      "sha256": "70575ca178ddbbf884477a824c5c01b6fb1ed5bd2d7eca557a917ae807cb3e12"
+    },
+    {
+      "status": "A",
+      "path": "config/coding-workspace-performance.example.yml",
+      "sha256": "5a6e9578be10b92e2fa1023ff87a3b97850720d5b887544442e39601d672f4d5"
+    },
+    {
+      "status": "A",
+      "path": "docs/cline-codegen-performance-20261026-evidence/README.md",
+      "sha256": "ef8064d8cbff27030f466b1a50405d5251978768ba4c7b474b10874eafcf93bd"
+    },
+    {
+      "status": "A",
+      "path": "docs/cline-codegen-performance-20261026-evidence/docker-gate.json",
+      "sha256": "524cc5652e827f65bf3ce659322adfed2ec3c942b8a90acf2366086d61b4e60d"
+    },
+    {
+      "status": "A",
+      "path": "docs/cline-codegen-performance-20261026-evidence/java-regression.json",
+      "sha256": "708120bc805a0d72b0912c01e6796613d6809206ec5f292c7e3149ce5e75d061"
+    },
+    {
+      "status": "A",
+      "path": "docs/cline-codegen-performance-20261026-evidence/node-regression.json",
+      "sha256": "1bb4cbcb68ac142eca3467ff51429fed1d4b4e0ae371780e6dc537f6667ec4b6"
+    },
+    {
+      "status": "A",
+      "path": "docs/cline-codegen-performance-20261026-evidence/real-comparison.json",
+      "sha256": "b0391077c09a166852e7bba0710586b738211fd1b43749b921199c7a81abfbcf"
+    },
+    {
+      "status": "A",
+      "path": "docs/cline-codegen-performance-20261026-evidence/sandbox-verification.json",
+      "sha256": "d0d731b1d8e9fb8c4da63aaf8119ba5d46505c6cb85eb5fc5058d60cbdc098cd"
+    },
+    {
+      "status": "A",
+      "path": "docs/cline-codegen-performance-20261026-evidence/sdk-fixture-comparison.json",
+      "sha256": "828bede4569a8608b3af8d35f72b41c32a5d1721a7f619323a70298e053fac87"
+    },
+    {
+      "status": "A",
+      "path": "docs/cline-codegen-performance-analysis-20261026.md",
+      "sha256": "5b0f8cad683de322d8e80a6f6ffec2ebccc23d2a218bcbf33b0f82a2f54107d9"
+    },
+    {
+      "status": "A",
+      "path": "docs/cline-codegen-performance-results-20261026.md",
+      "sha256": "9899067c66e6cf5b9625020a446974f114cbfc2b46f3f342bd1b945c229e89b8"
+    },
+    {
+      "status": "A",
+      "path": "scripts/analyze-codegen-baseline.py",
+      "sha256": "7a5aa4cbd95d719c5b6960dec31be9e6d851b0fd4e56c08460a530c3be35941e"
+    },
+    {
+      "status": "A",
+      "path": "scripts/verify-codegen-candidates.py",
+      "sha256": "e3034382bde04f1a93235990c2a0574ff2fe48531460e2330c2d2764ddfbd2cc"
+    }
+  ]
+}

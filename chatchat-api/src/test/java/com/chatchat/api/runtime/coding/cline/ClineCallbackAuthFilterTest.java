@@ -16,6 +16,39 @@ class ClineCallbackAuthFilterTest {
     private static final String SECRET = "0123456789abcdef0123456789abcdef";
     private static final String PATH = "/internal/coding/cline/model";
 
+    @Test void deploymentPreflightRequiresTheSameSignatureBeforeControllerAccess() throws Exception {
+        String path="/internal/coding/cline/preflight";
+        var controller=new ClineModelCallbackController(null,null,null,null,null,null,null,new com.fasterxml.jackson.databind.ObjectMapper());
+        var mvc=org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(controller)
+            .addFilters(new ClineCallbackAuthFilter(SECRET)).build();
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(path).content("{}")
+                .contentType("application/json"))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isUnauthorized());
+        String time=String.valueOf(Instant.now().getEpochSecond()), nonce=UUID.randomUUID().toString();
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(path).content("{}")
+                .contentType("application/json").accept("application/json").header("Authorization","Bearer "+SECRET)
+                .header("X-Chatchat-Signature-Version","2")
+                .header(InternalRequestSigner.TIMESTAMP_HEADER,time).header(InternalRequestSigner.NONCE_HEADER,nonce)
+                .header(InternalRequestSigner.SIGNATURE_HEADER,InternalRequestSigner.signBody(SECRET,"POST",path,time,nonce,"{}".getBytes(StandardCharsets.UTF_8))))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.codeLifecycleVersion").value("runtime_os.code_lifecycle.v1"));
+    }
+
+    @Test void configuredDnsPeerStillRequiresSignatureAndDoesNotTrustForwardedAddresses() throws Exception {
+        var filter=new ClineCallbackAuthFilter(SECRET,"",java.util.Set.of("localhost"));
+        var reached=new AtomicBoolean();
+        filter.doFilter(signed("127.0.0.1"),new MockHttpServletResponse(),(req,res)->reached.set(true));
+        assertThat(reached).isTrue();
+        var remote=signed("192.0.2.55");remote.addHeader("X-Forwarded-For","127.0.0.1");
+        var denied=new MockHttpServletResponse();
+        filter.doFilter(remote,denied,(req,res)->fail("forwarded address bypassed peer validation"));
+        assertThat(denied.getStatus()).isEqualTo(401);
+        var unsigned=signed("127.0.0.1");unsigned.removeHeader("Authorization");
+        var rejected=new MockHttpServletResponse();
+        filter.doFilter(unsigned,rejected,(req,res)->fail("DNS bypassed signature validation"));
+        assertThat(rejected.getStatus()).isEqualTo(401);
+    }
+
     @Test void springCreatesFilterFromItsProductionConstructorWhenCodingIsEnabled() {
         new ApplicationContextRunner()
             .withPropertyValues("chatchat.coding.enabled=true", "chatchat.coding.cline.enabled=true",

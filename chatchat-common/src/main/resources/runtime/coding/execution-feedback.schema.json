@@ -16,6 +16,8 @@
     "stage": {"enum":["VALIDATED","EXECUTION_FAILED","RESULT_VALIDATION_FAILED"]},
     "exitCode": {"type":["integer","null"]},
     "durationMs": {"type":["integer","null"],"minimum":0},
+    "cpuTimeMs": {"type":["integer","null"],"minimum":0},
+    "maxRssBytes": {"type":["integer","null"],"minimum":0},
     "codeHash": {"type":"string","pattern":"^[0-9a-f]{64}$"},
     "stdout": {"const":"[raw stdout omitted]"},
     "stderr": {"type":"string","maxLength":2000},

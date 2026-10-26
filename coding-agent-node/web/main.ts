@@ -118,6 +118,10 @@ function renderModels(task: TaskDetail) {
     card.append(title, kv([['请求模型', call.selectedModel ?? task.configuredModel.selectedModel ?? '未取得'],
       ['实际模型', call.providerModel ?? '未取得'], ['协议', call.protocol ?? '未取得'],
       ['开始', time(call.startedAt)], ['结束', time(call.finishedAt)], ['耗时', call.durationMs === null ? '等待回执' : duration(call.durationMs)],
+      ['Java 回调总耗时', call.callbackDurationMs == null ? '未观测' : duration(call.callbackDurationMs)],
+      ['供应商首 Token', call.firstTokenMs == null ? '未观测' : duration(call.firstTokenMs)],
+      ['回调首事件', call.callbackFirstEventMs == null ? '未观测' : duration(call.callbackFirstEventMs)],
+      ['请求 / 响应大小', `${call.requestBytes == null ? '未观测' : bytes(call.requestBytes)} / ${call.responseBytes == null ? '未观测' : bytes(call.responseBytes)}`],
       ['输入 / 输出', `${amount(call.usage.inputTokens)} / ${amount(call.usage.outputTokens)}`],
       ['成本', call.usage.totalCost === null ? '未取得' : String(call.usage.totalCost)]])); node.append(card);
   }

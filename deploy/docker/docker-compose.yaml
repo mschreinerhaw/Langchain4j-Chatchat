@@ -49,7 +49,7 @@ services:
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
       - ./redis/entrypoint.sh:/usr/local/bin/chatchat-redis-entrypoint.sh:ro
     secrets: [redis_password]
-    entrypoint: ["/usr/local/bin/chatchat-redis-entrypoint.sh"]
+    entrypoint: ["sh", "/usr/local/bin/chatchat-redis-entrypoint.sh"]
     deploy:
       resources:
         limits:
@@ -83,7 +83,7 @@ services:
         limits:
           memory: ${OPENSEARCH_MEMORY_LIMIT:-2G}
     healthcheck:
-      test: ["CMD-SHELL", "code=$$(curl --silent --output /dev/null --write-out '%{http_code}' --cacert config/certs/root-ca.pem https://localhost:9200); test \"$$code\" = 200 || test \"$$code\" = 401"]
+      test: ["CMD-SHELL", "code=$$(curl --silent --output /dev/null --write-out '%{http_code}' --cacert config/certs/root-ca.pem https://localhost:9200); test \"$$code\" = 200 || test \"$$code\" = 401 || test \"$$code\" = 503"]
       interval: 10s
       timeout: 5s
       retries: 30
@@ -96,29 +96,10 @@ services:
     depends_on:
       opensearch:
         condition: service_healthy
-    entrypoint: ["/bin/bash", "-ec"]
-    command:
-      - >-
-        password=$$(tr -d '\r\n' </run/secrets/opensearch_admin_password);
-        hash=$$(plugins/opensearch-security/tools/hash.sh -p "$$password" | grep '^[$]2' | tail -n 1);
-        test -n "$$hash";
-        cp -R config/opensearch-security /tmp/opensearch-security;
-        awk -v hash="$$hash" '
-        BEGIN { in_admin=0 }
-        /^admin:/ { in_admin=1 }
-        in_admin && /^[[:space:]]*hash:/ { sub(/hash:.*/, "hash: \"" hash "\""); in_admin=0 }
-        { print }
-        ' /tmp/opensearch-security/internal_users.yml >/tmp/internal_users.yml;
-        mv /tmp/internal_users.yml /tmp/opensearch-security/internal_users.yml;
-        unset password hash;
-        plugins/opensearch-security/tools/securityadmin.sh
-        -cd /tmp/opensearch-security
-        -cacert config/certs/root-ca.pem
-        -cert config/certs/admin.pem
-        -key config/certs/admin-key.pem
-        -icl -nhnv
+    entrypoint: ["bash", "/opt/runtime/init-security.sh"]
     volumes:
       - ./opensearch/certs:/usr/share/opensearch/config/certs:ro
+      - ./application/opensearch-init-security.sh:/opt/runtime/init-security.sh:ro
     secrets: [opensearch_admin_password]
     networks: [chatchat-backend]
 

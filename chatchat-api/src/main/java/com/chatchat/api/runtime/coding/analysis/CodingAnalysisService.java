@@ -118,8 +118,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         if (sources.size() > MAX_PRIMARY_DATASETS)
             throw new IllegalArgumentException("Primary Coding analysis dataset limit exceeded");
         String objective = "Answer the user's data-analysis objective using only the authorized immutable datasets. "
-            + "Autonomously inspect their schemas and quality, discover defensible relationships, choose the analysis methods, "
-            + "write and repair the Python program, and verify the computed output. Produce exactly one result row. "
+            + "Inspect their schemas and quality for the supplied Runtime task plan. Choose implementation techniques within that plan, "
+            + "write and repair concise Python, and verify the computed output. Do not recreate the business plan or reselect templates. Produce exactly one result row. "
             + "Use delivered Skills, template declarations, field metadata and source context as the authority for metric meaning. "
             + "Before submission, recalculate every reported total from program output and verify that every table header aligns with its values. "
             + "Distinguish an arithmetic difference from a data error: only call it an error when the compared values have the same declared metric, scope, period and unit; otherwise state the unresolved reconciliation components and evidence limits. "
@@ -211,7 +211,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             if (!fingerprint.equals(record.path("requestHash").asText())) throw new IllegalArgumentException("Coding request identity conflict");
             contract=convert(record.get("contract"),CodingTaskContract.class);
         } else {
-            var budget=budget(scope,taskId);
+            var budget=budget(scope,taskId,context);
             if (!Instant.now().isBefore(budget.deadlineAt())) {
                 // The same tool invocation never renews its persisted deadline.
                 var receipt=Map.<String,Object>of("operation","RUN_CODING","requestId",requestId,"taskId",taskId,
@@ -321,6 +321,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 if (selectedEnvironment.assetId() != null) environmentSnapshot.put("assetId", selectedEnvironment.assetId());
             }
             configuration.put("pythonEnvironment", environmentSnapshot);
+            if(policy.isCodeLifecycleEnabled())configuration.put("codingLifecycle",Map.of(
+                "schemaVersion","runtime_os.code_lifecycle.v1","patchOnlyAfterFirst",true));
             String purpose=context.query()==null||context.query().isBlank()?instruction:context.query();
             configuration.put("scriptPurpose",purpose.codePoints().limit(96).collect(StringBuilder::new,StringBuilder::appendCodePoint,StringBuilder::append).toString());
             goal += "\nActual Python execution environment (immutable task snapshot): " + ModelProtocolJson.compact(environmentSnapshot)
@@ -350,12 +352,11 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             accepted.runtimeContext(),context.runtimeAttributes(),context.metadata());
         CodingTaskOutcome outcome=null;
         boolean bound=false;
-        try(var toolTime=com.chatchat.agents.orchestration.planning.validation.ToolExecutionTimeScope.open(
-                context.runtimeAttributes(),accepted.budget().deadlineAt().toEpochMilli());
-            var binding=models.bind(scope,taskId,
+        try(var binding=models.bind(scope,taskId,
                 com.chatchat.agents.orchestration.model.ToolExecutionModels.independent(
                     selectedCodingModel(context,accepted),
-                    () -> Math.max(0, accepted.budget().deadlineAt().toEpochMilli()-System.currentTimeMillis())))) {
+                    () -> Math.max(0, accepted.budget().deadlineAt().toEpochMilli()-System.currentTimeMillis()),
+                    context.cancellationCheck(), policy.getMaxModelCallMillis()))) {
             long traceCursor = 0;
             observer.accept(Map.of("eventKind","CODING_BUDGET_ISOLATED","taskId",taskId,
                 "runId",scope.runId(),"budgetId",accepted.budget().budgetId(),
@@ -585,11 +586,15 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         if(deadline instanceof Number number && number.longValue()>0 && System.currentTimeMillis()>=number.longValue())
             throw new com.chatchat.agents.orchestration.model.AgentDeadlineExceededException("Parent analysis deadline reached");
     }
-    private CodingTaskContract.Budget budget(KernelDataScope scope,String taskId) {
+    private CodingTaskContract.Budget budget(KernelDataScope scope,String taskId,AnalysisCoverageCoordinator.Request context) {
         String key="coding:analysis-tool-budget.v2:"+taskId;
         var prior=checkpoints.readExecutionCheckpoint(scope,key);
         if(prior.isPresent())return convert(tree(prior.get()),CodingTaskContract.Budget.class);
         Instant deadline=Instant.now().plusSeconds(policy.getTimeoutSeconds()).truncatedTo(ChronoUnit.MILLIS);
+        Object parentDeadline=context.runtimeAttributes().get("__agentDeadlineAt");
+        if(parentDeadline instanceof Number value && value.longValue()>0)
+            deadline=deadline.isBefore(Instant.ofEpochMilli(value.longValue()))?deadline:Instant.ofEpochMilli(value.longValue());
+        if(!deadline.isAfter(Instant.now()))throw new com.chatchat.agents.orchestration.model.AgentDeadlineExceededException("Global deadline reached before Coding admission");
         var budget=new CodingTaskContract.Budget("analysis-coding-tool-budget:"+taskId,deadline,
             policy.getMaxModelCalls(),policy.getMaxModelTokens(),policy.getMaxToolCalls(),policy.getMaxCodeExecutions(),
             policy.getMaxCostAmount(),policy.getCostCurrency(),policy.getMaxCpuMillis(),policy.getMaxMemoryBytes(),policy.getMaxResultBytes());

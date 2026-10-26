@@ -1,0 +1,210 @@
+{
+  "baseCommit": "e0271b164",
+  "state": "UNCOMMITTED_WORKSPACE",
+  "files": {
+    "chatchat-agents/src/main/java/com/chatchat/agents/model/ConfigurableChatModelFactory.java": {
+      "sha256": "75bbbe92f830ba7af540b1d46360a419766933c7e42d986cbf92ac257ccfb4de"
+    },
+    "chatchat-agents/src/main/java/com/chatchat/agents/model/RuntimeStreamingChatModel.java": {
+      "sha256": "9035ebdd68403e861aba36bfae5e5e9c1923184ce3a00a1439d906d00792dd72"
+    },
+    "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/model/AgentChatModelResolver.java": {
+      "sha256": "82068ffe8935636b78b1af4f73217393f4a3be7e0720c4697696e406a4ed5f92"
+    },
+    "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/model/CapacityGovernedChatModel.java": {
+      "sha256": "d402677c5143737ec80e9542142e167f16de2f4eb6a32435a69ce0265cc9a1f5"
+    },
+    "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/model/DeadlineAwareChatModel.java": {
+      "sha256": "2b69b421bf3bb4596d919333ca029dd564f038593d4399dabf755f64305c8903"
+    },
+    "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/model/MeteredChatModel.java": {
+      "sha256": "ea95974f5f89cc810d3bb58e8af24db1f8d372cea68db57edde01984777a4ffe"
+    },
+    "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/model/ToolExecutionModels.java": {
+      "sha256": "2837d242648b8a891c42645be06416ebed63f9fd9a8ea02a9054b87637465766"
+    },
+    "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/planning/validation/ToolExecutionTimeScope.java": {
+      "deleted": true
+    },
+    "chatchat-agents/src/main/java/com/chatchat/agents/runtime/coding/DurableCodingTaskService.java": {
+      "sha256": "6d2ea392fb7e8fafd800194ee7afe7f32382a31eefd5b13bd826c2d32683bb36"
+    },
+    "chatchat-agents/src/test/java/com/chatchat/agents/model/ConfigurableChatModelFactoryTest.java": {
+      "sha256": "4d2eb3387dc786bf5da8d0c7bb61e2c394a655462a0fb1953ccc727ba848d593"
+    },
+    "chatchat-agents/src/test/java/com/chatchat/agents/model/RuntimeStreamingChatModelTest.java": {
+      "sha256": "3462abb9108c405c82047289092a7a48630ddde44b2ecf7273d4b91efe75a417"
+    },
+    "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/model/AgentChatModelResolverTest.java": {
+      "sha256": "2ce38a2e7f8a6554ec999b677b733a6b3f7c2c2d62b6a7587fcbdc4f3b9a99ef"
+    },
+    "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/model/DeadlineAwareChatModelTest.java": {
+      "sha256": "f05685edbb2d277535915abd517a323691653ecf9335a31be13355e9255cca62"
+    },
+    "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/model/ToolExecutionModelsTest.java": {
+      "sha256": "a05e0bd7a8384a87f32416b53c37533315608c79a8c3299797dcd8f0e1b266ec"
+    },
+    "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/planning/validation/ToolExecutionTimeScopeTest.java": {
+      "deleted": true
+    },
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisProperties.java": {
+      "sha256": "b7be0c22f1ccdff17ae8242b19a1b0572835217d3debba48951a006b96156e11"
+    },
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java": {
+      "sha256": "42a9dd2e9c8751e74050f51871686c1631ab863633b021fe6193d103ba4b3df9"
+    },
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineCallbackAuthFilter.java": {
+      "sha256": "51d1a73f3fbab679df43a099a2a123d1602af1a3f853a89435325f327206ec48"
+    },
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineCodingAdapter.java": {
+      "sha256": "0cbf0b893e65ee62fe751fb82cb086d1a0d3e7891812dae166bde02e6efc86ca"
+    },
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController.java": {
+      "sha256": "ea2df7afaaf8691d7eb8796dfba289b8ba1d42edc4aaa52dc4828f406b384e03"
+    },
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController.java": {
+      "sha256": "3fad88c7395790c639ccf8a16d27446b3fd78bc2dd7361b0c0ff972d06b1c777"
+    },
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineRuntimeModelBridge.java": {
+      "sha256": "9d089b105d858ffaceeda691b02bc5d46e7ffcdd1bb0d404ff994e81583c0ed0"
+    },
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/execution/CodingExecutionFeedbackService.java": {
+      "sha256": "6d422e450c273d9bd66286a5124bb060d8dce9259977f0c4aa7b13d82ad26819"
+    },
+    "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisServiceTest.java": {
+      "sha256": "b925ecbc6a264461ba7c746cf0289decf177a06b0c80f1a78b87fe22741fd53c"
+    },
+    "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClineCallbackAuthFilterTest.java": {
+      "sha256": "8d76b294be3190edc267ad803a642986fd837c6a301dfc9a89b2d2358400a4dc"
+    },
+    "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackControllerTest.java": {
+      "sha256": "d4b1457b371a389ea207c5ce546dd1cd06f61953084b17fdfd01e39287b235c3"
+    },
+    "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClineRuntimeModelBridgeTest.java": {
+      "sha256": "96b4d1ac8c5571095381b835f4e10c1ff167c22916d11c0a6b955a808e613c7f"
+    },
+    "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/CodingAnalysisDockerGateTest.java": {
+      "sha256": "00b48dd7ba02d80f2f4ff69fd30b2fe6cb5eaedc1a0e2e919909dfabf3f7660b"
+    },
+    "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/CodingDockerFixture.java": {
+      "sha256": "5d29aff3b3c7090bb94f70fb46183e13e35ade35c50591badee3d59ca6da89ff"
+    },
+    "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/CodingEvidenceDockerIntegrationTest.java": {
+      "sha256": "9230bfb5aa9709a7430150e10a020a48c2bf026bf860739128fe53780a119772"
+    },
+    "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/CodingNodeHttpFixture.java": {
+      "sha256": "d8bef7e35f444948dd9adb9c3bb298a6e77b28ab916efa7b1098ad7ac30d37fd"
+    },
+    "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/execution/CodingExecutionFeedbackServiceTest.java": {
+      "sha256": "425cc5851b7b1213285f61c8f4178ee5e37d41252a78ed7bbedfe365eebbb0b6"
+    },
+    "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/CodingRuntimeContext.java": {
+      "sha256": "8e7949316b54023368b4493b3f1095e8ec572b3dbb994b999231418fd42f16e5"
+    },
+    "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/ExecutionFeedback.java": {
+      "sha256": "e5a65388eb6607d10937b1595ec222b3968679f4b5ff67734cc9d08a9355e437"
+    },
+    "chatchat-common/src/main/java/com/chatchat/common/runtime/event/RuntimeEventLog.java": {
+      "sha256": "22a438a41d6dcd3f83b3ca7d1ad2c1647810e510b56119d538254ecf7660cb3f"
+    },
+    "chatchat-common/src/main/resources/runtime/coding/execution-feedback.schema.json": {
+      "sha256": "c8dff25a5b17b133291e10b74f8be7b7f01a1388d804333df02190d8c559852c"
+    },
+    "chatchat-common/src/test/java/com/chatchat/common/runtime/coding/ExecutionFeedbackContractTest.java": {
+      "sha256": "4706a569f74d1a5fb38c311b244a2c3e628594e0a30738baff127e4df8a9de3b"
+    },
+    "chatchat-common/src/test/java/com/chatchat/common/runtime/event/RuntimeEventLogTest.java": {
+      "sha256": "869287787f36920a2c57cf50f6b0218560e941088eab1e3238c7babdbfb5e4fe"
+    },
+    "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonExecutionLogBoundary.java": {
+      "sha256": "84ec63f57255d7a231c4a88c6174b730aa9716a90023bc4f64b8f0df0bddd7c2"
+    },
+    "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonManagedExecutionService.java": {
+      "sha256": "e0a587d027132f0fd97113467e151930d888fda1304cc84b5dada18a4b391f93"
+    },
+    "chatchat-mcp-server/src/main/resources/python/runtime_capture.py": {
+      "sha256": "0bbde7449b7a0c281c4f63a79bb4843a9db8ab1de457a553a3bcdc9ada691bba"
+    },
+    "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/python/PythonManagedExecutionServiceTest.java": {
+      "sha256": "840b981ab1556373cff635bd24bd2d441209731a4a63f6613e312400876e8e3d"
+    },
+    "coding-agent-node/scripts/benchmark-lifecycle.mjs": {
+      "sha256": "39d9ade8290d834271bf0ea23c6f30979eed465fb7b0520fb55cbec790e1b52d"
+    },
+    "coding-agent-node/scripts/summarize-metrics.mjs": {
+      "sha256": "16f826c7af107b26a21f7b58ab76ad0473b649ad090ff90e26100239fd90b68a"
+    },
+    "coding-agent-node/src/code-repair.js": {
+      "sha256": "775a93b39020c6fa01c4a1bff6fa025f8540fbb9a52c5aa82fbfd7c4cf4c9a2d"
+    },
+    "coding-agent-node/src/execution-feedback.ts": {
+      "sha256": "f8eb11b5ccbf60f263b7f5d22383f17cd43b3b795e33b0e285cde9463065ec37"
+    },
+    "coding-agent-node/src/monitor-types.ts": {
+      "sha256": "6e37413df98a97afe651c0090fb5ec947fa445fe163e3d3dd792a23888439479"
+    },
+    "coding-agent-node/src/monitor.ts": {
+      "sha256": "1430b1391c53010c54584116f81a1840ff5598c31b5c7422377edcc303be2649"
+    },
+    "coding-agent-node/src/runner.js": {
+      "sha256": "02a208bf007427834eacd2c1fffbd7e00dd3712986424ff986b4ea06938e0473"
+    },
+    "coding-agent-node/src/server.js": {
+      "sha256": "c1b35e0f7d301497d2b053b1137d99e0d436bfeb228bd8c7368b508cba224c97"
+    },
+    "coding-agent-node/test/code-lifecycle.test.js": {
+      "sha256": "f5723921a94c1ca76ea7494e74665ebe43ef3470d3cb2414f1c4fb23791a3515"
+    },
+    "coding-agent-node/test/code-repair.test.js": {
+      "sha256": "10f07fc8205734ba8d8ab7a2ef5041866c4d037ce760c0ec7e4f4a2e28cc40b4"
+    },
+    "coding-agent-node/test/metrics-summary.test.js": {
+      "sha256": "8f77c7c5e00e674b82d7e6a6704b7c391cff8e8db21fcd4af312c55d47e1174d"
+    },
+    "coding-agent-node/test/node-monitor.test.js": {
+      "sha256": "e42a17c3683cb26cc71014d3b66e1c3dfe114178ea0a7a2659cea17f6831bdda"
+    },
+    "coding-agent-node/test/runner.test.js": {
+      "sha256": "37f07ff6697df0a28037899eedbc7d3ef0a9d93a740a862781c48340af3b7bb3"
+    },
+    "coding-agent-node/test/server.test.js": {
+      "sha256": "11c567db18041e647406c2df96701bf95e324f88d78c9507517214a84a3f91e8"
+    },
+    "deploy/docker/application/README.md": {
+      "sha256": "0464a7f31b67e95b0dc04f495b07155da0f08ff462eee61a1bc83b2fb837074c"
+    },
+    "deploy/docker/application/compose.yaml": {
+      "sha256": "ed6363ada3e37ebef1cfffb5819cab1574ad7ae15902c63101d9e6445c6f6293"
+    },
+    "deploy/docker/application/node-proxy.conf": {
+      "sha256": "b6c65335c6994de36f6ff405d94d93798bfed70bd5cbc5c3d18aab512eb07fae"
+    },
+    "deploy/docker/application/restrict-coding-worker.sh": {
+      "sha256": "a719774801d7d335e2d9ab706c20dcb08dbd7e71dd9a1ed4172fa25611fa9b4d"
+    },
+    "deploy/docker/application/tests/test_application_deployment.py": {
+      "sha256": "d57cd65b3723c9cd9d66d3647f065713c82e1416d797628548cd2aa150ffa9b5"
+    },
+    "docs/coding-repair-context-20261026.md": {
+      "sha256": "d7901eccb2a110c80c5c3dc604a5918ead4f9dbc2637b6602522e9df1d30ca5d"
+    },
+    "docs/runtime-coding-stability-20261026.md": {
+      "sha256": "9a7705a526c0a90dbbe63cc006226ccb7bb540cdb26f618383ca86c01b11dad4"
+    },
+    "scripts/deploy-coding-repair-context.py": {
+      "sha256": "50f1abf8ac036f24e02681a5f1f5dc7c472d622efcca0616e0b2a8b4398f79b9"
+    },
+    "scripts/tests/test_coding_callback_gate.py": {
+      "sha256": "00583ea63757b9dae965f1dbdae93d2b7450fc0b4a00ea97e352b24affc1d9d5"
+    },
+    "scripts/tests/test_coding_firewall.py": {
+      "sha256": "03ed939c6490f8c97a1f80ee6ea298a7685141b456aac1b11ef8e822c16d5dc0"
+    },
+    "scripts/tests/test_python_runtime_diagnostics.py": {
+      "sha256": "57f4e5701b0037d1cc91b77f2822efb9afeccf1744794097c5eb66bacdf64928"
+    },
+    "scripts/verify-coding-callback.py": {
+      "sha256": "732ce1338cdb8febfb432a98cab6f534f1e1bc490b2eec5f5dacf5979ae09646"
+    }
+  }
+}

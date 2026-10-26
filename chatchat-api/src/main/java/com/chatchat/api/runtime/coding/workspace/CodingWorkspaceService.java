@@ -32,6 +32,16 @@ public final class CodingWorkspaceService {
     @org.springframework.beans.factory.annotation.Autowired
     public void setHistory(com.chatchat.api.datascience.StudioTaskHistory value){history=value;}
     public static final String INPUT_TYPE="CODING_WORKSPACE_INPUT";
+    public static final String FAST_PATH_REF="runtime-coding:workspace-fast-path:v1";
+    private boolean fastPathEnabled;
+    private int fastPathMaxContextBytes=32768;
+    @Value("${chatchat.coding.workspace.fast-path.enabled:false}")
+    public void setFastPathEnabled(boolean enabled){fastPathEnabled=enabled;}
+    @Value("${chatchat.coding.workspace.fast-path.max-context-bytes:32768}")
+    public void setFastPathMaxContextBytes(int bytes){
+        if(bytes<1024 || bytes>65536)throw new IllegalArgumentException("Invalid fast path context limit");
+        fastPathMaxContextBytes=bytes;
+    }
     private final DurableCodingTaskService tasks;
     private final CodingInvocationContext identity;
     private final JdbcRuntimeEvidenceStore evidence;
@@ -81,14 +91,17 @@ public final class CodingWorkspaceService {
                 String decision="studio-workspace:"+task, workspace="studio-workspace:"+task;
                 var payload=Map.<String,Object>of("taskId",task,"context",context,"dialect",dialect,
                     "modelName",Objects.toString(modelName,""),"decisionRef",decision,"workspaceRef",workspace,"schema",schema);
+                boolean fast=fastPathEnabled && encode(payload).getBytes(StandardCharsets.UTF_8).length<=fastPathMaxContextBytes;
                 register(scope,inputId,INPUT_TYPE,payload,List.of(),task,null);
                 var budget=new CodingTaskContract.Budget("workspace-budget:"+task,
                     Instant.now().plusSeconds(timeoutSeconds).truncatedTo(ChronoUnit.MILLIS),8,maxModelTokens,16,0,
                     "1","USD",0,0,1024*1024);
                 contract=new CodingTaskContract(CodingProtocol.WORKSPACE_VERSION,task,scope,
-                    new CodingTaskContract.Objective("Read the authorized "+language+" engineering context with workspace_read, then propose complete source files with workspace_propose. Preserve unrelated code. The Runtime will parse proposals and return errors to repair. Never execute code or claim business validation.",
+                    new CodingTaskContract.Objective((fast?"Use the Java-prefetched authorized ":"Read the authorized ")+language
+                        +(fast?" engineering context and propose source files directly with workspace_propose. ":" engineering context with workspace_read, then propose complete source files with workspace_propose. ")
+                        +"Preserve unrelated code. The Runtime will parse proposals and return errors to repair. Never execute code or claim business validation.",
                         List.of("proposal.jsonl"),List.of(profile+":parse-and-review.v1")),
-                    "runtime-evidence:"+inputId,List.of(),workspace,
+                    "runtime-evidence:"+inputId,fast?List.of(FAST_PATH_REF):List.of(),workspace,
                     new CodingTaskContract.Authorization(decision,List.of("workspace_read","workspace_propose"),List.of(),
                         List.of("context"),List.of(python?"candidate-python-files":"candidate-sql-files"),CodingTaskContract.NetworkPolicy.NONE,List.of(),
                         List.of(CodingTaskContract.SideEffect.WORKSPACE_WRITE)),budget,python?"python-ast:3":"sqlglot:30.23.0",
@@ -182,6 +195,7 @@ public final class CodingWorkspaceService {
         if(!intent.dispatchIntentCreated())throw new IllegalStateException("Reconcile previous workspace proposal before retry");
         evidence.mutateExecutionCheckpoint(contract.scope(),latestKey(contract),ignored->operation);
         Map<String,Object> validation;List<SqlOutputBundle.Candidate> files=List.of();
+        long validationStarted=System.nanoTime();
         try{
             files="python".equals(input.get("dialect"))?SqlOutputBundle.parsePython(encode(proposal),json):SqlOutputBundle.parse(encode(proposal),json);
             if(encode(files).getBytes(StandardCharsets.UTF_8).length>contract.outputContract().maxResultBytes())
@@ -199,6 +213,7 @@ public final class CodingWorkspaceService {
         String base="coding:workspace:"+operation;
         var result=new LinkedHashMap<String,Object>();
         result.put("valid",valid);result.put("validation",publicValidation);result.put("sqlExecuted",false);
+        result.put("validationDurationMs",java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-validationStarted));
         result.put("operationId",operation);result.put("resultAvailable",valid);
         if(valid){result.put("codeArtifactRef","runtime-evidence:"+base+":code");
             result.put("executionReceiptRef","runtime-evidence:"+receiptId);

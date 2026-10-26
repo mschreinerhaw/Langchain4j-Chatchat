@@ -162,7 +162,8 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
         await body(request);
         return response(reply, 200, { schemaVersion: 'runtime_os.coding.input.v1', formats: ['PARQUET', 'CSV'],
           codeLifecycleVersions: ['runtime_os.code_lifecycle.v1'],
-          analysisProfiles: ['runtime-coding:analysis-fast-path:v1'] });
+          analysisProfiles: ['runtime-coding:analysis-fast-path:v1'],
+          workspaceProfiles: ['runtime-coding:workspace-fast-path:v1'] });
       }
       if (request.method === 'GET' && url.pathname === '/healthz')
         return response(reply, 200, { status: 'UP', sdk: '@cline/agents@0.0.93',

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { MonitorStore } from '../dist/monitor.js';
 import { createCodingRun as realCreateCodingRun } from '../src/runner.js';
 // Allocation is a Java callback fixture; Python results below remain branch-specific fixtures.
 const createCodingRun=(task,gateway,options)=>{
@@ -25,6 +26,21 @@ const contract = {
   runtimeContext: { model: { selectedModel: 'selected-by-java' }, skills: { status: 'APPLIED', fingerprint: 'approved-guidance',
     skills: [{ skillId: 'authorized-skill' }], stages: { ANALYSIS: ['Use measured values only'] } } },
 };
+test('callback timings remain distinct from provider timings and persist only bounded metadata', () => {
+  const store = new MonitorStore();
+  const id = store.start(contract, 1, 'NEW_SDK');
+  store.event(id, { type: 'MODEL_STARTED', modelCall: 1 });
+  store.event(id, { type: 'MODEL_RESOLVED', modelCall: 1, durationMs: 120, firstTokenMs: 40 });
+  store.event(id, { type: 'MODEL_TIMING', modelCall: 1, durationMs: 150, callbackFirstEventMs: 130,
+    requestBytes: 2048, responseBytes: 512, requestHash: 'a'.repeat(64), prompt: 'PRIVATE_PROMPT' });
+  const detail = store.detail(id);
+  assert.equal(detail.models[0].durationMs, 120);
+  assert.equal(detail.models[0].callbackDurationMs, 150);
+  assert.equal(detail.models[0].firstTokenMs, 40);
+  assert.equal(detail.models[0].callbackFirstEventMs, 130);
+  assert.equal(detail.models[0].requestBytes, 2048);
+  assert.doesNotMatch(JSON.stringify(detail), /PRIVATE_PROMPT/);
+});
 for (const skillStatus of ['APPLIED', 'DELIVERED']) test(`SDK receives ${skillStatus} Skills and configuration; code receipt references exact source`, async () => {
   const source = '\nprint(42)\n'; let turn = 0, received;
   const task = structuredClone(contract);

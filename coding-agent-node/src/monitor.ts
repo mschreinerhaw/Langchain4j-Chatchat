@@ -13,7 +13,8 @@ const EVENT_KEYS = ['stage', 'status', 'operationId', 'proposedOperationId', 'mo
   'scriptPath', 'scriptVersion', 'codeSha256', 'fileName', 'sourceBytes', 'skillFingerprint', 'validationStatus', 'outputStatus',
   'selectedModel', 'providerModel', 'protocol', 'startedAt', 'finishedAt', 'durationMs', 'message',
   'queueTimeMs', 'firstTokenMs', 'generationTimeMs', 'retryTimeMs', 'responseMode', 'parentCodeHash', 'codeVersion', 'parentCodeVersion', 'changeKind',
-  'errorCategory', 'diagnosticCode', 'repairAttempts', 'repairAllowed', 'resultAvailable', 'requestBytes', 'messageCount', 'toolDurationMs', 'proposalHash', 'cpuTimeMs', 'maxRssBytes'];
+  'errorCategory', 'diagnosticCode', 'repairAttempts', 'repairAllowed', 'resultAvailable', 'requestBytes', 'messageCount', 'toolDurationMs', 'proposalHash', 'cpuTimeMs', 'maxRssBytes',
+  'callbackFirstEventMs', 'responseBytes', 'toolCount', 'requestHash', 'strategy', 'reason', 'validationDurationMs'];
 type Contract = Record<string, any>;
 interface Options {
   directory?: string; maxTasks?: number; maxEvents?: number; maxSourceBytes?: number;
@@ -175,6 +176,13 @@ export class MonitorStore {
         task.models.push(call);
       }
       if (call) {
+        if (event.type === 'MODEL_TIMING') {
+          call.callbackDurationMs = integer(event.durationMs);
+          for (const key of ['callbackFirstEventMs', 'requestBytes', 'responseBytes', 'messageCount', 'toolCount'] as const)
+            call[key] = integer(event[key]);
+          // A buffered Java callback first event is not the provider's first token.
+          call.durationMs ??= call.callbackDurationMs;
+        }
         if (event.type === 'MODEL_RESOLVED') {
           for (const key of ['selectedModel', 'providerModel', 'protocol'] as const)
             if (typeof event[key] === 'string') call[key] = event[key];

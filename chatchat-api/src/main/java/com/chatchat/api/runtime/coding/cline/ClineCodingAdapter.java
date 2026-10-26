@@ -390,10 +390,17 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     }
     private void requireInputCapabilities(CodingTaskContract contract) {
         boolean fast=contract.metadataRefs().contains("runtime-coding:analysis-fast-path:v1");
+        boolean workspaceFast=contract.metadataRefs().contains(CodingWorkspaceService.FAST_PATH_REF);
         Object descriptor=contract.runtimeContext().get("inputFiles");
         Object lifecycle=contract.runtimeContext().get("codingLifecycle");
-        if(descriptor==null && !fast && lifecycle==null)return;
+        if(descriptor==null && !fast && !workspaceFast && lifecycle==null)return;
         JsonNode capabilities=request("/v1/input-capabilities",Map.of());
+        if(workspaceFast) {
+            boolean supported=false;
+            for(var profile:capabilities.path("workspaceProfiles"))
+                if(CodingWorkspaceService.FAST_PATH_REF.equals(profile.asText()))supported=true;
+            if(!supported)throw new IllegalStateException("Cline worker has not negotiated the workspace fast path");
+        }
         if(descriptor instanceof Map<?,?> input &&
                 (!com.chatchat.common.runtime.coding.CodingInputManifest.VERSION.equals(capabilities.path("schemaVersion").asText())
                 || !capabilities.path("formats").toString().contains("\""+input.get("format")+"\"")))

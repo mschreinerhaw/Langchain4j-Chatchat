@@ -9,6 +9,21 @@ from sqlglot.optimizer.scope import traverse_scope
 from sqlglot.schema import MappingSchema
 
 
+def failure(file, error):
+    """Bounded source locations; no source excerpt or duplicated history."""
+    result = {"path": file.get("path", ""), "status": "FAILED",
+              "category": "SYNTAX" if isinstance(error, (SyntaxError, sqlglot.errors.ParseError)) else "VALIDATION",
+              "errorType": type(error).__name__, "message": str(error)[:2000]}
+    line, column = getattr(error, "lineno", None), getattr(error, "offset", None)
+    if isinstance(error, sqlglot.errors.ParseError) and error.errors:
+        line, column = error.errors[0].get("line"), error.errors[0].get("col")
+    if isinstance(line, int) and line > 0:
+        result["line"] = line
+    if isinstance(column, int) and column > 0:
+        result["column"] = column
+    return result
+
+
 def validate(request):
     dialect = request.get("dialect")
     if dialect == "python":
@@ -23,7 +38,7 @@ def validate(request):
                 ast.parse(file["content"], filename=file["path"])
                 diagnostics.append({"path": file["path"], "status": "PARSED"})
             except (SyntaxError, ValueError, TypeError) as error:
-                diagnostics.append({"path": file.get("path", ""), "status": "FAILED", "message": str(error)[:2000]})
+                diagnostics.append(failure(file, error))
         return {"parser": "python-ast", "version": sqlglot.__version__, "sqlExecuted": False,
                 "codeExecuted": False, "valid": all(item["status"] == "PARSED" for item in diagnostics),
                 "fieldValidation": "NOT_EVALUATED", "diagnostics": diagnostics, "normalizedFiles": []}
@@ -72,7 +87,7 @@ def validate(request):
             diagnostics.append({"path": file["path"], "status": "PARSED",
                                 "fields": "CHECKED" if schema else "NOT_EVALUATED"})
         except Exception as error:
-            diagnostics.append({"path": file.get("path", ""), "status": "FAILED", "message": str(error)[:2000]})
+            diagnostics.append(failure(file, error))
     return {"parser": "sqlglot", "version": sqlglot.__version__, "sqlExecuted": False,
             "valid": all(item["status"] == "PARSED" for item in diagnostics),
             "fieldValidation": "CHECKED" if schema else "NOT_EVALUATED",

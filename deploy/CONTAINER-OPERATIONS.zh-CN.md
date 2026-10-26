@@ -9,6 +9,24 @@ docker compose --env-file config/deployment.env -f compose.yaml config --quiet
 
 当前根目录 `compose.yaml` 是现网维护清单：默认管理 `node-proxy` 和 `gateway`，其他服务放在 `existing-containers` profile。不要直接开启该 profile 执行全栈 `up`：共享数据库尚未由此 Compose 项目接管。`docker compose ps` 默认也不能代替全量容器检查。
 
+标准目录仅保留以下职责，历史截图、旧镜像包、一次性迁移脚本和回滚材料存放到目录外的 `/opt/runtime-os-archives/`，不作为启动入口：
+
+```text
+/opt/runtime-os-docker-stage/
+├── compose.yaml / start-missing.sh      当前部署清单与代理启动入口
+├── README.md / *zh-CN.md                部署入口与维护命令
+├── config/                             当前生效配置、env 和 secrets
+├── scripts/                            持续使用的验证脚本
+├── templates/ / source-manifest.json    新安装参考源文件及来源校验
+├── api/logs/、mcp/logs/、news/logs/      当前应用日志
+├── mcp/data/                           Sandbox 资产和授权数据快照
+├── coding-monitor/data/                监控持久化数据
+├── silo/data/、silo/secrets/            对象存储数据和凭据
+└── maintenance/                        当前维护报告与清理归档索引
+```
+
+清理时须核对所有容器挂载、Compose/env 引用及维护脚本；不得凭目录名称删除数据或 secrets。重复配置只有在确认未引用且与保留版本内容一致后才删除。
+
 ## 1. 服务名称、配置及启动顺序
 
 | 顺序 | 服务 | 当前容器名 | 主机配置位置（相对标准目录） |
@@ -201,4 +219,4 @@ docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
 docker compose --env-file config/deployment.env -f compose.yaml config --quiet
 ```
 
-本文命令依据当前实例核对；文档交付期间只执行只读检查，没有为验证文档重启业务容器。历史迁移记录见本机 `maintenance/monitor-config-20261026/`。
+本文命令依据当前实例核对；文档交付期间只执行只读检查，没有为验证文档重启业务容器。历史迁移记录已移至部署目录外，归档位置及删除清单见本机 `maintenance/cleanup-report.json`。

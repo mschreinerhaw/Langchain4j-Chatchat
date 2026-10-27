@@ -2040,11 +2040,11 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 }
                 attachPinnedTemplateSnapshot(step, request, resolvedInput);
                 assertNoUnresolvedBindingPlaceholders(resolvedInput);
-                log.info("InterpretationPlan step resolved input: traceId={}, stepId={}, tool={}, input={}",
+                log.info("InterpretationPlan step resolved input: traceId={}, stepId={}, tool={}, inputKeys={}",
                     executionTraceId(request),
                     step.id(),
                     executionToolName,
-                    summarize(resolvedInput));
+                    resolvedInput.keySet());
                 Map<String, Object> stepAttributes = new LinkedHashMap<>(
                     attributesForStep(request, step, completed, resolvedInput, routingDecision));
                 stepAttributes.put("dagDependencyIsolation", true);
@@ -2126,15 +2126,14 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                         originalSelected ? "original" : "enhanced");
                 }
                 boolean success = execution != null && execution.output() != null && execution.output().isSuccess();
-                log.info("InterpretationPlan step tool completed: traceId={}, stepId={}, tool={}, success={}, durationMs={}, error={}, output={}",
+                log.info("InterpretationPlan step tool completed: traceId={}, stepId={}, tool={}, success={}, durationMs={}, errorType={}, outputType={}",
                     executionTraceId(request),
                     step.id(),
                     executionToolName,
                     success,
                     elapsed(startedAt),
-                    execution == null || execution.output() == null ? null : execution.output().getErrorMessage(),
-                    ToolLogSummarizer.summarizeResult(executionToolName,
-                        execution == null || execution.output() == null ? null : execution.output().getData()));
+                    execution == null || execution.output() == null ? null : execution.output().getExceptionType(),
+                    execution == null || execution.output() == null || execution.output().getData()==null ? null : execution.output().getData().getClass().getSimpleName());
                 Object rawOutput = execution == null || execution.output() == null
                     ? null
                     : execution.output().getData();
@@ -4940,16 +4939,16 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         boolean diagnosticBatchPending = diagnosticBatchPending(step, request == null ? null : request.plan());
         log.info("InterpretationPlan template bridge validated scalar input stepId={} tool={} templateId={} "
                 + "diagnosticBatchPending={} parameterKeys={} modelProtocolApplied={} "
-                + "parameterEvidence={} protocolTrace={} repairs={}",
+                + "parameterEvidenceFields={} protocolTrace={} repairCodes={}",
             step.id(),
             step.toolName(),
             bridged.templateId(),
             diagnosticBatchPending,
             bridged.parameters().keySet(),
             bridged.modelProtocolApplied(),
-            bridged.parameterEvidence(),
+            bridged.parameterEvidence().keySet(),
             bridged.protocolTrace(),
-            bridged.repairs());
+            bridged.repairs().stream().map(repair->repair.field()+":"+repair.repairCode()).toList());
     }
 
     private boolean diagnosticBatchPending(InterpretationPlan.Step step, InterpretationPlan plan) {
@@ -5051,11 +5050,11 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             ));
             log.info("InterpretationPlan recovered direct-tool parameters from verified context: "
                     + "stepId={}, tool={}, recovered={}, unresolved={}",
-                step.id(), step.toolName(), contextual.recovered(), contextual.unresolvedRequiredFields());
+                step.id(), step.toolName(), contextual.recovered().size(), contextual.unresolvedRequiredFields());
         }
         if (!compilation.repairs().isEmpty() || !promotedEnvelopes.isEmpty()) {
             log.info("InterpretationPlan compiled direct tool semantic arguments stepId={} tool={} promotedEnvelopes={} repairs={} compiledKeys={}",
-                step.id(), step.toolName(), promotedEnvelopes, compilation.repairs(), input.keySet());
+                step.id(), step.toolName(), promotedEnvelopes, compilation.repairs().stream().map(repair->repair.field()+":"+repair.repairCode()).toList(), input.keySet());
         }
     }
 
@@ -5183,8 +5182,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             "requestId", request.requestId(),
             "stepId", step.id()
         ));
-        log.info("InterpretationPlan resolving template argument contract through MCP: traceId={}, stepId={}, executor={}, discoveryTool={}, templateHint={}, filters={}",
-            executionTraceId(request), step.id(), step.toolName(), discoveryTool, templateHint, summarize(filters));
+        log.info("InterpretationPlan resolving template argument contract through MCP: traceId={}, stepId={}, executor={}, discoveryTool={}, templateHint={}, filterKeys={}",
+            executionTraceId(request), step.id(), step.toolName(), discoveryTool, templateHint, filters.keySet());
         ToolRuntimeExecution resolution = executePlanTool(
             step, request, "TEMPLATE_CONTRACT_RESOLUTION", ToolRuntimeRequest.builder()
             .toolName(discoveryTool)
@@ -5776,6 +5775,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 "templateId", templateId,
                 "toolName", childTool,
                 "parameters", arguments.get("parameters"),
+                "parameterProtocol",arguments.get("parameterProtocol"),
                 "executionContext", arguments.get("executionContext")
             ));
             if (!compiledInvocationFingerprints.add(invocationFingerprint)) {
@@ -5809,7 +5809,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 call.put("preflightMessage", "Controlled parameter binding did not authorize this invocation");
             } else {
                 List<String> missingParameters = missingRequiredTemplateParameters(template, arguments);
-                if (!missingParameters.isEmpty()) {
+                if (!arguments.containsKey("parameterProtocol") && !missingParameters.isEmpty()) {
                     call.put("preflightErrorCode", "TEMPLATE_REQUIRED_PARAMETERS_MISSING");
                     call.put("preflightMessage", "Required template parameters are unavailable: "
                         + missingParameters);

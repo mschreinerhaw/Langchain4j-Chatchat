@@ -24,6 +24,18 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
+    @Test void T13_passesEffectiveDefaultScopeToTheExistingCodingTurnWithoutAnotherReviewer() {
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        var audit=Map.<String,Object>of("effectiveParameters",Map.of("subject","catalog-B"),
+            "parameterSources",Map.of("subject","template_default"),"scopeStatus","REQUIRES_SCOPE_VERIFICATION",
+            "droppedOverrideFields",List.of("subject"));
+        var source=new Dataset("source",Map.of("templateParameterBinding",audit),List.of(Map.of("amount",7)));
+        var parent=context("tenant");service().execute(parent,request(),Map.of("source",source));
+        verify(agent).submit(argThat(contract->contract.objective().instruction().contains("catalog-B")
+            &&contract.objective().instruction().contains("REQUIRES_SCOPE_VERIFICATION")
+            &&contract.objective().instruction().contains("template_default")));
+        verify(parent.model(),never()).chat(anyString());
+    }
     @Test void contextOnlyTasksCannotAcquireBusinessDataTools() {
         prepare(outcome(CodingTaskOutcome.Status.FAILED, CodingTaskOutcome.ValidationStatus.NOT_RUN));
         var supply = mock(com.chatchat.api.runtime.coding.data.CodingDataSupplyService.class);

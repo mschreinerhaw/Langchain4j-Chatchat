@@ -11,7 +11,6 @@ import org.springframework.beans.factory.ObjectProvider;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -19,7 +18,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -144,9 +142,7 @@ class HttpRequestToolServiceLivedataTest {
     private HttpRequestToolService service(ObjectMapper objectMapper,
                                            InvocationAuditService auditService,
                                            LivedataSessionService sessionService) {
-        TemplateParameterValidator validator = mock(TemplateParameterValidator.class);
-        when(validator.validateDeclaredOnly(anyString(), any(), anyMap(), anyMap()))
-            .thenAnswer(invocation -> new LinkedHashMap<>((Map<String, Object>) invocation.getArgument(3)));
+        TemplateParameterValidator validator = new TemplateParameterValidator(objectMapper);
         ObjectProvider<LivedataSessionService> provider = mock(ObjectProvider.class);
         when(provider.getIfAvailable()).thenReturn(sessionService);
         return new HttpRequestToolService(objectMapper, auditService, validator, provider);

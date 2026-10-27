@@ -16,6 +16,25 @@ class TemplateParameterWorkflowTest {
     private final TemplateParameterWorkflow workflow = new TemplateParameterWorkflow(
         new TemplateParameterValidator(objectMapper), objectMapper);
 
+    @Test void recordsDefaultProvenanceAfterRejectingAnExplicitOverride() {
+        var resolved=workflow.execute(new TemplateParameterWorkflow.Request("opaque","""
+            {"properties":{"limit":{"type":"integer","maximum":20,"default":5}}}
+            """,Map.of("limit",100),Map.of()));
+        assertThat(resolved.parameters()).containsEntry("limit",5);
+        assertThat(resolved.parameterSources()).containsEntry("limit","SCHEMA_DEFAULT");
+        assertThat(resolved.traceSummary()).containsEntry("scopeStatus","REQUIRES_SCOPE_VERIFICATION");
+        assertThat(resolved.trace().parameterRepairs()).contains(Map.of("field","limit","repairCode","INVALID_OVERRIDE_DROPPED_DEFAULT_APPLIED"));
+    }
+
+    @Test void T09_aRejectedInvocationDoesNotChangeAnIndependentBinding() {
+        assertThatThrownBy(()->workflow.execute(new TemplateParameterWorkflow.Request("missing","""
+            {"properties":{"subject":{"type":"string"}},"required":["subject"]}
+            """,Map.of(),Map.of()))).isInstanceOf(TemplateResolutionException.class);
+        assertThat(workflow.execute(new TemplateParameterWorkflow.Request("ready","""
+            {"properties":{"limit":{"type":"integer","default":3}}}
+            """,Map.of(),Map.of())).parameters()).containsEntry("limit",3);
+    }
+
     @Test
     void resolvesExplicitRequestAndDefaultValuesWithProvenance() {
         String schema = """

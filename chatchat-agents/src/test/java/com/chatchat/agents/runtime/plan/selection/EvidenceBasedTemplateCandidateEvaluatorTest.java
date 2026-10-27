@@ -77,7 +77,7 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
     }
 
     @Test
-    void blocksSelectedTemplateWhoseRequiredParametersRemainUnresolved() {
+    void defersModelMissingParameterClaimsToTheRealSchemaCompiler() {
         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
             new EvidenceBasedTemplateCandidateEvaluator().evaluate(
                 Map.of("hasMore", false, "templates", List.of(
@@ -90,9 +90,9 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
                         "totalScore", 0.9, "missingParameters", List.of("accountId")))));
 
         assertThat(evaluation.applied()).isTrue();
-        assertThat(evaluation.selectedIds()).isEmpty();
+        assertThat(evaluation.selectedIds()).containsExactly("account-detail");
         assertThat(evaluation.templateMatchAnalysis())
-            .containsEntry("retrievalOutcome", "PARAMS_UNRESOLVABLE");
+            .containsEntry("retrievalOutcome", "SELECTED");
     }
 
     @Test

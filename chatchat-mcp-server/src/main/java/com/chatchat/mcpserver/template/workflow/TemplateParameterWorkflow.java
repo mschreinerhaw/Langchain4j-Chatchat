@@ -18,7 +18,7 @@ import java.util.Map;
 @Slf4j
 public class TemplateParameterWorkflow extends AbstractStagedExecutionWorkflow<
     TemplateParameterWorkflow.Request, TemplateParameterWorkflow.Analysis,
-    TemplateParameterWorkflow.Plan, Map<String, Object>, TemplateParameterWorkflow.Resolution> {
+    TemplateParameterWorkflow.Plan, TemplateParameterWorkflow.Binding, TemplateParameterWorkflow.Resolution> {
 
     public static final String WORKFLOW_ID = "resolve.template-parameters.v1";
 
@@ -45,7 +45,7 @@ public class TemplateParameterWorkflow extends AbstractStagedExecutionWorkflow<
         Map<String, Object> schema = readSchema(input.schemaJson());
         Map<String, Object> properties = objectMap(schema.get("properties"));
         List<String> required = strings(schema.get("required"));
-        String mode = properties.isEmpty() ? "SCHEMALESS_PASSTHROUGH" : "DECLARED_SCHEMA";
+        String mode = input.schemaJson()==null||input.schemaJson().isBlank() ? "SCHEMALESS_PASSTHROUGH" : "DECLARED_SCHEMA";
         return new Analysis(input, mode, List.copyOf(properties.keySet()), required, properties);
     }
 
@@ -60,24 +60,24 @@ public class TemplateParameterWorkflow extends AbstractStagedExecutionWorkflow<
     }
 
     @Override
-    protected Map<String, Object> executePlan(Request input, Analysis analysis, Plan plan,
+    protected Binding executePlan(Request input, Analysis analysis, Plan plan,
                                               KernelDataScope scope) {
         if ("SCHEMALESS_PASSTHROUGH".equals(analysis.mode())) {
             Map<String, Object> passthrough = input.explicitParameters().isEmpty()
                 ? input.requestValues()
                 : input.explicitParameters();
-            return new LinkedHashMap<>(passthrough);
+            return new Binding(new LinkedHashMap<>(passthrough),List.of());
         }
-        return validator.validateDeclaredOnly(input.templateId(), input.schemaJson(),
-            input.explicitParameters(), input.requestValues());
+        var compiled=validator.compileDeclared(input.templateId(),input.schemaJson(),input.explicitParameters(),input.requestValues());
+        return new Binding(compiled.parameters(),compiled.repairs());
     }
 
     @Override
     protected void verify(Request input, Analysis analysis, Plan plan,
-                          Map<String, Object> execution, KernelDataScope scope) {
+                          Binding execution, KernelDataScope scope) {
         if (execution == null) throw new IllegalStateException("Template parameter resolution produced no binding");
         List<String> missing = analysis.required().stream()
-            .filter(name -> !execution.containsKey(name) || blank(execution.get(name)))
+            .filter(name -> !execution.parameters().containsKey(name))
             .toList();
         if (!missing.isEmpty()) {
             throw new IllegalStateException("Template parameter resolution left required parameters unresolved: " + missing);
@@ -86,18 +86,21 @@ public class TemplateParameterWorkflow extends AbstractStagedExecutionWorkflow<
 
     @Override
     protected Resolution assemble(Request input, Analysis analysis, Plan plan,
-                                  Map<String, Object> execution, KernelDataScope scope) {
+                                  Binding execution, KernelDataScope scope) {
         Map<String, String> sources = new LinkedHashMap<>();
-        for (String name : execution.keySet()) {
-            if (input.explicitParameters().containsKey(name)) sources.put(name, "EXPLICIT_PARAMETERS");
+        for (String name : execution.parameters().keySet()) {
+            if(execution.repairs().stream().anyMatch(repair->name.equals(repair.field()) && repair.repairCode().contains("DEFAULT")))
+                sources.put(name,"SCHEMA_DEFAULT");
+            else if (input.explicitParameters().containsKey(name)) sources.put(name, "EXPLICIT_PARAMETERS");
             else if (input.requestValues().containsKey(name)) sources.put(name, "REQUEST_FIELD");
             else sources.put(name, "SCHEMA_DEFAULT");
         }
-        Resolution resolution = new Resolution(input.templateId(), execution, sources,
+        Resolution resolution = new Resolution(input.templateId(), execution.parameters(), sources,
             analysis.declared(), analysis.required(),
-            new Trace(WORKFLOW_ID, plan.mode(), plan.steps(), true));
+            new Trace(WORKFLOW_ID, plan.mode(), plan.steps(), true,execution.repairs().stream()
+                .map(repair->Map.of("field",repair.field(),"repairCode",repair.repairCode())).toList()));
         log.debug("Template parameters resolved templateId={} mode={} parameterCount={} parameterSources={}",
-            input.templateId(), plan.mode(), execution.size(), sources);
+            input.templateId(), plan.mode(), execution.parameters().size(), sources);
         return resolution;
     }
 
@@ -166,12 +169,17 @@ public class TemplateParameterWorkflow extends AbstractStagedExecutionWorkflow<
                 "steps", trace.steps(),
                 "verified", trace.verified(),
                 "parameterCount", parameters.size(),
+                "parameterRepairs", trace.parameterRepairs(),
+                "scopeStatus",parameterSources.containsValue("SCHEMA_DEFAULT")?"REQUIRES_SCOPE_VERIFICATION":"EXPLICIT_PARAMETERS",
                 "parameterSources", parameterSources
             );
         }
     }
 
-    public record Trace(String workflowId, String mode, List<String> steps, boolean verified) {
+    public record Binding(Map<String,Object> parameters,List<com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler.Repair> repairs) { }
+
+    public record Trace(String workflowId, String mode, List<String> steps, boolean verified,List<Map<String,String>> parameterRepairs) {
+        public Trace(String workflowId,String mode,List<String> steps,boolean verified){this(workflowId,mode,steps,verified,List.of());}
         public Trace { steps = List.copyOf(steps); }
     }
 }

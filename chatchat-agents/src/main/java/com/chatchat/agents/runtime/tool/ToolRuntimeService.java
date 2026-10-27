@@ -1015,8 +1015,8 @@ public class ToolRuntimeService {
         toolInput.setParameters(new LinkedHashMap<>(argumentCompilation.values()));
         if (!argumentCompilation.repairs().isEmpty()) {
             toolInput.getContext().put("runtimeToolArgumentRepairs", argumentCompilation.repairs());
-            log.info("Runtime compiled tool arguments tool={} repairs={} compiledKeys={}",
-                toolName, argumentCompilation.repairs(), toolInput.getParameters().keySet());
+            log.info("Runtime compiled tool arguments tool={} repairCodes={} compiledKeys={}",
+                toolName, argumentCompilation.repairs().stream().map(repair->repair.field()+":"+repair.repairCode()).toList(), toolInput.getParameters().keySet());
         }
         CanonicalToolInvocation canonicalInvocation = new CanonicalToolInvocation(
             null,

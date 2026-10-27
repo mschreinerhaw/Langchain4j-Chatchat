@@ -23,6 +23,149 @@ public final class ToolArgumentCompiler {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final DateTimeFormatter BASIC_DATE = DateTimeFormatter.BASIC_ISO_DATE;
     private static final DateTimeFormatter ISO_DATE = DateTimeFormatter.ISO_LOCAL_DATE;
+    private static final com.networknt.schema.SchemaRegistry TEMPLATE_SCHEMAS = com.networknt.schema.SchemaRegistry.withDefaultDialect(
+        com.networknt.schema.SpecificationVersion.DRAFT_2020_12,builder->builder.schemaRegistryConfig(
+            com.networknt.schema.SchemaRegistryConfig.builder().formatAssertionsEnabled(true).build()));
+
+    /** Published template fields only. This policy is deliberately separate from
+     * generic tool routing, whose nested scope errors must remain fail-closed. */
+    public CompilationResult compileTemplate(Map<String,Object> arguments, Map<String,Object> schema) {
+        Map<String,Object> contract = schema == null ? Map.of() : schema;
+        CompilationResult result = compileTemplateObject(arguments == null ? Map.of() : arguments, contract, "", contract);
+        if (result.valid() && !schemaValid(result.parameters(), contract, contract)) {
+            return new CompilationResult("INVALID_TOOL_ARGUMENTS", result.parameters(),
+                List.of(new ValidationError("$", "TEMPLATE_SCHEMA_CONSTRAINT_FAILED",
+                    "Parameters violate the published object schema", null, "object")), result.repairs());
+        }
+        return result;
+    }
+
+    /** Transport spelling and published aliases only; never infer a business field. */
+    public String declaredTemplateParameter(String supplied,Map<String,Object> schema) {
+        Map<String,Object> fields=objectMap(schema.get("properties"));
+        if(fields.containsKey(supplied))return supplied;
+        for(var entry:fields.entrySet())
+            if(!sourceValue(Map.of(supplied,true),entry.getKey(),objectMap(entry.getValue())).matchedNames().isEmpty())return entry.getKey();
+        return null;
+    }
+
+    private CompilationResult compileTemplateObject(Map<String,Object> source, Map<String,Object> schema,
+                                                     String prefix, Map<String,Object> root) {
+        Map<String,Object> fields=objectMap(schema.get("properties")), values=new LinkedHashMap<>();
+        List<ValidationError> errors=new ArrayList<>(); List<Repair> repairs=new ArrayList<>();
+        Set<String> required=new LinkedHashSet<>(stringList(schema.get("required"))), consumed=new LinkedHashSet<>();
+        for (var entry:fields.entrySet()) {
+            String name=entry.getKey(), path=prefix.isEmpty()?name:prefix+"."+name;
+            Map<String,Object> property=objectMap(entry.getValue());
+            SourceValue selected=sourceValue(source,name,property); consumed.addAll(selected.matchedNames());
+            boolean hasDefault=property.containsKey("default")||property.containsKey("defaultValue")||property.containsKey("default_value");
+            Object declared=firstPresent(property,"default","defaultValue","default_value");
+            Conversion fallback=hasDefault?templateValue(path,declared,property,root):null;
+            if (hasDefault && (!schemaValid(declared,property,root) || fallback.error()!=null)) {
+                errors.add(new ValidationError(path,"INVALID_TEMPLATE_DEFAULT","Published default violates its schema",null,expectedType(property)));
+                continue;
+            }
+            Object proposed=selected.value();
+            Conversion converted=proposed==null?null:templateValue(path,proposed,property,root,repairs);
+            boolean rejected=selected.conflicting() || converted!=null&&converted.error()!=null;
+            if (!rejected && converted!=null) {
+                values.put(name,converted.value());
+                if (!name.equals(selected.sourceName())||!valuesEqual(proposed,converted.value()))
+                    repairs.add(new Repair(path,"TYPE_NORMALIZED",proposed,converted.value()));
+            } else if (hasDefault) {
+                values.put(name,fallback.value());
+                repairs.add(new Repair(path,rejected?"INVALID_OVERRIDE_DROPPED_DEFAULT_APPLIED":"DEFAULT_VALUE_APPLIED",proposed,fallback.value()));
+            } else if (required.contains(name)) {
+                errors.add(new ValidationError(path,rejected?"INVALID_REQUIRED_PARAMETER":"REQUIRED_PARAMETER_MISSING",
+                    rejected?"Required parameter has no valid value or default":"Missing required parameter",null,expectedType(property)));
+            } else if (rejected) {
+                repairs.add(new Repair(path,"INVALID_OPTIONAL_OVERRIDE_DROPPED",proposed,null));
+            }
+        }
+        for (String name:required) if (!fields.containsKey(name))
+            errors.add(new ValidationError(prefix+name,"INVALID_TEMPLATE_SCHEMA","Required field is not declared",null,"declared property"));
+        source.forEach((name,value)->{
+            if (!consumed.contains(name)) repairs.add(new Repair(prefix.isEmpty()?name:prefix+"."+name,
+                "UNKNOWN_TEMPLATE_PARAMETER_DROPPED",value,null));
+        });
+        return new CompilationResult(errors.isEmpty()?"READY":"INVALID_TOOL_ARGUMENTS",values,List.copyOf(errors),List.copyOf(repairs));
+    }
+
+    private Conversion templateValue(String field,Object raw,Map<String,Object> property,Map<String,Object> root) {
+        return templateValue(field,raw,property,root,new ArrayList<>());
+    }
+
+    private Conversion templateValue(String field,Object raw,Map<String,Object> property,Map<String,Object> root,List<Repair> appliedRepairs) {
+        Object value=raw;
+        List<Repair> nestedRepairs=new ArrayList<>();
+        try {
+            String type=string(property.get("type"));
+            if (property.get("type") instanceof List<?> types)
+                type=types.stream().map(String::valueOf).filter(t->!"null".equals(t)).findFirst().orElse("");
+            if (value!=null) value=switch(type.toLowerCase(Locale.ROOT)) {
+                case "integer" -> {
+                    var integer=new BigDecimal(String.valueOf(value).trim()).toBigIntegerExact();
+                    yield integer.bitLength()<31?integer.intValue():integer.bitLength()<63?integer.longValue():integer;
+                }
+                case "number" -> number(value);
+                case "boolean" -> bool(value);
+                case "string", "file" -> value instanceof Map<?,?>||value instanceof Iterable<?>?null
+                    : value instanceof String text && text.isEmpty()?text:stringValue(value,property);
+                case "array" -> {
+                    List<?> items=value instanceof List<?> list?list:List.of(value);
+                    List<Object> converted=new ArrayList<>();
+                    for(int i=0;i<items.size();i++) {
+                        Conversion item=templateValue(field+"["+i+"]",items.get(i),objectMap(property.get("items")),root,nestedRepairs);
+                        if(item.error()!=null)throw new IllegalArgumentException("Invalid array item");
+                        converted.add(item.value());
+                    }
+                    yield converted;
+                }
+                case "object" -> {
+                    if(!(value instanceof Map<?,?> map))throw new IllegalArgumentException("Expected object");
+                    if(!property.containsKey("properties"))yield objectMap(map);
+                    CompilationResult child=compileTemplateObject(objectMap(map),property,field,root);
+                    if(!child.valid())throw new IllegalArgumentException("Invalid object fields");
+                    nestedRepairs.addAll(child.repairs());
+                    yield child.parameters();
+                }
+                default -> value;
+            };
+            if (value==null && raw!=null)throw new IllegalArgumentException("Invalid conversion");
+            if(property.get("enum") instanceof List<?> allowed && value instanceof String text) {
+                Object match=allowed.stream().filter(item->item instanceof String s&&s.equalsIgnoreCase(text)).findFirst().orElse(null);
+                if(match!=null)value=match;
+            }
+            if(schemaValid(value,property,root)) {appliedRepairs.addAll(nestedRepairs);return new Conversion(value,null);}
+        } catch(RuntimeException invalid) { /* bounded error below; never log parameter values */ }
+        return new Conversion(null,new ValidationError(field,"INVALID_PARAMETER_VALUE",
+            "Parameter violates the published schema",null,expectedType(property)));
+    }
+
+    private boolean schemaValid(Object value,Map<String,Object> schema,Map<String,Object> root) {
+        try {
+            Map<String,Object> validation=templateValidationSchema(schema);
+            for(String key:List.of("$defs","definitions"))if(root.containsKey(key))validation.putIfAbsent(key,root.get(key));
+            if("FILE".equalsIgnoreCase(string(validation.get("type"))))validation.put("type","string");
+            var compiled=TEMPLATE_SCHEMAS.getSchema(OBJECT_MAPPER.valueToTree(validation));
+            return compiled.validate(OBJECT_MAPPER.valueToTree(value)).isEmpty();
+        } catch(RuntimeException invalidSchema) { return false; }
+    }
+
+    private Map<String,Object> templateValidationSchema(Map<String,Object> schema) {
+        Map<String,Object> normalized=new LinkedHashMap<>(schema);
+        if("FILE".equalsIgnoreCase(string(schema.get("type"))))normalized.put("type","string");
+        for(String key:List.of("properties","$defs","definitions")) if(schema.get(key) instanceof Map<?,?> fields) {
+            Map<String,Object> children=new LinkedHashMap<>();
+            fields.forEach((name,child)->children.put(String.valueOf(name),templateValidationSchema(objectMap(child))));
+            normalized.put(key,children);
+        }
+        for(String key:List.of("items","additionalProperties","not","if","then","else"))
+            if(schema.get(key) instanceof Map<?,?> child)normalized.put(key,templateValidationSchema(objectMap(child)));
+        for(String key:List.of("allOf","anyOf","oneOf"))if(schema.get(key) instanceof List<?> branches)
+            normalized.put(key,branches.stream().map(branch->templateValidationSchema(objectMap(branch))).toList());
+        return normalized;
+    }
 
     public CompiledToolArguments compileCanonical(Map<String, Object> semanticArguments,
                                                   Map<String, Object> schema) {

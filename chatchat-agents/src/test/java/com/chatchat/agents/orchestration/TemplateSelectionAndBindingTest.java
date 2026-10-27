@@ -93,10 +93,12 @@ class TemplateSelectionAndBindingTest {
         assertThat(result.protocols().get(0).get("unresolved_parameters")).isEqualTo(List.of("customer"));
     }
 
-    @Test void unknownParameterIsAContractError() throws Exception {
+    @Test void unknownParameterIsDroppedAndOnlyTheActualRequiredFieldBlocks() throws Exception {
         var result=binder.selectAndBind(model(Map.of("status","SELECTED","selections",
             List.of(Map.of("templateId","a","parameters",Map.of("invented","C42"))))),"C42",List.of(template("a",null)));
-        assertThat(result.status()).isEqualTo("INVALID_PARAMETERS");
+        assertThat(result.status()).isEqualTo("PARAMETERS_REQUIRED");
+        assertThat(result.protocols().get(0)).containsEntry("arguments",Map.of())
+            .containsEntry("unresolved_parameters",List.of("customer"));
     }
 
     @Test void missingSelectionFieldIsNotAnMcpFailureOrNoMatch() throws Exception {

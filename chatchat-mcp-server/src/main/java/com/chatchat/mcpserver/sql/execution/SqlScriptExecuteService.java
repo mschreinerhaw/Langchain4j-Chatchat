@@ -373,9 +373,9 @@ public class SqlScriptExecuteService {
                 return item;
             })
             .toList();
-        log.info("MCP SQL script execution result: success={}, datasourceId={}, datasourceName={}, tool={}, env={}, statementCount={}, durationMs={}, output={}, error={}",
+        log.info("MCP SQL script execution result: success={}, datasourceId={}, datasourceName={}, tool={}, env={}, statementCount={}, durationMs={}",
             result.success(), result.datasourceId(), result.datasourceName(), result.toolName(), result.environment(),
-            result.statementCount(), result.durationMs(), preview, result.errorMessage());
+            result.statementCount(), result.durationMs());
     }
 
     private Object firstValue(Map<String, Object> map, String... keys) {

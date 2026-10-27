@@ -24,6 +24,35 @@ import static org.mockito.Mockito.when;
 
 class AnalysisEvidenceCoordinatorTest {
 
+    @Test void T13_defaultScopeAuditTravelsWithTheActualDataset() {
+        var audit=Map.<String,Object>of("effectiveParameters",Map.of("subject","catalog-B"),
+            "parameterSources",Map.of("subject","template_default"),"scopeStatus","REQUIRES_SCOPE_VERIFICATION",
+            "droppedOverrideFields",List.of("subject"));
+        var step=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","opaque_executor",true,
+            Map.of("records",List.of(Map.of("amount",7))),null,null,null,1,
+            Map.of("resolvedInput",Map.of(com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge.BINDING_AUDIT,audit)));
+        var projected=coordinator().project(result(step));
+        assertThat(projected.datasets()).singleElement().satisfies(dataset->{
+            assertThat(dataset.analysisContext()).containsEntry("templateParameterBinding",audit)
+                .containsEntry("businessScopeVerified",false);
+            assertThat(dataset.records()).containsExactly(Map.of("amount",7));
+        });
+    }
+
+    @Test void parameterProvenanceIsPartitionedByBatchCallRatherThanTemplateId() {
+        var first=new ToolCallResult("one","opaque_executor","shared-template",null,"SUCCESS",1,"e1",Map.of("records",List.of(Map.of("value",1))),Map.of());
+        var second=new ToolCallResult("two","opaque_executor","shared-template",null,"SUCCESS",1,"e2",Map.of("records",List.of(Map.of("value",2))),Map.of());
+        var batch=new ToolCallBatchResult("batch","SEQUENTIAL","start","end","SUCCESS",new ToolCallBatchResult.Summary(2,2,0,0,0,2),List.of(first,second));
+        var auditOne=Map.<String,Object>of("effectiveParameters",Map.of("subject","A"),"scopeStatus","USER_PARAMETERS_VERIFIED");
+        var auditTwo=Map.<String,Object>of("effectiveParameters",Map.of("subject","B"),"scopeStatus","REQUIRES_SCOPE_VERIFICATION");
+        var input=Map.of("calls",List.of(Map.of("callId","one","arguments",Map.of(com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge.BINDING_AUDIT,auditOne)),
+            Map.of("callId","two","arguments",Map.of(com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge.BINDING_AUDIT,auditTwo))));
+        var step=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","opaque_executor",true,batch,null,null,null,1,Map.of("resolvedInput",input));
+        assertThat(coordinator().project(result(step)).datasets()).satisfiesExactly(
+            dataset->assertThat(dataset.analysisContext()).containsEntry("templateParameterBinding",auditOne).doesNotContainKey("businessScopeVerified"),
+            dataset->assertThat(dataset.analysisContext()).containsEntry("templateParameterBinding",auditTwo).containsEntry("businessScopeVerified",false));
+    }
+
     @Test void declaredEmptyMcpDataRemainsAReadableEmptyDatasetAcrossTransportCarriers() throws Exception {
         var payload=new com.chatchat.common.mcp.runtime.McpAnalysisPayload(null,"request","service","opaque",
             "EMPTY_RESULT",com.chatchat.common.mcp.service.McpResultKind.EMPTY,"published-schema",null,null,

@@ -103,13 +103,13 @@ public class SqlQueryExecuteService {
         } catch (StackOverflowError ex) {
             long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
             result = failedResult(datasource, request, normalizedSql, timeoutSeconds, maxRows, durationMs, diagnostics, ex);
-            log.error("MCP SQL query execution hit JVM StackOverflowError: datasourceId={}, durationMs={}, sql={}",
-                result.datasourceId(), durationMs, truncateSql(normalizedSql), ex);
+            log.error("MCP SQL query execution hit JVM StackOverflowError: datasourceId={}, durationMs={}, sqlCharacters={}",
+                result.datasourceId(), durationMs, normalizedSql==null?0:normalizedSql.length());
         } catch (Exception ex) {
             long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
             result = failedResult(datasource, request, normalizedSql, timeoutSeconds, maxRows, durationMs, diagnostics, ex);
-            log.warn("MCP SQL query execution failed before/while running: datasourceId={}, durationMs={}, error={}, sql={}",
-                result.datasourceId(), durationMs, ex.getMessage(), truncateSql(normalizedSql));
+            log.warn("MCP SQL query execution failed before/while running: datasourceId={}, durationMs={}, errorType={}, sqlCharacters={}",
+                result.datasourceId(), durationMs, ex.getClass().getSimpleName(), normalizedSql==null?0:normalizedSql.length());
         }
         recordSuccessfulMetadataUsage(datasource, request, result);
         logSqlResult(result);
@@ -625,24 +625,17 @@ public class SqlQueryExecuteService {
         if (result == null) {
             return;
         }
-        Map<String, Object> rowPreview = new LinkedHashMap<>();
-        rowPreview.put("columns", result.columns());
-        rowPreview.put("rowCount", result.rowCount());
-        rowPreview.put("possiblyTruncated", result.possiblyTruncated());
-        rowPreview.put("rows", result.rows() == null ? List.of() : result.rows().stream().limit(LOG_ROWS_LIMIT).toList());
-        String message = "MCP SQL query execution result: success={}, datasourceId={}, datasourceName={}, tool={}, env={}, timeoutSeconds={}, maxRows={}, rowCount={}, durationMs={}, sql={}, output={}, diagnostics={}, error={}";
+        String message = "MCP SQL query execution result: success={}, datasourceId={}, datasourceName={}, tool={}, env={}, timeoutSeconds={}, maxRows={}, rowCount={}, durationMs={}, possiblyTruncated={}";
         if (result.success()) {
             log.info(message,
                 result.success(), result.datasourceId(), result.datasourceName(), result.toolName(), result.environment(),
                 result.timeoutSeconds(), result.maxRows(), result.rowCount(), result.durationMs(),
-                truncateSql(result.normalizedSql() == null ? result.sql() : result.normalizedSql()), rowPreview,
-                result.diagnostics(), result.errorMessage());
+                result.possiblyTruncated());
         } else {
             log.warn(message,
                 result.success(), result.datasourceId(), result.datasourceName(), result.toolName(), result.environment(),
                 result.timeoutSeconds(), result.maxRows(), result.rowCount(), result.durationMs(),
-                truncateSql(result.normalizedSql() == null ? result.sql() : result.normalizedSql()), rowPreview,
-                result.diagnostics(), result.errorMessage());
+                result.possiblyTruncated());
         }
     }
 

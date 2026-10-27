@@ -121,6 +121,9 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             + "Inspect their schemas and quality for the supplied Runtime task plan. Choose implementation techniques within that plan, "
             + "write and repair concise Python, and verify the computed output. You own business interpretation and any additional authorized data requests. Produce exactly one result row. "
             + "Use delivered Skills, template declarations, field metadata and source context as the authority for metric meaning. "
+            + "Template execution with defaults is not proof that data matches the user's entity or time constraints. "
+            + "Inspect templateParameterBinding effectiveParameters, parameterSources, droppedOverrideFields and unmappedConstraints. "
+            + "Never present a default entity's rows as another requested entity's results; if scope cannot be established, disclose that limitation or use only authorized data acquisition. "
             + "Before submission, recalculate every reported total from program output and verify that every table header aligns with its values. "
             + "Distinguish an arithmetic difference from a data error: only call it an error when the compared values have the same declared metric, scope, period and unit; otherwise state the unresolved reconciliation components and evidence limits. "
             + "reportMarkdown must be the complete user-facing Markdown report with computed findings and explicit limitations. "
@@ -253,6 +256,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 "rowCount",input.rowCount(),"format",description.get("format"),"schemaVersion",com.chatchat.common.runtime.coding.CodingInputManifest.VERSION);
             String goal=instruction+"\nProducer-declared source representation: "
                 +ModelProtocolJson.compact(CodingSourceRepresentation.describe(source.analysisContext()))
+                +"\nRuntime template parameter provenance: "+ModelProtocolJson.compact(parameterBindingContext(source.analysisContext()))
+                +"\nScope applicability: execution success does not establish user-scope equivalence. Compare the effective parameters with the original objective; never attribute default-scope rows to an unmatched requested entity or time range. Report unresolved scope as a limitation."
                 +"\nAuthorized immutable input descriptor: "+ModelProtocolJson.compact(promptDescriptor)
                 +"\nFor versioned PARQUET/CSV input the sandbox supplies the read-only runtime_input.py protocol SDK. "
                 + "Use from runtime_input import load_rows; rows = list(load_rows(manifestPath, expectedManifestSha256)) with paths/hashes from inputLayout. "
@@ -549,6 +554,18 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         } while (page.size() == 64);
         return cursor;
     }
+    private Map<String,Object> parameterBindingContext(Map<String,Object> context) {
+        Map<String,Object> audit=new LinkedHashMap<>();
+        if(context.get("templateParameterBinding") instanceof Map<?,?> binding)audit.put("binding",binding);
+        if(context.get("inputVersions") instanceof List<?> versions) {
+            var bindings=new ArrayList<Map<String,Object>>();
+            for(Object item:versions)if(item instanceof Map<?,?> version && version.get("templateParameterBinding") instanceof Map<?,?> binding)
+                bindings.add(Map.of("datasetReference",version.get("datasetReference"),"binding",binding));
+            if(!bindings.isEmpty())audit.put("datasets",bindings);
+        }
+        return audit;
+    }
+
     private Dataset selectSources(Map<String,Object> request,Map<String,Dataset> sources) {
         if(!request.containsKey("datasetReferences")) {
             var selected=sources.get(text(request.get("datasetReference"),"datasetReference",512));
@@ -580,6 +597,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             version.put("deliveryStatus",verifiedEmpty?"EMPTY_RESULT":"DATASET_READY");
             if(selected.analysisContext().get("sourceTemplateId") instanceof String templateId)
                 version.put("sourceTemplateId",templateId);
+            if(selected.analysisContext().get("templateParameterBinding") instanceof Map<?,?> binding)
+                version.put("templateParameterBinding",binding);
             versions.add(Map.copyOf(version));
         }
         final long count=total;

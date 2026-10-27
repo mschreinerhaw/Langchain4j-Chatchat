@@ -89,6 +89,7 @@ final class SchemaDrivenTemplateParameterBinder {
                         java.util.stream.Collectors.toMap(name -> name, name -> Map.of("type", "string"))),
                     "additionalProperties", false));
                 fields.put("bindingId",Map.of("type","string"));
+                fields.put("unmappedConstraints",Map.of("type","array","items",Map.of("type","string")));
                 String assetId=publishedAssetId(template);
                 if(assetId!=null) fields.put("assetId",Map.of("type","string","enum",List.of(assetId)));
                 variants.add(Map.of("type","object","properties",fields,
@@ -122,7 +123,10 @@ final class SchemaDrivenTemplateParameterBinder {
                 +"Use assetId only when published in that template's contract; fixed binding assets are resolved by the supplier. "
                 +"Infer parameter values from the user request, including schema-valid arrays and normalized dates. "
                 +"For values not literally present, provide parameterEvidence mapping each parameter to an exact supporting quote from the user request. "
-                +"Omit unknown required values and use NEEDS_INPUT; do not invent them. "
+                +"Omit unknown values. Java applies published defaults and omits optional fields; parameters may be {}. "
+                +"Do not request another extraction to fill defaults. Only required fields without valid defaults need input. "
+                +"If a requested entity or time constraint cannot be mapped reliably, include its exact user quote in unmappedConstraints. "
+                +"Technical executability with defaults does not establish that results match the requested business scope. Do not invent values. "
                 +"Use NO_MATCH with an empty selection when no candidate is suitable. Java validates identities, permissions and schemas only."),
                 UserMessage.from("User request: "+Objects.toString(query,"")+"\nCandidates: "+objectMapper.writeValueAsString(catalog)
                     +"\nPublished scope and prior observations: "+objectMapper.writeValueAsString(selectionContext))),spec,ToolChoice.AUTO);
@@ -155,23 +159,24 @@ final class SchemaDrivenTemplateParameterBinder {
                 String asset=text(selection.get("assetId"));
                 if(asset!=null&&!asset.equals(publishedAssetId(template)))
                     return new SelectionResult("INVALID_ASSET_BINDING",List.of(),List.of(),decision,"Asset does not match published template binding");
-                if(!(selection.get("parameters") instanceof Map<?,?>))
-                    return new SelectionResult("INVALID_PARAMETERS",List.of(),List.of(),decision,"parameters must be an object");
+                if(selection.get("parameters")!=null && !(selection.get("parameters") instanceof Map<?,?>))
+                    return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),decision,"parameters must be an object");
                 Map<String,Object> parameters=map(selection.get("parameters"));
-                if(!map(parameterSchema(template).get("properties")).keySet().containsAll(parameters.keySet()))
-                    return new SelectionResult("INVALID_PARAMETERS",List.of(),List.of(),decision,"Parameter field is not in the published schema");
                 selected.add(templateId(template));
                 Map<String,Object> binding=new LinkedHashMap<>();binding.put("template_id",templateId(template));
                 binding.put("arguments",parameters);if(selection.get("bindingId")!=null)binding.put("binding_id",selection.get("bindingId"));
                 binding.put("parameter_evidence", map(selection.get("parameterEvidence")));
+                binding.put("unmapped_constraints", selection.getOrDefault("unmappedConstraints",List.of()));
                 bindings.add(binding);
             }
             if("NO_MATCH".equals(status)&&!selected.isEmpty()||"SELECTED".equals(status)&&selected.isEmpty())
                 return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),decision,"status and selections disagree");
             List<Map<String,Object>> bound=protocols(bindings,query,candidates);
-            if(bound.stream().anyMatch(protocol->protocol.get("unresolved_parameters") instanceof Collection<?> missing&&!missing.isEmpty()))
-                return new SelectionResult("PARAMETERS_REQUIRED",List.copyOf(new LinkedHashSet<>(selected)),bound,decision,"Required parameter binding is incomplete");
-            return new SelectionResult(status,List.copyOf(new LinkedHashSet<>(selected)),bound,decision,null);
+            if(!bound.isEmpty() && bound.stream().allMatch(protocol->protocol.containsKey("binding_error"))) {
+                boolean invalidDefault=bound.stream().anyMatch(protocol->String.valueOf(protocol.get("binding_error")).contains("INVALID_TEMPLATE_DEFAULT"));
+                return new SelectionResult(invalidDefault?"INVALID_TEMPLATE_DEFAULT":"PARAMETERS_REQUIRED",List.copyOf(new LinkedHashSet<>(selected)),bound,decision,"No selected invocation has valid executable parameters");
+            }
+            return new SelectionResult(selected.isEmpty()?status:"SELECTED",List.copyOf(new LinkedHashSet<>(selected)),bound,decision,null);
         } catch(AgentBudgetExceededException|CancellationException failure) {throw failure;}
         catch(com.fasterxml.jackson.core.JsonProcessingException failure) {
             return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),Map.of(),"Selection response is not valid JSON");
@@ -218,7 +223,7 @@ final class SchemaDrivenTemplateParameterBinder {
         return required.stream()
             .map(this::text)
             .filter(Objects::nonNull)
-            .filter(name -> !map(properties.get(name)).containsKey("default"))
+            .filter(name -> {var field=map(properties.get(name));return !field.containsKey("default")&&!field.containsKey("defaultValue")&&!field.containsKey("default_value");})
             .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
     }
 
@@ -290,6 +295,20 @@ final class SchemaDrivenTemplateParameterBinder {
             protocol.put("arguments", Map.copyOf(audited));
             protocol.put("unresolved_parameters", List.copyOf(unresolved));
             protocol.put("generation_mode", "native_function_calling");
+            protocol.put("unmapped_constraints",binding.getOrDefault("unmapped_constraints",List.of()));
+            Map<String,Object> verified=new LinkedHashMap<>();
+            audited.forEach((name,entry)->verified.put(name,map(entry).get("value")));
+            var compilation=new com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler().compileTemplate(verified,parameterSchema(template));
+            protocol.put("binding_status",compilation.valid()?"READY":"INVALID_TOOL_ARGUMENTS");
+            protocol.put("dropped_parameter_overrides",proposed.keySet().stream().filter(name->!audited.containsKey(name)).toList());
+            List<Map<String,Object>> rejected=new ArrayList<>();
+            proposed.forEach((name,proposal)->{if(!audited.containsKey(name)) {
+                var dropped=new LinkedHashMap<String,Object>();dropped.put("field",name);dropped.put("value",proposal);
+                dropped.put("reasonCode",schemaProperties.containsKey(name)?"UNVERIFIED_PARAMETER_EVIDENCE":"UNDECLARED_PARAMETER");
+                rejected.add(java.util.Collections.unmodifiableMap(dropped));
+            }});
+            protocol.put("rejected_parameter_overrides",List.copyOf(rejected));
+            if(!compilation.valid())protocol.put("binding_error",Map.of("code",compilation.status(),"errors",compilation.validationErrors()));
             result.add(Map.copyOf(protocol));
         }
         return result;

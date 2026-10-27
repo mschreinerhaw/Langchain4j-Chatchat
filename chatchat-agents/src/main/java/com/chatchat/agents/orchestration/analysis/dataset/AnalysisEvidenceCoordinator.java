@@ -153,17 +153,17 @@ public final class AnalysisEvidenceCoordinator {
                             "toolName", child.toolName(), "reason", "NO_PROJECTED_CONTENT",
                             "accountingStatus", "EXCLUDED", "executionStatus", child.status()));
                     } else {
-                        datasets.addAll(withTemplateRequirementMatch(childDatasets,
-                            firstNonBlank(child.templateId(), child.templateCode()), templateMatches));
+                        datasets.addAll(withParameterBinding(withTemplateRequirementMatch(childDatasets,
+                            firstNonBlank(child.templateId(), child.templateCode()), templateMatches),step,child.callId()));
                     }
                 }
                 continue;
             }
             if (step.toolName() == null || step.toolName().isBlank()
                 || isRoutingDiscovery(step.toolName())) continue;
-            List<Dataset> stepDatasets = withTemplateRequirementMatch(
+            List<Dataset> stepDatasets = withParameterBinding(withTemplateRequirementMatch(
                 outputDatasets(resolved, step.toolName(), toolMetadata(step.toolName())),
-                null, templateMatches);
+                null, templateMatches),step,null);
             if (stepDatasets.isEmpty()) {
                 excluded.add(metadataOf("datasetReference", stepReference,
                     "toolName", step.toolName(), "reason", "NO_PROJECTED_CONTENT",
@@ -187,6 +187,26 @@ public final class AnalysisEvidenceCoordinator {
     }
 
     /** Removes replayed copies of the same execution evidence while retaining distinct datasets. */
+    private List<Dataset> withParameterBinding(List<Dataset> datasets,InterpretationPlanRuntime.StepExecution step,String callId) {
+        Map<String,Object> input=map(step.metadata().get("resolvedInput"));
+        if(callId!=null && input.get("calls") instanceof Iterable<?> calls) {
+            Map<String,Object> child=Map.of();
+            for(Object raw:calls) {
+                Map<String,Object> call=map(raw);
+                if(callId.equals(call.get("callId"))) {child=map(call.get("arguments"));break;}
+            }
+            input=child;
+        }
+        Map<String,Object> audit=map(input.get(com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge.BINDING_AUDIT));
+        if(audit.isEmpty())return datasets;
+        return datasets.stream().map(dataset->{
+            var context=new LinkedHashMap<>(dataset.analysisContext());
+            context.put("templateParameterBinding",audit);
+            if("REQUIRES_SCOPE_VERIFICATION".equals(audit.get("scopeStatus")))context.put("businessScopeVerified",false);
+            return new Dataset(dataset.reference(),context,dataset.handle());
+        }).toList();
+    }
+
     private List<Dataset> deduplicateRepeatedExecutions(List<Dataset> datasets) {
         Map<String, Dataset> unique = new LinkedHashMap<>();
         for (Dataset dataset : datasets) {

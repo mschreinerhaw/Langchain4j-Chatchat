@@ -183,8 +183,8 @@ public class DocumentSearchEvidenceService {
 
         if (visibilityContext.active()) {
             log.info(
-                "document_visibility_filter query='{}' allowedDocuments={} scopedDocuments={} effectiveDocuments={}",
-                safeLogQuery(query),
+                "document_visibility_filter queryLength={} allowedDocuments={} scopedDocuments={} effectiveDocuments={}",
+                query == null ? 0 : query.length(),
                 visibilityContext.allowedFileIds().size(),
                 scopedFileIds.size(),
                 visibilityScopeIds.size()
@@ -229,8 +229,8 @@ public class DocumentSearchEvidenceService {
                 focusedQuery, permissionContext))
             .toList();
         if (hasText(focusedQuery)) {
-            log.info("document_focus_gate query='{}' focus={} candidates={} sourceMatches={}",
-                safeLogQuery(query), focusedQuery, recallResult.candidates().size(), searchResults.size());
+            log.info("document_focus_gate queryLength={} focusLength={} candidates={} sourceMatches={}",
+                query == null ? 0 : query.length(), focusedQuery.length(), recallResult.candidates().size(), searchResults.size());
         }
         for (String documentId : recallResult.irDocumentIds()) {
             if (chunks.size() >= topK) break;
@@ -1950,14 +1950,6 @@ public class DocumentSearchEvidenceService {
             }
         }
         return "";
-    }
-
-    private String safeLogQuery(String query) {
-        if (query == null) {
-            return "";
-        }
-        String normalized = query.replaceAll("\\s+", " ").trim();
-        return normalized.length() <= 120 ? normalized : normalized.substring(0, 120) + "...";
     }
 
     private record ScopedExcerpt(int index, String text, Double score) {

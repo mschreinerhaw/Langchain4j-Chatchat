@@ -1,7 +1,6 @@
 package com.chatchat.agents.tool;
 
 import com.chatchat.common.tool.ToolInput;
-import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolWorkflowContract;
@@ -179,11 +178,11 @@ public class DefaultToolRegistry implements ToolRegistry {
      */
     @Override
     public ToolOutput executeEnhancedTool(String toolName, ToolInput toolInput) {
-        log.info("Tool execution started tool={} requestId={} userId={} args={}",
+        log.info("Tool execution started tool={} requestId={} userId={} argumentFields={}",
             toolName,
             toolInput == null ? null : toolInput.getRequestId(),
             toolInput == null ? null : toolInput.getUserId(),
-            ToolLogSummarizer.summarize(toolInput == null ? null : toolInput.getParameters()));
+            toolInput == null || toolInput.getParameters() == null ? Set.of() : toolInput.getParameters().keySet());
 
         EnhancedTool tool = getEnhancedTool(toolName);
         if (tool == null) {
@@ -197,18 +196,17 @@ public class DefaultToolRegistry implements ToolRegistry {
             long executionTime = System.currentTimeMillis() - startTime;
             output.setExecutionTimeMs(executionTime);
             if (output.isSuccess()) {
-                log.info("Tool execution succeeded tool={} requestId={} durationMs={} result={}",
+                log.info("Tool execution succeeded tool={} requestId={} durationMs={} resultType={}",
                     toolName,
                     toolInput == null ? null : toolInput.getRequestId(),
                     executionTime,
-                    ToolLogSummarizer.summarizeResult(toolName, output.getData()));
+                    output.getData() == null ? "null" : output.getData().getClass().getSimpleName());
             } else {
-                log.warn("Tool execution failed tool={} requestId={} durationMs={} error={} result={}",
+                log.warn("Tool execution failed tool={} requestId={} durationMs={} resultType={}",
                     toolName,
                     toolInput == null ? null : toolInput.getRequestId(),
                     executionTime,
-                    output.getErrorMessage(),
-                    ToolLogSummarizer.summarizeResult(toolName, output.getData()));
+                    output.getData() == null ? "null" : output.getData().getClass().getSimpleName());
             }
             return output;
         } catch (Exception e) {

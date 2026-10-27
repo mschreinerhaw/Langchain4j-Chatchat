@@ -857,7 +857,9 @@ public class AgentToolArgumentResolver {
                 + "templateId={}, sourceTool={}, parameterKeys={}, contextKeys={}, protocolTrace={}, repairs={}, valid={}",
             toolName, requestedTemplateId, templateId, trace.getToolName(),
             mutableMap(values.get("parameters")).keySet(),
-            mutableMap(values.get("executionContext")).keySet(), protocolTrace, repairs, valid);
+              mutableMap(values.get("executionContext")).keySet(), protocolTrace, repairs.stream()
+                  .map(item->item instanceof com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler.Repair repair
+                      ?repair.field()+":"+repair.repairCode():item.getClass().getSimpleName()).toList(), valid);
     }
 
     /**

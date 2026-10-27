@@ -51,10 +51,8 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             return notApplied(output,"INVALID_TEMPLATE_ID: selection contains an ID not returned by MCP");
         Set<String> parameterBlocked = unresolvedParameterTemplateIds(
             evaluations, metadata.get("parameterProtocols"));
-        if (!parameterBlocked.isEmpty()) {
-            selectedIds = selectedIds.stream()
-                .filter(id -> !parameterBlocked.contains(normalize(id))).toList();
-        }
+        // Keep model-selected identities. Parameter failures belong to individual
+        // invocation preflight receipts, not to discovery or independent siblings.
         String supplyAuthority = Boolean.TRUE.equals(metadata.get("publishedDataSupply"))
             ? "runtime_published_data_supply" : null;
         Projection projection = project(output, selectedIds, deferredIds, rejectedIds, evaluations, 0, supplyAuthority);
@@ -166,16 +164,14 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
         Set<String> resolvedByProtocol = new LinkedHashSet<>();
         for (Map<String, Object> protocol : maps(rawProtocols)) {
             String id = text(first(protocol, "template_id", "templateId"));
-            if (id != null && strings(first(protocol, "unresolved_parameters", "unresolvedParameters")).isEmpty()) {
+            if (id != null && !protocol.containsKey("binding_error")) {
                 resolvedByProtocol.add(normalize(id));
             }
         }
         Set<String> blocked = new LinkedHashSet<>();
-        for (Map<String, Object> item : evaluations) {
+        for (Map<String, Object> item : maps(rawProtocols)) {
             String id = text(first(item, "templateId", "template_id"));
-            if (id != null
-                && !strings(first(item, "missingParameters", "missing_parameters")).isEmpty()
-                && !resolvedByProtocol.contains(normalize(id))) {
+            if (id != null && item.containsKey("binding_error") && !resolvedByProtocol.contains(normalize(id))) {
                 blocked.add(normalize(id));
             }
         }

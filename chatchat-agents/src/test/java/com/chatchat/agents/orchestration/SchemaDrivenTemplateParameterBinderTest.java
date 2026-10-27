@@ -93,6 +93,57 @@ class SchemaDrivenTemplateParameterBinderTest {
         assertThat(result.protocols().toString()).contains("customer","account","C1").doesNotContain("catalog-example","other-example");
     }
 
+    @Test void T09_oneMissingRequiredBindingDoesNotBlockIndependentTemplates() throws Exception {
+        var candidates=List.of(template("blocked"),template("ready"));
+        var model=model(List.of(selection("blocked",Map.of()),selection("ready",Map.of("subject","C1"))));
+        var result=binder.selectAndBind(model,"Analyze C1",candidates);
+        assertThat(result.status()).isEqualTo("SELECTED");assertThat(result.selectedIds()).containsExactly("blocked","ready");
+        assertThat(result.protocols().get(0)).containsKey("binding_error");
+        assertThat(result.protocols().get(1)).containsEntry("binding_status","READY").doesNotContainKey("binding_error");
+        var evaluated=new com.chatchat.agents.runtime.plan.selection.EvidenceBasedTemplateCandidateEvaluator().evaluate(
+            Map.of("templates",candidates),Map.of("selectedTemplateIds",result.selectedIds(),"parameterProtocols",result.protocols()));
+        assertThat(evaluated.selectedIds()).containsExactly("blocked","ready");
+        verify(model,times(1)).chat(any(ChatRequest.class));
+    }
+
+    @Test void T13_defaultsRemainExecutableButAreNeverMarkedAsVerifiedUserScope() throws Exception {
+        var candidate=Map.<String,Object>of("templateId","scoped","parameterSchema",Map.of("type","object",
+            "properties",Map.of("subject",Map.of("type","string","default","catalog-B")),"required",List.of("subject")));
+        var model=model(List.of(selection("scoped",Map.of("subject","unsubstantiated"))));
+        var selected=binder.selectAndBind(model,"Analyze requested-A",List.of(candidate));
+        assertThat(selected.status()).isEqualTo("SELECTED");
+        assertThat(selected.protocols().get(0)).containsEntry("unresolved_parameters",List.of("subject"));
+        var result=new com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge().prepare(
+            new com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge.BridgeRequest("executor",null,"scoped",candidate,
+                Map.of(),selected.protocols().get(0),false,true,
+                new com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge.EvidenceContext("Analyze requested-A",Map.of())));
+        assertThat(result.parameters()).containsEntry("subject","catalog-B");
+        Map<?,?> audit=(Map<?,?>)result.executorInput().get(com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge.BINDING_AUDIT);
+        assertThat(audit.get("scopeStatus")).isEqualTo("REQUIRES_SCOPE_VERIFICATION");
+        assertThat((List<?>)audit.get("droppedOverrideFields")).anyMatch("subject"::equals);
+        assertThat(result.parameterEvidence().get("subject").source()).isEqualTo("template_default");
+    }
+
+    @Test void T14_unknownFieldsAndMissingDefaultValuesNeverTriggerAnotherExtraction() throws Exception {
+        var candidate=Map.<String,Object>of("templateId","defaulted","parameterSchema",Map.of("type","object",
+            "properties",Map.of("limit",Map.of("type","integer","default",5))));
+        var model=model(List.of(selection("defaulted",Map.of("unknown","not-declared"))));
+        var result=binder.selectAndBind(model,"inspect",List.of(candidate));
+        assertThat(result.status()).isEqualTo("SELECTED");
+        assertThat(result.protocols().get(0)).containsEntry("arguments",Map.of()).containsEntry("binding_status","READY");
+        verify(model,times(1)).chat(any(ChatRequest.class));
+    }
+
+    @Test void T10_modelMayReturnEmptyParametersAndNeedsInputForDefaultedTemplates() throws Exception {
+        var model=mock(ChatModel.class);
+        when(model.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder().aiMessage(AiMessage.from(ToolExecutionRequest.builder()
+            .id("selection").name(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION)
+            .arguments(json.writeValueAsString(Map.of("status","NEEDS_INPUT","selections",List.of(selection("defaulted",Map.of()))))).build())).build());
+        var result=binder.selectAndBind(model,"inspect",List.of(Map.of("templateId","defaulted","parameterSchema",Map.of(
+            "properties",Map.of("limit",Map.of("type","integer","default",5)),"required",List.of("limit")))));
+        assertThat(result.status()).isEqualTo("SELECTED");verify(model,times(1)).chat(any(ChatRequest.class));
+    }
+
     private Map<String,Object> template(String id) {
         return Map.of("templateId",id,"parameterSchema",Map.of("type","object","required",List.of("subject"),
             "properties",Map.of("subject",Map.of("type","string"))));

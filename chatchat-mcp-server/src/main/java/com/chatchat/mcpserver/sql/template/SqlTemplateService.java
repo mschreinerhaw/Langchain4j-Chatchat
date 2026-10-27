@@ -167,11 +167,11 @@ public class SqlTemplateService {
             config.getParameterSchemaJson(),
             collectedParameters
         );
-        log.info("MCP SQL template render requested: templateId={}, title={}, category={}, riskLevel={}, databaseType={}, datasourceId={}, datasourceName={}, env={}, parameters={}, collectedParameters={}, sqlTemplate={}",
+        log.info("MCP SQL template render requested: templateId={}, title={}, category={}, riskLevel={}, databaseType={}, datasourceId={}, datasourceName={}, env={}, parameterKeys={}, compiledParameterKeys={}, sqlTemplateCharacters={}",
             config.getCode(), config.getTitle(), config.getCategory(), config.getRiskLevel(), config.getDatabaseType(),
             datasource == null ? null : datasource.getId(), datasource == null ? null : datasource.getName(),
-            datasource == null ? null : datasource.getEnvironment(), parameters, validatedParameters,
-            truncateSql(config.getSqlTemplate()));
+            datasource == null ? null : datasource.getEnvironment(), parameters==null?List.of():parameters.keySet(), validatedParameters.keySet(),
+            config.getSqlTemplate()==null?0:config.getSqlTemplate().length());
         String dynamicSqlTemplate = dynamicDateParamService.resolveSqlPlaceholders(config.getSqlTemplate(), datasource);
         Matcher matcher = TOKEN.matcher(dynamicSqlTemplate);
         StringBuffer buffer = new StringBuffer();
@@ -183,9 +183,9 @@ public class SqlTemplateService {
         }
         matcher.appendTail(buffer);
         String renderedSql = buffer.toString();
-        log.info("MCP SQL template rendered: templateId={}, datasourceId={}, datasourceName={}, env={}, renderedSql={}",
+        log.info("MCP SQL template rendered: templateId={}, datasourceId={}, datasourceName={}, env={}, renderedSqlCharacters={}",
             config.getCode(), datasource == null ? null : datasource.getId(), datasource == null ? null : datasource.getName(),
-            datasource == null ? null : datasource.getEnvironment(), truncateSql(renderedSql));
+            datasource == null ? null : datasource.getEnvironment(), renderedSql.length());
         return renderedSql;
     }
 

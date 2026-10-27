@@ -38,6 +38,16 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineModelCallbackControllerTest {
+    @Test void retainsToolPairingIdentityWithoutPrivateWorkerPayloads() {
+        var controller = new ClineModelCallbackController(null,null,null,null,null,null,null,new ObjectMapper());
+        var event = new ObjectMapper().createObjectNode().put("type","TOOL_STARTED")
+            .put("operationId","data-operation").put("toolCallId","call-1")
+            .put("prompt","private prompt").put("sql","private query").put("code","private source");
+        Map<String,Object> payload = org.springframework.test.util.ReflectionTestUtils.invokeMethod(controller,"workerPayload",event);
+        assertThat(payload).containsEntry("operationId","data-operation").containsEntry("toolCallId","call-1")
+            .doesNotContainKeys("prompt","sql","code");
+    }
+
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
     void longModelCallRenewsOnlyItsOwnLiveLeaseAndArchivesLateReceipt(boolean cancel) {

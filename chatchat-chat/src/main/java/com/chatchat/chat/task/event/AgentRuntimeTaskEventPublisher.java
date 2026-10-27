@@ -387,7 +387,7 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             if (compacted.get("metadata") instanceof Map<?,?> existing)
                 existing.forEach((key,value) -> { if (key instanceof String name) facts.put(name,value); });
             copyExecutionFacts(facts, metadata, List.of("eventKind", "eventState", "stage", "type", "modelPhase",
-                "taskId", "stepId", "eventId", "sequence", "occurredAt", "codingEventType", "operationId",
+                "taskId", "attemptId", "stepId", "eventId", "sequence", "occurredAt", "codingEventType", "operationId", "toolCallId",
                 "operationAttempt", "reasonCode", "planningOwner", "requestId", "operationKind", "executorConfirmed",
                 "executorStopped", "observedAt", "timeBasis"));
             if (metadata.get("payload") instanceof Map<?,?> worker) {

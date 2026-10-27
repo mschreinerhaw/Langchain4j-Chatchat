@@ -1,10 +1,46 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { apiRequest, submitAgentTask } from "../../services/api";
+import { apiRequest, submitAgentTask, fetchAgentTaskEvents } from "../../services/api";
 
 vi.mock("../../services/api", async (importOriginal) => ({
-  ...await importOriginal(), apiRequest: vi.fn(), submitAgentTask: vi.fn()
+  ...await importOriginal(), apiRequest: vi.fn(), submitAgentTask: vi.fn(),
+  fetchAgentTaskEvents: vi.fn()
 }));
 afterEach(() => vi.resetAllMocks());
+
+describe('read-only full event replay', () => {
+  function context() {
+    return { isActiveRun:()=>false, emitActiveConversationSnapshot:vi.fn() };
+  }
+  it('reads all pages before replacing trimmed persisted receipts without submitting a task', async () => {
+    const events=Array.from({length:1200},(_,i)=>({sequence:i+1,eventId:`e${i}`,type:'TASK_STARTED'}));
+    apiRequest.mockResolvedValue({attemptId:'new',canonicalState:'RUNNING'});
+    fetchAgentTaskEvents.mockImplementation(async (_id,limit,_tenant,cursor)=>events.filter(e=>e.sequence>cursor).slice(0,limit));
+    const message={steps:[{id:'trimmed'}]},run={replayFromStart:true};
+    await ChatAssistantView.methods.refreshAgentTaskSteps.call(context(),'task','tenant',run,message);
+    expect(message.steps).toHaveLength(1200); expect(message.historyIncomplete).toBe(false);
+    expect(run.taskEventSequence).toBe(1200); expect(run.replayFromStart).toBe(false);
+    expect(fetchAgentTaskEvents.mock.calls.length).toBeGreaterThan(1);
+    expect(submitAgentTask).not.toHaveBeenCalled();
+    expect(apiRequest.mock.calls.every(([,options])=>!options?.method || options.method==='GET')).toBe(true);
+  });
+  it('preserves the previous projection if a replay cursor stops advancing', async () => {
+    apiRequest.mockResolvedValue({canonicalState:'RUNNING'});
+    fetchAgentTaskEvents.mockImplementation(async (_id,limit)=>Array.from({length:limit},(_,i)=>({sequence:i+1})));
+    const previous=[{id:'previous'}],message={steps:previous},run={replayFromStart:true};
+    await ChatAssistantView.methods.refreshAgentTaskSteps.call(context(),'task','tenant',run,message);
+    expect(message.steps).toBe(previous); expect(message.historyIncomplete).toBe(true);
+    expect(message.progressHydrating).toBe(false); expect(run.replayFromStart).toBe(true);
+    expect(submitAgentTask).not.toHaveBeenCalled();
+  });
+  it('never republishes completed history as a running conversation', async () => {
+    apiRequest.mockResolvedValue({canonicalState:'SUCCEEDED'});
+    fetchAgentTaskEvents.mockResolvedValue([{sequence:1,eventId:'old',type:'TASK_STARTED'}]);
+    const ctx=context();
+    await ChatAssistantView.methods.refreshAgentTaskSteps.call(ctx,'task','tenant',
+      {replayFromStart:true,historyReplayOnly:true},{steps:[],status:'completed'});
+    expect(ctx.emitActiveConversationSnapshot).not.toHaveBeenCalled();
+  });
+});
 
 function composerContext(){
   const context={...ChatAssistantView.data(),workspaceContext:{workspaceId:'analysis'},selectedAgent:null};

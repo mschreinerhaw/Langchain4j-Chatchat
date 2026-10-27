@@ -14,7 +14,7 @@ function businessState(state) {
   if (['CANCELLED', 'CANCELED', 'KILLED'].includes(value)) return 'cancelled';
   if (['FAILED', 'ERROR', 'REJECTED', 'DLQ', 'MODEL_BUDGET_EXHAUSTED'].includes(value)) return 'error';
   if (['EMPTY', 'NO_PRESENTABLE_RESULT', 'INPUT_REQUIRED', 'NEEDS_CLARIFICATION'].includes(value)) return 'empty';
-  if (['SUCCESS', 'SUCCEEDED', 'COMPLETED', 'DONE', 'VALIDATED', 'APPLIED'].includes(value)) return 'done';
+  if (['SUCCESS', 'SUCCEEDED', 'COMPLETED', 'DONE', 'VALIDATED', 'PASSED', 'APPLIED'].includes(value)) return 'done';
   if (['PARTIAL', 'PARTIAL_SUCCESS', 'PARTIAL_RESULT'].includes(value)) return 'partial';
   if (['WAIT_CONFIRMATION', 'WAITING_CONFIRMATION', 'WAITING'].includes(value)) return 'waiting';
   return 'active';
@@ -60,9 +60,11 @@ function executionActivity(event, runtime, metadata) {
       category = 'PROGRAM'; identity = `program:${worker.scriptVersion || worker.codeSha256 || operation || metadata.eventId || event.eventId}`; state = 'done';
     } else if (['EXECUTION_STARTED','EXECUTION_FINISHED'].includes(codingType)) {
       category = 'EXECUTION'; identity = operation || metadata.stepId;
-      state = codingType === 'EXECUTION_STARTED' ? 'active' : STOPPED.has(businessState(status)) ? businessState(status) : 'done';
+      state = codingType === 'EXECUTION_STARTED' ? 'active' : businessState(status);
+      if (codingType === 'EXECUTION_FINISHED' && state === 'active') state = 'waiting';
     } else if (codingType === 'VALIDATION_RECORDED') {
-      category = 'VALIDATION'; phase = 4; identity = `validation:${operation || metadata.stepId}`; state = businessState(status) === 'error' ? 'error' : 'done';
+      category = 'VALIDATION'; phase = 4; identity = operation || metadata.stepId;
+      state = businessState(worker.validationStatus || status);
     } else if (['TOOL_STARTED','TOOL_FINISHED'].includes(workerType)) {
       const tool = worker.tool;
       // A proposed calculation is not execution-node confirmation. Its actual running/stop receipts are separate.
@@ -78,7 +80,7 @@ function executionActivity(event, runtime, metadata) {
     category = 'MODEL'; phase = 1; identity = `response:${metadata.modelPhase || 'analysis'}:${metadata.stepId || 'run'}`;state = businessState(status);
   } else if (['TOOL_CALL','TOOL_RESULT','TOOL_STARTED','TOOL_COMPLETED','TOOL_FAILED','TOOL_CALL_STARTED','TOOL_CALL_COMPLETED'].includes(type)) {
     category = 'DATA'; phase = 2;
-    identity = operation || (['TOOL_RESULT','TOOL_COMPLETED'].includes(type) ? event.parentEventId : event.eventId);
+    identity = operation || metadata.toolCallId || (['TOOL_RESULT','TOOL_COMPLETED','TOOL_CALL_COMPLETED','TOOL_FAILED'].includes(type) ? event.parentEventId : event.eventId);
     state = type === 'TOOL_FAILED' || runtime.success === false ? 'error'
       : ['TOOL_RESULT','TOOL_COMPLETED','TOOL_CALL_COMPLETED'].includes(type) ? 'done' : 'active';
   } else return null;
@@ -112,7 +114,7 @@ export function businessEventPresentation(event = {}) {
   const activity = executionActivity(event,runtime,metadata);
   const result = (index, status = state, terminal = false) => ({ index, status, terminal,
     occurredAt:moment(metadata.occurredAt||event.createTime||event.timestamp),
-    ...(event.attemptId ? { attemptId: event.attemptId } : {}),
+    ...((event.attemptId || metadata.attemptId) ? { attemptId: event.attemptId || metadata.attemptId } : {}),
     ...(activity ? {activity} : {}),
     ...(metadata.planningOwner ? {planningOwner:metadata.planningOwner} : {}),
     reason: STOPPED.has(status) ? businessReason(reason, status) : '' });
@@ -174,28 +176,42 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
   const localNow=now;
   const serverClock=moment(task.runtimeHeartbeat?.timestamp),localReceipt=Number(task.runtimeHeartbeat?.receivedAt||0);
   if(serverClock&&localReceipt)now=serverClock+(localNow-localReceipt);
-  const progress = businessTaskProgress(events,{...task,attemptId:task.executionSnapshot?.attemptId||task.attemptId});
+  const phaseTask={...task,attemptId:task.executionSnapshot?.attemptId||task.attemptId,
+    canonicalState:task.executionSnapshot?.canonicalState||task.canonicalState};
+  let progress = businessTaskProgress(events,phaseTask);
   const ordered = [...events].sort((a,b)=>Number(a.sequence||a.order||0)-Number(b.sequence||b.order||0))
     .map(businessEventPresentation).filter(Boolean);
-  const attempt = task.attemptId || task.executionSnapshot?.attemptId || ordered.findLast(value=>value.attemptId)?.attemptId;
+  const attempt = task.executionSnapshot?.attemptId || task.attemptId || ordered.findLast(value=>value.attemptId)?.attemptId;
   const scoped = attempt && ordered.some(value=>value.attemptId) ? ordered.filter(value=>value.attemptId===attempt) : ordered;
   const operations = new Map();
   for (const observation of scoped) {
     const next = observation.activity;if (!next) continue;
     const previous = operations.get(next.id);
     if (previous && next.sequence && previous.sequence && next.sequence <= previous.sequence) continue;
-    const state = previous && (STOPPED.has(previous.state) || previous.state === 'done') && ['active','waiting',null].includes(next.state)
+    const explicitRetry = previous && next.retryAttempt > previous.retryAttempt;
+    const state = previous && !explicitRetry && (STOPPED.has(previous.state)
+      || previous.state === 'done' && ['active','waiting',null].includes(next.state))
       ? previous.state : next.state || previous?.state || 'waiting';
     const changed = !previous || state!==previous.state;
     operations.set(next.id,{...previous,...next,state,
-      startedAt: previous?.startedAt || next.startedAt || (['active','waiting'].includes(state)?next.observedAt:0),
-      finishedAt: next.finishedAt || previous?.finishedAt || (['done','partial',...STOPPED].includes(state)?next.observedAt:0),
-      durationMs: next.durationMs ?? previous?.durationMs ?? null,
+      startedAt: (explicitRetry ? 0 : previous?.startedAt) || next.startedAt || (['active','waiting'].includes(state)?next.observedAt:0),
+      finishedAt: next.finishedAt || (explicitRetry ? 0 : previous?.finishedAt) || (['done','partial',...STOPPED].includes(state)?next.observedAt:0),
+      durationMs: next.durationMs ?? (explicitRetry ? null : previous?.durationMs) ?? null,
       changedAt: changed ? next.observedAt : previous.changedAt,
       lastSeenAt: Math.max(previous?.lastSeenAt||0,next.observedAt||0),
       retryAttempt:Math.max(previous?.retryAttempt||0,next.retryAttempt||0)});
   }
   const values=[...operations.values()];
+  // A local operation failure may recover; only an explicit repair receipt for
+  // that same operation can clear it. Parent terminal failures remain authoritative.
+  const recovered = observation => {
+    const latest=operations.get(observation?.activity?.id);
+    return STOPPED.has(observation?.status) && latest && !STOPPED.has(latest.state)
+      && latest.retryAttempt > observation.activity.retryAttempt;
+  };
+  if (scoped.some(recovered)) {
+    progress=businessTaskProgress(events.filter(event=>!recovered(businessEventPresentation(event))),phaseTask);
+  }
   const phases=progress.steps.map(step=>({...step}));
   for(const [index,step]of phases.entries()) {
     if(step.status==='done'&&!scoped.some(value=>value.index===index&&value.status==='done')) {
@@ -211,7 +227,8 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
   const snapshot=task.executionSnapshot||task;
   const startedAt=moment(snapshot.createTime)||scoped.find(value=>value.occurredAt>0)?.occurredAt||Number(task.startedAt)||0;
   const finishedAt=moment(snapshot.finishedAt)||scoped.findLast(value=>value.terminal&&value.occurredAt>0)?.occurredAt||moment(task.finishedAt);
-  const elapsedMs=startedAt ? Math.max(0,(progress.terminal ? finishedAt || startedAt+Number(task.latencyMs||0) : now)-startedAt) : null;
+  const elapsedMs=startedAt && (!progress.terminal || finishedAt || Number.isFinite(task.latencyMs))
+    ? Math.max(0,(progress.terminal ? finishedAt || startedAt+task.latencyMs : now)-startedAt) : null;
   const heartbeat=task.runtimeHeartbeat||{};
   const interval=Number(heartbeat.heartbeatIntervalMs);
   const receivedAt=Math.max(Number(heartbeat.receivedAt||0),Number(task.statusReceivedAt||0));
@@ -224,7 +241,7 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
   const modelRounds=values.filter(operation=>operation.kind==='MODEL'&&operation.state==='done').length;
   const noExecutionResult=!values.some(operation=>operation.kind==='EXECUTION'&&operation.state==='done');
   const repeatedResponses=modelRounds>=Number(policy.responseRoundWarningCount||5)&&noExecutionResult;
-  let status=progress.status;
+  let status=progress.terminal ? progress.status : phases.find(step=>STOPPED.has(step.status))?.status || 'active';
   if (!progress.terminal && !STOPPED.has(status)) status=transportStale||executionUnconfirmed?'unconfirmed'
     :failedOperation?'attention':currentOperation?.retryAttempt>0?'retrying'
       :longOperation||repeatedResponses?'long_running':currentOperation?.state||'waiting';
@@ -312,6 +329,11 @@ export function businessTaskProgress(events = [], task = {}) {
   if (parentState) {
     const status = businessState(parentState);
     if (STOPPED.has(status)) apply({ status, terminal: true, reason: businessReason(task.errorMessage, status) });
+    else if (['done', 'partial'].includes(status) && task.canonicalState) {
+      // The parent is authoritative about task completion; earlier failed
+      // operations stay visible as historical facts even after a successful repair.
+      steps[4].status=status;current=4;terminal=true;
+    }
     else if (['done', 'partial'].includes(status)) apply({ index: 4, status, terminal: true });
     else if (parentState === 'WAITING' || parentState === 'WAIT_CONFIRMATION') apply({ status: 'waiting' });
   }
@@ -321,11 +343,12 @@ export function businessTaskProgress(events = [], task = {}) {
     if (step.status === 'active') step.status = blocked ? 'stopped' : steps[4].status === 'done' ? 'done' : 'partial';
     if (step.status === 'pending' && !blocked) step.status = 'unrecorded';
   });
-  const status = blocked?.status || (terminal ? steps[4].status : steps.some(step => step.status === 'waiting') ? 'waiting' : 'active');
-  const number = blocked?.number || current + 1;
+  const parentCompleted=Boolean(task.canonicalState) && ['done','partial'].includes(businessState(parentState)) && terminal;
+  const status = parentCompleted ? businessState(parentState) : blocked?.status || (terminal ? steps[4].status : steps.some(step => step.status === 'waiting') ? 'waiting' : 'active');
+  const number = parentCompleted ? 5 : blocked?.number || current + 1;
   return { steps, current: number, total: steps.length, label: `${number}/${steps.length}`, status,
     completed: steps.filter(step => step.status === 'done').length, terminal,
-    reason: blocked?.detail || '' };
+    reason: parentCompleted ? '' : blocked?.detail || '' };
 }
 
 /**

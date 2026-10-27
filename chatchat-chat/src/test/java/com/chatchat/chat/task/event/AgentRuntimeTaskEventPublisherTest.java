@@ -424,6 +424,35 @@ class AgentRuntimeTaskEventPublisherTest {
         verify(eventBus, times(2)).publishResult(org.mockito.ArgumentMatchers.any(AgentEvent.class));
     }
 
+    @Test
+    void preservesBoundedExecutionReceiptsWhenLargePayloadIsCompacted() throws Exception {
+        AgentTaskLatestRepository latest = mock(AgentTaskLatestRepository.class);
+        InMemoryAgentEventStore store = new InMemoryAgentEventStore();
+        AgentTaskLatestEntity task = task("large-execution-receipt");
+        when(latest.findById(task.getTaskId())).thenReturn(Optional.of(task));
+        var publisher = new AgentRuntimeTaskEventPublisher(latest, store, mock(AgentEventBus.class), objectMapper);
+        var metadata = new java.util.LinkedHashMap<String,Object>();
+        metadata.put("eventKind", "CODING_TRACE");
+        metadata.put("operationId", "execution-1");
+        metadata.put("attemptId", "attempt-2");
+        metadata.put("toolCallId", "tool-3");
+        metadata.put("payload", Map.of("type", "MODEL_RESOLVED", "modelCall", 2,
+            "durationMs", 1200, "prompt", "sensitive-prompt-".repeat(10000)));
+        metadata.put("oversized", "x".repeat(300000));
+        publisher.publish(AgentRunEvent.of(task.getTaskId(), AgentRunEventType.OBSERVATION_RECORDED,
+            "receipt", Map.of("metadata", metadata)));
+        AgentEvent event = store.listByTask(task.getTenantId(), task.getSessionId(), task.getTaskId(), 10).get(0);
+        var payload = objectMapper.readTree(event.getPayload()).path("payload");
+        assertThat(event.getPayload().length()).isLessThan(70000);
+        assertThat(payload.path("metadata").path("operationId").asText()).isEqualTo("execution-1");
+        assertThat(payload.path("metadata").path("attemptId").asText()).isEqualTo("attempt-2");
+        assertThat(payload.path("metadata").path("toolCallId").asText()).isEqualTo("tool-3");
+        var worker = payload.path("metadata").path("workerActivity");
+        assertThat(worker.path("modelCall").asInt()).isEqualTo(2);
+        assertThat(worker.path("durationMs").asInt()).isEqualTo(1200);
+        assertThat(worker.has("prompt")).isFalse();
+    }
+
     private AgentTaskLatestEntity task(String taskId) {
         AgentTaskLatestEntity task = new AgentTaskLatestEntity();
         task.setTaskId(taskId);

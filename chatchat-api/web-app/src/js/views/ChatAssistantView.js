@@ -2650,7 +2650,7 @@ export default {
           this.messages = [...runContext.messages];
           this.scrollMessages();
         }
-        if (!terminalEvent) {
+        if (!terminalEvent && !runContext?.historyReplayOnly) {
           this.emitActiveConversationSnapshot(query || runContext?.question || "", "running", runContext);
         }
         return terminalEvent;
@@ -3637,6 +3637,14 @@ export default {
       });
       if (isRunningStatus(status)) {
         this.resumeRestoredConversationRun(conversation, messages, restoredQuestion);
+      } else {
+        // Finished conversations may contain a persistence-trimmed event list too.
+        // Read receipts only; do not register or resume a running task.
+        for (const message of messages.filter(item => item.role === 'assistant' && item.taskId
+          && item.memoryContext?.taskOrigin !== 'studio-coding')) {
+          this.refreshAgentTaskSteps(message.taskId, this.effectiveTenantId(),
+            { replayFromStart: true, historyReplayOnly: true, messages, status: message.status, question: restoredQuestion }, message, restoredQuestion);
+        }
       }
       this.scrollMessages();
     },

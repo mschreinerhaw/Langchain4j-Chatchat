@@ -184,7 +184,9 @@ export default {
   },
   mounted() {
     this.runtimeClockTimer = window.setInterval(() => {
-      this.runtimeClock = Date.now();
+        if (this.messages.some(message => message.streaming || this.isExecutionRunning(message))) {
+          this.runtimeClock = Date.now();
+        }
     }, 1_000);
   },
   beforeUnmount() {

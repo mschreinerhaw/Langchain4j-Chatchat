@@ -369,7 +369,7 @@ public final class ClineModelCallbackController {
     /** Only bounded telemetry fields are retained. Source, prompts and tool responses are private artifacts. */
     private Map<String,Object> workerPayload(JsonNode event) {
         var payload = new java.util.LinkedHashMap<String,Object>();
-        for (String key : List.of("type", "timestamp", "stage", "source", "attemptId", "tool", "status",
+        for (String key : List.of("type", "timestamp", "stage", "source", "attemptId", "operationId", "tool", "status",
                 "scriptPath", "codeSha256", "fileName", "proposedOperationId", "skillFingerprint", "skillId", "skillVersion", "selectedModel", "providerModel", "protocol", "startedAt", "finishedAt", "validationStatus", "outputStatus",
                 "resultDatasetRef", "validationRecordRef", "evidenceBundleRef", "errorCategory", "diagnosticCode", "parentCodeHash", "changeKind", "proposalHash", "toolCallId", "responseMode", "strategy", "reason", "requestHash")) {
             JsonNode value = event.path(key);
